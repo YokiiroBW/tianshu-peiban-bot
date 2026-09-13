@@ -16,3 +16,9 @@ TS-002继续原候选工作树修订，完整L0保持blocked。绿灯离线测�
 31项离线测试通过；固定Core17eba4f六项局部复现由协调者重跑通过。取消与source失效、更正受理边界、双owner水位已补齐说明/参考轨迹。复现确认actor未进入inbox/collector区分：空target跨actor重投复用首receipt、不同actor新消息可混collector、更高edit可换actor；当前已集成Core仍有此限制，不可宣称多角色接入完成。
 
 单actor渠道准入可作为临时保护，不能冻结为用户要求的多角色最终架构。继续候选：物理来源与actor admission分层、精确selector/receipt授权、编辑撤回传播及Memory各actor来源/抑制边界。若旧wire不足，提最小兼容新版本而非静默修改；共享会话的两轮与顺序保留，共享世界不授予角色私密记忆互通。产品修复待正式合同，不在当前候选中越界写业务代码。
+
+## e77df65 多角色候选复核
+
+47项离线测试通过，P物理来源/A角色受理分层方向认可。暂不发布：新actor路径丢失旧分类汇总与aggregate版本约束；协调/独立内存复现real物理来源但owner/event同时fictional被接受，owner当前版本小于event也被接受。在线viewer固定issuer检查缺失，首次映射outcome改成未请求actor仍被接受。须同批修复并补群私反例。
+
+要求在原允许候选目录准备release-ready单一source-sync/v1包，统一schema/版本/依赖，保留历史候选但不将candidate.1/2混合引用作为正式API。最终根contracts发布仍由协调者审查执行，产品任务尚未启动。
