@@ -57,9 +57,10 @@
       "verification_sources": [
         "AGENTS.md"
       ],
-      "commands_status": "application_commands_not_created",
+      "commands_status": "49_local_product_tests_passed_no_production_source_embedding_L0_L1",
       "baseline_commit": "f02fbec1e61a99491cf92ba817595c8d9c4402fd",
-      "state": "prepared_skeleton"
+      "state": "memory_lexical_slice_integrated",
+      "integrated_commit": "358e4a664e14eee734494646f3aa3a0bc666a222"
     },
     {
       "id": "model-gateway",

@@ -42,7 +42,8 @@
       "id": "TS-030",
       "threadId": "01a09be7-72e9-7f01-810a-559e43f49312",
       "hostId": "local",
-      "status": "in_progress"
+      "status": "done",
+      "integrated_commit": "358e4a664e14eee734494646f3aa3a0bc666a222"
     },
     {
       "id": "TS-041",
@@ -54,6 +55,12 @@
     {
       "id": "TS-012",
       "threadId": "01a09c17-bbdf-72c0-b234-2daf60b1b18c",
+      "hostId": "local",
+      "status": "in_progress"
+    },
+    {
+      "id": "TS-061",
+      "threadId": "01a09c22-0005-7501-a196-01ce4c97e991",
       "hostId": "local",
       "status": "in_progress"
     }

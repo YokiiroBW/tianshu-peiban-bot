@@ -180,7 +180,7 @@
       "depends_on": [
         "TS-001"
       ],
-      "status": "in_progress",
+      "status": "done",
       "allowed_paths": [
         "src/",
         "tests/",
@@ -200,7 +200,8 @@
       "worktree": "worktrees/TS-030/tianshu-memory",
       "branch": "work/ts-030",
       "evidence": [
-        "docs/development/reviews/TS-030-initial.md"
+        "docs/development/reviews/TS-030-accepted.md",
+        "Coordinator: 49 product tests passed; production source/PG/embedding/L0/L1 not verified"
       ],
       "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人；首个脚手架按实际选择建立依赖清单，该任务期间清单/锁单人负责，不要求同时使用全部候选。",
       "contract_binding": {
@@ -212,8 +213,9 @@
       "baseline_commit": "f02fbec1e61a99491cf92ba817595c8d9c4402fd",
       "thread_id": "01a09be7-72e9-7f01-810a-559e43f49312",
       "host_id": "local",
-      "review_state": "changes_requested",
-      "candidate_commit": "661cdffff9c736007a8e8cb1d4638ea277da1475"
+      "review_state": "accepted",
+      "candidate_commit": "661cdffff9c736007a8e8cb1d4638ea277da1475",
+      "integrated_commit": "358e4a664e14eee734494646f3aa3a0bc666a222"
     },
     {
       "id": "TS-041",
@@ -418,26 +420,36 @@
       "depends_on": [
         "TS-001"
       ],
-      "status": "ready",
+      "status": "in_progress",
       "allowed_paths": [
         "app/",
         "collector/",
         "tests/",
         "docs/",
-        "docs/handoffs/TS-061.md"
+        "docs/handoffs/TS-061.md",
+        "README.md",
+        ".env.example",
+        "requirements.txt",
+        "requirements-dev.txt",
+        "pyproject.toml",
+        ".gitignore",
+        "scripts/"
       ],
       "done_when": "范围限制的证据读取、归档回执与重复事件；不更改当前生产数据",
-      "assignee": null,
-      "worktree": null,
-      "branch": null,
+      "assignee": "01a09c22-0005-7501-a196-01ce4c97e991",
+      "worktree": "worktrees/TS-061/chat-audit-core",
+      "branch": "work/ts-061",
       "evidence": [],
-      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人",
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人；先盘点当前原生API/数据，再提最小跨产品范围接口，未发布wire不可自行冻结；新增依赖限实际需要，不升级无关栈。",
       "contract_binding": {
         "version": "1.0.0",
         "manifest": "contracts/text-dialogue/v1/manifest.json",
         "manifest_sha256": "81e6cc4ddef7c6f82e055d4cb04b090db036dd5c52763473ce697aa02db478a1",
         "hash_basis": "UTF-8 LF-normalized"
-      }
+      },
+      "baseline_commit": "4d750ad8683e121328fbc2a1ebcf6ed0e64697bf",
+      "thread_id": "01a09c22-0005-7501-a196-01ce4c97e991",
+      "host_id": "local"
     },
     {
       "id": "TS-070",
@@ -490,7 +502,7 @@
       "depends_on": [
         "TS-030"
       ],
-      "status": "planned",
+      "status": "ready",
       "allowed_paths": [
         "src/",
         "tests/",
