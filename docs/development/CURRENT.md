@@ -8,7 +8,7 @@
 
 六个开发项目和十二份参考源码已独立检出，三份旧工作树覆盖包保存完毕。七个工具测试通过；六个原本地源码目录 HEAD/工作树状态复核未变。根协调 Git 的初始化基线为 `1a57325`，未推送远端。
 
-当前执行：TS-021已集成群画像/短期语境消费者05c35db，70测试/17子场景通过；TS-050真实Platform HTTPS增量7项复核通过并接受，完整L0保持blocked；TS-002 candidate.1经23项离线复核，但取消/输入失效、更正可读边界需修订，暂缓发布，见reviews/TS-002-changes-requested.md。真实SourceAuthority、Memory可信来源同步/失效、确认和候选端口仍缺，禁止宣布完整L0或放开依赖它的任务。来源最小接点见evidence/TS-050-next-ports.md和Memory docs/candidates/TS-032-source-authority.md，需协调发布契约后分工实施。资产候选555f337已接受，业务后续需独立内部任务包。
+当前执行：TS-021已集成群画像/短期语境消费者05c35db，70测试/17子场景通过；TS-050真实Platform HTTPS增量7项复核通过并接受，完整L0保持blocked；TS-002修订经31项离线/6固定Core复现复核；已确认Core跨actor收件/collector混用，候选继续补物理来源与actor admission分层，暂缓发布，见reviews/TS-002-changes-requested.md。真实SourceAuthority、Memory可信来源同步/失效、确认和候选端口仍缺，禁止宣布完整L0或放开依赖它的任务。来源最小接点见evidence/TS-050-next-ports.md和Memory docs/candidates/TS-032-source-authority.md，需协调发布契约后分工实施。资产候选555f337已接受，业务后续需独立内部任务包。
 
 已集成平台a5ee59f（界面/小屋及服务，后端26项复核通过），网关b3b101f（37项），陪伴05c35db（70项/17子场景），记忆69b29f3（112项），归档e6d8e21（91项、1个Linux工厂待验跳过）。见reviews中的各任务验收记录。text-dialogue/v1与profile-memory/v1已发布；画像API与Core消费者均已合入，生产来源/批准与完整L0仍未接通。窗口关联见parallel-run-2026-09-14.json。
 

@@ -639,7 +639,7 @@
       "baseline_commit": "95a42077c02af1c1ccfbd873a970c1fda16ee872",
       "thread_id": "01a09c76-efee-7351-8d35-d9192db2c92e",
       "host_id": "local",
-      "review_note": "candidate.1暂缓发布；取消/输入失效与更正可读边界需收敛，多角色来源歧义待核对。"
+      "review_note": "e74d4d9的31测试/6固定Core复现复核；确认跨角色receipt/collector混用。候选需物理来源与actor admission分层，不冻结单actor最终架构。"
     }
   ]
 }
