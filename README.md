@@ -2,7 +2,7 @@
 
 这里是天枢平台、陪伴核心、记忆、模型网关及相关集成项目的统一协调目录。
 
-**当前阶段：开发流程与工作区准备；尚未进入业务实现。** 当前产品依据为 [整体架构 V2](docs/architecture/tianshu-system-architecture-v2.md)，具体开发入口为 [并行开发流程](docs/development/parallel-development-plan.md)。
+**当前阶段：首批三个任务已开始并行开发。** 当前产品依据为 [整体架构 V2](docs/architecture/tianshu-system-architecture-v2.md)，具体开发入口为 [并行开发流程](docs/development/parallel-development-plan.md)，窗口与任务关联见 [本批记录](docs/development/parallel-run-2026-09-14.json)。
 
 - [项目清单](workspace.json)：开发检出、旧代码参考、来源与验证入口。
 - [任务板](docs/development/tasks.json)：依赖、允许写入范围、当前状态和交付门槛。

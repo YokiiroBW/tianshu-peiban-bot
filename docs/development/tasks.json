@@ -35,19 +35,21 @@
       "depends_on": [
         "TS-000"
       ],
-      "status": "allocated",
+      "status": "in_progress",
       "allowed_paths": [
         "contracts/",
         "docs/development/decisions/",
         "docs/handoffs/TS-001.md"
       ],
       "done_when": "发布文字陪伴最小合同、双向实例与兼容说明；生产者消费者确认",
-      "assignee": "unassigned",
+      "assignee": "01a09bba-de3d-76e1-a9dd-a8f994f52c3e",
       "worktree": "worktrees/TS-001/workspace",
       "branch": "work/ts-001",
       "evidence": [],
       "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人",
-      "baseline_commit": "1a573252041d3046954e379c1f334827419ec290"
+      "baseline_commit": "1a573252041d3046954e379c1f334827419ec290",
+      "thread_id": "01a09bba-de3d-76e1-a9dd-a8f994f52c3e",
+      "host_id": "local"
     },
     {
       "id": "TS-010",
@@ -56,7 +58,7 @@
       "depends_on": [
         "TS-000"
       ],
-      "status": "allocated",
+      "status": "in_progress",
       "allowed_paths": [
         "apps/web/",
         "services/",
@@ -74,12 +76,14 @@
         "package-lock.json"
       ],
       "done_when": "建立实际安装/检查命令、界面壳、独一令牌与模块挂载规则；无业务完成假象",
-      "assignee": "unassigned",
+      "assignee": "01a09bba-e0e7-7580-8f81-ca5e8f85264a",
       "worktree": "worktrees/TS-010/tianshu-platform",
       "branch": "work/ts-010",
       "evidence": [],
       "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人；首个脚手架按实际选择建立依赖清单，该任务期间清单/锁单人负责，不要求同时使用全部候选。",
-      "baseline_commit": "ab7dfd6fc95a26813cb9244814584adff66d2110"
+      "baseline_commit": "ab7dfd6fc95a26813cb9244814584adff66d2110",
+      "thread_id": "01a09bba-e0e7-7580-8f81-ca5e8f85264a",
+      "host_id": "local"
     },
     {
       "id": "TS-040",
@@ -88,7 +92,7 @@
       "depends_on": [
         "TS-000"
       ],
-      "status": "allocated",
+      "status": "in_progress",
       "allowed_paths": [
         "docs/",
         "tests/",
@@ -97,12 +101,14 @@
         "docs/handoffs/TS-040.md"
       ],
       "done_when": "核对原生协议/配置字段，形成旧代码取舍和保真夹具；实际数据入口依赖 TS-001",
-      "assignee": "unassigned",
+      "assignee": "01a09bba-e403-7de3-863a-763cfba101c4",
       "worktree": "worktrees/TS-040/tianshu-model-gateway",
       "branch": "work/ts-040",
       "evidence": [],
       "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人",
-      "baseline_commit": "4d107a4f6c3a3059a8e0927495c721b77d3e7f52"
+      "baseline_commit": "4d107a4f6c3a3059a8e0927495c721b77d3e7f52",
+      "thread_id": "01a09bba-e403-7de3-863a-763cfba101c4",
+      "host_id": "local"
     },
     {
       "id": "TS-020",

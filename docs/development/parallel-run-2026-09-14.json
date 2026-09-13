@@ -1,0 +1,23 @@
+{
+  "date": "2026-09-14",
+  "status": "dispatched",
+  "coordinator_thread": "01a09ba1-d4a0-7ad0-8f36-7a2828331b8c",
+  "tasks": [
+    {
+      "id": "TS-001",
+      "threadId": "01a09bba-de3d-76e1-a9dd-a8f994f52c3e",
+      "hostId": "local"
+    },
+    {
+      "id": "TS-010",
+      "threadId": "01a09bba-e0e7-7580-8f81-ca5e8f85264a",
+      "hostId": "local"
+    },
+    {
+      "id": "TS-040",
+      "threadId": "01a09bba-e403-7de3-863a-763cfba101c4",
+      "hostId": "local"
+    }
+  ],
+  "scope": "实际开发已授权；每个任务只写已分配 worktree，完成后回报协调者审查"
+}
