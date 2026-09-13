@@ -223,7 +223,7 @@
         "TS-001",
         "TS-040"
       ],
-      "status": "in_progress",
+      "status": "done",
       "allowed_paths": [
         "src/",
         "tests/",
@@ -243,7 +243,8 @@
       "worktree": "worktrees/TS-041/tianshu-model-gateway",
       "branch": "work/ts-041",
       "evidence": [
-        "docs/development/reviews/TS-041-initial.md"
+        "docs/development/reviews/TS-041-accepted.md",
+        "Coordinator: 37 gateway boundary/real local HTTP tests passed; no actual platform/provider L0/L1"
       ],
       "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人；首个脚手架按实际选择建立依赖清单，该任务期间清单/锁单人负责，不要求同时使用全部候选。",
       "contract_binding": {
@@ -255,8 +256,9 @@
       "baseline_commit": "6b2daff66b94b5f73cd575d0457fab0f6e88b606",
       "thread_id": "01a09bf0-b5f2-7090-8e15-483676d09a31",
       "host_id": "local",
-      "review_state": "changes_requested",
-      "candidate_commit": "b6188f22e8b7e04c0757a54f4905bf4ed6e97916"
+      "review_state": "accepted",
+      "candidate_commit": "b6188f22e8b7e04c0757a54f4905bf4ed6e97916",
+      "integrated_commit": "b3b101faf3902f05d80818b39fe7c91367865d4e"
     },
     {
       "id": "TS-011",
@@ -300,7 +302,7 @@
         "TS-001",
         "TS-010"
       ],
-      "status": "ready",
+      "status": "in_progress",
       "allowed_paths": [
         "services/platform/",
         "tests/",
@@ -316,9 +318,9 @@
         "docs/platform/"
       ],
       "done_when": "先实现来源解析与版本化模型配置的最小平台服务、只读投影边界，再能力/任务入口；真实回执与测试替身分开，不操作生产。",
-      "assignee": null,
-      "worktree": null,
-      "branch": null,
+      "assignee": "01a09c17-bbdf-72c0-b234-2daf60b1b18c",
+      "worktree": "worktrees/TS-012/tianshu-platform",
+      "branch": "work/ts-012",
       "evidence": [],
       "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人；仅后端服务/后端依赖，不改 TS-011 负责的 npm 清单、前端壳与令牌。",
       "contract_binding": {
@@ -326,7 +328,10 @@
         "manifest": "contracts/text-dialogue/v1/manifest.json",
         "manifest_sha256": "81e6cc4ddef7c6f82e055d4cb04b090db036dd5c52763473ce697aa02db478a1",
         "hash_basis": "UTF-8 LF-normalized"
-      }
+      },
+      "baseline_commit": "dc220227220287c77d5f0b4b67844ea5533c19c0",
+      "thread_id": "01a09c17-bbdf-72c0-b234-2daf60b1b18c",
+      "host_id": "local"
     },
     {
       "id": "TS-050",

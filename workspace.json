@@ -73,10 +73,10 @@
       "verification_sources": [
         "AGENTS.md"
       ],
-      "commands_status": "offline_tests_verified_no_application",
+      "commands_status": "gateway_http_and_boundary_tests_verified_no_platform_provider_L0_L1",
       "baseline_commit": "4d107a4f6c3a3059a8e0927495c721b77d3e7f52",
-      "state": "offline_validation_integrated",
-      "integrated_commit": "6b2daff66b94b5f73cd575d0457fab0f6e88b606"
+      "state": "http_gateway_integrated",
+      "integrated_commit": "b3b101faf3902f05d80818b39fe7c91367865d4e"
     },
     {
       "id": "assetlibrary",

@@ -48,6 +48,13 @@
       "id": "TS-041",
       "threadId": "01a09bf0-b5f2-7090-8e15-483676d09a31",
       "hostId": "local",
+      "status": "done",
+      "integrated_commit": "b3b101faf3902f05d80818b39fe7c91367865d4e"
+    },
+    {
+      "id": "TS-012",
+      "threadId": "01a09c17-bbdf-72c0-b234-2daf60b1b18c",
+      "hostId": "local",
       "status": "in_progress"
     }
   ],
