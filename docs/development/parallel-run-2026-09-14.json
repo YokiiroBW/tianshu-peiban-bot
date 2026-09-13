@@ -64,11 +64,24 @@
       "id": "TS-061",
       "threadId": "01a09c22-0005-7501-a196-01ce4c97e991",
       "hostId": "local",
-      "status": "in_progress"
+      "status": "done",
+      "integrated_commit": "e6d8e2156cff45cb22e6e8b17f27b33acf3d64b4"
     },
     {
       "id": "TS-031",
       "threadId": "01a09c29-905e-7470-8d02-a6bbfb9b4113",
+      "hostId": "local",
+      "status": "in_progress"
+    },
+    {
+      "id": "TS-050",
+      "threadId": "01a09c4e-43bf-7663-af12-d6b65da9e25d",
+      "hostId": "local",
+      "status": "in_progress"
+    },
+    {
+      "id": "TS-060",
+      "threadId": "01a09c56-8fa6-7cf1-9b38-94bc21469d52",
       "hostId": "local",
       "status": "in_progress"
     }

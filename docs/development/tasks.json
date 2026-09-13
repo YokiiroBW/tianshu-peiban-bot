@@ -353,7 +353,7 @@
         "TS-010",
         "TS-012"
       ],
-      "status": "planned",
+      "status": "in_progress",
       "allowed_paths": [
         "tests/integration/",
         "docs/development/evidence/",
@@ -361,9 +361,9 @@
         "docs/handoffs/TS-050.md"
       ],
       "done_when": "真实本地服务组合+确定性渠道/模型替身，通过负面和恢复场景",
-      "assignee": null,
-      "worktree": null,
-      "branch": null,
+      "assignee": "01a09c4e-43bf-7663-af12-d6b65da9e25d",
+      "worktree": "worktrees/TS-050/workspace",
+      "branch": "work/ts-050",
       "evidence": [],
       "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人",
       "contract_binding": {
@@ -371,7 +371,10 @@
         "manifest": "contracts/text-dialogue/v1/manifest.json",
         "manifest_sha256": "81e6cc4ddef7c6f82e055d4cb04b090db036dd5c52763473ce697aa02db478a1",
         "hash_basis": "UTF-8 LF-normalized"
-      }
+      },
+      "baseline_commit": "688b0ce169ee9a0c27d26831611b72886fd0fc22",
+      "thread_id": "01a09c4e-43bf-7663-af12-d6b65da9e25d",
+      "host_id": "local"
     },
     {
       "id": "TS-051",
@@ -407,18 +410,21 @@
       "depends_on": [
         "TS-012"
       ],
-      "status": "planned",
+      "status": "in_progress",
       "allowed_paths": [
         "docs/integrations/tianshu/",
         "tests/integration/tianshu/",
         "docs/handoffs/TS-060.md"
       ],
       "done_when": "只读发现、计划、唯一发布者；原项目内部门禁继续适用",
-      "assignee": null,
-      "worktree": null,
-      "branch": null,
+      "assignee": "01a09c56-8fa6-7cf1-9b38-94bc21469d52",
+      "worktree": "worktrees/TS-060/assetlibrary",
+      "branch": "work/ts-060",
       "evidence": [],
-      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人；仅合同与集成夹具准备，业务源代码变更须先形成 AssetLibrary 内部任务包并补明确范围。"
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人；仅合同与集成夹具准备，业务源代码变更须先形成 AssetLibrary 内部任务包并补明确范围。",
+      "baseline_commit": "99e79f2f5a6d3b84ff2faaa9640752569796eb69",
+      "thread_id": "01a09c56-8fa6-7cf1-9b38-94bc21469d52",
+      "host_id": "local"
     },
     {
       "id": "TS-061",
@@ -427,7 +433,7 @@
       "depends_on": [
         "TS-001"
       ],
-      "status": "in_progress",
+      "status": "done",
       "allowed_paths": [
         "app/",
         "collector/",
@@ -446,7 +452,9 @@
       "assignee": "01a09c22-0005-7501-a196-01ce4c97e991",
       "worktree": "worktrees/TS-061/chat-audit-core",
       "branch": "work/ts-061",
-      "evidence": [],
+      "evidence": [
+        "docs/development/reviews/TS-061-accepted.md"
+      ],
       "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人；先盘点当前原生API/数据，再提最小跨产品范围接口，未发布wire不可自行冻结；新增依赖限实际需要，不升级无关栈。",
       "contract_binding": {
         "version": "1.0.0",
@@ -456,7 +464,8 @@
       },
       "baseline_commit": "4d750ad8683e121328fbc2a1ebcf6ed0e64697bf",
       "thread_id": "01a09c22-0005-7501-a196-01ce4c97e991",
-      "host_id": "local"
+      "host_id": "local",
+      "integrated_commit": "e6d8e2156cff45cb22e6e8b17f27b33acf3d64b4"
     },
     {
       "id": "TS-070",
@@ -531,7 +540,8 @@
         "manifest": "contracts/profile-memory/v1/manifest.json",
         "manifest_sha256": "488d05438dd5b5abaa43a66a7eab0eb5cf615d5af01a964a7286cd23e68f7eb7",
         "hash_basis": "UTF-8 LF-normalized"
-      }
+      },
+      "review_note": "撤回共享后私人来源变化不应递增共享epoch；备份连接须显式关闭。77项既有测试通过，修复待回报。"
     },
     {
       "id": "TS-021",
