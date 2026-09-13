@@ -518,7 +518,7 @@
       "depends_on": [
         "TS-030"
       ],
-      "status": "in_progress",
+      "status": "done",
       "allowed_paths": [
         "src/",
         "tests/",
@@ -530,7 +530,9 @@
       "assignee": "01a09c29-905e-7470-8d02-a6bbfb9b4113",
       "worktree": "worktrees/TS-031/tianshu-memory",
       "branch": "work/ts-031",
-      "evidence": [],
+      "evidence": [
+        "docs/development/reviews/TS-031-accepted.md"
+      ],
       "scope_note": "补完整目标；1.0.0只支持本人subject，不能直接绕过此限制或改主contracts。",
       "baseline_commit": "358e4a664e14eee734494646f3aa3a0bc666a222",
       "thread_id": "01a09c29-905e-7470-8d02-a6bbfb9b4113",
@@ -541,7 +543,8 @@
         "manifest_sha256": "488d05438dd5b5abaa43a66a7eab0eb5cf615d5af01a964a7286cd23e68f7eb7",
         "hash_basis": "UTF-8 LF-normalized"
       },
-      "review_note": "撤回共享后私人来源变化不应递增共享epoch；备份连接须显式关闭。77项既有测试通过，修复待回报。"
+      "review_note": "两项审查问题已修复，83测试复核通过；组件集成，不代表Core已消费。",
+      "integrated_commit": "dbf5c196dbb6de0d8828c0466e824efb5c7d08ce"
     },
     {
       "id": "TS-021",
@@ -565,6 +568,30 @@
       "branch": null,
       "evidence": [],
       "scope_note": "新增画像API不等于BOT已会调用；不私改共享wire，不把昵称当账号关联凭证。"
+    },
+    {
+      "id": "TS-032",
+      "title": "记忆真实 HTTPS 接线与来源端口缺口收敛",
+      "project": "memory",
+      "depends_on": [
+        "TS-031"
+      ],
+      "status": "in_progress",
+      "allowed_paths": [
+        "src/",
+        "tests/",
+        "docs/",
+        "docs/handoffs/TS-032.md"
+      ],
+      "done_when": "生产Authenticator支持显式可信TLS配置并经真实本地HTTPS证明；默认校验/重定向拒绝不退化；SourceAuthority真实事实归属与最小接线候选提交协调审查，不伪造完整来源。",
+      "assignee": "01a09c5b-e5df-71e2-b365-f44340618fb9",
+      "worktree": "worktrees/TS-032/tianshu-memory",
+      "branch": "work/ts-032",
+      "evidence": [],
+      "scope_note": "不改依赖/锁/根contracts；先实现transport或SSLContext最小注入，SourceAuthority需事实与双方接口证据，不自行添加共享wire或固定True替身。",
+      "baseline_commit": "dbf5c196dbb6de0d8828c0466e824efb5c7d08ce",
+      "thread_id": "01a09c5b-e5df-71e2-b365-f44340618fb9",
+      "host_id": "local"
     }
   ]
 }
