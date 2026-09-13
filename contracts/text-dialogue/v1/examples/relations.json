@@ -1,0 +1,4749 @@
+[
+  {
+    "id": "bundle_preserves_source",
+    "check": "bundle",
+    "documents": {
+      "bundle": "sealed_bundle"
+    },
+    "data": {}
+  },
+  {
+    "id": "bundle_mixed_author",
+    "check": "bundle",
+    "documents": {
+      "bundle": "sealed_bundle"
+    },
+    "data": {},
+    "mutations": [
+      {
+        "path": [
+          "bundle",
+          "messages",
+          0,
+          "author",
+          "immutable_account_id"
+        ],
+        "value": "fixture-user-b"
+      }
+    ],
+    "expected_error": "collection_author"
+  },
+  {
+    "id": "bundle_wrong_source_revision",
+    "check": "bundle",
+    "documents": {
+      "bundle": "sealed_bundle"
+    },
+    "data": {},
+    "mutations": [
+      {
+        "path": [
+          "bundle",
+          "messages",
+          0,
+          "source",
+          "message_key",
+          "revision"
+        ],
+        "value": 2
+      }
+    ],
+    "expected_error": "source_revision"
+  },
+  {
+    "id": "bundle_capacity_not_complete",
+    "check": "bundle",
+    "documents": {
+      "bundle": "sealed_bundle"
+    },
+    "data": {},
+    "mutations": [
+      {
+        "path": [
+          "bundle",
+          "close_reason"
+        ],
+        "value": "resource_limit"
+      }
+    ],
+    "expected_error": "incomplete_input"
+  },
+  {
+    "id": "ingest_verified_mapping",
+    "check": "ingest",
+    "documents": {
+      "request": "ingest",
+      "response": "ingest_receipt",
+      "context": "trusted_context"
+    },
+    "data": {}
+  },
+  {
+    "id": "ingest_forged_account",
+    "check": "ingest",
+    "documents": {
+      "request": "ingest",
+      "response": "ingest_receipt",
+      "context": "trusted_context"
+    },
+    "data": {},
+    "mutations": [
+      {
+        "path": [
+          "request",
+          "author",
+          "immutable_account_id"
+        ],
+        "value": "fixture-victim"
+      }
+    ],
+    "expected_error": "origin_account"
+  },
+  {
+    "id": "origin_wrong_audience",
+    "check": "ingest",
+    "documents": {
+      "request": "ingest",
+      "response": "ingest_receipt",
+      "context": "trusted_context"
+    },
+    "data": {},
+    "mutations": [
+      {
+        "path": [
+          "context",
+          "audience_service"
+        ],
+        "value": "memory"
+      }
+    ],
+    "expected_error": "origin_audience"
+  },
+  {
+    "id": "origin_expired",
+    "check": "ingest",
+    "documents": {
+      "request": "ingest",
+      "response": "ingest_receipt",
+      "context": "trusted_context"
+    },
+    "data": {},
+    "mutations": [
+      {
+        "path": [
+          "context",
+          "expires_at"
+        ],
+        "value": "2026-09-13T23:59:59Z"
+      }
+    ],
+    "expected_error": "origin_expired"
+  },
+  {
+    "id": "wrong_person_mapping",
+    "check": "ingest",
+    "documents": {
+      "request": "ingest",
+      "response": "ingest_receipt",
+      "context": "trusted_context"
+    },
+    "data": {},
+    "mutations": [
+      {
+        "path": [
+          "response",
+          "person_id"
+        ],
+        "value": "person-victim"
+      }
+    ],
+    "expected_error": "person_mapping"
+  },
+  {
+    "id": "same_qq_account_register",
+    "check": "identity",
+    "documents": {
+      "request": "register",
+      "response": "registered",
+      "context": "trusted_context_memory"
+    },
+    "data": {
+      "operation": "register",
+      "registry": {
+        "{\"immutable_account_id\": \"fixture-user-a\", \"namespace\": \"qq\"}": "person-fixture-a"
+      }
+    }
+  },
+  {
+    "id": "same_qq_private_person",
+    "check": "identity",
+    "documents": {
+      "request": "register",
+      "response": "registered",
+      "context": "trusted_context_memory"
+    },
+    "data": {
+      "operation": "register",
+      "registry": {
+        "{\"immutable_account_id\": \"fixture-user-a\", \"namespace\": \"qq\"}": "person-fixture-a"
+      }
+    },
+    "mutations": [
+      {
+        "path": [
+          "context",
+          "allowed_scope",
+          "audience"
+        ],
+        "value": "self_private"
+      }
+    ]
+  },
+  {
+    "id": "nickname_does_not_merge",
+    "check": "identity",
+    "documents": {
+      "request": "register",
+      "response": "registered",
+      "context": "trusted_context_memory"
+    },
+    "data": {
+      "operation": "register",
+      "registry": {
+        "{\"immutable_account_id\": \"fixture-user-a\", \"namespace\": \"qq\"}": "person-fixture-a"
+      }
+    },
+    "mutations": [
+      {
+        "path": [
+          "request",
+          "display_name"
+        ],
+        "value": "另一个昵称"
+      }
+    ]
+  },
+  {
+    "id": "register_victim_account",
+    "check": "identity",
+    "documents": {
+      "request": "register",
+      "response": "registered",
+      "context": "trusted_context_memory"
+    },
+    "data": {
+      "operation": "register",
+      "registry": {
+        "{\"immutable_account_id\": \"fixture-user-a\", \"namespace\": \"qq\"}": "person-fixture-a"
+      }
+    },
+    "mutations": [
+      {
+        "path": [
+          "request",
+          "account",
+          "immutable_account_id"
+        ],
+        "value": "fixture-victim"
+      }
+    ],
+    "expected_error": "origin_account"
+  },
+  {
+    "id": "link_verified_two_accounts",
+    "check": "identity",
+    "documents": {
+      "request": "link"
+    },
+    "data": {
+      "operation": "link",
+      "proof": {
+        "id": "proof-fixture-both-accounts",
+        "expired": false,
+        "consumed": false,
+        "accounts": [
+          {
+            "namespace": "qq",
+            "immutable_account_id": "fixture-user-a"
+          },
+          {
+            "namespace": "tg",
+            "immutable_account_id": "fixture-user-a-tg"
+          }
+        ],
+        "binding_versions": [
+          1,
+          1
+        ]
+      }
+    }
+  },
+  {
+    "id": "link_expired_proof",
+    "check": "identity",
+    "documents": {
+      "request": "link"
+    },
+    "data": {
+      "operation": "link",
+      "proof": {
+        "id": "proof-fixture-both-accounts",
+        "expired": false,
+        "consumed": false,
+        "accounts": [
+          {
+            "namespace": "qq",
+            "immutable_account_id": "fixture-user-a"
+          },
+          {
+            "namespace": "tg",
+            "immutable_account_id": "fixture-user-a-tg"
+          }
+        ],
+        "binding_versions": [
+          1,
+          1
+        ]
+      }
+    },
+    "mutations": [
+      {
+        "path": [
+          "proof",
+          "expired"
+        ],
+        "value": true
+      }
+    ],
+    "expected_error": "invalid_link_proof"
+  },
+  {
+    "id": "link_wrong_target_proof",
+    "check": "identity",
+    "documents": {
+      "request": "link"
+    },
+    "data": {
+      "operation": "link",
+      "proof": {
+        "id": "proof-fixture-both-accounts",
+        "expired": false,
+        "consumed": false,
+        "accounts": [
+          {
+            "namespace": "qq",
+            "immutable_account_id": "fixture-user-a"
+          },
+          {
+            "namespace": "tg",
+            "immutable_account_id": "fixture-user-a-tg"
+          }
+        ],
+        "binding_versions": [
+          1,
+          1
+        ]
+      }
+    },
+    "mutations": [
+      {
+        "path": [
+          "request",
+          "target_account",
+          "immutable_account_id"
+        ],
+        "value": "fixture-victim"
+      }
+    ],
+    "expected_error": "proof_accounts"
+  },
+  {
+    "id": "link_version_conflict",
+    "check": "identity",
+    "documents": {
+      "request": "link"
+    },
+    "data": {
+      "operation": "link",
+      "proof": {
+        "id": "proof-fixture-both-accounts",
+        "expired": false,
+        "consumed": false,
+        "accounts": [
+          {
+            "namespace": "qq",
+            "immutable_account_id": "fixture-user-a"
+          },
+          {
+            "namespace": "tg",
+            "immutable_account_id": "fixture-user-a-tg"
+          }
+        ],
+        "binding_versions": [
+          1,
+          1
+        ]
+      }
+    },
+    "mutations": [
+      {
+        "path": [
+          "request",
+          "target_binding_version"
+        ],
+        "value": 2
+      }
+    ],
+    "expected_error": "binding_version"
+  },
+  {
+    "id": "minimal_complete_memory",
+    "check": "memory",
+    "documents": {
+      "request": "select",
+      "response": "selected",
+      "context": "trusted_context_memory"
+    },
+    "data": {
+      "current_scope_version": 1,
+      "authoritative_groups": {
+        "semantic-fixture-1": [
+          "memory-fixture-1"
+        ]
+      },
+      "authoritative_records": {
+        "memory-fixture-1": {
+          "version": 1,
+          "tombstoned": false,
+          "statement": "晚上不喝咖啡；白天偶尔可以。",
+          "conditions": [
+            "白天偶尔可以"
+          ],
+          "negations": [
+            "晚上不喝咖啡"
+          ]
+        }
+      },
+      "authorized_locators": [
+        "projection:fixture-shareable-source"
+      ]
+    }
+  },
+  {
+    "id": "zero_memory_is_valid",
+    "check": "memory",
+    "documents": {
+      "request": "select",
+      "response": "selected_empty",
+      "context": "trusted_context_memory"
+    },
+    "data": {
+      "current_scope_version": 1,
+      "authoritative_groups": {
+        "semantic-fixture-1": [
+          "memory-fixture-1"
+        ]
+      },
+      "authoritative_records": {
+        "memory-fixture-1": {
+          "version": 1,
+          "tombstoned": false,
+          "statement": "晚上不喝咖啡；白天偶尔可以。",
+          "conditions": [
+            "白天偶尔可以"
+          ],
+          "negations": [
+            "晚上不喝咖啡"
+          ]
+        }
+      },
+      "authorized_locators": [
+        "projection:fixture-shareable-source"
+      ]
+    }
+  },
+  {
+    "id": "private_memory_filtered",
+    "check": "memory",
+    "documents": {
+      "request": "select",
+      "response": "selected",
+      "context": "trusted_context_memory"
+    },
+    "data": {
+      "current_scope_version": 1,
+      "authoritative_groups": {
+        "semantic-fixture-1": [
+          "memory-fixture-1"
+        ]
+      },
+      "authoritative_records": {
+        "memory-fixture-1": {
+          "version": 1,
+          "tombstoned": false,
+          "statement": "晚上不喝咖啡；白天偶尔可以。",
+          "conditions": [
+            "白天偶尔可以"
+          ],
+          "negations": [
+            "晚上不喝咖啡"
+          ]
+        }
+      },
+      "authorized_locators": [
+        "projection:fixture-shareable-source"
+      ]
+    },
+    "mutations": [
+      {
+        "path": [
+          "response",
+          "selected_units",
+          0,
+          "visibility"
+        ],
+        "value": "self_private"
+      }
+    ],
+    "expected_error": "private_memory"
+  },
+  {
+    "id": "private_source_filtered",
+    "check": "memory",
+    "documents": {
+      "request": "select",
+      "response": "selected",
+      "context": "trusted_context_memory"
+    },
+    "data": {
+      "current_scope_version": 1,
+      "authoritative_groups": {
+        "semantic-fixture-1": [
+          "memory-fixture-1"
+        ]
+      },
+      "authoritative_records": {
+        "memory-fixture-1": {
+          "version": 1,
+          "tombstoned": false,
+          "statement": "晚上不喝咖啡；白天偶尔可以。",
+          "conditions": [
+            "白天偶尔可以"
+          ],
+          "negations": [
+            "晚上不喝咖啡"
+          ]
+        }
+      },
+      "authorized_locators": [
+        "projection:fixture-shareable-source"
+      ]
+    },
+    "mutations": [
+      {
+        "path": [
+          "response",
+          "selected_units",
+          0,
+          "sources",
+          0,
+          "locator"
+        ],
+        "value": "audit:fixture-private-source"
+      }
+    ],
+    "expected_error": "private_source"
+  },
+  {
+    "id": "scope_cannot_expand",
+    "check": "memory",
+    "documents": {
+      "request": "select",
+      "response": "selected",
+      "context": "trusted_context_memory"
+    },
+    "data": {
+      "current_scope_version": 1,
+      "authoritative_groups": {
+        "semantic-fixture-1": [
+          "memory-fixture-1"
+        ]
+      },
+      "authoritative_records": {
+        "memory-fixture-1": {
+          "version": 1,
+          "tombstoned": false,
+          "statement": "晚上不喝咖啡；白天偶尔可以。",
+          "conditions": [
+            "白天偶尔可以"
+          ],
+          "negations": [
+            "晚上不喝咖啡"
+          ]
+        }
+      },
+      "authorized_locators": [
+        "projection:fixture-shareable-source"
+      ]
+    },
+    "mutations": [
+      {
+        "path": [
+          "response",
+          "effective_scope",
+          "audience"
+        ],
+        "value": "self_private"
+      }
+    ],
+    "expected_error": "scope_expansion"
+  },
+  {
+    "id": "stale_scope_rejected",
+    "check": "memory",
+    "documents": {
+      "request": "select",
+      "response": "selected",
+      "context": "trusted_context_memory"
+    },
+    "data": {
+      "current_scope_version": 1,
+      "authoritative_groups": {
+        "semantic-fixture-1": [
+          "memory-fixture-1"
+        ]
+      },
+      "authoritative_records": {
+        "memory-fixture-1": {
+          "version": 1,
+          "tombstoned": false,
+          "statement": "晚上不喝咖啡；白天偶尔可以。",
+          "conditions": [
+            "白天偶尔可以"
+          ],
+          "negations": [
+            "晚上不喝咖啡"
+          ]
+        }
+      },
+      "authorized_locators": [
+        "projection:fixture-shareable-source"
+      ]
+    },
+    "mutations": [
+      {
+        "path": [
+          "current_scope_version"
+        ],
+        "value": 2
+      }
+    ],
+    "expected_error": "stale_scope"
+  },
+  {
+    "id": "stale_vector_rejected",
+    "check": "memory",
+    "documents": {
+      "request": "select",
+      "response": "selected",
+      "context": "trusted_context_memory"
+    },
+    "data": {
+      "current_scope_version": 1,
+      "authoritative_groups": {
+        "semantic-fixture-1": [
+          "memory-fixture-1"
+        ]
+      },
+      "authoritative_records": {
+        "memory-fixture-1": {
+          "version": 1,
+          "tombstoned": false,
+          "statement": "晚上不喝咖啡；白天偶尔可以。",
+          "conditions": [
+            "白天偶尔可以"
+          ],
+          "negations": [
+            "晚上不喝咖啡"
+          ]
+        }
+      },
+      "authorized_locators": [
+        "projection:fixture-shareable-source"
+      ]
+    },
+    "mutations": [
+      {
+        "path": [
+          "authoritative_records",
+          "memory-fixture-1",
+          "version"
+        ],
+        "value": 2
+      }
+    ],
+    "expected_error": "stale_record"
+  },
+  {
+    "id": "tombstone_beats_vector",
+    "check": "memory",
+    "documents": {
+      "request": "select",
+      "response": "selected",
+      "context": "trusted_context_memory"
+    },
+    "data": {
+      "current_scope_version": 1,
+      "authoritative_groups": {
+        "semantic-fixture-1": [
+          "memory-fixture-1"
+        ]
+      },
+      "authoritative_records": {
+        "memory-fixture-1": {
+          "version": 1,
+          "tombstoned": false,
+          "statement": "晚上不喝咖啡；白天偶尔可以。",
+          "conditions": [
+            "白天偶尔可以"
+          ],
+          "negations": [
+            "晚上不喝咖啡"
+          ]
+        }
+      },
+      "authorized_locators": [
+        "projection:fixture-shareable-source"
+      ]
+    },
+    "mutations": [
+      {
+        "path": [
+          "authoritative_records",
+          "memory-fixture-1",
+          "tombstoned"
+        ],
+        "value": true
+      }
+    ],
+    "expected_error": "stale_record"
+  },
+  {
+    "id": "negation_not_dropped",
+    "check": "memory",
+    "documents": {
+      "request": "select",
+      "response": "selected",
+      "context": "trusted_context_memory"
+    },
+    "data": {
+      "current_scope_version": 1,
+      "authoritative_groups": {
+        "semantic-fixture-1": [
+          "memory-fixture-1"
+        ]
+      },
+      "authoritative_records": {
+        "memory-fixture-1": {
+          "version": 1,
+          "tombstoned": false,
+          "statement": "晚上不喝咖啡；白天偶尔可以。",
+          "conditions": [
+            "白天偶尔可以"
+          ],
+          "negations": [
+            "晚上不喝咖啡"
+          ]
+        }
+      },
+      "authorized_locators": [
+        "projection:fixture-shareable-source"
+      ]
+    },
+    "mutations": [
+      {
+        "path": [
+          "response",
+          "selected_units",
+          0,
+          "negations"
+        ],
+        "value": []
+      }
+    ],
+    "expected_error": "semantic_loss"
+  },
+  {
+    "id": "condition_not_dropped",
+    "check": "memory",
+    "documents": {
+      "request": "select",
+      "response": "selected",
+      "context": "trusted_context_memory"
+    },
+    "data": {
+      "current_scope_version": 1,
+      "authoritative_groups": {
+        "semantic-fixture-1": [
+          "memory-fixture-1"
+        ]
+      },
+      "authoritative_records": {
+        "memory-fixture-1": {
+          "version": 1,
+          "tombstoned": false,
+          "statement": "晚上不喝咖啡；白天偶尔可以。",
+          "conditions": [
+            "白天偶尔可以"
+          ],
+          "negations": [
+            "晚上不喝咖啡"
+          ]
+        }
+      },
+      "authorized_locators": [
+        "projection:fixture-shareable-source"
+      ]
+    },
+    "mutations": [
+      {
+        "path": [
+          "response",
+          "selected_units",
+          0,
+          "conditions"
+        ],
+        "value": []
+      }
+    ],
+    "expected_error": "semantic_loss"
+  },
+  {
+    "id": "group_cannot_split",
+    "check": "memory",
+    "documents": {
+      "request": "select",
+      "response": "selected",
+      "context": "trusted_context_memory"
+    },
+    "data": {
+      "current_scope_version": 1,
+      "authoritative_groups": {
+        "semantic-fixture-1": [
+          "memory-fixture-1"
+        ]
+      },
+      "authoritative_records": {
+        "memory-fixture-1": {
+          "version": 1,
+          "tombstoned": false,
+          "statement": "晚上不喝咖啡；白天偶尔可以。",
+          "conditions": [
+            "白天偶尔可以"
+          ],
+          "negations": [
+            "晚上不喝咖啡"
+          ]
+        }
+      },
+      "authorized_locators": [
+        "projection:fixture-shareable-source"
+      ]
+    },
+    "mutations": [
+      {
+        "path": [
+          "authoritative_groups",
+          "semantic-fixture-1"
+        ],
+        "value": [
+          "memory-fixture-1",
+          "memory-fixture-2"
+        ]
+      }
+    ],
+    "expected_error": "split_semantic_group"
+  },
+  {
+    "id": "budget_cannot_overrun",
+    "check": "memory",
+    "documents": {
+      "request": "select",
+      "response": "selected",
+      "context": "trusted_context_memory"
+    },
+    "data": {
+      "current_scope_version": 1,
+      "authoritative_groups": {
+        "semantic-fixture-1": [
+          "memory-fixture-1"
+        ]
+      },
+      "authoritative_records": {
+        "memory-fixture-1": {
+          "version": 1,
+          "tombstoned": false,
+          "statement": "晚上不喝咖啡；白天偶尔可以。",
+          "conditions": [
+            "白天偶尔可以"
+          ],
+          "negations": [
+            "晚上不喝咖啡"
+          ]
+        }
+      },
+      "authorized_locators": [
+        "projection:fixture-shareable-source"
+      ]
+    },
+    "mutations": [
+      {
+        "path": [
+          "response",
+          "budget_used",
+          "tokens"
+        ],
+        "value": 201
+      }
+    ],
+    "expected_error": "budget_exceeded"
+  },
+  {
+    "id": "first_commit_queues_candidate",
+    "check": "commit",
+    "documents": {
+      "event": "turn_committed",
+      "receipt": "consume"
+    },
+    "data": {
+      "consumed_inputs": [],
+      "current_input_revision": 1,
+      "new_relation_increments": 0
+    }
+  },
+  {
+    "id": "same_turn_revision_new_event_dedup",
+    "check": "commit",
+    "documents": {
+      "event": "turn_committed",
+      "receipt": "consume"
+    },
+    "data": {
+      "consumed_inputs": [],
+      "current_input_revision": 1,
+      "new_relation_increments": 0
+    },
+    "mutations": [
+      {
+        "path": [
+          "event",
+          "event_id"
+        ],
+        "value": "event-fixture-redelivery"
+      },
+      {
+        "path": [
+          "receipt",
+          "event_id"
+        ],
+        "value": "event-fixture-redelivery"
+      },
+      {
+        "path": [
+          "receipt",
+          "state"
+        ],
+        "value": "duplicate"
+      },
+      {
+        "path": [
+          "consumed_inputs"
+        ],
+        "value": [
+          [
+            "turn-fixture-1",
+            1
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "id": "duplicate_cannot_increment_relationship",
+    "check": "commit",
+    "documents": {
+      "event": "turn_committed",
+      "receipt": "consume"
+    },
+    "data": {
+      "consumed_inputs": [],
+      "current_input_revision": 1,
+      "new_relation_increments": 0
+    },
+    "mutations": [
+      {
+        "path": [
+          "event",
+          "event_id"
+        ],
+        "value": "event-fixture-redelivery"
+      },
+      {
+        "path": [
+          "receipt",
+          "event_id"
+        ],
+        "value": "event-fixture-redelivery"
+      },
+      {
+        "path": [
+          "receipt",
+          "state"
+        ],
+        "value": "duplicate"
+      },
+      {
+        "path": [
+          "consumed_inputs"
+        ],
+        "value": [
+          [
+            "turn-fixture-1",
+            1
+          ]
+        ]
+      },
+      {
+        "path": [
+          "new_relation_increments"
+        ],
+        "value": 1
+      }
+    ],
+    "expected_error": "duplicate_memory_write"
+  },
+  {
+    "id": "late_source_cannot_write",
+    "check": "commit",
+    "documents": {
+      "event": "turn_committed",
+      "receipt": "consume"
+    },
+    "data": {
+      "consumed_inputs": [],
+      "current_input_revision": 1,
+      "new_relation_increments": 0
+    },
+    "mutations": [
+      {
+        "path": [
+          "current_input_revision"
+        ],
+        "value": 2
+      }
+    ],
+    "expected_error": "stale_source"
+  },
+  {
+    "id": "stale_source_receipt",
+    "check": "commit",
+    "documents": {
+      "event": "turn_committed",
+      "receipt": "consume"
+    },
+    "data": {
+      "consumed_inputs": [],
+      "current_input_revision": 1,
+      "new_relation_increments": 0
+    },
+    "mutations": [
+      {
+        "path": [
+          "current_input_revision"
+        ],
+        "value": 2
+      },
+      {
+        "path": [
+          "receipt",
+          "state"
+        ],
+        "value": "stale_source"
+      },
+      {
+        "path": [
+          "receipt",
+          "candidate_job_ref"
+        ],
+        "value": null
+      }
+    ]
+  },
+  {
+    "id": "gateway_preserves_native",
+    "check": "gateway",
+    "documents": {
+      "config": "config",
+      "receipt": "route",
+      "incoming": "native_request",
+      "outgoing": "native_request"
+    },
+    "data": {
+      "pinned_version": 7,
+      "started_at": "2026-09-14T00:00:01Z",
+      "revoked": false,
+      "upstream_usage": null,
+      "reference_binding": null
+    }
+  },
+  {
+    "id": "gateway_silent_model_change",
+    "check": "gateway",
+    "documents": {
+      "config": "config",
+      "receipt": "route",
+      "incoming": "native_request",
+      "outgoing": "native_request"
+    },
+    "data": {
+      "pinned_version": 7,
+      "started_at": "2026-09-14T00:00:01Z",
+      "revoked": false,
+      "upstream_usage": null,
+      "reference_binding": null
+    },
+    "mutations": [
+      {
+        "path": [
+          "outgoing",
+          "model"
+        ],
+        "value": "other-model"
+      }
+    ],
+    "expected_error": "native_field_loss_or_override"
+  },
+  {
+    "id": "gateway_tools_not_dropped",
+    "check": "gateway",
+    "documents": {
+      "config": "config",
+      "receipt": "route",
+      "incoming": "native_request",
+      "outgoing": "native_request"
+    },
+    "data": {
+      "pinned_version": 7,
+      "started_at": "2026-09-14T00:00:01Z",
+      "revoked": false,
+      "upstream_usage": null,
+      "reference_binding": null
+    },
+    "mutations": [
+      {
+        "path": [
+          "outgoing",
+          "tools"
+        ],
+        "value": []
+      }
+    ],
+    "expected_error": "native_field_loss_or_override"
+  },
+  {
+    "id": "gateway_reasoning_not_dropped",
+    "check": "gateway",
+    "documents": {
+      "config": "config",
+      "receipt": "route",
+      "incoming": "native_request",
+      "outgoing": "native_request"
+    },
+    "data": {
+      "pinned_version": 7,
+      "started_at": "2026-09-14T00:00:01Z",
+      "revoked": false,
+      "upstream_usage": null,
+      "reference_binding": null
+    },
+    "mutations": [
+      {
+        "path": [
+          "outgoing",
+          "reasoning_effort"
+        ],
+        "value": "high"
+      }
+    ],
+    "expected_error": "native_field_loss_or_override"
+  },
+  {
+    "id": "gateway_stale_config",
+    "check": "gateway",
+    "documents": {
+      "config": "config",
+      "receipt": "route",
+      "incoming": "native_request",
+      "outgoing": "native_request"
+    },
+    "data": {
+      "pinned_version": 7,
+      "started_at": "2026-09-14T00:00:01Z",
+      "revoked": false,
+      "upstream_usage": null,
+      "reference_binding": null
+    },
+    "mutations": [
+      {
+        "path": [
+          "pinned_version"
+        ],
+        "value": 8
+      }
+    ],
+    "expected_error": "config_version"
+  },
+  {
+    "id": "gateway_expired_config",
+    "check": "gateway",
+    "documents": {
+      "config": "config",
+      "receipt": "route",
+      "incoming": "native_request",
+      "outgoing": "native_request"
+    },
+    "data": {
+      "pinned_version": 7,
+      "started_at": "2026-09-14T00:00:01Z",
+      "revoked": false,
+      "upstream_usage": null,
+      "reference_binding": null
+    },
+    "mutations": [
+      {
+        "path": [
+          "started_at"
+        ],
+        "value": "2026-09-14T00:05:00Z"
+      }
+    ],
+    "expected_error": "config_expired_or_revoked"
+  },
+  {
+    "id": "gateway_revoked_config",
+    "check": "gateway",
+    "documents": {
+      "config": "config",
+      "receipt": "route",
+      "incoming": "native_request",
+      "outgoing": "native_request"
+    },
+    "data": {
+      "pinned_version": 7,
+      "started_at": "2026-09-14T00:00:01Z",
+      "revoked": false,
+      "upstream_usage": null,
+      "reference_binding": null
+    },
+    "mutations": [
+      {
+        "path": [
+          "revoked"
+        ],
+        "value": true
+      }
+    ],
+    "expected_error": "config_expired_or_revoked"
+  },
+  {
+    "id": "gateway_unknown_usage_not_zero",
+    "check": "gateway",
+    "documents": {
+      "config": "config",
+      "receipt": "route",
+      "incoming": "native_request",
+      "outgoing": "native_request"
+    },
+    "data": {
+      "pinned_version": 7,
+      "started_at": "2026-09-14T00:00:01Z",
+      "revoked": false,
+      "upstream_usage": null,
+      "reference_binding": null
+    },
+    "mutations": [
+      {
+        "path": [
+          "receipt",
+          "usage"
+        ],
+        "value": {
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      }
+    ],
+    "expected_error": "usage_fabricated"
+  },
+  {
+    "id": "gateway_credential_namespace",
+    "check": "gateway",
+    "documents": {
+      "config": "config",
+      "receipt": "route",
+      "incoming": "native_request",
+      "outgoing": "native_request"
+    },
+    "data": {
+      "pinned_version": 7,
+      "started_at": "2026-09-14T00:00:01Z",
+      "revoked": false,
+      "upstream_usage": null,
+      "reference_binding": null
+    },
+    "mutations": [
+      {
+        "path": [
+          "receipt",
+          "credential_namespace"
+        ],
+        "value": "credential-other"
+      }
+    ],
+    "expected_error": "credential_namespace"
+  },
+  {
+    "id": "gateway_state_reference_wrong_caller",
+    "check": "gateway",
+    "documents": {
+      "config": "config",
+      "receipt": "route",
+      "incoming": "native_request",
+      "outgoing": "native_request"
+    },
+    "data": {
+      "pinned_version": 7,
+      "started_at": "2026-09-14T00:00:01Z",
+      "revoked": false,
+      "upstream_usage": null,
+      "reference_binding": null
+    },
+    "mutations": [
+      {
+        "path": [
+          "reference_binding"
+        ],
+        "value": [
+          "other-caller",
+          "provider-fixture",
+          "credential-namespace-fixture",
+          7,
+          "fixture-text-model"
+        ]
+      }
+    ],
+    "expected_error": "state_reference_binding"
+  },
+  {
+    "id": "gateway_explicit_force_visible",
+    "check": "gateway",
+    "documents": {
+      "config": "config",
+      "receipt": "route",
+      "incoming": "native_request",
+      "outgoing": "native_request"
+    },
+    "data": {
+      "pinned_version": 7,
+      "started_at": "2026-09-14T00:00:01Z",
+      "revoked": false,
+      "upstream_usage": null,
+      "reference_binding": null
+    },
+    "mutations": [
+      {
+        "path": [
+          "config",
+          "providers",
+          0,
+          "model_policy"
+        ],
+        "value": {
+          "mode": "force",
+          "fields": {
+            "model": "fixture-forced-model"
+          }
+        }
+      },
+      {
+        "path": [
+          "outgoing",
+          "model"
+        ],
+        "value": "fixture-forced-model"
+      },
+      {
+        "path": [
+          "receipt",
+          "resolved_model"
+        ],
+        "value": "fixture-forced-model"
+      },
+      {
+        "path": [
+          "receipt",
+          "applied_policies"
+        ],
+        "value": [
+          {
+            "field": "model",
+            "mode": "force",
+            "config_version": 7
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gateway_default_preserves_none",
+    "check": "gateway",
+    "documents": {
+      "config": "config",
+      "receipt": "route",
+      "incoming": "native_request",
+      "outgoing": "native_request"
+    },
+    "data": {
+      "pinned_version": 7,
+      "started_at": "2026-09-14T00:00:01Z",
+      "revoked": false,
+      "upstream_usage": null,
+      "reference_binding": null
+    },
+    "mutations": [
+      {
+        "path": [
+          "config",
+          "providers",
+          0,
+          "reasoning_policy"
+        ],
+        "value": {
+          "mode": "default_if_absent",
+          "fields": {
+            "reasoning_effort": "high"
+          }
+        }
+      },
+      {
+        "path": [
+          "incoming",
+          "reasoning_effort"
+        ],
+        "value": null
+      },
+      {
+        "path": [
+          "outgoing",
+          "reasoning_effort"
+        ],
+        "value": null
+      },
+      {
+        "path": [
+          "receipt",
+          "requested_reasoning"
+        ],
+        "value": {
+          "reasoning_effort": null
+        }
+      },
+      {
+        "path": [
+          "receipt",
+          "effective_reasoning"
+        ],
+        "value": {
+          "reasoning_effort": null
+        }
+      }
+    ]
+  },
+  {
+    "id": "gateway_default_preserves_0",
+    "check": "gateway",
+    "documents": {
+      "config": "config",
+      "receipt": "route",
+      "incoming": "native_request",
+      "outgoing": "native_request"
+    },
+    "data": {
+      "pinned_version": 7,
+      "started_at": "2026-09-14T00:00:01Z",
+      "revoked": false,
+      "upstream_usage": null,
+      "reference_binding": null
+    },
+    "mutations": [
+      {
+        "path": [
+          "config",
+          "providers",
+          0,
+          "reasoning_policy"
+        ],
+        "value": {
+          "mode": "default_if_absent",
+          "fields": {
+            "reasoning_effort": "high"
+          }
+        }
+      },
+      {
+        "path": [
+          "incoming",
+          "reasoning_effort"
+        ],
+        "value": 0
+      },
+      {
+        "path": [
+          "outgoing",
+          "reasoning_effort"
+        ],
+        "value": 0
+      },
+      {
+        "path": [
+          "receipt",
+          "requested_reasoning"
+        ],
+        "value": {
+          "reasoning_effort": 0
+        }
+      },
+      {
+        "path": [
+          "receipt",
+          "effective_reasoning"
+        ],
+        "value": {
+          "reasoning_effort": 0
+        }
+      }
+    ]
+  },
+  {
+    "id": "gateway_default_preserves_false",
+    "check": "gateway",
+    "documents": {
+      "config": "config",
+      "receipt": "route",
+      "incoming": "native_request",
+      "outgoing": "native_request"
+    },
+    "data": {
+      "pinned_version": 7,
+      "started_at": "2026-09-14T00:00:01Z",
+      "revoked": false,
+      "upstream_usage": null,
+      "reference_binding": null
+    },
+    "mutations": [
+      {
+        "path": [
+          "config",
+          "providers",
+          0,
+          "reasoning_policy"
+        ],
+        "value": {
+          "mode": "default_if_absent",
+          "fields": {
+            "reasoning_effort": "high"
+          }
+        }
+      },
+      {
+        "path": [
+          "incoming",
+          "reasoning_effort"
+        ],
+        "value": false
+      },
+      {
+        "path": [
+          "outgoing",
+          "reasoning_effort"
+        ],
+        "value": false
+      },
+      {
+        "path": [
+          "receipt",
+          "requested_reasoning"
+        ],
+        "value": {
+          "reasoning_effort": false
+        }
+      },
+      {
+        "path": [
+          "receipt",
+          "effective_reasoning"
+        ],
+        "value": {
+          "reasoning_effort": false
+        }
+      }
+    ]
+  },
+  {
+    "id": "gateway_partial_usage",
+    "check": "gateway",
+    "documents": {
+      "config": "config",
+      "receipt": "route",
+      "incoming": "native_request",
+      "outgoing": "native_request"
+    },
+    "data": {
+      "pinned_version": 7,
+      "started_at": "2026-09-14T00:00:01Z",
+      "revoked": false,
+      "upstream_usage": null,
+      "reference_binding": null
+    },
+    "mutations": [
+      {
+        "path": [
+          "upstream_usage"
+        ],
+        "value": {
+          "prompt_tokens": 12
+        }
+      },
+      {
+        "path": [
+          "receipt",
+          "native_usage"
+        ],
+        "value": {
+          "prompt_tokens": 12
+        }
+      },
+      {
+        "path": [
+          "receipt",
+          "usage"
+        ],
+        "value": {
+          "input_tokens": 12
+        }
+      }
+    ]
+  },
+  {
+    "id": "gateway_known_zero_usage",
+    "check": "gateway",
+    "documents": {
+      "config": "config",
+      "receipt": "route",
+      "incoming": "native_request",
+      "outgoing": "native_request"
+    },
+    "data": {
+      "pinned_version": 7,
+      "started_at": "2026-09-14T00:00:01Z",
+      "revoked": false,
+      "upstream_usage": null,
+      "reference_binding": null
+    },
+    "mutations": [
+      {
+        "path": [
+          "upstream_usage"
+        ],
+        "value": {
+          "prompt_tokens": 0,
+          "completion_tokens": 0,
+          "total_tokens": 0
+        }
+      },
+      {
+        "path": [
+          "receipt",
+          "native_usage"
+        ],
+        "value": {
+          "prompt_tokens": 0,
+          "completion_tokens": 0,
+          "total_tokens": 0
+        }
+      },
+      {
+        "path": [
+          "receipt",
+          "usage"
+        ],
+        "value": {
+          "input_tokens": 0,
+          "output_tokens": 0
+        }
+      },
+      {
+        "path": [
+          "receipt",
+          "usage_complete"
+        ],
+        "value": true
+      }
+    ]
+  },
+  {
+    "id": "web_reconnect_is_readonly",
+    "check": "web",
+    "documents": {
+      "snapshot": "snapshot"
+    },
+    "data": {
+      "events": [
+        {
+          "schema_version": 1,
+          "event_id": "event-fixture-project",
+          "event_type": "conversation.projection_changed",
+          "owner": "companion",
+          "aggregate_id": "conversation-fixture",
+          "aggregate_version": 3,
+          "occurred_at": "2026-09-14T00:00:10Z",
+          "causation_id": "event-fixture-commit",
+          "cursor": "cursor-fixture-opaque-3",
+          "scope_version": 1,
+          "change": "reply_committed",
+          "reply": {
+            "reply_id": "reply-fixture-1",
+            "turn_id": "turn-fixture-1",
+            "turn_sequence": 1,
+            "actor_id": "actor-fixture",
+            "reply_sequence": 1,
+            "text": "记住了：晚上不喝咖啡，白天偶尔可以。",
+            "delivery_target": "qq",
+            "delivery_state": "sent",
+            "committed_at": "2026-09-14T00:00:10Z"
+          }
+        },
+        {
+          "schema_version": 1,
+          "event_id": "event-fixture-project",
+          "event_type": "conversation.projection_changed",
+          "owner": "companion",
+          "aggregate_id": "conversation-fixture",
+          "aggregate_version": 3,
+          "occurred_at": "2026-09-14T00:00:10Z",
+          "causation_id": "event-fixture-commit",
+          "cursor": "cursor-fixture-opaque-3",
+          "scope_version": 1,
+          "change": "reply_committed",
+          "reply": {
+            "reply_id": "reply-fixture-1",
+            "turn_id": "turn-fixture-1",
+            "turn_sequence": 1,
+            "actor_id": "actor-fixture",
+            "reply_sequence": 1,
+            "text": "记住了：晚上不喝咖啡，白天偶尔可以。",
+            "delivery_target": "qq",
+            "delivery_state": "sent",
+            "committed_at": "2026-09-14T00:00:10Z"
+          }
+        }
+      ],
+      "generation_calls_after_reconnect": 0,
+      "channel_send_calls_after_reconnect": 0,
+      "snapshot_reloaded": false,
+      "cursor_expired": false
+    }
+  },
+  {
+    "id": "web_reconnect_no_generation",
+    "check": "web",
+    "documents": {
+      "snapshot": "snapshot"
+    },
+    "data": {
+      "events": [
+        {
+          "schema_version": 1,
+          "event_id": "event-fixture-project",
+          "event_type": "conversation.projection_changed",
+          "owner": "companion",
+          "aggregate_id": "conversation-fixture",
+          "aggregate_version": 3,
+          "occurred_at": "2026-09-14T00:00:10Z",
+          "causation_id": "event-fixture-commit",
+          "cursor": "cursor-fixture-opaque-3",
+          "scope_version": 1,
+          "change": "reply_committed",
+          "reply": {
+            "reply_id": "reply-fixture-1",
+            "turn_id": "turn-fixture-1",
+            "turn_sequence": 1,
+            "actor_id": "actor-fixture",
+            "reply_sequence": 1,
+            "text": "记住了：晚上不喝咖啡，白天偶尔可以。",
+            "delivery_target": "qq",
+            "delivery_state": "sent",
+            "committed_at": "2026-09-14T00:00:10Z"
+          }
+        },
+        {
+          "schema_version": 1,
+          "event_id": "event-fixture-project",
+          "event_type": "conversation.projection_changed",
+          "owner": "companion",
+          "aggregate_id": "conversation-fixture",
+          "aggregate_version": 3,
+          "occurred_at": "2026-09-14T00:00:10Z",
+          "causation_id": "event-fixture-commit",
+          "cursor": "cursor-fixture-opaque-3",
+          "scope_version": 1,
+          "change": "reply_committed",
+          "reply": {
+            "reply_id": "reply-fixture-1",
+            "turn_id": "turn-fixture-1",
+            "turn_sequence": 1,
+            "actor_id": "actor-fixture",
+            "reply_sequence": 1,
+            "text": "记住了：晚上不喝咖啡，白天偶尔可以。",
+            "delivery_target": "qq",
+            "delivery_state": "sent",
+            "committed_at": "2026-09-14T00:00:10Z"
+          }
+        }
+      ],
+      "generation_calls_after_reconnect": 0,
+      "channel_send_calls_after_reconnect": 0,
+      "snapshot_reloaded": false,
+      "cursor_expired": false
+    },
+    "mutations": [
+      {
+        "path": [
+          "generation_calls_after_reconnect"
+        ],
+        "value": 1
+      }
+    ],
+    "expected_error": "reconnect_side_effect"
+  },
+  {
+    "id": "web_reconnect_no_qq_send",
+    "check": "web",
+    "documents": {
+      "snapshot": "snapshot"
+    },
+    "data": {
+      "events": [
+        {
+          "schema_version": 1,
+          "event_id": "event-fixture-project",
+          "event_type": "conversation.projection_changed",
+          "owner": "companion",
+          "aggregate_id": "conversation-fixture",
+          "aggregate_version": 3,
+          "occurred_at": "2026-09-14T00:00:10Z",
+          "causation_id": "event-fixture-commit",
+          "cursor": "cursor-fixture-opaque-3",
+          "scope_version": 1,
+          "change": "reply_committed",
+          "reply": {
+            "reply_id": "reply-fixture-1",
+            "turn_id": "turn-fixture-1",
+            "turn_sequence": 1,
+            "actor_id": "actor-fixture",
+            "reply_sequence": 1,
+            "text": "记住了：晚上不喝咖啡，白天偶尔可以。",
+            "delivery_target": "qq",
+            "delivery_state": "sent",
+            "committed_at": "2026-09-14T00:00:10Z"
+          }
+        },
+        {
+          "schema_version": 1,
+          "event_id": "event-fixture-project",
+          "event_type": "conversation.projection_changed",
+          "owner": "companion",
+          "aggregate_id": "conversation-fixture",
+          "aggregate_version": 3,
+          "occurred_at": "2026-09-14T00:00:10Z",
+          "causation_id": "event-fixture-commit",
+          "cursor": "cursor-fixture-opaque-3",
+          "scope_version": 1,
+          "change": "reply_committed",
+          "reply": {
+            "reply_id": "reply-fixture-1",
+            "turn_id": "turn-fixture-1",
+            "turn_sequence": 1,
+            "actor_id": "actor-fixture",
+            "reply_sequence": 1,
+            "text": "记住了：晚上不喝咖啡，白天偶尔可以。",
+            "delivery_target": "qq",
+            "delivery_state": "sent",
+            "committed_at": "2026-09-14T00:00:10Z"
+          }
+        }
+      ],
+      "generation_calls_after_reconnect": 0,
+      "channel_send_calls_after_reconnect": 0,
+      "snapshot_reloaded": false,
+      "cursor_expired": false
+    },
+    "mutations": [
+      {
+        "path": [
+          "channel_send_calls_after_reconnect"
+        ],
+        "value": 1
+      }
+    ],
+    "expected_error": "reconnect_side_effect"
+  },
+  {
+    "id": "web_expired_cursor_reloads",
+    "check": "web",
+    "documents": {
+      "snapshot": "snapshot"
+    },
+    "data": {
+      "events": [
+        {
+          "schema_version": 1,
+          "event_id": "event-fixture-project",
+          "event_type": "conversation.projection_changed",
+          "owner": "companion",
+          "aggregate_id": "conversation-fixture",
+          "aggregate_version": 3,
+          "occurred_at": "2026-09-14T00:00:10Z",
+          "causation_id": "event-fixture-commit",
+          "cursor": "cursor-fixture-opaque-3",
+          "scope_version": 1,
+          "change": "reply_committed",
+          "reply": {
+            "reply_id": "reply-fixture-1",
+            "turn_id": "turn-fixture-1",
+            "turn_sequence": 1,
+            "actor_id": "actor-fixture",
+            "reply_sequence": 1,
+            "text": "记住了：晚上不喝咖啡，白天偶尔可以。",
+            "delivery_target": "qq",
+            "delivery_state": "sent",
+            "committed_at": "2026-09-14T00:00:10Z"
+          }
+        },
+        {
+          "schema_version": 1,
+          "event_id": "event-fixture-project",
+          "event_type": "conversation.projection_changed",
+          "owner": "companion",
+          "aggregate_id": "conversation-fixture",
+          "aggregate_version": 3,
+          "occurred_at": "2026-09-14T00:00:10Z",
+          "causation_id": "event-fixture-commit",
+          "cursor": "cursor-fixture-opaque-3",
+          "scope_version": 1,
+          "change": "reply_committed",
+          "reply": {
+            "reply_id": "reply-fixture-1",
+            "turn_id": "turn-fixture-1",
+            "turn_sequence": 1,
+            "actor_id": "actor-fixture",
+            "reply_sequence": 1,
+            "text": "记住了：晚上不喝咖啡，白天偶尔可以。",
+            "delivery_target": "qq",
+            "delivery_state": "sent",
+            "committed_at": "2026-09-14T00:00:10Z"
+          }
+        }
+      ],
+      "generation_calls_after_reconnect": 0,
+      "channel_send_calls_after_reconnect": 0,
+      "snapshot_reloaded": false,
+      "cursor_expired": false
+    },
+    "mutations": [
+      {
+        "path": [
+          "cursor_expired"
+        ],
+        "value": true
+      },
+      {
+        "path": [
+          "snapshot_reloaded"
+        ],
+        "value": true
+      }
+    ]
+  },
+  {
+    "id": "web_expired_cursor_cannot_ignore",
+    "check": "web",
+    "documents": {
+      "snapshot": "snapshot"
+    },
+    "data": {
+      "events": [
+        {
+          "schema_version": 1,
+          "event_id": "event-fixture-project",
+          "event_type": "conversation.projection_changed",
+          "owner": "companion",
+          "aggregate_id": "conversation-fixture",
+          "aggregate_version": 3,
+          "occurred_at": "2026-09-14T00:00:10Z",
+          "causation_id": "event-fixture-commit",
+          "cursor": "cursor-fixture-opaque-3",
+          "scope_version": 1,
+          "change": "reply_committed",
+          "reply": {
+            "reply_id": "reply-fixture-1",
+            "turn_id": "turn-fixture-1",
+            "turn_sequence": 1,
+            "actor_id": "actor-fixture",
+            "reply_sequence": 1,
+            "text": "记住了：晚上不喝咖啡，白天偶尔可以。",
+            "delivery_target": "qq",
+            "delivery_state": "sent",
+            "committed_at": "2026-09-14T00:00:10Z"
+          }
+        },
+        {
+          "schema_version": 1,
+          "event_id": "event-fixture-project",
+          "event_type": "conversation.projection_changed",
+          "owner": "companion",
+          "aggregate_id": "conversation-fixture",
+          "aggregate_version": 3,
+          "occurred_at": "2026-09-14T00:00:10Z",
+          "causation_id": "event-fixture-commit",
+          "cursor": "cursor-fixture-opaque-3",
+          "scope_version": 1,
+          "change": "reply_committed",
+          "reply": {
+            "reply_id": "reply-fixture-1",
+            "turn_id": "turn-fixture-1",
+            "turn_sequence": 1,
+            "actor_id": "actor-fixture",
+            "reply_sequence": 1,
+            "text": "记住了：晚上不喝咖啡，白天偶尔可以。",
+            "delivery_target": "qq",
+            "delivery_state": "sent",
+            "committed_at": "2026-09-14T00:00:10Z"
+          }
+        }
+      ],
+      "generation_calls_after_reconnect": 0,
+      "channel_send_calls_after_reconnect": 0,
+      "snapshot_reloaded": false,
+      "cursor_expired": false
+    },
+    "mutations": [
+      {
+        "path": [
+          "cursor_expired"
+        ],
+        "value": true
+      }
+    ],
+    "expected_error": "expired_cursor"
+  },
+  {
+    "id": "web_gap_reloads",
+    "check": "web",
+    "documents": {
+      "snapshot": "snapshot"
+    },
+    "data": {
+      "events": [
+        {
+          "schema_version": 1,
+          "event_id": "event-fixture-project",
+          "event_type": "conversation.projection_changed",
+          "owner": "companion",
+          "aggregate_id": "conversation-fixture",
+          "aggregate_version": 3,
+          "occurred_at": "2026-09-14T00:00:10Z",
+          "causation_id": "event-fixture-commit",
+          "cursor": "cursor-fixture-opaque-3",
+          "scope_version": 1,
+          "change": "reply_committed",
+          "reply": {
+            "reply_id": "reply-fixture-1",
+            "turn_id": "turn-fixture-1",
+            "turn_sequence": 1,
+            "actor_id": "actor-fixture",
+            "reply_sequence": 1,
+            "text": "记住了：晚上不喝咖啡，白天偶尔可以。",
+            "delivery_target": "qq",
+            "delivery_state": "sent",
+            "committed_at": "2026-09-14T00:00:10Z"
+          }
+        },
+        {
+          "schema_version": 1,
+          "event_id": "event-fixture-project",
+          "event_type": "conversation.projection_changed",
+          "owner": "companion",
+          "aggregate_id": "conversation-fixture",
+          "aggregate_version": 3,
+          "occurred_at": "2026-09-14T00:00:10Z",
+          "causation_id": "event-fixture-commit",
+          "cursor": "cursor-fixture-opaque-3",
+          "scope_version": 1,
+          "change": "reply_committed",
+          "reply": {
+            "reply_id": "reply-fixture-1",
+            "turn_id": "turn-fixture-1",
+            "turn_sequence": 1,
+            "actor_id": "actor-fixture",
+            "reply_sequence": 1,
+            "text": "记住了：晚上不喝咖啡，白天偶尔可以。",
+            "delivery_target": "qq",
+            "delivery_state": "sent",
+            "committed_at": "2026-09-14T00:00:10Z"
+          }
+        }
+      ],
+      "generation_calls_after_reconnect": 0,
+      "channel_send_calls_after_reconnect": 0,
+      "snapshot_reloaded": false,
+      "cursor_expired": false
+    },
+    "mutations": [
+      {
+        "path": [
+          "events",
+          0,
+          "aggregate_version"
+        ],
+        "value": 5
+      },
+      {
+        "path": [
+          "snapshot_reloaded"
+        ],
+        "value": true
+      }
+    ]
+  },
+  {
+    "id": "web_gap_not_silent",
+    "check": "web",
+    "documents": {
+      "snapshot": "snapshot"
+    },
+    "data": {
+      "events": [
+        {
+          "schema_version": 1,
+          "event_id": "event-fixture-project",
+          "event_type": "conversation.projection_changed",
+          "owner": "companion",
+          "aggregate_id": "conversation-fixture",
+          "aggregate_version": 3,
+          "occurred_at": "2026-09-14T00:00:10Z",
+          "causation_id": "event-fixture-commit",
+          "cursor": "cursor-fixture-opaque-3",
+          "scope_version": 1,
+          "change": "reply_committed",
+          "reply": {
+            "reply_id": "reply-fixture-1",
+            "turn_id": "turn-fixture-1",
+            "turn_sequence": 1,
+            "actor_id": "actor-fixture",
+            "reply_sequence": 1,
+            "text": "记住了：晚上不喝咖啡，白天偶尔可以。",
+            "delivery_target": "qq",
+            "delivery_state": "sent",
+            "committed_at": "2026-09-14T00:00:10Z"
+          }
+        },
+        {
+          "schema_version": 1,
+          "event_id": "event-fixture-project",
+          "event_type": "conversation.projection_changed",
+          "owner": "companion",
+          "aggregate_id": "conversation-fixture",
+          "aggregate_version": 3,
+          "occurred_at": "2026-09-14T00:00:10Z",
+          "causation_id": "event-fixture-commit",
+          "cursor": "cursor-fixture-opaque-3",
+          "scope_version": 1,
+          "change": "reply_committed",
+          "reply": {
+            "reply_id": "reply-fixture-1",
+            "turn_id": "turn-fixture-1",
+            "turn_sequence": 1,
+            "actor_id": "actor-fixture",
+            "reply_sequence": 1,
+            "text": "记住了：晚上不喝咖啡，白天偶尔可以。",
+            "delivery_target": "qq",
+            "delivery_state": "sent",
+            "committed_at": "2026-09-14T00:00:10Z"
+          }
+        }
+      ],
+      "generation_calls_after_reconnect": 0,
+      "channel_send_calls_after_reconnect": 0,
+      "snapshot_reloaded": false,
+      "cursor_expired": false
+    },
+    "mutations": [
+      {
+        "path": [
+          "events",
+          0,
+          "aggregate_version"
+        ],
+        "value": 5
+      }
+    ],
+    "expected_error": "projection_gap"
+  },
+  {
+    "id": "queue_full_rejects_before_receipt",
+    "check": "capacity",
+    "documents": {
+      "policy": "collection_policy"
+    },
+    "data": {
+      "active": 2,
+      "queued": 7,
+      "reserved_collectors": 1,
+      "new_collector_accepted": false,
+      "persisted_receipts_before": 10,
+      "persisted_receipts_after": 10,
+      "response_code": "queue_full",
+      "success_receipt": false
+    }
+  },
+  {
+    "id": "queue_full_never_ack_success",
+    "check": "capacity",
+    "documents": {
+      "policy": "collection_policy"
+    },
+    "data": {
+      "active": 2,
+      "queued": 7,
+      "reserved_collectors": 1,
+      "new_collector_accepted": false,
+      "persisted_receipts_before": 10,
+      "persisted_receipts_after": 10,
+      "response_code": "queue_full",
+      "success_receipt": false
+    },
+    "mutations": [
+      {
+        "path": [
+          "success_receipt"
+        ],
+        "value": true
+      }
+    ],
+    "expected_error": "queue_full_receipt"
+  },
+  {
+    "id": "queue_retains_accepted_input",
+    "check": "capacity",
+    "documents": {
+      "policy": "collection_policy"
+    },
+    "data": {
+      "active": 2,
+      "queued": 7,
+      "reserved_collectors": 1,
+      "new_collector_accepted": false,
+      "persisted_receipts_before": 10,
+      "persisted_receipts_after": 10,
+      "response_code": "queue_full",
+      "success_receipt": false
+    },
+    "mutations": [
+      {
+        "path": [
+          "persisted_receipts_after"
+        ],
+        "value": 9
+      }
+    ],
+    "expected_error": "accepted_input_lost"
+  },
+  {
+    "id": "queue_reservation_capacity",
+    "check": "capacity",
+    "documents": {
+      "policy": "collection_policy"
+    },
+    "data": {
+      "active": 2,
+      "queued": 7,
+      "reserved_collectors": 1,
+      "new_collector_accepted": false,
+      "persisted_receipts_before": 10,
+      "persisted_receipts_after": 10,
+      "response_code": "queue_full",
+      "success_receipt": false
+    },
+    "mutations": [
+      {
+        "path": [
+          "queued"
+        ],
+        "value": 6
+      },
+      {
+        "path": [
+          "new_collector_accepted"
+        ],
+        "value": true
+      },
+      {
+        "path": [
+          "success_receipt"
+        ],
+        "value": true
+      },
+      {
+        "path": [
+          "response_code"
+        ],
+        "value": "accepted"
+      }
+    ]
+  },
+  {
+    "id": "same_command_returns_original",
+    "check": "idempotency",
+    "documents": {
+      "original": "send",
+      "retry": "send"
+    },
+    "data": {
+      "authorized_again": true,
+      "result": "original_result",
+      "execution_count": 1
+    }
+  },
+  {
+    "id": "retry_new_request_id_same_result",
+    "check": "idempotency",
+    "documents": {
+      "original": "send",
+      "retry": "send"
+    },
+    "data": {
+      "authorized_again": true,
+      "result": "original_result",
+      "execution_count": 1
+    },
+    "mutations": [
+      {
+        "path": [
+          "retry",
+          "command",
+          "request_id"
+        ],
+        "value": "request-retry"
+      }
+    ]
+  },
+  {
+    "id": "same_key_different_payload_conflict",
+    "check": "idempotency",
+    "documents": {
+      "original": "send",
+      "retry": "send"
+    },
+    "data": {
+      "authorized_again": true,
+      "result": "original_result",
+      "execution_count": 1
+    },
+    "mutations": [
+      {
+        "path": [
+          "retry",
+          "text"
+        ],
+        "value": "different"
+      },
+      {
+        "path": [
+          "result"
+        ],
+        "value": "idempotency_conflict"
+      }
+    ]
+  },
+  {
+    "id": "same_key_payload_cannot_execute",
+    "check": "idempotency",
+    "documents": {
+      "original": "send",
+      "retry": "send"
+    },
+    "data": {
+      "authorized_again": true,
+      "result": "original_result",
+      "execution_count": 1
+    },
+    "mutations": [
+      {
+        "path": [
+          "retry",
+          "text"
+        ],
+        "value": "different"
+      }
+    ],
+    "expected_error": "idempotency_conflict"
+  },
+  {
+    "id": "unknown_send_cannot_blind_replay",
+    "check": "idempotency",
+    "documents": {
+      "original": "send",
+      "retry": "send"
+    },
+    "data": {
+      "authorized_again": true,
+      "result": "original_result",
+      "execution_count": 1
+    },
+    "mutations": [
+      {
+        "path": [
+          "execution_count"
+        ],
+        "value": 2
+      }
+    ],
+    "expected_error": "duplicate_execution"
+  },
+  {
+    "id": "cancel_preserves_sent_fact",
+    "check": "cancel",
+    "documents": {
+      "request": "cancel",
+      "response": "cancel_partial"
+    },
+    "data": {
+      "current_version": 1,
+      "known_sent": [
+        "reply-fixture-1"
+      ],
+      "known_unknown": []
+    }
+  },
+  {
+    "id": "cancel_version_conflict",
+    "check": "cancel",
+    "documents": {
+      "request": "cancel",
+      "response": "cancel_partial"
+    },
+    "data": {
+      "current_version": 1,
+      "known_sent": [
+        "reply-fixture-1"
+      ],
+      "known_unknown": []
+    },
+    "mutations": [
+      {
+        "path": [
+          "current_version"
+        ],
+        "value": 2
+      }
+    ],
+    "expected_error": "cancel_version"
+  },
+  {
+    "id": "cancel_cannot_erase_sent",
+    "check": "cancel",
+    "documents": {
+      "request": "cancel",
+      "response": "cancel_partial"
+    },
+    "data": {
+      "current_version": 1,
+      "known_sent": [
+        "reply-fixture-1"
+      ],
+      "known_unknown": []
+    },
+    "mutations": [
+      {
+        "path": [
+          "response",
+          "already_sent_reply_ids"
+        ],
+        "value": []
+      }
+    ],
+    "expected_error": "cancel_erases_sent"
+  },
+  {
+    "id": "two_turns_unknown_recovery_trace",
+    "check": "trace",
+    "documents": {},
+    "data": {
+      "silence_ms": 5000,
+      "events": [
+        {
+          "at_ms": 0,
+          "kind": "input",
+          "message_id": "m1",
+          "collection": "a1",
+          "author": "a",
+          "revision": 1,
+          "deadline_ms": 5000
+        },
+        {
+          "at_ms": 2000,
+          "kind": "input",
+          "message_id": "m2",
+          "collection": "a1",
+          "author": "a",
+          "revision": 2,
+          "deadline_ms": 7000
+        },
+        {
+          "at_ms": 6000,
+          "kind": "input",
+          "message_id": "m3",
+          "collection": "a1",
+          "author": "a",
+          "revision": 3,
+          "deadline_ms": 11000
+        },
+        {
+          "at_ms": 6500,
+          "kind": "duplicate",
+          "message_id": "m3",
+          "collection": "a1",
+          "deadline_ms": 11000
+        },
+        {
+          "at_ms": 7000,
+          "kind": "stale_timer",
+          "collection": "a1",
+          "revision": 1,
+          "ignored": true
+        },
+        {
+          "at_ms": 11000,
+          "kind": "seal",
+          "collection": "a1",
+          "turn": 1,
+          "messages": [
+            "m1",
+            "m2",
+            "m3"
+          ]
+        },
+        {
+          "at_ms": 11000,
+          "kind": "input",
+          "message_id": "m4",
+          "collection": "a2",
+          "author": "a",
+          "revision": 1,
+          "deadline_ms": 16000
+        },
+        {
+          "at_ms": 11001,
+          "kind": "start",
+          "turn": 1
+        },
+        {
+          "at_ms": 16000,
+          "kind": "seal",
+          "collection": "a2",
+          "turn": 2,
+          "messages": [
+            "m4"
+          ]
+        },
+        {
+          "at_ms": 16001,
+          "kind": "start",
+          "turn": 2
+        },
+        {
+          "at_ms": 17000,
+          "kind": "generated",
+          "turn": 2,
+          "released_slot": false
+        },
+        {
+          "at_ms": 17010,
+          "kind": "input",
+          "message_id": "m5",
+          "collection": "b1",
+          "author": "b",
+          "revision": 1,
+          "deadline_ms": 22010
+        },
+        {
+          "at_ms": 18000,
+          "kind": "generated",
+          "turn": 1,
+          "released_slot": false
+        },
+        {
+          "at_ms": 18001,
+          "kind": "send",
+          "turn": 1,
+          "outcome": "unknown"
+        },
+        {
+          "at_ms": 22010,
+          "kind": "seal",
+          "collection": "b1",
+          "turn": 3,
+          "messages": [
+            "m5"
+          ]
+        },
+        {
+          "at_ms": 23001,
+          "kind": "close",
+          "turn": 1,
+          "phase": "closed_unknown",
+          "unresolved_delivery": true
+        },
+        {
+          "at_ms": 23002,
+          "kind": "start",
+          "turn": 3
+        },
+        {
+          "at_ms": 23003,
+          "kind": "send",
+          "turn": 2,
+          "outcome": "sent"
+        },
+        {
+          "at_ms": 23004,
+          "kind": "close",
+          "turn": 2,
+          "phase": "sent",
+          "unresolved_delivery": false
+        },
+        {
+          "at_ms": 24000,
+          "kind": "late_receipt",
+          "turn": 1,
+          "resend": false,
+          "new_memory_commit": false
+        },
+        {
+          "at_ms": 25000,
+          "kind": "close",
+          "turn": 3,
+          "phase": "observed",
+          "unresolved_delivery": false
+        }
+      ],
+      "delivery_reconcile_timeout_ms": 5000
+    }
+  },
+  {
+    "id": "trace_duplicate_no_reset",
+    "check": "trace",
+    "documents": {},
+    "data": {
+      "silence_ms": 5000,
+      "events": [
+        {
+          "at_ms": 0,
+          "kind": "input",
+          "message_id": "m1",
+          "collection": "a1",
+          "author": "a",
+          "revision": 1,
+          "deadline_ms": 5000
+        },
+        {
+          "at_ms": 2000,
+          "kind": "input",
+          "message_id": "m2",
+          "collection": "a1",
+          "author": "a",
+          "revision": 2,
+          "deadline_ms": 7000
+        },
+        {
+          "at_ms": 6000,
+          "kind": "input",
+          "message_id": "m3",
+          "collection": "a1",
+          "author": "a",
+          "revision": 3,
+          "deadline_ms": 11000
+        },
+        {
+          "at_ms": 6500,
+          "kind": "duplicate",
+          "message_id": "m3",
+          "collection": "a1",
+          "deadline_ms": 11000
+        },
+        {
+          "at_ms": 7000,
+          "kind": "stale_timer",
+          "collection": "a1",
+          "revision": 1,
+          "ignored": true
+        },
+        {
+          "at_ms": 11000,
+          "kind": "seal",
+          "collection": "a1",
+          "turn": 1,
+          "messages": [
+            "m1",
+            "m2",
+            "m3"
+          ]
+        },
+        {
+          "at_ms": 11000,
+          "kind": "input",
+          "message_id": "m4",
+          "collection": "a2",
+          "author": "a",
+          "revision": 1,
+          "deadline_ms": 16000
+        },
+        {
+          "at_ms": 11001,
+          "kind": "start",
+          "turn": 1
+        },
+        {
+          "at_ms": 16000,
+          "kind": "seal",
+          "collection": "a2",
+          "turn": 2,
+          "messages": [
+            "m4"
+          ]
+        },
+        {
+          "at_ms": 16001,
+          "kind": "start",
+          "turn": 2
+        },
+        {
+          "at_ms": 17000,
+          "kind": "generated",
+          "turn": 2,
+          "released_slot": false
+        },
+        {
+          "at_ms": 17010,
+          "kind": "input",
+          "message_id": "m5",
+          "collection": "b1",
+          "author": "b",
+          "revision": 1,
+          "deadline_ms": 22010
+        },
+        {
+          "at_ms": 18000,
+          "kind": "generated",
+          "turn": 1,
+          "released_slot": false
+        },
+        {
+          "at_ms": 18001,
+          "kind": "send",
+          "turn": 1,
+          "outcome": "unknown"
+        },
+        {
+          "at_ms": 22010,
+          "kind": "seal",
+          "collection": "b1",
+          "turn": 3,
+          "messages": [
+            "m5"
+          ]
+        },
+        {
+          "at_ms": 23001,
+          "kind": "close",
+          "turn": 1,
+          "phase": "closed_unknown",
+          "unresolved_delivery": true
+        },
+        {
+          "at_ms": 23002,
+          "kind": "start",
+          "turn": 3
+        },
+        {
+          "at_ms": 23003,
+          "kind": "send",
+          "turn": 2,
+          "outcome": "sent"
+        },
+        {
+          "at_ms": 23004,
+          "kind": "close",
+          "turn": 2,
+          "phase": "sent",
+          "unresolved_delivery": false
+        },
+        {
+          "at_ms": 24000,
+          "kind": "late_receipt",
+          "turn": 1,
+          "resend": false,
+          "new_memory_commit": false
+        },
+        {
+          "at_ms": 25000,
+          "kind": "close",
+          "turn": 3,
+          "phase": "observed",
+          "unresolved_delivery": false
+        }
+      ],
+      "delivery_reconcile_timeout_ms": 5000
+    },
+    "mutations": [
+      {
+        "path": [
+          "events",
+          3,
+          "deadline_ms"
+        ],
+        "value": 11500
+      }
+    ],
+    "expected_error": "duplicate_resets_window"
+  },
+  {
+    "id": "trace_stale_timer_ignored",
+    "check": "trace",
+    "documents": {},
+    "data": {
+      "silence_ms": 5000,
+      "events": [
+        {
+          "at_ms": 0,
+          "kind": "input",
+          "message_id": "m1",
+          "collection": "a1",
+          "author": "a",
+          "revision": 1,
+          "deadline_ms": 5000
+        },
+        {
+          "at_ms": 2000,
+          "kind": "input",
+          "message_id": "m2",
+          "collection": "a1",
+          "author": "a",
+          "revision": 2,
+          "deadline_ms": 7000
+        },
+        {
+          "at_ms": 6000,
+          "kind": "input",
+          "message_id": "m3",
+          "collection": "a1",
+          "author": "a",
+          "revision": 3,
+          "deadline_ms": 11000
+        },
+        {
+          "at_ms": 6500,
+          "kind": "duplicate",
+          "message_id": "m3",
+          "collection": "a1",
+          "deadline_ms": 11000
+        },
+        {
+          "at_ms": 7000,
+          "kind": "stale_timer",
+          "collection": "a1",
+          "revision": 1,
+          "ignored": true
+        },
+        {
+          "at_ms": 11000,
+          "kind": "seal",
+          "collection": "a1",
+          "turn": 1,
+          "messages": [
+            "m1",
+            "m2",
+            "m3"
+          ]
+        },
+        {
+          "at_ms": 11000,
+          "kind": "input",
+          "message_id": "m4",
+          "collection": "a2",
+          "author": "a",
+          "revision": 1,
+          "deadline_ms": 16000
+        },
+        {
+          "at_ms": 11001,
+          "kind": "start",
+          "turn": 1
+        },
+        {
+          "at_ms": 16000,
+          "kind": "seal",
+          "collection": "a2",
+          "turn": 2,
+          "messages": [
+            "m4"
+          ]
+        },
+        {
+          "at_ms": 16001,
+          "kind": "start",
+          "turn": 2
+        },
+        {
+          "at_ms": 17000,
+          "kind": "generated",
+          "turn": 2,
+          "released_slot": false
+        },
+        {
+          "at_ms": 17010,
+          "kind": "input",
+          "message_id": "m5",
+          "collection": "b1",
+          "author": "b",
+          "revision": 1,
+          "deadline_ms": 22010
+        },
+        {
+          "at_ms": 18000,
+          "kind": "generated",
+          "turn": 1,
+          "released_slot": false
+        },
+        {
+          "at_ms": 18001,
+          "kind": "send",
+          "turn": 1,
+          "outcome": "unknown"
+        },
+        {
+          "at_ms": 22010,
+          "kind": "seal",
+          "collection": "b1",
+          "turn": 3,
+          "messages": [
+            "m5"
+          ]
+        },
+        {
+          "at_ms": 23001,
+          "kind": "close",
+          "turn": 1,
+          "phase": "closed_unknown",
+          "unresolved_delivery": true
+        },
+        {
+          "at_ms": 23002,
+          "kind": "start",
+          "turn": 3
+        },
+        {
+          "at_ms": 23003,
+          "kind": "send",
+          "turn": 2,
+          "outcome": "sent"
+        },
+        {
+          "at_ms": 23004,
+          "kind": "close",
+          "turn": 2,
+          "phase": "sent",
+          "unresolved_delivery": false
+        },
+        {
+          "at_ms": 24000,
+          "kind": "late_receipt",
+          "turn": 1,
+          "resend": false,
+          "new_memory_commit": false
+        },
+        {
+          "at_ms": 25000,
+          "kind": "close",
+          "turn": 3,
+          "phase": "observed",
+          "unresolved_delivery": false
+        }
+      ],
+      "delivery_reconcile_timeout_ms": 5000
+    },
+    "mutations": [
+      {
+        "path": [
+          "events",
+          4,
+          "ignored"
+        ],
+        "value": false
+      }
+    ],
+    "expected_error": "stale_timer"
+  },
+  {
+    "id": "trace_exact_deadline_new_collection",
+    "check": "trace",
+    "documents": {},
+    "data": {
+      "silence_ms": 5000,
+      "events": [
+        {
+          "at_ms": 0,
+          "kind": "input",
+          "message_id": "m1",
+          "collection": "a1",
+          "author": "a",
+          "revision": 1,
+          "deadline_ms": 5000
+        },
+        {
+          "at_ms": 2000,
+          "kind": "input",
+          "message_id": "m2",
+          "collection": "a1",
+          "author": "a",
+          "revision": 2,
+          "deadline_ms": 7000
+        },
+        {
+          "at_ms": 6000,
+          "kind": "input",
+          "message_id": "m3",
+          "collection": "a1",
+          "author": "a",
+          "revision": 3,
+          "deadline_ms": 11000
+        },
+        {
+          "at_ms": 6500,
+          "kind": "duplicate",
+          "message_id": "m3",
+          "collection": "a1",
+          "deadline_ms": 11000
+        },
+        {
+          "at_ms": 7000,
+          "kind": "stale_timer",
+          "collection": "a1",
+          "revision": 1,
+          "ignored": true
+        },
+        {
+          "at_ms": 11000,
+          "kind": "seal",
+          "collection": "a1",
+          "turn": 1,
+          "messages": [
+            "m1",
+            "m2",
+            "m3"
+          ]
+        },
+        {
+          "at_ms": 11000,
+          "kind": "input",
+          "message_id": "m4",
+          "collection": "a2",
+          "author": "a",
+          "revision": 1,
+          "deadline_ms": 16000
+        },
+        {
+          "at_ms": 11001,
+          "kind": "start",
+          "turn": 1
+        },
+        {
+          "at_ms": 16000,
+          "kind": "seal",
+          "collection": "a2",
+          "turn": 2,
+          "messages": [
+            "m4"
+          ]
+        },
+        {
+          "at_ms": 16001,
+          "kind": "start",
+          "turn": 2
+        },
+        {
+          "at_ms": 17000,
+          "kind": "generated",
+          "turn": 2,
+          "released_slot": false
+        },
+        {
+          "at_ms": 17010,
+          "kind": "input",
+          "message_id": "m5",
+          "collection": "b1",
+          "author": "b",
+          "revision": 1,
+          "deadline_ms": 22010
+        },
+        {
+          "at_ms": 18000,
+          "kind": "generated",
+          "turn": 1,
+          "released_slot": false
+        },
+        {
+          "at_ms": 18001,
+          "kind": "send",
+          "turn": 1,
+          "outcome": "unknown"
+        },
+        {
+          "at_ms": 22010,
+          "kind": "seal",
+          "collection": "b1",
+          "turn": 3,
+          "messages": [
+            "m5"
+          ]
+        },
+        {
+          "at_ms": 23001,
+          "kind": "close",
+          "turn": 1,
+          "phase": "closed_unknown",
+          "unresolved_delivery": true
+        },
+        {
+          "at_ms": 23002,
+          "kind": "start",
+          "turn": 3
+        },
+        {
+          "at_ms": 23003,
+          "kind": "send",
+          "turn": 2,
+          "outcome": "sent"
+        },
+        {
+          "at_ms": 23004,
+          "kind": "close",
+          "turn": 2,
+          "phase": "sent",
+          "unresolved_delivery": false
+        },
+        {
+          "at_ms": 24000,
+          "kind": "late_receipt",
+          "turn": 1,
+          "resend": false,
+          "new_memory_commit": false
+        },
+        {
+          "at_ms": 25000,
+          "kind": "close",
+          "turn": 3,
+          "phase": "observed",
+          "unresolved_delivery": false
+        }
+      ],
+      "delivery_reconcile_timeout_ms": 5000
+    },
+    "mutations": [
+      {
+        "path": [
+          "events",
+          6,
+          "collection"
+        ],
+        "value": "a1"
+      }
+    ],
+    "expected_error": "deadline_boundary"
+  },
+  {
+    "id": "trace_generated_still_occupies_slot",
+    "check": "trace",
+    "documents": {},
+    "data": {
+      "silence_ms": 5000,
+      "events": [
+        {
+          "at_ms": 0,
+          "kind": "input",
+          "message_id": "m1",
+          "collection": "a1",
+          "author": "a",
+          "revision": 1,
+          "deadline_ms": 5000
+        },
+        {
+          "at_ms": 2000,
+          "kind": "input",
+          "message_id": "m2",
+          "collection": "a1",
+          "author": "a",
+          "revision": 2,
+          "deadline_ms": 7000
+        },
+        {
+          "at_ms": 6000,
+          "kind": "input",
+          "message_id": "m3",
+          "collection": "a1",
+          "author": "a",
+          "revision": 3,
+          "deadline_ms": 11000
+        },
+        {
+          "at_ms": 6500,
+          "kind": "duplicate",
+          "message_id": "m3",
+          "collection": "a1",
+          "deadline_ms": 11000
+        },
+        {
+          "at_ms": 7000,
+          "kind": "stale_timer",
+          "collection": "a1",
+          "revision": 1,
+          "ignored": true
+        },
+        {
+          "at_ms": 11000,
+          "kind": "seal",
+          "collection": "a1",
+          "turn": 1,
+          "messages": [
+            "m1",
+            "m2",
+            "m3"
+          ]
+        },
+        {
+          "at_ms": 11000,
+          "kind": "input",
+          "message_id": "m4",
+          "collection": "a2",
+          "author": "a",
+          "revision": 1,
+          "deadline_ms": 16000
+        },
+        {
+          "at_ms": 11001,
+          "kind": "start",
+          "turn": 1
+        },
+        {
+          "at_ms": 16000,
+          "kind": "seal",
+          "collection": "a2",
+          "turn": 2,
+          "messages": [
+            "m4"
+          ]
+        },
+        {
+          "at_ms": 16001,
+          "kind": "start",
+          "turn": 2
+        },
+        {
+          "at_ms": 17000,
+          "kind": "generated",
+          "turn": 2,
+          "released_slot": false
+        },
+        {
+          "at_ms": 17010,
+          "kind": "input",
+          "message_id": "m5",
+          "collection": "b1",
+          "author": "b",
+          "revision": 1,
+          "deadline_ms": 22010
+        },
+        {
+          "at_ms": 18000,
+          "kind": "generated",
+          "turn": 1,
+          "released_slot": false
+        },
+        {
+          "at_ms": 18001,
+          "kind": "send",
+          "turn": 1,
+          "outcome": "unknown"
+        },
+        {
+          "at_ms": 22010,
+          "kind": "seal",
+          "collection": "b1",
+          "turn": 3,
+          "messages": [
+            "m5"
+          ]
+        },
+        {
+          "at_ms": 23001,
+          "kind": "close",
+          "turn": 1,
+          "phase": "closed_unknown",
+          "unresolved_delivery": true
+        },
+        {
+          "at_ms": 23002,
+          "kind": "start",
+          "turn": 3
+        },
+        {
+          "at_ms": 23003,
+          "kind": "send",
+          "turn": 2,
+          "outcome": "sent"
+        },
+        {
+          "at_ms": 23004,
+          "kind": "close",
+          "turn": 2,
+          "phase": "sent",
+          "unresolved_delivery": false
+        },
+        {
+          "at_ms": 24000,
+          "kind": "late_receipt",
+          "turn": 1,
+          "resend": false,
+          "new_memory_commit": false
+        },
+        {
+          "at_ms": 25000,
+          "kind": "close",
+          "turn": 3,
+          "phase": "observed",
+          "unresolved_delivery": false
+        }
+      ],
+      "delivery_reconcile_timeout_ms": 5000
+    },
+    "mutations": [
+      {
+        "path": [
+          "events",
+          10,
+          "released_slot"
+        ],
+        "value": true
+      }
+    ],
+    "expected_error": "early_slot_release"
+  },
+  {
+    "id": "trace_t2_cannot_overtake",
+    "check": "trace",
+    "documents": {},
+    "data": {
+      "silence_ms": 5000,
+      "events": [
+        {
+          "at_ms": 0,
+          "kind": "input",
+          "message_id": "m1",
+          "collection": "a1",
+          "author": "a",
+          "revision": 1,
+          "deadline_ms": 5000
+        },
+        {
+          "at_ms": 2000,
+          "kind": "input",
+          "message_id": "m2",
+          "collection": "a1",
+          "author": "a",
+          "revision": 2,
+          "deadline_ms": 7000
+        },
+        {
+          "at_ms": 6000,
+          "kind": "input",
+          "message_id": "m3",
+          "collection": "a1",
+          "author": "a",
+          "revision": 3,
+          "deadline_ms": 11000
+        },
+        {
+          "at_ms": 6500,
+          "kind": "duplicate",
+          "message_id": "m3",
+          "collection": "a1",
+          "deadline_ms": 11000
+        },
+        {
+          "at_ms": 7000,
+          "kind": "stale_timer",
+          "collection": "a1",
+          "revision": 1,
+          "ignored": true
+        },
+        {
+          "at_ms": 11000,
+          "kind": "seal",
+          "collection": "a1",
+          "turn": 1,
+          "messages": [
+            "m1",
+            "m2",
+            "m3"
+          ]
+        },
+        {
+          "at_ms": 11000,
+          "kind": "input",
+          "message_id": "m4",
+          "collection": "a2",
+          "author": "a",
+          "revision": 1,
+          "deadline_ms": 16000
+        },
+        {
+          "at_ms": 11001,
+          "kind": "start",
+          "turn": 1
+        },
+        {
+          "at_ms": 16000,
+          "kind": "seal",
+          "collection": "a2",
+          "turn": 2,
+          "messages": [
+            "m4"
+          ]
+        },
+        {
+          "at_ms": 16001,
+          "kind": "start",
+          "turn": 2
+        },
+        {
+          "at_ms": 17000,
+          "kind": "generated",
+          "turn": 2,
+          "released_slot": false
+        },
+        {
+          "at_ms": 17010,
+          "kind": "input",
+          "message_id": "m5",
+          "collection": "b1",
+          "author": "b",
+          "revision": 1,
+          "deadline_ms": 22010
+        },
+        {
+          "at_ms": 18000,
+          "kind": "generated",
+          "turn": 1,
+          "released_slot": false
+        },
+        {
+          "at_ms": 18001,
+          "kind": "send",
+          "turn": 1,
+          "outcome": "unknown"
+        },
+        {
+          "at_ms": 22010,
+          "kind": "seal",
+          "collection": "b1",
+          "turn": 3,
+          "messages": [
+            "m5"
+          ]
+        },
+        {
+          "at_ms": 23001,
+          "kind": "close",
+          "turn": 1,
+          "phase": "closed_unknown",
+          "unresolved_delivery": true
+        },
+        {
+          "at_ms": 23002,
+          "kind": "start",
+          "turn": 3
+        },
+        {
+          "at_ms": 23003,
+          "kind": "send",
+          "turn": 2,
+          "outcome": "sent"
+        },
+        {
+          "at_ms": 23004,
+          "kind": "close",
+          "turn": 2,
+          "phase": "sent",
+          "unresolved_delivery": false
+        },
+        {
+          "at_ms": 24000,
+          "kind": "late_receipt",
+          "turn": 1,
+          "resend": false,
+          "new_memory_commit": false
+        },
+        {
+          "at_ms": 25000,
+          "kind": "close",
+          "turn": 3,
+          "phase": "observed",
+          "unresolved_delivery": false
+        }
+      ],
+      "delivery_reconcile_timeout_ms": 5000
+    },
+    "mutations": [
+      {
+        "path": [
+          "events",
+          13,
+          "turn"
+        ],
+        "value": 2
+      }
+    ],
+    "expected_error": "send_order"
+  },
+  {
+    "id": "trace_unknown_fact_retained",
+    "check": "trace",
+    "documents": {},
+    "data": {
+      "silence_ms": 5000,
+      "events": [
+        {
+          "at_ms": 0,
+          "kind": "input",
+          "message_id": "m1",
+          "collection": "a1",
+          "author": "a",
+          "revision": 1,
+          "deadline_ms": 5000
+        },
+        {
+          "at_ms": 2000,
+          "kind": "input",
+          "message_id": "m2",
+          "collection": "a1",
+          "author": "a",
+          "revision": 2,
+          "deadline_ms": 7000
+        },
+        {
+          "at_ms": 6000,
+          "kind": "input",
+          "message_id": "m3",
+          "collection": "a1",
+          "author": "a",
+          "revision": 3,
+          "deadline_ms": 11000
+        },
+        {
+          "at_ms": 6500,
+          "kind": "duplicate",
+          "message_id": "m3",
+          "collection": "a1",
+          "deadline_ms": 11000
+        },
+        {
+          "at_ms": 7000,
+          "kind": "stale_timer",
+          "collection": "a1",
+          "revision": 1,
+          "ignored": true
+        },
+        {
+          "at_ms": 11000,
+          "kind": "seal",
+          "collection": "a1",
+          "turn": 1,
+          "messages": [
+            "m1",
+            "m2",
+            "m3"
+          ]
+        },
+        {
+          "at_ms": 11000,
+          "kind": "input",
+          "message_id": "m4",
+          "collection": "a2",
+          "author": "a",
+          "revision": 1,
+          "deadline_ms": 16000
+        },
+        {
+          "at_ms": 11001,
+          "kind": "start",
+          "turn": 1
+        },
+        {
+          "at_ms": 16000,
+          "kind": "seal",
+          "collection": "a2",
+          "turn": 2,
+          "messages": [
+            "m4"
+          ]
+        },
+        {
+          "at_ms": 16001,
+          "kind": "start",
+          "turn": 2
+        },
+        {
+          "at_ms": 17000,
+          "kind": "generated",
+          "turn": 2,
+          "released_slot": false
+        },
+        {
+          "at_ms": 17010,
+          "kind": "input",
+          "message_id": "m5",
+          "collection": "b1",
+          "author": "b",
+          "revision": 1,
+          "deadline_ms": 22010
+        },
+        {
+          "at_ms": 18000,
+          "kind": "generated",
+          "turn": 1,
+          "released_slot": false
+        },
+        {
+          "at_ms": 18001,
+          "kind": "send",
+          "turn": 1,
+          "outcome": "unknown"
+        },
+        {
+          "at_ms": 22010,
+          "kind": "seal",
+          "collection": "b1",
+          "turn": 3,
+          "messages": [
+            "m5"
+          ]
+        },
+        {
+          "at_ms": 23001,
+          "kind": "close",
+          "turn": 1,
+          "phase": "closed_unknown",
+          "unresolved_delivery": true
+        },
+        {
+          "at_ms": 23002,
+          "kind": "start",
+          "turn": 3
+        },
+        {
+          "at_ms": 23003,
+          "kind": "send",
+          "turn": 2,
+          "outcome": "sent"
+        },
+        {
+          "at_ms": 23004,
+          "kind": "close",
+          "turn": 2,
+          "phase": "sent",
+          "unresolved_delivery": false
+        },
+        {
+          "at_ms": 24000,
+          "kind": "late_receipt",
+          "turn": 1,
+          "resend": false,
+          "new_memory_commit": false
+        },
+        {
+          "at_ms": 25000,
+          "kind": "close",
+          "turn": 3,
+          "phase": "observed",
+          "unresolved_delivery": false
+        }
+      ],
+      "delivery_reconcile_timeout_ms": 5000
+    },
+    "mutations": [
+      {
+        "path": [
+          "events",
+          15,
+          "unresolved_delivery"
+        ],
+        "value": false
+      }
+    ],
+    "expected_error": "unknown_fabricated"
+  },
+  {
+    "id": "trace_late_receipt_no_replay",
+    "check": "trace",
+    "documents": {},
+    "data": {
+      "silence_ms": 5000,
+      "events": [
+        {
+          "at_ms": 0,
+          "kind": "input",
+          "message_id": "m1",
+          "collection": "a1",
+          "author": "a",
+          "revision": 1,
+          "deadline_ms": 5000
+        },
+        {
+          "at_ms": 2000,
+          "kind": "input",
+          "message_id": "m2",
+          "collection": "a1",
+          "author": "a",
+          "revision": 2,
+          "deadline_ms": 7000
+        },
+        {
+          "at_ms": 6000,
+          "kind": "input",
+          "message_id": "m3",
+          "collection": "a1",
+          "author": "a",
+          "revision": 3,
+          "deadline_ms": 11000
+        },
+        {
+          "at_ms": 6500,
+          "kind": "duplicate",
+          "message_id": "m3",
+          "collection": "a1",
+          "deadline_ms": 11000
+        },
+        {
+          "at_ms": 7000,
+          "kind": "stale_timer",
+          "collection": "a1",
+          "revision": 1,
+          "ignored": true
+        },
+        {
+          "at_ms": 11000,
+          "kind": "seal",
+          "collection": "a1",
+          "turn": 1,
+          "messages": [
+            "m1",
+            "m2",
+            "m3"
+          ]
+        },
+        {
+          "at_ms": 11000,
+          "kind": "input",
+          "message_id": "m4",
+          "collection": "a2",
+          "author": "a",
+          "revision": 1,
+          "deadline_ms": 16000
+        },
+        {
+          "at_ms": 11001,
+          "kind": "start",
+          "turn": 1
+        },
+        {
+          "at_ms": 16000,
+          "kind": "seal",
+          "collection": "a2",
+          "turn": 2,
+          "messages": [
+            "m4"
+          ]
+        },
+        {
+          "at_ms": 16001,
+          "kind": "start",
+          "turn": 2
+        },
+        {
+          "at_ms": 17000,
+          "kind": "generated",
+          "turn": 2,
+          "released_slot": false
+        },
+        {
+          "at_ms": 17010,
+          "kind": "input",
+          "message_id": "m5",
+          "collection": "b1",
+          "author": "b",
+          "revision": 1,
+          "deadline_ms": 22010
+        },
+        {
+          "at_ms": 18000,
+          "kind": "generated",
+          "turn": 1,
+          "released_slot": false
+        },
+        {
+          "at_ms": 18001,
+          "kind": "send",
+          "turn": 1,
+          "outcome": "unknown"
+        },
+        {
+          "at_ms": 22010,
+          "kind": "seal",
+          "collection": "b1",
+          "turn": 3,
+          "messages": [
+            "m5"
+          ]
+        },
+        {
+          "at_ms": 23001,
+          "kind": "close",
+          "turn": 1,
+          "phase": "closed_unknown",
+          "unresolved_delivery": true
+        },
+        {
+          "at_ms": 23002,
+          "kind": "start",
+          "turn": 3
+        },
+        {
+          "at_ms": 23003,
+          "kind": "send",
+          "turn": 2,
+          "outcome": "sent"
+        },
+        {
+          "at_ms": 23004,
+          "kind": "close",
+          "turn": 2,
+          "phase": "sent",
+          "unresolved_delivery": false
+        },
+        {
+          "at_ms": 24000,
+          "kind": "late_receipt",
+          "turn": 1,
+          "resend": false,
+          "new_memory_commit": false
+        },
+        {
+          "at_ms": 25000,
+          "kind": "close",
+          "turn": 3,
+          "phase": "observed",
+          "unresolved_delivery": false
+        }
+      ],
+      "delivery_reconcile_timeout_ms": 5000
+    },
+    "mutations": [
+      {
+        "path": [
+          "events",
+          19,
+          "resend"
+        ],
+        "value": true
+      }
+    ],
+    "expected_error": "late_receipt_replay"
+  },
+  {
+    "id": "trace_third_turn_queued",
+    "check": "trace",
+    "documents": {},
+    "data": {
+      "silence_ms": 5000,
+      "events": [
+        {
+          "at_ms": 0,
+          "kind": "input",
+          "message_id": "m1",
+          "collection": "a1",
+          "author": "a",
+          "revision": 1,
+          "deadline_ms": 5000
+        },
+        {
+          "at_ms": 2000,
+          "kind": "input",
+          "message_id": "m2",
+          "collection": "a1",
+          "author": "a",
+          "revision": 2,
+          "deadline_ms": 7000
+        },
+        {
+          "at_ms": 6000,
+          "kind": "input",
+          "message_id": "m3",
+          "collection": "a1",
+          "author": "a",
+          "revision": 3,
+          "deadline_ms": 11000
+        },
+        {
+          "at_ms": 6500,
+          "kind": "duplicate",
+          "message_id": "m3",
+          "collection": "a1",
+          "deadline_ms": 11000
+        },
+        {
+          "at_ms": 7000,
+          "kind": "stale_timer",
+          "collection": "a1",
+          "revision": 1,
+          "ignored": true
+        },
+        {
+          "at_ms": 11000,
+          "kind": "seal",
+          "collection": "a1",
+          "turn": 1,
+          "messages": [
+            "m1",
+            "m2",
+            "m3"
+          ]
+        },
+        {
+          "at_ms": 11000,
+          "kind": "input",
+          "message_id": "m4",
+          "collection": "a2",
+          "author": "a",
+          "revision": 1,
+          "deadline_ms": 16000
+        },
+        {
+          "at_ms": 11001,
+          "kind": "start",
+          "turn": 1
+        },
+        {
+          "at_ms": 16000,
+          "kind": "seal",
+          "collection": "a2",
+          "turn": 2,
+          "messages": [
+            "m4"
+          ]
+        },
+        {
+          "at_ms": 16001,
+          "kind": "start",
+          "turn": 2
+        },
+        {
+          "at_ms": 17000,
+          "kind": "generated",
+          "turn": 2,
+          "released_slot": false
+        },
+        {
+          "at_ms": 17010,
+          "kind": "input",
+          "message_id": "m5",
+          "collection": "b1",
+          "author": "b",
+          "revision": 1,
+          "deadline_ms": 22010
+        },
+        {
+          "at_ms": 18000,
+          "kind": "generated",
+          "turn": 1,
+          "released_slot": false
+        },
+        {
+          "at_ms": 18001,
+          "kind": "send",
+          "turn": 1,
+          "outcome": "unknown"
+        },
+        {
+          "at_ms": 22010,
+          "kind": "seal",
+          "collection": "b1",
+          "turn": 3,
+          "messages": [
+            "m5"
+          ]
+        },
+        {
+          "at_ms": 23001,
+          "kind": "close",
+          "turn": 1,
+          "phase": "closed_unknown",
+          "unresolved_delivery": true
+        },
+        {
+          "at_ms": 23002,
+          "kind": "start",
+          "turn": 3
+        },
+        {
+          "at_ms": 23003,
+          "kind": "send",
+          "turn": 2,
+          "outcome": "sent"
+        },
+        {
+          "at_ms": 23004,
+          "kind": "close",
+          "turn": 2,
+          "phase": "sent",
+          "unresolved_delivery": false
+        },
+        {
+          "at_ms": 24000,
+          "kind": "late_receipt",
+          "turn": 1,
+          "resend": false,
+          "new_memory_commit": false
+        },
+        {
+          "at_ms": 25000,
+          "kind": "close",
+          "turn": 3,
+          "phase": "observed",
+          "unresolved_delivery": false
+        }
+      ],
+      "delivery_reconcile_timeout_ms": 5000
+    },
+    "mutations": [
+      {
+        "path": [
+          "events"
+        ],
+        "value": [
+          {
+            "at_ms": 0,
+            "kind": "input",
+            "message_id": "m1",
+            "collection": "a1",
+            "author": "a",
+            "revision": 1,
+            "deadline_ms": 5000
+          },
+          {
+            "at_ms": 2000,
+            "kind": "input",
+            "message_id": "m2",
+            "collection": "a1",
+            "author": "a",
+            "revision": 2,
+            "deadline_ms": 7000
+          },
+          {
+            "at_ms": 6000,
+            "kind": "input",
+            "message_id": "m3",
+            "collection": "a1",
+            "author": "a",
+            "revision": 3,
+            "deadline_ms": 11000
+          },
+          {
+            "at_ms": 6500,
+            "kind": "duplicate",
+            "message_id": "m3",
+            "collection": "a1",
+            "deadline_ms": 11000
+          },
+          {
+            "at_ms": 7000,
+            "kind": "stale_timer",
+            "collection": "a1",
+            "revision": 1,
+            "ignored": true
+          },
+          {
+            "at_ms": 11000,
+            "kind": "seal",
+            "collection": "a1",
+            "turn": 1,
+            "messages": [
+              "m1",
+              "m2",
+              "m3"
+            ]
+          },
+          {
+            "at_ms": 11000,
+            "kind": "input",
+            "message_id": "m4",
+            "collection": "a2",
+            "author": "a",
+            "revision": 1,
+            "deadline_ms": 16000
+          },
+          {
+            "at_ms": 11001,
+            "kind": "start",
+            "turn": 1
+          },
+          {
+            "at_ms": 16000,
+            "kind": "seal",
+            "collection": "a2",
+            "turn": 2,
+            "messages": [
+              "m4"
+            ]
+          },
+          {
+            "at_ms": 16001,
+            "kind": "start",
+            "turn": 2
+          },
+          {
+            "at_ms": 17000,
+            "kind": "generated",
+            "turn": 2,
+            "released_slot": false
+          },
+          {
+            "at_ms": 17010,
+            "kind": "input",
+            "message_id": "m5",
+            "collection": "b1",
+            "author": "b",
+            "revision": 1,
+            "deadline_ms": 22010
+          },
+          {
+            "at_ms": 18000,
+            "kind": "generated",
+            "turn": 1,
+            "released_slot": false
+          },
+          {
+            "at_ms": 18001,
+            "kind": "send",
+            "turn": 1,
+            "outcome": "unknown"
+          },
+          {
+            "at_ms": 22010,
+            "kind": "seal",
+            "collection": "b1",
+            "turn": 3,
+            "messages": [
+              "m5"
+            ]
+          },
+          {
+            "at_ms": 22500,
+            "kind": "start",
+            "turn": 3
+          },
+          {
+            "at_ms": 23001,
+            "kind": "start",
+            "turn": 3
+          },
+          {
+            "at_ms": 23002,
+            "kind": "send",
+            "turn": 2,
+            "outcome": "sent"
+          },
+          {
+            "at_ms": 23003,
+            "kind": "close",
+            "turn": 2,
+            "phase": "sent",
+            "unresolved_delivery": false
+          },
+          {
+            "at_ms": 24000,
+            "kind": "late_receipt",
+            "turn": 1,
+            "resend": false,
+            "new_memory_commit": false
+          },
+          {
+            "at_ms": 25000,
+            "kind": "close",
+            "turn": 3,
+            "phase": "observed",
+            "unresolved_delivery": false
+          }
+        ]
+      }
+    ],
+    "expected_error": "third_active_turn"
+  },
+  {
+    "id": "native_stream_complete",
+    "check": "stream",
+    "data": {
+      "wire": "data: {\"id\": \"chatcmpl-fixture\", \"object\": \"chat.completion.chunk\", \"created\": 1789344010, \"model\": \"fixture-text-model\", \"choices\": [{\"index\": 0, \"delta\": {\"role\": \"assistant\", \"content\": \"你好。\"}, \"finish_reason\": null}]}\n\ndata: {\"id\": \"chatcmpl-fixture\", \"object\": \"chat.completion.chunk\", \"created\": 1789344010, \"model\": \"fixture-text-model\", \"choices\": [{\"index\": 0, \"delta\": {}, \"finish_reason\": \"stop\"}]}\n\ndata: [DONE]\n\n",
+      "receipt_outcome": "succeeded",
+      "restart_upstream_calls": 0
+    }
+  },
+  {
+    "id": "native_stream_interrupted",
+    "check": "stream",
+    "data": {
+      "wire": "data: {\"id\": \"chatcmpl-fixture\", \"object\": \"chat.completion.chunk\", \"created\": 1789344010, \"model\": \"fixture-text-model\", \"choices\": [{\"index\": 0, \"delta\": {\"role\": \"assistant\", \"content\": \"你好。\"}, \"finish_reason\": null}]}\n\n",
+      "receipt_outcome": "unknown",
+      "restart_upstream_calls": 0
+    }
+  },
+  {
+    "id": "native_stream_interrupted_not_success",
+    "check": "stream",
+    "data": {
+      "wire": "data: {\"id\": \"chatcmpl-fixture\", \"object\": \"chat.completion.chunk\", \"created\": 1789344010, \"model\": \"fixture-text-model\", \"choices\": [{\"index\": 0, \"delta\": {\"role\": \"assistant\", \"content\": \"你好。\"}, \"finish_reason\": null}]}\n\n",
+      "receipt_outcome": "succeeded",
+      "restart_upstream_calls": 0
+    },
+    "expected_error": "stream_unknown_result"
+  },
+  {
+    "id": "group_interleaving_separate_collectors",
+    "check": "trace",
+    "data": {
+      "silence_ms": 5000,
+      "events": [
+        {
+          "at_ms": 0,
+          "kind": "input",
+          "message_id": "a1",
+          "collection": "a",
+          "author": "a",
+          "revision": 1,
+          "deadline_ms": 5000
+        },
+        {
+          "at_ms": 2000,
+          "kind": "input",
+          "message_id": "b1",
+          "collection": "b",
+          "author": "b",
+          "revision": 1,
+          "deadline_ms": 7000
+        },
+        {
+          "at_ms": 3000,
+          "kind": "input",
+          "message_id": "a2",
+          "collection": "a",
+          "author": "a",
+          "revision": 2,
+          "deadline_ms": 8000
+        },
+        {
+          "at_ms": 7000,
+          "kind": "seal",
+          "collection": "b",
+          "turn": 1,
+          "messages": [
+            "b1"
+          ]
+        },
+        {
+          "at_ms": 7001,
+          "kind": "start",
+          "turn": 1
+        },
+        {
+          "at_ms": 8000,
+          "kind": "seal",
+          "collection": "a",
+          "turn": 2,
+          "messages": [
+            "a1",
+            "a2"
+          ]
+        },
+        {
+          "at_ms": 8001,
+          "kind": "start",
+          "turn": 2
+        },
+        {
+          "at_ms": 9000,
+          "kind": "close",
+          "turn": 1,
+          "phase": "observed",
+          "unresolved_delivery": false
+        },
+        {
+          "at_ms": 9001,
+          "kind": "close",
+          "turn": 2,
+          "phase": "observed",
+          "unresolved_delivery": false
+        }
+      ],
+      "delivery_reconcile_timeout_ms": 5000
+    }
+  },
+  {
+    "id": "zero_window_immediate_seal",
+    "check": "trace",
+    "data": {
+      "silence_ms": 0,
+      "events": [
+        {
+          "at_ms": 0,
+          "kind": "input",
+          "message_id": "a1",
+          "collection": "a",
+          "author": "a",
+          "revision": 1,
+          "deadline_ms": 0
+        },
+        {
+          "at_ms": 0,
+          "kind": "seal",
+          "collection": "a",
+          "turn": 1,
+          "messages": [
+            "a1"
+          ]
+        },
+        {
+          "at_ms": 0,
+          "kind": "start",
+          "turn": 1
+        },
+        {
+          "at_ms": 1,
+          "kind": "input",
+          "message_id": "a2",
+          "collection": "a-next",
+          "author": "a",
+          "revision": 1,
+          "deadline_ms": 1
+        },
+        {
+          "at_ms": 1,
+          "kind": "seal",
+          "collection": "a-next",
+          "turn": 2,
+          "messages": [
+            "a2"
+          ]
+        },
+        {
+          "at_ms": 1,
+          "kind": "start",
+          "turn": 2
+        },
+        {
+          "at_ms": 2,
+          "kind": "close",
+          "turn": 1,
+          "phase": "observed",
+          "unresolved_delivery": false
+        },
+        {
+          "at_ms": 3,
+          "kind": "close",
+          "turn": 2,
+          "phase": "observed",
+          "unresolved_delivery": false
+        }
+      ],
+      "delivery_reconcile_timeout_ms": 5000
+    }
+  },
+  {
+    "id": "first_registration_without_person_id",
+    "check": "identity",
+    "documents": {
+      "request": "register",
+      "response": "registered",
+      "context": "trusted_context_memory"
+    },
+    "data": {
+      "operation": "register",
+      "registry": {
+        "{\"immutable_account_id\": \"fixture-user-a\", \"namespace\": \"qq\"}": "person-fixture-a"
+      }
+    },
+    "mutations": [
+      {
+        "path": [
+          "context",
+          "allowed_scope",
+          "person_id"
+        ],
+        "value": null
+      }
+    ]
+  },
+  {
+    "id": "gateway_default_only_when_absent",
+    "check": "gateway",
+    "documents": {
+      "config": "config",
+      "receipt": "route",
+      "incoming": "native_request_without_reasoning",
+      "outgoing": "native_request"
+    },
+    "data": {
+      "pinned_version": 7,
+      "started_at": "2026-09-14T00:00:01Z",
+      "revoked": false,
+      "upstream_usage": null,
+      "reference_binding": null
+    },
+    "mutations": [
+      {
+        "path": [
+          "config",
+          "providers",
+          0,
+          "reasoning_policy"
+        ],
+        "value": {
+          "mode": "default_if_absent",
+          "fields": {
+            "reasoning_effort": "high"
+          }
+        }
+      },
+      {
+        "path": [
+          "outgoing",
+          "reasoning_effort"
+        ],
+        "value": "high"
+      },
+      {
+        "path": [
+          "receipt",
+          "requested_reasoning"
+        ],
+        "value": {}
+      },
+      {
+        "path": [
+          "receipt",
+          "effective_reasoning"
+        ],
+        "value": {
+          "reasoning_effort": "high"
+        }
+      },
+      {
+        "path": [
+          "receipt",
+          "applied_policies"
+        ],
+        "value": [
+          {
+            "field": "reasoning_effort",
+            "mode": "default_if_absent",
+            "config_version": 7
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gateway_force_must_be_visible",
+    "check": "gateway",
+    "documents": {
+      "config": "config",
+      "receipt": "route",
+      "incoming": "native_request",
+      "outgoing": "native_request"
+    },
+    "data": {
+      "pinned_version": 7,
+      "started_at": "2026-09-14T00:00:01Z",
+      "revoked": false,
+      "upstream_usage": null,
+      "reference_binding": null
+    },
+    "mutations": [
+      {
+        "path": [
+          "config",
+          "providers",
+          0,
+          "model_policy"
+        ],
+        "value": {
+          "mode": "force",
+          "fields": {
+            "model": "fixture-forced-model"
+          }
+        }
+      },
+      {
+        "path": [
+          "outgoing",
+          "model"
+        ],
+        "value": "fixture-forced-model"
+      },
+      {
+        "path": [
+          "receipt",
+          "resolved_model"
+        ],
+        "value": "fixture-forced-model"
+      },
+      {
+        "path": [
+          "receipt",
+          "applied_policies"
+        ],
+        "value": [
+          {
+            "field": "model",
+            "mode": "force",
+            "config_version": 7
+          }
+        ]
+      },
+      {
+        "path": [
+          "receipt",
+          "applied_policies"
+        ],
+        "value": []
+      }
+    ],
+    "expected_error": "policy_receipt"
+  },
+  {
+    "id": "unknown_requires_reconcile_wait",
+    "check": "trace",
+    "documents": {},
+    "data": {
+      "silence_ms": 5000,
+      "events": [
+        {
+          "at_ms": 0,
+          "kind": "input",
+          "message_id": "m1",
+          "collection": "a1",
+          "author": "a",
+          "revision": 1,
+          "deadline_ms": 5000
+        },
+        {
+          "at_ms": 2000,
+          "kind": "input",
+          "message_id": "m2",
+          "collection": "a1",
+          "author": "a",
+          "revision": 2,
+          "deadline_ms": 7000
+        },
+        {
+          "at_ms": 6000,
+          "kind": "input",
+          "message_id": "m3",
+          "collection": "a1",
+          "author": "a",
+          "revision": 3,
+          "deadline_ms": 11000
+        },
+        {
+          "at_ms": 6500,
+          "kind": "duplicate",
+          "message_id": "m3",
+          "collection": "a1",
+          "deadline_ms": 11000
+        },
+        {
+          "at_ms": 7000,
+          "kind": "stale_timer",
+          "collection": "a1",
+          "revision": 1,
+          "ignored": true
+        },
+        {
+          "at_ms": 11000,
+          "kind": "seal",
+          "collection": "a1",
+          "turn": 1,
+          "messages": [
+            "m1",
+            "m2",
+            "m3"
+          ]
+        },
+        {
+          "at_ms": 11000,
+          "kind": "input",
+          "message_id": "m4",
+          "collection": "a2",
+          "author": "a",
+          "revision": 1,
+          "deadline_ms": 16000
+        },
+        {
+          "at_ms": 11001,
+          "kind": "start",
+          "turn": 1
+        },
+        {
+          "at_ms": 16000,
+          "kind": "seal",
+          "collection": "a2",
+          "turn": 2,
+          "messages": [
+            "m4"
+          ]
+        },
+        {
+          "at_ms": 16001,
+          "kind": "start",
+          "turn": 2
+        },
+        {
+          "at_ms": 17000,
+          "kind": "generated",
+          "turn": 2,
+          "released_slot": false
+        },
+        {
+          "at_ms": 17010,
+          "kind": "input",
+          "message_id": "m5",
+          "collection": "b1",
+          "author": "b",
+          "revision": 1,
+          "deadline_ms": 22010
+        },
+        {
+          "at_ms": 18000,
+          "kind": "generated",
+          "turn": 1,
+          "released_slot": false
+        },
+        {
+          "at_ms": 18001,
+          "kind": "send",
+          "turn": 1,
+          "outcome": "unknown"
+        },
+        {
+          "at_ms": 22010,
+          "kind": "seal",
+          "collection": "b1",
+          "turn": 3,
+          "messages": [
+            "m5"
+          ]
+        },
+        {
+          "at_ms": 23001,
+          "kind": "close",
+          "turn": 1,
+          "phase": "closed_unknown",
+          "unresolved_delivery": true
+        },
+        {
+          "at_ms": 23002,
+          "kind": "start",
+          "turn": 3
+        },
+        {
+          "at_ms": 23003,
+          "kind": "send",
+          "turn": 2,
+          "outcome": "sent"
+        },
+        {
+          "at_ms": 23004,
+          "kind": "close",
+          "turn": 2,
+          "phase": "sent",
+          "unresolved_delivery": false
+        },
+        {
+          "at_ms": 24000,
+          "kind": "late_receipt",
+          "turn": 1,
+          "resend": false,
+          "new_memory_commit": false
+        },
+        {
+          "at_ms": 25000,
+          "kind": "close",
+          "turn": 3,
+          "phase": "observed",
+          "unresolved_delivery": false
+        }
+      ],
+      "delivery_reconcile_timeout_ms": 5000
+    },
+    "mutations": [
+      {
+        "path": [
+          "events",
+          15,
+          "at_ms"
+        ],
+        "value": 23000
+      }
+    ],
+    "expected_error": "unknown_closed_early"
+  }
+]

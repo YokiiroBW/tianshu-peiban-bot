@@ -1,0 +1,600 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.tianshu.invalid/text-dialogue/v1/model.json",
+  "$defs": {
+    "config_request": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/query"
+        },
+        "config_version": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "query",
+        "config_version"
+      ],
+      "additionalProperties": false
+    },
+    "provider": {
+      "type": "object",
+      "properties": {
+        "provider_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "base_url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https?://"
+        },
+        "credential_ref": {
+          "type": "string",
+          "pattern": "^secret-ref:[A-Za-z0-9._/-]+$"
+        },
+        "protocol": {
+          "const": "openai-chat-completions"
+        },
+        "model_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "capability_verification": {
+          "enum": [
+            "fixture_only",
+            "verified_test_account"
+          ]
+        },
+        "verified_capabilities": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "text",
+              "stream",
+              "tools",
+              "reasoning"
+            ]
+          },
+          "minItems": 0
+        },
+        "credential_namespace": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "model_policy": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/model.json#/$defs/model_policy"
+        },
+        "reasoning_policy": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/model.json#/$defs/reasoning_policy"
+        }
+      },
+      "required": [
+        "provider_id",
+        "base_url",
+        "credential_ref",
+        "protocol",
+        "model_id",
+        "capability_verification",
+        "verified_capabilities",
+        "credential_namespace",
+        "model_policy",
+        "reasoning_policy"
+      ],
+      "additionalProperties": false
+    },
+    "binding": {
+      "type": "object",
+      "properties": {
+        "workload": {
+          "const": "companion.text"
+        },
+        "provider_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "model_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "fallback": {
+          "const": "disabled"
+        }
+      },
+      "required": [
+        "workload",
+        "provider_id",
+        "model_id",
+        "timeout_ms",
+        "fallback"
+      ],
+      "additionalProperties": false
+    },
+    "config_response": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "config_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "status": {
+          "const": "published"
+        },
+        "published_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "usable_until": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "providers": {
+          "type": "array",
+          "items": {
+            "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/model.json#/$defs/provider"
+          },
+          "minItems": 1
+        },
+        "bindings": {
+          "type": "array",
+          "items": {
+            "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/model.json#/$defs/binding"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "config_version",
+        "status",
+        "published_at",
+        "usable_until",
+        "providers",
+        "bindings"
+      ],
+      "additionalProperties": false
+    },
+    "route_context": {
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "turn_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "config_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "workload": {
+          "const": "companion.text"
+        },
+        "protocol": {
+          "const": "openai-chat-completions"
+        }
+      },
+      "required": [
+        "request_id",
+        "turn_id",
+        "config_version",
+        "workload",
+        "protocol"
+      ],
+      "additionalProperties": false
+    },
+    "route_receipt": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "config_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "provider_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "requested_model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resolved_model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "protocol": {
+          "const": "openai-chat-completions"
+        },
+        "outcome": {
+          "enum": [
+            "succeeded",
+            "failed",
+            "unknown"
+          ]
+        },
+        "upstream_request_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "usage": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "input_tokens": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "output_tokens": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [],
+              "additionalProperties": false,
+              "minProperties": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fallback_used": {
+          "const": false
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "credential_namespace": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "caller_service": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "requested_reasoning": {
+          "type": "object"
+        },
+        "effective_reasoning": {
+          "type": "object"
+        },
+        "applied_policies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "field": {
+                "type": "string",
+                "minLength": 1
+              },
+              "mode": {
+                "enum": [
+                  "default_if_absent",
+                  "force"
+                ]
+              },
+              "config_version": {
+                "type": "integer",
+                "minimum": 1
+              }
+            },
+            "required": [
+              "field",
+              "mode",
+              "config_version"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "usage_complete": {
+          "type": "boolean"
+        },
+        "native_usage": {
+          "anyOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "config_version",
+        "provider_id",
+        "requested_model",
+        "resolved_model",
+        "protocol",
+        "outcome",
+        "upstream_request_id",
+        "usage",
+        "fallback_used",
+        "observed_at",
+        "credential_namespace",
+        "caller_service",
+        "requested_reasoning",
+        "effective_reasoning",
+        "applied_policies",
+        "usage_complete",
+        "native_usage"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "usage_complete": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "usage": {
+                "type": "object",
+                "required": [
+                  "input_tokens",
+                  "output_tokens"
+                ]
+              },
+              "native_usage": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "field_policy": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "enum": [
+            "preserve_client",
+            "default_if_absent",
+            "force"
+          ]
+        },
+        "fields": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "mode",
+        "fields"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "preserve_client"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "fields": {
+                "maxProperties": 0
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "fields": {
+                "minProperties": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "native_request": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "messages": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "minLength": 1
+              },
+              "content": {}
+            },
+            "required": [
+              "role"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "stream": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "model",
+        "messages"
+      ],
+      "additionalProperties": true
+    },
+    "native_response": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "object": {
+          "const": "chat.completion"
+        },
+        "choices": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "usage": {
+          "anyOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "object",
+        "choices"
+      ],
+      "additionalProperties": true
+    },
+    "model_policy": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "enum": [
+            "preserve_client",
+            "default_if_absent",
+            "force"
+          ]
+        },
+        "fields": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "model": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      },
+      "required": [
+        "mode",
+        "fields"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "preserve_client"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "fields": {
+                "maxProperties": 0
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "fields": {
+                "minProperties": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "reasoning_policy": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "enum": [
+            "preserve_client",
+            "default_if_absent",
+            "force"
+          ]
+        },
+        "fields": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "reasoning_effort": {}
+          }
+        }
+      },
+      "required": [
+        "mode",
+        "fields"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "preserve_client"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "fields": {
+                "maxProperties": 0
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "fields": {
+                "minProperties": 1
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

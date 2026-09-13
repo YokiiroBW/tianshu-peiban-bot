@@ -1,6 +1,6 @@
 # 跨产品契约入口
 
-当前只有 [I01–I18 能力目录](../docs/architecture/v2/interface-catalog.json)，没有已发布的 HTTP/OpenAPI 合同。首个契约任务 TS-001 先定义文字陪伴贯通所需的小集合，不一次生成所有业务接口。
+已有 [TS-001 文字对话候选合同 v1](text-dialogue/v1/README.md)：JSON Schema、正反实例、离线可执行检查与兼容决定。**尚未发布、未冻结、未通过双方联调**。[I01–I18](../docs/architecture/v2/interface-catalog.json) 仍是能力目录，候选路径不代表运行端点。
 
 优先范围：标准消息与消息组、人物解析、按范围记忆查询、模型原生请求接入、渠道/网页回复下行、轮次提交后的记忆写入、版本化模型配置读取。缺口与验收见 [并行契约审查](../docs/development/workstreams/contracts-review.md)。
 

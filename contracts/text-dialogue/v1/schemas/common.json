@@ -1,0 +1,492 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json",
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "origin": {
+      "type": "object",
+      "properties": {
+        "assertion_ref": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        }
+      },
+      "required": [
+        "assertion_ref"
+      ],
+      "additionalProperties": false
+    },
+    "query": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "origin": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/origin"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "origin"
+      ],
+      "additionalProperties": false
+    },
+    "command": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "origin": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/origin"
+        },
+        "idempotency_key": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "deadline_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "origin",
+        "idempotency_key",
+        "deadline_at"
+      ],
+      "additionalProperties": false
+    },
+    "channel_key": {
+      "type": "object",
+      "properties": {
+        "namespace": {
+          "enum": [
+            "qq",
+            "tg",
+            "web"
+          ]
+        },
+        "binding_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "channel_conversation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "thread_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "namespace",
+        "binding_id",
+        "channel_conversation_id",
+        "thread_id"
+      ],
+      "additionalProperties": false
+    },
+    "account": {
+      "type": "object",
+      "properties": {
+        "namespace": {
+          "enum": [
+            "qq",
+            "tg",
+            "web"
+          ]
+        },
+        "immutable_account_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "namespace",
+        "immutable_account_id"
+      ],
+      "additionalProperties": false
+    },
+    "message_key": {
+      "type": "object",
+      "properties": {
+        "channel": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/channel_key"
+        },
+        "message_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "channel",
+        "message_id",
+        "revision"
+      ],
+      "additionalProperties": false
+    },
+    "scope": {
+      "type": "object",
+      "properties": {
+        "actor_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "person_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "audience": {
+          "enum": [
+            "group",
+            "self_private"
+          ]
+        },
+        "conversation_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        }
+      },
+      "required": [
+        "actor_id",
+        "person_id",
+        "audience",
+        "conversation_id"
+      ],
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "message_key": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/message_key"
+        },
+        "receipt_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "archive_state": {
+          "enum": [
+            "pending",
+            "archived",
+            "unavailable"
+          ]
+        },
+        "locator": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "message_key",
+        "receipt_id",
+        "archive_state",
+        "locator"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "archive_state": {
+                "const": "archived"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "locator": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "locator": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "text_part": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "text"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "kind",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "media_part": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "media_ref"
+        },
+        "asset_ref": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "media_kind": {
+          "enum": [
+            "image",
+            "audio",
+            "file"
+          ]
+        },
+        "availability": {
+          "enum": [
+            "pending",
+            "ready",
+            "unavailable"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "asset_ref",
+        "media_kind",
+        "availability"
+      ],
+      "additionalProperties": false
+    },
+    "budget": {
+      "type": "object",
+      "properties": {
+        "tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "tokens",
+        "bytes"
+      ],
+      "additionalProperties": false
+    },
+    "error": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "code": {
+          "enum": [
+            "invalid_input",
+            "unauthorized",
+            "forbidden",
+            "not_found",
+            "version_conflict",
+            "scope_changed",
+            "budget_exceeded",
+            "queue_full",
+            "timeout",
+            "dependency_unavailable",
+            "result_unknown",
+            "idempotency_conflict",
+            "cursor_expired",
+            "unsupported_version"
+          ]
+        },
+        "execution_state": {
+          "enum": [
+            "not_started",
+            "unknown"
+          ]
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "current_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "retry_after_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "code",
+        "execution_state",
+        "retryable"
+      ],
+      "additionalProperties": false
+    },
+    "origin_resolve_request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "assertion_ref": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "assertion_ref"
+      ],
+      "additionalProperties": false
+    },
+    "trusted_context": {
+      "type": "object",
+      "properties": {
+        "issuer": {
+          "enum": [
+            "nonebot",
+            "platform"
+          ]
+        },
+        "authenticated_service": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "audience_service": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "assertion_ref": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "verified_account": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/account"
+        },
+        "principal_id": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "allowed_scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/origin_scope"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "revoked": {
+          "const": false
+        }
+      },
+      "required": [
+        "issuer",
+        "authenticated_service",
+        "audience_service",
+        "assertion_ref",
+        "verified_account",
+        "principal_id",
+        "allowed_scope",
+        "expires_at",
+        "revoked"
+      ],
+      "additionalProperties": false
+    },
+    "origin_resolve_response": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "context": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/trusted_context"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "context"
+      ],
+      "additionalProperties": false
+    },
+    "origin_scope": {
+      "type": "object",
+      "properties": {
+        "actor_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "person_id": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "audience": {
+          "enum": [
+            "group",
+            "self_private"
+          ]
+        },
+        "conversation_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        }
+      },
+      "required": [
+        "actor_id",
+        "person_id",
+        "audience",
+        "conversation_id"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
