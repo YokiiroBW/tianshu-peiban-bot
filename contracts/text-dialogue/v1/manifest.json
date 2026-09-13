@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0-candidate.1",
+  "version": "1.0.0-candidate.2",
   "schema_version": 1,
   "status": "candidate_not_published",
   "producer_confirmation": "pending",
@@ -39,20 +39,21 @@
     "model#route_context",
     "model#route_receipt",
     "model#native_request",
-    "model#native_response"
+    "model#native_response",
+    "model#upstream_request"
   ],
   "sha256": {
-    "text-dialogue/v1/compatibility.md": "8857f100ae9d0bf835cc13da83098441e86b85c39615d31d73fb44cc6701ef6d",
-    "text-dialogue/v1/examples/documents.json": "d0d33d3c75db450034fdf3c12bf3e43b81768a4a583c2167e7876faaa0ffea97",
-    "text-dialogue/v1/examples/negative-documents.json": "507e9ad99b0f0ef2490f52fc090ef3d4a56879104e8a49bf41ecc1404b3836b7",
-    "text-dialogue/v1/examples/relations.json": "d16312f5bb9d4674239b1882b71c5b81fdde3d1d92a14445e8533c46401bf59c",
-    "text-dialogue/v1/README.md": "adc0e46d89e5b13d4f16841ef821109d9466ecbc6f6ba61cebbacc38223bc8d2",
-    "text-dialogue/v1/schemas/common.json": "a8ed24f928c3aabba02ab3eacadab96d2f4312e49d04b2aee99ec7d4d7bf5c75",
+    "text-dialogue/v1/compatibility.md": "884097f43249cfc8b18439ec1912a9176253852850b001fdc3ee67050aff3fdf",
+    "text-dialogue/v1/examples/documents.json": "7ff8da16faf3277cb996107d5909fbe452c9202eac6a0277fd9c7da4ed4f1fe1",
+    "text-dialogue/v1/examples/negative-documents.json": "2feae6a24bf9e0cd09510386c110b929e44912e1a46dfb7c49d727046d7b940a",
+    "text-dialogue/v1/examples/relations.json": "1305e7a1bb979dee664deebc1d33c0ee88d0f00d8ebefaef9e54058bdbb131f3",
+    "text-dialogue/v1/README.md": "a8d2ccc5e4f79d9db13a376611680c2c99876d3ea98171bddc81603584e4f8ee",
+    "text-dialogue/v1/schemas/common.json": "b296a79d7eb0218d9b444c4ddbba837ad576f46a7a4e50fbcebec7618d8ef9af",
     "text-dialogue/v1/schemas/conversation.json": "e640040fa816100b258999087f8784d1e7d1d55df007992632e202e02b64b6cb",
-    "text-dialogue/v1/schemas/identity-memory.json": "dbc0b0a9fb49fc81715b9499a0c1f1f9ca90729954f4ed506cc9ae777be26dff",
-    "text-dialogue/v1/schemas/model.json": "2f770d4b95b9a9ae86429db205c38adcdb28518ca84ae7f2f13c47d1496975cc",
-    "text-dialogue/v1/schemas/web.json": "ea7c9a06d18d763ce24d223ef3aca323403d7fadf9ad98a7f9921e5308f7a6e4",
-    "text-dialogue/v1/semantics.md": "58ba8a5234bf939234fbfa053733ef9cecff8bcf4ba37c6fdf8c698da7d37868"
+    "text-dialogue/v1/schemas/identity-memory.json": "7e32e26aea89cc88fb48f9d0af43f32ea68de8561404ff495d3a8044985ef848",
+    "text-dialogue/v1/schemas/model.json": "9ffa9055aca897ff57292555f37674d79df687d1d6c062df48267527a8ff3a7c",
+    "text-dialogue/v1/schemas/web.json": "6d1be804b1ff3e0fd63d776cea6c1615455923c4b1fe7782fd52202713cc333c",
+    "text-dialogue/v1/semantics.md": "5e462f8bfa49a401aa49f3e225600dd99013322b3173f87c54d339e2eefb6634"
   },
   "hash_basis": "UTF-8 text bytes with CRLF normalized to LF"
 }

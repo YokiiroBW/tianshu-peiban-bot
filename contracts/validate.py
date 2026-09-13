@@ -72,14 +72,25 @@ def check_ingest(d):
     require(context["audience_service"] == "companion", "origin_audience")
     require(stamp(response["accepted_at"]) < stamp(context["expires_at"]), "origin_expired")
     require(response["collection_key"] == {"channel": request["message_key"]["channel"], "author": request["author"]}, "collection_key")
-    require(response["conversation_id"] == context["allowed_scope"]["conversation_id"], "conversation_mapping")
-    require(response["person_id"] == context["allowed_scope"]["person_id"], "person_mapping")
+    identity, conversation = d["identity_binding"], d["conversation_binding"]
+    require(context["verified_channel"] == request["message_key"]["channel"] == conversation["channel"], "conversation_mapping")
+    require(response["conversation_id"] == conversation["conversation_id"], "conversation_mapping")
+    require(identity["account"] == request["author"] and response["person_id"] == identity["person_id"], "person_mapping")
+    for field, current in (("person_id", identity["person_id"]), ("conversation_id", conversation["conversation_id"])):
+        require(context["allowed_scope"][field] in {None, current}, "stale_origin_binding")
+    if "registration" in d:
+        require(d["resolution"]["state"] == "unregistered" and d["resolution_request"]["account"] == identity["account"], "registration_resolution")
+        require(d["registration_request"]["account"] == identity["account"] == d["memory_context"]["verified_account"], "registration_account")
+        require(d["memory_context"]["audience_service"] == "memory", "origin_audience")
+        require(d["registration"]["person_id"] == identity["person_id"] and d["registration"]["binding_version"] == identity["binding_version"], "registration_binding")
 
 
 def check_memory(d):
     request, response = d["request"], d["response"]
     require(d["context"]["audience_service"] == "memory", "origin_audience")
     require(response["effective_scope"] == request["requested_scope"] == d["context"]["allowed_scope"], "scope_expansion")
+    require(d["requester_binding"]["account"] == d["context"]["verified_account"], "requester_binding")
+    require(d["requester_binding"]["person_id"] == request["requested_scope"]["person_id"], "cross_subject_not_supported")
     require(response["scope_version"] == d["current_scope_version"], "stale_scope")
     require(request["known_scope_version"] in {None, response["scope_version"]}, "scope_changed")
     require(stamp(response["verified_at"]) < stamp(response["valid_until"]), "memory_validity")
@@ -102,7 +113,11 @@ def check_memory(d):
         require(unit["subject_person_id"] == response["effective_scope"]["person_id"], "wrong_subject")
         if response["effective_scope"]["audience"] == "group":
             require(unit["visibility"] == "shared_projection", "private_memory")
-            require(all(s["locator"] in d["authorized_locators"] for s in unit["sources"]), "private_source")
+            require(all(s["kind"] == "shareable_projection" for s in unit["sources"]), "private_source")
+            for source in unit["sources"]:
+                require(source["projection_ref"] in d["authorized_projection_refs"], "private_source")
+                projection = d["projection_catalog"][source["projection_ref"]]
+                require(source["projection_version"] == projection["version"], "stale_projection")
 
 
 def check_identity(d):
@@ -160,16 +175,26 @@ def check_cancel(d):
         require(response["state"] in {"partially_cancelled", "too_late", "unknown"}, "cancel_claims_complete")
 
 
+def check_revision(d):
+    require(d["response"]["record_version"] > d["request"]["expected_version"], "revision_version")
+    if d["response"]["semantic_state"] == "invalidated":
+        require(not d["recalled_units"], "old_semantics_after_revision")
+    else:
+        require(d["recalled_units"] == d["rebuilt_units"], "old_semantics_after_revision")
+
+
 def check_gateway(d):
     config, route, incoming, outgoing = d["config"], d["receipt"], d["incoming"], d["outgoing"]
-    require(route["config_version"] == config["config_version"] == d["pinned_version"], "config_version")
+    require(config["config_version"] == d["pinned_version"], "config_version")
     require(stamp(d["started_at"]) < stamp(config["usable_until"]) and not d["revoked"], "config_expired_or_revoked")
     providers = {p["provider_id"]: p for p in config["providers"]}
     require(len(providers) == len(config["providers"]), "duplicate_provider")
     for binding in config["bindings"]:
         require(binding["provider_id"] in providers, "unknown_provider")
-    p = providers[route["provider_id"]]
-    require(route["credential_namespace"] == p["credential_namespace"], "credential_namespace")
+    p = providers[route["provider_id"] if route is not None else d["provider_id"]]
+    if "model" in incoming and incoming["model"] is None:
+        require(outgoing is None and route is None and d.get("error", {}).get("code") == "invalid_input", "unresolved_model_sent")
+        return
     expected, applied = copy.deepcopy(incoming), []
     for policy_name in ("model_policy", "reasoning_policy"):
         policy = p[policy_name]
@@ -177,6 +202,15 @@ def check_gateway(d):
             if policy["mode"] == "force" or (policy["mode"] == "default_if_absent" and field not in incoming):
                 expected[field] = value
                 applied.append({"field": field, "mode": policy["mode"], "config_version": config["config_version"]})
+    if "model" not in incoming and "model" not in expected and d.get("internal_binding"):
+        binding = next(b for b in config["bindings"] if b["workload"] == "companion.text")
+        expected["model"] = binding["model_id"]
+        applied.append({"field": "model", "mode": "workload_binding", "config_version": config["config_version"]})
+    if not isinstance(expected.get("model"), str) or not expected["model"]:
+        require(outgoing is None and route is None and d.get("error", {}).get("code") == "invalid_input", "unresolved_model_sent")
+        return
+    require(route is not None and route["config_version"] == config["config_version"], "config_version")
+    require(route["credential_namespace"] == p["credential_namespace"], "credential_namespace")
     require(outgoing == expected, "native_field_loss_or_override")
     require(route["requested_model"] == incoming.get("model") and route["resolved_model"] == outgoing["model"], "model_receipt")
     require(route["requested_reasoning"] == {k: v for k, v in incoming.items() if k == "reasoning_effort"}, "reasoning_receipt")
@@ -201,6 +235,8 @@ def check_web(d):
         seen.add(event["event_id"])
         if event["aggregate_version"] <= version:
             continue
+        if event["change"] == "turn_changed":
+            require(event["reply"] is None and d["snapshot_reloaded"] and d.get("readonly_snapshot_fetches", 0) > 0, "turn_invalidation_snapshot")
         require(event["aggregate_version"] == version + 1 or d["snapshot_reloaded"], "projection_gap")
         version = event["aggregate_version"]
     if d["cursor_expired"]:
@@ -245,7 +281,8 @@ def check_trace(d):
             require(e["revision"] < collectors[e["collection"]]["revision"] and e["ignored"], "stale_timer")
         elif kind == "seal":
             collection, turn = e["collection"], e["turn"]
-            require(collection not in sealed and now == collectors[collection]["deadline"], "seal_deadline")
+            require(collection not in sealed and now >= collectors[collection]["deadline"], "seal_deadline")
+            require(e["revision"] == collectors[collection]["revision"], "seal_stale_revision")
             require(e["messages"] == [m for m, c in inputs.items() if c == collection], "bundle_members")
             sealed.add(collection)
             require(turn == len(turns) + 1, "turn_sequence")
@@ -287,7 +324,8 @@ def check_trace(d):
 CHECKS = {"bundle": check_bundle, "ingest": check_ingest, "memory": check_memory,
           "identity": check_identity, "commit": check_commit, "gateway": check_gateway,
           "web": check_web, "trace": check_trace, "capacity": check_capacity,
-          "idempotency": check_idempotency, "cancel": check_cancel, "stream": check_stream}
+          "idempotency": check_idempotency, "cancel": check_cancel, "stream": check_stream,
+          "revision": check_revision}
 
 
 def main():

@@ -19,7 +19,13 @@
         "conversation_id": "conversation-fixture"
       },
       "expires_at": "2026-09-14T00:05:00Z",
-      "revoked": false
+      "revoked": false,
+      "verified_channel": {
+        "namespace": "qq",
+        "binding_id": "fixture-bot",
+        "channel_conversation_id": "fixture-group",
+        "thread_id": null
+      }
     }
   },
   {
@@ -54,7 +60,13 @@
           "conversation_id": "conversation-fixture"
         },
         "expires_at": "2026-09-14T00:05:00Z",
-        "revoked": false
+        "revoked": false,
+        "verified_channel": {
+          "namespace": "qq",
+          "binding_id": "fixture-bot",
+          "channel_conversation_id": "fixture-group",
+          "thread_id": null
+        }
       }
     }
   },
@@ -666,19 +678,10 @@
           "visibility": "shared_projection",
           "sources": [
             {
-              "message_key": {
-                "channel": {
-                  "namespace": "qq",
-                  "binding_id": "fixture-bot",
-                  "channel_conversation_id": "fixture-group",
-                  "thread_id": null
-                },
-                "message_id": "fixture-m1",
-                "revision": 1
-              },
-              "receipt_id": "receipt-fixture",
-              "archive_state": "archived",
-              "locator": "projection:fixture-shareable-source"
+              "kind": "shareable_projection",
+              "owner": "memory",
+              "projection_ref": "projection-fixture-interest",
+              "projection_version": 1
             }
           ]
         }
@@ -809,7 +812,8 @@
       "record_version": 2,
       "scope_version": 2,
       "index_state": "pending",
-      "authoritative_state": "corrected"
+      "authoritative_state": "corrected",
+      "semantic_state": "invalidated"
     }
   },
   {
@@ -1249,7 +1253,13 @@
         "conversation_id": "conversation-fixture"
       },
       "expires_at": "2026-09-14T00:05:00Z",
-      "revoked": false
+      "revoked": false,
+      "verified_channel": {
+        "namespace": "qq",
+        "binding_id": "fixture-bot",
+        "channel_conversation_id": "fixture-group",
+        "thread_id": null
+      }
     }
   },
   {
@@ -1280,6 +1290,188 @@
       "tool_choice": "none",
       "fixture_extension": {
         "preserve": true
+      }
+    }
+  },
+  {
+    "id": "native_request_without_model",
+    "schema": "model#native_request",
+    "document": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "你好，合成文字样例。"
+        }
+      ],
+      "stream": false,
+      "reasoning_effort": "low",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "fixture_readonly",
+            "description": "合成只读函数",
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        }
+      ],
+      "tool_choice": "none",
+      "fixture_extension": {
+        "preserve": true
+      }
+    }
+  },
+  {
+    "id": "native_request_null_model",
+    "schema": "model#native_request",
+    "document": {
+      "model": null,
+      "messages": [
+        {
+          "role": "user",
+          "content": "你好，合成文字样例。"
+        }
+      ],
+      "stream": false,
+      "reasoning_effort": "low",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "fixture_readonly",
+            "description": "合成只读函数",
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        }
+      ],
+      "tool_choice": "none",
+      "fixture_extension": {
+        "preserve": true
+      }
+    }
+  },
+  {
+    "id": "upstream_request",
+    "schema": "model#upstream_request",
+    "document": {
+      "model": "fixture-text-model",
+      "messages": [
+        {
+          "role": "user",
+          "content": "你好，合成文字样例。"
+        }
+      ],
+      "stream": false,
+      "reasoning_effort": "low",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "fixture_readonly",
+            "description": "合成只读函数",
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        }
+      ],
+      "tool_choice": "none",
+      "fixture_extension": {
+        "preserve": true
+      }
+    }
+  },
+  {
+    "id": "turn_invalidation",
+    "schema": "web#projection_event",
+    "document": {
+      "schema_version": 1,
+      "event_id": "event-fixture-turn-invalidation",
+      "event_type": "conversation.projection_changed",
+      "owner": "companion",
+      "aggregate_id": "conversation-fixture",
+      "aggregate_version": 4,
+      "occurred_at": "2026-09-14T00:00:10Z",
+      "causation_id": "event-fixture-commit",
+      "cursor": "cursor-fixture-opaque-4",
+      "scope_version": 1,
+      "change": "turn_changed",
+      "reply": null
+    }
+  },
+  {
+    "id": "error_invalid_input",
+    "schema": "common#error",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "code": "invalid_input",
+      "execution_state": "not_started",
+      "retryable": false
+    }
+  },
+  {
+    "id": "first_ingest_context",
+    "schema": "common#trusted_context",
+    "document": {
+      "issuer": "nonebot",
+      "authenticated_service": "nonebot",
+      "audience_service": "companion",
+      "assertion_ref": "origin-fixture",
+      "verified_account": {
+        "namespace": "qq",
+        "immutable_account_id": "fixture-user-a"
+      },
+      "principal_id": null,
+      "allowed_scope": {
+        "actor_id": "actor-fixture",
+        "person_id": null,
+        "audience": "group",
+        "conversation_id": null
+      },
+      "expires_at": "2026-09-14T00:05:00Z",
+      "revoked": false,
+      "verified_channel": {
+        "namespace": "qq",
+        "binding_id": "fixture-bot",
+        "channel_conversation_id": "fixture-group",
+        "thread_id": null
+      }
+    }
+  },
+  {
+    "id": "first_memory_context",
+    "schema": "common#trusted_context",
+    "document": {
+      "issuer": "nonebot",
+      "authenticated_service": "nonebot",
+      "audience_service": "memory",
+      "assertion_ref": "origin-fixture",
+      "verified_account": {
+        "namespace": "qq",
+        "immutable_account_id": "fixture-user-a"
+      },
+      "principal_id": null,
+      "allowed_scope": {
+        "actor_id": "actor-fixture",
+        "person_id": null,
+        "audience": "group",
+        "conversation_id": null
+      },
+      "expires_at": "2026-09-14T00:05:00Z",
+      "revoked": false,
+      "verified_channel": {
+        "namespace": "qq",
+        "binding_id": "fixture-bot",
+        "channel_conversation_id": "fixture-group",
+        "thread_id": null
       }
     }
   }

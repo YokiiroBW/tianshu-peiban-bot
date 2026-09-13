@@ -459,19 +459,10 @@
           "visibility": "shared_projection",
           "sources": [
             {
-              "message_key": {
-                "channel": {
-                  "namespace": "qq",
-                  "binding_id": "fixture-bot",
-                  "channel_conversation_id": "fixture-group",
-                  "thread_id": null
-                },
-                "message_id": "fixture-m1",
-                "revision": 1
-              },
-              "receipt_id": "receipt-fixture",
-              "archive_state": "archived",
-              "locator": "projection:fixture-shareable-source"
+              "kind": "shareable_projection",
+              "owner": "memory",
+              "projection_ref": "projection-fixture-interest",
+              "projection_version": 1
             }
           ]
         }
@@ -495,69 +486,80 @@
   },
   {
     "id": "archived_without_locator",
-    "schema": "identity-memory#select_response",
+    "schema": "conversation#bundle",
     "document": {
       "schema_version": 1,
-      "request_id": "request-fixture",
-      "effective_scope": {
-        "actor_id": "actor-fixture",
-        "person_id": "person-fixture-a",
-        "audience": "group",
-        "conversation_id": "conversation-fixture"
+      "collection_id": "collection-fixture",
+      "collection_revision": 1,
+      "collection_key": {
+        "channel": {
+          "namespace": "qq",
+          "binding_id": "fixture-bot",
+          "channel_conversation_id": "fixture-group",
+          "thread_id": null
+        },
+        "author": {
+          "namespace": "qq",
+          "immutable_account_id": "fixture-user-a"
+        }
       },
-      "scope_version": 1,
-      "verified_at": "2026-09-14T00:00:00Z",
-      "valid_until": "2026-09-14T00:05:00Z",
-      "selected_units": [
+      "conversation_id": "conversation-fixture",
+      "turn_id": "turn-fixture-1",
+      "turn_sequence": 1,
+      "sealed_at": "2026-09-14T00:00:05Z",
+      "close_reason": "silence",
+      "possibly_incomplete": false,
+      "continuation_of": null,
+      "messages": [
         {
-          "record_id": "memory-fixture-1",
-          "record_version": 1,
-          "semantic_group_id": "semantic-fixture-1",
-          "subject_person_id": "person-fixture-a",
-          "statement": "晚上不喝咖啡；白天偶尔可以。",
-          "conditions": [
-            "白天偶尔可以"
-          ],
-          "negations": [
-            "晚上不喝咖啡"
-          ],
-          "valid_time": "当前明确偏好；未给结束时间",
-          "uncertainty": "confirmed",
-          "reality": "real",
-          "visibility": "shared_projection",
-          "sources": [
+          "message_key": {
+            "channel": {
+              "namespace": "qq",
+              "binding_id": "fixture-bot",
+              "channel_conversation_id": "fixture-group",
+              "thread_id": null
+            },
+            "message_id": "fixture-m1",
+            "revision": 1
+          },
+          "author": {
+            "namespace": "qq",
+            "immutable_account_id": "fixture-user-a"
+          },
+          "person_id": "person-fixture-a",
+          "accepted_at": "2026-09-14T00:00:00Z",
+          "sent_at": "2026-09-14T00:00:00Z",
+          "ingest_sequence": 1,
+          "parts": [
             {
-              "message_key": {
-                "channel": {
-                  "namespace": "qq",
-                  "binding_id": "fixture-bot",
-                  "channel_conversation_id": "fixture-group",
-                  "thread_id": null
-                },
-                "message_id": "fixture-m1",
-                "revision": 1
-              },
-              "receipt_id": "receipt-fixture",
-              "archive_state": "archived",
-              "locator": null
+              "kind": "text",
+              "text": "我晚上不喝咖啡，白天偶尔可以。"
             }
-          ]
-        }
-      ],
-      "dependency_groups": [
-        {
-          "semantic_group_id": "semantic-fixture-1",
-          "record_ids": [
-            "memory-fixture-1"
           ],
-          "complete": true
+          "reply_refs": [],
+          "mentioned_accounts": [],
+          "target_actor_ids": [
+            "actor-fixture"
+          ],
+          "source": {
+            "message_key": {
+              "channel": {
+                "namespace": "qq",
+                "binding_id": "fixture-bot",
+                "channel_conversation_id": "fixture-group",
+                "thread_id": null
+              },
+              "message_id": "fixture-m1",
+              "revision": 1
+            },
+            "receipt_id": "receipt-fixture",
+            "archive_state": "archived",
+            "locator": null
+          }
         }
       ],
-      "budget_used": {
-        "tokens": 32,
-        "bytes": 768
-      },
-      "omissions": []
+      "context_refs": [],
+      "dependencies": []
     },
     "expected_keyword": "type"
   },
@@ -645,19 +647,10 @@
           "visibility": "shared_projection",
           "sources": [
             {
-              "message_key": {
-                "channel": {
-                  "namespace": "qq",
-                  "binding_id": "fixture-bot",
-                  "channel_conversation_id": "fixture-group",
-                  "thread_id": null
-                },
-                "message_id": "fixture-m1",
-                "revision": 1
-              },
-              "receipt_id": "receipt-fixture",
-              "archive_state": "archived",
-              "locator": "projection:fixture-shareable-source"
+              "kind": "shareable_projection",
+              "owner": "memory",
+              "projection_ref": "projection-fixture-interest",
+              "projection_version": 1
             }
           ]
         }
@@ -951,5 +944,134 @@
       ]
     },
     "expected_keyword": "format"
+  },
+  {
+    "id": "projection_cannot_leak_private_lineage",
+    "schema": "identity-memory#select_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "effective_scope": {
+        "actor_id": "actor-fixture",
+        "person_id": "person-fixture-a",
+        "audience": "group",
+        "conversation_id": "conversation-fixture"
+      },
+      "scope_version": 1,
+      "verified_at": "2026-09-14T00:00:00Z",
+      "valid_until": "2026-09-14T00:05:00Z",
+      "selected_units": [
+        {
+          "record_id": "memory-fixture-1",
+          "record_version": 1,
+          "semantic_group_id": "semantic-fixture-1",
+          "subject_person_id": "person-fixture-a",
+          "statement": "晚上不喝咖啡；白天偶尔可以。",
+          "conditions": [
+            "白天偶尔可以"
+          ],
+          "negations": [
+            "晚上不喝咖啡"
+          ],
+          "valid_time": "当前明确偏好；未给结束时间",
+          "uncertainty": "confirmed",
+          "reality": "real",
+          "visibility": "shared_projection",
+          "sources": [
+            {
+              "kind": "shareable_projection",
+              "owner": "memory",
+              "projection_ref": "projection-fixture-interest",
+              "projection_version": 1,
+              "message_key": {
+                "channel": {
+                  "namespace": "qq",
+                  "binding_id": "fixture-bot",
+                  "channel_conversation_id": "fixture-private-dm",
+                  "thread_id": null
+                },
+                "message_id": "fixture-private-interest",
+                "revision": 1
+              }
+            }
+          ]
+        }
+      ],
+      "dependency_groups": [
+        {
+          "semantic_group_id": "semantic-fixture-1",
+          "record_ids": [
+            "memory-fixture-1"
+          ],
+          "complete": true
+        }
+      ],
+      "budget_used": {
+        "tokens": 32,
+        "bytes": 768
+      },
+      "omissions": []
+    },
+    "expected_keyword": "additionalProperties"
+  },
+  {
+    "id": "projection_cannot_claim_chat_audit_archive",
+    "schema": "identity-memory#select_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "effective_scope": {
+        "actor_id": "actor-fixture",
+        "person_id": "person-fixture-a",
+        "audience": "group",
+        "conversation_id": "conversation-fixture"
+      },
+      "scope_version": 1,
+      "verified_at": "2026-09-14T00:00:00Z",
+      "valid_until": "2026-09-14T00:05:00Z",
+      "selected_units": [
+        {
+          "record_id": "memory-fixture-1",
+          "record_version": 1,
+          "semantic_group_id": "semantic-fixture-1",
+          "subject_person_id": "person-fixture-a",
+          "statement": "晚上不喝咖啡；白天偶尔可以。",
+          "conditions": [
+            "白天偶尔可以"
+          ],
+          "negations": [
+            "晚上不喝咖啡"
+          ],
+          "valid_time": "当前明确偏好；未给结束时间",
+          "uncertainty": "confirmed",
+          "reality": "real",
+          "visibility": "shared_projection",
+          "sources": [
+            {
+              "kind": "shareable_projection",
+              "owner": "memory",
+              "projection_ref": "projection-fixture-interest",
+              "projection_version": 1,
+              "archive_state": "archived"
+            }
+          ]
+        }
+      ],
+      "dependency_groups": [
+        {
+          "semantic_group_id": "semantic-fixture-1",
+          "record_ids": [
+            "memory-fixture-1"
+          ],
+          "complete": true
+        }
+      ],
+      "budget_used": {
+        "tokens": 32,
+        "bytes": 768
+      },
+      "omissions": []
+    },
+    "expected_keyword": "additionalProperties"
   }
 ]

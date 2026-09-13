@@ -219,8 +219,15 @@
           "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
         },
         "requested_model": {
-          "type": "string",
-          "minLength": 1
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "resolved_model": {
           "type": "string",
@@ -302,7 +309,8 @@
               "mode": {
                 "enum": [
                   "default_if_absent",
-                  "force"
+                  "force",
+                  "workload_binding"
                 ]
               },
               "config_version": {
@@ -430,8 +438,15 @@
       "type": "object",
       "properties": {
         "model": {
-          "type": "string",
-          "minLength": 1
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "messages": {
           "type": "array",
@@ -456,7 +471,6 @@
         }
       },
       "required": [
-        "model",
         "messages"
       ],
       "additionalProperties": true
@@ -595,6 +609,41 @@
           }
         }
       ]
+    },
+    "upstream_request": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "messages": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "minLength": 1
+              },
+              "content": {}
+            },
+            "required": [
+              "role"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "stream": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "model",
+        "messages"
+      ],
+      "additionalProperties": true
     }
   }
 }

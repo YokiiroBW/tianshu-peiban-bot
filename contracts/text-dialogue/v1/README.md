@@ -1,6 +1,6 @@
 # 文字对话合同 v1 · TS-001 候选
 
-版本：`1.0.0-candidate.1`；wire `schema_version: 1`。状态：**可供生产者/消费者审查；未发布；无产品联合验收**。协调者审查后才能绑定到实现任务。JSON Schema 的 `.invalid` ID 仅用于本地注册解析，不进行网络取 schema。
+版本：`1.0.0-candidate.2`；wire `schema_version: 1`。状态：**可供生产者/消费者审查；未发布；无产品联合验收**。协调者审查后才能绑定到实现任务。JSON Schema 的 `.invalid` ID 仅用于本地注册解析，不进行网络取 schema。
 
 这是文字链路的边界字段和验证资料，不提供业务服务、调度器、数据库或通用 RPC 框架。媒体只保留引用占位；不实现 I07–I13、I16 或完整 I17。现有 AssetLibrary、Chat Audit 内部协议不在此重新定义。
 

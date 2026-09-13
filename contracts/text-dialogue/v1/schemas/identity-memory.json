@@ -285,7 +285,7 @@
         "sources": {
           "type": "array",
           "items": {
-            "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/source"
+            "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/identity-memory.json#/$defs/recall_source"
           },
           "minItems": 1
         }
@@ -509,6 +509,12 @@
             "corrected",
             "tombstoned"
           ]
+        },
+        "semantic_state": {
+          "enum": [
+            "invalidated",
+            "rebuilt"
+          ]
         }
       },
       "required": [
@@ -518,7 +524,8 @@
         "record_version",
         "scope_version",
         "index_state",
-        "authoritative_state"
+        "authoritative_state",
+        "semantic_state"
       ],
       "additionalProperties": false
     },
@@ -570,6 +577,51 @@
         "confirmed_memory_written"
       ],
       "additionalProperties": false
+    },
+    "recall_source": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "raw_message"
+            },
+            "source": {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/source"
+            }
+          },
+          "required": [
+            "kind",
+            "source"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "shareable_projection"
+            },
+            "owner": {
+              "const": "memory"
+            },
+            "projection_ref": {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+            },
+            "projection_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": [
+            "kind",
+            "owner",
+            "projection_ref",
+            "projection_version"
+          ],
+          "additionalProperties": false
+        }
+      ]
     }
   }
 }

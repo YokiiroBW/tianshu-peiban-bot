@@ -257,7 +257,25 @@
         "change",
         "reply"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "change": {
+                "const": "turn_changed"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "reply": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }

@@ -419,6 +419,9 @@
         },
         "revoked": {
           "const": false
+        },
+        "verified_channel": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/channel_key"
         }
       },
       "required": [
@@ -430,7 +433,8 @@
         "principal_id",
         "allowed_scope",
         "expires_at",
-        "revoked"
+        "revoked",
+        "verified_channel"
       ],
       "additionalProperties": false
     },
@@ -477,7 +481,14 @@
           ]
         },
         "conversation_id": {
-          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [

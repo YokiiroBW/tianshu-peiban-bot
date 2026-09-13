@@ -10,7 +10,7 @@
 
 `assertion_ref` 是服务端产生的短期来源引用，不是用户授权声明。接收者依认证服务固定的 issuer 配置，通过该 issuer 的 `POST /internal/v1/origins/resolve` 解析（common.origin_resolve_*）；URL 不取自 payload。issuer 校验调用方和引用的 audience、有效期、撤销状态，返回已验证账号、可选 principal 与 scope。接收者与自己的当前授权求交集，核对命令目标；引用过期/无权/无法解析一律拒绝。NoneBot issuer 必须来自已登记绑定的真实入站事件；platform issuer 来自当前登录会话。账号、person_id、actor_id 或 scope 在普通 payload 中出现都不授予权限。网页身份是服务端签发的稳定 web 账号，不能用昵称当 ID。
 
-凭据只认证服务，**不能单凭平台服务账号扩大最终用户权限**。identity 注册要求 assertion 已验证该 account；查询他人身份/记忆需要服务端明确授权。首次登记前 origin_scope.person_id 可为 null，memory 仅凭已验证账号进行登记，不能要求先有 person_id 才能首次注册；登记后 companion 采用 memory 返回的权威 ID，再装配需要人物的 scope。已有 ID 仍须与 memory 当前绑定核对。common.trusted_context 是离线测试夹具中的接收者解析结果，不是客户端可提交的管理字段。来源解析的实际持久库、凭据发放和撤销测试是 L0 前置工作，静态样例不能证明认证。
+凭据只认证服务，**不能单凭平台服务账号扩大最终用户权限**。identity 注册要求 assertion 已验证该 account；查询他人身份/记忆需要服务端明确授权。首次入站前 origin_scope.person_id 与 conversation_id 均可为 null。issuer 先认证 verified_account、verified_channel 与允许的角色/受众，不依赖尚未生成的逻辑 ID。companion 按已登记入站 binding 的 channel_key 幂等查找或建立 conversation 映射，再调用 memory.resolve/register 获得当前 person_id/binding_version；首次注册完全在服务端进行，用户无需先登记。有效账号绑定与渠道映射结果是响应 ID 的核验依据，不与旧来源中的 null 强行相等。已有来源 ID 仍须与当前权威映射核对；未登记/不可信的渠道 binding 拒绝，不能通过任意 channel_key 建会话。NoneBot binding 或 web 登录入口由服务端先配置，它们不是 conversation_id，不构成循环签发。common.trusted_context 是离线测试夹具中的接收者解析结果，不是客户端可提交的管理字段。来源解析的实际持久库、凭据发放和撤销测试是 L0 前置工作，静态样例不能证明认证。
 
 写操作按 `(authenticated_service, operation, idempotency_key)` 持久记录规范化 JSON 输入及原结果；request_id 可因重试改变，deadline/origin_ref 可更新，但目标、语义 payload、expected_version 均须相同；新来源仍须通过授权。相同键异 payload 返回 409 `idempotency_conflict`，不能重做动作。超时后用原键核对原结果；已开始而结果未知返回 `result_unknown`，不能声称未执行。deadline 过期且未执行为 408 `timeout/not_started`。版本冲突为 409；鉴权失败 401，越权 403（隐藏对象统一 404），校验/未知主版本 400，容量/预算 429，依赖不可用 503，游标过期 410。错误不附私密记录存在性、凭据或原始上游正文。
 
@@ -26,7 +26,7 @@
 - 接收先可靠存储短期原消息和受理序号，再回执。`pending/unavailable` 不表示永久归档；只有真实 Chat Audit 回执才为 archived 并给 locator。不虚造 I06 写端点。
 - 群背景插话放 context_refs，保留真实作者与公共 ingest_sequence，不能变为当前作者的新发言。引用原文仍需权限，不因有 locator 就允许读。
 
-W=5000ms 是实例，配置可设 W=0；max_wait_ms 默认 null。只有受理时间严格 `< deadline` 才追加原组；等于时先封存。去重先于计时；受理序号决定同刻顺序。旧 timer 核对 collection_id/revision/deadline。恢复按持久 UTC deadline 换算等待，不复用旧进程单调时钟。edit/retract 修订号递增；旧修订只归档、不覆盖新修订、不重置窗口；同修订异内容冲突。撤回全组取消，窗口内部分撤回更新成员与计时；封存后编辑/撤回走对应轮次取消/失效路径。
+W=5000ms 是实例，配置可设 W=0；max_wait_ms 默认 null。只有受理时间严格 `< deadline` 才追加原组；等于时先封存。去重先于计时；受理序号决定同刻顺序。旧 timer 核对 collection_id/revision/deadline。事件循环允许在有效 deadline 之后才实际封存（sealed_at >= deadline），不能因晚触发而延长旧组窗口；deadline 及之后的已受理新消息必须另建组，先完成旧组的逻辑关闭。恢复按持久 UTC deadline 换算等待，不复用旧进程单调时钟。edit/retract 修订号递增；旧修订只归档、不覆盖新修订、不重置窗口；同修订异内容冲突。撤回全组取消，窗口内部分撤回更新成员与计时；封存后编辑/撤回走对应轮次取消/失效路径。
 
 bundle 固定消息边界、成员修订、作者、引用与目标，turn_sequence 在封存时由会话所有者递增（同刻按最早 ingest_sequence 破同序）。组内保留条件、否定、转题，不能只留末句或串成无作者长字符串。媒体就绪不重置窗口；首切片不实现媒体生成/传输。
 
@@ -48,7 +48,7 @@ NoneBot：`POST /internal/v1/conversation/send`，send_request → send_receipt�
 
 核心保存 reply_id、reply_sequence、turn_sequence、text 和 delivery_state。网页目标以持久回复进入可授权读取日志为 sent，不等于用户读过；网页订阅连接不是一次发送动作。QQ/TG 投影显示原目标和真实回执状态，打开网页或重连绝不重跑模型/再发 QQ。
 
-快照的 snapshot_token 固定一个授权范围与 object_version；分页 next_page_token 必须绑定同一快照、主体和会话，不能跨页混不同版本。resume_cursor 是该快照边界之后的订阅位置，与数据在同一一致读中取得。SSE `id:` 为 cursor，`event:` 为 conversation.projection_changed，`data:` 为 projection_event；Last-Event-ID 恢复只重放有权事件。event_id 去重，aggregate_version 连续检查；版本缺口或 cursor_expired 重取快照。收回权限终止流并清掉不可继续显示的缓存；观测超期显示 stale/unknown 与 observed_at，不能假装在线。当前只发布一个会话/角色文字状态，不覆盖完整任务中心或世界状态写入。
+快照的 snapshot_token 固定一个授权范围与 object_version；分页 next_page_token 必须绑定同一快照、主体和会话，不能跨页混不同版本。resume_cursor 是该快照边界之后的订阅位置，与数据在同一一致读中取得。SSE `id:` 为 cursor，`event:` 为 conversation.projection_changed，`data:` 为 projection_event；Last-Event-ID 恢复只重放有权事件。event_id 去重，aggregate_version 连续检查；版本缺口或 cursor_expired 重取快照。turn_changed 且 reply=null 是失效通知，不是完整 turn 增量；客户端按当前授权只读重取快照，替换轮次视图，不自行猜测终态，也不重新生成/发送。收回权限终止流并清掉不可继续显示的缓存；观测超期显示 stale/unknown 与 observed_at，不能假装在线。当前只发布一个会话/角色文字状态，不覆盖完整任务中心或世界状态写入。
 
 ## 5. 身份与记忆（I03/I04/I05）
 
@@ -56,11 +56,13 @@ NoneBot：`POST /internal/v1/conversation/send`，send_request → send_receipt�
 
 `POST /internal/v1/identity/link` 必须明确两账号、两 binding_version、memory 签发且未消费的 verification_ref；证明同时绑定两个当前账号及授权主体、用途、有效期。接收者验证后原子合并并消费 proof，重投相同幂等请求返回原结果。未知、过期、目标不符的 proof 拒绝。请求不接受任意 person_id 或管理员声明。账号证明的实际获取/挑战流程尚待 memory/platform 实现，禁止以夹具 proof 当真实认证。并发版本冲突不自动合并。
 
-`POST /internal/v1/memory/select` 一次批量选择。requested_scope 只是上限，memory 按验证来源/当前权限收紧为 effective_scope，**在检索前**过滤，再检查权威 record_version、scope_version 和来源。scope 版本变化返回 scope_changed，不能以旧候选重新授予访问。群请求只返回 shared_projection，不能取私聊原始来源；哪怕 statement 已脱敏，source locator 也必须是可共享投影引用。过滤数量和私密 record_id 不返回。
+`POST /internal/v1/memory/select` 一次批量选择。首切片 requested_scope 是单一 actor/person/audience/conversation 精确目标，必须与已授权目标和 effective_scope 一致；不一致拒绝，不通过改写目标获得数据。这里的“收紧”仅指该目标下可选记录和字段的过滤，不改变 scope 元组。**在检索前**执行过滤，再检查权威 record_version、scope_version 和来源。scope 版本变化返回 scope_changed，不能以旧候选重新授予访问。verified_account 表示请求人账号，person_id 表示被查询的人物，二者是不同概念；本切片仅支持经 memory 当前账号绑定核验的本人 subject 查询（包括本人在群场景中可共享的兴趣），跨人物查询拒绝，其他成员画像和全群主题画像尚未在此冻结。群请求只返回 shared_projection，不能取私聊原始来源。过滤数量和私密 record_id 不返回。
+
+入站/提交事件仍使用 common.source，只有真实 Chat Audit 回执才能标 archived。召回单元使用可辨的 recall_source：raw_message 包裹真实 source，仅在当前范围允许读取原文时使用；shareable_projection 只包含 owner=memory、projection_ref、projection_version，不包含 message_key、receipt_id、archive_state 或私聊原始 locator。memory 在私有血缘记录中保存投影对应的原始来源并检查当前权限、修订及遗忘状态；投影可在原文尚 pending 时成立，不伪造已归档。群样例由真实形状的私聊原文合成兴趣投影，响应仅暴露投影引用/版本。
 
 selected_units 与 dependency_groups 同取同舍；主语、条件、否定、时间、不确定性、现实/虚构标志和来源齐全。预算不够整组省略，零项合法，budget_used 不超请求。valid_until 仅有效期上限，**不是离线授权**；记忆服务不可用时不使用无法验证当前范围/版本的私密缓存。缓存键至少包含 actor/person/audience/conversation/scope_version/record_versions，查询文本不够。
 
-`POST /internal/v1/memory/revise` 是已确认更正/遗忘，需 confirmation_ref 与当前来源权限，模型提议不能伪造确认。先原子更新权威记录/墓碑、版本、scope_version，再异步索引；pending 不等于旧内容仍可召回。旧缓存/向量在读取时必须核对当前权威版本与墓碑。correct 要 replacement_statement，forget 必须 null。
+`POST /internal/v1/memory/revise` 是已确认更正/遗忘，需 confirmation_ref 与当前来源权限，模型提议不能伪造确认。先原子更新权威记录/墓碑、版本、scope_version，再异步索引；pending 不等于旧内容仍可召回。旧缓存/向量在读取时必须核对当前权威版本与墓碑。correct 要 replacement_statement，forget 必须 null。statement 的改变必须同时重建或原子失效 conditions、negations、valid_time、semantic_group/dependency_groups 及其受影响成员版本，不能把新句子与旧语义字段拼接后继续召回。若不能在同一事务生成完整新语义，则标 semantic_state=invalidated，提高记录/范围版本并从召回排除整组；后台完整重建后才为 rebuilt，再异步更新索引。忘记同样失效关联语义组与派生投影，旧缓存/向量不能恢复它们。
 
 ## 6. 首次记忆写入与提交事件
 
@@ -78,7 +80,7 @@ credential_ref 是不含密钥的 secret-ref；credential_namespace 标记上游
 
 首轮原生 `POST /v1/chat/completions`；业务调用的关联元数据放 `X-Request-ID`、`X-Tianshu-Config-Version`、`X-Tianshu-Workload: companion.text`、`X-Tianshu-Turn-ID`，不混入原生 body。这些内部头由认证服务产生；外部客户端不能用它们越权选择配置。普通原生客户端的鉴权/路由绑定由网关服务端配置，其显式 model、messages、tools、tool_choice、reasoning 和未知扩展字段原样保留。流式保持上游数据帧、工具分片、finish_reason、usage 与终止标记，不转换成业务事件；中途断流为 unknown，不能拼接另一提供商输出。
 
-model_policy/reasoning_policy 分别明确 preserve_client、default_if_absent 或 force；默认 preserve_client。只有客户端字段缺失才补 default，显式 null/空值不是缺失。force 必须在已发布配置中显式可见，并在独立 route_receipt 记录 requested/resolved 值及 applied_policy；不得悄悄改模型或丢 reasoning。companion.text 无显式模型时由绑定指定模型，不影响外部客户端保留模型的规则。
+model_policy/reasoning_policy 分别明确 preserve_client、default_if_absent 或 force；默认 preserve_client。只有客户端字段缺失才补 default，显式 null/空值不是缺失。force 必须在已发布配置中显式可见，并在独立 route_receipt 记录 requested/resolved 值及 applied_policy；不得悄悄改模型或丢 reasoning。网关入站 native_request 可缺 model，上游 upstream_request 必须有合法非空字符串 model。缺失时只有已认证的内部 companion.text 绑定或显式 model_policy.default_if_absent 可解析模型；preserve_client 且无内部绑定时缺失 model 返回 invalid_input/not_started，不能发上游。内部绑定补值在 receipt.applied_policies 中记 mode=workload_binding。requested_model=null 仅用于成功回执中记录原请求缺失；不得捏造为实际模型。显式 model:null 是提供了非法模型值，default_if_absent 不覆盖它，返回 invalid_input 且无上游调用/成功路由回执；本切片不启用 force 对非法 model:null 的修复。外部原生客户端保留其显式模型。
 
 本候选 fallback=disabled。上游/credential_namespace/协议黏性不能被配置刷新改变；涉及前次响应 ID、provider 状态或会话 ID 的调用不可跨命名空间重放。嵌入接口不在文字首切片；向量空间须由 provider/model/revision/dimensions/normalization/credential_namespace 固定，空间变化需显式新索引与迁移，不允许退回其他模型继续写同一索引。Responses/Anthropic 保留独立协议分支，不压成 Chat Completions。
 
