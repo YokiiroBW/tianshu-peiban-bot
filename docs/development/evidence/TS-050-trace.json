@@ -1,0 +1,2250 @@
+{
+  "task": "TS-050",
+  "classification": "partial_not_full_L0",
+  "validation": {
+    "command": "python -B scripts/integration/ts050.py run",
+    "tests": 8,
+    "passed": 8,
+    "duration_seconds": 20.86,
+    "full_L0": false
+  },
+  "environment": {
+    "python": "3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]",
+    "source": "PyPI pinned companion/platform runtime union; Memory manifest ranges checked",
+    "memory_lock_reproduced": false,
+    "distributions": {
+      "Pygments": "2.21.0",
+      "aiohappyeyeballs": "2.7.1",
+      "aiohttp": "3.14.1",
+      "aiosignal": "1.4.0",
+      "annotated-doc": "0.0.5",
+      "annotated-types": "0.8.0",
+      "anyio": "4.15.1",
+      "attrs": "26.1.0",
+      "certifi": "2026.7.22",
+      "cffi": "2.1.1",
+      "click": "8.5.0",
+      "colorama": "0.4.6",
+      "cryptography": "50.0.1",
+      "fastapi": "0.135.1",
+      "frozenlist": "1.8.0",
+      "h11": "0.16.0",
+      "httpcore": "1.0.9",
+      "httpx": "0.28.1",
+      "idna": "3.19",
+      "iniconfig": "2.3.0",
+      "jsonschema": "4.26.0",
+      "jsonschema-specifications": "2025.9.1",
+      "multidict": "6.8.0",
+      "packaging": "26.3",
+      "pluggy": "1.6.0",
+      "propcache": "0.5.2",
+      "pycparser": "3.0",
+      "pydantic": "2.13.5",
+      "pydantic_core": "2.46.5",
+      "pytest": "9.0.2",
+      "referencing": "0.37.0",
+      "rpds-py": "2026.6.3",
+      "ruff": "0.15.7",
+      "starlette": "1.6.0",
+      "typing-inspection": "0.4.4",
+      "typing_extensions": "4.16.0",
+      "uvicorn": "0.42.0",
+      "yarl": "1.24.5"
+    },
+    "pins": {
+      "companion": "812019e287a5bf37d9b5d810a028ffea828b872e",
+      "memory": "358e4a664e14eee734494646f3aa3a0bc666a222",
+      "model-gateway": "b3b101faf3902f05d80818b39fe7c91367865d4e",
+      "platform": "a5ee59ff67a2de7a7e0d8328ea3c0f43e1d6a209"
+    },
+    "observed_coordinator_heads": {
+      "companion": "812019e287a5bf37d9b5d810a028ffea828b872e",
+      "memory": "dbf5c196dbb6de0d8828c0466e824efb5c7d08ce",
+      "model-gateway": "b3b101faf3902f05d80818b39fe7c91367865d4e",
+      "platform": "a5ee59ff67a2de7a7e0d8328ea3c0f43e1d6a209"
+    },
+    "manifest_sha256": "81e6cc4ddef7c6f82e055d4cb04b090db036dd5c52763473ce697aa02db478a1",
+    "test_exit_code": 0,
+    "classification": "partial_not_full_L0"
+  },
+  "scenarios": [
+    {
+      "scenario": "test_first_identity_mapping_w0_and_missing_source_gate",
+      "classification": "partial",
+      "checks": [
+        {
+          "name": "actual_identity_and_core_receipt_mapping",
+          "before": {
+            "actor_id": "actor-fixture",
+            "audience": "self_private",
+            "person_id": null,
+            "conversation_id": null
+          },
+          "after": {
+            "actor_id": "actor-fixture",
+            "audience": "self_private",
+            "person_id": "person:3126770be72b48e1bb6231a6b0580eb4",
+            "conversation_id": "conv:9b7a3a172ca84baf9229b82be61a9485"
+          },
+          "receipt": {
+            "schema_version": 1,
+            "request_id": "req:938e47a9d231426b895c358e7bf2e717",
+            "receipt_id": "receipt:5fb439feebfd436d91bb61cc6423c01d",
+            "deduplicated": false,
+            "conversation_id": "conv:9b7a3a172ca84baf9229b82be61a9485",
+            "person_id": "person:3126770be72b48e1bb6231a6b0580eb4",
+            "collection_key": {
+              "channel": {
+                "namespace": "qq",
+                "binding_id": "ts050-local-recorder",
+                "channel_conversation_id": "ts050-private",
+                "thread_id": null
+              },
+              "author": {
+                "namespace": "qq",
+                "immutable_account_id": "ts050-synthetic-person"
+              }
+            },
+            "collection_id": "col:4e7a676e001b4aed8607b0b7bcc8c966",
+            "collection_revision": 1,
+            "accepted_at": "2026-09-13T20:04:01.867Z",
+            "ingest_sequence": 1,
+            "archive_state": "pending"
+          },
+          "duplicate_receipt": {
+            "accepted_at": "2026-09-13T20:04:01.867Z",
+            "archive_state": "pending",
+            "collection_id": "col:4e7a676e001b4aed8607b0b7bcc8c966",
+            "collection_key": {
+              "author": {
+                "immutable_account_id": "ts050-synthetic-person",
+                "namespace": "qq"
+              },
+              "channel": {
+                "binding_id": "ts050-local-recorder",
+                "channel_conversation_id": "ts050-private",
+                "namespace": "qq",
+                "thread_id": null
+              }
+            },
+            "collection_revision": 1,
+            "conversation_id": "conv:9b7a3a172ca84baf9229b82be61a9485",
+            "deduplicated": true,
+            "ingest_sequence": 1,
+            "person_id": "person:3126770be72b48e1bb6231a6b0580eb4",
+            "receipt_id": "receipt:5fb439feebfd436d91bb61cc6423c01d",
+            "request_id": "req:938e47a9d231426b895c358e7bf2e717",
+            "schema_version": 1
+          },
+          "auth_path": "coordinator-approved same-process Platform application port"
+        },
+        {
+          "name": "w0_failed_closed_source_unconfigured",
+          "core": {
+            "turns": [
+              {
+                "id": "turn:7aae7b4fb7da42638f7226895698a0f5",
+                "sequence": 1,
+                "phase": "failed",
+                "failure": "timeout",
+                "model_calls": 0,
+                "scope_version": null,
+                "bundle": {
+                  "close_reason": "immediate_submit",
+                  "collection_id": "col:4e7a676e001b4aed8607b0b7bcc8c966",
+                  "collection_key": {
+                    "author": {
+                      "immutable_account_id": "ts050-synthetic-person",
+                      "namespace": "qq"
+                    },
+                    "channel": {
+                      "binding_id": "ts050-local-recorder",
+                      "channel_conversation_id": "ts050-private",
+                      "namespace": "qq",
+                      "thread_id": null
+                    }
+                  },
+                  "collection_revision": 1,
+                  "context_refs": [],
+                  "continuation_of": null,
+                  "conversation_id": "conv:9b7a3a172ca84baf9229b82be61a9485",
+                  "dependencies": [],
+                  "messages": [
+                    {
+                      "accepted_at": "2026-09-13T20:04:01.867Z",
+                      "author": {
+                        "immutable_account_id": "ts050-synthetic-person",
+                        "namespace": "qq"
+                      },
+                      "ingest_sequence": 1,
+                      "mentioned_accounts": [],
+                      "message_key": {
+                        "channel": {
+                          "binding_id": "ts050-local-recorder",
+                          "channel_conversation_id": "ts050-private",
+                          "namespace": "qq",
+                          "thread_id": null
+                        },
+                        "message_id": "first",
+                        "revision": 1
+                      },
+                      "parts": [
+                        {
+                          "kind": "text",
+                          "text": "我叫小明"
+                        }
+                      ],
+                      "person_id": "person:3126770be72b48e1bb6231a6b0580eb4",
+                      "reply_refs": [],
+                      "sent_at": "2026-09-13T20:04:01.867523Z",
+                      "source": {
+                        "archive_state": "pending",
+                        "locator": null,
+                        "message_key": {
+                          "channel": {
+                            "binding_id": "ts050-local-recorder",
+                            "channel_conversation_id": "ts050-private",
+                            "namespace": "qq",
+                            "thread_id": null
+                          },
+                          "message_id": "first",
+                          "revision": 1
+                        },
+                        "receipt_id": "receipt:5fb439feebfd436d91bb61cc6423c01d"
+                      },
+                      "target_actor_ids": [
+                        "actor-fixture"
+                      ]
+                    }
+                  ],
+                  "possibly_incomplete": false,
+                  "schema_version": 1,
+                  "sealed_at": "2026-09-13T20:04:01.867Z",
+                  "turn_id": "turn:7aae7b4fb7da42638f7226895698a0f5",
+                  "turn_sequence": 1
+                }
+              }
+            ],
+            "collections": [
+              {
+                "id": "col:4e7a676e001b4aed8607b0b7bcc8c966",
+                "state": "sealed",
+                "revision": 1,
+                "deadline": 1789329841.8675227,
+                "source_context_revision": 1
+              }
+            ],
+            "outbox": [
+              {
+                "id": "event:61de61fe346d49dda6b43319609985e6",
+                "state": "blocked_scope",
+                "attempts": 0,
+                "scope_version": null
+              }
+            ],
+            "replies": 0
+          },
+          "full_l0": false
+        },
+        {
+          "name": "memory_health_truthful",
+          "health": {
+            "state": "unavailable",
+            "contract_version": "1.0.0",
+            "source_backend": "unconfigured",
+            "retrieval": "unavailable",
+            "embedding": "not_configured",
+            "postgresql": "not_implemented",
+            "raw_source_read": "unavailable",
+            "token_accounting": "utf8_bytes_conservative_estimate"
+          }
+        }
+      ],
+      "model_http_calls": 0,
+      "channel_http_calls": 0,
+      "platform_http_requests": [
+        {
+          "path": "/internal/v1/origins/resolve",
+          "request_sha256": "a6e58ee973d2fc662e65f04b922234862cae37b83f9714c6bccf690e5275f0e1",
+          "status": 200
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "request_sha256": "a4bbe6600efb5023c4a64da564ba56b400d3d82fdfd7a272c4f908003553a25d",
+          "status": 200
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "request_sha256": "a6e58ee973d2fc662e65f04b922234862cae37b83f9714c6bccf690e5275f0e1",
+          "status": 200
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "request_sha256": "a4bbe6600efb5023c4a64da564ba56b400d3d82fdfd7a272c4f908003553a25d",
+          "status": 200
+        }
+      ],
+      "memory_http_requests": [
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 200,
+          "request_sha256": "b81b051ee5bce279ac75073fc24beb76001224aabd936f282ef72dd8e92187c6"
+        },
+        {
+          "path": "/internal/v1/identity/register",
+          "status": 200,
+          "request_sha256": "67ac14976ab80eaf219ffb0f53c65e84f8931c94c91566ddd16fa2f11ec3e52c"
+        },
+        {
+          "path": "/internal/v1/memory/select",
+          "status": 503,
+          "request_sha256": "47d7815bf94bb5e76af4258ffd932bfa329112ab34379caed28d173a6e748ed1",
+          "budget": {
+            "tokens": 0,
+            "bytes": 0
+          },
+          "query_text": "我叫小明"
+        },
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 200,
+          "request_sha256": "d17c145b8d87201895479f078800c860e8b10b57f4245a71f71b672575457506"
+        },
+        {
+          "path": "/health",
+          "status": 503,
+          "request_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "mapping_receipts": [
+        {
+          "kind": "identity_resolve",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:24b1eb5c85ec4123bf56a149dd60f63e",
+            "state": "unregistered",
+            "person_id": null,
+            "binding_version": 0
+          }
+        },
+        {
+          "kind": "identity",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:181d90f68be24fcc9c72177ba7276dc6",
+            "person_id": "person:3126770be72b48e1bb6231a6b0580eb4",
+            "binding_version": 1,
+            "created": true
+          }
+        },
+        {
+          "kind": "ingest",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:938e47a9d231426b895c358e7bf2e717",
+            "receipt_id": "receipt:5fb439feebfd436d91bb61cc6423c01d",
+            "deduplicated": false,
+            "conversation_id": "conv:9b7a3a172ca84baf9229b82be61a9485",
+            "person_id": "person:3126770be72b48e1bb6231a6b0580eb4",
+            "collection_key": {
+              "channel": {
+                "namespace": "qq",
+                "binding_id": "ts050-local-recorder",
+                "channel_conversation_id": "ts050-private",
+                "thread_id": null
+              },
+              "author": {
+                "namespace": "qq",
+                "immutable_account_id": "ts050-synthetic-person"
+              }
+            },
+            "collection_id": "col:4e7a676e001b4aed8607b0b7bcc8c966",
+            "collection_revision": 1,
+            "accepted_at": "2026-09-13T20:04:01.867Z",
+            "ingest_sequence": 1,
+            "archive_state": "pending"
+          }
+        },
+        {
+          "kind": "identity_resolve",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:0f0d0aea83894e57bab4593e4d7f5d60",
+            "state": "found",
+            "person_id": "person:3126770be72b48e1bb6231a6b0580eb4",
+            "binding_version": 1
+          }
+        },
+        {
+          "kind": "ingest",
+          "response": {
+            "accepted_at": "2026-09-13T20:04:01.867Z",
+            "archive_state": "pending",
+            "collection_id": "col:4e7a676e001b4aed8607b0b7bcc8c966",
+            "collection_key": {
+              "author": {
+                "immutable_account_id": "ts050-synthetic-person",
+                "namespace": "qq"
+              },
+              "channel": {
+                "binding_id": "ts050-local-recorder",
+                "channel_conversation_id": "ts050-private",
+                "namespace": "qq",
+                "thread_id": null
+              }
+            },
+            "collection_revision": 1,
+            "conversation_id": "conv:9b7a3a172ca84baf9229b82be61a9485",
+            "deduplicated": true,
+            "ingest_sequence": 1,
+            "person_id": "person:3126770be72b48e1bb6231a6b0580eb4",
+            "receipt_id": "receipt:5fb439feebfd436d91bb61cc6423c01d",
+            "request_id": "req:938e47a9d231426b895c358e7bf2e717",
+            "schema_version": 1
+          }
+        }
+      ],
+      "model_wire": [],
+      "gateway_active": 0,
+      "cleanup": {
+        "listeners_checked": 9,
+        "failures": []
+      }
+    },
+    {
+      "scenario": "test_gateway_unknown_no_replay_across_real_process_restart",
+      "classification": "partial",
+      "checks": [
+        {
+          "name": "gateway_unknown_persisted_no_duplicate_upstream",
+          "receipt": {
+            "schema_version": 1,
+            "request_id": "ts050:unknown",
+            "config_version": 7,
+            "provider_id": "provider-fixture",
+            "credential_namespace": "credential-namespace-fixture",
+            "caller_service": "companion",
+            "requested_model": "fixture-text-model",
+            "resolved_model": "fixture-text-model",
+            "requested_reasoning": {},
+            "effective_reasoning": {},
+            "applied_policies": [],
+            "protocol": "openai-chat-completions",
+            "outcome": "unknown",
+            "upstream_request_id": null,
+            "usage": null,
+            "usage_complete": false,
+            "native_usage": null,
+            "fallback_used": false,
+            "observed_at": "2026-09-13T20:04:16.494163Z"
+          },
+          "replay_statuses": [
+            409,
+            409
+          ],
+          "upstream_calls": 1,
+          "real_new_process": true,
+          "core_or_channel_unknown_covered": false
+        }
+      ],
+      "model_http_calls": 1,
+      "channel_http_calls": 0,
+      "platform_http_requests": [
+        {
+          "path": "/internal/v1/model-config/snapshot",
+          "request_sha256": "4a369fdb6144102e28dd77123f2d983c071b1bd6f6a236ea9ad6c06d2b937fff",
+          "status": 200
+        },
+        {
+          "path": "/internal/v1/model-config/snapshot",
+          "request_sha256": "80b683f3c2851f84a8e9f23cc7e565d7faddba18f439cbb4c59f351c207c81a4",
+          "status": 200
+        },
+        {
+          "path": "/internal/v1/model-config/snapshot",
+          "request_sha256": "f29fb894be402d4d0d8a83833654323682f966a2543d3285e9b8068526707c7f",
+          "status": 200
+        }
+      ],
+      "memory_http_requests": [],
+      "mapping_receipts": [],
+      "model_wire": [
+        {
+          "request_bytes": 110,
+          "request_sha256": "5aecc40191c383b25c438a62b40a5407d2da570ea2feb8b6c04a53c2e8b9f90e",
+          "request_utf8": " { \"messages\" : [{\"role\":\"user\",\"content\":\"synthetic TS050\"}], \"model\":\"fixture-text-model\", \"stream\":false }\n",
+          "independent_upstream_auth": true
+        }
+      ],
+      "gateway_active": 0,
+      "cleanup": {
+        "listeners_checked": 8,
+        "failures": []
+      }
+    },
+    {
+      "scenario": "test_platform_partial_authority_revision_tombstone_and_revocation",
+      "classification": "partial",
+      "checks": [
+        {
+          "name": "platform_partial_flags_not_owner_facts",
+          "result": {
+            "current_sources": true,
+            "archive_verified": false,
+            "scope_version_verified": false
+          },
+          "input": "diagnostic probe, not Core commit",
+          "unchecked_probe_scope_version": 913,
+          "unchecked_probe_input_revision": 77
+        },
+        {
+          "name": "old_platform_source_rejected",
+          "archived_status": 503,
+          "edit_code": "scope_changed",
+          "tombstone_code": "scope_changed",
+          "memory_invalidation_covered": false
+        },
+        {
+          "name": "real_entry_revocation_blocks_core_ingress",
+          "status": 403,
+          "inbox_count": 3,
+          "model_calls": 0,
+          "channel_calls": 0
+        }
+      ],
+      "model_http_calls": 0,
+      "channel_http_calls": 0,
+      "platform_http_requests": [
+        {
+          "path": "/internal/v1/origins/resolve",
+          "request_sha256": "66f954e16e7ed4055d53688b7ed367bf86b8f83f5bd5c37a5f751ad2ffa84664",
+          "status": 200
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "request_sha256": "5ffd340aab37782976b040bed256d67cbc95c0098150f4f882f26185723e4e4d",
+          "status": 200
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "request_sha256": "6dd9bb1b0ca9c7b669db2df0dfa8e3eb70d5e3bd41ae89385a390f89e76cec36",
+          "status": 200
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "request_sha256": "3dc42b189df75dc11b000f36d77e934ddf41029fb808b959fd1f702430af04bb",
+          "status": 200
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "request_sha256": "1bc1a9aa43f1bb2e9843d638eda58f8ba0b8b723c90a97574a28f070f7cc5e80",
+          "status": 403
+        }
+      ],
+      "memory_http_requests": [
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 200,
+          "request_sha256": "c254d19481e26fc9ef84a9240dbb875d7680127b6e9c5eff658a103e1732215a"
+        },
+        {
+          "path": "/internal/v1/identity/register",
+          "status": 200,
+          "request_sha256": "0a8e729e1390ad41708011fbbf260669072d872d95bbc8190c42f012ab291581"
+        },
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 200,
+          "request_sha256": "a9888a016a310f392f564a63f53108014fa853aa4f71c0c1d548cd337fa598c8"
+        },
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 200,
+          "request_sha256": "9cf0b90fa68a3d19190ef9fc25b7ac2737aecc1282af1c46282038b9f3255e58"
+        }
+      ],
+      "mapping_receipts": [
+        {
+          "kind": "identity_resolve",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:15dd3a801ed24035bd9da7e89bf9358c",
+            "state": "unregistered",
+            "person_id": null,
+            "binding_version": 0
+          }
+        },
+        {
+          "kind": "identity",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:2fe70d5bc97c45f1b966adb9e8e605f2",
+            "person_id": "person:ffbc3b3ff9374ddf8f7f60598ed4f05d",
+            "binding_version": 1,
+            "created": true
+          }
+        },
+        {
+          "kind": "ingest",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:05bce15486e144d8972fa24d1b0d3d21",
+            "receipt_id": "receipt:15921a0fb57244808307215292a52001",
+            "deduplicated": false,
+            "conversation_id": "conv:0dfbf3d9d9c94e29aefbd12d1bd9a567",
+            "person_id": "person:ffbc3b3ff9374ddf8f7f60598ed4f05d",
+            "collection_key": {
+              "channel": {
+                "namespace": "qq",
+                "binding_id": "ts050-local-recorder",
+                "channel_conversation_id": "ts050-private",
+                "thread_id": null
+              },
+              "author": {
+                "namespace": "qq",
+                "immutable_account_id": "ts050-synthetic-person"
+              }
+            },
+            "collection_id": "col:04af2d56c5194869a7ce536c76faf392",
+            "collection_revision": 1,
+            "accepted_at": "2026-09-13T20:04:04.567Z",
+            "ingest_sequence": 1,
+            "archive_state": "pending"
+          }
+        },
+        {
+          "kind": "identity_resolve",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:50d86f0016484beeada7d4db79c52ee7",
+            "state": "found",
+            "person_id": "person:ffbc3b3ff9374ddf8f7f60598ed4f05d",
+            "binding_version": 1
+          }
+        },
+        {
+          "kind": "ingest",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:40e4a7c1e8fb4daca87901c5a5c18bdf",
+            "receipt_id": "receipt:350305dcb2914af08796ba8aac84d25f",
+            "deduplicated": false,
+            "conversation_id": "conv:0dfbf3d9d9c94e29aefbd12d1bd9a567",
+            "person_id": "person:ffbc3b3ff9374ddf8f7f60598ed4f05d",
+            "collection_key": {
+              "channel": {
+                "namespace": "qq",
+                "binding_id": "ts050-local-recorder",
+                "channel_conversation_id": "ts050-private",
+                "thread_id": null
+              },
+              "author": {
+                "namespace": "qq",
+                "immutable_account_id": "ts050-synthetic-person"
+              }
+            },
+            "collection_id": "col:04af2d56c5194869a7ce536c76faf392",
+            "collection_revision": 2,
+            "accepted_at": "2026-09-13T20:04:04.567Z",
+            "ingest_sequence": 2,
+            "archive_state": "pending"
+          }
+        },
+        {
+          "kind": "identity_resolve",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:cf4e15d8cf5e4f7f97b8bb0d26990026",
+            "state": "found",
+            "person_id": "person:ffbc3b3ff9374ddf8f7f60598ed4f05d",
+            "binding_version": 1
+          }
+        },
+        {
+          "kind": "ingest",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:0b6bc666277640ac8f7d72b4644ed137",
+            "receipt_id": "receipt:e1267f1f0f324e0c90a78f661b6c7229",
+            "deduplicated": false,
+            "conversation_id": "conv:0dfbf3d9d9c94e29aefbd12d1bd9a567",
+            "person_id": "person:ffbc3b3ff9374ddf8f7f60598ed4f05d",
+            "collection_key": {
+              "channel": {
+                "namespace": "qq",
+                "binding_id": "ts050-local-recorder",
+                "channel_conversation_id": "ts050-private",
+                "thread_id": null
+              },
+              "author": {
+                "namespace": "qq",
+                "immutable_account_id": "ts050-synthetic-person"
+              }
+            },
+            "collection_id": "col:04af2d56c5194869a7ce536c76faf392",
+            "collection_revision": 3,
+            "accepted_at": "2026-09-13T20:04:04.567Z",
+            "ingest_sequence": 3,
+            "archive_state": "pending"
+          }
+        }
+      ],
+      "model_wire": [],
+      "gateway_active": 0,
+      "cleanup": {
+        "listeners_checked": 9,
+        "failures": []
+      }
+    },
+    {
+      "scenario": "test_real_platform_gateway_and_core_gateway_client_bytes",
+      "classification": "partial",
+      "checks": [
+        {
+          "name": "native_request_and_response_bytes_preserved",
+          "request_sha256": "23b86a4f1ba729b49a00bcf93490f4ee7b512f0d1e33dd8362fda9d35f89baca",
+          "response_sha256": "4c70b6ae36e5828978668c3e3af44460a0337a3abfc1637a4d4666499e309b55",
+          "response_bytes": 272,
+          "receipt": {
+            "schema_version": 1,
+            "request_id": "ts050:bytes",
+            "config_version": 7,
+            "provider_id": "provider-fixture",
+            "credential_namespace": "credential-namespace-fixture",
+            "caller_service": "companion",
+            "requested_model": "fixture-text-model",
+            "resolved_model": "fixture-text-model",
+            "requested_reasoning": {},
+            "effective_reasoning": {},
+            "applied_policies": [],
+            "protocol": "openai-chat-completions",
+            "outcome": "succeeded",
+            "upstream_request_id": null,
+            "usage": {
+              "input_tokens": 4,
+              "output_tokens": 3
+            },
+            "usage_complete": true,
+            "native_usage": {
+              "prompt_tokens": 4,
+              "completion_tokens": 3,
+              "total_tokens": 7
+            },
+            "fallback_used": false,
+            "observed_at": "2026-09-13T20:04:18.852724Z"
+          }
+        },
+        {
+          "name": "companion_gateway_adapter_actual_https",
+          "segments": [
+            "TS050 recorded reply"
+          ],
+          "receipt": {
+            "schema_version": 1,
+            "request_id": "model:6e4b726402db47e88aa95b7096d1a41b",
+            "config_version": 7,
+            "provider_id": "provider-fixture",
+            "credential_namespace": "credential-namespace-fixture",
+            "caller_service": "companion",
+            "requested_model": null,
+            "resolved_model": "fixture-text-model",
+            "requested_reasoning": {},
+            "effective_reasoning": {},
+            "applied_policies": [
+              {
+                "field": "model",
+                "mode": "workload_binding",
+                "config_version": 7
+              }
+            ],
+            "protocol": "openai-chat-completions",
+            "outcome": "succeeded",
+            "upstream_request_id": null,
+            "usage": {
+              "input_tokens": 4,
+              "output_tokens": 3
+            },
+            "usage_complete": true,
+            "native_usage": {
+              "prompt_tokens": 4,
+              "completion_tokens": 3,
+              "total_tokens": 7
+            },
+            "fallback_used": false,
+            "observed_at": "2026-09-13T20:04:18.883377Z"
+          },
+          "scheduler_covered": false,
+          "forwarded_body": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "TS050 direct adapter; not a scheduled Core turn"
+              }
+            ],
+            "stream": false,
+            "model": "fixture-text-model"
+          }
+        },
+        {
+          "name": "fixed_old_version_then_revoke_and_dialogue_purpose_denial",
+          "calls_before_denials": 3,
+          "calls_after_denials": 3,
+          "denial_statuses": [
+            403,
+            403
+          ]
+        }
+      ],
+      "model_http_calls": 3,
+      "channel_http_calls": 0,
+      "platform_http_requests": [
+        {
+          "path": "/internal/v1/model-config/snapshot",
+          "request_sha256": "92bf63f0c0b3ba340d2edfbf8d9ec679edc48105f9234c356769853f73c4cdd4",
+          "status": 200
+        },
+        {
+          "path": "/internal/v1/model-config/snapshot",
+          "request_sha256": "90560b2943412f17ccd02058c1fa512b733baac5b9744661655de95ce42e5b26",
+          "status": 200
+        },
+        {
+          "path": "/internal/v1/model-config/snapshot",
+          "request_sha256": "3e2b5dd75bc94c68ff77ec75924fc430f0c026b80e3748f071f31bfc708882c5",
+          "status": 200
+        },
+        {
+          "path": "/internal/v1/model-config/snapshot",
+          "request_sha256": "e8f33c0ddb6f80e5fa2ea3d62c38b8ad310fb177b90785dc0a29e8abff34d648",
+          "status": 410
+        },
+        {
+          "path": "/internal/v1/model-config/snapshot",
+          "request_sha256": "edbab1768667816772abc3c31bfd74c130ff06fc5d41b3c9fca580065270a934",
+          "status": 403
+        }
+      ],
+      "memory_http_requests": [],
+      "mapping_receipts": [],
+      "model_wire": [
+        {
+          "request_bytes": 123,
+          "request_sha256": "23b86a4f1ba729b49a00bcf93490f4ee7b512f0d1e33dd8362fda9d35f89baca",
+          "request_utf8": " { \"messages\":[{\"role\":\"user\",\"content\":\"TS050 bytes\"}], \"model\":\"fixture-text-model\", \"stream\":false, \"temperature\":0.3 }\n",
+          "independent_upstream_auth": true
+        },
+        {
+          "request_bytes": 134,
+          "request_sha256": "020f088f8f24bb8da826797d3fab5cec657c1bbac0fac88bd3de56885c7b16be",
+          "request_utf8": "{\"messages\":[{\"role\":\"user\",\"content\":\"TS050 direct adapter; not a scheduled Core turn\"}],\"stream\":false,\"model\":\"fixture-text-model\"}",
+          "independent_upstream_auth": true
+        },
+        {
+          "request_bytes": 110,
+          "request_sha256": "5aecc40191c383b25c438a62b40a5407d2da570ea2feb8b6c04a53c2e8b9f90e",
+          "request_utf8": " { \"messages\" : [{\"role\":\"user\",\"content\":\"synthetic TS050\"}], \"model\":\"fixture-text-model\", \"stream\":false }\n",
+          "independent_upstream_auth": true
+        }
+      ],
+      "gateway_active": 0,
+      "cleanup": {
+        "listeners_checked": 7,
+        "failures": []
+      }
+    },
+    {
+      "scenario": "test_shipped_memory_tls_gap_and_explicit_core_ca",
+      "classification": "partial",
+      "checks": [
+        {
+          "name": "core_client_real_https_with_isolated_ca",
+          "authenticated_service": "nonebot",
+          "audience_service": "companion",
+          "no_system_trust_change": true
+        },
+        {
+          "name": "shipped_memory_authenticator_tls_reproduction",
+          "http_status": 503,
+          "no_transport_or_sslcontext_argument": true,
+          "resolves_via_application_port": false,
+          "model_calls": 0
+        }
+      ],
+      "model_http_calls": 0,
+      "channel_http_calls": 0,
+      "platform_http_requests": [
+        {
+          "path": "/internal/v1/origins/resolve",
+          "request_sha256": "0f087d1200817c10378132dd32619531b7b818e324544bfd52bdbc71a8216266",
+          "status": 200
+        }
+      ],
+      "memory_http_requests": [
+        {
+          "path": "/internal/v1/identity/register",
+          "status": 503,
+          "request_sha256": "0da0588bd00e8b5af044321577e072b9439150ab4e377dc5a3a3a9345af92029"
+        }
+      ],
+      "mapping_receipts": [],
+      "model_wire": [],
+      "gateway_active": 0,
+      "cleanup": {
+        "listeners_checked": 8,
+        "failures": []
+      }
+    },
+    {
+      "scenario": "test_two_active_preparation_slots_t3_waits_real_memory_response",
+      "classification": "partial",
+      "checks": [
+        {
+          "name": "two_active_preparation_slots",
+          "core": {
+            "turns": [
+              {
+                "id": "turn:10044bd135c2498aa981e71068d3ac5b",
+                "sequence": 1,
+                "phase": "preparing",
+                "failure": null,
+                "model_calls": 0,
+                "scope_version": null,
+                "bundle": {
+                  "close_reason": "immediate_submit",
+                  "collection_id": "col:766b70ffea9b4c12905a9ef5e4dbc17b",
+                  "collection_key": {
+                    "author": {
+                      "immutable_account_id": "ts050-synthetic-person",
+                      "namespace": "qq"
+                    },
+                    "channel": {
+                      "binding_id": "ts050-local-recorder",
+                      "channel_conversation_id": "ts050-private",
+                      "namespace": "qq",
+                      "thread_id": null
+                    }
+                  },
+                  "collection_revision": 1,
+                  "context_refs": [],
+                  "continuation_of": null,
+                  "conversation_id": "conv:28fd7d7fb15d4179923847f9e79c9b25",
+                  "dependencies": [],
+                  "messages": [
+                    {
+                      "accepted_at": "2026-09-13T20:04:07.382Z",
+                      "author": {
+                        "immutable_account_id": "ts050-synthetic-person",
+                        "namespace": "qq"
+                      },
+                      "ingest_sequence": 1,
+                      "mentioned_accounts": [],
+                      "message_key": {
+                        "channel": {
+                          "binding_id": "ts050-local-recorder",
+                          "channel_conversation_id": "ts050-private",
+                          "namespace": "qq",
+                          "thread_id": null
+                        },
+                        "message_id": "overlap-1",
+                        "revision": 1
+                      },
+                      "parts": [
+                        {
+                          "kind": "text",
+                          "text": "合成短句 1"
+                        }
+                      ],
+                      "person_id": "person:2442f845c88b4e398a88e949ba8aa3d3",
+                      "reply_refs": [],
+                      "sent_at": "2026-09-13T20:04:07.382241Z",
+                      "source": {
+                        "archive_state": "pending",
+                        "locator": null,
+                        "message_key": {
+                          "channel": {
+                            "binding_id": "ts050-local-recorder",
+                            "channel_conversation_id": "ts050-private",
+                            "namespace": "qq",
+                            "thread_id": null
+                          },
+                          "message_id": "overlap-1",
+                          "revision": 1
+                        },
+                        "receipt_id": "receipt:c707ece5c87a40b58a52cf5b3c27c5d8"
+                      },
+                      "target_actor_ids": [
+                        "actor-fixture"
+                      ]
+                    }
+                  ],
+                  "possibly_incomplete": false,
+                  "schema_version": 1,
+                  "sealed_at": "2026-09-13T20:04:07.382Z",
+                  "turn_id": "turn:10044bd135c2498aa981e71068d3ac5b",
+                  "turn_sequence": 1
+                }
+              },
+              {
+                "id": "turn:acdeb2873b1f4b12bacad42e4c74334c",
+                "sequence": 2,
+                "phase": "preparing",
+                "failure": null,
+                "model_calls": 0,
+                "scope_version": null,
+                "bundle": {
+                  "close_reason": "immediate_submit",
+                  "collection_id": "col:97e1946e80dd48dfaf91953e83c798ab",
+                  "collection_key": {
+                    "author": {
+                      "immutable_account_id": "ts050-synthetic-person",
+                      "namespace": "qq"
+                    },
+                    "channel": {
+                      "binding_id": "ts050-local-recorder",
+                      "channel_conversation_id": "ts050-private",
+                      "namespace": "qq",
+                      "thread_id": null
+                    }
+                  },
+                  "collection_revision": 1,
+                  "context_refs": [],
+                  "continuation_of": null,
+                  "conversation_id": "conv:28fd7d7fb15d4179923847f9e79c9b25",
+                  "dependencies": [],
+                  "messages": [
+                    {
+                      "accepted_at": "2026-09-13T20:04:07.382Z",
+                      "author": {
+                        "immutable_account_id": "ts050-synthetic-person",
+                        "namespace": "qq"
+                      },
+                      "ingest_sequence": 2,
+                      "mentioned_accounts": [],
+                      "message_key": {
+                        "channel": {
+                          "binding_id": "ts050-local-recorder",
+                          "channel_conversation_id": "ts050-private",
+                          "namespace": "qq",
+                          "thread_id": null
+                        },
+                        "message_id": "overlap-2",
+                        "revision": 1
+                      },
+                      "parts": [
+                        {
+                          "kind": "text",
+                          "text": "合成短句 2"
+                        }
+                      ],
+                      "person_id": "person:2442f845c88b4e398a88e949ba8aa3d3",
+                      "reply_refs": [],
+                      "sent_at": "2026-09-13T20:04:07.382241Z",
+                      "source": {
+                        "archive_state": "pending",
+                        "locator": null,
+                        "message_key": {
+                          "channel": {
+                            "binding_id": "ts050-local-recorder",
+                            "channel_conversation_id": "ts050-private",
+                            "namespace": "qq",
+                            "thread_id": null
+                          },
+                          "message_id": "overlap-2",
+                          "revision": 1
+                        },
+                        "receipt_id": "receipt:f008ae9552414140a9a25aeaa6d6ac96"
+                      },
+                      "target_actor_ids": [
+                        "actor-fixture"
+                      ]
+                    }
+                  ],
+                  "possibly_incomplete": false,
+                  "schema_version": 1,
+                  "sealed_at": "2026-09-13T20:04:07.382Z",
+                  "turn_id": "turn:acdeb2873b1f4b12bacad42e4c74334c",
+                  "turn_sequence": 2
+                }
+              },
+              {
+                "id": "turn:acd6ac6af4cd45b4a2fb0e0a4bed9899",
+                "sequence": 3,
+                "phase": "queued",
+                "failure": null,
+                "model_calls": 0,
+                "scope_version": null,
+                "bundle": {
+                  "close_reason": "immediate_submit",
+                  "collection_id": "col:80b402f6d21a46718c831d9e1fc85b25",
+                  "collection_key": {
+                    "author": {
+                      "immutable_account_id": "ts050-synthetic-person",
+                      "namespace": "qq"
+                    },
+                    "channel": {
+                      "binding_id": "ts050-local-recorder",
+                      "channel_conversation_id": "ts050-private",
+                      "namespace": "qq",
+                      "thread_id": null
+                    }
+                  },
+                  "collection_revision": 1,
+                  "context_refs": [],
+                  "continuation_of": null,
+                  "conversation_id": "conv:28fd7d7fb15d4179923847f9e79c9b25",
+                  "dependencies": [],
+                  "messages": [
+                    {
+                      "accepted_at": "2026-09-13T20:04:07.382Z",
+                      "author": {
+                        "immutable_account_id": "ts050-synthetic-person",
+                        "namespace": "qq"
+                      },
+                      "ingest_sequence": 3,
+                      "mentioned_accounts": [],
+                      "message_key": {
+                        "channel": {
+                          "binding_id": "ts050-local-recorder",
+                          "channel_conversation_id": "ts050-private",
+                          "namespace": "qq",
+                          "thread_id": null
+                        },
+                        "message_id": "overlap-3",
+                        "revision": 1
+                      },
+                      "parts": [
+                        {
+                          "kind": "text",
+                          "text": "合成短句 3"
+                        }
+                      ],
+                      "person_id": "person:2442f845c88b4e398a88e949ba8aa3d3",
+                      "reply_refs": [],
+                      "sent_at": "2026-09-13T20:04:07.382241Z",
+                      "source": {
+                        "archive_state": "pending",
+                        "locator": null,
+                        "message_key": {
+                          "channel": {
+                            "binding_id": "ts050-local-recorder",
+                            "channel_conversation_id": "ts050-private",
+                            "namespace": "qq",
+                            "thread_id": null
+                          },
+                          "message_id": "overlap-3",
+                          "revision": 1
+                        },
+                        "receipt_id": "receipt:e383c615aaab48a5b508b8355c11c45e"
+                      },
+                      "target_actor_ids": [
+                        "actor-fixture"
+                      ]
+                    }
+                  ],
+                  "possibly_incomplete": false,
+                  "schema_version": 1,
+                  "sealed_at": "2026-09-13T20:04:07.382Z",
+                  "turn_id": "turn:acd6ac6af4cd45b4a2fb0e0a4bed9899",
+                  "turn_sequence": 3
+                }
+              }
+            ],
+            "collections": [
+              {
+                "id": "col:766b70ffea9b4c12905a9ef5e4dbc17b",
+                "state": "sealed",
+                "revision": 1,
+                "deadline": 1789329847.3822408,
+                "source_context_revision": 1
+              },
+              {
+                "id": "col:97e1946e80dd48dfaf91953e83c798ab",
+                "state": "sealed",
+                "revision": 1,
+                "deadline": 1789329847.3822408,
+                "source_context_revision": 1
+              },
+              {
+                "id": "col:80b402f6d21a46718c831d9e1fc85b25",
+                "state": "sealed",
+                "revision": 1,
+                "deadline": 1789329847.3822408,
+                "source_context_revision": 1
+              }
+            ],
+            "outbox": [],
+            "replies": 0
+          },
+          "held_actual_memory_http_requests": 2,
+          "t2_generation_overlap_covered": false,
+          "t3_waits_for_capacity": true
+        },
+        {
+          "name": "all_turns_fail_closed_after_real_memory_503",
+          "core": {
+            "turns": [
+              {
+                "id": "turn:10044bd135c2498aa981e71068d3ac5b",
+                "sequence": 1,
+                "phase": "failed",
+                "failure": "timeout",
+                "model_calls": 0,
+                "scope_version": null,
+                "bundle": {
+                  "close_reason": "immediate_submit",
+                  "collection_id": "col:766b70ffea9b4c12905a9ef5e4dbc17b",
+                  "collection_key": {
+                    "author": {
+                      "immutable_account_id": "ts050-synthetic-person",
+                      "namespace": "qq"
+                    },
+                    "channel": {
+                      "binding_id": "ts050-local-recorder",
+                      "channel_conversation_id": "ts050-private",
+                      "namespace": "qq",
+                      "thread_id": null
+                    }
+                  },
+                  "collection_revision": 1,
+                  "context_refs": [],
+                  "continuation_of": null,
+                  "conversation_id": "conv:28fd7d7fb15d4179923847f9e79c9b25",
+                  "dependencies": [],
+                  "messages": [
+                    {
+                      "accepted_at": "2026-09-13T20:04:07.382Z",
+                      "author": {
+                        "immutable_account_id": "ts050-synthetic-person",
+                        "namespace": "qq"
+                      },
+                      "ingest_sequence": 1,
+                      "mentioned_accounts": [],
+                      "message_key": {
+                        "channel": {
+                          "binding_id": "ts050-local-recorder",
+                          "channel_conversation_id": "ts050-private",
+                          "namespace": "qq",
+                          "thread_id": null
+                        },
+                        "message_id": "overlap-1",
+                        "revision": 1
+                      },
+                      "parts": [
+                        {
+                          "kind": "text",
+                          "text": "合成短句 1"
+                        }
+                      ],
+                      "person_id": "person:2442f845c88b4e398a88e949ba8aa3d3",
+                      "reply_refs": [],
+                      "sent_at": "2026-09-13T20:04:07.382241Z",
+                      "source": {
+                        "archive_state": "pending",
+                        "locator": null,
+                        "message_key": {
+                          "channel": {
+                            "binding_id": "ts050-local-recorder",
+                            "channel_conversation_id": "ts050-private",
+                            "namespace": "qq",
+                            "thread_id": null
+                          },
+                          "message_id": "overlap-1",
+                          "revision": 1
+                        },
+                        "receipt_id": "receipt:c707ece5c87a40b58a52cf5b3c27c5d8"
+                      },
+                      "target_actor_ids": [
+                        "actor-fixture"
+                      ]
+                    }
+                  ],
+                  "possibly_incomplete": false,
+                  "schema_version": 1,
+                  "sealed_at": "2026-09-13T20:04:07.382Z",
+                  "turn_id": "turn:10044bd135c2498aa981e71068d3ac5b",
+                  "turn_sequence": 1
+                }
+              },
+              {
+                "id": "turn:acdeb2873b1f4b12bacad42e4c74334c",
+                "sequence": 2,
+                "phase": "failed",
+                "failure": "dependency_unavailable",
+                "model_calls": 0,
+                "scope_version": null,
+                "bundle": {
+                  "close_reason": "immediate_submit",
+                  "collection_id": "col:97e1946e80dd48dfaf91953e83c798ab",
+                  "collection_key": {
+                    "author": {
+                      "immutable_account_id": "ts050-synthetic-person",
+                      "namespace": "qq"
+                    },
+                    "channel": {
+                      "binding_id": "ts050-local-recorder",
+                      "channel_conversation_id": "ts050-private",
+                      "namespace": "qq",
+                      "thread_id": null
+                    }
+                  },
+                  "collection_revision": 1,
+                  "context_refs": [],
+                  "continuation_of": null,
+                  "conversation_id": "conv:28fd7d7fb15d4179923847f9e79c9b25",
+                  "dependencies": [],
+                  "messages": [
+                    {
+                      "accepted_at": "2026-09-13T20:04:07.382Z",
+                      "author": {
+                        "immutable_account_id": "ts050-synthetic-person",
+                        "namespace": "qq"
+                      },
+                      "ingest_sequence": 2,
+                      "mentioned_accounts": [],
+                      "message_key": {
+                        "channel": {
+                          "binding_id": "ts050-local-recorder",
+                          "channel_conversation_id": "ts050-private",
+                          "namespace": "qq",
+                          "thread_id": null
+                        },
+                        "message_id": "overlap-2",
+                        "revision": 1
+                      },
+                      "parts": [
+                        {
+                          "kind": "text",
+                          "text": "合成短句 2"
+                        }
+                      ],
+                      "person_id": "person:2442f845c88b4e398a88e949ba8aa3d3",
+                      "reply_refs": [],
+                      "sent_at": "2026-09-13T20:04:07.382241Z",
+                      "source": {
+                        "archive_state": "pending",
+                        "locator": null,
+                        "message_key": {
+                          "channel": {
+                            "binding_id": "ts050-local-recorder",
+                            "channel_conversation_id": "ts050-private",
+                            "namespace": "qq",
+                            "thread_id": null
+                          },
+                          "message_id": "overlap-2",
+                          "revision": 1
+                        },
+                        "receipt_id": "receipt:f008ae9552414140a9a25aeaa6d6ac96"
+                      },
+                      "target_actor_ids": [
+                        "actor-fixture"
+                      ]
+                    }
+                  ],
+                  "possibly_incomplete": false,
+                  "schema_version": 1,
+                  "sealed_at": "2026-09-13T20:04:07.382Z",
+                  "turn_id": "turn:acdeb2873b1f4b12bacad42e4c74334c",
+                  "turn_sequence": 2
+                }
+              },
+              {
+                "id": "turn:acd6ac6af4cd45b4a2fb0e0a4bed9899",
+                "sequence": 3,
+                "phase": "failed",
+                "failure": "dependency_unavailable",
+                "model_calls": 0,
+                "scope_version": null,
+                "bundle": {
+                  "close_reason": "immediate_submit",
+                  "collection_id": "col:80b402f6d21a46718c831d9e1fc85b25",
+                  "collection_key": {
+                    "author": {
+                      "immutable_account_id": "ts050-synthetic-person",
+                      "namespace": "qq"
+                    },
+                    "channel": {
+                      "binding_id": "ts050-local-recorder",
+                      "channel_conversation_id": "ts050-private",
+                      "namespace": "qq",
+                      "thread_id": null
+                    }
+                  },
+                  "collection_revision": 1,
+                  "context_refs": [],
+                  "continuation_of": null,
+                  "conversation_id": "conv:28fd7d7fb15d4179923847f9e79c9b25",
+                  "dependencies": [],
+                  "messages": [
+                    {
+                      "accepted_at": "2026-09-13T20:04:07.382Z",
+                      "author": {
+                        "immutable_account_id": "ts050-synthetic-person",
+                        "namespace": "qq"
+                      },
+                      "ingest_sequence": 3,
+                      "mentioned_accounts": [],
+                      "message_key": {
+                        "channel": {
+                          "binding_id": "ts050-local-recorder",
+                          "channel_conversation_id": "ts050-private",
+                          "namespace": "qq",
+                          "thread_id": null
+                        },
+                        "message_id": "overlap-3",
+                        "revision": 1
+                      },
+                      "parts": [
+                        {
+                          "kind": "text",
+                          "text": "合成短句 3"
+                        }
+                      ],
+                      "person_id": "person:2442f845c88b4e398a88e949ba8aa3d3",
+                      "reply_refs": [],
+                      "sent_at": "2026-09-13T20:04:07.382241Z",
+                      "source": {
+                        "archive_state": "pending",
+                        "locator": null,
+                        "message_key": {
+                          "channel": {
+                            "binding_id": "ts050-local-recorder",
+                            "channel_conversation_id": "ts050-private",
+                            "namespace": "qq",
+                            "thread_id": null
+                          },
+                          "message_id": "overlap-3",
+                          "revision": 1
+                        },
+                        "receipt_id": "receipt:e383c615aaab48a5b508b8355c11c45e"
+                      },
+                      "target_actor_ids": [
+                        "actor-fixture"
+                      ]
+                    }
+                  ],
+                  "possibly_incomplete": false,
+                  "schema_version": 1,
+                  "sealed_at": "2026-09-13T20:04:07.382Z",
+                  "turn_id": "turn:acd6ac6af4cd45b4a2fb0e0a4bed9899",
+                  "turn_sequence": 3
+                }
+              }
+            ],
+            "collections": [
+              {
+                "id": "col:766b70ffea9b4c12905a9ef5e4dbc17b",
+                "state": "sealed",
+                "revision": 1,
+                "deadline": 1789329847.3822408,
+                "source_context_revision": 1
+              },
+              {
+                "id": "col:97e1946e80dd48dfaf91953e83c798ab",
+                "state": "sealed",
+                "revision": 1,
+                "deadline": 1789329847.3822408,
+                "source_context_revision": 1
+              },
+              {
+                "id": "col:80b402f6d21a46718c831d9e1fc85b25",
+                "state": "sealed",
+                "revision": 1,
+                "deadline": 1789329847.3822408,
+                "source_context_revision": 1
+              }
+            ],
+            "outbox": [
+              {
+                "id": "event:1334c778271040b38b5accfb78c4a207",
+                "state": "blocked_scope",
+                "attempts": 0,
+                "scope_version": null
+              },
+              {
+                "id": "event:a48ac1f3c2744318b4740248c2001e6b",
+                "state": "blocked_scope",
+                "attempts": 0,
+                "scope_version": null
+              },
+              {
+                "id": "event:9669af9d504a4cb291ccb55c0d2ba656",
+                "state": "blocked_scope",
+                "attempts": 0,
+                "scope_version": null
+              }
+            ],
+            "replies": 0
+          }
+        }
+      ],
+      "model_http_calls": 0,
+      "channel_http_calls": 0,
+      "platform_http_requests": [
+        {
+          "path": "/internal/v1/origins/resolve",
+          "request_sha256": "877358fbd1e1d45c5cab142b35cc5a2e40c4b7ba9275b8ef08ee844869ba887d",
+          "status": 200
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "request_sha256": "8ce363bcd622b16c585457558f29fbadc0cbec3f81f93200c2f5a6c47a32579d",
+          "status": 200
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "request_sha256": "a93ce5440b406245434aeaaa8ce46b7bc854b298a592bcfeab2ddcb2a0716b37",
+          "status": 200
+        }
+      ],
+      "memory_http_requests": [
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 200,
+          "request_sha256": "3c839f50a6c3ebd75ba47f20e880d9235e634ac6f7cba254b3412a07001b084b"
+        },
+        {
+          "path": "/internal/v1/identity/register",
+          "status": 200,
+          "request_sha256": "01f74166c1185993b2afe726348a43a21b0d75788006998cad3e1b7db3b92e95"
+        },
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 200,
+          "request_sha256": "39af3a509780185f6d9df44682988e3af065fffdc4d74576f49fcda8c9a5c999"
+        },
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 200,
+          "request_sha256": "773754c444340305e6a76b625b89342ceef8dad3ebeb05e6ad375c6f90383d0d"
+        },
+        {
+          "path": "/internal/v1/memory/select",
+          "status": 503,
+          "request_sha256": "c97d35fa60d61c28dcd5df4defc446c0d4ab7f6ce2ddd1474238675fad17617b",
+          "budget": {
+            "tokens": 0,
+            "bytes": 0
+          },
+          "query_text": "合成短句 1"
+        },
+        {
+          "path": "/internal/v1/memory/select",
+          "status": 503,
+          "request_sha256": "0629c24d25e5ab273376a999502710966b6343805c2f2b6989b04bb5ca2106c2",
+          "budget": {
+            "tokens": 0,
+            "bytes": 0
+          },
+          "query_text": "合成短句 2"
+        },
+        {
+          "path": "/internal/v1/memory/select",
+          "status": 503,
+          "request_sha256": "d144ed58afd483794a2366ee22fb7f6ae5f9b7250d5453422d4943320184c003",
+          "budget": {
+            "tokens": 0,
+            "bytes": 0
+          },
+          "query_text": "合成短句 3"
+        }
+      ],
+      "mapping_receipts": [
+        {
+          "kind": "identity_resolve",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:b27d776f42b64df2b8f1384371007574",
+            "state": "unregistered",
+            "person_id": null,
+            "binding_version": 0
+          }
+        },
+        {
+          "kind": "identity",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:f9cac4d61ac449f8abdb87d5428e1c60",
+            "person_id": "person:2442f845c88b4e398a88e949ba8aa3d3",
+            "binding_version": 1,
+            "created": true
+          }
+        },
+        {
+          "kind": "ingest",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:1e8a836f856b45fd9d316d7b4afa085b",
+            "receipt_id": "receipt:c707ece5c87a40b58a52cf5b3c27c5d8",
+            "deduplicated": false,
+            "conversation_id": "conv:28fd7d7fb15d4179923847f9e79c9b25",
+            "person_id": "person:2442f845c88b4e398a88e949ba8aa3d3",
+            "collection_key": {
+              "channel": {
+                "namespace": "qq",
+                "binding_id": "ts050-local-recorder",
+                "channel_conversation_id": "ts050-private",
+                "thread_id": null
+              },
+              "author": {
+                "namespace": "qq",
+                "immutable_account_id": "ts050-synthetic-person"
+              }
+            },
+            "collection_id": "col:766b70ffea9b4c12905a9ef5e4dbc17b",
+            "collection_revision": 1,
+            "accepted_at": "2026-09-13T20:04:07.382Z",
+            "ingest_sequence": 1,
+            "archive_state": "pending"
+          }
+        },
+        {
+          "kind": "identity_resolve",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:7e63d506154e46d5ab03c64d4219b743",
+            "state": "found",
+            "person_id": "person:2442f845c88b4e398a88e949ba8aa3d3",
+            "binding_version": 1
+          }
+        },
+        {
+          "kind": "ingest",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:8752ca9f7bc54d2eb90cedc996c37bb9",
+            "receipt_id": "receipt:f008ae9552414140a9a25aeaa6d6ac96",
+            "deduplicated": false,
+            "conversation_id": "conv:28fd7d7fb15d4179923847f9e79c9b25",
+            "person_id": "person:2442f845c88b4e398a88e949ba8aa3d3",
+            "collection_key": {
+              "channel": {
+                "namespace": "qq",
+                "binding_id": "ts050-local-recorder",
+                "channel_conversation_id": "ts050-private",
+                "thread_id": null
+              },
+              "author": {
+                "namespace": "qq",
+                "immutable_account_id": "ts050-synthetic-person"
+              }
+            },
+            "collection_id": "col:97e1946e80dd48dfaf91953e83c798ab",
+            "collection_revision": 1,
+            "accepted_at": "2026-09-13T20:04:07.382Z",
+            "ingest_sequence": 2,
+            "archive_state": "pending"
+          }
+        },
+        {
+          "kind": "identity_resolve",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:734ff96599b64ba2810c1526b5b42111",
+            "state": "found",
+            "person_id": "person:2442f845c88b4e398a88e949ba8aa3d3",
+            "binding_version": 1
+          }
+        },
+        {
+          "kind": "ingest",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:0d9de0d47c9e4351851a254789ec7015",
+            "receipt_id": "receipt:e383c615aaab48a5b508b8355c11c45e",
+            "deduplicated": false,
+            "conversation_id": "conv:28fd7d7fb15d4179923847f9e79c9b25",
+            "person_id": "person:2442f845c88b4e398a88e949ba8aa3d3",
+            "collection_key": {
+              "channel": {
+                "namespace": "qq",
+                "binding_id": "ts050-local-recorder",
+                "channel_conversation_id": "ts050-private",
+                "thread_id": null
+              },
+              "author": {
+                "namespace": "qq",
+                "immutable_account_id": "ts050-synthetic-person"
+              }
+            },
+            "collection_id": "col:80b402f6d21a46718c831d9e1fc85b25",
+            "collection_revision": 1,
+            "accepted_at": "2026-09-13T20:04:07.382Z",
+            "ingest_sequence": 3,
+            "archive_state": "pending"
+          }
+        }
+      ],
+      "model_wire": [],
+      "gateway_active": 0,
+      "cleanup": {
+        "listeners_checked": 9,
+        "failures": []
+      }
+    },
+    {
+      "scenario": "test_w5_short_sentences_deadline_restart_and_no_false_generation",
+      "classification": "partial",
+      "checks": [
+        {
+          "name": "w5_complete_group_and_persistent_collection",
+          "stale_timer_ignored": true,
+          "before_deadline_turn_count": 0,
+          "exact_deadline_messages": [
+            "我叫",
+            "小明"
+          ],
+          "restart": "ASGI lifecycle and Core SQLite owner reopen; not process crash",
+          "core": {
+            "turns": [
+              {
+                "id": "turn:b5ab7f41adae4d60bdbb30e09617945a",
+                "sequence": 1,
+                "phase": "failed",
+                "failure": "timeout",
+                "model_calls": 0,
+                "scope_version": null,
+                "bundle": {
+                  "close_reason": "silence",
+                  "collection_id": "col:b795c8e99de44e31b1c7781358d8d3af",
+                  "collection_key": {
+                    "author": {
+                      "immutable_account_id": "ts050-synthetic-person",
+                      "namespace": "qq"
+                    },
+                    "channel": {
+                      "binding_id": "ts050-local-recorder",
+                      "channel_conversation_id": "ts050-private",
+                      "namespace": "qq",
+                      "thread_id": null
+                    }
+                  },
+                  "collection_revision": 2,
+                  "context_refs": [],
+                  "continuation_of": null,
+                  "conversation_id": "conv:53371e43d13d4374898c9a9ada313509",
+                  "dependencies": [],
+                  "messages": [
+                    {
+                      "accepted_at": "2026-09-13T20:04:10.160Z",
+                      "author": {
+                        "immutable_account_id": "ts050-synthetic-person",
+                        "namespace": "qq"
+                      },
+                      "ingest_sequence": 1,
+                      "mentioned_accounts": [],
+                      "message_key": {
+                        "channel": {
+                          "binding_id": "ts050-local-recorder",
+                          "channel_conversation_id": "ts050-private",
+                          "namespace": "qq",
+                          "thread_id": null
+                        },
+                        "message_id": "name-1",
+                        "revision": 1
+                      },
+                      "parts": [
+                        {
+                          "kind": "text",
+                          "text": "我叫"
+                        }
+                      ],
+                      "person_id": "person:8dfda3aac29845099877b6ec6c22b6e9",
+                      "reply_refs": [],
+                      "sent_at": "2026-09-13T20:04:10.160287Z",
+                      "source": {
+                        "archive_state": "pending",
+                        "locator": null,
+                        "message_key": {
+                          "channel": {
+                            "binding_id": "ts050-local-recorder",
+                            "channel_conversation_id": "ts050-private",
+                            "namespace": "qq",
+                            "thread_id": null
+                          },
+                          "message_id": "name-1",
+                          "revision": 1
+                        },
+                        "receipt_id": "receipt:e49d219271564e0cbb50d60e07c2f354"
+                      },
+                      "target_actor_ids": [
+                        "actor-fixture"
+                      ]
+                    },
+                    {
+                      "accepted_at": "2026-09-13T20:04:12.160Z",
+                      "author": {
+                        "immutable_account_id": "ts050-synthetic-person",
+                        "namespace": "qq"
+                      },
+                      "ingest_sequence": 2,
+                      "mentioned_accounts": [],
+                      "message_key": {
+                        "channel": {
+                          "binding_id": "ts050-local-recorder",
+                          "channel_conversation_id": "ts050-private",
+                          "namespace": "qq",
+                          "thread_id": null
+                        },
+                        "message_id": "name-2",
+                        "revision": 1
+                      },
+                      "parts": [
+                        {
+                          "kind": "text",
+                          "text": "小明"
+                        }
+                      ],
+                      "person_id": "person:8dfda3aac29845099877b6ec6c22b6e9",
+                      "reply_refs": [],
+                      "sent_at": "2026-09-13T20:04:12.160287Z",
+                      "source": {
+                        "archive_state": "pending",
+                        "locator": null,
+                        "message_key": {
+                          "channel": {
+                            "binding_id": "ts050-local-recorder",
+                            "channel_conversation_id": "ts050-private",
+                            "namespace": "qq",
+                            "thread_id": null
+                          },
+                          "message_id": "name-2",
+                          "revision": 1
+                        },
+                        "receipt_id": "receipt:41463ce4f1d94fadae1db20bddda4a90"
+                      },
+                      "target_actor_ids": [
+                        "actor-fixture"
+                      ]
+                    }
+                  ],
+                  "possibly_incomplete": false,
+                  "schema_version": 1,
+                  "sealed_at": "2026-09-13T20:04:17.160Z",
+                  "turn_id": "turn:b5ab7f41adae4d60bdbb30e09617945a",
+                  "turn_sequence": 1
+                }
+              }
+            ],
+            "collections": [
+              {
+                "id": "col:b795c8e99de44e31b1c7781358d8d3af",
+                "state": "sealed",
+                "revision": 2,
+                "deadline": 1789329857.160287,
+                "source_context_revision": 1
+              }
+            ],
+            "outbox": [
+              {
+                "id": "event:a10bfed75938445b928e31cefb8e281e",
+                "state": "blocked_scope",
+                "attempts": 0,
+                "scope_version": null
+              }
+            ],
+            "replies": 0
+          },
+          "ordinary_name_followup_prompt": "blocked_before_model_by_missing_source_authority"
+        }
+      ],
+      "model_http_calls": 0,
+      "channel_http_calls": 0,
+      "platform_http_requests": [
+        {
+          "path": "/internal/v1/origins/resolve",
+          "request_sha256": "d946f0994db2eabce74da56e2b80b1a0129239330a0bf2226d5ce0c1fa76c969",
+          "status": 200
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "request_sha256": "b814e2a007024bef54775dcecd9f9d2dd55f316255996cb9f8f2215ca91c42c9",
+          "status": 200
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "request_sha256": "8b315aeea928c7f24156cb579f37ebbabb60abd9d38ccc294ce654133f90fe57",
+          "status": 200
+        }
+      ],
+      "memory_http_requests": [
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 200,
+          "request_sha256": "751417839fee846b57167303d7657c49dd4895a63bb7a15013fc87a26568eb34"
+        },
+        {
+          "path": "/internal/v1/identity/register",
+          "status": 200,
+          "request_sha256": "fa886672c2c7f071a96eff0e23f9019991a3b011df1af5ab1122d6df5e4be480"
+        },
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 200,
+          "request_sha256": "e91680079042680d8b4adb2a942236ee8e0eb7b8b232728d721bf52aa4f61e5a"
+        },
+        {
+          "path": "/internal/v1/memory/select",
+          "status": 503,
+          "request_sha256": "6ef418a2368ea72ba79fa24208f748c1b9e6ccabd5dfbb267ceb3b913c46a056",
+          "budget": {
+            "tokens": 0,
+            "bytes": 0
+          },
+          "query_text": "我叫\n小明"
+        },
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 200,
+          "request_sha256": "ce2cb92fb59dcd85dc49194ebfca8b3028ee3d4bc731257ccf5f4c5b540ff362"
+        }
+      ],
+      "mapping_receipts": [
+        {
+          "kind": "identity_resolve",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:da92932191a34b558e9b88f40a5e178c",
+            "state": "unregistered",
+            "person_id": null,
+            "binding_version": 0
+          }
+        },
+        {
+          "kind": "identity",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:c5cb434ec7414f41b08d2090cc4967c9",
+            "person_id": "person:8dfda3aac29845099877b6ec6c22b6e9",
+            "binding_version": 1,
+            "created": true
+          }
+        },
+        {
+          "kind": "ingest",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:fb58c5acba5b4eacb3c469754c87a6f1",
+            "receipt_id": "receipt:e49d219271564e0cbb50d60e07c2f354",
+            "deduplicated": false,
+            "conversation_id": "conv:53371e43d13d4374898c9a9ada313509",
+            "person_id": "person:8dfda3aac29845099877b6ec6c22b6e9",
+            "collection_key": {
+              "channel": {
+                "namespace": "qq",
+                "binding_id": "ts050-local-recorder",
+                "channel_conversation_id": "ts050-private",
+                "thread_id": null
+              },
+              "author": {
+                "namespace": "qq",
+                "immutable_account_id": "ts050-synthetic-person"
+              }
+            },
+            "collection_id": "col:b795c8e99de44e31b1c7781358d8d3af",
+            "collection_revision": 1,
+            "accepted_at": "2026-09-13T20:04:10.160Z",
+            "ingest_sequence": 1,
+            "archive_state": "pending"
+          }
+        },
+        {
+          "kind": "identity_resolve",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:64ce456014cc4f7c9145ad8be1596a31",
+            "state": "found",
+            "person_id": "person:8dfda3aac29845099877b6ec6c22b6e9",
+            "binding_version": 1
+          }
+        },
+        {
+          "kind": "ingest",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:eca55827a72e4162904e0ed8e4089b00",
+            "receipt_id": "receipt:41463ce4f1d94fadae1db20bddda4a90",
+            "deduplicated": false,
+            "conversation_id": "conv:53371e43d13d4374898c9a9ada313509",
+            "person_id": "person:8dfda3aac29845099877b6ec6c22b6e9",
+            "collection_key": {
+              "channel": {
+                "namespace": "qq",
+                "binding_id": "ts050-local-recorder",
+                "channel_conversation_id": "ts050-private",
+                "thread_id": null
+              },
+              "author": {
+                "namespace": "qq",
+                "immutable_account_id": "ts050-synthetic-person"
+              }
+            },
+            "collection_id": "col:b795c8e99de44e31b1c7781358d8d3af",
+            "collection_revision": 2,
+            "accepted_at": "2026-09-13T20:04:12.160Z",
+            "ingest_sequence": 2,
+            "archive_state": "pending"
+          }
+        },
+        {
+          "kind": "identity_resolve",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:9b5806a845eb4e559fc93fb503dda65a",
+            "state": "found",
+            "person_id": "person:8dfda3aac29845099877b6ec6c22b6e9",
+            "binding_version": 1
+          }
+        },
+        {
+          "kind": "ingest",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:d7ea312ec2ef49a081b462b302e4bb91",
+            "receipt_id": "receipt:2eec34132d0c4107b707e5edebbf6e41",
+            "deduplicated": false,
+            "conversation_id": "conv:53371e43d13d4374898c9a9ada313509",
+            "person_id": "person:8dfda3aac29845099877b6ec6c22b6e9",
+            "collection_key": {
+              "channel": {
+                "namespace": "qq",
+                "binding_id": "ts050-local-recorder",
+                "channel_conversation_id": "ts050-private",
+                "thread_id": null
+              },
+              "author": {
+                "namespace": "qq",
+                "immutable_account_id": "ts050-synthetic-person"
+              }
+            },
+            "collection_id": "col:518d487c12b54debacb029947357eefa",
+            "collection_revision": 1,
+            "accepted_at": "2026-09-13T20:04:22.260Z",
+            "ingest_sequence": 3,
+            "archive_state": "pending"
+          }
+        }
+      ],
+      "model_wire": [],
+      "gateway_active": 0,
+      "cleanup": {
+        "listeners_checked": 11,
+        "failures": []
+      }
+    },
+    {
+      "scenario": "test_zero_full_budget_revise_forget_and_commit_all_fail_closed",
+      "classification": "partial",
+      "checks": [
+        {
+          "name": "select_source_gate",
+          "budget": {
+            "tokens": 0,
+            "bytes": 0
+          },
+          "response": {
+            "schema_version": 1,
+            "request_id": "ts050:select",
+            "code": "dependency_unavailable",
+            "execution_state": "not_started",
+            "retryable": true
+          }
+        },
+        {
+          "name": "select_source_gate",
+          "budget": {
+            "tokens": 2048,
+            "bytes": 8192
+          },
+          "response": {
+            "schema_version": 1,
+            "request_id": "ts050:select",
+            "code": "dependency_unavailable",
+            "execution_state": "not_started",
+            "retryable": true
+          }
+        },
+        {
+          "name": "revision_source_gate",
+          "kind": "correct",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:dde1b6edc0f744d9899d81c39726e86f",
+            "code": "dependency_unavailable",
+            "execution_state": "not_started",
+            "retryable": true
+          },
+          "existing_memory_mutation_covered": false
+        },
+        {
+          "name": "revision_source_gate",
+          "kind": "forget",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:51b45959ae0947e7843c9fd45c733513",
+            "code": "dependency_unavailable",
+            "execution_state": "not_started",
+            "retryable": true
+          },
+          "existing_memory_mutation_covered": false
+        },
+        {
+          "name": "candidate_gate_no_false_receipt",
+          "input": "schema-valid diagnostic probe, not Core event",
+          "statuses": [
+            503,
+            503
+          ],
+          "candidate_dedup_positive_covered": false,
+          "real_ingest_receipt": {
+            "schema_version": 1,
+            "request_id": "req:4c414b7d015943f6aea3dbb5866eef2f",
+            "receipt_id": "receipt:fef80b7243894df4ac87ebb60165126d",
+            "deduplicated": false,
+            "conversation_id": "conv:144ab3a33aea47f6af63e936f3a4c664",
+            "person_id": "person:b2e4e99c57294c47ba25928c93c9c53d",
+            "collection_key": {
+              "channel": {
+                "namespace": "qq",
+                "binding_id": "ts050-local-recorder",
+                "channel_conversation_id": "ts050-private",
+                "thread_id": null
+              },
+              "author": {
+                "namespace": "qq",
+                "immutable_account_id": "ts050-synthetic-person"
+              }
+            },
+            "collection_id": "col:c3c8032db004466db1fb3347943182d9",
+            "collection_revision": 1,
+            "accepted_at": "2026-09-13T20:04:13.851Z",
+            "ingest_sequence": 1,
+            "archive_state": "pending"
+          }
+        }
+      ],
+      "model_http_calls": 0,
+      "channel_http_calls": 0,
+      "platform_http_requests": [
+        {
+          "path": "/internal/v1/origins/resolve",
+          "request_sha256": "ac9147c579e5adba24e39176988b86acad721df82c8950c2efbf6e664e85835f",
+          "status": 200
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "request_sha256": "f0b3e212c808640db39e27af9168c27ca43237fd614540d0da82ca21cc5efd0f",
+          "status": 200
+        }
+      ],
+      "memory_http_requests": [
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 200,
+          "request_sha256": "eeae0c2e5934cc91e94448da206e1f970660be1aff4d1a7a4d87490cdb8fe8fb"
+        },
+        {
+          "path": "/internal/v1/identity/register",
+          "status": 200,
+          "request_sha256": "6a9ea8e9710f3156dc082fc233d2763e33315cbbeb8534eff93d163cac8363cd"
+        },
+        {
+          "path": "/internal/v1/memory/select",
+          "status": 503,
+          "request_sha256": "a6a7714bd11ddf6f6e87b970186a24ff974c1e3738d105cb9d8f042fd89d5289",
+          "budget": {
+            "tokens": 0,
+            "bytes": 0
+          },
+          "query_text": "上次的咖啡条件"
+        },
+        {
+          "path": "/internal/v1/memory/select",
+          "status": 503,
+          "request_sha256": "bf635c0152c86a21a91f28f9a7d1a252b16e79c8755f742b50521b843a642d95",
+          "budget": {
+            "tokens": 2048,
+            "bytes": 8192
+          },
+          "query_text": "上次的咖啡条件"
+        },
+        {
+          "path": "/internal/v1/memory/revise",
+          "status": 503,
+          "request_sha256": "935621e8105061f7d8456770aa2ea5532822776bcd7c04e4528e62a2b4ea21c2"
+        },
+        {
+          "path": "/internal/v1/memory/revise",
+          "status": 503,
+          "request_sha256": "6f17a4aec296769150ff22405c197f64863910354df0c79a8f470a420102ec2d"
+        },
+        {
+          "path": "/internal/v1/memory/turn-commits",
+          "status": 503,
+          "request_sha256": "26a8679e2ac712c1cfc8f6ec8fbb7f4ba092c1a466a64555c25aca46758d14d7"
+        },
+        {
+          "path": "/internal/v1/memory/turn-commits",
+          "status": 503,
+          "request_sha256": "26a8679e2ac712c1cfc8f6ec8fbb7f4ba092c1a466a64555c25aca46758d14d7"
+        }
+      ],
+      "mapping_receipts": [
+        {
+          "kind": "identity_resolve",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:186eac7f475a44afb54484b3dd8cb27a",
+            "state": "unregistered",
+            "person_id": null,
+            "binding_version": 0
+          }
+        },
+        {
+          "kind": "identity",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:b2e72c48fcff437587d4f142076f56a0",
+            "person_id": "person:b2e4e99c57294c47ba25928c93c9c53d",
+            "binding_version": 1,
+            "created": true
+          }
+        },
+        {
+          "kind": "ingest",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:4c414b7d015943f6aea3dbb5866eef2f",
+            "receipt_id": "receipt:fef80b7243894df4ac87ebb60165126d",
+            "deduplicated": false,
+            "conversation_id": "conv:144ab3a33aea47f6af63e936f3a4c664",
+            "person_id": "person:b2e4e99c57294c47ba25928c93c9c53d",
+            "collection_key": {
+              "channel": {
+                "namespace": "qq",
+                "binding_id": "ts050-local-recorder",
+                "channel_conversation_id": "ts050-private",
+                "thread_id": null
+              },
+              "author": {
+                "namespace": "qq",
+                "immutable_account_id": "ts050-synthetic-person"
+              }
+            },
+            "collection_id": "col:c3c8032db004466db1fb3347943182d9",
+            "collection_revision": 1,
+            "accepted_at": "2026-09-13T20:04:13.851Z",
+            "ingest_sequence": 1,
+            "archive_state": "pending"
+          }
+        }
+      ],
+      "model_wire": [],
+      "gateway_active": 0,
+      "cleanup": {
+        "listeners_checked": 9,
+        "failures": []
+      }
+    }
+  ]
+}
