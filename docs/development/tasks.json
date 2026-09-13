@@ -521,6 +521,29 @@
       "baseline_commit": "358e4a664e14eee734494646f3aa3a0bc666a222",
       "thread_id": "01a09c29-905e-7470-8d02-a6bbfb9b4113",
       "host_id": "local"
+    },
+    {
+      "id": "TS-021",
+      "title": "群内多人物语境与画像客户端接入",
+      "project": "companion",
+      "depends_on": [
+        "TS-020",
+        "TS-031"
+      ],
+      "status": "planned",
+      "allowed_paths": [
+        "src/",
+        "integrations/nonebot/",
+        "tests/",
+        "docs/",
+        "docs/handoffs/TS-021.md"
+      ],
+      "done_when": "消费正式发布的profile合同，可信目标定位、分领域版本和整轮预算、群公开短期语境按作者组织；旧私聊边界/未发草稿/撤销与遗忘不能退化。",
+      "assignee": null,
+      "worktree": null,
+      "branch": null,
+      "evidence": [],
+      "scope_note": "新增画像API不等于BOT已会调用；不私改共享wire，不把昵称当账号关联凭证。"
     }
   ]
 }
