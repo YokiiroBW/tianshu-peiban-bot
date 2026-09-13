@@ -1,4 +1,6 @@
-# 字段关系、事务与故障边界
+# 共同语义、事务与candidate.1迁移保护
+
+本文件的失效事务、正确/遗忘边界、双owner恢复、版本域与容量规则继续适用。正式多角色方向由[multi-actor.md](multi-actor.md)补充并优先：将第3/5节单scope物理来源键拆为物理P与角色A，suppression/血缘按actor隔离，物理变化跨actor否定广播。下面单actor拒绝仅是旧Core的迁移保护，不是多个角色共享世界的最终架构。candidate.1来源查询形状未发布，不要求新服务支持无actor选择器的含混查询。
 
 ## 1. 身份先行，事实分属各自 owner
 
