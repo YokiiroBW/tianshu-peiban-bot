@@ -1,0 +1,324 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "天枢 · 全系统衔接图（目标架构）",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1230,
+      550
+    ],
+    "views": [
+      {
+        "id": "chat-path",
+        "label": "聊天与记忆",
+        "focus": [
+          "social",
+          "adapter",
+          "companion",
+          "memory",
+          "archive",
+          "models"
+        ],
+        "note": "消息进入陪伴核心；记忆按人物和场景召回，原话保存在 Chat Audit。"
+      },
+      {
+        "id": "life-path",
+        "label": "角色的生活",
+        "focus": [
+          "home",
+          "companion",
+          "images",
+          "memory",
+          "models"
+        ],
+        "note": "日程、情绪和创作由陪伴核心推进；小屋显示状态，ComfyUI 执行生图。"
+      },
+      {
+        "id": "tools-path",
+        "label": "功能与管理",
+        "focus": [
+          "companion",
+          "platform",
+          "capabilities",
+          "console"
+        ],
+        "note": "角色提出动作，平台派发任务；执行器返回真实结果，界面与聊天共享任务状态。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "social",
+      "type": "external",
+      "label": "QQ / TG",
+      "sublabel": "私聊 · 群聊 / NapCat",
+      "tag": "现有接入",
+      "pos": [
+        45,
+        25
+      ],
+      "size": [
+        190,
+        78
+      ]
+    },
+    {
+      "id": "adapter",
+      "type": "backend",
+      "label": "NoneBot 接入层",
+      "sublabel": "事件归一 · 账号路由 · 发送",
+      "tag": "桥接待开发",
+      "pos": [
+        360,
+        25
+      ],
+      "size": [
+        220,
+        78
+      ]
+    },
+    {
+      "id": "archive",
+      "type": "database",
+      "label": "Chat Audit Core",
+      "sublabel": "原始聊天 · 媒体 · 备份",
+      "tag": "复用现有",
+      "pos": [
+        985,
+        25
+      ],
+      "size": [
+        215,
+        78
+      ]
+    },
+    {
+      "id": "home",
+      "type": "frontend",
+      "label": "小屋与陪伴客户端",
+      "sublabel": "衣橱 · 书架 · 日记 · 通话",
+      "tag": "新界面 / 复用客户端",
+      "pos": [
+        45,
+        165
+      ],
+      "size": [
+        220,
+        78
+      ]
+    },
+    {
+      "id": "companion",
+      "type": "backend",
+      "label": "陪伴核心",
+      "sublabel": "多角色 · 对话 · 日程 · 创作",
+      "tag": "独立开发",
+      "pos": [
+        360,
+        165
+      ],
+      "size": [
+        220,
+        90
+      ]
+    },
+    {
+      "id": "memory",
+      "type": "database",
+      "label": "天枢记忆",
+      "sublabel": "人物 · 画像 · 经历 · 共同世界",
+      "tag": "重新设计",
+      "pos": [
+        985,
+        165
+      ],
+      "size": [
+        215,
+        90
+      ]
+    },
+    {
+      "id": "models",
+      "type": "cloud",
+      "label": "模型路由网关",
+      "sublabel": "原生协议 → 各模型供应商",
+      "tag": "已有基础 / 补转发",
+      "pos": [
+        45,
+        305
+      ],
+      "size": [
+        220,
+        90
+      ]
+    },
+    {
+      "id": "platform",
+      "type": "backend",
+      "label": "天枢平台",
+      "sublabel": "能力目录 · 持久任务 · 连接配置",
+      "tag": "统筹重构",
+      "pos": [
+        650,
+        305
+      ],
+      "size": [
+        235,
+        90
+      ]
+    },
+    {
+      "id": "images",
+      "type": "external",
+      "label": "图像后端",
+      "sublabel": "ComfyUI Anima / NAI / GPT",
+      "tag": "本地图可复用",
+      "pos": [
+        985,
+        305
+      ],
+      "size": [
+        215,
+        90
+      ]
+    },
+    {
+      "id": "console",
+      "type": "frontend",
+      "label": "天枢管理界面",
+      "sublabel": "设备 · 资料 · 项目 · 模型线路",
+      "tag": "统一入口",
+      "pos": [
+        300,
+        445
+      ],
+      "size": [
+        235,
+        78
+      ]
+    },
+    {
+      "id": "capabilities",
+      "type": "external",
+      "label": "功能连接器与执行器",
+      "sublabel": "家庭 · 下载 · 订阅 · 项目 · 游戏",
+      "tag": "已有能力 + 新适配",
+      "pos": [
+        642.5,
+        445
+      ],
+      "size": [
+        250,
+        78
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "channel-ingress",
+      "from": "social",
+      "to": "adapter",
+      "label": "平台协议",
+      "variant": "emphasis"
+    },
+    {
+      "id": "message-event",
+      "from": "adapter",
+      "to": "companion",
+      "label": "消息 / 回执",
+      "variant": "emphasis",
+      "labelAt": [
+        470,
+        135
+      ]
+    },
+    {
+      "id": "archive-ingest",
+      "from": "adapter",
+      "to": "archive",
+      "label": "异步归档",
+      "variant": "dashed"
+    },
+    {
+      "id": "home-interaction",
+      "from": "home",
+      "to": "companion",
+      "label": "互动"
+    },
+    {
+      "id": "context-api",
+      "from": "companion",
+      "to": "memory",
+      "label": "召回 / 写入",
+      "variant": "emphasis"
+    },
+    {
+      "id": "source-read",
+      "from": "memory",
+      "to": "archive",
+      "label": "追溯原文"
+    },
+    {
+      "id": "model-inference",
+      "from": "companion",
+      "to": "models",
+      "label": "模型请求"
+    },
+    {
+      "id": "capability-request",
+      "from": "companion",
+      "to": "platform",
+      "label": "动作请求"
+    },
+    {
+      "id": "selfie-request",
+      "from": "companion",
+      "to": "images",
+      "label": "生图任务"
+    },
+    {
+      "id": "console-management",
+      "from": "console",
+      "to": "platform",
+      "label": "管理 API"
+    },
+    {
+      "id": "execute-job",
+      "from": "platform",
+      "to": "capabilities",
+      "label": "执行 / 回报",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        767.5,
+        420
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "阅读方式",
+      "items": [
+        "箭头是请求方向，结果原路返回；虚线是后台任务。记忆整理与编码体也使用模型网关。"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "职责边界",
+      "items": [
+        "陪伴负责生活与表达，记忆负责人物与经历，平台负责执行；正常聊天直接使用记忆与模型。"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "建设状态",
+      "items": [
+        "Chat Audit 与本地生图可复用；核心、记忆和平台按新需求重构，连接器提取现有能力。"
+      ]
+    }
+  ]
+}

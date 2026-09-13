@@ -1,0 +1,374 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "陪伴核心 · 一条消息怎样变成回应（设计稿）",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "ordinary-reply",
+        "label": "普通聊天",
+        "focus": [
+          "accept",
+          "participate",
+          "assemble",
+          "compose",
+          "review",
+          "deliver"
+        ],
+        "note": "简单聊天走主线；群聊先判断是否参与，避免每条消息都做完整推理。"
+      },
+      {
+        "id": "tool-reply",
+        "label": "需要工具时",
+        "focus": [
+          "compose",
+          "invoke",
+          "pending",
+          "result-event",
+          "review",
+          "deliver"
+        ],
+        "note": "短任务把结果交回表达模块；长任务保存状态，完成后以关联事件续接本轮目标。"
+      },
+      {
+        "id": "life-memory",
+        "label": "观察与记忆",
+        "focus": [
+          "accept",
+          "participate",
+          "observe",
+          "resources",
+          "assemble",
+          "consolidate"
+        ],
+        "note": "沉默也可形成获准观察；记忆整理在后台进行。生活主动事件通过相同入口受理。"
+      }
+    ],
+    "viewBox": [
+      1320,
+      660
+    ]
+  },
+  "components": [
+    {
+      "id": "accept",
+      "type": "backend",
+      "label": "01 受理与定位",
+      "sublabel": "去重 · 人物 / 角色 / 会话",
+      "tag": "保存输入与轮次",
+      "pos": [
+        30,
+        45
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "participate",
+      "type": "backend",
+      "label": "02 是否回应",
+      "sublabel": "私聊 / 提及 · 群聊相关性",
+      "tag": "规则优先 / 多角色仲裁",
+      "pos": [
+        365,
+        45
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "assemble",
+      "type": "backend",
+      "label": "03 装配上下文",
+      "sublabel": "当前话题 + 她的状态 + 记忆",
+      "tag": "按受众过滤 / 限预算",
+      "pos": [
+        700,
+        45
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "compose",
+      "type": "backend",
+      "label": "04 规划与表达",
+      "sublabel": "直接聊天 / 工具 / 写作配方",
+      "tag": "经模型网关 / 有界调用",
+      "pos": [
+        700,
+        310
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "review",
+      "type": "backend",
+      "label": "05 发送前核对",
+      "sublabel": "隐私 · 事实 · 角色 · 时效",
+      "tag": "有问题回到 04 / 最多定向修订一次",
+      "pos": [
+        365,
+        310
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "deliver",
+      "type": "messagebus",
+      "label": "06 投递与回执",
+      "sublabel": "文本 / 图片 / 语音 → 入口",
+      "tag": "已生成 ≠ 已送达",
+      "pos": [
+        30,
+        310
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "observe",
+      "type": "database",
+      "label": "安静观察",
+      "sublabel": "更新话题 · 不发送消息",
+      "tag": "仅保留获准观察",
+      "pos": [
+        365,
+        170
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "resources",
+      "type": "database",
+      "label": "本轮资料包",
+      "sublabel": "人格 / 心情 / 日程 / 天枢记忆",
+      "tag": "只读她与当前受众可知内容",
+      "pos": [
+        1035,
+        45
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "invoke",
+      "type": "backend",
+      "label": "能力执行桥",
+      "sublabel": "平台 / ComfyUI / 搜索 / GsCore",
+      "tag": "能力范围 / 参数 / 真实结果",
+      "pos": [
+        1035,
+        310
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "pending",
+      "type": "messagebus",
+      "label": "长任务续接",
+      "sublabel": "保存目标 · 释放会话执行位",
+      "tag": "等待回报 / 取消 / 超时",
+      "pos": [
+        1035,
+        550
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "consolidate",
+      "type": "backend",
+      "label": "后台整理与回写",
+      "sublabel": "经历 / 画像 / 关系 / 事项",
+      "tag": "有来源 · 不把草稿当经历",
+      "pos": [
+        30,
+        550
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "result-event",
+      "type": "messagebus",
+      "label": "关联结果重入 01",
+      "sublabel": "带原任务与目标 · 重新核对时效",
+      "tag": "同一动作不再执行一次",
+      "pos": [
+        700,
+        550
+      ],
+      "size": [
+        245,
+        84
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "accept-gate",
+      "from": "accept",
+      "to": "participate",
+      "label": "有效事件",
+      "variant": "emphasis"
+    },
+    {
+      "id": "gate-context",
+      "from": "participate",
+      "to": "assemble",
+      "label": "准备回应",
+      "variant": "emphasis"
+    },
+    {
+      "id": "context-compose",
+      "from": "assemble",
+      "to": "compose",
+      "label": "有限情境",
+      "variant": "emphasis",
+      "labelAt": [
+        822.5,
+        220
+      ]
+    },
+    {
+      "id": "compose-review",
+      "from": "compose",
+      "to": "review",
+      "label": "候选回应",
+      "variant": "emphasis"
+    },
+    {
+      "id": "review-send",
+      "from": "review",
+      "to": "deliver",
+      "label": "通过核对",
+      "variant": "emphasis"
+    },
+    {
+      "id": "stay-quiet",
+      "from": "participate",
+      "to": "observe",
+      "label": "暂不参与",
+      "labelAt": [
+        487.5,
+        148
+      ]
+    },
+    {
+      "id": "context-read",
+      "from": "assemble",
+      "to": "resources",
+      "label": "按范围取用"
+    },
+    {
+      "id": "need-tool",
+      "from": "compose",
+      "to": "invoke",
+      "label": "调用 / 短结果"
+    },
+    {
+      "id": "wait-long",
+      "from": "invoke",
+      "to": "pending",
+      "label": "后台执行",
+      "variant": "dashed",
+      "labelAt": [
+        1157.5,
+        472
+      ]
+    },
+    {
+      "id": "delivered-events",
+      "from": "deliver",
+      "to": "consolidate",
+      "label": "结果与回执",
+      "variant": "dashed",
+      "labelAt": [
+        152.5,
+        472
+      ]
+    },
+    {
+      "id": "observed-events",
+      "from": "observe",
+      "to": "consolidate",
+      "label": "获准观察",
+      "variant": "dashed",
+      "fromSide": "left",
+      "toSide": "left",
+      "via": [
+        [
+          8,
+          212
+        ],
+        [
+          8,
+          592
+        ]
+      ],
+      "labelAt": [
+        45,
+        460
+      ]
+    },
+    {
+      "id": "long-task-result",
+      "from": "pending",
+      "to": "result-event",
+      "label": "完成或失败回报",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "模型只用在需要它的地方",
+      "items": [
+        "按编号 01 → 06 阅读；箭头是请求方向，短结果沿原调用链返回；长任务产生关联事件重新进入 01。"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "状态更新有快有慢",
+      "items": [
+        "输入受理时先处理明确完成、取消与纠正；经历和画像后台归纳。核对失败只做有界修订，不无限循环。"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "人格始终参与，权限保持独立",
+      "items": [
+        "语气取决于人格、心情、关系与场景；主要用户亲密表达不等于拥有设备操作权。"
+      ]
+    }
+  ]
+}

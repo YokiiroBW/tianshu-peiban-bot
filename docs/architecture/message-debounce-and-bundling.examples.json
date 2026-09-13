@@ -1,0 +1,465 @@
+{
+  "status": "design_examples_not_runtime_tests",
+  "date": "2026-09-13",
+  "configuration_example": {
+    "enabled": true,
+    "quiet_window_ms": 5000,
+    "max_hold_ms": null,
+    "collection_key": [
+      "ingress_binding",
+      "platform_conversation_or_thread",
+      "sender_account"
+    ],
+    "boundary_rule": "activity_received_at < deadline joins the open bundle; equality seals the old bundle first",
+    "duplicate_policy": "same source message id and revision do not reset the deadline",
+    "combine_strategy": "ordered_message_bundle_preserving_authors_parts_and_references",
+    "sealed_turn_policy": "continue_immutable_on_ordinary_new_input",
+    "send_order": "turn_sequence_then_part_sequence",
+    "earlier_turn_delivery_required_to_start_later_processing": false,
+    "processing_slots_per_conversation": 2,
+    "processing_slots_status": "user_confirmed_design_limit",
+    "processing_slots_scope": "companion_turns_shared_by_actors_in_one_logical_conversation_or_thread",
+    "direct_function_commands_use_companion_slots": false
+  },
+  "timeline_examples": [
+    {
+      "id": "continuous_fragments",
+      "events": [
+        {
+          "at_ms": 0,
+          "message_id": "m1",
+          "kind": "message",
+          "text": "我想要一张自拍"
+        },
+        {
+          "at_ms": 2000,
+          "message_id": "m2",
+          "kind": "message",
+          "text": "今天穿休闲一点"
+        },
+        {
+          "at_ms": 6000,
+          "message_id": "m3",
+          "kind": "message",
+          "text": "等等，还是换成睡衣吧"
+        }
+      ],
+      "expected_deadlines_ms": [
+        5000,
+        7000,
+        11000
+      ],
+      "expected_bundles": [
+        {
+          "closed_at_ms": 11000,
+          "message_ids": [
+            "m1",
+            "m2",
+            "m3"
+          ],
+          "reason": "quiet_elapsed"
+        }
+      ],
+      "expected_meaning": "保留自拍请求，第三条修改服装要求；不生成两次服装任务。"
+    },
+    {
+      "id": "exact_deadline_boundary",
+      "events": [
+        {
+          "at_ms": 0,
+          "message_id": "m1",
+          "kind": "message"
+        },
+        {
+          "at_ms": 5000,
+          "message_id": "m2",
+          "kind": "message"
+        }
+      ],
+      "expected_bundles": [
+        {
+          "closed_at_ms": 5000,
+          "message_ids": [
+            "m1"
+          ],
+          "reason": "quiet_elapsed"
+        },
+        {
+          "closed_at_ms": 10000,
+          "message_ids": [
+            "m2"
+          ],
+          "reason": "quiet_elapsed"
+        }
+      ]
+    },
+    {
+      "id": "duplicate_and_stale_timer",
+      "events": [
+        {
+          "at_ms": 0,
+          "message_id": "m1",
+          "kind": "message",
+          "revision": 1
+        },
+        {
+          "at_ms": 2000,
+          "message_id": "m2",
+          "kind": "message",
+          "revision": 1
+        },
+        {
+          "at_ms": 5000,
+          "kind": "old_timer",
+          "expected": "ignored_after_deadline_revision"
+        },
+        {
+          "at_ms": 6000,
+          "message_id": "m2",
+          "kind": "duplicate",
+          "revision": 1
+        }
+      ],
+      "expected_bundles": [
+        {
+          "closed_at_ms": 7000,
+          "message_ids": [
+            "m1",
+            "m2"
+          ],
+          "reason": "quiet_elapsed"
+        }
+      ]
+    },
+    {
+      "id": "interleaved_group_members",
+      "events": [
+        {
+          "at_ms": 0,
+          "message_id": "a1",
+          "sender": "A",
+          "kind": "message"
+        },
+        {
+          "at_ms": 3000,
+          "message_id": "b1",
+          "sender": "B",
+          "kind": "message"
+        },
+        {
+          "at_ms": 4000,
+          "message_id": "a2",
+          "sender": "A",
+          "kind": "message",
+          "reply_to": "b1"
+        }
+      ],
+      "expected_bundles": [
+        {
+          "closed_at_ms": 8000,
+          "sender": "B",
+          "message_ids": [
+            "b1"
+          ],
+          "reason": "quiet_elapsed"
+        },
+        {
+          "closed_at_ms": 9000,
+          "sender": "A",
+          "message_ids": [
+            "a1",
+            "a2"
+          ],
+          "context_refs": [
+            "b1"
+          ],
+          "reason": "quiet_elapsed"
+        }
+      ],
+      "required_context_order_for_a": [
+        "a1",
+        "b1",
+        "a2"
+      ]
+    },
+    {
+      "id": "explicit_maximum_hold",
+      "max_hold_ms": 12000,
+      "events": [
+        {
+          "at_ms": 0,
+          "message_id": "m1",
+          "kind": "message"
+        },
+        {
+          "at_ms": 4000,
+          "message_id": "m2",
+          "kind": "message"
+        },
+        {
+          "at_ms": 8000,
+          "message_id": "m3",
+          "kind": "message"
+        },
+        {
+          "at_ms": 11000,
+          "message_id": "m4",
+          "kind": "message"
+        }
+      ],
+      "expected_bundles": [
+        {
+          "closed_at_ms": 12000,
+          "message_ids": [
+            "m1",
+            "m2",
+            "m3",
+            "m4"
+          ],
+          "reason": "max_hold",
+          "possibly_incomplete": true
+        }
+      ]
+    },
+    {
+      "id": "new_message_during_generation",
+      "assumptions": [
+        "two generation slots available",
+        "independent questions",
+        "generation times are illustrative, not measurements"
+      ],
+      "events": [
+        {
+          "at_ms": 0,
+          "message_id": "m1",
+          "kind": "message"
+        },
+        {
+          "at_ms": 5000,
+          "kind": "generation_started",
+          "turn": "T1",
+          "input_revision": 1
+        },
+        {
+          "at_ms": 6000,
+          "message_id": "m2",
+          "kind": "message"
+        },
+        {
+          "at_ms": 8000,
+          "message_id": "m3",
+          "kind": "message"
+        },
+        {
+          "at_ms": 13000,
+          "kind": "generation_started",
+          "turn": "T2",
+          "input_revision": 1
+        },
+        {
+          "at_ms": 15000,
+          "kind": "candidate_ready",
+          "turn": "T2",
+          "expected": "queue_for_ordered_send"
+        },
+        {
+          "at_ms": 16000,
+          "kind": "candidate_ready",
+          "turn": "T1",
+          "expected": "start_sending_without_waiting_for_T2"
+        },
+        {
+          "at_ms": 18000,
+          "kind": "send_completed",
+          "turn": "T1"
+        },
+        {
+          "at_ms": 18000,
+          "kind": "send_started",
+          "turn": "T2"
+        }
+      ],
+      "expected_bundles": [
+        {
+          "closed_at_ms": 5000,
+          "turn": "T1",
+          "message_ids": [
+            "m1"
+          ],
+          "reason": "quiet_elapsed"
+        },
+        {
+          "closed_at_ms": 13000,
+          "turn": "T2",
+          "message_ids": [
+            "m2",
+            "m3"
+          ],
+          "reason": "quiet_elapsed"
+        }
+      ],
+      "expected_context_for_T2": {
+        "new_input": [
+          "m2",
+          "m3"
+        ],
+        "optional_background_refs": [
+          "m1"
+        ],
+        "T1_answer_before_ready": "unavailable_not_invented"
+      },
+      "expected_generation_order": [
+        "T1",
+        "T2"
+      ],
+      "expected_candidate_ready_order": [
+        "T2",
+        "T1"
+      ],
+      "expected_send_order": [
+        "T1",
+        "T2"
+      ],
+      "T1_ordinary_message_policy": "do_not_pause_cancel_restart_or_merge",
+      "rule": "T2 收集完成即可提前处理；普通新消息不改变 T1 的输入修订；发送按轮次有序。"
+    },
+    {
+      "id": "edit_and_retract_before_close",
+      "events": [
+        {
+          "at_ms": 0,
+          "message_id": "m1",
+          "kind": "message",
+          "revision": 1
+        },
+        {
+          "at_ms": 3000,
+          "message_id": "m1",
+          "kind": "edit",
+          "revision": 2,
+          "expected_deadline_ms": 8000
+        },
+        {
+          "at_ms": 4000,
+          "message_id": "m1",
+          "kind": "retract",
+          "revision": 3
+        }
+      ],
+      "expected_bundles": [],
+      "rule": "全部撤回，取消待处理组和计时器；原始变化仍保留归档。"
+    },
+    {
+      "id": "explicit_control_event",
+      "events": [
+        {
+          "at_ms": 0,
+          "message_id": "m1",
+          "kind": "message",
+          "text": "早上好"
+        },
+        {
+          "at_ms": 2000,
+          "kind": "registered_cancel_command",
+          "target": "existing-authorized-task",
+          "expected": "handle_control_without_waiting_for_chat_window"
+        }
+      ],
+      "expected_bundles": [
+        {
+          "closed_at_ms": 5000,
+          "message_ids": [
+            "m1"
+          ],
+          "reason": "quiet_elapsed"
+        }
+      ],
+      "rule": "取消针对明确已有任务，不把引用文本中的取消一词当指令。"
+    }
+  ],
+  "bundle_shape_example": {
+    "bundle_id": "example-bundle-1",
+    "revision": 3,
+    "close_reason": "quiet_elapsed",
+    "sender": "example-user",
+    "conversation": "example-private-chat",
+    "items": [
+      {
+        "message_id": "m1",
+        "sequence": 1,
+        "received_at_ms": 0,
+        "parts": [
+          {
+            "type": "text",
+            "text": "我想要一张自拍"
+          }
+        ]
+      },
+      {
+        "message_id": "m2",
+        "sequence": 2,
+        "received_at_ms": 2000,
+        "parts": [
+          {
+            "type": "text",
+            "text": "今天穿休闲一点"
+          }
+        ]
+      },
+      {
+        "message_id": "m3",
+        "sequence": 3,
+        "received_at_ms": 6000,
+        "parts": [
+          {
+            "type": "text",
+            "text": "等等，还是换成睡衣吧"
+          }
+        ]
+      }
+    ],
+    "rule": "原话不改写，补充和修正关系由后续正常处理结合完整消息组理解。"
+  },
+  "pipeline_acceptance_examples": [
+    {
+      "id": "dependent_second_turn",
+      "T2_ready_at_ms": 13000,
+      "T2_preparation_started_at_ms": 13000,
+      "T1_stable_answer_ready_at_ms": 16000,
+      "T2_dependent_generation_started_at_ms": 16000,
+      "T1_send_completed_at_ms": 18000,
+      "expected": "wait_only_for_stable_answer_not_full_send"
+    },
+    {
+      "id": "single_generation_slot",
+      "generation_slots": 1,
+      "expected": "prepare_T2_early_then_wait_for_model_capacity_not_for_delivery",
+      "claim_parallel_model_generation": false
+    },
+    {
+      "id": "earlier_turn_fails",
+      "T1_terminal_state": "failed",
+      "T2_candidate_state": "ready",
+      "expected": "resolve_T1_send_slot_then_allow_T2_to_send"
+    },
+    {
+      "id": "explicit_cancel_is_exception",
+      "event": "registered_cancel_command_targeting_T1",
+      "expected": "apply_authorized_cancel_to_T1; ordinary_message_policy_does_not_disable_control_events"
+    },
+    {
+      "id": "shared_target_mutation",
+      "T1_action": "light_on",
+      "T2_action": "light_off",
+      "expected": "respect_target_operation_order_even_if_T2_generation_finishes_first"
+    },
+    {
+      "id": "out_of_order_memory_candidates",
+      "candidate_finish_order": [
+        "T2",
+        "T1"
+      ],
+      "expected": "use_source_order_and_versions; late_T1_must_not_overwrite_newer_confirmed_state"
+    }
+  ]
+}

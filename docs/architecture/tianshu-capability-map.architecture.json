@@ -1,0 +1,323 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "天枢 · 功能接入展开图（目标架构）",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1290,
+      760
+    ],
+    "views": [
+      {
+        "id": "home-tools",
+        "label": "家庭与服务器",
+        "focus": [
+          "actor",
+          "control",
+          "device-module",
+          "home-backends"
+        ],
+        "note": "从聊天提出动作，设备模块调用已有后端；状态、失败原因与结果沿原路径返回。"
+      },
+      {
+        "id": "media-tools",
+        "label": "资料与订阅",
+        "focus": [
+          "actor",
+          "control",
+          "media-module",
+          "media-backends"
+        ],
+        "note": "名称搜索、选择、下载、归档和入库确认分别有状态；RSSHub 只提供源。"
+      },
+      {
+        "id": "code-tools",
+        "label": "项目与编码体",
+        "focus": [
+          "control",
+          "project-module",
+          "code-backends"
+        ],
+        "note": "项目模块管理任务与交接；编码体在独立工作目录执行，Git / Forgejo 保存版本。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "actor",
+      "type": "backend",
+      "label": "陪伴核心 / 消息入口",
+      "sublabel": "角色按能力调用 · 命令可直达",
+      "tag": "动作入口",
+      "pos": [
+        35,
+        65
+      ],
+      "size": [
+        245,
+        85
+      ]
+    },
+    {
+      "id": "control",
+      "type": "backend",
+      "label": "天枢平台 API",
+      "sublabel": "连接配置 · 任务状态 · 结果通知",
+      "tag": "统一任务入口",
+      "pos": [
+        680,
+        65
+      ],
+      "size": [
+        255,
+        85
+      ]
+    },
+    {
+      "id": "game-bridge",
+      "type": "backend",
+      "label": "聊天功能桥接插件",
+      "sublabel": "NoneBot 插件 / GsCore 适配",
+      "tag": "薄桥接",
+      "pos": [
+        35,
+        335
+      ],
+      "size": [
+        245,
+        85
+      ]
+    },
+    {
+      "id": "device-module",
+      "type": "backend",
+      "label": "家庭与设备模块",
+      "sublabel": "监控 · 家居 · 容器 · 游戏实例",
+      "tag": "提取 NAS 现有能力",
+      "pos": [
+        365,
+        335
+      ],
+      "size": [
+        245,
+        85
+      ]
+    },
+    {
+      "id": "media-module",
+      "type": "backend",
+      "label": "资料与订阅模块",
+      "sublabel": "搜索 · 下载 · 元数据 · 归档",
+      "tag": "提取 Download Hub 等",
+      "pos": [
+        685,
+        335
+      ],
+      "size": [
+        245,
+        85
+      ]
+    },
+    {
+      "id": "project-module",
+      "type": "backend",
+      "label": "项目工作台模块",
+      "sublabel": "仓库 · 工作目录 · 检查点 · 交接",
+      "tag": "补后端与编码体适配",
+      "pos": [
+        1005,
+        335
+      ],
+      "size": [
+        245,
+        85
+      ]
+    },
+    {
+      "id": "gs-backend",
+      "type": "external",
+      "label": "GsCore 与娱乐功能",
+      "sublabel": "游戏业务与绑定留在原系统",
+      "tag": "复用现有",
+      "pos": [
+        35,
+        640
+      ],
+      "size": [
+        245,
+        85
+      ]
+    },
+    {
+      "id": "home-backends",
+      "type": "external",
+      "label": "设备与运维后端",
+      "sublabel": "Home Assistant / SSH / Compose",
+      "tag": "NAS · 路由 · 远程节点 · MC",
+      "pos": [
+        365,
+        640
+      ],
+      "size": [
+        245,
+        85
+      ]
+    },
+    {
+      "id": "media-backends",
+      "type": "external",
+      "label": "内容源与阅读库",
+      "sublabel": "Suwayomi / RSSHub / Komga",
+      "tag": "JM · MoviePilot · 阅读源",
+      "pos": [
+        685,
+        640
+      ],
+      "size": [
+        245,
+        85
+      ]
+    },
+    {
+      "id": "code-backends",
+      "type": "external",
+      "label": "编码体与 Git / Forgejo",
+      "sublabel": "Codex / DSH / 其他工具适配",
+      "tag": "各任务独立目录",
+      "pos": [
+        1005,
+        640
+      ],
+      "size": [
+        245,
+        85
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "平台内部模块 · 不必分别部署成微服务",
+      "wraps": [
+        "device-module",
+        "media-module",
+        "project-module"
+      ],
+      "pad": 24
+    }
+  ],
+  "connections": [
+    {
+      "id": "actor-tool",
+      "from": "actor",
+      "to": "control",
+      "label": "能力调用",
+      "variant": "emphasis"
+    },
+    {
+      "id": "chat-tool",
+      "from": "actor",
+      "to": "game-bridge",
+      "label": "功能请求",
+      "labelAt": [
+        158,
+        242
+      ]
+    },
+    {
+      "id": "gs-protocol",
+      "from": "game-bridge",
+      "to": "gs-backend",
+      "label": "早柚协议 / 插件",
+      "labelAt": [
+        158,
+        530
+      ]
+    },
+    {
+      "id": "dispatch-device",
+      "from": "control",
+      "to": "device-module",
+      "label": "设备任务",
+      "variant": "dashed"
+    },
+    {
+      "id": "dispatch-media",
+      "from": "control",
+      "to": "media-module",
+      "label": "资料任务",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        807.5,
+        242
+      ]
+    },
+    {
+      "id": "dispatch-code",
+      "from": "control",
+      "to": "project-module",
+      "label": "项目任务",
+      "variant": "dashed"
+    },
+    {
+      "id": "device-execution",
+      "from": "device-module",
+      "to": "home-backends",
+      "label": "REST / SSH",
+      "labelAt": [
+        488,
+        530
+      ]
+    },
+    {
+      "id": "media-execution",
+      "from": "media-module",
+      "to": "media-backends",
+      "label": "API / 文件归档",
+      "labelAt": [
+        808,
+        530
+      ]
+    },
+    {
+      "id": "code-execution",
+      "from": "project-module",
+      "to": "code-backends",
+      "label": "任务适配 / Git",
+      "labelAt": [
+        1128,
+        530
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "设备侧",
+      "items": [
+        "智能家居与 Notify 手环经 Home Assistant 接入。",
+        "NAS / 路由用系统接口；Dockge 用受管 Compose，游戏服用实例适配。"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "资料侧",
+      "items": [
+        "复用 Download Hub、MoviePilot；小说与其他来源再适配。",
+        "下载任务在平台，文件进资料库；收集的知识交天枢记忆索引。"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "开发侧",
+      "items": [
+        "同仓库、不同工作目录；任务服务保存当前状态，Git 保存代码。",
+        "交接只取必要资料；模型网关统一线路，记忆保存可复用经验。"
+      ]
+    }
+  ]
+}

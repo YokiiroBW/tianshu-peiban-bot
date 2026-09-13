@@ -1,0 +1,328 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "天枢记忆 · 每轮带什么，何时重新检索（设计稿）",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1390,
+      700
+    ],
+    "views": [
+      {
+        "id": "baseline-context",
+        "label": "每轮已有的认识",
+        "focus": [
+          "turn-scope",
+          "baseline-pack",
+          "scoped-snapshot",
+          "recall-decision",
+          "memory-result"
+        ],
+        "note": "每次装配回应上下文，都核对人物、受众与版本，并带上必要认识；不一定重新做向量检索。"
+      },
+      {
+        "id": "history-recall",
+        "label": "需要往事与细节",
+        "focus": [
+          "recall-decision",
+          "query-plan",
+          "bounded-search",
+          "rank-current",
+          "evidence-check",
+          "source-archive",
+          "memory-result"
+        ],
+        "note": "显式回忆、未决约定、话题变化或证据不足触发检索；优先精确定位，再做混合搜索。"
+      },
+      {
+        "id": "privacy-freshness",
+        "label": "隐私与信息更新",
+        "focus": [
+          "turn-scope",
+          "scoped-snapshot",
+          "bounded-search",
+          "rank-current",
+          "evidence-check",
+          "memory-result"
+        ],
+        "note": "缓存也按角色和受众隔离；旧事实、取消事项与权限变化要失效，缺少依据时明确返回缺口。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "turn-scope",
+      "type": "backend",
+      "label": "01 本轮身份与范围",
+      "sublabel": "人物 · 角色 · 会话 · 用途 · 时间",
+      "tag": "每轮核对 / 由可信入口决定",
+      "pos": [
+        35,
+        45
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "baseline-pack",
+      "type": "backend",
+      "label": "02 装配已有认识",
+      "sublabel": "必要画像 · 关系 · 话题 · 待办",
+      "tag": "每轮使用 / 有限上下文",
+      "pos": [
+        370,
+        45
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "recall-decision",
+      "type": "backend",
+      "label": "03 还需查记忆吗",
+      "sublabel": "显式回忆 / 信息变化 / 证据不足",
+      "tag": "规则优先 / 必要时有限判断",
+      "pos": [
+        705,
+        45
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "memory-result",
+      "type": "backend",
+      "label": "交回本轮记忆包",
+      "sublabel": "已有认识 + 证据 + 未确认部分",
+      "tag": "进入回应上下文 / 保留来源",
+      "pos": [
+        1040,
+        45
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "scoped-snapshot",
+      "type": "database",
+      "label": "范围化快照与状态",
+      "sublabel": "小画像 · 关系快照 · 当前事项",
+      "tag": "版本有效才复用 / 当前窗口在核心",
+      "pos": [
+        370,
+        275
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "query-plan",
+      "type": "backend",
+      "label": "04 明确要找什么",
+      "sublabel": "对象 · 事件 · 时间段 · 所需证据",
+      "tag": "自动继承受众范围",
+      "pos": [
+        705,
+        275
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "bounded-search",
+      "type": "backend",
+      "label": "05 在范围内检索",
+      "sublabel": "精确字段 → 关键词 + 语义",
+      "tag": "先过滤 / 新状态优先",
+      "pos": [
+        1040,
+        275
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "rank-current",
+      "type": "backend",
+      "label": "06 去重与按需重排",
+      "sublabel": "相关性 · 时间 · 来源 · 当前有效性",
+      "tag": "预算内选择 / 剔除过时版本",
+      "pos": [
+        1040,
+        520
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "evidence-check",
+      "type": "backend",
+      "label": "07 核对证据与冲突",
+      "sublabel": "原话 / 推断 / 计划 / 已发生",
+      "tag": "不确定就保留缺口",
+      "pos": [
+        705,
+        520
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "source-archive",
+      "type": "external",
+      "label": "Chat Audit 原文",
+      "sublabel": "原消息 · 相邻上下文 · 媒体引用",
+      "tag": "必要时回读 / 同样受范围约束",
+      "pos": [
+        370,
+        520
+      ],
+      "size": [
+        245,
+        84
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "scope-baseline",
+      "from": "turn-scope",
+      "to": "baseline-pack",
+      "label": "确认范围",
+      "variant": "emphasis"
+    },
+    {
+      "id": "baseline-decision",
+      "from": "baseline-pack",
+      "to": "recall-decision",
+      "label": "现有情境",
+      "variant": "emphasis"
+    },
+    {
+      "id": "already-enough",
+      "from": "recall-decision",
+      "to": "memory-result",
+      "label": "资料已够",
+      "variant": "emphasis"
+    },
+    {
+      "id": "baseline-snapshot",
+      "from": "baseline-pack",
+      "to": "scoped-snapshot",
+      "label": "按范围取用",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        492.5,
+        202
+      ]
+    },
+    {
+      "id": "need-recall",
+      "from": "recall-decision",
+      "to": "query-plan",
+      "label": "需要补证据",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        827.5,
+        202
+      ]
+    },
+    {
+      "id": "run-query",
+      "from": "query-plan",
+      "to": "bounded-search",
+      "label": "检索意图"
+    },
+    {
+      "id": "rank-results",
+      "from": "bounded-search",
+      "to": "rank-current",
+      "label": "候选资料",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        1162.5,
+        440
+      ]
+    },
+    {
+      "id": "inspect-results",
+      "from": "rank-current",
+      "to": "evidence-check",
+      "label": "少量候选"
+    },
+    {
+      "id": "read-original",
+      "from": "evidence-check",
+      "to": "source-archive",
+      "label": "按需查原话"
+    },
+    {
+      "id": "return-evidence",
+      "from": "evidence-check",
+      "to": "memory-result",
+      "label": "证据或缺口",
+      "fromSide": "bottom",
+      "toSide": "right",
+      "via": [
+        [
+          827.5,
+          665
+        ],
+        [
+          1350,
+          665
+        ],
+        [
+          1350,
+          87
+        ]
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "每轮用记忆，检索按需要",
+      "items": [
+        "“晚上好”通常复用已有认识；“上周答应我的呢”必须核对相关事项与证据，当前资料已足够时可免重搜。"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "省掉重复检索，不省版本核对",
+      "items": [
+        "取消、纠正、身份绑定与可见范围变化会使旧缓存失效；版本无法确认时，不用旧状态主动跟进。"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "取回不等于每次都说出来",
+      "items": [
+        "记忆用于理解与措辞；输出只用当前相关且允许披露的部分。检索失败、无匹配、无权使用分别处理。"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,154 @@
+{
+  "status": "design_examples_not_executable_plans",
+  "date": "2026-09-13",
+  "examples_are_fictional": true,
+  "responsibilities": {
+    "intent_and_optional_ai_candidates": "tianshu",
+    "physical_operations_and_asset_catalog": "assetlibrary",
+    "document_knowledge_index": "tianshu_knowledge"
+  },
+  "default_scope_rules": {
+    "register_and_scan_read_only": true,
+    "metadata_candidate_does_not_modify_file": true,
+    "tag_writeback_requires_explicit_plan": true,
+    "transcode_during_organization": false,
+    "delete_duplicates_automatically": false
+  },
+  "album_cases": [
+    {
+      "id": "compilation_keeps_one_album",
+      "tracks": [
+        {
+          "asset_ref": "demo-track-a",
+          "release_ref": "demo-compilation",
+          "album_artist": "Various Artists",
+          "track_artist": "Artist A",
+          "disc": 1,
+          "track": 1
+        },
+        {
+          "asset_ref": "demo-track-b",
+          "release_ref": "demo-compilation",
+          "album_artist": "Various Artists",
+          "track_artist": "Artist B",
+          "disc": 1,
+          "track": 2
+        }
+      ],
+      "rule": "专辑归组不按每首歌曲的艺人拆开，单曲艺人仍保留。",
+      "expected_archive_groups": [
+        {
+          "release_ref": "demo-compilation",
+          "asset_refs": [
+            "demo-track-a",
+            "demo-track-b"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "different_editions_stay_separate",
+      "tracks": [
+        {
+          "asset_ref": "demo-standard",
+          "release_ref": "demo-release-standard",
+          "album": "Night Signal",
+          "album_artist": "Artist A",
+          "disc": 1,
+          "track": 1
+        },
+        {
+          "asset_ref": "demo-deluxe",
+          "release_ref": "demo-release-deluxe",
+          "album": "Night Signal",
+          "album_artist": "Artist A",
+          "disc": 1,
+          "track": 1
+        }
+      ],
+      "rule": "同名专辑的发行版本不同，不生成同一目标文件名覆盖彼此。",
+      "expected_archive_groups": [
+        {
+          "release_ref": "demo-release-standard",
+          "asset_refs": [
+            "demo-standard"
+          ]
+        },
+        {
+          "release_ref": "demo-release-deluxe",
+          "asset_refs": [
+            "demo-deluxe"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "multiple_discs_preserve_order",
+      "tracks": [
+        {
+          "asset_ref": "demo-disc-1-track-1",
+          "release_ref": "demo-two-disc-release",
+          "disc": 1,
+          "track": 1
+        },
+        {
+          "asset_ref": "demo-disc-2-track-1",
+          "release_ref": "demo-two-disc-release",
+          "disc": 2,
+          "track": 1
+        }
+      ],
+      "expected_disc_numbers": [
+        1,
+        2
+      ],
+      "rule": "同一专辑的两张碟分别保留曲序，不能都改成同一目录下的 01。",
+      "expected_archive_groups": [
+        {
+          "release_ref": "demo-two-disc-release",
+          "asset_refs": [
+            "demo-disc-1-track-1",
+            "demo-disc-2-track-1"
+          ]
+        }
+      ]
+    }
+  ],
+  "negative_acceptance_examples": [
+    {
+      "id": "missing_album_identity",
+      "input": "only a filename and ambiguous album candidates",
+      "expected": "keep_in_inbox_and_request_metadata_review"
+    },
+    {
+      "id": "plan_source_changed",
+      "input": "source revision changed after preview",
+      "expected": "reject_stale_plan_without_blind_move"
+    },
+    {
+      "id": "same_recording_different_encoding",
+      "input": "same song in FLAC and MP3 with different bytes",
+      "expected": "do_not_delete_as_exact_duplicates"
+    },
+    {
+      "id": "sidecar_references",
+      "input": "CUE or playlist uses relative audio filenames",
+      "expected": "include_reference_impact_in_plan_before_renaming"
+    },
+    {
+      "id": "index_update_failed",
+      "input": "file operation completed but catalog refresh failed",
+      "expected": "report_partial_completion_and_repair_catalog_not_repeat_file_move"
+    },
+    {
+      "id": "unsupported_write_entry",
+      "input": "connected AssetLink endpoint advertises read-only capabilities",
+      "expected": "allow_read_and_planning_only_no_database_or_shell_bypass"
+    },
+    {
+      "id": "rollback_target_modified",
+      "input": "target was edited after organization",
+      "expected": "revalidate_and_stop_conflicting_restore_without_overwrite"
+    }
+  ]
+}

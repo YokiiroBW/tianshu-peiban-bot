@@ -1,0 +1,855 @@
+{
+  "version": "1.0",
+  "status": "product_target_and_research_proposal",
+  "requirements": [
+    {
+      "id": "U01",
+      "name": "QQ/TG消息接入",
+      "chapters": [
+        1,
+        4,
+        19
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U02",
+      "name": "私聊与群聊同等支持",
+      "chapters": [
+        1,
+        4,
+        19
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U03",
+      "name": "自定义人格和世界观",
+      "chapters": [
+        1,
+        4,
+        19
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U04",
+      "name": "多个独立角色共享世界",
+      "chapters": [
+        1,
+        4,
+        19
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U05",
+      "name": "模拟日常生活",
+      "chapters": [
+        1,
+        4,
+        19
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U06",
+      "name": "统一人物编号",
+      "chapters": [
+        2,
+        3
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U07",
+      "name": "昵称与头像缓存",
+      "chapters": [
+        2,
+        3
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U08",
+      "name": "详细人物画像",
+      "chapters": [
+        2,
+        3
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U09",
+      "name": "主要用户配置",
+      "chapters": [
+        2,
+        3
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U10",
+      "name": "每角色对人物的好感与关系",
+      "chapters": [
+        2,
+        3
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U11",
+      "name": "群聊主题画像",
+      "chapters": [
+        2,
+        3
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U12",
+      "name": "同人分场景风格",
+      "chapters": [
+        2,
+        3
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U13",
+      "name": "跨群私聊的共通认识",
+      "chapters": [
+        3,
+        6,
+        7
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U14",
+      "name": "私密经历不外泄",
+      "chapters": [
+        3,
+        6,
+        7
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U15",
+      "name": "普通兴趣可共享",
+      "chapters": [
+        3,
+        6,
+        7
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U16",
+      "name": "本人提问时保持认识连续",
+      "chapters": [
+        3,
+        6,
+        7
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U17",
+      "name": "自主联网查询",
+      "chapters": [
+        4,
+        5
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U18",
+      "name": "角色小知识库",
+      "chapters": [
+        4,
+        5
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U19",
+      "name": "2.5D小屋",
+      "chapters": [
+        4,
+        5
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U20",
+      "name": "床与闹钟",
+      "chapters": [
+        4,
+        5
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U21",
+      "name": "作息可动态小幅调整",
+      "chapters": [
+        4,
+        5
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U22",
+      "name": "角色持续目标",
+      "chapters": [
+        4,
+        5
+      ],
+      "status": "target_not_implemented",
+      "basis": "derived_detail_for_user_goal"
+    },
+    {
+      "id": "U23",
+      "name": "衣物录入与描述提取",
+      "chapters": [
+        5,
+        11
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U24",
+      "name": "衣物参考图",
+      "chapters": [
+        5,
+        11
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U25",
+      "name": "自主发现并收藏款式",
+      "chapters": [
+        5,
+        11
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U26",
+      "name": "合理选择今日穿搭",
+      "chapters": [
+        5,
+        11
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U27",
+      "name": "书架与资料作品阅读",
+      "chapters": [
+        5,
+        11
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U28",
+      "name": "日记互动锁",
+      "chapters": [
+        5,
+        11
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U29",
+      "name": "内置写作配方",
+      "chapters": [
+        8,
+        9
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U30",
+      "name": "日记有新意且非流水账",
+      "chapters": [
+        8,
+        9
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U31",
+      "name": "长篇创作连贯",
+      "chapters": [
+        8,
+        9
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U32",
+      "name": "作品版本与审校",
+      "chapters": [
+        8,
+        9
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U33",
+      "name": "虚构不污染现实经历",
+      "chapters": [
+        8,
+        9
+      ],
+      "status": "target_not_implemented",
+      "basis": "derived_detail_for_user_goal"
+    },
+    {
+      "id": "U34",
+      "name": "本地ComfyUI Anima优先",
+      "chapters": [
+        10,
+        11
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U35",
+      "name": "固定画师角色与LoRA",
+      "chapters": [
+        10,
+        11
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U36",
+      "name": "完整工作流节点与参数支持",
+      "chapters": [
+        10,
+        11
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U37",
+      "name": "口语自拍与穿搭请求",
+      "chapters": [
+        10,
+        11
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U38",
+      "name": "角色主动调用生图",
+      "chapters": [
+        10,
+        11
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U39",
+      "name": "NovelAI与GPT Image后端",
+      "chapters": [
+        10,
+        11
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U40",
+      "name": "改造Together与Reality",
+      "chapters": [
+        5,
+        13,
+        22
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U41",
+      "name": "多端通话观影体验",
+      "chapters": [
+        5,
+        13,
+        22
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U42",
+      "name": "现实设备与移动桥",
+      "chapters": [
+        5,
+        13,
+        22
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U43",
+      "name": "Chat Audit原始档案",
+      "chapters": [
+        6,
+        7
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U44",
+      "name": "长期原文追溯",
+      "chapters": [
+        6,
+        7
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U45",
+      "name": "短期工作情境",
+      "chapters": [
+        6,
+        7
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U46",
+      "name": "整理记忆",
+      "chapters": [
+        6,
+        7
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U47",
+      "name": "成熟记忆方案比较",
+      "chapters": [
+        6,
+        7
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U48",
+      "name": "每角色能力开放",
+      "chapters": [
+        12,
+        19,
+        20
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U49",
+      "name": "GsCore桥接",
+      "chapters": [
+        12,
+        19,
+        20
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U50",
+      "name": "群聊娱乐",
+      "chapters": [
+        12,
+        19,
+        20
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U51",
+      "name": "漫画小说音乐视频聚合下载",
+      "chapters": [
+        12,
+        19,
+        20
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U52",
+      "name": "元数据搜索整理",
+      "chapters": [
+        12,
+        19,
+        20
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U53",
+      "name": "Komga归档",
+      "chapters": [
+        12,
+        19,
+        20
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U54",
+      "name": "RSSHub内容源",
+      "chapters": [
+        12,
+        22
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U55",
+      "name": "订阅去重推送归档",
+      "chapters": [
+        12,
+        22
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U56",
+      "name": "私有下载订阅源码复用",
+      "chapters": [
+        12,
+        22
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U57",
+      "name": "NAS局域网远程节点管理",
+      "chapters": [
+        13,
+        14
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U58",
+      "name": "按设备能力监控",
+      "chapters": [
+        13,
+        14
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U59",
+      "name": "代理健康与订阅维护",
+      "chapters": [
+        13,
+        14
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U60",
+      "name": "小米等智能家居控制",
+      "chapters": [
+        13,
+        14
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U61",
+      "name": "电脑开机",
+      "chapters": [
+        13,
+        14
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U62",
+      "name": "Dockge部署端口目录重启日志",
+      "chapters": [
+        14
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U63",
+      "name": "MC启动停止重启命令",
+      "chapters": [
+        14
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U64",
+      "name": "其他自建游戏服务器",
+      "chapters": [
+        14
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U65",
+      "name": "深度游戏插件模组接口",
+      "chapters": [
+        14
+      ],
+      "status": "target_not_implemented",
+      "basis": "derived_detail_for_user_goal"
+    },
+    {
+      "id": "U66",
+      "name": "Notify手环数据",
+      "chapters": [
+        13
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U67",
+      "name": "身体趋势与生活关心",
+      "chapters": [
+        13
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U68",
+      "name": "手机同步与逐字段可用性",
+      "chapters": [
+        13
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U69",
+      "name": "NAS Git项目可视化",
+      "chapters": [
+        15,
+        16
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U70",
+      "name": "多编码工具共享项目",
+      "chapters": [
+        15,
+        16
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U71",
+      "name": "并发工作目录独立",
+      "chapters": [
+        15,
+        16
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U72",
+      "name": "规范文档与交接",
+      "chapters": [
+        15,
+        16
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U73",
+      "name": "项目及总错题本",
+      "chapters": [
+        15,
+        16
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U74",
+      "name": "长期上下文token控制",
+      "chapters": [
+        15,
+        16
+      ],
+      "status": "target_not_implemented",
+      "basis": "derived_detail_for_user_goal"
+    },
+    {
+      "id": "U75",
+      "name": "命名线路与API Key管理",
+      "chapters": [
+        17,
+        18
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U76",
+      "name": "固定客户端入口切线路",
+      "chapters": [
+        17,
+        18
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U77",
+      "name": "准确模型映射",
+      "chapters": [
+        17,
+        18
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U78",
+      "name": "原生协议与思考参数保留",
+      "chapters": [
+        17,
+        18
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U79",
+      "name": "有状态会话切换兼容",
+      "chapters": [
+        17,
+        18
+      ],
+      "status": "target_not_implemented",
+      "basis": "derived_detail_for_user_goal"
+    },
+    {
+      "id": "U80",
+      "name": "统一产品体验",
+      "chapters": [
+        19,
+        20,
+        21,
+        22
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U81",
+      "name": "简化权限与流程",
+      "chapters": [
+        19,
+        20,
+        21,
+        22
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U82",
+      "name": "允许替换旧系统架构",
+      "chapters": [
+        19,
+        20,
+        21,
+        22
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    },
+    {
+      "id": "U83",
+      "name": "完整目标先于分期开发",
+      "chapters": [
+        19,
+        20,
+        21,
+        22
+      ],
+      "status": "target_not_implemented",
+      "basis": "user_requirement_decomposition"
+    }
+  ]
+}

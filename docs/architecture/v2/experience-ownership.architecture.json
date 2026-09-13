@@ -1,0 +1,289 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "天枢 · 页面与数据职责 V2",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1320,
+      580
+    ],
+    "views": [
+      {
+        "id": "pages",
+        "label": "页面归属",
+        "focus": [
+          "companion-ui",
+          "core",
+          "life",
+          "memory-ui",
+          "memory",
+          "knowledge",
+          "ops-ui",
+          "platform",
+          "external",
+          "model-ui",
+          "routing",
+          "providers"
+        ],
+        "note": "页面经统一网页入口访问责任模块；此图省略同源转发。数据库框是逻辑数据，不是新增服务。"
+      },
+      {
+        "id": "life",
+        "label": "生活一致",
+        "focus": [
+          "companion-ui",
+          "core",
+          "life"
+        ],
+        "note": "小屋、台词、穿搭与日记读取同一份角色状态；浏览器只负责画面与交互。"
+      },
+      {
+        "id": "ownership",
+        "label": "资料与执行",
+        "focus": [
+          "memory-ui",
+          "memory",
+          "knowledge",
+          "ops-ui",
+          "platform",
+          "external"
+        ],
+        "note": "资料库归记忆，受管文件归 AssetLibrary，设备事实归相应外部系统。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "companion-ui",
+      "type": "frontend",
+      "label": "陪伴 · 小屋 · 日记",
+      "sublabel": "角色活动 / 衣橱 / 作品",
+      "pos": [
+        65,
+        20
+      ],
+      "size": [
+        260,
+        112
+      ]
+    },
+    {
+      "id": "core",
+      "type": "backend",
+      "label": "陪伴核心",
+      "sublabel": "统一状态入口与生活规则",
+      "pos": [
+        520,
+        20
+      ],
+      "size": [
+        260,
+        112
+      ]
+    },
+    {
+      "id": "life",
+      "type": "database",
+      "label": "角色与世界状态",
+      "sublabel": "状态版本 / 日程 / 当前穿搭",
+      "pos": [
+        975,
+        20
+      ],
+      "size": [
+        280,
+        112
+      ]
+    },
+    {
+      "id": "memory-ui",
+      "type": "frontend",
+      "label": "人物 · 星图 · 资料",
+      "sublabel": "按主题浏览 / 纠正 / 阅读",
+      "pos": [
+        65,
+        160
+      ],
+      "size": [
+        260,
+        112
+      ]
+    },
+    {
+      "id": "memory",
+      "type": "backend",
+      "label": "天枢记忆",
+      "sublabel": "范围过滤 / 修订 / 按需召回",
+      "pos": [
+        520,
+        160
+      ],
+      "size": [
+        260,
+        112
+      ]
+    },
+    {
+      "id": "knowledge",
+      "type": "database",
+      "label": "画像 · 经历 · 资料",
+      "sublabel": "完整语义单元 / 来源版本",
+      "pos": [
+        975,
+        160
+      ],
+      "size": [
+        280,
+        112
+      ]
+    },
+    {
+      "id": "ops-ui",
+      "type": "frontend",
+      "label": "家庭 · 资源 · 项目",
+      "sublabel": "操作计划 / 任务 / 交接",
+      "pos": [
+        65,
+        300
+      ],
+      "size": [
+        260,
+        112
+      ]
+    },
+    {
+      "id": "platform",
+      "type": "backend",
+      "label": "天枢平台",
+      "sublabel": "连接器 / 项目 / 任务投影",
+      "pos": [
+        520,
+        300
+      ],
+      "size": [
+        260,
+        112
+      ]
+    },
+    {
+      "id": "external",
+      "type": "external",
+      "label": "外部责任系统",
+      "sublabel": "HA / AssetLibrary / Git 等",
+      "pos": [
+        975,
+        300
+      ],
+      "size": [
+        280,
+        112
+      ]
+    },
+    {
+      "id": "model-ui",
+      "type": "frontend",
+      "label": "模型 · 分工 · 用量",
+      "sublabel": "提供商 / 模型能力 / 线路",
+      "pos": [
+        65,
+        440
+      ],
+      "size": [
+        260,
+        112
+      ]
+    },
+    {
+      "id": "routing",
+      "type": "backend",
+      "label": "配置与模型执行",
+      "sublabel": "平台管配置 / 网关管请求",
+      "pos": [
+        520,
+        440
+      ],
+      "size": [
+        260,
+        112
+      ]
+    },
+    {
+      "id": "providers",
+      "type": "cloud",
+      "label": "已配置的模型接入商",
+      "sublabel": "原生协议 / 真实调用记录",
+      "pos": [
+        975,
+        440
+      ],
+      "size": [
+        280,
+        112
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "life-command",
+      "from": "companion-ui",
+      "to": "core",
+      "label": "操作 / 订阅状态",
+      "route": "auto"
+    },
+    {
+      "id": "life-write",
+      "from": "core",
+      "to": "life",
+      "label": "版本化写入",
+      "route": "auto",
+      "variant": "emphasis"
+    },
+    {
+      "id": "memory-query",
+      "from": "memory-ui",
+      "to": "memory",
+      "label": "查询 / 更正",
+      "route": "auto"
+    },
+    {
+      "id": "memory-write",
+      "from": "memory",
+      "to": "knowledge",
+      "label": "事实与索引分开",
+      "route": "auto",
+      "variant": "emphasis"
+    },
+    {
+      "id": "ops-command",
+      "from": "ops-ui",
+      "to": "platform",
+      "label": "明确动作 / 目标",
+      "route": "auto"
+    },
+    {
+      "id": "external-call",
+      "from": "platform",
+      "to": "external",
+      "label": "原生接口 / 结果",
+      "route": "auto",
+      "variant": "emphasis"
+    },
+    {
+      "id": "provider-config",
+      "from": "model-ui",
+      "to": "routing",
+      "label": "配置版本 / 用量",
+      "route": "auto"
+    },
+    {
+      "id": "provider-call",
+      "from": "routing",
+      "to": "providers",
+      "label": "真实请求与回执",
+      "route": "auto",
+      "variant": "emphasis"
+    }
+  ]
+}

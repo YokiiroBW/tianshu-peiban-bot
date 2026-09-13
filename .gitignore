@@ -1,0 +1,12 @@
+/projects/
+/references/
+/worktrees/
+/output/
+/tmp/
+/.runtime/
+/workspace.local.json
+**/__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example

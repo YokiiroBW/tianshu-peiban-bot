@@ -1,0 +1,57 @@
+{
+  "status": "design_examples_not_runtime_configuration",
+  "date": "2026-09-13",
+  "examples_are_fictional": true,
+  "providers": [
+    {"id":"provider-a","display_name":"接入商 A","api_base_url":"https://provider-a.example.invalid/v1","interface_family":"openai_compatible","credential_ref":"example-secret-a","discovery_mode":"adapter_catalog_or_manual"},
+    {"id":"provider-b","display_name":"接入商 B","api_base_url":"https://provider-b.example.invalid/v1","interface_family":"openai_compatible","credential_ref":"example-secret-b","discovery_mode":"adapter_catalog_or_manual"},
+    {"id":"provider-local","display_name":"本地推理示例","api_base_url":"http://local-inference.example.invalid/v1","interface_family":"openai_compatible","authentication":"none","discovery_mode":"adapter_catalog_or_manual"}
+  ],
+  "models": [
+    {"id":"a-dialogue","provider_id":"provider-a","upstream_model_id":"dialogue-example","invocation_protocol":"responses","kind":"text_generation","capabilities":["text_input","text_output","image_input","tool_calls","structured_output","streaming"],"capability_basis":"fictional_example_only"},
+    {"id":"b-dialogue","provider_id":"provider-b","upstream_model_id":"dialogue-example","invocation_protocol":"chat_completions","kind":"text_generation","capabilities":["text_input","text_output","tool_calls","structured_output","streaming"],"capability_basis":"fictional_example_only"},
+    {"id":"b-writing","provider_id":"provider-b","upstream_model_id":"writing-example","invocation_protocol":"chat_completions","kind":"text_generation","capabilities":["text_input","text_output","streaming"],"capability_basis":"fictional_example_only"},
+    {"id":"local-embedding","provider_id":"provider-local","upstream_model_id":"embedding-example","invocation_protocol":"embeddings","kind":"embedding","capabilities":["text_input","vector_output"],"capability_basis":"fictional_example_only","embedding_space_id":"example-space-v1","dimensions":1024}
+  ],
+  "defaults": {"text_generation":"a-dialogue"},
+  "workload_bindings": [
+    {"workload":"companion.reply","inherit_default":"text_generation","required_capabilities":["text_input","text_output"]},
+    {"workload":"memory.organize","model_id":"b-dialogue","required_capabilities":["text_input","text_output","structured_output"],"execution_class":"background"},
+    {"workload":"writing.diary","model_id":"b-writing","required_capabilities":["text_input","text_output"],"execution_class":"on_demand_or_background"},
+    {"workload":"writing.story","model_id":"b-writing","required_capabilities":["text_input","text_output"]},
+    {"workload":"vision.describe","model_id":"a-dialogue","required_capabilities":["image_input","text_output"]}
+  ],
+  "actor_overrides": [
+    {"actor_id":"example-actor-b","workload":"companion.reply","model_id":"b-dialogue"}
+  ],
+  "collection_embedding_bindings": [
+    {"collection_id":"example-memory-collection","model_id":"local-embedding","embedding_space_id":"example-space-v1","dimensions":1024,"change_policy":"build_and_validate_new_index_before_switching"}
+  ],
+  "other_backend_bindings": [
+    {"workload":"image.selfie","backend_kind":"comfyui_workflow","workflow_ref":"existing-anima-workflow-profile","ordinary_chat_model_inheritance":false}
+  ],
+  "runtime_rules": {
+    "binding_precedence":["permitted_request_override","actor_workload_override","workload_default","compatible_kind_default"],
+    "fallback_enabled_by_default":false,
+    "snapshot_configuration_per_logical_turn":true,
+    "native_client_model_policy":"respect_client_unless_explicit_route_policy",
+    "ordinary_chat_calls_all_workload_models":false,
+    "companion_processing_slots_per_conversation":2,
+    "live_directory_refresh_on_every_message":false
+  },
+  "resolution_examples": [
+    {"id":"default_actor_reply","actor_id":"example-actor-a","workload":"companion.reply","expected_model_id":"a-dialogue"},
+    {"id":"other_actor_reply","actor_id":"example-actor-b","workload":"companion.reply","expected_model_id":"b-dialogue"},
+    {"id":"diary_is_separate","actor_id":"example-actor-b","workload":"writing.diary","expected_model_id":"b-writing"},
+    {"id":"memory_organizing_is_separate","actor_id":"example-actor-a","workload":"memory.organize","expected_model_id":"b-dialogue"}
+  ],
+  "negative_acceptance_examples": [
+    {"id":"wrong_capability","workload":"vision.describe","attempted_model_id":"b-writing","expected":"reject_missing_image_input"},
+    {"id":"wrong_embedding_kind","collection_id":"example-memory-collection","attempted_model_id":"a-dialogue","expected":"reject_text_model_as_embedding"},
+    {"id":"catalog_unavailable","event":"refresh_failed","expected":"preserve_existing_models_and_bindings"},
+    {"id":"same_name_different_provider","model_ids":["a-dialogue","b-dialogue"],"expected":"keep_distinct_provider_and_protocol_identity"},
+    {"id":"silent_fallback","event":"primary_unavailable_without_configured_backup","expected":"report_failure_not_choose_another_provider"},
+    {"id":"embedding_change","event":"different_embedding_space_selected","expected":"require_index_migration_not_mix_vectors"},
+    {"id":"inflight_route_switch","event":"settings_changed_during_generation","expected":"retain_inflight_snapshot_and_apply_compatible_change_to_new_turns"}
+  ]
+}

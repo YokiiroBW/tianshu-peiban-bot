@@ -1,0 +1,319 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "天枢 · 目标系统架构 V2",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1360,
+      665
+    ],
+    "views": [
+      {
+        "id": "overview",
+        "label": "系统衔接",
+        "focus": [
+          "channels",
+          "gateway",
+          "core",
+          "models",
+          "direct",
+          "memory",
+          "audit",
+          "web",
+          "platform",
+          "devices",
+          "assets"
+        ],
+        "note": "逻辑职责图；模块不等于单独进程。辅助调用与外部系统的细分接口见总稿。"
+      },
+      {
+        "id": "chat",
+        "label": "一条对话",
+        "focus": [
+          "channels",
+          "gateway",
+          "core",
+          "memory",
+          "models"
+        ],
+        "note": "NoneBot 接入 → 陪伴核心编排 → 按需召回与模型生成 → 按序回复。"
+      },
+      {
+        "id": "actions",
+        "label": "功能执行",
+        "focus": [
+          "web",
+          "platform",
+          "core",
+          "devices",
+          "assets"
+        ],
+        "note": "网页明确操作直达责任模块；聊天中的操作意图由陪伴核心发起能力调用。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "channels",
+      "type": "external",
+      "label": "QQ · Telegram",
+      "sublabel": "私聊 / 群聊 / 语音消息",
+      "pos": [
+        49,
+        20
+      ],
+      "size": [
+        203,
+        112
+      ]
+    },
+    {
+      "id": "gateway",
+      "type": "backend",
+      "label": "NoneBot 接入层",
+      "sublabel": "消息转换 · 直接指令分流",
+      "pos": [
+        332,
+        20
+      ],
+      "size": [
+        203,
+        112
+      ]
+    },
+    {
+      "id": "core",
+      "type": "backend",
+      "label": "陪伴核心",
+      "sublabel": "角色生活 · 两轮对话 · 主动行为",
+      "pos": [
+        616,
+        20
+      ],
+      "size": [
+        231,
+        112
+      ]
+    },
+    {
+      "id": "models",
+      "type": "cloud",
+      "label": "模型运行网关",
+      "sublabel": "原生协议 · 分工绑定 · 用量",
+      "pos": [
+        1011,
+        20
+      ],
+      "size": [
+        231,
+        112
+      ]
+    },
+    {
+      "id": "direct",
+      "type": "external",
+      "label": "独立功能插件",
+      "sublabel": "群管理 · GsCore 桥接",
+      "pos": [
+        332,
+        200
+      ],
+      "size": [
+        203,
+        112
+      ]
+    },
+    {
+      "id": "memory",
+      "type": "database",
+      "label": "天枢记忆",
+      "sublabel": "人物 / 情境记忆 · 资料库",
+      "pos": [
+        616,
+        200
+      ],
+      "size": [
+        231,
+        112
+      ]
+    },
+    {
+      "id": "audit",
+      "type": "database",
+      "label": "Chat Audit Core",
+      "sublabel": "原始消息 · 可追溯证据",
+      "pos": [
+        1011,
+        200
+      ],
+      "size": [
+        231,
+        112
+      ]
+    },
+    {
+      "id": "web",
+      "type": "frontend",
+      "label": "天枢网页",
+      "sublabel": "管理工作台 · 文字陪伴 · 小屋",
+      "pos": [
+        49,
+        430
+      ],
+      "size": [
+        203,
+        112
+      ]
+    },
+    {
+      "id": "platform",
+      "type": "backend",
+      "label": "天枢平台",
+      "sublabel": "配置 · 项目 · 任务汇总 · 连接器",
+      "pos": [
+        616,
+        430
+      ],
+      "size": [
+        231,
+        112
+      ]
+    },
+    {
+      "id": "devices",
+      "type": "external",
+      "label": "设备与服务",
+      "sublabel": "HA · Docker · 节点 · 游戏服",
+      "pos": [
+        1011,
+        360
+      ],
+      "size": [
+        231,
+        112
+      ]
+    },
+    {
+      "id": "assets",
+      "type": "external",
+      "label": "资源与创作服务",
+      "sublabel": "AssetLibrary · ComfyUI · 下载器",
+      "pos": [
+        1011,
+        530
+      ],
+      "size": [
+        231,
+        112
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "ingress",
+      "from": "channels",
+      "to": "gateway",
+      "label": "平台事件 / 回复",
+      "route": "auto",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "chat-turn",
+      "from": "gateway",
+      "to": "core",
+      "label": "对话事件",
+      "variant": "emphasis",
+      "route": "auto",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "inference",
+      "from": "core",
+      "to": "models",
+      "label": "生成 / 工具意图",
+      "route": "auto",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "direct-command",
+      "from": "gateway",
+      "to": "direct",
+      "label": "明确指令",
+      "route": "auto",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        434,
+        165
+      ]
+    },
+    {
+      "id": "recall",
+      "from": "core",
+      "to": "memory",
+      "label": "最小语义召回",
+      "variant": "emphasis",
+      "route": "auto",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        732,
+        165
+      ]
+    },
+    {
+      "id": "evidence",
+      "from": "memory",
+      "to": "audit",
+      "label": "按证据引用追溯",
+      "route": "auto",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "web-api",
+      "from": "web",
+      "to": "platform",
+      "label": "同源 API / 状态订阅",
+      "route": "auto",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "capabilities",
+      "from": "core",
+      "to": "platform",
+      "label": "能力调用 / 状态回传",
+      "route": "auto",
+      "fromSide": "left",
+      "toSide": "top",
+      "labelAt": [
+        599,
+        350
+      ]
+    },
+    {
+      "id": "operations",
+      "from": "platform",
+      "to": "devices",
+      "label": "受控操作",
+      "route": "auto",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "organize",
+      "from": "platform",
+      "to": "assets",
+      "label": "任务 / 文件引用",
+      "route": "auto",
+      "fromSide": "bottom",
+      "toSide": "left"
+    }
+  ]
+}

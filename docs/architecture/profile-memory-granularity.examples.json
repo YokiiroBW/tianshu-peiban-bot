@@ -1,0 +1,154 @@
+{
+  "status": "design_examples_not_runtime_tests",
+  "date": "2026-09-13",
+  "examples_are_fictional": true,
+  "semantic_integrity_contract": {
+    "preserve_meaning_before_minimizing_size": true,
+    "storage_atom_may_differ_from_retrieval_unit": true,
+    "required_dependencies_selected_together": true,
+    "dependency_scope_and_revision_checked": true,
+    "budget_is_not_a_chunk_boundary": true,
+    "insufficient_budget_action": "omit_whole_insufficient_unit_or_use_bounded_followup; never truncate essential meaning"
+  },
+  "ordinary_chat_budget_proposal": {
+    "anchor_field_count_max": 3,
+    "profile_atom_count_max": 4,
+    "evidence_unit_count_max": 2,
+    "anchor_tokens_max": 64,
+    "profile_tokens_max": 256,
+    "evidence_tokens_max": 384,
+    "rendered_memory_tokens_max_when_tokenizer_verified": 768,
+    "rendered_memory_utf8_bytes_max": 3072,
+    "shared_across_people_and_followup_retrieval": true,
+    "zero_items_allowed": true,
+    "fill_to_limit": false
+  },
+  "sample_atoms": [
+    {
+      "id": "preference-technical-steps",
+      "subject": "fictional-person-a",
+      "kind": "preference",
+      "facet": "communication.technical_detail",
+      "statement": "技术排障时，希望看到具体步骤。",
+      "applicability": {"purpose": "technical_debugging"},
+      "visibility": "shareable_basic_profile",
+      "basis": "user_statement",
+      "revision": 1,
+      "state": "active",
+      "source_refs": ["fictional-message-101"]
+    },
+    {
+      "id": "preference-group-g-memes",
+      "subject": "fictional-person-a",
+      "kind": "preference",
+      "facet": "communication.memes",
+      "statement": "在群 G 中希望少用表情包。",
+      "applicability": {"space": "fictional-group-g"},
+      "visibility": "origin_group_only",
+      "basis": "user_statement",
+      "revision": 1,
+      "state": "active",
+      "source_refs": ["fictional-message-102"]
+    },
+    {
+      "id": "preference-image-casual",
+      "subject": "fictional-person-a",
+      "kind": "preference",
+      "facet": "creative.outfit",
+      "statement": "日常自拍中偏好休闲穿搭。",
+      "applicability": {"purpose": "daily_selfie"},
+      "visibility": "shareable_basic_profile",
+      "basis": "user_statement",
+      "revision": 1,
+      "state": "active",
+      "source_refs": ["fictional-message-103"]
+    }
+  ],
+  "selection_examples": [
+    {
+      "id": "greeting_with_sufficient_current_context",
+      "request": "早呀",
+      "assumption": "称呼和交流尺度已经在有效当前情境中",
+      "expected_profile_atom_ids": [],
+      "expected_evidence_units": [],
+      "rule": "已有足够信息，不为了填满额度而注入画像。"
+    },
+    {
+      "id": "technical_explanation_in_group_g",
+      "request": "在群 G 里帮我解释一下这个报错",
+      "expected_profile_atom_ids": [
+        "preference-technical-steps",
+        "preference-group-g-memes"
+      ],
+      "excluded_profile_atom_ids": ["preference-image-casual"],
+      "must_preserve": ["技术排障", "群 G", "少用"],
+      "rule": "主题与场景都匹配；生图偏好不进入技术回应。"
+    },
+    {
+      "id": "technical_explanation_in_private_chat",
+      "request": "私聊中解释一下这个报错",
+      "expected_profile_atom_ids": ["preference-technical-steps"],
+      "excluded_profile_atom_ids": [
+        "preference-group-g-memes",
+        "preference-image-casual"
+      ],
+      "must_preserve": ["技术排障"],
+      "rule": "群内局部偏好不自动扩展到私聊，缓存也不能跨范围复用。"
+    }
+  ],
+  "semantic_integrity_examples": [
+    {
+      "id": "default_and_exception",
+      "original": "平时回答简短些，但排查报错时我希望看到具体步骤。",
+      "question": "用户一般希望怎样交流？",
+      "required_meaning": ["默认简短", "排查报错是需要具体步骤的例外"],
+      "forbidden_interpretations": ["任何场景都只要简短回答", "任何场景都喜欢长篇回答"]
+    },
+    {
+      "id": "specific_context_projection",
+      "original": "平时回答简短些，但排查报错时我希望看到具体步骤。",
+      "question": "这次排查报错应采用什么解释方式？",
+      "sufficient_projection": "排查报错时，用户希望看到具体步骤。",
+      "rule": "明确场景下可只返回完整适用条款，不必带上与本轮无关的默认条款。"
+    },
+    {
+      "id": "conditional_plan_not_commitment",
+      "original": "如果周末有空，我想一起看电影，不过还没决定。",
+      "question": "周末看电影是否已经约定？",
+      "required_meaning": ["取决于有空", "尚未决定"],
+      "forbidden_interpretations": ["已经约定周末看电影", "已经一起看过电影"]
+    },
+    {
+      "id": "reported_opinion_not_speaker_preference",
+      "original": "小林说他不喜欢长篇解释，这不是我的偏好。",
+      "question": "说话者偏好简短解释吗？",
+      "required_meaning": ["对小林观点的转述", "不能归为当前说话者的偏好"],
+      "forbidden_interpretations": ["当前说话者不喜欢长篇解释", "小林的偏好已经由本人确认"]
+    },
+    {
+      "id": "ambiguous_reference",
+      "original": "阿远负责生图，小林负责备份。他今晚不在。",
+      "question": "今晚谁不在？",
+      "required_meaning": ["他指代不明", "需要补充上下文或询问"],
+      "forbidden_interpretations": ["仅凭名字出现顺序确定是谁不在"]
+    },
+    {
+      "id": "cause_and_time",
+      "original": "去年项目 P 暂停是因为没有空闲设备，现在已经换了设备。",
+      "question": "项目 P 去年为什么暂停？",
+      "required_meaning": ["针对去年", "原因是当时没有空闲设备"],
+      "forbidden_interpretations": ["因为用户没有兴趣", "当前仍然没有设备"]
+    }
+  ],
+  "required_negative_acceptance_cases": [
+    "A topic hit must not expand the full topic or person profile.",
+    "Do not truncate a condition or negation to make an atom fit.",
+    "Do not treat top-k as a minimum number of results.",
+    "Do not multiply the total budget by participant count.",
+    "Count already loaded blocks and second retrieval against the same turn budget.",
+    "Return an explicit insufficient-evidence status when necessary units do not fit.",
+    "Filter visibility and validate revision before using any cached projection.",
+    "Do not use a fragment as complete evidence when its necessary dependency is unavailable.",
+    "Do not turn a reported opinion, uncertain reference or conditional plan into a confirmed personal fact."
+  ]
+}

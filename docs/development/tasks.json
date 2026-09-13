@@ -1,0 +1,326 @@
+{
+  "schema_version": 1,
+  "status_note": "allocated 表示工作目录已分配，并不表示工作者正在编码；只有集成人能标 done",
+  "tasks": [
+    {
+      "id": "TS-000",
+      "title": "工作区、来源与并行流程",
+      "project": "workspace",
+      "depends_on": [],
+      "status": "done",
+      "allowed_paths": [
+        "README.md",
+        "AGENTS.md",
+        "scripts/",
+        "tests/workspace/",
+        "docs/development/",
+        "workspace.json",
+        "contracts/README.md"
+      ],
+      "done_when": "工作区与隔离工具检查通过；源项目无变更",
+      "assignee": null,
+      "worktree": null,
+      "branch": null,
+      "evidence": [
+        "7 workspace utility unit tests passed",
+        "18 independent repositories verified; application tests not run"
+      ],
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人"
+    },
+    {
+      "id": "TS-001",
+      "title": "首批跨产品契约",
+      "project": "workspace",
+      "depends_on": [
+        "TS-000"
+      ],
+      "status": "ready",
+      "allowed_paths": [
+        "contracts/",
+        "docs/development/decisions/"
+      ],
+      "done_when": "发布文字陪伴最小合同、双向实例与兼容说明；生产者消费者确认",
+      "assignee": null,
+      "worktree": null,
+      "branch": null,
+      "evidence": [],
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人"
+    },
+    {
+      "id": "TS-010",
+      "title": "平台脚手架与统一视觉令牌",
+      "project": "platform",
+      "depends_on": [
+        "TS-000"
+      ],
+      "status": "ready",
+      "allowed_paths": [
+        "apps/web/",
+        "services/",
+        "AGENTS.md",
+        "README.md",
+        "docs/"
+      ],
+      "done_when": "建立实际安装/检查命令、界面壳、独一令牌与模块挂载规则；无业务完成假象",
+      "assignee": null,
+      "worktree": null,
+      "branch": null,
+      "evidence": [],
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人"
+    },
+    {
+      "id": "TS-040",
+      "title": "模型协议与旧网关复用验证",
+      "project": "model-gateway",
+      "depends_on": [
+        "TS-000"
+      ],
+      "status": "ready",
+      "allowed_paths": [
+        "docs/",
+        "tests/",
+        "AGENTS.md",
+        "README.md"
+      ],
+      "done_when": "核对原生协议/配置字段，形成旧代码取舍和保真夹具；实际数据入口依赖 TS-001",
+      "assignee": null,
+      "worktree": null,
+      "branch": null,
+      "evidence": [],
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人"
+    },
+    {
+      "id": "TS-020",
+      "title": "陪伴与 NoneBot 基础",
+      "project": "companion",
+      "depends_on": [
+        "TS-001"
+      ],
+      "status": "planned",
+      "allowed_paths": [
+        "src/",
+        "integrations/nonebot/",
+        "tests/",
+        "docs/",
+        "AGENTS.md",
+        "README.md"
+      ],
+      "done_when": "C1/C2：可靠收件、防抖、双轮调度、有序发送；遵循已发布契约",
+      "assignee": null,
+      "worktree": null,
+      "branch": null,
+      "evidence": [],
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人"
+    },
+    {
+      "id": "TS-030",
+      "title": "人物与最小记忆基础",
+      "project": "memory",
+      "depends_on": [
+        "TS-001"
+      ],
+      "status": "planned",
+      "allowed_paths": [
+        "src/",
+        "tests/",
+        "docs/",
+        "AGENTS.md",
+        "README.md"
+      ],
+      "done_when": "M1/M2：身份、语义单元、范围和修订版本；替身与真实检索分开",
+      "assignee": null,
+      "worktree": null,
+      "branch": null,
+      "evidence": [],
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人"
+    },
+    {
+      "id": "TS-041",
+      "title": "模型网关数据入口",
+      "project": "model-gateway",
+      "depends_on": [
+        "TS-001",
+        "TS-040"
+      ],
+      "status": "planned",
+      "allowed_paths": [
+        "src/",
+        "tests/",
+        "docs/",
+        "AGENTS.md",
+        "README.md"
+      ],
+      "done_when": "原生请求转发、配置版本、超时与未知结果；不静默改写模型字段",
+      "assignee": null,
+      "worktree": null,
+      "branch": null,
+      "evidence": [],
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人"
+    },
+    {
+      "id": "TS-011",
+      "title": "动态小屋最小样片",
+      "project": "platform",
+      "depends_on": [
+        "TS-010"
+      ],
+      "status": "planned",
+      "allowed_paths": [
+        "apps/web/src/features/room/",
+        "apps/web/public/assets/room/",
+        "docs/room/"
+      ],
+      "done_when": "日光、双灯、窗/双层帘、风摆与减少动态；共享入口和依赖锁交集成人",
+      "assignee": null,
+      "worktree": null,
+      "branch": null,
+      "evidence": [],
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人"
+    },
+    {
+      "id": "TS-012",
+      "title": "能力与任务连接器基础",
+      "project": "platform",
+      "depends_on": [
+        "TS-001",
+        "TS-010"
+      ],
+      "status": "planned",
+      "allowed_paths": [
+        "services/platform/connectors/",
+        "services/platform/capabilities/",
+        "services/platform/jobs/",
+        "tests/"
+      ],
+      "done_when": "统一命令/真实回执/任务投影，先替身后单设备测试；不操作生产",
+      "assignee": null,
+      "worktree": null,
+      "branch": null,
+      "evidence": [],
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人"
+    },
+    {
+      "id": "TS-050",
+      "title": "本地文字链联合验收",
+      "project": "workspace",
+      "depends_on": [
+        "TS-020",
+        "TS-030",
+        "TS-041",
+        "TS-010"
+      ],
+      "status": "planned",
+      "allowed_paths": [
+        "tests/integration/",
+        "docs/development/evidence/",
+        "scripts/integration/"
+      ],
+      "done_when": "真实本地服务组合+确定性渠道/模型替身，通过负面和恢复场景",
+      "assignee": null,
+      "worktree": null,
+      "branch": null,
+      "evidence": [],
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人"
+    },
+    {
+      "id": "TS-051",
+      "title": "测试账号与真实模型贯通",
+      "project": "workspace",
+      "depends_on": [
+        "TS-050"
+      ],
+      "status": "planned",
+      "allowed_paths": [
+        "tests/integration/",
+        "docs/development/evidence/"
+      ],
+      "done_when": "测试账号和线路已授权/配置后验证实际渠道回执、真实上游和归档；不取代生产",
+      "assignee": null,
+      "worktree": null,
+      "branch": null,
+      "evidence": [],
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人"
+    },
+    {
+      "id": "TS-060",
+      "title": "资产集成合同与沙箱验证",
+      "project": "assetlibrary",
+      "depends_on": [
+        "TS-012"
+      ],
+      "status": "planned",
+      "allowed_paths": [
+        "按 AssetLibrary 任务包批准的接口/测试范围"
+      ],
+      "done_when": "只读发现、计划、唯一发布者；原项目内部门禁继续适用",
+      "assignee": null,
+      "worktree": null,
+      "branch": null,
+      "evidence": [],
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人"
+    },
+    {
+      "id": "TS-061",
+      "title": "归档证据范围接口",
+      "project": "chat-audit",
+      "depends_on": [
+        "TS-001"
+      ],
+      "status": "planned",
+      "allowed_paths": [
+        "app/",
+        "collector/",
+        "tests/",
+        "docs/"
+      ],
+      "done_when": "范围限制的证据读取、归档回执与重复事件；不更改当前生产数据",
+      "assignee": null,
+      "worktree": null,
+      "branch": null,
+      "evidence": [],
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人"
+    },
+    {
+      "id": "TS-070",
+      "title": "多角色生活与写作贯通",
+      "project": "companion",
+      "depends_on": [
+        "TS-050",
+        "TS-011"
+      ],
+      "status": "planned",
+      "allowed_paths": [
+        "src/",
+        "tests/",
+        "docs/"
+      ],
+      "done_when": "C3/C4 与 CM2：共享世界、各自获知、状态/日记/自拍相容",
+      "assignee": null,
+      "worktree": null,
+      "branch": null,
+      "evidence": [],
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人"
+    },
+    {
+      "id": "TS-080",
+      "title": "研究与项目记忆适配",
+      "project": "memory",
+      "depends_on": [
+        "TS-050"
+      ],
+      "status": "planned",
+      "allowed_paths": [
+        "src/",
+        "integrations/",
+        "tests/",
+        "docs/"
+      ],
+      "done_when": "M3：资料来源/版本/完整片段、MCP/Hermes 显式写回和短恢复包",
+      "assignee": null,
+      "worktree": null,
+      "branch": null,
+      "evidence": [],
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人"
+    }
+  ]
+}

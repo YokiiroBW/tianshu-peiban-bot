@@ -1,0 +1,251 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-14",
+  "phase": "parallel_ready",
+  "coordination": {
+    "id": "workspace",
+    "path": ".",
+    "branch": "main"
+  },
+  "parallel_workers": 3,
+  "projects": [
+    {
+      "id": "platform",
+      "path": "projects/tianshu-platform",
+      "name": "天枢平台",
+      "kind": "new",
+      "role": "网页、API、设备连接器与任务投影",
+      "source_refs": [
+        "legacy-control",
+        "legacy-console",
+        "legacy-workspace"
+      ],
+      "verification_sources": [
+        "AGENTS.md"
+      ],
+      "commands_status": "application_commands_not_created",
+      "baseline_commit": "ab7dfd6fc95a26813cb9244814584adff66d2110",
+      "state": "prepared_skeleton"
+    },
+    {
+      "id": "companion",
+      "path": "projects/tianshu-companion",
+      "name": "陪伴核心",
+      "kind": "new",
+      "role": "对话、角色生活、世界状态及 NoneBot 薄桥",
+      "source_refs": [
+        "together-companion",
+        "reality-companion"
+      ],
+      "verification_sources": [
+        "AGENTS.md"
+      ],
+      "commands_status": "application_commands_not_created",
+      "baseline_commit": "fc1eeda314e23b67a91f793bedd54b3c9e930d9c",
+      "state": "prepared_skeleton"
+    },
+    {
+      "id": "memory",
+      "path": "projects/tianshu-memory",
+      "name": "天枢记忆",
+      "kind": "new",
+      "role": "人物、记忆、资料库与项目检索适配",
+      "source_refs": [
+        "legacy-memory"
+      ],
+      "verification_sources": [
+        "AGENTS.md"
+      ],
+      "commands_status": "application_commands_not_created",
+      "baseline_commit": "f02fbec1e61a99491cf92ba817595c8d9c4402fd",
+      "state": "prepared_skeleton"
+    },
+    {
+      "id": "model-gateway",
+      "path": "projects/tianshu-model-gateway",
+      "name": "模型运行网关",
+      "kind": "new",
+      "role": "原生协议、请求转发、线路与用量",
+      "source_refs": [
+        "legacy-routing"
+      ],
+      "verification_sources": [
+        "AGENTS.md"
+      ],
+      "commands_status": "application_commands_not_created",
+      "baseline_commit": "4d107a4f6c3a3059a8e0927495c721b77d3e7f52",
+      "state": "prepared_skeleton"
+    },
+    {
+      "id": "assetlibrary",
+      "path": "projects/assetlibrary",
+      "name": "AssetLibrary",
+      "kind": "local_clone",
+      "source": "C:/YOKI/Codex/AssetLibrary",
+      "source_ref": "99e79f2f5a6d3b84ff2faaa9640752569796eb69",
+      "role": "受管文件、元数据与归档唯一执行者",
+      "verification_sources": [
+        "AGENTS.md",
+        "tests/architecture/ci-tiers.json",
+        "eng/README.md"
+      ],
+      "commands_status": "existing_not_run",
+      "baseline_commit": "99e79f2f5a6d3b84ff2faaa9640752569796eb69",
+      "state": "prepared_clone"
+    },
+    {
+      "id": "chat-audit",
+      "path": "projects/chat-audit-core",
+      "name": "Chat Audit Core",
+      "kind": "local_clone",
+      "source": "C:/YOKI/Codex/chat-audit-core",
+      "source_ref": "4d750ad8683e121328fbc2a1ebcf6ed0e64697bf",
+      "role": "原始聊天归档和证据查询",
+      "verification_sources": [
+        "pyproject.toml",
+        ".forgejo/workflows"
+      ],
+      "commands_status": "existing_not_run",
+      "baseline_commit": "4d750ad8683e121328fbc2a1ebcf6ed0e64697bf",
+      "state": "prepared_clone"
+    }
+  ],
+  "references": [
+    {
+      "id": "legacy-control",
+      "path": "references/legacy-control",
+      "kind": "local_clone",
+      "source": "C:/YOKI/Codex/Tianshu/tianshu-control",
+      "source_ref": "05d503a118d3ba187f3ebd444df019bf73bb90f0",
+      "usage": "read_only_reference_not_runtime",
+      "baseline_commit": "05d503a118d3ba187f3ebd444df019bf73bb90f0",
+      "state": "prepared_clone"
+    },
+    {
+      "id": "legacy-console",
+      "path": "references/legacy-console",
+      "kind": "local_clone",
+      "source": "C:/YOKI/Codex/Tianshu/tianshu-console",
+      "source_ref": "79104702f6d502fdfcf0ec9b2e2466bae1689416",
+      "usage": "read_only_reference_not_runtime",
+      "baseline_commit": "79104702f6d502fdfcf0ec9b2e2466bae1689416",
+      "state": "prepared_clone"
+    },
+    {
+      "id": "legacy-workspace",
+      "path": "references/legacy-workspace",
+      "kind": "local_clone",
+      "source": "C:/YOKI/Codex/Tianshu/tianshu-platform-workspace",
+      "source_ref": "67638937ab900f81e7e816563d3113001fdb78f4",
+      "usage": "read_only_reference_not_runtime",
+      "baseline_commit": "67638937ab900f81e7e816563d3113001fdb78f4",
+      "state": "prepared_clone"
+    },
+    {
+      "id": "legacy-memory",
+      "path": "references/legacy-memory",
+      "kind": "local_clone",
+      "source": "C:/YOKI/Codex/Tianshu-AI-Core",
+      "source_ref": "67cd9ae3d9b88ddcc314cfea940fac1938ac0f2d",
+      "usage": "read_only_reference_not_runtime",
+      "baseline_commit": "67cd9ae3d9b88ddcc314cfea940fac1938ac0f2d",
+      "state": "prepared_clone"
+    },
+    {
+      "id": "legacy-routing",
+      "path": "references/legacy-routing",
+      "kind": "remote_clone",
+      "source": "https://forgejo.yokiirobw.top/YokiiroBW/ai-routing-gateway.git",
+      "source_ref": "f73569edd14f7a92e7b8417344004b499f52554f",
+      "usage": "read_only_reference_not_runtime",
+      "baseline_commit": "f73569edd14f7a92e7b8417344004b499f52554f",
+      "state": "prepared_clone"
+    },
+    {
+      "id": "astrbot-plugins",
+      "path": "references/astrbot-plugins",
+      "kind": "remote_clone",
+      "source": "https://forgejo.yokiirobw.top/YokiiroBW/astrbot-plugins.git",
+      "source_ref": "HEAD",
+      "usage": "read_only_reference_not_runtime",
+      "baseline_commit": "c5483960d8706e8c717d1e15083f885eee063b2f",
+      "state": "prepared_clone"
+    },
+    {
+      "id": "astrbot_plugin_jmdowloads",
+      "path": "references/astrbot_plugin_jmdowloads",
+      "kind": "remote_clone",
+      "source": "https://forgejo.yokiirobw.top/YokiiroBW/astrbot_plugin_jmdowloads.git",
+      "source_ref": "HEAD",
+      "usage": "read_only_reference_not_runtime",
+      "baseline_commit": "bae1381480f55e0cf07f363e24b6ab455612259a",
+      "state": "prepared_clone"
+    },
+    {
+      "id": "astrbot_plugin_nas_ops",
+      "path": "references/astrbot_plugin_nas_ops",
+      "kind": "remote_clone",
+      "source": "https://forgejo.yokiirobw.top/YokiiroBW/astrbot_plugin_nas_ops.git",
+      "source_ref": "HEAD",
+      "usage": "read_only_reference_not_runtime",
+      "baseline_commit": "4bd39eea3ca616a959726edd67f024d1198761f0",
+      "state": "prepared_clone"
+    },
+    {
+      "id": "astrbot_plugin_dev_handoff",
+      "path": "references/astrbot_plugin_dev_handoff",
+      "kind": "remote_clone",
+      "source": "https://forgejo.yokiirobw.top/YokiiroBW/astrbot_plugin_dev_handoff.git",
+      "source_ref": "HEAD",
+      "usage": "read_only_reference_not_runtime",
+      "baseline_commit": "7c4910fb71a6cbb210e1229b807c645b57b5ac93",
+      "state": "prepared_clone"
+    },
+    {
+      "id": "astrbot_plugin_moviepilot",
+      "path": "references/astrbot_plugin_moviepilot",
+      "kind": "remote_clone",
+      "source": "https://forgejo.yokiirobw.top/YokiiroBW/astrbot_plugin_moviepilot.git",
+      "source_ref": "HEAD",
+      "usage": "read_only_reference_not_runtime",
+      "baseline_commit": "890e0dbc45cfdbab8d273f8d4087546a4ffb62b1",
+      "state": "prepared_clone"
+    },
+    {
+      "id": "together-companion",
+      "path": "references/together-companion",
+      "kind": "remote_clone",
+      "source": "https://github.com/menglimi/astrbot_plugin_together_companion.git",
+      "source_ref": "HEAD",
+      "usage": "read_only_reference_not_runtime",
+      "baseline_commit": "4777326cb3b126d8e2d112208e7ebf6e72f09851",
+      "state": "prepared_clone"
+    },
+    {
+      "id": "reality-companion",
+      "path": "references/reality-companion",
+      "kind": "remote_clone",
+      "source": "https://github.com/menglimi/astrbot_plugin_reality_companion.git",
+      "source_ref": "HEAD",
+      "usage": "read_only_reference_not_runtime",
+      "baseline_commit": "bea9735c500887e640fd9147e221d37f2e0b725c",
+      "state": "prepared_clone"
+    }
+  ],
+  "external_services": [
+    "NapCat / OneBot11",
+    "Telegram",
+    "Home Assistant",
+    "ComfyUI / Anima / 模型权重",
+    "GsCore",
+    "RSSHub",
+    "Komga / Suwayomi",
+    "游戏服务器"
+  ],
+  "unresolved_sources": [
+    "独立移动陪伴客户端源码",
+    "具体 reader / 阅读源项目",
+    "dev_handoff controller"
+  ],
+  "source_policy": "独立检出已提交代码，未提交变更单独保存在 references/overlays；不搬动原目录，不复制忽略的运行数据。"
+}

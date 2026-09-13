@@ -1,0 +1,442 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "陪伴核心 · 内部模块如何协作（设计稿）",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1390,
+      810
+    ],
+    "views": [
+      {
+        "id": "turn-loop",
+        "label": "即时对话链",
+        "focus": [
+          "event-inbox",
+          "turn-owner",
+          "context-builder",
+          "response-engine",
+          "outbox"
+        ],
+        "note": "本轮编排器安排回应角色、读取情境并组织表达；投递模块负责实际送达。"
+      },
+      {
+        "id": "living-loop",
+        "label": "角色生活链",
+        "focus": [
+          "life-engine",
+          "actor-state",
+          "creation-recipes",
+          "action-router",
+          "external-capabilities",
+          "turn-owner"
+        ],
+        "note": "作息和目标推进当前状态；衣橱、日记与兴趣任务有专用配方，需要分享才产生主动候选。"
+      },
+      {
+        "id": "memory-loop",
+        "label": "认识与成长链",
+        "focus": [
+          "context-builder",
+          "actor-state",
+          "memory-api",
+          "consolidation",
+          "outbox"
+        ],
+        "note": "读取按人物与场景过滤；输入、真实动作结果和发送回执进入后台整理，形成可追溯的经历。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "event-inbox",
+      "type": "messagebus",
+      "label": "事件入口与收件箱",
+      "sublabel": "消息 / 客户端动作 / 任务回报",
+      "tag": "去重 · 定位 · 保存",
+      "pos": [
+        30,
+        265
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "turn-owner",
+      "type": "backend",
+      "label": "本轮编排器",
+      "sublabel": "回应判断 · 角色仲裁 · 轮次推进",
+      "tag": "会话顺序 / 过时任务处理",
+      "pos": [
+        365,
+        265
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "response-engine",
+      "type": "backend",
+      "label": "回应生成与核对",
+      "sublabel": "意图 · 人格表达 · 事实与隐私",
+      "tag": "调用模型网关 / 有界修订",
+      "pos": [
+        700,
+        265
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "outbox",
+      "type": "messagebus",
+      "label": "投递与回执",
+      "sublabel": "分段文本 / 图片 / 语音 / 客户端",
+      "tag": "发送状态可恢复",
+      "pos": [
+        1035,
+        265
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "life-engine",
+      "type": "backend",
+      "label": "生活与主动联系",
+      "sublabel": "作息 · 目标 · 兴趣 · 跟进时机",
+      "tag": "有时钟 / 有冷却 / 可沉默",
+      "pos": [
+        30,
+        40
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "actor-state",
+      "type": "database",
+      "label": "角色当前状态",
+      "sublabel": "人格 · 心情 · 活动 · 穿搭",
+      "tag": "每角色独立 / 可版本化",
+      "pos": [
+        365,
+        40
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "context-builder",
+      "type": "backend",
+      "label": "本轮情境装配",
+      "sublabel": "话题窗口 + 此刻状态 + 关系记忆",
+      "tag": "先筛范围 / 再控预算",
+      "pos": [
+        700,
+        40
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "memory-api",
+      "type": "external",
+      "label": "天枢记忆接口",
+      "sublabel": "人物 · 关系 · 经历 · 世界所知",
+      "tag": "核心外部 / 原文可追溯",
+      "pos": [
+        1035,
+        40
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "creation-recipes",
+      "type": "backend",
+      "label": "日记与衣橱配方",
+      "sublabel": "素材 → 提纲 / 选装 → 成品检查",
+      "tag": "作品与现实经历分开",
+      "pos": [
+        30,
+        490
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "consolidation",
+      "type": "backend",
+      "label": "事件记录与后台整理",
+      "sublabel": "输入 · 动作结果 · 送达 → 整理",
+      "tag": "纠正优先 / 归纳异步",
+      "pos": [
+        1035,
+        490
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "action-router",
+      "type": "backend",
+      "label": "能力与任务编排",
+      "sublabel": "参数 · 能力范围 · 长任务续接",
+      "tag": "模型提出 / 程序执行",
+      "pos": [
+        700,
+        490
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "external-capabilities",
+      "type": "external",
+      "label": "外部执行后端",
+      "sublabel": "ComfyUI / 天枢平台 / 功能桥",
+      "tag": "生图 · 搜索 · 设备 · 资料",
+      "pos": [
+        700,
+        710
+      ],
+      "size": [
+        245,
+        84
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "inbox-turn",
+      "from": "event-inbox",
+      "to": "turn-owner",
+      "label": "有效事件",
+      "variant": "emphasis",
+      "labelAt": [
+        302,
+        349
+      ]
+    },
+    {
+      "id": "turn-response",
+      "from": "turn-owner",
+      "to": "response-engine",
+      "label": "本轮目标",
+      "variant": "emphasis"
+    },
+    {
+      "id": "response-outbox",
+      "from": "response-engine",
+      "to": "outbox",
+      "label": "通过核对",
+      "variant": "emphasis"
+    },
+    {
+      "id": "turn-context",
+      "from": "turn-owner",
+      "to": "context-builder",
+      "label": "请求情境",
+      "fromSide": "top",
+      "toSide": "left",
+      "via": [
+        [
+          487.5,
+          195
+        ],
+        [
+          655,
+          195
+        ],
+        [
+          655,
+          82
+        ]
+      ]
+    },
+    {
+      "id": "context-response",
+      "from": "context-builder",
+      "to": "response-engine",
+      "label": "有限上下文",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        822.5,
+        192
+      ]
+    },
+    {
+      "id": "context-state",
+      "from": "context-builder",
+      "to": "actor-state",
+      "label": "读取快照"
+    },
+    {
+      "id": "context-memory",
+      "from": "context-builder",
+      "to": "memory-api",
+      "label": "按受众召回"
+    },
+    {
+      "id": "life-state",
+      "from": "life-engine",
+      "to": "actor-state",
+      "label": "推进状态",
+      "variant": "dashed"
+    },
+    {
+      "id": "life-turn",
+      "from": "life-engine",
+      "to": "turn-owner",
+      "label": "主动候选",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "left",
+      "via": [
+        [
+          152.5,
+          195
+        ],
+        [
+          330,
+          195
+        ],
+        [
+          330,
+          307
+        ]
+      ]
+    },
+    {
+      "id": "life-create",
+      "from": "life-engine",
+      "to": "creation-recipes",
+      "label": "安排创作",
+      "fromSide": "left",
+      "toSide": "left",
+      "via": [
+        [
+          8,
+          82
+        ],
+        [
+          8,
+          532
+        ]
+      ],
+      "labelAt": [
+        45,
+        430
+      ]
+    },
+    {
+      "id": "create-action",
+      "from": "creation-recipes",
+      "to": "action-router",
+      "label": "写作 / 自拍任务"
+    },
+    {
+      "id": "response-action",
+      "from": "response-engine",
+      "to": "action-router",
+      "label": "能力请求",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        822.5,
+        425
+      ]
+    },
+    {
+      "id": "action-external",
+      "from": "action-router",
+      "to": "external-capabilities",
+      "label": "执行与结果",
+      "labelAt": [
+        822.5,
+        640
+      ]
+    },
+    {
+      "id": "outbox-record",
+      "from": "outbox",
+      "to": "consolidation",
+      "label": "回执事件",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        1157.5,
+        425
+      ]
+    },
+    {
+      "id": "record-memory",
+      "from": "consolidation",
+      "to": "memory-api",
+      "label": "有来源回写",
+      "variant": "dashed",
+      "fromSide": "right",
+      "toSide": "right",
+      "via": [
+        [
+          1335,
+          532
+        ],
+        [
+          1335,
+          82
+        ]
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "这是模块图，不是微服务清单",
+      "items": [
+        "核心可先是一个程序加必要 worker。模型调用在表达或配方内发生，不是每个框各调用一次。"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "共享世界，各有视角",
+      "items": [
+        "长期关系与世界所知由天枢记忆维护；当前状态只保留核心负责的运行快照，不复制第二套长期记忆。"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "回报与界面共用真实状态",
+      "items": [
+        "任务结果回到事件入口，界面读活动与作品状态；图中回执线代表后台记录，获准输入也持续进入观察日志。"
+      ]
+    }
+  ]
+}

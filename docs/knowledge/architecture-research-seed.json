@@ -1,0 +1,1889 @@
+{
+  "schema_version": 1,
+  "status": "local_seed_catalog_not_online_ingestion",
+  "created_on": "2026-09-13",
+  "collection": {
+    "id": "tianshu-architecture-research-seed",
+    "name": "天枢架构研究资料",
+    "scope": "project_private",
+    "workspace_label": "tianshu-peiban-bot",
+    "registered_backend_project_id": null
+  },
+  "provenance": {
+    "input_ledger": "tmp/research/complete-product-source-ledger.json",
+    "input_sha256": "6e08fc8665a60ae0abd02d1b13ff04cb9d1c93ce29ab248c43536f6b44959f66",
+    "prior_citation_group_count": 49,
+    "unique_source_locator_count": 54,
+    "network_fetches_in_this_conversion": 0
+  },
+  "topics": [
+    {
+      "id": "archive",
+      "name": "聊天档案与来源"
+    },
+    {
+      "id": "companion",
+      "name": "陪伴、情绪与角色生活"
+    },
+    {
+      "id": "memory",
+      "name": "记忆引擎与检索评测"
+    },
+    {
+      "id": "writing",
+      "name": "日记、故事与一致性"
+    },
+    {
+      "id": "interface",
+      "name": "小屋界面与资料资产"
+    },
+    {
+      "id": "images",
+      "name": "ComfyUI 与图像生成"
+    },
+    {
+      "id": "content",
+      "name": "游戏功能、订阅与下载"
+    },
+    {
+      "id": "homelab",
+      "name": "家庭设备、网络与健康"
+    },
+    {
+      "id": "projects",
+      "name": "项目与开发交接"
+    },
+    {
+      "id": "models",
+      "name": "模型网关与协议"
+    }
+  ],
+  "sources": [
+    {
+      "source_id": "source-bfbf08daed0f9be6",
+      "catalog_label": "Chat Audit Core，README，本地当前检出，读取 2026-09-12",
+      "locator": "C:/YOKI/Codex/chat-audit-core/README.md",
+      "locator_kind": "local_file_reference",
+      "topic_ids": [
+        "archive"
+      ],
+      "citation_group_ids": [
+        "1"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "2. 人物档案、关系与群聊认知",
+        "6. 原始档案、短期情境与整理记忆"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private",
+      "local_locator_exists_at_catalog_creation": true
+    },
+    {
+      "source_id": "source-2a0b40df00c43c7d",
+      "catalog_label": "Kim 等，FANToM，EMNLP 2023",
+      "locator": "https://aclanthology.org/2023.emnlp-main.890/",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "companion"
+      ],
+      "citation_group_ids": [
+        "2"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "3. 记得同一个人，同时守住私聊边界"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-376f3490eb0c6571",
+      "catalog_label": "Park 等，Generative Agents，UIST 2023，arXiv v2",
+      "locator": "https://arxiv.org/html/2304.03442v2",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "companion"
+      ],
+      "citation_group_ids": [
+        "3"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "4. 陪伴引擎与角色生活"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-cff74dbb9bc676b4",
+      "catalog_label": "Marsella、Gratch，EMA，Cognitive Systems Research，2009",
+      "locator": "https://www.sciencedirect.com/science/article/pii/S1389041708000314",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "companion"
+      ],
+      "citation_group_ids": [
+        "4"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "4. 陪伴引擎与角色生活"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-f5a3b83aec0dd7b7",
+      "catalog_label": "MaiBot，固定提交 4213d8c 的回复必要性；HDSI 可见 fork，固定 0c9c9b5 的架构 · MaiBot",
+      "locator": "https://github.com/Mai-with-u/MaiBot/blob/4213d8c5dddc9fd21e4ce69939894525c607bb2b/src/maisaka/reply_necessity.py",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "companion"
+      ],
+      "citation_group_ids": [
+        "5"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "4. 陪伴引擎与角色生活"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-ed9612ff51ebc0f2",
+      "catalog_label": "MaiBot，固定提交 4213d8c 的回复必要性；HDSI 可见 fork，固定 0c9c9b5 的架构 · HDSI",
+      "locator": "https://github.com/YesWeAreBot/HDSI-AthenaBrain/blob/0c9c9b5a31a95bd14e521c8d8e61e465775eaa27/docs/ARCHITECTURE.md",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "companion"
+      ],
+      "citation_group_ids": [
+        "5"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "4. 陪伴引擎与角色生活"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-444f7ed31ad50843",
+      "catalog_label": "PixiJS 8.x Introduction；Phaser Game，官方在线文档 · PixiJS",
+      "locator": "https://pixijs.com/8.x/guides/getting-started/intro",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "interface"
+      ],
+      "citation_group_ids": [
+        "6"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "5. 2.5D 小屋与多端体验"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-ff6e67c587d00d26",
+      "catalog_label": "PixiJS 8.x Introduction；Phaser Game，官方在线文档 · Phaser",
+      "locator": "https://docs.phaser.io/phaser/concepts/game",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "interface"
+      ],
+      "citation_group_ids": [
+        "6"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "5. 2.5D 小屋与多端体验"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-f87705aaa26280fb",
+      "catalog_label": "menglimi，Together Companion，源码树 4777326cb3b126d8e2d112208e7ebf6e72f09851",
+      "locator": "https://github.com/menglimi/astrbot_plugin_together_companion",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "companion"
+      ],
+      "citation_group_ids": [
+        "7"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "5. 2.5D 小屋与多端体验"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-ef22b5688a711e94",
+      "catalog_label": "menglimi，Reality Companion，源码树 bea9735c500887e640fd9147e221d37f2e0b725c",
+      "locator": "https://github.com/menglimi/astrbot_plugin_reality_companion",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "companion"
+      ],
+      "citation_group_ids": [
+        "8"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "5. 2.5D 小屋与多端体验"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-ddab43a255cc404f",
+      "catalog_label": "Chat Audit Core，查询、原消息邻域及外部摄取 API，本地源码",
+      "locator": "C:/YOKI/Codex/chat-audit-core/app/api.py",
+      "locator_kind": "local_file_reference",
+      "topic_ids": [
+        "archive"
+      ],
+      "citation_group_ids": [
+        "9"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "6. 原始档案、短期情境与整理记忆"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private",
+      "local_locator_exists_at_catalog_creation": true
+    },
+    {
+      "source_id": "source-5cb3ecfdb47dd0df",
+      "catalog_label": "Chat Audit Core，灾难恢复与备份演练指南，本地当前检出",
+      "locator": "C:/YOKI/Codex/chat-audit-core/DISASTER_RECOVERY.md",
+      "locator_kind": "local_file_reference",
+      "topic_ids": [
+        "archive"
+      ],
+      "citation_group_ids": [
+        "10"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "6. 原始档案、短期情境与整理记忆"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private",
+      "local_locator_exists_at_catalog_creation": true
+    },
+    {
+      "source_id": "source-ef1d62b18b98cdd0",
+      "catalog_label": "Vectorize，Hindsight，当前 README；性能宣传不作为本方案实测证据",
+      "locator": "https://github.com/vectorize-io/hindsight",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "memory"
+      ],
+      "citation_group_ids": [
+        "11"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "7. 记忆引擎比较与选择"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-c1958731fdb78e2d",
+      "catalog_label": "EverMind-AI，EverOS，当前 README；EverMemOS 链接现重定向至此",
+      "locator": "https://github.com/EverMind-AI/EverOS",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "memory"
+      ],
+      "citation_group_ids": [
+        "12"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "7. 记忆引擎比较与选择"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-ec7c36c51fe70025",
+      "catalog_label": "Zep，Graphiti，当前 README",
+      "locator": "https://github.com/getzep/graphiti",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "memory"
+      ],
+      "citation_group_ids": [
+        "13"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "7. 记忆引擎比较与选择"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-7d8bb2e98eb1cf17",
+      "catalog_label": "Wu 等，LongMemEval，ICLR 2025",
+      "locator": "https://arxiv.org/abs/2410.10813",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "memory"
+      ],
+      "citation_group_ids": [
+        "14"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "7. 记忆引擎比较与选择"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-3fe1e118d644751c",
+      "catalog_label": "Yang 等，Re3，EMNLP 2022",
+      "locator": "https://aclanthology.org/2022.emnlp-main.296/",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "writing"
+      ],
+      "citation_group_ids": [
+        "15"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "8. 日记与创作的内置写作流程"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-1b5aeb712e8cb8a9",
+      "catalog_label": "Yang 等，DOC，ACL 2023",
+      "locator": "https://aclanthology.org/2023.acl-long.190/",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "writing"
+      ],
+      "citation_group_ids": [
+        "16"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "8. 日记与创作的内置写作流程"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-8524c0fb2fcbc573",
+      "catalog_label": "Wang 等，Generating Long-form Story Using Dynamic Hierarchical Outlining with Memory-Enhancement，NAACL 2025",
+      "locator": "https://aclanthology.org/2025.naacl-long.63/",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "writing"
+      ],
+      "citation_group_ids": [
+        "17"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "8. 日记与创作的内置写作流程"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-7c7807489dbdaa78",
+      "catalog_label": "Li 等，Lost in Stories: Consistency Bugs in Long Story Generation by LLMs，Findings of ACL 2026",
+      "locator": "https://aclanthology.org/2026.findings-acl.410/",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "writing"
+      ],
+      "citation_group_ids": [
+        "18"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "8. 日记与创作的内置写作流程"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-9958d27681f58507",
+      "catalog_label": "本地 PC_SELFIE API 图，读取 2026-09-12",
+      "locator": "C:/YOKI/Codex/Comfyui/workflows/PC_SELFIE+文本1+图片0.json",
+      "locator_kind": "local_file_reference",
+      "topic_ids": [
+        "images"
+      ],
+      "citation_group_ids": [
+        "19"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "10. 本地 Anima 工作流的实际接入"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private",
+      "local_locator_exists_at_catalog_creation": true
+    },
+    {
+      "source_id": "source-fe65897803012a4a",
+      "catalog_label": "本地澄汐 API 图，读取 2026-09-12",
+      "locator": "C:/YOKI/Codex/Comfyui/workflows/澄汐+文本1+图片0.json",
+      "locator_kind": "local_file_reference",
+      "topic_ids": [
+        "images"
+      ],
+      "citation_group_ids": [
+        "20"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "10. 本地 Anima 工作流的实际接入"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private",
+      "local_locator_exists_at_catalog_creation": true
+    },
+    {
+      "source_id": "source-04cf71c8684f4920",
+      "catalog_label": "本地 AstrBot Prompt Router，动态提示分流实现",
+      "locator": "C:/YOKI/Codex/Comfyui/astrbot_bridge_node/__init__.py",
+      "locator_kind": "local_file_reference",
+      "topic_ids": [
+        "images"
+      ],
+      "citation_group_ids": [
+        "21"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "10. 本地 Anima 工作流的实际接入"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private",
+      "local_locator_exists_at_catalog_creation": true
+    },
+    {
+      "source_id": "source-9674467980472b2c",
+      "catalog_label": "ComfyUI，Server Routes，官方文档",
+      "locator": "https://docs.comfy.org/development/comfyui-server/comms_routes",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "images"
+      ],
+      "citation_group_ids": [
+        "22"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "10. 本地 Anima 工作流的实际接入"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-121b461632ab395e",
+      "catalog_label": "OpenAI，Image generation，官方文档，访问 2026-09-12",
+      "locator": "https://developers.openai.com/api/docs/guides/image-generation",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "images"
+      ],
+      "citation_group_ids": [
+        "23"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "11. 衣橱、自发自拍与多图像后端"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-be9d351f74e2c3b6",
+      "catalog_label": "NovelAI，Image Generation / Control Tools，官方文档 · 图像",
+      "locator": "https://docs.novelai.net/en/image/",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "images"
+      ],
+      "citation_group_ids": [
+        "24"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "11. 衣橱、自发自拍与多图像后端"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-af7dd4c4d707ab6f",
+      "catalog_label": "NovelAI，Image Generation / Control Tools，官方文档 · 控制工具",
+      "locator": "https://docs.novelai.net/en/image/controltools/",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "images"
+      ],
+      "citation_group_ids": [
+        "24"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "11. 衣橱、自发自拍与多图像后端"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-746531b2acc7939f",
+      "catalog_label": "AssetLibrary，README，本地当前检出；部分目标仍未交付",
+      "locator": "C:/YOKI/Codex/AssetLibrary/README.md",
+      "locator_kind": "local_file_reference",
+      "topic_ids": [
+        "interface"
+      ],
+      "citation_group_ids": [
+        "25"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "11. 衣橱、自发自拍与多图像后端",
+        "19. 总体架构与数据归属"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private",
+      "local_locator_exists_at_catalog_creation": true
+    },
+    {
+      "source_id": "source-25bb3f8045e825ee",
+      "catalog_label": "Genshin-bots，NoneBot GenshinUID 连接插件与早柚协议",
+      "locator": "https://github.com/Genshin-bots/nonebot-plugin-genshinuid",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "content"
+      ],
+      "citation_group_ids": [
+        "26"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "12. GsCore、娱乐、订阅与聚合下载"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-be22c3014e1a853c",
+      "catalog_label": "FloatTech，ZeroBot-Plugin，当前 README",
+      "locator": "https://github.com/FloatTech/ZeroBot-Plugin",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "content"
+      ],
+      "citation_group_ids": [
+        "27"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "12. GsCore、娱乐、订阅与聚合下载"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-de044fa1f836b10c",
+      "catalog_label": "FFFold，AstrBot Suwayomi 插件；Suwayomi-Server · 插件",
+      "locator": "https://github.com/FFFold/astrbot_plugin_suwayomi_server",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "content"
+      ],
+      "citation_group_ids": [
+        "28"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "12. GsCore、娱乐、订阅与聚合下载"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-80ea643b2687047d",
+      "catalog_label": "FFFold，AstrBot Suwayomi 插件；Suwayomi-Server · 后端",
+      "locator": "https://github.com/Suwayomi/Suwayomi-Server",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "content"
+      ],
+      "citation_group_ids": [
+        "28"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "12. GsCore、娱乐、订阅与聚合下载"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-fb9847482844d4cf",
+      "catalog_label": "Komga，Scanning, Analyzing and Refreshing Metadata，官方文档",
+      "locator": "https://komga.org/docs/guides/scan-analysis-refresh/",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "content"
+      ],
+      "citation_group_ids": [
+        "29"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "12. GsCore、娱乐、订阅与聚合下载"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-ca8f49946e654bc8",
+      "catalog_label": "YokiiroBW，Download Hub，固定 c5483960；已读 README、main、catalog、pack 与 Suwayomi 客户端",
+      "locator": "https://forgejo.yokiirobw.top/YokiiroBW/astrbot-plugins/src/commit/c5483960d8706e8c717d1e15083f885eee063b2f/astrbot_plugin_download_hub",
+      "locator_kind": "forgejo_reference",
+      "topic_ids": [
+        "content"
+      ],
+      "citation_group_ids": [
+        "30"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "12. GsCore、娱乐、订阅与聚合下载"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-bc8dc5a86e2e4198",
+      "catalog_label": "Home Assistant，REST API，官方开发文档",
+      "locator": "https://developers.home-assistant.io/docs/api/rest/",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "homelab"
+      ],
+      "citation_group_ids": [
+        "31"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "13. 家庭设备、智能家居与手环"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-ea10952abda319ed",
+      "catalog_label": "XiaoMi，Xiaomi Home Integration for Home Assistant，官方仓库",
+      "locator": "https://github.com/XiaoMi/ha_xiaomi_home",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "homelab"
+      ],
+      "citation_group_ids": [
+        "32"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "13. 家庭设备、智能家居与手环"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-e8ace54db7c6ef04",
+      "catalog_label": "Home Assistant，Wake on LAN",
+      "locator": "https://www.home-assistant.io/integrations/wake_on_lan/",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "homelab"
+      ],
+      "citation_group_ids": [
+        "33"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "13. 家庭设备、智能家居与手环"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-8a69a4701a2cc883",
+      "catalog_label": "Notify App，Home Assistant Integration，官方帮助页",
+      "locator": "https://www.mibandnotify.com/help/home_assistant.php",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "homelab"
+      ],
+      "citation_group_ids": [
+        "34"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "13. 家庭设备、智能家居与手环"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-19881ad466764110",
+      "catalog_label": "Home Assistant，Recorder，默认保留与历史策略",
+      "locator": "https://www.home-assistant.io/integrations/recorder/",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "homelab"
+      ],
+      "citation_group_ids": [
+        "35"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "13. 家庭设备、智能家居与手环"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-2ac6d796e14e0a39",
+      "catalog_label": "Android Developers，Health Connect Read raw data",
+      "locator": "https://developer.android.com/health-and-fitness/health-connect/read-data",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "homelab"
+      ],
+      "citation_group_ids": [
+        "36"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "13. 家庭设备、智能家居与手环"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-b6bee278581b8d27",
+      "catalog_label": "ludan0312，Body Monitor v1.3.0 README",
+      "locator": "https://github.com/ludan0312/astrbot_plugin_body_monitor",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "homelab"
+      ],
+      "citation_group_ids": [
+        "37"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "13. 家庭设备、智能家居与手环"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-0f9c558f6a7f18c4",
+      "catalog_label": "jow，nlbwmon，conntrack 流量记账实现",
+      "locator": "https://github.com/jow-/nlbwmon",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "homelab"
+      ],
+      "citation_group_ids": [
+        "38"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "14. NAS、网络、容器与游戏服务器"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-c244f426733056e6",
+      "catalog_label": "MetaCubeX，Mihomo API 文档",
+      "locator": "https://wiki.metacubex.one/api/",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "homelab"
+      ],
+      "citation_group_ids": [
+        "39"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "14. NAS、网络、容器与游戏服务器"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-0bc94d22f8e39e58",
+      "catalog_label": "louislam，Dockge，Compose stacks 工作方式",
+      "locator": "https://github.com/louislam/dockge",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "homelab"
+      ],
+      "citation_group_ids": [
+        "40"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "14. NAS、网络、容器与游戏服务器"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-7e7da6c9a2049862",
+      "catalog_label": "MCSManager，Instance API",
+      "locator": "https://docs.mcsmanager.com/apis/api_instance.html",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "homelab"
+      ],
+      "citation_group_ids": [
+        "41"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "14. NAS、网络、容器与游戏服务器"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-b60b47425db11651",
+      "catalog_label": "Git，git-worktree，官方手册",
+      "locator": "https://git-scm.com/docs/git-worktree",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "projects"
+      ],
+      "citation_group_ids": [
+        "42"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "15. 项目工作台与跨编码工具连续开发"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-ec400e9e55dcff2e",
+      "catalog_label": "OpenAI，Reasoning models，官方文档，访问 2026-09-12",
+      "locator": "https://developers.openai.com/api/docs/guides/reasoning",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "models"
+      ],
+      "citation_group_ids": [
+        "43"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "17. 模型路由网关：原生协议优先"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-62959725655313bb",
+      "catalog_label": "LiteLLM，Pass-through endpoints、Reasoning Content，官方文档 · 透传",
+      "locator": "https://docs.litellm.ai/docs/proxy/pass_through",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "models"
+      ],
+      "citation_group_ids": [
+        "44"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "17. 模型路由网关：原生协议优先",
+        "18. 切线路、模型真实性与网关验收"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-6b1230118049dedd",
+      "catalog_label": "LiteLLM，Pass-through endpoints、Reasoning Content，官方文档 · 思考字段",
+      "locator": "https://docs.litellm.ai/docs/reasoning_content",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "models"
+      ],
+      "citation_group_ids": [
+        "44"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "17. 模型路由网关：原生协议优先",
+        "18. 切线路、模型真实性与网关验收"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-9c88a1dca9a2a043",
+      "catalog_label": "QuantumNous，New API，当前项目说明",
+      "locator": "https://github.com/QuantumNous/new-api",
+      "locator_kind": "web_reference",
+      "topic_ids": [
+        "models"
+      ],
+      "citation_group_ids": [
+        "45"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "17. 模型路由网关：原生协议优先"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-13bdcfa36644d5d4",
+      "catalog_label": "YokiiroBW，ai-routing-gateway，固定 f73569ed；已读 dataplane、能力矩阵与开发状态",
+      "locator": "https://forgejo.yokiirobw.top/YokiiroBW/ai-routing-gateway/src/commit/f73569edd14f7a92e7b8417344004b499f52554f",
+      "locator_kind": "forgejo_reference",
+      "topic_ids": [
+        "models"
+      ],
+      "citation_group_ids": [
+        "46"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "17. 模型路由网关：原生协议优先"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-e9a60d03f5c8329d",
+      "catalog_label": "YokiiroBW，astrbot_plugin_nas_ops，固定 4bd39eea；已读部署规划、端口与检查实现",
+      "locator": "https://forgejo.yokiirobw.top/YokiiroBW/astrbot_plugin_nas_ops/src/commit/4bd39eea3ca616a959726edd67f024d1198761f0/main.py",
+      "locator_kind": "forgejo_reference",
+      "topic_ids": [
+        "homelab"
+      ],
+      "citation_group_ids": [
+        "47"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "14. NAS、网络、容器与游戏服务器"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-ec47b2ed76cb43e3",
+      "catalog_label": "YokiiroBW，astrbot_plugin_dev_handoff，固定 7c4910fb；已读 main 与 client",
+      "locator": "https://forgejo.yokiirobw.top/YokiiroBW/astrbot_plugin_dev_handoff/src/commit/7c4910fb71a6cbb210e1229b807c645b57b5ac93",
+      "locator_kind": "forgejo_reference",
+      "topic_ids": [
+        "projects"
+      ],
+      "citation_group_ids": [
+        "48"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "15. 项目工作台与跨编码工具连续开发"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    },
+    {
+      "source_id": "source-72697e6fe08146ea",
+      "catalog_label": "YokiiroBW，astrbot_plugin_moviepilot，固定 890e0dbc；已读 README、下载服务与客户端结构",
+      "locator": "https://forgejo.yokiirobw.top/YokiiroBW/astrbot_plugin_moviepilot/src/commit/890e0dbc45cfdbab8d273f8d4087546a4ffb62b1",
+      "locator_kind": "forgejo_reference",
+      "topic_ids": [
+        "content"
+      ],
+      "citation_group_ids": [
+        "49"
+      ],
+      "source_access_dates_recorded_in_prior_ledger": [
+        "2026-09-12"
+      ],
+      "used_in_sections": [
+        "12. GsCore、娱乐、订阅与聚合下载"
+      ],
+      "capture_state": {
+        "reference_saved": true,
+        "source_body_copied_into_catalog": false,
+        "source_rechecked_this_turn": false,
+        "runtime_indexed": false
+      },
+      "scope": "project_private"
+    }
+  ],
+  "citation_groups": [
+    {
+      "citation_group_id": "1",
+      "original_citation": "Chat Audit Core，README，本地当前检出，读取 2026-09-12。[本地资料](C:/YOKI/Codex/chat-audit-core/README.md)。",
+      "source_ids": [
+        "source-bfbf08daed0f9be6"
+      ]
+    },
+    {
+      "citation_group_id": "2",
+      "original_citation": "Kim 等，FANToM，EMNLP 2023。[论文](https://aclanthology.org/2023.emnlp-main.890/)。",
+      "source_ids": [
+        "source-2a0b40df00c43c7d"
+      ]
+    },
+    {
+      "citation_group_id": "3",
+      "original_citation": "Park 等，Generative Agents，UIST 2023，arXiv v2。[全文](https://arxiv.org/html/2304.03442v2)。",
+      "source_ids": [
+        "source-376f3490eb0c6571"
+      ]
+    },
+    {
+      "citation_group_id": "4",
+      "original_citation": "Marsella、Gratch，EMA，Cognitive Systems Research，2009。[期刊](https://www.sciencedirect.com/science/article/pii/S1389041708000314)。",
+      "source_ids": [
+        "source-cff74dbb9bc676b4"
+      ]
+    },
+    {
+      "citation_group_id": "5",
+      "original_citation": "MaiBot，固定提交 4213d8c 的回复必要性；HDSI 可见 fork，固定 0c9c9b5 的架构。[MaiBot](https://github.com/Mai-with-u/MaiBot/blob/4213d8c5dddc9fd21e4ce69939894525c607bb2b/src/maisaka/reply_necessity.py)；[HDSI](https://github.com/YesWeAreBot/HDSI-AthenaBrain/blob/0c9c9b5a31a95bd14e521c8d8e61e465775eaa27/docs/ARCHITECTURE.md)。",
+      "source_ids": [
+        "source-f5a3b83aec0dd7b7",
+        "source-ed9612ff51ebc0f2"
+      ]
+    },
+    {
+      "citation_group_id": "6",
+      "original_citation": "PixiJS 8.x Introduction；Phaser Game，官方在线文档。[PixiJS](https://pixijs.com/8.x/guides/getting-started/intro)；[Phaser](https://docs.phaser.io/phaser/concepts/game)。",
+      "source_ids": [
+        "source-444f7ed31ad50843",
+        "source-ff6e67c587d00d26"
+      ]
+    },
+    {
+      "citation_group_id": "7",
+      "original_citation": "menglimi，Together Companion，源码树 4777326cb3b126d8e2d112208e7ebf6e72f09851。[仓库](https://github.com/menglimi/astrbot_plugin_together_companion)。",
+      "source_ids": [
+        "source-f87705aaa26280fb"
+      ]
+    },
+    {
+      "citation_group_id": "8",
+      "original_citation": "menglimi，Reality Companion，源码树 bea9735c500887e640fd9147e221d37f2e0b725c。[仓库](https://github.com/menglimi/astrbot_plugin_reality_companion)。",
+      "source_ids": [
+        "source-ef22b5688a711e94"
+      ]
+    },
+    {
+      "citation_group_id": "9",
+      "original_citation": "Chat Audit Core，查询、原消息邻域及外部摄取 API，本地源码。[API](C:/YOKI/Codex/chat-audit-core/app/api.py)。",
+      "source_ids": [
+        "source-ddab43a255cc404f"
+      ]
+    },
+    {
+      "citation_group_id": "10",
+      "original_citation": "Chat Audit Core，灾难恢复与备份演练指南，本地当前检出。[资料](C:/YOKI/Codex/chat-audit-core/DISASTER_RECOVERY.md)。",
+      "source_ids": [
+        "source-5cb3ecfdb47dd0df"
+      ]
+    },
+    {
+      "citation_group_id": "11",
+      "original_citation": "Vectorize，Hindsight，当前 README；性能宣传不作为本方案实测证据。[仓库](https://github.com/vectorize-io/hindsight)。",
+      "source_ids": [
+        "source-ef1d62b18b98cdd0"
+      ]
+    },
+    {
+      "citation_group_id": "12",
+      "original_citation": "EverMind-AI，EverOS，当前 README；EverMemOS 链接现重定向至此。[仓库](https://github.com/EverMind-AI/EverOS)。",
+      "source_ids": [
+        "source-c1958731fdb78e2d"
+      ]
+    },
+    {
+      "citation_group_id": "13",
+      "original_citation": "Zep，Graphiti，当前 README。[仓库](https://github.com/getzep/graphiti)。",
+      "source_ids": [
+        "source-ec7c36c51fe70025"
+      ]
+    },
+    {
+      "citation_group_id": "14",
+      "original_citation": "Wu 等，LongMemEval，ICLR 2025。[论文](https://arxiv.org/abs/2410.10813)。",
+      "source_ids": [
+        "source-7d8bb2e98eb1cf17"
+      ]
+    },
+    {
+      "citation_group_id": "15",
+      "original_citation": "Yang 等，Re3，EMNLP 2022。[论文](https://aclanthology.org/2022.emnlp-main.296/)。",
+      "source_ids": [
+        "source-3fe1e118d644751c"
+      ]
+    },
+    {
+      "citation_group_id": "16",
+      "original_citation": "Yang 等，DOC，ACL 2023。[论文](https://aclanthology.org/2023.acl-long.190/)。",
+      "source_ids": [
+        "source-1b5aeb712e8cb8a9"
+      ]
+    },
+    {
+      "citation_group_id": "17",
+      "original_citation": "Wang 等，Generating Long-form Story Using Dynamic Hierarchical Outlining with Memory-Enhancement，NAACL 2025。[论文](https://aclanthology.org/2025.naacl-long.63/)。",
+      "source_ids": [
+        "source-8524c0fb2fcbc573"
+      ]
+    },
+    {
+      "citation_group_id": "18",
+      "original_citation": "Li 等，Lost in Stories: Consistency Bugs in Long Story Generation by LLMs，Findings of ACL 2026。[论文](https://aclanthology.org/2026.findings-acl.410/)。",
+      "source_ids": [
+        "source-7c7807489dbdaa78"
+      ]
+    },
+    {
+      "citation_group_id": "19",
+      "original_citation": "本地 PC_SELFIE API 图，读取 2026-09-12。[工作流](C:/YOKI/Codex/Comfyui/workflows/PC_SELFIE+文本1+图片0.json)。",
+      "source_ids": [
+        "source-9958d27681f58507"
+      ]
+    },
+    {
+      "citation_group_id": "20",
+      "original_citation": "本地澄汐 API 图，读取 2026-09-12。[工作流](C:/YOKI/Codex/Comfyui/workflows/澄汐+文本1+图片0.json)。",
+      "source_ids": [
+        "source-fe65897803012a4a"
+      ]
+    },
+    {
+      "citation_group_id": "21",
+      "original_citation": "本地 AstrBot Prompt Router，动态提示分流实现。[源码](C:/YOKI/Codex/Comfyui/astrbot_bridge_node/__init__.py)。",
+      "source_ids": [
+        "source-04cf71c8684f4920"
+      ]
+    },
+    {
+      "citation_group_id": "22",
+      "original_citation": "ComfyUI，Server Routes，官方文档。[接口](https://docs.comfy.org/development/comfyui-server/comms_routes)。",
+      "source_ids": [
+        "source-9674467980472b2c"
+      ]
+    },
+    {
+      "citation_group_id": "23",
+      "original_citation": "OpenAI，Image generation，官方文档，访问 2026-09-12。[文档](https://developers.openai.com/api/docs/guides/image-generation)。",
+      "source_ids": [
+        "source-121b461632ab395e"
+      ]
+    },
+    {
+      "citation_group_id": "24",
+      "original_citation": "NovelAI，Image Generation / Control Tools，官方文档。[图像](https://docs.novelai.net/en/image/)；[控制工具](https://docs.novelai.net/en/image/controltools/)。",
+      "source_ids": [
+        "source-be9d351f74e2c3b6",
+        "source-af7dd4c4d707ab6f"
+      ]
+    },
+    {
+      "citation_group_id": "25",
+      "original_citation": "AssetLibrary，README，本地当前检出；部分目标仍未交付。[资料](C:/YOKI/Codex/AssetLibrary/README.md)。",
+      "source_ids": [
+        "source-746531b2acc7939f"
+      ]
+    },
+    {
+      "citation_group_id": "26",
+      "original_citation": "Genshin-bots，NoneBot GenshinUID 连接插件与早柚协议。[仓库](https://github.com/Genshin-bots/nonebot-plugin-genshinuid)。",
+      "source_ids": [
+        "source-25bb3f8045e825ee"
+      ]
+    },
+    {
+      "citation_group_id": "27",
+      "original_citation": "FloatTech，ZeroBot-Plugin，当前 README。[仓库](https://github.com/FloatTech/ZeroBot-Plugin)。",
+      "source_ids": [
+        "source-be22c3014e1a853c"
+      ]
+    },
+    {
+      "citation_group_id": "28",
+      "original_citation": "FFFold，AstrBot Suwayomi 插件；Suwayomi-Server。[插件](https://github.com/FFFold/astrbot_plugin_suwayomi_server)；[后端](https://github.com/Suwayomi/Suwayomi-Server)。",
+      "source_ids": [
+        "source-de044fa1f836b10c",
+        "source-80ea643b2687047d"
+      ]
+    },
+    {
+      "citation_group_id": "29",
+      "original_citation": "Komga，Scanning, Analyzing and Refreshing Metadata，官方文档。[文档](https://komga.org/docs/guides/scan-analysis-refresh/)。",
+      "source_ids": [
+        "source-fb9847482844d4cf"
+      ]
+    },
+    {
+      "citation_group_id": "30",
+      "original_citation": "YokiiroBW，Download Hub，固定 c5483960；已读 README、main、catalog、pack 与 Suwayomi 客户端。[源码](https://forgejo.yokiirobw.top/YokiiroBW/astrbot-plugins/src/commit/c5483960d8706e8c717d1e15083f885eee063b2f/astrbot_plugin_download_hub)。",
+      "source_ids": [
+        "source-ca8f49946e654bc8"
+      ]
+    },
+    {
+      "citation_group_id": "31",
+      "original_citation": "Home Assistant，REST API，官方开发文档。[接口](https://developers.home-assistant.io/docs/api/rest/)。",
+      "source_ids": [
+        "source-bc8dc5a86e2e4198"
+      ]
+    },
+    {
+      "citation_group_id": "32",
+      "original_citation": "XiaoMi，Xiaomi Home Integration for Home Assistant，官方仓库。[仓库](https://github.com/XiaoMi/ha_xiaomi_home)。",
+      "source_ids": [
+        "source-ea10952abda319ed"
+      ]
+    },
+    {
+      "citation_group_id": "33",
+      "original_citation": "Home Assistant，Wake on LAN。[文档](https://www.home-assistant.io/integrations/wake_on_lan/)。",
+      "source_ids": [
+        "source-e8ace54db7c6ef04"
+      ]
+    },
+    {
+      "citation_group_id": "34",
+      "original_citation": "Notify App，Home Assistant Integration，官方帮助页。[文档](https://www.mibandnotify.com/help/home_assistant.php)。",
+      "source_ids": [
+        "source-8a69a4701a2cc883"
+      ]
+    },
+    {
+      "citation_group_id": "35",
+      "original_citation": "Home Assistant，Recorder，默认保留与历史策略。[文档](https://www.home-assistant.io/integrations/recorder/)。",
+      "source_ids": [
+        "source-19881ad466764110"
+      ]
+    },
+    {
+      "citation_group_id": "36",
+      "original_citation": "Android Developers，Health Connect Read raw data。[文档](https://developer.android.com/health-and-fitness/health-connect/read-data)。",
+      "source_ids": [
+        "source-2ac6d796e14e0a39"
+      ]
+    },
+    {
+      "citation_group_id": "37",
+      "original_citation": "ludan0312，Body Monitor v1.3.0 README。[仓库](https://github.com/ludan0312/astrbot_plugin_body_monitor)。",
+      "source_ids": [
+        "source-b6bee278581b8d27"
+      ]
+    },
+    {
+      "citation_group_id": "38",
+      "original_citation": "jow，nlbwmon，conntrack 流量记账实现。[仓库](https://github.com/jow-/nlbwmon)。",
+      "source_ids": [
+        "source-0f9c558f6a7f18c4"
+      ]
+    },
+    {
+      "citation_group_id": "39",
+      "original_citation": "MetaCubeX，Mihomo API 文档。[接口](https://wiki.metacubex.one/api/)。",
+      "source_ids": [
+        "source-c244f426733056e6"
+      ]
+    },
+    {
+      "citation_group_id": "40",
+      "original_citation": "louislam，Dockge，Compose stacks 工作方式。[仓库](https://github.com/louislam/dockge)。",
+      "source_ids": [
+        "source-0bc94d22f8e39e58"
+      ]
+    },
+    {
+      "citation_group_id": "41",
+      "original_citation": "MCSManager，Instance API。[接口](https://docs.mcsmanager.com/apis/api_instance.html)。",
+      "source_ids": [
+        "source-7e7da6c9a2049862"
+      ]
+    },
+    {
+      "citation_group_id": "42",
+      "original_citation": "Git，git-worktree，官方手册。[手册](https://git-scm.com/docs/git-worktree)。",
+      "source_ids": [
+        "source-b60b47425db11651"
+      ]
+    },
+    {
+      "citation_group_id": "43",
+      "original_citation": "OpenAI，Reasoning models，官方文档，访问 2026-09-12。[文档](https://developers.openai.com/api/docs/guides/reasoning)。",
+      "source_ids": [
+        "source-ec400e9e55dcff2e"
+      ]
+    },
+    {
+      "citation_group_id": "44",
+      "original_citation": "LiteLLM，Pass-through endpoints、Reasoning Content，官方文档。[透传](https://docs.litellm.ai/docs/proxy/pass_through)；[思考字段](https://docs.litellm.ai/docs/reasoning_content)。",
+      "source_ids": [
+        "source-62959725655313bb",
+        "source-6b1230118049dedd"
+      ]
+    },
+    {
+      "citation_group_id": "45",
+      "original_citation": "QuantumNous，New API，当前项目说明。[仓库](https://github.com/QuantumNous/new-api)。",
+      "source_ids": [
+        "source-9c88a1dca9a2a043"
+      ]
+    },
+    {
+      "citation_group_id": "46",
+      "original_citation": "YokiiroBW，ai-routing-gateway，固定 f73569ed；已读 dataplane、能力矩阵与开发状态。[源码](https://forgejo.yokiirobw.top/YokiiroBW/ai-routing-gateway/src/commit/f73569edd14f7a92e7b8417344004b499f52554f)。",
+      "source_ids": [
+        "source-13bdcfa36644d5d4"
+      ]
+    },
+    {
+      "citation_group_id": "47",
+      "original_citation": "YokiiroBW，astrbot_plugin_nas_ops，固定 4bd39eea；已读部署规划、端口与检查实现。[源码](https://forgejo.yokiirobw.top/YokiiroBW/astrbot_plugin_nas_ops/src/commit/4bd39eea3ca616a959726edd67f024d1198761f0/main.py)。",
+      "source_ids": [
+        "source-e9a60d03f5c8329d"
+      ]
+    },
+    {
+      "citation_group_id": "48",
+      "original_citation": "YokiiroBW，astrbot_plugin_dev_handoff，固定 7c4910fb；已读 main 与 client。[源码](https://forgejo.yokiirobw.top/YokiiroBW/astrbot_plugin_dev_handoff/src/commit/7c4910fb71a6cbb210e1229b807c645b57b5ac93)。",
+      "source_ids": [
+        "source-ec47b2ed76cb43e3"
+      ]
+    },
+    {
+      "citation_group_id": "49",
+      "original_citation": "YokiiroBW，astrbot_plugin_moviepilot，固定 890e0dbc；已读 README、下载服务与客户端结构。[源码](https://forgejo.yokiirobw.top/YokiiroBW/astrbot_plugin_moviepilot/src/commit/890e0dbc45cfdbab8d273f8d4087546a4ffb62b1)。",
+      "source_ids": [
+        "source-72697e6fe08146ea"
+      ]
+    }
+  ],
+  "research_notes": [
+    {
+      "note_id": "design-note-companion",
+      "topic_id": "companion",
+      "statement": "本项目将即时对话、生活推进与后台整理分开，并区分共享世界中各角色所知。",
+      "source_ids": [
+        "source-2a0b40df00c43c7d",
+        "source-376f3490eb0c6571",
+        "source-cff74dbb9bc676b4",
+        "source-f5a3b83aec0dd7b7",
+        "source-ed9612ff51ebc0f2"
+      ],
+      "kind": "project_design_inference",
+      "basis": "existing_product_blueprint_not_new_source_verification",
+      "scope": "project_private",
+      "report_ref": "docs/product/tianshu-complete-product-v1.md"
+    },
+    {
+      "note_id": "design-note-memory",
+      "topic_id": "memory",
+      "statement": "以统一任务、来源范围和预算比较记忆实现，保留原文引用；项目效果仍需自己的评测。",
+      "source_ids": [
+        "source-ef1d62b18b98cdd0",
+        "source-c1958731fdb78e2d",
+        "source-ec7c36c51fe70025",
+        "source-7d8bb2e98eb1cf17"
+      ],
+      "kind": "project_design_inference",
+      "basis": "existing_product_blueprint_not_new_source_verification",
+      "scope": "project_private",
+      "report_ref": "docs/product/tianshu-complete-product-v1.md"
+    },
+    {
+      "note_id": "design-note-writing",
+      "topic_id": "writing",
+      "statement": "日记和长篇写作按素材、提纲、生成与一致性核对编排；长故事研究不能直接保证中文日记风格。",
+      "source_ids": [
+        "source-3fe1e118d644751c",
+        "source-1b5aeb712e8cb8a9",
+        "source-8524c0fb2fcbc573",
+        "source-7c7807489dbdaa78"
+      ],
+      "kind": "project_design_inference",
+      "basis": "existing_product_blueprint_not_new_source_verification",
+      "scope": "project_private",
+      "report_ref": "docs/product/tianshu-complete-product-v1.md"
+    },
+    {
+      "note_id": "design-note-images",
+      "topic_id": "images",
+      "statement": "本地生图按真实工作流及能力绑定参数；角色设定、衣物和输出来源需要保持可追溯。",
+      "source_ids": [
+        "source-9958d27681f58507",
+        "source-fe65897803012a4a",
+        "source-04cf71c8684f4920",
+        "source-9674467980472b2c",
+        "source-121b461632ab395e",
+        "source-be9d351f74e2c3b6",
+        "source-af7dd4c4d707ab6f"
+      ],
+      "kind": "project_design_inference",
+      "basis": "existing_product_blueprint_not_new_source_verification",
+      "scope": "project_private",
+      "report_ref": "docs/product/tianshu-complete-product-v1.md"
+    },
+    {
+      "note_id": "design-note-models",
+      "topic_id": "models",
+      "statement": "模型网关优先保留原生协议，显式处理模型与思考参数映射，不把旧网关的覆盖行为当成完整透传。",
+      "source_ids": [
+        "source-ec400e9e55dcff2e",
+        "source-62959725655313bb",
+        "source-6b1230118049dedd",
+        "source-9c88a1dca9a2a043",
+        "source-13bdcfa36644d5d4"
+      ],
+      "kind": "project_design_inference",
+      "basis": "existing_product_blueprint_not_new_source_verification",
+      "scope": "project_private",
+      "report_ref": "docs/product/tianshu-complete-product-v1.md"
+    }
+  ],
+  "existing_research_artifacts": [
+    {
+      "path": "docs/product/tianshu-complete-product-v1.md",
+      "sha256": "9f69c16b584ac17196646f6099513d8b997bc23eb3777d14dd4c448b92911157",
+      "kind": "local_design_note_reference"
+    },
+    {
+      "path": "docs/architecture/memory-recall-and-lifecycle-design.md",
+      "sha256": "a9def819c8fe223789cd7570bbdd7c8576daedd73f030a1366642251a07512e5",
+      "kind": "local_design_note_reference"
+    },
+    {
+      "path": "docs/architecture/profile-memory-granularity-design.md",
+      "sha256": "3759bcfa34d2fa3b7922f51f05a284224eaa93664b3a4cf42ee31cdd05e7cabd",
+      "kind": "local_design_note_reference"
+    },
+    {
+      "path": "docs/architecture/project-context-codex-hermes-design.md",
+      "sha256": "b291b51ca075b69a39c8317ff94586fe49aa269192e0c85c3e5f6928de81439e",
+      "kind": "local_design_note_reference"
+    },
+    {
+      "path": "docs/architecture/model-providers-and-workloads-design.md",
+      "sha256": "6f54ad11b54d1edd1ff90cf501a9cc446c2d28ce6dea16e0a9c312739f87b60c",
+      "kind": "local_design_note_reference"
+    }
+  ],
+  "limitations": [
+    "No full source text has been archived by this conversion.",
+    "Source references and prior access dates were copied from the existing research ledger, not freshly verified.",
+    "This is a seed format for the new library; it is not the current Knowledge HTTP import payload.",
+    "No live database, semantic index or client connection was created."
+  ]
+}

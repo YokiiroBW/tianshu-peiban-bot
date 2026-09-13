@@ -1,0 +1,380 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "天枢记忆 · 从聊天与事件到长期认识（设计稿）",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1340,
+      710
+    ],
+    "views": [
+      {
+        "id": "learn-over-time",
+        "label": "经历怎样形成记忆",
+        "focus": [
+          "observed-sources",
+          "memory-ingest",
+          "change-route",
+          "episode-buffer",
+          "candidate-extraction",
+          "evidence-merge",
+          "canonical-records"
+        ],
+        "note": "获准事件按人物和话题整理，再提取并核对；模型输出先是候选，不直接当成事实。"
+      },
+      {
+        "id": "update-now",
+        "label": "取消与纠正立即生效",
+        "focus": [
+          "memory-ingest",
+          "change-route",
+          "direct-change",
+          "evidence-merge",
+          "canonical-records",
+          "recall-api"
+        ],
+        "note": "可确认的状态变更走短路径提交，版本随之变化；召回不用等待夜间总结或向量重建。"
+      },
+      {
+        "id": "build-read-models",
+        "label": "怎样变得好检索",
+        "focus": [
+          "canonical-records",
+          "projection-jobs",
+          "read-models",
+          "recall-api",
+          "raw-archive"
+        ],
+        "note": "正式记录有来源与版本；索引、画像、摘要是可重建的查询资料，原文单独归档。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "observed-sources",
+      "type": "external",
+      "label": "获准聊天与事件",
+      "sublabel": "用户输入 · 真实结果 · 世界事件",
+      "tag": "现实 / 模拟 / 创作保留区别",
+      "pos": [
+        35,
+        45
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "memory-ingest",
+      "type": "backend",
+      "label": "受理、归属与去重",
+      "sublabel": "来源编号 · 人物 · 角色 · 受众",
+      "tag": "持久接收 / 重放不重复记账",
+      "pos": [
+        370,
+        45
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "change-route",
+      "type": "backend",
+      "label": "判断更新方式",
+      "sublabel": "明确状态变更 / 待整理的经历",
+      "tag": "不能确认的内容先留为候选",
+      "pos": [
+        705,
+        45
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "direct-change",
+      "type": "backend",
+      "label": "即时变更准备",
+      "sublabel": "明确完成 · 取消 · 撤回 · 纠正",
+      "tag": "范围与身份通过才处理",
+      "pos": [
+        1040,
+        45
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "raw-archive",
+      "type": "database",
+      "label": "Chat Audit 原文库",
+      "sublabel": "原消息 · 媒体 · 时间与来源",
+      "tag": "原文保留 / 后续可追溯",
+      "pos": [
+        35,
+        275
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "episode-buffer",
+      "type": "backend",
+      "label": "按话题整理素材",
+      "sublabel": "连续片段 · 人物归因 · 事件边界",
+      "tag": "批量处理 / 不逐句全量总结",
+      "pos": [
+        370,
+        275
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "candidate-extraction",
+      "type": "backend",
+      "label": "提取候选记忆",
+      "sublabel": "事实 · 经历 · 关系 · 事项 · 知识",
+      "tag": "模型辅助 / 推断标明不确定性",
+      "pos": [
+        705,
+        275
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "evidence-merge",
+      "type": "backend",
+      "label": "来源校验与合并",
+      "sublabel": "归属 · 时间 · 冲突 · 可见范围",
+      "tag": "保留修订历史 / 不盲目覆盖",
+      "pos": [
+        1040,
+        275
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "recall-api",
+      "type": "backend",
+      "label": "供下一轮按范围读取",
+      "sublabel": "当前记录 + 查询资料 + 原文引用",
+      "tag": "版本核对 / 索引落后可降级",
+      "pos": [
+        35,
+        520
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "read-models",
+      "type": "database",
+      "label": "可检索的资料与快照",
+      "sublabel": "关键词 / 向量 / 小画像 / 摘要",
+      "tag": "带来源与版本 / 可以重建",
+      "pos": [
+        370,
+        520
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "projection-jobs",
+      "type": "backend",
+      "label": "后台派生任务",
+      "sublabel": "索引更新 · 画像归纳 · 摘要生成",
+      "tag": "增量 / 可重试 / 不阻塞聊天",
+      "pos": [
+        705,
+        520
+      ],
+      "size": [
+        245,
+        84
+      ]
+    },
+    {
+      "id": "canonical-records",
+      "type": "database",
+      "label": "正式记忆与版本",
+      "sublabel": "有效事实 · 经历 · 事项 · 关系",
+      "tag": "长期数据的负责方",
+      "pos": [
+        1040,
+        520
+      ],
+      "size": [
+        245,
+        84
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "ingest-event",
+      "from": "observed-sources",
+      "to": "memory-ingest",
+      "label": "事件与引用",
+      "variant": "emphasis"
+    },
+    {
+      "id": "archive-chat",
+      "from": "observed-sources",
+      "to": "raw-archive",
+      "label": "聊天原文",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        157.5,
+        202
+      ]
+    },
+    {
+      "id": "classify-change",
+      "from": "memory-ingest",
+      "to": "change-route",
+      "label": "有效输入",
+      "variant": "emphasis"
+    },
+    {
+      "id": "fast-update",
+      "from": "change-route",
+      "to": "direct-change",
+      "label": "确定变更"
+    },
+    {
+      "id": "gather-episodes",
+      "from": "change-route",
+      "to": "episode-buffer",
+      "label": "普通经历",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "extract-memories",
+      "from": "episode-buffer",
+      "to": "candidate-extraction",
+      "label": "整理片段",
+      "variant": "emphasis"
+    },
+    {
+      "id": "check-candidates",
+      "from": "candidate-extraction",
+      "to": "evidence-merge",
+      "label": "候选记录",
+      "variant": "emphasis"
+    },
+    {
+      "id": "check-fast-change",
+      "from": "direct-change",
+      "to": "evidence-merge",
+      "label": "短路径校验",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        1162.5,
+        202
+      ]
+    },
+    {
+      "id": "commit-memory",
+      "from": "evidence-merge",
+      "to": "canonical-records",
+      "label": "提交版本",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelAt": [
+        1162.5,
+        440
+      ]
+    },
+    {
+      "id": "derive-updates",
+      "from": "canonical-records",
+      "to": "projection-jobs",
+      "label": "增量任务",
+      "variant": "dashed"
+    },
+    {
+      "id": "publish-projections",
+      "from": "projection-jobs",
+      "to": "read-models",
+      "label": "更新视图",
+      "variant": "dashed"
+    },
+    {
+      "id": "serve-projections",
+      "from": "read-models",
+      "to": "recall-api",
+      "label": "检索与快照"
+    },
+    {
+      "id": "freshness-now",
+      "from": "canonical-records",
+      "to": "recall-api",
+      "label": "新版本直接生效",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "bottom",
+      "via": [
+        [
+          1162.5,
+          670
+        ],
+        [
+          157.5,
+          670
+        ]
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "原文、正式记录、查询资料",
+      "items": [
+        "三者职责不同：原文提供证据，正式记录保存当前认识与修订，索引和摘要帮助快速查找。"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "重要变化不等批处理",
+      "items": [
+        "明确取消与纠正通过校验后提交版本；旧缓存失效，派生资料随后更新。无法识别的变更不能擅自推断。"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "记忆属于谁，也是谁可以知道",
+      "items": [
+        "群私聊与各角色所知贯穿提取、合并和召回；角色自己生成的草稿不自动变成用户经历。"
+      ]
+    }
+  ]
+}

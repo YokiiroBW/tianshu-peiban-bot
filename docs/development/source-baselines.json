@@ -1,0 +1,121 @@
+{
+  "date": "2026-09-14",
+  "source_directories_verified_unchanged": [
+    "assetlibrary",
+    "chat-audit",
+    "legacy-control",
+    "legacy-console",
+    "legacy-workspace",
+    "legacy-memory"
+  ],
+  "sources": [
+    {
+      "id": "platform",
+      "path": "projects/tianshu-platform",
+      "baseline_commit": "ab7dfd6fc95a26813cb9244814584adff66d2110",
+      "overlay": null
+    },
+    {
+      "id": "companion",
+      "path": "projects/tianshu-companion",
+      "baseline_commit": "fc1eeda314e23b67a91f793bedd54b3c9e930d9c",
+      "overlay": null
+    },
+    {
+      "id": "memory",
+      "path": "projects/tianshu-memory",
+      "baseline_commit": "f02fbec1e61a99491cf92ba817595c8d9c4402fd",
+      "overlay": null
+    },
+    {
+      "id": "model-gateway",
+      "path": "projects/tianshu-model-gateway",
+      "baseline_commit": "4d107a4f6c3a3059a8e0927495c721b77d3e7f52",
+      "overlay": null
+    },
+    {
+      "id": "assetlibrary",
+      "path": "projects/assetlibrary",
+      "baseline_commit": "99e79f2f5a6d3b84ff2faaa9640752569796eb69",
+      "overlay": null
+    },
+    {
+      "id": "chat-audit",
+      "path": "projects/chat-audit-core",
+      "baseline_commit": "4d750ad8683e121328fbc2a1ebcf6ed0e64697bf",
+      "overlay": null
+    },
+    {
+      "id": "legacy-control",
+      "path": "references/legacy-control",
+      "baseline_commit": "05d503a118d3ba187f3ebd444df019bf73bb90f0",
+      "overlay": null
+    },
+    {
+      "id": "legacy-console",
+      "path": "references/legacy-console",
+      "baseline_commit": "79104702f6d502fdfcf0ec9b2e2466bae1689416",
+      "overlay": "references/overlays/legacy-console"
+    },
+    {
+      "id": "legacy-workspace",
+      "path": "references/legacy-workspace",
+      "baseline_commit": "67638937ab900f81e7e816563d3113001fdb78f4",
+      "overlay": "references/overlays/legacy-workspace"
+    },
+    {
+      "id": "legacy-memory",
+      "path": "references/legacy-memory",
+      "baseline_commit": "67cd9ae3d9b88ddcc314cfea940fac1938ac0f2d",
+      "overlay": "references/overlays/legacy-memory"
+    },
+    {
+      "id": "legacy-routing",
+      "path": "references/legacy-routing",
+      "baseline_commit": "f73569edd14f7a92e7b8417344004b499f52554f",
+      "overlay": null
+    },
+    {
+      "id": "astrbot-plugins",
+      "path": "references/astrbot-plugins",
+      "baseline_commit": "c5483960d8706e8c717d1e15083f885eee063b2f",
+      "overlay": null
+    },
+    {
+      "id": "astrbot_plugin_jmdowloads",
+      "path": "references/astrbot_plugin_jmdowloads",
+      "baseline_commit": "bae1381480f55e0cf07f363e24b6ab455612259a",
+      "overlay": null
+    },
+    {
+      "id": "astrbot_plugin_nas_ops",
+      "path": "references/astrbot_plugin_nas_ops",
+      "baseline_commit": "4bd39eea3ca616a959726edd67f024d1198761f0",
+      "overlay": null
+    },
+    {
+      "id": "astrbot_plugin_dev_handoff",
+      "path": "references/astrbot_plugin_dev_handoff",
+      "baseline_commit": "7c4910fb71a6cbb210e1229b807c645b57b5ac93",
+      "overlay": null
+    },
+    {
+      "id": "astrbot_plugin_moviepilot",
+      "path": "references/astrbot_plugin_moviepilot",
+      "baseline_commit": "890e0dbc45cfdbab8d273f8d4087546a4ffb62b1",
+      "overlay": null
+    },
+    {
+      "id": "together-companion",
+      "path": "references/together-companion",
+      "baseline_commit": "4777326cb3b126d8e2d112208e7ebf6e72f09851",
+      "overlay": null
+    },
+    {
+      "id": "reality-companion",
+      "path": "references/reality-companion",
+      "baseline_commit": "bea9735c500887e640fd9147e221d37f2e0b725c",
+      "overlay": null
+    }
+  ]
+}
