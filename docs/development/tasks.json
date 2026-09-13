@@ -157,7 +157,9 @@
       "assignee": "01a09be7-6d9a-7be0-a07a-d8ed08819b15",
       "worktree": "worktrees/TS-020/tianshu-companion",
       "branch": "work/ts-020",
-      "evidence": [],
+      "evidence": [
+        "docs/development/reviews/TS-020-initial.md"
+      ],
       "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人；首个脚手架按实际选择建立依赖清单，该任务期间清单/锁单人负责，不要求同时使用全部候选。",
       "contract_binding": {
         "version": "1.0.0",
@@ -167,7 +169,9 @@
       },
       "baseline_commit": "fc1eeda314e23b67a91f793bedd54b3c9e930d9c",
       "thread_id": "01a09be7-6d9a-7be0-a07a-d8ed08819b15",
-      "host_id": "local"
+      "host_id": "local",
+      "review_state": "changes_requested",
+      "candidate_commit": "722c703e49bce5b47f100692de6a48c790260a05"
     },
     {
       "id": "TS-030",
@@ -238,7 +242,9 @@
       "assignee": "01a09bf0-b5f2-7090-8e15-483676d09a31",
       "worktree": "worktrees/TS-041/tianshu-model-gateway",
       "branch": "work/ts-041",
-      "evidence": [],
+      "evidence": [
+        "docs/development/reviews/TS-041-initial.md"
+      ],
       "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人；首个脚手架按实际选择建立依赖清单，该任务期间清单/锁单人负责，不要求同时使用全部候选。",
       "contract_binding": {
         "version": "1.0.0",
@@ -248,7 +254,9 @@
       },
       "baseline_commit": "6b2daff66b94b5f73cd575d0457fab0f6e88b606",
       "thread_id": "01a09bf0-b5f2-7090-8e15-483676d09a31",
-      "host_id": "local"
+      "host_id": "local",
+      "review_state": "changes_requested",
+      "candidate_commit": "b6188f22e8b7e04c0757a54f4905bf4ed6e97916"
     },
     {
       "id": "TS-011",
