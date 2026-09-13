@@ -1,0 +1,1478 @@
+[
+  {
+    "id": "trusted_context",
+    "schema": "common#trusted_context",
+    "document": {
+      "issuer": "nonebot",
+      "authenticated_service": "nonebot",
+      "audience_service": "companion",
+      "assertion_ref": "origin-fixture",
+      "verified_account": {
+        "namespace": "qq",
+        "immutable_account_id": "fixture-user-a"
+      },
+      "principal_id": null,
+      "allowed_scope": {
+        "actor_id": "actor-fixture",
+        "person_id": "person-fixture-a",
+        "audience": "group",
+        "conversation_id": "conversation-fixture"
+      },
+      "expires_at": "2026-09-14T00:05:00Z",
+      "revoked": false,
+      "verified_channel": {
+        "namespace": "qq",
+        "binding_id": "fixture-bot",
+        "channel_conversation_id": "fixture-group",
+        "thread_id": null
+      }
+    }
+  },
+  {
+    "id": "origin_resolve_request",
+    "schema": "common#origin_resolve_request",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "assertion_ref": "origin-fixture"
+    }
+  },
+  {
+    "id": "origin_resolve_response",
+    "schema": "common#origin_resolve_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "context": {
+        "issuer": "nonebot",
+        "authenticated_service": "nonebot",
+        "audience_service": "companion",
+        "assertion_ref": "origin-fixture",
+        "verified_account": {
+          "namespace": "qq",
+          "immutable_account_id": "fixture-user-a"
+        },
+        "principal_id": null,
+        "allowed_scope": {
+          "actor_id": "actor-fixture",
+          "person_id": "person-fixture-a",
+          "audience": "group",
+          "conversation_id": "conversation-fixture"
+        },
+        "expires_at": "2026-09-14T00:05:00Z",
+        "revoked": false,
+        "verified_channel": {
+          "namespace": "qq",
+          "binding_id": "fixture-bot",
+          "channel_conversation_id": "fixture-group",
+          "thread_id": null
+        }
+      }
+    }
+  },
+  {
+    "id": "ingest",
+    "schema": "conversation#ingest_request",
+    "document": {
+      "command": {
+        "schema_version": 1,
+        "request_id": "request-fixture",
+        "origin": {
+          "assertion_ref": "origin-fixture"
+        },
+        "idempotency_key": "idempotency-fixture",
+        "deadline_at": "2026-09-14T00:05:00Z"
+      },
+      "message_key": {
+        "channel": {
+          "namespace": "qq",
+          "binding_id": "fixture-bot",
+          "channel_conversation_id": "fixture-group",
+          "thread_id": null
+        },
+        "message_id": "fixture-m1",
+        "revision": 1
+      },
+      "author": {
+        "namespace": "qq",
+        "immutable_account_id": "fixture-user-a"
+      },
+      "sent_at": "2026-09-14T00:00:00Z",
+      "kind": "message",
+      "parts": [
+        {
+          "kind": "text",
+          "text": "我晚上不喝咖啡，白天偶尔可以。"
+        }
+      ],
+      "reply_refs": [],
+      "mentioned_accounts": [],
+      "target_actor_ids": [
+        "actor-fixture"
+      ]
+    }
+  },
+  {
+    "id": "ingest_receipt",
+    "schema": "conversation#ingest_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "receipt_id": "receipt-fixture",
+      "deduplicated": false,
+      "conversation_id": "conversation-fixture",
+      "person_id": "person-fixture-a",
+      "collection_key": {
+        "channel": {
+          "namespace": "qq",
+          "binding_id": "fixture-bot",
+          "channel_conversation_id": "fixture-group",
+          "thread_id": null
+        },
+        "author": {
+          "namespace": "qq",
+          "immutable_account_id": "fixture-user-a"
+        }
+      },
+      "collection_id": "collection-fixture",
+      "collection_revision": 1,
+      "accepted_at": "2026-09-14T00:00:00Z",
+      "ingest_sequence": 1,
+      "archive_state": "pending"
+    }
+  },
+  {
+    "id": "ingest_duplicate",
+    "schema": "conversation#ingest_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "receipt_id": "receipt-fixture",
+      "deduplicated": true,
+      "conversation_id": "conversation-fixture",
+      "person_id": "person-fixture-a",
+      "collection_key": {
+        "channel": {
+          "namespace": "qq",
+          "binding_id": "fixture-bot",
+          "channel_conversation_id": "fixture-group",
+          "thread_id": null
+        },
+        "author": {
+          "namespace": "qq",
+          "immutable_account_id": "fixture-user-a"
+        }
+      },
+      "collection_id": "collection-fixture",
+      "collection_revision": 1,
+      "accepted_at": "2026-09-14T00:00:00Z",
+      "ingest_sequence": 1,
+      "archive_state": "pending"
+    }
+  },
+  {
+    "id": "ingest_retraction",
+    "schema": "conversation#ingest_request",
+    "document": {
+      "command": {
+        "schema_version": 1,
+        "request_id": "request-fixture",
+        "origin": {
+          "assertion_ref": "origin-fixture"
+        },
+        "idempotency_key": "idempotency-fixture",
+        "deadline_at": "2026-09-14T00:05:00Z"
+      },
+      "message_key": {
+        "channel": {
+          "namespace": "qq",
+          "binding_id": "fixture-bot",
+          "channel_conversation_id": "fixture-group",
+          "thread_id": null
+        },
+        "message_id": "fixture-m1",
+        "revision": 2
+      },
+      "author": {
+        "namespace": "qq",
+        "immutable_account_id": "fixture-user-a"
+      },
+      "sent_at": "2026-09-14T00:00:00Z",
+      "kind": "retract",
+      "parts": [],
+      "reply_refs": [],
+      "mentioned_accounts": [],
+      "target_actor_ids": [
+        "actor-fixture"
+      ]
+    }
+  },
+  {
+    "id": "ingest_media_placeholder",
+    "schema": "conversation#ingest_request",
+    "document": {
+      "command": {
+        "schema_version": 1,
+        "request_id": "request-fixture",
+        "origin": {
+          "assertion_ref": "origin-fixture"
+        },
+        "idempotency_key": "idempotency-fixture",
+        "deadline_at": "2026-09-14T00:05:00Z"
+      },
+      "message_key": {
+        "channel": {
+          "namespace": "qq",
+          "binding_id": "fixture-bot",
+          "channel_conversation_id": "fixture-group",
+          "thread_id": null
+        },
+        "message_id": "fixture-m1",
+        "revision": 1
+      },
+      "author": {
+        "namespace": "qq",
+        "immutable_account_id": "fixture-user-a"
+      },
+      "sent_at": "2026-09-14T00:00:00Z",
+      "kind": "message",
+      "parts": [
+        {
+          "kind": "media_ref",
+          "asset_ref": "asset-fixture",
+          "media_kind": "image",
+          "availability": "pending"
+        },
+        {
+          "kind": "text",
+          "text": "这张图，仅保留引用。"
+        }
+      ],
+      "reply_refs": [],
+      "mentioned_accounts": [],
+      "target_actor_ids": [
+        "actor-fixture"
+      ]
+    }
+  },
+  {
+    "id": "collection_policy",
+    "schema": "conversation#policy",
+    "document": {
+      "silence_ms": 5000,
+      "max_wait_ms": null,
+      "max_active_turns": 2,
+      "max_collectors_per_conversation": 32,
+      "max_queued_turns": 8,
+      "max_collection_messages": 256,
+      "max_collection_bytes": 262144,
+      "delivery_reconcile_timeout_ms": 5000
+    }
+  },
+  {
+    "id": "sealed_bundle",
+    "schema": "conversation#bundle",
+    "document": {
+      "schema_version": 1,
+      "collection_id": "collection-fixture",
+      "collection_revision": 1,
+      "collection_key": {
+        "channel": {
+          "namespace": "qq",
+          "binding_id": "fixture-bot",
+          "channel_conversation_id": "fixture-group",
+          "thread_id": null
+        },
+        "author": {
+          "namespace": "qq",
+          "immutable_account_id": "fixture-user-a"
+        }
+      },
+      "conversation_id": "conversation-fixture",
+      "turn_id": "turn-fixture-1",
+      "turn_sequence": 1,
+      "sealed_at": "2026-09-14T00:00:05Z",
+      "close_reason": "silence",
+      "possibly_incomplete": false,
+      "continuation_of": null,
+      "messages": [
+        {
+          "message_key": {
+            "channel": {
+              "namespace": "qq",
+              "binding_id": "fixture-bot",
+              "channel_conversation_id": "fixture-group",
+              "thread_id": null
+            },
+            "message_id": "fixture-m1",
+            "revision": 1
+          },
+          "author": {
+            "namespace": "qq",
+            "immutable_account_id": "fixture-user-a"
+          },
+          "person_id": "person-fixture-a",
+          "accepted_at": "2026-09-14T00:00:00Z",
+          "sent_at": "2026-09-14T00:00:00Z",
+          "ingest_sequence": 1,
+          "parts": [
+            {
+              "kind": "text",
+              "text": "我晚上不喝咖啡，白天偶尔可以。"
+            }
+          ],
+          "reply_refs": [],
+          "mentioned_accounts": [],
+          "target_actor_ids": [
+            "actor-fixture"
+          ],
+          "source": {
+            "message_key": {
+              "channel": {
+                "namespace": "qq",
+                "binding_id": "fixture-bot",
+                "channel_conversation_id": "fixture-group",
+                "thread_id": null
+              },
+              "message_id": "fixture-m1",
+              "revision": 1
+            },
+            "receipt_id": "receipt-fixture",
+            "archive_state": "pending",
+            "locator": null
+          }
+        }
+      ],
+      "context_refs": [],
+      "dependencies": []
+    }
+  },
+  {
+    "id": "turn",
+    "schema": "conversation#turn",
+    "document": {
+      "turn_id": "turn-fixture-1",
+      "turn_sequence": 1,
+      "version": 1,
+      "phase": "ready_to_send",
+      "result_version": 1,
+      "delivery_state": "not_started",
+      "released_slot": false,
+      "unresolved_delivery": false
+    }
+  },
+  {
+    "id": "send",
+    "schema": "conversation#send_request",
+    "document": {
+      "command": {
+        "schema_version": 1,
+        "request_id": "request-fixture",
+        "origin": {
+          "assertion_ref": "origin-fixture"
+        },
+        "idempotency_key": "idempotency-fixture",
+        "deadline_at": "2026-09-14T00:05:00Z"
+      },
+      "conversation_id": "conversation-fixture",
+      "turn_id": "turn-fixture-1",
+      "turn_sequence": 1,
+      "reply_id": "reply-fixture-1",
+      "actor_id": "actor-fixture",
+      "destination": {
+        "namespace": "qq",
+        "binding_id": "fixture-bot",
+        "channel_conversation_id": "fixture-group",
+        "thread_id": null
+      },
+      "segment_sequence": 1,
+      "segment_count": 1,
+      "text": "记住了：晚上不喝咖啡，白天偶尔可以。"
+    }
+  },
+  {
+    "id": "send_sent",
+    "schema": "conversation#send_receipt",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "reply_id": "reply-fixture-1",
+      "segment_sequence": 1,
+      "attempt_id": "attempt-fixture",
+      "state": "sent",
+      "channel_message_ids": [
+        "fixture-out-1"
+      ],
+      "observed_at": "2026-09-14T00:00:10Z",
+      "retry_safe": false
+    }
+  },
+  {
+    "id": "send_unknown",
+    "schema": "conversation#send_receipt",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "reply_id": "reply-fixture-1",
+      "segment_sequence": 1,
+      "attempt_id": "attempt-fixture",
+      "state": "unknown",
+      "channel_message_ids": [],
+      "observed_at": "2026-09-14T00:00:10Z",
+      "retry_safe": false
+    }
+  },
+  {
+    "id": "send_failed_before_execution",
+    "schema": "conversation#send_receipt",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "reply_id": "reply-fixture-1",
+      "segment_sequence": 1,
+      "attempt_id": "attempt-fixture",
+      "state": "failed",
+      "channel_message_ids": [],
+      "observed_at": "2026-09-14T00:00:10Z",
+      "retry_safe": true
+    }
+  },
+  {
+    "id": "cancel",
+    "schema": "conversation#cancel_request",
+    "document": {
+      "command": {
+        "schema_version": 1,
+        "request_id": "request-fixture",
+        "origin": {
+          "assertion_ref": "origin-fixture"
+        },
+        "idempotency_key": "idempotency-fixture",
+        "deadline_at": "2026-09-14T00:05:00Z"
+      },
+      "conversation_id": "conversation-fixture",
+      "turn_id": "turn-fixture-1",
+      "expected_version": 1,
+      "reason": "explicit_user_cancel"
+    }
+  },
+  {
+    "id": "cancel_partial",
+    "schema": "conversation#cancel_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "turn_id": "turn-fixture-1",
+      "version": 2,
+      "state": "partially_cancelled",
+      "already_sent_reply_ids": [
+        "reply-fixture-1"
+      ],
+      "unresolved_reply_ids": [],
+      "stopped_pending": true,
+      "external_actions_rolled_back": false
+    }
+  },
+  {
+    "id": "turn_committed",
+    "schema": "conversation#committed_event",
+    "document": {
+      "schema_version": 1,
+      "event_id": "event-fixture-commit",
+      "event_type": "conversation.turn_committed",
+      "owner": "companion",
+      "aggregate_id": "turn-fixture-1",
+      "aggregate_version": 3,
+      "occurred_at": "2026-09-14T00:00:10Z",
+      "causation_id": "request-fixture",
+      "conversation_id": "conversation-fixture",
+      "turn_sequence": 1,
+      "scope": {
+        "actor_id": "actor-fixture",
+        "person_id": "person-fixture-a",
+        "audience": "group",
+        "conversation_id": "conversation-fixture"
+      },
+      "scope_version": 1,
+      "input_revision": 1,
+      "sources": [
+        {
+          "message_key": {
+            "channel": {
+              "namespace": "qq",
+              "binding_id": "fixture-bot",
+              "channel_conversation_id": "fixture-group",
+              "thread_id": null
+            },
+            "message_id": "fixture-m1",
+            "revision": 1
+          },
+          "receipt_id": "receipt-fixture",
+          "archive_state": "pending",
+          "locator": null
+        }
+      ],
+      "reality": "real",
+      "confirmed_user_correction": false,
+      "delivery_state": "sent",
+      "reply_ids": [
+        "reply-fixture-1"
+      ]
+    }
+  },
+  {
+    "id": "resolve",
+    "schema": "identity-memory#resolve_request",
+    "document": {
+      "query": {
+        "schema_version": 1,
+        "request_id": "request-fixture",
+        "origin": {
+          "assertion_ref": "origin-fixture"
+        }
+      },
+      "account": {
+        "namespace": "qq",
+        "immutable_account_id": "fixture-user-a"
+      }
+    }
+  },
+  {
+    "id": "resolve_missing",
+    "schema": "identity-memory#resolve_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "state": "unregistered",
+      "person_id": null,
+      "binding_version": 0
+    }
+  },
+  {
+    "id": "resolve_found",
+    "schema": "identity-memory#resolve_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "state": "found",
+      "person_id": "person-fixture-a",
+      "binding_version": 1
+    }
+  },
+  {
+    "id": "register",
+    "schema": "identity-memory#register_request",
+    "document": {
+      "command": {
+        "schema_version": 1,
+        "request_id": "request-fixture",
+        "origin": {
+          "assertion_ref": "origin-fixture"
+        },
+        "idempotency_key": "idempotency-fixture",
+        "deadline_at": "2026-09-14T00:05:00Z"
+      },
+      "account": {
+        "namespace": "qq",
+        "immutable_account_id": "fixture-user-a"
+      },
+      "display_name": "合成样例甲"
+    }
+  },
+  {
+    "id": "registered",
+    "schema": "identity-memory#identity_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "person_id": "person-fixture-a",
+      "binding_version": 1,
+      "created": true
+    }
+  },
+  {
+    "id": "link",
+    "schema": "identity-memory#link_request",
+    "document": {
+      "command": {
+        "schema_version": 1,
+        "request_id": "request-fixture",
+        "origin": {
+          "assertion_ref": "origin-fixture"
+        },
+        "idempotency_key": "idempotency-fixture",
+        "deadline_at": "2026-09-14T00:05:00Z"
+      },
+      "source_account": {
+        "namespace": "qq",
+        "immutable_account_id": "fixture-user-a"
+      },
+      "target_account": {
+        "namespace": "tg",
+        "immutable_account_id": "fixture-user-a-tg"
+      },
+      "source_binding_version": 1,
+      "target_binding_version": 1,
+      "verification_ref": "proof-fixture-both-accounts"
+    }
+  },
+  {
+    "id": "select",
+    "schema": "identity-memory#select_request",
+    "document": {
+      "query": {
+        "schema_version": 1,
+        "request_id": "request-fixture",
+        "origin": {
+          "assertion_ref": "origin-fixture"
+        }
+      },
+      "requested_scope": {
+        "actor_id": "actor-fixture",
+        "person_id": "person-fixture-a",
+        "audience": "group",
+        "conversation_id": "conversation-fixture"
+      },
+      "query_text": "饮品偏好",
+      "selection": [
+        "evidence"
+      ],
+      "known_scope_version": 1,
+      "budget": {
+        "tokens": 200,
+        "bytes": 2048
+      }
+    }
+  },
+  {
+    "id": "selected",
+    "schema": "identity-memory#select_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "effective_scope": {
+        "actor_id": "actor-fixture",
+        "person_id": "person-fixture-a",
+        "audience": "group",
+        "conversation_id": "conversation-fixture"
+      },
+      "scope_version": 1,
+      "verified_at": "2026-09-14T00:00:00Z",
+      "valid_until": "2026-09-14T00:05:00Z",
+      "selected_units": [
+        {
+          "record_id": "memory-fixture-1",
+          "record_version": 1,
+          "semantic_group_id": "semantic-fixture-1",
+          "subject_person_id": "person-fixture-a",
+          "statement": "晚上不喝咖啡；白天偶尔可以。",
+          "conditions": [
+            "白天偶尔可以"
+          ],
+          "negations": [
+            "晚上不喝咖啡"
+          ],
+          "valid_time": "当前明确偏好；未给结束时间",
+          "uncertainty": "confirmed",
+          "reality": "real",
+          "visibility": "shared_projection",
+          "sources": [
+            {
+              "kind": "shareable_projection",
+              "owner": "memory",
+              "projection_ref": "projection-fixture-interest",
+              "projection_version": 1
+            }
+          ]
+        }
+      ],
+      "dependency_groups": [
+        {
+          "semantic_group_id": "semantic-fixture-1",
+          "record_ids": [
+            "memory-fixture-1"
+          ],
+          "complete": true
+        }
+      ],
+      "budget_used": {
+        "tokens": 32,
+        "bytes": 768
+      },
+      "omissions": []
+    }
+  },
+  {
+    "id": "selected_empty",
+    "schema": "identity-memory#select_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "effective_scope": {
+        "actor_id": "actor-fixture",
+        "person_id": "person-fixture-a",
+        "audience": "group",
+        "conversation_id": "conversation-fixture"
+      },
+      "scope_version": 1,
+      "verified_at": "2026-09-14T00:00:00Z",
+      "valid_until": "2026-09-14T00:05:00Z",
+      "selected_units": [],
+      "dependency_groups": [],
+      "budget_used": {
+        "tokens": 0,
+        "bytes": 0
+      },
+      "omissions": [
+        "no_match"
+      ]
+    }
+  },
+  {
+    "id": "revise",
+    "schema": "identity-memory#revise_request",
+    "document": {
+      "command": {
+        "schema_version": 1,
+        "request_id": "request-fixture",
+        "origin": {
+          "assertion_ref": "origin-fixture"
+        },
+        "idempotency_key": "idempotency-fixture",
+        "deadline_at": "2026-09-14T00:05:00Z"
+      },
+      "record_id": "memory-fixture-1",
+      "expected_version": 1,
+      "revision_kind": "correct",
+      "confirmation_ref": "confirmation-fixture",
+      "evidence_refs": [
+        {
+          "message_key": {
+            "channel": {
+              "namespace": "qq",
+              "binding_id": "fixture-bot",
+              "channel_conversation_id": "fixture-group",
+              "thread_id": null
+            },
+            "message_id": "fixture-m1",
+            "revision": 1
+          },
+          "receipt_id": "receipt-fixture",
+          "archive_state": "pending",
+          "locator": null
+        }
+      ],
+      "replacement_statement": "现在白天也不喝咖啡。"
+    }
+  },
+  {
+    "id": "forgotten",
+    "schema": "identity-memory#revise_request",
+    "document": {
+      "command": {
+        "schema_version": 1,
+        "request_id": "request-fixture",
+        "origin": {
+          "assertion_ref": "origin-fixture"
+        },
+        "idempotency_key": "idempotency-fixture",
+        "deadline_at": "2026-09-14T00:05:00Z"
+      },
+      "record_id": "memory-fixture-1",
+      "expected_version": 1,
+      "revision_kind": "forget",
+      "confirmation_ref": "confirmation-fixture",
+      "evidence_refs": [
+        {
+          "message_key": {
+            "channel": {
+              "namespace": "qq",
+              "binding_id": "fixture-bot",
+              "channel_conversation_id": "fixture-group",
+              "thread_id": null
+            },
+            "message_id": "fixture-m1",
+            "revision": 1
+          },
+          "receipt_id": "receipt-fixture",
+          "archive_state": "pending",
+          "locator": null
+        }
+      ],
+      "replacement_statement": null
+    }
+  },
+  {
+    "id": "revised",
+    "schema": "identity-memory#revise_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "record_id": "memory-fixture-1",
+      "record_version": 2,
+      "scope_version": 2,
+      "index_state": "pending",
+      "authoritative_state": "corrected",
+      "semantic_state": "invalidated"
+    }
+  },
+  {
+    "id": "consume",
+    "schema": "identity-memory#consume_receipt",
+    "document": {
+      "schema_version": 1,
+      "event_id": "event-fixture-commit",
+      "turn_id": "turn-fixture-1",
+      "input_revision": 1,
+      "state": "accepted",
+      "candidate_job_ref": "candidate-fixture",
+      "confirmed_memory_written": false
+    }
+  },
+  {
+    "id": "consume_duplicate",
+    "schema": "identity-memory#consume_receipt",
+    "document": {
+      "schema_version": 1,
+      "event_id": "event-fixture-commit",
+      "turn_id": "turn-fixture-1",
+      "input_revision": 1,
+      "state": "duplicate",
+      "candidate_job_ref": "candidate-fixture",
+      "confirmed_memory_written": false
+    }
+  },
+  {
+    "id": "snapshot_query",
+    "schema": "web#snapshot_request",
+    "document": {
+      "query": {
+        "schema_version": 1,
+        "request_id": "request-fixture",
+        "origin": {
+          "assertion_ref": "origin-fixture"
+        }
+      },
+      "conversation_id": "conversation-fixture",
+      "actor_id": "actor-fixture",
+      "page_token": null,
+      "limit": 50
+    }
+  },
+  {
+    "id": "snapshot",
+    "schema": "web#snapshot_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "owner": "companion",
+      "conversation_id": "conversation-fixture",
+      "actor_id": "actor-fixture",
+      "world_id": "world-fixture",
+      "object_version": 3,
+      "observed_at": "2026-09-14T00:00:10Z",
+      "freshness": "current",
+      "snapshot_token": "snapshot-fixture-3",
+      "resume_cursor": "cursor-fixture-opaque-3",
+      "next_page_token": null,
+      "turns": [
+        {
+          "turn_id": "turn-fixture-1",
+          "turn_sequence": 1,
+          "version": 3,
+          "phase": "sent",
+          "result_version": 1,
+          "delivery_state": "sent",
+          "released_slot": true,
+          "unresolved_delivery": false
+        }
+      ],
+      "replies": [
+        {
+          "reply_id": "reply-fixture-1",
+          "turn_id": "turn-fixture-1",
+          "turn_sequence": 1,
+          "actor_id": "actor-fixture",
+          "reply_sequence": 1,
+          "text": "记住了：晚上不喝咖啡，白天偶尔可以。",
+          "delivery_target": "qq",
+          "delivery_state": "sent",
+          "committed_at": "2026-09-14T00:00:10Z"
+        }
+      ]
+    }
+  },
+  {
+    "id": "projection",
+    "schema": "web#projection_event",
+    "document": {
+      "schema_version": 1,
+      "event_id": "event-fixture-project",
+      "event_type": "conversation.projection_changed",
+      "owner": "companion",
+      "aggregate_id": "conversation-fixture",
+      "aggregate_version": 3,
+      "occurred_at": "2026-09-14T00:00:10Z",
+      "causation_id": "event-fixture-commit",
+      "cursor": "cursor-fixture-opaque-3",
+      "scope_version": 1,
+      "change": "reply_committed",
+      "reply": {
+        "reply_id": "reply-fixture-1",
+        "turn_id": "turn-fixture-1",
+        "turn_sequence": 1,
+        "actor_id": "actor-fixture",
+        "reply_sequence": 1,
+        "text": "记住了：晚上不喝咖啡，白天偶尔可以。",
+        "delivery_target": "qq",
+        "delivery_state": "sent",
+        "committed_at": "2026-09-14T00:00:10Z"
+      }
+    }
+  },
+  {
+    "id": "config_query",
+    "schema": "model#config_request",
+    "document": {
+      "query": {
+        "schema_version": 1,
+        "request_id": "request-fixture",
+        "origin": {
+          "assertion_ref": "origin-fixture"
+        }
+      },
+      "config_version": 7
+    }
+  },
+  {
+    "id": "config",
+    "schema": "model#config_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "config_version": 7,
+      "status": "published",
+      "published_at": "2026-09-14T00:00:00Z",
+      "usable_until": "2026-09-14T00:05:00Z",
+      "providers": [
+        {
+          "provider_id": "provider-fixture",
+          "base_url": "https://upstream.example.invalid/v1",
+          "credential_ref": "secret-ref:fixture/provider-a",
+          "credential_namespace": "credential-namespace-fixture",
+          "protocol": "openai-chat-completions",
+          "model_id": "fixture-text-model",
+          "capability_verification": "fixture_only",
+          "verified_capabilities": [
+            "text",
+            "stream"
+          ],
+          "model_policy": {
+            "mode": "preserve_client",
+            "fields": {}
+          },
+          "reasoning_policy": {
+            "mode": "preserve_client",
+            "fields": {}
+          }
+        }
+      ],
+      "bindings": [
+        {
+          "workload": "companion.text",
+          "provider_id": "provider-fixture",
+          "model_id": "fixture-text-model",
+          "timeout_ms": 30000,
+          "fallback": "disabled"
+        }
+      ]
+    }
+  },
+  {
+    "id": "route_context",
+    "schema": "model#route_context",
+    "document": {
+      "request_id": "request-fixture",
+      "turn_id": "turn-fixture-1",
+      "config_version": 7,
+      "workload": "companion.text",
+      "protocol": "openai-chat-completions"
+    }
+  },
+  {
+    "id": "native_request",
+    "schema": "model#native_request",
+    "document": {
+      "model": "fixture-text-model",
+      "messages": [
+        {
+          "role": "user",
+          "content": "你好，合成文字样例。"
+        }
+      ],
+      "stream": false,
+      "reasoning_effort": "low",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "fixture_readonly",
+            "description": "合成只读函数",
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        }
+      ],
+      "tool_choice": "none",
+      "fixture_extension": {
+        "preserve": true
+      }
+    }
+  },
+  {
+    "id": "native_response",
+    "schema": "model#native_response",
+    "document": {
+      "id": "chatcmpl-fixture",
+      "object": "chat.completion",
+      "created": 1789344010,
+      "model": "fixture-text-model",
+      "choices": [
+        {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "你好。"
+          },
+          "finish_reason": "stop"
+        }
+      ],
+      "usage": null
+    }
+  },
+  {
+    "id": "route",
+    "schema": "model#route_receipt",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "config_version": 7,
+      "provider_id": "provider-fixture",
+      "credential_namespace": "credential-namespace-fixture",
+      "caller_service": "companion",
+      "requested_model": "fixture-text-model",
+      "resolved_model": "fixture-text-model",
+      "requested_reasoning": {
+        "reasoning_effort": "low"
+      },
+      "effective_reasoning": {
+        "reasoning_effort": "low"
+      },
+      "applied_policies": [],
+      "protocol": "openai-chat-completions",
+      "outcome": "succeeded",
+      "upstream_request_id": "upstream-fixture",
+      "usage": null,
+      "usage_complete": false,
+      "fallback_used": false,
+      "observed_at": "2026-09-14T00:00:10Z",
+      "native_usage": null
+    }
+  },
+  {
+    "id": "route_unknown",
+    "schema": "model#route_receipt",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "config_version": 7,
+      "provider_id": "provider-fixture",
+      "credential_namespace": "credential-namespace-fixture",
+      "caller_service": "companion",
+      "requested_model": "fixture-text-model",
+      "resolved_model": "fixture-text-model",
+      "requested_reasoning": {
+        "reasoning_effort": "low"
+      },
+      "effective_reasoning": {
+        "reasoning_effort": "low"
+      },
+      "applied_policies": [],
+      "protocol": "openai-chat-completions",
+      "outcome": "unknown",
+      "upstream_request_id": null,
+      "usage": null,
+      "usage_complete": false,
+      "fallback_used": false,
+      "observed_at": "2026-09-14T00:00:10Z",
+      "native_usage": null
+    }
+  },
+  {
+    "id": "error_version_conflict",
+    "schema": "common#error",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "code": "version_conflict",
+      "execution_state": "not_started",
+      "retryable": false,
+      "current_version": 2
+    }
+  },
+  {
+    "id": "error_scope_changed",
+    "schema": "common#error",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "code": "scope_changed",
+      "execution_state": "not_started",
+      "retryable": false
+    }
+  },
+  {
+    "id": "error_queue_full",
+    "schema": "common#error",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "code": "queue_full",
+      "execution_state": "not_started",
+      "retryable": true,
+      "retry_after_ms": 1000
+    }
+  },
+  {
+    "id": "error_idempotency_conflict",
+    "schema": "common#error",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "code": "idempotency_conflict",
+      "execution_state": "not_started",
+      "retryable": false
+    }
+  },
+  {
+    "id": "error_result_unknown",
+    "schema": "common#error",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "code": "result_unknown",
+      "execution_state": "unknown",
+      "retryable": false
+    }
+  },
+  {
+    "id": "error_cursor_expired",
+    "schema": "common#error",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "code": "cursor_expired",
+      "execution_state": "not_started",
+      "retryable": false
+    }
+  },
+  {
+    "id": "error_unauthorized",
+    "schema": "common#error",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "code": "unauthorized",
+      "execution_state": "not_started",
+      "retryable": false
+    }
+  },
+  {
+    "id": "error_forbidden",
+    "schema": "common#error",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "code": "forbidden",
+      "execution_state": "not_started",
+      "retryable": false
+    }
+  },
+  {
+    "id": "error_dependency_unavailable",
+    "schema": "common#error",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "code": "dependency_unavailable",
+      "execution_state": "not_started",
+      "retryable": true
+    }
+  },
+  {
+    "id": "error_unsupported_version",
+    "schema": "common#error",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "code": "unsupported_version",
+      "execution_state": "not_started",
+      "retryable": false
+    }
+  },
+  {
+    "id": "error_timeout",
+    "schema": "common#error",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "code": "timeout",
+      "execution_state": "not_started",
+      "retryable": false
+    }
+  },
+  {
+    "id": "trusted_context_memory",
+    "schema": "common#trusted_context",
+    "document": {
+      "issuer": "nonebot",
+      "authenticated_service": "nonebot",
+      "audience_service": "memory",
+      "assertion_ref": "origin-fixture",
+      "verified_account": {
+        "namespace": "qq",
+        "immutable_account_id": "fixture-user-a"
+      },
+      "principal_id": null,
+      "allowed_scope": {
+        "actor_id": "actor-fixture",
+        "person_id": "person-fixture-a",
+        "audience": "group",
+        "conversation_id": "conversation-fixture"
+      },
+      "expires_at": "2026-09-14T00:05:00Z",
+      "revoked": false,
+      "verified_channel": {
+        "namespace": "qq",
+        "binding_id": "fixture-bot",
+        "channel_conversation_id": "fixture-group",
+        "thread_id": null
+      }
+    }
+  },
+  {
+    "id": "native_request_without_reasoning",
+    "schema": "model#native_request",
+    "document": {
+      "model": "fixture-text-model",
+      "messages": [
+        {
+          "role": "user",
+          "content": "你好，合成文字样例。"
+        }
+      ],
+      "stream": false,
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "fixture_readonly",
+            "description": "合成只读函数",
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        }
+      ],
+      "tool_choice": "none",
+      "fixture_extension": {
+        "preserve": true
+      }
+    }
+  },
+  {
+    "id": "native_request_without_model",
+    "schema": "model#native_request",
+    "document": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "你好，合成文字样例。"
+        }
+      ],
+      "stream": false,
+      "reasoning_effort": "low",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "fixture_readonly",
+            "description": "合成只读函数",
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        }
+      ],
+      "tool_choice": "none",
+      "fixture_extension": {
+        "preserve": true
+      }
+    }
+  },
+  {
+    "id": "native_request_null_model",
+    "schema": "model#native_request",
+    "document": {
+      "model": null,
+      "messages": [
+        {
+          "role": "user",
+          "content": "你好，合成文字样例。"
+        }
+      ],
+      "stream": false,
+      "reasoning_effort": "low",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "fixture_readonly",
+            "description": "合成只读函数",
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        }
+      ],
+      "tool_choice": "none",
+      "fixture_extension": {
+        "preserve": true
+      }
+    }
+  },
+  {
+    "id": "upstream_request",
+    "schema": "model#upstream_request",
+    "document": {
+      "model": "fixture-text-model",
+      "messages": [
+        {
+          "role": "user",
+          "content": "你好，合成文字样例。"
+        }
+      ],
+      "stream": false,
+      "reasoning_effort": "low",
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "fixture_readonly",
+            "description": "合成只读函数",
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        }
+      ],
+      "tool_choice": "none",
+      "fixture_extension": {
+        "preserve": true
+      }
+    }
+  },
+  {
+    "id": "turn_invalidation",
+    "schema": "web#projection_event",
+    "document": {
+      "schema_version": 1,
+      "event_id": "event-fixture-turn-invalidation",
+      "event_type": "conversation.projection_changed",
+      "owner": "companion",
+      "aggregate_id": "conversation-fixture",
+      "aggregate_version": 4,
+      "occurred_at": "2026-09-14T00:00:10Z",
+      "causation_id": "event-fixture-commit",
+      "cursor": "cursor-fixture-opaque-4",
+      "scope_version": 1,
+      "change": "turn_changed",
+      "reply": null
+    }
+  },
+  {
+    "id": "error_invalid_input",
+    "schema": "common#error",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "code": "invalid_input",
+      "execution_state": "not_started",
+      "retryable": false
+    }
+  },
+  {
+    "id": "first_ingest_context",
+    "schema": "common#trusted_context",
+    "document": {
+      "issuer": "nonebot",
+      "authenticated_service": "nonebot",
+      "audience_service": "companion",
+      "assertion_ref": "origin-fixture",
+      "verified_account": {
+        "namespace": "qq",
+        "immutable_account_id": "fixture-user-a"
+      },
+      "principal_id": null,
+      "allowed_scope": {
+        "actor_id": "actor-fixture",
+        "person_id": null,
+        "audience": "group",
+        "conversation_id": null
+      },
+      "expires_at": "2026-09-14T00:05:00Z",
+      "revoked": false,
+      "verified_channel": {
+        "namespace": "qq",
+        "binding_id": "fixture-bot",
+        "channel_conversation_id": "fixture-group",
+        "thread_id": null
+      }
+    }
+  },
+  {
+    "id": "first_memory_context",
+    "schema": "common#trusted_context",
+    "document": {
+      "issuer": "nonebot",
+      "authenticated_service": "nonebot",
+      "audience_service": "memory",
+      "assertion_ref": "origin-fixture",
+      "verified_account": {
+        "namespace": "qq",
+        "immutable_account_id": "fixture-user-a"
+      },
+      "principal_id": null,
+      "allowed_scope": {
+        "actor_id": "actor-fixture",
+        "person_id": null,
+        "audience": "group",
+        "conversation_id": null
+      },
+      "expires_at": "2026-09-14T00:05:00Z",
+      "revoked": false,
+      "verified_channel": {
+        "namespace": "qq",
+        "binding_id": "fixture-bot",
+        "channel_conversation_id": "fixture-group",
+        "thread_id": null
+      }
+    }
+  }
+]
