@@ -1,0 +1,9 @@
+# TS-022 旧入口兼容边界
+
+2026-09-14，依据已发布source-sync/v1 compatibility，不更改wire或发布包。
+
+旧ingest保留旧actor origin解析、受信ingress服务认证与Memory身份核验，按单actor适配；空targets仅授权actor。不能把旧origin当source_input或虚构精确输入登记。新多角色入口ingest-actors严格调用input authority。两条路径分别记录验证来源及覆盖，不把旧路径声明为新链路验收。
+
+旧路径同样须拒绝跨actor回执/collector混用，验证原作者、渠道与当前角色绑定；旧retract是物理控制，不产生新的可召回角色受理。历史归属不明隔离，不能从当前collector猜admission。Platform current只能核验有真实历史admission/entry及当前绑定证据的legacy来源，缺证据明确拒绝，不补造input证明。
+
+本次不新增映射RPC，也不要求为旧信封私加source_input。后续真实多角色接入采用新入口；生产迁移及测试应分别说明旧兼容与新精确输入的覆盖。
