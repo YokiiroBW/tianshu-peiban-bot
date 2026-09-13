@@ -165,6 +165,29 @@ class SchemaAndRelations(unittest.TestCase):
         with self.assertRaisesRegex(Violation, "sharing_approval_required"):
             check_drafts(values["commit"], values["event"], values["core"]["facts"])
 
+    def test_metadata_cannot_hide_two_actors_in_one_channel(self):
+        values = sample()
+        second = copy.deepcopy(values["core"]["facts"][0])
+        second["key"]["message_id"] = "message:actor-b"
+        second["source"]["message_key"]["message_id"] = "message:actor-b"
+        second["source"]["receipt_id"] = "receipt:actor-b"
+        second["scope"]["actor_id"] = "actor:other"
+        values["core"]["facts"].append(second)
+        values["core_request"]["keys"].append(second["key"])
+        values["core"]["request_digest"] = digest(values["core_request"])
+        validator("core_response").validate(values["core"])
+        with self.assertRaisesRegex(Violation, "unsupported_multi_actor"):
+            check_core(values["core_request"], values["core"])
+
+    def test_wire_capacity_is_256_sources_not_pages(self):
+        request = sample()["core_request"]
+        original = request["keys"][0]
+        request["keys"] = [dict(original, message_id="message:" + str(i)) for i in range(256)]
+        validator("core_request").validate(request)
+        request["keys"].append(dict(original, message_id="message:257"))
+        with self.assertRaises(ValidationError):
+            validator("core_request").validate(request)
+
 
 class TransactionTraces(unittest.TestCase):
     def setUp(self):
@@ -179,6 +202,7 @@ class TransactionTraces(unittest.TestCase):
         self.scope = self.fact["scope"]
         self.key = canonical(self.fact["key"])
         self.head = copy.deepcopy(self.values["core"]["head"])
+        self.platform_head = copy.deepcopy(self.values["access"]["head"])
         self.sync()
 
     def tearDown(self):
@@ -187,7 +211,7 @@ class TransactionTraces(unittest.TestCase):
 
     def sync(self, **kwargs):
         ticket = kwargs.pop("ticket", self.ledger.ticket(self.scope))
-        return self.ledger.sync(ticket, [self.fact], [self.access], self.head, **kwargs)
+        return self.ledger.sync(ticket, [self.fact], [self.access], self.head, self.platform_head, **kwargs)
 
     def revision(self, number, withdrawn=False):
         self.fact["source"]["message_key"]["revision"] = number
@@ -229,6 +253,8 @@ class TransactionTraces(unittest.TestCase):
         self.ledger.seed_group("group:complete", [self.key], text_domain(self.scope))
         before = self.ledger.state()
         self.revision(2)
+        self.access.update(state="denied", reason="entry_revoked")
+        self.platform_head["sequence"] += 1
         with self.assertRaisesRegex(RuntimeError, "synthetic crash"):
             self.sync(crash=True)
         self.ledger.close()
@@ -240,7 +266,7 @@ class TransactionTraces(unittest.TestCase):
     def test_metadata_coverage_and_local_revision_cannot_be_skipped(self):
         ticket = self.ledger.ticket(self.scope)
         with self.assertRaisesRegex(Violation, "coverage"):
-            self.ledger.sync(ticket, [], [], self.head)
+            self.ledger.sync(ticket, [], [], self.head, self.platform_head)
         self.ledger.seed_group("group:concurrent", [self.key], text_domain(self.scope))
         with self.assertRaisesRegex(Violation, "changed_local"):
             self.sync(ticket=ticket)
@@ -258,6 +284,53 @@ class TransactionTraces(unittest.TestCase):
         with self.assertRaisesRegex(Violation, "recovery_required"):
             self.sync()
         self.assertEqual(before, self.ledger.state())
+
+    def test_platform_rollback_or_new_generation_cannot_restore_old_allowed_grant(self):
+        old_grant = copy.deepcopy(self.access)
+        old_head = copy.deepcopy(self.platform_head)
+        self.ledger.seed_group("group:approved", [self.key], text_domain(self.scope))
+        self.access.update(state="denied", reason="entry_revoked")
+        self.platform_head["sequence"] += 1
+        self.sync()
+        denied = self.ledger.state()
+        self.assertEqual(denied["platform_head"], self.platform_head)
+        self.ledger.close()
+        self.ledger = Ledger(self.path)
+        self.access = old_grant
+        self.platform_head = old_head
+        with self.assertRaisesRegex(Violation, "recovery_required"):
+            self.sync()
+        self.assertEqual(denied, self.ledger.state())
+        self.platform_head = dict(generation="platform:restored", sequence=0)
+        with self.assertRaisesRegex(Violation, "recovery_required"):
+            self.sync()
+        self.assertEqual(denied, self.ledger.state())
+        self.assertFalse(self.ledger.active(self.ledger.state()["sources"][self.key]))
+        self.assertFalse(self.ledger.state()["groups"]["group:approved"]["active"])
+
+    def test_stable_source_cannot_move_to_another_actor(self):
+        before = self.ledger.state()
+        self.revision(2)
+        self.fact["scope"]["actor_id"] = "actor:other"
+        with self.assertRaisesRegex(Violation, "unsupported_actor_change"):
+            self.sync()
+        self.assertEqual(before, self.ledger.state())
+
+    def test_full_scope_accumulation_eventually_exceeds_hard_capacity(self):
+        def add_until(state, count):
+            original = copy.deepcopy(state["sources"][self.key])
+            for i in range(1, count):
+                row = copy.deepcopy(original)
+                row["fact"]["key"]["message_id"] = "message:accumulated-" + str(i)
+                row["fact"]["source"]["message_key"]["message_id"] = row["fact"]["key"]["message_id"]
+                row["fact"]["source"]["receipt_id"] = "receipt:accumulated-" + str(i)
+                state["sources"][canonical(row["fact"]["key"])] = row
+            state["revision"] += 1
+        self.ledger.mutate(lambda state: add_until(state, 256))
+        self.assertEqual(len(self.ledger.ticket(self.scope)["keys"]), 256)
+        self.ledger.mutate(lambda state: add_until(state, 257))
+        with self.assertRaisesRegex(Violation, "dependency_unavailable"):
+            self.ledger.ticket(self.scope)
 
     def test_old_source_and_retract_cannot_resurrect(self):
         original_fact = copy.deepcopy(self.fact)
@@ -289,6 +362,7 @@ class TransactionTraces(unittest.TestCase):
     def test_entry_revoke_invalidates_source_and_pending_job(self):
         job = self.ledger.consume(self.values["event"], self.values["core"]["turns"][0])
         self.access.update(state="denied", reason="entry_revoked")
+        self.platform_head["sequence"] += 1
         revision = self.sync()
         self.assertFalse(self.ledger.active(self.ledger.state()["sources"][self.key]))
         self.assertEqual(self.ledger.state()["jobs"][job]["state"], "stale_source")
@@ -360,6 +434,67 @@ class TransactionTraces(unittest.TestCase):
         self.assertEqual(job, self.ledger.consume(event, turn))
         self.assertFalse(self.ledger.state()["groups"][job + ":0"]["active"])
 
+    def input_jobs(self):
+        event, turn = self.values["event"], self.values["core"]["turns"][0]
+        committed = self.ledger.consume(event, turn)
+        self.ledger.commit(committed, self.values["commit"]["drafts"], turn)
+        other_event = dict(event, event_id="event:pending", aggregate_id="turn:pending")
+        other_turn = dict(turn, turn_id="turn:pending", committed_event=other_event)
+        pending = self.ledger.consume(other_event, other_turn)
+        return committed, pending
+
+    def test_reply_cancel_keeps_input_jobs_and_committed_groups_across_restart(self):
+        committed, pending = self.input_jobs()
+        known = self.ledger.probe(self.ledger.state()["revision"], self.scope)
+        turn = self.values["core"]["turns"][0]
+        turn["phase"] = "cancelled"
+        turn["context_revision"] += 1
+        self.head["sequence"] += 1
+        revision = self.sync()  # Same source/access: a reply-only owner update.
+        check_event(self.values["event"], turn, [self.fact])
+        self.assertEqual(self.ledger.probe(revision, self.scope, known), known)
+        self.assertEqual(self.ledger.state()["jobs"][pending]["state"], "pending")
+        self.assertTrue(self.ledger.state()["groups"][committed + ":0"]["active"])
+        saved = self.ledger.state()
+        self.ledger.close()
+        self.ledger = Ledger(self.path)
+        self.assertEqual(saved, self.ledger.state())
+        self.assertEqual(self.ledger.probe(saved["revision"], self.scope, known), known)
+
+    def test_source_retract_invalidates_pending_and_committed_before_probe_and_restart(self):
+        committed, pending = self.input_jobs()
+        known = self.ledger.probe(self.ledger.state()["revision"], self.scope)
+        self.revision(2, withdrawn=True)
+        revision = self.sync()
+        with self.assertRaisesRegex(Violation, "scope_changed"):
+            self.ledger.probe(revision, self.scope, known)
+        self.assertEqual(self.ledger.state()["jobs"][pending]["state"], "stale_source")
+        self.assertFalse(self.ledger.state()["groups"][committed + ":0"]["active"])
+        self.ledger.close()
+        self.ledger = Ledger(self.path)
+        with self.assertRaisesRegex(Violation, "scope_changed"):
+            self.ledger.probe(revision, self.scope, known)
+        self.assertFalse(self.ledger.state()["groups"][committed + ":0"]["active"])
+
+    def test_confirmed_correction_disables_old_value_without_publishing_replacement(self):
+        committed, _ = self.input_jobs()
+        request = copy.deepcopy(self.values["revise"])
+        request.update(revision_kind="correct", replacement_statement="白天也不喝咖啡。")
+        proof = copy.deepcopy(self.values["confirmation"])
+        proof["semantic_digest"] = digest({k: v for k, v in request.items() if k != "command"})
+        check_confirmation(proof, request, self.fact["author"], self.scope, 1, FIXTURE["now"])
+        self.ledger.suppress(self.key)  # Models the already-confirmed invalidation, no new source.
+        response = dict(schema_version=1, request_id=request["command"]["request_id"], record_id=request["record_id"], record_version=2, scope_version=self.ledger.probe(self.ledger.state()["revision"], self.scope), index_state="pending", authoritative_state="corrected", semantic_state="invalidated")
+        validator("identity-memory#revise_response").validate(response)
+        self.assertFalse(self.ledger.state()["groups"][committed + ":0"]["active"])
+        self.revision(2)
+        self.sync()
+        self.ledger.close()
+        self.ledger = Ledger(self.path)
+        visible_units = [unit for group in self.ledger.state()["groups"].values() if group["active"] for unit in group.get("units", [])]
+        self.assertEqual(visible_units, [])
+        self.assertTrue(self.ledger.state()["sources"][self.key]["suppressed"])
+
     def test_bootstrap_has_no_turn_or_source_requirement(self):
         values = sample()
         values["core_request"].update(keys=[], turn_ids=[])
@@ -367,7 +502,7 @@ class TransactionTraces(unittest.TestCase):
         check_core(values["core_request"], values["core"])
         fresh = Ledger(":memory:")
         try:
-            revision = fresh.sync(fresh.ticket(self.scope), [], [], values["core"]["head"])
+            revision = fresh.sync(fresh.ticket(self.scope), [], [], values["core"]["head"], values["access"]["head"])
             self.assertEqual(fresh.probe(revision, self.scope), 1)
         finally:
             fresh.close()

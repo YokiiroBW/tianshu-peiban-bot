@@ -101,7 +101,6 @@
             "input_revision": 3,
             "aggregate_version": 9,
             "context_revision": 1,
-            "input_state": "active",
             "input_sources": [
               {
                 "message_key": {
@@ -165,7 +164,8 @@
               "reply_ids": [
                 "reply:synthetic-1"
               ]
-            }
+            },
+            "phase": "closed_unknown"
           }
         ]
       }
@@ -673,7 +673,6 @@
             "input_revision": 3,
             "aggregate_version": 9,
             "context_revision": 1,
-            "input_state": "active",
             "input_sources": [
               {
                 "message_key": {
@@ -737,7 +736,8 @@
               "reply_ids": [
                 "reply:synthetic-1"
               ]
-            }
+            },
+            "phase": "closed_unknown"
           }
         ]
       }
@@ -818,7 +818,6 @@
             "input_revision": 3,
             "aggregate_version": 9,
             "context_revision": 1,
-            "input_state": "active",
             "input_sources": [
               {
                 "message_key": {
@@ -840,7 +839,8 @@
             "reply_ids": [
               "reply:synthetic-1"
             ],
-            "committed_event": null
+            "committed_event": null,
+            "phase": "queued"
           }
         ]
       }
@@ -881,7 +881,6 @@
             "input_revision": 3,
             "aggregate_version": 9,
             "context_revision": 1,
-            "input_state": "active",
             "input_sources": [
               {
                 "message_key": {
@@ -945,7 +944,8 @@
               "reply_ids": [
                 "reply:synthetic-1"
               ]
-            }
+            },
+            "phase": "closed_unknown"
           }
         ]
       }

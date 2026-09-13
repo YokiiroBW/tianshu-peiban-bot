@@ -93,8 +93,12 @@ def check_core(request, response):
     require(len(set(keys)) == len(keys) and set(facts) == set(keys), "coverage")
     turns = {t["turn_id"]: t for t in response["turns"]}
     require(len(turns) == len(response["turns"]) and len(set(request["turn_ids"])) == len(request["turn_ids"]) and set(turns) == set(request["turn_ids"]), "coverage")
+    channel_actors = {}
     for fact in facts.values():
         require(fact["state"] != "missing", "dependency_unavailable")
+        channel = canonical(fact["key"]["channel"])
+        actor = fact["scope"]["actor_id"]
+        require(channel_actors.setdefault(channel, actor) == actor, "unsupported_multi_actor")
         source = fact["source"]
         require(source_key(source) == canonical(fact["key"]), "source_binding")
         require(source["archive_state"] == "pending" and source["locator"] is None, "archive_unverified")
@@ -138,7 +142,7 @@ def check_barrier(values):
 
 def check_turn(request, turn, facts):
     require(turn["turn_id"] == request["turn_id"] and turn["scope"] == request["scope"] and turn["input_revision"] == request["input_revision"] and turn["input_sources"] == request["sources"], "owner_input")
-    require(turn["input_state"] == "active", "stale_source")
+    # Reply lifecycle never revokes accepted input; current source facts do that.
     current = by_key(facts)
     require(len({source_key(s) for s in request["sources"]}) == len(request["sources"]), "stale_source")
     for source in request["sources"]:

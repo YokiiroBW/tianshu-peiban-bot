@@ -14,6 +14,8 @@
 - 新增三个候选 HTTP 读取：Core 来源事实、Platform 来源授权、Memory 后台范围检查。Memory 同步/确认/候选提交用受信内部应用服务；第一阶段候选工作者和确认适配器与 Memory 同进程，不新增 HTTP 写端点。
 - 保留两个已发布包全部字节及 wire 形状。新事实放此独立 `source-sync/candidate.1` 包，只有新 HTTP 请求/响应携带 `candidate_version`；不把附加字段塞进旧 `common.source`、committed_event 或画像响应。
 - 撤回、权限撤销、Memory 遗忘分别保存，不覆盖成一个可被远端快照置回 active 的标记。私密变化不推动无活动投影的公开画像 epoch。
+- 原始输入记忆只做source级失效，普通回复取消不撤回输入。correct当前只禁用旧值，新值尚不可召回；完整更正另列具体任务。
+- 此切片限单actor渠道和最多256来源的完整scope coverage；长期累积会使scope持续503，不承诺长期生产可用。多角色实际限制见[固定Core回执复现](core-receipts-reproduction.json)。
 - Audit `archive_observed/not_checked` 仅归档观察。当前没有 Core receipt/revision 到 Audit locator 的可信联合绑定，本候选仅接通 `pending/locator=null`，不自造 archived 成功。
 
 ## 阅读与运行
@@ -29,4 +31,4 @@ python -B tests/contracts/source-sync/verify_pins.py --workspace C:/YOKI/Codex/t
 
 本任务 Windows 实际解释器和依赖只读位置见 [handoff](../../../handoffs/TS-002.md)。测试所需临时 SQLite 文件只在 `tests/contracts/source-sync/.runtime/`，测试后关闭并清理自己的临时文件。
 
-验收止于 schema、合成关系、SQLite 故障/恢复参考轨迹和固定源码证据。随后必须分别实现和验证三个产品，再按 TS-050 的真实联合清单重新验收；不能用本包绿灯解除 L0。
+验收止于schema、合成关系、SQLite故障/双owner回退参考轨迹、固定源码证据，以及隔离固定Core的6项真实收件/存储复现（身份/记忆/模型/渠道依赖仍为其原测试替身）。随后必须分别实现和验证三个产品，再按TS-050的真实联合清单重新验收；不能用本包绿灯解除L0。

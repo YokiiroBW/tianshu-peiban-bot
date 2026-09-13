@@ -426,8 +426,8 @@
     "expected_error": null
   },
   {
-    "id": "current-input-withdrawn",
-    "check": "event",
+    "id": "turn-input-state-cannot-invent-independent-revocation",
+    "check": "schema_core",
     "mutations": [
       {
         "path": [
@@ -439,7 +439,7 @@
         "value": "withdrawn"
       }
     ],
-    "expected_error": "stale_source"
+    "expected_error": "schema"
   },
   {
     "id": "late-event-old-source",
@@ -645,5 +645,21 @@
       }
     ],
     "expected_error": "schema"
+  },
+  {
+    "id": "reply-cancellation-keeps-accepted-input-current",
+    "check": "event",
+    "mutations": [
+      {
+        "path": [
+          "core",
+          "turns",
+          0,
+          "phase"
+        ],
+        "value": "cancelled"
+      }
+    ],
+    "expected_error": null
   }
 ]

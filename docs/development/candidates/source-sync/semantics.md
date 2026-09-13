@@ -12,13 +12,15 @@ Core 的新 SourceFacts 应用端口只读本地事务状态；**不能调用 Me
 
 全部为部署指定 HTTPS 目标、独立可撤销 Bearer 服务凭据、固定 receiver/operation allowlist；禁止从 payload 取 URL/CA/token，禁止跳转、环境代理、关闭证书验证。继承已发布错误对象与 no-store。request_id 关联响应；request_digest 是规范化完整请求的 SHA256，防串包，不是签名。调用者字段即使出现在正文也不授权。
 
+测试中的Violation标签是关系断言诊断，不新增wire错误码。多actor准入按既有forbidden/403拒绝；已存角色归属不明、完整coverage超限或恢复边界未核验由接线服务按dependency_unavailable/503失败关闭。
+
 | 候选路径 | 调用方/接收方 | 请求与结果 |
 | --- | --- | --- |
 | POST `/internal/v1/source-facts/read` | Memory → Core | `core_request/core_response`；snapshot 模式指定稳定 message key 集合、turn_ids 和 include_content；head 模式只读取同一持久水位。三者均不使用入口 assertion 作后台访问凭据。 |
 | POST `/internal/v1/source-access/read` | Memory → Platform | `access_request/access_response`；绑定 Core 来源元数据摘要，逐一返回当前 entry/主体/路由/映射事实；在线模式还重新验证当前 viewer origin，后台模式 viewer=null。 |
 | POST `/internal/v1/memory/source-sync/check` | Core → Memory | `check_request/check_response`；后台核验指定 turn 与其完整 sources、scope，经屏障后只返回 Memory 的 text-dialogue scope_version；无用户原文或画像正文。用于 blocked_scope 修复，不作任意后台人物查询。 |
 
-Core 和 Platform 的批量请求最多 256 来源、32 轮次，超过返回 413/budget_exceeded；不能截断、静默漏项或以空集合表示完整。单响应上限 1 MiB；零预算使用 metadata 模式，不拉正文。暂不分页：Memory 实际依赖集合过大则 503，后续只在有证据需要时另设计同快照分片；不得分批拼不同水位后声称完整。
+Core 和 Platform 的批量请求最多 256 来源、32 轮次，超过返回 413/budget_exceeded；不能截断、静默漏项或以空集合表示完整。单响应上限 1 MiB；零预算使用 metadata 模式，不拉正文。**256 是此次完整 scope coverage 的硬容量上限，不是每页条数或召回条数。** text scope 逐次登记的来源会长期累积，即使本轮零预算/无命中/很多来源已失效，完整覆盖集合超过256也会令该scope持续503；画像活动血缘过多同样如此。本切片只用于有界联调，不能承诺长期生产可用。不得通过丢历史、漏墓碑或分批拼不同水位绕过上限。以后有实际容量证据再设计固定同一owner快照的分页，或持久连续增量+缺口时完整快照恢复；本包不实现这些机制。
 
 每个已请求 key/turn 必须恰好返回一个事实或显式 missing 结果；重复 key 是 400。missing/未知映射/缺 owner 状态是 503，不能认为已撤回，也不能继续使用旧正文。没有 tracked source 的本人首次版本探针允许空 key 集合，仍校验 viewer 与稳定 owner 水位。
 
@@ -28,15 +30,19 @@ Core 和 Platform 的批量请求最多 256 来源、32 轮次，超过返回 41
 
 `source_fact` 还包含 author、精确 scope、binding_version、accepted_origin、accepted_at、ingest_sequence、kind、content_digest、classification 与 state。`content` 是原 ingest 的完整语义 payload（去 command）：原 message_key/author/sent_at/kind/parts/reply_refs/mentioned_accounts/target_actor_ids。digest 以该对象计算；不只 hash 最后一段 text，不删除否定、主语、引用、消息边界或附件占位。metadata 模式 content=null，但 Core 必须从已持久的实际输入算出同一 digest；正文拉取须保持相同 head/fact，否则重试屏障。
 
+**角色能力限制：本候选仅允许一个已登记渠道在本切片内固定一个actor，稳定source不得换actor，不支持同一入站多角色fan-out。** 已发布ingest schema虽然允许多个target_actor_ids，固定Core17eba4f的实际ingest会拒绝不同actor的多target；改target重投同revision冲突，空targets换actor的origin可返回首个actor的同一receipt。更严重的是，真实Store按channel+author聚合，另一actor的新消息会被受理进首actor的collection；已封存后的更高edit又可令同一stable key落到另一actor的collection。见 [6个真实Core回执/存储复现](core-receipts-reproduction.json)。这不能解释成已经支持多角色来源。
+
+因此保留单scope source_fact与现有source wire，不能通过放松check_core的actor检查或覆盖ledger.scope兼容上述混组。下一Core/Platform接线任务必须在准入前执行单actor渠道限制，并将每次原始可信admission actor与collection/来源scope一致性持久核验；既有不一致或角色归属不明的行隔离并503，不从可变collection猜actor。metadata读取也须检查这项元数据证明。未来确需多角色时另设计“物理消息事实”与“各actor获准使用”的无歧义关系/selector及ledger隔离；本包不私改旧common.source或伪造多个receipt。
+
 accepted_origin 仅保留已认证 admission 的历史链路，不赋予当前访问权。Platform 保留签发历史与当时 entry 快照/摘要、签发/到期/撤销时间，核对该 Core 接受时间及 account/channel/actor/scope。然后检查**当前** entry、principal、route、账号绑定和 channel→conversation 映射。当前映射缺失、冲突或绑定版本不相符不能从查询 payload 回填。现有 Platform 还缺部分历史字段，必须由其后续任务补齐；仅凭传来的 accepted_at 不能证明渠道行为，信任来自已认证 Core 的实际收件事实及其原入站验证。
 
 来源已授权用于后台整理且 entry/owner/映射仍有效时，历史 origin 到期或事后单独 revoke origin 不撤销已受理来源；在线 viewer 使用该 origin 仍被拒绝。撤销 entry/principal/后台整理路由或明确底层来源使用权使 access.state=denied，并同步失效。不是让过期 ref 重新 resolve 成有效用户来源。Platform 不再充当消息 revision/retract owner；现有 observe_source 只能作 rehearsal 对照，不能拿其 revision 覆盖 Core。
 
 classification.value 为 real/fictional/mixed/unclassified；basis 是已登记输入模式或受信精确来源复核，附 policy_ref/version。不能从服务token、模型输出、缺省 real 或文字里自称“真实”获得分类。real 表示现实情境中的陈述，**不表示陈述已核实为真**，记忆仍保留 uncertainty。Core 当前 `_finish` 常量 real 必须修正为实际来源分类汇总。本候选中 mixed/unclassified 单条来源只保存不可提炼元数据，不产生现实/虚构单位；若需拆单消息内混合证据，须另定义可验证段范围后发布新能力。多个分别已分类来源可以组成旧 event.reality=mixed，但每个 unit 只能引用与自己 reality 相同的来源。
 
-`turn_fact` 给出当前输入 revision、context_revision、当前对象版本、完整有序 input_sources、输入状态、真实当前 delivery_state/reply_ids，以及持久原始 committed_event（可空）。封账事件核验比较原 event 除 event_id 外的**全部字段**与 owner 保存值，event_id 换名只能得到相同输入的 duplicate；不同 scope_version/delivery/reply_ids/时间/causation/aggregate_version 等都拒绝。随后核对输入集合、当前输入状态和全部 source 事实，不拿历史事件覆盖当前撤回。input_revision 不等于 message revision，aggregate_version 是对象修订号，可能跳号；owner 快照证明当前事实后，不再用“每次事件 +1”假设堵住合法事件缺口。
+`turn_fact` 给出owner封存输入的revision、context_revision、当前对象版本、完整有序input_sources、真实当前phase/delivery_state/reply_ids，以及持久原始committed_event（可空）。phase是回复/轮次生命周期，**没有独立input_state撤回标记**。封账事件核验比较原event除event_id外的全部字段与owner保存值，event_id换名只能得到相同输入的duplicate；不同scope_version/delivery/reply_ids/时间/causation/aggregate_version等都拒绝。随后核对封存输入集合和每个当前source事实，不拿历史事件覆盖消息撤回。input_revision不等于message revision，aggregate_version是对象修订号，可能跳号；owner快照证明当前事实后，不再用“每次事件+1”假设堵住合法事件缺口。
 
-迟到 sent 回执只能更新投递投影；不能重开轮次或重复候选/关系记账。unknown/partial 的输入仍可整理，但不得以角色已发送承诺作为记忆事实；候选提炼此阶段仅以真实输入为依据。owner turn 被取消/输入撤回时，新候选拒绝，旧候选失效。对传入错误 event 不能用 owner 正确值静默改写成 accepted。
+迟到sent回执只能更新投递投影；不能重开轮次或重复候选/关系记账。unknown/partial/普通reply cancelled不撤回用户已受理的输入，该输入仍可整理，但不能宣称角色已经表达承诺。本候选只从原始输入提炼，不从回复文本提炼承诺。因此采用**来源级失效**：编辑、消息retract、来源权限撤销、Memory本地更正/遗忘必须产生明确source事实/epoch变化；所有pending jobs和已commit groups的source血缘都同步失效。仅turn.phase/context_revision/投递变化不使这些原始输入记忆失效；turn查询用于本次consume/commit/check的owner输入核验，不纳入已有groups/jobs的独立turn失效订阅。若未来引入独立于source的输入失效，或以生成回复/上下文作记忆证据，必须先补对应依赖coverage及事务失效合同，本包不声称支持。对传入错误event不能用owner正确值静默改写成accepted。
 
 ## 4. 读取屏障与 Memory 原子失效
 
@@ -76,7 +82,9 @@ Memory 持久区分 remote_current、access_current 与 local_suppression。有�
 
 首次来源插入只建立 ledger/初始版本；现有来源实质变化推进其 text scope（即使尚无组）；完整重复不加 epoch。只给**仍 active** 的共享投影做 active→invalidated 转换时推进相应 profile epoch；一次事务同域只增一次。仅私密来源变化、私密 suppression、已经失效的公开投影后续来源修订都不改变公开或其他群 epoch。不得把 Core/Platform 全局水位加进画像 scope_version。
 
-重复 event_id 必须 digest 一致；同 turn/input_revision 换 event_id 仍去重；重放旧 accepted 可以回历史 duplicate，但不产生新 job、重新激活旧 job 或绕过 commit 时的屏障。缺口先取 owner 快照，无法证明就503；乱序旧来源/旧 turn 不覆盖新行。水位回退或 generation 变化停止使用、重同步所有覆盖集合；如果 Memory 也从旧备份恢复，必须先恢复独立保留的 suppression/消费ledger/outbox 记录，不能把 source owner 快照当完整恢复数据。恢复完整性未确认前不提供任何记忆版本探针。
+重复event_id必须digest一致；同turn/input_revision换event_id仍去重；重放旧accepted可以回历史duplicate，但不产生新job、重新激活旧job或绕过commit时的屏障。缺口先取owner快照，无法证明就503；乱序旧来源/旧turn不覆盖新行。Memory同一同步事务持久保存**Core与Platform各自**最后接受的generation/sequence；两端任一个水位回退或generation变化，均拒绝整次同步，保留已经失效的source/access/groups/jobs与旧水位，不能用回退快照的allowed恢复来源。该操作没有成功屏障就不执行后续probe/consume/commit。普通Memory重启恢复两个水位，不重置为0。任何真正的owner恢复须先重核完整覆盖集合、撤权/墓碑保留记录及新generation的可信恢复边界，再恢复服务；不能收到新generation就自动接纳。
+
+如果Memory也从旧备份恢复，必须先恢复独立保留的suppression/消费ledger/outbox及两个owner水位记录，不能把任一source/access快照当完整恢复数据。恢复完整性未确认前不提供记忆版本探针。本包参考模型只验证双owner回退/换代的拒绝、保留失效和重启持久性，不实现恢复批准/重建流程。
 
 候选提交复用 jobs.source_snapshot、write_ledger、source_writes 与完整组写入事务：检查 job 当前状态、event owner facts、scope_version、全部 source revision/epoch、草稿来源确切子集及 reality、整组语义字段；任一源已记账则整个 job duplicate_source，不部分累加关系。相同 job/drafts 重试返回原结果；异 drafts 409。记录消费幂等键、来源账本、关系增量和候选状态同一事务；崩溃恢复无半组。
 
@@ -85,6 +93,10 @@ Memory 持久区分 remote_current、access_current 与 local_suppression。有�
 Memory 新内部 TrustedWorkflow 与 fixture-only LocalWorkflow 分离，复用验证/事务函数，不继承 fixture 类以绕过检查。内部 `confirm_revision(request, verified_context, decision)` 由部署登记的本人操作适配器调用：真实用户在受信 UI/本地操作入口对完整更正/遗忘操作确认后，Memory 签发 confirmation_ref，保存当前账号、精确 scope、binding_version、目标版本、完整 semantic_request digest、有效期与未消费状态。schema 中 confirmation_record 是该**内部持久记录**，不是客户端可提交的授权字段。
 
 沿用现有 semantic_request 定义：去 command/query，保留 record_id/expected_version/revision_kind/confirmation_ref/evidence_refs/replacement_statement；规范化为 UTF-8、键排序、紧凑 JSON、无 NaN/重复键，数组顺序不变。proof 同时绑定签发时的主体和当前绑定版本。revise 原子消费 proof、写 suppression、失效、写幂等结果；原幂等重试可返回结果，其他键不能复用已消费 proof。账号/版本/语义变了必须重新核对具体操作，普通查询不新增提示。
+
+**本切片的correct仅受理更正并禁用旧值，尚未记住可召回的新值。** 现有响应可如实给authoritative_state=corrected、semantic_state=invalidated、index_state=pending；replacement_statement只是确认过的待重建更正文本/历史，不是已经拥有独立可信来源的完整语义组。不得向用户显示“已记住新值”或返回semantic_state=rebuilt，不承诺后台稍后一定能完成。旧source保持永久suppression，高revision、旧candidate、旧archive均不能解禁它。
+
+完整更正另列Memory/Platform后续任务：把经过同一账号/精确操作确认的更正陈述建立为独立可追溯的可信更正来源（与被禁旧source分离），明确其主体/范围/完整语义/版本/撤销关系，原子创建可读新组及查询路径，并验证新值确实可召回且旧值永不复活。届时如需新来源种类由协调者发布；本包不把confirmation_ref塞进旧common.source冒充Core receipt，也不通过重新绑定旧source偷渡新值。
 
 群画像共享继续使用已发布 profile-memory 的独立精确类别/主体/范围批准，允许已登记的本人共享设置或群整理策略；dialogue 路由、自动提炼、服务token和普通 revise 确认均不授予共享权。候选内部首写默认只允许 event.scope 内的私有整理；显式群投影通过已有批准应用服务，禁止复用 LocalWorkflow._write_group 的“传 group scope 即投影”路径绕过真实批准。
 

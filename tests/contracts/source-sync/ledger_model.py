@@ -26,7 +26,7 @@ class Ledger:
     def __init__(self, path):
         self.db = sqlite3.connect(path, isolation_level=None)
         self.db.execute("CREATE TABLE IF NOT EXISTS contract_state(id INTEGER PRIMARY KEY, body TEXT NOT NULL)")
-        state = dict(revision=0, sources={}, versions={}, groups={}, jobs={}, events={}, turns={}, writes={}, effects=0, core_head=None)
+        state = dict(revision=0, sources={}, versions={}, groups={}, jobs={}, events={}, turns={}, writes={}, effects=0, core_head=None, platform_head=None)
         self.db.execute("INSERT OR IGNORE INTO contract_state VALUES(1,?)", (canonical(state),))
 
     def close(self):
@@ -61,16 +61,18 @@ class Ledger:
             relevant = group["domain"] in domains if profile else group["domain"] == text_domain(scope)
             if group["active"] and relevant:
                 keys.update(group["keys"])
+        require(len(keys) <= 256, "dependency_unavailable")
         return dict(revision=state["revision"], keys=sorted(keys))
 
-    def sync(self, ticket, facts, access, head, *, crash=False):
+    def sync(self, ticket, facts, access, head, platform_head, *, crash=False):
         def apply(state):
             require(ticket["revision"] == state["revision"], "changed_local")
             incoming, grants = by_key(facts), by_key(access)
             require(set(ticket["keys"]) <= set(incoming) and set(incoming) == set(grants), "coverage")
-            prior_head = state["core_head"]
-            if prior_head is not None:
-                require(head["generation"] == prior_head["generation"] and head["sequence"] >= prior_head["sequence"], "recovery_required")
+            for owner, current_head in (("core", head), ("platform", platform_head)):
+                prior_head = state[owner + "_head"]
+                if prior_head is not None:
+                    require(current_head["generation"] == prior_head["generation"] and current_head["sequence"] >= prior_head["sequence"], "recovery_required")
             changed_domains, changed = set(), False
             for key, fact in incoming.items():
                 require(fact["state"] != "missing", "dependency_unavailable")
@@ -78,6 +80,7 @@ class Ledger:
                 old = state["sources"].get(key)
                 new = dict(fact=metadata(fact), access=grant, epoch=1, suppressed=False)
                 if old:
+                    require(fact["scope"]["actor_id"] == old["fact"]["scope"]["actor_id"], "unsupported_actor_change")
                     require(fact["source"]["message_key"]["revision"] >= old["fact"]["source"]["message_key"]["revision"], "stale_source")
                     require(not (old["fact"]["state"] == "withdrawn" and fact["state"] == "active"), "resurrection")
                     if fact["source"]["message_key"]["revision"] == old["fact"]["source"]["message_key"]["revision"]:
@@ -95,6 +98,7 @@ class Ledger:
             if changed:
                 state["revision"] += 1
             state["core_head"] = copy.deepcopy(head)
+            state["platform_head"] = copy.deepcopy(platform_head)
             return state["revision"]
         return self.mutate(apply, crash=crash)
 

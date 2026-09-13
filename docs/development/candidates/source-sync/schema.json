@@ -365,13 +365,6 @@
           "type": "integer",
           "minimum": 1
         },
-        "input_state": {
-          "enum": [
-            "active",
-            "cancelled",
-            "withdrawn"
-          ]
-        },
         "input_sources": {
           "type": "array",
           "items": {
@@ -406,6 +399,22 @@
               "type": "null"
             }
           ]
+        },
+        "phase": {
+          "enum": [
+            "queued",
+            "preparing",
+            "generating",
+            "waiting_dependency",
+            "ready_to_send",
+            "sending",
+            "reconciling",
+            "sent",
+            "failed",
+            "cancelled",
+            "observed",
+            "closed_unknown"
+          ]
         }
       },
       "required": [
@@ -414,7 +423,7 @@
         "input_revision",
         "aggregate_version",
         "context_revision",
-        "input_state",
+        "phase",
         "input_sources",
         "delivery_state",
         "reply_ids",
