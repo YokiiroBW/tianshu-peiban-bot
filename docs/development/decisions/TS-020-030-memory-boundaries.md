@@ -10,3 +10,5 @@
 - SQLite/WAL/FTS5 允许作为 TS-030 隔离首切片，生产 PostgreSQL、真实嵌入、真实 L0/L1 另行验证。
 
 补充：发送前可用零预算 select + known_scope_version 核验当前授权/版本，零预算不跳过校验，不重新装配内容，也不宣称核验与外部发送原子。渠道回执查询暂为接收者内部端口，不猜共享 HTTP 路径；不可查时按期限 closed_unknown，保留不确定事实。缺权威 scope_version 的 blocked_scope 仅为核心本地待修复记录，不扩展公开 turn.phase，不伪造事件；失败轮次仍封账释放槽，恢复后检查当前修订/取消/遗忘/范围才可形成幂等事件。
+
+首次渠道映射：核心是 conversation_id 权威，接入方收到可信 ingest_response 后按已验证 channel_key 保存映射，来源 issuer 随后返回具体会话；不得采纳用户/模型提供的编号。首次 resolve/register 允许 null，不反向等待 ingest 完成。memory.select 对来源 conversation 尚未解析返回现有 dependency_unavailable/503，不执行查询；非空不匹配仍拒绝。核心在回执响应完成后启动工作，W=0 等初始化竞态可有界、可取消、受 deadline 限制地等待，不能放宽范围或无限重试。该闭环复用既有 wire，真实桥接与竞态样例由 TS-020/030 验证。
