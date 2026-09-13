@@ -78,7 +78,7 @@
       "id": "TS-050",
       "threadId": "01a09c4e-43bf-7663-af12-d6b65da9e25d",
       "hostId": "local",
-      "status": "in_progress"
+      "status": "blocked"
     },
     {
       "id": "TS-060",
@@ -90,7 +90,7 @@
       "id": "TS-032",
       "threadId": "01a09c5b-e5df-71e2-b365-f44340618fb9",
       "hostId": "local",
-      "status": "in_progress"
+      "status": "review"
     }
   ],
   "scope": "实际开发已授权；每个任务只写已分配 worktree，完成后回报协调者审查"

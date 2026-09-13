@@ -353,7 +353,7 @@
         "TS-010",
         "TS-012"
       ],
-      "status": "in_progress",
+      "status": "blocked",
       "allowed_paths": [
         "tests/integration/",
         "docs/development/evidence/",
@@ -364,7 +364,9 @@
       "assignee": "01a09c4e-43bf-7663-af12-d6b65da9e25d",
       "worktree": "worktrees/TS-050/workspace",
       "branch": "work/ts-050",
-      "evidence": [],
+      "evidence": [
+        "docs/development/reviews/TS-050-partial-accepted.md"
+      ],
       "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人",
       "contract_binding": {
         "version": "1.0.0",
@@ -374,7 +376,9 @@
       },
       "baseline_commit": "688b0ce169ee9a0c27d26831611b72886fd0fc22",
       "thread_id": "01a09c4e-43bf-7663-af12-d6b65da9e25d",
-      "host_id": "local"
+      "host_id": "local",
+      "partial_evidence_commit": "dc357e2cefb3e3df7c427938da38dd2c67d28341",
+      "blocked_reason": "真实来源事实、Memory来源同步/失效与确认/候选端口缺失；局部8场景通过，不是完整L0"
     },
     {
       "id": "TS-051",
@@ -576,7 +580,7 @@
       "depends_on": [
         "TS-031"
       ],
-      "status": "in_progress",
+      "status": "review",
       "allowed_paths": [
         "src/",
         "tests/",
