@@ -1,0 +1,20 @@
+{
+  "version": "1.0.0",
+  "version_domain": "profile-memory/v1",
+  "status": "published_implementation_baseline",
+  "design_confirmation": "TS-031 producer proposal reviewed by coordinator as consumer; category added for explicit selection checks",
+  "runtime_integration": "not_run",
+  "dependency": {
+    "package": "text-dialogue/v1",
+    "version": "1.0.0",
+    "manifest_sha256": "81e6cc4ddef7c6f82e055d4cb04b090db036dd5c52763473ce697aa02db478a1"
+  },
+  "hash_basis": "UTF-8 text normalized CRLF to LF",
+  "sha256": {
+    "examples.json": "0ffdc88d76ee8817923f5fbedbad576a787c6ddc5af6bdfd31f082ce5a1e8f5d",
+    "README.md": "c2480689a4603d8f8616f8d80683bafe7636bd2a9c36c81161e74b73d1d559f8",
+    "schemas/profiles.json": "3d7ee2605fc2aefc890f38244197e284d287ffcee1746bb5639cb6a6ecb034ed",
+    "semantics.md": "bd62ea2299e4ed34609a420bf4ae8d4f187b09e02a61eb5d81e49d415bd6f27a",
+    "validate.py": "4fbff50a03eabffe75f46fc717d95214051e4146f93c3a8fb174e6e69f6ee549"
+  }
+}

@@ -306,7 +306,7 @@
         "TS-001",
         "TS-010"
       ],
-      "status": "in_progress",
+      "status": "done",
       "allowed_paths": [
         "services/platform/",
         "tests/",
@@ -325,7 +325,10 @@
       "assignee": "01a09c17-bbdf-72c0-b234-2daf60b1b18c",
       "worktree": "worktrees/TS-012/tianshu-platform",
       "branch": "work/ts-012",
-      "evidence": [],
+      "evidence": [
+        "docs/development/reviews/TS-012-accepted.md",
+        "Coordinator: 26 backend tests including real platform/gateway/recording upstream subchain passed; not full L0/L1"
+      ],
       "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人；仅后端服务/后端依赖，不改 TS-011 负责的 npm 清单、前端壳与令牌。",
       "contract_binding": {
         "version": "1.0.0",
@@ -335,7 +338,9 @@
       },
       "baseline_commit": "dc220227220287c77d5f0b4b67844ea5533c19c0",
       "thread_id": "01a09c17-bbdf-72c0-b234-2daf60b1b18c",
-      "host_id": "local"
+      "host_id": "local",
+      "review_state": "accepted",
+      "integrated_commit": "a5ee59ff67a2de7a7e0d8328ea3c0f43e1d6a209"
     },
     {
       "id": "TS-050",
@@ -520,7 +525,13 @@
       "scope_note": "补完整目标；1.0.0只支持本人subject，不能直接绕过此限制或改主contracts。",
       "baseline_commit": "358e4a664e14eee734494646f3aa3a0bc666a222",
       "thread_id": "01a09c29-905e-7470-8d02-a6bbfb9b4113",
-      "host_id": "local"
+      "host_id": "local",
+      "profile_contract_binding": {
+        "version": "1.0.0",
+        "manifest": "contracts/profile-memory/v1/manifest.json",
+        "manifest_sha256": "488d05438dd5b5abaa43a66a7eab0eb5cf615d5af01a964a7286cd23e68f7eb7",
+        "hash_basis": "UTF-8 LF-normalized"
+      }
     },
     {
       "id": "TS-021",

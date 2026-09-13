@@ -11,3 +11,5 @@
 当前发布状态：**文字首切片 1.0.0 已作为实现基线发布**，L0/L1 未运行。网页回复、模型配置下发和初次记忆写入不能因为目录未单独编号而被遗漏。
 
 当前实现入口：[文字合同 1.0.0](text-dialogue/v1/README.md)。按 manifest 的版本与哈希绑定，不再引用旧候选 worktree。
+
+画像扩展：[profile-memory/v1 1.0.0](profile-memory/v1/README.md)，请求人/目标分离，版本领域独立；`python contracts/profile-memory/v1/validate.py` 验证该包与固定文字依赖。仅实现基线发布，产品与L0/L1验收另记。
