@@ -98,7 +98,8 @@
       "id": "TS-021",
       "threadId": "01a09c69-3d6b-73e1-805a-91c710f26eb5",
       "hostId": "local",
-      "status": "in_progress"
+      "status": "done",
+      "integrated_commit": "05c35db54df146bf2997eab6cd516c0948dfdc40"
     },
     {
       "id": "TS-002",

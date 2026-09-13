@@ -563,7 +563,7 @@
         "TS-020",
         "TS-031"
       ],
-      "status": "in_progress",
+      "status": "done",
       "allowed_paths": [
         "src/",
         "integrations/nonebot/",
@@ -575,11 +575,15 @@
       "assignee": "01a09c69-3d6b-73e1-805a-91c710f26eb5",
       "worktree": "worktrees/TS-021/tianshu-companion",
       "branch": "work/ts-021",
-      "evidence": [],
+      "evidence": [
+        "docs/development/reviews/TS-021-accepted.md"
+      ],
       "scope_note": "新增画像API不等于BOT已会调用；不私改共享wire，不把昵称当账号关联凭证。",
       "baseline_commit": "812019e287a5bf37d9b5d810a028ffea828b872e",
       "thread_id": "01a09c69-3d6b-73e1-805a-91c710f26eb5",
-      "host_id": "local"
+      "host_id": "local",
+      "implementation_commit": "17eba4f1d513073c3e1bad7823e2f7c3fc728754",
+      "integrated_commit": "05c35db54df146bf2997eab6cd516c0948dfdc40"
     },
     {
       "id": "TS-032",
