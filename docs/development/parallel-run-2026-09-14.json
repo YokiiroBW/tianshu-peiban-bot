@@ -106,6 +106,24 @@
       "threadId": "01a09c76-efee-7351-8d35-d9192db2c92e",
       "hostId": "local",
       "status": "done"
+    },
+    {
+      "id": "TS-022",
+      "threadId": "01a09d1b-9cf6-7973-a828-1c00adc17a96",
+      "hostId": "local",
+      "status": "in_progress"
+    },
+    {
+      "id": "TS-013",
+      "threadId": "01a09d1b-a1be-7a42-b261-f8713b1ae342",
+      "hostId": "local",
+      "status": "in_progress"
+    },
+    {
+      "id": "TS-033",
+      "threadId": "01a09d1b-a720-7ab3-98bb-f9d414461b0b",
+      "hostId": "local",
+      "status": "in_progress"
     }
   ],
   "scope": "实际开发已授权；每个任务只写已分配 worktree，完成后回报协调者审查"
