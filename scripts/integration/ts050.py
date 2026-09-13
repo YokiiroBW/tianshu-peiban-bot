@@ -1,4 +1,4 @@
-"""Pinned, isolated TS-050 preparation and execution. Never imports projects in place."""
+"""TS-050 Memory HTTPS follow-up. Original dc357e2 results remain in .runtime/ts050."""
 
 import argparse
 import hashlib
@@ -15,12 +15,12 @@ import tomllib
 ROOT = Path(__file__).resolve().parents[2]
 PINS = {
     "companion": "812019e287a5bf37d9b5d810a028ffea828b872e",
-    "memory": "358e4a664e14eee734494646f3aa3a0bc666a222",
+    "memory": "69b29f3a6b8cd61d39d733870d136de2caeb75f0",
     "model-gateway": "b3b101faf3902f05d80818b39fe7c91367865d4e",
     "platform": "a5ee59ff67a2de7a7e0d8328ea3c0f43e1d6a209",
 }
 MANIFEST = "81e6cc4ddef7c6f82e055d4cb04b090db036dd5c52763473ce697aa02db478a1"
-RUNTIME = ROOT / ".runtime/ts050"
+RUNTIME = ROOT / ".runtime/ts050-tls"
 
 
 def git(path, *args):
@@ -167,12 +167,18 @@ def run():
             "-s",
             "tests/integration",
             "-p",
-            "test_ts050*.py",
+            "test_ts050_tls*.py",
             "-v",
         ],
         cwd=ROOT,
         env=env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
     )
+    (RUNTIME / "unittest.txt").write_text(result.stdout + result.stderr, "utf-8")
+    print(result.stdout, end="")
+    print(result.stderr, end="", file=sys.stderr)
     verify_inputs()
     verify_snapshots(products)
     environment = {
@@ -188,18 +194,26 @@ def run():
         },
         "manifest_sha256": MANIFEST,
         "test_exit_code": result.returncode,
+        "slice": "memory_https_followup",
+        "test_pattern": "test_ts050_tls*.py",
+        "historical_evidence_commit": "dc357e2cefb3e3df7c427938da38dd2c67d28341",
         "classification": "partial_not_full_L0",
     }
     (RUNTIME / "environment.json").write_text(json.dumps(environment, indent=2) + "\n", "utf-8")
     return result.returncode
 
 
-def verify_snapshots(products):
-    """Compare every exported blob to Git's immutable commit tree, not a mutable marker alone."""
+def verify_snapshots(products, *, snapshot_root=None, pins=None):
+    """Check the entire snapshot before imports: Git blobs plus one exact commit marker."""
+    snapshot_root = RUNTIME / "sources" if snapshot_root is None else Path(snapshot_root)
+    pins = PINS if pins is None else pins
     for name, repository in products.items():
+        snapshot = snapshot_root / name
         entries = subprocess.check_output(
-            ["git", "-C", str(repository), "ls-tree", "-r", "-z", PINS[name]]
+            ["git", "-C", str(repository), "ls-tree", "-r", "-z", pins[name]]
         )
+        tracked = {}
+        directories = {"."}
         for entry in entries.split(b"\0"):
             if not entry:
                 continue
@@ -207,12 +221,34 @@ def verify_snapshots(products):
             mode, kind, expected = metadata.split()
             if kind != b"blob" or mode == b"120000":
                 raise SystemExit(f"Unsupported source tree entry in {name}")
-            content = (RUNTIME / "sources" / name / filename.decode("utf-8")).read_bytes()
+            relative = filename.decode("utf-8")
+            tracked[relative] = expected.decode()
+            directories.update(parent.as_posix() for parent in Path(relative).parents)
+        if snapshot.is_symlink() or snapshot.is_junction() or not snapshot.is_dir():
+            raise SystemExit(f"Invalid snapshot directory: {name}")
+        allowed_files = set(tracked) | {".ts050-commit"}
+        for directory, subdirectories, files in os.walk(snapshot, followlinks=False):
+            for child in [*subdirectories, *files]:
+                path = Path(directory) / child
+                relative = path.relative_to(snapshot).as_posix()
+                if path.is_symlink() or path.is_junction():
+                    raise SystemExit(f"Snapshot link is not allowed: {name}/{relative}")
+                allowed = directories if path.is_dir() else allowed_files
+                if relative not in allowed:
+                    raise SystemExit(f"Unexpected snapshot entry: {name}/{relative}")
+        marker = snapshot / ".ts050-commit"
+        if not marker.is_file() or marker.read_text("utf-8") != pins[name]:
+            raise SystemExit(f"Snapshot commit marker mismatch: {name}")
+        for relative, expected in tracked.items():
+            path = snapshot / relative
+            if not path.is_file():
+                raise SystemExit(f"Snapshot file missing: {name}/{relative}")
+            content = path.read_bytes()
             actual = hashlib.sha1(
                 b"blob " + str(len(content)).encode() + b"\0" + content
             ).hexdigest()
-            if actual != expected.decode():
-                raise SystemExit(f"Snapshot changed: {name}/{filename.decode('utf-8')}")
+            if actual != expected:
+                raise SystemExit(f"Snapshot changed: {name}/{relative}")
 
 
 if __name__ == "__main__":

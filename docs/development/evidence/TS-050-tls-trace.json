@@ -1,0 +1,1522 @@
+{
+  "task": "TS-050",
+  "slice": "memory_https_followup",
+  "classification": "partial_not_full_L0",
+  "validation": {
+    "tests": 7,
+    "passed": 7,
+    "network_scenarios": 4,
+    "snapshot_guard_tests": 3,
+    "duration_seconds": 11.275,
+    "command": ".runtime/ts050/venv/Scripts/python.exe -B scripts/integration/ts050.py run",
+    "full_L0": false
+  },
+  "historical_evidence_commit": "dc357e2cefb3e3df7c427938da38dd2c67d28341",
+  "historical_evidence_git_bytes_sha256": {
+    "TS-050-wiring.md": "3b6e73de6ef814613d12b5786604aa0f3ec25bc6b393902e26da3e01814b055a",
+    "TS-050-report.md": "5e8188613680b7e79857c120e7bb77737e274b400e418250308d6c98e6432f2f",
+    "TS-050-trace.json": "f3bf14e5a47f32b30fab78b79d6ab365bc42b164ddbc41974487a937a719181f",
+    "TS-050-next-ports.md": "a98c4a41035886c783ca98bdc839a09ee001cc764a41bf6b41839242774e11d2"
+  },
+  "historical_snapshot_strict_guard": "passed; only exact .ts050-commit beyond Git blobs",
+  "snapshot_guard": {
+    "tests": [
+      "Git blobs and exact marker accepted",
+      "extra importable files rejected",
+      "changed or missing blob and wrong marker rejected"
+    ],
+    "rejected_extra_paths": [
+      "src/sitecustomize.py",
+      "src/injected.pyc",
+      "src/injected.pyd",
+      "src/injected.so",
+      "src/startup.pth",
+      "src/injected.zip",
+      ".ts050-commit.py",
+      "unexpected.txt"
+    ]
+  },
+  "environment": {
+    "python": "3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]",
+    "source": "PyPI pinned companion/platform runtime union; Memory manifest ranges checked",
+    "memory_lock_reproduced": false,
+    "distributions": {
+      "Pygments": "2.21.0",
+      "aiohappyeyeballs": "2.7.1",
+      "aiohttp": "3.14.1",
+      "aiosignal": "1.4.0",
+      "annotated-doc": "0.0.5",
+      "annotated-types": "0.8.0",
+      "anyio": "4.15.1",
+      "attrs": "26.1.0",
+      "certifi": "2026.7.22",
+      "cffi": "2.1.1",
+      "click": "8.5.0",
+      "colorama": "0.4.6",
+      "cryptography": "50.0.1",
+      "fastapi": "0.135.1",
+      "frozenlist": "1.8.0",
+      "h11": "0.16.0",
+      "httpcore": "1.0.9",
+      "httpx": "0.28.1",
+      "idna": "3.19",
+      "iniconfig": "2.3.0",
+      "jsonschema": "4.26.0",
+      "jsonschema-specifications": "2025.9.1",
+      "multidict": "6.8.0",
+      "packaging": "26.3",
+      "pluggy": "1.6.0",
+      "propcache": "0.5.2",
+      "pycparser": "3.0",
+      "pydantic": "2.13.5",
+      "pydantic_core": "2.46.5",
+      "pytest": "9.0.2",
+      "referencing": "0.37.0",
+      "rpds-py": "2026.6.3",
+      "ruff": "0.15.7",
+      "starlette": "1.6.0",
+      "typing-inspection": "0.4.4",
+      "typing_extensions": "4.16.0",
+      "uvicorn": "0.42.0",
+      "yarl": "1.24.5"
+    },
+    "pins": {
+      "companion": "812019e287a5bf37d9b5d810a028ffea828b872e",
+      "memory": "69b29f3a6b8cd61d39d733870d136de2caeb75f0",
+      "model-gateway": "b3b101faf3902f05d80818b39fe7c91367865d4e",
+      "platform": "a5ee59ff67a2de7a7e0d8328ea3c0f43e1d6a209"
+    },
+    "observed_coordinator_heads": {
+      "companion": "812019e287a5bf37d9b5d810a028ffea828b872e",
+      "memory": "69b29f3a6b8cd61d39d733870d136de2caeb75f0",
+      "model-gateway": "b3b101faf3902f05d80818b39fe7c91367865d4e",
+      "platform": "a5ee59ff67a2de7a7e0d8328ea3c0f43e1d6a209"
+    },
+    "manifest_sha256": "81e6cc4ddef7c6f82e055d4cb04b090db036dd5c52763473ce697aa02db478a1",
+    "test_exit_code": 0,
+    "slice": "memory_https_followup",
+    "test_pattern": "test_ts050_tls*.py",
+    "historical_evidence_commit": "dc357e2cefb3e3df7c427938da38dd2c67d28341",
+    "classification": "partial_not_full_L0"
+  },
+  "scenarios": [
+    {
+      "scenario": "test_configured_https_first_identity_mapping_and_w0_gate",
+      "classification": "partial",
+      "checks": [
+        {
+          "name": "shipped_factory_real_platform_https_identity",
+          "before": {
+            "actor_id": "actor-fixture",
+            "audience": "self_private",
+            "person_id": null,
+            "conversation_id": null
+          },
+          "after": {
+            "actor_id": "actor-fixture",
+            "audience": "self_private",
+            "person_id": "person:07888c2277a4419185352e9ce6eea80e",
+            "conversation_id": "conv:707997f1c8a84253b5638844a2009ac7"
+          },
+          "receipt": {
+            "schema_version": 1,
+            "request_id": "req:92fea85cad1946f6b47b031f6e9c0d69",
+            "receipt_id": "receipt:368f016a32c647e58cb56b6772eb7982",
+            "deduplicated": false,
+            "conversation_id": "conv:707997f1c8a84253b5638844a2009ac7",
+            "person_id": "person:07888c2277a4419185352e9ce6eea80e",
+            "collection_key": {
+              "channel": {
+                "namespace": "qq",
+                "binding_id": "ts050-local-recorder",
+                "channel_conversation_id": "ts050-private",
+                "thread_id": null
+              },
+              "author": {
+                "namespace": "qq",
+                "immutable_account_id": "ts050-synthetic-person"
+              }
+            },
+            "collection_id": "col:9056777cd42c425ba3ddc24ab6deb493",
+            "collection_revision": 1,
+            "accepted_at": "2026-09-13T20:23:42.805Z",
+            "ingest_sequence": 1,
+            "archive_state": "pending"
+          },
+          "product_resolver_requests": [
+            {
+              "path": "/internal/v1/origins/resolve",
+              "transport": "https",
+              "request_sha256": "1f3f4db7b0baa48f7f14e4a6bf50c42a94c7403855cadae61f8f6fdbe5175277",
+              "status": 200,
+              "credential_role": "MEMORY_RESOLVER",
+              "resolved": {
+                "issuer": "platform",
+                "authenticated_service": "companion",
+                "audience_service": "memory",
+                "allowed_scope": {
+                  "actor_id": "actor-fixture",
+                  "audience": "self_private",
+                  "person_id": null,
+                  "conversation_id": null
+                }
+              }
+            },
+            {
+              "path": "/internal/v1/origins/resolve",
+              "transport": "https",
+              "request_sha256": "a5add013ea1297587b3427ba82a457e0479dd038a094691beb7c926eea4c63cb",
+              "status": 200,
+              "credential_role": "MEMORY_RESOLVER",
+              "resolved": {
+                "issuer": "platform",
+                "authenticated_service": "companion",
+                "audience_service": "memory",
+                "allowed_scope": {
+                  "actor_id": "actor-fixture",
+                  "audience": "self_private",
+                  "person_id": null,
+                  "conversation_id": null
+                }
+              }
+            }
+          ],
+          "remaining_application_ports": [
+            "prepare_mapping",
+            "confirm_mapping",
+            "observe_source"
+          ]
+        },
+        {
+          "name": "w0_source_none_fails_closed_after_real_https_identity",
+          "core": {
+            "turns": [
+              {
+                "id": "turn:69c069e79d3147a282d89984785239b6",
+                "sequence": 1,
+                "phase": "failed",
+                "failure": "timeout",
+                "model_calls": 0,
+                "scope_version": null,
+                "bundle": {
+                  "close_reason": "immediate_submit",
+                  "collection_id": "col:9056777cd42c425ba3ddc24ab6deb493",
+                  "collection_key": {
+                    "author": {
+                      "immutable_account_id": "ts050-synthetic-person",
+                      "namespace": "qq"
+                    },
+                    "channel": {
+                      "binding_id": "ts050-local-recorder",
+                      "channel_conversation_id": "ts050-private",
+                      "namespace": "qq",
+                      "thread_id": null
+                    }
+                  },
+                  "collection_revision": 1,
+                  "context_refs": [],
+                  "continuation_of": null,
+                  "conversation_id": "conv:707997f1c8a84253b5638844a2009ac7",
+                  "dependencies": [],
+                  "messages": [
+                    {
+                      "accepted_at": "2026-09-13T20:23:42.805Z",
+                      "author": {
+                        "immutable_account_id": "ts050-synthetic-person",
+                        "namespace": "qq"
+                      },
+                      "ingest_sequence": 1,
+                      "mentioned_accounts": [],
+                      "message_key": {
+                        "channel": {
+                          "binding_id": "ts050-local-recorder",
+                          "channel_conversation_id": "ts050-private",
+                          "namespace": "qq",
+                          "thread_id": null
+                        },
+                        "message_id": "tls:first",
+                        "revision": 1
+                      },
+                      "parts": [
+                        {
+                          "kind": "text",
+                          "text": "我叫小明"
+                        }
+                      ],
+                      "person_id": "person:07888c2277a4419185352e9ce6eea80e",
+                      "reply_refs": [],
+                      "sent_at": "2026-09-13T20:23:42.805323Z",
+                      "source": {
+                        "archive_state": "pending",
+                        "locator": null,
+                        "message_key": {
+                          "channel": {
+                            "binding_id": "ts050-local-recorder",
+                            "channel_conversation_id": "ts050-private",
+                            "namespace": "qq",
+                            "thread_id": null
+                          },
+                          "message_id": "tls:first",
+                          "revision": 1
+                        },
+                        "receipt_id": "receipt:368f016a32c647e58cb56b6772eb7982"
+                      },
+                      "target_actor_ids": [
+                        "actor-fixture"
+                      ]
+                    }
+                  ],
+                  "possibly_incomplete": false,
+                  "schema_version": 1,
+                  "sealed_at": "2026-09-13T20:23:42.805Z",
+                  "turn_id": "turn:69c069e79d3147a282d89984785239b6",
+                  "turn_sequence": 1
+                }
+              }
+            ],
+            "collections": [
+              {
+                "id": "col:9056777cd42c425ba3ddc24ab6deb493",
+                "state": "sealed",
+                "revision": 1,
+                "deadline": 1789331022.8053231,
+                "source_context_revision": 1
+              }
+            ],
+            "outbox": [
+              {
+                "id": "event:f8dc99b542434e93b2fddb561c561da0",
+                "state": "blocked_scope",
+                "attempts": 0,
+                "scope_version": null
+              }
+            ],
+            "replies": 0
+          },
+          "full_l0": false,
+          "duplicate_receipt": {
+            "accepted_at": "2026-09-13T20:23:42.805Z",
+            "archive_state": "pending",
+            "collection_id": "col:9056777cd42c425ba3ddc24ab6deb493",
+            "collection_key": {
+              "author": {
+                "immutable_account_id": "ts050-synthetic-person",
+                "namespace": "qq"
+              },
+              "channel": {
+                "binding_id": "ts050-local-recorder",
+                "channel_conversation_id": "ts050-private",
+                "namespace": "qq",
+                "thread_id": null
+              }
+            },
+            "collection_revision": 1,
+            "conversation_id": "conv:707997f1c8a84253b5638844a2009ac7",
+            "deduplicated": true,
+            "ingest_sequence": 1,
+            "person_id": "person:07888c2277a4419185352e9ce6eea80e",
+            "receipt_id": "receipt:368f016a32c647e58cb56b6772eb7982",
+            "request_id": "req:92fea85cad1946f6b47b031f6e9c0d69",
+            "schema_version": 1
+          }
+        }
+      ],
+      "slice": "memory_https_followup",
+      "memory_factory": "tianshu_memory.app.configured_app",
+      "memory_authenticator": "shipped Authenticator; no B resolver adapter",
+      "profile_contract_loaded": false,
+      "model_http_calls": 0,
+      "channel_http_calls": 0,
+      "platform_http_requests": [
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "17b58963f387d774af0a07a7c04db6a983779e225ca32866ea54a5fe371c8f39",
+          "status": 200,
+          "credential_role": "MEMORY_RESOLVER",
+          "resolved": {
+            "issuer": "platform",
+            "authenticated_service": "companion",
+            "audience_service": "memory",
+            "allowed_scope": {
+              "actor_id": "actor-fixture",
+              "audience": "self_private",
+              "person_id": null,
+              "conversation_id": null
+            }
+          }
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "377c99ae503a349440918aa95d4dcbbd52003536d25087dcd61a1416acbfad53",
+          "status": 200,
+          "credential_role": "COMPANION_RESOLVER",
+          "resolved": {
+            "issuer": "platform",
+            "authenticated_service": "nonebot",
+            "audience_service": "companion",
+            "allowed_scope": {
+              "actor_id": "actor-fixture",
+              "audience": "self_private",
+              "person_id": null,
+              "conversation_id": null
+            }
+          }
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "1f3f4db7b0baa48f7f14e4a6bf50c42a94c7403855cadae61f8f6fdbe5175277",
+          "status": 200,
+          "credential_role": "MEMORY_RESOLVER",
+          "resolved": {
+            "issuer": "platform",
+            "authenticated_service": "companion",
+            "audience_service": "memory",
+            "allowed_scope": {
+              "actor_id": "actor-fixture",
+              "audience": "self_private",
+              "person_id": null,
+              "conversation_id": null
+            }
+          }
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "a5add013ea1297587b3427ba82a457e0479dd038a094691beb7c926eea4c63cb",
+          "status": 200,
+          "credential_role": "MEMORY_RESOLVER",
+          "resolved": {
+            "issuer": "platform",
+            "authenticated_service": "companion",
+            "audience_service": "memory",
+            "allowed_scope": {
+              "actor_id": "actor-fixture",
+              "audience": "self_private",
+              "person_id": null,
+              "conversation_id": null
+            }
+          }
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "17b58963f387d774af0a07a7c04db6a983779e225ca32866ea54a5fe371c8f39",
+          "status": 200,
+          "credential_role": "MEMORY_RESOLVER",
+          "resolved": {
+            "issuer": "platform",
+            "authenticated_service": "companion",
+            "audience_service": "memory",
+            "allowed_scope": {
+              "actor_id": "actor-fixture",
+              "audience": "self_private",
+              "person_id": "person:07888c2277a4419185352e9ce6eea80e",
+              "conversation_id": "conv:707997f1c8a84253b5638844a2009ac7"
+            }
+          }
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "2bb58bf3fb7deae1708404935c077e9cc00f7292085ba6951582dbac2c9fe1e9",
+          "status": 200,
+          "credential_role": "MEMORY_RESOLVER",
+          "resolved": {
+            "issuer": "platform",
+            "authenticated_service": "companion",
+            "audience_service": "memory",
+            "allowed_scope": {
+              "actor_id": "actor-fixture",
+              "audience": "self_private",
+              "person_id": "person:07888c2277a4419185352e9ce6eea80e",
+              "conversation_id": "conv:707997f1c8a84253b5638844a2009ac7"
+            }
+          }
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "377c99ae503a349440918aa95d4dcbbd52003536d25087dcd61a1416acbfad53",
+          "status": 200,
+          "credential_role": "COMPANION_RESOLVER",
+          "resolved": {
+            "issuer": "platform",
+            "authenticated_service": "nonebot",
+            "audience_service": "companion",
+            "allowed_scope": {
+              "actor_id": "actor-fixture",
+              "audience": "self_private",
+              "person_id": "person:07888c2277a4419185352e9ce6eea80e",
+              "conversation_id": "conv:707997f1c8a84253b5638844a2009ac7"
+            }
+          }
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "9b7fd00ff972ec33b1e83d589b1c866d63649343cc3b786d1cb4cfbb5b3f8729",
+          "status": 200,
+          "credential_role": "MEMORY_RESOLVER",
+          "resolved": {
+            "issuer": "platform",
+            "authenticated_service": "companion",
+            "audience_service": "memory",
+            "allowed_scope": {
+              "actor_id": "actor-fixture",
+              "audience": "self_private",
+              "person_id": "person:07888c2277a4419185352e9ce6eea80e",
+              "conversation_id": "conv:707997f1c8a84253b5638844a2009ac7"
+            }
+          }
+        }
+      ],
+      "memory_http_requests": [
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 200,
+          "request_sha256": "8d02c10009960fc7388d983c5de6e9c47d411b66350a2feb18757acac7458bab"
+        },
+        {
+          "path": "/internal/v1/identity/register",
+          "status": 200,
+          "request_sha256": "f7e2980fe2425cc456e40a340e9479b6de00a5db5d5c256682c81fd05a615465"
+        },
+        {
+          "path": "/internal/v1/memory/select",
+          "status": 503,
+          "request_sha256": "31521b8446d88254f51dbca38a86441ea6571809818002eff7997ea8d6687edf",
+          "budget": {
+            "tokens": 0,
+            "bytes": 0
+          },
+          "query_text": "我叫小明"
+        },
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 200,
+          "request_sha256": "b8d45dafaada8a8c8edc471cc9da61153f298225512c88ee7356dca4a8fccc61"
+        }
+      ],
+      "mapping_receipts": [
+        {
+          "kind": "identity_resolve",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:af6747e438524b8382c50e463b842686",
+            "state": "unregistered",
+            "person_id": null,
+            "binding_version": 0
+          }
+        },
+        {
+          "kind": "identity",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:4e9fe7c75b0949f9b5f4263cbb2179df",
+            "person_id": "person:07888c2277a4419185352e9ce6eea80e",
+            "binding_version": 1,
+            "created": true
+          }
+        },
+        {
+          "kind": "ingest",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:92fea85cad1946f6b47b031f6e9c0d69",
+            "receipt_id": "receipt:368f016a32c647e58cb56b6772eb7982",
+            "deduplicated": false,
+            "conversation_id": "conv:707997f1c8a84253b5638844a2009ac7",
+            "person_id": "person:07888c2277a4419185352e9ce6eea80e",
+            "collection_key": {
+              "channel": {
+                "namespace": "qq",
+                "binding_id": "ts050-local-recorder",
+                "channel_conversation_id": "ts050-private",
+                "thread_id": null
+              },
+              "author": {
+                "namespace": "qq",
+                "immutable_account_id": "ts050-synthetic-person"
+              }
+            },
+            "collection_id": "col:9056777cd42c425ba3ddc24ab6deb493",
+            "collection_revision": 1,
+            "accepted_at": "2026-09-13T20:23:42.805Z",
+            "ingest_sequence": 1,
+            "archive_state": "pending"
+          }
+        },
+        {
+          "kind": "identity_resolve",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:4943f8af74bc41a88e45e94a9c30419e",
+            "state": "found",
+            "person_id": "person:07888c2277a4419185352e9ce6eea80e",
+            "binding_version": 1
+          }
+        },
+        {
+          "kind": "ingest",
+          "response": {
+            "accepted_at": "2026-09-13T20:23:42.805Z",
+            "archive_state": "pending",
+            "collection_id": "col:9056777cd42c425ba3ddc24ab6deb493",
+            "collection_key": {
+              "author": {
+                "immutable_account_id": "ts050-synthetic-person",
+                "namespace": "qq"
+              },
+              "channel": {
+                "binding_id": "ts050-local-recorder",
+                "channel_conversation_id": "ts050-private",
+                "namespace": "qq",
+                "thread_id": null
+              }
+            },
+            "collection_revision": 1,
+            "conversation_id": "conv:707997f1c8a84253b5638844a2009ac7",
+            "deduplicated": true,
+            "ingest_sequence": 1,
+            "person_id": "person:07888c2277a4419185352e9ce6eea80e",
+            "receipt_id": "receipt:368f016a32c647e58cb56b6772eb7982",
+            "request_id": "req:92fea85cad1946f6b47b031f6e9c0d69",
+            "schema_version": 1
+          }
+        }
+      ],
+      "model_wire": [],
+      "gateway_active": 0,
+      "cleanup": {
+        "listeners_checked": 9,
+        "failures": []
+      }
+    },
+    {
+      "scenario": "test_real_platform_identity_boundaries_expiry_and_revocation",
+      "classification": "partial",
+      "checks": [
+        {
+          "name": "invalid_memory_api_credential",
+          "http_status": 401,
+          "resolver_http_requests": 0
+        },
+        {
+          "name": "wrong_resolver_credential",
+          "http_status": 403,
+          "resolver_http_requests": [
+            {
+              "path": "/internal/v1/origins/resolve",
+              "transport": "https",
+              "request_sha256": "e25ab2209f23717536137776f7742d9b6efe7b70812cbbddc82563d2db215ba1",
+              "status": 401,
+              "credential_role": "unrecognized"
+            }
+          ]
+        },
+        {
+          "name": "wrong_receiver_and_caller",
+          "http_status": 403,
+          "resolver_http_requests": [
+            {
+              "path": "/internal/v1/origins/resolve",
+              "transport": "https",
+              "request_sha256": "e25ab2209f23717536137776f7742d9b6efe7b70812cbbddc82563d2db215ba1",
+              "status": 200,
+              "credential_role": "COMPANION_RESOLVER",
+              "resolved": {
+                "issuer": "platform",
+                "authenticated_service": "nonebot",
+                "audience_service": "companion",
+                "allowed_scope": {
+                  "actor_id": "actor-fixture",
+                  "audience": "self_private",
+                  "person_id": null,
+                  "conversation_id": null
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "wrong_issuer",
+          "http_status": 403,
+          "resolver_http_requests": [
+            {
+              "path": "/internal/v1/origins/resolve",
+              "transport": "https",
+              "request_sha256": "e25ab2209f23717536137776f7742d9b6efe7b70812cbbddc82563d2db215ba1",
+              "status": 200,
+              "credential_role": "MEMORY_RESOLVER",
+              "resolved": {
+                "issuer": "platform",
+                "authenticated_service": "companion",
+                "audience_service": "memory",
+                "allowed_scope": {
+                  "actor_id": "actor-fixture",
+                  "audience": "self_private",
+                  "person_id": null,
+                  "conversation_id": null
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "actor_not_allowed",
+          "http_status": 403,
+          "resolver_http_requests": [
+            {
+              "path": "/internal/v1/origins/resolve",
+              "transport": "https",
+              "request_sha256": "e25ab2209f23717536137776f7742d9b6efe7b70812cbbddc82563d2db215ba1",
+              "status": 200,
+              "credential_role": "MEMORY_RESOLVER",
+              "resolved": {
+                "issuer": "platform",
+                "authenticated_service": "companion",
+                "audience_service": "memory",
+                "allowed_scope": {
+                  "actor_id": "actor-fixture",
+                  "audience": "self_private",
+                  "person_id": null,
+                  "conversation_id": null
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "configuration_origin_wrong_purpose",
+          "http_status": 403,
+          "resolver_http_requests": [
+            {
+              "path": "/internal/v1/origins/resolve",
+              "transport": "https",
+              "request_sha256": "ab06a1497aeb3258d7659d75609f572ca662e7c81833cd8e3c93deb55674f55c",
+              "status": 403,
+              "credential_role": "MEMORY_RESOLVER"
+            }
+          ]
+        },
+        {
+          "name": "unissued_origin",
+          "http_status": 403,
+          "resolver_http_requests": [
+            {
+              "path": "/internal/v1/origins/resolve",
+              "transport": "https",
+              "request_sha256": "884e0d9d59f796f57832dee6bdc538309ac0c02b13dec76a6ffe1ee5f303fa78",
+              "status": 403,
+              "credential_role": "MEMORY_RESOLVER"
+            }
+          ]
+        },
+        {
+          "name": "wrong_account",
+          "http_status": 403,
+          "resolver_http_requests": [
+            {
+              "path": "/internal/v1/origins/resolve",
+              "transport": "https",
+              "request_sha256": "e25ab2209f23717536137776f7742d9b6efe7b70812cbbddc82563d2db215ba1",
+              "status": 200,
+              "credential_role": "MEMORY_RESOLVER",
+              "resolved": {
+                "issuer": "platform",
+                "authenticated_service": "companion",
+                "audience_service": "memory",
+                "allowed_scope": {
+                  "actor_id": "actor-fixture",
+                  "audience": "self_private",
+                  "person_id": null,
+                  "conversation_id": null
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "expired_real_platform_origin",
+          "http_status": 403,
+          "clock_fault_injection": "Platform issuer clock +301 seconds"
+        },
+        {
+          "name": "real_entry_revocation_denies_memory_and_core",
+          "memory_status": 403,
+          "core_status": 403,
+          "core_inbox_count": 0
+        }
+      ],
+      "slice": "memory_https_followup",
+      "memory_factory": "tianshu_memory.app.configured_app",
+      "memory_authenticator": "shipped Authenticator; no B resolver adapter",
+      "profile_contract_loaded": false,
+      "model_http_calls": 0,
+      "channel_http_calls": 0,
+      "platform_http_requests": [
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "005782f9005eb7b34e2b47ad45b3a439ec859b7f6f24088a2e0dc254cefef4dd",
+          "status": 200,
+          "credential_role": "MEMORY_RESOLVER",
+          "resolved": {
+            "issuer": "platform",
+            "authenticated_service": "companion",
+            "audience_service": "memory",
+            "allowed_scope": {
+              "actor_id": "actor-fixture",
+              "audience": "self_private",
+              "person_id": null,
+              "conversation_id": null
+            }
+          }
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "e25ab2209f23717536137776f7742d9b6efe7b70812cbbddc82563d2db215ba1",
+          "status": 401,
+          "credential_role": "unrecognized"
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "e25ab2209f23717536137776f7742d9b6efe7b70812cbbddc82563d2db215ba1",
+          "status": 200,
+          "credential_role": "COMPANION_RESOLVER",
+          "resolved": {
+            "issuer": "platform",
+            "authenticated_service": "nonebot",
+            "audience_service": "companion",
+            "allowed_scope": {
+              "actor_id": "actor-fixture",
+              "audience": "self_private",
+              "person_id": null,
+              "conversation_id": null
+            }
+          }
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "e25ab2209f23717536137776f7742d9b6efe7b70812cbbddc82563d2db215ba1",
+          "status": 200,
+          "credential_role": "MEMORY_RESOLVER",
+          "resolved": {
+            "issuer": "platform",
+            "authenticated_service": "companion",
+            "audience_service": "memory",
+            "allowed_scope": {
+              "actor_id": "actor-fixture",
+              "audience": "self_private",
+              "person_id": null,
+              "conversation_id": null
+            }
+          }
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "e25ab2209f23717536137776f7742d9b6efe7b70812cbbddc82563d2db215ba1",
+          "status": 200,
+          "credential_role": "MEMORY_RESOLVER",
+          "resolved": {
+            "issuer": "platform",
+            "authenticated_service": "companion",
+            "audience_service": "memory",
+            "allowed_scope": {
+              "actor_id": "actor-fixture",
+              "audience": "self_private",
+              "person_id": null,
+              "conversation_id": null
+            }
+          }
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "ab06a1497aeb3258d7659d75609f572ca662e7c81833cd8e3c93deb55674f55c",
+          "status": 403,
+          "credential_role": "MEMORY_RESOLVER"
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "884e0d9d59f796f57832dee6bdc538309ac0c02b13dec76a6ffe1ee5f303fa78",
+          "status": 403,
+          "credential_role": "MEMORY_RESOLVER"
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "e25ab2209f23717536137776f7742d9b6efe7b70812cbbddc82563d2db215ba1",
+          "status": 200,
+          "credential_role": "MEMORY_RESOLVER",
+          "resolved": {
+            "issuer": "platform",
+            "authenticated_service": "companion",
+            "audience_service": "memory",
+            "allowed_scope": {
+              "actor_id": "actor-fixture",
+              "audience": "self_private",
+              "person_id": null,
+              "conversation_id": null
+            }
+          }
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "e25ab2209f23717536137776f7742d9b6efe7b70812cbbddc82563d2db215ba1",
+          "status": 403,
+          "credential_role": "MEMORY_RESOLVER"
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "e25ab2209f23717536137776f7742d9b6efe7b70812cbbddc82563d2db215ba1",
+          "status": 200,
+          "credential_role": "MEMORY_RESOLVER",
+          "resolved": {
+            "issuer": "platform",
+            "authenticated_service": "companion",
+            "audience_service": "memory",
+            "allowed_scope": {
+              "actor_id": "actor-fixture",
+              "audience": "self_private",
+              "person_id": null,
+              "conversation_id": null
+            }
+          }
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "e25ab2209f23717536137776f7742d9b6efe7b70812cbbddc82563d2db215ba1",
+          "status": 403,
+          "credential_role": "MEMORY_RESOLVER"
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "18110d83a0e22075848103da27480b8c660321a187e7cd8cd3b280fc7c2a8b7e",
+          "status": 403,
+          "credential_role": "COMPANION_RESOLVER"
+        }
+      ],
+      "memory_http_requests": [
+        {
+          "path": "/internal/v1/identity/register",
+          "status": 200,
+          "request_sha256": "472ca7a14f8404cab678134fb2afc874e344204d885b5f802d309a42e85cad5d"
+        },
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 401,
+          "request_sha256": "45e5f8d5f6f59f511482b0e275548a30d2c99124868ef5c3a1e9842ed0bfdc6e"
+        },
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 403,
+          "request_sha256": "45e5f8d5f6f59f511482b0e275548a30d2c99124868ef5c3a1e9842ed0bfdc6e"
+        },
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 403,
+          "request_sha256": "45e5f8d5f6f59f511482b0e275548a30d2c99124868ef5c3a1e9842ed0bfdc6e"
+        },
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 403,
+          "request_sha256": "45e5f8d5f6f59f511482b0e275548a30d2c99124868ef5c3a1e9842ed0bfdc6e"
+        },
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 403,
+          "request_sha256": "45e5f8d5f6f59f511482b0e275548a30d2c99124868ef5c3a1e9842ed0bfdc6e"
+        },
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 403,
+          "request_sha256": "8bfadb76267fd9b2fbb66ed209469203e8a40ce2668c8a8495f0b2d53282216d"
+        },
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 403,
+          "request_sha256": "cc99ea97726b22462c2810d473cbfad8f5cab4db42d7297ba682f4bb9a79e5dc"
+        },
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 403,
+          "request_sha256": "cd1044c6d9f32dd95217ad1e3b854b086a3f9229804b92d78d5540357943fb76"
+        },
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 403,
+          "request_sha256": "45e5f8d5f6f59f511482b0e275548a30d2c99124868ef5c3a1e9842ed0bfdc6e"
+        },
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 200,
+          "request_sha256": "45e5f8d5f6f59f511482b0e275548a30d2c99124868ef5c3a1e9842ed0bfdc6e"
+        },
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 403,
+          "request_sha256": "45e5f8d5f6f59f511482b0e275548a30d2c99124868ef5c3a1e9842ed0bfdc6e"
+        }
+      ],
+      "mapping_receipts": [],
+      "model_wire": [],
+      "gateway_active": 0,
+      "cleanup": {
+        "listeners_checked": 9,
+        "failures": []
+      }
+    },
+    {
+      "scenario": "test_source_none_remains_503_after_shipped_https_identity",
+      "classification": "partial",
+      "checks": [
+        {
+          "name": "source_none_select",
+          "budget": {
+            "tokens": 0,
+            "bytes": 0
+          },
+          "response": {
+            "schema_version": 1,
+            "request_id": "tls:resolve",
+            "code": "dependency_unavailable",
+            "execution_state": "not_started",
+            "retryable": true
+          },
+          "actual_origin_resolution": [
+            {
+              "path": "/internal/v1/origins/resolve",
+              "transport": "https",
+              "request_sha256": "e29149a2a2d1271a40571accfd657a53e3098f69c7fbf6db7096dfa9ad484212",
+              "status": 200,
+              "credential_role": "MEMORY_RESOLVER",
+              "resolved": {
+                "issuer": "platform",
+                "authenticated_service": "companion",
+                "audience_service": "memory",
+                "allowed_scope": {
+                  "actor_id": "actor-fixture",
+                  "audience": "self_private",
+                  "person_id": "person:9bc2de108d094d9982d460d58f77e1a4",
+                  "conversation_id": "conv:dfff4468bce04b8783a7321167b6c505"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "source_none_select",
+          "budget": {
+            "tokens": 2048,
+            "bytes": 8192
+          },
+          "response": {
+            "schema_version": 1,
+            "request_id": "tls:resolve",
+            "code": "dependency_unavailable",
+            "execution_state": "not_started",
+            "retryable": true
+          },
+          "actual_origin_resolution": [
+            {
+              "path": "/internal/v1/origins/resolve",
+              "transport": "https",
+              "request_sha256": "e29149a2a2d1271a40571accfd657a53e3098f69c7fbf6db7096dfa9ad484212",
+              "status": 200,
+              "credential_role": "MEMORY_RESOLVER",
+              "resolved": {
+                "issuer": "platform",
+                "authenticated_service": "companion",
+                "audience_service": "memory",
+                "allowed_scope": {
+                  "actor_id": "actor-fixture",
+                  "audience": "self_private",
+                  "person_id": "person:9bc2de108d094d9982d460d58f77e1a4",
+                  "conversation_id": "conv:dfff4468bce04b8783a7321167b6c505"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "source_none_revision",
+          "kind": "correct",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:6879351890804e32b6b059ec5d7be0e7",
+            "code": "dependency_unavailable",
+            "execution_state": "not_started",
+            "retryable": true
+          }
+        },
+        {
+          "name": "source_none_revision",
+          "kind": "forget",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:0d95eb59c09d4c5298504eaf105ab5e7",
+            "code": "dependency_unavailable",
+            "execution_state": "not_started",
+            "retryable": true
+          }
+        },
+        {
+          "name": "source_none_consume",
+          "response": {
+            "schema_version": 1,
+            "request_id": "event-fixture-commit",
+            "code": "dependency_unavailable",
+            "execution_state": "not_started",
+            "retryable": true
+          },
+          "input": "schema-valid negative probe, not an authoritative Core committed_event"
+        },
+        {
+          "name": "source_backend_stays_unconfigured",
+          "health": {
+            "state": "unavailable",
+            "contract_version": "1.0.0",
+            "profile_contract_version": null,
+            "source_backend": "unconfigured",
+            "retrieval": "unavailable",
+            "embedding": "not_configured",
+            "postgresql": "not_implemented",
+            "raw_source_read": "unavailable",
+            "token_accounting": "utf8_bytes_conservative_estimate"
+          },
+          "full_l0": false
+        }
+      ],
+      "slice": "memory_https_followup",
+      "memory_factory": "tianshu_memory.app.configured_app",
+      "memory_authenticator": "shipped Authenticator; no B resolver adapter",
+      "profile_contract_loaded": false,
+      "model_http_calls": 0,
+      "channel_http_calls": 0,
+      "platform_http_requests": [
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "6f25fd0e03f0a0bc2966cd4bd6200bd8b892a130e4d938caf6519d7c4a5c7e1e",
+          "status": 200,
+          "credential_role": "COMPANION_RESOLVER",
+          "resolved": {
+            "issuer": "platform",
+            "authenticated_service": "nonebot",
+            "audience_service": "companion",
+            "allowed_scope": {
+              "actor_id": "actor-fixture",
+              "audience": "self_private",
+              "person_id": null,
+              "conversation_id": null
+            }
+          }
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "0d3ff6168c2e1f28187d86bd0314dc3ac83cc5a048365c45729f97e9da47435a",
+          "status": 200,
+          "credential_role": "MEMORY_RESOLVER",
+          "resolved": {
+            "issuer": "platform",
+            "authenticated_service": "companion",
+            "audience_service": "memory",
+            "allowed_scope": {
+              "actor_id": "actor-fixture",
+              "audience": "self_private",
+              "person_id": null,
+              "conversation_id": null
+            }
+          }
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "38e4bee9d2c660c4a2b35b9e6910562c5a169de6942d81501916dfdfdcab0bee",
+          "status": 200,
+          "credential_role": "MEMORY_RESOLVER",
+          "resolved": {
+            "issuer": "platform",
+            "authenticated_service": "companion",
+            "audience_service": "memory",
+            "allowed_scope": {
+              "actor_id": "actor-fixture",
+              "audience": "self_private",
+              "person_id": null,
+              "conversation_id": null
+            }
+          }
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "aaab5ffcef7876e075798256bf5de5b6ceedaa4f1e3048933e880d0eb28b9658",
+          "status": 200,
+          "credential_role": "MEMORY_RESOLVER",
+          "resolved": {
+            "issuer": "platform",
+            "authenticated_service": "companion",
+            "audience_service": "memory",
+            "allowed_scope": {
+              "actor_id": "actor-fixture",
+              "audience": "self_private",
+              "person_id": "person:9bc2de108d094d9982d460d58f77e1a4",
+              "conversation_id": "conv:dfff4468bce04b8783a7321167b6c505"
+            }
+          }
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "e29149a2a2d1271a40571accfd657a53e3098f69c7fbf6db7096dfa9ad484212",
+          "status": 200,
+          "credential_role": "MEMORY_RESOLVER",
+          "resolved": {
+            "issuer": "platform",
+            "authenticated_service": "companion",
+            "audience_service": "memory",
+            "allowed_scope": {
+              "actor_id": "actor-fixture",
+              "audience": "self_private",
+              "person_id": "person:9bc2de108d094d9982d460d58f77e1a4",
+              "conversation_id": "conv:dfff4468bce04b8783a7321167b6c505"
+            }
+          }
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "e29149a2a2d1271a40571accfd657a53e3098f69c7fbf6db7096dfa9ad484212",
+          "status": 200,
+          "credential_role": "MEMORY_RESOLVER",
+          "resolved": {
+            "issuer": "platform",
+            "authenticated_service": "companion",
+            "audience_service": "memory",
+            "allowed_scope": {
+              "actor_id": "actor-fixture",
+              "audience": "self_private",
+              "person_id": "person:9bc2de108d094d9982d460d58f77e1a4",
+              "conversation_id": "conv:dfff4468bce04b8783a7321167b6c505"
+            }
+          }
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "221d9f90cf1d64949af22d5efe8bf3cb3b224a10469171207871d6c41574b2d8",
+          "status": 200,
+          "credential_role": "MEMORY_RESOLVER",
+          "resolved": {
+            "issuer": "platform",
+            "authenticated_service": "companion",
+            "audience_service": "memory",
+            "allowed_scope": {
+              "actor_id": "actor-fixture",
+              "audience": "self_private",
+              "person_id": "person:9bc2de108d094d9982d460d58f77e1a4",
+              "conversation_id": "conv:dfff4468bce04b8783a7321167b6c505"
+            }
+          }
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "77e78c3eafecfa3b3cc5eee58a6f577e58ab9d8d84b8e1e1ea36c9f235793de9",
+          "status": 200,
+          "credential_role": "MEMORY_RESOLVER",
+          "resolved": {
+            "issuer": "platform",
+            "authenticated_service": "companion",
+            "audience_service": "memory",
+            "allowed_scope": {
+              "actor_id": "actor-fixture",
+              "audience": "self_private",
+              "person_id": "person:9bc2de108d094d9982d460d58f77e1a4",
+              "conversation_id": "conv:dfff4468bce04b8783a7321167b6c505"
+            }
+          }
+        }
+      ],
+      "memory_http_requests": [
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 200,
+          "request_sha256": "a6681013690042e18e491b9eba2e6cd0dbbabcd4e8177a96d2cfb12d2d7460a2"
+        },
+        {
+          "path": "/internal/v1/identity/register",
+          "status": 200,
+          "request_sha256": "3a2982b6a4d7939f33bbc9a3cf0feade66d58fe5de63083a0277ca196a7f2c34"
+        },
+        {
+          "path": "/internal/v1/memory/select",
+          "status": 503,
+          "request_sha256": "71df64b2b54912edd73104e2d1c97ed49e5749ff299bd13f668e8b74d4422d0d",
+          "budget": {
+            "tokens": 0,
+            "bytes": 0
+          },
+          "query_text": "上次的完整条件"
+        },
+        {
+          "path": "/internal/v1/memory/select",
+          "status": 503,
+          "request_sha256": "217af6d7473e9bece7ea8ec90c02b1cb5099a424c3289af1d81ea4a4b22193a3",
+          "budget": {
+            "tokens": 2048,
+            "bytes": 8192
+          },
+          "query_text": "上次的完整条件"
+        },
+        {
+          "path": "/internal/v1/memory/revise",
+          "status": 503,
+          "request_sha256": "c27df45dd8b3e7ce88b0f96bfb1c7f44d0d1ed2c45e6e89091260e910c1b36a8"
+        },
+        {
+          "path": "/internal/v1/memory/revise",
+          "status": 503,
+          "request_sha256": "f6b0343a8f8c603dee33aa0560e6cbcbc75d0900e4d9dfb28744429d4af2d16b"
+        },
+        {
+          "path": "/internal/v1/memory/turn-commits",
+          "status": 503,
+          "request_sha256": "ebbbf34c5b9a88740a282c10edbeeb87581ea246dd5d4b3be29172507be4b96d"
+        },
+        {
+          "path": "/health",
+          "status": 503,
+          "request_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "mapping_receipts": [
+        {
+          "kind": "identity_resolve",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:67d5a506c9a64f3182b9e089c292d33d",
+            "state": "unregistered",
+            "person_id": null,
+            "binding_version": 0
+          }
+        },
+        {
+          "kind": "identity",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:2a3a67395b814cf1a5f999dcb69a1c0f",
+            "person_id": "person:9bc2de108d094d9982d460d58f77e1a4",
+            "binding_version": 1,
+            "created": true
+          }
+        },
+        {
+          "kind": "ingest",
+          "response": {
+            "schema_version": 1,
+            "request_id": "req:0ee2324c870b452fb07494a32bbb811d",
+            "receipt_id": "receipt:551ad634926841b9b035092e8982947b",
+            "deduplicated": false,
+            "conversation_id": "conv:dfff4468bce04b8783a7321167b6c505",
+            "person_id": "person:9bc2de108d094d9982d460d58f77e1a4",
+            "collection_key": {
+              "channel": {
+                "namespace": "qq",
+                "binding_id": "ts050-local-recorder",
+                "channel_conversation_id": "ts050-private",
+                "thread_id": null
+              },
+              "author": {
+                "namespace": "qq",
+                "immutable_account_id": "ts050-synthetic-person"
+              }
+            },
+            "collection_id": "col:1deda2c4070846b6bba6e7a3a73ee026",
+            "collection_revision": 1,
+            "accepted_at": "2026-09-13T20:23:48.491Z",
+            "ingest_sequence": 1,
+            "archive_state": "pending"
+          }
+        }
+      ],
+      "model_wire": [],
+      "gateway_active": 0,
+      "cleanup": {
+        "listeners_checked": 9,
+        "failures": []
+      }
+    },
+    {
+      "scenario": "test_untrusted_ca_default_trust_and_false_rejected_then_recovery",
+      "classification": "partial",
+      "checks": [
+        {
+          "name": "default_trust",
+          "http_status": 503,
+          "resolver_http_requests": 0,
+          "note": "false rejected before TLS; other cases fail TLS trust"
+        },
+        {
+          "name": "untrusted_ca",
+          "http_status": 503,
+          "resolver_http_requests": 0,
+          "note": "false rejected before TLS; other cases fail TLS trust"
+        },
+        {
+          "name": "false_is_not_tls_bypass",
+          "http_status": 503,
+          "resolver_http_requests": 0,
+          "note": "false rejected before TLS; other cases fail TLS trust"
+        },
+        {
+          "name": "trusted_ca_restored_through_live_deployment_config",
+          "register": {
+            "schema_version": 1,
+            "request_id": "req:4a3048b0b9584c24907eb4bc4bc67a66",
+            "person_id": "person:3b5c9323d8c947ce8b45f810f3d83bf4",
+            "binding_version": 1,
+            "created": true
+          },
+          "resolve": {
+            "schema_version": 1,
+            "request_id": "tls:resolve",
+            "state": "found",
+            "person_id": "person:3b5c9323d8c947ce8b45f810f3d83bf4",
+            "binding_version": 1
+          },
+          "resolver_http_requests": [
+            {
+              "path": "/internal/v1/origins/resolve",
+              "transport": "https",
+              "request_sha256": "35d782cb4b9592f42343a3f5611e62c82a6b7f39b1aaf8269a1af60be97e50d5",
+              "status": 200,
+              "credential_role": "MEMORY_RESOLVER",
+              "resolved": {
+                "issuer": "platform",
+                "authenticated_service": "companion",
+                "audience_service": "memory",
+                "allowed_scope": {
+                  "actor_id": "actor-fixture",
+                  "audience": "self_private",
+                  "person_id": null,
+                  "conversation_id": null
+                }
+              }
+            },
+            {
+              "path": "/internal/v1/origins/resolve",
+              "transport": "https",
+              "request_sha256": "31e06395f88c23a161cd78340f89829e6e994d8a99daef07259d79b59f4ff959",
+              "status": 200,
+              "credential_role": "MEMORY_RESOLVER",
+              "resolved": {
+                "issuer": "platform",
+                "authenticated_service": "companion",
+                "audience_service": "memory",
+                "allowed_scope": {
+                  "actor_id": "actor-fixture",
+                  "audience": "self_private",
+                  "person_id": null,
+                  "conversation_id": null
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "slice": "memory_https_followup",
+      "memory_factory": "tianshu_memory.app.configured_app",
+      "memory_authenticator": "shipped Authenticator; no B resolver adapter",
+      "profile_contract_loaded": false,
+      "model_http_calls": 0,
+      "channel_http_calls": 0,
+      "platform_http_requests": [
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "35d782cb4b9592f42343a3f5611e62c82a6b7f39b1aaf8269a1af60be97e50d5",
+          "status": 200,
+          "credential_role": "MEMORY_RESOLVER",
+          "resolved": {
+            "issuer": "platform",
+            "authenticated_service": "companion",
+            "audience_service": "memory",
+            "allowed_scope": {
+              "actor_id": "actor-fixture",
+              "audience": "self_private",
+              "person_id": null,
+              "conversation_id": null
+            }
+          }
+        },
+        {
+          "path": "/internal/v1/origins/resolve",
+          "transport": "https",
+          "request_sha256": "31e06395f88c23a161cd78340f89829e6e994d8a99daef07259d79b59f4ff959",
+          "status": 200,
+          "credential_role": "MEMORY_RESOLVER",
+          "resolved": {
+            "issuer": "platform",
+            "authenticated_service": "companion",
+            "audience_service": "memory",
+            "allowed_scope": {
+              "actor_id": "actor-fixture",
+              "audience": "self_private",
+              "person_id": null,
+              "conversation_id": null
+            }
+          }
+        }
+      ],
+      "memory_http_requests": [
+        {
+          "path": "/internal/v1/identity/register",
+          "status": 503,
+          "request_sha256": "9dd3e6e5a0dd465cbd54a5ab1da5223fa2039eaf65c059902c88695d8f425799"
+        },
+        {
+          "path": "/internal/v1/identity/register",
+          "status": 503,
+          "request_sha256": "ce38c62b6ae62a38b87bc669aade59880cfd3926231ebe6ebf1721e5a6f61e05"
+        },
+        {
+          "path": "/internal/v1/identity/register",
+          "status": 503,
+          "request_sha256": "630d12d951802a8d905161dcd762a6f8bd01bef2f848ab73aa995e22f8d121ea"
+        },
+        {
+          "path": "/internal/v1/identity/register",
+          "status": 200,
+          "request_sha256": "e024959a043e45c5effbcedfc5b849e669f5cf6195ab75a0cd504f87445c1ea8"
+        },
+        {
+          "path": "/internal/v1/identity/resolve",
+          "status": 200,
+          "request_sha256": "e37e248778dc0160cbd9e2c239be4e4cd94351d632bdf03156ad0d2e1daee76c"
+        }
+      ],
+      "mapping_receipts": [],
+      "model_wire": [],
+      "gateway_active": 0,
+      "cleanup": {
+        "listeners_checked": 8,
+        "failures": []
+      }
+    }
+  ]
+}

@@ -41,6 +41,7 @@ from tianshu_companion.store import Store as CoreStore
 from tianshu_gateway.config import ClientGrant
 from tianshu_gateway.server import GATEWAY, Settings
 from tianshu_gateway.server import create_app as gateway_app
+from tianshu_memory.app import configured_app
 from tianshu_memory.app import create_app as memory_app
 from tianshu_memory.auth import Authenticator
 from tianshu_memory.contracts import Contracts as MemoryContracts
@@ -226,13 +227,32 @@ class RealChain(unittest.IsolatedAsyncioTestCase):
         async def record(request, handler):
             raw = await request.read()
             response = await handler(request)
-            self.platform_requests.append(
-                {
-                    "path": request.path,
-                    "request_sha256": sha(raw),
-                    "status": response.status,
+            item = {
+                "path": request.path,
+                "transport": request.scheme,
+                "request_sha256": sha(raw),
+                "status": response.status,
+                "credential_role": next(
+                    (
+                        role
+                        for role in ("MEMORY_RESOLVER", "COMPANION_RESOLVER", "GATEWAY")
+                        if request.headers.get("Authorization") == self.bearer(role)
+                    ),
+                    "unrecognized",
+                ),
+            }
+            if response.status == 200 and request.path.endswith("/origins/resolve"):
+                context = json.loads(response.body)["context"]
+                item["resolved"] = {
+                    key: context[key]
+                    for key in (
+                        "issuer",
+                        "authenticated_service",
+                        "audience_service",
+                        "allowed_scope",
+                    )
                 }
-            )
+            self.platform_requests.append(item)
             return response
 
         app = platform_app(self.platform)
@@ -577,16 +597,14 @@ class RealChain(unittest.IsolatedAsyncioTestCase):
             while not predicate():
                 await asyncio.sleep(0.02)
 
-    async def start_memory(self, *, port_auth=True):
-        self.memory_contracts = MemoryContracts(CONTRACT)
-        self.memory_service = MemoryService(
-            MemoryStore(self.directory / "memory.sqlite"),
-            self.memory_contracts,
-            source_authority=None,
-        )
+    async def start_memory(self, *, port_auth=True, configured_tls=False):
+        if port_auth and configured_tls:
+            raise ValueError("Configured TLS must use the shipped Authenticator")
         self.auth_path = self.directory / "memory-auth.json"
         self.auth_config = {
             "mode": "explicit_application_port_composition" if port_auth else "deployed",
+            "contract_directory": str(CONTRACT),
+            "database_path": str(self.directory / "memory.sqlite"),
             "callers": {
                 "companion": {
                     "token": self.tokens["MEMORY_API"],
@@ -605,10 +623,30 @@ class RealChain(unittest.IsolatedAsyncioTestCase):
                 }
             },
         }
+        if configured_tls:
+            self.auth_config["callers"]["companion"]["issuer_ca_file"] = str(
+                self.directory / "ca.pem"
+            )
         self.auth_path.write_text(json.dumps(self.auth_config), "utf-8")
-        shipped_auth = Authenticator(self.auth_path, self.memory_contracts, now)
-        auth = PlatformPortAuthenticator(shipped_auth, self.platform) if port_auth else shipped_auth
-        app = memory_app(service=self.memory_service, auth=auth)
+        if configured_tls:
+            self.set_env("TIANSHU_MEMORY_CONFIG", str(self.auth_path))
+            app = configured_app()
+            self.memory_service = app.state.memory
+            self.memory_contracts = self.memory_service.contracts
+        else:
+            self.memory_contracts = MemoryContracts(CONTRACT)
+            self.memory_service = MemoryService(
+                MemoryStore(self.directory / "memory.sqlite"),
+                self.memory_contracts,
+                source_authority=None,
+            )
+            shipped_auth = Authenticator(self.auth_path, self.memory_contracts, now)
+            auth = (
+                PlatformPortAuthenticator(shipped_auth, self.platform)
+                if port_auth
+                else shipped_auth
+            )
+            app = memory_app(service=self.memory_service, auth=auth)
 
         @app.middleware("http")
         async def record(request, call_next):
