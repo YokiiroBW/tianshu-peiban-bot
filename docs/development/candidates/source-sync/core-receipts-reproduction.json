@@ -1,0 +1,394 @@
+{
+  "task": "TS-002",
+  "fixture_only_dependencies": true,
+  "core_commit": "17eba4f1d513073c3e1bad7823e2f7c3fc728754",
+  "execution": "Real pinned Core.ingest/Core.cancel/Store and published schema; in-process, no HTTP or genuine identity/model/channel",
+  "exported_blobs": [
+    {
+      "path": "src/tianshu_companion/__init__.py",
+      "sha256": "8986085ee8a8e846784fe20c2b4f2ba8eb038ad0935ef7c46b40f5292a8d1ddd"
+    },
+    {
+      "path": "src/tianshu_companion/clients.py",
+      "sha256": "b00a742ea8e1b87e48722cb0d199fe35ac61289b514ccb89dca7eb4841a1244f"
+    },
+    {
+      "path": "src/tianshu_companion/context.py",
+      "sha256": "18dc660a6e0025625f09ea3acdd732a0ea04524180738a634b74f3fbc37ab8cf"
+    },
+    {
+      "path": "src/tianshu_companion/contracts.py",
+      "sha256": "ce5408e7c7faa3b0ca3c540915bd2e30679cd26d4e942b4b6733476c8383402a"
+    },
+    {
+      "path": "src/tianshu_companion/core.py",
+      "sha256": "b746bee7982c3c3514d13334f5448196c15a09ad6cea44017113605f0eb9a4e9"
+    },
+    {
+      "path": "src/tianshu_companion/short_context.py",
+      "sha256": "172c41a5a6c2edc3ddea593951c3bbeb27691bf43bcc6132c43c4fa8711e0fdf"
+    },
+    {
+      "path": "src/tianshu_companion/store.py",
+      "sha256": "be5e718a2b4f15e9abe8703545078dbdd2f2da7bb6cbd66a0de5846d0a5068e6"
+    },
+    {
+      "path": "tests/support.py",
+      "sha256": "41beb053cfe8f68d3f6c064beef2ecffa5610b3d2b6c3cb8ef8f758824195cc1"
+    }
+  ],
+  "dependencies": {
+    "httpx": "0.28.1",
+    "jsonschema": "4.26.0",
+    "referencing": "0.37.0"
+  },
+  "cases": [
+    {
+      "id": "schema_valid_multi_target_rejected",
+      "result": {
+        "code": "forbidden",
+        "status": 403
+      },
+      "inbox_count": 0
+    },
+    {
+      "id": "same_revision_new_target_conflicts",
+      "result": {
+        "code": "idempotency_conflict",
+        "status": 409
+      },
+      "first_receipt": {
+        "schema_version": 1,
+        "request_id": "req:04595d85546242d787b099cfd63de817",
+        "receipt_id": "receipt:5c5cc9e018254da9b06e24450128c537",
+        "deduplicated": false,
+        "conversation_id": "conv:993f45c507294d828885110be75c8b4b",
+        "person_id": "person:49f0552082c24f9c96760a6f8c3d0a9f",
+        "collection_key": {
+          "channel": {
+            "namespace": "qq",
+            "binding_id": "qq-private",
+            "channel_conversation_id": "private:a",
+            "thread_id": null
+          },
+          "author": {
+            "namespace": "qq",
+            "immutable_account_id": "a"
+          }
+        },
+        "collection_id": "col:98892316e4084f508e7d1e05429a1b14",
+        "collection_revision": 1,
+        "accepted_at": "2026-09-14T00:00:00.000Z",
+        "ingest_sequence": 1,
+        "archive_state": "pending"
+      },
+      "inbox_count": 1
+    },
+    {
+      "id": "empty_target_new_origin_reuses_first_receipt",
+      "first_receipt": {
+        "schema_version": 1,
+        "request_id": "req:a2218d8abdbc4c1389d5a751e0dd90d8",
+        "receipt_id": "receipt:55c9c61f78cd4e97a6468211db92ffac",
+        "deduplicated": false,
+        "conversation_id": "conv:4ef2240635764a3e855e42ad5e9373ec",
+        "person_id": "person:3339f017b82e43199f227f4e39cb03cd",
+        "collection_key": {
+          "channel": {
+            "namespace": "qq",
+            "binding_id": "qq-private",
+            "channel_conversation_id": "private:a",
+            "thread_id": null
+          },
+          "author": {
+            "namespace": "qq",
+            "immutable_account_id": "a"
+          }
+        },
+        "collection_id": "col:93cb3f8076114f90a3d658fe8b989e39",
+        "collection_revision": 1,
+        "accepted_at": "2026-09-14T00:00:00.000Z",
+        "ingest_sequence": 1,
+        "archive_state": "pending"
+      },
+      "second_receipt": {
+        "accepted_at": "2026-09-14T00:00:00.000Z",
+        "archive_state": "pending",
+        "collection_id": "col:93cb3f8076114f90a3d658fe8b989e39",
+        "collection_key": {
+          "author": {
+            "immutable_account_id": "a",
+            "namespace": "qq"
+          },
+          "channel": {
+            "binding_id": "qq-private",
+            "channel_conversation_id": "private:a",
+            "namespace": "qq",
+            "thread_id": null
+          }
+        },
+        "collection_revision": 1,
+        "conversation_id": "conv:4ef2240635764a3e855e42ad5e9373ec",
+        "deduplicated": true,
+        "ingest_sequence": 1,
+        "person_id": "person:3339f017b82e43199f227f4e39cb03cd",
+        "receipt_id": "receipt:55c9c61f78cd4e97a6468211db92ffac",
+        "request_id": "req:5e1e4a31800d4d7fa5dcb5de50d59032",
+        "schema_version": 1
+      },
+      "stored_scope": {
+        "actor_id": "actor:a",
+        "audience": "self_private",
+        "conversation_id": "conv:4ef2240635764a3e855e42ad5e9373ec",
+        "person_id": "person:3339f017b82e43199f227f4e39cb03cd"
+      },
+      "inbox_count": 1
+    },
+    {
+      "id": "different_messages_share_actor_a_collector",
+      "first_receipt": {
+        "schema_version": 1,
+        "request_id": "req:ff40bd148766418b8cc86e381d7b7521",
+        "receipt_id": "receipt:b58c36f831a1486b94bfead3483f96cd",
+        "deduplicated": false,
+        "conversation_id": "conv:02c7c3d51c4f43f59700cabe7b782837",
+        "person_id": "person:1906759360344b31a743adbaf9876a02",
+        "collection_key": {
+          "channel": {
+            "namespace": "qq",
+            "binding_id": "qq-private",
+            "channel_conversation_id": "private:a",
+            "thread_id": null
+          },
+          "author": {
+            "namespace": "qq",
+            "immutable_account_id": "a"
+          }
+        },
+        "collection_id": "col:57ea4693e1c7473ebc285859196827ba",
+        "collection_revision": 1,
+        "accepted_at": "2026-09-14T00:00:00.000Z",
+        "ingest_sequence": 1,
+        "archive_state": "pending"
+      },
+      "second_receipt": {
+        "schema_version": 1,
+        "request_id": "req:5b052180a95b4cf2b08defe8e074fbbe",
+        "receipt_id": "receipt:cb2d0c79b1414261b71bc42f4c9d5655",
+        "deduplicated": false,
+        "conversation_id": "conv:02c7c3d51c4f43f59700cabe7b782837",
+        "person_id": "person:1906759360344b31a743adbaf9876a02",
+        "collection_key": {
+          "channel": {
+            "namespace": "qq",
+            "binding_id": "qq-private",
+            "channel_conversation_id": "private:a",
+            "thread_id": null
+          },
+          "author": {
+            "namespace": "qq",
+            "immutable_account_id": "a"
+          }
+        },
+        "collection_id": "col:57ea4693e1c7473ebc285859196827ba",
+        "collection_revision": 2,
+        "accepted_at": "2026-09-14T00:00:00.000Z",
+        "ingest_sequence": 2,
+        "archive_state": "pending"
+      },
+      "stored_scope": {
+        "actor_id": "actor:a",
+        "audience": "self_private",
+        "conversation_id": "conv:02c7c3d51c4f43f59700cabe7b782837",
+        "person_id": "person:1906759360344b31a743adbaf9876a02"
+      },
+      "stored_targets": [
+        [
+          "actor:a"
+        ],
+        [
+          "actor:b"
+        ]
+      ],
+      "inbox_sources": [
+        {
+          "archive_state": "pending",
+          "locator": null,
+          "message_key": {
+            "channel": {
+              "binding_id": "qq-private",
+              "channel_conversation_id": "private:a",
+              "namespace": "qq",
+              "thread_id": null
+            },
+            "message_id": "synthetic:a",
+            "revision": 1
+          },
+          "receipt_id": "receipt:b58c36f831a1486b94bfead3483f96cd"
+        },
+        {
+          "archive_state": "pending",
+          "locator": null,
+          "message_key": {
+            "channel": {
+              "binding_id": "qq-private",
+              "channel_conversation_id": "private:a",
+              "namespace": "qq",
+              "thread_id": null
+            },
+            "message_id": "synthetic:b",
+            "revision": 1
+          },
+          "receipt_id": "receipt:cb2d0c79b1414261b71bc42f4c9d5655"
+        }
+      ]
+    },
+    {
+      "id": "higher_revision_can_change_actor_after_seal",
+      "first_receipt": {
+        "schema_version": 1,
+        "request_id": "req:0e86b4a516a44f03b0f41af7e8e5abc1",
+        "receipt_id": "receipt:aa48804488ba48ca97d1081ef36dee68",
+        "deduplicated": false,
+        "conversation_id": "conv:c6ad321449574bc8b1de141dd4ba7493",
+        "person_id": "person:854546358c904bc9b0e5ec64fccb0605",
+        "collection_key": {
+          "channel": {
+            "namespace": "qq",
+            "binding_id": "qq-private",
+            "channel_conversation_id": "private:a",
+            "thread_id": null
+          },
+          "author": {
+            "namespace": "qq",
+            "immutable_account_id": "a"
+          }
+        },
+        "collection_id": "col:81c30c2ef43d461998f6c7451c9de1dc",
+        "collection_revision": 1,
+        "accepted_at": "2026-09-14T00:00:00.000Z",
+        "ingest_sequence": 1,
+        "archive_state": "pending"
+      },
+      "second_receipt": {
+        "schema_version": 1,
+        "request_id": "req:dd2fd45a91fc49b1a11569e1636ecbac",
+        "receipt_id": "receipt:137eb814e0184dc78283ec8e0333c4a8",
+        "deduplicated": false,
+        "conversation_id": "conv:c6ad321449574bc8b1de141dd4ba7493",
+        "person_id": "person:854546358c904bc9b0e5ec64fccb0605",
+        "collection_key": {
+          "channel": {
+            "namespace": "qq",
+            "binding_id": "qq-private",
+            "channel_conversation_id": "private:a",
+            "thread_id": null
+          },
+          "author": {
+            "namespace": "qq",
+            "immutable_account_id": "a"
+          }
+        },
+        "collection_id": "col:2a11eb9f74634705ae508961c6d0bd62",
+        "collection_revision": 1,
+        "accepted_at": "2026-09-14T00:00:00.000Z",
+        "ingest_sequence": 2,
+        "archive_state": "pending"
+      },
+      "original_scope": {
+        "actor_id": "actor:a",
+        "audience": "self_private",
+        "conversation_id": "conv:c6ad321449574bc8b1de141dd4ba7493",
+        "person_id": "person:854546358c904bc9b0e5ec64fccb0605"
+      },
+      "current_scope": {
+        "actor_id": "actor:b",
+        "audience": "self_private",
+        "conversation_id": "conv:c6ad321449574bc8b1de141dd4ba7493",
+        "person_id": "person:854546358c904bc9b0e5ec64fccb0605"
+      },
+      "latest_source": {
+        "archive_state": "pending",
+        "locator": null,
+        "message_key": {
+          "channel": {
+            "binding_id": "qq-private",
+            "channel_conversation_id": "private:a",
+            "namespace": "qq",
+            "thread_id": null
+          },
+          "message_id": "synthetic:edit",
+          "revision": 2
+        },
+        "receipt_id": "receipt:137eb814e0184dc78283ec8e0333c4a8"
+      }
+    },
+    {
+      "id": "reply_cancel_preserves_input_across_restart_then_retract_invalidates",
+      "accepted_receipt": {
+        "schema_version": 1,
+        "request_id": "req:1cf75766228f403e809f30d73d1abd98",
+        "receipt_id": "receipt:b3639a1a61f4490981c13c89bc739a9c",
+        "deduplicated": false,
+        "conversation_id": "conv:a6026b61a72948fdb51b958978783631",
+        "person_id": "person:3535e58b20314f2a8387700ac6aa613f",
+        "collection_key": {
+          "channel": {
+            "namespace": "qq",
+            "binding_id": "qq-private",
+            "channel_conversation_id": "private:a",
+            "thread_id": null
+          },
+          "author": {
+            "namespace": "qq",
+            "immutable_account_id": "a"
+          }
+        },
+        "collection_id": "col:2d7a74e1cc234a36a9fd80102ab0d8f0",
+        "collection_revision": 1,
+        "accepted_at": "2026-09-14T00:00:00.000Z",
+        "ingest_sequence": 1,
+        "archive_state": "pending"
+      },
+      "cancellation": {
+        "schema_version": 1,
+        "request_id": "req:fc216419ba8d4a9d9d45e8cc14d9ac4e",
+        "turn_id": "turn:b1ebd0408a4a4a30b0c2f1e6e80a04e7",
+        "version": 2,
+        "state": "cancelled",
+        "already_sent_reply_ids": [],
+        "unresolved_reply_ids": [],
+        "stopped_pending": true,
+        "external_actions_rolled_back": false
+      },
+      "cancelled_phase": "cancelled",
+      "input_current_after_cancel_and_restart": true,
+      "retraction_receipt": {
+        "schema_version": 1,
+        "request_id": "req:b802da04dade49e6a044ce8f544b9997",
+        "receipt_id": "receipt:e12149ea4343464393840d30cb2e3488",
+        "deduplicated": false,
+        "conversation_id": "conv:a6026b61a72948fdb51b958978783631",
+        "person_id": "person:3535e58b20314f2a8387700ac6aa613f",
+        "collection_key": {
+          "channel": {
+            "namespace": "qq",
+            "binding_id": "qq-private",
+            "channel_conversation_id": "private:a",
+            "thread_id": null
+          },
+          "author": {
+            "namespace": "qq",
+            "immutable_account_id": "a"
+          }
+        },
+        "collection_id": "col:2d7a74e1cc234a36a9fd80102ab0d8f0",
+        "collection_revision": 1,
+        "accepted_at": "2026-09-14T00:00:00.000Z",
+        "ingest_sequence": 2,
+        "archive_state": "pending"
+      },
+      "input_current_after_retract": false
+    }
+  ]
+}

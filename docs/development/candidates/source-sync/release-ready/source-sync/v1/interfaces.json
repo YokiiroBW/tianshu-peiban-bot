@@ -1,0 +1,201 @@
+{
+  "package": "source-sync/v1",
+  "version": "1.0.0",
+  "issuer": "platform",
+  "error_schema": "text-common#error",
+  "interfaces": [
+    {
+      "id": "core.ingest_actors",
+      "owner": "companion",
+      "boundary": "https",
+      "callers": [
+        "platform",
+        "nonebot"
+      ],
+      "request": "sources#fanout_request",
+      "response": "sources#fanout_response",
+      "existing": false,
+      "method": "POST",
+      "path": "/internal/v1/conversation/ingest-actors"
+    },
+    {
+      "id": "core.source_facts",
+      "owner": "companion",
+      "boundary": "https",
+      "callers": [
+        "memory"
+      ],
+      "request": "sources#facts_request",
+      "response": "sources#facts_response",
+      "existing": false,
+      "method": "POST",
+      "path": "/internal/v1/source-facts/read"
+    },
+    {
+      "id": "platform.input_authority",
+      "owner": "platform",
+      "boundary": "https",
+      "callers": [
+        "companion"
+      ],
+      "request": "sources#input_access_request",
+      "response": "sources#input_authority",
+      "existing": false,
+      "method": "POST",
+      "path": "/internal/v1/source-access/read",
+      "operation": "input"
+    },
+    {
+      "id": "platform.current_access",
+      "owner": "platform",
+      "boundary": "https",
+      "callers": [
+        "memory"
+      ],
+      "request": "sources#current_access_request",
+      "response": "sources#current_access_response",
+      "existing": false,
+      "method": "POST",
+      "path": "/internal/v1/source-access/read",
+      "operation": "current"
+    },
+    {
+      "id": "memory.check",
+      "owner": "memory",
+      "boundary": "https",
+      "callers": [
+        "companion"
+      ],
+      "request": "shared#check_request",
+      "response": "shared#check_response",
+      "existing": false,
+      "method": "POST",
+      "path": "/internal/v1/memory/source-sync/check"
+    },
+    {
+      "id": "memory.sync",
+      "owner": "memory",
+      "boundary": "trusted_application",
+      "callers": [
+        "memory.source_sync"
+      ],
+      "request": "workflow#sync_input",
+      "response": "workflow#sync_result",
+      "existing": false
+    },
+    {
+      "id": "memory.confirm_revision",
+      "owner": "memory",
+      "boundary": "trusted_application",
+      "callers": [
+        "memory.confirmation_adapter"
+      ],
+      "request": "workflow#confirmation_input",
+      "response": "shared#confirmation_record",
+      "existing": false
+    },
+    {
+      "id": "memory.commit_candidate",
+      "owner": "memory",
+      "boundary": "trusted_application",
+      "callers": [
+        "memory.candidate_worker"
+      ],
+      "request": "workflow#candidate_commit",
+      "response": "workflow#candidate_result",
+      "existing": false
+    },
+    {
+      "id": "identity.resolve",
+      "owner": "memory",
+      "boundary": "https",
+      "callers": [
+        "companion"
+      ],
+      "request": "text-identity-memory#resolve_request",
+      "response": "text-identity-memory#resolve_response",
+      "existing": true,
+      "method": "POST",
+      "path": "/internal/v1/identity/resolve"
+    },
+    {
+      "id": "identity.register",
+      "owner": "memory",
+      "boundary": "https",
+      "callers": [
+        "companion"
+      ],
+      "request": "text-identity-memory#register_request",
+      "response": "text-identity-memory#identity_response",
+      "existing": true,
+      "method": "POST",
+      "path": "/internal/v1/identity/register"
+    },
+    {
+      "id": "memory.select",
+      "owner": "memory",
+      "boundary": "https",
+      "callers": [
+        "companion"
+      ],
+      "request": "text-identity-memory#select_request",
+      "response": "text-identity-memory#select_response",
+      "existing": true,
+      "method": "POST",
+      "path": "/internal/v1/memory/select"
+    },
+    {
+      "id": "memory.revise",
+      "owner": "memory",
+      "boundary": "https",
+      "callers": [
+        "companion"
+      ],
+      "request": "text-identity-memory#revise_request",
+      "response": "text-identity-memory#revise_response",
+      "existing": true,
+      "method": "POST",
+      "path": "/internal/v1/memory/revise"
+    },
+    {
+      "id": "memory.turn_commits",
+      "owner": "memory",
+      "boundary": "https",
+      "callers": [
+        "companion"
+      ],
+      "request": "text-conversation#committed_event",
+      "response": "text-identity-memory#consume_receipt",
+      "existing": true,
+      "method": "POST",
+      "path": "/internal/v1/memory/turn-commits"
+    },
+    {
+      "id": "memory.profiles_select",
+      "owner": "memory",
+      "boundary": "https",
+      "callers": [
+        "companion"
+      ],
+      "request": "profile-profiles#select_request",
+      "response": "profile-profiles#select_response",
+      "existing": true,
+      "method": "POST",
+      "path": "/internal/v1/memory/profiles/select"
+    },
+    {
+      "id": "platform.origin_resolve",
+      "owner": "platform",
+      "boundary": "https",
+      "callers": [
+        "companion",
+        "memory"
+      ],
+      "request": "text-common#origin_resolve_request",
+      "response": "text-common#origin_resolve_response",
+      "existing": true,
+      "method": "POST",
+      "path": "/internal/v1/origins/resolve"
+    }
+  ]
+}

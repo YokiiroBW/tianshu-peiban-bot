@@ -1,0 +1,1103 @@
+{
+  "fixture_only": true,
+  "now": "2026-09-14T01:03:00Z",
+  "documents": {
+    "core_request": {
+      "schema": "core_request",
+      "document": {
+        "candidate_version": "source-sync/candidate.1",
+        "request_id": "request:core-snapshot",
+        "mode": "snapshot",
+        "keys": [
+          {
+            "channel": {
+              "namespace": "web",
+              "binding_id": "binding:synthetic",
+              "channel_conversation_id": "channel:synthetic",
+              "thread_id": null
+            },
+            "message_id": "message:synthetic-1"
+          }
+        ],
+        "turn_ids": [
+          "turn:synthetic-1"
+        ],
+        "include_content": false
+      }
+    },
+    "core": {
+      "schema": "core_response",
+      "document": {
+        "candidate_version": "source-sync/candidate.1",
+        "request_id": "request:core-snapshot",
+        "request_digest": "9752c5c03aaf94e5a96a715d9f5984f3064f2bdfaa1ef905ff6888921dbf0982",
+        "head": {
+          "generation": "core:synthetic-db1",
+          "sequence": 12
+        },
+        "facts": [
+          {
+            "key": {
+              "channel": {
+                "namespace": "web",
+                "binding_id": "binding:synthetic",
+                "channel_conversation_id": "channel:synthetic",
+                "thread_id": null
+              },
+              "message_id": "message:synthetic-1"
+            },
+            "state": "active",
+            "source": {
+              "message_key": {
+                "channel": {
+                  "namespace": "web",
+                  "binding_id": "binding:synthetic",
+                  "channel_conversation_id": "channel:synthetic",
+                  "thread_id": null
+                },
+                "message_id": "message:synthetic-1",
+                "revision": 1
+              },
+              "receipt_id": "receipt:synthetic-1",
+              "archive_state": "pending",
+              "locator": null
+            },
+            "scope": {
+              "actor_id": "actor:synthetic",
+              "person_id": "person:synthetic-a",
+              "audience": "self_private",
+              "conversation_id": "conv:synthetic"
+            },
+            "author": {
+              "namespace": "web",
+              "immutable_account_id": "synthetic-a"
+            },
+            "binding_version": 1,
+            "accepted_origin": {
+              "assertion_ref": "origin:synthetic-expired-admission"
+            },
+            "accepted_at": "2026-09-14T01:00:01Z",
+            "ingest_sequence": 1,
+            "kind": "message",
+            "content_digest": "a719c68edc2e6490212592cd3be5cc4d2ae604d9d4467ed5f8c2089537eacd3d",
+            "classification": {
+              "value": "real",
+              "basis": "registered_input_mode",
+              "policy_ref": "mode:synthetic-real",
+              "policy_version": 1
+            },
+            "content": null
+          }
+        ],
+        "turns": [
+          {
+            "turn_id": "turn:synthetic-1",
+            "scope": {
+              "actor_id": "actor:synthetic",
+              "person_id": "person:synthetic-a",
+              "audience": "self_private",
+              "conversation_id": "conv:synthetic"
+            },
+            "input_revision": 3,
+            "aggregate_version": 9,
+            "context_revision": 1,
+            "input_sources": [
+              {
+                "message_key": {
+                  "channel": {
+                    "namespace": "web",
+                    "binding_id": "binding:synthetic",
+                    "channel_conversation_id": "channel:synthetic",
+                    "thread_id": null
+                  },
+                  "message_id": "message:synthetic-1",
+                  "revision": 1
+                },
+                "receipt_id": "receipt:synthetic-1",
+                "archive_state": "pending",
+                "locator": null
+              }
+            ],
+            "delivery_state": "unknown",
+            "reply_ids": [
+              "reply:synthetic-1"
+            ],
+            "committed_event": {
+              "schema_version": 1,
+              "event_id": "event:synthetic-1",
+              "event_type": "conversation.turn_committed",
+              "owner": "companion",
+              "aggregate_id": "turn:synthetic-1",
+              "aggregate_version": 9,
+              "occurred_at": "2026-09-14T01:01:00Z",
+              "causation_id": "collection:synthetic-1",
+              "conversation_id": "conv:synthetic",
+              "turn_sequence": 1,
+              "scope": {
+                "actor_id": "actor:synthetic",
+                "person_id": "person:synthetic-a",
+                "audience": "self_private",
+                "conversation_id": "conv:synthetic"
+              },
+              "scope_version": 1,
+              "input_revision": 3,
+              "sources": [
+                {
+                  "message_key": {
+                    "channel": {
+                      "namespace": "web",
+                      "binding_id": "binding:synthetic",
+                      "channel_conversation_id": "channel:synthetic",
+                      "thread_id": null
+                    },
+                    "message_id": "message:synthetic-1",
+                    "revision": 1
+                  },
+                  "receipt_id": "receipt:synthetic-1",
+                  "archive_state": "pending",
+                  "locator": null
+                }
+              ],
+              "reality": "real",
+              "confirmed_user_correction": false,
+              "delivery_state": "unknown",
+              "reply_ids": [
+                "reply:synthetic-1"
+              ]
+            },
+            "phase": "closed_unknown"
+          }
+        ]
+      }
+    },
+    "access_request": {
+      "schema": "access_request",
+      "document": {
+        "candidate_version": "source-sync/candidate.1",
+        "request_id": "request:access",
+        "admissions": [
+          {
+            "key": {
+              "channel": {
+                "namespace": "web",
+                "binding_id": "binding:synthetic",
+                "channel_conversation_id": "channel:synthetic",
+                "thread_id": null
+              },
+              "message_id": "message:synthetic-1"
+            },
+            "state": "active",
+            "source": {
+              "message_key": {
+                "channel": {
+                  "namespace": "web",
+                  "binding_id": "binding:synthetic",
+                  "channel_conversation_id": "channel:synthetic",
+                  "thread_id": null
+                },
+                "message_id": "message:synthetic-1",
+                "revision": 1
+              },
+              "receipt_id": "receipt:synthetic-1",
+              "archive_state": "pending",
+              "locator": null
+            },
+            "scope": {
+              "actor_id": "actor:synthetic",
+              "person_id": "person:synthetic-a",
+              "audience": "self_private",
+              "conversation_id": "conv:synthetic"
+            },
+            "author": {
+              "namespace": "web",
+              "immutable_account_id": "synthetic-a"
+            },
+            "binding_version": 1,
+            "accepted_origin": {
+              "assertion_ref": "origin:synthetic-expired-admission"
+            },
+            "accepted_at": "2026-09-14T01:00:01Z",
+            "ingest_sequence": 1,
+            "kind": "message",
+            "content_digest": "a719c68edc2e6490212592cd3be5cc4d2ae604d9d4467ed5f8c2089537eacd3d",
+            "classification": {
+              "value": "real",
+              "basis": "registered_input_mode",
+              "policy_ref": "mode:synthetic-real",
+              "policy_version": 1
+            },
+            "content": null
+          }
+        ],
+        "viewer": null
+      }
+    },
+    "access": {
+      "schema": "access_response",
+      "document": {
+        "candidate_version": "source-sync/candidate.1",
+        "request_id": "request:access",
+        "request_digest": "d7195f7d99291871dd43a70311a328bf3198d825c123fc976371958c84a62b54",
+        "head": {
+          "generation": "platform:synthetic-db1",
+          "sequence": 5
+        },
+        "facts": [
+          {
+            "key": {
+              "channel": {
+                "namespace": "web",
+                "binding_id": "binding:synthetic",
+                "channel_conversation_id": "channel:synthetic",
+                "thread_id": null
+              },
+              "message_id": "message:synthetic-1"
+            },
+            "admission_digest": "1c59dceb1fa7006f6ef0db4d337828f1f63633c4b9c97e034fb94dc83a0e1791",
+            "entry_id": "entry:synthetic",
+            "entry_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "account": {
+              "namespace": "web",
+              "immutable_account_id": "synthetic-a"
+            },
+            "scope": {
+              "actor_id": "actor:synthetic",
+              "person_id": "person:synthetic-a",
+              "audience": "self_private",
+              "conversation_id": "conv:synthetic"
+            },
+            "binding_version": 1,
+            "channel": {
+              "namespace": "web",
+              "binding_id": "binding:synthetic",
+              "channel_conversation_id": "channel:synthetic",
+              "thread_id": null
+            },
+            "route": {
+              "caller": "companion",
+              "receiver": "memory",
+              "purpose": "dialogue"
+            },
+            "state": "allowed",
+            "reason": "allowed"
+          }
+        ],
+        "viewer_context": null
+      }
+    },
+    "head_request": {
+      "schema": "core_request",
+      "document": {
+        "candidate_version": "source-sync/candidate.1",
+        "request_id": "request:core-head",
+        "mode": "head",
+        "keys": [],
+        "turn_ids": [],
+        "include_content": false
+      }
+    },
+    "head": {
+      "schema": "core_response",
+      "document": {
+        "candidate_version": "source-sync/candidate.1",
+        "request_id": "request:core-head",
+        "request_digest": "c59983930b691d81f80a9c24f2d528b4248223e61b98b954537348b6c7482dea",
+        "head": {
+          "generation": "core:synthetic-db1",
+          "sequence": 12
+        },
+        "facts": [],
+        "turns": []
+      }
+    },
+    "check_request": {
+      "schema": "check_request",
+      "document": {
+        "candidate_version": "source-sync/candidate.1",
+        "request_id": "request:background-check",
+        "turn_id": "turn:synthetic-1",
+        "input_revision": 3,
+        "scope": {
+          "actor_id": "actor:synthetic",
+          "person_id": "person:synthetic-a",
+          "audience": "self_private",
+          "conversation_id": "conv:synthetic"
+        },
+        "sources": [
+          {
+            "message_key": {
+              "channel": {
+                "namespace": "web",
+                "binding_id": "binding:synthetic",
+                "channel_conversation_id": "channel:synthetic",
+                "thread_id": null
+              },
+              "message_id": "message:synthetic-1",
+              "revision": 1
+            },
+            "receipt_id": "receipt:synthetic-1",
+            "archive_state": "pending",
+            "locator": null
+          }
+        ]
+      }
+    },
+    "check_response": {
+      "schema": "check_response",
+      "document": {
+        "candidate_version": "source-sync/candidate.1",
+        "request_id": "request:background-check",
+        "request_digest": "3a89ef4d904f0f3a00752e5a8c7a9093d7fc90e0e90086383aecb10b36104fe9",
+        "scope": {
+          "actor_id": "actor:synthetic",
+          "person_id": "person:synthetic-a",
+          "audience": "self_private",
+          "conversation_id": "conv:synthetic"
+        },
+        "version_domain": "text-dialogue/v1",
+        "scope_version": 1,
+        "checked_at": "2026-09-14T01:02:00Z"
+      }
+    },
+    "event": {
+      "schema": "conversation#committed_event",
+      "document": {
+        "schema_version": 1,
+        "event_id": "event:synthetic-1",
+        "event_type": "conversation.turn_committed",
+        "owner": "companion",
+        "aggregate_id": "turn:synthetic-1",
+        "aggregate_version": 9,
+        "occurred_at": "2026-09-14T01:01:00Z",
+        "causation_id": "collection:synthetic-1",
+        "conversation_id": "conv:synthetic",
+        "turn_sequence": 1,
+        "scope": {
+          "actor_id": "actor:synthetic",
+          "person_id": "person:synthetic-a",
+          "audience": "self_private",
+          "conversation_id": "conv:synthetic"
+        },
+        "scope_version": 1,
+        "input_revision": 3,
+        "sources": [
+          {
+            "message_key": {
+              "channel": {
+                "namespace": "web",
+                "binding_id": "binding:synthetic",
+                "channel_conversation_id": "channel:synthetic",
+                "thread_id": null
+              },
+              "message_id": "message:synthetic-1",
+              "revision": 1
+            },
+            "receipt_id": "receipt:synthetic-1",
+            "archive_state": "pending",
+            "locator": null
+          }
+        ],
+        "reality": "real",
+        "confirmed_user_correction": false,
+        "delivery_state": "unknown",
+        "reply_ids": [
+          "reply:synthetic-1"
+        ]
+      }
+    },
+    "commit": {
+      "schema": "candidate_commit",
+      "document": {
+        "job_id": "candidate:synthetic",
+        "drafts": [
+          {
+            "scope": {
+              "actor_id": "actor:synthetic",
+              "person_id": "person:synthetic-a",
+              "audience": "self_private",
+              "conversation_id": "conv:synthetic"
+            },
+            "category": "identity",
+            "field_key": "coffee_preference",
+            "item_key": null,
+            "units": [
+              {
+                "statement": "白天偶尔可以喝咖啡。",
+                "conditions": [
+                  "仅白天，且偶尔"
+                ],
+                "negations": [
+                  "晚上不喝咖啡"
+                ],
+                "valid_time": "当前自述习惯",
+                "uncertainty": "uncertain",
+                "reality": "real",
+                "sources": [
+                  {
+                    "message_key": {
+                      "channel": {
+                        "namespace": "web",
+                        "binding_id": "binding:synthetic",
+                        "channel_conversation_id": "channel:synthetic",
+                        "thread_id": null
+                      },
+                      "message_id": "message:synthetic-1",
+                      "revision": 1
+                    },
+                    "receipt_id": "receipt:synthetic-1",
+                    "archive_state": "pending",
+                    "locator": null
+                  }
+                ]
+              }
+            ],
+            "relationship_delta": null
+          }
+        ]
+      }
+    },
+    "revise": {
+      "schema": "identity-memory#revise_request",
+      "document": {
+        "command": {
+          "schema_version": 1,
+          "request_id": "request:forget",
+          "origin": {
+            "assertion_ref": "origin:synthetic-live"
+          },
+          "idempotency_key": "forget:synthetic",
+          "deadline_at": "2026-09-14T01:04:00Z"
+        },
+        "record_id": "record:synthetic",
+        "expected_version": 1,
+        "revision_kind": "forget",
+        "confirmation_ref": "confirmation:synthetic",
+        "evidence_refs": [
+          {
+            "message_key": {
+              "channel": {
+                "namespace": "web",
+                "binding_id": "binding:synthetic",
+                "channel_conversation_id": "channel:synthetic",
+                "thread_id": null
+              },
+              "message_id": "message:synthetic-1",
+              "revision": 1
+            },
+            "receipt_id": "receipt:synthetic-1",
+            "archive_state": "pending",
+            "locator": null
+          }
+        ],
+        "replacement_statement": null
+      }
+    },
+    "confirmation": {
+      "schema": "confirmation_record",
+      "document": {
+        "confirmation_ref": "confirmation:synthetic",
+        "record_id": "record:synthetic",
+        "semantic_digest": "67e81b69d9a54bba685addbe439fccc523c45be94becf7c89c2b135399eaa52a",
+        "account": {
+          "namespace": "web",
+          "immutable_account_id": "synthetic-a"
+        },
+        "scope": {
+          "actor_id": "actor:synthetic",
+          "person_id": "person:synthetic-a",
+          "audience": "self_private",
+          "conversation_id": "conv:synthetic"
+        },
+        "binding_version": 1,
+        "expected_version": 1,
+        "expires_at": "2026-09-14T01:04:00Z",
+        "consumed": false
+      }
+    },
+    "content": {
+      "schema": "input",
+      "document": {
+        "message_key": {
+          "channel": {
+            "namespace": "web",
+            "binding_id": "binding:synthetic",
+            "channel_conversation_id": "channel:synthetic",
+            "thread_id": null
+          },
+          "message_id": "message:synthetic-1",
+          "revision": 1
+        },
+        "author": {
+          "namespace": "web",
+          "immutable_account_id": "synthetic-a"
+        },
+        "sent_at": "2026-09-14T01:00:00Z",
+        "kind": "message",
+        "parts": [
+          {
+            "kind": "text",
+            "text": "晚上不喝咖啡，白天偶尔可以。"
+          }
+        ],
+        "reply_refs": [],
+        "mentioned_accounts": [],
+        "target_actor_ids": [
+          "actor:synthetic"
+        ]
+      }
+    },
+    "full_request": {
+      "schema": "core_request",
+      "document": {
+        "candidate_version": "source-sync/candidate.1",
+        "request_id": "request:core-content",
+        "mode": "snapshot",
+        "keys": [
+          {
+            "channel": {
+              "namespace": "web",
+              "binding_id": "binding:synthetic",
+              "channel_conversation_id": "channel:synthetic",
+              "thread_id": null
+            },
+            "message_id": "message:synthetic-1"
+          }
+        ],
+        "turn_ids": [
+          "turn:synthetic-1"
+        ],
+        "include_content": true
+      }
+    },
+    "full": {
+      "schema": "core_response",
+      "document": {
+        "candidate_version": "source-sync/candidate.1",
+        "request_id": "request:core-content",
+        "request_digest": "8dc4ebc520fe90bd0ad3f0debdaf864cdec61105e6b34817f6b06adb27e64430",
+        "head": {
+          "generation": "core:synthetic-db1",
+          "sequence": 12
+        },
+        "facts": [
+          {
+            "key": {
+              "channel": {
+                "namespace": "web",
+                "binding_id": "binding:synthetic",
+                "channel_conversation_id": "channel:synthetic",
+                "thread_id": null
+              },
+              "message_id": "message:synthetic-1"
+            },
+            "state": "active",
+            "source": {
+              "message_key": {
+                "channel": {
+                  "namespace": "web",
+                  "binding_id": "binding:synthetic",
+                  "channel_conversation_id": "channel:synthetic",
+                  "thread_id": null
+                },
+                "message_id": "message:synthetic-1",
+                "revision": 1
+              },
+              "receipt_id": "receipt:synthetic-1",
+              "archive_state": "pending",
+              "locator": null
+            },
+            "scope": {
+              "actor_id": "actor:synthetic",
+              "person_id": "person:synthetic-a",
+              "audience": "self_private",
+              "conversation_id": "conv:synthetic"
+            },
+            "author": {
+              "namespace": "web",
+              "immutable_account_id": "synthetic-a"
+            },
+            "binding_version": 1,
+            "accepted_origin": {
+              "assertion_ref": "origin:synthetic-expired-admission"
+            },
+            "accepted_at": "2026-09-14T01:00:01Z",
+            "ingest_sequence": 1,
+            "kind": "message",
+            "content_digest": "a719c68edc2e6490212592cd3be5cc4d2ae604d9d4467ed5f8c2089537eacd3d",
+            "classification": {
+              "value": "real",
+              "basis": "registered_input_mode",
+              "policy_ref": "mode:synthetic-real",
+              "policy_version": 1
+            },
+            "content": {
+              "message_key": {
+                "channel": {
+                  "namespace": "web",
+                  "binding_id": "binding:synthetic",
+                  "channel_conversation_id": "channel:synthetic",
+                  "thread_id": null
+                },
+                "message_id": "message:synthetic-1",
+                "revision": 1
+              },
+              "author": {
+                "namespace": "web",
+                "immutable_account_id": "synthetic-a"
+              },
+              "sent_at": "2026-09-14T01:00:00Z",
+              "kind": "message",
+              "parts": [
+                {
+                  "kind": "text",
+                  "text": "晚上不喝咖啡，白天偶尔可以。"
+                }
+              ],
+              "reply_refs": [],
+              "mentioned_accounts": [],
+              "target_actor_ids": [
+                "actor:synthetic"
+              ]
+            }
+          }
+        ],
+        "turns": [
+          {
+            "turn_id": "turn:synthetic-1",
+            "scope": {
+              "actor_id": "actor:synthetic",
+              "person_id": "person:synthetic-a",
+              "audience": "self_private",
+              "conversation_id": "conv:synthetic"
+            },
+            "input_revision": 3,
+            "aggregate_version": 9,
+            "context_revision": 1,
+            "input_sources": [
+              {
+                "message_key": {
+                  "channel": {
+                    "namespace": "web",
+                    "binding_id": "binding:synthetic",
+                    "channel_conversation_id": "channel:synthetic",
+                    "thread_id": null
+                  },
+                  "message_id": "message:synthetic-1",
+                  "revision": 1
+                },
+                "receipt_id": "receipt:synthetic-1",
+                "archive_state": "pending",
+                "locator": null
+              }
+            ],
+            "delivery_state": "unknown",
+            "reply_ids": [
+              "reply:synthetic-1"
+            ],
+            "committed_event": {
+              "schema_version": 1,
+              "event_id": "event:synthetic-1",
+              "event_type": "conversation.turn_committed",
+              "owner": "companion",
+              "aggregate_id": "turn:synthetic-1",
+              "aggregate_version": 9,
+              "occurred_at": "2026-09-14T01:01:00Z",
+              "causation_id": "collection:synthetic-1",
+              "conversation_id": "conv:synthetic",
+              "turn_sequence": 1,
+              "scope": {
+                "actor_id": "actor:synthetic",
+                "person_id": "person:synthetic-a",
+                "audience": "self_private",
+                "conversation_id": "conv:synthetic"
+              },
+              "scope_version": 1,
+              "input_revision": 3,
+              "sources": [
+                {
+                  "message_key": {
+                    "channel": {
+                      "namespace": "web",
+                      "binding_id": "binding:synthetic",
+                      "channel_conversation_id": "channel:synthetic",
+                      "thread_id": null
+                    },
+                    "message_id": "message:synthetic-1",
+                    "revision": 1
+                  },
+                  "receipt_id": "receipt:synthetic-1",
+                  "archive_state": "pending",
+                  "locator": null
+                }
+              ],
+              "reality": "real",
+              "confirmed_user_correction": false,
+              "delivery_state": "unknown",
+              "reply_ids": [
+                "reply:synthetic-1"
+              ]
+            },
+            "phase": "closed_unknown"
+          }
+        ]
+      }
+    },
+    "blocked": {
+      "schema": "core_response",
+      "document": {
+        "candidate_version": "source-sync/candidate.1",
+        "request_id": "request:core-snapshot",
+        "request_digest": "9752c5c03aaf94e5a96a715d9f5984f3064f2bdfaa1ef905ff6888921dbf0982",
+        "head": {
+          "generation": "core:synthetic-db1",
+          "sequence": 12
+        },
+        "facts": [
+          {
+            "key": {
+              "channel": {
+                "namespace": "web",
+                "binding_id": "binding:synthetic",
+                "channel_conversation_id": "channel:synthetic",
+                "thread_id": null
+              },
+              "message_id": "message:synthetic-1"
+            },
+            "state": "active",
+            "source": {
+              "message_key": {
+                "channel": {
+                  "namespace": "web",
+                  "binding_id": "binding:synthetic",
+                  "channel_conversation_id": "channel:synthetic",
+                  "thread_id": null
+                },
+                "message_id": "message:synthetic-1",
+                "revision": 1
+              },
+              "receipt_id": "receipt:synthetic-1",
+              "archive_state": "pending",
+              "locator": null
+            },
+            "scope": {
+              "actor_id": "actor:synthetic",
+              "person_id": "person:synthetic-a",
+              "audience": "self_private",
+              "conversation_id": "conv:synthetic"
+            },
+            "author": {
+              "namespace": "web",
+              "immutable_account_id": "synthetic-a"
+            },
+            "binding_version": 1,
+            "accepted_origin": {
+              "assertion_ref": "origin:synthetic-expired-admission"
+            },
+            "accepted_at": "2026-09-14T01:00:01Z",
+            "ingest_sequence": 1,
+            "kind": "message",
+            "content_digest": "a719c68edc2e6490212592cd3be5cc4d2ae604d9d4467ed5f8c2089537eacd3d",
+            "classification": {
+              "value": "real",
+              "basis": "registered_input_mode",
+              "policy_ref": "mode:synthetic-real",
+              "policy_version": 1
+            },
+            "content": null
+          }
+        ],
+        "turns": [
+          {
+            "turn_id": "turn:synthetic-1",
+            "scope": {
+              "actor_id": "actor:synthetic",
+              "person_id": "person:synthetic-a",
+              "audience": "self_private",
+              "conversation_id": "conv:synthetic"
+            },
+            "input_revision": 3,
+            "aggregate_version": 9,
+            "context_revision": 1,
+            "input_sources": [
+              {
+                "message_key": {
+                  "channel": {
+                    "namespace": "web",
+                    "binding_id": "binding:synthetic",
+                    "channel_conversation_id": "channel:synthetic",
+                    "thread_id": null
+                  },
+                  "message_id": "message:synthetic-1",
+                  "revision": 1
+                },
+                "receipt_id": "receipt:synthetic-1",
+                "archive_state": "pending",
+                "locator": null
+              }
+            ],
+            "delivery_state": "unknown",
+            "reply_ids": [
+              "reply:synthetic-1"
+            ],
+            "committed_event": null,
+            "phase": "queued"
+          }
+        ]
+      }
+    },
+    "missing": {
+      "schema": "core_response",
+      "document": {
+        "candidate_version": "source-sync/candidate.1",
+        "request_id": "request:core-snapshot",
+        "request_digest": "9752c5c03aaf94e5a96a715d9f5984f3064f2bdfaa1ef905ff6888921dbf0982",
+        "head": {
+          "generation": "core:synthetic-db1",
+          "sequence": 12
+        },
+        "facts": [
+          {
+            "key": {
+              "channel": {
+                "namespace": "web",
+                "binding_id": "binding:synthetic",
+                "channel_conversation_id": "channel:synthetic",
+                "thread_id": null
+              },
+              "message_id": "message:synthetic-1"
+            },
+            "state": "missing"
+          }
+        ],
+        "turns": [
+          {
+            "turn_id": "turn:synthetic-1",
+            "scope": {
+              "actor_id": "actor:synthetic",
+              "person_id": "person:synthetic-a",
+              "audience": "self_private",
+              "conversation_id": "conv:synthetic"
+            },
+            "input_revision": 3,
+            "aggregate_version": 9,
+            "context_revision": 1,
+            "input_sources": [
+              {
+                "message_key": {
+                  "channel": {
+                    "namespace": "web",
+                    "binding_id": "binding:synthetic",
+                    "channel_conversation_id": "channel:synthetic",
+                    "thread_id": null
+                  },
+                  "message_id": "message:synthetic-1",
+                  "revision": 1
+                },
+                "receipt_id": "receipt:synthetic-1",
+                "archive_state": "pending",
+                "locator": null
+              }
+            ],
+            "delivery_state": "unknown",
+            "reply_ids": [
+              "reply:synthetic-1"
+            ],
+            "committed_event": {
+              "schema_version": 1,
+              "event_id": "event:synthetic-1",
+              "event_type": "conversation.turn_committed",
+              "owner": "companion",
+              "aggregate_id": "turn:synthetic-1",
+              "aggregate_version": 9,
+              "occurred_at": "2026-09-14T01:01:00Z",
+              "causation_id": "collection:synthetic-1",
+              "conversation_id": "conv:synthetic",
+              "turn_sequence": 1,
+              "scope": {
+                "actor_id": "actor:synthetic",
+                "person_id": "person:synthetic-a",
+                "audience": "self_private",
+                "conversation_id": "conv:synthetic"
+              },
+              "scope_version": 1,
+              "input_revision": 3,
+              "sources": [
+                {
+                  "message_key": {
+                    "channel": {
+                      "namespace": "web",
+                      "binding_id": "binding:synthetic",
+                      "channel_conversation_id": "channel:synthetic",
+                      "thread_id": null
+                    },
+                    "message_id": "message:synthetic-1",
+                    "revision": 1
+                  },
+                  "receipt_id": "receipt:synthetic-1",
+                  "archive_state": "pending",
+                  "locator": null
+                }
+              ],
+              "reality": "real",
+              "confirmed_user_correction": false,
+              "delivery_state": "unknown",
+              "reply_ids": [
+                "reply:synthetic-1"
+              ]
+            },
+            "phase": "closed_unknown"
+          }
+        ]
+      }
+    },
+    "live_access_request": {
+      "schema": "access_request",
+      "document": {
+        "candidate_version": "source-sync/candidate.1",
+        "request_id": "request:access",
+        "admissions": [
+          {
+            "key": {
+              "channel": {
+                "namespace": "web",
+                "binding_id": "binding:synthetic",
+                "channel_conversation_id": "channel:synthetic",
+                "thread_id": null
+              },
+              "message_id": "message:synthetic-1"
+            },
+            "state": "active",
+            "source": {
+              "message_key": {
+                "channel": {
+                  "namespace": "web",
+                  "binding_id": "binding:synthetic",
+                  "channel_conversation_id": "channel:synthetic",
+                  "thread_id": null
+                },
+                "message_id": "message:synthetic-1",
+                "revision": 1
+              },
+              "receipt_id": "receipt:synthetic-1",
+              "archive_state": "pending",
+              "locator": null
+            },
+            "scope": {
+              "actor_id": "actor:synthetic",
+              "person_id": "person:synthetic-a",
+              "audience": "self_private",
+              "conversation_id": "conv:synthetic"
+            },
+            "author": {
+              "namespace": "web",
+              "immutable_account_id": "synthetic-a"
+            },
+            "binding_version": 1,
+            "accepted_origin": {
+              "assertion_ref": "origin:synthetic-expired-admission"
+            },
+            "accepted_at": "2026-09-14T01:00:01Z",
+            "ingest_sequence": 1,
+            "kind": "message",
+            "content_digest": "a719c68edc2e6490212592cd3be5cc4d2ae604d9d4467ed5f8c2089537eacd3d",
+            "classification": {
+              "value": "real",
+              "basis": "registered_input_mode",
+              "policy_ref": "mode:synthetic-real",
+              "policy_version": 1
+            },
+            "content": null
+          }
+        ],
+        "viewer": {
+          "origin": {
+            "assertion_ref": "origin:synthetic-live"
+          },
+          "scope": {
+            "actor_id": "actor:synthetic",
+            "person_id": "person:synthetic-a",
+            "audience": "self_private",
+            "conversation_id": "conv:synthetic"
+          }
+        }
+      }
+    },
+    "live_access": {
+      "schema": "access_response",
+      "document": {
+        "candidate_version": "source-sync/candidate.1",
+        "request_id": "request:access",
+        "request_digest": "5148b08342f843a377d7a4f8e8f526888bd0b3eac74da667cd313e5f22c63fe9",
+        "head": {
+          "generation": "platform:synthetic-db1",
+          "sequence": 5
+        },
+        "facts": [
+          {
+            "key": {
+              "channel": {
+                "namespace": "web",
+                "binding_id": "binding:synthetic",
+                "channel_conversation_id": "channel:synthetic",
+                "thread_id": null
+              },
+              "message_id": "message:synthetic-1"
+            },
+            "admission_digest": "1c59dceb1fa7006f6ef0db4d337828f1f63633c4b9c97e034fb94dc83a0e1791",
+            "entry_id": "entry:synthetic",
+            "entry_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "account": {
+              "namespace": "web",
+              "immutable_account_id": "synthetic-a"
+            },
+            "scope": {
+              "actor_id": "actor:synthetic",
+              "person_id": "person:synthetic-a",
+              "audience": "self_private",
+              "conversation_id": "conv:synthetic"
+            },
+            "binding_version": 1,
+            "channel": {
+              "namespace": "web",
+              "binding_id": "binding:synthetic",
+              "channel_conversation_id": "channel:synthetic",
+              "thread_id": null
+            },
+            "route": {
+              "caller": "companion",
+              "receiver": "memory",
+              "purpose": "dialogue"
+            },
+            "state": "allowed",
+            "reason": "allowed"
+          }
+        ],
+        "viewer_context": {
+          "issuer": "platform",
+          "authenticated_service": "companion",
+          "audience_service": "memory",
+          "assertion_ref": "origin:synthetic-live",
+          "verified_account": {
+            "namespace": "web",
+            "immutable_account_id": "synthetic-a"
+          },
+          "principal_id": "principal:synthetic",
+          "allowed_scope": {
+            "actor_id": "actor:synthetic",
+            "person_id": "person:synthetic-a",
+            "audience": "self_private",
+            "conversation_id": "conv:synthetic"
+          },
+          "expires_at": "2026-09-14T01:04:00Z",
+          "revoked": false,
+          "verified_channel": {
+            "namespace": "web",
+            "binding_id": "binding:synthetic",
+            "channel_conversation_id": "channel:synthetic",
+            "thread_id": null
+          }
+        }
+      }
+    }
+  }
+}
