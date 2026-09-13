@@ -10,6 +10,7 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator, FormatChecker
 from referencing import Registry, Resource
+from release_support import RULES
 
 ROOT = Path(__file__).resolve().parents[3]
 PACKAGE = ROOT / "docs/development/candidates/source-sync"
@@ -23,8 +24,7 @@ def digest(value):
     return hashlib.sha256(canonical(value).encode("utf-8")).hexdigest()
 
 
-class Violation(ValueError):
-    pass
+Violation = RULES.Violation
 
 
 def require(condition, code):
@@ -151,15 +151,10 @@ def check_turn(request, turn, facts):
 
 
 def check_event(event, turn, facts):
-    saved = turn["committed_event"]
-    require(saved is not None, "dependency_unavailable")
-    require({k: v for k, v in event.items() if k != "event_id"} == {k: v for k, v in saved.items() if k != "event_id"}, "owner_event")
+    RULES.event_header(event, turn)
     check_turn({"turn_id": event["aggregate_id"], "scope": event["scope"], "input_revision": event["input_revision"], "sources": event["sources"]}, turn, facts)
-    require(turn["aggregate_version"] >= event["aggregate_version"], "owner_event")
     current = by_key(facts)
-    realities = {current[source_key(s)]["classification"]["value"] for s in event["sources"]}
-    require(realities <= {"real", "fictional"}, "reality")
-    require(event["reality"] == (next(iter(realities)) if len(realities) == 1 else "mixed"), "reality")
+    RULES.event_reality(event, [current[source_key(s)]["classification"]["value"] for s in event["sources"]])
 
 
 def check_drafts(commit, event, facts):

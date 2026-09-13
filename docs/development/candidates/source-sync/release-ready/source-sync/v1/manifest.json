@@ -1,0 +1,43 @@
+{
+  "package": "source-sync/v1",
+  "version": "1.0.0",
+  "schema_version": 1,
+  "owners": [
+    "companion",
+    "platform",
+    "memory"
+  ],
+  "dependencies": [
+    {
+      "package": "text-dialogue/v1",
+      "version": "1.0.0",
+      "manifest_sha256": "81e6cc4ddef7c6f82e055d4cb04b090db036dd5c52763473ce697aa02db478a1"
+    },
+    {
+      "package": "profile-memory/v1",
+      "version": "1.0.0",
+      "manifest_sha256": "488d05438dd5b5abaa43a66a7eab0eb5cf615d5af01a964a7286cd23e68f7eb7"
+    }
+  ],
+  "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
+  "schema_ids": [
+    "https://contracts.tianshu.invalid/source-sync/v1/shared.json",
+    "https://contracts.tianshu.invalid/source-sync/v1/sources.json",
+    "https://contracts.tianshu.invalid/source-sync/v1/workflow.json"
+  ],
+  "catalog": "interfaces.json",
+  "sha256": {
+    "compatibility.md": "be0cd61080662554fedf66a8875d8bd20da0c888636195544452ea0f2f73d89e",
+    "examples/documents.json": "5c923bc322f38ba58330cade3c97659963749650addf4337288b83d84359c50d",
+    "examples/negative-documents.json": "c0301b7e7fe9c590b29d39cce54e1d78f418f00d15ef7adb004e29d204db4ce2",
+    "examples/relations.json": "173c2c8ed2dc6651e76cded66b8fa6ea2cd6bd98c3c872165bf579faa3912c96",
+    "interfaces.json": "e771ef7aee1caeecf7fba3b154274cde80256f27d6822e616e6d1dd42d30ddef",
+    "README.md": "e36f925af0298bf868a564b7b4300cbcdc97889149db8cad5bcad0ddca984a79",
+    "rules.py": "69eecf03bcdfb6904d02b597fd46ad1938d7d5e3a7eb4838159d081156dacfb8",
+    "schemas/shared.json": "24b0c297007651ac4a3821cc41d68f8d6e7460d911cd42c4e4edc30b84b1d76d",
+    "schemas/sources.json": "48749a31638f0d81e7ac9528ed3f3fc78400519409d2832ec77e0816e2d311fd",
+    "schemas/workflow.json": "01424adddaf3d838337d37d0d1c0a58ccfb56ed7c984899c0602d37a86bf6e28",
+    "semantics.md": "4de65d52931b53e16079403ae3e4a65b0e718ea330a126e713afc638f65f5a92",
+    "validate.py": "9f63cf90dc2541d611210124cbf042d53bb5aae7ffd395a02e0f97823504b988"
+  }
+}

@@ -1,0 +1,77 @@
+# 来源、角色与同步语义
+
+本文件与schema、实例、关系规则构成source-sync/v1 1.0.0实现合同。接口路径、owner、caller及请求/响应选择器只在interfaces.json登记，避免多份接口目录分歧。下文都不是已运行端点或实现完成声明。
+
+## 1. 事实归属与键
+
+物理P=`{channel,message_id}`；精确物理版本为P+revision。Core保留实际作者、完整输入、reality分类、physical_receipt_id及当前revision/墓碑。channel包括namespace、binding、channel_conversation和thread；同名群私或不同渠道不撞键。正文摘要覆盖message_key/author/sent_at/kind/parts/reply_refs/mentioned_accounts的规范化UTF-8 JSON；target_actor_ids是路由意图，不进入物理正文摘要。
+
+角色受理A=`{key:P,actor_id}`；受理版本为A+revision。Core按A持久保存精确scope、Memory binding_version、角色origin、accepted_at和实际actor receipt。相同P版本分送A/B共享physical_receipt_id，但actor receipt必须不同。scope中person/actor不是同一实体，不能用昵称或ID前缀推断。common.source维持旧形状：receipt_id仍为Core实际角色受理回执，必须与外层授权scope/selector和Core的admission事实联合使用。
+
+Platform拥有真实输入入口、简单主体/entry、当前逐actor路由、默认角色集合及撤销/到期事实；Core受理事实不替代当前权限。Memory持有角色来源ledger、source epoch、组/投影/候选血缘、来源写入幂等、local suppression与自己的版本域。Audit只拥有原文归档观察，archive_observation_id不是Core receipt或当前修订证明；本版只接pending/locator=null，archived必须拒绝，未来另发可信逐来源绑定协议。
+
+共同世界/房间状态归Core，不为每个actor复制世界或conversation。Memory私密记录、确认、关系和候选按actor/person/audience/conversation隔离；物理P共享、同群或共同世界都不授权B读取A私密记忆。群与私采用同一套P/A规则。
+
+## 2. 传输、版本与输入授权
+
+新HTTP信封统一schema_version=1，schema ID只在source-sync/v1域下。已引用的text/profile信封保持各自既有版本。旧提案的candidate_version、无selector的keys读取、独立turn.input_state都不是本版协议，形状校验拒绝。内部HTTP使用部署固定HTTPS目标和各服务独立可撤销凭据，禁止payload指定URL/CA/token、关闭证书校验或跳转。固定issuer=platform；实际ingress caller从认证结果取得，不信任正文声明。错误使用text-common#error，关系断言标签不是新HTTP错误码。
+
+Platform在受信登录/真实渠道应用入口登记精确source_input事实：account/channel/message_key/kind/input_digest/有效期。该事实不依赖person、conversation、turn或Memory来源验证，且只证明原作者提交/编辑/撤回自己的物理消息，不授予任何actor记忆权。Core仍需比对已有P的原作者及自己的channel binding。
+
+input授权响应给出已核验audience、服务器default_actor_ids/routing_version及逐actor真实上下文；这些上下文是受信应用服务返回值，不是客户端可提交的授权字段。每个actor的issuer、caller、receiver、账号、channel、scope和期限必须匹配。Core在最终事务前用实际当前时钟复核deadline/权限期限，不能把等待Memory后已过期的快照用于受理。
+
+非空targets为精确路由意图；空targets只用服务器登记默认集合，默认空则unrouted。默认值不授权，不能扩成全部角色。只授权A而请求A/B时，合法A可明确成功，B必须有forbidden/null receipt/null admission，不能静默漏B或回全成功。全局错误（伪物理来源、同revision异正文、容量不足）无新受理。每个outcome唯一且完整覆盖effective_actor_ids；有效集合必须等于请求集合，或空请求首次解析并持久冻结的默认集合。
+
+命令按认证服务/操作/idempotency_key和完整语义输入（input、requested targets）持久幂等；request_id和新有效origin可更新，但语义目标不能改变。第一次有效路由集合/routing_version写入内部routing_record；重试重新核验原集合权限，返回原结果，不因新default扩大角色。更改路由意图用新key；A+revision仍独立去重，重复A不吞掉B的首次受理。
+
+## 3. 原子回执与首次映射
+
+Core在单个自有SQLite事务写P、各成功A、collector、回执与命令结果。网络/Memory身份调用全部在该事务外。对每个成功outcome，**同时返回receipt与同事务的完整admission事实**：actor/selector/scope、source.receipt_id、physical_receipt_id、binding_version、accepted_origin及accepted_at严格关联。forbidden时两者都null。返回物理receipt不表示任何actor接收/回复/归档成功。
+
+内层receipt保持已发布ingest_response。批量响应必须唯一完整覆盖预期角色，所有成功receipt的person来自真实Memory身份响应，conversation来自Core同一channel，collection_key必须对应本次author/channel。admission.selector.actor等于outcome.actor，source.message_key等于本次物理输入，source.receipt_id等于该receipt.id，physical_receipt_id等于批量物理回执，scope/binding/时间相符；不能交换A/B receipt。accepted时origin还应等于对应当前actor授权引用；duplicate可保留历史admission origin，但当前角色授权仍须通过。
+
+首次角色origin的person/conversation可null。Core凭一个有效**actor origin**调用现有Memory resolve/register（不能用只证明source_input的origin代替），取得唯一person/binding_version后核对其他角色映射；Core按channel取得/建立唯一conversation，写各A。Platform对Core原子返回的inline admission+receipt做上述检查后，通过其受信prepare/confirm应用流程一次回填person/channel。无需额外查询Memory SourceAuthority或Core来源RPC来完成回填；不等待带scope_version的committed_event。响应丢失用原key取同结果，映射未确认期间后续来源屏障失败关闭。
+
+只有物理受理、没有合法actor时不用虚构person；之后首次actor受理再做身份。Core来源查询只读Core状态，不调用Memory；Memory身份通路不依赖来源同步或候选。
+
+## 4. 当前来源与owner事件
+
+source-facts按明确selector读取，每个selector恰好返回其admission或missing；physical集合必须恰好覆盖selectors去重后的P，不能用另一个actor补missing。metadata模式不返回正文；full模式正文摘要及作者/key/revision/kind全部吻合。source-access current对同一admission集合核对摘要、逐actor scope/账号/binding和当前entry权限；在线viewer必须是platform issuer、companion→memory、完整scope/ref/期限匹配。后台viewer=null不依赖短期旧origin有效，但仍核对历史admission与当前底层权限。
+
+committed_event先复用text schema，再完整比较owner持久事件除event_id外的全部字段；同时核对turn_id、scope/conversation、input_revision、有序input_sources及current aggregate_version >= event aggregate_version。aggregate版本可以跨事件跳号，由当前owner事实核验，不能误要求每个committed_event恰好+1。
+
+一个event的sources按稳定P去重，receipt也不得别名；不能把同一P的两个修订当两条当前来源。逐条连接scope.actor对应的A和当前P：完整source、scope、revision、physical_receipt、当前active状态与audience/conversation都要匹配，不能只验证event与owner相等。事件reality必须由这些当前物理分类汇总：全real→real，全fictional→fictional，两类独立来源→mixed。单个P为mixed/unclassified不能提炼，拒绝event；即使event和owner同时谎称另一reality也拒绝。real只表示现实情境陈述，不证明陈述为真，unit仍保存uncertainty。
+
+普通reply cancel、phase或短期context_revision本身不撤回已受理输入；原始输入记忆只按source级失效。unknown/partial/not_required不代表已表达承诺，候选只从真实输入提炼。若未来以生成回复或独立turn-input失效为来源，先定义新的依赖coverage合同，不能借本版字段暗中支持。
+
+## 5. 同步屏障、两个owner水位与否定广播
+
+Core与Platform各自持久generation/sequence。Core覆盖P/admission/分类/轮次输入与投递等事实事务；Platform覆盖entry、主体、路由、映射、撤权事实。普通进程重启不重置水位；恢复不能延续序号时必须更换generation并完成受信恢复核验。
+
+每次select/profiles零预算探针、consume/候选提交/revise/check均先建立屏障：Memory读取本地revision m0与完整角色依赖coverage → Core C1一致快照 → Platform P1当前授权（在线重验viewer） → Core C2 head复核。C1 != C2则丢弃并有界重试；缺项/失联/超时/无法追平503，不能服务旧私密缓存。Core稳定区间内P1事务点构成两远端共同读点，不是与返回或外部发送的分布式事务。
+
+Memory BEGIN IMMEDIATE后比较m0/coverage未变，并用自有账号绑定核对person/binding_version；先在此事务应用P/A、各source epoch、所有相关组/记录/候选/投影失效、受影响版本和outbox，连同**两个**owner水位提交。**失效提交后**再开业务事务核对本地revision、权限/known_scope_version并读取。409不能回滚已提交失效；两事务间若有本地变更则重跑屏障。失败同步不能继续probe/consume/commit。
+
+P编辑/撤回/分类变化使本地所有已登记A血缘失效，包括这次未请求的B；这是只做否定的广播，不需要B正向授权，也不能读取/泄露B正文。正向激活A必须拥有该actor当前授权和当前P版本的actor receipt。物理edit只给当前获准actor重授新receipt，未获新授权的B保留旧receipt作历史但已过期；可信后续重投同一编辑版本才可给B新receipt。物理retract不发新actor receipt，全actor墓碑不能被更高revision复活；带actor targets的retract拒绝含混意图。
+
+Memory correct/forget的local suppression按A跨revision保存，只失效该actor及派生血缘；A遗忘/撤权不删除B。物理否定、当前授权、本地suppression分别持久，任何远端allowed或archive回执都不能清除suppression。事件ID及turn/input去重沿既有Memory规则，source_writes/关系累计键改为A+revision+scope，重复A不吞B也不再次累加。
+
+Core或Platform任一水位回退/generation变化，拒绝整批并保留已经失效的行/旧水位；不得用恢复快照旧allowed激活来源。Memory从备份恢复时须先恢复独立保留的双水位、suppression、消费ledger/outbox和物理墓碑；owner快照不能替代这些记录。恢复完整性未确认前不提供版本探针；本包不实现恢复批准/重建。
+
+## 6. 版本、私密隔离、确认和容量
+
+消息revision、Core input_revision/aggregate_version/context_revision、Memory binding_version/source epoch/record_version互不替代。text scope_version属于精确actor/person/audience/conversation，初始1；profile-memory/v1私聊取该actor公开epoch，群取公开+当前群epoch−1。scope_version不能等同owner水位或因数值相同跨域缓存。画像coverage覆盖当前actor全部活动公开/当前群血缘，不依赖target/query/预算。
+
+只在使仍活动的共享投影失效时推进相应公开/群epoch，一事务同域一次；A私密活动不推动B或无活动投影的公开epoch。P撤回可分别失效A/B自己的活动投影，响应不得暴露其他actor的存在性/计数/血缘/版本。群输入admission不是共享批准；群画像沿既有精确类别/主体/范围批准，允许登记策略，不为每条提示加弹窗。
+
+确认由Memory受信应用适配器在真实用户批准具体操作后登记，绑定完整semantic_request摘要、账号、精确scope、binding_version、record/expected_version、有效期并一次消费。模型、token或payload的confirmed字段不是批准。语义摘要去command/query但保留confirmation_ref、证据、目标与替换文本；规范JSON键排序、UTF-8、数组顺序不变，拒绝NaN/重复键。同幂等重试返原结果，其他key不能复用已消费确认。
+
+correct在本版只“受理并禁用旧值”：authoritative_state=corrected、semantic_state=invalidated、index_state=pending，不表示新值已记住或可召回，也不保证后台自动完成。完整更正另需独立可信replacement来源、精确绑定与原子可读新组，不能解禁旧A或把confirmation_ref冒充Core receipt。forget只表示Memory派生语义墓碑，不等于Core/Audit原文物理删除。
+
+完整scope coverage最多256角色依赖，物理P去重；最多32个turn及1 MiB单响应，不能截断/漏墓碑/拼不同快照分页。长期累积超过上限会持续503，本版只适用于有界接线，不承诺长期生产可用；稳定快照分页或连续增量/缺口恢复待容量证据后另审。
+
+## 7. 会话与发送
+
+collector键加入actor，但conversation仍只按channel；每个actor受理取得会话全局ingest_sequence，fanout固定actor_id排序，重试保留原序号。封存按deadline/首次受理序号在Core自有事务分配会话全局turn_sequence。最多两个活跃turn，跨所有actor计数；第三轮排队。A/B可并行生成，发送仍按全会话(turn_sequence,segment_sequence)，B先生成也不抢发。unknown/closed_unknown、取消与迟到回执遵循原合同，不重发或重复记忆提交。
+
+生成/发送前保留既有text/profile两域及跨作者继承检查，不能把A私密画像检查移给B。每次复核重建上述屏障；valid_until不是离线授权。共同读点之后的远端变更与返回/发送仍可竞争，本版不承诺渠道发送线性化、分布式事务或锁租约。

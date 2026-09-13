@@ -1,0 +1,11 @@
+# 兼容与实现顺序
+
+本包首次发布版本为source-sync/v1 1.0.0，统一schema ID和schema_version=1。唯一运行形状在本包schemas和interfaces中；无候选版本协商、无无actor-selector来源RPC、无独立turn.input_state。结构反例必须拒绝这些旧形状。已发布text-dialogue/v1和profile-memory/v1字节不变，依赖通过manifest精确绑定。
+
+批量角色受理是新增操作，不能改变旧单个ingest_response的形状。新outcome同时携带内层原receipt和Core同事务的admission，明确actor/receipt/scope/物理绑定；这是首次映射所必需的证明，不能只比较所有receipt的person/conversation相同。内层old source不新增actor字段，角色来自外层scope/selector。
+
+旧Core单actor入口可作为迁移保护：空targets只取其原授权actor，不扩默认集合。旧receipt只从原始完整输入/可信admission/scope建立一条P版本+A映射，原receipt值保留；Core迁移事务明确生成并关联物理receipt。不能用ID前缀猜actor、把A receipt复制给B、从当前collector猜历史归属。旧混组或归属不明503隔离；旧suppression只迁到被证实的A。旧retract仍是物理消息撤回，不解释为仅当前actor，也不把控制回执作为可召回新来源。
+
+Core实现物理/actor键拆分、新批量回执、source事实/watermark和跨actor源失效；保留共享会话、两轮上限、顺序和既有画像/上下文探针。Platform实现真实source_input、逐actor当前授权/defaults、完整历史和批量回执映射，不能只扩服务token权限。Memory迁移A级ledger/lineage/幂等/suppression，P变化同事务否定广播，完整事件核验使用当前物理分类；确认和候选提交留受信应用服务。
+
+协调者先审查本包再发布；产品绑定固定manifest后分别实施，再用真实服务联合验收首账号/映射、A/B群私分送、越权、reality混合、编辑撤回、双域零预算、重启/水位回退、跨角色并发与发送。这里的schema/关系绿灯不是这些验收。Audit archived绑定、完整更正的新值可读来源、真实原文擦除、稳定分页/增量都仍需具体后续任务，不能由本包推定完成。

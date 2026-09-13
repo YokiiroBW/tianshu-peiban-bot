@@ -84,7 +84,7 @@ class MultiActorJointContracts(unittest.TestCase):
                 data = sample(audience)
                 verify_snapshot(data["facts_request"], data["facts"])
                 verify_access(data["access_request"], data["access"], data["facts"])
-                verify_first_mapping(data["request"], data["response"], FIXTURE["identity"])
+                verify_first_mapping(data["request"], data["response"], FIXTURE["identity"], data["authority"], data["facts"]["admissions"], NOW)
                 for turn in scenario["owner_turns"]:
                     validator("turn_fact").validate(turn)
                     verify_actor_event(turn["committed_event"], turn, data["facts"])
@@ -228,16 +228,17 @@ class MultiActorJointContracts(unittest.TestCase):
             response = core.ingest(data["request"], data["authority"], identity, NOW)
             self.assertEqual(core.identity_calls[-1]["origin"]["assertion_ref"], data["authority"]["actor_contexts"][0]["assertion_ref"])
             self.assertNotEqual(core.identity_calls[-1]["origin"], data["request"]["command"]["origin"])
-            verify_first_mapping(data["request"], response, FIXTURE["identity"])
+            admissions = [{k: copy.deepcopy(v) for k, v in a.items() if k != "receipt"} for a in core.admissions.values()]
+            verify_first_mapping(data["request"], response, FIXTURE["identity"], data["authority"], admissions, NOW)
             responses.append(response)
             bad = copy.deepcopy(response)
             bad["outcomes"][1]["receipt"]["conversation_id"] = "conversation:wrong"
             with self.assertRaisesRegex(Violation, "mapping_response"):
-                verify_first_mapping(data["request"], bad, FIXTURE["identity"])
+                verify_first_mapping(data["request"], bad, FIXTURE["identity"], data["authority"], admissions, NOW)
             bad = copy.deepcopy(response)
             bad["outcomes"][1]["receipt"]["receipt_id"] = bad["outcomes"][0]["receipt"]["receipt_id"]
             with self.assertRaisesRegex(Violation, "receipt_alias"):
-                verify_first_mapping(data["request"], bad, FIXTURE["identity"])
+                verify_first_mapping(data["request"], bad, FIXTURE["identity"], data["authority"], admissions, NOW)
         self.assertEqual(len(core.identity_calls), 2)  # Once per physical request, not once per actor.
         self.assertEqual({r["person_id"] for r in responses}, {FIXTURE["identity"]["person_id"]})
         self.assertNotEqual(responses[0]["conversation_id"], responses[1]["conversation_id"])

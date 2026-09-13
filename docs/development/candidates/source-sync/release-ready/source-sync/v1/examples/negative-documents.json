@@ -1,0 +1,127 @@
+[
+  {
+    "id": "no-actor-selector",
+    "schema": "sources#facts_request",
+    "document": {
+      "request_id": "request:core-snapshot",
+      "mode": "snapshot",
+      "keys": [
+        {
+          "channel": {
+            "namespace": "web",
+            "binding_id": "binding:synthetic",
+            "channel_conversation_id": "channel:synthetic",
+            "thread_id": null
+          },
+          "message_id": "message:synthetic-1"
+        }
+      ],
+      "turn_ids": [
+        "turn:synthetic-1"
+      ],
+      "include_content": false,
+      "schema_version": 1
+    },
+    "expected_keyword": "required"
+  },
+  {
+    "id": "reject-candidate.1",
+    "schema": "sources#facts_request",
+    "base": "group/facts_request",
+    "mutations": [
+      {
+        "path": [
+          "schema_version"
+        ],
+        "delete": true
+      },
+      {
+        "path": [
+          "candidate_version"
+        ],
+        "value": "source-sync/candidate.1"
+      }
+    ],
+    "expected_keyword": "additionalProperties"
+  },
+  {
+    "id": "reject-candidate.2",
+    "schema": "sources#facts_request",
+    "base": "group/facts_request",
+    "mutations": [
+      {
+        "path": [
+          "schema_version"
+        ],
+        "delete": true
+      },
+      {
+        "path": [
+          "candidate_version"
+        ],
+        "value": "source-sync/candidate.2"
+      }
+    ],
+    "expected_keyword": "additionalProperties"
+  },
+  {
+    "id": "missing-inline-admission",
+    "schema": "sources#fanout_response",
+    "base": "group/response",
+    "mutations": [
+      {
+        "path": [
+          "outcomes",
+          0,
+          "admission"
+        ],
+        "delete": true
+      }
+    ],
+    "expected_keyword": "required"
+  },
+  {
+    "id": "wrong-schema-version",
+    "schema": "sources#fanout_request",
+    "base": "group/request",
+    "mutations": [
+      {
+        "path": [
+          "schema_version"
+        ],
+        "value": 2
+      }
+    ],
+    "expected_keyword": "const"
+  },
+  {
+    "id": "forbidden-with-receipt",
+    "schema": "sources#fanout_response",
+    "base": "group/response",
+    "mutations": [
+      {
+        "path": [
+          "outcomes",
+          1,
+          "state"
+        ],
+        "value": "forbidden"
+      }
+    ],
+    "expected_keyword": "type"
+  },
+  {
+    "id": "legacy-input-state",
+    "schema": "shared#turn_fact",
+    "base": "group/turn-0",
+    "mutations": [
+      {
+        "path": [
+          "input_state"
+        ],
+        "value": "cancelled"
+      }
+    ],
+    "expected_keyword": "additionalProperties"
+  }
+]

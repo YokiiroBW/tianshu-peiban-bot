@@ -8,6 +8,7 @@ from referencing import Resource
 
 from ledger_model import Ledger, text_domain
 from relations import PACKAGE, REGISTRY, canonical, digest, require, source_key, validator
+from release_support import RULES
 
 VERSION = "source-sync/candidate.2"
 SCHEMA = json.loads((PACKAGE / "multi-actor.schema.json").read_text(encoding="utf-8"))
@@ -42,30 +43,11 @@ def input_access_request(request):
 def verify_input(request, authority, now):
     validate("fanout_request", request)
     validate("input_authority", authority)
-    data = request["input"]
-    require(authority["request_id"] == request["command"]["request_id"] and authority["request_digest"] == digest(input_access_request(request)), "input_authority")
-    require(authority["ingest_digest"] == digest(request) and authority["input_digest"] == digest(data), "input_authority")
-    require(authority["verified_account"] == data["author"] and authority["verified_channel"] == data["message_key"]["channel"] and authority["origin_ref"] == request["command"]["origin"]["assertion_ref"], "input_authority")
-    require(datetime.fromisoformat(authority["expires_at"]) > datetime.fromisoformat(now) and datetime.fromisoformat(request["command"]["deadline_at"]) > datetime.fromisoformat(now), "expired_input")
-    grants = {c["allowed_scope"]["actor_id"]: c for c in authority["actor_contexts"]}
-    require(len(grants) == len(authority["actor_contexts"]), "ambiguous_grant")
-    return grants
+    return RULES.input_authority(input_access_request(request), authority, now)
 
 
 def actor_authorized(context, actor, request, person, conversation, now, audience):
-    if context is None:
-        return False
-    scope = context["allowed_scope"]
-    return (
-        context["authenticated_service"] == "platform"  # This fixture's registered ingress service.
-        and context["audience_service"] == "companion" and not context["revoked"]
-        and context["verified_account"] == request["input"]["author"]
-        and context["verified_channel"] == request["input"]["message_key"]["channel"]
-        and scope["actor_id"] == actor and scope["person_id"] in (None, person)
-        and scope["audience"] == audience
-        and scope["conversation_id"] in (None, conversation)
-        and datetime.fromisoformat(context["expires_at"]) > datetime.fromisoformat(now)
-    )
+    return RULES.context_allows(context, actor, request, person, conversation, audience, now, "platform")
 
 
 class AdmissionCore:
@@ -191,75 +173,29 @@ class AdmissionCore:
 def verify_snapshot(request, response):
     validate("facts_request", request)
     validate("facts_response", response)
-    require(response["request_id"] == request["request_id"] and response["request_digest"] == digest(request), "correlation")
-    admissions = {actor_key(a["selector"]): a for a in response["admissions"]}
-    physicals = {canonical(p["key"]): p for p in response["physicals"]}
-    require(len(admissions) == len(response["admissions"]) and set(admissions) == {actor_key(s) for s in request["selectors"]}, "actor_coverage")
-    require(len(physicals) == len(response["physicals"]) and set(physicals) == {canonical(s["key"]) for s in request["selectors"]}, "physical_coverage")
-    require({t["turn_id"] for t in response["turns"]} == set(request["turn_ids"]), "turn_coverage")
-    for physical in physicals.values():
-        require(physical["state"] != "missing", "dependency_unavailable")
-        if request["include_content"]:
-            data = physical["content"]
-            require(data is not None and digest(data) == physical["content_digest"], "content_digest")
-            require(physical_key(data) == physical["key"] and data["message_key"]["revision"] == physical["revision"] and data["author"] == physical["author"] and data["kind"] == physical["kind"], "physical_binding")
-        else:
-            require(physical["content"] is None, "metadata_body")
-    receipts = set()
-    for admission in admissions.values():
-        require(admission.get("state") != "missing", "missing_actor_admission")
-        require(admission["selector"]["actor_id"] == admission["scope"]["actor_id"] and source_key(admission["source"]) == canonical(admission["selector"]["key"]), "actor_binding")
-        physical = physicals[canonical(admission["selector"]["key"])]
-        require(admission["scope"]["conversation_id"] == physical["conversation_id"] and admission["scope"]["audience"] == physical["audience"], "physical_binding")
-        require(admission["source"]["archive_state"] == "pending" and admission["source"]["locator"] is None, "archive_unverified")
-        require(admission["source"]["receipt_id"] not in receipts, "receipt_alias")
-        receipts.add(admission["source"]["receipt_id"])
-    return physicals, admissions
+    return RULES.source_snapshot(request, response)
 
 
 def verify_access(request, response, snapshot, now=None):
     validate("current_access_request", request)
     validate("current_access_response", response)
-    require(response["request_id"] == request["request_id"] and response["request_digest"] == digest(request), "correlation")
-    facts = {actor_key(a["selector"]): a for a in snapshot["admissions"]}
-    requested = {actor_key(a["selector"]): a for a in request["admissions"]}
-    grants = {actor_key(g["selector"]): g for g in response["grants"]}
-    require(facts == requested and len(grants) == len(response["grants"]) and set(grants) == set(facts), "actor_coverage")
-    physicals = {canonical(p["key"]): p for p in snapshot["physicals"]}
-    for key, grant in grants.items():
-        admission = facts[key]
-        require(grant["admission_digest"] == digest(admission), "admission_binding")
-        require(grant["scope"] == admission["scope"] and grant["binding_version"] == admission["binding_version"] and grant["account"] == physicals[canonical(admission["selector"]["key"])]["author"], "actor_binding")
-    if request["viewer"] is not None:
-        context = response["viewer_context"]
-        require(context is not None and context["allowed_scope"] == request["viewer"]["scope"] and context["assertion_ref"] == request["viewer"]["origin"]["assertion_ref"] and context["audience_service"] == "memory" and context["authenticated_service"] == "companion" and not context["revoked"], "viewer_actor")
-        require(now is not None and datetime.fromisoformat(context["expires_at"]) > datetime.fromisoformat(now), "viewer_actor")
-    else:
-        require(response["viewer_context"] is None, "viewer_actor")
-    return grants
+    return RULES.current_access(request, response, snapshot, now)
 
 
-def verify_first_mapping(request, response, identity):
+def verify_first_mapping(request, response, identity, authority, admissions, now, frozen_route=None):
     validate("fanout_response", response)
-    require(response["request_id"] == request["command"]["request_id"] and response["request_digest"] == digest(request), "mapping_response")
-    accepted = [r for r in response["outcomes"] if r["receipt"] is not None]
-    require(bool(accepted) and response["person_id"] == identity["person_id"], "mapping_response")
-    require(len({r["receipt"]["receipt_id"] for r in accepted}) == len(accepted), "receipt_alias")
-    for result in accepted:
-        receipt = result["receipt"]
-        require(receipt["person_id"] == identity["person_id"] and receipt["conversation_id"] == response["conversation_id"] and receipt["collection_key"] == dict(channel=request["input"]["message_key"]["channel"], author=request["input"]["author"]), "mapping_response")
+    owner = {actor_key(a["selector"]): a for a in admissions}
+    require(len(owner) == len(admissions), "duplicate_admissions")
+    inline = copy.deepcopy(response)
+    for result in inline["outcomes"]:
+        selected = selector(physical_key(request["input"]), result["actor_id"])
+        result["admission"] = copy.deepcopy(owner.get(actor_key(selected))) if result["state"] != "forbidden" else None
+    RULES.fanout_mapping(request, inline, identity, input_access_request(request), authority, now, frozen_route)
 
 
 def verify_actor_event(event, owner_turn, snapshot):
     validator("conversation#committed_event").validate(event)
-    owner = owner_turn["committed_event"]
-    require(owner is not None and {k: v for k, v in event.items() if k != "event_id"} == {k: v for k, v in owner.items() if k != "event_id"}, "owner_event")
-    require(event["scope"] == owner_turn["scope"] and event["aggregate_id"] == owner_turn["turn_id"] and event["input_revision"] == owner_turn["input_revision"] and event["sources"] == owner_turn["input_sources"], "owner_event")
-    admissions = {actor_key(a["selector"]): a for a in snapshot["admissions"]}
-    for source in event["sources"]:
-        selected = selector(physical_key(dict(message_key=source["message_key"])), event["scope"]["actor_id"])
-        admission = admissions.get(actor_key(selected))
-        require(admission is not None and admission.get("state") != "missing" and admission["scope"] == event["scope"] and admission["source"] == source, "wrong_actor_receipt")
+    RULES.actor_event(event, owner_turn, snapshot)
 
 
 class ActorLedger(Ledger):
