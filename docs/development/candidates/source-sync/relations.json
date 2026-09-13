@@ -1,0 +1,649 @@
+[
+  {
+    "id": "pending-background-expired-origin-is-provenance",
+    "check": "barrier",
+    "mutations": [],
+    "expected_error": null
+  },
+  {
+    "id": "metadata-probe-no-body",
+    "check": "core",
+    "mutations": [],
+    "expected_error": null
+  },
+  {
+    "id": "complete-input-digest",
+    "check": "full",
+    "mutations": [],
+    "expected_error": null
+  },
+  {
+    "id": "wrong-request-correlation",
+    "check": "core",
+    "mutations": [
+      {
+        "path": [
+          "core",
+          "request_id"
+        ],
+        "value": "request:other"
+      }
+    ],
+    "expected_error": "correlation"
+  },
+  {
+    "id": "missing-explicit-source",
+    "check": "core",
+    "mutations": [
+      {
+        "path": [
+          "core",
+          "facts"
+        ],
+        "value": []
+      }
+    ],
+    "expected_error": "coverage"
+  },
+  {
+    "id": "unknown-core-source",
+    "check": "core",
+    "mutations": [
+      {
+        "path": [
+          "core",
+          "facts"
+        ],
+        "value": [
+          {
+            "key": {
+              "channel": {
+                "namespace": "web",
+                "binding_id": "binding:synthetic",
+                "channel_conversation_id": "channel:synthetic",
+                "thread_id": null
+              },
+              "message_id": "message:synthetic-1"
+            },
+            "state": "missing"
+          }
+        ]
+      }
+    ],
+    "expected_error": "dependency_unavailable"
+  },
+  {
+    "id": "duplicate-core-source",
+    "check": "core",
+    "mutations": [
+      {
+        "path": [
+          "core",
+          "facts"
+        ],
+        "value": [
+          {
+            "key": {
+              "channel": {
+                "namespace": "web",
+                "binding_id": "binding:synthetic",
+                "channel_conversation_id": "channel:synthetic",
+                "thread_id": null
+              },
+              "message_id": "message:synthetic-1"
+            },
+            "state": "active",
+            "source": {
+              "message_key": {
+                "channel": {
+                  "namespace": "web",
+                  "binding_id": "binding:synthetic",
+                  "channel_conversation_id": "channel:synthetic",
+                  "thread_id": null
+                },
+                "message_id": "message:synthetic-1",
+                "revision": 1
+              },
+              "receipt_id": "receipt:synthetic-1",
+              "archive_state": "pending",
+              "locator": null
+            },
+            "scope": {
+              "actor_id": "actor:synthetic",
+              "person_id": "person:synthetic-a",
+              "audience": "self_private",
+              "conversation_id": "conv:synthetic"
+            },
+            "author": {
+              "namespace": "web",
+              "immutable_account_id": "synthetic-a"
+            },
+            "binding_version": 1,
+            "accepted_origin": {
+              "assertion_ref": "origin:synthetic-expired-admission"
+            },
+            "accepted_at": "2026-09-14T01:00:01Z",
+            "ingest_sequence": 1,
+            "kind": "message",
+            "content_digest": "a719c68edc2e6490212592cd3be5cc4d2ae604d9d4467ed5f8c2089537eacd3d",
+            "classification": {
+              "value": "real",
+              "basis": "registered_input_mode",
+              "policy_ref": "mode:synthetic-real",
+              "policy_version": 1
+            },
+            "content": null
+          },
+          {
+            "key": {
+              "channel": {
+                "namespace": "web",
+                "binding_id": "binding:synthetic",
+                "channel_conversation_id": "channel:synthetic",
+                "thread_id": null
+              },
+              "message_id": "message:synthetic-1"
+            },
+            "state": "active",
+            "source": {
+              "message_key": {
+                "channel": {
+                  "namespace": "web",
+                  "binding_id": "binding:synthetic",
+                  "channel_conversation_id": "channel:synthetic",
+                  "thread_id": null
+                },
+                "message_id": "message:synthetic-1",
+                "revision": 1
+              },
+              "receipt_id": "receipt:synthetic-1",
+              "archive_state": "pending",
+              "locator": null
+            },
+            "scope": {
+              "actor_id": "actor:synthetic",
+              "person_id": "person:synthetic-a",
+              "audience": "self_private",
+              "conversation_id": "conv:synthetic"
+            },
+            "author": {
+              "namespace": "web",
+              "immutable_account_id": "synthetic-a"
+            },
+            "binding_version": 1,
+            "accepted_origin": {
+              "assertion_ref": "origin:synthetic-expired-admission"
+            },
+            "accepted_at": "2026-09-14T01:00:01Z",
+            "ingest_sequence": 1,
+            "kind": "message",
+            "content_digest": "a719c68edc2e6490212592cd3be5cc4d2ae604d9d4467ed5f8c2089537eacd3d",
+            "classification": {
+              "value": "real",
+              "basis": "registered_input_mode",
+              "policy_ref": "mode:synthetic-real",
+              "policy_version": 1
+            },
+            "content": null
+          }
+        ]
+      }
+    ],
+    "expected_error": "coverage"
+  },
+  {
+    "id": "silent-body-in-metadata-probe",
+    "check": "core",
+    "mutations": [
+      {
+        "path": [
+          "core",
+          "facts",
+          0,
+          "content"
+        ],
+        "value": {
+          "message_key": {
+            "channel": {
+              "namespace": "web",
+              "binding_id": "binding:synthetic",
+              "channel_conversation_id": "channel:synthetic",
+              "thread_id": null
+            },
+            "message_id": "message:synthetic-1",
+            "revision": 1
+          },
+          "author": {
+            "namespace": "web",
+            "immutable_account_id": "synthetic-a"
+          },
+          "sent_at": "2026-09-14T01:00:00Z",
+          "kind": "message",
+          "parts": [
+            {
+              "kind": "text",
+              "text": "晚上不喝咖啡，白天偶尔可以。"
+            }
+          ],
+          "reply_refs": [],
+          "mentioned_accounts": [],
+          "target_actor_ids": [
+            "actor:synthetic"
+          ]
+        }
+      }
+    ],
+    "expected_error": "metadata_body"
+  },
+  {
+    "id": "negation-removed-from-owner-input",
+    "check": "full",
+    "mutations": [
+      {
+        "path": [
+          "full",
+          "facts",
+          0,
+          "content",
+          "parts",
+          0,
+          "text"
+        ],
+        "value": "喜欢咖啡"
+      }
+    ],
+    "expected_error": "content_digest"
+  },
+  {
+    "id": "wrong-author-binding",
+    "check": "access",
+    "mutations": [
+      {
+        "path": [
+          "access",
+          "facts",
+          0,
+          "account",
+          "immutable_account_id"
+        ],
+        "value": "synthetic-b"
+      }
+    ],
+    "expected_error": "access_binding"
+  },
+  {
+    "id": "wrong-receipt-admission-correlation",
+    "check": "access",
+    "mutations": [
+      {
+        "path": [
+          "access",
+          "facts",
+          0,
+          "admission_digest"
+        ],
+        "value": "0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    ],
+    "expected_error": "admission_binding"
+  },
+  {
+    "id": "different-core-head-between-reads",
+    "check": "barrier",
+    "mutations": [
+      {
+        "path": [
+          "head",
+          "head",
+          "sequence"
+        ],
+        "value": 13
+      }
+    ],
+    "expected_error": "moving_owner"
+  },
+  {
+    "id": "changed-core-generation",
+    "check": "barrier",
+    "mutations": [
+      {
+        "path": [
+          "head",
+          "head",
+          "generation"
+        ],
+        "value": "core:restored"
+      }
+    ],
+    "expected_error": "moving_owner"
+  },
+  {
+    "id": "current-origin-scope-not-viewer-payload",
+    "check": "live",
+    "mutations": [
+      {
+        "path": [
+          "live_access",
+          "viewer_context",
+          "allowed_scope",
+          "person_id"
+        ],
+        "value": "person:synthetic-b"
+      }
+    ],
+    "expected_error": "viewer_binding"
+  },
+  {
+    "id": "owner-event-proves-real-input-unknown-delivery",
+    "check": "event",
+    "mutations": [],
+    "expected_error": null
+  },
+  {
+    "id": "forged-receipt-in-event",
+    "check": "event",
+    "mutations": [
+      {
+        "path": [
+          "event",
+          "sources",
+          0,
+          "receipt_id"
+        ],
+        "value": "receipt:invented"
+      }
+    ],
+    "expected_error": "owner_event"
+  },
+  {
+    "id": "forged-turn-input-revision",
+    "check": "event",
+    "mutations": [
+      {
+        "path": [
+          "event",
+          "input_revision"
+        ],
+        "value": 4
+      }
+    ],
+    "expected_error": "owner_event"
+  },
+  {
+    "id": "forged-owner-aggregate-version",
+    "check": "event",
+    "mutations": [
+      {
+        "path": [
+          "event",
+          "aggregate_version"
+        ],
+        "value": 100
+      }
+    ],
+    "expected_error": "owner_event"
+  },
+  {
+    "id": "unknown-delivery-not-sent",
+    "check": "event",
+    "mutations": [
+      {
+        "path": [
+          "event",
+          "delivery_state"
+        ],
+        "value": "sent"
+      }
+    ],
+    "expected_error": "owner_event"
+  },
+  {
+    "id": "forged-owner-scope-version",
+    "check": "event",
+    "mutations": [
+      {
+        "path": [
+          "event",
+          "scope_version"
+        ],
+        "value": 7
+      }
+    ],
+    "expected_error": "owner_event"
+  },
+  {
+    "id": "same-owner-event-different-id",
+    "check": "event",
+    "mutations": [
+      {
+        "path": [
+          "event",
+          "event_id"
+        ],
+        "value": "event:retry"
+      }
+    ],
+    "expected_error": null
+  },
+  {
+    "id": "current-input-withdrawn",
+    "check": "event",
+    "mutations": [
+      {
+        "path": [
+          "core",
+          "turns",
+          0,
+          "input_state"
+        ],
+        "value": "withdrawn"
+      }
+    ],
+    "expected_error": "stale_source"
+  },
+  {
+    "id": "late-event-old-source",
+    "check": "event",
+    "mutations": [
+      {
+        "path": [
+          "core",
+          "facts",
+          0,
+          "source"
+        ],
+        "value": {
+          "message_key": {
+            "channel": {
+              "namespace": "web",
+              "binding_id": "binding:synthetic",
+              "channel_conversation_id": "channel:synthetic",
+              "thread_id": null
+            },
+            "message_id": "message:synthetic-1",
+            "revision": 2
+          },
+          "receipt_id": "receipt:synthetic-2",
+          "archive_state": "pending",
+          "locator": null
+        }
+      }
+    ],
+    "expected_error": "stale_source"
+  },
+  {
+    "id": "owner-real-does-not-override-fictional-source",
+    "check": "event",
+    "mutations": [
+      {
+        "path": [
+          "core",
+          "facts",
+          0,
+          "classification",
+          "value"
+        ],
+        "value": "fictional"
+      }
+    ],
+    "expected_error": "reality"
+  },
+  {
+    "id": "owner-current-facts-not-yet-committed",
+    "check": "check",
+    "mutations": [
+      {
+        "path": [
+          "core",
+          "turns",
+          0,
+          "committed_event"
+        ],
+        "value": null
+      }
+    ],
+    "expected_error": null
+  },
+  {
+    "id": "precise-confirmation",
+    "check": "confirmation",
+    "mutations": [],
+    "expected_error": null
+  },
+  {
+    "id": "changed-forget-target",
+    "check": "confirmation",
+    "mutations": [
+      {
+        "path": [
+          "revise",
+          "record_id"
+        ],
+        "value": "record:other"
+      }
+    ],
+    "expected_error": "confirmation_binding"
+  },
+  {
+    "id": "reused-confirmation",
+    "check": "confirmation",
+    "mutations": [
+      {
+        "path": [
+          "confirmation",
+          "consumed"
+        ],
+        "value": true
+      }
+    ],
+    "expected_error": "confirmation_binding"
+  },
+  {
+    "id": "expired-confirmation",
+    "check": "confirmation",
+    "mutations": [
+      {
+        "path": [
+          "confirmation",
+          "expires_at"
+        ],
+        "value": "2026-09-14T01:02:00Z"
+      }
+    ],
+    "expected_error": "confirmation_binding"
+  },
+  {
+    "id": "complete-private-candidate",
+    "check": "draft",
+    "mutations": [],
+    "expected_error": null
+  },
+  {
+    "id": "candidate-mismatched-reality",
+    "check": "draft",
+    "mutations": [
+      {
+        "path": [
+          "commit",
+          "drafts",
+          0,
+          "units",
+          0,
+          "reality"
+        ],
+        "value": "fictional"
+      }
+    ],
+    "expected_error": "reality"
+  },
+  {
+    "id": "candidate-missing-condition-field",
+    "check": "schema_commit",
+    "mutations": [
+      {
+        "path": [
+          "commit",
+          "drafts",
+          0,
+          "units",
+          0
+        ],
+        "value": {
+          "statement": "白天偶尔可以喝咖啡。",
+          "negations": [
+            "晚上不喝咖啡"
+          ],
+          "valid_time": "当前自述习惯",
+          "uncertainty": "uncertain",
+          "reality": "real",
+          "sources": [
+            {
+              "message_key": {
+                "channel": {
+                  "namespace": "web",
+                  "binding_id": "binding:synthetic",
+                  "channel_conversation_id": "channel:synthetic",
+                  "thread_id": null
+                },
+                "message_id": "message:synthetic-1",
+                "revision": 1
+              },
+              "receipt_id": "receipt:synthetic-1",
+              "archive_state": "pending",
+              "locator": null
+            }
+          ]
+        }
+      }
+    ],
+    "expected_error": "schema"
+  },
+  {
+    "id": "zero-budget-not-a-negative-number",
+    "check": "schema_check",
+    "mutations": [
+      {
+        "path": [
+          "check_response",
+          "scope_version"
+        ],
+        "value": 0
+      }
+    ],
+    "expected_error": "schema"
+  },
+  {
+    "id": "invented-wire-owner-bool",
+    "check": "schema_core",
+    "mutations": [
+      {
+        "path": [
+          "core",
+          "owner_verified"
+        ],
+        "value": true
+      }
+    ],
+    "expected_error": "schema"
+  }
+]
