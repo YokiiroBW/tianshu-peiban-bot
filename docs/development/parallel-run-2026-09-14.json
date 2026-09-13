@@ -105,7 +105,7 @@
       "id": "TS-002",
       "threadId": "01a09c76-efee-7351-8d35-d9192db2c92e",
       "hostId": "local",
-      "status": "in_progress"
+      "status": "done"
     }
   ],
   "scope": "实际开发已授权；每个任务只写已分配 worktree，完成后回报协调者审查"

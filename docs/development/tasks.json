@@ -622,7 +622,7 @@
         "TS-020",
         "TS-061"
       ],
-      "status": "in_progress",
+      "status": "done",
       "allowed_paths": [
         "docs/development/candidates/source-sync/",
         "tests/contracts/source-sync/",
@@ -633,13 +633,106 @@
       "worktree": "worktrees/TS-002/workspace",
       "branch": "work/ts-002",
       "evidence": [
-        "docs/development/reviews/TS-002-changes-requested.md"
+        "docs/development/reviews/TS-002-changes-requested.md",
+        "docs/development/reviews/TS-002-release.md"
       ],
       "scope_note": "只做单一来源/同步候选，不改已发布contracts、产品代码或任务板；避免新权限框架和循环依赖。",
       "baseline_commit": "95a42077c02af1c1ccfbd873a970c1fda16ee872",
       "thread_id": "01a09c76-efee-7351-8d35-d9192db2c92e",
       "host_id": "local",
-      "review_note": "e74d4d9的31测试/6固定Core复现复核；确认跨角色receipt/collector混用。候选需物理来源与actor admission分层，不冻结单actor最终架构。"
+      "review_note": "单一source-sync/v1实现基线已发布；产品修复与完整L0未完成。",
+      "candidate_commit": "83c4fd252e459cc03e0c6bf890d9661851750ced"
+    },
+    {
+      "id": "TS-022",
+      "title": "多角色收件与真实来源事实服务",
+      "project": "companion",
+      "depends_on": [
+        "TS-002",
+        "TS-021"
+      ],
+      "status": "planned",
+      "allowed_paths": [
+        "src/",
+        "tests/",
+        "docs/",
+        "AGENTS.md",
+        "README.md",
+        ".gitignore",
+        "integrations/nonebot/"
+      ],
+      "done_when": "修复跨actor回执/collector混用，P/A持久来源与fanout/facts/head，保持两槽有序与双域历史失效；迁移隔离与真实HTTP验收。",
+      "assignee": null,
+      "worktree": null,
+      "branch": null,
+      "evidence": [],
+      "source_contract_binding": {
+        "version": "1.0.0",
+        "manifest": "contracts/source-sync/v1/manifest.json",
+        "manifest_sha256": "178d0ce66210bdfad4cfb85d8b5f0905b0b67f834e2a530efe5636ff0373633d",
+        "hash_basis": "UTF-8 LF-normalized"
+      },
+      "scope_note": "产品唯一负责人修改本项目入口/迁移；共享合同/依赖锁不改。固定替身先验与真实联合分开，不跨产品数据库，不操作真实数据。"
+    },
+    {
+      "id": "TS-013",
+      "title": "真实输入与逐角色来源授权服务",
+      "project": "platform",
+      "depends_on": [
+        "TS-002",
+        "TS-012"
+      ],
+      "status": "planned",
+      "allowed_paths": [
+        "services/",
+        "tests/backend/",
+        "docs/",
+        "AGENTS.md",
+        "README.md",
+        ".gitignore"
+      ],
+      "done_when": "实现input/current来源授权、历史admission及持久水位、默认路由与批量inline admission回填，真实HTTPS与撤权/重启验收。",
+      "assignee": null,
+      "worktree": null,
+      "branch": null,
+      "evidence": [],
+      "source_contract_binding": {
+        "version": "1.0.0",
+        "manifest": "contracts/source-sync/v1/manifest.json",
+        "manifest_sha256": "178d0ce66210bdfad4cfb85d8b5f0905b0b67f834e2a530efe5636ff0373633d",
+        "hash_basis": "UTF-8 LF-normalized"
+      },
+      "scope_note": "产品唯一负责人修改本项目入口/迁移；共享合同/依赖锁不改。固定替身先验与真实联合分开，不跨产品数据库，不操作真实数据。"
+    },
+    {
+      "id": "TS-033",
+      "title": "真实来源同步与记忆可信工作流",
+      "project": "memory",
+      "depends_on": [
+        "TS-002",
+        "TS-032"
+      ],
+      "status": "planned",
+      "allowed_paths": [
+        "src/",
+        "tests/",
+        "docs/",
+        "AGENTS.md",
+        "README.md",
+        ".gitignore"
+      ],
+      "done_when": "P/A账本/血缘/抑制迁移、双owner读取屏障、否定跨actor传播、SourceAuthority/后台check/可信确认候选服务，群私双域与重启验收。",
+      "assignee": null,
+      "worktree": null,
+      "branch": null,
+      "evidence": [],
+      "source_contract_binding": {
+        "version": "1.0.0",
+        "manifest": "contracts/source-sync/v1/manifest.json",
+        "manifest_sha256": "178d0ce66210bdfad4cfb85d8b5f0905b0b67f834e2a530efe5636ff0373633d",
+        "hash_basis": "UTF-8 LF-normalized"
+      },
+      "scope_note": "产品唯一负责人修改本项目入口/迁移；共享合同/依赖锁不改。固定替身先验与真实联合分开，不跨产品数据库，不操作真实数据。"
     }
   ]
 }

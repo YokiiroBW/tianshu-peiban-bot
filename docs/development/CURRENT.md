@@ -1,6 +1,6 @@
 # 当前交接
 
-2026-09-14 · TS-032可信HTTPS和TS-060资产候选已审查集成；TS-021画像消费者已集成；TS-050 HTTPS增量已接受，TS-002将收敛来源同步契约。完整L0仍未通过。
+2026-09-14 · source-sync/v1 1.0.0已发布为实现基线，准备TS-022/Core、TS-013/Platform、TS-033/Memory并行接线；完整L0仍未通过。
 
 已完成 V2 总稿、100 项需求映射、18 项拟议能力目录，以及契约、陪伴/记忆、平台/UI 三条并行规划审查。当前进入本地实现与验证，生产部署不在本批范围内。
 
@@ -8,7 +8,7 @@
 
 六个开发项目和十二份参考源码已独立检出，三份旧工作树覆盖包保存完毕。七个工具测试通过；六个原本地源码目录 HEAD/工作树状态复核未变。根协调 Git 的初始化基线为 `1a57325`，未推送远端。
 
-当前执行：TS-021已集成群画像/短期语境消费者05c35db，70测试/17子场景通过；TS-050真实Platform HTTPS增量7项复核通过并接受，完整L0保持blocked；TS-002修订经31项离线/6固定Core复现复核；已确认Core跨actor收件/collector混用，候选继续补物理来源与actor admission分层，暂缓发布，见reviews/TS-002-changes-requested.md。真实SourceAuthority、Memory可信来源同步/失效、确认和候选端口仍缺，禁止宣布完整L0或放开依赖它的任务。来源最小接点见evidence/TS-050-next-ports.md和Memory docs/candidates/TS-032-source-authority.md，需协调发布契约后分工实施。资产候选555f337已接受，业务后续需独立内部任务包。
+当前执行：三产品按contracts/source-sync/v1唯一正式包实施。TS-002经55项任务测试、62正例/7结构反例/84关系验证及独立审查发布；历史candidate不作运行合同。已确认Core跨actor收件/collector混用须由TS-022修复；TS-013实现输入/当前授权与可靠回填；TS-033实现P/A账本、同步屏障与可信工作流。不得把纯关系校验当认证器。三方提交集成后才重启TS-050完整联合验收；未完成前保持blocked。
 
 已集成平台a5ee59f（界面/小屋及服务，后端26项复核通过），网关b3b101f（37项），陪伴05c35db（70项/17子场景），记忆69b29f3（112项），归档e6d8e21（91项、1个Linux工厂待验跳过）。见reviews中的各任务验收记录。text-dialogue/v1与profile-memory/v1已发布；画像API与Core消费者均已合入，生产来源/批准与完整L0仍未接通。窗口关联见parallel-run-2026-09-14.json。
 
