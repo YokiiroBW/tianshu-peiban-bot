@@ -23,9 +23,10 @@
       "verification_sources": [
         "AGENTS.md"
       ],
-      "commands_status": "application_commands_not_created",
+      "commands_status": "format_build_browser_tests_verified_no_business_integration",
       "baseline_commit": "ab7dfd6fc95a26813cb9244814584adff66d2110",
-      "state": "prepared_skeleton"
+      "state": "ui_foundation_integrated",
+      "integrated_commit": "654a031669e3f50704ad5fd2b49c2599e4115daf"
     },
     {
       "id": "companion",

@@ -11,7 +11,9 @@
     {
       "id": "TS-010",
       "threadId": "01a09bba-e0e7-7580-8f81-ca5e8f85264a",
-      "hostId": "local"
+      "hostId": "local",
+      "status": "done",
+      "integrated_commit": "654a031669e3f50704ad5fd2b49c2599e4115daf"
     },
     {
       "id": "TS-040",
@@ -19,6 +21,12 @@
       "hostId": "local",
       "status": "done",
       "integrated_commit": "6b2daff66b94b5f73cd575d0457fab0f6e88b606"
+    },
+    {
+      "id": "TS-011",
+      "threadId": "01a09bd0-f67c-7be0-a07a-1c491ff04eb2",
+      "hostId": "local",
+      "status": "in_progress"
     }
   ],
   "scope": "实际开发已授权；每个任务只写已分配 worktree，完成后回报协调者审查"

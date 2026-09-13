@@ -58,7 +58,7 @@
       "depends_on": [
         "TS-000"
       ],
-      "status": "in_progress",
+      "status": "done",
       "allowed_paths": [
         "apps/web/",
         "services/",
@@ -79,11 +79,15 @@
       "assignee": "01a09bba-e0e7-7580-8f81-ca5e8f85264a",
       "worktree": "worktrees/TS-010/tianshu-platform",
       "branch": "work/ts-010",
-      "evidence": [],
+      "evidence": [
+        "docs/development/reviews/TS-010.md",
+        "Coordinator: format/build passed; 19 browser tests passed, 1 desktop-only inapplicable case skipped"
+      ],
       "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人；首个脚手架按实际选择建立依赖清单，该任务期间清单/锁单人负责，不要求同时使用全部候选。",
       "baseline_commit": "ab7dfd6fc95a26813cb9244814584adff66d2110",
       "thread_id": "01a09bba-e0e7-7580-8f81-ca5e8f85264a",
-      "host_id": "local"
+      "host_id": "local",
+      "integrated_commit": "654a031669e3f50704ad5fd2b49c2599e4115daf"
     },
     {
       "id": "TS-040",
@@ -210,19 +214,26 @@
       "depends_on": [
         "TS-010"
       ],
-      "status": "planned",
+      "status": "in_progress",
       "allowed_paths": [
         "apps/web/src/features/room/",
         "apps/web/public/assets/room/",
         "docs/room/",
-        "docs/handoffs/TS-011.md"
+        "docs/handoffs/TS-011.md",
+        "package.json",
+        "package-lock.json",
+        "apps/web/tests/room.spec.ts",
+        "apps/web/tests/shell.spec.ts"
       ],
       "done_when": "日光、双灯、窗/双层帘、风摆与减少动态；共享入口和依赖锁交集成人",
-      "assignee": null,
-      "worktree": null,
-      "branch": null,
+      "assignee": "01a09bd0-f67c-7be0-a07a-1c491ff04eb2",
+      "worktree": "worktrees/TS-011/tianshu-platform",
+      "branch": "work/ts-011",
       "evidence": [],
-      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人"
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人；本批兼任平台渲染依赖集成人，根清单/锁仅此任务可改（增加一条主渲染路线所需依赖）；shell测试只调整小屋从未开放到预览的断言。不得改壳、路由或令牌，业务状态不接假API。",
+      "baseline_commit": "654a031669e3f50704ad5fd2b49c2599e4115daf",
+      "thread_id": "01a09bd0-f67c-7be0-a07a-1c491ff04eb2",
+      "host_id": "local"
     },
     {
       "id": "TS-012",
