@@ -632,11 +632,14 @@
       "assignee": "01a09c76-efee-7351-8d35-d9192db2c92e",
       "worktree": "worktrees/TS-002/workspace",
       "branch": "work/ts-002",
-      "evidence": [],
+      "evidence": [
+        "docs/development/reviews/TS-002-changes-requested.md"
+      ],
       "scope_note": "只做单一来源/同步候选，不改已发布contracts、产品代码或任务板；避免新权限框架和循环依赖。",
       "baseline_commit": "95a42077c02af1c1ccfbd873a970c1fda16ee872",
       "thread_id": "01a09c76-efee-7351-8d35-d9192db2c92e",
-      "host_id": "local"
+      "host_id": "local",
+      "review_note": "candidate.1暂缓发布；取消/输入失效与更正可读边界需收敛，多角色来源歧义待核对。"
     }
   ]
 }
