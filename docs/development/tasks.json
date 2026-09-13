@@ -45,11 +45,15 @@
       "assignee": "01a09bba-de3d-76e1-a9dd-a8f994f52c3e",
       "worktree": "worktrees/TS-001/workspace",
       "branch": "work/ts-001",
-      "evidence": [],
+      "evidence": [
+        "docs/development/reviews/TS-001-candidate-1.md"
+      ],
       "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人",
       "baseline_commit": "1a573252041d3046954e379c1f334827419ec290",
       "thread_id": "01a09bba-de3d-76e1-a9dd-a8f994f52c3e",
-      "host_id": "local"
+      "host_id": "local",
+      "review_state": "changes_requested",
+      "candidate_commit": "69a571c8c0b5f2e1ac42ccc6c9c6ce890f3be5ad"
     },
     {
       "id": "TS-010",
