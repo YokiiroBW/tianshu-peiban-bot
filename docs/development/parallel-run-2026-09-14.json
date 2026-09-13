@@ -6,7 +6,10 @@
     {
       "id": "TS-001",
       "threadId": "01a09bba-de3d-76e1-a9dd-a8f994f52c3e",
-      "hostId": "local"
+      "hostId": "local",
+      "status": "done",
+      "contract_version": "1.0.0",
+      "integrated_candidate_commit": "4ad649f7317b9b4d67215f145241df75f8d83368"
     },
     {
       "id": "TS-010",

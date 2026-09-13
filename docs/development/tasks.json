@@ -35,7 +35,7 @@
       "depends_on": [
         "TS-000"
       ],
-      "status": "in_progress",
+      "status": "done",
       "allowed_paths": [
         "contracts/",
         "docs/development/decisions/",
@@ -46,14 +46,22 @@
       "worktree": "worktrees/TS-001/workspace",
       "branch": "work/ts-001",
       "evidence": [
-        "docs/development/reviews/TS-001-candidate-1.md"
+        "docs/development/reviews/TS-001-release.md",
+        "5 schemas / 62 positives / 27 schema negatives / 111 relation cases / 11 hashes passed; design confirmed, L0/L1 not run"
       ],
       "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人",
       "baseline_commit": "1a573252041d3046954e379c1f334827419ec290",
       "thread_id": "01a09bba-de3d-76e1-a9dd-a8f994f52c3e",
       "host_id": "local",
-      "review_state": "changes_requested",
-      "candidate_commit": "69a571c8c0b5f2e1ac42ccc6c9c6ce890f3be5ad"
+      "review_state": "accepted_for_implementation",
+      "candidate_commit": "69a571c8c0b5f2e1ac42ccc6c9c6ce890f3be5ad",
+      "integrated_candidate_commit": "4ad649f7317b9b4d67215f145241df75f8d83368",
+      "contract_binding": {
+        "version": "1.0.0",
+        "manifest": "contracts/text-dialogue/v1/manifest.json",
+        "manifest_sha256": "81e6cc4ddef7c6f82e055d4cb04b090db036dd5c52763473ce697aa02db478a1",
+        "hash_basis": "UTF-8 LF-normalized"
+      }
     },
     {
       "id": "TS-010",
@@ -129,7 +137,7 @@
       "depends_on": [
         "TS-001"
       ],
-      "status": "planned",
+      "status": "ready",
       "allowed_paths": [
         "src/",
         "integrations/nonebot/",
@@ -150,7 +158,13 @@
       "worktree": null,
       "branch": null,
       "evidence": [],
-      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人；首个脚手架按实际选择建立依赖清单，该任务期间清单/锁单人负责，不要求同时使用全部候选。"
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人；首个脚手架按实际选择建立依赖清单，该任务期间清单/锁单人负责，不要求同时使用全部候选。",
+      "contract_binding": {
+        "version": "1.0.0",
+        "manifest": "contracts/text-dialogue/v1/manifest.json",
+        "manifest_sha256": "81e6cc4ddef7c6f82e055d4cb04b090db036dd5c52763473ce697aa02db478a1",
+        "hash_basis": "UTF-8 LF-normalized"
+      }
     },
     {
       "id": "TS-030",
@@ -159,7 +173,7 @@
       "depends_on": [
         "TS-001"
       ],
-      "status": "planned",
+      "status": "ready",
       "allowed_paths": [
         "src/",
         "tests/",
@@ -179,7 +193,13 @@
       "worktree": null,
       "branch": null,
       "evidence": [],
-      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人；首个脚手架按实际选择建立依赖清单，该任务期间清单/锁单人负责，不要求同时使用全部候选。"
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人；首个脚手架按实际选择建立依赖清单，该任务期间清单/锁单人负责，不要求同时使用全部候选。",
+      "contract_binding": {
+        "version": "1.0.0",
+        "manifest": "contracts/text-dialogue/v1/manifest.json",
+        "manifest_sha256": "81e6cc4ddef7c6f82e055d4cb04b090db036dd5c52763473ce697aa02db478a1",
+        "hash_basis": "UTF-8 LF-normalized"
+      }
     },
     {
       "id": "TS-041",
@@ -189,7 +209,7 @@
         "TS-001",
         "TS-040"
       ],
-      "status": "planned",
+      "status": "ready",
       "allowed_paths": [
         "src/",
         "tests/",
@@ -209,7 +229,13 @@
       "worktree": null,
       "branch": null,
       "evidence": [],
-      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人；首个脚手架按实际选择建立依赖清单，该任务期间清单/锁单人负责，不要求同时使用全部候选。"
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人；首个脚手架按实际选择建立依赖清单，该任务期间清单/锁单人负责，不要求同时使用全部候选。",
+      "contract_binding": {
+        "version": "1.0.0",
+        "manifest": "contracts/text-dialogue/v1/manifest.json",
+        "manifest_sha256": "81e6cc4ddef7c6f82e055d4cb04b090db036dd5c52763473ce697aa02db478a1",
+        "hash_basis": "UTF-8 LF-normalized"
+      }
     },
     {
       "id": "TS-011",
@@ -227,7 +253,9 @@
         "package.json",
         "package-lock.json",
         "apps/web/tests/room.spec.ts",
-        "apps/web/tests/shell.spec.ts"
+        "apps/web/tests/shell.spec.ts",
+        ".gitattributes",
+        ".prettierrc.json"
       ],
       "done_when": "日光、双灯、窗/双层帘、风摆与减少动态；共享入口和依赖锁交集成人",
       "assignee": "01a09bd0-f67c-7be0-a07a-1c491ff04eb2",
@@ -241,26 +269,39 @@
     },
     {
       "id": "TS-012",
-      "title": "能力与任务连接器基础",
+      "title": "平台服务、来源配置与能力入口",
       "project": "platform",
       "depends_on": [
         "TS-001",
         "TS-010"
       ],
-      "status": "planned",
+      "status": "ready",
       "allowed_paths": [
-        "services/platform/connectors/",
-        "services/platform/capabilities/",
-        "services/platform/jobs/",
+        "services/platform/",
         "tests/",
-        "docs/handoffs/TS-012.md"
+        "pyproject.toml",
+        "uv.lock",
+        "requirements.txt",
+        "requirements-dev.txt",
+        "scripts/",
+        "README.md",
+        "AGENTS.md",
+        ".gitignore",
+        "docs/handoffs/TS-012.md",
+        "docs/platform/"
       ],
-      "done_when": "统一命令/真实回执/任务投影，先替身后单设备测试；不操作生产",
+      "done_when": "先实现来源解析与版本化模型配置的最小平台服务、只读投影边界，再能力/任务入口；真实回执与测试替身分开，不操作生产。",
       "assignee": null,
       "worktree": null,
       "branch": null,
       "evidence": [],
-      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人"
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人；仅后端服务/后端依赖，不改 TS-011 负责的 npm 清单、前端壳与令牌。",
+      "contract_binding": {
+        "version": "1.0.0",
+        "manifest": "contracts/text-dialogue/v1/manifest.json",
+        "manifest_sha256": "81e6cc4ddef7c6f82e055d4cb04b090db036dd5c52763473ce697aa02db478a1",
+        "hash_basis": "UTF-8 LF-normalized"
+      }
     },
     {
       "id": "TS-050",
@@ -270,7 +311,8 @@
         "TS-020",
         "TS-030",
         "TS-041",
-        "TS-010"
+        "TS-010",
+        "TS-012"
       ],
       "status": "planned",
       "allowed_paths": [
@@ -284,14 +326,21 @@
       "worktree": null,
       "branch": null,
       "evidence": [],
-      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人"
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人",
+      "contract_binding": {
+        "version": "1.0.0",
+        "manifest": "contracts/text-dialogue/v1/manifest.json",
+        "manifest_sha256": "81e6cc4ddef7c6f82e055d4cb04b090db036dd5c52763473ce697aa02db478a1",
+        "hash_basis": "UTF-8 LF-normalized"
+      }
     },
     {
       "id": "TS-051",
       "title": "测试账号与真实模型贯通",
       "project": "workspace",
       "depends_on": [
-        "TS-050"
+        "TS-050",
+        "TS-061"
       ],
       "status": "planned",
       "allowed_paths": [
@@ -304,7 +353,13 @@
       "worktree": null,
       "branch": null,
       "evidence": [],
-      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人"
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人",
+      "contract_binding": {
+        "version": "1.0.0",
+        "manifest": "contracts/text-dialogue/v1/manifest.json",
+        "manifest_sha256": "81e6cc4ddef7c6f82e055d4cb04b090db036dd5c52763473ce697aa02db478a1",
+        "hash_basis": "UTF-8 LF-normalized"
+      }
     },
     {
       "id": "TS-060",
@@ -333,7 +388,7 @@
       "depends_on": [
         "TS-001"
       ],
-      "status": "planned",
+      "status": "ready",
       "allowed_paths": [
         "app/",
         "collector/",
@@ -346,7 +401,13 @@
       "worktree": null,
       "branch": null,
       "evidence": [],
-      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人"
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人",
+      "contract_binding": {
+        "version": "1.0.0",
+        "manifest": "contracts/text-dialogue/v1/manifest.json",
+        "manifest_sha256": "81e6cc4ddef7c6f82e055d4cb04b090db036dd5c52763473ce697aa02db478a1",
+        "hash_basis": "UTF-8 LF-normalized"
+      }
     },
     {
       "id": "TS-070",
@@ -391,6 +452,28 @@
       "branch": null,
       "evidence": [],
       "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人"
+    },
+    {
+      "id": "TS-031",
+      "title": "跨人物与群主题画像扩展",
+      "project": "memory",
+      "depends_on": [
+        "TS-030"
+      ],
+      "status": "planned",
+      "allowed_paths": [
+        "src/",
+        "tests/",
+        "docs/",
+        "integrations/",
+        "docs/handoffs/TS-031.md"
+      ],
+      "done_when": "先提交跨人物/群主题合同变更，由协调者发布兼容版本后实现；群私聊边界、第三人兴趣引用、场景画像分别验收。",
+      "assignee": null,
+      "worktree": null,
+      "branch": null,
+      "evidence": [],
+      "scope_note": "补完整目标；1.0.0只支持本人subject，不能直接绕过此限制或改主contracts。"
     }
   ]
 }

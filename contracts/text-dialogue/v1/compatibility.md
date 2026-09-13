@@ -1,17 +1,17 @@
 # 责任与兼容矩阵
 
-候选 `1.0.0-candidate.2`；尚无已发布当前版或前一版。双方“待审查”不是确认；主协调者的设计方向认可也不代表生产者/消费者真实联调。
+实现基线 `1.0.0`，来自 candidate.2。陪伴/记忆调用方及 TS-040 网关/配置方已完成只读设计确认，协调者复核网页与消息边界。此确认允许开始实现，不代表 L0/L1 或生产联调通过；没有前一已发布版。
 
 | 边界 / schema | 能力映射 | 生产者 → 消费者 | 验收子集 | 状态 |
 |---|---|---|---|---|
-| common / 来源解析与错误 | 公共边界 | platform/NoneBot issuer → companion/memory；各责任方 → 调用方 | A01/A02 来源与版本 | 候选；来源解析服务待实现 |
-| conversation / ingest、bundle、turn | I01 | NoneBot/platform → companion；companion → 自身边界快照 | A01/A03/A04 | 候选；无调度实测 |
-| conversation / send、cancel | I02/I18 | companion → NoneBot；platform/桥接 → companion | A03/A04 | 候选；无真实发送核对 |
-| identity-memory / resolve、register、link | I03 | companion/platform → memory | A01 | 候选；账号证明获取流程待实现 |
-| identity-memory / select、revise | I04/I05 | companion/platform → memory | A02/A05 | 候选；权限/索引运行检查待实现 |
-| conversation / committed_event、consume_receipt | I05 首写补充 | companion → memory | A05 | 候选；候选提炼与首写未运行 |
-| web / snapshot、projection | I02 下行补充 / I17 文字子集 | companion → platform → 授权浏览器 | A15 文字/恢复子集 | 候选；无 SSE 服务联调 |
-| model / config、route | I14/I15 | platform → model_gateway；companion → model_gateway | A14 文字协议子集 | 候选；TS-040/TS-041 审查后绑定 |
+| common / 来源解析与错误 | 公共边界 | platform/NoneBot issuer → companion/memory；各责任方 → 调用方 | A01/A02 来源与版本 | 设计确认；来源解析服务待实现 |
+| conversation / ingest、bundle、turn | I01 | NoneBot/platform → companion；companion → 自身边界快照 | A01/A03/A04 | 设计确认；无调度实测 |
+| conversation / send、cancel | I02/I18 | companion → NoneBot；platform/桥接 → companion | A03/A04 | 设计确认；无真实发送核对 |
+| identity-memory / resolve、register、link | I03 | companion/platform → memory | A01 | 设计确认；账号证明获取流程待实现 |
+| identity-memory / select、revise | I04/I05 | companion/platform → memory | A02/A05 | 设计确认；权限/索引运行检查待实现 |
+| conversation / committed_event、consume_receipt | I05 首写补充 | companion → memory | A05 | 设计确认；候选提炼与首写未运行 |
+| web / snapshot、projection | I02 下行补充 / I17 文字子集 | companion → platform → 授权浏览器 | A15 文字/恢复子集 | 设计确认；无 SSE 服务联调 |
+| model / config、route | I14/I15 | platform → model_gateway；companion → model_gateway | A14 文字协议子集 | 设计确认；TS-040/TS-041 审查后绑定 |
 | source.archive_state | I06 定位与降级 | Chat Audit/适配器 → companion/memory | A02/A05 来源子集 | 不虚造归档写端点；待核实现有接入 |
 
 ## 版本决定
@@ -35,3 +35,7 @@
 ## candidate.2 协调审查修正
 
 candidate.1 未发布，已被本候选替代，不承诺两候选可同时互通。candidate.2 拆分 recall_source 的 raw_message/shareable_projection，来源上下文补 verified_channel 并允许尚无逻辑会话；区分模型入站与上游形状，新增合法缺省及失败样例；记忆修订结果补 semantic_state；澄清本人精确 scope、延迟封存与 turn_changed 只读刷新。正式发布及双方实现确认仍待协调者审查。
+
+## 1.0.0 实现基线发布
+
+2026-09-14 协调者发布；审查记录在主工作区 docs/development/reviews/TS-001-release.md。本人 subject 是首切片范围，跨人物与群主题另列 TS-031，不改变完整产品目标。force 在 model 缺失时也属于显式配置策略，允许填入并记录 requested_model=null；显式 null 仍拒绝，新增对应关系用例。配置发布者和网关必须拒绝同 workload 的歧义 binding，并核对绑定 provider 与实际请求目标一致，运行校验由 TS-012/041 承担。

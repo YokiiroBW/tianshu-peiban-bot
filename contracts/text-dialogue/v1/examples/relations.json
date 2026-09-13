@@ -6588,5 +6588,154 @@
       }
     ],
     "expected_error": "old_semantics_after_revision"
+  },
+  {
+    "id": "model_force_when_missing_explicit_and_visible",
+    "check": "gateway",
+    "documents": {
+      "config": "config",
+      "receipt": "route",
+      "incoming": "native_request_without_model",
+      "outgoing": "upstream_request"
+    },
+    "data": {
+      "pinned_version": 7,
+      "started_at": "2026-09-14T00:00:01Z",
+      "revoked": false,
+      "upstream_usage": null,
+      "reference_binding": null
+    },
+    "mutations": [
+      {
+        "path": [
+          "config",
+          "providers",
+          0,
+          "model_policy"
+        ],
+        "value": {
+          "mode": "force",
+          "fields": {
+            "model": "fixture-text-model"
+          }
+        }
+      },
+      {
+        "path": [
+          "receipt",
+          "requested_model"
+        ],
+        "value": null
+      },
+      {
+        "path": [
+          "receipt",
+          "applied_policies"
+        ],
+        "value": [
+          {
+            "field": "model",
+            "mode": "force",
+            "config_version": 7
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "force_missing_must_not_fabricate_requested_model",
+    "check": "gateway",
+    "documents": {
+      "config": "config",
+      "receipt": "route",
+      "incoming": "native_request_without_model",
+      "outgoing": "upstream_request"
+    },
+    "data": {
+      "pinned_version": 7,
+      "started_at": "2026-09-14T00:00:01Z",
+      "revoked": false,
+      "upstream_usage": null,
+      "reference_binding": null
+    },
+    "mutations": [
+      {
+        "path": [
+          "config",
+          "providers",
+          0,
+          "model_policy"
+        ],
+        "value": {
+          "mode": "force",
+          "fields": {
+            "model": "fixture-text-model"
+          }
+        }
+      },
+      {
+        "path": [
+          "receipt",
+          "requested_model"
+        ],
+        "value": null
+      },
+      {
+        "path": [
+          "receipt",
+          "applied_policies"
+        ],
+        "value": [
+          {
+            "field": "model",
+            "mode": "force",
+            "config_version": 7
+          }
+        ]
+      },
+      {
+        "path": [
+          "receipt",
+          "requested_model"
+        ],
+        "value": "fixture-text-model"
+      }
+    ],
+    "expected_error": "model_receipt"
+  },
+  {
+    "id": "explicit_null_not_repaired_by_force",
+    "check": "gateway",
+    "documents": {
+      "config": "config",
+      "incoming": "native_request_null_model",
+      "error": "error_invalid_input"
+    },
+    "data": {
+      "pinned_version": 7,
+      "started_at": "2026-09-14T00:00:01Z",
+      "revoked": false,
+      "upstream_usage": null,
+      "reference_binding": null,
+      "receipt": null,
+      "outgoing": null,
+      "provider_id": "provider-fixture"
+    },
+    "mutations": [
+      {
+        "path": [
+          "config",
+          "providers",
+          0,
+          "model_policy"
+        ],
+        "value": {
+          "mode": "force",
+          "fields": {
+            "model": "fixture-text-model"
+          }
+        }
+      }
+    ]
   }
 ]

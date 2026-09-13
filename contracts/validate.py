@@ -397,7 +397,7 @@ def main():
         require(actual == case.get("expected_error"), "wrong_relation_result:" + case["id"] + ":" + str(actual))
     print(f"PASS: {len(schemas)} schemas, {len(documents)} positive documents, "
           f"{len(negatives)} schema negatives, {len(cases)} relation/trace cases, "
-          f"{len(expected_files)} file hashes. Offline candidate conformance only; L0/L1 not run.")
+          f"{len(expected_files)} file hashes. Offline contract conformance only; L0/L1 not run.")
 
 
 if __name__ == "__main__":

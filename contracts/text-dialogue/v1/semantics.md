@@ -1,6 +1,6 @@
 # TS-001 文字链路边界
 
-本文件与同目录 schema/实例共同构成候选；JSON Schema 负责形状，以下约束及 `validate.py` 负责字段关系与合成轨迹。实现者仍须执行授权、事务、超时及恢复。本文路径是拟议内部 HTTP 路径；尚无运行端点。
+本文件与同目录 schema/实例共同构成 1.0.0 实现基线；JSON Schema 负责形状，以下约束及 `validate.py` 负责字段关系与合成轨迹。实现者仍须执行授权、事务、超时及恢复。本文路径是拟议内部 HTTP 路径；尚无运行端点。
 
 ## 1. 传输、来源、版本、幂等
 
@@ -80,8 +80,8 @@ credential_ref 是不含密钥的 secret-ref；credential_namespace 标记上游
 
 首轮原生 `POST /v1/chat/completions`；业务调用的关联元数据放 `X-Request-ID`、`X-Tianshu-Config-Version`、`X-Tianshu-Workload: companion.text`、`X-Tianshu-Turn-ID`，不混入原生 body。这些内部头由认证服务产生；外部客户端不能用它们越权选择配置。普通原生客户端的鉴权/路由绑定由网关服务端配置，其显式 model、messages、tools、tool_choice、reasoning 和未知扩展字段原样保留。流式保持上游数据帧、工具分片、finish_reason、usage 与终止标记，不转换成业务事件；中途断流为 unknown，不能拼接另一提供商输出。
 
-model_policy/reasoning_policy 分别明确 preserve_client、default_if_absent 或 force；默认 preserve_client。只有客户端字段缺失才补 default，显式 null/空值不是缺失。force 必须在已发布配置中显式可见，并在独立 route_receipt 记录 requested/resolved 值及 applied_policy；不得悄悄改模型或丢 reasoning。网关入站 native_request 可缺 model，上游 upstream_request 必须有合法非空字符串 model。缺失时只有已认证的内部 companion.text 绑定或显式 model_policy.default_if_absent 可解析模型；preserve_client 且无内部绑定时缺失 model 返回 invalid_input/not_started，不能发上游。内部绑定补值在 receipt.applied_policies 中记 mode=workload_binding。requested_model=null 仅用于成功回执中记录原请求缺失；不得捏造为实际模型。显式 model:null 是提供了非法模型值，default_if_absent 不覆盖它，返回 invalid_input 且无上游调用/成功路由回执；本切片不启用 force 对非法 model:null 的修复。外部原生客户端保留其显式模型。
+model_policy/reasoning_policy 分别明确 preserve_client、default_if_absent 或 force；默认 preserve_client。只有客户端字段缺失才补 default，显式 null/空值不是缺失。force 必须在已发布配置中显式可见，并在独立 route_receipt 记录 requested/resolved 值及 applied_policy；不得悄悄改模型或丢 reasoning。网关入站 native_request 可缺 model，上游 upstream_request 必须有合法非空字符串 model。缺失时只有已认证的内部 companion.text 绑定或显式 model_policy.default_if_absent / force 可解析模型（force 同样必须记录显式政策与 requested_model=null）；preserve_client 且无内部绑定时缺失 model 返回 invalid_input/not_started，不能发上游。内部绑定补值在 receipt.applied_policies 中记 mode=workload_binding。requested_model=null 仅用于成功回执中记录原请求缺失；不得捏造为实际模型。显式 model:null 是提供了非法模型值，default_if_absent 不覆盖它，返回 invalid_input 且无上游调用/成功路由回执；本切片不启用 force 对非法 model:null 的修复。外部原生客户端保留其显式模型。
 
-本候选 fallback=disabled。上游/credential_namespace/协议黏性不能被配置刷新改变；涉及前次响应 ID、provider 状态或会话 ID 的调用不可跨命名空间重放。嵌入接口不在文字首切片；向量空间须由 provider/model/revision/dimensions/normalization/credential_namespace 固定，空间变化需显式新索引与迁移，不允许退回其他模型继续写同一索引。Responses/Anthropic 保留独立协议分支，不压成 Chat Completions。
+本版 fallback=disabled。上游/credential_namespace/协议黏性不能被配置刷新改变；涉及前次响应 ID、provider 状态或会话 ID 的调用不可跨命名空间重放。嵌入接口不在文字首切片；向量空间须由 provider/model/revision/dimensions/normalization/credential_namespace 固定，空间变化需显式新索引与迁移，不允许退回其他模型继续写同一索引。Responses/Anthropic 保留独立协议分支，不压成 Chat Completions。
 
 路由回执通过 `GET /internal/v1/model-requests/{request_id}` 按服务授权独立查询；包含固定 config_version、上游/凭据命名空间、请求/实际模型、reasoning 策略、结果和 usage。未知用量为 null，不是零；部分用量只填已知 input/output，usage_complete=false，native_usage 保留供应商原始统计字段，不猜 total/cost。provider 密钥与内部异常正文不进入回执。原生请求是否真正兼容、各 reasoning 方言/错误帧/取消转发、有状态与嵌入协议均需 TS-040 保真夹具及 TS-041 实现验证；此候选只定义文字边界和禁止静默降级的规则。已只读核对协调检出的 TS-040 `6b2daff` 审查与夹具；其实验函数/枚举不作为第二份 wire 合同。
