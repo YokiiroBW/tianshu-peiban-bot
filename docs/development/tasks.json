@@ -137,7 +137,7 @@
       "depends_on": [
         "TS-001"
       ],
-      "status": "in_progress",
+      "status": "done",
       "allowed_paths": [
         "src/",
         "integrations/nonebot/",
@@ -158,7 +158,8 @@
       "worktree": "worktrees/TS-020/tianshu-companion",
       "branch": "work/ts-020",
       "evidence": [
-        "docs/development/reviews/TS-020-initial.md"
+        "docs/development/reviews/TS-020-accepted.md",
+        "Coordinator: 55 component tests and 4 subtests passed; actual dependency L0/L1 not verified"
       ],
       "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人；首个脚手架按实际选择建立依赖清单，该任务期间清单/锁单人负责，不要求同时使用全部候选。",
       "contract_binding": {
@@ -170,8 +171,9 @@
       "baseline_commit": "fc1eeda314e23b67a91f793bedd54b3c9e930d9c",
       "thread_id": "01a09be7-6d9a-7be0-a07a-d8ed08819b15",
       "host_id": "local",
-      "review_state": "changes_requested",
-      "candidate_commit": "722c703e49bce5b47f100692de6a48c790260a05"
+      "review_state": "accepted",
+      "candidate_commit": "722c703e49bce5b47f100692de6a48c790260a05",
+      "integrated_commit": "812019e287a5bf37d9b5d810a028ffea828b872e"
     },
     {
       "id": "TS-030",
@@ -502,7 +504,7 @@
       "depends_on": [
         "TS-030"
       ],
-      "status": "ready",
+      "status": "in_progress",
       "allowed_paths": [
         "src/",
         "tests/",
@@ -511,11 +513,14 @@
         "docs/handoffs/TS-031.md"
       ],
       "done_when": "先提交跨人物/群主题合同变更，由协调者发布兼容版本后实现；群私聊边界、第三人兴趣引用、场景画像分别验收。",
-      "assignee": null,
-      "worktree": null,
-      "branch": null,
+      "assignee": "01a09c29-905e-7470-8d02-a6bbfb9b4113",
+      "worktree": "worktrees/TS-031/tianshu-memory",
+      "branch": "work/ts-031",
       "evidence": [],
-      "scope_note": "补完整目标；1.0.0只支持本人subject，不能直接绕过此限制或改主contracts。"
+      "scope_note": "补完整目标；1.0.0只支持本人subject，不能直接绕过此限制或改主contracts。",
+      "baseline_commit": "358e4a664e14eee734494646f3aa3a0bc666a222",
+      "thread_id": "01a09c29-905e-7470-8d02-a6bbfb9b4113",
+      "host_id": "local"
     }
   ]
 }

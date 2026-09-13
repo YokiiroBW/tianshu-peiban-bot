@@ -41,9 +41,10 @@
       "verification_sources": [
         "AGENTS.md"
       ],
-      "commands_status": "application_commands_not_created",
+      "commands_status": "55_tests_4_subtests_passed_no_actual_dependency_L0_L1",
       "baseline_commit": "fc1eeda314e23b67a91f793bedd54b3c9e930d9c",
-      "state": "prepared_skeleton"
+      "state": "companion_local_slice_integrated",
+      "integrated_commit": "812019e287a5bf37d9b5d810a028ffea828b872e"
     },
     {
       "id": "memory",
