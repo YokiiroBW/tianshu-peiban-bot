@@ -137,7 +137,7 @@
       "depends_on": [
         "TS-001"
       ],
-      "status": "ready",
+      "status": "in_progress",
       "allowed_paths": [
         "src/",
         "integrations/nonebot/",
@@ -154,9 +154,9 @@
         ".gitignore"
       ],
       "done_when": "C1/C2：可靠收件、防抖、双轮调度、有序发送；遵循已发布契约",
-      "assignee": null,
-      "worktree": null,
-      "branch": null,
+      "assignee": "01a09be7-6d9a-7be0-a07a-d8ed08819b15",
+      "worktree": "worktrees/TS-020/tianshu-companion",
+      "branch": "work/ts-020",
       "evidence": [],
       "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人；首个脚手架按实际选择建立依赖清单，该任务期间清单/锁单人负责，不要求同时使用全部候选。",
       "contract_binding": {
@@ -164,7 +164,10 @@
         "manifest": "contracts/text-dialogue/v1/manifest.json",
         "manifest_sha256": "81e6cc4ddef7c6f82e055d4cb04b090db036dd5c52763473ce697aa02db478a1",
         "hash_basis": "UTF-8 LF-normalized"
-      }
+      },
+      "baseline_commit": "fc1eeda314e23b67a91f793bedd54b3c9e930d9c",
+      "thread_id": "01a09be7-6d9a-7be0-a07a-d8ed08819b15",
+      "host_id": "local"
     },
     {
       "id": "TS-030",
@@ -173,7 +176,7 @@
       "depends_on": [
         "TS-001"
       ],
-      "status": "ready",
+      "status": "in_progress",
       "allowed_paths": [
         "src/",
         "tests/",
@@ -189,9 +192,9 @@
         ".gitignore"
       ],
       "done_when": "M1/M2：身份、语义单元、范围和修订版本；替身与真实检索分开",
-      "assignee": null,
-      "worktree": null,
-      "branch": null,
+      "assignee": "01a09be7-72e9-7f01-810a-559e43f49312",
+      "worktree": "worktrees/TS-030/tianshu-memory",
+      "branch": "work/ts-030",
       "evidence": [],
       "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人；首个脚手架按实际选择建立依赖清单，该任务期间清单/锁单人负责，不要求同时使用全部候选。",
       "contract_binding": {
@@ -199,7 +202,10 @@
         "manifest": "contracts/text-dialogue/v1/manifest.json",
         "manifest_sha256": "81e6cc4ddef7c6f82e055d4cb04b090db036dd5c52763473ce697aa02db478a1",
         "hash_basis": "UTF-8 LF-normalized"
-      }
+      },
+      "baseline_commit": "f02fbec1e61a99491cf92ba817595c8d9c4402fd",
+      "thread_id": "01a09be7-72e9-7f01-810a-559e43f49312",
+      "host_id": "local"
     },
     {
       "id": "TS-041",

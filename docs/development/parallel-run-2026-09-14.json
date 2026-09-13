@@ -30,6 +30,18 @@
       "threadId": "01a09bd0-f67c-7be0-a07a-1c491ff04eb2",
       "hostId": "local",
       "status": "in_progress"
+    },
+    {
+      "id": "TS-020",
+      "threadId": "01a09be7-6d9a-7be0-a07a-d8ed08819b15",
+      "hostId": "local",
+      "status": "in_progress"
+    },
+    {
+      "id": "TS-030",
+      "threadId": "01a09be7-72e9-7f01-810a-559e43f49312",
+      "hostId": "local",
+      "status": "in_progress"
     }
   ],
   "scope": "实际开发已授权；每个任务只写已分配 worktree，完成后回报协调者审查"
