@@ -215,7 +215,7 @@
         "TS-001",
         "TS-040"
       ],
-      "status": "ready",
+      "status": "in_progress",
       "allowed_paths": [
         "src/",
         "tests/",
@@ -231,9 +231,9 @@
         ".gitignore"
       ],
       "done_when": "原生请求转发、配置版本、超时与未知结果；不静默改写模型字段",
-      "assignee": null,
-      "worktree": null,
-      "branch": null,
+      "assignee": "01a09bf0-b5f2-7090-8e15-483676d09a31",
+      "worktree": "worktrees/TS-041/tianshu-model-gateway",
+      "branch": "work/ts-041",
       "evidence": [],
       "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人；首个脚手架按实际选择建立依赖清单，该任务期间清单/锁单人负责，不要求同时使用全部候选。",
       "contract_binding": {
@@ -241,7 +241,10 @@
         "manifest": "contracts/text-dialogue/v1/manifest.json",
         "manifest_sha256": "81e6cc4ddef7c6f82e055d4cb04b090db036dd5c52763473ce697aa02db478a1",
         "hash_basis": "UTF-8 LF-normalized"
-      }
+      },
+      "baseline_commit": "6b2daff66b94b5f73cd575d0457fab0f6e88b606",
+      "thread_id": "01a09bf0-b5f2-7090-8e15-483676d09a31",
+      "host_id": "local"
     },
     {
       "id": "TS-011",
@@ -250,7 +253,7 @@
       "depends_on": [
         "TS-010"
       ],
-      "status": "in_progress",
+      "status": "done",
       "allowed_paths": [
         "apps/web/src/features/room/",
         "apps/web/public/assets/room/",
@@ -267,11 +270,15 @@
       "assignee": "01a09bd0-f67c-7be0-a07a-1c491ff04eb2",
       "worktree": "worktrees/TS-011/tianshu-platform",
       "branch": "work/ts-011",
-      "evidence": [],
+      "evidence": [
+        "docs/development/reviews/TS-011.md",
+        "Coordinator: format/build passed; 31 affected browser tests passed, 1 desktop inapplicable case skipped"
+      ],
       "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人；本批兼任平台渲染依赖集成人，根清单/锁仅此任务可改（增加一条主渲染路线所需依赖）；shell测试只调整小屋从未开放到预览的断言。不得改壳、路由或令牌，业务状态不接假API。",
       "baseline_commit": "654a031669e3f50704ad5fd2b49c2599e4115daf",
       "thread_id": "01a09bd0-f67c-7be0-a07a-1c491ff04eb2",
-      "host_id": "local"
+      "host_id": "local",
+      "integrated_commit": "dc220227220287c77d5f0b4b67844ea5533c19c0"
     },
     {
       "id": "TS-012",
