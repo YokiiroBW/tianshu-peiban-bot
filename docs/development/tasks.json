@@ -92,7 +92,7 @@
       "depends_on": [
         "TS-000"
       ],
-      "status": "in_progress",
+      "status": "done",
       "allowed_paths": [
         "docs/",
         "tests/",
@@ -104,11 +104,15 @@
       "assignee": "01a09bba-e403-7de3-863a-763cfba101c4",
       "worktree": "worktrees/TS-040/tianshu-model-gateway",
       "branch": "work/ts-040",
-      "evidence": [],
+      "evidence": [
+        "docs/development/reviews/TS-040.md",
+        "18 offline tests independently reproduced; no HTTP or production integration"
+      ],
       "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人",
       "baseline_commit": "4d107a4f6c3a3059a8e0927495c721b77d3e7f52",
       "thread_id": "01a09bba-e403-7de3-863a-763cfba101c4",
-      "host_id": "local"
+      "host_id": "local",
+      "integrated_commit": "6b2daff66b94b5f73cd575d0457fab0f6e88b606"
     },
     {
       "id": "TS-020",

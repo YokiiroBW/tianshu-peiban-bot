@@ -16,7 +16,9 @@
     {
       "id": "TS-040",
       "threadId": "01a09bba-e403-7de3-863a-763cfba101c4",
-      "hostId": "local"
+      "hostId": "local",
+      "status": "done",
+      "integrated_commit": "6b2daff66b94b5f73cd575d0457fab0f6e88b606"
     }
   ],
   "scope": "实际开发已授权；每个任务只写已分配 worktree，完成后回报协调者审查"
