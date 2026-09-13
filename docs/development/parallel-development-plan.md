@@ -70,6 +70,10 @@ TS-040 先核对原生协议和旧网关复用，真实对外接入实现必须�
 
 分支、工作目录和本机租用记录在 `.runtime/workspace-leases.json`；它不是自动互斥锁，跨工具需遵循同一入口，不能防止绕过流程的手工操作。任务完成后的清理先确认已合并、无未提交内容；本轮工具不提供递归删除或自动推送。
 
+如果分配中断，先停止重试并由协调者核对：分支是否存在、worktree 是否登记、目录是否有修改、上下文是否写入、任务板和租约是否一致。已经创建的目录不能直接删除或重新覆盖；确认属于同一任务及同一基线后补齐缺失记录。遗留 allocation.lock 先核对进程是否仍活着，确认没有正在分配才清理这个锁文件。若源代码复制中断，也先核对副本 HEAD 和覆盖包，不重新覆盖原目录。
+
+每张任务卡都允许自己的 `docs/handoffs/<任务编号>.md`。后端首个脚手架任务明确允许实际采用的依赖清单和工具脚本，但不要求同时创建所有候选格式。共享清单与锁的写入权在该任务期间独占。工作者通过任务上下文中的主任务板路径读取最新允许范围，不把旧检出中的任务快照当作新的授权。
+
 ## 6. 文档与 token 控制
 
 当前事实只放一份 `CURRENT.md`，目标是几百字加引用；完整设计不逐轮重写。任务交接目标不超过约 40 行，必要长日志单独保存文件引用。已结束交接归档，恢复时按需读，不能每次把整个项目历史塞回模型。
@@ -78,7 +82,7 @@ TS-040 先核对原生协议和旧网关复用，真实对外接入实现必须�
 
 ## 7. 验证命令与完成定义
 
-本轮真实入口是 `python scripts/workspace.py check`、`python scripts/workspace.py status` 与 `python -m unittest discover -s tests/workspace -v`。这些只检查工作区、任务依赖、源码副本和隔离规则。
+本轮真实入口是 `python scripts/workspace.py check`、`python scripts/workspace.py status` 与 `python -m unittest discover -s tests/workspace -v`，均在主协调根目录执行。任务检出用 `.runtime/workspace-context.json` 定位主工作区；不要在根仓库的任务 worktree 中另建一套 projects。检查只覆盖工作区、任务依赖、源码副本和隔离规则。
 
 新四项目没有可运行应用，安装/格式/类型/单元/集成命令由首个任务从实际 manifest 建立。已有项目保留真实命令来源：AssetLibrary 的 AGENTS/CI 分层文件；Chat Audit 的 pyproject 和现有 CI；旧代码的历史测试记录不等于新工程已通过。
 
