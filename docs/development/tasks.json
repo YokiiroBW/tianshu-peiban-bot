@@ -195,7 +195,9 @@
       "assignee": "01a09be7-72e9-7f01-810a-559e43f49312",
       "worktree": "worktrees/TS-030/tianshu-memory",
       "branch": "work/ts-030",
-      "evidence": [],
+      "evidence": [
+        "docs/development/reviews/TS-030-initial.md"
+      ],
       "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人；首个脚手架按实际选择建立依赖清单，该任务期间清单/锁单人负责，不要求同时使用全部候选。",
       "contract_binding": {
         "version": "1.0.0",
@@ -205,7 +207,9 @@
       },
       "baseline_commit": "f02fbec1e61a99491cf92ba817595c8d9c4402fd",
       "thread_id": "01a09be7-72e9-7f01-810a-559e43f49312",
-      "host_id": "local"
+      "host_id": "local",
+      "review_state": "changes_requested",
+      "candidate_commit": "661cdffff9c736007a8e8cb1d4638ea277da1475"
     },
     {
       "id": "TS-041",
