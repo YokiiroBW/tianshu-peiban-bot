@@ -618,18 +618,21 @@
         "TS-020",
         "TS-061"
       ],
-      "status": "planned",
+      "status": "in_progress",
       "allowed_paths": [
         "docs/development/candidates/source-sync/",
         "tests/contracts/source-sync/",
         "docs/handoffs/TS-002.md"
       ],
       "done_when": "基于实际Core/Memory/Platform接口形成可执行schema/联合例与最小分工，审查后由协调者发布；非生产实现或完整L0。",
-      "assignee": null,
-      "worktree": null,
-      "branch": null,
+      "assignee": "01a09c76-efee-7351-8d35-d9192db2c92e",
+      "worktree": "worktrees/TS-002/workspace",
+      "branch": "work/ts-002",
       "evidence": [],
-      "scope_note": "只做单一来源/同步候选，不改已发布contracts、产品代码或任务板；避免新权限框架和循环依赖。"
+      "scope_note": "只做单一来源/同步候选，不改已发布contracts、产品代码或任务板；避免新权限框架和循环依赖。",
+      "baseline_commit": "95a42077c02af1c1ccfbd873a970c1fda16ee872",
+      "thread_id": "01a09c76-efee-7351-8d35-d9192db2c92e",
+      "host_id": "local"
     }
   ]
 }
