@@ -124,9 +124,10 @@ def ca_contexts(directory):
 class AppServer:
     """ASGI real TCP listener in the owning event loop, with bounded shutdown."""
 
-    async def start(self, app, cert=None, key=None):
-        self.sock = socket.socket()
-        self.sock.bind(("127.0.0.1", 0))
+    async def start(self, app, cert=None, key=None, *, sock=None):
+        self.sock = socket.socket() if sock is None else sock
+        if sock is None:
+            self.sock.bind(("127.0.0.1", 0))
         self.url = f"{'https' if cert else 'http'}://127.0.0.1:{self.sock.getsockname()[1]}"
         config = uvicorn.Config(
             app,

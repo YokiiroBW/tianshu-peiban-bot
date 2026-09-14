@@ -1,4 +1,4 @@
-"""TS-050 Memory HTTPS follow-up. Original dc357e2 results remain in .runtime/ts050."""
+"""TS-050 real source-sync chain; previous partial and TLS evidence stays immutable."""
 
 import argparse
 import hashlib
@@ -14,13 +14,15 @@ import tomllib
 
 ROOT = Path(__file__).resolve().parents[2]
 PINS = {
-    "companion": "812019e287a5bf37d9b5d810a028ffea828b872e",
-    "memory": "69b29f3a6b8cd61d39d733870d136de2caeb75f0",
+    "companion": "a759f1755c3e9b2afa6b6e5b3fd5e2b6b8072d79",
+    "memory": "ba0e50d56d6a4e816267d710c41c6b0c49035431",
     "model-gateway": "b3b101faf3902f05d80818b39fe7c91367865d4e",
-    "platform": "a5ee59ff67a2de7a7e0d8328ea3c0f43e1d6a209",
+    "platform": "a94d34534ba0b6002bdcdab9db1d5dd899a06a16",
 }
 MANIFEST = "81e6cc4ddef7c6f82e055d4cb04b090db036dd5c52763473ce697aa02db478a1"
-RUNTIME = ROOT / ".runtime/ts050-tls"
+SOURCE_MANIFEST = "178d0ce66210bdfad4cfb85d8b5f0905b0b67f834e2a530efe5636ff0373633d"
+PROFILE_MANIFEST = "488d05438dd5b5abaa43a66a7eab0eb5cf615d5af01a964a7286cd23e68f7eb7"
+RUNTIME = ROOT / ".runtime/ts050-source"
 
 
 def git(path, *args):
@@ -36,6 +38,13 @@ def verify_inputs():
     normalized = (contract / "manifest.json").read_bytes().replace(b"\r\n", b"\n")
     if hashlib.sha256(normalized).hexdigest() != MANIFEST:
         raise SystemExit("Published text contract manifest changed")
+    for package, expected in (
+        ("source-sync/v1", SOURCE_MANIFEST),
+        ("profile-memory/v1", PROFILE_MANIFEST),
+    ):
+        content = (workspace / "contracts" / package / "manifest.json").read_bytes()
+        if hashlib.sha256(content.replace(b"\r\n", b"\n")).hexdigest() != expected:
+            raise SystemExit(f"Published {package} manifest changed")
     products = {}
     for name, commit in PINS.items():
         source = workspace / "projects" / ("tianshu-" + name)
@@ -121,7 +130,7 @@ def prepare():
     print(f"Prepared pinned snapshots and runtime requirements in {RUNTIME}")
 
 
-def run():
+def run(pattern="test_ts050_source*.py"):
     _, _, products = verify_inputs()
     verify_snapshots(products)
     from packaging.requirements import Requirement
@@ -167,7 +176,7 @@ def run():
             "-s",
             "tests/integration",
             "-p",
-            "test_ts050_tls*.py",
+            pattern,
             "-v",
         ],
         cwd=ROOT,
@@ -194,9 +203,14 @@ def run():
         },
         "manifest_sha256": MANIFEST,
         "test_exit_code": result.returncode,
-        "slice": "memory_https_followup",
-        "test_pattern": "test_ts050_tls*.py",
-        "historical_evidence_commit": "dc357e2cefb3e3df7c427938da38dd2c67d28341",
+        "slice": "real_source_sync",
+        "source_manifest_sha256": SOURCE_MANIFEST,
+        "profile_manifest_sha256": PROFILE_MANIFEST,
+        "test_pattern": pattern,
+        "historical_evidence_commits": [
+            "dc357e2cefb3e3df7c427938da38dd2c67d28341",
+            "3c4e5920af8b3c5f236c2e8959cfadb8154bda6d",
+        ],
         "classification": "partial_not_full_L0",
     }
     (RUNTIME / "environment.json").write_text(json.dumps(environment, indent=2) + "\n", "utf-8")
@@ -254,8 +268,9 @@ def verify_snapshots(products, *, snapshot_root=None, pins=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("prepare", "run"))
+    parser.add_argument("--pattern", default="test_ts050_source*.py")
     args = parser.parse_args()
     if args.action == "prepare":
         prepare()
     else:
-        raise SystemExit(run())
+        raise SystemExit(run(args.pattern))
