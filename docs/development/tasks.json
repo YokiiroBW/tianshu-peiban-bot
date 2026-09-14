@@ -858,6 +858,32 @@
       "baseline_commit": "d284f651c520a83027f59870f03bc8ae9701b4e3",
       "thread_id": "01a09d7d-0773-79a0-b8cd-c1c413ccac43",
       "host_id": "local"
+    },
+    {
+      "id": "TS-023",
+      "title": "查询连接复用关闭竞态的有界恢复",
+      "project": "companion",
+      "depends_on": [
+        "TS-022"
+      ],
+      "status": "planned",
+      "allowed_paths": [
+        "src/",
+        "tests/",
+        "docs/",
+        "AGENTS.md",
+        "README.md"
+      ],
+      "done_when": "正式查询白名单单次传输恢复，真实TLS空闲关闭复现转成功、总时间和取消受控、其他轮次不受影响，模型/发送/写入不重复。",
+      "scope_note": "以TS023裁决为准；不全局关闭keepalive，不改wire/锁，不对无响应写操作通用重放。",
+      "assignee": null,
+      "worktree": null,
+      "branch": null,
+      "evidence": [
+        "docs/development/decisions/TS-023-query-transport.md"
+      ],
+      "model": "gpt-6-astra",
+      "thinking": "medium"
     }
   ],
   "dispatch_defaults": {
