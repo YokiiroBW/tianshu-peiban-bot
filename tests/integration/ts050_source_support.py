@@ -39,8 +39,14 @@ def scrub(value):
     """Keep equality evidence for capability refs without publishing usable credentials."""
     if isinstance(value, dict):
         return {
-            ("assertion_digest" if key == "assertion_ref" else key): (
-                digest(item.encode()) if key == "assertion_ref" else scrub(item)
+            (
+                key.removesuffix("_ref") + "_digest"
+                if key in {"assertion_ref", "approval_ref", "confirmation_ref"}
+                else key
+            ): (
+                digest(item.encode())
+                if key in {"assertion_ref", "approval_ref", "confirmation_ref"}
+                else scrub(item)
             )
             for key, item in value.items()
         }
@@ -103,6 +109,7 @@ class WireASGI:
 class SourceChain(unittest.IsolatedAsyncioTestCase):
     silence_ms = 0
     reconcile_ms = 500
+    migrate_users = False
 
     async def asyncSetUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="source-run-", dir=RUNTIME)
@@ -177,6 +184,35 @@ class SourceChain(unittest.IsolatedAsyncioTestCase):
         )
         store.migrate_profiles(self.directory / "backups/schema1.sqlite")
         store.migrate_sources(self.directory / "backups/schema2.sqlite", contracts)
+        if self.migrate_users:
+            migrated = await asyncio.to_thread(
+                subprocess.run,
+                [
+                    sys.executable,
+                    "-B",
+                    "-c",
+                    "from tianshu_memory.cli import main; main()",
+                    "--config",
+                    str(self.memory_config_path),
+                    "migrate-users",
+                    "--backup",
+                    str(self.directory / "backups/before-users.sqlite"),
+                ],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                timeout=15,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+            self.assertEqual(migrated.returncode, 0, migrated.stderr)
+            result = json.loads(migrated.stdout)
+            self.assertEqual((result["schema"], result["local_users_schema"]), (3, 1))
+            self.check(
+                "actual_migrate_users_CLI",
+                schema=3,
+                local_users_schema=1,
+                backup_exists=Path(result["backup"]).is_file(),
+            )
         self.set_env("TIANSHU_MEMORY_CONFIG", str(self.memory_config_path))
         self.memory_app = configured_app()
         self.memory = self.memory_app.state.memory
@@ -715,6 +751,8 @@ class SourceChain(unittest.IsolatedAsyncioTestCase):
                         "route_receipt",
                         "bundle",
                         "short_context",
+                        "profile_checks",
+                        "context_checks",
                     )
                 }
                 for t in self.core.store.list("turns")

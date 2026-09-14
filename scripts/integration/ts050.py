@@ -14,15 +14,15 @@ import tomllib
 
 ROOT = Path(__file__).resolve().parents[2]
 PINS = {
-    "companion": "a759f1755c3e9b2afa6b6e5b3fd5e2b6b8072d79",
-    "memory": "ba0e50d56d6a4e816267d710c41c6b0c49035431",
+    "companion": "4f22c031deb2d193ca66c73ef7c5a41da3872fc6",
+    "memory": "575941ee12e2a7d6dbd3d3374e34866eb82006fb",
     "model-gateway": "b3b101faf3902f05d80818b39fe7c91367865d4e",
     "platform": "a94d34534ba0b6002bdcdab9db1d5dd899a06a16",
 }
 MANIFEST = "81e6cc4ddef7c6f82e055d4cb04b090db036dd5c52763473ce697aa02db478a1"
 SOURCE_MANIFEST = "178d0ce66210bdfad4cfb85d8b5f0905b0b67f834e2a530efe5636ff0373633d"
 PROFILE_MANIFEST = "488d05438dd5b5abaa43a66a7eab0eb5cf615d5af01a964a7286cd23e68f7eb7"
-RUNTIME = ROOT / ".runtime/ts050-source"
+RUNTIME = ROOT / ".runtime/ts050-approved"
 
 
 def git(path, *args):
@@ -130,7 +130,7 @@ def prepare():
     print(f"Prepared pinned snapshots and runtime requirements in {RUNTIME}")
 
 
-def run(pattern="test_ts050_source*.py", run_directory=None):
+def run(pattern="test_ts050_acceptance*.py", run_directory=None):
     output = RUNTIME if run_directory is None else Path(run_directory).resolve()
     if not output.resolve().is_relative_to((ROOT / ".runtime").resolve()):
         raise SystemExit("Run output must remain in the allocated task runtime")
@@ -208,13 +208,17 @@ def run(pattern="test_ts050_source*.py", run_directory=None):
         },
         "manifest_sha256": MANIFEST,
         "test_exit_code": result.returncode,
-        "slice": "real_source_sync" if run_directory is None else "isolated_diagnostic",
+        "slice": "query_recovery_and_user_approval"
+        if run_directory is None
+        else "isolated_diagnostic",
         "source_manifest_sha256": SOURCE_MANIFEST,
         "profile_manifest_sha256": PROFILE_MANIFEST,
         "test_pattern": pattern,
         "historical_evidence_commits": [
             "dc357e2cefb3e3df7c427938da38dd2c67d28341",
             "3c4e5920af8b3c5f236c2e8959cfadb8154bda6d",
+            "479f45b9b18c22467590a27f6c1bd427d1e8d348",
+            "f6354b6d1acaa8e9121985f6ea92b021babf45b2",
         ],
         "classification": "partial_not_full_L0",
     }
@@ -273,7 +277,7 @@ def verify_snapshots(products, *, snapshot_root=None, pins=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("prepare", "run"))
-    parser.add_argument("--pattern", default="test_ts050_source*.py")
+    parser.add_argument("--pattern", default="test_ts050_acceptance*.py")
     parser.add_argument("--run-dir")
     args = parser.parse_args()
     if args.action == "prepare":
