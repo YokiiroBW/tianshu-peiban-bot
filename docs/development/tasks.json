@@ -1054,7 +1054,7 @@
       "depends_on": [
         "TS-071"
       ],
-      "status": "in_progress",
+      "status": "done",
       "allowed_paths": [
         "src/",
         "tests/",
@@ -1067,12 +1067,15 @@
       "assignee": "01a09df6-c222-7813-b015-e432f063cccc",
       "worktree": "worktrees/TS-072/tianshu-companion",
       "branch": "work/ts-072",
-      "evidence": [],
+      "evidence": [
+        "docs/development/reviews/TS-072-accepted.md"
+      ],
       "model": "gpt-6-astra",
       "thinking": "medium",
       "baseline_commit": "195511ed055eaa6fce150dc245ce2a0e68a4d6c5",
       "thread_id": "01a09df6-c222-7813-b015-e432f063cccc",
-      "host_id": "local"
+      "host_id": "local",
+      "integrated_commit": "f101c6d50348e2400e982f62737f04ffe9c51a46"
     }
   ],
   "dispatch_defaults": {
