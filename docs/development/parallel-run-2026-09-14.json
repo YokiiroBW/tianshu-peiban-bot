@@ -188,9 +188,10 @@
       "id": "TS-071",
       "threadId": "01a09dc5-e996-78a2-ad2c-14a0e104adb0",
       "hostId": "local",
-      "status": "in_progress",
+      "status": "done",
       "model": "gpt-6-astra",
-      "thinking": "medium"
+      "thinking": "medium",
+      "integrated_commit": "195511ed055eaa6fce150dc245ce2a0e68a4d6c5"
     },
     {
       "id": "TS-080",
