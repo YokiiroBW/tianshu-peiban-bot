@@ -1,0 +1,39 @@
+{
+  "base_url_observed": "http://127.0.0.1:58511",
+  "records": [
+    {
+      "task_id": "TS-070",
+      "executor": "dsh",
+      "session_id": "session-1a95483d-8ea2-4bee-9b51-a2b70328cf03",
+      "worktree": "worktrees/TS-070/tianshu-companion",
+      "task_file": "docs/development/dsh/TS-070.md",
+      "delivery": "worktrees/TS-070/tianshu-companion/.runtime/dsh-delivery",
+      "state": "blocked_dsh_runtime"
+    },
+    {
+      "task_id": "TS-042",
+      "executor": "dsh",
+      "session_id": null,
+      "worktree": "worktrees/TS-042/tianshu-model-gateway",
+      "task_file": "docs/development/dsh/TS-042.md",
+      "delivery": "worktrees/TS-042/tianshu-model-gateway/.runtime/dsh-delivery",
+      "state": "blocked_dsh_runtime"
+    },
+    {
+      "task_id": "TS-015",
+      "executor": "dsh",
+      "session_id": null,
+      "worktree": "worktrees/TS-015/tianshu-platform",
+      "task_file": "docs/development/dsh/TS-015.md",
+      "delivery": "worktrees/TS-015/tianshu-platform/.runtime/dsh-delivery",
+      "state": "blocked_dsh_runtime"
+    }
+  ],
+  "blockers": [
+    "Configured cerebras/deepseek-v4-flash model is not routable",
+    "DSH harness/storages state path is absent; workspace.create failed ENOENT"
+  ],
+  "implementation_executor": "dsh",
+  "coordinator_role": "architecture_acceptance_debugging",
+  "diagnostic_archive": ".runtime/dsh-diagnostics/2026-09-14-handoff"
+}

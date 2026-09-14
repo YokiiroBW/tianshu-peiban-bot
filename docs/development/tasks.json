@@ -494,7 +494,7 @@
         "TS-011",
         "TS-071"
       ],
-      "status": "planned",
+      "status": "blocked",
       "allowed_paths": [
         "src/",
         "tests/",
@@ -502,11 +502,16 @@
         "docs/handoffs/TS-070.md"
       ],
       "done_when": "C3/C4 与 CM2：共享世界、各自获知、状态/日记/自拍相容",
-      "assignee": null,
-      "worktree": null,
-      "branch": null,
+      "assignee": "dsh:session-1a95483d-8ea2-4bee-9b51-a2b70328cf03",
+      "worktree": "worktrees/TS-070/tianshu-companion",
+      "branch": "work/ts-070",
       "evidence": [],
-      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人"
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人",
+      "baseline_commit": "f101c6d50348e2400e982f62737f04ffe9c51a46",
+      "executor": "dsh",
+      "dsh_session_id": "session-1a95483d-8ea2-4bee-9b51-a2b70328cf03",
+      "delivery_directory": "worktrees/TS-070/tianshu-companion/.runtime/dsh-delivery",
+      "blocked_reason": "DSH model provider unavailable and persistent harness/storages missing; tasks prepared, not running"
     },
     {
       "id": "TS-080",
@@ -1027,7 +1032,7 @@
         "TS-041",
         "TS-040"
       ],
-      "status": "in_progress",
+      "status": "blocked",
       "allowed_paths": [
         "src/",
         "tests/",
@@ -1036,16 +1041,19 @@
         "README.md"
       ],
       "done_when": "先提出兼容新模型协议合同并经协调发布，再实现Responses原生字节/SSE转发、诊断与明确状态引用边界；旧Chat链不退化，未支持能力明确拒绝。",
-      "scope_note": "现text合同protocol为Chat常量，禁止私改旧wire或以Chat假标Responses；可独立完成候选/内部传输，公开route待正式合同。",
-      "assignee": "01a09df2-1386-7d11-8af3-4d314fbf044e",
+      "scope_note": "?????????/??model-protocol??DSH??native ledger???route????Codex???????",
+      "assignee": "dsh:pending",
       "worktree": "worktrees/TS-042/tianshu-model-gateway",
       "branch": "work/ts-042",
       "evidence": [],
-      "model": "gpt-6-astra",
-      "thinking": "medium",
       "baseline_commit": "b3b101faf3902f05d80818b39fe7c91367865d4e",
       "thread_id": "01a09df2-1386-7d11-8af3-4d314fbf044e",
-      "host_id": "local"
+      "host_id": "local",
+      "executor": "dsh",
+      "handoff_baseline": "a05ce2709265089267974fd1964c0c17e4f1d7bc",
+      "dsh_session_id": null,
+      "delivery_directory": "worktrees/TS-042/tianshu-model-gateway/.runtime/dsh-delivery",
+      "blocked_reason": "DSH model provider unavailable and persistent harness/storages missing; tasks prepared, not running"
     },
     {
       "id": "TS-072",
@@ -1076,12 +1084,39 @@
       "thread_id": "01a09df6-c222-7813-b015-e432f063cccc",
       "host_id": "local",
       "integrated_commit": "f101c6d50348e2400e982f62737f04ffe9c51a46"
+    },
+    {
+      "id": "TS-015",
+      "title": "???????????????",
+      "project": "platform",
+      "depends_on": [
+        "TS-014"
+      ],
+      "status": "blocked",
+      "allowed_paths": [
+        "services/",
+        "tests/backend/",
+        "docs/",
+        "AGENTS.md",
+        "README.md"
+      ],
+      "done_when": "?model-protocol/v1????native??publish/revoke/latest???native_config_versions????Chat/Web/Asset????????Gateway?????",
+      "scope_note": "????????UI/?/??????????????????",
+      "assignee": "dsh:pending",
+      "worktree": "worktrees/TS-015/tianshu-platform",
+      "branch": "work/ts-015",
+      "evidence": [],
+      "executor": "dsh",
+      "baseline_commit": "c687398cae4d7dfd08f1602c9314a785de99347c",
+      "dsh_session_id": null,
+      "delivery_directory": "worktrees/TS-015/tianshu-platform/.runtime/dsh-delivery",
+      "blocked_reason": "DSH model provider unavailable and persistent harness/storages missing; tasks prepared, not running"
     }
   ],
   "dispatch_defaults": {
-    "model": "gpt-6-astra",
-    "thinking": "medium",
-    "source": "User explicitly requested Astra medium; do not use xhigh."
+    "executor": "dsh",
+    "model": "preserve_dsh_configured_model",
+    "coordinator": "Codex architecture, acceptance, debugging only"
   },
   "verification_cadence": "用户要求2026-09-14：按完整功能块稳定、共享边界变更或合入前必要性集中验证；不逐文件/微改动跑测试，不重复输入未变的成功检查。"
 }
