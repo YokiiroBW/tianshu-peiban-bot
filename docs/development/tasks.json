@@ -383,7 +383,9 @@
       "host_id": "local",
       "partial_evidence_commit": "dc357e2cefb3e3df7c427938da38dd2c67d28341",
       "blocked_reason": "真实来源事实、Memory来源同步/失效与确认/候选端口缺失；局部8场景通过，不是完整L0",
-      "tls_evidence_commit": "3c4e5920af8b3c5f236c2e8959cfadb8154bda6d"
+      "tls_evidence_commit": "3c4e5920af8b3c5f236c2e8959cfadb8154bda6d",
+      "model": "gpt-6-astra",
+      "thinking": "medium"
     },
     {
       "id": "TS-051",
@@ -754,6 +756,66 @@
       "thread_id": "01a09d1b-a720-7ab3-98bb-f9d414461b0b",
       "host_id": "local",
       "integrated_commit": "ba0e50d56d6a4e816267d710c41c6b0c49035431"
+    },
+    {
+      "id": "TS-034",
+      "title": "本地用户确认与画像批准发布入口",
+      "project": "memory",
+      "depends_on": [
+        "TS-033"
+      ],
+      "status": "in_progress",
+      "allowed_paths": [
+        "src/",
+        "tests/",
+        "docs/",
+        "AGENTS.md",
+        "README.md",
+        ".gitignore"
+      ],
+      "done_when": "真实配置认证的本地操作入口接TrustedWorkflow确认/画像批准发布/撤销，主体范围与证据精确绑定，现有HTTP遗忘可完成并跨重启/双域失效；不以固定True适配器伪装用户批准。",
+      "scope_note": "首版同产品本地CLI/受信应用，不新增跨产品wire或浏览器认证；批准输入来自显式操作，模型/服务token不等同用户同意。画像策略可精确登记复用，不引入泛化审批系统。",
+      "assignee": "01a09d70-066e-7a80-b770-c86febf05db7",
+      "worktree": "worktrees/TS-034/tianshu-memory",
+      "branch": "work/ts-034",
+      "evidence": [],
+      "baseline_commit": "ba0e50d56d6a4e816267d710c41c6b0c49035431",
+      "thread_id": "01a09d70-066e-7a80-b770-c86febf05db7",
+      "host_id": "local",
+      "model": "gpt-6-astra",
+      "thinking": "medium"
+    },
+    {
+      "id": "TS-062",
+      "title": "资产只读服务身份最小接入方案",
+      "project": "assetlibrary",
+      "depends_on": [
+        "TS-060"
+      ],
+      "status": "in_progress",
+      "allowed_paths": [
+        "docs/integrations/tianshu/",
+        "tests/integration/tianshu/",
+        ".codex/tasks/",
+        ".codex/handoffs/TS-062/",
+        "docs/handoffs/TS-062.md"
+      ],
+      "done_when": "按产品内部约定形成服务身份只读适配任务包/必要CCP与公开端口可执行验证，明确范围授权/撤销/分页；协调批准具体合同及源码范围后再接后续产品实现。",
+      "scope_note": "仅方案和隔离验证；不写业务/契约/迁移主线、平台数据库或真实资产，不把浏览器Session/对话origin冒充资产服务授权。",
+      "assignee": "01a09d70-0a99-7352-ac93-49b399f8f82a",
+      "worktree": "worktrees/TS-062/assetlibrary",
+      "branch": "work/ts-062",
+      "evidence": [],
+      "baseline_commit": "555f337271c3b8690d96a4a5a72d796d1c0a7536",
+      "thread_id": "01a09d70-0a99-7352-ac93-49b399f8f82a",
+      "host_id": "local",
+      "model": "gpt-6-astra",
+      "thinking": "medium"
     }
-  ]
+  ],
+  "dispatch_defaults": {
+    "model": "gpt-6-astra",
+    "thinking": "medium",
+    "source": "User explicitly requested Astra medium; do not use xhigh."
+  }
 }
