@@ -523,7 +523,9 @@
         "docs/",
         "docs/handoffs/TS-080.md",
         "AGENTS.md",
-        "README.md"
+        "README.md",
+        "pyproject.toml",
+        "uv.lock"
       ],
       "done_when": "M3：资料来源/版本/完整片段、MCP/Hermes 显式写回和短恢复包",
       "assignee": "01a09dcc-b332-7c01-acc8-0018bd53dc41",
@@ -535,7 +537,8 @@
       "thinking": "medium",
       "baseline_commit": "575941ee12e2a7d6dbd3d3374e34866eb82006fb",
       "thread_id": "01a09dcc-b332-7c01-acc8-0018bd53dc41",
-      "host_id": "local"
+      "host_id": "local",
+      "dependency_note": "已批准官方MCP SDK单一可选extra及最小兼容lock更新，默认不启用，不大幅更新既有依赖；新tool候选协调发布。"
     },
     {
       "id": "TS-031",
