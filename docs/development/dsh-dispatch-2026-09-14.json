@@ -30,10 +30,17 @@
     }
   ],
   "blockers": [
-    "Configured cerebras/deepseek-v4-flash model is not routable",
-    "DSH harness/storages state path is absent; workspace.create failed ENOENT"
+    "Existing session ends with ENOENT opening session.jsonl.zstd under current harness home",
+    "New session creation fails: standard preset not found; available presets empty"
   ],
   "implementation_executor": "dsh",
   "coordinator_role": "architecture_acceptance_debugging",
-  "diagnostic_archive": ".runtime/dsh-diagnostics/2026-09-14-handoff"
+  "diagnostic_archive": ".runtime/dsh-diagnostics/2026-09-14-handoff",
+  "model_status": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash",
+    "reasoningEffort": "max",
+    "routable": true
+  },
+  "model_blocker_resolved": true
 }

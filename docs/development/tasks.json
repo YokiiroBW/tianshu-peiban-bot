@@ -511,7 +511,7 @@
       "executor": "dsh",
       "dsh_session_id": "session-1a95483d-8ea2-4bee-9b51-a2b70328cf03",
       "delivery_directory": "worktrees/TS-070/tianshu-companion/.runtime/dsh-delivery",
-      "blocked_reason": "DSH model provider unavailable and persistent harness/storages missing; tasks prepared, not running"
+      "blocked_reason": "DSH model selection routable; persistent session file/presets unavailable, not a missing project workspace"
     },
     {
       "id": "TS-080",
@@ -1053,7 +1053,7 @@
       "handoff_baseline": "a05ce2709265089267974fd1964c0c17e4f1d7bc",
       "dsh_session_id": null,
       "delivery_directory": "worktrees/TS-042/tianshu-model-gateway/.runtime/dsh-delivery",
-      "blocked_reason": "DSH model provider unavailable and persistent harness/storages missing; tasks prepared, not running"
+      "blocked_reason": "DSH model selection routable; persistent session file/presets unavailable, not a missing project workspace"
     },
     {
       "id": "TS-072",
@@ -1110,7 +1110,7 @@
       "baseline_commit": "c687398cae4d7dfd08f1602c9314a785de99347c",
       "dsh_session_id": null,
       "delivery_directory": "worktrees/TS-015/tianshu-platform/.runtime/dsh-delivery",
-      "blocked_reason": "DSH model provider unavailable and persistent harness/storages missing; tasks prepared, not running"
+      "blocked_reason": "DSH model selection routable; persistent session file/presets unavailable, not a missing project workspace"
     }
   ],
   "dispatch_defaults": {

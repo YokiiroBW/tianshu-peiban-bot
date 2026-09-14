@@ -12,7 +12,7 @@
 
 六个开发项目和十二份参考源码已独立检出，三份旧工作树覆盖包保存完毕。七个工具测试通过；六个原本地源码目录 HEAD/工作树状态复核未变。根协调 Git 的初始化基线为 `1a57325`，未推送远端。
 
-当前接管：DSH已有TS-070独立worktree方向正确，但卡在沙箱tempfile权限，已暂停重复兼容补丁排查。TS-070/TS-042/TS-015执行卡已准备，见dsh/；实际派发被DSH不可路由cerebras模型及缺失harness/storages状态目录阻断，新并行会话未创建，不能声称已运行。当前任务历史已保存在忽略的.runtime/dsh-diagnostics；记录见dsh-dispatch-2026-09-14.json。待恢复DSH模型/持久化后按三独立任务继续。
+当前接管：DSH模型已由用户配置为deepseek-official/deepseek-flash/max且routable=true，现有根工作区确实存在。阻断已变为会话文件session.jsonl.zstd路径缺失及standard预设列表为空；继续指令accepted后会话仍因ENOENT结束，新会话无法创建。保留用户模型/工作区，不重配或建立空日志覆盖。TS070/042/015执行卡和独立worktree已准备，实际尚未并行运行。诊断在.runtime/dsh-diagnostics，记录见dsh-dispatch-2026-09-14.json。
 
 已集成平台c687398（资产后端及网页分批验收），网关b3b101f（37项），陪伴f101c6d（含生活/网页/内部图像，最后图像35项复核），记忆77fa8d7（开发448全套、协调62资料专项），归档e6d8e21（91项、1个Linux工厂待验跳过）。见reviews中的各任务验收记录。text-dialogue/v1与profile-memory/v1已发布；画像API与Core消费者均已合入，本地真实来源/批准链及本轮L0已通过，生产接入另验。窗口关联见parallel-run-2026-09-14.json。
 
