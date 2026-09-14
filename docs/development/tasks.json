@@ -351,9 +351,12 @@
         "TS-030",
         "TS-041",
         "TS-010",
-        "TS-012"
+        "TS-012",
+        "TS-022",
+        "TS-013",
+        "TS-033"
       ],
-      "status": "blocked",
+      "status": "in_progress",
       "allowed_paths": [
         "tests/integration/",
         "docs/development/evidence/",
@@ -368,7 +371,7 @@
         "docs/development/reviews/TS-050-partial-accepted.md",
         "docs/development/reviews/TS-050-tls-accepted.md"
       ],
-      "scope_note": "定向复核已集成TLS接线，完整L0仍受SourceAuthority缺口阻断，不放行后继。",
+      "scope_note": "三产品已集成，固定新快照做真实HTTPS/SourceAuthority联合验收；历史partial证据保留，未通过前不放行后继。",
       "contract_binding": {
         "version": "1.0.0",
         "manifest": "contracts/text-dialogue/v1/manifest.json",
@@ -651,7 +654,7 @@
         "TS-002",
         "TS-021"
       ],
-      "status": "in_progress",
+      "status": "done",
       "allowed_paths": [
         "src/",
         "tests/",
@@ -665,7 +668,9 @@
       "assignee": "01a09d1b-9cf6-7973-a828-1c00adc17a96",
       "worktree": "worktrees/TS-022/tianshu-companion",
       "branch": "work/ts-022",
-      "evidence": [],
+      "evidence": [
+        "docs/development/reviews/TS-022-accepted.md"
+      ],
       "source_contract_binding": {
         "version": "1.0.0",
         "manifest": "contracts/source-sync/v1/manifest.json",
@@ -675,7 +680,8 @@
       "scope_note": "产品唯一负责人修改本项目入口/迁移；共享合同/依赖锁不改。固定替身先验与真实联合分开，不跨产品数据库，不操作真实数据。",
       "baseline_commit": "05c35db54df146bf2997eab6cd516c0948dfdc40",
       "thread_id": "01a09d1b-9cf6-7973-a828-1c00adc17a96",
-      "host_id": "local"
+      "host_id": "local",
+      "integrated_commit": "a759f1755c3e9b2afa6b6e5b3fd5e2b6b8072d79"
     },
     {
       "id": "TS-013",

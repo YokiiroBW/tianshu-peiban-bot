@@ -78,7 +78,7 @@
       "id": "TS-050",
       "threadId": "01a09c4e-43bf-7663-af12-d6b65da9e25d",
       "hostId": "local",
-      "status": "blocked"
+      "status": "in_progress"
     },
     {
       "id": "TS-060",
@@ -111,7 +111,8 @@
       "id": "TS-022",
       "threadId": "01a09d1b-9cf6-7973-a828-1c00adc17a96",
       "hostId": "local",
-      "status": "in_progress"
+      "status": "done",
+      "integrated_commit": "a759f1755c3e9b2afa6b6e5b3fd5e2b6b8072d79"
     },
     {
       "id": "TS-013",
