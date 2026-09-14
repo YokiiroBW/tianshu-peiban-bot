@@ -160,9 +160,10 @@
       "id": "TS-023",
       "threadId": "01a09d84-d8c5-7150-9b52-adf71b2dd1f9",
       "hostId": "local",
-      "status": "in_progress",
+      "status": "done",
       "model": "gpt-6-astra",
-      "thinking": "medium"
+      "thinking": "medium",
+      "integrated_commit": "4f22c031deb2d193ca66c73ef7c5a41da3872fc6"
     }
   ],
   "scope": "实际开发已授权；每个任务只写已分配 worktree，完成后回报协调者审查"

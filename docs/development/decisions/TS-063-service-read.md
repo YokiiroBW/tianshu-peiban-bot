@@ -7,3 +7,5 @@
 凭据默认30天、配置上限365天，必须支持即时撤销/轮换、过期拒绝和主体禁用；不以每日人工换key作为家庭服务默认负担。高熵secret仅签发时显示，服务端持久摘要，日志不可记录。配置开关默认关闭，测试始终隔离。请求沿既有64KiB、分页100及整体5秒预算；平台后续消费者1MiB建议尚待双方实际联验，不把它冒称现有Core响应限制。
 
 本轮仅AssetLibrary生产代码的本地开发和真实临时PG/HTTPS验证。Platform消费者独立后续任务；不扩大到查重/分类、物理文件执行或真实设备迁移。内部CCP批准记录由工作者在任务包引用本决定。
+
+实施补充：认证附录参与现有SDK全目录摘要，允许用原generate_assetlink_sdks.py机械刷新三SDK摘要文件/生成源码摘要及generation-manifest，共7文件；不修改生成器、schema/body/SDK行为或锁。允许Packaging.Tests/DatabaseReadinessTests.cs的approvedLatestVersion由21更新23并运行对应测试，避免新增0022/0023被旧常量误判。精确路径已追加任务卡。

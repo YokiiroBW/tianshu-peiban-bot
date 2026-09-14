@@ -7,3 +7,5 @@
 协调完整复跑10项（67.999秒）得到9通过/1错误：test_w5_short_sentences_and_ordinary_name_followup在读取model_requests[1]时IndexError。失败轨迹表明第二轮phase=failed、failure=dependency_unavailable、model_calls=0，后续后台check修补版本并被Memory作为failed事件接受；因此wait_commits(2)不证明两轮成功。需要定位真实失败源及增加明确成功/诊断断言，不仅放宽等待或重跑掩盖。
 
 此次运行覆盖任务.runtime的原始结果，已通知工作者独立保留失败日志/结果。Git内旧轨迹未改。TS-050继续诊断，仅允许测试/证据修改；如需产品修复由协调另派。TS-034遗忘确认/画像批准、TS-062资产只读服务方案并行，均Astra medium。
+
+诊断增量f6354b6已审查合入，包含原479f45b成功历史和协调失败的独立记录。协调核对12份原件SHA全部一致；读受控trace hook复现与被动日志/成功断言，未改变产品。10.962秒受控复现证明默认连接关闭失效路径，15.348秒被动一次正常不当修复。该处未重复跑不变场景，原失败仍保留。等待TS023集成后定向真实联合复验，task不是done。
