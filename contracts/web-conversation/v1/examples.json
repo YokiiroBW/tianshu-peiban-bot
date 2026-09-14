@@ -1,0 +1,172 @@
+[
+  {
+    "id": "normal/request",
+    "schema": "snapshot_request",
+    "document": {
+      "schema_version": 1,
+      "query": {
+        "schema_version": 1,
+        "request_id": "query:web-1",
+        "origin": {
+          "assertion_ref": "origin:actor-a"
+        }
+      },
+      "deadline_at": "2026-09-14T06:00:30Z",
+      "conversation_id": "conversation:web-1",
+      "actor_id": "actor:a",
+      "before_turn_sequence": null,
+      "limit": 20
+    }
+  },
+  {
+    "id": "normal/response",
+    "schema": "snapshot_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "query:web-1",
+      "conversation_id": "conversation:web-1",
+      "actor_id": "actor:a",
+      "observed_at": "2026-09-14T06:00:01Z",
+      "collectors": [],
+      "active_turns": [],
+      "history": [
+        {
+          "turn": {
+            "turn_id": "turn:1",
+            "turn_sequence": 1,
+            "version": 3,
+            "phase": "sent",
+            "result_version": 1,
+            "delivery_state": "sent",
+            "released_slot": true,
+            "unresolved_delivery": false
+          },
+          "messages": [
+            {
+              "message_id": "message:1",
+              "revision": 1,
+              "parts": [
+                {
+                  "kind": "text",
+                  "text": "你好"
+                }
+              ],
+              "sent_at": "2026-09-14T06:00:00Z",
+              "state": "active"
+            }
+          ],
+          "replies": [
+            {
+              "reply_id": "reply:1",
+              "segment_sequence": 1,
+              "segment_count": 1,
+              "state": "sent",
+              "text": "你好。",
+              "content_state": "available"
+            }
+          ]
+        }
+      ],
+      "next_before_turn_sequence": null
+    }
+  },
+  {
+    "id": "unknown/response",
+    "schema": "snapshot_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "query:web-1",
+      "conversation_id": "conversation:web-1",
+      "actor_id": "actor:a",
+      "observed_at": "2026-09-14T06:00:01Z",
+      "collectors": [],
+      "active_turns": [],
+      "history": [
+        {
+          "turn": {
+            "turn_id": "turn:1",
+            "turn_sequence": 1,
+            "version": 3,
+            "phase": "closed_unknown",
+            "result_version": 1,
+            "delivery_state": "unknown",
+            "released_slot": true,
+            "unresolved_delivery": true
+          },
+          "messages": [
+            {
+              "message_id": "message:1",
+              "revision": 1,
+              "parts": [
+                {
+                  "kind": "text",
+                  "text": "你好"
+                }
+              ],
+              "sent_at": "2026-09-14T06:00:00Z",
+              "state": "active"
+            }
+          ],
+          "replies": [
+            {
+              "reply_id": "reply:1",
+              "segment_sequence": 1,
+              "segment_count": 1,
+              "state": "unknown",
+              "text": null,
+              "content_state": "unavailable"
+            }
+          ]
+        }
+      ],
+      "next_before_turn_sequence": null
+    }
+  },
+  {
+    "id": "sent-source-retracted/response",
+    "schema": "snapshot_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "query:web-1",
+      "conversation_id": "conversation:web-1",
+      "actor_id": "actor:a",
+      "observed_at": "2026-09-14T06:00:01Z",
+      "collectors": [],
+      "active_turns": [],
+      "history": [
+        {
+          "turn": {
+            "turn_id": "turn:1",
+            "turn_sequence": 1,
+            "version": 3,
+            "phase": "sent",
+            "result_version": 1,
+            "delivery_state": "sent",
+            "released_slot": true,
+            "unresolved_delivery": false
+          },
+          "messages": [
+            {
+              "message_id": "message:1",
+              "revision": 1,
+              "parts": [],
+              "sent_at": "2026-09-14T06:00:00Z",
+              "state": "retracted"
+            }
+          ],
+          "replies": [
+            {
+              "reply_id": "reply:1",
+              "segment_sequence": 1,
+              "segment_count": 1,
+              "state": "sent",
+              "text": null,
+              "content_state": "unavailable"
+            }
+          ]
+        }
+      ],
+      "next_before_turn_sequence": null
+    }
+  }
+]

@@ -1,0 +1,20 @@
+{
+  "package": "web-conversation/v1",
+  "version": "1.0.0",
+  "dependency": {
+    "package": "text-dialogue/v1",
+    "version": "1.0.0",
+    "manifest_sha256": "81e6cc4ddef7c6f82e055d4cb04b090db036dd5c52763473ce697aa02db478a1"
+  },
+  "candidate_manifest_raw_sha256": "080be3c371ef4fde8016c39bc58f3162998bac600914031687b76c91b33ba7fb",
+  "hash_basis": "UTF-8 LF-normalized",
+  "sha256": {
+    "authorization-examples.json": "0ffecb85fe8f3b1773c4788aa887fff0c9ba964440b9b53733efd7b6f26a9649",
+    "examples.json": "21a7e99d3d063e62026b7c5165016921a6f9d90109959104e1287f7ce85118de",
+    "negative-examples.json": "3806c1fced4084ec085929f58952d3daf28f2eb01484e7ef5a22000161a05b67",
+    "README.md": "3e95c73dddf4e4beec76b8de94b1404267dd43a1b1a947b3ed20cd7e34e52405",
+    "schema.json": "d2c6925fc55a471a96b89687812266dadc4214e8b904639f7c0220c6144f2316",
+    "semantics.md": "20559fdf482050d1cd2ff0ce1053f44f7587cfa7752cbfb950d539dd530ee5d5",
+    "validate.py": "751c3209a00c2fa62d7e104be6f21b6af2fa3e4a85620a243ffe7e24c0792967"
+  }
+}

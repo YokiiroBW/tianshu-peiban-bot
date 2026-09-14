@@ -1,0 +1,82 @@
+[
+  {
+    "id": "other-user",
+    "change": "actor origin的verified_account为A，但conversation实际为B",
+    "expected": "forbidden; no response projection"
+  },
+  {
+    "id": "expired",
+    "change": "actor origin expires_at <= now",
+    "expected": "forbidden; no response projection"
+  },
+  {
+    "id": "timeout",
+    "change": "request.deadline_at <= now",
+    "expected": "timeout"
+  },
+  {
+    "id": "retracted",
+    "change": "当前source状态撤回；history引用旧revision",
+    "expected": "message.state=retracted, parts=[]"
+  },
+  {
+    "id": "edited",
+    "change": "当前source已编辑；history引用旧revision",
+    "expected": "message.state=edited, parts=[]"
+  },
+  {
+    "id": "wrong-actor",
+    "change": "请求actor不是当前origin scope.actor_id",
+    "expected": "forbidden"
+  },
+  {
+    "id": "wrong-person",
+    "change": "当前person映射与指定conversation内message/turn person不同",
+    "expected": "forbidden; no other person data"
+  },
+  {
+    "id": "wrong-channel",
+    "change": "同actor但channel不匹配当前origin",
+    "expected": "forbidden"
+  },
+  {
+    "id": "non-web",
+    "change": "当前origin verified_channel.namespace=qq",
+    "expected": "forbidden"
+  },
+  {
+    "id": "binding-change",
+    "change": "读取前后账号绑定版本或person改变",
+    "expected": "scope_changed or version_conflict; no stale projection"
+  },
+  {
+    "id": "quarantine",
+    "change": "当前conversation source_quarantined",
+    "expected": "dependency_unavailable; no payload"
+  },
+  {
+    "id": "expiry-during-read",
+    "change": "读取完投影但当前viewer origin已到期",
+    "expected": "forbidden; no payload"
+  },
+  {
+    "id": "pagination-overlap",
+    "change": "history含active_turns已有turn_id",
+    "expected": "invalid response"
+  },
+  {
+    "id": "global-memory-change",
+    "change": "无源撤回/编辑/失效证据，仅全域记忆版本更新",
+    "expected": "must not hide sent chat solely for unrelated memory version"
+  },
+  {
+    "id": "old-origin-expired",
+    "change": "旧入站origin到期但当前viewer origin有效且scope/source仍有效",
+    "expected": "history stays readable"
+  },
+  {
+    "id": "response-budget",
+    "change": "完整响应UTF8字节数超过1048576",
+    "expected": "budget_exceeded; no silent truncation"
+  }
+]

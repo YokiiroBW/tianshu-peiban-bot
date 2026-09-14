@@ -15,3 +15,5 @@
 画像扩展：[profile-memory/v1 1.0.0](profile-memory/v1/README.md)，请求人/目标分离，版本领域独立；`python contracts/profile-memory/v1/validate.py` 验证该包与固定文字依赖。仅实现基线发布，产品与L0/L1验收另记。
 
 来源同步：[source-sync/v1 1.0.0](source-sync/v1/README.md)，物理来源与角色受理分层、平台逐角色授权、Memory同步失效屏障及后台检查。已发布为三产品实现基线，状态见[TS-002发布记录](../docs/development/reviews/TS-002-release.md)。在既有合同验证依赖环境运行 `python -B contracts/source-sync/v1/validate.py`；不把离线验证当实际端点或完整L0通过。
+
+网页会话：[web-conversation/v1 1.0.0](web-conversation/v1/README.md)，Core有界快照、正文可见性与历史分页；sender/cancel复用文字合同。实现基线发布记录见[网页会话发布](../docs/development/reviews/web-conversation-v1-release.md)，真实授权和界面接线待产品验收。

@@ -1,0 +1,95 @@
+[
+  {
+    "id": "unknown-text",
+    "schema": "snapshot_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "query:web-1",
+      "conversation_id": "conversation:web-1",
+      "actor_id": "actor:a",
+      "observed_at": "2026-09-14T06:00:01Z",
+      "collectors": [],
+      "active_turns": [],
+      "history": [
+        {
+          "turn": {
+            "turn_id": "turn:1",
+            "turn_sequence": 1,
+            "version": 3,
+            "phase": "closed_unknown",
+            "result_version": 1,
+            "delivery_state": "unknown",
+            "released_slot": true,
+            "unresolved_delivery": true
+          },
+          "messages": [
+            {
+              "message_id": "message:1",
+              "revision": 1,
+              "parts": [
+                {
+                  "kind": "text",
+                  "text": "你好"
+                }
+              ],
+              "sent_at": "2026-09-14T06:00:00Z",
+              "state": "active"
+            }
+          ],
+          "replies": [
+            {
+              "reply_id": "reply:1",
+              "segment_sequence": 1,
+              "segment_count": 1,
+              "state": "unknown",
+              "text": "不得泄漏未确认生成正文",
+              "content_state": "unavailable"
+            }
+          ]
+        }
+      ],
+      "next_before_turn_sequence": null
+    }
+  },
+  {
+    "id": "limit-51",
+    "schema": "snapshot_request",
+    "document": {
+      "schema_version": 1,
+      "query": {
+        "schema_version": 1,
+        "request_id": "query:web-1",
+        "origin": {
+          "assertion_ref": "origin:actor-a"
+        }
+      },
+      "deadline_at": "2026-09-14T06:00:30Z",
+      "conversation_id": "conversation:web-1",
+      "actor_id": "actor:a",
+      "before_turn_sequence": null,
+      "limit": 51
+    }
+  },
+  {
+    "id": "scope-injection",
+    "schema": "snapshot_request",
+    "document": {
+      "schema_version": 1,
+      "query": {
+        "schema_version": 1,
+        "request_id": "query:web-1",
+        "origin": {
+          "assertion_ref": "origin:actor-a"
+        }
+      },
+      "deadline_at": "2026-09-14T06:00:30Z",
+      "conversation_id": "conversation:web-1",
+      "actor_id": "actor:a",
+      "before_turn_sequence": null,
+      "limit": 20,
+      "scope": {
+        "person_id": "other"
+      }
+    }
+  }
+]
