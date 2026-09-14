@@ -766,7 +766,7 @@
       "depends_on": [
         "TS-033"
       ],
-      "status": "in_progress",
+      "status": "done",
       "allowed_paths": [
         "src/",
         "tests/",
@@ -780,12 +780,15 @@
       "assignee": "01a09d70-066e-7a80-b770-c86febf05db7",
       "worktree": "worktrees/TS-034/tianshu-memory",
       "branch": "work/ts-034",
-      "evidence": [],
+      "evidence": [
+        "docs/development/reviews/TS-034-accepted.md"
+      ],
       "baseline_commit": "ba0e50d56d6a4e816267d710c41c6b0c49035431",
       "thread_id": "01a09d70-066e-7a80-b770-c86febf05db7",
       "host_id": "local",
       "model": "gpt-6-astra",
-      "thinking": "medium"
+      "thinking": "medium",
+      "integrated_commit": "575941ee12e2a7d6dbd3d3374e34866eb82006fb"
     },
     {
       "id": "TS-062",
@@ -866,7 +869,7 @@
       "depends_on": [
         "TS-022"
       ],
-      "status": "planned",
+      "status": "in_progress",
       "allowed_paths": [
         "src/",
         "tests/",
@@ -876,14 +879,17 @@
       ],
       "done_when": "正式查询白名单单次传输恢复，真实TLS空闲关闭复现转成功、总时间和取消受控、其他轮次不受影响，模型/发送/写入不重复。",
       "scope_note": "以TS023裁决为准；不全局关闭keepalive，不改wire/锁，不对无响应写操作通用重放。",
-      "assignee": null,
-      "worktree": null,
-      "branch": null,
+      "assignee": "01a09d84-d8c5-7150-9b52-adf71b2dd1f9",
+      "worktree": "worktrees/TS-023/tianshu-companion",
+      "branch": "work/ts-023",
       "evidence": [
         "docs/development/decisions/TS-023-query-transport.md"
       ],
       "model": "gpt-6-astra",
-      "thinking": "medium"
+      "thinking": "medium",
+      "baseline_commit": "a759f1755c3e9b2afa6b6e5b3fd5e2b6b8072d79",
+      "thread_id": "01a09d84-d8c5-7150-9b52-adf71b2dd1f9",
+      "host_id": "local"
     }
   ],
   "dispatch_defaults": {
