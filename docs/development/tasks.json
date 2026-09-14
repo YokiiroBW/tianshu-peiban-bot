@@ -1043,6 +1043,33 @@
       "baseline_commit": "b3b101faf3902f05d80818b39fe7c91367865d4e",
       "thread_id": "01a09df2-1386-7d11-8af3-4d314fbf044e",
       "host_id": "local"
+    },
+    {
+      "id": "TS-072",
+      "title": "ComfyUI工作流适配与角色图像任务",
+      "project": "companion",
+      "depends_on": [
+        "TS-071"
+      ],
+      "status": "in_progress",
+      "allowed_paths": [
+        "src/",
+        "tests/",
+        "docs/",
+        "AGENTS.md",
+        "README.md"
+      ],
+      "done_when": "审实际anima工作流并实现显式节点绑定/生活穿搭版本快照、固定ComfyUI API任务与取消/历史/产物元数据；真实GPU与跨产品图像下行另验。",
+      "scope_note": "Core唯一图像模块负责人，现有ComfyUI文件只读不改、不自动执行真实GPU；AssetLibrary未有发布接口不得伪报已归档，跨产品新wire先候选。",
+      "assignee": "01a09df6-c222-7813-b015-e432f063cccc",
+      "worktree": "worktrees/TS-072/tianshu-companion",
+      "branch": "work/ts-072",
+      "evidence": [],
+      "model": "gpt-6-astra",
+      "thinking": "medium",
+      "baseline_commit": "195511ed055eaa6fce150dc245ce2a0e68a4d6c5",
+      "thread_id": "01a09df6-c222-7813-b015-e432f063cccc",
+      "host_id": "local"
     }
   ],
   "dispatch_defaults": {
