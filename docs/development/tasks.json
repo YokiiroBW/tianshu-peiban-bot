@@ -914,7 +914,7 @@
         "TS-063",
         "TS-013"
       ],
-      "status": "in_progress",
+      "status": "done",
       "allowed_paths": [
         "services/",
         "tests/backend/",
@@ -927,12 +927,15 @@
       "assignee": "01a09d99-8a27-7010-9802-f7213bdca45f",
       "worktree": "worktrees/TS-064/tianshu-platform",
       "branch": "work/ts-064",
-      "evidence": [],
+      "evidence": [
+        "docs/development/reviews/TS-064-accepted.md"
+      ],
       "model": "gpt-6-astra",
       "thinking": "medium",
       "baseline_commit": "a94d34534ba0b6002bdcdab9db1d5dd899a06a16",
       "thread_id": "01a09d99-8a27-7010-9802-f7213bdca45f",
-      "host_id": "local"
+      "host_id": "local",
+      "integrated_commit": "f4dac458d4a158e2087adad621bb6a7a91d75630"
     }
   ],
   "dispatch_defaults": {
