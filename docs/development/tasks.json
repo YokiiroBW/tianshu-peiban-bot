@@ -828,7 +828,7 @@
       "depends_on": [
         "TS-062"
       ],
-      "status": "in_progress",
+      "status": "done",
       "allowed_paths": [
         "services/core-server/Modules/GatewayAuth/",
         "services/core-server/Modules/LibraryStorage/",
@@ -855,7 +855,8 @@
         "packages/sdk/assetlink/kotlin/.contract-source.sha256",
         "packages/sdk/assetlink/kotlin/src/main/kotlin/app/assetlibrary/assetlink/AssetLink.Generated.kt",
         "packages/sdk/assetlink/generation-manifest.json",
-        "tests/dotnet/AssetLibrary.Packaging.Tests/DatabaseReadinessTests.cs"
+        "tests/dotnet/AssetLibrary.Packaging.Tests/DatabaseReadinessTests.cs",
+        "tests/dotnet/AssetLibrary.ReadCore.Tests/ServiceLibraryReadGrantTests.cs"
       ],
       "done_when": "按TS063裁决实现真实凭据生命周期/库权限管理/HTTPS五只读操作，实际PG迁移、撤权/轮换/重启及浏览器回归通过；平台消费者另验。",
       "scope_note": "已批准内部CCP，仅本地产品开发和合成数据；单一负责人管理模块/Host/0022-0023迁移，无新依赖锁/历史SQL/其他产品或真实资产操作。",
@@ -863,13 +864,16 @@
       "worktree": "worktrees/TS-063/assetlibrary",
       "branch": "work/ts-063",
       "evidence": [
-        "docs/development/decisions/TS-063-service-read.md"
+        "docs/development/decisions/TS-063-service-read.md",
+        "docs/development/reviews/TS-063-accepted.md"
       ],
       "model": "gpt-6-astra",
       "thinking": "medium",
       "baseline_commit": "d284f651c520a83027f59870f03bc8ae9701b4e3",
       "thread_id": "01a09d7d-0773-79a0-b8cd-c1c413ccac43",
-      "host_id": "local"
+      "host_id": "local",
+      "integrated_commit": "ff8e8a1fc405870d5a82e44cc344c9e083df059a",
+      "review_scope_note": "协调收尾补登记LibraryStorage所需精确ReadCore grant测试文件，已审与任务行为一致，无其他功能扩张。"
     },
     {
       "id": "TS-023",
@@ -901,6 +905,34 @@
       "thread_id": "01a09d84-d8c5-7150-9b52-adf71b2dd1f9",
       "host_id": "local",
       "integrated_commit": "4f22c031deb2d193ca66c73ef7c5a41da3872fc6"
+    },
+    {
+      "id": "TS-064",
+      "title": "平台资产只读客户端与真实双产品联验",
+      "project": "platform",
+      "depends_on": [
+        "TS-063",
+        "TS-013"
+      ],
+      "status": "in_progress",
+      "allowed_paths": [
+        "services/",
+        "tests/backend/",
+        "docs/",
+        "AGENTS.md",
+        "README.md"
+      ],
+      "done_when": "实际AssetLink HTTPS五只读客户端、独立连接/主体授权和受信应用或CLI入口，真实临时AssetLibrary联验范围/撤权/分页/超时/取消/重启；不冒称资产网页已接。",
+      "scope_note": "仅平台后端，复用已发布AssetLink协议；不跨资产SQL，不借dialogue origin赋库权，不暴露token浏览器，不改对方产品/锁或新增UI认证。",
+      "assignee": "01a09d99-8a27-7010-9802-f7213bdca45f",
+      "worktree": "worktrees/TS-064/tianshu-platform",
+      "branch": "work/ts-064",
+      "evidence": [],
+      "model": "gpt-6-astra",
+      "thinking": "medium",
+      "baseline_commit": "a94d34534ba0b6002bdcdab9db1d5dd899a06a16",
+      "thread_id": "01a09d99-8a27-7010-9802-f7213bdca45f",
+      "host_id": "local"
     }
   ],
   "dispatch_defaults": {

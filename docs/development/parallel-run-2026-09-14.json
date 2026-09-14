@@ -152,9 +152,10 @@
       "id": "TS-063",
       "threadId": "01a09d7d-0773-79a0-b8cd-c1c413ccac43",
       "hostId": "local",
-      "status": "in_progress",
+      "status": "done",
       "model": "gpt-6-astra",
-      "thinking": "medium"
+      "thinking": "medium",
+      "integrated_commit": "ff8e8a1fc405870d5a82e44cc344c9e083df059a"
     },
     {
       "id": "TS-023",
@@ -164,6 +165,14 @@
       "model": "gpt-6-astra",
       "thinking": "medium",
       "integrated_commit": "4f22c031deb2d193ca66c73ef7c5a41da3872fc6"
+    },
+    {
+      "id": "TS-064",
+      "threadId": "01a09d99-8a27-7010-9802-f7213bdca45f",
+      "hostId": "local",
+      "status": "in_progress",
+      "model": "gpt-6-astra",
+      "thinking": "medium"
     }
   ],
   "scope": "实际开发已授权；每个任务只写已分配 worktree，完成后回报协调者审查"
