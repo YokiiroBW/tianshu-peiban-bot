@@ -142,6 +142,15 @@
       "id": "TS-062",
       "threadId": "01a09d70-0a99-7352-ac93-49b399f8f82a",
       "hostId": "local",
+      "status": "done",
+      "model": "gpt-6-astra",
+      "thinking": "medium",
+      "integrated_commit": "d284f651c520a83027f59870f03bc8ae9701b4e3"
+    },
+    {
+      "id": "TS-063",
+      "threadId": "01a09d7d-0773-79a0-b8cd-c1c413ccac43",
+      "hostId": "local",
       "status": "in_progress",
       "model": "gpt-6-astra",
       "thinking": "medium"

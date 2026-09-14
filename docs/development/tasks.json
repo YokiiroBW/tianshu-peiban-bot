@@ -794,7 +794,7 @@
       "depends_on": [
         "TS-060"
       ],
-      "status": "in_progress",
+      "status": "done",
       "allowed_paths": [
         "docs/integrations/tianshu/",
         "tests/integration/tianshu/",
@@ -807,12 +807,57 @@
       "assignee": "01a09d70-0a99-7352-ac93-49b399f8f82a",
       "worktree": "worktrees/TS-062/assetlibrary",
       "branch": "work/ts-062",
-      "evidence": [],
+      "evidence": [
+        "docs/development/reviews/TS-062-accepted.md"
+      ],
       "baseline_commit": "555f337271c3b8690d96a4a5a72d796d1c0a7536",
       "thread_id": "01a09d70-0a99-7352-ac93-49b399f8f82a",
       "host_id": "local",
       "model": "gpt-6-astra",
-      "thinking": "medium"
+      "thinking": "medium",
+      "integrated_commit": "d284f651c520a83027f59870f03bc8ae9701b4e3"
+    },
+    {
+      "id": "TS-063",
+      "title": "资产库独立服务身份与只读HTTPS接入",
+      "project": "assetlibrary",
+      "depends_on": [
+        "TS-062"
+      ],
+      "status": "in_progress",
+      "allowed_paths": [
+        "services/core-server/Modules/GatewayAuth/",
+        "services/core-server/Modules/LibraryStorage/",
+        "services/core-server/Host/Trial/",
+        "services/core-server/Hosting/CoreServerHost.cs",
+        "contracts/assetlink/read-only-trial-v1.md",
+        "database/migrations/production/0022_gateway_auth_service_credentials.sql",
+        "database/migrations/production/0023_library_storage_service_read_grants.sql",
+        "database/migrations/production/manifest.json",
+        "database/migrations/production/roles.sql",
+        "tests/dotnet/AssetLibrary.WebGateway.Tests/",
+        "tests/database/",
+        "tests/integration/tianshu/",
+        "tests/integration/native-clients/",
+        "docs/",
+        ".codex/tasks/",
+        ".codex/handoffs/TS-063/",
+        "AGENTS.md",
+        "README.md"
+      ],
+      "done_when": "按TS063裁决实现真实凭据生命周期/库权限管理/HTTPS五只读操作，实际PG迁移、撤权/轮换/重启及浏览器回归通过；平台消费者另验。",
+      "scope_note": "已批准内部CCP，仅本地产品开发和合成数据；单一负责人管理模块/Host/0022-0023迁移，无新依赖锁/历史SQL/其他产品或真实资产操作。",
+      "assignee": "01a09d7d-0773-79a0-b8cd-c1c413ccac43",
+      "worktree": "worktrees/TS-063/assetlibrary",
+      "branch": "work/ts-063",
+      "evidence": [
+        "docs/development/decisions/TS-063-service-read.md"
+      ],
+      "model": "gpt-6-astra",
+      "thinking": "medium",
+      "baseline_commit": "d284f651c520a83027f59870f03bc8ae9701b4e3",
+      "thread_id": "01a09d7d-0773-79a0-b8cd-c1c413ccac43",
+      "host_id": "local"
     }
   ],
   "dispatch_defaults": {
