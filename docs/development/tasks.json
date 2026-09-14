@@ -685,7 +685,7 @@
         "TS-002",
         "TS-012"
       ],
-      "status": "in_progress",
+      "status": "done",
       "allowed_paths": [
         "services/",
         "tests/backend/",
@@ -698,7 +698,9 @@
       "assignee": "01a09d1b-a1be-7a42-b261-f8713b1ae342",
       "worktree": "worktrees/TS-013/tianshu-platform",
       "branch": "work/ts-013",
-      "evidence": [],
+      "evidence": [
+        "docs/development/reviews/TS-013-accepted.md"
+      ],
       "source_contract_binding": {
         "version": "1.0.0",
         "manifest": "contracts/source-sync/v1/manifest.json",
@@ -708,7 +710,8 @@
       "scope_note": "产品唯一负责人修改本项目入口/迁移；共享合同/依赖锁不改。固定替身先验与真实联合分开，不跨产品数据库，不操作真实数据。",
       "baseline_commit": "a5ee59ff67a2de7a7e0d8328ea3c0f43e1d6a209",
       "thread_id": "01a09d1b-a1be-7a42-b261-f8713b1ae342",
-      "host_id": "local"
+      "host_id": "local",
+      "integrated_commit": "a94d34534ba0b6002bdcdab9db1d5dd899a06a16"
     },
     {
       "id": "TS-033",
@@ -718,7 +721,7 @@
         "TS-002",
         "TS-032"
       ],
-      "status": "in_progress",
+      "status": "done",
       "allowed_paths": [
         "src/",
         "tests/",
@@ -731,7 +734,9 @@
       "assignee": "01a09d1b-a720-7ab3-98bb-f9d414461b0b",
       "worktree": "worktrees/TS-033/tianshu-memory",
       "branch": "work/ts-033",
-      "evidence": [],
+      "evidence": [
+        "docs/development/reviews/TS-033-accepted.md"
+      ],
       "source_contract_binding": {
         "version": "1.0.0",
         "manifest": "contracts/source-sync/v1/manifest.json",
@@ -741,7 +746,8 @@
       "scope_note": "产品唯一负责人修改本项目入口/迁移；共享合同/依赖锁不改。固定替身先验与真实联合分开，不跨产品数据库，不操作真实数据。",
       "baseline_commit": "69b29f3a6b8cd61d39d733870d136de2caeb75f0",
       "thread_id": "01a09d1b-a720-7ab3-98bb-f9d414461b0b",
-      "host_id": "local"
+      "host_id": "local",
+      "integrated_commit": "ba0e50d56d6a4e816267d710c41c6b0c49035431"
     }
   ]
 }

@@ -117,13 +117,15 @@
       "id": "TS-013",
       "threadId": "01a09d1b-a1be-7a42-b261-f8713b1ae342",
       "hostId": "local",
-      "status": "in_progress"
+      "status": "done",
+      "integrated_commit": "a94d34534ba0b6002bdcdab9db1d5dd899a06a16"
     },
     {
       "id": "TS-033",
       "threadId": "01a09d1b-a720-7ab3-98bb-f9d414461b0b",
       "hostId": "local",
-      "status": "in_progress"
+      "status": "done",
+      "integrated_commit": "ba0e50d56d6a4e816267d710c41c6b0c49035431"
     }
   ],
   "scope": "实际开发已授权；每个任务只写已分配 worktree，完成后回报协调者审查"
