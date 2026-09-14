@@ -78,9 +78,10 @@
       "id": "TS-050",
       "threadId": "01a09c4e-43bf-7663-af12-d6b65da9e25d",
       "hostId": "local",
-      "status": "in_progress",
+      "status": "done",
       "model": "gpt-6-astra",
-      "thinking": "medium"
+      "thinking": "medium",
+      "integrated_commit": "a472825dd983dca43862f9cb8be2e3a7834d3415"
     },
     {
       "id": "TS-060",
@@ -186,6 +187,14 @@
     {
       "id": "TS-071",
       "threadId": "01a09dc5-e996-78a2-ad2c-14a0e104adb0",
+      "hostId": "local",
+      "status": "in_progress",
+      "model": "gpt-6-astra",
+      "thinking": "medium"
+    },
+    {
+      "id": "TS-080",
+      "threadId": "01a09dcc-b332-7c01-acc8-0018bd53dc41",
       "hostId": "local",
       "status": "in_progress",
       "model": "gpt-6-astra",

@@ -356,7 +356,7 @@
         "TS-013",
         "TS-033"
       ],
-      "status": "in_progress",
+      "status": "done",
       "allowed_paths": [
         "tests/integration/",
         "docs/development/evidence/",
@@ -370,7 +370,8 @@
       "evidence": [
         "docs/development/reviews/TS-050-partial-accepted.md",
         "docs/development/reviews/TS-050-tls-accepted.md",
-        "docs/development/reviews/TS-050-source-review.md"
+        "docs/development/reviews/TS-050-source-review.md",
+        "docs/development/reviews/TS-050-local-L0-accepted.md"
       ],
       "scope_note": "定向新Core4f22c03/Memory575941e验W5恢复与真实遗忘/画像，历史失败保留；通过前不标done。",
       "contract_binding": {
@@ -383,12 +384,12 @@
       "thread_id": "01a09c4e-43bf-7663-af12-d6b65da9e25d",
       "host_id": "local",
       "partial_evidence_commit": "dc357e2cefb3e3df7c427938da38dd2c67d28341",
-      "blocked_reason": "真实来源事实、Memory来源同步/失效与确认/候选端口缺失；局部8场景通过，不是完整L0",
       "tls_evidence_commit": "3c4e5920af8b3c5f236c2e8959cfadb8154bda6d",
       "model": "gpt-6-astra",
       "thinking": "medium",
-      "review_note": "真实source结果与失败诊断已合入；仍等TS023修复集成及新Memory批准链复验，非完整L0通过。",
-      "diagnostic_commit": "f6354b6d1acaa8e9121985f6ea92b021babf45b2"
+      "review_note": "本轮指定本地L0通过；真实账号/L1/生产及未纳入扩展独立验收。",
+      "diagnostic_commit": "f6354b6d1acaa8e9121985f6ea92b021babf45b2",
+      "integrated_commit": "a472825dd983dca43862f9cb8be2e3a7834d3415"
     },
     {
       "id": "TS-051",
@@ -490,7 +491,8 @@
       "project": "companion",
       "depends_on": [
         "TS-050",
-        "TS-011"
+        "TS-011",
+        "TS-071"
       ],
       "status": "planned",
       "allowed_paths": [
@@ -513,20 +515,27 @@
       "depends_on": [
         "TS-050"
       ],
-      "status": "planned",
+      "status": "in_progress",
       "allowed_paths": [
         "src/",
         "integrations/",
         "tests/",
         "docs/",
-        "docs/handoffs/TS-080.md"
+        "docs/handoffs/TS-080.md",
+        "AGENTS.md",
+        "README.md"
       ],
       "done_when": "M3：资料来源/版本/完整片段、MCP/Hermes 显式写回和短恢复包",
-      "assignee": null,
-      "worktree": null,
-      "branch": null,
+      "assignee": "01a09dcc-b332-7c01-acc8-0018bd53dc41",
+      "worktree": "worktrees/TS-080/tianshu-memory",
+      "branch": "work/ts-080",
       "evidence": [],
-      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人"
+      "scope_note": "规划/分配不等于业务已实现；工作者不得越过合同/共享文件负责人",
+      "model": "gpt-6-astra",
+      "thinking": "medium",
+      "baseline_commit": "575941ee12e2a7d6dbd3d3374e34866eb82006fb",
+      "thread_id": "01a09dcc-b332-7c01-acc8-0018bd53dc41",
+      "host_id": "local"
     },
     {
       "id": "TS-031",
