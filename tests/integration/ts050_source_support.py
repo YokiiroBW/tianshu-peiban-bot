@@ -308,7 +308,8 @@ class SourceChain(unittest.IsolatedAsyncioTestCase):
                 "--tls-key",
                 str(self.key),
             ],
-            cwd=RUNTIME / "sources/model-gateway",
+            cwd=Path(os.environ.get("TS050_SNAPSHOT_ROOT", str(RUNTIME / "sources")))
+            / "model-gateway",
             env=env,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -703,9 +704,15 @@ class SourceChain(unittest.IsolatedAsyncioTestCase):
                         "scope",
                         "sequence",
                         "phase",
+                        "delivery_state",
                         "failure",
                         "model_calls",
                         "scope_version",
+                        "timings",
+                        "bootstrap_mapping",
+                        "bootstrap_until",
+                        "source_deadline",
+                        "route_receipt",
                         "bundle",
                         "short_context",
                     )
@@ -725,6 +732,50 @@ class SourceChain(unittest.IsolatedAsyncioTestCase):
     async def wait_commits(self, count):
         await self.eventually(lambda: len(self.commits()) >= count)
         return self.commits()
+
+    def assert_sent_commits(self, commits):
+        """Memory accepts real failed-input events too; a consume receipt is not a sent turn."""
+        for commit in commits:
+            turn = self.core.store.get("turns", commit["request"]["aggregate_id"])
+            diagnostic = {
+                key: turn.get(key)
+                for key in (
+                    "id",
+                    "sequence",
+                    "phase",
+                    "delivery_state",
+                    "failure",
+                    "model_calls",
+                    "scope_version",
+                    "timings",
+                    "bootstrap_mapping",
+                    "bootstrap_until",
+                    "source_deadline",
+                )
+            }
+            diagnostic["committed_delivery"] = commit["request"]["delivery_state"]
+            diagnostic["recent_transport"] = self.trace.get("memory_transport", [])[-12:]
+            diagnostic["recent_http"] = [
+                {
+                    "owner": r["owner"],
+                    "path": r["path"],
+                    "status": r["status"],
+                    "request_id": (r["response"] or {}).get("request_id"),
+                    "error": (r["response"] or {}).get("code"),
+                }
+                for r in self.wire[-12:]
+            ]
+            self.assertEqual(
+                (
+                    turn["phase"],
+                    turn["delivery_state"],
+                    turn["model_calls"],
+                    commit["request"]["delivery_state"],
+                ),
+                ("sent", "sent", 1, "sent"),
+                "Expected successful generation and delivery, not merely input consumption: "
+                + json.dumps(diagnostic, ensure_ascii=False),
+            )
 
     def commits(self):
         events = {}

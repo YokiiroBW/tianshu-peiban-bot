@@ -130,7 +130,11 @@ def prepare():
     print(f"Prepared pinned snapshots and runtime requirements in {RUNTIME}")
 
 
-def run(pattern="test_ts050_source*.py"):
+def run(pattern="test_ts050_source*.py", run_directory=None):
+    output = RUNTIME if run_directory is None else Path(run_directory).resolve()
+    if not output.resolve().is_relative_to((ROOT / ".runtime").resolve()):
+        raise SystemExit("Run output must remain in the allocated task runtime")
+    output.mkdir(parents=True, exist_ok=True)
     _, _, products = verify_inputs()
     verify_snapshots(products)
     from packaging.requirements import Requirement
@@ -151,7 +155,8 @@ def run(pattern="test_ts050_source*.py"):
         os.environ,
         PYTHONDONTWRITEBYTECODE="1",
         PYTHONIOENCODING="utf-8",
-        TS050_RUNTIME=str(RUNTIME),
+        TS050_RUNTIME=str(output),
+        TS050_SNAPSHOT_ROOT=str(RUNTIME / "sources"),
         TS050_CONTRACTS=inputs["contract"],
     )
     source = RUNTIME / "sources"
@@ -185,7 +190,7 @@ def run(pattern="test_ts050_source*.py"):
         text=True,
         encoding="utf-8",
     )
-    (RUNTIME / "unittest.txt").write_text(result.stdout + result.stderr, "utf-8")
+    (output / "unittest.txt").write_text(result.stdout + result.stderr, "utf-8")
     print(result.stdout, end="")
     print(result.stderr, end="", file=sys.stderr)
     verify_inputs()
@@ -203,7 +208,7 @@ def run(pattern="test_ts050_source*.py"):
         },
         "manifest_sha256": MANIFEST,
         "test_exit_code": result.returncode,
-        "slice": "real_source_sync",
+        "slice": "real_source_sync" if run_directory is None else "isolated_diagnostic",
         "source_manifest_sha256": SOURCE_MANIFEST,
         "profile_manifest_sha256": PROFILE_MANIFEST,
         "test_pattern": pattern,
@@ -213,7 +218,7 @@ def run(pattern="test_ts050_source*.py"):
         ],
         "classification": "partial_not_full_L0",
     }
-    (RUNTIME / "environment.json").write_text(json.dumps(environment, indent=2) + "\n", "utf-8")
+    (output / "environment.json").write_text(json.dumps(environment, indent=2) + "\n", "utf-8")
     return result.returncode
 
 
@@ -269,8 +274,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("prepare", "run"))
     parser.add_argument("--pattern", default="test_ts050_source*.py")
+    parser.add_argument("--run-dir")
     args = parser.parse_args()
     if args.action == "prepare":
         prepare()
     else:
-        raise SystemExit(run(args.pattern))
+        raise SystemExit(run(args.pattern, args.run_dir))

@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import time
 
 from ts050_source_support import SourceChain
 
@@ -52,6 +53,33 @@ class OrderedSourceChain(SourceChain):
 class DebouncedSourceChain(SourceChain):
     silence_ms = 5000
 
+    async def asyncSetUp(self):
+        await super().asyncSetUp()
+        events = self.trace["memory_transport"] = []
+
+        async def request_hook(request):
+            body = json.loads(request.content) if request.content else {}
+            envelope = body.get("query", body.get("command", body))
+            request_id = envelope.get("request_id", body.get("event_id"))
+
+            async def trace(name, info):
+                record = {
+                    "request_id": request_id,
+                    "path": request.url.path,
+                    "event": name,
+                    "at": time.monotonic(),
+                }
+                error = info.get("exception")
+                if error is not None:
+                    record.update(exception_type=type(error).__name__, exception=str(error))
+                if name == "http11.receive_response_headers.complete":
+                    record["http_status"] = info["return_value"][1]
+                events.append(record)  # Passive only: no delay, retry, socket or payload change.
+
+            request.extensions["trace"] = trace
+
+        self.core.memory.client.client.event_hooks["request"].append(request_hook)
+
     async def test_w5_short_sentences_and_ordinary_name_followup(self):
         first = await self.submit(self.physical("我叫", "short-1"))
         await asyncio.sleep(0.2)
@@ -60,14 +88,17 @@ class DebouncedSourceChain(SourceChain):
         self.assertEqual(a["collection_id"], b["collection_id"])
         self.assertEqual(self.core.store.list("turns"), [])
         self.assertEqual(len(self.model_requests), 0)
-        await self.wait_commits(1)
+        self.assert_sent_commits(await self.wait_commits(1))
         turn = self.core.store.list("turns")[0]
         self.assertEqual(turn["bundle"]["close_reason"], "silence")
         self.assertEqual(
             [m["parts"][0]["text"] for m in turn["bundle"]["messages"]], ["我叫", "小明。"]
         )
         await self.submit(self.physical("我叫什么？", "name-followup"))
-        await self.wait_commits(2)
+        self.assert_sent_commits(await self.wait_commits(2))
+        self.assertEqual(
+            len(self.model_requests), 2, "Two successful turns require two model requests"
+        )
         prompt = json.loads(self.model_requests[1]["body"]["messages"][-1]["content"])
         self.assertTrue(prompt["recent_dialogue"])
         recent = json.dumps(prompt["recent_dialogue"], ensure_ascii=False)
