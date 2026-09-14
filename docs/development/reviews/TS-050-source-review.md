@@ -1,0 +1,9 @@
+# TS-050 source-sync增量协调复核
+
+2026-09-14，待审提交479f45b9b18c22467590a27f6c1bd427d1e8d348，暂不合入。
+
+独立只读审查未发现测试替身冒充来源、跨产品SQL写或凭据泄漏；实际召回进入模型请求与P/A失效有对应断言。原提交10项两批通过报告及轨迹保持不变，不混同此次协调复跑。
+
+协调完整复跑10项（67.999秒）得到9通过/1错误：test_w5_short_sentences_and_ordinary_name_followup在读取model_requests[1]时IndexError。失败轨迹表明第二轮phase=failed、failure=dependency_unavailable、model_calls=0，后续后台check修补版本并被Memory作为failed事件接受；因此wait_commits(2)不证明两轮成功。需要定位真实失败源及增加明确成功/诊断断言，不仅放宽等待或重跑掩盖。
+
+此次运行覆盖任务.runtime的原始结果，已通知工作者独立保留失败日志/结果。Git内旧轨迹未改。TS-050继续诊断，仅允许测试/证据修改；如需产品修复由协调另派。TS-034遗忘确认/画像批准、TS-062资产只读服务方案并行，均Astra medium。

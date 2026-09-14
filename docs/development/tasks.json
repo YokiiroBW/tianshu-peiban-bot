@@ -369,7 +369,8 @@
       "branch": "work/ts-050",
       "evidence": [
         "docs/development/reviews/TS-050-partial-accepted.md",
-        "docs/development/reviews/TS-050-tls-accepted.md"
+        "docs/development/reviews/TS-050-tls-accepted.md",
+        "docs/development/reviews/TS-050-source-review.md"
       ],
       "scope_note": "三产品已集成，固定新快照做真实HTTPS/SourceAuthority联合验收；历史partial证据保留，未通过前不放行后继。",
       "contract_binding": {
@@ -385,7 +386,8 @@
       "blocked_reason": "真实来源事实、Memory来源同步/失效与确认/候选端口缺失；局部8场景通过，不是完整L0",
       "tls_evidence_commit": "3c4e5920af8b3c5f236c2e8959cfadb8154bda6d",
       "model": "gpt-6-astra",
-      "thinking": "medium"
+      "thinking": "medium",
+      "review_note": "479f45b协调10项复跑9通过/1W5续问dependency_unavailable，待定位，暂未合入。"
     },
     {
       "id": "TS-051",
