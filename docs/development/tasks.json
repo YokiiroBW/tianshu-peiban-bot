@@ -1011,6 +1011,34 @@
       "thread_id": "01a09dc5-e996-78a2-ad2c-14a0e104adb0",
       "host_id": "local",
       "integrated_commit": "195511ed055eaa6fce150dc245ce2a0e68a4d6c5"
+    },
+    {
+      "id": "TS-042",
+      "title": "Responses原生协议扩展与网关传输",
+      "project": "model-gateway",
+      "depends_on": [
+        "TS-041",
+        "TS-040"
+      ],
+      "status": "in_progress",
+      "allowed_paths": [
+        "src/",
+        "tests/",
+        "docs/",
+        "AGENTS.md",
+        "README.md"
+      ],
+      "done_when": "先提出兼容新模型协议合同并经协调发布，再实现Responses原生字节/SSE转发、诊断与明确状态引用边界；旧Chat链不退化，未支持能力明确拒绝。",
+      "scope_note": "现text合同protocol为Chat常量，禁止私改旧wire或以Chat假标Responses；可独立完成候选/内部传输，公开route待正式合同。",
+      "assignee": "01a09df2-1386-7d11-8af3-4d314fbf044e",
+      "worktree": "worktrees/TS-042/tianshu-model-gateway",
+      "branch": "work/ts-042",
+      "evidence": [],
+      "model": "gpt-6-astra",
+      "thinking": "medium",
+      "baseline_commit": "b3b101faf3902f05d80818b39fe7c91367865d4e",
+      "thread_id": "01a09df2-1386-7d11-8af3-4d314fbf044e",
+      "host_id": "local"
     }
   ],
   "dispatch_defaults": {

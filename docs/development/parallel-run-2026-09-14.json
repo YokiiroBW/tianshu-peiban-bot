@@ -200,6 +200,14 @@
       "status": "in_progress",
       "model": "gpt-6-astra",
       "thinking": "medium"
+    },
+    {
+      "id": "TS-042",
+      "threadId": "01a09df2-1386-7d11-8af3-4d314fbf044e",
+      "hostId": "local",
+      "status": "in_progress",
+      "model": "gpt-6-astra",
+      "thinking": "medium"
     }
   ],
   "scope": "实际开发已授权；每个任务只写已分配 worktree，完成后回报协调者审查"
