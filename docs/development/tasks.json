@@ -936,11 +936,72 @@
       "thread_id": "01a09d99-8a27-7010-9802-f7213bdca45f",
       "host_id": "local",
       "integrated_commit": "f4dac458d4a158e2087adad621bb6a7a91d75630"
+    },
+    {
+      "id": "TS-014",
+      "title": "网页登录与真实对话控制台",
+      "project": "platform",
+      "depends_on": [
+        "TS-010",
+        "TS-013",
+        "TS-022",
+        "TS-023"
+      ],
+      "status": "in_progress",
+      "allowed_paths": [
+        "services/",
+        "apps/web/",
+        "tests/",
+        "docs/",
+        "AGENTS.md",
+        "README.md"
+      ],
+      "done_when": "真实本地管理员会话/CSRF、同源对话入口与现有Core/source认证接线，页面消息/处理中/错误/取消/重连状态真实；沿现有视觉系统，桌面移动端验收。",
+      "scope_note": "Platform唯一前后端负责人。复用已集成协议，无服务secret入浏览器；Core缺必要公开查询/发送桥先提最小接口候选，不能跨库读/伪造回复。模型未配置显示不可用。",
+      "assignee": "01a09dc5-e6b3-7ca1-920f-7456cfc320c4",
+      "worktree": "worktrees/TS-014/tianshu-platform",
+      "branch": "work/ts-014",
+      "evidence": [],
+      "model": "gpt-6-astra",
+      "thinking": "medium",
+      "baseline_commit": "f4dac458d4a158e2087adad621bb6a7a91d75630",
+      "thread_id": "01a09dc5-e6b3-7ca1-920f-7456cfc320c4",
+      "host_id": "local"
+    },
+    {
+      "id": "TS-071",
+      "title": "角色共享世界日程与日记草稿核心",
+      "project": "companion",
+      "depends_on": [
+        "TS-022",
+        "TS-023",
+        "TS-011"
+      ],
+      "status": "in_progress",
+      "allowed_paths": [
+        "src/",
+        "tests/",
+        "docs/",
+        "AGENTS.md",
+        "README.md"
+      ],
+      "done_when": "持久共享世界/房间与各角色生活状态、时间驱动日程和手动保持、有限获知及受约束日记草稿/版本；重启幂等和虚构/真实边界，模型未配不伪造。",
+      "scope_note": "与TS070最终贯通分开，此任务内部生活功能独立于尚待收尾L0。只改Core，外部UI/图片/记忆写入需既有合同或提交候选，不能假接服务。",
+      "assignee": "01a09dc5-e996-78a2-ad2c-14a0e104adb0",
+      "worktree": "worktrees/TS-071/tianshu-companion",
+      "branch": "work/ts-071",
+      "evidence": [],
+      "model": "gpt-6-astra",
+      "thinking": "medium",
+      "baseline_commit": "4f22c031deb2d193ca66c73ef7c5a41da3872fc6",
+      "thread_id": "01a09dc5-e996-78a2-ad2c-14a0e104adb0",
+      "host_id": "local"
     }
   ],
   "dispatch_defaults": {
     "model": "gpt-6-astra",
     "thinking": "medium",
     "source": "User explicitly requested Astra medium; do not use xhigh."
-  }
+  },
+  "verification_cadence": "用户要求2026-09-14：按完整功能块稳定、共享边界变更或合入前必要性集中验证；不逐文件/微改动跑测试，不重复输入未变的成功检查。"
 }
