@@ -1,6 +1,6 @@
 {
-  "schema_version": "1.1.0",
-  "release_id": "tianshu-wave3-candidate-20260922",
+  "schema_version": "1.0.0",
+  "release_id": "tianshu-wave2-candidate-20260922",
   "status": "candidate",
   "products": {
     "platform": {
@@ -528,61 +528,6 @@
       "backup_group": "memory",
       "mount": false,
       "kind": "file"
-    },
-    {
-      "id": "obs-vector-state",
-      "product": "observability",
-      "category": "observability_state",
-      "host_path": "observability/data/vector",
-      "container_path": "/var/lib/vector",
-      "owner_service": "obs-vector",
-      "backup_group": "obs-vector",
-      "mount": true,
-      "kind": "directory"
-    },
-    {
-      "id": "obs-loki-state",
-      "product": "observability",
-      "category": "observability_state",
-      "host_path": "observability/data/loki",
-      "container_path": "/var/lib/loki",
-      "owner_service": "obs-loki",
-      "backup_group": "obs-loki",
-      "mount": true,
-      "kind": "directory"
-    },
-    {
-      "id": "obs-grafana-state",
-      "product": "observability",
-      "category": "observability_state",
-      "host_path": "observability/data/grafana",
-      "container_path": "/var/lib/grafana",
-      "owner_service": "obs-grafana",
-      "backup_group": "obs-grafana",
-      "mount": true,
-      "kind": "directory"
-    },
-    {
-      "id": "obs-prometheus-state",
-      "product": "observability",
-      "category": "observability_state",
-      "host_path": "observability/data/prometheus",
-      "container_path": "/var/lib/prometheus",
-      "owner_service": "obs-prometheus",
-      "backup_group": "obs-prometheus",
-      "mount": true,
-      "kind": "directory"
-    },
-    {
-      "id": "obs-guard-state",
-      "product": "observability",
-      "category": "observability_state",
-      "host_path": "observability/data/guard",
-      "container_path": "/var/lib/guard",
-      "owner_service": "obs-guard",
-      "backup_group": "obs-guard",
-      "mount": true,
-      "kind": "directory"
     }
   ],
   "services": [
@@ -633,66 +578,6 @@
         "gateway.internal"
       ],
       "config_path": "config/gateway/settings.json"
-    },
-    {
-      "id": "obs-vector",
-      "product": "observability",
-      "role": "logging_vector",
-      "port": 8686,
-      "replicas": 1,
-      "hostname": "obs-vector",
-      "tls_server_names": [
-        "obs-vector"
-      ],
-      "config_path": "observability/config/vector.json"
-    },
-    {
-      "id": "obs-loki",
-      "product": "observability",
-      "role": "logging_loki",
-      "port": 3100,
-      "replicas": 1,
-      "hostname": "obs-loki",
-      "tls_server_names": [
-        "obs-loki"
-      ],
-      "config_path": "observability/config/loki.json"
-    },
-    {
-      "id": "obs-grafana",
-      "product": "observability",
-      "role": "logging_grafana",
-      "port": 3000,
-      "replicas": 1,
-      "hostname": "logs.internal",
-      "tls_server_names": [
-        "logs.internal"
-      ],
-      "config_path": "observability/config/provisioning"
-    },
-    {
-      "id": "obs-prometheus",
-      "product": "observability",
-      "role": "logging_prometheus",
-      "port": 9090,
-      "replicas": 1,
-      "hostname": "obs-prometheus",
-      "tls_server_names": [
-        "obs-prometheus"
-      ],
-      "config_path": "observability/config/prometheus.json"
-    },
-    {
-      "id": "obs-guard",
-      "product": "observability",
-      "role": "logging_guard",
-      "port": 8443,
-      "replicas": 1,
-      "hostname": "obs-guard",
-      "tls_server_names": [
-        "obs-guard"
-      ],
-      "config_path": "observability/config/guard.json"
     }
   ],
   "blockers": [
@@ -706,14 +591,5 @@
     "model_origin_bootstrap_unverified",
     "real_restore_lifecycle_unverified"
   ],
-  "evidence": [],
-  "observability": {
-    "source": {
-      "repo": "tianshu-peiban-bot",
-      "commit": "668d69e2c52ea55d9b1f102426196a5286c57bc5"
-    },
-    "package_path": "deploy/observability",
-    "output_relative": "observability",
-    "compose_project_suffix": "-obs"
-  }
+  "evidence": []
 }

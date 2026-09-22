@@ -113,6 +113,9 @@ def load_manifest(path):
     schema = read_json(HERE / "release-manifest.schema.json")
     validator = Draft202012Validator(schema)
     require(not list(validator.iter_errors(document)), "manifest_schema_invalid")
+    from observability_contract import validate
+
+    validate(document)
     for field in ("services", "volumes", "contracts", "features"):
         values = [item["id"] for item in document[field]]
         require(len(values) == len(set(values)), "duplicate_manifest_id")
@@ -138,7 +141,7 @@ def load_manifest(path):
         if volume["mount"]:
             require(
                 volume["kind"] == "directory"
-                and volume["category"] in {"state", "logs"},
+                and volume["category"] in {"state", "logs", "observability_state"},
                 "invalid_physical_mount",
             )
         else:
