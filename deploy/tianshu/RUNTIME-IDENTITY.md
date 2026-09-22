@@ -30,6 +30,11 @@ DEP-I/J 必须校验本文件绑定的固定 Git 提交及报告原字节 SHA256
   image_id 是 Docker 本地配置 ID `sha256:...`，绝不能填入 release image digest。
   repo_digests 只接受 Docker inspect 实际返回的 repository@sha256:...，空数组合法且明确
   表示无 registry digest 证据；platform 观测值必须 linux/amd64。uid/gid 是实际容器进程验证值。
+  `status` 专指容器运行身份：允许 not_observed 且 image_id/repo_digests/platform 已有值，
+  表示只执行了本机 Docker image inspect，此时 uid/gid/container_id 仍为 null。
+  执行报告 `image_<service>` 步骤记录成功与否，并以 `runtime_identity_sha256` 绑定本文件原字节。
+  配置了日志栈时 G 仅 inspect 五个日志镜像，不启动这些容器、不隐式拉取；本机无镜像则失败，
+  协调者可在明确隔离执行计划内先准备镜像。I 不得猜补 ID。
 - `mounts`: 原清单所有 mount=true 项，每项 `id`, `host_path`（绝对）、`container_path`,
   `owner_service`, `backup_group`, `uid`, `gid`。uid/gid 为 Linux stat 观测；未执行为 null。
   五个观测卷及其 owner/backup_group 完全沿用 VOLUME-INTERFACE.md；只读消费者不是 owner。
@@ -52,3 +57,7 @@ G/I/J 共同锁只有 `<deployment_root>/.runtime-owner.lock`。调用
 不可阻塞等待、不可 unlink/替换锁文件；退出/崩溃由内核释放。锁覆盖检查、写入、启动、
 停止及证据落盘整个操作。取得锁不代表启动许可；I 必须先确认四应用 owner 均已停止
 才可写合成日志，J 必须确认九 owner 正常停写。不得为每个执行器另取不同锁。
+
+为配合 J，可将新部署直接初始化到显式新 synthetic scope 的 `deployments/<source>`。
+root 必须是全新目录，project_name 仍为 tianshu-qa-*。G 不移动现有部署；J 的独立
+prepare 登记负责恢复库存和 authority 证据，本身份生成器继续保留 null。
