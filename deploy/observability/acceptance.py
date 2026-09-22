@@ -239,22 +239,37 @@ class LocalDocker:
         )
 
     @staticmethod
-    def raw(args):
+    def raw(args, timeout=180):
         proc = subprocess.run(
-            ["docker", *args], capture_output=True, timeout=180, check=False
+            ["docker", *args], capture_output=True, timeout=timeout, check=False
         )
         require(proc.returncode == 0, "docker_command_failed")
         return proc.stdout
 
-    def call(self, args):
-        return self.raw(["--host", self.endpoint, *args])
+    def call(self, args, timeout=180):
+        return self.raw(["--host", self.endpoint, *args], timeout=timeout)
 
     def compose(self, root, project, *args):
         require(re.fullmatch(r"[a-z0-9][a-z0-9_-]{1,62}", project), "invalid_project")
         require(
-            args and args[0] in {"up", "stop", "start", "ps", "config", "exec"},
+            args and args[0] in {"up", "ps", "config", "exec"},
             "compose_action_refused",
         )
+        if args[0] == "up":
+            require(
+                "--no-recreate" in args
+                and not any(
+                    flag in args
+                    for flag in (
+                        "--force-recreate",
+                        "--always-recreate-deps",
+                        "--renew-anon-volumes",
+                        "--remove-orphans",
+                        "-V",
+                    )
+                ),
+                "implicit_recreate_refused",
+            )
         return self.call(
             [
                 "compose",

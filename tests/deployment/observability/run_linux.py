@@ -6,7 +6,8 @@ from pathlib import Path
 import re
 
 import helpers  # noqa: F401
-from acceptance import DIMENSIONS, Evidence, LocalDocker, require, sha
+from acceptance import DIMENSIONS, Evidence, LocalDocker, sha
+from container_lifecycle import OwnedContainers
 from runtime_binding import Binding, INTERFACE_COMMIT, lifecycle_lease, load_identity
 
 
@@ -67,19 +68,24 @@ def main(argv=None):
             binding = Binding(document)
             facts = binding.preflight(docker)
             artifact = evidence.artifact("preflight.json", facts)
+            lifecycle = OwnedContainers(docker, binding, evidence)
             started = False
             try:
                 # Set before issuing command so partial starts are stopped on error.
                 started = True
-                docker.compose(
-                    binding.obs_root,
-                    binding.obs_project,
-                    "up",
-                    "-d",
-                    "--pull",
-                    "never",
-                    "--no-build",
-                )
+                try:
+                    docker.compose(
+                        binding.obs_root,
+                        binding.obs_project,
+                        "up",
+                        "-d",
+                        "--pull",
+                        "never",
+                        "--no-build",
+                        "--no-recreate",
+                    )
+                finally:
+                    lifecycle.capture_initial()
                 running = evidence.artifact(
                     "running-owners.json", binding.running(docker)
                 )
@@ -88,7 +94,7 @@ def main(argv=None):
                 )
                 from linux_scenarios import Scenarios
 
-                scenarios = Scenarios(docker, binding, evidence)
+                scenarios = Scenarios(docker, binding, evidence, lifecycle)
                 try:
                     scenarios.run()
                     if args.bounded_tmpfs_probe:
@@ -105,52 +111,8 @@ def main(argv=None):
                     "no_application_reclamation_contract_preserve_sources_and_stop_admission_at_budget",
                 )
             finally:
-                if started:
-                    # Recheck labels before touching the pinned project; no down/rm/kill.
-                    rows = binding.containers(docker, binding.obs_project)
-                    for row in rows:
-                        owner = row["Config"]["Labels"].get(
-                            "com.docker.compose.service"
-                        )
-                        require(
-                            owner in binding.stack["services"], "stop_owner_mismatch"
-                        )
-                        binding.check_container(
-                            row,
-                            binding.obs_project,
-                            owner,
-                            binding.stack["services"][owner],
-                        )
-                    docker.compose(
-                        binding.obs_root, binding.obs_project, "stop", "--timeout", "30"
-                    )
-                    stopped = binding.containers(docker, binding.obs_project)
-                    require(
-                        all(not r["State"]["Running"] for r in stopped),
-                        "stop_unconfirmed",
-                    )
-                    evidence.artifact(
-                        "stopped-owners.json",
-                        [
-                            {
-                                "owner": r["Config"]["Labels"][
-                                    "com.docker.compose.service"
-                                ],
-                                "container_id": r["Id"],
-                                "exit_code": r["State"].get("ExitCode"),
-                                "oom_killed": r["State"].get("OOMKilled"),
-                            }
-                            for r in stopped
-                        ],
-                    )
-                    require(
-                        all(
-                            r["State"].get("ExitCode") != 137
-                            and not r["State"].get("OOMKilled")
-                            for r in stopped
-                        ),
-                        "forced_or_oom_stop_not_accepted",
-                    )
+                if started and lifecycle.pins:
+                    lifecycle.stop(tuple(lifecycle.pins), cleanup=True)
     except Exception as exc:
         reason = (
             str(exc)

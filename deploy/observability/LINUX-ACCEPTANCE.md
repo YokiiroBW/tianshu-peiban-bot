@@ -53,8 +53,18 @@ python tests/deployment/observability/check_linux_evidence.py /explicit/new/evid
 G/I/J共用 `<deployment_root>/.runtime-owner.lock` 的非阻塞flock，覆盖检查到最终证据落盘，
 不unlink或替换锁。逐字节复核清单、inventory、两个Compose、配置、词汇与合同；实际inspect
 复核完整bind挂载、只读权限、容器标签、镜像ID、进程UID/GID。其他容器绑定scope或其父目录即拒绝。
-只控制obs五owner；不start/stop core，不使用down、rm、prune或全局kill。
-最终stop保留退出码/OOM，137或OOM不验收；其他退出码也不宣称九writer正常停写/可备份。
+只控制obs五owner；不start/stop core，不使用compose stop/restart、强制recreate、prune或SIGKILL。
+初次up（含部分失败）固定每个实际容器ID；后续停写逐次核owner/ID/镜像/挂载，先按固定ID
+`docker update --restart=no`并inspect确认，再仅发`docker kill --signal TERM <ID>`。
+此命令只发送SIGTERM，不是默认SIGKILL。每次同一30秒截止涵盖命令及poll，不自动升级强杀；
+信号结果未知也不自动重发。所有终态必须exited、Running=false、ExitCode=0、无OOM/Error且restart=no；
+143/2/137均失败，不能留下partial成功。每次保存信号尝试/结果及全部观测退出事实。
+Vector只有严格确认正常退出后才允许`docker rm <固定ID>`（无force、无-v），接着
+`compose up --no-recreate --no-build --pull never --no-deps obs-vector`创建；不删卷或源段。
+若删除前被并发启动，无强制rm会拒绝；其他ID、镜像变化或未知结果均停止后续重建。
+这仍不宣称九writer正常停写/可备份。Docker信号语义参见
+[kill文档](https://docs.docker.com/reference/cli/docker/container/kill/)和
+[stop的隐式SIGKILL行为](https://docs.docker.com/reference/cli/docker/container/stop/)。
 
 本轮经协调授权补guard正常关停：SIGTERM/SIGINT处理器只置标志，主生命周期停止准入、
 取消网络等待，再以同一10秒预算join监听/monitor/全部HTTP线程；owner完成后才close backend。

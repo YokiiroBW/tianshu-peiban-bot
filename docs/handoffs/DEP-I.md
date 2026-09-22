@@ -1,5 +1,30 @@
 # DEP-I：完整日志链执行入口与守卫正常关停
 
+## R1关停证据窄修（本次最新交付）
+
+返修基线 `345cdea93611b354ad29ea43584c3f3e5e533a19`，该首验未集成。
+以下原交付记录保留为历史；本节覆盖原compose stop/force-recreate及非0退出判定。
+
+新增统一 `deploy/observability/container_lifecycle.py`：初次up后（即使部分失败）固定真实ID，
+每次按owner/ID/镜像/挂载复核；固定ID禁用自动重启并inspect确认，只发显式SIGTERM，
+以同一30秒总预算执行命令和poll，不升级SIGKILL，不重复结果未知的信号。
+严格仅exited/Running=false/ExitCode=0/无OOM或Error/restart=no确认正常，143/2/137均拒绝。
+每次记录完整退出观察和信号尝试，异常/超时阻断后续start/recreate；最终guard exit2使CLI返回1、report failed。
+Vector重建改为正常退出后无force且无-v的固定ID rm，再up --no-recreate；不删除源段/卷。
+部分重建失败捕获新ID供同样的TERM清理，不能用compose隐式关停回退。
+原守卫线程/请求期限实现未改，不重复未变的94秒期限回归。
+
+实际R1验证：新增11项Docker协议替身0skip通过（0.154s），覆盖0、143/2/137、超时、
+ID/镜像替换、部分启动/重建、未知信号不重发、禁止隐式kill命令及最终guard exit2不留partial。
+相关原边界13项为12过/真实Linux flock 1skip（0.069s）；Ruff通过。
+首轮新测试唯一失败是浮点截止0.050000000046秒与精确0.05比较，测试容差改1ms后通过；
+没有放宽生产截止或退出码判断。真实Linux/Docker停写仍未执行，不冒充协议替身为容器证明。
+新增R1证据见 `tests/deployment/observability/evidence/dep-i-r1/`，包括实际替身逐步commands/
+signal/exit事实、正常与143/2/137/超时结果，以及新plan与Windows拒绝报告。
+原345cdea及DEP-B所有证据不改写。固定返修HEAD另发协调，提交后再次停写。
+交付前已逐字节核对原39个证据文件未变，新7个R1报告artifact hash全部校验通过；
+完整diff与白名单已复核，未改产品、根板、G/J入口或共享合同。
+
 ## 目标、范围与固定依赖
 
 根基线 `eced6de3ed0e2292d8c767d9f37fea36d0e04476`。

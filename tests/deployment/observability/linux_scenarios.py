@@ -23,8 +23,9 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 class Scenarios:
-    def __init__(self, docker, binding, evidence):
+    def __init__(self, docker, binding, evidence, lifecycle):
         self.docker, self.binding, self.evidence = docker, binding, evidence
+        self.lifecycle = lifecycle
         self.root, self.project = binding.obs_root, binding.obs_project
         self.policy = Policy(binding.snapshot)
         self.client = LokiClient(
@@ -45,8 +46,7 @@ class Scenarios:
         )
 
     def dc(self, *args):
-        if args and args[0] == "up":
-            args = ("up", "--pull", "never", "--no-build", *args[1:])
+        require(args and args[0] == "exec", "scenario_lifecycle_bypass_refused")
         return self.docker.compose(self.root, self.project, *args)
 
     def api(self, path, method="GET", data=None, auth=True, viewer=False):
@@ -251,7 +251,7 @@ class Scenarios:
         self.batch()
         self.reconcile("numbered_collection")
         self.current_case = "storage_outage_disk_buffer"
-        self.dc("stop", "obs-loki")
+        self.lifecycle.stop(["obs-loki"])
         self.batch()
         buffered = self.wait(
             lambda: (
@@ -280,16 +280,16 @@ class Scenarios:
             "storage_outage_disk_buffer", "passed", artifacts=[artifact]
         )
         self.current_case = "reconnect_replay"
-        self.dc("up", "-d", "--no-deps", "--force-recreate", "obs-vector")
-        self.dc("start", "obs-loki")
+        self.lifecycle.recreate_vector()
+        self.lifecycle.start("obs-loki")
         self.reconcile("reconnect_replay")
         self.current_case = "collector_recreate_rotation"
-        self.dc("stop", "obs-vector")
+        self.lifecycle.stop(["obs-vector"])
         for directory in self.binding.logs.values():
             require(not (directory / "depi.jsonl.1").exists(), "rotation_target_exists")
             (directory / "depi.jsonl").rename(directory / "depi.jsonl.1")
         self.batch()
-        self.dc("up", "-d", "--no-deps", "--force-recreate", "obs-vector")
+        self.lifecycle.recreate_vector()
         self.reconcile("collector_recreate_rotation")
 
     def canary(self):
