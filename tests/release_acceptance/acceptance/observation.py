@@ -7,7 +7,7 @@ from .evidence import canonical, digest, utc
 from .inputs import ROLES, require
 from .health import validate_ready
 from .suite import env_value
-from .transport import Client
+from .transport import Client, deadline_scope
 
 
 def observe(config, report, directory, duration=86400, interval=30):
@@ -35,26 +35,36 @@ def observe(config, report, directory, duration=86400, interval=30):
         "0" * 64,
     )
     interrupted = False
+    finish = start + duration
+    next_sample = start
     with path.open("x", encoding="utf-8", newline="\n") as stream:
         try:
-            while True:
+            while next_sample < finish:
+                # sleep() and monotonic() may have different resolutions. Wait
+                # for the scheduled instant, so early wakeups cannot add a final
+                # probe with only a few milliseconds left in the total budget.
+                while (pause := next_sample - time.monotonic()) > 0:
+                    time.sleep(pause)
                 sample_start = time.monotonic()
+                if sample_start >= finish:
+                    break
                 age = sample_start - start
                 gap = sample_start - last if last is not None else 0
                 last, max_gap = sample_start, max(max_gap, gap)
                 health = {}
-                for role, client in clients.items():
-                    try:
-                        status, body = client.request(
-                            "GET",
-                            "/health/ready",
-                            headers={"Authorization": "Bearer " + tokens[role]},
-                        )
-                        validate_ready(role, status, body)
-                        health[role] = "ready"
-                    except Exception:
-                        health[role] = "failed"
-                        failures += 1
+                with deadline_scope(min(finish, sample_start + interval)):
+                    for role, client in clients.items():
+                        try:
+                            status, body = client.request(
+                                "GET",
+                                "/health/ready",
+                                headers={"Authorization": "Bearer " + tokens[role]},
+                            )
+                            validate_ready(role, status, body)
+                            health[role] = "ready"
+                        except Exception:
+                            health[role] = "failed"
+                            failures += 1
                 sample = {
                     "run_id": report.data["run_id"],
                     "sequence": count + 1,
@@ -71,9 +81,9 @@ def observe(config, report, directory, duration=86400, interval=30):
 
                 os.fsync(stream.fileno())
                 count += 1
-                if age >= duration:
-                    break
-                time.sleep(min(interval, max(0, duration - (time.monotonic() - start))))
+                next_sample = start + count * interval
+            while (pause := finish - time.monotonic()) > 0:
+                time.sleep(pause)
         except KeyboardInterrupt:
             interrupted = True
     elapsed = time.monotonic() - start

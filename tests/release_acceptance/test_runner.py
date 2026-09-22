@@ -1,11 +1,18 @@
 """Behavior tests; all writable fixtures are confined to this task's ignored directory."""
 
 import json
+import os
+import socketserver
+import ssl
 import subprocess
+import sys
 import tempfile
+import threading
+import time
 import unittest
 import uuid
 from pathlib import Path
+from unittest.mock import patch
 
 from acceptance.diagnostics import causal, validate_events
 from acceptance.evidence import Report, canonical, digest, read_json, verify_report
@@ -20,8 +27,16 @@ from acceptance.health import CHECKS, validate_ready
 from acceptance.catalog import literal_registry
 from acceptance.observation import observe
 from acceptance.suite import Suite, validate_config
-from acceptance.transport import Client, Failed, Missing, endpoint
-from fixtures import Harness
+from acceptance import transport
+from acceptance.transport import (
+    Adapter,
+    Client,
+    Failed,
+    Missing,
+    deadline_scope,
+    endpoint,
+)
+from fixtures import Harness, certificates
 
 ROOT = Path(__file__).resolve().parent
 RUNTIME = ROOT / ".runtime" / "unit"
@@ -59,6 +74,383 @@ class Base(unittest.TestCase):
 
     def harness(self, **kwargs):
         return self.enterContext(Harness(self.directory, binding(), **kwargs))
+
+
+class SlowWire:
+    """Real loopback bytes, with bounded test-owned server threads and no mocks of I/O."""
+
+    def __init__(self, directory, mode, tls=False):
+        self.mode, self.tls = mode, tls
+        self.stop = threading.Event()
+        self.connections = 0
+        self.context = None
+        if tls:
+            self.ca, key = certificates(directory)
+            self.context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            self.context.load_cert_chain(self.ca, key)
+
+    def __enter__(self):
+        owner = self
+
+        class Handler(socketserver.BaseRequestHandler):
+            def handle(self):
+                owner.connections += 1
+                sock = self.request
+                sock.settimeout(0.5)
+                try:
+                    if owner.mode == "stall_tls":
+                        owner.stop.wait(1)
+                        return
+                    if owner.context:
+                        sock = owner.context.wrap_socket(sock, server_side=True)
+                    request = bytearray()
+                    while b"\r\n\r\n" not in request and len(request) < 65536:
+                        chunk = sock.recv(4096)
+                        if not chunk:
+                            return
+                        request.extend(chunk)
+                    body = b'{"ok":true}'
+                    if owner.mode == "slow_header":
+                        sock.sendall(b"HTTP/1.1 200 OK\r\nX-Slow: ")
+                        for _ in range(40):
+                            if owner.stop.wait(0.04):
+                                return
+                            sock.sendall(b"a")
+                        sock.sendall(b"\r\n")
+                    else:
+                        sock.sendall(b"HTTP/1.1 200 OK\r\n")
+                    if owner.mode == "oversize":
+                        body = b"x" * (2 * transport.OUTPUT_LIMIT)
+                    sock.sendall(
+                        b"Content-Type: application/json\r\nContent-Length: "
+                        + str(len(body)).encode()
+                        + b"\r\n\r\n"
+                    )
+                    if owner.mode == "slow_body":
+                        for byte in body:
+                            sock.sendall(bytes([byte]))
+                            if owner.stop.wait(0.04):
+                                return
+                    else:
+                        if owner.mode == "delay_body" and owner.stop.wait(0.08):
+                            return
+                        sock.sendall(body)
+                except (OSError, ssl.SSLError):
+                    pass
+                finally:
+                    sock.close()
+
+        self.server = socketserver.ThreadingTCPServer(("127.0.0.1", 0), Handler)
+        self.thread = threading.Thread(
+            target=self.server.serve_forever, kwargs={"poll_interval": 0.01}
+        )
+        self.thread.start()
+        self.config = {
+            "url": f"{'https' if self.tls else 'http'}://127.0.0.1:{self.server.server_address[1]}",
+            "timeout_seconds": 0.1,
+        }
+        if self.tls:
+            self.config["ca_file"] = str(self.ca)
+        return self
+
+    def __exit__(self, *_):
+        self.stop.set()
+        self.server.shutdown()
+        self.server.server_close()  # joins every non-daemon request handler
+        self.thread.join(1)
+
+
+class TransportBudgetTests(Base):
+    def assert_drip_deadline(self, mode, tls=False):
+        with SlowWire(self.directory, mode, tls) as server:
+            opened = []
+            original = transport._DeadlineConnection.connect
+
+            def connect(connection):
+                original(connection)
+                opened.append(connection.sock.sock)
+
+            with patch.object(transport._DeadlineConnection, "connect", connect):
+                started = time.monotonic()
+                with self.assertRaisesRegex(Failed, "transport_deadline_exceeded"):
+                    Client(server.config, synthetic=True).request("GET", "/")
+                elapsed = time.monotonic() - started
+            self.assertGreaterEqual(elapsed, 0.07)
+            self.assertLess(elapsed, 0.3)
+            self.assertTrue(opened)
+            self.assertTrue(all(sock.fileno() == -1 for sock in opened))
+            self.evidence_facts = {
+                "request_timeout_seconds": 0.1,
+                "elapsed_seconds": round(elapsed, 6),
+                "request_attempts": server.connections,
+                "closed_client_connections": len(opened),
+            }
+
+    def test_real_slow_response_header_total_deadline(self):
+        self.assert_drip_deadline("slow_header")
+
+    def test_real_slow_response_body_total_deadline(self):
+        self.assert_drip_deadline("slow_body")
+
+    def test_real_tls_slow_body_total_deadline(self):
+        self.assert_drip_deadline("slow_body", tls=True)
+
+    def test_real_tls_handshake_is_in_request_deadline(self):
+        with SlowWire(self.directory, "stall_tls", tls=True) as server:
+            started = time.monotonic()
+            with self.assertRaisesRegex(Failed, "transport_deadline_exceeded"):
+                Client(server.config).request("GET", "/")
+            self.assertLess(time.monotonic() - started, 0.3)
+            self.evidence_facts = {
+                "request_timeout_seconds": 0.1,
+                "elapsed_seconds": round(time.monotonic() - started, 6),
+            }
+
+    def test_parent_deadline_is_not_refilled_by_second_request(self):
+        with SlowWire(self.directory, "delay_body") as server:
+            client = Client({**server.config, "timeout_seconds": 1}, True)
+            started = time.monotonic()
+            with deadline_scope(started + 0.13):
+                self.assertEqual(client.request("GET", "/")[0], 200)
+                with self.assertRaisesRegex(Failed, "transport_deadline_exceeded"):
+                    client.request("GET", "/")
+            self.assertLess(time.monotonic() - started, 0.3)
+            self.evidence_facts = {
+                "parent_budget_seconds": 0.13,
+                "elapsed_seconds": round(time.monotonic() - started, 6),
+                "request_attempts": server.connections,
+            }
+
+    def test_suite_case_budget_covers_multiple_requests(self):
+        with SlowWire(self.directory, "delay_body") as server:
+            suite = Suite(
+                {"runtime_kind": "synthetic", "case_timeout_seconds": 0.13},
+                binding(),
+                Report("local", binding(), "synthetic"),
+            )
+            client = Client({**server.config, "timeout_seconds": 1}, True)
+
+            def budget_probe():
+                client.request("GET", "/")
+                client.request("GET", "/")
+                return {}
+
+            suite.budget_probe = budget_probe
+            with patch("acceptance.suite.CASES", ("budget_probe",)):
+                suite.execute()
+            row = suite.report.data["results"][0]
+            self.assertEqual(row["code"], "transport_deadline_exceeded")
+            self.assertLess(row["duration_seconds"], 0.3)
+            self.evidence_facts = {
+                "case_budget_seconds": 0.13,
+                "elapsed_seconds": row["duration_seconds"],
+            }
+
+    def test_expired_fault_action_leaves_restore_time_inside_case_budget(self):
+        from types import SimpleNamespace
+
+        with SlowWire(self.directory, "slow_body") as server:
+            suite = Suite(
+                {"runtime_kind": "synthetic", "case_timeout_seconds": 0.2},
+                binding(),
+                Report("local", binding(), "synthetic"),
+            )
+            client = Client({**server.config, "timeout_seconds": 1}, True)
+            calls, restore_remaining, restore_deadlines = [], [], []
+
+            def control(operation, **arguments):
+                calls.append(arguments["enabled"])
+                if not arguments["enabled"]:
+                    restore_deadlines.append(transport._DEADLINE.get())
+                    restore_remaining.append(
+                        transport._remaining(transport._DEADLINE.get())
+                    )
+                return {"restored": True}
+
+            suite.adapter = SimpleNamespace(call=control)
+            started = time.monotonic()
+            with deadline_scope(started + 0.2):
+                with self.assertRaisesRegex(Failed, "transport_deadline_exceeded"):
+                    suite.with_fault("synthetic", lambda: client.request("GET", "/"))
+            self.assertEqual(calls, [True, False])
+            self.assertFalse(suite.stop_mutations)
+            self.assertGreater(restore_remaining[0], 0)
+            self.assertLessEqual(restore_deadlines[0], started + 0.2)
+            self.assertLess(time.monotonic() - started, 0.3)
+            self.evidence_facts = {
+                "case_budget_seconds": 0.2,
+                "elapsed_seconds": round(time.monotonic() - started, 6),
+                "restore_remaining_seconds": round(restore_remaining[0], 6),
+                "fault_restored": True,
+            }
+
+    def test_observation_does_not_restart_budget_for_each_service(self):
+        with SlowWire(self.directory, "slow_body") as server:
+            config = {
+                "runtime_kind": "synthetic",
+                "endpoints": {
+                    r: dict(
+                        server.config,
+                        timeout_seconds=1,
+                        diagnostics_token_env="DEP_D_BUDGET_TOKEN",
+                    )
+                    for r in ROLES
+                },
+            }
+            report = Report("local", binding(), "synthetic")
+            started = time.monotonic()
+            with patch.dict(os.environ, {"DEP_D_BUDGET_TOKEN": "synthetic-only"}):
+                observe(
+                    config,
+                    report,
+                    self.directory / "observation",
+                    duration=0.13,
+                    interval=1,
+                )
+            self.assertLess(time.monotonic() - started, 0.4)
+            self.assertEqual(server.connections, 1)
+            self.assertEqual(report.data["results"][0]["facts"]["probe_failures"], 4)
+            self.evidence_facts = {
+                "observation_budget_seconds": 0.13,
+                "elapsed_seconds": round(time.monotonic() - started, 6),
+                "request_attempts": server.connections,
+                "failed_probes": 4,
+            }
+
+    def test_http_body_limit_still_applies(self):
+        with SlowWire(self.directory, "oversize") as server:
+            with self.assertRaisesRegex(Failed, "response_budget_exceeded"):
+                Client({**server.config, "timeout_seconds": 1}, True).request(
+                    "GET", "/"
+                )
+
+    def command(self, source):
+        return Adapter(
+            {
+                "command": [sys.executable, "-B", "-c", source],
+                "cwd": str(self.directory),
+            },
+            True,
+        )
+
+    def track_processes(self):
+        processes, read_sizes = [], []
+        original_popen, original_read = subprocess.Popen, os.read
+        stdout_fds = set()
+
+        def popen(*args, **kwargs):
+            child = original_popen(*args, **kwargs)
+            processes.append(child)
+            stdout_fds.add(child.stdout.fileno())
+            return child
+
+        def read(fd, size):
+            data = original_read(fd, size)
+            if fd in stdout_fds:
+                read_sizes.append(len(data))
+            return data
+
+        self.enterContext(patch.object(transport.subprocess, "Popen", popen))
+        self.enterContext(patch.object(transport.os, "read", read))
+        return processes, read_sizes
+
+    def assert_reaped(self, children):
+        self.assertEqual(len(children), 1)
+        self.assertIsNotNone(children[0].poll())
+        self.assertTrue(children[0].stdin.closed)
+        self.assertTrue(children[0].stdout.closed)
+        self.evidence_facts = {
+            **getattr(self, "evidence_facts", {}),
+            "child_invocations": len(children),
+            "child_reaped": True,
+            "stdin_closed": True,
+            "stdout_closed": True,
+        }
+
+    def test_command_normal_json_and_redacted_stderr(self):
+        children, reads = self.track_processes()
+        adapter = self.command(
+            "import sys,json; r=json.load(sys.stdin);sys.stderr.write('secret-canary');print(json.dumps({'adapter_version':'dep-d/1','operation':r['operation']}))"
+        )
+        self.assertEqual(adapter.call("normal")["operation"], "normal")
+        self.assertLess(sum(reads), transport.OUTPUT_LIMIT)
+        self.assert_reaped(children)
+
+    def test_command_two_megabytes_stops_reading_at_limit_plus_one(self):
+        children, reads = self.track_processes()
+        threads = set(threading.enumerate())
+        started = time.monotonic()
+        with self.assertRaisesRegex(Failed, "adapter_output_budget_exceeded"):
+            self.command("import os; os.write(1,b'x'*(2*1024*1024))").call("oversize")
+        self.assertEqual(sum(reads), transport.OUTPUT_LIMIT + 1)
+        self.assertLess(time.monotonic() - started, 2)
+        self.evidence_facts = {
+            "elapsed_seconds": round(time.monotonic() - started, 6),
+            "stdout_captured_bytes": sum(reads),
+            "stdout_limit_bytes": transport.OUTPUT_LIMIT,
+            "overflow_sentinel_bytes": 1,
+        }
+        self.assert_reaped(children)
+        self.assertEqual(set(threading.enumerate()), threads)
+        self.evidence_facts["reader_threads_left"] = 0
+
+    def test_command_continuous_output_is_stopped_and_reaped(self):
+        children, reads = self.track_processes()
+        started = time.monotonic()
+        with self.assertRaisesRegex(Failed, "adapter_output_budget_exceeded"):
+            self.command("import os\nwhile True: os.write(1,b'x'*8192)").call("flood")
+        self.assertEqual(sum(reads), transport.OUTPUT_LIMIT + 1)
+        self.assertLess(time.monotonic() - started, 2)
+        self.evidence_facts = {
+            "elapsed_seconds": round(time.monotonic() - started, 6),
+            "stdout_captured_bytes": sum(reads),
+            "stdout_limit_bytes": transport.OUTPUT_LIMIT,
+            "overflow_sentinel_bytes": 1,
+        }
+        self.assert_reaped(children)
+
+    def test_command_no_output_and_stdin_backpressure_have_total_deadline(self):
+        children, _ = self.track_processes()
+        started = time.monotonic()
+        with deadline_scope(started + 0.15):
+            with self.assertRaisesRegex(Failed, "adapter_timeout"):
+                self.command("import time; time.sleep(10)").call(
+                    "silent", padding="x" * (512 * 1024)
+                )
+        self.assertLess(time.monotonic() - started, 0.5)
+        self.evidence_facts = {
+            "parent_budget_seconds": 0.15,
+            "elapsed_seconds": round(time.monotonic() - started, 6),
+        }
+        self.assert_reaped(children)
+
+    def test_command_cancel_reaps_child_without_reader_threads(self):
+        children, _ = self.track_processes()
+        threads = set(threading.enumerate())
+        started = time.monotonic()
+        cancel = threading.Event()
+        timer = threading.Timer(0.15, cancel.set)
+        timer.start()
+        try:
+            with self.assertRaisesRegex(Failed, "adapter_cancelled"):
+                self.command("import time; time.sleep(10)").call(
+                    "cancel", cancel_event=cancel
+                )
+        finally:
+            timer.cancel()
+            timer.join(1)
+        self.assert_reaped(children)
+        self.assertEqual(set(threading.enumerate()), threads)
+        self.evidence_facts.update(
+            elapsed_seconds=round(time.monotonic() - started, 6), reader_threads_left=0
+        )
+
+    def test_keyboard_interrupt_closes_command_pipes_and_reaps(self):
+        children, _ = self.track_processes()
+        with patch.object(transport.time, "sleep", side_effect=KeyboardInterrupt):
+            with self.assertRaises(KeyboardInterrupt):
+                self.command("import time; time.sleep(10)").call("interrupt")
+        self.assert_reaped(children)
 
 
 class InputTests(Base):
@@ -359,8 +751,8 @@ class LiveTests(Base):
             h.config,
             report,
             self.directory / "observation",
-            duration=0.1,
-            interval=0.05,
+            duration=0.5,
+            interval=0.25,
         )
         result = report.data["results"][0]
         self.assertEqual(result["status"], "not_run")

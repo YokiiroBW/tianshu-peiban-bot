@@ -1,0 +1,197 @@
+{
+  "report_version": "dep-d/1",
+  "kind": "platform_component_probe",
+  "run_id": "63c01f2a-22a7-4e34-b6c7-61310ad4789c",
+  "started_at": "2026-09-22T12:59:13.368107+00:00",
+  "mode": "local",
+  "runtime_kind": "product",
+  "python": "3.12.14",
+  "host_os": "Windows",
+  "implementation_sha256": "89e818fae9167448186dd858531f54f37046a73cef61238df7a9aaa4b85c64bb",
+  "binding": {
+    "contracts": {
+      "diagnostics/v1/README.md": "c7a52353d75db9a7a36c8a966b62ced55d55edc22fb77d25d6033024f91d487b",
+      "diagnostics/v1/event.schema.json": "c91ccc13f2a975f234934eb6e7d9ef03d9ad0a650e4c2acbdeb87761b3bf0a53",
+      "diagnostics/v1/examples.json": "a1139afd483d146f120df4e31c950ae81e7922dcbc57afcd92ac63a996675d0d",
+      "diagnostics/v1/manifest.json": "5d89f7a21637fd57cea4a236e17f8d8c4917799497ff44f87ee68ea614d4805f",
+      "diagnostics/v1/negative-examples.json": "a8a8453646ef2f4cf2ee870758316fe08f3f9522748d19730aba7338670b3632",
+      "model-protocol/v1/README.md": "963b6c561fddb5796f3eb3e2a7311565630cf63d3740379607fa43843e16773f",
+      "model-protocol/v1/compatibility.md": "32cfba5f8fbca8e6ef9aff7ab871931dd82b0d596eeb40030542d5bcc6ca4dc3",
+      "model-protocol/v1/errors.json": "e7a155ee5b5b058eb8d9d1195f0ee6887aff9ed94099b39939c76cb880996fa3",
+      "model-protocol/v1/examples/documents.json": "385414cc43fe07df1f19d561926ece8f6c44d3018cccd307d936fd33cd663428",
+      "model-protocol/v1/examples/negative-documents.json": "99cdcf4305ed2b0c12b5778311b6eeee282be3d5027ffddcdb30c56219bd99a9",
+      "model-protocol/v1/examples/relations.json": "1c3f18bb29b2023280419bb47e7a02151ba1dc1668f691d32a77d94d3aad5ff1",
+      "model-protocol/v1/interfaces.json": "312d0610f24b19407c205d293e4f282de5e4f497c17aa383692cd408250372d0",
+      "model-protocol/v1/manifest.json": "52711a71de56dbceebd1d5d96b2baf59a2d9551168029972d59111480f815141",
+      "model-protocol/v1/requirements.txt": "9cba6d4508d006391ab899893990d5ac5d03b4811a0f71f152c5883897ee8120",
+      "model-protocol/v1/schemas/model.json": "de715187a3e99a8dffd2afb55c35d610328031c1cceae5d471088a74c143dd0f",
+      "model-protocol/v1/semantics.md": "df9f6e5286ef77b66a8c4aab76b9ff805dc7804dd0a91143f619e465b8620568",
+      "model-protocol/v1/test_validator.py": "1cbefa0b3c096caff4708826a442c50eca3004f4fdd206b7782356a3177a3dea",
+      "model-protocol/v1/validate.py": "11b40869ff390e5c62774f065cc897ea75be43cad45808720c2b904e1806f740",
+      "profile-memory/v1/README.md": "097c6fd35c1b2d516f4529fcd5080586c80e587bc6794f1da506498dffd5788b",
+      "profile-memory/v1/examples.json": "bd55f3f392642a358cde7162ed1355edd58b1c3a550c46fb47d5c252b0a03cd2",
+      "profile-memory/v1/manifest.json": "20ef6f36b64e39080101e1186672dbc9e5b20529e0c56971e1cc5a2880fe6048",
+      "profile-memory/v1/schemas/profiles.json": "a442cc60ef91b06c1eed65c7d0f40a691f81f131d68f14dba1d4552b95d0a56d",
+      "profile-memory/v1/semantics.md": "9a45bc352e1bfc63b9d94e1c1916470d652e45c425adf8595fa755d23d98ca49",
+      "profile-memory/v1/validate.py": "4fbff50a03eabffe75f46fc717d95214051e4146f93c3a8fb174e6e69f6ee549",
+      "source-sync/v1/README.md": "e36f925af0298bf868a564b7b4300cbcdc97889149db8cad5bcad0ddca984a79",
+      "source-sync/v1/compatibility.md": "be0cd61080662554fedf66a8875d8bd20da0c888636195544452ea0f2f73d89e",
+      "source-sync/v1/examples/documents.json": "5c923bc322f38ba58330cade3c97659963749650addf4337288b83d84359c50d",
+      "source-sync/v1/examples/negative-documents.json": "c0301b7e7fe9c590b29d39cce54e1d78f418f00d15ef7adb004e29d204db4ce2",
+      "source-sync/v1/examples/relations.json": "173c2c8ed2dc6651e76cded66b8fa6ea2cd6bd98c3c872165bf579faa3912c96",
+      "source-sync/v1/interfaces.json": "e771ef7aee1caeecf7fba3b154274cde80256f27d6822e616e6d1dd42d30ddef",
+      "source-sync/v1/manifest.json": "178d0ce66210bdfad4cfb85d8b5f0905b0b67f834e2a530efe5636ff0373633d",
+      "source-sync/v1/rules.py": "69eecf03bcdfb6904d02b597fd46ad1938d7d5e3a7eb4838159d081156dacfb8",
+      "source-sync/v1/schemas/shared.json": "24b0c297007651ac4a3821cc41d68f8d6e7460d911cd42c4e4edc30b84b1d76d",
+      "source-sync/v1/schemas/sources.json": "48749a31638f0d81e7ac9528ed3f3fc78400519409d2832ec77e0816e2d311fd",
+      "source-sync/v1/schemas/workflow.json": "01424adddaf3d838337d37d0d1c0a58ccfb56ed7c984899c0602d37a86bf6e28",
+      "source-sync/v1/semantics.md": "4de65d52931b53e16079403ae3e4a65b0e718ea330a126e713afc638f65f5a92",
+      "source-sync/v1/validate.py": "9f63cf90dc2541d611210124cbf042d53bb5aae7ffd395a02e0f97823504b988",
+      "text-dialogue/v1/README.md": "a26361d1064062a6a2f5410a9e5fe578fbf232d35eb377a22f13ac87a174e629",
+      "text-dialogue/v1/compatibility.md": "283126310906acc6c1beb8a8cf59ce5982ddffc1d0b4ba689c1ef71045aa20ea",
+      "text-dialogue/v1/examples/documents.json": "7ff8da16faf3277cb996107d5909fbe452c9202eac6a0277fd9c7da4ed4f1fe1",
+      "text-dialogue/v1/examples/negative-documents.json": "2feae6a24bf9e0cd09510386c110b929e44912e1a46dfb7c49d727046d7b940a",
+      "text-dialogue/v1/examples/relations.json": "f39bff8a23a516d69b8af764b39741248312fd60b492c2204a99395e1f274395",
+      "text-dialogue/v1/manifest.json": "0f9880a1bfb151eb7ec48db1c086d779c99c972c51933de0501d77da535605f8",
+      "text-dialogue/v1/schemas/common.json": "b296a79d7eb0218d9b444c4ddbba837ad576f46a7a4e50fbcebec7618d8ef9af",
+      "text-dialogue/v1/schemas/conversation.json": "e640040fa816100b258999087f8784d1e7d1d55df007992632e202e02b64b6cb",
+      "text-dialogue/v1/schemas/identity-memory.json": "7e32e26aea89cc88fb48f9d0af43f32ea68de8561404ff495d3a8044985ef848",
+      "text-dialogue/v1/schemas/model.json": "9ffa9055aca897ff57292555f37674d79df687d1d6c062df48267527a8ff3a7c",
+      "text-dialogue/v1/schemas/web.json": "6d1be804b1ff3e0fd63d776cea6c1615455923c4b1fe7782fd52202713cc333c",
+      "text-dialogue/v1/semantics.md": "19f3ea3ce83bc997dac92846aea3e872d22d7ac34cf9adcc2c76708c24b4139e",
+      "web-conversation/v1/README.md": "3e95c73dddf4e4beec76b8de94b1404267dd43a1b1a947b3ed20cd7e34e52405",
+      "web-conversation/v1/authorization-examples.json": "0ffecb85fe8f3b1773c4788aa887fff0c9ba964440b9b53733efd7b6f26a9649",
+      "web-conversation/v1/examples.json": "21a7e99d3d063e62026b7c5165016921a6f9d90109959104e1287f7ce85118de",
+      "web-conversation/v1/manifest.json": "e493a1b5d0f4cec8d55995553faf84042f4c33a59365d15423e57f4dc70a6c09",
+      "web-conversation/v1/negative-examples.json": "3806c1fced4084ec085929f58952d3daf28f2eb01484e7ef5a22000161a05b67",
+      "web-conversation/v1/schema.json": "d2c6925fc55a471a96b89687812266dadc4214e8b904639f7c0220c6144f2316",
+      "web-conversation/v1/semantics.md": "20559fdf482050d1cd2ff0ce1053f44f7587cfa7752cbfb950d539dd530ee5d5",
+      "web-conversation/v1/validate.py": "751c3209a00c2fa62d7e104be6f21b6af2fa3e4a85620a243ffe7e24c0792967"
+    },
+    "features": [
+      {
+        "enabled": false,
+        "id": "web_text_dialogue",
+        "reason": "Requires explicit configuration and joint acceptance; no success is inferred from startup.",
+        "verification": "unverified"
+      },
+      {
+        "enabled": false,
+        "id": "automatic_long_term_memory",
+        "reason": "Requires explicit configuration and joint acceptance; no success is inferred from startup.",
+        "verification": "unverified"
+      },
+      {
+        "enabled": false,
+        "id": "chat_audit_archive",
+        "reason": "Requires explicit configuration and joint acceptance; no success is inferred from startup.",
+        "verification": "unverified"
+      },
+      {
+        "enabled": false,
+        "id": "qq_telegram_hosts",
+        "reason": "Requires explicit configuration and joint acceptance; no success is inferred from startup.",
+        "verification": "unverified"
+      },
+      {
+        "enabled": false,
+        "id": "gpu_media_devices",
+        "reason": "Requires explicit configuration and joint acceptance; no success is inferred from startup.",
+        "verification": "unverified"
+      },
+      {
+        "enabled": false,
+        "id": "proactive_sending",
+        "reason": "Requires explicit configuration and joint acceptance; no success is inferred from startup.",
+        "verification": "unverified"
+      },
+      {
+        "enabled": false,
+        "id": "memory_knowledge_http",
+        "reason": "Requires explicit configuration and joint acceptance; no success is inferred from startup.",
+        "verification": "unverified"
+      },
+      {
+        "enabled": false,
+        "id": "central_logging",
+        "reason": "Requires explicit configuration and joint acceptance; no success is inferred from startup.",
+        "verification": "unverified"
+      }
+    ],
+    "identity_basis": "static_input_only",
+    "manifest_sha256": "3ffe1d53e9f120afe56a86efe421349919f5b20638e71822076e54f55680557f",
+    "mapping_sha256": "47aefceb12ab06dc6cc996cb7aeef6df5fe2f961cd4763dcf54fdb6fc0ccc327",
+    "products": {
+      "companion": {
+        "commit": "cf020fd338b9beefc9d7156a00158e915d41735a",
+        "digest": null,
+        "image": "tianshu/companion:cf020fd338b9",
+        "repo": "tianshu-companion"
+      },
+      "gateway": {
+        "commit": "51121e6c02ed60605be14f31b19b484bc117a746",
+        "digest": null,
+        "image": "tianshu/gateway:51121e6c02ed",
+        "repo": "tianshu-model-gateway"
+      },
+      "memory": {
+        "commit": "2f4037620f47991f42a5daa10f471c34c9ba4fd4",
+        "digest": null,
+        "image": "tianshu/memory:2f4037620f47",
+        "repo": "tianshu-memory"
+      },
+      "platform": {
+        "commit": "fa85ee939a2affdda054ee7fa3155ec89ade6196",
+        "digest": null,
+        "image": "tianshu/platform:fa85ee939a2a",
+        "repo": "tianshu-platform"
+      }
+    },
+    "release_blockers": [
+      "linux_images_unverified",
+      "joint_acceptance_unverified",
+      "memory_candidate_consumer_missing",
+      "memory_disable_boundary_unverified",
+      "chat_audit_unconnected",
+      "application_log_reclamation_missing",
+      "product_dockerfiles_need_review",
+      "model_origin_bootstrap_unverified"
+    ],
+    "release_id": "tianshu-wave2-candidate-20260922",
+    "release_status": "candidate"
+  },
+  "results": [
+    {
+      "case": "web_login_csrf",
+      "status": "pass",
+      "code": "assertions_satisfied",
+      "duration_seconds": 0,
+      "facts": {
+        "http_cookie_session": true,
+        "missing_csrf": 403,
+        "foreign_origin": 403,
+        "incorrect_password": 401,
+        "rendered_browser": false
+      }
+    },
+    {
+      "case": "four_product_chain",
+      "status": "not_run",
+      "code": "platform_component_probe_only",
+      "duration_seconds": 0,
+      "facts": {}
+    }
+  ],
+  "claims": {
+    "real_model_quality": "not_run",
+    "browser_rendering": "not_run",
+    "nas_acceptance": "not_run",
+    "observation_24h": "not_run"
+  },
+  "coverage": "one_product_synthetic_identity",
+  "requirements_sha256": "7e27e44c8470d934c8e53354a946399c62bae3e7b447d537d9bdae4dddd8d9f1",
+  "finished_at": "2026-09-22T12:59:14.005894+00:00",
+  "duration_seconds": 0.641,
+  "verdict": "incomplete",
+  "content_sha256": "2237d3eae7c6b839388636d261051b8c48d245e4b71f40215c55ccff0fa30629"
+}

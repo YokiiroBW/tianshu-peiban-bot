@@ -2,6 +2,8 @@
 
 2026-09-22。本号由用户明确授权新窗口 Codex 直接实现，覆盖旧 DSH 实现约定，仅在本 worktree 白名单写入。没有派子代理、改产品代码、操作 NAS/真实账号/真实数据/付费模型、部署、推送或合并。
 
+最新进展见文末“R1/R2 精确返修”。下面的初交付版本和验证记录作为历史保留；新证据已绑定协调验收后的 TS104–106 固定提交，仍待协调复验与集成。
+
 ## 目标、基线与交付
 
 实现当前发布组合的可重复验收入口，区分产品/替身、本地/容器、候选受理/真实记忆/归档、未运行/依赖缺失/跳过/失败，提供机器报告与摘要。运行器与合成驱动已实现；**真实四产品组合验收尚未执行/通过**，不是全系统或发布完成。
@@ -116,3 +118,78 @@ tests/release_acceptance/test_runner.py
 ## 引用
 
 精确任务卡及授权：原协调目录 `docs/development/deployment-wave2-codex-2026-09-22.md`；差距计划 `first-nas-deployment-gap-plan-2026-09-22.md`；CURRENT与 `nas-environment-check-2026-09-21.md`；四产品AGENTS；`contracts/diagnostics/v1` 实际12字段及各产品就绪源码。官方Python/Git/cryptography版本配置资料链接已收录 [README](../../tests/release_acceptance/README.md)。所有提交证据原字节hash见 [evidence-index.json](../../tests/release_acceptance/evidence-index.json)。
+
+## R1/R2 精确返修（2026-09-22）
+
+返修依据：原协调目录 `docs/development/reviews/DEP-D-review-2026-09-22.md`。初验 `changes_requested`，原候选 `7abd5284fbce9b7b24d382edd084fec6e1880e59` 未合并。本次以它为父提交，修复后固定一个新本地提交并停写；完整返修 HEAD 由本任务最终交付通知提供。没有接管产品代码、DEP-B 活跃检出、根任务板或共享报告协议。
+
+### 变更与资源边界
+
+- R1：请求改用同一个绝对单调截止时间，连接、TLS、发送、逐次接收响应头/响应体均取剩余时间；字面 loopback 连接不经 DNS，TLS SNI/Host/hostname 校验保留，代理与重定向仍关闭，不重试。响应读取仍限 1 MiB。超时关闭响应文件和底层连接，无后台读线程。
+- 用例、轮询、命令调用与观察采样继承父期限，只能缩短。故障动作在同一用例期限内预留至多 2 秒（剩余时间的四分之一）用于撤销，未确认撤销仍停止后续变更。观察采样等待预定时刻，不因短暂休眠提前返回而在结束前追加一轮。
+- R2：命令采用显式 argv、环境白名单、非阻塞 stdin/stdout 管道，stderr 仍丢弃。stdout 最多累计 `1,048,577` 字节：`1,048,576` 有效上限加 1 字节超限判定；每次读取最多 64 KiB，超限即停止捕获。超时、取消、KeyboardInterrupt 与异常均关闭管道，并仅 kill/wait 本次直接子进程；wait 清理上限 1 秒，无全局 kill、重试或读写线程。
+- 该数字约束捕获的 payload，不是整个 Python/子进程 RSS；JSON 解析、字节复制及解释器另有有界开销。命令为显式可信测试配置，不是任意进程树隔离器。Windows 非阻塞匿名管道依赖 Python 3.12+；本机实际 3.12.14。截止时间受 OS 调度与时钟粒度影响，不是硬实时承诺。
+- 保留 `dep-d/1` 报告协议；自测仅利用已有 `facts` 字段记录耗时、读取字节数及资源回收断言。运行代码变更仅 `acceptance/transport.py`、`acceptance/suite.py`、`acceptance/observation.py`；对应自测为 `test_runner.py`、`selftest.py`，另有本交接和新增证据。
+
+### 固定来源与证据
+
+新输入 [repair-1/inputs/tested-release.json](../../tests/release_acceptance/evidence/repair-1/inputs/tested-release.json) 从原固定 DEP-A example 派生，仅重绑四产品 commit/image tag 并移除已完成的 `ts104_106_rebind_required`；合同原字节 hash 未改，image digest 仍 null/unverified，candidate/evidence 空集不提升为已验收。
+
+| 产品 | 新固定提交 |
+|---|---|
+| platform | `fa85ee939a2affdda054ee7fa3155ec89ade6196` |
+| companion | `cf020fd338b9beefc9d7156a00158e915d41735a` |
+| memory | `2f4037620f47991f42a5daa10f471c34c9ba4fd4` |
+| gateway | `51121e6c02ed60605be14f31b19b484bc117a746` |
+
+只从固定 Git 对象 archive 导出 `.runtime/pinned-products-repair-1` 并验证逐文件 hash；静态词汇重新导出至 `evidence/repair-1/catalog/catalog.json`，SHA256 `71989451d883898bb416869f49dd83bb2adaa4d8f5d7e51db62142795f756a64`。没有把可变工作树或协调独立报告当成本号运行结果。
+
+新 manifest SHA256：`3ffe1d53e9f120afe56a86efe421349919f5b20638e71822076e54f55680557f`。最终运行代码 `implementation_sha256`：`83daa3d978e3fcfac6f31000dc50f26e43388e01776335194d974a6f2ff3aeb6`。
+
+提交前收到DEP-A最终HEAD `0382e141189376c82ad93532ad6995062076fb0c`，已只读核对其清单Git原字节SHA256 `6bf459a2cbf8c8b760e0e2b0ce68dfacc50db489748ba3d9aef83120249ebdb9` 与上述四commit。它与本号派生输入的subject不同，本轮报告不能直接回填该最终清单；按DEP-A通知由协调据新清单接线重跑，本号不改报告subject冒充重跑。
+
+[repair-1/index.json](../../tests/release_acceptance/evidence/repair-1/index.json) 列出全部新增证据原字节 hash、5 个变更源码/自测文件 hash，以及唯一最终报告集合 `final_reports`。索引 SHA256 `906bd18334ae70350c16dd2cb68396fd11e1a32cb30d6b3b5c174dfd67458c86`。旧 evidence/index 全部原样保留并重新核对完整性，未用新版本标签覆盖旧执行。
+
+### 本次实际验证
+
+同前述 `PY` 解释器，PowerShell 工作目录为本任务 worktree。以下均为实际命令；复跑观察需换新的 output 目录，不能覆盖旧 journal。
+
+```powershell
+$taskPython = 'C:/Users/Administrator/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe'
+& $taskPython -B tests/release_acceptance/selftest.py --output tests/release_acceptance/evidence/repair-1/final/selftest
+& $taskPython -B tests/release_acceptance/smoke.py --manifest tests/release_acceptance/evidence/repair-1/inputs/tested-release.json --contracts-root C:/YOKI/Codex/tianshu-peiban-bot/contracts --output tests/release_acceptance/evidence/repair-1/final/synthetic
+$env:PYTHONPATH = (Resolve-Path 'tests/release_acceptance/.runtime/platform-deps').Path
+& $taskPython -B tests/release_acceptance/product_login_probe.py --snapshots tests/release_acceptance/.runtime/pinned-products-repair-1 --output tests/release_acceptance/evidence/repair-1/final/platform-login
+& $taskPython -B tests/release_acceptance/run.py run --execute --manifest tests/release_acceptance/evidence/repair-1/inputs/tested-release.json --contracts-root C:/YOKI/Codex/tianshu-peiban-bot/contracts --input tests/release_acceptance/input.example.json --output tests/release_acceptance/evidence/repair-1/final/current-unwired
+```
+
+| 最终证据 | 实际结果 |
+|---|---|
+| `final/selftest/report.json` | 原26项+新增15项，共41 pass，0 fail/error/skip；unittest 27.146秒，报告墙钟27.250秒 |
+| `final/synthetic/suite/report.json` | loopback TLS 合成场景17 pass / 3 not_run，整体incomplete |
+| `final/synthetic/short-observation/report.json` | 实际0.203秒、2样本、0失败探针；24h与持续工作负载均not_run |
+| `final/platform-login/report.json` | 新固定真实Platform的本地HTTPS登录/CSRF/Origin通过；四产品链仍not_run |
+| `final/current-unwired/report.json` | 17 dependency_missing / 3 not_run，运行器退出2；未接真实四产品控制适配器 |
+| 新输入schema/合同、四Git快照、静态词汇、报告完整性与journal链 | 通过；所有final报告运行代码hash一致，绑定输入一致（自测无产品输入） |
+| Ruff check/format、完整diff和白名单检查 | 通过；未跑无关产品完整套件 |
+
+最终自测量化事实（原始记录见对应 case 的 `facts`）：
+
+| 场景 | 实际耗时与断言 |
+|---|---|
+| 每40ms发一字节的慢头/11字节慢体，timeout=0.1 | 各0.125秒失败退出；各仅1次连接，底层客户端socket `fileno == -1` |
+| TLS慢体 / 不完成TLS握手，timeout=0.1 | 0.110 / 0.109秒失败退出；慢体连接已关闭 |
+| 两次请求共享0.13秒期限 / Suite用例相同预算 | 0.140 / 0.141秒退出，第二次调用没有重置预算 |
+| 观察共享0.13秒期限 | 0.172秒（含journal写入/持久化）；仅1次实际连接，其余探针未另获预算 |
+| 故障动作共享0.2秒期限 | 0.157秒，撤销时剩余0.043秒，故障已恢复，撤销deadline未超父deadline |
+| 命令输出2MiB / 持续输出 | 0.031 / 0.922秒；各只读1,048,577字节，均仅启动1子进程，已回收且stdin/stdout已关闭 |
+| 无输出且stdin背压，预算0.15秒 / 取消 | 0.156 / 0.172秒；子进程和管道已回收；取消测试无遗留读线程 |
+| 正常JSON、stderr秘密canary、KeyboardInterrupt | JSON响应通过、stderr未进入结果；中断后进程/管道回收断言通过 |
+
+本机 `time.get_clock_info('monotonic')` 为 `GetTickCount64()`、分辨率0.015625秒。返修首次完整自测在旧0.1秒观察夹具上发现采样提前追加；修正等待预定采样点并把健康短测设为0.5秒/0.25秒。第二次发现socket超时落在粗时钟两个tick间，被误归类成TLS故障；现保留TimeoutError类型，明确记为期限耗尽。两次失败分别保存在 `selftest-initial`、`selftest-clock-resolution`，对应中间smoke/probe也保留；只有 `final/` 是本次提交的最终运行代码证据。
+
+### 未完成与下一步
+
+R1/R2本地返修和回归完成，等待协调以固定新HEAD重跑原两个独立反例，再决定串行集成。真实四产品适配器、DEP-B固定接口衔接、Linux容器、NAS、真实模型、浏览器与24h仍未完成；新版本绑定不补足这些缺口。DEP-B阶段日志报告不作为本号正式验收证据。
+
+协调已提示新Companion的schema9派生索引启动前备份、单写者与空间要求，以及ready须首次后台成功；这里只记录部署约束，没有操作数据库或设备。后续范围仍由协调分派，本提交完成后停写。

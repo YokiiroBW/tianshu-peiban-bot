@@ -18,7 +18,12 @@ def main():
     class Result(unittest.TextTestResult):
         def addSuccess(self, test):
             super().addSuccess(test)
-            report.add(test.id(), "pass", "assertions_satisfied")
+            report.add(
+                test.id(),
+                "pass",
+                "assertions_satisfied",
+                getattr(test, "evidence_facts", None),
+            )
 
         def addFailure(self, test, err):
             super().addFailure(test, err)

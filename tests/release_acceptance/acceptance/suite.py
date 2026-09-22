@@ -9,7 +9,15 @@ from .diagnostics import causal
 from .evidence import digest, read_json
 from .inputs import ROLES, require
 from .health import LOG_KEY, validate_ready
-from .transport import Adapter, Client, Failed, Missing, check
+from .transport import (
+    Adapter,
+    Client,
+    Failed,
+    Missing,
+    check,
+    deadline_after,
+    deadline_scope,
+)
 
 CASES = (
     "runtime_binding",
@@ -134,9 +142,10 @@ class Suite:
         return result.get("snapshot") or {}
 
     def wait_turn(self, message_id, terminal=True):
-        deadline = time.monotonic() + self.config.get("case_timeout_seconds", 20)
+        deadline = deadline_after(self.config.get("case_timeout_seconds", 20))
         while time.monotonic() < deadline:
-            snapshot = self.snapshot()
+            with deadline_scope(deadline):
+                snapshot = self.snapshot()
             for item in snapshot.get("history", []) + snapshot.get("active_turns", []):
                 if not any(
                     m.get("message_id") == message_id for m in item.get("messages", [])
@@ -150,7 +159,7 @@ class Suite:
                     "closed_unknown",
                 }:
                     return item
-            time.sleep(0.1)
+            time.sleep(min(0.1, max(0, deadline - time.monotonic())))
         raise Failed("turn_deadline_exceeded")
 
     def runtime_binding(self):
@@ -406,25 +415,34 @@ class Suite:
 
     def with_fault(self, name, action):
         restore = True
-        try:
+        finish = deadline_after(self.config.get("case_timeout_seconds", 20))
+        # Reserve cleanup *inside* the same case budget. An expired action must
+        # not replenish 30 seconds per adapter call, nor starve fault restoration.
+        reserve = min(2, max(0, finish - time.monotonic()) / 4)
+        with deadline_scope(finish):
             try:
-                self.adapter.call("fault", name=name, enabled=True)
-            except Missing:
-                # 'unsupported' contractually means no mutation. A lost response
-                # or timeout is ambiguous and still requires cleanup below.
-                restore = False
-                raise
-            return action()
-        finally:
-            if restore:
-                try:
-                    response = self.adapter.call("fault", name=name, enabled=False)
-                    check(
-                        response.get("restored") is True, "fault_restore_not_confirmed"
-                    )
-                except BaseException:
-                    self.stop_mutations = True
-                    raise Failed("fault_restore_failed") from None
+                with deadline_scope(finish - reserve):
+                    try:
+                        self.adapter.call("fault", name=name, enabled=True)
+                    except Missing:
+                        # Unsupported means no mutation; ambiguous timeout does not.
+                        restore = False
+                        raise
+                    return action()
+            finally:
+                if restore:
+                    try:
+                        with deadline_scope(deadline_after(2)):
+                            response = self.adapter.call(
+                                "fault", name=name, enabled=False
+                            )
+                        check(
+                            response.get("restored") is True,
+                            "fault_restore_not_confirmed",
+                        )
+                    except BaseException:
+                        self.stop_mutations = True
+                        raise Failed("fault_restore_failed") from None
 
     def unknown_no_resend(self):
         self.need("dialogue_model_reply")
@@ -766,7 +784,10 @@ class Suite:
                 )
                 continue
             try:
-                facts = getattr(self, case)()
+                with deadline_scope(
+                    started + self.config.get("case_timeout_seconds", 20)
+                ):
+                    facts = getattr(self, case)()
                 self.success[case] = True
                 self.report.add(
                     case,
