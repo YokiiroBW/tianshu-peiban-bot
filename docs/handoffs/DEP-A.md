@@ -4,6 +4,7 @@
 
 已实现可搬运的发布清单、四核心 Compose 生成、显式配置初始化、离线预检、固定源码导出和 Linux 合成验证入口。
 交付状态为 **local_packaging_validated / candidate**，不是已部署、可日用或全系统完成。网页对话默认关闭。
+首次实现 `0382e141189376c82ad93532ad6995062076fb0c` 经协调首审提出权限返修，未集成；本文末段记录修正版，待协调复验。
 
 本号分支 `codex/dep-a-unified-deployment`；根基线 `21668e4300d7bedc8ac1ed819bdb7dad4a2bd58b`。
 共享 schema 首次提交 `e86d622a813f116b059b62b820cbd1342722042d`；实现提交随本文交付，最终 HEAD 另在任务交付消息中给出，
@@ -58,7 +59,7 @@ schema SHA256 `cf95607fa7252f806ae4ab4d919298c234d91f1007ce763ec12485091f4d0397`
 - `templates/deployment-input.example.json`、`templates/platform.json`、`templates/companion.json`、`templates/memory.json`、`templates/gateway.json`：明确配置与环境引用；公开 Origin 故意为不可用占位符，不能直接启动。
 - `README.md`、`version-review.md`、`verification.json`：操作说明、官方版本核验与真实本地证据/未执行边界。
 
-`tests/deployment/packaging/`：`.gitignore`、`test_packaging.py`、`verify_compose.py`、`verify_product_entrypoints.py`、`probe_memory_factory.py`。
+`tests/deployment/packaging/`：`.gitignore`、`test_packaging.py`、`test_permissions.py`、`verify_compose.py`、`verify_product_entrypoints.py`、`probe_memory_factory.py`。
 另有本交接 `docs/handoffs/DEP-A.md`。没有修改四产品 Dockerfile/源码或其他窗口产物。
 
 ## 实际验证与证据
@@ -114,3 +115,31 @@ product_dockerfiles_need_review、model_origin_bootstrap_unverified、real_resto
 - 协调最终接受记录：`docs/development/reviews/direct-fixes-accepted-2026-09-22.md`（权威源）。
 - 本号操作细节与官方来源：`deploy/tianshu/README.md`、`deploy/tianshu/version-review.md`。
 - 原产品Dockerfile/依赖/CLI与合同均来自上述固定提交和权威合同目录；实际检查记录在verification，不复用旧测试成功声明。
+
+## 权限返修（2026-09-22）
+
+返修基线 `0382e141189376c82ad93532ad6995062076fb0c`。按协调 `docs/development/reviews/DEP-A-review-2026-09-22.md` 精确卡处理：
+原预检会接受000配置、漏查合同与guard可读权限，是本包逻辑缺陷；此前24项通过未覆盖该反例。协调自己的24项4.184s记录属于独立首验。
+
+本次仅改五文件：`deploy/tianshu/bundle.py`、`tests/deployment/packaging/test_permissions.py`、`deploy/tianshu/README.md`、
+`deploy/tianshu/verification.json`、本交接。没有改产品、共享schema/清单/合同、其他窗口或前进中的根主线。
+
+权限预检现在按容器UID/GID10001的POSIX属主优先规则检查：配置/TLS挂载根与所有子目录可读且可遍历、普通文件可读；
+合同全树可读/遍历；直接绑定的guard普通文件可读，不强加执行位或容器不可见的主机源父目录权限；
+八个数据/日志根仍要求专属10001:10001及读写遍历、无other访问。配置禁止other访问/组写以及无关组访问，
+主机Compose读取的private目录和env保持操作者独占。正常的操作者:10001组读配置、公开非秘密合同/工具都可接受。
+
+初始化只将公开合同目录默认改为0755（合同文件原有0644）；配置目录0750和文件0640、private目录0700和env0600不放宽。
+README补全逐挂载权限表及操作者准备顺序。工具不提权、不chown；需用修正版生成新包，随后再做权限预检。
+
+稳定后已复核完整返修差异，实际回归：
+
+- `deploy/tianshu/.work/venv/Scripts/python.exe -B -m unittest discover -s tests/deployment/packaging -v`：**34 passed，4.163s**。
+  含既有24项和新增10项权限测试；覆盖四套000配置、无x子目录、异属主不可读合同、不可读guard、属主权限不能退到组/other、
+  合法UID/GID读权限、主机绑定父目录不误判、数据/日志根写与遍历、秘密权限和公开输入不可组/other写。
+- `deploy/tianshu/.work/venv/Scripts/ruff.exe check deploy/tianshu/bundle.py tests/deployment/packaging/test_permissions.py`：All checks passed。
+- `git diff --check`：通过。
+
+新增测试在Windows使用合成POSIX stat元数据与目录节点调用**实际permission_checks**；不是Linux文件访问实验。
+Linux权限/容器/NAS仍not_run；此前Compose与7项产品入口等未改变成功检查未重跑，verification显式保留其历史范围。
+九项发布blockers、candidate、镜像digest=null、网页对话关闭均保持。返修固定提交后停写，由协调复验和串行集成。

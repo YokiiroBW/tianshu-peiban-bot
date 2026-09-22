@@ -3,6 +3,7 @@
 import io
 import os
 import shutil
+import stat
 import subprocess
 import tarfile
 from pathlib import Path
@@ -111,7 +112,11 @@ def initialize(manifest_path, inputs_path, contracts_root, target, environ=None)
             inside(target, category + "/" + product).mkdir(parents=True, mode=0o750)
     for directory in target.rglob("*"):
         if directory.is_dir():
-            directory.chmod(0o750)
+            # Published contracts contain no deployment secrets. Their bind-mount root
+            # and descendants must remain readable by the runtime when another UID
+            # initialized the package. Private/configuration directories stay restricted.
+            public = directory.is_relative_to(target / "contracts")
+            directory.chmod(0o755 if public else 0o750)
     inside(target, "private").chmod(0o700)
     # Material origin is an operator declaration, not proof that a CA is production approved.
     metadata = {
@@ -265,23 +270,70 @@ def verify_integrity(root):
 
 def permission_checks(root):
     require(os.name == "posix", "linux_permissions_not_verified")
+
+    def runtime_access(path, required, *, directory, private=False):
+        st = no_links(path).stat()
+        require(
+            stat.S_ISDIR(st.st_mode) if directory else stat.S_ISREG(st.st_mode),
+            "runtime_mount_type_mismatch",
+        )
+        mode = stat.S_IMODE(st.st_mode)
+        if private:
+            # No other access or group write. A readable private group must be the
+            # explicitly configured container GID, never the initializer's default group.
+            require(
+                mode & 0o027 == 0 and (not mode & 0o070 or st.st_gid == 10001),
+                "runtime_config_permissions",
+            )
+        else:
+            require(mode & 0o022 == 0, "runtime_public_input_writable")
+        # POSIX selects exactly one class. Owner permissions never fall back to group
+        # or other; the Compose runtime has UID/GID 10001 and no supplementary groups.
+        shift = 6 if st.st_uid == 10001 else 3 if st.st_gid == 10001 else 0
+        available = (mode >> shift) & 0o7
+        require(available & required == required, "runtime_mount_access_missing")
+        return st
+
+    def readable_tree(name, *, private=False):
+        path = inside(root, name)
+        runtime_access(path, 0o5, directory=True, private=private)
+        for member in path.rglob("*"):
+            # Classify by stat, never treat sockets/devices as readable input files.
+            st = no_links(member).stat()
+            directory = stat.S_ISDIR(st.st_mode)
+            runtime_access(
+                member, 0o5 if directory else 0o4, directory=directory, private=private
+            )
+
     for product in PRODUCTS:
-        for name in (f"data/{product}", f"logs/{product}", f"config/{product}"):
+        for name in (f"data/{product}", f"logs/{product}"):
             path = inside(root, name)
-            st = path.stat()
+            st = no_links(path).stat()
+            require(stat.S_ISDIR(st.st_mode), "runtime_mount_type_mismatch")
             require(
                 st.st_uid == 10001 and st.st_gid == 10001, "runtime_ownership_mismatch"
             )
             require(st.st_mode & 0o007 == 0, "runtime_world_permissions")
             require(st.st_mode & 0o700 == 0o700, "runtime_owner_permissions_missing")
-        for path in inside(root, f"config/{product}").rglob("*"):
-            st = no_links(path).stat()
-            require(
-                st.st_uid == 10001 and st.st_gid == 10001 and st.st_mode & 0o007 == 0,
-                "runtime_config_permissions",
-            )
-    for path in inside(root, "private").iterdir():
-        require(path.stat().st_mode & 0o077 == 0, "private_env_permissions")
+        readable_tree(f"config/{product}", private=True)
+    readable_tree("contracts")
+    # This is a direct file bind, opened by Python. It needs read, not execute, and
+    # the container does not traverse the host-side tools/ or deployment ancestors.
+    runtime_access(inside(root, "tools/runtime_guard.py"), 0o4, directory=False)
+    # Compose reads env files on the host; they are not container bind mounts and
+    # therefore remain private to the operator rather than requiring runtime ownership.
+    private = inside(root, "private")
+    mode = private.stat().st_mode
+    require(
+        stat.S_ISDIR(mode) and mode & 0o077 == 0 and mode & 0o700 == 0o700,
+        "private_env_permissions",
+    )
+    for path in private.iterdir():
+        mode = no_links(path).stat().st_mode
+        require(
+            stat.S_ISREG(mode) and mode & 0o077 == 0 and mode & 0o400 != 0,
+            "private_env_permissions",
+        )
 
 
 def preflight(root, release=False, runtime=False):
