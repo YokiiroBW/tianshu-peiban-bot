@@ -1,0 +1,312 @@
+{
+  "kind": "dep-b-final-guard-query-smoke",
+  "status": "passed",
+  "real_guard": true,
+  "real_loki": true,
+  "real_query_client": true,
+  "vector": "not_in_this_smoke",
+  "ledger_background_monitor": "separate_regression_evidence",
+  "linux_compose": false,
+  "nas": false,
+  "application_reclamation_authorized": false,
+  "cases": [
+    {
+      "case": "real_guard_loki_query_roundtrip",
+      "status": "passed",
+      "generated_unique": 8,
+      "landed_unique": 8,
+      "retrieved_unique": 8,
+      "missing_at_source": 0,
+      "missing_in_loki": 0,
+      "unexpected_at_source": 0,
+      "unexpected_in_loki": 0,
+      "source_duplicates": 0,
+      "retrieval_duplicates": 0,
+      "identity_conflicts": 0,
+      "content_mismatches": 0,
+      "sequence_gaps": 0,
+      "invalid_source_lines": 0,
+      "partial_source_lines": 0,
+      "application_reclamation_authorized": false
+    },
+    {
+      "case": "roles_and_push_over_budget",
+      "status": "passed",
+      "query_push": 401,
+      "writer_query": 401,
+      "advertised_bytes": 4194305,
+      "rejection": 413
+    },
+    {
+      "case": "eight_tls_workers_bound_and_recovery",
+      "status": "passed",
+      "held_workers": 8,
+      "ninth_rejected": true,
+      "recovered_rows": 8
+    },
+    {
+      "case": "query_response_budget_real_tls_synthetic_backend",
+      "status": "passed",
+      "exact_bytes": 8388608,
+      "over_bytes": 8388609,
+      "over_error": "query_response_over_budget",
+      "real_loki_response": false
+    }
+  ],
+  "implementation_sha256": {
+    "deploy/observability/alerts.py": "57bb862905b87a6382caf18164256e5138a5f884fe64812eb231dde1e0b23419",
+    "deploy/observability/capacity.py": "1bb26f6dd89e68cbe9f6ec168512c2bfdf47772832e5a7b665b5f7bb36f94b37",
+    "deploy/observability/compose.py": "5ed87b26d97bc6997c16a35fb47fb143f5405bad4d79ec4f2948715d12397000",
+    "deploy/observability/configs.py": "4874c5c96672909225e9c0aa55de6332bfa9c5626e1266057af7b807ed986de3",
+    "deploy/observability/configure.py": "8a94a0a063deb52a6b675205b5f0427702f41c536ded9f7a5582f9255652ed4b",
+    "deploy/observability/guard.py": "bfc678733db46b5e594c4f824c284e75050e2516afec3686f22bab0cefe54054",
+    "deploy/observability/monitor.py": "fe4186dca5a8dfc119a74116e8a078e5602bcd79d30038304a0c79932b18b772",
+    "deploy/observability/policy.py": "73863acf4d7f269d57b32f4908c2e7a5e9025bd46b8d76d7bf02bd66120ae9ee",
+    "deploy/observability/query.py": "a6935648575df68fd3982e512704b33414cbe0d2f75d0ca95aac9d965450ba0c",
+    "deploy/observability/reconcile.py": "fd78e1a3851369fba2c532a5e577fea00423067e45ecad19c3ba5c8e1c6f7b59",
+    "deploy/observability/snapshot.py": "2ccc6fd238e3076937016cc0f1c1b21ccc0907c4a3535d2f6060aaaa033028ca",
+    "tests/deployment/observability/run_final_smoke.py": "820401060e6eb04cb5b37913b2061c30fd05b719c6577e7be92deaf3d9c9c7bb",
+    "tests/deployment/observability/helpers.py": "b861a8100d1ceeb1e013c72839c1034d716d25cb6ee2a0e83b36fd73da184072"
+  },
+  "loki_config": {
+    "auth_enabled": true,
+    "server": {
+      "http_listen_port": 61957,
+      "grpc_listen_port": 61958,
+      "grpc_listen_address": "127.0.0.1",
+      "log_level": "error",
+      "http_tls_config": {
+        "cert_file": "C:/Users/Administrator/.codex/worktrees/7e3f/tianshu-peiban-bot/tests/deployment/observability/.runtime/final-smoke-duadsxxz/tls/loki.pem",
+        "key_file": "C:/Users/Administrator/.codex/worktrees/7e3f/tianshu-peiban-bot/tests/deployment/observability/.runtime/final-smoke-duadsxxz/tls/loki.key",
+        "client_auth_type": "RequireAndVerifyClientCert",
+        "client_ca_file": "C:/Users/Administrator/.codex/worktrees/7e3f/tianshu-peiban-bot/tests/deployment/observability/.runtime/final-smoke-duadsxxz/tls/client-ca.pem"
+      },
+      "http_listen_address": "127.0.0.1"
+    },
+    "common": {
+      "path_prefix": "C:/Users/Administrator/.codex/worktrees/7e3f/tianshu-peiban-bot/tests/deployment/observability/.runtime/final-smoke-duadsxxz/loki-state",
+      "instance_addr": "127.0.0.1",
+      "replication_factor": 1,
+      "ring": {
+        "kvstore": {
+          "store": "inmemory"
+        }
+      },
+      "storage": {
+        "filesystem": {
+          "chunks_directory": "C:/Users/Administrator/.codex/worktrees/7e3f/tianshu-peiban-bot/tests/deployment/observability/.runtime/final-smoke-duadsxxz/loki-state/chunks",
+          "rules_directory": "C:/Users/Administrator/.codex/worktrees/7e3f/tianshu-peiban-bot/tests/deployment/observability/.runtime/final-smoke-duadsxxz/loki-state/rules"
+        }
+      }
+    },
+    "schema_config": {
+      "configs": [
+        {
+          "from": "2024-01-01",
+          "store": "tsdb",
+          "object_store": "filesystem",
+          "schema": "v13",
+          "index": {
+            "prefix": "index_",
+            "period": "24h"
+          }
+        }
+      ]
+    },
+    "storage_config": {
+      "tsdb_shipper": {
+        "active_index_directory": "C:/Users/Administrator/.codex/worktrees/7e3f/tianshu-peiban-bot/tests/deployment/observability/.runtime/final-smoke-duadsxxz/loki-state/index",
+        "cache_location": "C:/Users/Administrator/.codex/worktrees/7e3f/tianshu-peiban-bot/tests/deployment/observability/.runtime/final-smoke-duadsxxz/loki-state/index-cache"
+      }
+    },
+    "ingester": {
+      "wal": {
+        "enabled": true,
+        "dir": "C:/Users/Administrator/.codex/worktrees/7e3f/tianshu-peiban-bot/tests/deployment/observability/.runtime/final-smoke-duadsxxz/loki-state/wal",
+        "flush_on_shutdown": true
+      },
+      "max_chunk_age": "2h"
+    },
+    "compactor": {
+      "working_directory": "C:/Users/Administrator/.codex/worktrees/7e3f/tianshu-peiban-bot/tests/deployment/observability/.runtime/final-smoke-duadsxxz/loki-state/compactor",
+      "compaction_interval": "10m",
+      "retention_enabled": true,
+      "retention_delete_delay": "2h",
+      "retention_delete_worker_count": 8,
+      "delete_request_store": "filesystem"
+    },
+    "limits_config": {
+      "retention_period": "720h",
+      "reject_old_samples": true,
+      "reject_old_samples_max_age": "720h",
+      "ingestion_rate_mb": 4,
+      "ingestion_burst_size_mb": 8,
+      "per_stream_rate_limit": "2MB",
+      "per_stream_rate_limit_burst": "4MB",
+      "max_query_length": "744h",
+      "max_entries_limit_per_query": 5000,
+      "allow_structured_metadata": false,
+      "max_line_size": "4KB",
+      "max_line_size_truncate": false
+    },
+    "analytics": {
+      "reporting_enabled": false
+    }
+  },
+  "loki_config_sha256": "c80399e36274e2a7b41778fa0d58c9e0f91258d7fc010e97099edd0dd3dfb4e7",
+  "loki_binary_sha256": "db13726d70e1ab7344f420179ebd19a933cf52f9ce58117c3d62d7d0c35d3464",
+  "generated": [
+    {
+      "schema_version": "1.0.0",
+      "timestamp": "2026-09-22T13:15:43.207448+00:00",
+      "service": "platform",
+      "instance_id": "6f835ad5-2509-4975-8f66-b8eb48c00bea",
+      "sequence": 1,
+      "event_id": "b93207c2-d601-453e-9c94-0c2b599b7081",
+      "level": "INFO",
+      "event": "runtime.started",
+      "outcome": "succeeded",
+      "correlation_id": null,
+      "duration_ms": null,
+      "error_code": null
+    },
+    {
+      "schema_version": "1.0.0",
+      "timestamp": "2026-09-22T13:15:43.207448+00:00",
+      "service": "platform",
+      "instance_id": "6f835ad5-2509-4975-8f66-b8eb48c00bea",
+      "sequence": 2,
+      "event_id": "ab24cab1-8c35-4e6a-a7f6-2eef26834b2e",
+      "level": "INFO",
+      "event": "runtime.started",
+      "outcome": "succeeded",
+      "correlation_id": null,
+      "duration_ms": null,
+      "error_code": null
+    },
+    {
+      "schema_version": "1.0.0",
+      "timestamp": "2026-09-22T13:15:43.210751+00:00",
+      "service": "companion",
+      "instance_id": "f1d423e7-7e30-4dc4-838a-b26783e80255",
+      "sequence": 1,
+      "event_id": "8e2b8a9f-c85f-4fba-a6ff-ca21f87f9b7d",
+      "level": "INFO",
+      "event": "runtime.started",
+      "outcome": "succeeded",
+      "correlation_id": null,
+      "duration_ms": null,
+      "error_code": null
+    },
+    {
+      "schema_version": "1.0.0",
+      "timestamp": "2026-09-22T13:15:43.210751+00:00",
+      "service": "companion",
+      "instance_id": "f1d423e7-7e30-4dc4-838a-b26783e80255",
+      "sequence": 2,
+      "event_id": "27d6b271-19e4-41b5-bb79-ead162699267",
+      "level": "INFO",
+      "event": "runtime.started",
+      "outcome": "succeeded",
+      "correlation_id": null,
+      "duration_ms": null,
+      "error_code": null
+    },
+    {
+      "schema_version": "1.0.0",
+      "timestamp": "2026-09-22T13:15:43.212730+00:00",
+      "service": "memory",
+      "instance_id": "883ea429-ab98-4aaa-9c4d-7a4ccd72abea",
+      "sequence": 1,
+      "event_id": "c14c2443-df2c-4b37-abda-a5525fd27cb8",
+      "level": "INFO",
+      "event": "runtime.started",
+      "outcome": "succeeded",
+      "correlation_id": null,
+      "duration_ms": null,
+      "error_code": null
+    },
+    {
+      "schema_version": "1.0.0",
+      "timestamp": "2026-09-22T13:15:43.212730+00:00",
+      "service": "memory",
+      "instance_id": "883ea429-ab98-4aaa-9c4d-7a4ccd72abea",
+      "sequence": 2,
+      "event_id": "0e6cdf55-c3f8-4787-b179-747413d32fe7",
+      "level": "INFO",
+      "event": "runtime.started",
+      "outcome": "succeeded",
+      "correlation_id": null,
+      "duration_ms": null,
+      "error_code": null
+    },
+    {
+      "schema_version": "1.0.0",
+      "timestamp": "2026-09-22T13:15:43.214730+00:00",
+      "service": "gateway",
+      "instance_id": "911cc4bc-0b37-44fa-bdb3-5536c4e19840",
+      "sequence": 1,
+      "event_id": "92996cb7-464d-4c22-bd55-a09533859466",
+      "level": "INFO",
+      "event": "runtime.started",
+      "outcome": "succeeded",
+      "correlation_id": null,
+      "duration_ms": null,
+      "error_code": null
+    },
+    {
+      "schema_version": "1.0.0",
+      "timestamp": "2026-09-22T13:15:43.214730+00:00",
+      "service": "gateway",
+      "instance_id": "911cc4bc-0b37-44fa-bdb3-5536c4e19840",
+      "sequence": 2,
+      "event_id": "34a6423b-0ffb-4e3e-b9ea-4cd169963237",
+      "level": "INFO",
+      "event": "runtime.started",
+      "outcome": "succeeded",
+      "correlation_id": null,
+      "duration_ms": null,
+      "error_code": null
+    }
+  ],
+  "retrieved": [
+    [
+      1790082943216730500,
+      "{\"correlation_id\":null,\"duration_ms\":null,\"error_code\":null,\"event\":\"runtime.started\",\"event_id\":\"b93207c2-d601-453e-9c94-0c2b599b7081\",\"instance_id\":\"6f835ad5-2509-4975-8f66-b8eb48c00bea\",\"level\":\"INFO\",\"outcome\":\"succeeded\",\"schema_version\":\"1.0.0\",\"sequence\":1,\"service\":\"platform\",\"timestamp\":\"2026-09-22T13:15:43.207448+00:00\"}"
+    ],
+    [
+      1790082943216730501,
+      "{\"correlation_id\":null,\"duration_ms\":null,\"error_code\":null,\"event\":\"runtime.started\",\"event_id\":\"ab24cab1-8c35-4e6a-a7f6-2eef26834b2e\",\"instance_id\":\"6f835ad5-2509-4975-8f66-b8eb48c00bea\",\"level\":\"INFO\",\"outcome\":\"succeeded\",\"schema_version\":\"1.0.0\",\"sequence\":2,\"service\":\"platform\",\"timestamp\":\"2026-09-22T13:15:43.207448+00:00\"}"
+    ],
+    [
+      1790082943216730502,
+      "{\"correlation_id\":null,\"duration_ms\":null,\"error_code\":null,\"event\":\"runtime.started\",\"event_id\":\"8e2b8a9f-c85f-4fba-a6ff-ca21f87f9b7d\",\"instance_id\":\"f1d423e7-7e30-4dc4-838a-b26783e80255\",\"level\":\"INFO\",\"outcome\":\"succeeded\",\"schema_version\":\"1.0.0\",\"sequence\":1,\"service\":\"companion\",\"timestamp\":\"2026-09-22T13:15:43.210751+00:00\"}"
+    ],
+    [
+      1790082943216730503,
+      "{\"correlation_id\":null,\"duration_ms\":null,\"error_code\":null,\"event\":\"runtime.started\",\"event_id\":\"27d6b271-19e4-41b5-bb79-ead162699267\",\"instance_id\":\"f1d423e7-7e30-4dc4-838a-b26783e80255\",\"level\":\"INFO\",\"outcome\":\"succeeded\",\"schema_version\":\"1.0.0\",\"sequence\":2,\"service\":\"companion\",\"timestamp\":\"2026-09-22T13:15:43.210751+00:00\"}"
+    ],
+    [
+      1790082943216730504,
+      "{\"correlation_id\":null,\"duration_ms\":null,\"error_code\":null,\"event\":\"runtime.started\",\"event_id\":\"c14c2443-df2c-4b37-abda-a5525fd27cb8\",\"instance_id\":\"883ea429-ab98-4aaa-9c4d-7a4ccd72abea\",\"level\":\"INFO\",\"outcome\":\"succeeded\",\"schema_version\":\"1.0.0\",\"sequence\":1,\"service\":\"memory\",\"timestamp\":\"2026-09-22T13:15:43.212730+00:00\"}"
+    ],
+    [
+      1790082943216730505,
+      "{\"correlation_id\":null,\"duration_ms\":null,\"error_code\":null,\"event\":\"runtime.started\",\"event_id\":\"0e6cdf55-c3f8-4787-b179-747413d32fe7\",\"instance_id\":\"883ea429-ab98-4aaa-9c4d-7a4ccd72abea\",\"level\":\"INFO\",\"outcome\":\"succeeded\",\"schema_version\":\"1.0.0\",\"sequence\":2,\"service\":\"memory\",\"timestamp\":\"2026-09-22T13:15:43.212730+00:00\"}"
+    ],
+    [
+      1790082943216730506,
+      "{\"correlation_id\":null,\"duration_ms\":null,\"error_code\":null,\"event\":\"runtime.started\",\"event_id\":\"92996cb7-464d-4c22-bd55-a09533859466\",\"instance_id\":\"911cc4bc-0b37-44fa-bdb3-5536c4e19840\",\"level\":\"INFO\",\"outcome\":\"succeeded\",\"schema_version\":\"1.0.0\",\"sequence\":1,\"service\":\"gateway\",\"timestamp\":\"2026-09-22T13:15:43.214730+00:00\"}"
+    ],
+    [
+      1790082943216730507,
+      "{\"correlation_id\":null,\"duration_ms\":null,\"error_code\":null,\"event\":\"runtime.started\",\"event_id\":\"34a6423b-0ffb-4e3e-b9ea-4cd169963237\",\"instance_id\":\"911cc4bc-0b37-44fa-bdb3-5536c4e19840\",\"level\":\"INFO\",\"outcome\":\"succeeded\",\"schema_version\":\"1.0.0\",\"sequence\":2,\"service\":\"gateway\",\"timestamp\":\"2026-09-22T13:15:43.214730+00:00\"}"
+    ]
+  ],
+  "query_bounds_ns": [
+    1790082943216730499,
+    1790082943216730508
+  ],
+  "runtime_root": "C:\\Users\\Administrator\\.codex\\worktrees\\7e3f\\tianshu-peiban-bot\\tests\\deployment\\observability\\.runtime\\final-smoke-duadsxxz",
+  "source_unchanged_during_run": true
+}

@@ -1,0 +1,20 @@
+{
+  "kind": "dep-b-log-recovery",
+  "mode": "linux_containers",
+  "status": "not_run",
+  "results": [
+    {
+      "case": "linux_stack",
+      "status": "dependency_missing",
+      "facts": {
+        "reason": "docker_cli_missing"
+      }
+    }
+  ],
+  "claims": {
+    "nas": false,
+    "real_products": false,
+    "production": false,
+    "retention_deletion": false
+  }
+}

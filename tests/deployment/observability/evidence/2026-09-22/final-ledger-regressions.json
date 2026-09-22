@@ -1,0 +1,120 @@
+{
+  "kind": "dep-b-final-ledger-regressions",
+  "real_ledger": true,
+  "query_backend": "explicit_unittest_mock",
+  "full_native_pipeline": false,
+  "application_reclamation_authorized": false,
+  "cases": [
+    {
+      "case": "test_previously_verified_central_loss_becomes_pending",
+      "source_writes": [
+        {
+          "filename": "x.jsonl",
+          "events": [
+            {
+              "schema_version": "1.0.0",
+              "timestamp": "2026-09-22T13:11:56.590018+00:00",
+              "service": "platform",
+              "instance_id": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "event_id": "b57f8cde-4d51-4f38-a705-93fb7a9af15c",
+              "level": "INFO",
+              "event": "runtime.started",
+              "outcome": "succeeded",
+              "correlation_id": null,
+              "duration_ms": null,
+              "error_code": null
+            }
+          ]
+        }
+      ],
+      "actual_metrics": [
+        {
+          "landed_events": 1,
+          "pending_events": 0,
+          "oldest_pending_seconds": 0,
+          "sequence_gaps": 0
+        },
+        {
+          "landed_events": 1,
+          "pending_events": 1,
+          "oldest_pending_seconds": 0.004999876022338867,
+          "sequence_gaps": 0
+        }
+      ],
+      "status": "passed",
+      "output": "test_previously_verified_central_loss_becomes_pending (test_observability.LedgerTests.test_previously_verified_central_loss_becomes_pending) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 0.024s\n\nOK\n"
+    },
+    {
+      "case": "test_regular_rename_rotation_does_not_raise_mutation_alarm",
+      "source_writes": [
+        {
+          "filename": "active.jsonl",
+          "events": [
+            {
+              "schema_version": "1.0.0",
+              "timestamp": "2026-09-22T13:11:56.612860+00:00",
+              "service": "platform",
+              "instance_id": "00000000-0000-4000-8000-000000000001",
+              "sequence": 1,
+              "event_id": "33169bb4-4aac-4d48-bc38-41b667215654",
+              "level": "INFO",
+              "event": "runtime.started",
+              "outcome": "succeeded",
+              "correlation_id": null,
+              "duration_ms": null,
+              "error_code": null
+            }
+          ]
+        },
+        {
+          "filename": "active.jsonl",
+          "events": [
+            {
+              "schema_version": "1.0.0",
+              "timestamp": "2026-09-22T13:11:56.626099+00:00",
+              "service": "platform",
+              "instance_id": "00000000-0000-4000-8000-000000000001",
+              "sequence": 2,
+              "event_id": "11bb312e-ee68-449c-8989-8d93463208cb",
+              "level": "INFO",
+              "event": "runtime.started",
+              "outcome": "succeeded",
+              "correlation_id": null,
+              "duration_ms": null,
+              "error_code": null
+            }
+          ]
+        }
+      ],
+      "actual_metrics": [
+        {
+          "landed_events": 2,
+          "pending_events": 2,
+          "oldest_pending_seconds": 0.004391670227050781,
+          "sequence_gaps": 0,
+          "source_replacements_total": 1,
+          "source_duplicates_total": 1
+        }
+      ],
+      "status": "passed",
+      "output": "test_regular_rename_rotation_does_not_raise_mutation_alarm (test_observability.LedgerTests.test_regular_rename_rotation_does_not_raise_mutation_alarm) ... ok\n\n----------------------------------------------------------------------\nRan 1 test in 0.020s\n\nOK\n"
+    }
+  ],
+  "implementation_sha256": {
+    "deploy/observability/alerts.py": "57bb862905b87a6382caf18164256e5138a5f884fe64812eb231dde1e0b23419",
+    "deploy/observability/capacity.py": "1bb26f6dd89e68cbe9f6ec168512c2bfdf47772832e5a7b665b5f7bb36f94b37",
+    "deploy/observability/compose.py": "5ed87b26d97bc6997c16a35fb47fb143f5405bad4d79ec4f2948715d12397000",
+    "deploy/observability/configs.py": "4874c5c96672909225e9c0aa55de6332bfa9c5626e1266057af7b807ed986de3",
+    "deploy/observability/configure.py": "8a94a0a063deb52a6b675205b5f0427702f41c536ded9f7a5582f9255652ed4b",
+    "deploy/observability/guard.py": "bfc678733db46b5e594c4f824c284e75050e2516afec3686f22bab0cefe54054",
+    "deploy/observability/monitor.py": "fe4186dca5a8dfc119a74116e8a078e5602bcd79d30038304a0c79932b18b772",
+    "deploy/observability/policy.py": "73863acf4d7f269d57b32f4908c2e7a5e9025bd46b8d76d7bf02bd66120ae9ee",
+    "deploy/observability/query.py": "a6935648575df68fd3982e512704b33414cbe0d2f75d0ca95aac9d965450ba0c",
+    "deploy/observability/reconcile.py": "fd78e1a3851369fba2c532a5e577fea00423067e45ecad19c3ba5c8e1c6f7b59",
+    "deploy/observability/snapshot.py": "2ccc6fd238e3076937016cc0f1c1b21ccc0907c4a3535d2f6060aaaa033028ca",
+    "tests/deployment/observability/capture_regressions.py": "3e625651efdc9cf9c6c8cbbcaa4e4e813ce49602983bcb3b9ce78ac2cfe7db7f",
+    "tests/deployment/observability/test_observability.py": "560b077637cb4fb0fa30056b8209496f915480d4d9c265f528f50d57c9c0cf56"
+  },
+  "status": "passed"
+}

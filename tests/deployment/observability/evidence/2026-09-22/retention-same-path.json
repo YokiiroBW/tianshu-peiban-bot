@@ -1,0 +1,166 @@
+{
+  "kind": "dep-b-retention",
+  "status": "passed",
+  "retention_hours": 24,
+  "fixture_age_hours": 25,
+  "query_path_before_and_after": "store_only",
+  "production_default_query_path_verified": false,
+  "started_at": "2026-09-22T13:03:29.134803+00:00",
+  "timeline": [
+    {
+      "state": "waiting_initial_visibility",
+      "utc": "2026-09-22T13:03:47.057973+00:00",
+      "elapsed_seconds": 17.92
+    },
+    {
+      "state": "waiting_initial_visibility",
+      "utc": "2026-09-22T13:03:52.088364+00:00",
+      "elapsed_seconds": 22.95
+    },
+    {
+      "state": "waiting_initial_visibility",
+      "utc": "2026-09-22T13:03:57.105474+00:00",
+      "elapsed_seconds": 27.97
+    },
+    {
+      "state": "waiting_initial_visibility",
+      "utc": "2026-09-22T13:04:02.136217+00:00",
+      "elapsed_seconds": 33.0
+    },
+    {
+      "state": "waiting_initial_visibility",
+      "utc": "2026-09-22T13:04:07.152471+00:00",
+      "elapsed_seconds": 38.02
+    },
+    {
+      "state": "initially_retrievable",
+      "utc": "2026-09-22T13:04:12.167878+00:00",
+      "elapsed_seconds": 43.03,
+      "rows": 1
+    },
+    {
+      "state": "flushed_chunk_observed",
+      "utc": "2026-09-22T13:04:12.182539+00:00",
+      "elapsed_seconds": 43.05,
+      "chunks": 1
+    },
+    {
+      "state": "policy_reduced",
+      "utc": "2026-09-22T13:04:12.197961+00:00",
+      "elapsed_seconds": 43.06,
+      "retention_hours": 24
+    },
+    {
+      "state": "observing",
+      "utc": "2026-09-22T13:04:29.689654+00:00",
+      "elapsed_seconds": 60.55,
+      "query_visible": true,
+      "remaining_initial_chunks": 1
+    },
+    {
+      "state": "observing",
+      "utc": "2026-09-22T13:04:34.717023+00:00",
+      "elapsed_seconds": 65.58,
+      "query_visible": true,
+      "remaining_initial_chunks": 1
+    },
+    {
+      "state": "observing",
+      "utc": "2026-09-22T13:04:39.746818+00:00",
+      "elapsed_seconds": 70.61,
+      "query_visible": true,
+      "remaining_initial_chunks": 1
+    },
+    {
+      "state": "observing",
+      "utc": "2026-09-22T13:04:44.763424+00:00",
+      "elapsed_seconds": 75.62,
+      "query_visible": true,
+      "remaining_initial_chunks": 1
+    },
+    {
+      "state": "observing",
+      "utc": "2026-09-22T13:04:49.790770+00:00",
+      "elapsed_seconds": 80.66,
+      "query_visible": true,
+      "remaining_initial_chunks": 1
+    },
+    {
+      "state": "observing",
+      "utc": "2026-09-22T13:04:54.806743+00:00",
+      "elapsed_seconds": 85.67,
+      "query_visible": true,
+      "remaining_initial_chunks": 1
+    },
+    {
+      "state": "observing",
+      "utc": "2026-09-22T13:04:59.837411+00:00",
+      "elapsed_seconds": 90.7,
+      "query_visible": true,
+      "remaining_initial_chunks": 1
+    },
+    {
+      "state": "observing",
+      "utc": "2026-09-22T13:05:04.855114+00:00",
+      "elapsed_seconds": 95.72,
+      "query_visible": true,
+      "remaining_initial_chunks": 1
+    },
+    {
+      "state": "observing",
+      "utc": "2026-09-22T13:05:09.884279+00:00",
+      "elapsed_seconds": 100.75,
+      "query_visible": true,
+      "remaining_initial_chunks": 1
+    },
+    {
+      "state": "observing",
+      "utc": "2026-09-22T13:05:14.890283+00:00",
+      "elapsed_seconds": 105.75,
+      "query_visible": true,
+      "remaining_initial_chunks": 1
+    },
+    {
+      "state": "observing",
+      "utc": "2026-09-22T13:05:19.912739+00:00",
+      "elapsed_seconds": 110.77,
+      "query_visible": true,
+      "remaining_initial_chunks": 1
+    },
+    {
+      "state": "observing",
+      "utc": "2026-09-22T13:05:24.942373+00:00",
+      "elapsed_seconds": 115.8,
+      "query_visible": false,
+      "remaining_initial_chunks": 0
+    }
+  ],
+  "claims": {
+    "elapsed_24_hours": false,
+    "nas": false,
+    "linux_compose": false,
+    "actual_chunk_deletion": true
+  },
+  "query": {
+    "selector": "{stack=\"tianshu\",service=\"retention_fixture\"}",
+    "start_ns": 1789992226026829600,
+    "end_ns": 1789992228026829600
+  },
+  "initially_retrievable": true,
+  "initial_chunk_count": 1,
+  "initial_chunk_paths": [
+    "6c4e6d7a8507e60f\\MWEwYzNkOWQwZDI6MWEwYzNkOWQwZDM6NDlkNmY1NWU="
+  ],
+  "previous_retention_hours": 48,
+  "remaining_initial_chunks": 0,
+  "query_visible": false,
+  "deleted_chunk_count": 1,
+  "duration_seconds": 115.83,
+  "finished_at": "2026-09-22T13:05:24.969873+00:00",
+  "artifacts": {
+    "config-before.json": "f4a650c1c04771caa3248bf45706ebd40b16cacfb86f04298850d0ab80774ca7",
+    "config-after.json": "eca0c6c67009484d6be458a58727d6231cf32b5cb35419632f955ab49ab6eae6",
+    "fixture-push.json": "e83c3284ba03616db56dacbfb6280abad8c611c8656d8e17e0a7ffa2d3cd2f19"
+  },
+  "runtime_root": "C:\\Users\\Administrator\\.codex\\worktrees\\7e3f\\tianshu-peiban-bot\\tests\\deployment\\observability\\.runtime\\retention-xvftl9wy"
+}

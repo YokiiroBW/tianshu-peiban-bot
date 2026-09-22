@@ -1,0 +1,10 @@
+{
+  "checked_at": "2026-09-22",
+  "images": {
+    "vector": {"reference": "timberio/vector:0.58.0-debian", "digest": null, "verification": "unverified", "source": "https://vector.dev/releases/0.58.0/"},
+    "loki": {"reference": "grafana/loki:3.7.8", "digest": null, "verification": "unverified", "source": "https://github.com/grafana/loki/releases/tag/v3.7.8"},
+    "grafana": {"reference": "grafana/grafana:13.2.2", "digest": null, "verification": "unverified", "source": "https://github.com/grafana/grafana/releases/tag/v13.2.2"},
+    "prometheus": {"reference": "prom/prometheus:v3.13.3", "digest": null, "verification": "unverified", "source": "https://prometheus.io/download/"},
+    "guard": {"reference": "python:3.12.14-slim-bookworm", "digest": null, "verification": "unverified", "source": "https://www.python.org/downloads/release/python-31214/"}
+  }
+}

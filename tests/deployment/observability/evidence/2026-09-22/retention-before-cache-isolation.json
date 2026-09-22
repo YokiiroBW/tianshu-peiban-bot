@@ -1,0 +1,18 @@
+{
+  "kind": "dep-b-retention",
+  "status": "failed",
+  "retention_hours": 24,
+  "fixture_age_hours": 25,
+  "claims": {
+    "elapsed_24_hours": false,
+    "nas": false,
+    "linux_compose": false,
+    "actual_chunk_deletion": false
+  },
+  "initially_retrievable": true,
+  "initial_chunk_count": 1,
+  "previous_retention_hours": 48,
+  "error_code": "retention_not_observed_within_budget",
+  "duration_seconds": 240.91,
+  "runtime_root": "C:\\Users\\Administrator\\.codex\\worktrees\\7e3f\\tianshu-peiban-bot\\tests\\deployment\\observability\\.runtime\\retention-zfys9cw8"
+}
