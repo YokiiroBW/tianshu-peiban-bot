@@ -1,0 +1,8 @@
+{
+  "commit": "880c2c33ffc4c12b9267d38267c2dacde074890d",
+  "files": {
+    "runtime-identity.schema.json": "4869bb1df94e5ac3457b244f812026948d22fc9091c477384c57032f07d4a8c2",
+    "runtime-identity.example.json": "920b40a620436022285cca8a1114c4a68441a33d75da9ba9eac209e3a0e17581",
+    "RUNTIME-IDENTITY.md": "c704b83ff89239b0973bf88ce63f5b25e3d159569bb52d3199b7d4183ac945a0"
+  }
+}

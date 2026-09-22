@@ -1,0 +1,219 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "permit_id",
+    "scope_id",
+    "authority_id",
+    "source_directory",
+    "restored_directory",
+    "drill_directory",
+    "inputs_directory",
+    "snapshot_sha256",
+    "verification_sha256",
+    "runtime_identity_sha256",
+    "registration_sha256",
+    "inputs_sha256",
+    "projects",
+    "compose_sha256",
+    "config_sha256",
+    "versions",
+    "image_ids",
+    "issued_at",
+    "expires_at",
+    "max_runtime_seconds"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "dep-j-drill/1"
+    },
+    "permit_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "scope_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "authority_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "source_directory": {
+      "type": "string",
+      "pattern": "^(?:/|[A-Za-z]:/)[^\\\\]+$"
+    },
+    "restored_directory": {
+      "type": "string",
+      "pattern": "^(?:/|[A-Za-z]:/)[^\\\\]+$"
+    },
+    "drill_directory": {
+      "type": "string",
+      "pattern": "^(?:/|[A-Za-z]:/)[^\\\\]+$"
+    },
+    "inputs_directory": {
+      "type": "string",
+      "pattern": "^(?:/|[A-Za-z]:/)[^\\\\]+$"
+    },
+    "snapshot_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "verification_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "runtime_identity_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "registration_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "inputs_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "projects": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "core",
+        "observability"
+      ],
+      "properties": {
+        "core": {
+          "type": "string",
+          "pattern": "^tianshu-qa-[a-z0-9-]{1,40}$"
+        },
+        "observability": {
+          "type": "string",
+          "pattern": "^tianshu-qa-[a-z0-9-]{1,40}$"
+        }
+      }
+    },
+    "compose_sha256": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "core",
+        "observability"
+      ],
+      "properties": {
+        "core": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "observability": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "config_sha256": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      }
+    },
+    "versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platform",
+        "companion",
+        "memory",
+        "gateway"
+      ],
+      "properties": {
+        "platform": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "companion": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "memory": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "gateway": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        }
+      }
+    },
+    "image_ids": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platform",
+        "companion",
+        "memory",
+        "gateway",
+        "obs-vector",
+        "obs-loki",
+        "obs-grafana",
+        "obs-prometheus",
+        "obs-guard"
+      ],
+      "properties": {
+        "platform": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "companion": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "memory": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "gateway": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "obs-vector": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "obs-loki": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "obs-grafana": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "obs-prometheus": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "obs-guard": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      }
+    },
+    "issued_at": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "expires_at": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "max_runtime_seconds": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 900
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

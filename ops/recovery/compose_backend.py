@@ -65,7 +65,7 @@ class ComposeBackend:
         self.images = {}
         self.restart_disabled = False
 
-    def inspect(self):
+    def inspect(self, *, allow_missing=False):
         ids = self.docker.run(
             "container", "ls", "--all", "--quiet", "--no-trunc"
         ).split()
@@ -127,12 +127,38 @@ class ComposeBackend:
                 container["Config"]["Image"] == expected["image"],
                 "container_image_mismatch",
             )
+            if "container_id" in expected:
+                require(
+                    container["Id"] == expected["container_id"], "runtime_owner_changed"
+                )
+            if "image_id" in expected:
+                require(
+                    container["Image"] == expected["image_id"],
+                    "container_image_mismatch",
+                )
+            if "user" in expected:
+                require(
+                    container["Config"].get("User") == expected["user"],
+                    "runtime_container_user_mismatch",
+                )
             # RepoDigest identifies a registry manifest, Image identifies actual local bytes.
             if expected["image"] not in self.images:
                 image = json.loads(
                     self.docker.run("image", "inspect", expected["image"])
                 )
                 require(len(image) == 1, "container_image_mismatch")
+                if "image_id" in expected:
+                    require(
+                        image[0]["Id"] == expected["image_id"]
+                        and image[0].get("Os") == "linux"
+                        and image[0].get("Architecture") == "amd64",
+                        "runtime_image_identity_mismatch",
+                    )
+                    require(
+                        set(expected.get("repo_digests", []))
+                        <= set(image[0].get("RepoDigests") or []),
+                        "runtime_registry_identity_mismatch",
+                    )
                 self.images[expected["image"]] = image[0]["Id"]
             require(
                 self.images[expected["image"]] == container["Image"],
@@ -179,7 +205,8 @@ class ComposeBackend:
                 self.identities[service] = identity
             observed[service] = container
         require(
-            set(observed) == set(self.binding["services"]), "missing_project_container"
+            allow_missing or set(observed) == set(self.binding["services"]),
+            "missing_project_container",
         )
         self.current = observed
 

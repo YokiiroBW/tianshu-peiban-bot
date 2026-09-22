@@ -1,0 +1,1194 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "scope",
+    "host",
+    "release_id",
+    "deployment_root",
+    "project_name",
+    "projects",
+    "services",
+    "mounts",
+    "integrity",
+    "recovery_inventory",
+    "authority",
+    "lease",
+    "state",
+    "activation_authorized"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "dep-g-runtime/1.0.0"
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "synthetic_only",
+        "release_ready",
+        "nas_acceptance"
+      ],
+      "properties": {
+        "synthetic_only": {
+          "const": true
+        },
+        "release_ready": {
+          "const": false
+        },
+        "nas_acceptance": {
+          "const": false
+        }
+      }
+    },
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "system"
+      ],
+      "properties": {
+        "system": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "release_id": {
+      "type": "string"
+    },
+    "deployment_root": {
+      "type": "string"
+    },
+    "project_name": {
+      "type": "string",
+      "pattern": "^tianshu-qa-[a-z0-9-]+$"
+    },
+    "projects": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "core",
+        "observability"
+      ],
+      "properties": {
+        "core": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "directory",
+            "compose_file",
+            "lifecycle_owner",
+            "compose_sha256",
+            "compose_json",
+            "compose_canonical_sha256"
+          ],
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "directory": {
+              "type": "string"
+            },
+            "compose_file": {
+              "type": "string"
+            },
+            "lifecycle_owner": {
+              "const": "coordinator"
+            },
+            "compose_sha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "compose_json": {
+              "anyOf": [
+                {
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "compose_canonical_sha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        "observability": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "directory",
+            "compose_file",
+            "lifecycle_owner",
+            "compose_sha256",
+            "compose_json",
+            "compose_canonical_sha256"
+          ],
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "directory": {
+              "type": "string"
+            },
+            "compose_file": {
+              "type": "string"
+            },
+            "lifecycle_owner": {
+              "const": "coordinator"
+            },
+            "compose_sha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "compose_json": {
+              "anyOf": [
+                {
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "compose_canonical_sha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "services": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platform",
+        "companion",
+        "memory",
+        "gateway",
+        "obs-vector",
+        "obs-loki",
+        "obs-grafana",
+        "obs-prometheus",
+        "obs-guard"
+      ],
+      "properties": {
+        "platform": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "project",
+            "image_reference",
+            "image_id",
+            "repo_digests",
+            "platform",
+            "uid",
+            "gid",
+            "container_id",
+            "status"
+          ],
+          "properties": {
+            "project": {
+              "type": "string"
+            },
+            "image_reference": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "image_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^sha256:[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "repo_digests": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[^@]+@sha256:[0-9a-f]{64}$"
+              },
+              "uniqueItems": true
+            },
+            "platform": {
+              "enum": [
+                null,
+                "linux/amd64"
+              ]
+            },
+            "uid": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "gid": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "container_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "not_observed",
+                "observed"
+              ]
+            }
+          }
+        },
+        "companion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "project",
+            "image_reference",
+            "image_id",
+            "repo_digests",
+            "platform",
+            "uid",
+            "gid",
+            "container_id",
+            "status"
+          ],
+          "properties": {
+            "project": {
+              "type": "string"
+            },
+            "image_reference": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "image_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^sha256:[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "repo_digests": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[^@]+@sha256:[0-9a-f]{64}$"
+              },
+              "uniqueItems": true
+            },
+            "platform": {
+              "enum": [
+                null,
+                "linux/amd64"
+              ]
+            },
+            "uid": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "gid": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "container_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "not_observed",
+                "observed"
+              ]
+            }
+          }
+        },
+        "memory": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "project",
+            "image_reference",
+            "image_id",
+            "repo_digests",
+            "platform",
+            "uid",
+            "gid",
+            "container_id",
+            "status"
+          ],
+          "properties": {
+            "project": {
+              "type": "string"
+            },
+            "image_reference": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "image_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^sha256:[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "repo_digests": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[^@]+@sha256:[0-9a-f]{64}$"
+              },
+              "uniqueItems": true
+            },
+            "platform": {
+              "enum": [
+                null,
+                "linux/amd64"
+              ]
+            },
+            "uid": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "gid": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "container_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "not_observed",
+                "observed"
+              ]
+            }
+          }
+        },
+        "gateway": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "project",
+            "image_reference",
+            "image_id",
+            "repo_digests",
+            "platform",
+            "uid",
+            "gid",
+            "container_id",
+            "status"
+          ],
+          "properties": {
+            "project": {
+              "type": "string"
+            },
+            "image_reference": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "image_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^sha256:[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "repo_digests": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[^@]+@sha256:[0-9a-f]{64}$"
+              },
+              "uniqueItems": true
+            },
+            "platform": {
+              "enum": [
+                null,
+                "linux/amd64"
+              ]
+            },
+            "uid": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "gid": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "container_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "not_observed",
+                "observed"
+              ]
+            }
+          }
+        },
+        "obs-vector": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "project",
+            "image_reference",
+            "image_id",
+            "repo_digests",
+            "platform",
+            "uid",
+            "gid",
+            "container_id",
+            "status"
+          ],
+          "properties": {
+            "project": {
+              "type": "string"
+            },
+            "image_reference": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "image_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^sha256:[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "repo_digests": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[^@]+@sha256:[0-9a-f]{64}$"
+              },
+              "uniqueItems": true
+            },
+            "platform": {
+              "enum": [
+                null,
+                "linux/amd64"
+              ]
+            },
+            "uid": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "gid": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "container_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "not_observed",
+                "observed"
+              ]
+            }
+          }
+        },
+        "obs-loki": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "project",
+            "image_reference",
+            "image_id",
+            "repo_digests",
+            "platform",
+            "uid",
+            "gid",
+            "container_id",
+            "status"
+          ],
+          "properties": {
+            "project": {
+              "type": "string"
+            },
+            "image_reference": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "image_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^sha256:[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "repo_digests": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[^@]+@sha256:[0-9a-f]{64}$"
+              },
+              "uniqueItems": true
+            },
+            "platform": {
+              "enum": [
+                null,
+                "linux/amd64"
+              ]
+            },
+            "uid": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "gid": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "container_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "not_observed",
+                "observed"
+              ]
+            }
+          }
+        },
+        "obs-grafana": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "project",
+            "image_reference",
+            "image_id",
+            "repo_digests",
+            "platform",
+            "uid",
+            "gid",
+            "container_id",
+            "status"
+          ],
+          "properties": {
+            "project": {
+              "type": "string"
+            },
+            "image_reference": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "image_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^sha256:[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "repo_digests": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[^@]+@sha256:[0-9a-f]{64}$"
+              },
+              "uniqueItems": true
+            },
+            "platform": {
+              "enum": [
+                null,
+                "linux/amd64"
+              ]
+            },
+            "uid": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "gid": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "container_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "not_observed",
+                "observed"
+              ]
+            }
+          }
+        },
+        "obs-prometheus": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "project",
+            "image_reference",
+            "image_id",
+            "repo_digests",
+            "platform",
+            "uid",
+            "gid",
+            "container_id",
+            "status"
+          ],
+          "properties": {
+            "project": {
+              "type": "string"
+            },
+            "image_reference": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "image_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^sha256:[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "repo_digests": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[^@]+@sha256:[0-9a-f]{64}$"
+              },
+              "uniqueItems": true
+            },
+            "platform": {
+              "enum": [
+                null,
+                "linux/amd64"
+              ]
+            },
+            "uid": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "gid": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "container_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "not_observed",
+                "observed"
+              ]
+            }
+          }
+        },
+        "obs-guard": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "project",
+            "image_reference",
+            "image_id",
+            "repo_digests",
+            "platform",
+            "uid",
+            "gid",
+            "container_id",
+            "status"
+          ],
+          "properties": {
+            "project": {
+              "type": "string"
+            },
+            "image_reference": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "image_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^sha256:[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "repo_digests": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[^@]+@sha256:[0-9a-f]{64}$"
+              },
+              "uniqueItems": true
+            },
+            "platform": {
+              "enum": [
+                null,
+                "linux/amd64"
+              ]
+            },
+            "uid": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "gid": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "container_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "status": {
+              "enum": [
+                "not_observed",
+                "observed"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "mounts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "host_path",
+          "container_path",
+          "owner_service",
+          "backup_group",
+          "uid",
+          "gid"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "host_path": {
+            "type": "string"
+          },
+          "container_path": {
+            "type": "string"
+          },
+          "owner_service": {
+            "enum": [
+              "platform",
+              "companion",
+              "memory",
+              "gateway",
+              "obs-vector",
+              "obs-loki",
+              "obs-grafana",
+              "obs-prometheus",
+              "obs-guard"
+            ]
+          },
+          "backup_group": {
+            "type": "string"
+          },
+          "uid": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "gid": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_manifest_sha256",
+        "bundle_integrity_sha256",
+        "compose_sha256",
+        "observability_compose_sha256",
+        "config_sha256",
+        "sources"
+      ],
+      "properties": {
+        "release_manifest_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "bundle_integrity_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "compose_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "observability_compose_sha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "config_sha256": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "sources": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "repo",
+              "commit"
+            ],
+            "properties": {
+              "repo": {
+                "type": "string"
+              },
+              "commit": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{40}$"
+              }
+            }
+          }
+        }
+      }
+    },
+    "recovery_inventory": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "sha256"
+          ],
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "authority": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "identity",
+            "evidence_path",
+            "evidence_sha256"
+          ],
+          "properties": {
+            "identity": {
+              "type": "string"
+            },
+            "evidence_path": {
+              "type": "string"
+            },
+            "evidence_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "lease": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "protocol"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "protocol": {
+          "const": "linux-flock-exclusive-nonblocking-v1"
+        }
+      }
+    },
+    "state": {
+      "enum": [
+        "planned",
+        "stopped",
+        "stop_unconfirmed"
+      ]
+    },
+    "activation_authorized": {
+      "const": false
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

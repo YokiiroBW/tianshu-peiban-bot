@@ -87,3 +87,6 @@ python -B tests/deployment/recovery/run_verification.py --output tests/deploymen
 所有路径拒绝相对根、UNC、`..`、驱动/ADS 路径、符号链接、junction/reparse、硬链接、特殊文件和大小写别名；输出只在注册 scope 子树。scope 必须由操作者控制、保持私有，不能有不遵守维护锁的并发写者。此版不提供抵御同用户恶意替换文件的 openat 沙箱，不支持网络挂载。POSIX 路径包含目录 fsync；Windows 标准库无等价目录 fsync，报告 `directory_fsync=false`，未声称断电持久性已验收。备份包未加密，真实敏感数据处理仍不在本轮范围。
 
 官方依据（2026-09-22 核对）：[SQLite Backup API](https://www.sqlite.org/backup.html)、[SQLite WAL](https://www.sqlite.org/wal.html)、[Python 3.12 sqlite3](https://docs.python.org/3.12/library/sqlite3.html)。运行实测 Python 3.12.14 / SQLite 3.53.1。开发格式检查用 [Ruff 0.14.0](https://pypi.org/project/ruff/0.14.0/)，仅装在本号忽略目录，无运行依赖变更。
+# DEP-J Linux 适配
+
+新增实际九 owner 的身份登记、正常停写/禁用恢复和有期限一次性副本入口，见 [LINUX-RECOVERY.md](LINUX-RECOVERY.md)。仍默认 plan；本地测试不代表 Linux/NAS 通过。以下为既有离线恢复基础说明。

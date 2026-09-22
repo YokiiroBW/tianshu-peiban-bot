@@ -21,18 +21,43 @@ def service_map(manifest):
     return services
 
 
-def describe(recovery, directory, project, compose_files, backend):
+def describe(
+    recovery,
+    directory,
+    project,
+    compose_files,
+    backend,
+    *,
+    runtime_pin=None,
+    registration=None,
+):
     directory = safe_path(directory)
     require(
         directory.parent == child(recovery.root, "deployments"),
         "deployment_directory_mismatch",
     )
     name = identifier(directory.name)
-    _, marker, (manifest, _, _) = recovery.deployment(name)
+    if registration is None:
+        _, marker, (manifest, _, _) = recovery.deployment(name)
+        inventory_hash = file_hash(child(directory, "recovery-inventory.json"))
+    else:
+        marker, manifest, inventory_hash = registration
+    runtime = None
+    if runtime_pin is not None:
+        from .runtime_identity import load_identity
+
+        runtime = load_identity(
+            directory, child(directory, runtime_pin["path"]), runtime_pin["sha256"]
+        )
+        require(project == runtime["project_name"], "runtime_project_mismatch")
     require(marker["role"] == "authority", "current_authority_required")
     require(backend in {"local-process", "compose"}, "unsupported_lifecycle_backend")
     identifier(project)
-    require(project.startswith("tianshu-synthetic-"), "synthetic_project_required")
+    require(
+        project.startswith("tianshu-synthetic-")
+        or (runtime is not None and project.startswith("tianshu-qa-")),
+        "synthetic_project_required",
+    )
     require(0 < len(compose_files) <= 4, "compose_files_required")
     documents, pins, origins = {}, [], {}
     for name in compose_files:
@@ -142,16 +167,26 @@ def describe(recovery, directory, project, compose_files, backend):
         image = definition.get("image")
         require(isinstance(image, str) and image, "image_required")
         if backend == "compose":
-            require(
-                re.fullmatch(r"[^@\s]+@sha256:[0-9a-f]{64}", image),
-                "pinned_image_required",
-            )
+            if runtime is None:
+                require(
+                    re.fullmatch(r"[^@\s]+@sha256:[0-9a-f]{64}", image),
+                    "pinned_image_required",
+                )
+            else:
+                observed = runtime["services"][service]
+                require(
+                    observed["image_reference"] == image
+                    and observed["image_id"] is not None,
+                    "runtime_image_not_observed",
+                )
             product = service_map(manifest)[service]["product"]
             if product != "observability":
                 info = manifest["products"][product]["image"]
                 require(
-                    info["digest"] is not None
-                    and image == info["reference"] + "@" + info["digest"],
+                    (info["digest"] is not None or runtime is not None)
+                    and image
+                    == info["reference"]
+                    + ("@" + info["digest"] if info["digest"] else ""),
                     "release_image_mismatch",
                 )
         services[service] = {
@@ -163,7 +198,16 @@ def describe(recovery, directory, project, compose_files, backend):
                 p["path"] for p in pins if p["project"] == compose_project
             ],
         }
-    return {
+        if runtime is not None:
+            observed = runtime["services"][service]
+            services[service].update(
+                image_id=observed["image_id"],
+                repo_digests=observed["repo_digests"],
+                user="10001:10001",
+            )
+            if observed["container_id"] is not None:
+                services[service]["container_id"] = observed["container_id"]
+    result = {
         "schema_version": "lifecycle/1",
         "environment": "synthetic",
         "backend": backend,
@@ -172,7 +216,7 @@ def describe(recovery, directory, project, compose_files, backend):
         "directory": str(directory),
         "project": project,
         "release_manifest_sha256": file_hash(child(directory, "release-manifest.json")),
-        "inventory_sha256": file_hash(child(directory, "recovery-inventory.json")),
+        "inventory_sha256": inventory_hash,
         "compose_files": pins,
         "services": services,
         "versions": {
@@ -185,10 +229,24 @@ def describe(recovery, directory, project, compose_files, backend):
             else {}
         ),
     }
+    if runtime_pin is not None:
+        result["runtime_identity"] = runtime_pin
+    return result
 
 
-def initialize(recovery, directory, project, compose_files, backend, *, execute=False):
-    binding = describe(recovery, directory, project, compose_files, backend)
+def initialize(
+    recovery,
+    directory,
+    project,
+    compose_files,
+    backend,
+    *,
+    execute=False,
+    runtime_pin=None,
+):
+    binding = describe(
+        recovery, directory, project, compose_files, backend, runtime_pin=runtime_pin
+    )
     home = child(safe_path(directory), ".lifecycle", exists=False)
     require(not home.exists(), "lifecycle_must_be_new")
     if execute:
@@ -225,6 +283,7 @@ def load(recovery, directory, project, expected_sha256):
         project,
         [p["path"] for p in binding["compose_files"]],
         binding["backend"],
+        runtime_pin=binding.get("runtime_identity"),
     )
     require(binding == expected, "deployment_binding_drift")
     return directory, home, binding

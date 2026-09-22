@@ -1,0 +1,3 @@
+-r ../../../ops/recovery/requirements.txt
+cryptography==50.0.1
+ruff==0.14.0

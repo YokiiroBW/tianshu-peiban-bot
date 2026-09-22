@@ -1,0 +1,2 @@
+# Install into a task-local venv; no host-global package installation.
+jsonschema==4.25.1
