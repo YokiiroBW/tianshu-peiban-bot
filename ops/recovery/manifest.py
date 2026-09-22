@@ -5,6 +5,7 @@ import re
 from .safety import child, digest, read_bytes, read_json, relative, require
 
 PRODUCTS = {"platform", "companion", "memory", "gateway"}
+OBSERVABILITY = {"vector", "loki", "grafana", "prometheus", "guard"}
 HEX = re.compile(r"[0-9a-f]{64}")
 ID = re.compile(r"[a-z][a-z0-9_-]{0,63}")
 
@@ -27,17 +28,35 @@ def fields(value, names):
 
 
 def release(raw):
+    require(isinstance(raw, dict), "invalid_release_document")
+    extended = raw.get("schema_version") == "1.1.0"
     fields(
         raw,
-        "schema_version release_id status products contracts features volumes services blockers evidence",
+        "schema_version release_id status products contracts features volumes services blockers evidence"
+        + (" observability" if extended else ""),
     )
     require(
-        isinstance(raw, dict) and raw.get("schema_version") == "1.0.0",
+        isinstance(raw, dict) and raw.get("schema_version") in {"1.0.0", "1.1.0"},
         "unsupported_release_schema",
     )
     identifier(raw["release_id"])
     require(raw.get("status") in {"candidate", "verified"}, "invalid_release_status")
     require(set(raw["products"]) == PRODUCTS, "four_products_required")
+    allowed_products = PRODUCTS | ({"observability"} if extended else set())
+    if extended:
+        info = raw["observability"]
+        fields(info, "source package_path output_relative compose_project_suffix")
+        fields(info["source"], "repo commit")
+        identifier(info["source"]["repo"])
+        require(
+            re.fullmatch(r"[0-9a-f]{40}", info["source"]["commit"]), "unpinned_source"
+        )
+        require(
+            info["package_path"] == "deploy/observability"
+            and info["output_relative"] == "observability"
+            and info["compose_project_suffix"] == "-obs",
+            "unsupported_observability_binding",
+        )
     for product in raw["products"].values():
         fields(product, "source image service_role")
         source = product["source"]
@@ -74,9 +93,11 @@ def release(raw):
         )
         key = identifier(volume["id"])
         require(key not in volumes, "duplicate_volume")
-        require(volume["product"] in PRODUCTS, "unknown_product")
+        require(volume["product"] in allowed_products, "unknown_product")
         require(
-            volume["category"] in {"state", "logs", "guard", "sidecar"},
+            volume["category"]
+            in {"state", "logs", "guard", "sidecar"}
+            | ({"observability_state"} if extended else set()),
             "invalid_volume_role",
         )
         relative(volume["host_path"])
@@ -94,6 +115,33 @@ def release(raw):
             volume["owner_service"] and volume["backup_group"], "missing_volume_owner"
         )
         volumes[key] = volume
+        if (
+            volume["product"] == "observability"
+            or volume["category"] == "observability_state"
+        ):
+            component = key.removeprefix("obs-").removesuffix("-state")
+            require(
+                component in OBSERVABILITY
+                and volume
+                == {
+                    "id": "obs-" + component + "-state",
+                    "product": "observability",
+                    "category": "observability_state",
+                    "host_path": "observability/data/" + component,
+                    "container_path": "/var/lib/" + component,
+                    "owner_service": "obs-" + component,
+                    "backup_group": "obs-" + component,
+                    "mount": True,
+                    "kind": "directory",
+                },
+                "invalid_observability_volume",
+            )
+    if extended:
+        require(
+            {v["id"] for v in volumes.values() if v["product"] == "observability"}
+            == {"obs-" + c + "-state" for c in OBSERVABILITY},
+            "missing_observability_volume",
+        )
     require(
         {v["product"] for v in volumes.values() if v["category"] == "state"}
         == PRODUCTS,
@@ -120,7 +168,15 @@ def release(raw):
             "id product role port replicas hostname tls_server_names config_path",
         )
         relative(service["config_path"])
-    require({s["product"] for s in services} == PRODUCTS, "missing_product_service")
+    require(
+        {s["product"] for s in services} == allowed_products, "missing_product_service"
+    )
+    if extended:
+        require(
+            {s["id"] for s in services if s["product"] == "observability"}
+            == {"obs-" + c for c in OBSERVABILITY},
+            "missing_observability_service",
+        )
     require(all(s["replicas"] == 1 for s in services), "single_owner_required")
     require(len({s["id"] for s in services}) == len(services), "duplicate_service")
     for volume in volumes.values():
@@ -195,7 +251,10 @@ def load_deployment(root):
             item["kind"] in {"sqlite", "guard", "file", "owner_lock"},
             "invalid_resource_kind",
         )
-        require(volume["category"] != "logs", "logs_enumerated_automatically")
+        require(
+            volume["category"] not in {"logs", "observability_state"},
+            "logs_enumerated_automatically",
+        )
         require(
             item["kind"] != "guard" or volume["category"] == "guard",
             "guard_role_required",

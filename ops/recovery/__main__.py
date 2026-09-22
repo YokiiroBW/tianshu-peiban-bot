@@ -6,12 +6,14 @@ import signal
 import sqlite3
 
 from .engine import Control, Recovery, create_sandbox
+from .lifecycle import operate
+from .lifecycle_binding import initialize
 from .safety import RecoveryError
 
 
 def parser():
     result = argparse.ArgumentParser(
-        description="Synthetic-only offline recovery; no NAS/network/service control. Default: plan."
+        description="Synthetic-only recovery and explicitly bound local lifecycle. Default: plan."
     )
     result.add_argument("--root", required=True, help="Absolute local sandbox path")
     result.add_argument("--scope-id", required=True, help="Explicit sandbox UUID")
@@ -68,6 +70,36 @@ def parser():
         action.add_argument("--update-id", required=True)
         if name == "prepare-update":
             action.add_argument("--backup", required=True)
+    init = sub.add_parser("lifecycle-init")
+    init.add_argument("--deployment-directory", required=True)
+    init.add_argument("--project", required=True)
+    init.add_argument("--compose-file", action="append", required=True)
+    init.add_argument("--backend", choices=["local-process", "compose"], required=True)
+    for name in (
+        "backup",
+        "restore",
+        "verify-restored",
+        "prepare-update",
+        "rollback-code",
+    ):
+        action = sub.add_parser("lifecycle-" + name)
+        action.add_argument("--deployment-directory", required=True)
+        action.add_argument("--project", required=True)
+        action.add_argument("--binding-sha256", required=True)
+        action.add_argument("--timeout", type=float, default=60)
+        action.add_argument("--docker-executable")
+        action.add_argument("--docker-endpoint")
+        if name in {"backup", "restore", "prepare-update"}:
+            action.add_argument("--backup", required=True)
+        if name == "restore":
+            action.add_argument("--snapshot-sha256", required=True)
+        if name in {"restore", "verify-restored"}:
+            action.add_argument("--target", required=True)
+            action.add_argument("--authority-id", required=True)
+        if name in {"prepare-update", "rollback-code"}:
+            action.add_argument("--candidate-manifest", required=True)
+            action.add_argument("--compatibility", required=True)
+            action.add_argument("--update-id", required=True)
     return result
 
 
@@ -95,7 +127,36 @@ def main(argv=None):
                 max_bytes=args.max_bytes,
                 max_files=args.max_files,
             )
-            if args.command == "backup":
+            if args.command == "lifecycle-init":
+                output = initialize(
+                    recovery,
+                    args.deployment_directory,
+                    args.project,
+                    args.compose_file,
+                    args.backend,
+                    execute=args.execute,
+                )
+            elif args.command.startswith("lifecycle-"):
+                output = operate(
+                    recovery,
+                    args.deployment_directory,
+                    args.project,
+                    args.binding_sha256,
+                    args.command.removeprefix("lifecycle-"),
+                    execute=args.execute,
+                    timeout=args.timeout,
+                    cancel=lambda: cancelled,
+                    docker_executable=args.docker_executable,
+                    docker_endpoint=args.docker_endpoint,
+                    backup=getattr(args, "backup", None),
+                    snapshot_sha256=getattr(args, "snapshot_sha256", None),
+                    target=getattr(args, "target", None),
+                    authority_id=getattr(args, "authority_id", None),
+                    candidate=getattr(args, "candidate_manifest", None),
+                    compatibility=getattr(args, "compatibility", None),
+                    update_id=getattr(args, "update_id", None),
+                )
+            elif args.command == "backup":
                 output = recovery.backup(
                     args.deployment, args.backup, execute=args.execute
                 )

@@ -20,6 +20,22 @@ from .safety import (
 ASCII_LOWER = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
 
 
+def volume_directories(root, manifest, *, max_directories):
+    result = set()
+    for volume in manifest["volumes"]:
+        if volume["kind"] != "directory":
+            continue
+        base = child(root, volume["host_path"])
+        for directory, dirs, _ in os.walk(base, followlinks=False):
+            for path in [
+                safe_path(directory),
+                *(safe_path(os.path.join(directory, name)) for name in dirs),
+            ]:
+                result.add(path.relative_to(root).as_posix())
+                require(len(result) <= max_directories, "directory_count_limit")
+    return sorted(result)
+
+
 def connect(path, *, write=False):
     db = sqlite3.connect(
         safe_path(path).as_uri() + ("?mode=rw" if write else "?mode=ro"),
@@ -170,8 +186,15 @@ def enumerate_inputs(root, manifest, resources, *, max_bytes, max_files, omitted
                             "sqlite_must_use_backup_api",
                         )
             else:
-                require(volume["category"] == "logs", "unregistered_state_file")
-                kind = "log"
+                require(
+                    volume["category"] in {"logs", "observability_state"},
+                    "unregistered_state_file",
+                )
+                kind = (
+                    "opaque_state"
+                    if volume["category"] == "observability_state"
+                    else "log"
+                )
             prior = result.get(name)
             require(prior is None or prior == kind, "ambiguous_file_role")
             result[name] = kind

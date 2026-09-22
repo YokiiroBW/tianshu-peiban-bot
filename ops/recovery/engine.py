@@ -27,6 +27,7 @@ from .snapshot import (
     freeze,
     state_fingerprints,
     verify_guards,
+    volume_directories,
 )
 
 
@@ -73,7 +74,14 @@ def create_sandbox(root, scope_id, *, execute=False):
 
 class Recovery:
     def __init__(
-        self, root, scope_id, *, control=None, max_bytes=1024**3, max_files=10000
+        self,
+        root,
+        scope_id,
+        *,
+        control=None,
+        max_bytes=1024**3,
+        max_files=10000,
+        lifecycle_guard=None,
     ):
         self.root = safe_path(root)
         scope = read_json(child(self.root, ".recovery-scope.json"))
@@ -89,6 +97,7 @@ class Recovery:
         )
         self.scope_id = scope_id
         self.control = control or Control()
+        self.lifecycle_guard = lifecycle_guard
         require(
             0 < max_bytes <= 64 * 1024**3 and 0 < max_files <= 100000,
             "invalid_resource_budget",
@@ -154,14 +163,27 @@ class Recovery:
 
     def _backup(self, source_name, backup_name):
         source, marker, (manifest, inventory, resources) = self.deployment(source_name)
+        if (source / ".lifecycle").exists() or manifest["schema_version"] == "1.1.0":
+            require(
+                self.lifecycle_guard is not None, "observability_lifecycle_required"
+            )
+        if self.lifecycle_guard:
+            self.lifecycle_guard()
         target = child(self.root, "backups/" + identifier(backup_name), exists=False)
         require(not target.exists(), "destination_exists")
         with freeze(source, inventory, resources):
             before = self.inputs(source, manifest, resources)
+            directories = volume_directories(
+                source, manifest, max_directories=self.max_files
+            )
             self.control.check("before_snapshot")
             with self.stage("backups") as stage:
                 payload = stage / "payload"
                 payload.mkdir()
+                for name in directories:
+                    child(payload, name, exists=False).mkdir(
+                        parents=True, exist_ok=True
+                    )
                 for volume in manifest["volumes"]:
                     if volume["kind"] == "directory":
                         child(payload, volume["host_path"], exists=False).mkdir(
@@ -202,6 +224,13 @@ class Recovery:
                     before == self.inputs(source, manifest, resources),
                     "source_file_set_changed",
                 )
+                require(
+                    directories
+                    == volume_directories(
+                        source, manifest, max_directories=self.max_files
+                    ),
+                    "source_directory_set_changed",
+                )
                 for entry in entries:
                     if entry["kind"] != "sqlite":
                         require(
@@ -230,8 +259,11 @@ class Recovery:
                     "inventory_sha256": file_hash(
                         child(payload, "recovery-inventory.json")
                     ),
-                    "consistency": "cooperative_offline_all_sqlite_reserved_wal_folded",
+                    "consistency": "lifecycle_stopped_all_owners_sqlite_reserved_wal_folded"
+                    if self.lifecycle_guard
+                    else "cooperative_offline_all_sqlite_reserved_wal_folded",
                     "entries": entries,
+                    "directories": directories,
                     "state_fingerprints": facts,
                     "activation": "disabled",
                     "directory_fsync": os.name != "nt",
@@ -240,6 +272,8 @@ class Recovery:
                 write_new(stage / "snapshot.json", blob)
                 sync_tree(stage)
                 self.control.check("before_publish")
+                if self.lifecycle_guard:
+                    self.lifecycle_guard()
                 require(not target.exists(), "destination_exists")
                 stage.rename(target)
                 sync_dir(target.parent)
@@ -310,6 +344,14 @@ class Recovery:
             "unexpected_package_file",
         )
         manifest, inventory, resources = load_deployment(payload)
+        if "directories" in document:
+            require(
+                document["directories"]
+                == volume_directories(
+                    payload, manifest, max_directories=self.max_files
+                ),
+                "snapshot_directory_mismatch",
+            )
         require(
             file_hash(child(payload, "release-manifest.json"))
             == document["release_manifest_sha256"],
@@ -382,11 +424,19 @@ class Recovery:
             document, payload, (manifest, inventory, resources) = self.inspect_backup(
                 backup_name, snapshot_sha256
             )
+            if execute and manifest["schema_version"] == "1.1.0":
+                require(
+                    self.lifecycle_guard is not None, "observability_lifecycle_required"
+                )
+            if execute and self.lifecycle_guard:
+                self.lifecycle_guard()
             authority, auth_marker, (auth_manifest, auth_inventory, auth_resources) = (
                 self.deployment(
                     authority_name, authority=True, expected_id=authority_id
                 )
             )
+            if execute and (authority / ".lifecycle").exists():
+                require(self.lifecycle_guard is not None, "lifecycle_required")
             require(
                 auth_marker["deployment_id"] == document["source_deployment_id"],
                 "unrelated_authority",
@@ -455,6 +505,10 @@ class Recovery:
                     )
                 quarantine = None
                 with self.stage("deployments") as stage:
+                    for name in document.get("directories", []):
+                        child(stage, name, exists=False).mkdir(
+                            parents=True, exist_ok=True
+                        )
                     for entry in document["entries"]:
                         self.control.check()
                         copy_new(
@@ -467,7 +521,7 @@ class Recovery:
                         if item["kind"] == "owner_lock":
                             write_new(child(stage, item["path"], exists=False), b"0")
                     for volume in manifest["volumes"]:
-                        if volume["category"] == "logs":
+                        if volume["kind"] == "directory":
                             child(stage, volume["host_path"], exists=False).mkdir(
                                 parents=True, exist_ok=True
                             )
@@ -502,6 +556,8 @@ class Recovery:
                         ),
                     )
                     self.control.check("before_publish")
+                    if self.lifecycle_guard:
+                        self.lifecycle_guard()
                     sync_tree(stage)
                     # Check latest authority again immediately before publishing the target.
                     require(
@@ -543,6 +599,9 @@ class Recovery:
             authority, _, (_, ai, ar) = self.deployment(
                 authority_name, authority=True, expected_id=authority_id
             )
+            if (authority / ".lifecycle").exists():
+                require(self.lifecycle_guard is not None, "lifecycle_required")
+                self.lifecycle_guard()
             require(
                 file_hash(child(target, "release-manifest.json"))
                 == file_hash(child(authority, "release-manifest.json")),
@@ -617,6 +676,10 @@ class Recovery:
                     "schema_compatibility": "must_verify_on_execute",
                     "service_control": "external_not_run",
                 }
+            if (source / ".lifecycle").exists() or current["schema_version"] == "1.1.0":
+                require(self.lifecycle_guard is not None, "lifecycle_required")
+            if self.lifecycle_guard:
+                self.lifecycle_guard()
             with freeze(source, inventory, resources):
                 before = state_fingerprints(source, resources, self.control.check)
                 schemas = {
@@ -656,6 +719,8 @@ class Recovery:
                     ),
                 )
                 self.control.check("before_code_switch")
+                if self.lifecycle_guard:
+                    self.lifecycle_guard()
                 stage.rename(event_path)
                 temp = child(
                     source, ".code-" + uuid.uuid4().hex + ".pending", exists=False
@@ -682,6 +747,8 @@ class Recovery:
                         == state_fingerprints(source, resources, self.control.check),
                         "unexpected_data_change",
                     )
+                    if self.lifecycle_guard:
+                        self.lifecycle_guard()
                     write_new(
                         event_path / "COMMITTED.json",
                         canonical(

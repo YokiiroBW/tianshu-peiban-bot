@@ -17,6 +17,9 @@ WORKSPACE = HERE.parents[2]
 sys.path.insert(0, str(WORKSPACE))
 sys.path.insert(0, str(HERE))
 
+from lifecycle_fixtures import DEP_E_COMMIT  # noqa: E402
+from lifecycle_fixtures import interface as fixed_dep_e  # noqa: E402
+
 from ops.recovery.manifest import release  # noqa: E402 -- standalone test entry point
 from ops.recovery.safety import file_hash, safe_path  # noqa: E402
 
@@ -126,7 +129,7 @@ def main():
         for path in sorted(folder.glob("*.py"))
     }
     document = {
-        "report_version": "dep-c-synthetic/1",
+        "report_version": "dep-f-lifecycle/1",
         "started_at": started,
         "finished_at": datetime.now(timezone.utc).isoformat(),
         "runtime": {
@@ -143,6 +146,18 @@ def main():
         },
         "source_sha256": source_hashes,
         "dep_a_interface": interface,
+        "dep_e_interface": {
+            "commit": DEP_E_COMMIT,
+            "consumer": "ops/recovery/manifest.py",
+            "blob_sha256": {
+                name: hashlib.sha256(fixed_dep_e(name)).hexdigest()
+                for name in (
+                    "VOLUME-INTERFACE.md",
+                    "release-manifest.schema.json",
+                    "release-manifest.example.json",
+                )
+            },
+        },
         "claims": {
             "synthetic_recovery": result.wasSuccessful(),
             "real_product_restore": False,
@@ -151,6 +166,9 @@ def main():
             "disaster_recovery_without_current_authority": False,
             "real_model": False,
             "production_restore_drill_evidence": False,
+            "local_synthetic_process_lifecycle": result.wasSuccessful(),
+            "compose_contract_only": True,
+            "automatic_service_activation": False,
         },
         "status": "passed" if result.wasSuccessful() else "failed",
     }
