@@ -1,0 +1,922 @@
+{
+  "schema_version": "dep-g-runtime/1.0.0",
+  "scope": {
+    "synthetic_only": true,
+    "release_ready": false,
+    "nas_acceptance": false
+  },
+  "host": {
+    "system": null
+  },
+  "release_id": "tianshu-wave3-candidate-20260922",
+  "deployment_root": "/srv/synthetic/tianshu-qa-packaging",
+  "project_name": "tianshu-qa-packaging",
+  "projects": {
+    "core": {
+      "name": "tianshu-qa-packaging",
+      "directory": "/srv/synthetic/tianshu-qa-packaging",
+      "compose_file": "/srv/synthetic/tianshu-qa-packaging/compose.json",
+      "lifecycle_owner": "coordinator",
+      "compose_sha256": "b8d6c56e4b3a3abcffe6327e4d73a2a9ecf089485666565d2fd5df81d6880794",
+      "compose_json": {
+        "name": "tianshu-qa-packaging",
+        "services": {
+          "platform": {
+            "image": "tianshu/platform:0a3cf65b8da1",
+            "platform": "linux/amd64",
+            "user": "10001:10001",
+            "read_only": true,
+            "init": true,
+            "cap_drop": [
+              "ALL"
+            ],
+            "security_opt": [
+              "no-new-privileges:true"
+            ],
+            "pids_limit": 128,
+            "mem_limit": "1g",
+            "cpus": "2.0",
+            "restart": "no",
+            "scale": 1,
+            "stop_signal": "SIGTERM",
+            "stop_grace_period": "30s",
+            "entrypoint": [
+              "python",
+              "/opt/dep-a/runtime_guard.py",
+              "/var/lib/tianshu",
+              "python",
+              "-m",
+              "services.platform"
+            ],
+            "command": [
+              "--settings",
+              "/etc/tianshu/settings.json",
+              "serve",
+              "--host",
+              "0.0.0.0",
+              "--port",
+              "8443"
+            ],
+            "environment": {
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONUNBUFFERED": "1",
+              "TIANSHU_LOG_DIR": "/var/log/tianshu",
+              "TIANSHU_HEALTHCHECK_CA": "/etc/tianshu/tls/ca.pem",
+              "TIANSHU_HEALTHCHECK_HOST": "platform.internal",
+              "TIANSHU_HEALTHCHECK_PORT": "8443",
+              "TIANSHU_HEALTHCHECK_SCHEME": "https",
+              "SSL_CERT_FILE": "/etc/tianshu/tls/ca.pem"
+            },
+            "env_file": [
+              "./private/platform.env"
+            ],
+            "tmpfs": [
+              "/tmp:rw,noexec,nosuid,size=64m,mode=1777"
+            ],
+            "volumes": [
+              {
+                "type": "bind",
+                "source": "./config/platform",
+                "target": "/etc/tianshu",
+                "read_only": true,
+                "bind": {
+                  "create_host_path": false
+                }
+              },
+              {
+                "type": "bind",
+                "source": "./contracts",
+                "target": "/contracts",
+                "read_only": true,
+                "bind": {
+                  "create_host_path": false
+                }
+              },
+              {
+                "type": "bind",
+                "source": "./tools/runtime_guard.py",
+                "target": "/opt/dep-a/runtime_guard.py",
+                "read_only": true,
+                "bind": {
+                  "create_host_path": false
+                }
+              },
+              {
+                "type": "bind",
+                "source": "./data/platform",
+                "target": "/var/lib/tianshu",
+                "read_only": false,
+                "bind": {
+                  "create_host_path": false
+                }
+              },
+              {
+                "type": "bind",
+                "source": "./logs/platform",
+                "target": "/var/log/tianshu",
+                "read_only": false,
+                "bind": {
+                  "create_host_path": false
+                }
+              }
+            ],
+            "networks": {
+              "core": {
+                "ipv4_address": "172.30.86.10",
+                "aliases": [
+                  "platform.internal"
+                ]
+              },
+              "frontend": {}
+            },
+            "healthcheck": {
+              "test": [
+                "CMD",
+                "python",
+                "-m",
+                "services.platform",
+                "healthcheck",
+                "--url",
+                "https://platform.internal:8443/health/live",
+                "--ca-file",
+                "/etc/tianshu/tls/ca.pem"
+              ],
+              "interval": "30s",
+              "timeout": "10s",
+              "start_period": "30s",
+              "retries": 3
+            },
+            "logging": {
+              "driver": "local",
+              "options": {
+                "max-size": "10m",
+                "max-file": "3"
+              }
+            },
+            "labels": {
+              "org.tianshu.release": "tianshu-wave3-candidate-20260922",
+              "org.tianshu.product": "platform"
+            },
+            "ports": [
+              "127.0.0.1:18443:8443"
+            ]
+          },
+          "companion": {
+            "image": "tianshu/companion:e94b60909936",
+            "platform": "linux/amd64",
+            "user": "10001:10001",
+            "read_only": true,
+            "init": true,
+            "cap_drop": [
+              "ALL"
+            ],
+            "security_opt": [
+              "no-new-privileges:true"
+            ],
+            "pids_limit": 128,
+            "mem_limit": "1g",
+            "cpus": "2.0",
+            "restart": "no",
+            "scale": 1,
+            "stop_signal": "SIGTERM",
+            "stop_grace_period": "30s",
+            "entrypoint": [
+              "python",
+              "/opt/dep-a/runtime_guard.py",
+              "/data",
+              "python",
+              "-m",
+              "tianshu_companion.runtime_cli"
+            ],
+            "command": [
+              "--config",
+              "/etc/tianshu/settings.json",
+              "--contracts",
+              "/contracts/text-dialogue/v1",
+              "--database",
+              "/data/companion.db",
+              "--log-dir",
+              "/var/log/tianshu",
+              "--host",
+              "0.0.0.0",
+              "--port",
+              "8765",
+              "--tls-cert",
+              "/etc/tianshu/tls/server.pem",
+              "--tls-key",
+              "/etc/tianshu/tls/server.key"
+            ],
+            "environment": {
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONUNBUFFERED": "1",
+              "TIANSHU_LOG_DIR": "/var/log/tianshu",
+              "TIANSHU_HEALTHCHECK_CA": "/etc/tianshu/tls/ca.pem",
+              "TIANSHU_HEALTHCHECK_HOST": "companion.internal",
+              "TIANSHU_HEALTHCHECK_PORT": "8765",
+              "TIANSHU_HEALTHCHECK_SCHEME": "https",
+              "SSL_CERT_FILE": "/etc/tianshu/tls/ca.pem"
+            },
+            "env_file": [
+              "./private/companion.env"
+            ],
+            "tmpfs": [
+              "/tmp:rw,noexec,nosuid,size=64m,mode=1777"
+            ],
+            "volumes": [
+              {
+                "type": "bind",
+                "source": "./config/companion",
+                "target": "/etc/tianshu",
+                "read_only": true,
+                "bind": {
+                  "create_host_path": false
+                }
+              },
+              {
+                "type": "bind",
+                "source": "./contracts",
+                "target": "/contracts",
+                "read_only": true,
+                "bind": {
+                  "create_host_path": false
+                }
+              },
+              {
+                "type": "bind",
+                "source": "./tools/runtime_guard.py",
+                "target": "/opt/dep-a/runtime_guard.py",
+                "read_only": true,
+                "bind": {
+                  "create_host_path": false
+                }
+              },
+              {
+                "type": "bind",
+                "source": "./data/companion",
+                "target": "/data",
+                "read_only": false,
+                "bind": {
+                  "create_host_path": false
+                }
+              },
+              {
+                "type": "bind",
+                "source": "./logs/companion",
+                "target": "/var/log/tianshu",
+                "read_only": false,
+                "bind": {
+                  "create_host_path": false
+                }
+              }
+            ],
+            "networks": {
+              "core": {
+                "ipv4_address": "172.30.86.11",
+                "aliases": [
+                  "companion.internal"
+                ]
+              }
+            },
+            "healthcheck": {
+              "test": [
+                "CMD",
+                "python",
+                "/app/scripts/container_healthcheck.py"
+              ],
+              "interval": "30s",
+              "timeout": "10s",
+              "start_period": "30s",
+              "retries": 3
+            },
+            "logging": {
+              "driver": "local",
+              "options": {
+                "max-size": "10m",
+                "max-file": "3"
+              }
+            },
+            "labels": {
+              "org.tianshu.release": "tianshu-wave3-candidate-20260922",
+              "org.tianshu.product": "companion"
+            },
+            "depends_on": {
+              "platform": {
+                "condition": "service_healthy"
+              },
+              "memory": {
+                "condition": "service_healthy"
+              },
+              "gateway": {
+                "condition": "service_healthy"
+              }
+            }
+          },
+          "memory": {
+            "image": "tianshu/memory:9a3b2bed6aeb",
+            "platform": "linux/amd64",
+            "user": "10001:10001",
+            "read_only": true,
+            "init": true,
+            "cap_drop": [
+              "ALL"
+            ],
+            "security_opt": [
+              "no-new-privileges:true"
+            ],
+            "pids_limit": 128,
+            "mem_limit": "1g",
+            "cpus": "2.0",
+            "restart": "no",
+            "scale": 1,
+            "stop_signal": "SIGTERM",
+            "stop_grace_period": "30s",
+            "entrypoint": [
+              "python",
+              "/opt/dep-a/runtime_guard.py",
+              "/srv/tianshu",
+              "python",
+              "-m",
+              "tianshu_memory.cli"
+            ],
+            "command": [
+              "--config",
+              "/etc/tianshu/settings.json",
+              "serve",
+              "--host",
+              "0.0.0.0",
+              "--port",
+              "8130",
+              "--tls-certfile",
+              "/etc/tianshu/tls/server.pem",
+              "--tls-keyfile",
+              "/etc/tianshu/tls/server.key",
+              "--allowed-host",
+              "memory.internal:8130",
+              "--diagnostics-contract",
+              "/contracts/diagnostics/v1"
+            ],
+            "environment": {
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONUNBUFFERED": "1",
+              "TIANSHU_LOG_DIR": "/var/log/tianshu",
+              "TIANSHU_HEALTHCHECK_CA": "/etc/tianshu/tls/ca.pem",
+              "TIANSHU_HEALTHCHECK_HOST": "memory.internal:8130",
+              "TIANSHU_HEALTHCHECK_PORT": "8130",
+              "TIANSHU_HEALTHCHECK_SCHEME": "https",
+              "SSL_CERT_FILE": "/etc/tianshu/tls/ca.pem",
+              "TIANSHU_MEMORY_CONFIG": "/etc/tianshu/settings.json"
+            },
+            "env_file": [
+              "./private/memory.env"
+            ],
+            "tmpfs": [
+              "/tmp:rw,noexec,nosuid,size=64m,mode=1777"
+            ],
+            "volumes": [
+              {
+                "type": "bind",
+                "source": "./config/memory",
+                "target": "/etc/tianshu",
+                "read_only": true,
+                "bind": {
+                  "create_host_path": false
+                }
+              },
+              {
+                "type": "bind",
+                "source": "./contracts",
+                "target": "/contracts",
+                "read_only": true,
+                "bind": {
+                  "create_host_path": false
+                }
+              },
+              {
+                "type": "bind",
+                "source": "./tools/runtime_guard.py",
+                "target": "/opt/dep-a/runtime_guard.py",
+                "read_only": true,
+                "bind": {
+                  "create_host_path": false
+                }
+              },
+              {
+                "type": "bind",
+                "source": "./data/memory",
+                "target": "/srv/tianshu",
+                "read_only": false,
+                "bind": {
+                  "create_host_path": false
+                }
+              },
+              {
+                "type": "bind",
+                "source": "./logs/memory",
+                "target": "/var/log/tianshu",
+                "read_only": false,
+                "bind": {
+                  "create_host_path": false
+                }
+              }
+            ],
+            "networks": {
+              "core": {
+                "ipv4_address": "172.30.86.12",
+                "aliases": [
+                  "memory.internal"
+                ]
+              }
+            },
+            "healthcheck": {
+              "test": [
+                "CMD",
+                "python",
+                "/opt/tianshu/container_healthcheck.py"
+              ],
+              "interval": "30s",
+              "timeout": "10s",
+              "start_period": "30s",
+              "retries": 3
+            },
+            "logging": {
+              "driver": "local",
+              "options": {
+                "max-size": "10m",
+                "max-file": "3"
+              }
+            },
+            "labels": {
+              "org.tianshu.release": "tianshu-wave3-candidate-20260922",
+              "org.tianshu.product": "memory"
+            },
+            "depends_on": {
+              "platform": {
+                "condition": "service_healthy"
+              }
+            }
+          },
+          "gateway": {
+            "image": "tianshu/gateway:ec20f95e3849",
+            "platform": "linux/amd64",
+            "user": "10001:10001",
+            "read_only": true,
+            "init": true,
+            "cap_drop": [
+              "ALL"
+            ],
+            "security_opt": [
+              "no-new-privileges:true"
+            ],
+            "pids_limit": 128,
+            "mem_limit": "1g",
+            "cpus": "2.0",
+            "restart": "no",
+            "scale": 1,
+            "stop_signal": "SIGTERM",
+            "stop_grace_period": "30s",
+            "entrypoint": [
+              "python",
+              "/opt/dep-a/runtime_guard.py",
+              "/var/lib/tianshu",
+              "python",
+              "-m",
+              "tianshu_gateway"
+            ],
+            "command": [
+              "--settings",
+              "/etc/tianshu/settings.json",
+              "--host",
+              "0.0.0.0",
+              "--port",
+              "8443",
+              "--tls-cert",
+              "/etc/tianshu/tls/server.pem",
+              "--tls-key",
+              "/etc/tianshu/tls/server.key"
+            ],
+            "environment": {
+              "PYTHONDONTWRITEBYTECODE": "1",
+              "PYTHONUNBUFFERED": "1",
+              "TIANSHU_LOG_DIR": "/var/log/tianshu",
+              "TIANSHU_HEALTHCHECK_CA": "/etc/tianshu/tls/ca.pem",
+              "TIANSHU_HEALTHCHECK_HOST": "gateway.internal",
+              "TIANSHU_HEALTHCHECK_PORT": "8443",
+              "TIANSHU_HEALTHCHECK_SCHEME": "https",
+              "SSL_CERT_FILE": "/etc/tianshu/tls/ca.pem"
+            },
+            "env_file": [
+              "./private/gateway.env"
+            ],
+            "tmpfs": [
+              "/tmp:rw,noexec,nosuid,size=64m,mode=1777"
+            ],
+            "volumes": [
+              {
+                "type": "bind",
+                "source": "./config/gateway",
+                "target": "/etc/tianshu",
+                "read_only": true,
+                "bind": {
+                  "create_host_path": false
+                }
+              },
+              {
+                "type": "bind",
+                "source": "./contracts",
+                "target": "/contracts",
+                "read_only": true,
+                "bind": {
+                  "create_host_path": false
+                }
+              },
+              {
+                "type": "bind",
+                "source": "./tools/runtime_guard.py",
+                "target": "/opt/dep-a/runtime_guard.py",
+                "read_only": true,
+                "bind": {
+                  "create_host_path": false
+                }
+              },
+              {
+                "type": "bind",
+                "source": "./data/gateway",
+                "target": "/var/lib/tianshu",
+                "read_only": false,
+                "bind": {
+                  "create_host_path": false
+                }
+              },
+              {
+                "type": "bind",
+                "source": "./logs/gateway",
+                "target": "/var/log/tianshu",
+                "read_only": false,
+                "bind": {
+                  "create_host_path": false
+                }
+              }
+            ],
+            "networks": {
+              "core": {
+                "ipv4_address": "172.30.86.13",
+                "aliases": [
+                  "gateway.internal"
+                ]
+              },
+              "egress": {}
+            },
+            "healthcheck": {
+              "test": [
+                "CMD",
+                "python",
+                "/opt/tianshu/healthcheck.py",
+                "--url",
+                "https://gateway.internal:8443/health/live",
+                "--cacert",
+                "/etc/tianshu/tls/ca.pem"
+              ],
+              "interval": "30s",
+              "timeout": "10s",
+              "start_period": "30s",
+              "retries": 3
+            },
+            "logging": {
+              "driver": "local",
+              "options": {
+                "max-size": "10m",
+                "max-file": "3"
+              }
+            },
+            "labels": {
+              "org.tianshu.release": "tianshu-wave3-candidate-20260922",
+              "org.tianshu.product": "gateway"
+            },
+            "depends_on": {
+              "platform": {
+                "condition": "service_healthy"
+              }
+            }
+          }
+        },
+        "networks": {
+          "core": {
+            "internal": true,
+            "ipam": {
+              "config": [
+                {
+                  "subnet": "172.30.86.0/24"
+                }
+              ]
+            }
+          },
+          "egress": {
+            "internal": false
+          },
+          "frontend": {
+            "internal": false
+          }
+        }
+      },
+      "compose_canonical_sha256": "76fa9186aa4307eac2e1ad173d7767e5e1bb3d6ee117699769d8688b49a20fc9"
+    },
+    "observability": {
+      "name": "tianshu-qa-packaging-obs",
+      "directory": "/srv/synthetic/tianshu-qa-packaging/observability",
+      "compose_file": "/srv/synthetic/tianshu-qa-packaging/observability/compose.yaml",
+      "lifecycle_owner": "coordinator",
+      "compose_sha256": null,
+      "compose_json": null,
+      "compose_canonical_sha256": null
+    }
+  },
+  "services": {
+    "platform": {
+      "project": "tianshu-qa-packaging",
+      "image_reference": "tianshu/platform:0a3cf65b8da1",
+      "image_id": null,
+      "repo_digests": [],
+      "platform": null,
+      "uid": null,
+      "gid": null,
+      "container_id": null,
+      "status": "not_observed"
+    },
+    "companion": {
+      "project": "tianshu-qa-packaging",
+      "image_reference": "tianshu/companion:e94b60909936",
+      "image_id": null,
+      "repo_digests": [],
+      "platform": null,
+      "uid": null,
+      "gid": null,
+      "container_id": null,
+      "status": "not_observed"
+    },
+    "memory": {
+      "project": "tianshu-qa-packaging",
+      "image_reference": "tianshu/memory:9a3b2bed6aeb",
+      "image_id": null,
+      "repo_digests": [],
+      "platform": null,
+      "uid": null,
+      "gid": null,
+      "container_id": null,
+      "status": "not_observed"
+    },
+    "gateway": {
+      "project": "tianshu-qa-packaging",
+      "image_reference": "tianshu/gateway:ec20f95e3849",
+      "image_id": null,
+      "repo_digests": [],
+      "platform": null,
+      "uid": null,
+      "gid": null,
+      "container_id": null,
+      "status": "not_observed"
+    },
+    "obs-vector": {
+      "project": "tianshu-qa-packaging-obs",
+      "image_reference": null,
+      "image_id": null,
+      "repo_digests": [],
+      "platform": null,
+      "uid": null,
+      "gid": null,
+      "container_id": null,
+      "status": "not_observed"
+    },
+    "obs-loki": {
+      "project": "tianshu-qa-packaging-obs",
+      "image_reference": null,
+      "image_id": null,
+      "repo_digests": [],
+      "platform": null,
+      "uid": null,
+      "gid": null,
+      "container_id": null,
+      "status": "not_observed"
+    },
+    "obs-grafana": {
+      "project": "tianshu-qa-packaging-obs",
+      "image_reference": null,
+      "image_id": null,
+      "repo_digests": [],
+      "platform": null,
+      "uid": null,
+      "gid": null,
+      "container_id": null,
+      "status": "not_observed"
+    },
+    "obs-prometheus": {
+      "project": "tianshu-qa-packaging-obs",
+      "image_reference": null,
+      "image_id": null,
+      "repo_digests": [],
+      "platform": null,
+      "uid": null,
+      "gid": null,
+      "container_id": null,
+      "status": "not_observed"
+    },
+    "obs-guard": {
+      "project": "tianshu-qa-packaging-obs",
+      "image_reference": null,
+      "image_id": null,
+      "repo_digests": [],
+      "platform": null,
+      "uid": null,
+      "gid": null,
+      "container_id": null,
+      "status": "not_observed"
+    }
+  },
+  "mounts": [
+    {
+      "id": "platform-state",
+      "host_path": "/srv/synthetic/tianshu-qa-packaging/data/platform",
+      "container_path": "/var/lib/tianshu",
+      "owner_service": "platform",
+      "backup_group": "platform",
+      "uid": null,
+      "gid": null
+    },
+    {
+      "id": "platform-logs",
+      "host_path": "/srv/synthetic/tianshu-qa-packaging/logs/platform",
+      "container_path": "/var/log/tianshu",
+      "owner_service": "platform",
+      "backup_group": "platform-logs",
+      "uid": null,
+      "gid": null
+    },
+    {
+      "id": "companion-state",
+      "host_path": "/srv/synthetic/tianshu-qa-packaging/data/companion",
+      "container_path": "/data",
+      "owner_service": "companion",
+      "backup_group": "companion",
+      "uid": null,
+      "gid": null
+    },
+    {
+      "id": "companion-logs",
+      "host_path": "/srv/synthetic/tianshu-qa-packaging/logs/companion",
+      "container_path": "/var/log/tianshu",
+      "owner_service": "companion",
+      "backup_group": "companion-logs",
+      "uid": null,
+      "gid": null
+    },
+    {
+      "id": "memory-state",
+      "host_path": "/srv/synthetic/tianshu-qa-packaging/data/memory",
+      "container_path": "/srv/tianshu",
+      "owner_service": "memory",
+      "backup_group": "memory",
+      "uid": null,
+      "gid": null
+    },
+    {
+      "id": "memory-logs",
+      "host_path": "/srv/synthetic/tianshu-qa-packaging/logs/memory",
+      "container_path": "/var/log/tianshu",
+      "owner_service": "memory",
+      "backup_group": "memory-logs",
+      "uid": null,
+      "gid": null
+    },
+    {
+      "id": "gateway-state",
+      "host_path": "/srv/synthetic/tianshu-qa-packaging/data/gateway",
+      "container_path": "/var/lib/tianshu",
+      "owner_service": "gateway",
+      "backup_group": "gateway",
+      "uid": null,
+      "gid": null
+    },
+    {
+      "id": "gateway-logs",
+      "host_path": "/srv/synthetic/tianshu-qa-packaging/logs/gateway",
+      "container_path": "/var/log/tianshu",
+      "owner_service": "gateway",
+      "backup_group": "gateway-logs",
+      "uid": null,
+      "gid": null
+    },
+    {
+      "id": "obs-vector-state",
+      "host_path": "/srv/synthetic/tianshu-qa-packaging/observability/data/vector",
+      "container_path": "/var/lib/vector",
+      "owner_service": "obs-vector",
+      "backup_group": "obs-vector",
+      "uid": null,
+      "gid": null
+    },
+    {
+      "id": "obs-loki-state",
+      "host_path": "/srv/synthetic/tianshu-qa-packaging/observability/data/loki",
+      "container_path": "/var/lib/loki",
+      "owner_service": "obs-loki",
+      "backup_group": "obs-loki",
+      "uid": null,
+      "gid": null
+    },
+    {
+      "id": "obs-grafana-state",
+      "host_path": "/srv/synthetic/tianshu-qa-packaging/observability/data/grafana",
+      "container_path": "/var/lib/grafana",
+      "owner_service": "obs-grafana",
+      "backup_group": "obs-grafana",
+      "uid": null,
+      "gid": null
+    },
+    {
+      "id": "obs-prometheus-state",
+      "host_path": "/srv/synthetic/tianshu-qa-packaging/observability/data/prometheus",
+      "container_path": "/var/lib/prometheus",
+      "owner_service": "obs-prometheus",
+      "backup_group": "obs-prometheus",
+      "uid": null,
+      "gid": null
+    },
+    {
+      "id": "obs-guard-state",
+      "host_path": "/srv/synthetic/tianshu-qa-packaging/observability/data/guard",
+      "container_path": "/var/lib/guard",
+      "owner_service": "obs-guard",
+      "backup_group": "obs-guard",
+      "uid": null,
+      "gid": null
+    }
+  ],
+  "integrity": {
+    "release_manifest_sha256": "50d357d9db073db395be0610e4e69bbf11a8af5ef2b9eda385d47784c2651ce9",
+    "bundle_integrity_sha256": "85285193e6a2a34652a9b5c2bb7a8bdcd1acedf46231b6051402fe9d3a044f85",
+    "compose_sha256": "b8d6c56e4b3a3abcffe6327e4d73a2a9ecf089485666565d2fd5df81d6880794",
+    "observability_compose_sha256": null,
+    "config_sha256": {
+      "config/companion/settings.json": "03a3825c7dd69d3da3fb4bc7bbee6d25f59eb6b97958969c26f40f776bb9410a",
+      "config/companion/tls/ca.pem": "4d50d621485fbf53020fe228c6fe70cd9d2afc63a03c93223b8b3b222d2a7212",
+      "config/companion/tls/server.key": "48cd5514a7f281f6bdc79832e08526ceeb7a0f05a01adc135721536b9b2061ba",
+      "config/companion/tls/server.pem": "48281cf5d915b51918cbe21dfd73f677042a2f18e7b218df682bb2f7749400a3",
+      "config/gateway/settings.json": "c1b184888248146566a349880337d86f466adae54627643264439fe90bb4860f",
+      "config/gateway/tls/ca.pem": "4d50d621485fbf53020fe228c6fe70cd9d2afc63a03c93223b8b3b222d2a7212",
+      "config/gateway/tls/server.key": "48cd5514a7f281f6bdc79832e08526ceeb7a0f05a01adc135721536b9b2061ba",
+      "config/gateway/tls/server.pem": "98926673203c5978d74b3d5177aa0d00aefdabc0ad4f81ed000bbd22e232e79a",
+      "config/memory/settings.json": "876971a6b9a611b481069dceae056c2f67027eeae724019475baa812f51d6f5e",
+      "config/memory/tls/ca.pem": "4d50d621485fbf53020fe228c6fe70cd9d2afc63a03c93223b8b3b222d2a7212",
+      "config/memory/tls/server.key": "48cd5514a7f281f6bdc79832e08526ceeb7a0f05a01adc135721536b9b2061ba",
+      "config/memory/tls/server.pem": "f2634eacd838264ef04d971851a4085796bac214482f21910ea2542c20afcbb7",
+      "config/platform/settings.json": "8d9bafeccf29c2a2b40836b8f3cf56be10c048fa58e93a808b6d79acf286efdb",
+      "config/platform/tls/ca.pem": "4d50d621485fbf53020fe228c6fe70cd9d2afc63a03c93223b8b3b222d2a7212",
+      "config/platform/tls/server.key": "48cd5514a7f281f6bdc79832e08526ceeb7a0f05a01adc135721536b9b2061ba",
+      "config/platform/tls/server.pem": "aaf22182705f5292ddb91b8ca827355c0407e2721112a27efdfb76c4b6b8154c",
+      "contracts/diagnostics/v1/manifest.json": "ca2cef5d003b5c2e8cc2ec6519af9db00ee07533cd72ba925164cf9fdbbb5882",
+      "contracts/model-origin-renewal/v1/manifest.json": "ca2cef5d003b5c2e8cc2ec6519af9db00ee07533cd72ba925164cf9fdbbb5882",
+      "contracts/model-protocol/v1/manifest.json": "ca2cef5d003b5c2e8cc2ec6519af9db00ee07533cd72ba925164cf9fdbbb5882",
+      "contracts/profile-memory/v1/manifest.json": "ca2cef5d003b5c2e8cc2ec6519af9db00ee07533cd72ba925164cf9fdbbb5882",
+      "contracts/source-sync/v1/manifest.json": "ca2cef5d003b5c2e8cc2ec6519af9db00ee07533cd72ba925164cf9fdbbb5882",
+      "contracts/text-dialogue/v1/manifest.json": "ca2cef5d003b5c2e8cc2ec6519af9db00ee07533cd72ba925164cf9fdbbb5882",
+      "contracts/web-conversation/v1/manifest.json": "ca2cef5d003b5c2e8cc2ec6519af9db00ee07533cd72ba925164cf9fdbbb5882",
+      "tools/acceptance.py": "d9db2d954fa14e44d66c8ae8dd4f862672cc75dc797ea43e90cfd50231bcee65",
+      "tools/bundle.py": "9fac1ff69b5d7b3c8175d3881c1cd84579bf0be702999fcfea0b34bfc0fad689",
+      "tools/compose.py": "f1baedc1110ec7015c3238bed9366fd85e6ef2ebfbc43b6496f327210a4bd502",
+      "tools/configuration.py": "ffdea5c79186f55bfd50d162ea24c653edeaa7469740ac8c5b1139e43c10ad95",
+      "tools/linux_validate.py": "c3e4dddcefd89ad431dfdd4728c7bc80c7876dfd8a3ff4edfa5e0c4012134eda",
+      "tools/manifest.py": "44e9162d27daf9d7d0a4f65e4838cd47051544556134ef3c1a7a66804274d75a",
+      "tools/observability_contract.py": "5b1bd08f313a02a7e55e18d0c3e870fab0c6930fee2637ea45a0f617e786a500",
+      "tools/observability_release.py": "0187a57147ff2b29eec5c9fb1995e9ee077510a18322e5525da88c69d6d4ace6",
+      "tools/release-manifest.schema.json": "9f7382c0bdcaf049558c6c37e75738331d200c23a98d568b34c3b73ac72704fe",
+      "tools/release.py": "86ae5f39491fc80ee65d082a1752a470839b3e710037fcd2197baba072647d08",
+      "tools/requirements.txt": "11236f9c2ba07f835218e751d1d09085df6b245b89b3b44c07706d1312b42f67",
+      "tools/runtime_guard.py": "a84148716462680c0e658d70422e481400e2b933df5341d0c43608e278f5d5cd"
+    },
+    "sources": {
+      "platform": {
+        "repo": "tianshu-platform",
+        "commit": "0a3cf65b8da19eabdd5d72f9f999281cbb52fdac"
+      },
+      "companion": {
+        "repo": "tianshu-companion",
+        "commit": "e94b609099365f75ca933d9fed03cdfbc83ec235"
+      },
+      "memory": {
+        "repo": "tianshu-memory",
+        "commit": "9a3b2bed6aebff9f0677f2c62e979859769e0c9c"
+      },
+      "gateway": {
+        "repo": "tianshu-model-gateway",
+        "commit": "ec20f95e3849ebee968c4f00d7a31d14eccaa40f"
+      }
+    }
+  },
+  "recovery_inventory": null,
+  "authority": null,
+  "lease": {
+    "path": "/srv/synthetic/tianshu-qa-packaging/.runtime-owner.lock",
+    "protocol": "linux-flock-exclusive-nonblocking-v1"
+  },
+  "state": "planned",
+  "activation_authorized": false
+}

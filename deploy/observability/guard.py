@@ -168,19 +168,36 @@ class Server(ThreadingHTTPServer):
         self.slots = threading.BoundedSemaphore(8)
         self.active_lock = threading.Lock()
         self.active = {}
+        self.workers = set()
+        self.stopping = threading.Event()
         super().__init__(address, Handler)
 
     def process_request(self, request, client_address):
+        if self.stopping.is_set():
+            request.close()
+            return
         if not self.slots.acquire(blocking=False):
             request.close()
             return
         with self.active_lock:
+            if self.stopping.is_set():
+                self.slots.release()
+                request.close()
+                return
             self.active[request] = Deadline()
+            worker = threading.Thread(
+                target=self.process_request_thread,
+                args=(request, client_address),
+                daemon=True,
+            )
+            self.workers = {thread for thread in self.workers if thread.is_alive()}
+            self.workers.add(worker)
         try:
-            super().process_request(request, client_address)
+            worker.start()
         except BaseException:
             with self.active_lock:
                 self.active.pop(request).cancelled.set()
+                self.workers.discard(worker)
             self.slots.release()
             request.close()
             raise
@@ -201,10 +218,26 @@ class Server(ThreadingHTTPServer):
                 self.active.pop(original, None)
             self.slots.release()
 
-    def server_close(self):
+    def cancel_requests(self):
+        self.stopping.set()
         with self.active_lock:
             for deadline in self.active.values():
                 deadline.cancelled.set()
+
+    def join_requests(self, timeout):
+        deadline = time.monotonic() + timeout
+        with self.active_lock:
+            workers = tuple(self.workers)
+        for thread in workers:
+            if thread.ident is not None:
+                thread.join(max(0, deadline - time.monotonic()))
+        with self.active_lock:
+            return not self.active and all(
+                not thread.is_alive() for thread in self.workers
+            )
+
+    def server_close(self):
+        self.cancel_requests()
         # Nonblocking I/O observes cancellation within its <=50ms poll interval.
         super().server_close()
 
@@ -325,19 +358,23 @@ def main():
         certificate=settings["client_cert"],
         key=settings["client_key"],
     )
-    state = State(settings, backend)
-    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    context.minimum_version = ssl.TLSVersion.TLSv1_2
-    context.load_cert_chain(settings["server_cert"], settings["server_key"])
-    server = Server(("0.0.0.0", 8443), state, context)
-    threading.Thread(target=state.run_monitor, daemon=True).start()
+    from guard_lifecycle import SignalStop, run
+
     try:
-        server.serve_forever(poll_interval=0.5)
-    finally:
-        state.stop.set()
-        server.server_close()
+        state = State(settings, backend)
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
+        context.load_cert_chain(settings["server_cert"], settings["server_key"])
+        server = Server(("0.0.0.0", 8443), state, context)
+    except Exception:
         backend.close()
+        print(json.dumps({"status": "startup_failed"}))
+        return 2
+    with SignalStop() as stop:
+        result = run(server, state, backend, lambda: stop.requested)
+    print(json.dumps({"status": "stopped" if result == 0 else "shutdown_unconfirmed"}))
+    return result
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
