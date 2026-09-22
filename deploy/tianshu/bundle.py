@@ -39,6 +39,7 @@ TOOLS = (
     "requirements.txt",
     "linux_validate.py",
     "linux_runtime.py",
+    "linux_lifecycle.py",
     "linux_bootstrap.py",
     "bootstrap.py",
     "runtime_identity.py",

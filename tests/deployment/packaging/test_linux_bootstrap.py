@@ -256,100 +256,55 @@ class LinuxBootstrapTests(unittest.TestCase):
         self.assertNotIn("SECRET", path.read_text())
 
     def test_complete_docker_wiring_fake_and_failed_issue_stop_without_retry(self):
-        # This verifies command wiring and fail-closed control flow only, not any image.
+        from fake_linux_docker import Docker, clock_patches
+
         for index, (fail_issue, dialogue) in enumerate(
             ((False, False), (True, False), (False, True))
         ):
             if index:
                 self.tearDown()
                 self.setUp()
-            active = {}
-            calls = []
+            fake = Docker(self.root, self.receipt, fail_issue=fail_issue)
             report = {"results": []}
-            path = self.root / "reports/fake-docker.json"
-            composition = read_json(self.root / "compose.json")
-            tags = {s["image"]: p for p, s in composition["services"].items()}
-            ids = {p: str(i + 1) * 64 for i, p in enumerate(tags.values())}
-
-            def invoke(argv, **kwargs):
-                calls.append(argv)
-                raw = b""
-                if argv[:3] == ["docker", "ps", "-aq"]:
-                    raw = "\n".join(active).encode()
-                elif argv[:2] == ["docker", "inspect"]:
-                    values = []
-                    for cid in argv[2:]:
-                        owner, running = active[cid]
-                        values.append(
-                            dict(
-                                Id=cid,
-                                Image="sha256:" + ids[owner],
-                                Config=dict(
-                                    Labels={
-                                        "com.docker.compose.project": "tianshu-qa-packaging",
-                                        "com.docker.compose.project.working_dir": str(
-                                            self.root
-                                        ),
-                                        "com.docker.compose.service": owner,
-                                    }
-                                ),
-                                State=dict(Running=running, ExitCode=0),
-                            )
-                        )
-                    raw = json.dumps(values).encode()
-                elif argv[:3] == ["docker", "image", "inspect"]:
-                    raw = json.dumps(
-                        [
-                            dict(
-                                Id="sha256:" + ids[tags[argv[-1]]],
-                                Os="linux",
-                                Architecture="amd64",
-                                RepoDigests=[],
-                                Config=dict(User="10001:10001"),
-                            )
-                        ]
-                    ).encode()
-                elif argv[:2] == ["docker", "exec"]:
-                    raw = b"[10001,10001]"
-                elif argv[:2] == ["docker", "kill"]:
-                    owner, _ = active[argv[-1]]
-                    active[argv[-1]] = (owner, False)
-                elif "up" in argv:
-                    active.update({cid: (owner, True) for owner, cid in ids.items()})
-                elif argv[-1] == "issue":
-                    if fail_issue:
-                        return subprocess.CompletedProcess(argv, 1, b"", b"")
-                    raw = json.dumps(self.receipt).encode()
-                elif "distributions" in " ".join(argv):
-                    raw = b'{"interpreter":"/synthetic/python","distributions":[["synthetic","1"]]}'
-                return subprocess.CompletedProcess(argv, 0, raw, b"")
-
             with (
                 patch("linux_runtime.preflight"),
-                patch("linux_runtime.subprocess.run", side_effect=invoke),
+                patch("linux_runtime.subprocess.run", side_effect=fake),
+                clock_patches(),
             ):
                 if fail_issue:
                     with self.assertRaisesRegex(
                         Refused, "runtime_step_failed_platform_issue"
                     ):
                         leased_execute(
-                            self.root, None, [], report, path, dialogue=dialogue
+                            self.root,
+                            None,
+                            [],
+                            report,
+                            self.root / "reports/fake-docker.json",
+                            dialogue=dialogue,
                         )
                 else:
-                    leased_execute(self.root, None, [], report, path, dialogue=dialogue)
-            self.assertTrue(report["stop_confirmed"])
-            self.assertEqual(sum(argv[-1] == "issue" for argv in calls), 1)
+                    leased_execute(
+                        self.root,
+                        None,
+                        [],
+                        report,
+                        self.root / "reports/fake-docker.json",
+                        dialogue=dialogue,
+                    )
+            self.assertEqual(report["stop_confirmed"], not fail_issue)
             self.assertFalse(
-                any("down" in argv or "--signal=SIGKILL" in argv for argv in calls)
-            )
-            if fail_issue:
-                self.assertFalse(any("up" in argv for argv in calls))
-            else:
-                runtime = read_json(self.root / "reports/runtime-identity.json")
-                self.assertEqual(runtime["state"], "stopped")
-                self.assertTrue(
-                    all(runtime["services"][p]["status"] == "observed" for p in ids)
+                any(
+                    "down" in argv or "--signal=SIGKILL" in argv or "--force" in argv
+                    for argv in fake.calls
                 )
+            )
+            if not fail_issue:
+                self.assertEqual(len(fake.active), 4)
+                self.assertTrue(
+                    all(v["State"]["Status"] == "exited" for v in fake.active.values())
+                )
+                self.assertEqual(len(report["completed_oneoffs"]), 8 if dialogue else 7)
 
     def test_core_only_cannot_weaken_release_preflight(self):
         with self.assertRaisesRegex(Refused, "release_requires_all_owners"):

@@ -95,9 +95,17 @@ Memory pip-free venv 用官方基础 Python pip 的 `--python <应用解释器> 
 
 ## 停止与交接
 
-无论成功或失败，只向本次项目且工作目录/服务标签吻合的容器发 SIGTERM，最多观察45秒。
-不 down、不删卷/日志、不 prune、不 SIGKILL；未知归属/停止超时保留 stop_unconfirmed。
-容器、状态、应用原始日志和去敏步骤报告全部保留；非零退出会使本次校验失败。
+容器先 create，登记实际 ID、镜像 ID、owner、名称和 Compose 来源，再按固定 ID 启动。
+四个核心容器保留原 compose.json 的 working_dir/config_files 和挂载身份。停止前及每次
+SIGTERM 前重新核对完整容器集合和登记身份；新增、替换或重复 owner 不会被当作本次容器接管。
+先对登记 ID 关闭 restart 并 inspect 确认，再发 SIGTERM，最多观察45秒；退出后连续3秒核对
+身份、终态和重启次数，必须退出0、无 OOM、无重启。异常或未知状态保留 stop_unconfirmed。
+不 down、不删卷/日志、不 prune、不 SIGKILL；四个核心容器保留供 I/J 独立复核。
+
+依赖检查、授权和迁移的一次性容器同样先登记再启动，不使用 --rm。只有退出0、无 OOM、
+无重启且终态稳定3秒，才能先持久化身份及完整退出证据到执行报告的 completed_oneoffs，
+再按单个固定 ID 执行 docker rm（无 -f/-v）。失败或超时的一次性容器保留，本次执行失败。
+成功交接只留下四个核心容器；I 仍须拒绝任何额外挂载本 scope 的容器，包括已停止容器。
 
 reports/runtime-identity.json 遵循固定接口，执行报告绑定其原字节 SHA256。
 镜像 ID 不当 registry digest，镜像已 inspect 不代表容器已观测。未配置 obs 的身份仍有

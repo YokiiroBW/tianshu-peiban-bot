@@ -56,3 +56,10 @@ Docker 的 Dockerfile 同目录 `Dockerfile.dockerignore` 有内置支持；Memo
 及续期合同 c5017724 保持。两应用 image.digest 仍 null，verification 仍 unverified，
 全部默认 feature 仍关闭。下方历史评审及 verification.json 保留原证据，不能当新版 Linux 通过。
 运行入口及本轮证据范围见 LINUX-VALIDATION.md 和 docs/handoffs/DEP-G.md。
+
+## DEP-G R1 日志来源窄重绑
+
+协调接受 DEP-I R1 并集成到根 4f3f7231 后，observability.source.commit 更新为
+`65b88a6d1c2b5047ca6bfb2f7f7484749eb14154`。四产品与合同固定版本不变；
+实际固定 Git 导出、合成 TLS 配置及五卷检查通过，Linux 日志容器和真实 Loki 未执行。
+新增证据见 tests/deployment/packaging/evidence/DEP-G-R1-combination.json；不改历史证据。

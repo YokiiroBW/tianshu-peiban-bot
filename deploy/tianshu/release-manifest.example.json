@@ -741,7 +741,7 @@
   "observability": {
     "source": {
       "repo": "tianshu-peiban-bot",
-      "commit": "668d69e2c52ea55d9b1f102426196a5286c57bc5"
+      "commit": "65b88a6d1c2b5047ca6bfb2f7f7484749eb14154"
     },
     "package_path": "deploy/observability",
     "output_relative": "observability",

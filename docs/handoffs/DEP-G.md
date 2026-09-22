@@ -3,6 +3,30 @@
 目标：落实第四批精确卡的 Linux 新合成安装入口、四产品运行身份、I/J 消费边界。
 仅本地实现交付，待协调验收；**没有 Linux/Docker/NAS 通过结论**。
 
+## R1 返修交付（优先于下方初次交付记录）
+
+- 返修基线 `40798738c64d34dd916840b0068c3e164b156881`，最终 SHA 由交付消息固定。
+  下方61项测试与旧日志来源属于初次交付历史，不作为 R1 结果；旧 DEP-G-local.json 保持原字节。
+- 修复协调独立注入发现的停止归属问题：先 create 登记实际 ID/镜像/owner/名称/Compose
+  来源，再按 ID 启动；停止前和每次信号前核对完整集合，拒绝陌生 ID、替换、重复 owner
+  或身份变化。核心仍使用原 compose.json，schema 保持 dep-g-runtime/1.0.0。
+- 停止前关闭 restart 并读回确认；要求退出0、无 OOM、无重启，终态连续稳定3秒。
+  无强杀回退；部分 create 保持不确定，部分 start 只处理已登记 ID。
+- 一次性容器先登记、不用自动删除；正常稳定退出后先持久化完整身份和退出证据，
+  再精确 docker rm ID（无强制/删卷）。成功只留四个核心容器；异常/超时保留现场且整次失败。
+- 按协调新接受版本，日志来源窄重绑至 `65b88a6d1c2b5047ca6bfb2f7f7484749eb14154`
+  （协调根已合入 4f3f7231）；四产品和合同不变。
+- 实际验证：本任务私有 venv 全量 packaging **71项通过、0 skip**；Ruff 与 diff 空白检查通过。
+  故障注入含同标签重复 owner、替换 ID、镜像/owner 改变、restart 更新失效、短暂退出后重启、
+  退出2/143/137、OOM、部分 create/start、一次性超时和正常精确删除。全部 Docker 测试是替身。
+- 固定 Git 日志导出、实际 initialize/configure、合成 TLS 握手、五写卷、独立项目、完整性、
+  preflight 与篡改挂载拒绝通过。对账公开 CLI 使用合成 HTTPS 查询替身，完整/缺失样例均符合预期。
+- 新证据：`tests/deployment/packaging/evidence/DEP-G-R1-local.json` 和
+  `tests/deployment/packaging/evidence/DEP-G-R1-combination.json`。
+- 未执行：真实 Linux 镜像构建/容器生命周期/权限/flock/四服务对话、真实 Loki、恢复、NAS。
+  下一步：协调审查此固定提交后在明确授权的全新 Linux 合成 scope 验证；I/J 仍独立验身份、
+  正常停写和额外挂载，不以本地替身结果替代运行证据。未改产品/合同/根任务板，未合并或推送。
+
 ## 基线与版本
 
 - 根基线 `eced6de3ed0e2292d8c767d9f37fea36d0e04476`，本任务分支 `codex/dep-g-linux-bootstrap`。

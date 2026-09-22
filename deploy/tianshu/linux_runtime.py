@@ -11,6 +11,7 @@ import time
 from bundle import preflight
 from configuration import PORTS
 from linux_bootstrap import first_install_container, prepare
+from linux_lifecycle import Lifecycle
 from manifest import PRODUCTS, Refused, digest, inside, read_json, require, write_json
 from runtime_identity import lifecycle_lease, save
 
@@ -231,7 +232,10 @@ def leased_execute(
         dict(state="started", automatic_retry=False),
     )
     observations = {}
-    started_ids = set()
+    lifecycle = Lifecycle(
+        root, project, read_json(root / "compose.json"), run, containers, report
+    )
+    report["product_image_ids"] = {}
     stop_confirmed = False
     try:
         run("compose_config", [*compose, "config", "--quiet"], 30)
@@ -268,7 +272,8 @@ def leased_execute(
                 require(
                     value[0]["Config"]["User"] == "10001:10001", "image_user_mismatch"
                 )
-                installed = run(
+                report["product_image_ids"][owner] = observations[owner]["image_id"]
+                installed = lifecycle.oneoff(
                     "dependencies_" + owner,
                     [
                         *compose,
@@ -292,12 +297,12 @@ def leased_execute(
         publication, password = prepare(root, dialogue)
         dimensions["linux_images"] = "passed"
         dimensions["installed_dependencies"] = "passed"
-        first_install_container(root, compose, run, publication)
+        first_install_container(root, compose, lifecycle.oneoff, publication)
         for action, backup in (
             ("migrate-profiles", "first-install.pre-profiles.sqlite"),
             ("migrate-sources", "first-install.pre-sources.sqlite"),
         ):
-            run(
+            lifecycle.oneoff(
                 "memory_" + action,
                 [
                     *compose,
@@ -315,29 +320,33 @@ def leased_execute(
                 60,
             )
         preflight(root, runtime=True, core_only=core_only)
-        run(
-            "start_liveness",
-            [
-                *compose,
-                "up",
-                "--detach",
-                "--no-build",
-                "--pull",
-                "never",
-                "--wait",
-                "--wait-timeout",
-                "120",
-            ],
-            180,
+        core_ids = lifecycle.create(
+            read_json(root / "compose.json"),
+            list(PRODUCTS),
+            report["product_image_ids"],
+            "core",
         )
-        found = containers()
-        require(len(found) == 4, "four_runtime_containers_required")
-        require(
-            {v["Config"]["Labels"]["com.docker.compose.service"] for v in found}
-            == set(PRODUCTS),
-            "four_unique_runtime_services_required",
-        )
-        started_ids = {v["Id"] for v in found}
+        for service in ("platform", "memory", "gateway", "companion"):
+            lifecycle.check()
+            cid = next(
+                cid for cid in core_ids if lifecycle.registered[cid]["owner"] == service
+            )
+            run("start_liveness_" + service, ["docker", "start", cid], 30)
+            deadline = time.monotonic() + 120
+            while True:
+                found = lifecycle.check()
+                value = next(v for v in found if v["Id"] == cid)
+                if (
+                    value["State"]["Running"]
+                    and value["State"].get("Health", {}).get("Status") == "healthy"
+                ):
+                    break
+                require(
+                    value["State"]["Status"] not in ("exited", "dead")
+                    and time.monotonic() < deadline,
+                    "liveness_deadline_or_exit",
+                )
+                time.sleep(0.5)
         for value in found:
             owner = owned_container(value, project, root, PRODUCTS)
             require(
@@ -436,39 +445,21 @@ def leased_execute(
             30,
         )
     finally:
-        # Never Compose down/prune, and never SIGKILL fallback. Retain state and inspectable containers.
         try:
-            for value in containers():
-                if value["State"]["Running"]:
-                    run(
-                        "sigterm_" + value["Id"][:12],
-                        ["docker", "kill", "--signal=SIGTERM", value["Id"]],
-                        15,
-                    )
-            deadline = time.monotonic() + 45
-            while True:
-                values = containers()
-                require(
-                    started_ids <= {v["Id"] for v in values},
-                    "runtime_container_disappeared",
-                )
-                if not any(v["State"]["Running"] for v in values):
-                    stop_confirmed = not any(
-                        r["status"] == "timeout" for r in report["results"]
-                    )
-                    report["stop_exit_codes"] = {
-                        v["Config"]["Labels"]["com.docker.compose.service"]: v["State"][
-                            "ExitCode"
-                        ]
-                        for v in values
-                    }
-                    break
-                require(
-                    time.monotonic() < deadline, "stop_unconfirmed_no_force_fallback"
-                )
-                time.sleep(1)
-        except (Refused, OSError, ValueError, subprocess.SubprocessError):
-            report["stop_error"] = "stop_unconfirmed_no_force_fallback"
+            lifecycle.stop()
+            stop_confirmed = True
+        except (
+            Refused,
+            OSError,
+            ValueError,
+            KeyError,
+            subprocess.SubprocessError,
+        ) as error:
+            report["stop_error"] = (
+                str(error)
+                if isinstance(error, Refused)
+                else "stop_unconfirmed_no_force_fallback"
+            )
         report["stop_confirmed"] = stop_confirmed
         try:
             save(
