@@ -17,6 +17,8 @@ from .safety import (
     safe_path,
 )
 
+ASCII_LOWER = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
+
 
 def connect(path, *, write=False):
     db = sqlite3.connect(
@@ -55,6 +57,9 @@ def fingerprint(path, check_cancel=lambda: None):
         tables = db.execute(
             "SELECT name FROM sqlite_schema WHERE type='table' ORDER BY name"
         ).fetchall()
+        table_properties = {
+            row[1]: (row[2], row[4]) for row in db.execute("PRAGMA main.table_list")
+        }
         count = 0
         # Stable across page layout and WAL checkpoints; includes every table, even ledgers,
         # suppression rows, virtual-table shadows and SQLite sequence state. No value leaves IO.
@@ -64,18 +69,36 @@ def fingerprint(path, check_cancel=lambda: None):
                 column[0]
                 for column in db.execute(f"SELECT * FROM {quoted} LIMIT 0").description
             ]
-            aliases = [
-                name for name in ("_rowid_", "rowid", "oid") if name not in columns
-            ]
+            require(table in table_properties, "sqlite_table_metadata_unavailable")
+            table_kind, without_rowid = table_properties[table]
+            require(without_rowid in (0, 1), "sqlite_table_metadata_unavailable")
             select = "*"
-            if aliases:
-                try:
-                    db.execute(f"SELECT {aliases[0]} FROM {quoted} LIMIT 0")
-                except sqlite3.OperationalError:
-                    pass  # WITHOUT ROWID tables have no implicit identity to preserve.
-                else:
+            if not without_rowid:
+                declared = db.execute(f"PRAGMA main.table_xinfo({quoted})").fetchall()
+                # SQLite identifier matching folds ASCII case, including hidden/generated
+                # columns. SELECT * alone does not enumerate all possible shadowing names.
+                names = {column[1].translate(ASCII_LOWER) for column in declared}
+                aliases = [
+                    name for name in ("_rowid_", "rowid", "oid") if name not in names
+                ]
+                if aliases:
                     select = aliases[0] + ",*"
                     columns = [aliases[0], *columns]
+                else:
+                    primary_key = [column for column in declared if column[5] > 0]
+                    indexes = db.execute(f"PRAGMA main.index_list({quoted})").fetchall()
+                    # A single exact INTEGER PRIMARY KEY with no separate PK index aliases
+                    # the rowid and is already in SELECT *. INT, composite PK, and the
+                    # inline INTEGER PRIMARY KEY DESC exception do not prove identity.
+                    require(
+                        table_kind in {"table", "shadow"}
+                        and len(primary_key) == 1
+                        and primary_key[0][2].translate(ASCII_LOWER) == "integer"
+                        and primary_key[0][6] == 0
+                        and primary_key[0][1] in columns
+                        and not any(index[3] == "pk" for index in indexes),
+                        "sqlite_row_identity_unavailable",
+                    )
             order = ",".join(str(index + 1) for index in range(len(columns)))
             require(order, "sqlite_table_without_columns")
             result.update(canonical(table))

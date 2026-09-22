@@ -97,6 +97,159 @@ class RecoveryTests(unittest.TestCase):
         with self.assertRaisesRegex(RecoveryError, "current_authority_diverged"):
             self.restore(checksum)
 
+    def test_rowid_case_shadowing_blocks_complete_restore_after_identity_change(self):
+        cases = (
+            (("_ROWID_",), "rowid"),
+            (("_RoWiD_", "RoWiD"), "oid"),
+            (("_rowid_", "rOwId"), "oid"),
+            (("rOwId", "OiD"), "_rowid_"),
+        )
+        database = self.source / "data/platform/main.db"
+        for index, (shadowed, identity) in enumerate(cases):
+            with self.subTest(shadowed=shadowed):
+                table = f"audit_probe_{index}"
+                declaration = ",".join(f'"{name}" TEXT' for name in shadowed)
+                with closing(sqlite3.connect(database)) as db:
+                    db.execute(f"CREATE TABLE {table} ({declaration}, value TEXT)")
+                    db.execute(
+                        f"INSERT INTO {table}({identity},value) VALUES(1,'same')"
+                    )
+                    db.commit()
+                    before = db.execute(f"SELECT * FROM {table}").fetchall()
+                backup_name = f"case-shadow-{index}"
+                checksum = self.backup(backup_name)
+                self.modify("platform", f"UPDATE {table} SET {identity}=2")
+                with closing(sqlite3.connect(database)) as db:
+                    self.assertEqual(
+                        db.execute(f"SELECT {identity} FROM {table}").fetchone(), (2,)
+                    )
+                    self.assertEqual(
+                        db.execute(f"SELECT * FROM {table}").fetchall(), before
+                    )
+                target = f"case-target-{index}"
+                with self.assertRaisesRegex(
+                    RecoveryError, "current_authority_diverged"
+                ):
+                    self.recovery.restore(
+                        backup_name,
+                        checksum,
+                        target,
+                        "source",
+                        self.authority,
+                        execute=True,
+                    )
+                self.assertFalse((self.root / "deployments" / target).exists())
+
+    def test_rowid_all_aliases_shadowed_without_identity_proof_rejects_backup(self):
+        cases = (
+            '"_rowid_" TEXT, "rowid" TEXT, "oid" TEXT, value TEXT',
+            '"_RoWiD_" TEXT, "RoWiD" TEXT, "OiD" TEXT, value TEXT',
+            'id INT PRIMARY KEY, "_RoWiD_" TEXT, "RoWiD" TEXT, "OiD" TEXT, value TEXT',
+            'id INTEGER PRIMARY KEY DESC, "_RoWiD_" TEXT, "RoWiD" TEXT, "OiD" TEXT, value TEXT',
+            'id INTEGER, "_RoWiD_" TEXT, "RoWiD" TEXT, "OiD" TEXT, value TEXT, PRIMARY KEY(id,value)',
+        )
+        for index, declaration in enumerate(cases):
+            with self.subTest(declaration=declaration):
+                self.modify("platform", f"CREATE TABLE audit_probe ({declaration})")
+                try:
+                    self.modify(
+                        "platform", "INSERT INTO audit_probe(value) VALUES ('same')"
+                    )
+                    backup_name = f"unproven-identity-{index}"
+                    with self.assertRaisesRegex(
+                        RecoveryError, "sqlite_row_identity_unavailable"
+                    ):
+                        self.backup(backup_name)
+                    self.assertFalse((self.root / "backups" / backup_name).exists())
+                finally:
+                    self.modify("platform", "DROP TABLE audit_probe")
+
+    def test_rowid_without_rowid_controls_restore_then_reject_changed_primary_key(self):
+        cases = (
+            "id TEXT PRIMARY KEY, value TEXT",
+            'id TEXT PRIMARY KEY, "_RoWiD_" TEXT, "RoWiD" TEXT, "OiD" TEXT, value TEXT',
+        )
+        for index, declaration in enumerate(cases):
+            with self.subTest(declaration=declaration):
+                table = f"without_rowid_probe_{index}"
+                self.modify(
+                    "platform", f"CREATE TABLE {table} ({declaration}) WITHOUT ROWID"
+                )
+                self.modify(
+                    "platform", f"INSERT INTO {table}(id,value) VALUES ('one','same')"
+                )
+                backup_name = f"without-rowid-{index}"
+                checksum = self.backup(backup_name)
+                result = self.recovery.restore(
+                    backup_name,
+                    checksum,
+                    f"without-rowid-ok-{index}",
+                    "source",
+                    self.authority,
+                    execute=True,
+                )
+                self.assertEqual(result["status"], "restored_disabled")
+                self.modify("platform", f"UPDATE {table} SET id='two'")
+                with self.assertRaisesRegex(
+                    RecoveryError, "current_authority_diverged"
+                ):
+                    self.recovery.restore(
+                        backup_name,
+                        checksum,
+                        f"without-rowid-denied-{index}",
+                        "source",
+                        self.authority,
+                        execute=True,
+                    )
+
+    def test_rowid_integer_primary_key_controls_with_all_aliases_shadowed(self):
+        cases = (
+            ("id INTEGER PRIMARY KEY, value TEXT", "id"),
+            (
+                'id INTEGER PRIMARY KEY, "_RoWiD_" TEXT, "RoWiD" TEXT, "OiD" TEXT, value TEXT',
+                "id",
+            ),
+            (
+                'id INTEGER, "_RoWiD_" TEXT, "RoWiD" TEXT, "OiD" TEXT, value TEXT, PRIMARY KEY(id DESC)',
+                "id",
+            ),
+            (
+                '"_RoWiD_" INTEGER PRIMARY KEY, "RoWiD" TEXT, "OiD" TEXT, value TEXT',
+                '"_RoWiD_"',
+            ),
+        )
+        for index, (declaration, identity) in enumerate(cases):
+            with self.subTest(declaration=declaration):
+                table = f"integer_primary_key_probe_{index}"
+                self.modify("platform", f"CREATE TABLE {table} ({declaration})")
+                self.modify(
+                    "platform",
+                    f"INSERT INTO {table}({identity},value) VALUES (1,'same')",
+                )
+                backup_name = f"integer-pk-{index}"
+                checksum = self.backup(backup_name)
+                result = self.recovery.restore(
+                    backup_name,
+                    checksum,
+                    f"integer-pk-ok-{index}",
+                    "source",
+                    self.authority,
+                    execute=True,
+                )
+                self.assertEqual(result["status"], "restored_disabled")
+                self.modify("platform", f"UPDATE {table} SET {identity}=2")
+                with self.assertRaisesRegex(
+                    RecoveryError, "current_authority_diverged"
+                ):
+                    self.recovery.restore(
+                        backup_name,
+                        checksum,
+                        f"integer-pk-denied-{index}",
+                        "source",
+                        self.authority,
+                        execute=True,
+                    )
+
     def test_sqlite_cannot_be_misclassified_as_raw_sidecar(self):
         inventory_path = self.source / "recovery-inventory.json"
         document = json.loads(inventory_path.read_bytes())
