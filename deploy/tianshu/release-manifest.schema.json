@@ -1,0 +1,712 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianshu.invalid/deploy/release-manifest/1.0.0",
+  "title": "TianShu release manifest 1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "release_id",
+    "status",
+    "products",
+    "contracts",
+    "features",
+    "volumes",
+    "services",
+    "blockers",
+    "evidence"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "release_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+    },
+    "status": {
+      "enum": [
+        "candidate",
+        "verified"
+      ]
+    },
+    "products": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platform",
+        "companion",
+        "memory",
+        "gateway"
+      ],
+      "properties": {
+        "platform": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source",
+            "image",
+            "service_role"
+          ],
+          "properties": {
+            "source": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "repo",
+                "commit"
+              ],
+              "properties": {
+                "repo": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+                },
+                "commit": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{40}$"
+                }
+              }
+            },
+            "image": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "reference",
+                "digest",
+                "verification"
+              ],
+              "properties": {
+                "reference": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9./:_-]+:[a-zA-Z0-9_.-]+$"
+                },
+                "digest": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^sha256:[a-f0-9]{64}$"
+                    }
+                  ]
+                },
+                "verification": {
+                  "enum": [
+                    "unverified",
+                    "verified"
+                  ]
+                }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "verification": {
+                        "const": "verified"
+                      }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "digest": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "service_role": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+            }
+          }
+        },
+        "companion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source",
+            "image",
+            "service_role"
+          ],
+          "properties": {
+            "source": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "repo",
+                "commit"
+              ],
+              "properties": {
+                "repo": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+                },
+                "commit": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{40}$"
+                }
+              }
+            },
+            "image": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "reference",
+                "digest",
+                "verification"
+              ],
+              "properties": {
+                "reference": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9./:_-]+:[a-zA-Z0-9_.-]+$"
+                },
+                "digest": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^sha256:[a-f0-9]{64}$"
+                    }
+                  ]
+                },
+                "verification": {
+                  "enum": [
+                    "unverified",
+                    "verified"
+                  ]
+                }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "verification": {
+                        "const": "verified"
+                      }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "digest": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "service_role": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+            }
+          }
+        },
+        "memory": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source",
+            "image",
+            "service_role"
+          ],
+          "properties": {
+            "source": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "repo",
+                "commit"
+              ],
+              "properties": {
+                "repo": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+                },
+                "commit": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{40}$"
+                }
+              }
+            },
+            "image": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "reference",
+                "digest",
+                "verification"
+              ],
+              "properties": {
+                "reference": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9./:_-]+:[a-zA-Z0-9_.-]+$"
+                },
+                "digest": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^sha256:[a-f0-9]{64}$"
+                    }
+                  ]
+                },
+                "verification": {
+                  "enum": [
+                    "unverified",
+                    "verified"
+                  ]
+                }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "verification": {
+                        "const": "verified"
+                      }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "digest": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "service_role": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+            }
+          }
+        },
+        "gateway": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source",
+            "image",
+            "service_role"
+          ],
+          "properties": {
+            "source": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "repo",
+                "commit"
+              ],
+              "properties": {
+                "repo": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+                },
+                "commit": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{40}$"
+                }
+              }
+            },
+            "image": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "reference",
+                "digest",
+                "verification"
+              ],
+              "properties": {
+                "reference": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9./:_-]+:[a-zA-Z0-9_.-]+$"
+                },
+                "digest": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^sha256:[a-f0-9]{64}$"
+                    }
+                  ]
+                },
+                "verification": {
+                  "enum": [
+                    "unverified",
+                    "verified"
+                  ]
+                }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "verification": {
+                        "const": "verified"
+                      }
+                    }
+                  },
+                  "then": {
+                    "properties": {
+                      "digest": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "service_role": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+            }
+          }
+        }
+      }
+    },
+    "contracts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "path",
+          "manifest_sha256",
+          "files"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$"
+          },
+          "manifest_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "sha256"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              }
+            },
+            "minItems": 1
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "features": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "enabled",
+          "verification",
+          "reason"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "verification": {
+            "enum": [
+              "unverified",
+              "verified"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "volumes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "product",
+          "category",
+          "host_path",
+          "container_path",
+          "owner_service",
+          "backup_group",
+          "mount",
+          "kind"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+          },
+          "product": {
+            "enum": [
+              "platform",
+              "companion",
+              "memory",
+              "gateway"
+            ]
+          },
+          "category": {
+            "enum": [
+              "state",
+              "logs",
+              "guard",
+              "sidecar"
+            ]
+          },
+          "host_path": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$"
+          },
+          "container_path": {
+            "type": "string",
+            "pattern": "^/(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$"
+          },
+          "owner_service": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+          },
+          "backup_group": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+          },
+          "mount": {
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "directory",
+              "file"
+            ]
+          }
+        }
+      },
+      "minItems": 8
+    },
+    "services": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "product",
+          "role",
+          "port",
+          "replicas",
+          "hostname",
+          "tls_server_names",
+          "config_path"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+          },
+          "product": {
+            "enum": [
+              "platform",
+              "companion",
+              "memory",
+              "gateway"
+            ]
+          },
+          "role": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+          },
+          "port": {
+            "type": "integer",
+            "minimum": 1024,
+            "maximum": 65535
+          },
+          "replicas": {
+            "const": 1
+          },
+          "hostname": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9.-]+$"
+          },
+          "tls_server_names": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "config_path": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$"
+          }
+        }
+      },
+      "minItems": 4
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+      },
+      "uniqueItems": true
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "path",
+          "sha256",
+          "result"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "linux_images",
+              "four_service_tls",
+              "release_acceptance",
+              "log_recovery",
+              "restore_drill"
+            ]
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "result": {
+            "const": "passed"
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "verified"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "blockers": {
+            "maxItems": 0
+          },
+          "evidence": {
+            "minItems": 5
+          },
+          "products": {
+            "properties": {
+              "platform": {
+                "properties": {
+                  "image": {
+                    "properties": {
+                      "verification": {
+                        "const": "verified"
+                      },
+                      "digest": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              "companion": {
+                "properties": {
+                  "image": {
+                    "properties": {
+                      "verification": {
+                        "const": "verified"
+                      },
+                      "digest": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              "memory": {
+                "properties": {
+                  "image": {
+                    "properties": {
+                      "verification": {
+                        "const": "verified"
+                      },
+                      "digest": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              "gateway": {
+                "properties": {
+                  "image": {
+                    "properties": {
+                      "verification": {
+                        "const": "verified"
+                      },
+                      "digest": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

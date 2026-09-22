@@ -1,0 +1,52 @@
+{
+  "mode": "source_sync",
+  "database_path": "/srv/tianshu/memory.sqlite",
+  "contract_directory": "/contracts/text-dialogue/v1",
+  "log_directory": "/var/log/tianshu",
+  "diagnostics": {
+    "token_env": "TIANSHU_DIAGNOSTICS_TOKEN"
+  },
+  "source_sync": {
+    "recovery_path": "/srv/tianshu/memory.sqlite.source-guard.json",
+    "core": {
+      "url": "https://companion.internal:8765/internal/v1/source-facts/read",
+      "token": {
+        "$env": "TS_MEMORY_CORE"
+      },
+      "ca_file": "/etc/tianshu/tls/ca.pem"
+    },
+    "platform": {
+      "url": "https://platform.internal:8443/internal/v1/source-access/read",
+      "token": {
+        "$env": "TS_MEMORY_PLATFORM"
+      },
+      "ca_file": "/etc/tianshu/tls/ca.pem"
+    }
+  },
+  "callers": {
+    "companion": {
+      "token": {
+        "$env": "TS_CORE_MEMORY"
+      },
+      "issuer": "platform",
+      "issuer_url": "https://platform.internal:8443/internal/v1/origins/resolve",
+      "issuer_token": {
+        "$env": "TS_MEMORY_PLATFORM"
+      },
+      "issuer_ca_file": "/etc/tianshu/tls/ca.pem",
+      "allowed_actors": [
+        "actor:household"
+      ],
+      "operations": [
+        "resolve",
+        "register",
+        "select",
+        "select_profiles",
+        "consume",
+        "revise",
+        "check_sources"
+      ],
+      "event_scopes": []
+    }
+  }
+}

@@ -1,0 +1,190 @@
+{
+  "mode": "service_https",
+  "storage": "sqlite_local",
+  "database_path": "/var/lib/tianshu/platform.sqlite",
+  "contract_directory": "/contracts/text-dialogue/v1",
+  "principals": {
+    "admin": {
+      "kind": "operator",
+      "service": "platform",
+      "token_env": "TS_ADMIN_TOKEN",
+      "account": {
+        "namespace": "web",
+        "immutable_account_id": "household-admin"
+      },
+      "actions": [
+        "origin.issue",
+        "source.register",
+        "source.dispatch",
+        "mapping.prepare",
+        "origin.revoke",
+        "entry.revoke",
+        "principal.revoke",
+        "config.publish",
+        "config.view",
+        "config.revoke",
+        "device.control"
+      ]
+    },
+    "core-reader": {
+      "kind": "service",
+      "service": "companion",
+      "token_env": "TS_CORE_PLATFORM",
+      "actions": [
+        "source.input",
+        "mapping.confirm",
+        "origin.resolve"
+      ],
+      "resolver": {
+        "caller": "platform",
+        "purpose": "dialogue"
+      }
+    },
+    "core-sender": {
+      "kind": "service",
+      "service": "companion",
+      "token_env": "TS_CORE_PLATFORM_SENDER",
+      "actions": [
+        "dialogue.send"
+      ]
+    },
+    "memory-reader": {
+      "kind": "service",
+      "service": "memory",
+      "token_env": "TS_MEMORY_PLATFORM",
+      "actions": [
+        "source.current",
+        "origin.resolve"
+      ],
+      "resolver": {
+        "caller": "companion",
+        "purpose": "dialogue"
+      }
+    },
+    "gateway": {
+      "kind": "service",
+      "service": "gateway",
+      "token_env": "TS_GATEWAY_PLATFORM",
+      "actions": [
+        "config.snapshot"
+      ],
+      "config_versions": [
+        1
+      ]
+    }
+  },
+  "entries": {
+    "web-actor": {
+      "owner": "admin",
+      "kind": "local_operator",
+      "account": {
+        "namespace": "web",
+        "immutable_account_id": "household-admin"
+      },
+      "channel": {
+        "namespace": "web",
+        "binding_id": "web-household",
+        "channel_conversation_id": "private-chat",
+        "thread_id": null
+      },
+      "actor_id": "actor:household",
+      "audience": "self_private",
+      "ttl_seconds": 300,
+      "routes": [
+        {
+          "caller": "platform",
+          "receiver": "companion",
+          "purpose": "dialogue"
+        },
+        {
+          "caller": "companion",
+          "receiver": "memory",
+          "purpose": "dialogue"
+        },
+        {
+          "caller": "companion",
+          "receiver": "platform",
+          "purpose": "dialogue"
+        }
+      ]
+    },
+    "config-entry": {
+      "owner": "admin",
+      "kind": "local_operator",
+      "account": {
+        "namespace": "web",
+        "immutable_account_id": "household-admin"
+      },
+      "channel": {
+        "namespace": "web",
+        "binding_id": "web-household",
+        "channel_conversation_id": "private-chat",
+        "thread_id": null
+      },
+      "actor_id": "actor:household",
+      "audience": "self_private",
+      "ttl_seconds": 300,
+      "routes": [
+        {
+          "caller": "gateway",
+          "receiver": "platform",
+          "purpose": "config.snapshot"
+        }
+      ]
+    }
+  },
+  "input_entries": {
+    "web-input": {
+      "owner": "admin",
+      "account": {
+        "namespace": "web",
+        "immutable_account_id": "household-admin"
+      },
+      "channel": {
+        "namespace": "web",
+        "binding_id": "web-household",
+        "channel_conversation_id": "private-chat",
+        "thread_id": null
+      },
+      "audience": "self_private",
+      "ttl_seconds": 300,
+      "actor_entries": [
+        "web-actor"
+      ],
+      "default_actor_ids": [
+        "actor:household"
+      ],
+      "routing_version": 1
+    }
+  },
+  "providers": {},
+  "web": {
+    "origin": "https://console.example.invalid:18443",
+    "username": "replace-with-admin-name",
+    "password_hash": {
+      "$password_env": "TS_ADMIN_PASSWORD"
+    },
+    "principal": "admin",
+    "input_entries": [
+      "web-input"
+    ],
+    "static_directory": "/srv/tianshu/web",
+    "dialogue_enabled": false
+  },
+  "tls": {
+    "certificate_file": "/etc/tianshu/tls/server.pem",
+    "private_key_file": "/etc/tianshu/tls/server.key"
+  },
+  "core": {
+    "base_url": "https://companion.internal:8765",
+    "token_env": "TS_PLATFORM_CORE",
+    "ca_file": "/etc/tianshu/tls/ca.pem",
+    "timeout_seconds": 10
+  },
+  "diagnostics": {
+    "contract_directory": "/contracts/diagnostics/v1",
+    "log_directory": "/var/log/tianshu",
+    "log_directory_bytes": 1073741824,
+    "ready_token_env": "TIANSHU_DIAGNOSTICS_TOKEN"
+  }
+}

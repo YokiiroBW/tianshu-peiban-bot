@@ -1,0 +1,51 @@
+{
+  "project_name": "tianshu-isolated-candidate",
+  "web_origin": "https://console.example.invalid:18443",
+  "bind_address": "127.0.0.1",
+  "web_port": 18443,
+  "subnet": "172.30.86.0/24",
+  "service_ips": {
+    "platform": "172.30.86.10",
+    "companion": "172.30.86.11",
+    "memory": "172.30.86.12",
+    "gateway": "172.30.86.13"
+  },
+  "config_files": {
+    "platform": "platform.json",
+    "companion": "companion.json",
+    "memory": "memory.json",
+    "gateway": "gateway.json"
+  },
+  "tls": {
+    "platform": {
+      "certificate": "tls/platform/server.pem",
+      "key": "tls/platform/server.key",
+      "ca": "tls/ca.pem",
+      "provenance": "operator_supplied"
+    },
+    "companion": {
+      "certificate": "tls/companion/server.pem",
+      "key": "tls/companion/server.key",
+      "ca": "tls/ca.pem",
+      "provenance": "operator_supplied"
+    },
+    "memory": {
+      "certificate": "tls/memory/server.pem",
+      "key": "tls/memory/server.key",
+      "ca": "tls/ca.pem",
+      "provenance": "operator_supplied"
+    },
+    "gateway": {
+      "certificate": "tls/gateway/server.pem",
+      "key": "tls/gateway/server.key",
+      "ca": "tls/ca.pem",
+      "provenance": "operator_supplied"
+    }
+  },
+  "diagnostics_env": {
+    "platform": "TS_DIAG_PLATFORM",
+    "companion": "TS_DIAG_COMPANION",
+    "memory": "TS_DIAG_MEMORY",
+    "gateway": "TS_DIAG_GATEWAY"
+  }
+}
