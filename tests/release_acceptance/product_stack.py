@@ -4,15 +4,9 @@ import argparse
 import json
 import os
 from pathlib import Path
-import signal
-import socket
-import ssl
-import subprocess
 import sys
 import tempfile
-import threading
 import time
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from acceptance.evidence import Report, digest
 from acceptance.catalog import build_catalog
@@ -20,8 +14,10 @@ from acceptance.health import validate_ready
 from acceptance.inputs import verify_snapshot
 from acceptance.suite import Suite
 from acceptance.source_lease import completed_after_expiry
-from acceptance.transport import Client, Failed, Missing, check
+from acceptance.transport import Failed, Missing, check
 from product_inputs import ROLES, inputs
+from product_lifecycle import ProductLifecycle
+from product_model import ModelFixture
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "deploy/tianshu"))
@@ -42,104 +38,7 @@ def implementation_files():
     }
 
 
-class ModelFixture:
-    def __init__(self, root, port, token):
-        self.calls = 0
-        self.disconnect = False
-        owner = self
-
-        class Handler(BaseHTTPRequestHandler):
-            def log_message(self, *_):
-                pass
-
-            def do_POST(self):
-                if (
-                    self.path != "/v1/chat/completions"
-                    or self.headers.get("Authorization") != "Bearer " + token
-                ):
-                    self.send_error(403)
-                    return
-                length = int(self.headers.get("Content-Length", "0"))
-                if not 0 < length <= 1048576:
-                    self.send_error(413)
-                    return
-                body = json.loads(self.rfile.read(length))
-                owner.calls += 1
-                if owner.disconnect:
-                    self.connection.shutdown(socket.SHUT_RDWR)
-                    self.connection.close()
-                    return
-                base = {
-                    "id": "synthetic-completion",
-                    "object": "chat.completion",
-                    "created": int(time.time()),
-                    "model": "synthetic-recorded-text",
-                }
-                if body.get("stream"):
-                    chunk = {
-                        **base,
-                        "object": "chat.completion.chunk",
-                        "choices": [
-                            {
-                                "index": 0,
-                                "delta": {
-                                    "role": "assistant",
-                                    "content": "Synthetic recorded reply.",
-                                },
-                                "finish_reason": None,
-                            }
-                        ],
-                    }
-                    final = {
-                        **base,
-                        "object": "chat.completion.chunk",
-                        "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
-                    }
-                    raw = (
-                        "data: "
-                        + json.dumps(chunk)
-                        + "\n\ndata: "
-                        + json.dumps(final)
-                        + "\n\ndata: [DONE]\n\n"
-                    ).encode()
-                    mime = "text/event-stream"
-                else:
-                    raw = json.dumps(
-                        {
-                            **base,
-                            "choices": [
-                                {
-                                    "index": 0,
-                                    "message": {
-                                        "role": "assistant",
-                                        "content": "Synthetic recorded reply.",
-                                    },
-                                    "finish_reason": "stop",
-                                }
-                            ],
-                        }
-                    ).encode()
-                    mime = "application/json"
-                self.send_response(200)
-                self.send_header("Content-Type", mime)
-                self.send_header("Content-Length", str(len(raw)))
-                self.end_headers()
-                self.wfile.write(raw)
-
-        self.server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
-        tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        tls.load_cert_chain(root / "tls/model.pem", root / "tls/model.key")
-        self.server.socket = tls.wrap_socket(self.server.socket, server_side=True)
-        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
-        self.thread.start()
-
-    def close(self):
-        self.server.shutdown()
-        self.server.server_close()
-        self.thread.join(2)
-
-
-class Stack:
+class Stack(ProductLifecycle):
     def __init__(self, root, snapshots, manifest, binding):
         self.root, self.snapshots, self.manifest, self.binding = (
             root,
@@ -165,128 +64,6 @@ class Stack:
             root, self.ports["model"], self.envs["gateway"]["TS_SYNTHETIC_MODEL"]
         )
 
-    def command(self, role):
-        config = str(self.root / "config" / (role + ".json"))
-        host = ["--host", "127.0.0.1", "--port", str(self.ports[role])]
-        cert, key = [
-            str(self.root / "tls" / (role + suffix)) for suffix in (".pem", ".key")
-        ]
-        if role == "platform":
-            return "services.platform", ["--settings", config, "serve", *host]
-        if role == "companion":
-            return "tianshu_companion.runtime_cli", [
-                "--config",
-                config,
-                "--contracts",
-                str(self.snapshots / "contracts/text-dialogue/v1"),
-                "--database",
-                self.configs[role]["database_path"],
-                "--log-dir",
-                str(self.root / "logs" / role),
-                *host,
-                "--tls-cert",
-                cert,
-                "--tls-key",
-                key,
-            ]
-        if role == "memory":
-            return "tianshu_memory.cli", [
-                "--config",
-                config,
-                "serve",
-                *host,
-                "--tls-certfile",
-                cert,
-                "--tls-keyfile",
-                key,
-                "--allowed-host",
-                "127.0.0.1:" + str(self.ports[role]),
-                "--diagnostics-contract",
-                str(self.snapshots / "contracts/diagnostics/v1"),
-            ]
-        return "tianshu_gateway", [
-            "--settings",
-            config,
-            *host,
-            "--tls-cert",
-            cert,
-            "--tls-key",
-            key,
-        ]
-
-    def client(self, role):
-        return Client(
-            {"url": self.urls[role], "ca_file": str(self.root / "tls/ca.pem")}, False
-        )
-
-    def start(self):
-        for operation in ("migrate-profiles", "migrate-sources"):
-            result = subprocess.run(
-                [
-                    sys.executable,
-                    "-B",
-                    "-m",
-                    "tianshu_memory.cli",
-                    "--config",
-                    str(self.root / "config/memory.json"),
-                    operation,
-                    "--backup",
-                    str(self.root / (operation + ".sqlite")),
-                ],
-                env=self.envs["memory"],
-                capture_output=True,
-                timeout=30,
-            )
-            check(result.returncode == 0, "memory_initial_schema_failed")
-        for role in ROLES:
-            module, arguments = self.command(role)
-            evidence = self.root / (role + "-loaded.json")
-            argv = [
-                sys.executable,
-                "-B",
-                str(Path(__file__).with_name("product_worker.py")),
-                role,
-                str(self.root / "config" / (role + ".json")),
-                str(evidence),
-                module,
-                *arguments,
-            ]
-            process = subprocess.Popen(
-                argv,
-                env=self.envs[role],
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
-                if os.name == "nt"
-                else 0,
-            )
-            self.children[role] = process
-            self.launch[role] = {
-                "pid": process.pid,
-                "source": self.binding["products"][role],
-                "module": module,
-                "config_sha256": digest(
-                    (self.root / "config" / (role + ".json")).read_bytes()
-                ),
-                "worker_sha256": digest(
-                    Path(__file__).with_name("product_worker.py").read_bytes()
-                ),
-                "python": sys.version.split()[0],
-            }
-            deadline = time.monotonic() + 20
-            while time.monotonic() < deadline:
-                check(process.poll() is None, "product_process_exited_" + role)
-                try:
-                    status, _ = self.client(role).request("GET", "/health/live")
-                    if status == 200:
-                        break
-                except Exception:
-                    pass
-                time.sleep(0.1)
-            else:
-                raise Missing("product_listener_unavailable_" + role)
-
     def fingerprint(self):
         return digest(Path(__file__).read_bytes())
 
@@ -303,7 +80,7 @@ class Stack:
         if operation == "logs":
             lines = []
             for role in ROLES:
-                for file in (self.root / "logs" / role).glob("*.jsonl"):
+                for file in (self.root / "logs" / role).glob("*.jsonl*"):
                     for line in file.read_bytes().splitlines(keepends=True):
                         if (
                             line.endswith(b"\n")
@@ -393,29 +170,11 @@ class Stack:
 
     def logs(self, role):
         rows = []
-        for file in (self.root / "logs" / role).glob("*.jsonl"):
+        for file in (self.root / "logs" / role).glob("*.jsonl*"):
             for line in file.read_bytes().splitlines(keepends=True):
                 if line.endswith(b"\n"):
                     rows.append(json.loads(line))
         return rows
-
-    def close(self):
-        stopped = {}
-        for role, child in reversed(list(self.children.items())):
-            if child.poll() is None:
-                child.send_signal(
-                    signal.CTRL_BREAK_EVENT if os.name == "nt" else signal.SIGTERM
-                )
-                try:
-                    child.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    child.kill()
-                    child.wait(timeout=5)
-                    stopped[role] = "forced_owned_test_process"
-            stopped.setdefault(role, "exited")
-        if self.model:
-            self.model.close()
-        return stopped
 
 
 def main():
@@ -436,8 +195,25 @@ def main():
         default=0,
         help="Pace the additional turns to span an initial 300s source lease (310..600)",
     )
+    parser.add_argument("--execute", action="store_true")
+    parser.add_argument(
+        "--faults", action="store_true", help="Run DEP-H real-service faults"
+    )
     args = parser.parse_args()
+    if not args.execute:
+        print(
+            json.dumps(
+                {
+                    "state": "plan_only",
+                    "execution_requires": "--execute",
+                    "scope": "new_synthetic_only",
+                    "faults": args.faults,
+                }
+            )
+        )
+        return 2
     check(args.turns == 0 or 257 <= args.turns <= 300, "long_run_turn_count_invalid")
+    check(not (args.faults and args.turns), "fault_suite_cannot_precede_long_run")
     check(
         args.minimum_duration_seconds == 0
         or (args.turns and 310 <= args.minimum_duration_seconds <= 600),
@@ -471,6 +247,10 @@ def main():
                 manifest,
                 marker["binding"],
             )
+            if args.faults:
+                from product_faults import FaultControl
+
+                stack.faults = FaultControl(stack)
             stack.start()
             config = {
                 "input_version": "dep-d/1",
@@ -525,7 +305,16 @@ def main():
                 config["expected_config_sha256"][role] = stack.launch[role][
                     "config_sha256"
                 ]
-            suite = Suite(config, marker["binding"], report)
+            suite_type = Suite
+            if args.faults:
+                from product_fault_suite import ProductFaultSuite
+
+                suite_type = ProductFaultSuite
+                config["case_timeout_seconds"] = 60
+                config["logs"]["failure"]["required"] = [
+                    ["companion", "turn.generation.finished", "failed"]
+                ]
+            suite = suite_type(config, marker["binding"], report)
             suite.adapter = stack
             suite.execute()
             if args.turns:
@@ -611,6 +400,8 @@ def main():
                         ),
                         "basis": "same_gateway_process_and_initial_ref_no_rebootstrap_successful_model_and_delivery",
                     }
+            if args.faults:
+                report.data["fault_observations"] = stack.faults.observations
             report.data["runtime_diagnostics"] = {
                 role: [
                     {k: row[k] for k in ("event", "outcome", "error_code")}
@@ -619,6 +410,8 @@ def main():
                 for role in ROLES
             }
             report.data["model_fixture_calls"] = stack.model.calls
+            verify_snapshot(stack.snapshots)
+            report.data["source_snapshot_unchanged"] = True
             report.data["launch_observation"] = stack.launch
             report.data["config_observation_basis"] = (
                 "child_successful_json_parse_plus_authenticated_product_readiness"
@@ -636,6 +429,8 @@ def main():
             report.add("product_stack", "fail", code)
         finally:
             if stack:
+                if hasattr(stack, "faults"):
+                    stack.faults.close()
                 report.data["cleanup"] = stack.close()
             report.data["implementation_unchanged"] = (
                 implementation_files() == frozen_implementation

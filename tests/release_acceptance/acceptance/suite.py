@@ -784,8 +784,8 @@ class Suite:
             facts[role] = self.with_fault("logs_unavailable:" + role, exercise)
         return facts
 
-    def execute(self, plan=False):
-        for case in CASES:
+    def execute(self, plan=False, cases=None):
+        for case in (CASES if cases is None else cases):
             started = time.monotonic()
             if plan:
                 self.report.add(case, "not_run", "plan_only")

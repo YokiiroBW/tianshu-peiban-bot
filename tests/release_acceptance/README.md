@@ -67,7 +67,7 @@ python -B tests/release_acceptance/run.py verify-report --output <报告目录>
 [ADAPTER.md](ADAPTER.md) 定义本目录私有的测试驱动接口，**不是产品 HTTP 合同**。现提供两种传输：本机独立 HTTPS `/control` 测试侧车，或显式 argv 命令（无 shell、30 秒上限、只转发列出的环境变量）。由隔离部署负责人将操作接到各包公开命令/端口、录制模型与日志查询；不得通过跨产品 SQL/修改生产配置伪造回执。
 
 DEP-E新增真实四产品CLI接线，支持实际进程/配置/HTTPS/Web对话/公开停用事实和原始因果日志。
-停写重启、来源/模型撤销、unknown投递故障、超时与日志不可写尚未接入此适配器，保留dependency_missing。
+DEP-E默认适配器的故障仍保持原边界；DEP-H使用显式 `--faults` 接入下述真实故障场景。
 DEP-F生命周期是独立入口，仍未接成四产品恢复闭环；最终记忆消费者/归档缺口保持发布阻断。
 
 ## 观察、报告与边界
@@ -87,7 +87,7 @@ DEP-E报告绑定TS107/108/109/110集成版本；应用镜像digest仍未知，�
 
 ```text
 python -B tests/release_acceptance/run.py snapshot --manifest <被测清单> --contracts-root <原字节合同> --repositories <只读Git映射> --output <新快照>
-python -B tests/release_acceptance/product_stack.py --manifest <相同被测清单> --snapshots <新快照> --repositories <相同Git映射> --output <新结果目录> --turns 257 --minimum-duration-seconds 310
+python -B tests/release_acceptance/product_stack.py --execute --manifest <相同被测清单> --snapshots <新快照> --repositories <相同Git映射> --output <新结果目录> --turns 257 --minimum-duration-seconds 310
 ```
 
 被测清单须显式开启仅合成场景的web_text_dialogue；保存这份原始清单，不能用默认关闭的例子冒充同一输入。
@@ -113,6 +113,38 @@ stress-delivery.jsonl保存实际事件，报告绑定其hash；最终公开capa
 无法注入真正不确定投递时，unknown仍缺失。关闭录制模型TCP只能造成产品明确生成失败，
 不能把它改写成closed_unknown通过。结束时只终止本次创建的子进程；强制清理会在报告列明，
 不是正常停写/恢复证据。临时配置、密钥和数据库随测试清理，留下报告及封闭词汇内的原始因果事件。
+
+## DEP-H四服务故障执行
+
+`product_stack.py` 现在默认仅输出 plan；必须显式 `--execute` 才初始化全新合成状态。
+沿用上面的固定Git快照、原字节合同及被测清单，执行：
+
+```text
+python -B tests/release_acceptance/product_stack.py --execute --faults --manifest <相同被测清单> --snapshots <新快照> --repositories <只读Git映射> --output <不存在的结果目录>
+```
+
+不可与257轮选项组合。四个产品CLI不变，进程生命周期移到 `product_lifecycle.py`，
+故障控制、场景、发送代理和录制模型分别独立。所有故障仅作用于本次新建目录、随机凭据及自有PID。
+正式模板、产品源码与数据库结构均不修改；不跨写产品SQL，不伪造诊断记录。
+
+| 项目 | 实际接线与验证 |
+|---|---|
+| unknown/no resend | Core的platform_sender经过本地TLS代理，真实平台返回sent后丢失回包；Core实际closed_unknown，重放2次模型/发送计数不增加 |
+| restart recovery | 四服务实例更换，同库重启后已发送历史/unknown回执保留、旧网页登录失效、无重发；重新核真实配置解析PID/hash与鉴权ready |
+| source revocation | 已有操作员CLI register-input以相同message_id/revision2/retract登记，再dispatch-fanout至Core；历史正文隐藏，模型输入正对照包含旧文、撤回后排除 |
+| model revocation | 已有操作员CLI revoke-config；网页立即503/model_not_configured，日志故障后冷网关直接请求拒绝且不调用模型；不证明暖缓存传播时延 |
+| timeout/cancel | 合成网关上限2秒，录制端延迟8秒；真实超时事件、公开cancel、释放两条迟到响应后无投递/重试 |
+| failure truthfulness | 模型TCP断开实际轮次failed、原始generation失败日志且无成功投递；不误称unknown |
+| abnormal readiness | Windows OS强制字节锁阻断包括轮转段的日志追加；逐产品ready503，业务尝试无模型/发送增量；解锁后重启并复核配置/ready |
+
+日志字节锁不改写原始日志。POSIX上该故障明确dependency_missing，尚无Linux文件权限/挂载故障证明。
+重启是**崩溃恢复**：Windows退出码与Memory强制清理分别留证，`normal_stop_proven=false`。
+没有删锁、重新签发来源或撤销后重新发布配置。来源撤回只证明已有操作员入口，不代表网页有撤回按钮。
+记忆/归档相关pass仍仅为disabled_verified，未证明持久记忆写入或归档。
+
+最终证据见 `evidence/wave4-h/final-fixed/`：17 pass、0 fail、0 dependency_missing、3 not_run，
+整体incomplete；Linux、NAS、浏览器渲染、真实模型质量与24h未执行。此前失败尝试原样保留。
+原wave3/wave3-r1及其他65份既有证据文件均未改字节，不重复旧257轮。
 
 ## 本目录验证
 

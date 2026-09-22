@@ -1,0 +1,1281 @@
+{
+  "report_version": "dep-d/1",
+  "kind": "release_acceptance",
+  "run_id": "9660c673-2fd7-4a3c-89d1-0bf54784a8f7",
+  "started_at": "2026-09-22T15:28:33.963592+00:00",
+  "mode": "local",
+  "runtime_kind": "product",
+  "python": "3.12.14",
+  "host_os": "Windows",
+  "implementation_sha256": "9a7c329955f970c53c159a764c55592c1d74206029ccf63ba595d8c4e60ae811",
+  "binding": {
+    "contracts": {
+      "diagnostics/v1/README.md": "c7a52353d75db9a7a36c8a966b62ced55d55edc22fb77d25d6033024f91d487b",
+      "diagnostics/v1/event.schema.json": "c91ccc13f2a975f234934eb6e7d9ef03d9ad0a650e4c2acbdeb87761b3bf0a53",
+      "diagnostics/v1/examples.json": "a1139afd483d146f120df4e31c950ae81e7922dcbc57afcd92ac63a996675d0d",
+      "diagnostics/v1/manifest.json": "5d89f7a21637fd57cea4a236e17f8d8c4917799497ff44f87ee68ea614d4805f",
+      "diagnostics/v1/negative-examples.json": "a8a8453646ef2f4cf2ee870758316fe08f3f9522748d19730aba7338670b3632",
+      "model-origin-renewal/v1/README.md": "549904168e8b71b8382734dbec5a3bbb0048b703fad082bcb42569b07bd60ef9",
+      "model-origin-renewal/v1/examples.json": "6540bfbb1703d02726a808f2ca998fd85683d6f21d182bea76985cee62e34f94",
+      "model-origin-renewal/v1/manifest.json": "c5017724187c1386b647fcc5b41ab3cb1702f27d6192f3a87fcefb23e7a5a61c",
+      "model-origin-renewal/v1/negative-examples.json": "c1f00a33a8aaeee86441cdca3d7dd01715ca79b2884a89def1e24f3f3357b28a",
+      "model-origin-renewal/v1/request.schema.json": "93bdfc5a1c248da4f227c51f0e62b43c513a2a769a687ce8ee9ffaaca0fbe228",
+      "model-origin-renewal/v1/response.schema.json": "9520c729fa5fea8501cebaf1581ceb4d5c58dc90533f3dcf6e0575b641882677",
+      "model-protocol/v1/README.md": "963b6c561fddb5796f3eb3e2a7311565630cf63d3740379607fa43843e16773f",
+      "model-protocol/v1/compatibility.md": "32cfba5f8fbca8e6ef9aff7ab871931dd82b0d596eeb40030542d5bcc6ca4dc3",
+      "model-protocol/v1/errors.json": "e7a155ee5b5b058eb8d9d1195f0ee6887aff9ed94099b39939c76cb880996fa3",
+      "model-protocol/v1/examples/documents.json": "385414cc43fe07df1f19d561926ece8f6c44d3018cccd307d936fd33cd663428",
+      "model-protocol/v1/examples/negative-documents.json": "99cdcf4305ed2b0c12b5778311b6eeee282be3d5027ffddcdb30c56219bd99a9",
+      "model-protocol/v1/examples/relations.json": "1c3f18bb29b2023280419bb47e7a02151ba1dc1668f691d32a77d94d3aad5ff1",
+      "model-protocol/v1/interfaces.json": "312d0610f24b19407c205d293e4f282de5e4f497c17aa383692cd408250372d0",
+      "model-protocol/v1/manifest.json": "52711a71de56dbceebd1d5d96b2baf59a2d9551168029972d59111480f815141",
+      "model-protocol/v1/requirements.txt": "9cba6d4508d006391ab899893990d5ac5d03b4811a0f71f152c5883897ee8120",
+      "model-protocol/v1/schemas/model.json": "de715187a3e99a8dffd2afb55c35d610328031c1cceae5d471088a74c143dd0f",
+      "model-protocol/v1/semantics.md": "df9f6e5286ef77b66a8c4aab76b9ff805dc7804dd0a91143f619e465b8620568",
+      "model-protocol/v1/test_validator.py": "1cbefa0b3c096caff4708826a442c50eca3004f4fdd206b7782356a3177a3dea",
+      "model-protocol/v1/validate.py": "11b40869ff390e5c62774f065cc897ea75be43cad45808720c2b904e1806f740",
+      "profile-memory/v1/README.md": "097c6fd35c1b2d516f4529fcd5080586c80e587bc6794f1da506498dffd5788b",
+      "profile-memory/v1/examples.json": "bd55f3f392642a358cde7162ed1355edd58b1c3a550c46fb47d5c252b0a03cd2",
+      "profile-memory/v1/manifest.json": "20ef6f36b64e39080101e1186672dbc9e5b20529e0c56971e1cc5a2880fe6048",
+      "profile-memory/v1/schemas/profiles.json": "a442cc60ef91b06c1eed65c7d0f40a691f81f131d68f14dba1d4552b95d0a56d",
+      "profile-memory/v1/semantics.md": "9a45bc352e1bfc63b9d94e1c1916470d652e45c425adf8595fa755d23d98ca49",
+      "profile-memory/v1/validate.py": "4fbff50a03eabffe75f46fc717d95214051e4146f93c3a8fb174e6e69f6ee549",
+      "source-sync/v1/README.md": "e36f925af0298bf868a564b7b4300cbcdc97889149db8cad5bcad0ddca984a79",
+      "source-sync/v1/compatibility.md": "be0cd61080662554fedf66a8875d8bd20da0c888636195544452ea0f2f73d89e",
+      "source-sync/v1/examples/documents.json": "5c923bc322f38ba58330cade3c97659963749650addf4337288b83d84359c50d",
+      "source-sync/v1/examples/negative-documents.json": "c0301b7e7fe9c590b29d39cce54e1d78f418f00d15ef7adb004e29d204db4ce2",
+      "source-sync/v1/examples/relations.json": "173c2c8ed2dc6651e76cded66b8fa6ea2cd6bd98c3c872165bf579faa3912c96",
+      "source-sync/v1/interfaces.json": "e771ef7aee1caeecf7fba3b154274cde80256f27d6822e616e6d1dd42d30ddef",
+      "source-sync/v1/manifest.json": "178d0ce66210bdfad4cfb85d8b5f0905b0b67f834e2a530efe5636ff0373633d",
+      "source-sync/v1/rules.py": "69eecf03bcdfb6904d02b597fd46ad1938d7d5e3a7eb4838159d081156dacfb8",
+      "source-sync/v1/schemas/shared.json": "24b0c297007651ac4a3821cc41d68f8d6e7460d911cd42c4e4edc30b84b1d76d",
+      "source-sync/v1/schemas/sources.json": "48749a31638f0d81e7ac9528ed3f3fc78400519409d2832ec77e0816e2d311fd",
+      "source-sync/v1/schemas/workflow.json": "01424adddaf3d838337d37d0d1c0a58ccfb56ed7c984899c0602d37a86bf6e28",
+      "source-sync/v1/semantics.md": "4de65d52931b53e16079403ae3e4a65b0e718ea330a126e713afc638f65f5a92",
+      "source-sync/v1/validate.py": "9f63cf90dc2541d611210124cbf042d53bb5aae7ffd395a02e0f97823504b988",
+      "text-dialogue/v1/README.md": "a26361d1064062a6a2f5410a9e5fe578fbf232d35eb377a22f13ac87a174e629",
+      "text-dialogue/v1/compatibility.md": "283126310906acc6c1beb8a8cf59ce5982ddffc1d0b4ba689c1ef71045aa20ea",
+      "text-dialogue/v1/examples/documents.json": "7ff8da16faf3277cb996107d5909fbe452c9202eac6a0277fd9c7da4ed4f1fe1",
+      "text-dialogue/v1/examples/negative-documents.json": "2feae6a24bf9e0cd09510386c110b929e44912e1a46dfb7c49d727046d7b940a",
+      "text-dialogue/v1/examples/relations.json": "f39bff8a23a516d69b8af764b39741248312fd60b492c2204a99395e1f274395",
+      "text-dialogue/v1/manifest.json": "0f9880a1bfb151eb7ec48db1c086d779c99c972c51933de0501d77da535605f8",
+      "text-dialogue/v1/schemas/common.json": "b296a79d7eb0218d9b444c4ddbba837ad576f46a7a4e50fbcebec7618d8ef9af",
+      "text-dialogue/v1/schemas/conversation.json": "e640040fa816100b258999087f8784d1e7d1d55df007992632e202e02b64b6cb",
+      "text-dialogue/v1/schemas/identity-memory.json": "7e32e26aea89cc88fb48f9d0af43f32ea68de8561404ff495d3a8044985ef848",
+      "text-dialogue/v1/schemas/model.json": "9ffa9055aca897ff57292555f37674d79df687d1d6c062df48267527a8ff3a7c",
+      "text-dialogue/v1/schemas/web.json": "6d1be804b1ff3e0fd63d776cea6c1615455923c4b1fe7782fd52202713cc333c",
+      "text-dialogue/v1/semantics.md": "19f3ea3ce83bc997dac92846aea3e872d22d7ac34cf9adcc2c76708c24b4139e",
+      "web-conversation/v1/README.md": "3e95c73dddf4e4beec76b8de94b1404267dd43a1b1a947b3ed20cd7e34e52405",
+      "web-conversation/v1/authorization-examples.json": "0ffecb85fe8f3b1773c4788aa887fff0c9ba964440b9b53733efd7b6f26a9649",
+      "web-conversation/v1/examples.json": "21a7e99d3d063e62026b7c5165016921a6f9d90109959104e1287f7ce85118de",
+      "web-conversation/v1/manifest.json": "e493a1b5d0f4cec8d55995553faf84042f4c33a59365d15423e57f4dc70a6c09",
+      "web-conversation/v1/negative-examples.json": "3806c1fced4084ec085929f58952d3daf28f2eb01484e7ef5a22000161a05b67",
+      "web-conversation/v1/schema.json": "d2c6925fc55a471a96b89687812266dadc4214e8b904639f7c0220c6144f2316",
+      "web-conversation/v1/semantics.md": "20559fdf482050d1cd2ff0ce1053f44f7587cfa7752cbfb950d539dd530ee5d5",
+      "web-conversation/v1/validate.py": "751c3209a00c2fa62d7e104be6f21b6af2fa3e4a85620a243ffe7e24c0792967"
+    },
+    "features": [
+      {
+        "enabled": true,
+        "id": "web_text_dialogue",
+        "reason": "Explicit synthetic-only joint trial of accepted TS108 and TS109/110; not release approval.",
+        "verification": "unverified"
+      },
+      {
+        "enabled": false,
+        "id": "automatic_long_term_memory",
+        "reason": "Requires explicit configuration and joint acceptance; no success is inferred from startup.",
+        "verification": "unverified"
+      },
+      {
+        "enabled": false,
+        "id": "chat_audit_archive",
+        "reason": "Requires explicit configuration and joint acceptance; no success is inferred from startup.",
+        "verification": "unverified"
+      },
+      {
+        "enabled": false,
+        "id": "qq_telegram_hosts",
+        "reason": "Requires explicit configuration and joint acceptance; no success is inferred from startup.",
+        "verification": "unverified"
+      },
+      {
+        "enabled": false,
+        "id": "gpu_media_devices",
+        "reason": "Requires explicit configuration and joint acceptance; no success is inferred from startup.",
+        "verification": "unverified"
+      },
+      {
+        "enabled": false,
+        "id": "proactive_sending",
+        "reason": "Requires explicit configuration and joint acceptance; no success is inferred from startup.",
+        "verification": "unverified"
+      },
+      {
+        "enabled": false,
+        "id": "memory_knowledge_http",
+        "reason": "Requires explicit configuration and joint acceptance; no success is inferred from startup.",
+        "verification": "unverified"
+      },
+      {
+        "enabled": false,
+        "id": "central_logging",
+        "reason": "Requires explicit configuration and joint acceptance; no success is inferred from startup.",
+        "verification": "unverified"
+      }
+    ],
+    "identity_basis": "static_input_only",
+    "manifest_sha256": "08c12281065b5e5e6e1cd515a1caae25cbd87d587ffb454c287a9e58e84e57a1",
+    "mapping_sha256": "47aefceb12ab06dc6cc996cb7aeef6df5fe2f961cd4763dcf54fdb6fc0ccc327",
+    "products": {
+      "companion": {
+        "commit": "e94b609099365f75ca933d9fed03cdfbc83ec235",
+        "digest": null,
+        "image": "tianshu/companion:e94b60909936",
+        "repo": "tianshu-companion"
+      },
+      "gateway": {
+        "commit": "ec20f95e3849ebee968c4f00d7a31d14eccaa40f",
+        "digest": null,
+        "image": "tianshu/gateway:ec20f95e3849",
+        "repo": "tianshu-model-gateway"
+      },
+      "memory": {
+        "commit": "9a3b2bed6aebff9f0677f2c62e979859769e0c9c",
+        "digest": null,
+        "image": "tianshu/memory:9a3b2bed6aeb",
+        "repo": "tianshu-memory"
+      },
+      "platform": {
+        "commit": "0a3cf65b8da19eabdd5d72f9f999281cbb52fdac",
+        "digest": null,
+        "image": "tianshu/platform:0a3cf65b8da1",
+        "repo": "tianshu-platform"
+      }
+    },
+    "release_blockers": [
+      "linux_images_unverified",
+      "joint_acceptance_unverified",
+      "memory_candidate_consumer_missing",
+      "memory_disable_joint_review_required",
+      "chat_audit_unconnected",
+      "application_log_reclamation_missing",
+      "product_dockerfiles_need_review",
+      "model_origin_bootstrap_joint_review_required",
+      "real_restore_lifecycle_unverified"
+    ],
+    "release_id": "tianshu-wave3-synthetic-final-20260922",
+    "release_status": "candidate"
+  },
+  "results": [
+    {
+      "case": "runtime_binding",
+      "status": "pass",
+      "code": "assertions_satisfied",
+      "duration_seconds": 0.109,
+      "facts": {
+        "basis": "test_adapter_attestation",
+        "adapter_sha256": "fbb4e3e2be9c5fdc1c3102f9ca32e1be71dee18a58b5babf0e42104fe9091c6a",
+        "static_manifest_sha256": "08c12281065b5e5e6e1cd515a1caae25cbd87d587ffb454c287a9e58e84e57a1"
+      }
+    },
+    {
+      "case": "configuration_loading",
+      "status": "pass",
+      "code": "assertions_satisfied",
+      "duration_seconds": 0.11,
+      "facts": {
+        "configuration_sha256": {
+          "platform": "ba26ec13f56c9c4bd96fb361da1d70aa69ca4693311dd9a8a67014cdfb861b18",
+          "companion": "ce6baca29fd71ec0a25092fbf2b2be958cb470d655e2d38ae3b3551c49b9e6bb",
+          "memory": "bcd25b0fe4c023d440c4b4a979c2c519eda4e435614e0bee4e2d35e1602752ff",
+          "gateway": "44cd9f7798d84ced12a068695d39dc734d0bbcda88e6deeed8cda7f414552fb1"
+        },
+        "basis": "test_adapter_runtime_observation",
+        "independent_process_verification": "required_by_coordinator"
+      }
+    },
+    {
+      "case": "health_and_auth",
+      "status": "pass",
+      "code": "assertions_satisfied",
+      "duration_seconds": 0.203,
+      "facts": {
+        "platform": {
+          "config": "ok",
+          "contract": "ok",
+          "store": "ok",
+          "sidecars": "ok",
+          "web_static": "ok",
+          "tls": "ok",
+          "credentials": "ok",
+          "logging": "ok",
+          "runtime": "ok"
+        },
+        "companion": {
+          "configuration": "ok",
+          "logs": "ok",
+          "runtime": "ok",
+          "dependencies": "not_verified"
+        },
+        "memory": {
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "guard": "ok",
+          "mode": "ok",
+          "log": "ok",
+          "assembled": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        },
+        "gateway": {
+          "configuration": "ok",
+          "contracts": "ok",
+          "runtime": "ok",
+          "ledger": "ok",
+          "logging": "ok",
+          "platform": "not_verified",
+          "model": "not_verified",
+          "native": "not_configured"
+        }
+      }
+    },
+    {
+      "case": "web_login_csrf",
+      "status": "pass",
+      "code": "assertions_satisfied",
+      "duration_seconds": 0.437,
+      "facts": {
+        "http_cookie_session": true,
+        "missing_csrf": 403,
+        "foreign_origin": 403,
+        "incorrect_password": 401,
+        "rendered_browser": false
+      }
+    },
+    {
+      "case": "dialogue_model_reply",
+      "status": "pass",
+      "code": "assertions_satisfied",
+      "duration_seconds": 1.047,
+      "facts": {
+        "reply_count": 1,
+        "model_calls_delta": 1,
+        "model_kind": "recorded",
+        "counter_basis": "adapter_attested"
+      }
+    },
+    {
+      "case": "memory_candidate",
+      "status": "pass",
+      "code": "assertions_satisfied",
+      "duration_seconds": 0.016,
+      "facts": {
+        "stage": "disabled_verified",
+        "generation": "disabled",
+        "submission": "paused",
+        "retained_outbox": {
+          "pending": false,
+          "blocked_scope": false,
+          "submitting": false,
+          "unknown": false
+        },
+        "memory_write_proven": false,
+        "chat_archive_proven": false,
+        "basis": "product_public_capabilities"
+      }
+    },
+    {
+      "case": "memory_finalized",
+      "status": "pass",
+      "code": "assertions_satisfied",
+      "duration_seconds": 0.015,
+      "facts": {
+        "stage": "disabled_verified",
+        "generation": "disabled",
+        "submission": "paused",
+        "retained_outbox": {
+          "pending": false,
+          "blocked_scope": false,
+          "submitting": false,
+          "unknown": false
+        },
+        "memory_write_proven": false,
+        "chat_archive_proven": false,
+        "basis": "product_public_capabilities"
+      }
+    },
+    {
+      "case": "chat_archive",
+      "status": "pass",
+      "code": "assertions_satisfied",
+      "duration_seconds": 0.016,
+      "facts": {
+        "stage": "disabled_verified",
+        "generation": "disabled",
+        "submission": "paused",
+        "retained_outbox": {
+          "pending": false,
+          "blocked_scope": false,
+          "submitting": false,
+          "unknown": false
+        },
+        "memory_write_proven": false,
+        "chat_archive_proven": false,
+        "basis": "product_public_capabilities"
+      }
+    },
+    {
+      "case": "memory_backlog_boundary",
+      "status": "pass",
+      "code": "assertions_satisfied",
+      "duration_seconds": 0.016,
+      "facts": {
+        "pending_before": 0,
+        "pending_after": 0
+      }
+    },
+    {
+      "case": "unknown_no_resend",
+      "status": "pass",
+      "code": "assertions_satisfied",
+      "duration_seconds": 2.64,
+      "facts": {
+        "replays": 2,
+        "upstream_send_accepted": 1,
+        "responses_dropped": 1,
+        "model_calls_delta": 1,
+        "resend_count": 0,
+        "injection": "real_sender_success_response_lost"
+      }
+    },
+    {
+      "case": "restart_recovery",
+      "status": "pass",
+      "code": "assertions_satisfied",
+      "duration_seconds": 7.969,
+      "facts": {
+        "services_restarted": [
+          "platform",
+          "companion",
+          "memory",
+          "gateway"
+        ],
+        "old_session_expired": true,
+        "unknown_resent": false,
+        "process_identity_basis": "adapter_attested",
+        "normal_stop_proven": false,
+        "memory_cleanup": {
+          "method": "forced_owned_process_crash",
+          "exit_code": 1,
+          "normal_stop_proven": false
+        }
+      }
+    },
+    {
+      "case": "source_revocation",
+      "status": "pass",
+      "code": "assertions_satisfied",
+      "duration_seconds": 3.828,
+      "facts": {
+        "source_revision": 2,
+        "history_content_unavailable": true,
+        "recall_positive_control": true,
+        "recall_excluded": true,
+        "mutation": "public_operator_register_input_and_dispatch_fanout",
+        "browser_retract_claimed": false
+      }
+    },
+    {
+      "case": "timeout_cancel",
+      "status": "pass",
+      "code": "assertions_satisfied",
+      "duration_seconds": 7.016,
+      "facts": {
+        "timeout_phase": "failed",
+        "cancel_phase": "cancelled",
+        "upstream_calls": 2,
+        "late_reply_deliveries": 0,
+        "provider_budget_ms": 2000,
+        "late_provider_responses_released": 2
+      }
+    },
+    {
+      "case": "log_causality",
+      "status": "pass",
+      "code": "assertions_satisfied",
+      "duration_seconds": 0.015,
+      "facts": {
+        "matching_events": 116,
+        "unique_events": 116,
+        "duplicates": 0
+      }
+    },
+    {
+      "case": "failure_truthfulness",
+      "status": "pass",
+      "code": "assertions_satisfied",
+      "duration_seconds": 0.953,
+      "facts": {
+        "matching_events": 119,
+        "unique_events": 119,
+        "duplicates": 0,
+        "phase": "failed",
+        "unknown_claimed": false
+      }
+    },
+    {
+      "case": "abnormal_readiness",
+      "status": "pass",
+      "code": "assertions_satisfied",
+      "duration_seconds": 9.157,
+      "facts": {
+        "platform": {
+          "ready_status": 503,
+          "side_effect_delta": 0,
+          "fault": "windows_os_exclusive_log_byte_lock"
+        },
+        "companion": {
+          "ready_status": 503,
+          "side_effect_delta": 0,
+          "fault": "windows_os_exclusive_log_byte_lock"
+        },
+        "memory": {
+          "ready_status": 503,
+          "side_effect_delta": 0,
+          "fault": "windows_os_exclusive_log_byte_lock"
+        },
+        "gateway": {
+          "ready_status": 503,
+          "side_effect_delta": 0,
+          "fault": "windows_os_exclusive_log_byte_lock"
+        }
+      }
+    },
+    {
+      "case": "browser_rendering",
+      "status": "not_run",
+      "code": "http_suite_does_not_render_ui",
+      "duration_seconds": 0,
+      "facts": {}
+    },
+    {
+      "case": "real_model_quality",
+      "status": "not_run",
+      "code": "recorded_model_only",
+      "duration_seconds": 0,
+      "facts": {}
+    },
+    {
+      "case": "observation_24h",
+      "status": "not_run",
+      "code": "use_observe_command",
+      "duration_seconds": 0,
+      "facts": {}
+    },
+    {
+      "case": "model_revocation",
+      "status": "pass",
+      "code": "assertions_satisfied",
+      "duration_seconds": 0.343,
+      "facts": {
+        "public_operator_cli_revoke": true,
+        "gateway_status": 403,
+        "gateway_cache_basis": "cold_after_log_fault_restart",
+        "warm_cache_revocation_latency_proven": false,
+        "version": 1,
+        "upstream_calls_delta": 0,
+        "send_calls_delta": 0,
+        "restored": false
+      }
+    }
+  ],
+  "claims": {
+    "real_model_quality": "not_run",
+    "browser_rendering": "not_run",
+    "nas_acceptance": "not_run",
+    "observation_24h": "not_run"
+  },
+  "implementation_files": {
+    "deploy/tianshu/bootstrap.py": "2954ad49575c3f27d7293808463e37be707d39c34c7a435acece3d5b689aa503",
+    "deploy/tianshu/configuration.py": "ffdea5c79186f55bfd50d162ea24c653edeaa7469740ac8c5b1139e43c10ad95",
+    "deploy/tianshu/templates/companion.json": "03a3825c7dd69d3da3fb4bc7bbee6d25f59eb6b97958969c26f40f776bb9410a",
+    "deploy/tianshu/templates/deployment-input.example.json": "af92f37d997c7d677321e5de1ca61e67ca9142db6a61e880df6d64bc371bf6e1",
+    "deploy/tianshu/templates/gateway.json": "c1b184888248146566a349880337d86f466adae54627643264439fe90bb4860f",
+    "deploy/tianshu/templates/memory.json": "01c50a51444948f66767c7e1da8e918856445453fc33f466c4afbd05dcbbb0a8",
+    "deploy/tianshu/templates/platform.json": "c07f84596c25ee59a3135d9533fb01cbec2ded451a14dd805ce31a34b0249133",
+    "tests/release_acceptance/acceptance/__init__.py": "7fe2fcad19594c3dd40ef78b506df15cb6e5defac0fd476e9a7368eefafb6742",
+    "tests/release_acceptance/acceptance/capabilities.py": "084a89a7488461a32712d0b6165b87841534b6a6385eb4b947c74b4360560cff",
+    "tests/release_acceptance/acceptance/catalog.py": "39b0e6cc15d1b644c07f1d2fcddb7eccf133b62356497c9b5b50fa2df6c44c74",
+    "tests/release_acceptance/acceptance/diagnostics.py": "696f83dad39118c4acc0c10045c5327285f91b544fab5b0fb9042f95831416f2",
+    "tests/release_acceptance/acceptance/evidence.py": "4624315904c3c4c97cb660bf816a82a28bb98ebebfb60f8709d3529b9eb2bc92",
+    "tests/release_acceptance/acceptance/health.py": "f61b5f297b43cf8a1cfeb834003fc54396bbb138e51dec391f06158bba0a7559",
+    "tests/release_acceptance/acceptance/inputs.py": "c14e13a8cc4346209e091bd9de0877a05838c19bd42447089c0d3944a88b6f42",
+    "tests/release_acceptance/acceptance/observation.py": "d36883e523d9df0f03ae27b81e5666944c5f37f3e7b3655c5548d08e0a2f1df9",
+    "tests/release_acceptance/acceptance/source_lease.py": "c496eef81971f37d19b8326108e79d8b7477a3c4c2078ffff05a04d5c4702a45",
+    "tests/release_acceptance/acceptance/suite.py": "749f3769fcfdb393d68960389677987f89923b4a2573410389770d3eb23a851c",
+    "tests/release_acceptance/acceptance/transport.py": "eba9703c8518b4b39a01283140978b73b604c3824770f9c0c65e76e4a719abcd",
+    "tests/release_acceptance/product_fault_suite.py": "f9875e783858b001852f6f0a6c93ff2535703ee3cbb892ad288fe2dbe10e99c0",
+    "tests/release_acceptance/product_faults.py": "baae88a7fe31d2c0eea7973cc5a21f5daf4f5206b68c2e306561ae4c723abf7d",
+    "tests/release_acceptance/product_inputs.py": "5a1de119fbfa0376094037f7a552749ec9f4f256aba71a2f54725f2896824bbd",
+    "tests/release_acceptance/product_lifecycle.py": "20e6ed819b9a699973279fb42bcaed56454c677f23e9267458ea53e5585fc346",
+    "tests/release_acceptance/product_login_probe.py": "34be747fca61c527fa4925d2ccd381b0e879ab2dbbe0c26d339db40557b2fb00",
+    "tests/release_acceptance/product_model.py": "580929de9178d924b2f354d533db7b08ef647b14019cd2bd24627e701221ea57",
+    "tests/release_acceptance/product_sender.py": "645c40f4405507584fc266c572c6e3159ff5ca4e91e0ddb702241dcc89e4c72a",
+    "tests/release_acceptance/product_stack.py": "fbb4e3e2be9c5fdc1c3102f9ca32e1be71dee18a58b5babf0e42104fe9091c6a",
+    "tests/release_acceptance/product_worker.py": "963017c7b46869b11baecb708f5f03dbcec90eff0fa696290cdd6dc2a0c3948b"
+  },
+  "coverage": "actual_product_cli_tls_synthetic_model",
+  "limitations": [
+    "windows_host",
+    "shared_test_dependency_environment",
+    "synthetic_static_assets",
+    "no_linux_images",
+    "no_browser_rendering"
+  ],
+  "fault_observations": [
+    {
+      "operation": "restart",
+      "restarted": [
+        "platform",
+        "companion",
+        "memory",
+        "gateway"
+      ],
+      "before_instances": {
+        "platform": 38828,
+        "companion": 10088,
+        "memory": 37624,
+        "gateway": 46284
+      },
+      "after_instances": {
+        "platform": 14680,
+        "companion": 3764,
+        "memory": 27504,
+        "gateway": 42176
+      },
+      "stops": {
+        "gateway": {
+          "method": "signal_exit",
+          "exit_code": 3221225786,
+          "normal_stop_proven": false
+        },
+        "memory": {
+          "method": "forced_owned_process_crash",
+          "exit_code": 1,
+          "normal_stop_proven": false
+        },
+        "companion": {
+          "method": "signal_exit",
+          "exit_code": 3,
+          "normal_stop_proven": false
+        },
+        "platform": {
+          "method": "signal_exit",
+          "exit_code": 3221225786,
+          "normal_stop_proven": false
+        }
+      },
+      "normal_stop_proven": false,
+      "loaded_config_sha256": {
+        "platform": "ba26ec13f56c9c4bd96fb361da1d70aa69ca4693311dd9a8a67014cdfb861b18",
+        "companion": "ce6baca29fd71ec0a25092fbf2b2be958cb470d655e2d38ae3b3551c49b9e6bb",
+        "memory": "bcd25b0fe4c023d440c4b4a979c2c519eda4e435614e0bee4e2d35e1602752ff",
+        "gateway": "44cd9f7798d84ced12a068695d39dc734d0bbcda88e6deeed8cda7f414552fb1"
+      }
+    },
+    {
+      "operation": "restart",
+      "restarted": [
+        "platform"
+      ],
+      "before_instances": {
+        "platform": 14680
+      },
+      "after_instances": {
+        "platform": 19740
+      },
+      "stops": {
+        "platform": {
+          "method": "signal_exit",
+          "exit_code": 3221225786,
+          "normal_stop_proven": false
+        }
+      },
+      "normal_stop_proven": false,
+      "loaded_config_sha256": {
+        "platform": "ba26ec13f56c9c4bd96fb361da1d70aa69ca4693311dd9a8a67014cdfb861b18",
+        "companion": "ce6baca29fd71ec0a25092fbf2b2be958cb470d655e2d38ae3b3551c49b9e6bb",
+        "memory": "bcd25b0fe4c023d440c4b4a979c2c519eda4e435614e0bee4e2d35e1602752ff",
+        "gateway": "44cd9f7798d84ced12a068695d39dc734d0bbcda88e6deeed8cda7f414552fb1"
+      }
+    },
+    {
+      "operation": "restart",
+      "restarted": [
+        "companion"
+      ],
+      "before_instances": {
+        "companion": 3764
+      },
+      "after_instances": {
+        "companion": 40028
+      },
+      "stops": {
+        "companion": {
+          "method": "signal_exit",
+          "exit_code": 3,
+          "normal_stop_proven": false
+        }
+      },
+      "normal_stop_proven": false,
+      "loaded_config_sha256": {
+        "platform": "ba26ec13f56c9c4bd96fb361da1d70aa69ca4693311dd9a8a67014cdfb861b18",
+        "companion": "ce6baca29fd71ec0a25092fbf2b2be958cb470d655e2d38ae3b3551c49b9e6bb",
+        "memory": "bcd25b0fe4c023d440c4b4a979c2c519eda4e435614e0bee4e2d35e1602752ff",
+        "gateway": "44cd9f7798d84ced12a068695d39dc734d0bbcda88e6deeed8cda7f414552fb1"
+      }
+    },
+    {
+      "operation": "restart",
+      "restarted": [
+        "memory"
+      ],
+      "before_instances": {
+        "memory": 27504
+      },
+      "after_instances": {
+        "memory": 15120
+      },
+      "stops": {
+        "memory": {
+          "method": "forced_owned_process_crash",
+          "exit_code": 1,
+          "normal_stop_proven": false
+        }
+      },
+      "normal_stop_proven": false,
+      "loaded_config_sha256": {
+        "platform": "ba26ec13f56c9c4bd96fb361da1d70aa69ca4693311dd9a8a67014cdfb861b18",
+        "companion": "ce6baca29fd71ec0a25092fbf2b2be958cb470d655e2d38ae3b3551c49b9e6bb",
+        "memory": "bcd25b0fe4c023d440c4b4a979c2c519eda4e435614e0bee4e2d35e1602752ff",
+        "gateway": "44cd9f7798d84ced12a068695d39dc734d0bbcda88e6deeed8cda7f414552fb1"
+      }
+    },
+    {
+      "operation": "restart",
+      "restarted": [
+        "gateway"
+      ],
+      "before_instances": {
+        "gateway": 42176
+      },
+      "after_instances": {
+        "gateway": 17144
+      },
+      "stops": {
+        "gateway": {
+          "method": "signal_exit",
+          "exit_code": 3221225786,
+          "normal_stop_proven": false
+        }
+      },
+      "normal_stop_proven": false,
+      "loaded_config_sha256": {
+        "platform": "ba26ec13f56c9c4bd96fb361da1d70aa69ca4693311dd9a8a67014cdfb861b18",
+        "companion": "ce6baca29fd71ec0a25092fbf2b2be958cb470d655e2d38ae3b3551c49b9e6bb",
+        "memory": "bcd25b0fe4c023d440c4b4a979c2c519eda4e435614e0bee4e2d35e1602752ff",
+        "gateway": "44cd9f7798d84ced12a068695d39dc734d0bbcda88e6deeed8cda7f414552fb1"
+      }
+    }
+  ],
+  "runtime_diagnostics": {
+    "platform": [
+      {
+        "event": "http.request.finished",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "http.auth.succeeded",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "runtime.starting",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "config.loaded",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "contract.loaded",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "cli.action.started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "cli.action.finished",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "runtime.starting",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "config.loaded",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "contract.loaded",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "cli.action.started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "outbound.call.started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "outbound.call.succeeded",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "cli.action.finished",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "runtime.starting",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "config.loaded",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "contract.loaded",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "cli.action.started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "cli.action.finished",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "runtime.starting",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "config.loaded",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "contract.loaded",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "cli.action.started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "cli.action.finished",
+        "outcome": "succeeded",
+        "error_code": null
+      }
+    ],
+    "companion": [
+      {
+        "event": "peer.call.started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "peer.call.finished",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "peer.call.started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "service.request.started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "service.request.finished",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "service.request.started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "peer.call.started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "peer.call.finished",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "peer.call.started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "service.request.started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "service.request.finished",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "peer.call.finished",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "peer.call.started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "peer.call.finished",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "peer.call.started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "peer.call.finished",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "turn.generation.started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "peer.call.started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "peer.call.finished",
+        "outcome": "failed",
+        "error_code": "dependency_unavailable"
+      },
+      {
+        "event": "turn.generation.finished",
+        "outcome": "failed",
+        "error_code": "dependency_unavailable"
+      },
+      {
+        "event": "peer.call.finished",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "service.request.finished",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "runtime.background_work",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "runtime.background_work",
+        "outcome": "succeeded",
+        "error_code": null
+      }
+    ],
+    "memory": [
+      {
+        "event": "sync.execute.completed",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "request.completed",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "sync.execute.completed",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "request.completed",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "request.started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "request.authenticated",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "sync.execute.started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "sync.execute.completed",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "request.completed",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "request.started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "request.authenticated",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "sync.execute.started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "request.started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "request.authenticated",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "sync.execute.started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "sync.execute.completed",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "request.completed",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "request.started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "request.authenticated",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "sync.execute.completed",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "request.completed",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "sync.execute.started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "sync.execute.completed",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "request.completed",
+        "outcome": "succeeded",
+        "error_code": null
+      }
+    ],
+    "gateway": [
+      {
+        "event": "request.finished",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "request.accepted",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "request.admitted",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "upstream.call_started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "upstream.first_output",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "upstream.call_finished",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "request.finished",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "request.accepted",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "request.finished",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "request.accepted",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "request.admitted",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "upstream.call_started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "upstream.call_finished",
+        "outcome": "unknown",
+        "error_code": "timeout"
+      },
+      {
+        "event": "request.finished",
+        "outcome": "unknown",
+        "error_code": "timeout"
+      },
+      {
+        "event": "request.accepted",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "request.admitted",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "upstream.call_started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "upstream.call_finished",
+        "outcome": "cancelled",
+        "error_code": null
+      },
+      {
+        "event": "request.finished",
+        "outcome": "cancelled",
+        "error_code": null
+      },
+      {
+        "event": "request.accepted",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "request.admitted",
+        "outcome": "succeeded",
+        "error_code": null
+      },
+      {
+        "event": "upstream.call_started",
+        "outcome": "started",
+        "error_code": null
+      },
+      {
+        "event": "upstream.call_finished",
+        "outcome": "unknown",
+        "error_code": "result_unknown"
+      },
+      {
+        "event": "request.finished",
+        "outcome": "unknown",
+        "error_code": "result_unknown"
+      }
+    ]
+  },
+  "model_fixture_calls": 7,
+  "source_snapshot_unchanged": true,
+  "launch_observation": {
+    "platform": {
+      "pid": 19740,
+      "source": {
+        "commit": "0a3cf65b8da19eabdd5d72f9f999281cbb52fdac",
+        "digest": null,
+        "image": "tianshu/platform:0a3cf65b8da1",
+        "repo": "tianshu-platform"
+      },
+      "module": "services.platform",
+      "config_sha256": "ba26ec13f56c9c4bd96fb361da1d70aa69ca4693311dd9a8a67014cdfb861b18",
+      "worker_sha256": "963017c7b46869b11baecb708f5f03dbcec90eff0fa696290cdd6dc2a0c3948b",
+      "python": "3.12.14",
+      "observed_process": {
+        "pid": 15788,
+        "parent_pid": 19740,
+        "basis": "successful_product_json_parse"
+      }
+    },
+    "companion": {
+      "pid": 40028,
+      "source": {
+        "commit": "e94b609099365f75ca933d9fed03cdfbc83ec235",
+        "digest": null,
+        "image": "tianshu/companion:e94b60909936",
+        "repo": "tianshu-companion"
+      },
+      "module": "tianshu_companion.runtime_cli",
+      "config_sha256": "ce6baca29fd71ec0a25092fbf2b2be958cb470d655e2d38ae3b3551c49b9e6bb",
+      "worker_sha256": "963017c7b46869b11baecb708f5f03dbcec90eff0fa696290cdd6dc2a0c3948b",
+      "python": "3.12.14",
+      "observed_process": {
+        "pid": 40528,
+        "parent_pid": 40028,
+        "basis": "successful_product_json_parse"
+      }
+    },
+    "memory": {
+      "pid": 15120,
+      "source": {
+        "commit": "9a3b2bed6aebff9f0677f2c62e979859769e0c9c",
+        "digest": null,
+        "image": "tianshu/memory:9a3b2bed6aeb",
+        "repo": "tianshu-memory"
+      },
+      "module": "tianshu_memory.cli",
+      "config_sha256": "bcd25b0fe4c023d440c4b4a979c2c519eda4e435614e0bee4e2d35e1602752ff",
+      "worker_sha256": "963017c7b46869b11baecb708f5f03dbcec90eff0fa696290cdd6dc2a0c3948b",
+      "python": "3.12.14",
+      "observed_process": {
+        "pid": 42732,
+        "parent_pid": 15120,
+        "basis": "successful_product_json_parse"
+      }
+    },
+    "gateway": {
+      "pid": 17144,
+      "source": {
+        "commit": "ec20f95e3849ebee968c4f00d7a31d14eccaa40f",
+        "digest": null,
+        "image": "tianshu/gateway:ec20f95e3849",
+        "repo": "tianshu-model-gateway"
+      },
+      "module": "tianshu_gateway",
+      "config_sha256": "44cd9f7798d84ced12a068695d39dc734d0bbcda88e6deeed8cda7f414552fb1",
+      "worker_sha256": "963017c7b46869b11baecb708f5f03dbcec90eff0fa696290cdd6dc2a0c3948b",
+      "python": "3.12.14",
+      "observed_process": {
+        "pid": 32068,
+        "parent_pid": 17144,
+        "basis": "successful_product_json_parse"
+      }
+    }
+  },
+  "config_observation_basis": "child_successful_json_parse_plus_authenticated_product_readiness",
+  "bootstrap": {
+    "state": "authority_initialized",
+    "issuer": "product_platform_cli",
+    "published_result_sha256": "c1e035b938896aee011836981cf2a72678ed072341f01630e389b35fdb0c916d",
+    "expires_at": "2026-09-22T15:33:34.785910Z",
+    "remaining_seconds_at_issue": 299,
+    "publication_sha256": "a2ccf0691027dec3a9c40291f3cbf5ea54b70944d6ce5ffb7900724ff28eb927",
+    "automatic_renewal": false,
+    "real_model": "not_configured"
+  },
+  "cleanup": {
+    "gateway": "exited",
+    "memory": "forced_owned_test_process",
+    "companion": "exited",
+    "platform": "exited"
+  },
+  "implementation_unchanged": true,
+  "finished_at": "2026-09-22T15:29:22.768945+00:00",
+  "duration_seconds": 48.797,
+  "verdict": "incomplete",
+  "content_sha256": "e9a9804d9127a9065d1db7615738d10340dbc7f67f0cb025653c5f3fe15ff516"
+}
