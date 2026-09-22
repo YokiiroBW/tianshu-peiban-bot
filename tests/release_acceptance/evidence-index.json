@@ -1,0 +1,29 @@
+{
+  "index_version": "dep-d/1",
+  "root_baseline": "21668e4300d7bedc8ac1ed819bdb7dad4a2bd58b",
+  "dep_a_commit": "e86d622a813f116b059b62b820cbd1342722042d",
+  "files": {
+    "catalog/catalog.json": "8dd5d72e9e544c70d975825e34bccdc5a9034e56660def09e93af09af8ada092",
+    "container-not-run/report.json": "a28c4dea1c2fb413261b8b65d5d65bced78549e0f15a85ec18f67112b1951822",
+    "container-not-run/summary.md": "bc55e7abbc3ba4cb366005421b8be8c24a8a9ddec5b5a4aa5940f855e310bf98",
+    "current-unwired/report.json": "eee8f78cb0e2d13f733bff672943e2ad7a493288d295314fecfc03124422ebcf",
+    "current-unwired/summary.md": "15461790f64ebb9cf3ff7efe58ee390a2d863ae76af49c02f5cd424d8b7a7512",
+    "inputs/tested-release.json": "7566375a763440d9408d1ae6a3502aab5521bd996cec3dc93c523ebcd660f922",
+    "platform-login/report.json": "6073b0ac1f4cd86e63e49aa6464265446c028a7c8b15ca8835e25663378e33cd",
+    "platform-login/summary.md": "5a2b8e60b84ab1e5985f50c4d2c385c5b92bbc822248bd9705fbba21f589ce90",
+    "platform-login-final/report.json": "f0ff38124cfcbc4737274643af526fa161556d9c8754835685141355fa4ac84f",
+    "platform-login-final/summary.md": "14233dc325a5ecf6c1d4fac8a00a391ad3e920f99a3b7d4c6b275044edb55e5f",
+    "selftest/report.json": "9b9832bbd634ffffbe64e9fe554ef99ec468de2afe85b8f133214b542188aae4",
+    "selftest/summary.md": "98d1a24673bd743946bada9f856c8ba3b9868b1c079694eb5613c50dce564fbd",
+    "synthetic/short-observation/observation.jsonl": "ab222ef11ae3edbfe820687f05b32f08b0c49456b98be19118a0c49084dcb556",
+    "synthetic/short-observation/report.json": "d878c8d5a4c6c061069844a7a9a467e33d148a9ac05fe54afbf76e0cbca355be",
+    "synthetic/short-observation/summary.md": "5d921e730d657f098ed1fd0ec299cfaf7d6db377076ab68be15c440ceec1322c",
+    "synthetic/suite/report.json": "f8bb19cb95e379850a5d9e00b67aac357274bda0ebdbefcbf6fe3ab589ae400b",
+    "synthetic/suite/summary.md": "d6f37979606e24e420db9f465ba846400282035659bc0aeb3b9de463f1950e94"
+  },
+  "notes": [
+    "Hashes establish integrity, not execution authenticity.",
+    "Synthetic suite is not product acceptance.",
+    "Container and NAS execution not performed."
+  ]
+}

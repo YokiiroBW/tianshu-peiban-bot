@@ -1,0 +1,62 @@
+{
+  "index_version": "dep-d/1",
+  "root_baseline": "21668e4300d7bedc8ac1ed819bdb7dad4a2bd58b",
+  "repair_parent": "7abd5284fbce9b7b24d382edd084fec6e1880e59",
+  "dep_a_commit": "e86d622a813f116b059b62b820cbd1342722042d",
+  "implementation_sha256": "83daa3d978e3fcfac6f31000dc50f26e43388e01776335194d974a6f2ff3aeb6",
+  "source_files_relative_to_runner": {
+    "acceptance/transport.py": "eba9703c8518b4b39a01283140978b73b604c3824770f9c0c65e76e4a719abcd",
+    "acceptance/suite.py": "c0e5ed8fa3e40efe076095ce72fdb93db4109dee99576bac1a858d6087a7c5e8",
+    "acceptance/observation.py": "d36883e523d9df0f03ae27b81e5666944c5f37f3e7b3655c5548d08e0a2f1df9",
+    "selftest.py": "5246dd3501feee21675b812f203843c581ba6ff0a9b2107e4b7add56317fdaec",
+    "test_runner.py": "3c8913c5ae886e0d76b4ae9cdd4cdbac7a33a3741040c2e4814097f2922e5a69"
+  },
+  "final_reports": [
+    "final/current-unwired/report.json",
+    "final/platform-login/report.json",
+    "final/selftest/report.json",
+    "final/synthetic/short-observation/report.json",
+    "final/synthetic/suite/report.json"
+  ],
+  "files": {
+    "catalog/catalog.json": "71989451d883898bb416869f49dd83bb2adaa4d8f5d7e51db62142795f756a64",
+    "final/current-unwired/report.json": "843a75790bd103975771a683ede9269a82acafe66adc6862a9606d6b3ae62516",
+    "final/current-unwired/summary.md": "37f8e63cd94e395d949aba9b2e491deb75dfa7f1183da86901bad8b29d8f18df",
+    "final/platform-login/report.json": "06cd82dcf56c83c3c6091c988926c81fee152ea11d6f6eeb967dd9178b7785f4",
+    "final/platform-login/summary.md": "542b878b812050513f94374e2f30699876a981b5cbe0288f684f3f7581891ab6",
+    "final/selftest/report.json": "774d04a583387e493c3f1a2549a902f6adc666a4ade6ca56e2a4911e3f082dc1",
+    "final/selftest/summary.md": "43271cbf02ad7b3909e715f5d081cc4b3e8fc4f351f5ef4edbb947180f3bcfc1",
+    "final/synthetic/short-observation/observation.jsonl": "368ac0cfa433fc9f1a37ab8d39f026d18cf9a7ec9ad08c6936aafd41ea01dccf",
+    "final/synthetic/short-observation/report.json": "0fcdd6d4ce62dccf870618613158bd0d4929292c06bdae003c535a10b7857f02",
+    "final/synthetic/short-observation/summary.md": "5f2bc483bcae32e02aae20ed40ea7cd290d84f45a883b5cbbe61f54fe47178b8",
+    "final/synthetic/suite/report.json": "ed7df73982e76e5dd8933a7a00cfb10792a2d7046edad344d03299a8141d3fb5",
+    "final/synthetic/suite/summary.md": "5e71175d7f4f8e1e3f87757b4bba16678d2e9086f68b88bce48528bc154d4261",
+    "inputs/tested-release.json": "3ffe1d53e9f120afe56a86efe421349919f5b20638e71822076e54f55680557f",
+    "platform-login/report.json": "16713fc9975582a7b0f44df0c84b5d5e3465a0793d0f9e3ca7937f767c8a5486",
+    "platform-login/summary.md": "37068be77630515bd5f2566dea9fd63c4132f92bcaa4e98dd7716abc1bedc85a",
+    "platform-login-final/report.json": "2ef710ec2f30a64fa41afa522993c708e51dd082aab35fbaa03d45ea983ec2eb",
+    "platform-login-final/summary.md": "7f087a7f91927420f0ef614fcc82051a72dac4de32f9abd149930051ee981a04",
+    "selftest-clock-resolution/report.json": "5dbdc025beb7af2ddfa5723f22200a9e498256186ee411a86fd2a5f618aeeef4",
+    "selftest-clock-resolution/summary.md": "84f768e10500aa2799e29ef5cbb2fbbfbaf060b2b955fafacde43bac1e4d66c2",
+    "selftest-initial/report.json": "9b088b0fde9ec65edbef9889dc7b9421cb733284cf1b8770f41d20ee938fec24",
+    "selftest-initial/summary.md": "f8f709968adc7d705354e71e31612c7a5c59f0d3cb3bc7cb73d7bb2c47be3c94",
+    "synthetic/short-observation/observation.jsonl": "5c1ff9e574ebd201c8371619104ddc82da0dcf9e4d18109c865c19df6034d39f",
+    "synthetic/short-observation/report.json": "2043a3919e130a890d76a7110dce0ce6d7f2cef66bb8747e84168b65ab858e05",
+    "synthetic/short-observation/summary.md": "c431df7ffc1cffe13ad0ebeefaa67637376a47208b3d3a9e784ca5fc8bb0013e",
+    "synthetic/suite/report.json": "142924728b26bd2d467d80668c1f76dca024773ed7791a5f63f6340867c821af",
+    "synthetic/suite/summary.md": "84d1d8abee1ead695b3e5dbda12be436792bf620fafe3845558fe8e4a704594b",
+    "synthetic-initial/short-observation/observation.jsonl": "1d9af1a606bc1ddd6bcec724dc74a55649009d41277aa4a1e4e0ae2876626937",
+    "synthetic-initial/short-observation/report.json": "062ef1e4ed894e89f3484113c2d179a5db880ba61246b05e490c52508786bc13",
+    "synthetic-initial/short-observation/summary.md": "192896c63c80ea5fcd2055c3d5804ef18afb62d8d0323e5d9582bfac5b72fd29",
+    "synthetic-initial/suite/report.json": "ff8eb8b27118acb8c2790b448ce5a3930039d0b917e066dc40a2e813129fe470",
+    "synthetic-initial/suite/summary.md": "aa0e993b03d8ba1741b5de9306a85dae51bdbdc0a91d08e12d05388b432ef20e"
+  },
+  "notes": [
+    "Final evidence is selected by final_reports; other reports preserve intermediate runs including two failed selftests.",
+    "Original reports and original evidence-index.json are unchanged.",
+    "Candidate input is derived from the fixed DEP-A example: product commits/image tags updated; resolved rebind blocker removed. No image verified.",
+    "Source and artifact hashes establish integrity, not execution authenticity.",
+    "stdout_captured_bytes bounds payload storage, not total Python/child RSS; one extra byte detects overflow.",
+    "Only local Windows evidence; synthetic suite and one-product probe do not establish four-product, Linux container, NAS, or 24-hour acceptance."
+  ]
+}

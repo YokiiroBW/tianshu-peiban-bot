@@ -1,0 +1,11 @@
+{
+  "schema_version": "/schema_version",
+  "release_id": "/release_id",
+  "contracts": "/contracts",
+  "products": {
+    "platform": {"repo": "/products/platform/source/repo", "commit": "/products/platform/source/commit", "image": "/products/platform/image/reference", "digest": "/products/platform/image/digest"},
+    "companion": {"repo": "/products/companion/source/repo", "commit": "/products/companion/source/commit", "image": "/products/companion/image/reference", "digest": "/products/companion/image/digest"},
+    "memory": {"repo": "/products/memory/source/repo", "commit": "/products/memory/source/commit", "image": "/products/memory/image/reference", "digest": "/products/memory/image/digest"},
+    "gateway": {"repo": "/products/gateway/source/repo", "commit": "/products/gateway/source/commit", "image": "/products/gateway/image/reference", "digest": "/products/gateway/image/digest"}
+  }
+}
