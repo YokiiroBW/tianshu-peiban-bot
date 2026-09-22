@@ -84,6 +84,18 @@ class Runner:
 
     def __call__(self, name, argv, seconds, *, input=None, capture=False):
         start = time.monotonic()
+        visible = name.startswith(
+            (
+                "build_",
+                "dependencies_",
+                "create_",
+                "oneoff_output_",
+                "memory_",
+                "platform_",
+            )
+        )
+        if visible:
+            print("[validation] " + name + " ...", flush=True)
         try:
             result = subprocess.run(
                 argv,
@@ -107,6 +119,8 @@ class Runner:
                 duration_seconds=round(time.monotonic() - start, 3),
             )
         )
+        if visible:
+            print("[validation] " + name + ": " + status, flush=True)
         write_json(self.path, self.report)
         require(status == "passed", "runtime_step_failed_" + name)
         return result.stdout if capture else None

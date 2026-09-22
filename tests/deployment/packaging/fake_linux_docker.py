@@ -25,6 +25,7 @@ class Docker:
     def __init__(self, root, receipt, **faults):
         self.root, self.receipt, self.faults = root, receipt, faults
         self.calls, self.active, self.specs = [], {}, {}
+        self.outputs = {}
         self.serial, self.stopping, self.signaled = 0, False, False
         self.injected = False
         doc = read_json(root / "compose.json")
@@ -136,8 +137,19 @@ class Docker:
                     code = 1
                     value["State"]["ExitCode"] = 1
                 raw = json.dumps(self.receipt).encode()
+            elif command[-1] == "publish":
+                raw = b'{"status":"published"}'
             elif "distributions" in " ".join(command):
                 raw = b'{"interpreter":"/synthetic/python","distributions":[["synthetic","1"]]}'
+            self.outputs[cid] = raw
+            if self.faults.get("empty_attach"):
+                raw = b""
+        elif argv[:2] == ["docker", "logs"]:
+            raw = self.outputs[argv[-1]]
+            if self.faults.get("invalid_logs"):
+                raw = b"invalid synthetic output"
+            elif self.faults.get("empty_logs"):
+                raw = b""
         elif argv[:2] == ["docker", "start"]:
             for cid in argv[2:]:
                 self.active[cid]["State"].update(

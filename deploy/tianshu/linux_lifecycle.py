@@ -1,6 +1,7 @@
 """Create/register/start by immutable ID. Labels alone never confer stop ownership."""
 
 import copy
+import json
 import os
 import secrets
 import time
@@ -182,6 +183,29 @@ class Lifecycle:
         )
         value = next(v for v in self.check() if v["Id"] == ids[0])
         require(self.clean_exit(value), "oneoff_exit_unconfirmed")
+        if kwargs.get("capture", False):
+            source = "attach"
+            if not output or not output.strip():
+                # Some DSM Docker attach sessions lose stdout when stdin reaches EOF.
+                # Read only the same successfully exited container; never replay its work.
+                output = self.run(
+                    "oneoff_output_" + name,
+                    ["docker", "logs", "--tail", "100", ids[0]],
+                    15,
+                    capture=True,
+                )
+                source = "container_stdout"
+            require(
+                bool(output) and len(output) <= 1024 * 1024,
+                "oneoff_output_missing_or_oversize",
+            )
+            try:
+                document = json.loads(output)
+            except (ValueError, UnicodeError):
+                raise Refused("oneoff_json_output_invalid") from None
+            require(isinstance(document, dict), "oneoff_json_output_invalid")
+            # Persist only transport metadata; origin refs/tokens never enter the report.
+            self.report.setdefault("oneoff_output_sources", {})[ids[0]] = source
         self.retire_oneoff(ids[0])
         return output
 

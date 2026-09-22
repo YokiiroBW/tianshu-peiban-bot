@@ -11,6 +11,32 @@ from manifest import Refused
 
 
 class LifecycleTests(unittest.TestCase):
+    def test_empty_attach_reads_same_exited_container_without_replaying(self):
+        report, fake = self.exercise(expected_error=False, empty_attach=True)
+        self.assertTrue(report["stop_confirmed"])
+        starts = [c[-1] for c in fake.calls if c[:3] == ["docker", "start", "-ai"]]
+        self.assertEqual(len(starts), len(set(starts)))
+        logs = [c[-1] for c in fake.calls if c[:2] == ["docker", "logs"]]
+        self.assertTrue(logs)
+        self.assertTrue(set(logs) <= set(starts))
+        self.assertTrue(
+            all(
+                v == "container_stdout"
+                for v in report["oneoff_output_sources"].values()
+            )
+        )
+
+    def test_missing_or_invalid_output_retains_container_and_fails(self):
+        for flag in ("invalid_logs", "empty_logs"):
+            with self.subTest(flag=flag):
+                report, fake = self.exercise(empty_attach=True, **{flag: True})
+                self.assertFalse(any(c[:2] == ["docker", "rm"] for c in fake.calls))
+                self.assertEqual(
+                    len([c for c in fake.calls if c[:3] == ["docker", "start", "-ai"]]),
+                    1,
+                )
+                self.assertNotIn("completed_oneoffs", report)
+
     def exercise(self, expected_error=True, dialogue=False, **faults):
         fixture = packaging.PackagingTests()
         fixture.setUpClass()
