@@ -2,6 +2,7 @@
 
 from configuration import CA, DATABASE, PORTS, STATE, endpoint
 from manifest import PRODUCTS
+from resource_profile import constrain
 
 
 def bind(source, target, readonly=True):
@@ -152,6 +153,8 @@ def compose_document(manifest, site):
                 "org.tianshu.product": product,
             },
         }
+    for service in services.values():
+        constrain(service, site.get("resource_profile"))
     services["platform"]["ports"] = [f"{site['bind_address']}:{site['web_port']}:8443"]
     # No dependency cycle: platform answers authority queries before peers start. Liveness
     # only orders startup. Release acceptance must separately authenticate /health/ready.

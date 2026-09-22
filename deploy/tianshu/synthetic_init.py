@@ -91,8 +91,13 @@ def tls(directory):
     # CA signing key is never persisted and cannot sign another real service.
 
 
-def create(scope, manifest_path, contracts, project, subnet, web_port):
+def create(
+    scope, manifest_path, contracts, project, subnet, web_port, resource_profile=None
+):
     import re
+    from resource_profile import validate
+
+    validate(resource_profile)
 
     require(
         re.fullmatch(r"tianshu-qa-[a-z0-9-]+", project), "isolated_qa_project_required"
@@ -122,6 +127,8 @@ def create(scope, manifest_path, contracts, project, subnet, web_port):
         },
     )
     values = {}
+    if resource_profile is not None:
+        site["resource_profile"] = resource_profile
     for p in PRODUCTS:
         site["tls"][p]["provenance"] = "isolated_test"
         config_path = inputs / (p + ".json")
@@ -154,6 +161,11 @@ def main():
     parser.add_argument("--subnet", required=True)
     parser.add_argument("--web-port", required=True, type=int)
     parser.add_argument("--execute", action="store_true")
+    parser.add_argument(
+        "--resource-profile",
+        type=Path,
+        help="Explicit NAS QA profile JSON; default portable limits remain unchanged",
+    )
     args = parser.parse_args()
     if args.execute:
         create(
@@ -163,6 +175,7 @@ def main():
             args.project,
             args.subnet,
             args.web_port,
+            read_json(args.resource_profile) if args.resource_profile else None,
         )
         print("synthetic_bundle_initialized_not_started")
     else:

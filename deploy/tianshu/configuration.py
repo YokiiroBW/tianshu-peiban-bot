@@ -48,8 +48,12 @@ def shape(document, fields, code):
 
 def load_inputs(path):
     site = read_json(path)
+    from resource_profile import validate
+
+    require(isinstance(site, dict), "inputs_shape_invalid")
+    profile = validate(site.get("resource_profile"))
     shape(
-        site,
+        {k: v for k, v in site.items() if k != "resource_profile"},
         {
             "project_name",
             "web_origin",
@@ -63,6 +67,21 @@ def load_inputs(path):
         },
         "inputs_shape_invalid",
     )
+    if profile is not None:
+        require(
+            isinstance(site["project_name"], str)
+            and site["project_name"].startswith("tianshu-qa-"),
+            "nas_profile_synthetic_only",
+        )
+        require(site["bind_address"] == "127.0.0.1", "nas_profile_loopback_only")
+        require(
+            isinstance(site["tls"], dict)
+            and all(
+                isinstance(v, dict) and v.get("provenance") == "isolated_test"
+                for v in site["tls"].values()
+            ),
+            "nas_profile_test_tls_only",
+        )
     require(
         bool(re.fullmatch(r"tianshu-[a-z0-9-]{3,40}", site["project_name"])),
         "dedicated_project_required",

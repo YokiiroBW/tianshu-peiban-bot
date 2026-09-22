@@ -81,6 +81,11 @@ def configure(root, settings_path, repository, projects=None):
 
     root = root.absolute()
     verify_integrity(root)
+    require(
+        read_json(root / "deployment.json")["compose_inputs"].get("resource_profile")
+        is None,
+        "nas_qa_observability_profile_not_yet_validated",
+    )
     manifest = load_manifest(root / "release-manifest.json")
     require(manifest["schema_version"] == "1.1.0", "observability_manifest_required")
     settings = read_json(settings_path)

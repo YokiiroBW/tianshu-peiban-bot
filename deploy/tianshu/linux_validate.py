@@ -33,6 +33,11 @@ def plan(bundle, contexts):
             "executor_bundle_version_mismatch",
         )
     manifest = load_manifest(bundle / "release-manifest.json")
+    from resource_profile import validate
+
+    profile = validate(
+        read_json(bundle / "deployment.json")["compose_inputs"].get("resource_profile")
+    )
     inventory = read_json(contexts / "source-inventory.json")
     require(
         inventory["release_id"] == manifest["release_id"],
@@ -74,6 +79,13 @@ def plan(bundle, contexts):
                 ],
             }
         )
+        if profile is not None:
+            steps[-1]["argv"][2:2] = [
+                "--memory",
+                "2147483648",
+                "--cpuset-cpus",
+                ",".join(map(str, profile["cpus"])),
+            ]
     return manifest, steps
 
 

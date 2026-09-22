@@ -165,6 +165,14 @@ def leased_execute(
     dimensions = report.setdefault("dimensions", {})
     dimensions["linux_permissions"] = "passed"
     meta = read_json(root / "deployment.json")
+    profile = meta["compose_inputs"].get("resource_profile")
+    if profile is not None:
+        from resource_profile import host_check
+
+        information = subprocess.check_output(
+            ["docker", "--host", endpoint, "info", "--format", "{{json .}}"], timeout=15
+        )
+        report["resource_capabilities"] = host_check(profile, json.loads(information))
     require(
         re.fullmatch(r"tianshu-qa-[a-z0-9-]+", meta["project_name"]),
         "isolated_qa_project_required",

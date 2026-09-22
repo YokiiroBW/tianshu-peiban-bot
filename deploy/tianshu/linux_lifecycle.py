@@ -6,6 +6,7 @@ import secrets
 import time
 
 from manifest import Refused, digest, require, write_json
+from resource_profile import container_check
 
 
 class Lifecycle:
@@ -39,6 +40,9 @@ class Lifecycle:
             "owned_container_set_changed",
         )
         for value in values:
+            owner = value["Config"]["Labels"].get("com.docker.compose.service")
+            if owner in self.compose["services"]:
+                container_check(self.compose["services"][owner], value)
             require(
                 self.fact(value) == self.registered[value["Id"]],
                 "owned_container_identity_changed",
@@ -122,6 +126,7 @@ class Lifecycle:
                     owner in expected and owner not in seen,
                     "unexpected_created_container",
                 )
+                container_check(document["services"][owner], value)
                 require(
                     {k: v for k, v in fact.items() if k != "id"} == expected[owner],
                     "unexpected_created_container",

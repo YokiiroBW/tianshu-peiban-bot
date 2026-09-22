@@ -33,6 +33,7 @@ TOOLS = (
     "observability_release.py",
     "configuration.py",
     "compose.py",
+    "resource_profile.py",
     "bundle.py",
     "runtime_guard.py",
     "release-manifest.schema.json",
@@ -149,6 +150,8 @@ def initialize(manifest_path, inputs_path, contracts_root, target, environ=None)
         "permissions": "requires_linux_uid_gid_10001_verification",
         "observability": "external_DEP-B_package_not_embedded",
     }
+    if site.get("resource_profile") is not None:
+        metadata["compose_inputs"]["resource_profile"] = site["resource_profile"]
     write_json(target / "deployment.json", metadata)
     write_json(target / "compose.json", compose_document(manifest, site))
     commands = {
@@ -377,6 +380,23 @@ def preflight(root, release=False, runtime=False, *, core_only=False):
     from urllib.parse import urlsplit
 
     metadata = read_json(root / "deployment.json")
+    from resource_profile import validate
+
+    profile = validate(metadata["compose_inputs"].get("resource_profile"))
+    if profile is not None:
+        require(not release, "nas_qa_profile_not_release_approved")
+        require(
+            metadata["project_name"].startswith("tianshu-qa-"),
+            "nas_profile_synthetic_only",
+        )
+        require(
+            metadata["compose_inputs"]["bind_address"] == "127.0.0.1",
+            "nas_profile_loopback_only",
+        )
+        require(
+            all(v == "isolated_test" for v in metadata["tls_provenance"].values()),
+            "nas_profile_test_tls_only",
+        )
     require(
         read_json(root / "compose.json")
         == compose_document(manifest, metadata["compose_inputs"]),
