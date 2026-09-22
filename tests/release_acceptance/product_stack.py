@@ -19,6 +19,7 @@ from acceptance.catalog import build_catalog
 from acceptance.health import validate_ready
 from acceptance.inputs import verify_snapshot
 from acceptance.suite import Suite
+from acceptance.source_lease import completed_after_expiry
 from acceptance.transport import Client, Failed, Missing, check
 from product_inputs import ROLES, inputs
 
@@ -534,6 +535,7 @@ def main():
                 )
                 before = stack.call("state")
                 stress_started = time.monotonic()
+                accepted_correlations, completed_deliveries = [], []
                 for index in range(args.turns):
                     target_time = (
                         stress_started
@@ -548,6 +550,7 @@ def main():
                         and request["result"].get("state") == "accepted",
                         "long_run_not_accepted",
                     )
+                    accepted_correlations.append(request["correlation"])
                     # Only one outstanding request exists. Product delivery diagnostics
                     # establish completed sends without repeatedly reading all web history.
                     deadline = time.monotonic() + 30
@@ -565,6 +568,7 @@ def main():
                         time.sleep(0.1)
                     rows = delivered()
                     check(len(rows) == 1, "long_run_reply_failed")
+                    completed_deliveries.append(rows[0])
                     with (args.output / "stress-delivery.jsonl").open(
                         "a", encoding="utf-8", newline="\n"
                     ) as evidence:
@@ -598,18 +602,13 @@ def main():
                     ),
                     "duration_seconds": round(time.monotonic() - stress_started, 3),
                 }
-                from datetime import datetime
-
-                initial_expiry = datetime.fromisoformat(
-                    stack.receipt["expires_at"].replace("Z", "+00:00")
-                ).timestamp()
                 if args.minimum_duration_seconds:
-                    check(
-                        time.time() > initial_expiry, "initial_source_lease_not_crossed"
-                    )
                     report.data["source_renewal"] = {
-                        "initial_expires_at": stack.receipt["expires_at"],
-                        "completed_delivery_after_initial_expiry": True,
+                        **completed_after_expiry(
+                            completed_deliveries,
+                            stack.receipt["expires_at"],
+                            accepted_correlations,
+                        ),
                         "basis": "same_gateway_process_and_initial_ref_no_rebootstrap_successful_model_and_delivery",
                     }
             report.data["runtime_diagnostics"] = {

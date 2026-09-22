@@ -1,0 +1,393 @@
+{
+  "kind": "observation-budget-diagnosis",
+  "runs": [
+    {
+      "iteration": 1,
+      "connections": 1,
+      "elapsed_ms": 172.0,
+      "trace": [
+        {
+          "entry_ms": 16.0,
+          "parent_deadline_ms": 146.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -26.0
+        },
+        {
+          "entry_ms": 172.0,
+          "parent_deadline_ms": 146.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -26.0
+        },
+        {
+          "entry_ms": 172.0,
+          "parent_deadline_ms": 146.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -26.0
+        },
+        {
+          "entry_ms": 172.0,
+          "parent_deadline_ms": 146.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -26.0
+        }
+      ]
+    },
+    {
+      "iteration": 2,
+      "connections": 1,
+      "elapsed_ms": 157.0,
+      "trace": [
+        {
+          "entry_ms": 16.0,
+          "parent_deadline_ms": 146.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -11.0
+        },
+        {
+          "entry_ms": 157.0,
+          "parent_deadline_ms": 146.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -11.0
+        },
+        {
+          "entry_ms": 157.0,
+          "parent_deadline_ms": 146.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -11.0
+        },
+        {
+          "entry_ms": 157.0,
+          "parent_deadline_ms": 146.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -11.0
+        }
+      ]
+    },
+    {
+      "iteration": 3,
+      "connections": 1,
+      "elapsed_ms": 157.0,
+      "trace": [
+        {
+          "entry_ms": 16.0,
+          "parent_deadline_ms": 146.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -11.0
+        },
+        {
+          "entry_ms": 157.0,
+          "parent_deadline_ms": 146.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -11.0
+        },
+        {
+          "entry_ms": 157.0,
+          "parent_deadline_ms": 146.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -11.0
+        },
+        {
+          "entry_ms": 157.0,
+          "parent_deadline_ms": 146.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -11.0
+        }
+      ]
+    },
+    {
+      "iteration": 4,
+      "connections": 1,
+      "elapsed_ms": 172.0,
+      "trace": [
+        {
+          "entry_ms": 31.0,
+          "parent_deadline_ms": 161.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -11.0
+        },
+        {
+          "entry_ms": 172.0,
+          "parent_deadline_ms": 161.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -11.0
+        },
+        {
+          "entry_ms": 172.0,
+          "parent_deadline_ms": 161.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -11.0
+        },
+        {
+          "entry_ms": 172.0,
+          "parent_deadline_ms": 161.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -11.0
+        }
+      ]
+    },
+    {
+      "iteration": 5,
+      "connections": 1,
+      "elapsed_ms": 156.0,
+      "trace": [
+        {
+          "entry_ms": 15.0,
+          "parent_deadline_ms": 145.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -11.0
+        },
+        {
+          "entry_ms": 156.0,
+          "parent_deadline_ms": 145.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -11.0
+        },
+        {
+          "entry_ms": 156.0,
+          "parent_deadline_ms": 145.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -11.0
+        },
+        {
+          "entry_ms": 156.0,
+          "parent_deadline_ms": 145.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -11.0
+        }
+      ]
+    },
+    {
+      "iteration": 6,
+      "connections": 1,
+      "elapsed_ms": 171.0,
+      "trace": [
+        {
+          "entry_ms": 31.0,
+          "parent_deadline_ms": 161.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -10.0
+        },
+        {
+          "entry_ms": 171.0,
+          "parent_deadline_ms": 161.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -10.0
+        },
+        {
+          "entry_ms": 171.0,
+          "parent_deadline_ms": 161.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -10.0
+        },
+        {
+          "entry_ms": 171.0,
+          "parent_deadline_ms": 161.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -10.0
+        }
+      ]
+    },
+    {
+      "iteration": 7,
+      "connections": 1,
+      "elapsed_ms": 172.0,
+      "trace": [
+        {
+          "entry_ms": 31.0,
+          "parent_deadline_ms": 161.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -11.0
+        },
+        {
+          "entry_ms": 172.0,
+          "parent_deadline_ms": 161.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -11.0
+        },
+        {
+          "entry_ms": 172.0,
+          "parent_deadline_ms": 161.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -11.0
+        },
+        {
+          "entry_ms": 172.0,
+          "parent_deadline_ms": 161.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -11.0
+        }
+      ]
+    },
+    {
+      "iteration": 8,
+      "connections": 1,
+      "elapsed_ms": 171.0,
+      "trace": [
+        {
+          "entry_ms": 31.0,
+          "parent_deadline_ms": 161.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -10.0
+        },
+        {
+          "entry_ms": 171.0,
+          "parent_deadline_ms": 161.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -10.0
+        },
+        {
+          "entry_ms": 171.0,
+          "parent_deadline_ms": 161.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -10.0
+        },
+        {
+          "entry_ms": 171.0,
+          "parent_deadline_ms": 161.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -10.0
+        }
+      ]
+    },
+    {
+      "iteration": 9,
+      "connections": 1,
+      "elapsed_ms": 156.0,
+      "trace": [
+        {
+          "entry_ms": 16.0,
+          "parent_deadline_ms": 146.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -10.0
+        },
+        {
+          "entry_ms": 156.0,
+          "parent_deadline_ms": 146.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -10.0
+        },
+        {
+          "entry_ms": 156.0,
+          "parent_deadline_ms": 146.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -10.0
+        },
+        {
+          "entry_ms": 156.0,
+          "parent_deadline_ms": 146.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -10.0
+        }
+      ]
+    },
+    {
+      "iteration": 10,
+      "connections": 1,
+      "elapsed_ms": 187.0,
+      "trace": [
+        {
+          "entry_ms": 31.0,
+          "parent_deadline_ms": 161.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -26.0
+        },
+        {
+          "entry_ms": 187.0,
+          "parent_deadline_ms": 161.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -26.0
+        },
+        {
+          "entry_ms": 187.0,
+          "parent_deadline_ms": 161.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -26.0
+        },
+        {
+          "entry_ms": 187.0,
+          "parent_deadline_ms": 161.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -26.0
+        }
+      ]
+    },
+    {
+      "iteration": 11,
+      "connections": 2,
+      "elapsed_ms": 156.0,
+      "trace": [
+        {
+          "entry_ms": 16.0,
+          "parent_deadline_ms": 146.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": 5.0
+        },
+        {
+          "entry_ms": 141.0,
+          "parent_deadline_ms": 146.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -10.0
+        },
+        {
+          "entry_ms": 156.0,
+          "parent_deadline_ms": 146.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -10.0
+        },
+        {
+          "entry_ms": 156.0,
+          "parent_deadline_ms": 146.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -10.0
+        }
+      ]
+    },
+    {
+      "iteration": 12,
+      "connections": 1,
+      "elapsed_ms": 172.0,
+      "trace": [
+        {
+          "entry_ms": 16.0,
+          "parent_deadline_ms": 146.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -10.0
+        },
+        {
+          "entry_ms": 156.0,
+          "parent_deadline_ms": 146.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -10.0
+        },
+        {
+          "entry_ms": 156.0,
+          "parent_deadline_ms": 146.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -10.0
+        },
+        {
+          "entry_ms": 156.0,
+          "parent_deadline_ms": 146.0,
+          "code": "transport_deadline_exceeded",
+          "remaining_at_error_ms": -10.0
+        }
+      ]
+    }
+  ],
+  "clock_info": {
+    "monotonic": {
+      "implementation": "GetTickCount64()",
+      "monotonic": true,
+      "adjustable": false,
+      "resolution": 0.015625
+    },
+    "perf_counter": {
+      "implementation": "QueryPerformanceCounter()",
+      "monotonic": true,
+      "adjustable": false,
+      "resolution": 1e-07
+    }
+  },
+  "production_code_changed": false,
+  "reproduced_two_connections": true
+}

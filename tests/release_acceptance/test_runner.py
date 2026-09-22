@@ -299,7 +299,30 @@ class TransportBudgetTests(Base):
             }
             report = Report("local", binding(), "synthetic")
             started = time.monotonic()
-            with patch.dict(os.environ, {"DEP_D_BUDGET_TOKEN": "synthetic-only"}):
+            original = Client.request
+            parent_deadlines, waited = [], []
+
+            def consume_first_budget(client, *args, **kwargs):
+                parent = transport._DEADLINE.get()
+                parent_deadlines.append(parent)
+                try:
+                    return original(client, *args, **kwargs)
+                except Failed as error:
+                    self.assertEqual(str(error), "transport_deadline_exceeded")
+                    # Windows socket timeout can precede GetTickCount64's next tick.
+                    # This fixture promises the first probe consumes the parent budget;
+                    # synchronize to that SAME deadline, never give another probe more time.
+                    if len(parent_deadlines) == 1:
+                        before = time.monotonic()
+                        while (remaining := parent - time.monotonic()) > 0:
+                            time.sleep(remaining)
+                        waited.append(time.monotonic() - before)
+                    raise
+
+            with (
+                patch.dict(os.environ, {"DEP_D_BUDGET_TOKEN": "synthetic-only"}),
+                patch.object(Client, "request", consume_first_budget),
+            ):
                 observe(
                     config,
                     report,
@@ -309,12 +332,16 @@ class TransportBudgetTests(Base):
                 )
             self.assertLess(time.monotonic() - started, 0.4)
             self.assertEqual(server.connections, 1)
+            self.assertEqual(len(parent_deadlines), 4)
+            self.assertEqual(len(set(parent_deadlines)), 1)
             self.assertEqual(report.data["results"][0]["facts"]["probe_failures"], 4)
             self.evidence_facts = {
                 "observation_budget_seconds": 0.13,
                 "elapsed_seconds": round(time.monotonic() - started, 6),
                 "request_attempts": server.connections,
                 "failed_probes": 4,
+                "shared_parent_deadline": True,
+                "fixture_deadline_sync_seconds": waited[0],
             }
 
     def test_http_body_limit_still_applies(self):
