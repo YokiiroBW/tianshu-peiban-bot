@@ -6,10 +6,10 @@
     "platform": {
       "source": {
         "repo": "tianshu-platform",
-        "commit": "0a3cf65b8da19eabdd5d72f9f999281cbb52fdac"
+        "commit": "b98c8a2a09279125df08bd48f3fab3422f3de165"
       },
       "image": {
-        "reference": "tianshu/platform:0a3cf65b8da1",
+        "reference": "tianshu/platform:b98c8a2a0927",
         "digest": null,
         "verification": "unverified"
       },
@@ -42,10 +42,10 @@
     "gateway": {
       "source": {
         "repo": "tianshu-model-gateway",
-        "commit": "ec20f95e3849ebee968c4f00d7a31d14eccaa40f"
+        "commit": "601974194042641c5a85cc3c061cbd1880d7daf1"
       },
       "image": {
-        "reference": "tianshu/gateway:ec20f95e3849",
+        "reference": "tianshu/gateway:601974194042",
         "digest": null,
         "verification": "unverified"
       },
@@ -741,7 +741,7 @@
   "observability": {
     "source": {
       "repo": "tianshu-peiban-bot",
-      "commit": "668d69e2c52ea55d9b1f102426196a5286c57bc5"
+      "commit": "65b88a6d1c2b5047ca6bfb2f7f7484749eb14154"
     },
     "package_path": "deploy/observability",
     "output_relative": "observability",

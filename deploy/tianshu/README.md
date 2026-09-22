@@ -1,8 +1,12 @@
 # 四核心与日志发布组合（DEP-A / DEP-E）
 
 这是固定版本的**候选包生成器**；正式发布仍需 Linux 镜像/四服务验收以及协调者审核。当前完整产品提交见发布清单。
-本包不连接 NAS、不替换已有服务、不调用模型、不自动启动或迁移数据库。源码只从清单固定 Git 提交导出。
+普通包生成不连接 NAS、不替换已有服务、不调用模型、不自动启动或迁移数据库。源码只从清单固定 Git 提交导出。
 默认网页对话关闭；自动长期记忆、Chat Audit、渠道、媒体、设备、主动发送没有假实现。
+
+DEP-G 的显式新合成 Linux 入口、隔离依赖、授权引导及失败停止见
+[LINUX-VALIDATION.md](LINUX-VALIDATION.md)，I/J 固定输入见
+[RUNTIME-IDENTITY.md](RUNTIME-IDENTITY.md)。旧 verification.json 保留历史，不是新清单的 Linux 证据。
 
 ## 入口与产物
 

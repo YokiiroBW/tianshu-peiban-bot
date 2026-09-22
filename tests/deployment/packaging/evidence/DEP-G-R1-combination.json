@@ -1,0 +1,87 @@
+{
+  "kind": "dep-e-combination",
+  "result": "passed",
+  "synthetic_material": true,
+  "release_manifest_sha256": "182b25d1c562ce79359e7d420fe413758b27dbba4aecbf9c73744c92c96e135f",
+  "products": {
+    "platform": {
+      "repo": "tianshu-platform",
+      "commit": "b98c8a2a09279125df08bd48f3fab3422f3de165"
+    },
+    "companion": {
+      "repo": "tianshu-companion",
+      "commit": "e94b609099365f75ca933d9fed03cdfbc83ec235"
+    },
+    "memory": {
+      "repo": "tianshu-memory",
+      "commit": "9a3b2bed6aebff9f0677f2c62e979859769e0c9c"
+    },
+    "gateway": {
+      "repo": "tianshu-model-gateway",
+      "commit": "601974194042641c5a85cc3c061cbd1880d7daf1"
+    }
+  },
+  "observability_source": {
+    "repo": "tianshu-peiban-bot",
+    "commit": "65b88a6d1c2b5047ca6bfb2f7f7484749eb14154"
+  },
+  "checks": [
+    "actual_initialize",
+    "fixed_git_observability_export",
+    "actual_configure_tls_handshakes",
+    "five_write_mounts",
+    "distinct_project",
+    "bundle_integrity",
+    "actual_preflight",
+    "tampered_mount_refused"
+  ],
+  "configure": {
+    "status": "observability_configured",
+    "release_ready": false,
+    "started_services": false
+  },
+  "linux_containers": "not_run",
+  "reconcile_wiring": {
+    "public_cli_tls_wiring": "passed",
+    "backend_kind": "synthetic_https_query_fixture",
+    "actual_loki": "not_run",
+    "reports": [
+      {
+        "generated_unique": 4,
+        "landed_unique": 4,
+        "retrieved_unique": 4,
+        "missing_at_source": 0,
+        "missing_in_loki": 0,
+        "unexpected_at_source": 0,
+        "unexpected_in_loki": 0,
+        "source_duplicates": 0,
+        "retrieval_duplicates": 0,
+        "identity_conflicts": 0,
+        "content_mismatches": 0,
+        "sequence_gaps": 0,
+        "invalid_source_lines": 0,
+        "partial_source_lines": 0,
+        "application_reclamation_authorized": false,
+        "status": "passed"
+      },
+      {
+        "generated_unique": 4,
+        "landed_unique": 4,
+        "retrieved_unique": 3,
+        "missing_at_source": 0,
+        "missing_in_loki": 1,
+        "unexpected_at_source": 0,
+        "unexpected_in_loki": 0,
+        "source_duplicates": 0,
+        "retrieval_duplicates": 0,
+        "identity_conflicts": 0,
+        "content_mismatches": 0,
+        "sequence_gaps": 0,
+        "invalid_source_lines": 0,
+        "partial_source_lines": 0,
+        "application_reclamation_authorized": false,
+        "status": "failed"
+      }
+    ]
+  }
+}

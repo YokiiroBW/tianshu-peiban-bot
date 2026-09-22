@@ -48,3 +48,18 @@ Docker 的 Dockerfile 同目录 `Dockerfile.dockerignore` 有内置支持；Memo
 - [Python3.12.12 官方 tag 元数据](https://hub.docker.com/v2/repositories/library/python/tags/3.12.12-slim-bookworm)
 
 本号工具直接依赖固定 jsonschema4.26.0 / cryptography50.0.1，实际本地安装成功；工具不是产品运行依赖。
+# DEP-G 第四批追加绑定
+
+协调确认 TS111/112 本地集成后，当前 example 重绑 platform
+`b98c8a2a09279125df08bd48f3fab3422f3de165` 与 gateway
+`601974194042641c5a85cc3c061cbd1880d7daf1`；companion e94b6090、memory 9a3b2bed
+及续期合同 c5017724 保持。两应用 image.digest 仍 null，verification 仍 unverified，
+全部默认 feature 仍关闭。下方历史评审及 verification.json 保留原证据，不能当新版 Linux 通过。
+运行入口及本轮证据范围见 LINUX-VALIDATION.md 和 docs/handoffs/DEP-G.md。
+
+## DEP-G R1 日志来源窄重绑
+
+协调接受 DEP-I R1 并集成到根 4f3f7231 后，observability.source.commit 更新为
+`65b88a6d1c2b5047ca6bfb2f7f7484749eb14154`。四产品与合同固定版本不变；
+实际固定 Git 导出、合成 TLS 配置及五卷检查通过，Linux 日志容器和真实 Loki 未执行。
+新增证据见 tests/deployment/packaging/evidence/DEP-G-R1-combination.json；不改历史证据。

@@ -1,0 +1,44 @@
+{
+  "task": "DEP-G-R1",
+  "base_commit": "40798738c64d34dd916840b0068c3e164b156881",
+  "scope": "local synthetic packaging verification; Docker is simulated",
+  "result": "passed_local_only",
+  "checks": {
+    "packaging_unittest": {
+      "command": "python -m unittest discover -s tests/deployment/packaging -p 'test*.py' -v",
+      "passed": 71,
+      "skipped": 0,
+      "duration_seconds": 28.434
+    },
+    "ruff": "passed",
+    "diff_whitespace": "passed",
+    "lifecycle_fault_injection": [
+      "same_labels_new_id_duplicate_owner_no_signal",
+      "replacement_id_no_signal",
+      "same_id_changed_image_or_owner_no_signal",
+      "restart_policy_readback_required_before_term",
+      "transient_exit_then_restart_rejected",
+      "exit_2_143_137_and_oom_rejected",
+      "partial_create_registered_but_uncertain",
+      "partial_start_only_registered_ids_signaled",
+      "oneoff_timeout_retained_and_execution_failed",
+      "successful_oneoffs_evidenced_then_exact_rm_four_core_retained"
+    ],
+    "observability_combination": "DEP-G-R1-combination.json"
+  },
+  "observability_source_commit": "65b88a6d1c2b5047ca6bfb2f7f7484749eb14154",
+  "runtime_identity_schema": "dep-g-runtime/1.0.0",
+  "not_run": [
+    "Linux image build and container inspection",
+    "real Docker create/start/stop and removal",
+    "Linux permissions and flock contention",
+    "Linux four-service synthetic dialogue",
+    "actual Loki and end-to-end logging",
+    "recovery",
+    "NAS",
+    "real models",
+    "browser rendering"
+  ],
+  "release_ready": false,
+  "historical_evidence_unchanged": "DEP-G-local.json"
+}

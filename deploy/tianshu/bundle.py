@@ -38,6 +38,15 @@ TOOLS = (
     "release-manifest.schema.json",
     "requirements.txt",
     "linux_validate.py",
+    "linux_runtime.py",
+    "linux_lifecycle.py",
+    "linux_bootstrap.py",
+    "bootstrap.py",
+    "runtime_identity.py",
+    "runtime-identity.schema.json",
+    "container_probe.py",
+    "dependency_probe.py",
+    "synthetic_model.py",
 )
 RUNTIME_FILES = {
     "platform": "Dockerfile",
@@ -278,7 +287,7 @@ def verify_integrity(root):
                 )
 
 
-def permission_checks(root):
+def permission_checks(root, *, core_only=False):
     require(os.name == "posix", "linux_permissions_not_verified")
 
     def runtime_access(path, required, *, directory, private=False):
@@ -327,7 +336,7 @@ def permission_checks(root):
             require(st.st_mode & 0o700 == 0o700, "runtime_owner_permissions_missing")
         readable_tree(f"config/{product}", private=True)
     manifest = load_manifest(inside(root, "release-manifest.json"))
-    if "observability" in manifest:
+    if "observability" in manifest and not core_only:
         from observability_contract import COMPONENTS
 
         for name in COMPONENTS:
@@ -360,7 +369,8 @@ def permission_checks(root):
         )
 
 
-def preflight(root, release=False, runtime=False):
+def preflight(root, release=False, runtime=False, *, core_only=False):
+    require(not (release and core_only), "release_requires_all_owners")
     verify_integrity(root)
     manifest = load_manifest(root / "release-manifest.json")
     check_contracts(manifest, root / "contracts")
@@ -435,7 +445,7 @@ def preflight(root, release=False, runtime=False):
         else:
             failures.append("observability_not_configured")
     if runtime or release:
-        permission_checks(root)
+        permission_checks(root, core_only=core_only)
         checks.append("linux_permissions")
     if release:
         check_evidence(manifest, root)
@@ -534,6 +544,16 @@ def export_sources(manifest_path, repos_path, contracts_root, output):
             "source": manifest["products"][product]["source"],
             "archive_sha256": digest(raw),
             "files": inputs,
+            "git_files": {
+                name: value
+                for name, value in inputs.items()
+                if not (product == "platform" and name.startswith("contracts/"))
+            },
+            "injected_contract_files": {
+                name: value
+                for name, value in inputs.items()
+                if product == "platform" and name.startswith("contracts/")
+            },
             "build_command": [
                 "docker",
                 "build",
