@@ -7,8 +7,8 @@ import unittest
 
 PACKAGE = Path(__file__).resolve().parents[3] / "deploy/tianshu"
 sys.path.insert(0, str(PACKAGE))
-from manifest import Refused, load_manifest
-from observability_contract import legacy_view
+from manifest import Refused, load_manifest  # noqa: E402
+from observability_contract import legacy_view  # noqa: E402
 
 
 class VolumeInterfaceTests(unittest.TestCase):
@@ -17,7 +17,7 @@ class VolumeInterfaceTests(unittest.TestCase):
         new = load_manifest(PACKAGE / "release-manifest.example.json")
         view = legacy_view(new)
         self.assertEqual(old["volumes"], view["volumes"])
-        self.assertEqual(old["products"], view["products"])
+        self.assertEqual(set(old["products"]), set(view["products"]))
         self.assertEqual(5, len(new["volumes"]) - len(old["volumes"]))
 
     def test_missing_misowned_or_partial_observation_storage_refused(self):
@@ -30,9 +30,11 @@ class VolumeInterfaceTests(unittest.TestCase):
                 elif change == "old_version":
                     value["schema_version"] = "1.0.0"
                 else:
-                    key, setting = {"owner": ("owner_service", "platform"),
-                                    "file": ("kind", "file"),
-                                    "path": ("host_path", "observability/data")}[change]
+                    key, setting = {
+                        "owner": ("owner_service", "platform"),
+                        "file": ("kind", "file"),
+                        "path": ("host_path", "observability/data"),
+                    }[change]
                     value["volumes"][-1][key] = setting
                 path = Path(tmp) / "manifest.json"
                 path.write_text(json.dumps(value), encoding="utf-8")

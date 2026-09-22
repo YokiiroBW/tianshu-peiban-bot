@@ -1,6 +1,6 @@
-# 四核心部署包（DEP-A）
+# 四核心与日志发布组合（DEP-A / DEP-E）
 
-这是可搬运的**候选包生成器**：已绑定协调验收后的 TS104–106，正式发布仍需 Linux 镜像/四服务验收以及协调者审核。
+这是固定版本的**候选包生成器**；正式发布仍需 Linux 镜像/四服务验收以及协调者审核。当前完整产品提交见发布清单。
 本包不连接 NAS、不替换已有服务、不调用模型、不自动启动或迁移数据库。源码只从清单固定 Git 提交导出。
 默认网页对话关闭；自动长期记忆、Chat Audit、渠道、媒体、设备、主动发送没有假实现。
 
@@ -20,7 +20,8 @@ python <新包>/tools/release.py preflight --bundle <新包> --release
 `init` 先验证全部输入、合同原字节、真实 TLS 链与 SAN，再创建目标；创建期间 IO 失败保留 `INCOMPLETE`，预检拒绝。
 输出 `compose.json`、四套私有设置/TLS/凭据文件、原字节合同、发布清单、校验清单、公开工具和命令清单。
 `compose.json` 是 Compose 支持的 JSON/YAML 文档，兼容目标 Compose 2.20.1；已实际用官方 2.20.1 的 `config` 解析。
-生成后的路径均为包内相对主机路径或容器 POSIX 路径，不包含开发者机器路径。
+四核心生成路径为包内相对主机路径或容器 POSIX 路径。日志公开生成器使用绝对主机路径：
+先将核心包放到最终目标，再运行 `configure-observability`。配置日志后的组合不可直接搬运；新地址须重新生成新包。
 
 退出码：0 仅表示本命令范围有效，2 表示拒绝输入，`runtime-check` 的 3 表示无可用运行环境。
 `initialized_candidate` / `package_valid` 始终 `release_ready=false`；空状态目录不会当作业务就绪。
@@ -57,12 +58,13 @@ python <新包>/tools/release.py preflight --bundle <新包> --release
 | TS_CORE_MEMORY / TS_MEMORY_CORE | 陪伴 → 记忆 / 记忆 → 陪伴来源事实 |
 | TS_MEMORY_PLATFORM | 记忆 → 平台来源与 origin 解析 |
 | TS_CORE_GATEWAY / TS_GATEWAY_PLATFORM | 陪伴 → 网关 / 网关 → 平台配置快照 |
-| TS_GATEWAY_ORIGIN | **真实平台签发且仍有效的配置读取 assertion 引用**，工具不伪造或续签 |
+| TS_GATEWAY_ORIGIN | 真实平台首次签发且仍有效的配置来源；受限续期由平台/网关产品执行，部署工具不伪造 |
 | TS_DIAG_PLATFORM / TS_DIAG_COMPANION / TS_DIAG_MEMORY / TS_DIAG_GATEWAY | 独立 readiness 身份 |
 
-工具从当前进程环境读取这些值，不生成管理员/来源/模型授权。网页管理员账号、actor、binding、input entry 必须由操作者一致登记。
+普通 `init` 从当前进程环境读取这些值，不生成管理员/来源/模型授权。网页管理员账号、actor、binding、input entry 必须一致登记。
 模型 `providers` 默认空；启用前要完成平台发布的真实模型版本、网关 client/provider/targets/凭据与 Core config_version 对应。
-`TS_GATEWAY_ORIGIN` 的获取/更新、模型版本发布和来源授权仍需产品公开管理流程及联合验收，不能用静态例子充当有效授权。
+首次引导及来源到期处理见 [BOOTSTRAP.md](BOOTSTRAP.md)。全新合成执行入口实际调用平台公开 `local publish/issue`；
+网关仅获得已有 `config.snapshot` 服务身份，不能持有管理员凭据或执行 `origin.issue`。
 
 Memory 当前产品需要 JSON 字面凭据。输入模板仅含 `{"$env":"变量名"}`；工具将其解析到
 `config/memory/settings.json`，权限 0640。其它产品凭据进入 `private/<product>.env`，权限 0600；
@@ -106,16 +108,17 @@ Compose 同时将 `--config` 和 `TIANSHU_MEMORY_CONFIG` 绑定 `/etc/tianshu/se
 3. 平台、陪伴、网关按各自入口创建新库。首次平台 `preflight` 应为 `requires_initialization=true`，不是成功就绪。
 4. 由 DEP-D 验证网页登录/CSRF、来源身份、模型与回复链、重启及异常 readiness。日志/恢复另消费 DEP-B/C 的实际证据。
 
-2026-09-22 协调已验收并集成 TS104–106；本例绑定 Platform `fa85ee939a2a`、Companion `cf020fd338b9`、
-Memory `2f4037620f47`、Gateway `51121e6c02ed`，完整提交与原字节合同 hash 见清单。
+2026-09-22 本组合进一步消费协调已验收的 TS107/108；完整提交与原字节合同 hash 见清单。
 Companion 新增七个派生索引（schema 仍9），旧库缺索引时在任何启动 DDL 之前写 `.pre-work-index-<uuid>.bak`；
 因此后续更新必须单 owner 停写并预留完整备份空间，不能因为 schema 版本未变就跳过备份判断。
 readiness 还要求后台至少成功一轮，失败/停滞会降级；不能只以 socket/health-live 为成功。
 本包预检检查本包卷元数据与链接，并保守要求空余空间覆盖四产品日志预算、两倍现有状态大小及256MiB余量；
 这只是容量预检，不预分配配额、不证明长期吞吐，也不自动运行上述迁移。
 
-自动长期记忆候选消费者未完成，Core 没有已验收的安全停用边界，Memory 空 `event_scopes` 只是拒绝消费，
-不证明 Core 不积压。默认关闭整个网页对话入口；**不得删除消费者权限就声称长期记忆已安全停用并开放日常聊天**。
+自动长期记忆消费者未完成；本版明确配置 `automatic_memory_candidates=false`，通过 Companion 公开鉴权
+`/internal/v1/runtime/capabilities` 核 `disabled/paused/preserve` 和旧候选状态。Memory 空 `event_scopes` 不能单独证明停用。
+默认网页入口仍关闭；显式隔离试验可在已审 TS108 固定提交上同时开启清单和平台配置，运行本次真实产品验证。
+报告中 `disabled_verified` 只证明停用，`memory_write_proven=false`、`chat_archive_proven=false` 始终分开记录。
 Chat Audit 未接入、应用日志无确认回收协议、真实恢复生命周期缺口都保留在清单 blockers。
 
 ## 固定源、构建与 Linux 入口
@@ -137,9 +140,11 @@ Linux 验证入口默认仅生成 `not_run` 计划。`--execute` 只允许本地
 用产品 CLI 初始化本次新合成 Memory 库，再运行 Compose 活性 smoke/平台 preflight，最后只关闭本次新建的 QA 项目，
 保留合成数据；只输出退出码，绝不收集可能含输入的构建/服务日志。普通 `init` 不执行这些迁移。
 这不是最终版本镜像 digest 证明，也不是四服务功能/模型/24h/NAS 验收。没有环境时 `runtime-check` 明确失败，不安装 Docker。
+新续期组合的首次来源引导目前实际接在本地四CLI运行器；旧Linux smoke没有容器内签发及更新私有env/摘要的完整步骤。
+不能拿静态占位ref启动开启续期的网关并预期成功。该容器引导接线需在后续Linux任务完成，此处保留构建/权限检查入口而不声称新组合容器启动已可通过。
 
-已知构建门槛见 `version-review.md`：产品 base image 未固定 digest；Memory 新 Python 3.12 venv 未明确安装构建后端，
-且 `uv export --frozen` 不核锁与 pyproject 一致。均已交协调，不在本号修改 Dockerfile。
+构建历史与当前范围见 `version-review.md`。TS107/108 已处理各自构建输入，但本任务没有 Linux 镜像构建证据；
+Platform/Gateway 构建输入仍需各自产品负责人确认，本号不修改 Dockerfile。
 
 ## 对接 DEP-B/C/D
 
@@ -148,16 +153,26 @@ Linux 验证入口默认仅生成 `not_run` 计划。`--execute` 只允许本地
 不能再次独立挂载或重复恢复。状态目录备份涵盖**完整子树**，含所有 DB、WAL、SHM、guard、owner 和迁移前备份，文件清单不是排除其余文件的白名单。
 Memory guard 与 DB 本版同一物理目录，不宣称独立故障域或旧备份防遗忘恢复已完成。
 
-DEP-B 保持独立日志栈，不合并或复制其服务定义。协调集成后使用其公开入口：
+日志保持独立栈。Schema 1.1 加入五个 `observability_state` 卷，旧 1.0 例子仍可读取。
+固定源从清单的根 Git 提交导出到包内工具目录，通过原公开入口生成配置，不修改日志实现：
 
 ```text
-python deploy/observability/configure.py --deployment-root <包根> --release-manifest <包根/release-manifest.json> --settings <日志栈私有引用JSON> --output-relative observability --candidate
+python deploy/tianshu/release.py configure-observability --bundle <包根> --settings <日志栈私有引用JSON> --root-repository <含固定Git对象的协调仓库> --projects <四产品Git仓库父目录>
+python deploy/tianshu/release.py reconcile-logs --bundle <包根> --generated <独立合成实例完整JSONL> --url <显式loopback HTTPS查询地址> --ca <CA文件> --token-file <私有查询凭据文件> --start-ns <采集起点> --end-ns <采集终点> --report <新报告路径>
 ```
 
 DEP-B 仅读 `logs/{product}`，Vector/审计服务需 10001:10001 读取权限；自己的数据/网络/TLS/凭据/查询端口由其包管理。
+日志设置形状沿用固定 `deploy/observability` 公开文档，文件引用相对设置文件目录；本组合要求 `grafana_hostname=logs.internal`。
+`--projects` 只读固定 Git 提交并重新生成词表；产品提交有变时不能沿用旧词表。旧日志 CLI 只接收私有 1.0 投影，
+权威清单仍是完整 1.1。`observability-release.json` 同时记录两份摘要与固定代码/词表，给出显式 `-p <核心项目>-obs` 的 argv。
+启动时必须使用该独立项目名，不使用日志 Compose 文件内与核心相同的默认名称。
+五个数据根同样按 10001:10001、0700/0750 准备；配置/code/TLS/secret 目录需10001可遍历/读，不开放other或组写。
+`preflight --check-permissions` 包含这些目录；Windows 不能替代 Linux 权限实测。
 未取得最终 DEP-B 产物与实际全链路验证前，central_logging=false。禁止用 Loki 保留期代替应用段持久确认/安全回收。
 
-DEP-C 消费显式部署根与本清单；合成停写/恢复演练不能作为真实停写授权、灾难恢复或 restore_drill 发布证据。
+DEP-F 已集成根提交 `543340ac5489545e32772eb28849b4a5c1038eed`，消费完整1.1清单及两个Compose项目；
+初始化后的 SQLite/guard/sidecar 仍须登记其私有 recovery-inventory。不得把1.0投影交给恢复器漏掉五卷。
+其 lifecycle 默认plan，合成停写/恢复演练不能作为四真实产品恢复、灾难恢复或 restore_drill 发布证据；不授予启动恢复目标资格。
 DEP-D 的 `dep-d/1` 报告已有只读核验入口；清单 evidence 是引用层，不等于报告正文 schema，也不自动晋升 `verified`。
 报告自述 `static_input_only` 不作为镜像/进程身份实测。任何未识别或不完整证据一律拒绝。
 

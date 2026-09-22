@@ -29,6 +29,8 @@ TOOLS = (
     "acceptance.py",
     "release.py",
     "manifest.py",
+    "observability_contract.py",
+    "observability_release.py",
     "configuration.py",
     "compose.py",
     "bundle.py",
@@ -258,7 +260,15 @@ def verify_integrity(root):
             "bundle_bytes_changed",
         )
     # Extra private files can change application behaviour and must not be silently accepted.
-    for directory in ("config", "private", "contracts", "tools"):
+    for directory in (
+        "config",
+        "private",
+        "contracts",
+        "tools",
+        "observability-input",
+        "observability/config",
+        "observability/code",
+    ):
         for path in inside(root, directory).rglob("*"):
             no_links(path)
             if path.is_file():
@@ -316,6 +326,20 @@ def permission_checks(root):
             require(st.st_mode & 0o007 == 0, "runtime_world_permissions")
             require(st.st_mode & 0o700 == 0o700, "runtime_owner_permissions_missing")
         readable_tree(f"config/{product}", private=True)
+    manifest = load_manifest(inside(root, "release-manifest.json"))
+    if "observability" in manifest:
+        from observability_contract import COMPONENTS
+
+        for name in COMPONENTS:
+            path = inside(root, "observability/data/" + name)
+            st = runtime_access(path, 0o7, directory=True, private=True)
+            require(
+                st.st_uid == 10001 and st.st_gid == 10001, "runtime_ownership_mismatch"
+            )
+        readable_tree("observability/config", private=True)
+        readable_tree("observability/code", private=True)
+        readable_tree("observability-input/tls", private=True)
+        readable_tree("observability-input/secrets", private=True)
     readable_tree("contracts")
     # This is a direct file bind, opened by Python. It needs read, not execute, and
     # the container does not traverse the host-side tools/ or deployment ancestors.
@@ -350,6 +374,8 @@ def preflight(root, release=False, runtime=False):
     )
     for service in manifest["services"]:
         product = service["product"]
+        if product not in PRODUCTS:
+            continue
         names = list(service["tls_server_names"])
         if product == "platform":
             names.append(urlsplit(metadata["web_origin"]).hostname)
@@ -361,6 +387,11 @@ def preflight(root, release=False, runtime=False):
             names,
         )
     for volume in manifest["volumes"]:
+        if (
+            volume["product"] == "observability"
+            and not (root / "observability-release.json").exists()
+        ):
+            continue
         path = inside(root, volume["host_path"])
         if volume["mount"]:
             require(path.is_dir(), "persistent_mount_missing")
@@ -395,6 +426,14 @@ def preflight(root, release=False, runtime=False):
         "disk_planning_reserve",
     ]
     failures = list(manifest["blockers"])
+    if "observability" in manifest:
+        if (root / "observability-release.json").exists():
+            from observability_release import verify_layout
+
+            verify_layout(root, manifest)
+            checks.append("observability_composition")
+        else:
+            failures.append("observability_not_configured")
     if runtime or release:
         permission_checks(root)
         checks.append("linux_permissions")

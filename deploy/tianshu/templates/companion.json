@@ -70,5 +70,6 @@
       "token_env": "TS_CORE_GATEWAY",
       "ca_file": "/etc/tianshu/tls/ca.pem"
     }
-  }
+  },
+  "automatic_memory_candidates": false
 }

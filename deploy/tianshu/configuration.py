@@ -226,7 +226,7 @@ def resolve_config(document, values):
 
 def validate_configs(configs, site, manifest):
     p, c, m, g = [configs[k] for k in PRODUCTS]
-    services = {s["id"]: s for s in manifest["services"]}
+    services = {s["id"]: s for s in manifest["services"] if s["product"] in PRODUCTS}
     require(set(services) == set(PRODUCTS), "unsupported_service_adapter")
     for name in PRODUCTS:
         s = services[name]
@@ -334,6 +334,40 @@ def validate_configs(configs, site, manifest):
             "web_entry_owner",
         )
     features = {f["id"]: f for f in manifest["features"]}
+    if manifest["schema_version"] == "1.1.0":
+        require(
+            p.get("model_origin_renewal_http") is True
+            and g.get("platform_origin_renewal") is True,
+            "explicit_source_renewal_required",
+        )
+        require(
+            any(
+                item["id"] == "model-origin-renewal/v1"
+                for item in manifest["contracts"]
+            ),
+            "renewal_contract_required",
+        )
+        require(
+            p["entries"]["config-entry"]["routes"]
+            == [
+                {
+                    "caller": "gateway",
+                    "receiver": "platform",
+                    "purpose": "config.snapshot",
+                }
+            ],
+            "dedicated_config_entry_required",
+        )
+        require(
+            c.get("automatic_memory_candidates") is False,
+            "explicit_memory_candidate_disable_required",
+        )
+        if p["web"]["dialogue_enabled"]:
+            require(
+                manifest["products"]["companion"]["source"]["commit"]
+                == "e94b609099365f75ca933d9fed03cdfbc83ec235",
+                "reviewed_memory_disable_version_required",
+            )
     require(
         features["web_text_dialogue"]["enabled"] == p["web"]["dialogue_enabled"],
         "feature_configuration_mismatch",
@@ -440,6 +474,9 @@ def validate_configs(configs, site, manifest):
     require(
         len(grants) == 1 and c["config_version"] == grants[0]["config_version"],
         "model_version_mismatch",
+    )
+    require(
+        grants[0].get("internal") is True, "companion_internal_model_grant_required"
     )
     require(
         g["secret_references"][grants[0]["credential_ref"]]

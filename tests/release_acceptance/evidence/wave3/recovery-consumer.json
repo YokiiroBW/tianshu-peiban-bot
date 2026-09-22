@@ -1,0 +1,16 @@
+{
+  "kind": "dep-e-dep-f-manifest-consumption",
+  "recovery_commit": "543340ac5489545e32772eb28849b4a5c1038eed",
+  "recovery_files_sha256": {
+    "ops/recovery/__init__.py": "4104f0004d183cb09b53215ea182b9cad0bb142ac5545693716cdd652bc7de6c",
+    "ops/recovery/manifest.py": "2e0406e9b51a15be1978c524ded650bba90994c628c59d94c9da924b08014f9e",
+    "ops/recovery/safety.py": "13da1598a988e4101e564462fd33893134c5bffe8b37e8ca7f2ce25313a8d5e2"
+  },
+  "manifest_sha256": "db9da299972163543c59edd9933cf247b645166a84640e47d5e70ec18fa09fb1",
+  "checks": {
+    "manifest_read": "passed",
+    "missing_loki_refused": true
+  },
+  "real_product_restore": "not_run",
+  "lifecycle": "not_run"
+}

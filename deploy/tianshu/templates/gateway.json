@@ -1,4 +1,5 @@
 {
+  "platform_origin_renewal": true,
   "contract_directory": "/contracts/text-dialogue/v1",
   "diagnostics_contract_directory": "/contracts/diagnostics/v1",
   "diagnostics_path": "/var/lib/tianshu/diagnostics.sqlite",
@@ -24,7 +25,7 @@
       "credential_ref": "companion",
       "provider_id": "provider-primary",
       "config_version": 1,
-      "internal": false,
+      "internal": true,
       "allowed_versions": []
     }
   ],
