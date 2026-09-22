@@ -214,6 +214,67 @@ class PackagingTests(unittest.TestCase):
             self.init()
         self.assertFalse(self.output.exists())
 
+    def test_disabled_memory_and_internal_model_grant_are_explicit(self):
+        from configuration import validate_configs
+
+        for role, field, bad, code in (
+            (
+                "companion",
+                "automatic_memory_candidates",
+                True,
+                "explicit_memory_candidate_disable_required",
+            ),
+            (
+                "companion",
+                "automatic_memory_candidates",
+                0,
+                "explicit_memory_candidate_disable_required",
+            ),
+        ):
+            changed = copy.deepcopy(self.configs)
+            changed[role][field] = bad
+            with self.assertRaisesRegex(Refused, code):
+                validate_configs(changed, self.site, self.manifest)
+        changed = copy.deepcopy(self.configs)
+        changed["gateway"]["clients"][0]["internal"] = False
+        with self.assertRaisesRegex(Refused, "companion_internal_model_grant_required"):
+            validate_configs(changed, self.site, self.manifest)
+
+    def test_web_enable_requires_reviewed_companion_and_matching_flag(self):
+        from configuration import validate_configs
+
+        changed = copy.deepcopy(self.configs)
+        changed["platform"]["web"]["dialogue_enabled"] = True
+        with self.assertRaisesRegex(Refused, "feature_configuration_mismatch"):
+            validate_configs(changed, self.site, self.manifest)
+        manifest = copy.deepcopy(self.manifest)
+        manifest["products"]["companion"]["source"]["commit"] = "a" * 40
+        with self.assertRaisesRegex(
+            Refused, "reviewed_memory_disable_version_required"
+        ):
+            validate_configs(changed, self.site, manifest)
+
+    def test_renewal_opt_in_and_dedicated_scope_are_required(self):
+        from configuration import validate_configs
+
+        for role, name in (
+            ("platform", "model_origin_renewal_http"),
+            ("gateway", "platform_origin_renewal"),
+        ):
+            for value in (False, 1):
+                changed = copy.deepcopy(self.configs)
+                changed[role][name] = value
+                with self.assertRaisesRegex(
+                    Refused, "explicit_source_renewal_required"
+                ):
+                    validate_configs(changed, self.site, self.manifest)
+        changed = copy.deepcopy(self.configs)
+        changed["platform"]["entries"]["config-entry"]["routes"] += [
+            {"caller": "platform", "receiver": "companion", "purpose": "dialogue"}
+        ]
+        with self.assertRaisesRegex(Refused, "dedicated_config_entry_required"):
+            validate_configs(changed, self.site, self.manifest)
+
     def test_unknown_manifest_field_or_missing_commit_rejected(self):
         for change in ("secret", "missing"):
             m = copy.deepcopy(self.manifest)

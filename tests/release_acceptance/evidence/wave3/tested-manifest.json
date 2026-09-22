@@ -1,6 +1,6 @@
 {
   "schema_version": "1.1.0",
-  "release_id": "tianshu-wave3-candidate-20260922",
+  "release_id": "tianshu-wave3-synthetic-final-20260922",
   "status": "candidate",
   "products": {
     "platform": {
@@ -358,9 +358,9 @@
   "features": [
     {
       "id": "web_text_dialogue",
-      "enabled": false,
+      "enabled": true,
       "verification": "unverified",
-      "reason": "Requires explicit configuration and joint acceptance; no success is inferred from startup."
+      "reason": "Explicit synthetic-only joint trial of accepted TS108 and TS109/110; not release approval."
     },
     {
       "id": "automatic_long_term_memory",

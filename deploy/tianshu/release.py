@@ -46,6 +46,23 @@ def main(argv=None):
     )
     acceptance.add_argument("--report", required=True, type=Path)
     acceptance.add_argument("--subject-manifest", required=True, type=Path)
+    observation = sub.add_parser(
+        "configure-observability", help="Configure pinned log package; start nothing"
+    )
+    observation.add_argument("--bundle", required=True, type=Path)
+    observation.add_argument("--settings", required=True, type=Path)
+    observation.add_argument("--root-repository", required=True, type=Path)
+    observation.add_argument(
+        "--projects", type=Path, help="Fixed Git objects for updated vocabulary"
+    )
+    reconcile = sub.add_parser(
+        "reconcile-logs", help="Explicit synthetic loopback log reconciliation"
+    )
+    for name in ("bundle", "generated", "ca", "token-file", "report"):
+        reconcile.add_argument("--" + name, required=True, type=Path)
+    reconcile.add_argument("--url", required=True)
+    reconcile.add_argument("--start-ns", required=True, type=int)
+    reconcile.add_argument("--end-ns", required=True, type=int)
     args = parser.parse_args(argv)
     try:
         if args.action == "validate-manifest":
@@ -71,9 +88,30 @@ def main(argv=None):
             )
         elif args.action == "inspect-acceptance":
             report = inspect_acceptance(args.report, args.subject_manifest)
+        elif args.action == "configure-observability":
+            from observability_release import configure
+
+            report = configure(
+                args.bundle, args.settings, args.root_repository, args.projects
+            )
+        elif args.action == "reconcile-logs":
+            from observability_release import reconcile
+
+            report = reconcile(
+                args.bundle,
+                args.generated,
+                args.url,
+                args.ca,
+                args.token_file,
+                args.start_ns,
+                args.end_ns,
+                args.report,
+            )
         else:
             report = runtime_available()
         print(json.dumps(report, ensure_ascii=False, allow_nan=False, sort_keys=True))
+        if report["status"] == "log_reconciliation_failed":
+            return 1
         return 0 if report["status"] != "not_available" else 3
     except Refused as error:
         report = {"status": "refused", "code": str(error), "release_ready": False}

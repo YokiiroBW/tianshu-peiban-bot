@@ -1,0 +1,209 @@
+{
+  "kind": "dep-e-r1-observation-fixture-stability",
+  "fixed_run_count": 12,
+  "all_attempts_retained": true,
+  "runs": [
+    {
+      "iteration": 1,
+      "successful": true,
+      "failures": 0,
+      "errors": 0,
+      "facts": {
+        "observation_budget_seconds": 0.13,
+        "elapsed_seconds": 0.156,
+        "request_attempts": 1,
+        "failed_probes": 4,
+        "shared_parent_deadline": true,
+        "fixture_deadline_sync_seconds": 0.01600000006146729
+      }
+    },
+    {
+      "iteration": 2,
+      "successful": true,
+      "failures": 0,
+      "errors": 0,
+      "facts": {
+        "observation_budget_seconds": 0.13,
+        "elapsed_seconds": 0.172,
+        "request_attempts": 1,
+        "failed_probes": 4,
+        "shared_parent_deadline": true,
+        "fixture_deadline_sync_seconds": 0.0
+      }
+    },
+    {
+      "iteration": 3,
+      "successful": true,
+      "failures": 0,
+      "errors": 0,
+      "facts": {
+        "observation_budget_seconds": 0.13,
+        "elapsed_seconds": 0.156,
+        "request_attempts": 1,
+        "failed_probes": 4,
+        "shared_parent_deadline": true,
+        "fixture_deadline_sync_seconds": 0.0
+      }
+    },
+    {
+      "iteration": 4,
+      "successful": true,
+      "failures": 0,
+      "errors": 0,
+      "facts": {
+        "observation_budget_seconds": 0.13,
+        "elapsed_seconds": 0.156,
+        "request_attempts": 1,
+        "failed_probes": 4,
+        "shared_parent_deadline": true,
+        "fixture_deadline_sync_seconds": 0.0
+      }
+    },
+    {
+      "iteration": 5,
+      "successful": true,
+      "failures": 0,
+      "errors": 0,
+      "facts": {
+        "observation_budget_seconds": 0.13,
+        "elapsed_seconds": 0.156,
+        "request_attempts": 1,
+        "failed_probes": 4,
+        "shared_parent_deadline": true,
+        "fixture_deadline_sync_seconds": 0.01600000006146729
+      }
+    },
+    {
+      "iteration": 6,
+      "successful": true,
+      "failures": 0,
+      "errors": 0,
+      "facts": {
+        "observation_budget_seconds": 0.13,
+        "elapsed_seconds": 0.156,
+        "request_attempts": 1,
+        "failed_probes": 4,
+        "shared_parent_deadline": true,
+        "fixture_deadline_sync_seconds": 0.0
+      }
+    },
+    {
+      "iteration": 7,
+      "successful": true,
+      "failures": 0,
+      "errors": 0,
+      "facts": {
+        "observation_budget_seconds": 0.13,
+        "elapsed_seconds": 0.156,
+        "request_attempts": 1,
+        "failed_probes": 4,
+        "shared_parent_deadline": true,
+        "fixture_deadline_sync_seconds": 0.0
+      }
+    },
+    {
+      "iteration": 8,
+      "successful": true,
+      "failures": 0,
+      "errors": 0,
+      "facts": {
+        "observation_budget_seconds": 0.13,
+        "elapsed_seconds": 0.172,
+        "request_attempts": 1,
+        "failed_probes": 4,
+        "shared_parent_deadline": true,
+        "fixture_deadline_sync_seconds": 0.0
+      }
+    },
+    {
+      "iteration": 9,
+      "successful": true,
+      "failures": 0,
+      "errors": 0,
+      "facts": {
+        "observation_budget_seconds": 0.13,
+        "elapsed_seconds": 0.156,
+        "request_attempts": 1,
+        "failed_probes": 4,
+        "shared_parent_deadline": true,
+        "fixture_deadline_sync_seconds": 0.0
+      }
+    },
+    {
+      "iteration": 10,
+      "successful": true,
+      "failures": 0,
+      "errors": 0,
+      "facts": {
+        "observation_budget_seconds": 0.13,
+        "elapsed_seconds": 0.172,
+        "request_attempts": 1,
+        "failed_probes": 4,
+        "shared_parent_deadline": true,
+        "fixture_deadline_sync_seconds": 0.0
+      }
+    },
+    {
+      "iteration": 11,
+      "successful": true,
+      "failures": 0,
+      "errors": 0,
+      "facts": {
+        "observation_budget_seconds": 0.13,
+        "elapsed_seconds": 0.172,
+        "request_attempts": 1,
+        "failed_probes": 4,
+        "shared_parent_deadline": true,
+        "fixture_deadline_sync_seconds": 0.0
+      }
+    },
+    {
+      "iteration": 12,
+      "successful": true,
+      "failures": 0,
+      "errors": 0,
+      "facts": {
+        "observation_budget_seconds": 0.13,
+        "elapsed_seconds": 0.172,
+        "request_attempts": 1,
+        "failed_probes": 4,
+        "shared_parent_deadline": true,
+        "fixture_deadline_sync_seconds": 0.0
+      }
+    }
+  ],
+  "coordinator_initial_run": {
+    "tests": 47,
+    "failures": 1,
+    "test": "test_observation_does_not_restart_budget_for_each_service",
+    "expected_connections": 1,
+    "actual_connections": 2,
+    "duration_seconds": 28.377,
+    "subsequent_isolated_pass_does_not_erase_failure": true
+  },
+  "r1_full_suite": {
+    "tests": 55,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "duration_seconds": 27.477,
+    "runs": 1
+  },
+  "implementation_sha256": {
+    "test_runner.py": "7a6254bbbee9b22135d04f1b534aa77500b9852847d25d548180ca30772694dd",
+    "acceptance/observation.py": "d36883e523d9df0f03ae27b81e5666944c5f37f3e7b3655c5548d08e0a2f1df9",
+    "acceptance/transport.py": "eba9703c8518b4b39a01283140978b73b604c3824770f9c0c65e76e4a719abcd"
+  },
+  "final_time_boundary_tests": {
+    "tests": 8,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "duration_seconds": 0.001,
+    "reason": "Added invalid timezone minute and UTC overflow counterexamples after full suite; only affected pure-validator tests rerun.",
+    "implementation_sha256": {
+      "acceptance/source_lease.py": "c496eef81971f37d19b8326108e79d8b7477a3c4c2078ffff05a04d5c4702a45",
+      "test_source_lease.py": "ea304ea0512ef8fed7db7f5430b7dbc7549b1f55126dcc442058a749dbbf51b7"
+    }
+  }
+}

@@ -66,7 +66,9 @@ python -B tests/release_acceptance/run.py verify-report --output <报告目录>
 
 [ADAPTER.md](ADAPTER.md) 定义本目录私有的测试驱动接口，**不是产品 HTTP 合同**。现提供两种传输：本机独立 HTTPS `/control` 测试侧车，或显式 argv 命令（无 shell、30 秒上限、只转发列出的环境变量）。由隔离部署负责人将操作接到各包公开命令/端口、录制模型与日志查询；不得通过跨产品 SQL/修改生产配置伪造回执。
 
-**尚未提供真实四产品/DEP-A/DEP-B/DEP-C 部署控制实现。** 本轮实现了消费适配层、所有断言及可运行合成驱动；未收到可安全停写/重启/撤销/模型录制及记忆消费读回公共组合接口。缺少它们时报告为依赖缺失，绝不根据 fake control 自报证明产品通过。DEP-A/其他包的接口变更应串行协调，不能在本目录偷偷补产品能力。实际现存最终记忆消费者/归档闭环缺口保持发布阻断。
+DEP-E新增真实四产品CLI接线，支持实际进程/配置/HTTPS/Web对话/公开停用事实和原始因果日志。
+停写重启、来源/模型撤销、unknown投递故障、超时与日志不可写尚未接入此适配器，保留dependency_missing。
+DEP-F生命周期是独立入口，仍未接成四产品恢复闭环；最终记忆消费者/归档缺口保持发布阻断。
 
 ## 观察、报告与边界
 
@@ -76,7 +78,41 @@ python -B tests/release_acceptance/run.py verify-report --output <报告目录>
 
 [REPORT.md](REPORT.md) 给精确字段、哈希约定及消费者责任。报告哈希只证明内容完整性。candidate 不自动升级 verified；原始清单附报告后哈希会变，协调应保留被测试的不可变清单作为证据输入，不让新清单自指它自己的验收。静态 source 绑定、适配器返回身份、作者填写 passed 都不是独立运行真实性证明。
 
-无真实模型效果、实际浏览器渲染、Linux 镜像或 NAS 验收。HTTP 登录通过与实际 Chromium 页面/完整四产品联跑分别记录。当前清单是 TS104–106 修复前基线，最终必须重新绑定修复提交和镜像。
+无真实模型效果、实际浏览器渲染、Linux镜像或NAS验收。HTTP登录与真实浏览器分别记录。
+DEP-E报告绑定TS107/108/109/110集成版本；应用镜像digest仍未知，不能把源码进程验证当镜像验证。
+
+## DEP-E四产品真实CLI与合成模型
+
+先导出不可变快照，再显式运行（新输出目录，Python3.12及四产品所需依赖）：
+
+```text
+python -B tests/release_acceptance/run.py snapshot --manifest <被测清单> --contracts-root <原字节合同> --repositories <只读Git映射> --output <新快照>
+python -B tests/release_acceptance/product_stack.py --manifest <相同被测清单> --snapshots <新快照> --repositories <相同Git映射> --output <新结果目录> --turns 257 --minimum-duration-seconds 310
+```
+
+被测清单须显式开启仅合成场景的web_text_dialogue；保存这份原始清单，不能用默认关闭的例子冒充同一输入。
+例子仍是candidate；命令不将其晋升verified。产品只从Git对象导出、每次核全部文件。
+运行器生成本地CA/loopback TLS、随机合成账号及私有凭据；调用真实平台publish/issue、新库Memory迁移，
+随后启动原产品CLI。共用测试venv不代表镜像正式依赖安装；网页静态资源是测试夹具，不做浏览器渲染声明。
+
+product_worker.py在产品子进程被动观察成功JSON解析，记录实际读取配置摘要；它调用原解析器并原样返回。
+另核父子PID、存活、四产品自身的独立鉴权readiness及源码全树摘要。报告称测试观察，协调者仍须独立复核。
+启动和结束记录运行器/模板文件摘要，运行期间修改代码会导致失败。
+
+20个DEP-D场景逐个输出状态。禁用长期记忆的三个场景读取真实公开capabilities，成功只代表disabled_verified，
+不会证明写入长期记忆或Chat Audit。已有候选只报告布尔存在事实；本运行器从新库开始，
+不据此声称已验证旧库迁移/旧候选保留，该部分由TS108专门产品测试覆盖。
+
+257轮负载保持同一会话、每次只有一条在途，短上下文配置为0，以隔离全局候选队列边界。
+首轮通过公开Web snapshot读回回复；负载逐轮走公开Web输入，按相同correlation的真实
+turn.delivery.finished/succeeded事件和独立模型HTTPS调用计数确认，不反复读完整历史。
+stress-delivery.jsonl保存实际事件，报告绑定其hash；最终公开capabilities须无任何待处理状态。
+310秒节奏覆盖初始300秒来源寿命，期间不换ref、不重启、不给网关管理员凭据；续期由两产品公开接口执行。
+此负载不代表短上下文质量、并发压测、24h使用或永久模型授权。
+
+无法注入真正不确定投递时，unknown仍缺失。关闭录制模型TCP只能造成产品明确生成失败，
+不能把它改写成closed_unknown通过。结束时只终止本次创建的子进程；强制清理会在报告列明，
+不是正常停写/恢复证据。临时配置、密钥和数据库随测试清理，留下报告及封闭词汇内的原始因果事件。
 
 ## 本目录验证
 

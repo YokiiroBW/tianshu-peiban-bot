@@ -1,5 +1,6 @@
 {
   "mode": "service_https",
+  "model_origin_renewal_http": true,
   "storage": "sqlite_local",
   "database_path": "/var/lib/tianshu/platform.sqlite",
   "contract_directory": "/contracts/text-dialogue/v1",

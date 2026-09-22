@@ -1,5 +1,9 @@
 # 官方版本与配置核对（2026-09-22）
 
+以下注册表表格保留DEP-A当时的只读观测，不能用作DEP-E当前应用镜像证明。
+DEP-E固定组合现在是Platform `0a3cf65b8da1`、Companion `e94b60909936`、Memory `9a3b2bed6aeb`、Gateway `ec20f95e3849`。
+TS107/108构建输入修复已由协调验收；本任务只消费提交，未运行Linux构建。平台/网关续期提交不等于Dockerfile修复。
+
 这里只核对上游资料和现有产品构建输入，不把 tag 存在当作镜像构建通过。NAS 记录中的 Docker24.0.2 / Compose2.20.1
 是历史只读采样，本任务未复查 NAS；实际本地只有单独下载的 Compose 解析器，没有 Docker CLI/daemon。
 
@@ -14,14 +18,14 @@
 上面 digest 是具体架构 manifest 的注册表观测，不是多架构 index，不是四个应用镜像 digest，也未实际拉取。
 产品原文件仍只写 tag；本号不改 Dockerfile，源导出/Compose不冒充可复现构建已完成。后续由产品负责人固定并真实构建复验。
 
-最终已绑定协调接受的 Platform `fa85ee939a2a`、Companion `cf020fd338b9`、Memory `2f4037620f47`、Gateway `51121e6c02ed`。
+DEP-A此前绑定 Platform `fa85ee939a2a`、Companion `cf020fd338b9`、Memory `2f4037620f47`、Gateway `51121e6c02ed`。
 与上一集成基线相比，三产品 Dockerfile/正式依赖声明未变，上述构建风险仍在；本次已重新导出原字节固定快照，记录于 `verification.json`。
 
 已审产品依赖：Platform `pyproject.toml` 精确 aiohttp3.14.1/jsonschema4.26.0/referencing0.37.0，前端 package-lock；
 Companion Dockerfile 四项直接依赖与 pyproject 一致；Memory 与 Gateway 有 uv.lock。正式镜像仍用各产品原构建命令，
 不从开发 venv、系统安装或测试依赖拷贝环境。
 
-Memory 构建存在可定位风险：`python -m venv /opt/tianshu/venv` 后仅安装 uv 导出的正式依赖，再以
+Memory旧基线曾存在下述风险（TS107已修，保留诊断来由）：`python -m venv /opt/tianshu/venv` 后仅安装 uv 导出的正式依赖，再以
 `pip install --no-deps --no-build-isolation .` 安装要求 `setuptools>=75` 的产品。Python3.12 venv 不再自带 setuptools，
 故缺少构建后端的路径需要产品负责人处理并真实构建确认。另 `uv export --frozen` 跳过锁新旧核对，原注释“不同步即失败”不成立；
 应由产品任务评估 `--locked`。本号未修、不声称已观察 Linux build 失败。

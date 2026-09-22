@@ -1,0 +1,27 @@
+{
+  "kind": "dep-e-r1-existing-delivery-evaluation",
+  "result": "passed",
+  "evaluation_only": true,
+  "new_product_execution": false,
+  "original_execution_commit": "e6e505d725aff5cb47a149ae347729dbee7526d4",
+  "original_report_sha256": "c86d1a00b905a8553ba19b7a8bdf2cebdb3c40bdd3a775831a5aacf935a0517a",
+  "original_delivery_sha256": "8c31a513f8e1369815666ff1faa2068ecdb3b760d5d15d642357c3074636c789",
+  "original_manifest_sha256": "08c12281065b5e5e6e1cd515a1caae25cbd87d587ffb454c287a9e58e84e57a1",
+  "validator_files_sha256": {
+    "recheck_renewal.py": "1b9716b36da8615768fd003d1d38cecfe12e239d60c0f940b2135fe7a2f38169",
+    "acceptance/source_lease.py": "c496eef81971f37d19b8326108e79d8b7477a3c4c2078ffff05a04d5c4702a45"
+  },
+  "correlation_basis": "original_runner_matched_each_accepted_request; no_separate_submission_ledger",
+  "facts": {
+    "initial_expires_at": "2026-09-22T14:46:04.282640Z",
+    "completed_delivery_after_initial_expiry": true,
+    "successful_delivery_count": 257,
+    "deliveries_after_initial_expiry": 15,
+    "first_delivery_at": "2026-09-22T14:41:11.605Z",
+    "last_delivery_at": "2026-09-22T14:46:21.749Z",
+    "first_delivery_after_initial_expiry": "2026-09-22T14:46:04.616Z",
+    "last_delivery_after_initial_expiry": "2026-09-22T14:46:21.749Z",
+    "time_basis": "successful_matched_product_delivery_event_timestamp"
+  },
+  "release_ready": false
+}

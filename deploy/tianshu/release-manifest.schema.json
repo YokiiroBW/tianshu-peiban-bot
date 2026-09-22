@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://tianshu.invalid/deploy/release-manifest/1.0.0",
-  "title": "TianShu release manifest 1.0.0",
+  "$id": "https://tianshu.invalid/deploy/release-manifest/1.1.0",
+  "title": "TianShu release manifest 1.0 and 1.1",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -18,7 +18,10 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "1.0.0"
+      "enum": [
+        "1.0.0",
+        "1.1.0"
+      ]
     },
     "release_id": {
       "type": "string",
@@ -483,7 +486,8 @@
               "platform",
               "companion",
               "memory",
-              "gateway"
+              "gateway",
+              "observability"
             ]
           },
           "category": {
@@ -491,7 +495,8 @@
               "state",
               "logs",
               "guard",
-              "sidecar"
+              "sidecar",
+              "observability_state"
             ]
           },
           "host_path": {
@@ -548,7 +553,8 @@
               "platform",
               "companion",
               "memory",
-              "gateway"
+              "gateway",
+              "observability"
             ]
           },
           "role": {
@@ -624,6 +630,45 @@
           "result": {
             "const": "passed"
           }
+        }
+      }
+    },
+    "observability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "package_path",
+        "output_relative",
+        "compose_project_suffix"
+      ],
+      "properties": {
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "repo",
+            "commit"
+          ],
+          "properties": {
+            "repo": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+            },
+            "commit": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{40}$"
+            }
+          }
+        },
+        "package_path": {
+          "const": "deploy/observability"
+        },
+        "output_relative": {
+          "const": "observability"
+        },
+        "compose_project_suffix": {
+          "const": "-obs"
         }
       }
     }
@@ -705,6 +750,27 @@
               }
             }
           }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schema_version": {
+            "const": "1.1.0"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "observability"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "observability"
+          ]
         }
       }
     }

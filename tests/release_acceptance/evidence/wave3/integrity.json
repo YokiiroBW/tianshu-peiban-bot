@@ -1,0 +1,53 @@
+{
+  "kind": "dep-e-post-run-integrity",
+  "result": "passed",
+  "run_started_at": "2026-09-22T14:41:03.186166+00:00",
+  "run_finished_at": "2026-09-22T14:46:32.707677+00:00",
+  "run_seconds": 329.516,
+  "additional_submissions_accepted": 257,
+  "additional_deliveries": 257,
+  "additional_model_http_calls": 257,
+  "total_model_http_calls": 258,
+  "unique_delivery_correlations": 257,
+  "initial_origin_expires_at": "2026-09-22T14:46:04.282640Z",
+  "deliveries_after_initial_expiry": 15,
+  "first_delivery_after_initial_expiry": "2026-09-22T14:46:04.616Z",
+  "last_delivery": "2026-09-22T14:46:21.749Z",
+  "same_gateway_process": "one_Popen_no_restart_until_cleanup",
+  "origin_ref_recording": "not_retained_including_hash; immutable_gateway_enforces_same_ref_and_harness_never_rebootstraps",
+  "snapshot_reverified": true,
+  "runner_files_unchanged": true,
+  "archive_sha256": {
+    "companion": "0b63a8e0e333eecd2b6382710a04c6d6f7a08602a5ca6ab3f76797c28109d60a",
+    "gateway": "636c3d1229e1e3dcc9454eda0c6f306aba3294738ecedc16ec99f6a3e6170629",
+    "memory": "5b0b8ffd92c9c6e766d942b8df0a4251d8aad1c16629303e3a55b1e7f1760dd6",
+    "platform": "7e8524ee76f6fea3753e434310dd3c1a294419ac1336e9be26107c6ae416644e"
+  },
+  "cleanup": {
+    "gateway": "exited",
+    "memory": "forced_owned_test_process",
+    "companion": "exited",
+    "platform": "exited"
+  },
+  "test_totals": {
+    "packaging": 40,
+    "release_runner": 47,
+    "skipped": 0
+  },
+  "runtime_check": {
+    "status": "not_available",
+    "reason": "docker_executable_missing"
+  },
+  "files_sha256": {
+    ".gitattributes": "e66225813ee8a9f06320b4e2f9e8ae4f9851352316b1dc5a3297f8e88c1b3ef1",
+    "causal-c98bb3924cff8abee3ce1f4b8ff54e38.jsonl": "b3e9a728e6107b60f59560787629bd5b0c3b108ba6ec2c0f43d4433be1836acd",
+    "combination.json": "d792f3381073bb394fb53b43705f925da4e54b25396866ab5ed7913f8c39c6bf",
+    "failed-before-renewal/report.json": "96c8789cb7c8d7e0020299ad1838dc18611f9d60e7efe650d56b57d43e57f281",
+    "failed-before-renewal/tested-manifest.json": "5fd83d575056ea7ca3755434a8eb4d8ad1a2308ea7dec570889e82a164c97e57",
+    "recovery-consumer.json": "5deb57e2cb988f26f8a266115b588961c7d33d4c4fb60f84ee6894a2960332aa",
+    "report.json": "c86d1a00b905a8553ba19b7a8bdf2cebdb3c40bdd3a775831a5aacf935a0517a",
+    "stress-delivery.jsonl": "8c31a513f8e1369815666ff1faa2068ecdb3b760d5d15d642357c3074636c789",
+    "summary.md": "abfe0b12134bdb4186bf906117228025a179d1333b912d5823d179ab089cb09d",
+    "tested-manifest.json": "08c12281065b5e5e6e1cd515a1caae25cbd87d587ffb454c287a9e58e84e57a1"
+  }
+}

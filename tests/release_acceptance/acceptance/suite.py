@@ -307,6 +307,15 @@ class Suite:
         }
 
     def dialogue_model_reply(self):
+        if not self.synthetic and not next(
+            (
+                f["enabled"]
+                for f in self.binding.get("features", [])
+                if f["id"] == "web_text_dialogue"
+            ),
+            False,
+        ):
+            raise Missing("web_dialogue_not_enabled")
         self.need("web_login_csrf")
         self.need("runtime_binding")
         self.need("configuration_loading")
@@ -345,6 +354,10 @@ class Suite:
         }
 
     def memory_candidate(self):
+        if not self.synthetic and not self.config.get("features", {}).get(
+            "automatic_memory"
+        ):
+            return self.disabled_capabilities()
         self.need("dialogue_model_reply")
         result = self.adapter.call(
             "memory_candidate", turn_id=self.chat["turn"]["turn"]["turn_id"]
@@ -364,6 +377,10 @@ class Suite:
 
     def memory_finalized(self):
         self.need("memory_candidate")
+        if not self.synthetic and not self.config.get("features", {}).get(
+            "automatic_memory"
+        ):
+            return self.disabled_capabilities()
         if not self.config.get("features", {}).get("automatic_memory"):
             raise Missing("automatic_memory_not_enabled")
         result = self.adapter.call("memory_finalized", candidate_id=self.candidate_id)
@@ -379,6 +396,10 @@ class Suite:
         return {"stage": "committed_and_read_back", "basis": "adapter_attested"}
 
     def chat_archive(self):
+        if not self.synthetic and not self.config.get("features", {}).get(
+            "chat_archive"
+        ):
+            return self.disabled_capabilities()
         self.need("dialogue_model_reply")
         if not self.config.get("features", {}).get("chat_archive"):
             raise Missing("archive_not_enabled")
@@ -393,6 +414,15 @@ class Suite:
             "archive_receipt_missing",
         )
         return {"stage": "archived_and_read_back", "basis": "adapter_attested"}
+
+    def disabled_capabilities(self):
+        from .capabilities import disabled_facts
+
+        self.need("configuration_loading")
+        token = env_value(
+            self.config["endpoints"]["companion"]["diagnostics_token_env"]
+        )
+        return disabled_facts(self.client("companion"), token)
 
     def memory_backlog_boundary(self):
         self.need("dialogue_model_reply")

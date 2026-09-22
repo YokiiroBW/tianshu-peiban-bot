@@ -38,6 +38,7 @@ class Node:
 class PermissionChecksTests(unittest.TestCase):
     def setUp(self):
         self.metadata, self.visited = {}, set()
+        self.document = {}
         for product in PRODUCTS:
             for directory in (
                 f"data/{product}",
@@ -77,12 +78,39 @@ class PermissionChecksTests(unittest.TestCase):
             patch.object(bundle, "os", SimpleNamespace(name="posix")),
             patch.object(bundle, "inside", lambda root, name: Node(self, name)),
             patch.object(bundle, "no_links", lambda node: node),
+            patch.object(bundle, "load_manifest", lambda path: self.document),
         ):
             bundle.permission_checks(None)
 
     def test_owner_access_and_public_inputs_from_another_uid(self):
         self.check()
         self.assertTrue(set(self.metadata) <= self.visited)
+
+    def test_all_five_observability_roots_and_private_inputs_are_checked(self):
+        self.document = {"observability": {}}
+        roots = [
+            "observability/data/" + name
+            for name in ("vector", "loki", "grafana", "prometheus", "guard")
+        ]
+        for name in roots + [
+            "observability/config",
+            "observability/code",
+            "observability-input/tls",
+            "observability-input/secrets",
+        ]:
+            self.add(name, 0o750, directory=True)
+        self.add("observability-input/tls/server.key", 0o640)
+        self.add("observability-input/secrets/query_token", 0o640)
+        self.check()
+        self.assertTrue(set(self.metadata) <= self.visited)
+        for name in roots:
+            self.add(name, 0o500, directory=True)
+            with self.assertRaisesRegex(Refused, "runtime_mount_access_missing"):
+                self.check()
+            self.add(name, 0o750, directory=True)
+        self.add("observability-input/secrets/query_token", 0o644)
+        with self.assertRaisesRegex(Refused, "runtime_config_permissions"):
+            self.check()
 
     def test_group_readable_config_and_contracts_are_valid(self):
         for name, item in self.metadata.items():

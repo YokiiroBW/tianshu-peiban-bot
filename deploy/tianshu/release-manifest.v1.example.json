@@ -1,15 +1,15 @@
 {
-  "schema_version": "1.1.0",
-  "release_id": "tianshu-wave3-candidate-20260922",
+  "schema_version": "1.0.0",
+  "release_id": "tianshu-wave2-candidate-20260922",
   "status": "candidate",
   "products": {
     "platform": {
       "source": {
         "repo": "tianshu-platform",
-        "commit": "0a3cf65b8da19eabdd5d72f9f999281cbb52fdac"
+        "commit": "fa85ee939a2affdda054ee7fa3155ec89ade6196"
       },
       "image": {
-        "reference": "tianshu/platform:0a3cf65b8da1",
+        "reference": "tianshu/platform:fa85ee939a2a",
         "digest": null,
         "verification": "unverified"
       },
@@ -18,10 +18,10 @@
     "companion": {
       "source": {
         "repo": "tianshu-companion",
-        "commit": "e94b609099365f75ca933d9fed03cdfbc83ec235"
+        "commit": "cf020fd338b9beefc9d7156a00158e915d41735a"
       },
       "image": {
-        "reference": "tianshu/companion:e94b60909936",
+        "reference": "tianshu/companion:cf020fd338b9",
         "digest": null,
         "verification": "unverified"
       },
@@ -30,10 +30,10 @@
     "memory": {
       "source": {
         "repo": "tianshu-memory",
-        "commit": "9a3b2bed6aebff9f0677f2c62e979859769e0c9c"
+        "commit": "2f4037620f47991f42a5daa10f471c34c9ba4fd4"
       },
       "image": {
-        "reference": "tianshu/memory:9a3b2bed6aeb",
+        "reference": "tianshu/memory:2f4037620f47",
         "digest": null,
         "verification": "unverified"
       },
@@ -42,10 +42,10 @@
     "gateway": {
       "source": {
         "repo": "tianshu-model-gateway",
-        "commit": "ec20f95e3849ebee968c4f00d7a31d14eccaa40f"
+        "commit": "51121e6c02ed60605be14f31b19b484bc117a746"
       },
       "image": {
-        "reference": "tianshu/gateway:ec20f95e3849",
+        "reference": "tianshu/gateway:51121e6c02ed",
         "digest": null,
         "verification": "unverified"
       },
@@ -322,37 +322,6 @@
           "sha256": "c7a52353d75db9a7a36c8a966b62ced55d55edc22fb77d25d6033024f91d487b"
         }
       ]
-    },
-    {
-      "id": "model-origin-renewal/v1",
-      "path": "contracts/model-origin-renewal/v1",
-      "manifest_sha256": "c5017724187c1386b647fcc5b41ab3cb1702f27d6192f3a87fcefb23e7a5a61c",
-      "files": [
-        {
-          "path": "examples.json",
-          "sha256": "6540bfbb1703d02726a808f2ca998fd85683d6f21d182bea76985cee62e34f94"
-        },
-        {
-          "path": "manifest.json",
-          "sha256": "c5017724187c1386b647fcc5b41ab3cb1702f27d6192f3a87fcefb23e7a5a61c"
-        },
-        {
-          "path": "negative-examples.json",
-          "sha256": "c1f00a33a8aaeee86441cdca3d7dd01715ca79b2884a89def1e24f3f3357b28a"
-        },
-        {
-          "path": "README.md",
-          "sha256": "549904168e8b71b8382734dbec5a3bbb0048b703fad082bcb42569b07bd60ef9"
-        },
-        {
-          "path": "request.schema.json",
-          "sha256": "93bdfc5a1c248da4f227c51f0e62b43c513a2a769a687ce8ee9ffaaca0fbe228"
-        },
-        {
-          "path": "response.schema.json",
-          "sha256": "9520c729fa5fea8501cebaf1581ceb4d5c58dc90533f3dcf6e0575b641882677"
-        }
-      ]
     }
   ],
   "features": [
@@ -559,61 +528,6 @@
       "backup_group": "memory",
       "mount": false,
       "kind": "file"
-    },
-    {
-      "id": "obs-vector-state",
-      "product": "observability",
-      "category": "observability_state",
-      "host_path": "observability/data/vector",
-      "container_path": "/var/lib/vector",
-      "owner_service": "obs-vector",
-      "backup_group": "obs-vector",
-      "mount": true,
-      "kind": "directory"
-    },
-    {
-      "id": "obs-loki-state",
-      "product": "observability",
-      "category": "observability_state",
-      "host_path": "observability/data/loki",
-      "container_path": "/var/lib/loki",
-      "owner_service": "obs-loki",
-      "backup_group": "obs-loki",
-      "mount": true,
-      "kind": "directory"
-    },
-    {
-      "id": "obs-grafana-state",
-      "product": "observability",
-      "category": "observability_state",
-      "host_path": "observability/data/grafana",
-      "container_path": "/var/lib/grafana",
-      "owner_service": "obs-grafana",
-      "backup_group": "obs-grafana",
-      "mount": true,
-      "kind": "directory"
-    },
-    {
-      "id": "obs-prometheus-state",
-      "product": "observability",
-      "category": "observability_state",
-      "host_path": "observability/data/prometheus",
-      "container_path": "/var/lib/prometheus",
-      "owner_service": "obs-prometheus",
-      "backup_group": "obs-prometheus",
-      "mount": true,
-      "kind": "directory"
-    },
-    {
-      "id": "obs-guard-state",
-      "product": "observability",
-      "category": "observability_state",
-      "host_path": "observability/data/guard",
-      "container_path": "/var/lib/guard",
-      "owner_service": "obs-guard",
-      "backup_group": "obs-guard",
-      "mount": true,
-      "kind": "directory"
     }
   ],
   "services": [
@@ -664,87 +578,18 @@
         "gateway.internal"
       ],
       "config_path": "config/gateway/settings.json"
-    },
-    {
-      "id": "obs-vector",
-      "product": "observability",
-      "role": "logging_vector",
-      "port": 8686,
-      "replicas": 1,
-      "hostname": "obs-vector",
-      "tls_server_names": [
-        "obs-vector"
-      ],
-      "config_path": "observability/config/vector.json"
-    },
-    {
-      "id": "obs-loki",
-      "product": "observability",
-      "role": "logging_loki",
-      "port": 3100,
-      "replicas": 1,
-      "hostname": "obs-loki",
-      "tls_server_names": [
-        "obs-loki"
-      ],
-      "config_path": "observability/config/loki.json"
-    },
-    {
-      "id": "obs-grafana",
-      "product": "observability",
-      "role": "logging_grafana",
-      "port": 3000,
-      "replicas": 1,
-      "hostname": "logs.internal",
-      "tls_server_names": [
-        "logs.internal"
-      ],
-      "config_path": "observability/config/provisioning"
-    },
-    {
-      "id": "obs-prometheus",
-      "product": "observability",
-      "role": "logging_prometheus",
-      "port": 9090,
-      "replicas": 1,
-      "hostname": "obs-prometheus",
-      "tls_server_names": [
-        "obs-prometheus"
-      ],
-      "config_path": "observability/config/prometheus.json"
-    },
-    {
-      "id": "obs-guard",
-      "product": "observability",
-      "role": "logging_guard",
-      "port": 8443,
-      "replicas": 1,
-      "hostname": "obs-guard",
-      "tls_server_names": [
-        "obs-guard"
-      ],
-      "config_path": "observability/config/guard.json"
     }
   ],
   "blockers": [
     "linux_images_unverified",
     "joint_acceptance_unverified",
     "memory_candidate_consumer_missing",
-    "memory_disable_joint_review_required",
+    "memory_disable_boundary_unverified",
     "chat_audit_unconnected",
     "application_log_reclamation_missing",
     "product_dockerfiles_need_review",
-    "model_origin_bootstrap_joint_review_required",
+    "model_origin_bootstrap_unverified",
     "real_restore_lifecycle_unverified"
   ],
-  "evidence": [],
-  "observability": {
-    "source": {
-      "repo": "tianshu-peiban-bot",
-      "commit": "668d69e2c52ea55d9b1f102426196a5286c57bc5"
-    },
-    "package_path": "deploy/observability",
-    "output_relative": "observability",
-    "compose_project_suffix": "-obs"
-  }
+  "evidence": []
 }

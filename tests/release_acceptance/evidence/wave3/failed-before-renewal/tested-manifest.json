@@ -1,15 +1,15 @@
 {
   "schema_version": "1.1.0",
-  "release_id": "tianshu-wave3-candidate-20260922",
+  "release_id": "tianshu-wave3-synthetic-trial-20260922",
   "status": "candidate",
   "products": {
     "platform": {
       "source": {
         "repo": "tianshu-platform",
-        "commit": "0a3cf65b8da19eabdd5d72f9f999281cbb52fdac"
+        "commit": "fa85ee939a2affdda054ee7fa3155ec89ade6196"
       },
       "image": {
-        "reference": "tianshu/platform:0a3cf65b8da1",
+        "reference": "tianshu/platform:fa85ee939a2a",
         "digest": null,
         "verification": "unverified"
       },
@@ -42,10 +42,10 @@
     "gateway": {
       "source": {
         "repo": "tianshu-model-gateway",
-        "commit": "ec20f95e3849ebee968c4f00d7a31d14eccaa40f"
+        "commit": "51121e6c02ed60605be14f31b19b484bc117a746"
       },
       "image": {
-        "reference": "tianshu/gateway:ec20f95e3849",
+        "reference": "tianshu/gateway:51121e6c02ed",
         "digest": null,
         "verification": "unverified"
       },
@@ -322,45 +322,14 @@
           "sha256": "c7a52353d75db9a7a36c8a966b62ced55d55edc22fb77d25d6033024f91d487b"
         }
       ]
-    },
-    {
-      "id": "model-origin-renewal/v1",
-      "path": "contracts/model-origin-renewal/v1",
-      "manifest_sha256": "c5017724187c1386b647fcc5b41ab3cb1702f27d6192f3a87fcefb23e7a5a61c",
-      "files": [
-        {
-          "path": "examples.json",
-          "sha256": "6540bfbb1703d02726a808f2ca998fd85683d6f21d182bea76985cee62e34f94"
-        },
-        {
-          "path": "manifest.json",
-          "sha256": "c5017724187c1386b647fcc5b41ab3cb1702f27d6192f3a87fcefb23e7a5a61c"
-        },
-        {
-          "path": "negative-examples.json",
-          "sha256": "c1f00a33a8aaeee86441cdca3d7dd01715ca79b2884a89def1e24f3f3357b28a"
-        },
-        {
-          "path": "README.md",
-          "sha256": "549904168e8b71b8382734dbec5a3bbb0048b703fad082bcb42569b07bd60ef9"
-        },
-        {
-          "path": "request.schema.json",
-          "sha256": "93bdfc5a1c248da4f227c51f0e62b43c513a2a769a687ce8ee9ffaaca0fbe228"
-        },
-        {
-          "path": "response.schema.json",
-          "sha256": "9520c729fa5fea8501cebaf1581ceb4d5c58dc90533f3dcf6e0575b641882677"
-        }
-      ]
     }
   ],
   "features": [
     {
       "id": "web_text_dialogue",
-      "enabled": false,
+      "enabled": true,
       "verification": "unverified",
-      "reason": "Requires explicit configuration and joint acceptance; no success is inferred from startup."
+      "reason": "Synthetic-only trial of integrated TS108 disabled mode; not release approval."
     },
     {
       "id": "automatic_long_term_memory",
@@ -730,11 +699,11 @@
     "linux_images_unverified",
     "joint_acceptance_unverified",
     "memory_candidate_consumer_missing",
-    "memory_disable_joint_review_required",
+    "memory_disable_boundary_unverified",
     "chat_audit_unconnected",
     "application_log_reclamation_missing",
     "product_dockerfiles_need_review",
-    "model_origin_bootstrap_joint_review_required",
+    "model_origin_bootstrap_unverified",
     "real_restore_lifecycle_unverified"
   ],
   "evidence": [],
