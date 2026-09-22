@@ -1,0 +1,16 @@
+{
+  "input_version": "dep-d/1",
+  "scope": "synthetic_isolated",
+  "mode": "local",
+  "runtime_kind": "product",
+  "model_kind": "recorded",
+  "case_timeout_seconds": 30,
+  "endpoints": {},
+  "expected_config_sha256": {},
+  "web": {"username_env": "DEP_D_WEB_USERNAME", "password_env": "DEP_D_WEB_PASSWORD", "conversation": "", "actor": ""},
+  "features": {"automatic_memory": false, "chat_archive": false},
+  "adapter": null,
+  "logs": {},
+  "canary_env_names": ["DEP_D_WEB_PASSWORD"],
+  "skip": {}
+}
