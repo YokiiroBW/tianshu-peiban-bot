@@ -1,0 +1,190 @@
+{
+  "kind": "dep-b-developer-evidence",
+  "date": "2026-09-22",
+  "root_baseline": "21668e4300d7bedc8ac1ed819bdb7dad4a2bd58b",
+  "source_commits": {
+    "platform": "fa85ee939a2affdda054ee7fa3155ec89ade6196",
+    "companion": "cf020fd338b9beefc9d7156a00158e915d41735a",
+    "memory": "2f4037620f47991f42a5daa10f471c34c9ba4fd4",
+    "gateway": "51121e6c02ed60605be14f31b19b484bc117a746"
+  },
+  "contract_original_bytes": {
+    "manifest_sha256": "5d89f7a21637fd57cea4a236e17f8d8c4917799497ff44f87ee68ea614d4805f",
+    "files": {
+      "manifest.json": "5d89f7a21637fd57cea4a236e17f8d8c4917799497ff44f87ee68ea614d4805f",
+      "README.md": "c7a52353d75db9a7a36c8a966b62ced55d55edc22fb77d25d6033024f91d487b",
+      "event.schema.json": "c91ccc13f2a975f234934eb6e7d9ef03d9ad0a650e4c2acbdeb87761b3bf0a53",
+      "examples.json": "a1139afd483d146f120df4e31c950ae81e7922dcbc57afcd92ac63a996675d0d",
+      "negative-examples.json": "a8a8453646ef2f4cf2ee870758316fe08f3f9522748d19730aba7338670b3632"
+    }
+  },
+  "vocabulary_rebind": {
+    "event_and_error_sets_equal": true,
+    "generated_vector_config_equal_to_native_run": true,
+    "product_runtime_verified_by_this_task": false
+  },
+  "tests": {
+    "complete_suite_before_final_review": {
+      "tests": 23,
+      "failures": 0,
+      "skips": 0,
+      "seconds": 2.577
+    },
+    "final_transport_scope": {
+      "tests": 4,
+      "failures": 0,
+      "seconds": 1.833,
+      "reason": "8 threads / 8MiB response resource bounds"
+    },
+    "final_ledger_scope": {
+      "tests": 6,
+      "failures": 0,
+      "seconds": 0.149,
+      "reason": "central-loss recheck and normal rename rotation regression"
+    },
+    "unique_test_methods": 25,
+    "all_25_in_single_final_run": false,
+    "native_pipeline": {
+      "status": "passed",
+      "generated": 640,
+      "landed": 640,
+      "retrieved": 640,
+      "missing": 0,
+      "conflicts": 0,
+      "gaps": 0
+    },
+    "retention_same_path": {
+      "report": "retention-same-path.json",
+      "status": "passed",
+      "scope": "cache-disabled store-only accelerated native Windows probe"
+    },
+    "linux_stack": {
+      "status": "dependency_missing",
+      "reason": "docker_cli_missing"
+    },
+    "final_guard_query_smoke": {
+      "status": "passed",
+      "generated": 8,
+      "landed": 8,
+      "retrieved": 8,
+      "real_loki": true,
+      "vector_included": false,
+      "boundary_cases": 3,
+      "oversize_response_backend": "explicit_TLS_substitute"
+    }
+  },
+  "binary_archives": {
+    "vector": {
+      "url": "https://github.com/vectordotdev/vector/releases/download/v0.58.0/vector-0.58.0-x86_64-pc-windows-msvc.zip",
+      "sha256": "72bbedf4772302f7f67e7db2120fe5b42e39ae65873c895876fc2038050c10c5"
+    },
+    "loki": {
+      "url": "https://github.com/grafana/loki/releases/download/v3.7.8/loki-windows-amd64.exe.zip",
+      "sha256": "622efc553df799ebb022c2e6c4b45792f726c54b008cb65126b99ae67be3a827"
+    }
+  },
+  "not_verified": [
+    "linux_images_and_digests",
+    "linux_compose",
+    "grafana_loading_permissions",
+    "physical_ENOSPC",
+    "full_buffer_capacity",
+    "external_notification",
+    "outside_stack_probe",
+    "production_retention_path_and_timing",
+    "real_24h_observation",
+    "30_day_capacity",
+    "NAS",
+    "application_reclamation"
+  ],
+  "application_reclamation_authorized": false,
+  "native_implementation_hash_binding": "unavailable_no_complete_python_source_snapshot_at_run; do not promote prior 640 result to final implementation end-to-end evidence",
+  "final_implementation": {
+    "deploy/observability/alerts.py": {
+      "executed_working_bytes_sha256": "57bb862905b87a6382caf18164256e5138a5f884fe64812eb231dde1e0b23419",
+      "git_lf_blob_sha256": "57bb862905b87a6382caf18164256e5138a5f884fe64812eb231dde1e0b23419"
+    },
+    "deploy/observability/capacity.py": {
+      "executed_working_bytes_sha256": "1bb26f6dd89e68cbe9f6ec168512c2bfdf47772832e5a7b665b5f7bb36f94b37",
+      "git_lf_blob_sha256": "1bb26f6dd89e68cbe9f6ec168512c2bfdf47772832e5a7b665b5f7bb36f94b37"
+    },
+    "deploy/observability/compose.py": {
+      "executed_working_bytes_sha256": "5ed87b26d97bc6997c16a35fb47fb143f5405bad4d79ec4f2948715d12397000",
+      "git_lf_blob_sha256": "5ed87b26d97bc6997c16a35fb47fb143f5405bad4d79ec4f2948715d12397000"
+    },
+    "deploy/observability/configs.py": {
+      "executed_working_bytes_sha256": "4874c5c96672909225e9c0aa55de6332bfa9c5626e1266057af7b807ed986de3",
+      "git_lf_blob_sha256": "4874c5c96672909225e9c0aa55de6332bfa9c5626e1266057af7b807ed986de3"
+    },
+    "deploy/observability/configure.py": {
+      "executed_working_bytes_sha256": "8a94a0a063deb52a6b675205b5f0427702f41c536ded9f7a5582f9255652ed4b",
+      "git_lf_blob_sha256": "8a94a0a063deb52a6b675205b5f0427702f41c536ded9f7a5582f9255652ed4b"
+    },
+    "deploy/observability/guard.py": {
+      "executed_working_bytes_sha256": "bfc678733db46b5e594c4f824c284e75050e2516afec3686f22bab0cefe54054",
+      "git_lf_blob_sha256": "bfc678733db46b5e594c4f824c284e75050e2516afec3686f22bab0cefe54054"
+    },
+    "deploy/observability/monitor.py": {
+      "executed_working_bytes_sha256": "fe4186dca5a8dfc119a74116e8a078e5602bcd79d30038304a0c79932b18b772",
+      "git_lf_blob_sha256": "fe4186dca5a8dfc119a74116e8a078e5602bcd79d30038304a0c79932b18b772"
+    },
+    "deploy/observability/policy.py": {
+      "executed_working_bytes_sha256": "73863acf4d7f269d57b32f4908c2e7a5e9025bd46b8d76d7bf02bd66120ae9ee",
+      "git_lf_blob_sha256": "73863acf4d7f269d57b32f4908c2e7a5e9025bd46b8d76d7bf02bd66120ae9ee"
+    },
+    "deploy/observability/query.py": {
+      "executed_working_bytes_sha256": "a6935648575df68fd3982e512704b33414cbe0d2f75d0ca95aac9d965450ba0c",
+      "git_lf_blob_sha256": "a6935648575df68fd3982e512704b33414cbe0d2f75d0ca95aac9d965450ba0c"
+    },
+    "deploy/observability/reconcile.py": {
+      "executed_working_bytes_sha256": "fd78e1a3851369fba2c532a5e577fea00423067e45ecad19c3ba5c8e1c6f7b59",
+      "git_lf_blob_sha256": "fd78e1a3851369fba2c532a5e577fea00423067e45ecad19c3ba5c8e1c6f7b59"
+    },
+    "deploy/observability/snapshot.py": {
+      "executed_working_bytes_sha256": "2ccc6fd238e3076937016cc0f1c1b21ccc0907c4a3535d2f6060aaaa033028ca",
+      "git_lf_blob_sha256": "2ccc6fd238e3076937016cc0f1c1b21ccc0907c4a3535d2f6060aaaa033028ca"
+    },
+    "tests/deployment/observability/capture_regressions.py": {
+      "executed_working_bytes_sha256": "3e625651efdc9cf9c6c8cbbcaa4e4e813ce49602983bcb3b9ce78ac2cfe7db7f",
+      "git_lf_blob_sha256": "3e625651efdc9cf9c6c8cbbcaa4e4e813ce49602983bcb3b9ce78ac2cfe7db7f"
+    },
+    "tests/deployment/observability/test_observability.py": {
+      "executed_working_bytes_sha256": "560b077637cb4fb0fa30056b8209496f915480d4d9c265f528f50d57c9c0cf56",
+      "git_lf_blob_sha256": "560b077637cb4fb0fa30056b8209496f915480d4d9c265f528f50d57c9c0cf56"
+    },
+    "tests/deployment/observability/run_final_smoke.py": {
+      "executed_working_bytes_sha256": "820401060e6eb04cb5b37913b2061c30fd05b719c6577e7be92deaf3d9c9c7bb",
+      "git_lf_blob_sha256": "820401060e6eb04cb5b37913b2061c30fd05b719c6577e7be92deaf3d9c9c7bb"
+    },
+    "tests/deployment/observability/helpers.py": {
+      "executed_working_bytes_sha256": "b861a8100d1ceeb1e013c72839c1034d716d25cb6ee2a0e83b36fd73da184072",
+      "git_lf_blob_sha256": "b861a8100d1ceeb1e013c72839c1034d716d25cb6ee2a0e83b36fd73da184072"
+    }
+  },
+  "files": {
+    "final-guard-query-smoke.json": "03859f0e18deea57b9fc32592411eb678512206a93cda991182f48e2d02c7e67",
+    "final-ledger-regressions.json": "c9583e296255e70a0693dd9f888bf0fedcc9a87ac835b93a783e6d96a458b61e",
+    "linux-report.json": "d34fa0793a09bcc7d7c9d42000d3b758bf00199813f43f7382c68b6da0802946",
+    "native-input.jsonl": "935fc8ae285f571e82788c1e0ece05ba629505722fe1785cb46aa33d038b2735",
+    "native-loki.json": "de86ef08819bc048a09a875ddb11572bf86964e0af8d76bc348ea6c67fcf1e56",
+    "native-report.json": "d96747e21f3760c9e79a73ad77d717a8c635cba3cc71906a4c9a41b95c4c3946",
+    "native-segments.json": "0ea63d687bba8426c1bb629cb2c49a57b7031817872a320a051bb5afa1060e26",
+    "native-vector-metrics.txt": "4364906913d7fe3283b05002f9e246a26297272d8696410c10200385514c7772",
+    "native-vector.json": "3906ed429538e77399a9e3d67b7d4a6504d25038bd71335fcfea538954b5f036",
+    "README.md": "339537b72f19fae061af726a4abf171471a605bf61f3e71ff91ca4f73b6169d4",
+    "retention-before-cache-isolation-config.json": "f47676286e748ba416c2e229578088899f0f022463b6dd6a0bd235cb2e41ca74",
+    "retention-before-cache-isolation.json": "8c34137ae50fffaf4ba00984d5c0c2fe3602e96fc11f926b0a31cde9853efa12",
+    "retention-cache-isolation-config.json": "f0768af0c52ed1e1286bef4ab9c07bf5e62001722aa145f8cca2e96d47f1edae",
+    "retention-cache-isolation.json": "b0100231ad3fff5cbaffa0cfa1d79557f679f25d6e6e93d408f10e3991dde597",
+    "retention-changed-path-timeline-config-after.json": "827759c026eb1d28dccbb13b219dda02dca515cfdca86a72709d53eeaf673001",
+    "retention-changed-path-timeline-config-before.json": "43821eb68849ac94e2b8a26049c060d01f0ce236ff8cb86ee252279168342ffe",
+    "retention-changed-path-timeline-fixture-push.json": "42dfdda7e229883ab1b545905e159b0cbd7b895fc4e1465dad8c09fbaee57806",
+    "retention-changed-path-timeline.json": "70a69b7b3255a5c998a871adbc6b68acab6b085edc731e6fba02f97297c4a7f2",
+    "retention-same-path-config-after.json": "eca0c6c67009484d6be458a58727d6231cf32b5cb35419632f955ab49ab6eae6",
+    "retention-same-path-config-before.json": "f4a650c1c04771caa3248bf45706ebd40b16cacfb86f04298850d0ab80774ca7",
+    "retention-same-path-fixture-push.json": "e83c3284ba03616db56dacbfb6280abad8c611c8656d8e17e0a7ffa2d3cd2f19",
+    "retention-same-path.json": "35c55c3424ff9dab5b769dd146e649df46a69566bf9b38f8911696ddf1047750",
+    "vocabulary-at-native-run.json": "34390e7279191d55faa2f9782b838e697233ac10fdf78dd3047ef378f55ad6e5",
+    "final-smoke-loki.json": "c80399e36274e2a7b41778fa0d58c9e0f91258d7fc010e97099edd0dd3dfb4e7"
+  }
+}

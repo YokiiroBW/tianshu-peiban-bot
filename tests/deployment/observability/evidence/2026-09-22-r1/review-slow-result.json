@@ -1,0 +1,12 @@
+{
+  "scope": "real loopback TLS, actual unmodified 10s timeouts; synthetic backend",
+  "query": {
+    "status": 200,
+    "bytes": 3,
+    "seconds": 12.0
+  },
+  "guard": {
+    "status_line": "HTTP/1.0 204 No Content",
+    "seconds": 12.0
+  }
+}

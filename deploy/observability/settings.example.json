@@ -1,0 +1,21 @@
+{
+  "grafana_hostname": "logs.internal",
+  "ports": {"grafana": 18490, "query": 18491},
+  "log_budgets": {"platform": 1073741824, "companion": 1073741824, "memory": 1073741824, "gateway": 1073741824},
+  "tls": {
+    "ca.pem": "observability-input/tls/ca.pem", "client-ca.pem": "observability-input/tls/client-ca.pem",
+    "guard.pem": "observability-input/tls/guard.pem", "guard.key": "observability-input/tls/guard.key",
+    "loki.pem": "observability-input/tls/loki.pem", "loki.key": "observability-input/tls/loki.key",
+    "vector.pem": "observability-input/tls/vector.pem", "vector.key": "observability-input/tls/vector.key",
+    "prometheus.pem": "observability-input/tls/prometheus.pem", "prometheus.key": "observability-input/tls/prometheus.key",
+    "grafana.pem": "observability-input/tls/grafana.pem", "grafana.key": "observability-input/tls/grafana.key",
+    "client.pem": "observability-input/tls/client.pem", "client.key": "observability-input/tls/client.key"
+  },
+  "secrets": {
+    "writer_token": "observability-input/secrets/writer_token",
+    "query_token": "observability-input/secrets/query_token",
+    "metrics_token": "observability-input/secrets/metrics_token",
+    "grafana_admin_password": "observability-input/secrets/grafana_admin_password"
+  },
+  "image_digests": {}
+}

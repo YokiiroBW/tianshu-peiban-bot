@@ -1,0 +1,64 @@
+{
+  "kind": "dep-b-total-deadline-regressions",
+  "status": "passed",
+  "tests_run": 4,
+  "failures": 0,
+  "errors": 0,
+  "skips": 0,
+  "implementation_sha256": {
+    "deploy/observability/alerts.py": "57bb862905b87a6382caf18164256e5138a5f884fe64812eb231dde1e0b23419",
+    "deploy/observability/capacity.py": "1bb26f6dd89e68cbe9f6ec168512c2bfdf47772832e5a7b665b5f7bb36f94b37",
+    "deploy/observability/compose.py": "5ed87b26d97bc6997c16a35fb47fb143f5405bad4d79ec4f2948715d12397000",
+    "deploy/observability/configs.py": "4874c5c96672909225e9c0aa55de6332bfa9c5626e1266057af7b807ed986de3",
+    "deploy/observability/configure.py": "9fd2407544860904214a2a7d11d221a79bb18701388e7fbd6f24fb8b098d4463",
+    "deploy/observability/guard.py": "df5737c99a9e636228b37fc0446527a346e0335327ea2bc8789667bb1881af32",
+    "deploy/observability/monitor.py": "fe4186dca5a8dfc119a74116e8a078e5602bcd79d30038304a0c79932b18b772",
+    "deploy/observability/policy.py": "73863acf4d7f269d57b32f4908c2e7a5e9025bd46b8d76d7bf02bd66120ae9ee",
+    "deploy/observability/query.py": "8167e5de8a4c94c6dfe057dfe38174a9ac7cbbbe099d98390d5ea030274c0240",
+    "deploy/observability/reconcile.py": "fd78e1a3851369fba2c532a5e577fea00423067e45ecad19c3ba5c8e1c6f7b59",
+    "deploy/observability/snapshot.py": "2ccc6fd238e3076937016cc0f1c1b21ccc0907c4a3535d2f6060aaaa033028ca",
+    "deploy/observability/transport.py": "5bec7e88112c6a190e5cf66d5188b5b57b8b9a2faed0b4dee538bbbadc33dd65",
+    "tests/deployment/observability/test_deadlines.py": "6ee05e55c22cf66718c90aa5dd50a7c024ee7d3e2e8d34d17561170fd305d8bb"
+  },
+  "source_unchanged_during_run": true,
+  "network": "real_loopback_TLS",
+  "backend": "explicit_synthetic_substitute",
+  "observations": [
+    {
+      "case": "query_slow_response",
+      "elapsed_seconds": 10.0,
+      "configured_deadline_seconds": 10,
+      "scheduling_tolerance_seconds": 1.5,
+      "sent_seconds": [
+        0,
+        6,
+        12
+      ]
+    },
+    {
+      "case": "range_pages_share_deadline",
+      "elapsed_seconds": 10.0,
+      "configured_deadline_seconds": 10,
+      "scheduling_tolerance_seconds": 1.5,
+      "requests": 2,
+      "response_delay_each": 6
+    },
+    {
+      "case": "query_slow_response_headers",
+      "elapsed_seconds": 10.0,
+      "configured_deadline_seconds": 10,
+      "scheduling_tolerance_seconds": 1.5,
+      "completed_headers": false,
+      "sent_seconds": [
+        0,
+        6
+      ]
+    },
+    {
+      "case": "query_stalled_tls_handshake",
+      "elapsed_seconds": 10.015,
+      "configured_deadline_seconds": 10,
+      "scheduling_tolerance_seconds": 1.5
+    }
+  ]
+}

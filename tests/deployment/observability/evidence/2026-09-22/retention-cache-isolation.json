@@ -1,0 +1,23 @@
+{
+  "kind": "dep-b-retention",
+  "status": "passed",
+  "retention_hours": 24,
+  "fixture_age_hours": 25,
+  "claims": {
+    "elapsed_24_hours": false,
+    "nas": false,
+    "linux_compose": false,
+    "actual_chunk_deletion": true
+  },
+  "initially_retrievable": true,
+  "initial_chunk_count": 1,
+  "initial_chunk_paths": [
+    "6c4e6d7a8507e60f\\MWEwYzNkNTI5ZWM6MWEwYzNkNTI5ZWQ6M2M4ZGE4NDM="
+  ],
+  "previous_retention_hours": 48,
+  "remaining_initial_chunks": 0,
+  "query_visible": false,
+  "deleted_chunk_count": 1,
+  "duration_seconds": 125.58,
+  "runtime_root": "C:\\Users\\Administrator\\.codex\\worktrees\\7e3f\\tianshu-peiban-bot\\tests\\deployment\\observability\\.runtime\\retention-q6uybpli"
+}

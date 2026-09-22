@@ -1,0 +1,164 @@
+{
+  "kind": "dep-b-retention",
+  "status": "passed",
+  "retention_hours": 24,
+  "fixture_age_hours": 25,
+  "started_at": "2026-09-22T13:01:29.729830+00:00",
+  "timeline": [
+    {
+      "state": "waiting_initial_visibility",
+      "utc": "2026-09-22T13:01:47.233274+00:00",
+      "elapsed_seconds": 17.5
+    },
+    {
+      "state": "waiting_initial_visibility",
+      "utc": "2026-09-22T13:01:52.262266+00:00",
+      "elapsed_seconds": 22.53
+    },
+    {
+      "state": "waiting_initial_visibility",
+      "utc": "2026-09-22T13:01:57.276992+00:00",
+      "elapsed_seconds": 27.55
+    },
+    {
+      "state": "waiting_initial_visibility",
+      "utc": "2026-09-22T13:02:02.293599+00:00",
+      "elapsed_seconds": 32.56
+    },
+    {
+      "state": "waiting_initial_visibility",
+      "utc": "2026-09-22T13:02:07.322019+00:00",
+      "elapsed_seconds": 37.58
+    },
+    {
+      "state": "initially_retrievable",
+      "utc": "2026-09-22T13:02:12.340596+00:00",
+      "elapsed_seconds": 42.61,
+      "rows": 1
+    },
+    {
+      "state": "flushed_chunk_observed",
+      "utc": "2026-09-22T13:02:12.369265+00:00",
+      "elapsed_seconds": 42.64,
+      "chunks": 1
+    },
+    {
+      "state": "policy_reduced",
+      "utc": "2026-09-22T13:02:12.381938+00:00",
+      "elapsed_seconds": 42.64,
+      "retention_hours": 24
+    },
+    {
+      "state": "observing",
+      "utc": "2026-09-22T13:02:29.926734+00:00",
+      "elapsed_seconds": 60.19,
+      "query_visible": true,
+      "remaining_initial_chunks": 1
+    },
+    {
+      "state": "observing",
+      "utc": "2026-09-22T13:02:34.946101+00:00",
+      "elapsed_seconds": 65.2,
+      "query_visible": true,
+      "remaining_initial_chunks": 1
+    },
+    {
+      "state": "observing",
+      "utc": "2026-09-22T13:02:39.963984+00:00",
+      "elapsed_seconds": 70.23,
+      "query_visible": true,
+      "remaining_initial_chunks": 1
+    },
+    {
+      "state": "observing",
+      "utc": "2026-09-22T13:02:44.981090+00:00",
+      "elapsed_seconds": 75.25,
+      "query_visible": true,
+      "remaining_initial_chunks": 1
+    },
+    {
+      "state": "observing",
+      "utc": "2026-09-22T13:02:50.011806+00:00",
+      "elapsed_seconds": 80.28,
+      "query_visible": true,
+      "remaining_initial_chunks": 1
+    },
+    {
+      "state": "observing",
+      "utc": "2026-09-22T13:02:55.026973+00:00",
+      "elapsed_seconds": 85.3,
+      "query_visible": true,
+      "remaining_initial_chunks": 1
+    },
+    {
+      "state": "observing",
+      "utc": "2026-09-22T13:03:00.057743+00:00",
+      "elapsed_seconds": 90.33,
+      "query_visible": true,
+      "remaining_initial_chunks": 1
+    },
+    {
+      "state": "observing",
+      "utc": "2026-09-22T13:03:05.075349+00:00",
+      "elapsed_seconds": 95.34,
+      "query_visible": true,
+      "remaining_initial_chunks": 1
+    },
+    {
+      "state": "observing",
+      "utc": "2026-09-22T13:03:10.103645+00:00",
+      "elapsed_seconds": 100.38,
+      "query_visible": true,
+      "remaining_initial_chunks": 1
+    },
+    {
+      "state": "observing",
+      "utc": "2026-09-22T13:03:15.127586+00:00",
+      "elapsed_seconds": 105.39,
+      "query_visible": true,
+      "remaining_initial_chunks": 1
+    },
+    {
+      "state": "observing",
+      "utc": "2026-09-22T13:03:20.150459+00:00",
+      "elapsed_seconds": 110.42,
+      "query_visible": true,
+      "remaining_initial_chunks": 1
+    },
+    {
+      "state": "observing",
+      "utc": "2026-09-22T13:03:25.188883+00:00",
+      "elapsed_seconds": 115.45,
+      "query_visible": false,
+      "remaining_initial_chunks": 0
+    }
+  ],
+  "claims": {
+    "elapsed_24_hours": false,
+    "nas": false,
+    "linux_compose": false,
+    "actual_chunk_deletion": true
+  },
+  "query": {
+    "selector": "{stack=\"tianshu\",service=\"retention_fixture\"}",
+    "start_ns": 1789992106213777500,
+    "end_ns": 1789992108213777500
+  },
+  "initially_retrievable": true,
+  "initial_chunk_count": 1,
+  "initial_chunk_paths": [
+    "6c4e6d7a8507e60f\\MWEwYzNkN2ZjY2Q6MWEwYzNkN2ZjY2U6Mjg4NzNmZTY="
+  ],
+  "previous_retention_hours": 48,
+  "remaining_initial_chunks": 0,
+  "query_visible": false,
+  "deleted_chunk_count": 1,
+  "duration_seconds": 115.48,
+  "finished_at": "2026-09-22T13:03:25.226886+00:00",
+  "artifacts": {
+    "config-before.json": "43821eb68849ac94e2b8a26049c060d01f0ce236ff8cb86ee252279168342ffe",
+    "config-after.json": "827759c026eb1d28dccbb13b219dda02dca515cfdca86a72709d53eeaf673001",
+    "fixture-push.json": "42dfdda7e229883ab1b545905e159b0cbd7b895fc4e1465dad8c09fbaee57806"
+  },
+  "runtime_root": "C:\\Users\\Administrator\\.codex\\worktrees\\7e3f\\tianshu-peiban-bot\\tests\\deployment\\observability\\.runtime\\retention-5pi7s8rg"
+}

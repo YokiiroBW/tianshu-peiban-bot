@@ -1,0 +1,118 @@
+{
+  "kind": "dep-b-log-recovery",
+  "mode": "native_nt",
+  "status": "passed",
+  "results": [
+    {
+      "case": "native_config_validation",
+      "status": "pass",
+      "facts": {}
+    },
+    {
+      "case": "normal_160_numbered_events",
+      "status": "pass",
+      "facts": {
+        "generated_unique": 160,
+        "landed_unique": 160,
+        "retrieved_unique": 160,
+        "missing_at_source": 0,
+        "missing_in_loki": 0,
+        "unexpected_at_source": 0,
+        "unexpected_in_loki": 0,
+        "source_duplicates": 0,
+        "retrieval_duplicates": 0,
+        "identity_conflicts": 0,
+        "content_mismatches": 0,
+        "sequence_gaps": 0,
+        "invalid_source_lines": 0,
+        "partial_source_lines": 0,
+        "application_reclamation_authorized": false,
+        "status": "passed"
+      }
+    },
+    {
+      "case": "loki_outage_vector_crash_restart_disk_replay",
+      "status": "pass",
+      "facts": {
+        "generated_unique": 320,
+        "landed_unique": 320,
+        "retrieved_unique": 320,
+        "missing_at_source": 0,
+        "missing_in_loki": 0,
+        "unexpected_at_source": 0,
+        "unexpected_in_loki": 0,
+        "source_duplicates": 0,
+        "retrieval_duplicates": 0,
+        "identity_conflicts": 0,
+        "content_mismatches": 0,
+        "sequence_gaps": 0,
+        "invalid_source_lines": 0,
+        "partial_source_lines": 0,
+        "application_reclamation_authorized": false,
+        "status": "passed"
+      }
+    },
+    {
+      "case": "collector_stopped_rotation_replay",
+      "status": "pass",
+      "facts": {
+        "generated_unique": 480,
+        "landed_unique": 480,
+        "retrieved_unique": 480,
+        "missing_at_source": 0,
+        "missing_in_loki": 0,
+        "unexpected_at_source": 0,
+        "unexpected_in_loki": 0,
+        "source_duplicates": 0,
+        "retrieval_duplicates": 0,
+        "identity_conflicts": 0,
+        "content_mismatches": 0,
+        "sequence_gaps": 0,
+        "invalid_source_lines": 0,
+        "partial_source_lines": 0,
+        "application_reclamation_authorized": false,
+        "status": "passed"
+      }
+    },
+    {
+      "case": "capacity_reserve_rejection_then_recovery",
+      "status": "pass",
+      "facts": {
+        "generated_unique": 640,
+        "landed_unique": 640,
+        "retrieved_unique": 640,
+        "missing_at_source": 0,
+        "missing_in_loki": 0,
+        "unexpected_at_source": 0,
+        "unexpected_in_loki": 0,
+        "source_duplicates": 0,
+        "retrieval_duplicates": 0,
+        "identity_conflicts": 0,
+        "content_mismatches": 0,
+        "sequence_gaps": 0,
+        "invalid_source_lines": 0,
+        "partial_source_lines": 0,
+        "application_reclamation_authorized": false,
+        "status": "passed"
+      }
+    },
+    {
+      "case": "secret_canary_rejected_with_discard_metric",
+      "status": "pass",
+      "facts": {}
+    }
+  ],
+  "claims": {
+    "real_vector": true,
+    "real_loki": true,
+    "linux_compose": false,
+    "grafana": false,
+    "nas": false,
+    "application_reclamation": false
+  },
+  "versions": {
+    "vector": "vector 0.58.0 (x86_64-pc-windows-msvc 2bcad9b 2026-08-26 13:37:07.557544670)",
+    "loki": "loki, version 3.7.8 (branch: release-3.7.x, revision: 09e6ce2f)\n  build user:       root@a72310b1e091\n  build date:       2026-09-17T13:46:13Z\n  go version:       go1.26.6\n  platform:         windows/amd64\n  tags:             netgo"
+  },
+  "runtime_root": "C:\\Users\\Administrator\\.codex\\worktrees\\7e3f\\tianshu-peiban-bot\\tests\\deployment\\observability\\.runtime\\native-nvmt5ckp"
+}

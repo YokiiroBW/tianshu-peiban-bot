@@ -1,0 +1,2 @@
+# Test certificate generation; runtime code itself is Python standard library only.
+cryptography==50.0.1

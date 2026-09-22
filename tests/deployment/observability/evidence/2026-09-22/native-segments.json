@@ -1,0 +1,149 @@
+{
+  "reconstruction": "Exact original source bytes concatenated after the successful run; original expected records existed in runner memory before source emit; no claim of a separately persisted pre-write manifest.",
+  "segments": [
+    {
+      "batch": 0,
+      "product": "platform",
+      "source_relative": "logs/platform/events.jsonl.0",
+      "offset_bytes": 0,
+      "length_bytes": 13351,
+      "lines": 40,
+      "sha256": "928aaea4a10d8337ade1bb5cb354733dbfdce77cc21629498f5ad33a4b5a2def"
+    },
+    {
+      "batch": 0,
+      "product": "companion",
+      "source_relative": "logs/companion/events.jsonl.0",
+      "offset_bytes": 13351,
+      "length_bytes": 13391,
+      "lines": 40,
+      "sha256": "7e1ed2bd4d2778193aff94574f69036715c5e86420d0d53c0e0941419847b1a0"
+    },
+    {
+      "batch": 0,
+      "product": "memory",
+      "source_relative": "logs/memory/events.jsonl.0",
+      "offset_bytes": 26742,
+      "length_bytes": 13271,
+      "lines": 40,
+      "sha256": "ae3596dbc4742f7b7bc48875eb80c7950ee3b256741dd37c6c91e58db48c486e"
+    },
+    {
+      "batch": 0,
+      "product": "gateway",
+      "source_relative": "logs/gateway/events.jsonl.0",
+      "offset_bytes": 40013,
+      "length_bytes": 13311,
+      "lines": 40,
+      "sha256": "0ed085c9c051703f5df3a318c38433c204490b5d6be01dcb491d5020f06b1d1e"
+    },
+    {
+      "batch": 1,
+      "product": "platform",
+      "source_relative": "logs/platform/events.jsonl.1",
+      "offset_bytes": 53324,
+      "length_bytes": 13351,
+      "lines": 40,
+      "sha256": "9409380f6ed340bb865bb3894ccf3daff2f9ef0c49398520dac60ed0927024e7"
+    },
+    {
+      "batch": 1,
+      "product": "companion",
+      "source_relative": "logs/companion/events.jsonl.1",
+      "offset_bytes": 66675,
+      "length_bytes": 13391,
+      "lines": 40,
+      "sha256": "90fd5a79a3733c84c5caac118990cf6cd945172e667b15d8a2d234351fe1a302"
+    },
+    {
+      "batch": 1,
+      "product": "memory",
+      "source_relative": "logs/memory/events.jsonl.1",
+      "offset_bytes": 80066,
+      "length_bytes": 13271,
+      "lines": 40,
+      "sha256": "7dcc8a0d9a59aef59c67f7af4604a4da1680a645935bba46674aa249e72c96ae"
+    },
+    {
+      "batch": 1,
+      "product": "gateway",
+      "source_relative": "logs/gateway/events.jsonl.1",
+      "offset_bytes": 93337,
+      "length_bytes": 13311,
+      "lines": 40,
+      "sha256": "9e9c71622d02a7c120b79b68dddc202762e833c6e33079f7fc3cc3a2ec71db1a"
+    },
+    {
+      "batch": 2,
+      "product": "platform",
+      "source_relative": "logs/platform/events.jsonl.2",
+      "offset_bytes": 106648,
+      "length_bytes": 13351,
+      "lines": 40,
+      "sha256": "6eefca48bf46c1bf12d77eda5a3ee2a89ae86de07a988609f1158dc8346a601f"
+    },
+    {
+      "batch": 2,
+      "product": "companion",
+      "source_relative": "logs/companion/events.jsonl.2",
+      "offset_bytes": 119999,
+      "length_bytes": 13391,
+      "lines": 40,
+      "sha256": "69d6a38efc07b257ff43eba7ef12ead0a817879612bd5532aa5a3ebc5cba81f4"
+    },
+    {
+      "batch": 2,
+      "product": "memory",
+      "source_relative": "logs/memory/events.jsonl.2",
+      "offset_bytes": 133390,
+      "length_bytes": 13271,
+      "lines": 40,
+      "sha256": "6f673f630c36a9ada3aaad4795ee0868b5f21a7c40a6e5e8df24a689f35fbfd9"
+    },
+    {
+      "batch": 2,
+      "product": "gateway",
+      "source_relative": "logs/gateway/events.jsonl.2",
+      "offset_bytes": 146661,
+      "length_bytes": 13311,
+      "lines": 40,
+      "sha256": "4494efdd85c15ec28bc275fc33bd89370e9dddb9ad415af23e01c2258cd0c77f"
+    },
+    {
+      "batch": 3,
+      "product": "platform",
+      "source_relative": "logs/platform/events.jsonl.3",
+      "offset_bytes": 159972,
+      "length_bytes": 13351,
+      "lines": 40,
+      "sha256": "5208855840dc074e521f7012ab79cd77e459be7ff12d86757ebae1c1d9783640"
+    },
+    {
+      "batch": 3,
+      "product": "companion",
+      "source_relative": "logs/companion/events.jsonl.3",
+      "offset_bytes": 173323,
+      "length_bytes": 13391,
+      "lines": 40,
+      "sha256": "810ee3cb02d43ad858c2091f64b8b7a8721848097c7a2d14c15ce7e5a44b4b31"
+    },
+    {
+      "batch": 3,
+      "product": "memory",
+      "source_relative": "logs/memory/events.jsonl.3",
+      "offset_bytes": 186714,
+      "length_bytes": 13271,
+      "lines": 40,
+      "sha256": "ddc0b5ff07e75317c8a6026c1c0341470e4b2e1ea1e396223a3081fd016131b5"
+    },
+    {
+      "batch": 3,
+      "product": "gateway",
+      "source_relative": "logs/gateway/events.jsonl.3",
+      "offset_bytes": 199985,
+      "length_bytes": 13311,
+      "lines": 40,
+      "sha256": "e5a3010860eb1dd0bdfc04a9031b0333c4f92907b74e86df236a5cc8efcba30a"
+    }
+  ]
+}
