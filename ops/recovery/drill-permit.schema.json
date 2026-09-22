@@ -42,19 +42,19 @@
     },
     "source_directory": {
       "type": "string",
-      "pattern": "^/[^\\\\]+$"
+      "pattern": "^(?:/|[A-Za-z]:/)[^\\\\]+$"
     },
     "restored_directory": {
       "type": "string",
-      "pattern": "^/[^\\\\]+$"
+      "pattern": "^(?:/|[A-Za-z]:/)[^\\\\]+$"
     },
     "drill_directory": {
       "type": "string",
-      "pattern": "^/[^\\\\]+$"
+      "pattern": "^(?:/|[A-Za-z]:/)[^\\\\]+$"
     },
     "inputs_directory": {
       "type": "string",
-      "pattern": "^/[^\\\\]+$"
+      "pattern": "^(?:/|[A-Za-z]:/)[^\\\\]+$"
     },
     "snapshot_sha256": {
       "type": "string",

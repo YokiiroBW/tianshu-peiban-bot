@@ -267,12 +267,24 @@ def load_deployment(root):
     for item in resources.values():
         if item["kind"] == "owner_lock":
             require(
-                item["product"] == "companion"
-                and any(
-                    r["product"] == "companion"
-                    and r["kind"] == "sqlite"
-                    and r["path"] + ".owner" == item["path"]
-                    for r in resources.values()
+                (
+                    item["path"].endswith("/.deployment-owner.lock")
+                    and any(
+                        v["category"] == "state"
+                        and v["mount"]
+                        and v["product"] == item["product"]
+                        and item["path"] == v["host_path"] + "/.deployment-owner.lock"
+                        for v in volumes.values()
+                    )
+                )
+                or (
+                    item["product"] == "companion"
+                    and any(
+                        r["product"] == "companion"
+                        and r["kind"] == "sqlite"
+                        and r["path"] + ".owner" == item["path"]
+                        for r in resources.values()
+                    )
                 ),
                 "invalid_owner_lock_resource",
             )

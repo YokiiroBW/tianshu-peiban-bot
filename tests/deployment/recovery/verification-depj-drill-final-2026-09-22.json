@@ -1,0 +1,147 @@
+{
+  "schema_version": "dep-j-verification/1",
+  "patterns": [
+    "test_drill.py",
+    "test_drill_http.py"
+  ],
+  "started_at": "2026-09-22T15:48:46.759744+00:00",
+  "finished_at": "2026-09-22T15:49:42.402816+00:00",
+  "runtime": {
+    "python": "3.12.14",
+    "sqlite": "3.53.1",
+    "os": "Windows"
+  },
+  "tests": {
+    "run": 14,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0,
+    "cases": [
+      {
+        "case": "test_drill.DrillTests.test_abnormal_clone_exit_reports_unconfirmed_and_keeps_claim",
+        "status": "passed",
+        "duration_seconds": 6.453
+      },
+      {
+        "case": "test_drill.DrillTests.test_authority_changes_refuse_before_claim_or_clone",
+        "status": "passed",
+        "duration_seconds": 4.344
+      },
+      {
+        "case": "test_drill.DrillTests.test_expired_and_future_permit_and_path_overlap_rejected",
+        "status": "passed",
+        "duration_seconds": 4.156
+      },
+      {
+        "case": "test_drill.DrillTests.test_external_network_original_mount_and_health_assertion_rejected",
+        "status": "passed",
+        "duration_seconds": 4.312
+      },
+      {
+        "case": "test_drill.DrillTests.test_failed_assertion_still_stops_and_consumes_permit",
+        "status": "passed",
+        "duration_seconds": 7.141
+      },
+      {
+        "case": "test_drill.DrillTests.test_one_use_clone_preserves_originals_and_stops_nine_owners",
+        "status": "passed",
+        "duration_seconds": 6.672
+      },
+      {
+        "case": "test_drill.DrillTests.test_opaque_log_wal_and_empty_directories_survive_clone",
+        "status": "passed",
+        "duration_seconds": 6.562
+      },
+      {
+        "case": "test_drill.DrillTests.test_partial_startup_is_stopped_without_force_kill",
+        "status": "passed",
+        "duration_seconds": 6.078
+      },
+      {
+        "case": "test_drill.DrillTests.test_plan_does_not_claim_or_create_clone",
+        "status": "passed",
+        "duration_seconds": 4.438
+      },
+      {
+        "case": "test_drill.DrillTests.test_tampered_restored_logs_refuse_before_clone",
+        "status": "passed",
+        "duration_seconds": 4.703
+      },
+      {
+        "case": "test_drill_http.DrillHTTPTests.test_actual_tls_authenticated_get_redacts_response",
+        "status": "passed",
+        "duration_seconds": 0.016
+      },
+      {
+        "case": "test_drill_http.DrillHTTPTests.test_continuous_trickle_obeys_total_deadline",
+        "status": "passed",
+        "duration_seconds": 0.219
+      },
+      {
+        "case": "test_drill_http.DrillHTTPTests.test_redirect_is_never_followed",
+        "status": "passed",
+        "duration_seconds": 0.015
+      },
+      {
+        "case": "test_drill_http.DrillHTTPTests.test_response_limit_and_typed_expectations",
+        "status": "passed",
+        "duration_seconds": 0.0
+      }
+    ]
+  },
+  "earlier_full_run": {
+    "path": "verification-depj-2026-09-22.json",
+    "sha256": "efe1cba140b6e7044e015c78cc9437d6d8b27c904248d2eba4f305ae84e6a964",
+    "tests": 93,
+    "errors": 1,
+    "failures": 0,
+    "error": "test_drill authority-change fixture connection not closed before Windows cleanup; fixed"
+  },
+  "source_sha256": {
+    "ops/recovery/__init__.py": "4104f0004d183cb09b53215ea182b9cad0bb142ac5545693716cdd652bc7de6c",
+    "ops/recovery/__main__.py": "6ee80d930116b538f0244507aace97f8dee41cbe6e3a021a227ad144ba9dd301",
+    "ops/recovery/compose_backend.py": "c2aa35b7704cace35c855be1673ff870f362734319b2440814f4fa3f73495ade",
+    "ops/recovery/drill.py": "7b44d1f7fac98ae5a8109823961606b7f2df4af6d76f7c17d134ec8ef4f2897c",
+    "ops/recovery/drill_http.py": "723463269194e0545c575a26b39bb700b2579560d5cc772430d2225bea7fa263",
+    "ops/recovery/drill_inputs.py": "313ae5737eba6e07dd855bd5bf57332927802924d451af33cc56bf005a60efda",
+    "ops/recovery/engine.py": "77787cbf18e3c0349715fc0ab27b1a7f32b2364a956f0cb7e3d5a27738a39c9e",
+    "ops/recovery/lifecycle.py": "329d3b129a6289ba14ebdbea70831282a60cc976bbdb225bf1732aeec018681e",
+    "ops/recovery/lifecycle_binding.py": "fbeba4ff6f5ec3e7c7a6c76f2751856eaccabe938965900ef6e815384bf50a5b",
+    "ops/recovery/linux_recovery.py": "b0b3cc0cee072fee920d9d4eca9c35ccff0da60cc736e604a93b4e4be9b44908",
+    "ops/recovery/manifest.py": "379a0732781b7f1b4611f9314ca9a5bdbd1226bcf48f0ffeb1f107b595884e8b",
+    "ops/recovery/process_backend.py": "57f95883c9fe37fb23058a8b2727e5f29efaba7cabde2efa0c54e89ec431b9fd",
+    "ops/recovery/process_identity.py": "6eb342892122c48b3f2167ebd6081516fbdcda1dda8c6b6fba75e1ca4f87a699",
+    "ops/recovery/product_inventory.py": "7eea857309173dac0042bf60e18c0d80bee4c43fdf67843e841d44e3b6911e49",
+    "ops/recovery/runtime_identity.py": "261ccec8f4182d28ff783b6f7f3b5d98502d72d5125789c3dbc42295cdbb6339",
+    "ops/recovery/safety.py": "13da1598a988e4101e564462fd33893134c5bffe8b37e8ca7f2ce25313a8d5e2",
+    "ops/recovery/snapshot.py": "e3b552b3d27b1f07c77dbec71e9901eefb943643582d5e1f8aac4270d71feb8c",
+    "tests/deployment/recovery/fixture_app.py": "0fe7c86e2b9bc9c8f7300a94275ee5dcae4c1c579e39feef49f4749c97841a2b",
+    "tests/deployment/recovery/fixtures.py": "eec074c2cab77c46cb72785f94ab5faeee1565406fc50f188ea6a9198af8a921",
+    "tests/deployment/recovery/lifecycle_fixtures.py": "8e899e36a9afed9c06b6be85a84bddfb5f9ef2875b7d566afe7c5ffb3bc6628d",
+    "tests/deployment/recovery/lifecycle_worker.py": "a90d14131b86a899b1bf7fbebbb33ab24dc24ecfb878b9665e566f27b06d2b03",
+    "tests/deployment/recovery/run_depj_verification.py": "24c7c34dd9d9af59ee07f9b08e153a420fcea0c8cb6e57a8f89d21ee4c572524",
+    "tests/deployment/recovery/run_verification.py": "f3d656f4c227039a46fb4137383a932e8a02be35225888bcf36be27cfbbae93d",
+    "tests/deployment/recovery/runtime_fixtures.py": "bb3c2e1564285a8aec5852a0b16b24434cc5b87ec6aa7412ebb3ea3e3b1735b7",
+    "tests/deployment/recovery/test_compose_lifecycle.py": "83519c34ab13eec3779d454710b0b598832dbdabd3f1773872fd8b45131e0411",
+    "tests/deployment/recovery/test_drill.py": "4072a11b78cbfb8acf83623678a7cfaae4540dac9e9f5d7cc9264400a51053c1",
+    "tests/deployment/recovery/test_drill_http.py": "1074bac2d8df4abb89acc2157676810c88305eb972092bd3f95176db0a635bfc",
+    "tests/deployment/recovery/test_enumeration_failures.py": "62e82f3372acc3771c342942e1d93d9de65b3de855673a0c8cbbcd94cccf5004",
+    "tests/deployment/recovery/test_lifecycle.py": "725a023f05f32651d1923a2fe806cb9be4bbceec0cbe2d3141354456e44f7add",
+    "tests/deployment/recovery/test_linux_recovery.py": "b6bfd4711bb0f644402297515557d0fcdddd2d4a70b9dc12fe04cd5acbaf0079",
+    "tests/deployment/recovery/test_product_inventory.py": "3529c74bbab7a6b560bbebb756f300b3ff8cdfe3dc3098a79c3201b05b08fb99",
+    "tests/deployment/recovery/test_recovery.py": "7b1ebc1a8f680730279bf8dbfcc0105744f98ab83ece50b1d4cac001fbb558c2",
+    "tests/deployment/recovery/test_runtime_identity.py": "6a1cb28baf9727bfb48c54d2785da78bf6dc24b249f0792059b3e3ca51cf846e",
+    "tests/deployment/recovery/test_runtime_image_boundary.py": "9de02f912d95e1f6ec820460a7ad1d13770f736df49d639fcea689f6cbd20755"
+  },
+  "claims": {
+    "boundary_and_orchestration_tests": true,
+    "docker_contract_double": true,
+    "http_transport": "real_loopback_TLS_test_server",
+    "real_product_http": "not_run",
+    "linux_containers": "not_run",
+    "nas": "not_run",
+    "release_ready": false,
+    "original_restore_activation": false
+  },
+  "status": "passed"
+}

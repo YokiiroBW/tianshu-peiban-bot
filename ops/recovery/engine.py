@@ -548,6 +548,7 @@ class Recovery:
                         canonical(
                             {
                                 "snapshot_sha256": snapshot_sha256,
+                                "backup": backup_name,
                                 "authority_deployment_id": authority_id,
                                 "state": "restored_disabled",
                                 "functional_acceptance": "not_run",

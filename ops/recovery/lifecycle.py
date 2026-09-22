@@ -3,6 +3,7 @@
 import math
 import time
 import uuid
+from contextlib import nullcontext
 
 from .compose_backend import ComposeBackend, DockerCLI
 from .engine import Control
@@ -63,6 +64,8 @@ def operate(
     candidate=None,
     compatibility=None,
     update_id=None,
+    _runtime_lease_held=False,
+    _owner_identities=None,
 ):
     budget = Deadline(timeout, cancel)
     directory, home, binding = load(recovery, directory, project, binding_sha256)
@@ -130,10 +133,49 @@ def operate(
         )
     )
     prior_control, prior_guard = recovery.control, recovery.lifecycle_guard
+    if _owner_identities is not None:
+        require(binding["backend"] == "compose", "compose_identity_required")
+        backend.identities = {
+            key: tuple(value) for key, value in _owner_identities.items()
+        }
     event_id = uuid.uuid4().hex
+    from .runtime_identity import runtime_lease
+
+    shared_lease = (
+        runtime_lease(directory)
+        if binding.get("runtime_identity") and not _runtime_lease_held
+        else nullcontext()
+    )
     try:
-        with lease(child(home, "action.lock")):
+        with shared_lease, lease(child(home, "action.lock")):
             budget.check()
+            if binding.get("runtime_identity"):
+                if not _runtime_lease_held:
+                    from .runtime_identity import load_identity
+
+                    pin = binding["runtime_identity"]
+                    load_identity(
+                        directory,
+                        child(directory, pin["path"]),
+                        pin["sha256"],
+                        observed=True,
+                    )
+                registration = read_json(
+                    child(directory, ".recovery-registration.json")
+                )
+                require(
+                    registration["binding_sha256"] == binding_sha256,
+                    "registration_binding_mismatch",
+                )
+                pinned_owners = {
+                    key: tuple(value)
+                    for key, value in registration["initial_owner_ids"].items()
+                }
+                require(
+                    not backend.identities or backend.identities == pinned_owners,
+                    "runtime_owner_changed",
+                )
+                backend.identities = pinned_owners
             backend.inspect()  # Entire owner set must validate before the first mutation.
             # Re-check immutable files inside the exclusive admission boundary.
             load(recovery, directory, project, binding_sha256)

@@ -36,6 +36,23 @@ def parser():
     sub.add_parser(
         "init-sandbox", help="Create a new empty recovery sandbox, not product state"
     )
+    drill = sub.add_parser("drill-clone")
+    drill.add_argument("--permit", required=True)
+    drill.add_argument("--permit-sha256", required=True)
+    drill.add_argument("--docker-executable")
+    for name in ("linux-prepare", "linux-rehearse"):
+        action = sub.add_parser(name)
+        action.add_argument("--deployment-directory", required=True)
+        action.add_argument("--docker-executable")
+        action.add_argument("--timeout", type=float, default=300)
+        if name == "linux-prepare":
+            action.add_argument("--runtime-identity", required=True)
+            action.add_argument("--runtime-identity-sha256", required=True)
+            action.add_argument("--authority-id", required=True)
+        else:
+            action.add_argument("--registration-sha256", required=True)
+            action.add_argument("--backup", required=True)
+            action.add_argument("--target", required=True)
     backup = sub.add_parser("backup")
     backup.add_argument("--deployment", required=True)
     backup.add_argument("--backup", required=True)
@@ -127,7 +144,45 @@ def main(argv=None):
                 max_bytes=args.max_bytes,
                 max_files=args.max_files,
             )
-            if args.command == "lifecycle-init":
+            if args.command == "drill-clone":
+                from .drill import run
+
+                output = run(
+                    recovery,
+                    args.permit,
+                    args.permit_sha256,
+                    execute=args.execute,
+                    docker_executable=args.docker_executable,
+                    cancel=lambda: cancelled,
+                )
+            elif args.command == "linux-prepare":
+                from .linux_recovery import prepare
+
+                output = prepare(
+                    recovery,
+                    args.deployment_directory,
+                    args.runtime_identity,
+                    args.runtime_identity_sha256,
+                    args.authority_id,
+                    execute=args.execute,
+                    docker_executable=args.docker_executable,
+                    timeout=args.timeout,
+                )
+            elif args.command == "linux-rehearse":
+                from .linux_recovery import rehearse
+
+                output = rehearse(
+                    recovery,
+                    args.deployment_directory,
+                    args.registration_sha256,
+                    args.backup,
+                    args.target,
+                    execute=args.execute,
+                    docker_executable=args.docker_executable,
+                    timeout=args.timeout,
+                    cancel=lambda: cancelled,
+                )
+            elif args.command == "lifecycle-init":
                 output = initialize(
                     recovery,
                     args.deployment_directory,
@@ -188,7 +243,17 @@ def main(argv=None):
                     execute=args.execute,
                 )
         print(json.dumps(output, sort_keys=True))
-        return 0
+        return (
+            2
+            if output.get("status")
+            in {
+                "drill_failed_or_cancelled",
+                "stop_unconfirmed",
+                "original_state_unconfirmed",
+                "partial_functional_coverage",
+            }
+            else 0
+        )
     except RecoveryError as error:
         print(
             json.dumps(
