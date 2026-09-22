@@ -207,6 +207,7 @@ def prepare(root, settings, manifest, output_relative, snapshot, candidate=False
     (output / "code").mkdir()
     for name in (
         "guard.py",
+        "guard_lifecycle.py",
         "monitor.py",
         "policy.py",
         "query.py",

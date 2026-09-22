@@ -1,0 +1,36 @@
+{
+  "cleanup": "stop owned observability containers; retain containers, source segments, all volumes and evidence",
+  "dimensions": [
+    "identity_permissions",
+    "numbered_collection",
+    "storage_outage_disk_buffer",
+    "reconnect_replay",
+    "collector_recreate_rotation",
+    "sensitive_canary",
+    "query_permissions",
+    "grafana_datasources_dashboard",
+    "grafana_viewer_permissions",
+    "prometheus_targets",
+    "local_alert_delivery",
+    "disk_watermark_rejection",
+    "physical_enospc",
+    "vector_buffer_full",
+    "production_30_day_retention",
+    "accelerated_ttl",
+    "application_capacity_gate",
+    "bounded_tmpfs_capacity_probe"
+  ],
+  "lease": {
+    "path": "/srv/synthetic/tianshu-qa-packaging/.runtime-owner.lock",
+    "protocol": "linux-flock-exclusive-nonblocking-v1"
+  },
+  "mode": "execute",
+  "ownership": "observability five owners only; core must already be stopped",
+  "source_reclamation": "blocked; no receipt authorizes deletion",
+  "unexecuted_long_tests": [
+    "production_30_day_retention",
+    "accelerated_ttl",
+    "physical_enospc",
+    "vector_buffer_full"
+  ]
+}

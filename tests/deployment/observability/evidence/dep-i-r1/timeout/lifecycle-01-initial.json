@@ -1,0 +1,23 @@
+{
+  "complete": false,
+  "containers": [
+    {
+      "container_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "error_present": false,
+      "exit_code": 0,
+      "image_id": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "oom_killed": false,
+      "owner": "obs-vector",
+      "restart_policy": "unless-stopped",
+      "running": true,
+      "status": "running"
+    }
+  ],
+  "expected_owners": [
+    "obs-grafana",
+    "obs-guard",
+    "obs-loki",
+    "obs-prometheus",
+    "obs-vector"
+  ]
+}

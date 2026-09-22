@@ -1,0 +1,113 @@
+{
+  "application_reclamation_authorized": false,
+  "artifacts": {
+    "plan.json": "69aba7149f0782ef0bdad51a77981b7eed2ba9adae628a4bd256cf5e74617826"
+  },
+  "binding": {
+    "interface_commit": "880c2c33ffc4c12b9267d38267c2dacde074890d",
+    "project": "tianshu-qa-packaging",
+    "runtime_identity_sha256": "920b40a620436022285cca8a1114c4a68441a33d75da9ba9eac209e3a0e17581"
+  },
+  "code_sha256": {
+    "linux_capacity_probe.py": "03a1446ee7b8eb2b4ce35e355bd3e26426c7124b36457b27aa0010b13414d256",
+    "linux_receiver.py": "36d6e4e1ed51cf1e29ec9e1725f22f45e026207df50ccde6839b510588aeceab",
+    "linux_scenarios.py": "3b7a9d4d4ea8b0a63cf311e8fe160bfbbbbe6d8aab81a73eb3d41e88247ca9dd",
+    "run_linux.py": "ae33aa2bb8c5d4af4a2e61d28d3c32eb154a818628899fb6486630cf32e63f75"
+  },
+  "dimensions": {
+    "accelerated_ttl": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "application_capacity_gate": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "bounded_tmpfs_capacity_probe": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "collector_recreate_rotation": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "disk_watermark_rejection": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "grafana_datasources_dashboard": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "grafana_viewer_permissions": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "identity_permissions": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "local_alert_delivery": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "numbered_collection": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "physical_enospc": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "production_30_day_retention": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "prometheus_targets": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "query_permissions": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "reconnect_replay": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "sensitive_canary": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "storage_outage_disk_buffer": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "vector_buffer_full": {
+      "reason": "not_executed",
+      "status": "not_run"
+    }
+  },
+  "error_code": "linux_host_required",
+  "nas_verified": false,
+  "package_sha256": {
+    "acceptance.py": "8447b5e8fb1fcd84ac1a6792c612b44a82e80f6313f4d363c1cf02b7996be5c1",
+    "alerts.py": "57bb862905b87a6382caf18164256e5138a5f884fe64812eb231dde1e0b23419",
+    "capacity.py": "1bb26f6dd89e68cbe9f6ec168512c2bfdf47772832e5a7b665b5f7bb36f94b37",
+    "compose.py": "5ed87b26d97bc6997c16a35fb47fb143f5405bad4d79ec4f2948715d12397000",
+    "configs.py": "4874c5c96672909225e9c0aa55de6332bfa9c5626e1266057af7b807ed986de3",
+    "configure.py": "bcce90216e149ec626d42410940134e86f2dd3cf82b33d25a0294dc57ac721cf",
+    "guard.py": "91c6479b23a4c1bdd989c355311b544cf88527f68e1400973039c940fd178bf8",
+    "guard_lifecycle.py": "52a8cbc8ba4b2f47301b809681a86261c92fed3388c6df3aa919453afe3354d9",
+    "monitor.py": "fe4186dca5a8dfc119a74116e8a078e5602bcd79d30038304a0c79932b18b772",
+    "policy.py": "73863acf4d7f269d57b32f4908c2e7a5e9025bd46b8d76d7bf02bd66120ae9ee",
+    "query.py": "b24c11613fe55d11ce2f0d36047baca3f099a5f5bc2570c9b154cd69d4a8092c",
+    "reconcile.py": "fd78e1a3851369fba2c532a5e577fea00423067e45ecad19c3ba5c8e1c6f7b59",
+    "runtime_binding.py": "d4641d7adaf5fbeb81fbf5e0de9d848e5e2322c2a3a4158f36bc1c1b201c0155",
+    "snapshot.py": "2ccc6fd238e3076937016cc0f1c1b21ccc0907c4a3535d2f6060aaaa033028ca",
+    "transport.py": "5bec7e88112c6a190e5cf66d5188b5b57b8b9a2faed0b4dee538bbbadc33dd65"
+  },
+  "release_ready": false,
+  "schema_version": "dep-i/1",
+  "status": "failed"
+}

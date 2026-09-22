@@ -37,8 +37,12 @@ class LokiClient:
         self.lock = threading.Lock()
         self.active = set()
 
-    def close(self):
+    def cancel(self):
+        """Signal cancellation without disposing resources owned by active callers."""
         self.closed.set()
+
+    def close(self):
+        self.cancel()
         with self.lock:
             connections = list(self.active)
         for connection in connections:

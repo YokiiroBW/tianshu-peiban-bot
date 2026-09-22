@@ -1,0 +1,37 @@
+{
+  "kind": "docker_protocol_substitute_only",
+  "linux_executed": false,
+  "cases": {
+    "normal": {
+      "error": null,
+      "observed_running": false,
+      "exit_code": 0
+    },
+    "exit143": {
+      "error": "abnormal_container_exit",
+      "observed_running": false,
+      "exit_code": 143
+    },
+    "exit2": {
+      "error": "abnormal_container_exit",
+      "observed_running": false,
+      "exit_code": 2
+    },
+    "exit137": {
+      "error": "abnormal_container_exit",
+      "observed_running": false,
+      "exit_code": 137
+    },
+    "timeout": {
+      "error": "stop_unconfirmed",
+      "observed_running": true,
+      "exit_code": 0
+    }
+  },
+  "plan": {
+    "exit_code": 0
+  },
+  "windows-refusal": {
+    "exit_code": 1
+  }
+}

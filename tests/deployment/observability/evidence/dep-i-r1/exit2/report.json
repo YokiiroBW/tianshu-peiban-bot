@@ -1,0 +1,86 @@
+{
+  "application_reclamation_authorized": false,
+  "artifacts": {
+    "commands.json": "22db133bc851b40f20f71f6948c5380cb81a944302ccaaef7598da3bc4c0ecf6",
+    "lifecycle-01-initial.json": "e8c6d8fa50b3b528dfab0b93858c4df58d93959fe7a7c91bd96c1a409a4d90a6",
+    "lifecycle-02-stop.json": "264bcbe296735964b0d8423fccc73d5a769f04c9c2fb7a8151aa63e3df0f4b58"
+  },
+  "dimensions": {
+    "accelerated_ttl": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "application_capacity_gate": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "bounded_tmpfs_capacity_probe": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "collector_recreate_rotation": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "disk_watermark_rejection": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "grafana_datasources_dashboard": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "grafana_viewer_permissions": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "identity_permissions": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "local_alert_delivery": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "numbered_collection": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "physical_enospc": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "production_30_day_retention": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "prometheus_targets": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "query_permissions": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "reconnect_replay": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "sensitive_canary": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "storage_outage_disk_buffer": {
+      "reason": "not_executed",
+      "status": "not_run"
+    },
+    "vector_buffer_full": {
+      "reason": "not_executed",
+      "status": "not_run"
+    }
+  },
+  "nas_verified": false,
+  "release_ready": false,
+  "schema_version": "dep-i/1",
+  "status": "not_run"
+}

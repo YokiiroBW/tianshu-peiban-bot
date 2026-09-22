@@ -1,0 +1,18 @@
+test_capacity_never_authorizes_reclamation (test_linux_acceptance.AcceptanceBoundaryTests.test_capacity_never_authorizes_reclamation) ... ok
+test_contract_raw_bytes_checked_before_copy (test_linux_acceptance.AcceptanceBoundaryTests.test_contract_raw_bytes_checked_before_copy) ... ok
+test_daemon_endpoint_is_pinned (test_linux_acceptance.AcceptanceBoundaryTests.test_daemon_endpoint_is_pinned) ... ok
+test_default_plan_never_calls_docker_or_acquires_lease (test_linux_acceptance.AcceptanceBoundaryTests.test_default_plan_never_calls_docker_or_acquires_lease) ... ok
+test_evidence_verifier_rejects_modified_payload (test_linux_acceptance.AcceptanceBoundaryTests.test_evidence_verifier_rejects_modified_payload) ... ok
+test_exact_five_volume_owner_and_mount_boundary (test_linux_acceptance.AcceptanceBoundaryTests.test_exact_five_volume_owner_and_mount_boundary) ... ok
+test_existing_evidence_never_overwritten (test_linux_acceptance.AcceptanceBoundaryTests.test_existing_evidence_never_overwritten) ... ok
+test_no_delete_or_global_cleanup_command (test_linux_acceptance.AcceptanceBoundaryTests.test_no_delete_or_global_cleanup_command) ... ok
+test_pass_requires_artifact_and_partial_stays_partial (test_linux_acceptance.AcceptanceBoundaryTests.test_pass_requires_artifact_and_partial_stays_partial) ... ok
+test_pinned_g_identity_plan_and_tamper_rejection (test_linux_acceptance.AcceptanceBoundaryTests.test_pinned_g_identity_plan_and_tamper_rejection) ... ok
+test_receiver_persists_only_closed_safe_fields (test_linux_acceptance.AcceptanceBoundaryTests.test_receiver_persists_only_closed_safe_fields) ... ok
+test_remote_daemon_and_override_rejected_without_mutation (test_linux_acceptance.AcceptanceBoundaryTests.test_remote_daemon_and_override_rejected_without_mutation) ... ok
+test_shared_lease_same_inode_and_nonblocking_contention (test_linux_acceptance.AcceptanceBoundaryTests.test_shared_lease_same_inode_and_nonblocking_contention) ... skipped 'real flock requires Linux'
+
+----------------------------------------------------------------------
+Ran 13 tests in 0.067s
+
+OK (skipped=1)
