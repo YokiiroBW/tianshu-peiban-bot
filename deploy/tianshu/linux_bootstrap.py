@@ -12,8 +12,8 @@ from manifest import digest, read_json, require, write_json
 # Inputs and CLI output travel on private pipes; no credential/ref in argv or report.
 CLI = """import json,os,subprocess,sys,tempfile
 action=sys.argv[1]
-data=sys.stdin.buffer.read(1048577)
-assert len(data)<=1048576
+data=sys.stdin.buffer.readline(1048577)
+assert data.endswith(b'\\n') and len(data)<=1048576
 with tempfile.NamedTemporaryFile(dir='/tmp',suffix='.json') as f:
  f.write(data);f.flush()
  result=subprocess.run([sys.executable,'-m','services.platform','--settings',
@@ -55,6 +55,15 @@ def update(root, changes):
 
 def raw(document):
     return (json.dumps(document, ensure_ascii=False, indent=2) + "\n").encode()
+
+
+def request_frame(document):
+    """One bounded JSON line; Docker's open stdin must not require EOF to proceed."""
+    data = (
+        json.dumps(document, ensure_ascii=False, separators=(",", ":")) + "\n"
+    ).encode()
+    require(len(data) <= 1048576, "bootstrap_input_too_large")
+    return data
 
 
 def prepare(root, dialogue):
@@ -223,7 +232,7 @@ def first_install_container(root, compose, runner, publication):
                 action,
             ],
             35,
-            input=raw(data),
+            input=request_frame(data),
             capture=True,
         )
         if action == "issue":
