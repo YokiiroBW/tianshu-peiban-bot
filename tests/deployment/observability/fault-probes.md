@@ -15,6 +15,14 @@ Windows用PowerShell环境变量语法设置DEP_B_CONTRACT。前者包含真实H
 
 `run_final_smoke.py`专核最终guard→真实Loki→query的8条小样例，封存源码hash和实际输入输出，并测角色/写入限额/8连接并发拒绝恢复；响应8MiB边界使用真实TLS上的明确替身，不冒充Loki大响应。`capture_regressions.py`执行两个实际Ledger单测并捕获合成输入和metrics，查询侧mock；各自范围详见证据README。
 
+## 总期限返修探针
+
+```text
+python -B tests/deployment/observability/test_deadlines.py --output <deadline报告JSON>
+```
+
+真实loopback TLS/明确替身，生产默认10秒未调小；0/6/12秒三字节滴流应在总期限结束，覆盖未鉴权慢头、认证慢体、入站/出站停滞握手、上游慢头/体、响应慢读者、6秒请求体+6秒后端共用预算、每页6秒但全部分页共用预算。另验证client/server关闭取消、8槽回收与后续正常请求。测试调度容差1.5秒单列，实际耗时写报告；DNS不可强杀反例用0.2秒显式父期限及单解析线程，不能冒充OS解析已被中断。`--case`可选择受影响单项，报告tests_run如实计数，不能称全套。
+
 ## Linux Compose
 
 ```text

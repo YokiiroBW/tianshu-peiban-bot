@@ -21,6 +21,8 @@ TLS服务端SAN：obs-guard、obs-loki、obs-vector、obs-prometheus及显式Gra
 
 四凭据互不相同、32–128位URL-safe随机字符串；Vector仅writer、Grafana仅query及初始化密码、Prometheus仅metrics，guard读取三个角色。Loki的客户端私钥不挂给Prometheus，后者通过guard受限的`/backend-metrics`取Loki指标。无需产品业务token、真实账号或模型。
 
+守卫8个槽的每次准入总期限10秒，TLS/头/体/后端/写出共用；query单次及range全分页也有共享10秒预算。不是每次recv的空闲超时。新增标准库`transport.py`随生成包复制，TLS校验与凭据角色不变。超期只关闭连接，不在客户端自动重发；监测会报查询失败/积压，源不删除。关闭会取消网络等待。DNS仅一个解析daemon与一个队列项，OS解析不可强制中断但调用者期限有界；30秒DNS缓存意味着容器地址变更可能需要等缓存更新后恢复，详见README限制。
+
 DEP-C未来需备份五数据目录及包版本/配置引用，尤其Vector位点与缓冲配套，Loki WAL和Compactor标记不漏。本包备份不生成应用删段许可，恢复后先对账再信观察水位。DEP-A当前四产品volume枚举不足以描述这些观测存储，需协调扩清单；本号不改共享schema。
 
 DEP-D最小公开命令为README中的 `reconcile.py`：输入合成期望JSONL、显式只读目录、HTTPS查询地址、CA、query凭据文件、采集时间范围、报告路径。输出status、三份unique计数、两处缺失/多余、hash冲突、重复、序号缺口、非法/未闭合行，应用回收授权始终false。任何失败exit1，不回显token/坏行原文。调用者应和release_id、源提交与合同hash绑定存档，不能把日志报告当四产品业务验收。

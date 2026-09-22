@@ -1,19 +1,16 @@
 """Bounded Loki queries. Saturated timestamp buckets are errors, never false completeness."""
 
 import json
+from http.client import HTTPConnection
 import ssl
-from urllib.error import HTTPError
+import threading
 from urllib.parse import urlencode, urlsplit
-from urllib.request import HTTPSHandler, HTTPRedirectHandler, Request, build_opener
+
+from transport import Deadline, DeadlineExceeded, connect_tls
 
 
 class QueryError(RuntimeError):
     pass
-
-
-class NoRedirect(HTTPRedirectHandler):
-    def redirect_request(self, *args, **kwargs):
-        raise QueryError("redirect_refused")
 
 
 class LokiClient:
@@ -29,14 +26,35 @@ class LokiClient:
         ):
             raise ValueError("explicit_https_origin_required")
         self.url = url.rstrip("/")
+        self.host, self.port = parts.hostname, parts.port or 443
         self.token = token
         context = ssl.create_default_context(cafile=str(ca))
         context.minimum_version = ssl.TLSVersion.TLSv1_2
         if certificate:
             context.load_cert_chain(str(certificate), str(key))
-        self.opener = build_opener(HTTPSHandler(context=context), NoRedirect())
+        self.context = context
+        self.closed = threading.Event()
+        self.lock = threading.Lock()
+        self.active = set()
 
-    def request(self, path, method="GET", body=None, content_type=None, encoding=None):
+    def close(self):
+        self.closed.set()
+        with self.lock:
+            connections = list(self.active)
+        for connection in connections:
+            connection.abort()
+
+    def request(
+        self,
+        path,
+        method="GET",
+        body=None,
+        content_type=None,
+        encoding=None,
+        *,
+        deadline=None,
+    ):
+        deadline = Deadline(parent=deadline, cancel=self.closed)
         headers = {"X-Scope-OrgID": "tianshu"}
         if self.token:
             headers["Authorization"] = "Bearer " + self.token
@@ -44,26 +62,53 @@ class LokiClient:
             headers["Content-Type"] = content_type
         if encoding:
             headers["Content-Encoding"] = encoding
-        request = Request(self.url + path, data=body, method=method, headers=headers)
+        connection, http = None, None
         try:
-            response = self.opener.open(request, timeout=10)
-        except HTTPError as exc:
-            response = exc
+            connection = connect_tls(self.host, self.port, self.context, deadline)
+            with self.lock:
+                self.active.add(connection)
+            deadline.remaining()
+            # DNS, connect and TLS already completed using nonblocking deadline I/O.
+            # HTTPConnection is only the framing/parser; it never resolves/connects here.
+            http = HTTPConnection(self.host, self.port)
+            http.sock = connection
+            http.request(method, path, body=body, headers=headers)
+            with http.getresponse() as response:
+                data = response.read(8 * 1024 * 1024 + 1)
+                deadline.remaining()
+                if len(data) > 8 * 1024 * 1024:
+                    raise QueryError("query_response_over_budget")
+                if 300 <= response.status < 400:
+                    raise QueryError("redirect_refused")
+                return (
+                    response.status,
+                    data,
+                    response.headers.get("Content-Type", "application/json"),
+                )
+        except DeadlineExceeded:
+            raise QueryError("query_deadline_exceeded") from None
+        except QueryError:
+            raise
         except Exception:
             raise QueryError("backend_unavailable") from None
-        with response:
-            data = response.read(8 * 1024 * 1024 + 1)
-            if len(data) > 8 * 1024 * 1024:
-                raise QueryError("query_response_over_budget")
-            return (
-                response.status,
-                data,
-                response.headers.get("Content-Type", "application/json"),
-            )
+        finally:
+            if http:
+                http.close()
+            if connection:
+                connection.abort()
+                with self.lock:
+                    self.active.discard(connection)
 
-    def range(self, selector, start_ns, end_ns, limit=1000, max_requests=128):
+    def range(
+        self, selector, start_ns, end_ns, limit=1000, max_requests=128, *, deadline=None
+    ):
+        deadline = Deadline(parent=deadline)
         todo, rows, requests = [(start_ns, end_ns)], [], 0
         while todo:
+            try:
+                deadline.remaining()
+            except DeadlineExceeded:
+                raise QueryError("query_deadline_exceeded") from None
             start, end = todo.pop()
             requests += 1
             if requests > max_requests:
@@ -77,7 +122,9 @@ class LokiClient:
                     "limit": limit,
                 }
             )
-            status, body, _ = self.request("/loki/api/v1/query_range?" + params)
+            status, body, _ = self.request(
+                "/loki/api/v1/query_range?" + params, deadline=deadline
+            )
             if status != 200:
                 raise QueryError("query_failed")
             try:
@@ -106,4 +153,9 @@ class LokiClient:
                 todo.extend([(mid + 1, end), (start, mid)])
             else:
                 rows.extend(values)
-        return sorted(rows)
+        result = sorted(rows)
+        try:
+            deadline.remaining()
+        except DeadlineExceeded:
+            raise QueryError("query_deadline_exceeded") from None
+        return result

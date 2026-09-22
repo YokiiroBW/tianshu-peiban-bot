@@ -1,0 +1,110 @@
+{
+  "kind": "dep-b-total-deadline-regressions",
+  "status": "passed",
+  "tests_run": 10,
+  "failures": 0,
+  "errors": 0,
+  "skips": 0,
+  "implementation_sha256": {
+    "deploy/observability/alerts.py": "57bb862905b87a6382caf18164256e5138a5f884fe64812eb231dde1e0b23419",
+    "deploy/observability/capacity.py": "1bb26f6dd89e68cbe9f6ec168512c2bfdf47772832e5a7b665b5f7bb36f94b37",
+    "deploy/observability/compose.py": "5ed87b26d97bc6997c16a35fb47fb143f5405bad4d79ec4f2948715d12397000",
+    "deploy/observability/configs.py": "4874c5c96672909225e9c0aa55de6332bfa9c5626e1266057af7b807ed986de3",
+    "deploy/observability/configure.py": "9fd2407544860904214a2a7d11d221a79bb18701388e7fbd6f24fb8b098d4463",
+    "deploy/observability/guard.py": "df5737c99a9e636228b37fc0446527a346e0335327ea2bc8789667bb1881af32",
+    "deploy/observability/monitor.py": "fe4186dca5a8dfc119a74116e8a078e5602bcd79d30038304a0c79932b18b772",
+    "deploy/observability/policy.py": "73863acf4d7f269d57b32f4908c2e7a5e9025bd46b8d76d7bf02bd66120ae9ee",
+    "deploy/observability/query.py": "2dd2a506885101bbf61e626132c7abe966a978d473475c9a906b72acc643dc1b",
+    "deploy/observability/reconcile.py": "fd78e1a3851369fba2c532a5e577fea00423067e45ecad19c3ba5c8e1c6f7b59",
+    "deploy/observability/snapshot.py": "2ccc6fd238e3076937016cc0f1c1b21ccc0907c4a3535d2f6060aaaa033028ca",
+    "deploy/observability/transport.py": "5bec7e88112c6a190e5cf66d5188b5b57b8b9a2faed0b4dee538bbbadc33dd65",
+    "tests/deployment/observability/test_deadlines.py": "609eb7b50b640a6183cf5b41002c7fa248b3da23472a808dfa4d991f5b528897"
+  },
+  "source_unchanged_during_run": true,
+  "network": "real_loopback_TLS",
+  "backend": "explicit_synthetic_substitute",
+  "observations": [
+    {
+      "case": "bounded_dns_worker",
+      "elapsed_seconds": 0.203,
+      "parent_budget_seconds": 0.2,
+      "tolerance_seconds": 0.5,
+      "resolver_workers": 1,
+      "os_dns_force_cancelled": false
+    },
+    {
+      "case": "guard_body_and_backend_share_deadline",
+      "elapsed_seconds": 10.0,
+      "configured_deadline_seconds": 10,
+      "scheduling_tolerance_seconds": 1.5,
+      "body_complete_seconds": 6,
+      "backend_delay_seconds": 6
+    },
+    {
+      "case": "guard_close_releases_handshake_slot",
+      "elapsed_seconds": 0.062,
+      "tolerance_seconds": 0.5
+    },
+    {
+      "case": "guard_slow_reader_response_write",
+      "elapsed_seconds": 10.015,
+      "configured_deadline_seconds": 10,
+      "scheduling_tolerance_seconds": 1.5,
+      "response_bytes": 8388608,
+      "received_by_client": 0
+    },
+    {
+      "case": "guard_stalled_tls_handshake",
+      "elapsed_seconds": 10.0,
+      "configured_deadline_seconds": 10,
+      "scheduling_tolerance_seconds": 1.5
+    },
+    {
+      "case": "query_close_cancels_active_read",
+      "elapsed_seconds": 0.0,
+      "tolerance_seconds": 0.5
+    },
+    {
+      "case": "query_slow_response",
+      "elapsed_seconds": 10.0,
+      "configured_deadline_seconds": 10,
+      "scheduling_tolerance_seconds": 1.5,
+      "sent_seconds": [
+        0,
+        6,
+        12
+      ]
+    },
+    {
+      "case": "range_pages_share_deadline",
+      "elapsed_seconds": 10.015,
+      "configured_deadline_seconds": 10,
+      "scheduling_tolerance_seconds": 1.5,
+      "requests": 2,
+      "response_delay_each": 6
+    },
+    {
+      "case": "slow_authenticated_body",
+      "elapsed_seconds": 10.0,
+      "configured_deadline_seconds": 10,
+      "scheduling_tolerance_seconds": 1.5,
+      "sent_seconds": [
+        0,
+        6,
+        12
+      ],
+      "backend_pushes": 0
+    },
+    {
+      "case": "slow_unauthenticated_headers",
+      "elapsed_seconds": 10.0,
+      "configured_deadline_seconds": 10,
+      "scheduling_tolerance_seconds": 1.5,
+      "sent_seconds": [
+        0,
+        6,
+        12
+      ]
+    }
+  ]
+}

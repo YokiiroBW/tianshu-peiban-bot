@@ -210,6 +210,7 @@ def prepare(root, settings, manifest, output_relative, snapshot, candidate=False
         "monitor.py",
         "policy.py",
         "query.py",
+        "transport.py",
         "alerts.py",
         "grafana-entrypoint.sh",
     ):

@@ -1,5 +1,15 @@
 # DEP-B：日志栈、完整性和故障告警
 
+## 首验返修交付（基线8f1e0b3）
+
+协调首验报告`docs/development/reviews/DEP-B-review-2026-09-22.md`要求修复滴流绕过空闲timeout。返修仅改guard/query，新增本包标准库传输模块`transport.py`；`configure.py`只把该必要模块加入复制清单，另调整对应测试、证据与本包文档。没有导入DEP-D代码、改产品/合同/根主线，旧证据原字节保留。
+
+守卫每次准入10秒贯穿TLS/头/体/后端/响应；query完整请求和range所有分页共享单调总期限。到期关闭连接并释放槽，client/server关闭取消网络等待；非阻塞TLS没有后台读取线程。DNS保留单个不可强制中断的OS解析daemon及一个排队项，调用方有期限，解析卡死不会扩线程。30秒/64项缓存、系统调度/CPU/本地文件系统的实际限制详见README，不承诺硬实时。客户端无自动HTTP重发，写入超期仍可能后端已受理，按事件身份对账而不删除源。
+
+新增证据见[返修说明](../../tests/deployment/observability/evidence/2026-09-22-r1/README.md)。首轮10项真实TLS对抗用例73.930秒通过；最后query加返回前期限复核后按影响跑4项41.387秒通过。12个不同场景覆盖但未虚报最后整套12重跑。0/6/12滴流、慢头/体、双向停滞握手、慢读者响应写出及分页共享预算实测10.000–10.015秒；测试容差1.5秒单列。关闭取消实测不超过0.062秒，DNS0.2秒父期限实测0.203秒；槽恢复及后续正常请求验证通过。另TLS4项1.751秒、对账/装配9项0.591秒通过。
+
+最终固定源码重新执行受影响真实guard/Loki/query小冒烟8/8/8差异0及原权限/字节/并发边界；新报告绑定本轮源码/配置/输入输出hash。未重跑或重标640/TTL旧证据。Ruff、完整diff、范围与原字节hash检查通过。返修提交为本handoff修订所在本地提交，精确hash另报协调者；之后停写待复验。下列原交付及其Linux/Grafana/物理故障/长期观察/NAS/回收缺口保持。
+
 ## 目标及交付状态
 
 按2026-09-22部署第二批任务卡，交付独立Vector/Loki/Grafana/Prometheus/完整性守卫候选包、初始化输入校验、采集/查询/故障验证入口与最小应用回收提案。执行者遵循本批Codex直接开发特批，未派子代理/DSH。仅本号三个允许路径有改动；无NAS、真实数据/账号/模型、生产容器、推送、部署或自行集成操作。
@@ -78,12 +88,20 @@ deploy/observability/query.py
 deploy/observability/reconcile.py
 deploy/observability/settings.example.json
 deploy/observability/snapshot.py
+deploy/observability/transport.py
 deploy/observability/versions.json
 deploy/observability/vocabulary.json
 docs/handoffs/DEP-B.md
 tests/deployment/observability/.gitignore
 tests/deployment/observability/capture_regressions.py
 tests/deployment/observability/evidence/.gitattributes
+tests/deployment/observability/evidence/2026-09-22-r1/README.md
+tests/deployment/observability/evidence/2026-09-22-r1/deadline-report-final-query.json
+tests/deployment/observability/evidence/2026-09-22-r1/deadline-report-first.json
+tests/deployment/observability/evidence/2026-09-22-r1/final-guard-query-smoke.json
+tests/deployment/observability/evidence/2026-09-22-r1/final-smoke-loki.json
+tests/deployment/observability/evidence/2026-09-22-r1/index.json
+tests/deployment/observability/evidence/2026-09-22-r1/review-slow-result.json
 tests/deployment/observability/evidence/2026-09-22/README.md
 tests/deployment/observability/evidence/2026-09-22/final-guard-query-smoke.json
 tests/deployment/observability/evidence/2026-09-22/final-ledger-regressions.json
@@ -116,6 +134,7 @@ tests/deployment/observability/run_final_smoke.py
 tests/deployment/observability/run_native.py
 tests/deployment/observability/run_retention.py
 tests/deployment/observability/run_stack.py
+tests/deployment/observability/test_deadlines.py
 tests/deployment/observability/test_guard_tls.py
 tests/deployment/observability/test_observability.py
 ```

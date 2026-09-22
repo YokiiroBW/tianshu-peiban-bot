@@ -16,6 +16,7 @@ from monitor import Ledger, capacities
 from alerts import AlertStore
 from policy import Policy
 from query import LokiClient
+from transport import Deadline, accept_tls
 
 QUERY_PATHS = {
     "/loki/api/v1/query",
@@ -165,23 +166,47 @@ class Server(ThreadingHTTPServer):
     def __init__(self, address, state, context):
         self.state, self.context = state, context
         self.slots = threading.BoundedSemaphore(8)
+        self.active_lock = threading.Lock()
+        self.active = {}
         super().__init__(address, Handler)
 
     def process_request(self, request, client_address):
         if not self.slots.acquire(blocking=False):
             request.close()
             return
-        super().process_request(request, client_address)
+        with self.active_lock:
+            self.active[request] = Deadline()
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            with self.active_lock:
+                self.active.pop(request).cancelled.set()
+            self.slots.release()
+            request.close()
+            raise
 
     def process_request_thread(self, request, client_address):
+        original = request
+        with self.active_lock:
+            deadline = self.active[original]
         try:
-            request.settimeout(10)
-            request = self.context.wrap_socket(request, server_side=True)
+            request = accept_tls(request, self.context, deadline)
             super().process_request_thread(request, client_address)
         except Exception:
             request.close()
         finally:
+            deadline.cancelled.set()
+            request.close()
+            with self.active_lock:
+                self.active.pop(original, None)
             self.slots.release()
+
+    def server_close(self):
+        with self.active_lock:
+            for deadline in self.active.values():
+                deadline.cancelled.set()
+        # Nonblocking I/O observes cancellation within its <=50ms poll interval.
+        super().server_close()
 
     def handle_error(self, request, client_address):
         # Base class would dump arbitrary exception text (possibly headers/query).
@@ -225,7 +250,9 @@ class Handler(BaseHTTPRequestHandler):
         if role == "metrics":
             if self.path == "/backend-metrics":
                 try:
-                    status, body, content_type = state.backend.request("/metrics")
+                    status, body, content_type = state.backend.request(
+                        "/metrics", deadline=self.connection.deadline
+                    )
                     return self.reply(
                         status, body if status == 200 else b"", content_type
                     )
@@ -234,7 +261,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(200, state.render_metrics(), "text/plain; version=0.0.4")
         if role == "probe":
             try:
-                status, _, _ = state.backend.request("/ready")
+                status, _, _ = state.backend.request(
+                    "/ready", deadline=self.connection.deadline
+                )
                 return self.reply(
                     200 if status == 200 else 503, b'{"status":"observed"}'
                 )
@@ -267,6 +296,7 @@ class Handler(BaseHTTPRequestHandler):
                 body,
                 self.headers.get("Content-Type"),
                 self.headers.get("Content-Encoding"),
+                deadline=self.connection.deadline,
             )
             if role == "writer":
                 if 200 <= status < 300:
@@ -306,6 +336,7 @@ def main():
     finally:
         state.stop.set()
         server.server_close()
+        backend.close()
 
 
 if __name__ == "__main__":

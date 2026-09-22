@@ -142,7 +142,7 @@ class ReconciliationTests(WorkspaceTest):
 
     def test_saturated_query_bucket_refuses_false_completeness(self):
         client = object.__new__(LokiClient)
-        client.request = lambda *a: (
+        client.request = lambda *a, **kw: (
             200,
             json.dumps(
                 {
@@ -164,7 +164,7 @@ class ReconciliationTests(WorkspaceTest):
         client = object.__new__(LokiClient)
         data = [(1, "a"), (1, "b"), (2, "c"), (3, "d"), (5, "e")]
 
-        def request(path):
+        def request(path, **kwargs):
             args = parse_qs(urlsplit(path).query)
             values = [
                 [str(t), line]
@@ -338,6 +338,7 @@ class ConfigurationTests(WorkspaceTest):
             self.root, settings, manifest, "bundle", SNAPSHOT, candidate=True
         )
         generated = json.loads((bundle / "compose.yaml").read_bytes())
+        self.assertTrue((bundle / "code/transport.py").is_file())
         self.assertEqual(len(generated["services"]), 5)
         self.assertNotIn("docker.sock", json.dumps(generated))
         for service in generated["services"].values():
