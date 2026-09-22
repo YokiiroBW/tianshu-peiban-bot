@@ -1,0 +1,48 @@
+{
+  "schema_version": "dep-j-r1-artifacts/1",
+  "baseline": "fd7ae756d5b56f3ec1563cc3bbbbe8828aacd0e9",
+  "source_files": [
+    {
+      "path": "ops/recovery/drill_http.py",
+      "tested_sha256": "e6f2ac6687395545f13ecec60ea21ae86780529a9c20d75bbad9f38d6717a233",
+      "git_blob_sha256": "e6f2ac6687395545f13ecec60ea21ae86780529a9c20d75bbad9f38d6717a233",
+      "comparison": "exact"
+    },
+    {
+      "path": "ops/recovery/http_transport.py",
+      "tested_sha256": "487ec1c2a27ad9e6ef057cbd94a92f8341845fa6fffdd229c0553f090f9a1832",
+      "git_blob_sha256": "487ec1c2a27ad9e6ef057cbd94a92f8341845fa6fffdd229c0553f090f9a1832",
+      "comparison": "exact"
+    },
+    {
+      "path": "tests/deployment/recovery/test_drill_http_deadline.py",
+      "tested_sha256": "a73ec0f707432100cf194847ba8973d676df3a57a34b799c7dbaf9d3589a8a0b",
+      "git_blob_sha256": "a73ec0f707432100cf194847ba8973d676df3a57a34b799c7dbaf9d3589a8a0b",
+      "comparison": "exact"
+    }
+  ],
+  "test_report": {
+    "path": "tests/deployment/recovery/verification-depj-r1-http-2026-09-23.json",
+    "working_sha256": "b51d600e73838c4c427661feae733e9fa1087c1a3d5987dcc5963b31bf0ded13",
+    "git_blob_sha256": "0ed88503554c48d90c79b8a3680e2770929ee2b9442726af2466017a3276902a",
+    "comparison": "CRLF_to_LF_only",
+    "run": 14,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0
+  },
+  "paths_excluding_this_index": [
+    "docs/handoffs/DEP-J.md",
+    "ops/recovery/LINUX-RECOVERY.md",
+    "ops/recovery/drill_http.py",
+    "ops/recovery/http_transport.py",
+    "tests/deployment/recovery/test_drill_http_deadline.py",
+    "tests/deployment/recovery/verification-depj-r1-http-2026-09-23.json"
+  ],
+  "claims": {
+    "loopback_tls_http": true,
+    "linux_containers": false,
+    "real_product_restore": false,
+    "nas": false
+  }
+}

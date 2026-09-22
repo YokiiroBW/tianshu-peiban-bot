@@ -1,5 +1,17 @@
 # DEP-J：正常停写、禁用恢复与一次性合成副本
 
+## 2026-09-23 R1：HTTP 全阶段共同期限
+
+返修基线 `fd7ae756d5b56f3ec1563cc3bbbbe8828aacd0e9`，首验**未合并**。协调42项/0skip/75.438秒通过，但独立真实TLS慢状态/头部连续滴流在Deadline0.2秒时仍耗1.266秒：urllib内部状态行/headers仅空闲socket timeout，旧正文read1循环不能覆盖该阶段。旧报告与首轮代码证据保留，不称首版端到端期限已过。
+
+R1只改HTTP窄层：`drill_http.py`保持断言/去敏接口，新增`http_transport.py`使用非阻塞socket+SSLSocket，无解析器内部阻塞IO、无线程timeout包装、无DNS/代理/重定向/重放。TCP connect、TLS握手、请求发送、状态行、头部、正文、chunk framing/trailers每轮均检查同一monotonic deadline与取消；select最长25ms并受剩余预算限制。SSLWantRead/Write显式轮询，返回/异常前同步close自有socket，不等待对端TLS close_notify。
+
+状态行上限1024字节，单行8192、累计头/分块元数据32KiB和102行、正文256KiB；支持Content-Length、chunked和connection-close JSON，拒绝重复长度/TE+CL/不支持的编码/截断。JSON成功断言仍在socket关闭后执行。GET、TLS证书/127.0.0.1身份校验、已登记loopback目标、去敏结果与固定Compose provenance未放宽。
+
+实际增量：`python -B tests/deployment/recovery/run_depj_verification.py --pattern 'test_drill_http*.py' --output tests/deployment/recovery/verification-depj-r1-http-2026-09-23.json`：**14项全过，0error/0failure/0skip，2.310秒**（4既有+10新增；Windows Python3.12.14，真实本地TLS）。新增连续慢状态、慢头部、真实握手字节滴流、body/chunk-size慢流，TLS/状态/headers/body四阶段取消，跨阶段同一预算，状态/单行/总头/body容量，chunked/close正例，重复/冲突长度与截断，不可信证书。期限0.15秒及取消0.08秒用<0.4秒上界断言；每次调用返回前记录socket fileno=-1，所有测试服务器线程join无残留。客户端未创建工作线程。
+
+Ruff本轮三Python文件检查/格式、完整返修diff/空白检查通过；R1源码与暂存blob原字节核对见`verification-depj-r1-artifacts-2026-09-23.json`。不重复旧63、慢drill整体或协调已通过42；Compose清单、生命周期/恢复事实、G/I接口及任何产品代码未变。本轮完整提交另发协调后停写。I日志包已由协调接受65b88a6d/根4f3f7231；G最终执行包仍待协调验收，Linux/NAS/四产品实际恢复仍未执行。
+
 状态：**本地实现/边界验证 ready_for_review；未集成。Linux 九真实容器、真实产品恢复功能、NAS 未执行。** 本交接所在最终提交完整 HEAD 单独发送协调，固定后停写。
 
 ## 范围与依据

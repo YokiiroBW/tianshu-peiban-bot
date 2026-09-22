@@ -47,6 +47,8 @@ Compose 两项目名来自许可，四产品+五日志 owner，镜像使用已�
 
 assertion 结构：`id`（data_readback/source_revoked/model_revoked/forgotten/unknown_no_resend）、`service`、`url`、`ca_file`、`token_file`、`expected_status`、`expected_json`。只允许到该 service 已发布 loopback 端口的 HTTPS GET，无代理/重定向；令牌取副本专属文件，CA 必须校验证书，响应有总预算/体积限制。expected_json 对对象按子集比较、其他类型严格相等。禁止 `/health*` 代替功能；实际端点和断言须由协调依据固定产品公开接口准备，不能使用测试里的 fixture URL/响应。
 
+R1使用非阻塞连接/TLS/HTTP解析，所有网络阶段共用同一取消/截止时间，没有后台超时线程。状态行1024字节、单头行8192、累计头及chunk元数据32KiB/102行、正文256KiB；HTTP/1.0/1.1固定GET支持Content-Length/chunked/close framing，异常或到期先关闭socket再返回。不能把持续收到状态/头部字节当作延长停机预留预算的理由。
+
 ```text
 python -B -m ops.recovery --root <scope> --scope-id <scope-uuid> drill-clone --permit <独立准备的许可.json> --permit-sha256 <另存hash>
 python -B -m ops.recovery --root <scope> --scope-id <scope-uuid> --execute drill-clone --permit <同许可.json> --permit-sha256 <同hash> --docker-executable /absolute/path/to/docker
