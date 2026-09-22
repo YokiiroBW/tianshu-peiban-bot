@@ -1,0 +1,74 @@
+{
+  "contracts_path": "/contracts/text-dialogue/v1",
+  "database_path": "/data/companion.db",
+  "config_version": 1,
+  "short_context": {
+    "max_turns": 4,
+    "max_bytes": 8192,
+    "max_age_seconds": 1800
+  },
+  "policy": {
+    "silence_ms": 5000,
+    "max_wait_ms": null,
+    "max_active_turns": 2,
+    "max_collectors_per_conversation": 32,
+    "max_queued_turns": 8,
+    "max_collection_messages": 256,
+    "max_collection_bytes": 262144,
+    "delivery_reconcile_timeout_ms": 30000
+  },
+  "roles": {
+    "actor:household": {
+      "version": 1,
+      "persona": "Use explicit sources; state when previous facts cannot be verified."
+    }
+  },
+  "bindings": {
+    "web-household": {
+      "namespace": "web",
+      "service": "platform",
+      "audience": "self_private",
+      "actor_ids": [
+        "actor:household"
+      ],
+      "classification": {
+        "value": "unclassified",
+        "basis": "unclassified",
+        "policy_ref": null,
+        "policy_version": null
+      }
+    }
+  },
+  "callers": {
+    "platform": {
+      "token_env": "TS_PLATFORM_CORE",
+      "issuer": "platform",
+      "origin_service": "platform"
+    },
+    "memory": {
+      "token_env": "TS_MEMORY_CORE"
+    }
+  },
+  "services": {
+    "platform": {
+      "url": "https://platform.internal:8443",
+      "token_env": "TS_CORE_PLATFORM",
+      "ca_file": "/etc/tianshu/tls/ca.pem"
+    },
+    "platform_sender": {
+      "url": "https://platform.internal:8443",
+      "token_env": "TS_CORE_PLATFORM_SENDER",
+      "ca_file": "/etc/tianshu/tls/ca.pem"
+    },
+    "memory": {
+      "url": "https://memory.internal:8130",
+      "token_env": "TS_CORE_MEMORY",
+      "ca_file": "/etc/tianshu/tls/ca.pem"
+    },
+    "gateway": {
+      "url": "https://gateway.internal:8443",
+      "token_env": "TS_CORE_GATEWAY",
+      "ca_file": "/etc/tianshu/tls/ca.pem"
+    }
+  }
+}

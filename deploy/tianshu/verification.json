@@ -1,0 +1,692 @@
+{
+  "task": "DEP-A",
+  "date": "2026-09-22",
+  "result": "local_packaging_validated",
+  "release_ready": false,
+  "root_baseline": "21668e4300d7bedc8ac1ed819bdb7dad4a2bd58b",
+  "schema_commit": "e86d622a813f116b059b62b820cbd1342722042d",
+  "release_manifest_sha256": "6bf459a2cbf8c8b760e0e2b0ce68dfacc50db489748ba3d9aef83120249ebdb9",
+  "release_schema_sha256": "cf95607fa7252f806ae4ab4d919298c234d91f1007ce763ec12485091f4d0397",
+  "release_id": "tianshu-wave2-candidate-20260922",
+  "products": {
+    "platform": {
+      "source": {
+        "repo": "tianshu-platform",
+        "commit": "fa85ee939a2affdda054ee7fa3155ec89ade6196"
+      },
+      "archive_sha256": "3d36e0a88e7c290096bac403cfb60df01416134eb9f801a2d36154f3963e4ac5",
+      "file_count": 304,
+      "build_inputs_sha256": {
+        ".dockerignore": "8f29ed92e4e03f3a1e0d6c1cbf142b87f798b7cdb8bc6dc4486cd09405d1d460",
+        "Dockerfile": "dc69bdbb568c4624b56e758110af0ce84a34f0dc7e907370eaa9e5f292a06348",
+        "pyproject.toml": "17118edea7f694407a14546694082ff0edd4c9c077cb495afde3f661a64003cc",
+        "package.json": "98f081e5d9395d23c1f8da4328d400fe6cd368047827530e3608555e23689e21",
+        "package-lock.json": "c0fdf8e0a61841aa9b8290f42983042b93c3d7492c6d1fc653f27fd3400a92e2"
+      }
+    },
+    "companion": {
+      "source": {
+        "repo": "tianshu-companion",
+        "commit": "cf020fd338b9beefc9d7156a00158e915d41735a"
+      },
+      "archive_sha256": "1a744d8832fd0214f9b94bdcc0e477e966c7b1f3c5691cb6fccbef05bd618480",
+      "file_count": 108,
+      "build_inputs_sha256": {
+        ".dockerignore": "212f29fa17211c054ab27f904ed73f6f699676aafe23eaab88a809976a5059df",
+        "Dockerfile": "83fbe9fbd3337439b2e942f9444dca719e6e0f5699138daba5d61831aa802c40",
+        "pyproject.toml": "41c13ac92acfaf422b83c375b00400a2d8a2e23e5270e26d7d240a86ccd46fde"
+      }
+    },
+    "memory": {
+      "source": {
+        "repo": "tianshu-memory",
+        "commit": "2f4037620f47991f42a5daa10f471c34c9ba4fd4"
+      },
+      "archive_sha256": "f75dc33bcca3b5c3dbd5bc37ce4721f00fc0b599dc9663c8b88d3534069af36d",
+      "file_count": 144,
+      "build_inputs_sha256": {
+        "infra/container/Dockerfile": "27a1fc8b1032938ff59cf0cb33691b7c741db32336ef5e068c9cbf943dcf13fa",
+        "infra/container/Dockerfile.dockerignore": "c1fdab23d6923be2158ceb80b01decb85b00806e49667bb2494caf7f092a7664",
+        "pyproject.toml": "9d3d76cb1f676262c0674dec52ef9a306f692017429f96e95a2cf26c7ad4944e",
+        "uv.lock": "0109bde902cf25d79a22c5dae5e6e3abf92774e3eccad78abbe778d7fde80804"
+      }
+    },
+    "gateway": {
+      "source": {
+        "repo": "tianshu-model-gateway",
+        "commit": "51121e6c02ed60605be14f31b19b484bc117a746"
+      },
+      "archive_sha256": "330d249029e5ee4e1cf035f0b093e65550360707172602ada40d2e0bc4ba38e5",
+      "file_count": 72,
+      "build_inputs_sha256": {
+        ".dockerignore": "444aede2d2058384ca990f9da64d13a8f6922a09c1d9352944366bfa5444ddd6",
+        "Dockerfile": "88f78fe822eb852394ab768246c17dec35411e2f49947755ce132129bcdcf70f",
+        "pyproject.toml": "95e0547ce48625d7297f526e7bfeb08bf74b1b2901da94fbfab19bac3f19a934",
+        "uv.lock": "56de5d63a49b0f4544ca3926eadfab4ff6b8f5b7506f976cb9b8832002700e29"
+      }
+    }
+  },
+  "contracts": {
+    "text-dialogue/v1": {
+      "manifest_sha256": "0f9880a1bfb151eb7ec48db1c086d779c99c972c51933de0501d77da535605f8",
+      "files": [
+        {
+          "path": "compatibility.md",
+          "sha256": "283126310906acc6c1beb8a8cf59ce5982ddffc1d0b4ba689c1ef71045aa20ea"
+        },
+        {
+          "path": "examples/documents.json",
+          "sha256": "7ff8da16faf3277cb996107d5909fbe452c9202eac6a0277fd9c7da4ed4f1fe1"
+        },
+        {
+          "path": "examples/negative-documents.json",
+          "sha256": "2feae6a24bf9e0cd09510386c110b929e44912e1a46dfb7c49d727046d7b940a"
+        },
+        {
+          "path": "examples/relations.json",
+          "sha256": "f39bff8a23a516d69b8af764b39741248312fd60b492c2204a99395e1f274395"
+        },
+        {
+          "path": "manifest.json",
+          "sha256": "0f9880a1bfb151eb7ec48db1c086d779c99c972c51933de0501d77da535605f8"
+        },
+        {
+          "path": "README.md",
+          "sha256": "a26361d1064062a6a2f5410a9e5fe578fbf232d35eb377a22f13ac87a174e629"
+        },
+        {
+          "path": "schemas/common.json",
+          "sha256": "b296a79d7eb0218d9b444c4ddbba837ad576f46a7a4e50fbcebec7618d8ef9af"
+        },
+        {
+          "path": "schemas/conversation.json",
+          "sha256": "e640040fa816100b258999087f8784d1e7d1d55df007992632e202e02b64b6cb"
+        },
+        {
+          "path": "schemas/identity-memory.json",
+          "sha256": "7e32e26aea89cc88fb48f9d0af43f32ea68de8561404ff495d3a8044985ef848"
+        },
+        {
+          "path": "schemas/model.json",
+          "sha256": "9ffa9055aca897ff57292555f37674d79df687d1d6c062df48267527a8ff3a7c"
+        },
+        {
+          "path": "schemas/web.json",
+          "sha256": "6d1be804b1ff3e0fd63d776cea6c1615455923c4b1fe7782fd52202713cc333c"
+        },
+        {
+          "path": "semantics.md",
+          "sha256": "19f3ea3ce83bc997dac92846aea3e872d22d7ac34cf9adcc2c76708c24b4139e"
+        }
+      ]
+    },
+    "profile-memory/v1": {
+      "manifest_sha256": "20ef6f36b64e39080101e1186672dbc9e5b20529e0c56971e1cc5a2880fe6048",
+      "files": [
+        {
+          "path": "examples.json",
+          "sha256": "bd55f3f392642a358cde7162ed1355edd58b1c3a550c46fb47d5c252b0a03cd2"
+        },
+        {
+          "path": "manifest.json",
+          "sha256": "20ef6f36b64e39080101e1186672dbc9e5b20529e0c56971e1cc5a2880fe6048"
+        },
+        {
+          "path": "README.md",
+          "sha256": "097c6fd35c1b2d516f4529fcd5080586c80e587bc6794f1da506498dffd5788b"
+        },
+        {
+          "path": "schemas/profiles.json",
+          "sha256": "a442cc60ef91b06c1eed65c7d0f40a691f81f131d68f14dba1d4552b95d0a56d"
+        },
+        {
+          "path": "semantics.md",
+          "sha256": "9a45bc352e1bfc63b9d94e1c1916470d652e45c425adf8595fa755d23d98ca49"
+        },
+        {
+          "path": "validate.py",
+          "sha256": "4fbff50a03eabffe75f46fc717d95214051e4146f93c3a8fb174e6e69f6ee549"
+        }
+      ]
+    },
+    "source-sync/v1": {
+      "manifest_sha256": "178d0ce66210bdfad4cfb85d8b5f0905b0b67f834e2a530efe5636ff0373633d",
+      "files": [
+        {
+          "path": "compatibility.md",
+          "sha256": "be0cd61080662554fedf66a8875d8bd20da0c888636195544452ea0f2f73d89e"
+        },
+        {
+          "path": "examples/documents.json",
+          "sha256": "5c923bc322f38ba58330cade3c97659963749650addf4337288b83d84359c50d"
+        },
+        {
+          "path": "examples/negative-documents.json",
+          "sha256": "c0301b7e7fe9c590b29d39cce54e1d78f418f00d15ef7adb004e29d204db4ce2"
+        },
+        {
+          "path": "examples/relations.json",
+          "sha256": "173c2c8ed2dc6651e76cded66b8fa6ea2cd6bd98c3c872165bf579faa3912c96"
+        },
+        {
+          "path": "interfaces.json",
+          "sha256": "e771ef7aee1caeecf7fba3b154274cde80256f27d6822e616e6d1dd42d30ddef"
+        },
+        {
+          "path": "manifest.json",
+          "sha256": "178d0ce66210bdfad4cfb85d8b5f0905b0b67f834e2a530efe5636ff0373633d"
+        },
+        {
+          "path": "README.md",
+          "sha256": "e36f925af0298bf868a564b7b4300cbcdc97889149db8cad5bcad0ddca984a79"
+        },
+        {
+          "path": "rules.py",
+          "sha256": "69eecf03bcdfb6904d02b597fd46ad1938d7d5e3a7eb4838159d081156dacfb8"
+        },
+        {
+          "path": "schemas/shared.json",
+          "sha256": "24b0c297007651ac4a3821cc41d68f8d6e7460d911cd42c4e4edc30b84b1d76d"
+        },
+        {
+          "path": "schemas/sources.json",
+          "sha256": "48749a31638f0d81e7ac9528ed3f3fc78400519409d2832ec77e0816e2d311fd"
+        },
+        {
+          "path": "schemas/workflow.json",
+          "sha256": "01424adddaf3d838337d37d0d1c0a58ccfb56ed7c984899c0602d37a86bf6e28"
+        },
+        {
+          "path": "semantics.md",
+          "sha256": "4de65d52931b53e16079403ae3e4a65b0e718ea330a126e713afc638f65f5a92"
+        },
+        {
+          "path": "validate.py",
+          "sha256": "9f63cf90dc2541d611210124cbf042d53bb5aae7ffd395a02e0f97823504b988"
+        }
+      ]
+    },
+    "web-conversation/v1": {
+      "manifest_sha256": "e493a1b5d0f4cec8d55995553faf84042f4c33a59365d15423e57f4dc70a6c09",
+      "files": [
+        {
+          "path": "authorization-examples.json",
+          "sha256": "0ffecb85fe8f3b1773c4788aa887fff0c9ba964440b9b53733efd7b6f26a9649"
+        },
+        {
+          "path": "examples.json",
+          "sha256": "21a7e99d3d063e62026b7c5165016921a6f9d90109959104e1287f7ce85118de"
+        },
+        {
+          "path": "manifest.json",
+          "sha256": "e493a1b5d0f4cec8d55995553faf84042f4c33a59365d15423e57f4dc70a6c09"
+        },
+        {
+          "path": "negative-examples.json",
+          "sha256": "3806c1fced4084ec085929f58952d3daf28f2eb01484e7ef5a22000161a05b67"
+        },
+        {
+          "path": "README.md",
+          "sha256": "3e95c73dddf4e4beec76b8de94b1404267dd43a1b1a947b3ed20cd7e34e52405"
+        },
+        {
+          "path": "schema.json",
+          "sha256": "d2c6925fc55a471a96b89687812266dadc4214e8b904639f7c0220c6144f2316"
+        },
+        {
+          "path": "semantics.md",
+          "sha256": "20559fdf482050d1cd2ff0ce1053f44f7587cfa7752cbfb950d539dd530ee5d5"
+        },
+        {
+          "path": "validate.py",
+          "sha256": "751c3209a00c2fa62d7e104be6f21b6af2fa3e4a85620a243ffe7e24c0792967"
+        }
+      ]
+    },
+    "model-protocol/v1": {
+      "manifest_sha256": "52711a71de56dbceebd1d5d96b2baf59a2d9551168029972d59111480f815141",
+      "files": [
+        {
+          "path": "compatibility.md",
+          "sha256": "32cfba5f8fbca8e6ef9aff7ab871931dd82b0d596eeb40030542d5bcc6ca4dc3"
+        },
+        {
+          "path": "errors.json",
+          "sha256": "e7a155ee5b5b058eb8d9d1195f0ee6887aff9ed94099b39939c76cb880996fa3"
+        },
+        {
+          "path": "examples/documents.json",
+          "sha256": "385414cc43fe07df1f19d561926ece8f6c44d3018cccd307d936fd33cd663428"
+        },
+        {
+          "path": "examples/negative-documents.json",
+          "sha256": "99cdcf4305ed2b0c12b5778311b6eeee282be3d5027ffddcdb30c56219bd99a9"
+        },
+        {
+          "path": "examples/relations.json",
+          "sha256": "1c3f18bb29b2023280419bb47e7a02151ba1dc1668f691d32a77d94d3aad5ff1"
+        },
+        {
+          "path": "interfaces.json",
+          "sha256": "312d0610f24b19407c205d293e4f282de5e4f497c17aa383692cd408250372d0"
+        },
+        {
+          "path": "manifest.json",
+          "sha256": "52711a71de56dbceebd1d5d96b2baf59a2d9551168029972d59111480f815141"
+        },
+        {
+          "path": "README.md",
+          "sha256": "963b6c561fddb5796f3eb3e2a7311565630cf63d3740379607fa43843e16773f"
+        },
+        {
+          "path": "requirements.txt",
+          "sha256": "9cba6d4508d006391ab899893990d5ac5d03b4811a0f71f152c5883897ee8120"
+        },
+        {
+          "path": "schemas/model.json",
+          "sha256": "de715187a3e99a8dffd2afb55c35d610328031c1cceae5d471088a74c143dd0f"
+        },
+        {
+          "path": "semantics.md",
+          "sha256": "df9f6e5286ef77b66a8c4aab76b9ff805dc7804dd0a91143f619e465b8620568"
+        },
+        {
+          "path": "test_validator.py",
+          "sha256": "1cbefa0b3c096caff4708826a442c50eca3004f4fdd206b7782356a3177a3dea"
+        },
+        {
+          "path": "validate.py",
+          "sha256": "11b40869ff390e5c62774f065cc897ea75be43cad45808720c2b904e1806f740"
+        }
+      ]
+    },
+    "diagnostics/v1": {
+      "manifest_sha256": "5d89f7a21637fd57cea4a236e17f8d8c4917799497ff44f87ee68ea614d4805f",
+      "files": [
+        {
+          "path": "event.schema.json",
+          "sha256": "c91ccc13f2a975f234934eb6e7d9ef03d9ad0a650e4c2acbdeb87761b3bf0a53"
+        },
+        {
+          "path": "examples.json",
+          "sha256": "a1139afd483d146f120df4e31c950ae81e7922dcbc57afcd92ac63a996675d0d"
+        },
+        {
+          "path": "manifest.json",
+          "sha256": "5d89f7a21637fd57cea4a236e17f8d8c4917799497ff44f87ee68ea614d4805f"
+        },
+        {
+          "path": "negative-examples.json",
+          "sha256": "a8a8453646ef2f4cf2ee870758316fe08f3f9522748d19730aba7338670b3632"
+        },
+        {
+          "path": "README.md",
+          "sha256": "c7a52353d75db9a7a36c8a966b62ced55d55edc22fb77d25d6033024f91d487b"
+        }
+      ]
+    }
+  },
+  "source_inventory_sha256": "c471ab8ef4b2b5995dbcf9138ae63028ddbdf76401a5b93aeefb24822fe9479d",
+  "source_inventory_location": "deploy/tianshu/.work/build-contexts-final/source-inventory.json (ignored local artifact; archives can be re-exported)",
+  "local_environment": {
+    "os": "Windows",
+    "python": "3.12.14",
+    "product_probe_dependencies": {
+      "aiohttp": "3.14.1",
+      "fastapi": "0.135.1",
+      "uvicorn": "0.42.0",
+      "httpx": "0.28.1",
+      "jsonschema": "4.26.0"
+    },
+    "packaging_dependencies": {
+      "jsonschema": "4.26.0",
+      "cryptography": "50.0.1"
+    }
+  },
+  "checks": {
+    "unit_tests": {
+      "command": "python -B -m unittest discover -s tests/deployment/packaging -v",
+      "result": "passed",
+      "tests": 24,
+      "duration_seconds": 4.291,
+      "scope": "synthetic contracts, credentials, TLS, Git repositories and new bundle directories"
+    },
+    "linux_plan_after_first_install_change": {
+      "command": "python -B -m unittest discover -s tests/deployment/packaging -p test_packaging.py -k linux_plan -v",
+      "result": "passed",
+      "tests": 1,
+      "duration_seconds": 0.412,
+      "scope": "read-only inventory refusal boundary; does not execute migrations or containers"
+    },
+    "ruff": {
+      "command": "ruff check deploy/tianshu tests/deployment/packaging",
+      "version": "0.15.7",
+      "result": "passed"
+    },
+    "compose_config": {
+      "command": "python -B tests/deployment/packaging/verify_compose.py --compose <official-v2.20.1-Windows-binary>",
+      "version": "2.20.1",
+      "binary_sha256": "7e6f1f0e5fadd6f834de067f4e321560eb1b6465dff62f59cffe36a23a300497",
+      "official_release_checksum_matched": true,
+      "result": "passed",
+      "four_services": true,
+      "non_root": true,
+      "one_public_port": true,
+      "no_socket_mount": true,
+      "literal_dollar_preserved": true,
+      "daemon_used": false,
+      "containers_started": false
+    },
+    "fixed_product_entrypoints": {
+      "kind": "fixed_source_entrypoints",
+      "runtime": "local_python",
+      "container_build": "not_run",
+      "results": [
+        {
+          "case": "platform_actual_cli",
+          "status": "passed",
+          "exit_code": 0
+        },
+        {
+          "case": "companion_actual_cli",
+          "status": "passed",
+          "exit_code": 0
+        },
+        {
+          "case": "memory_actual_cli",
+          "status": "passed",
+          "exit_code": 0
+        },
+        {
+          "case": "gateway_actual_cli",
+          "status": "passed",
+          "exit_code": 0
+        },
+        {
+          "case": "platform_real_preflight_empty_database",
+          "status": "passed",
+          "exit_code": 1,
+          "preflight": {
+            "status": "not_ready",
+            "checks": {
+              "config": "ok",
+              "contract": "ok",
+              "credentials": "ok",
+              "sidecars": "not_configured",
+              "store": "not_configured",
+              "tls": "ok",
+              "web_static": "failed"
+            },
+            "reasons": [
+              "requires_initialization",
+              "web_static_incomplete"
+            ],
+            "requires_initialization": true
+          },
+          "files_unchanged": true,
+          "file_count": 11,
+          "before_bytes_index_sha256": "d2e754a7ca2336517e902502ae9adabb0f61757d4254dcc816e1b91f923f17f1",
+          "after_bytes_index_sha256": "d2e754a7ca2336517e902502ae9adabb0f61757d4254dcc816e1b91f923f17f1"
+        },
+        {
+          "case": "memory_real_factory_config_load_store_intercepted",
+          "status": "passed",
+          "exit_code": 0,
+          "database_opened": false,
+          "scope": "instrumented_real_factory_not_runtime_startup"
+        },
+        {
+          "case": "memory_real_first_install_synthetic_schema_1_to_3",
+          "status": "passed",
+          "exit_codes": [
+            0,
+            0
+          ],
+          "schema": "3",
+          "scope": "synthetic_database_product_cli_not_container"
+        }
+      ],
+      "products": {
+        "platform": {
+          "repo": "tianshu-platform",
+          "commit": "fa85ee939a2affdda054ee7fa3155ec89ade6196"
+        },
+        "companion": {
+          "repo": "tianshu-companion",
+          "commit": "cf020fd338b9beefc9d7156a00158e915d41735a"
+        },
+        "memory": {
+          "repo": "tianshu-memory",
+          "commit": "2f4037620f47991f42a5daa10f471c34c9ba4fd4"
+        },
+        "gateway": {
+          "repo": "tianshu-model-gateway",
+          "commit": "51121e6c02ed60605be14f31b19b484bc117a746"
+        }
+      },
+      "result": "passed"
+    },
+    "fixed_source_export": {
+      "result": "passed",
+      "images_built": false,
+      "command": "python -B deploy/tianshu/release.py export-sources --manifest deploy/tianshu/release-manifest.example.json --repos <private-repos.json> --contracts-root <original-contracts> --output <new-fixed-contexts>"
+    },
+    "final_manifest_real_contract_bundle": {
+      "result": "passed",
+      "init": {
+        "status": "initialized_candidate",
+        "release_id": "tianshu-wave2-candidate-20260922",
+        "release_ready": false,
+        "services_started": false,
+        "checks": [
+          "inputs",
+          "tls",
+          "contracts"
+        ],
+        "blockers": [
+          "linux_images_unverified",
+          "joint_acceptance_unverified",
+          "memory_candidate_consumer_missing",
+          "memory_disable_boundary_unverified",
+          "chat_audit_unconnected",
+          "application_log_reclamation_missing",
+          "product_dockerfiles_need_review",
+          "model_origin_bootstrap_unverified",
+          "real_restore_lifecycle_unverified"
+        ]
+      },
+      "preflight": {
+        "status": "package_valid",
+        "release_ready": false,
+        "checks": [
+          "bundle_integrity",
+          "manifest",
+          "contract_bytes",
+          "mount_boundaries",
+          "tls_chain_and_names",
+          "disk_planning_reserve"
+        ],
+        "blockers": [
+          "linux_images_unverified",
+          "joint_acceptance_unverified",
+          "memory_candidate_consumer_missing",
+          "memory_disable_boundary_unverified",
+          "chat_audit_unconnected",
+          "application_log_reclamation_missing",
+          "product_dockerfiles_need_review",
+          "model_origin_bootstrap_unverified",
+          "real_restore_lifecycle_unverified"
+        ],
+        "linux_runtime": "not_executed"
+      },
+      "scope": "final manifest and original raw contract bytes; synthetic TLS and credentials, no database or services"
+    },
+    "linux_plan_with_final_source_inventory": {
+      "kind": "linux_packaging_smoke",
+      "release_id": "tianshu-wave2-candidate-20260922",
+      "release_ready": false,
+      "mode": "plan",
+      "products": {
+        "platform": {
+          "source": {
+            "repo": "tianshu-platform",
+            "commit": "fa85ee939a2affdda054ee7fa3155ec89ade6196"
+          },
+          "image": {
+            "reference": "tianshu/platform:fa85ee939a2a",
+            "digest": null,
+            "verification": "unverified"
+          },
+          "service_role": "web_and_authority"
+        },
+        "companion": {
+          "source": {
+            "repo": "tianshu-companion",
+            "commit": "cf020fd338b9beefc9d7156a00158e915d41735a"
+          },
+          "image": {
+            "reference": "tianshu/companion:cf020fd338b9",
+            "digest": null,
+            "verification": "unverified"
+          },
+          "service_role": "dialogue_orchestrator"
+        },
+        "memory": {
+          "source": {
+            "repo": "tianshu-memory",
+            "commit": "2f4037620f47991f42a5daa10f471c34c9ba4fd4"
+          },
+          "image": {
+            "reference": "tianshu/memory:2f4037620f47",
+            "digest": null,
+            "verification": "unverified"
+          },
+          "service_role": "memory_authority"
+        },
+        "gateway": {
+          "source": {
+            "repo": "tianshu-model-gateway",
+            "commit": "51121e6c02ed60605be14f31b19b484bc117a746"
+          },
+          "image": {
+            "reference": "tianshu/gateway:51121e6c02ed",
+            "digest": null,
+            "verification": "unverified"
+          },
+          "service_role": "model_router"
+        }
+      },
+      "results": [],
+      "claims": {
+        "real_models": false,
+        "nas": false,
+        "release_acceptance": false
+      },
+      "steps": [
+        {
+          "id": "compose_config",
+          "status": "not_run"
+        },
+        {
+          "id": "build_platform",
+          "status": "not_run"
+        },
+        {
+          "id": "build_companion",
+          "status": "not_run"
+        },
+        {
+          "id": "build_memory",
+          "status": "not_run"
+        },
+        {
+          "id": "build_gateway",
+          "status": "not_run"
+        },
+        {
+          "id": "memory_migrate-profiles",
+          "status": "not_run"
+        },
+        {
+          "id": "memory_migrate-sources",
+          "status": "not_run"
+        },
+        {
+          "id": "start_liveness",
+          "status": "not_run"
+        },
+        {
+          "id": "platform_preflight",
+          "status": "not_run"
+        },
+        {
+          "id": "stop_qa_stack",
+          "status": "not_run"
+        }
+      ],
+      "result": "not_run"
+    },
+    "runtime_inventory": {
+      "status": "not_available",
+      "reason": "docker_executable_missing",
+      "executed": false
+    },
+    "dep_d_historical_report_inspection": {
+      "dep_d_commit": "5c89fc662b923b91e7f33a44c3dc0fc2101c9dce",
+      "result": {
+        "status": "acceptance_integrity_valid",
+        "report_version": "dep-d/1",
+        "report_file_sha256": "a28c4dea1c2fb413261b8b65d5d65bced78549e0f15a85ec18f67112b1951822",
+        "subject_manifest_sha256": "7566375a763440d9408d1ae6a3502aab5521bd996cec3dc93c523ebcd660f922",
+        "counts": {
+          "pass": 0,
+          "fail": 0,
+          "dependency_missing": 0,
+          "skipped": 0,
+          "not_run": 20
+        },
+        "verdict": "incomplete",
+        "release_ready": false,
+        "blockers": [
+          "acceptance_incomplete",
+          "independent_runtime_identity_review_required",
+          "application_digests_unverified",
+          "coordinator_and_other_release_evidence_required"
+        ]
+      },
+      "scope": "format/hash adapter against original e86d622 example Git blob; NOT acceptance of final product combination"
+    }
+  },
+  "not_run": [
+    "linux_image_builds",
+    "linux_container_smoke",
+    "linux_uid_gid_flock_and_signal_paths",
+    "container_memory_first_install",
+    "authenticated_four_service_readiness",
+    "web_browser_and_real_model_acceptance",
+    "final_dep_d_joint_acceptance",
+    "logging_end_to_end_and_30_day_capacity",
+    "real_restore_lifecycle",
+    "observation_24h",
+    "nas"
+  ],
+  "blockers": [
+    "linux_images_unverified",
+    "joint_acceptance_unverified",
+    "memory_candidate_consumer_missing",
+    "memory_disable_boundary_unverified",
+    "chat_audit_unconnected",
+    "application_log_reclamation_missing",
+    "product_dockerfiles_need_review",
+    "model_origin_bootstrap_unverified",
+    "real_restore_lifecycle_unverified"
+  ],
+  "boundaries": {
+    "product_code_changed": false,
+    "nas_accessed": false,
+    "production_data_accessed": false,
+    "real_credentials_used": false,
+    "models_called": false,
+    "pushed_or_deployed": false
+  }
+}

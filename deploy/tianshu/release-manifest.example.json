@@ -6,10 +6,10 @@
     "platform": {
       "source": {
         "repo": "tianshu-platform",
-        "commit": "745ee9dd0b97ff1822a8fd4362e0626b7e3bb316"
+        "commit": "fa85ee939a2affdda054ee7fa3155ec89ade6196"
       },
       "image": {
-        "reference": "tianshu/platform:745ee9dd0b97",
+        "reference": "tianshu/platform:fa85ee939a2a",
         "digest": null,
         "verification": "unverified"
       },
@@ -18,10 +18,10 @@
     "companion": {
       "source": {
         "repo": "tianshu-companion",
-        "commit": "ab7c58250961807a2016c5f9128ce34b0065e182"
+        "commit": "cf020fd338b9beefc9d7156a00158e915d41735a"
       },
       "image": {
-        "reference": "tianshu/companion:ab7c58250961",
+        "reference": "tianshu/companion:cf020fd338b9",
         "digest": null,
         "verification": "unverified"
       },
@@ -30,10 +30,10 @@
     "memory": {
       "source": {
         "repo": "tianshu-memory",
-        "commit": "9df2e9e2eb6c2c36778f215306e6b20c377e18c4"
+        "commit": "2f4037620f47991f42a5daa10f471c34c9ba4fd4"
       },
       "image": {
-        "reference": "tianshu/memory:9df2e9e2eb6c",
+        "reference": "tianshu/memory:2f4037620f47",
         "digest": null,
         "verification": "unverified"
       },
@@ -581,7 +581,6 @@
     }
   ],
   "blockers": [
-    "ts104_106_rebind_required",
     "linux_images_unverified",
     "joint_acceptance_unverified",
     "memory_candidate_consumer_missing",
@@ -589,7 +588,8 @@
     "chat_audit_unconnected",
     "application_log_reclamation_missing",
     "product_dockerfiles_need_review",
-    "model_origin_bootstrap_unverified"
+    "model_origin_bootstrap_unverified",
+    "real_restore_lifecycle_unverified"
   ],
   "evidence": []
 }
