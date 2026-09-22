@@ -6,16 +6,15 @@ product build/runtime diagnostics may contain operator input. Only exit codes ar
 """
 
 import argparse
-import os
-import shutil
+import contextlib
 import subprocess
 import sys
-import time
 from pathlib import Path
 
-from bundle import preflight, verify_integrity
+from bundle import TOOLS, verify_integrity
 from manifest import (
     PRODUCTS,
+    HERE,
     Refused,
     digest,
     inside,
@@ -28,6 +27,11 @@ from manifest import (
 
 def plan(bundle, contexts):
     verify_integrity(bundle)
+    for name in TOOLS:
+        require(
+            (bundle / "tools" / name).read_bytes() == (HERE / name).read_bytes(),
+            "executor_bundle_version_mismatch",
+        )
     manifest = load_manifest(bundle / "release-manifest.json")
     inventory = read_json(contexts / "source-inventory.json")
     require(
@@ -73,161 +77,16 @@ def plan(bundle, contexts):
     return manifest, steps
 
 
-def execute(bundle, contexts, steps):
-    require(sys.platform == "linux", "linux_host_required")
-    require(shutil.which("docker") is not None, "docker_executable_missing")
-    require(
-        not os.environ.get("DOCKER_HOST") and not os.environ.get("DOCKER_CONTEXT"),
-        "custom_docker_endpoint_refused",
-    )
-    inspect = subprocess.run(
-        ["docker", "context", "inspect", "--format", "{{.Endpoints.docker.Host}}"],
-        capture_output=True,
-        timeout=15,
-        check=True,
-    )
-    require(
-        inspect.stdout.strip().startswith(b"unix:///"), "local_docker_endpoint_required"
-    )
-    preflight(bundle, runtime=True)
-    meta = read_json(bundle / "deployment.json")
-    require(
-        meta["project_name"].startswith("tianshu-qa-"), "isolated_qa_project_required"
-    )
-    require(
-        all(v == "isolated_test" for v in meta["tls_provenance"].values()),
-        "synthetic_tls_required",
-    )
-    platform = read_json(bundle / "config/platform/settings.json")
-    gateway = read_json(bundle / "config/gateway/settings.json")
-    require(
-        not platform["web"]["dialogue_enabled"] and not platform["providers"],
-        "synthetic_smoke_must_not_call_models",
-    )
-    require(
-        len(gateway["targets"]) == 1
-        and gateway["targets"][0]["base_url"] == gateway["platform_base_url"],
-        "external_model_target_refused",
-    )
-    for p in PRODUCTS:
-        for category in ("data", "logs"):
-            require(
-                not any(inside(bundle, category + "/" + p).iterdir()),
-                "fresh_qa_storage_required",
-            )
-    compose = [
-        "docker",
-        "compose",
-        "--project-directory",
-        str(bundle),
-        "-f",
-        str(bundle / "compose.json"),
-    ]
-    existing = subprocess.run(
-        [*compose, "ps", "--all", "--quiet"],
-        capture_output=True,
-        timeout=15,
-        check=True,
-    )
-    require(not existing.stdout.strip(), "existing_project_refused")
-    results = []
-
-    def run(name, argv, seconds):
-        start = time.monotonic()
-        try:
-            code = subprocess.run(
-                argv,
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=seconds,
-            ).returncode
-            status = "passed" if code == 0 else "failed"
-        except subprocess.TimeoutExpired:
-            code, status = None, "timeout"
-        results.append(
-            {
-                "step": name,
-                "status": status,
-                "exit_code": code,
-                "duration_seconds": round(time.monotonic() - start, 3),
-            }
-        )
-        return status == "passed"
-
-    if not run("compose_config", [*compose, "config", "--quiet"], 30):
-        return results
-    for step in steps:
-        if not run(step["id"], step["argv"], 1800):
-            return results
-    # Single project checked absent above; storage was verified empty before any write.
-    # Product-owned first-install commands only. These are never run by package init.
-    try:
-        for action, backup in (
-            ("migrate-profiles", "first-install.pre-profiles.sqlite"),
-            ("migrate-sources", "first-install.pre-sources.sqlite"),
-        ):
-            if not run(
-                "memory_" + action,
-                [
-                    *compose,
-                    "run",
-                    "--rm",
-                    "--no-deps",
-                    "memory",
-                    "--config",
-                    "/etc/tianshu/settings.json",
-                    action,
-                    "--backup",
-                    "/srv/tianshu/" + backup,
-                ],
-                60,
-            ):
-                return results
-        if run(
-            "start_liveness",
-            [
-                *compose,
-                "up",
-                "--detach",
-                "--no-build",
-                "--wait",
-                "--wait-timeout",
-                "120",
-            ],
-            180,
-        ):
-            # Actual non-root ownership/lock paths and entrypoints were exercised by up.
-            # Readiness is intentionally a separate DEP-D concern; liveness says nothing
-            # about dialogue/consumers, and this is never an existing-state upgrade rehearsal.
-            run(
-                "platform_preflight",
-                [
-                    *compose,
-                    "exec",
-                    "-T",
-                    "platform",
-                    "python",
-                    "-m",
-                    "services.platform",
-                    "--settings",
-                    "/etc/tianshu/settings.json",
-                    "preflight",
-                ],
-                30,
-            )
-    finally:
-        run("stop_qa_stack", [*compose, "down", "--timeout", "30"], 60)
-    return results
-
-
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--bundle", type=Path, required=True)
     parser.add_argument("--contexts", type=Path, required=True)
     parser.add_argument("--execute", action="store_true")
+    parser.add_argument(
+        "--scenario", choices=("liveness", "synthetic-dialogue"), default="liveness"
+    )
     parser.add_argument("--report-relative", default="reports/linux-smoke-report.json")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     try:
         bundle, contexts = args.bundle.absolute(), args.contexts.absolute()
         report_path = inside(bundle, args.report_relative)
@@ -243,20 +102,113 @@ def main():
             "mode": "execute" if args.execute else "plan",
             "products": manifest["products"],
             "results": [],
-            "claims": {"real_models": False, "nas": False, "release_acceptance": False},
+            "claims": {
+                "real_models": False,
+                "nas_acceptance": False,
+                "release_acceptance": False,
+            },
+            "scenario": args.scenario,
+            "source_inventory_sha256": digest(
+                (contexts / "source-inventory.json").read_bytes()
+            ),
+            "dimensions": {
+                name: "not_run"
+                for name in (
+                    "linux_images",
+                    "linux_permissions",
+                    "installed_dependencies",
+                    "runtime_uid_gid",
+                    "authenticated_readiness",
+                    "synthetic_dialogue",
+                    "core_stop_observed",
+                    "log_chain",
+                    "normal_restore",
+                    "nas_acceptance",
+                    "real_models",
+                    "browser_rendering",
+                )
+            },
+            "unexecuted_dimensions": [
+                "nas_acceptance",
+                "log_chain",
+                "normal_restore",
+                "real_models",
+                "browser_rendering",
+            ],
         }
         if args.execute:
-            report["results"] = execute(bundle, contexts, steps)
+            from linux_runtime import execute
+
+            report_path.parent.mkdir(exist_ok=True)
+            try:
+                execute(
+                    bundle,
+                    contexts,
+                    steps,
+                    report,
+                    report_path,
+                    dialogue=args.scenario == "synthetic-dialogue",
+                )
+            except (
+                Refused,
+                OSError,
+                ValueError,
+                KeyError,
+                subprocess.SubprocessError,
+            ) as error:
+                report["error"] = (
+                    str(error) if isinstance(error, Refused) else "linux_runtime_failed"
+                )
+                report["result"] = "failed"
+                report["unexecuted_dimensions"] = [
+                    k for k, v in report["dimensions"].items() if v == "not_run"
+                ]
+                if not report_path.exists() and str(error) != "runtime_owner_busy":
+                    write_json(report_path, report)
+                print("failed")
+                return 1
         else:
+            require(
+                not (bundle / "reports/execution-attempt.json").exists(),
+                "execution_already_attempted",
+            )
             planned = ["compose_config", *(s["id"] for s in steps)]
             planned += [
+                "inspect_images_and_dependencies",
+                "platform_issue_private_origin",
+                "authenticated_ready",
                 "memory_migrate-profiles",
                 "memory_migrate-sources",
                 "start_liveness",
                 "platform_preflight",
-                "stop_qa_stack",
+                "sigterm_owned_containers_preserve_evidence",
             ]
+            if args.scenario == "synthetic-dialogue":
+                planned += [
+                    "platform_publish_synthetic",
+                    "synthetic_model_and_dialogue",
+                ]
             report["steps"] = [{"id": name, "status": "not_run"} for name in planned]
+            from runtime_identity import lifecycle_lease, save
+
+            with (
+                lifecycle_lease(bundle)
+                if sys.platform == "linux"
+                else contextlib.nullcontext()
+            ):
+                require(
+                    not (bundle / "reports/execution-attempt.json").exists(),
+                    "execution_already_attempted",
+                )
+                save(bundle)
+                report["runtime_identity_sha256"] = digest(
+                    (bundle / "reports/runtime-identity.json").read_bytes()
+                )
+                report["result"] = "not_run"
+                report["unexecuted_dimensions"] = list(report["dimensions"])
+                write_json(report_path, report)
+            print("not_run")
+            return 0
         report["result"] = (
             "passed"
             if report["results"]
@@ -265,8 +217,12 @@ def main():
             if not args.execute
             else "failed"
         )
+        report["unexecuted_dimensions"] = [
+            k for k, v in report["dimensions"].items() if v == "not_run"
+        ]
         report_path.parent.mkdir(exist_ok=True)
-        write_json(report_path, report)
+        if not args.execute:
+            write_json(report_path, report)
         print(report["result"])
         return 0 if report["result"] in {"passed", "not_run"} else 1
     except Refused as error:

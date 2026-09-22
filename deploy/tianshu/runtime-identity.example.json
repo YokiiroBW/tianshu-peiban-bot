@@ -17,12 +17,12 @@
       "directory": "/srv/synthetic/tianshu-qa-packaging",
       "compose_file": "/srv/synthetic/tianshu-qa-packaging/compose.json",
       "lifecycle_owner": "coordinator",
-      "compose_sha256": "b8d6c56e4b3a3abcffe6327e4d73a2a9ecf089485666565d2fd5df81d6880794",
+      "compose_sha256": "a95f331fc9e8b171fe39b61282ddc8cfe9b887eb700611b86d1a27befdd5076e",
       "compose_json": {
         "name": "tianshu-qa-packaging",
         "services": {
           "platform": {
-            "image": "tianshu/platform:0a3cf65b8da1",
+            "image": "tianshu/platform:b98c8a2a0927",
             "platform": "linux/amd64",
             "user": "10001:10001",
             "read_only": true,
@@ -456,7 +456,7 @@
             }
           },
           "gateway": {
-            "image": "tianshu/gateway:ec20f95e3849",
+            "image": "tianshu/gateway:601974194042",
             "platform": "linux/amd64",
             "user": "10001:10001",
             "read_only": true,
@@ -618,7 +618,7 @@
           }
         }
       },
-      "compose_canonical_sha256": "76fa9186aa4307eac2e1ad173d7767e5e1bb3d6ee117699769d8688b49a20fc9"
+      "compose_canonical_sha256": "6ad5f44257bbf2f940a4c40f22547cd92fc4630e548aaa16c923872908124685"
     },
     "observability": {
       "name": "tianshu-qa-packaging-obs",
@@ -633,7 +633,7 @@
   "services": {
     "platform": {
       "project": "tianshu-qa-packaging",
-      "image_reference": "tianshu/platform:0a3cf65b8da1",
+      "image_reference": "tianshu/platform:b98c8a2a0927",
       "image_id": null,
       "repo_digests": [],
       "platform": null,
@@ -666,7 +666,7 @@
     },
     "gateway": {
       "project": "tianshu-qa-packaging",
-      "image_reference": "tianshu/gateway:ec20f95e3849",
+      "image_reference": "tianshu/gateway:601974194042",
       "image_id": null,
       "repo_digests": [],
       "platform": null,
@@ -851,27 +851,27 @@
     }
   ],
   "integrity": {
-    "release_manifest_sha256": "50d357d9db073db395be0610e4e69bbf11a8af5ef2b9eda385d47784c2651ce9",
-    "bundle_integrity_sha256": "85285193e6a2a34652a9b5c2bb7a8bdcd1acedf46231b6051402fe9d3a044f85",
-    "compose_sha256": "b8d6c56e4b3a3abcffe6327e4d73a2a9ecf089485666565d2fd5df81d6880794",
+    "release_manifest_sha256": "3cb9925e974c7e28a58c549b9eb59bd1282086b8c9b66314cb0ed5f698178355",
+    "bundle_integrity_sha256": "79827286cdeb3bc2a92377ebad565da6d496ec07ad50e0dfe4d28a9445936e56",
+    "compose_sha256": "a95f331fc9e8b171fe39b61282ddc8cfe9b887eb700611b86d1a27befdd5076e",
     "observability_compose_sha256": null,
     "config_sha256": {
       "config/companion/settings.json": "03a3825c7dd69d3da3fb4bc7bbee6d25f59eb6b97958969c26f40f776bb9410a",
-      "config/companion/tls/ca.pem": "4d50d621485fbf53020fe228c6fe70cd9d2afc63a03c93223b8b3b222d2a7212",
-      "config/companion/tls/server.key": "48cd5514a7f281f6bdc79832e08526ceeb7a0f05a01adc135721536b9b2061ba",
-      "config/companion/tls/server.pem": "48281cf5d915b51918cbe21dfd73f677042a2f18e7b218df682bb2f7749400a3",
+      "config/companion/tls/ca.pem": "4e8cb752f8493f0cfb841303309dc02821cc5b05a8e5693387569f1878868052",
+      "config/companion/tls/server.key": "0a88ab3f33e3f8c01fc9c359b1d4506dd3409fee123ebf407e5c2823419f3eee",
+      "config/companion/tls/server.pem": "31cef358e6e2c08ff7b157ef7cfb55051785557d2b3f58e5f1ab71bc6df44a61",
       "config/gateway/settings.json": "c1b184888248146566a349880337d86f466adae54627643264439fe90bb4860f",
-      "config/gateway/tls/ca.pem": "4d50d621485fbf53020fe228c6fe70cd9d2afc63a03c93223b8b3b222d2a7212",
-      "config/gateway/tls/server.key": "48cd5514a7f281f6bdc79832e08526ceeb7a0f05a01adc135721536b9b2061ba",
-      "config/gateway/tls/server.pem": "98926673203c5978d74b3d5177aa0d00aefdabc0ad4f81ed000bbd22e232e79a",
+      "config/gateway/tls/ca.pem": "4e8cb752f8493f0cfb841303309dc02821cc5b05a8e5693387569f1878868052",
+      "config/gateway/tls/server.key": "0a88ab3f33e3f8c01fc9c359b1d4506dd3409fee123ebf407e5c2823419f3eee",
+      "config/gateway/tls/server.pem": "a6d3055c5694db5971c96b2bac2fef23c222b4f8f75d07dd1b7937481c38f47b",
       "config/memory/settings.json": "876971a6b9a611b481069dceae056c2f67027eeae724019475baa812f51d6f5e",
-      "config/memory/tls/ca.pem": "4d50d621485fbf53020fe228c6fe70cd9d2afc63a03c93223b8b3b222d2a7212",
-      "config/memory/tls/server.key": "48cd5514a7f281f6bdc79832e08526ceeb7a0f05a01adc135721536b9b2061ba",
-      "config/memory/tls/server.pem": "f2634eacd838264ef04d971851a4085796bac214482f21910ea2542c20afcbb7",
-      "config/platform/settings.json": "8d9bafeccf29c2a2b40836b8f3cf56be10c048fa58e93a808b6d79acf286efdb",
-      "config/platform/tls/ca.pem": "4d50d621485fbf53020fe228c6fe70cd9d2afc63a03c93223b8b3b222d2a7212",
-      "config/platform/tls/server.key": "48cd5514a7f281f6bdc79832e08526ceeb7a0f05a01adc135721536b9b2061ba",
-      "config/platform/tls/server.pem": "aaf22182705f5292ddb91b8ca827355c0407e2721112a27efdfb76c4b6b8154c",
+      "config/memory/tls/ca.pem": "4e8cb752f8493f0cfb841303309dc02821cc5b05a8e5693387569f1878868052",
+      "config/memory/tls/server.key": "0a88ab3f33e3f8c01fc9c359b1d4506dd3409fee123ebf407e5c2823419f3eee",
+      "config/memory/tls/server.pem": "ddf3de5cfb6b11335ccbddeb5b002ab30611469e973b59f4b8ed7e678bf5f9d0",
+      "config/platform/settings.json": "86a60aaf905b9ab22a2f8e951f53a2035cdcf33f0f91fc61a522fd9429121783",
+      "config/platform/tls/ca.pem": "4e8cb752f8493f0cfb841303309dc02821cc5b05a8e5693387569f1878868052",
+      "config/platform/tls/server.key": "0a88ab3f33e3f8c01fc9c359b1d4506dd3409fee123ebf407e5c2823419f3eee",
+      "config/platform/tls/server.pem": "0b870bdfb61ea65dd1c67bb69f5093ea3ad300d17563f5c3e0b96ca6fc2b2d5e",
       "contracts/diagnostics/v1/manifest.json": "ca2cef5d003b5c2e8cc2ec6519af9db00ee07533cd72ba925164cf9fdbbb5882",
       "contracts/model-origin-renewal/v1/manifest.json": "ca2cef5d003b5c2e8cc2ec6519af9db00ee07533cd72ba925164cf9fdbbb5882",
       "contracts/model-protocol/v1/manifest.json": "ca2cef5d003b5c2e8cc2ec6519af9db00ee07533cd72ba925164cf9fdbbb5882",
@@ -880,22 +880,30 @@
       "contracts/text-dialogue/v1/manifest.json": "ca2cef5d003b5c2e8cc2ec6519af9db00ee07533cd72ba925164cf9fdbbb5882",
       "contracts/web-conversation/v1/manifest.json": "ca2cef5d003b5c2e8cc2ec6519af9db00ee07533cd72ba925164cf9fdbbb5882",
       "tools/acceptance.py": "d9db2d954fa14e44d66c8ae8dd4f862672cc75dc797ea43e90cfd50231bcee65",
-      "tools/bundle.py": "9fac1ff69b5d7b3c8175d3881c1cd84579bf0be702999fcfea0b34bfc0fad689",
+      "tools/bootstrap.py": "2954ad49575c3f27d7293808463e37be707d39c34c7a435acece3d5b689aa503",
+      "tools/bundle.py": "e381a65811190421f17a594c96b27bd3f7a291d1487685e88c6b1e576eb56b36",
       "tools/compose.py": "f1baedc1110ec7015c3238bed9366fd85e6ef2ebfbc43b6496f327210a4bd502",
       "tools/configuration.py": "ffdea5c79186f55bfd50d162ea24c653edeaa7469740ac8c5b1139e43c10ad95",
-      "tools/linux_validate.py": "c3e4dddcefd89ad431dfdd4728c7bc80c7876dfd8a3ff4edfa5e0c4012134eda",
+      "tools/container_probe.py": "5e9572f0f33740d1ec5f4474a754ed014d8256a94b9015049ad11454d04cd090",
+      "tools/dependency_probe.py": "48ea9e399c886c1c2a826bb66eb3adcac4a26a0e410a21e70f0b8248cd579b1f",
+      "tools/linux_bootstrap.py": "b1311182f31c59da01de2140b21efd10cb7639d8f6e5bc9f8c9adfdbaee8e192",
+      "tools/linux_runtime.py": "18879b9b8964fcb8f96473693be3fc3731bbb77cddbd1e64bf5e4c4d025ece8e",
+      "tools/linux_validate.py": "8ad48a468a73708fa53a101de53c7ae6d841f55876bd76e62225ed2ffda0a0df",
       "tools/manifest.py": "44e9162d27daf9d7d0a4f65e4838cd47051544556134ef3c1a7a66804274d75a",
       "tools/observability_contract.py": "5b1bd08f313a02a7e55e18d0c3e870fab0c6930fee2637ea45a0f617e786a500",
       "tools/observability_release.py": "0187a57147ff2b29eec5c9fb1995e9ee077510a18322e5525da88c69d6d4ace6",
       "tools/release-manifest.schema.json": "9f7382c0bdcaf049558c6c37e75738331d200c23a98d568b34c3b73ac72704fe",
       "tools/release.py": "86ae5f39491fc80ee65d082a1752a470839b3e710037fcd2197baba072647d08",
       "tools/requirements.txt": "11236f9c2ba07f835218e751d1d09085df6b245b89b3b44c07706d1312b42f67",
-      "tools/runtime_guard.py": "a84148716462680c0e658d70422e481400e2b933df5341d0c43608e278f5d5cd"
+      "tools/runtime-identity.schema.json": "3e8e621195c9cc55138dfc925b9577160ae275b51d1edaa4a1f034a9410982b9",
+      "tools/runtime_guard.py": "a84148716462680c0e658d70422e481400e2b933df5341d0c43608e278f5d5cd",
+      "tools/runtime_identity.py": "078bcd7c3214858c78b0037d48da035c606479d75b3066e3485061bfe0c23aa6",
+      "tools/synthetic_model.py": "c9abaada921db499410d463859abfe3c575427c7dc7ea08abfb92be73feced58"
     },
     "sources": {
       "platform": {
         "repo": "tianshu-platform",
-        "commit": "0a3cf65b8da19eabdd5d72f9f999281cbb52fdac"
+        "commit": "b98c8a2a09279125df08bd48f3fab3422f3de165"
       },
       "companion": {
         "repo": "tianshu-companion",
@@ -907,7 +915,7 @@
       },
       "gateway": {
         "repo": "tianshu-model-gateway",
-        "commit": "ec20f95e3849ebee968c4f00d7a31d14eccaa40f"
+        "commit": "601974194042641c5a85cc3c061cbd1880d7daf1"
       }
     }
   },

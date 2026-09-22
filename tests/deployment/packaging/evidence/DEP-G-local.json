@@ -1,0 +1,128 @@
+{
+  "kind": "dep-g-installed-platform-bootstrap",
+  "result": "passed",
+  "source": {
+    "repo": "tianshu-platform",
+    "commit": "b98c8a2a09279125df08bd48f3fab3422f3de165"
+  },
+  "installed_source_sha256": {
+    "services/platform/__init__.py": "969ba05afc13834d2397ead1ea730913aa73ce8caedf97f6ecdbc2df9a0a7969",
+    "services/platform/__main__.py": "ac834fffd8a8f9dba4c6b5e78e615203786a288bdec86728678d277bfcbc1237",
+    "services/platform/asset_page_config.py": "f03ee5f2b31a517d2b9633d3b9182116a6ffe29761497ad3a49b29d817044ce3",
+    "services/platform/assets.py": "c95519d46f9b7bd16871497255704ead30e69b66267bf615ff651a2acb8dea9e",
+    "services/platform/auth.py": "af754cedd81cd36415b7afe6268f2de886a85716153b5f01273df05194e24a19",
+    "services/platform/contracts.py": "bc1574f088d0092a5b10b5e4691e52aedbe0ff9cd9726720ad862c2c1e16bb06",
+    "services/platform/diagnostics.py": "775f0edc02032f823ae2b150af81cd76a888ef90edede912e21134adb1fdd4b0",
+    "services/platform/diagnostics_config.py": "cac52b1497803630a4974e7d2a2ce4e3df35673d8a572df6dc8334e3d8a247ff",
+    "services/platform/home.py": "852b833e4249bfe6ecdec253919978b3306179a988199fa5b33e227057ccd9a7",
+    "services/platform/local_work.py": "341b4c5de47bb9b141a84c76bbcc39d5961fb4b612ecc437eadd2b39de88eaca",
+    "services/platform/media/__init__.py": "bb9c90f10310acac804ba73498c5fc2f5c223b563aebeeb74ee465816b293cf0",
+    "services/platform/media/identity.py": "c434d0cb6d181127961cc80633bb7c936bb15ca12a32e81e79cfed3135ec5169",
+    "services/platform/media/metadata.py": "839e79632997705fa88d3aca9677ab9dddf54ccaaf37dfc202d7daf97cc66b91",
+    "services/platform/media/rules/__init__.py": "a2eb8fbf8d26c6b8076587625ad2a192e5ae19ad1d317113a8f46e5e3fc2931d",
+    "services/platform/media/rules/evaluator.py": "6d7f125a8004d86c648f14fcd8ec52854867be5f3ffbdfa1a0e2ae2a31a95c7a",
+    "services/platform/media/rules/matching.py": "914c24ec1faf880fde5b7dc93f9e0e461c3baada465f174699b727dfdf5de716",
+    "services/platform/media/rules/policy.py": "577358868ce21c738466e5e6999e0e6f723ec06111773a8f210cfc0b38c3c706",
+    "services/platform/media/rules/regex_process.py": "dc4010e465c5f189bbe4cd59ae8e4c0cb622a9f9f13e6724338823310dc4271b",
+    "services/platform/media/rules/regex_worker.py": "7f76c1a19143ca8c181bb9bf0052000f33caa57c75696a71fa77b071892f15ef",
+    "services/platform/media/rules/types.py": "898cf36ed3ba14344999e73a23f2e9858be38cb12fac5549cc4e53d503cf6b65",
+    "services/platform/media/sidecars.py": "8cef8d55dbff230ed40c312390069b926e4eedb04023459910888f8c57bc3ab3",
+    "services/platform/media/types.py": "bf9496a0887a68e41a1b2cbb9cd68d2653e6d68d04fa78021569bbf85f52eb87",
+    "services/platform/model_origin_renewal.py": "e353e8034e6c1e121ffdc3bf4a5cacc21868353482d98a95eec98362f91309a5",
+    "services/platform/models.py": "4606e2b4da1f36683ecb90d0d237333311541800a87d9829774e75105fa39dfe",
+    "services/platform/origins.py": "d43b518e509b395f2b38b20c2c3a5ee6c5beb47294f165863c22907b834a5bd7",
+    "services/platform/persona_client.py": "93ae29aa8202707ef65d32be212c7ed4aa61d72b325fe9860b51255b4dc9128c",
+    "services/platform/persona_page_config.py": "99b0d8bdcb6ce6674759fd2235fea5b60e623e7494301d79995d3ddf13b05dc5",
+    "services/platform/projections.py": "c7ac31f722f1fe4f33ed87ac6e64be8ec885a3a326efc394b492e8d36a9ab342",
+    "services/platform/runtime_health.py": "72800dbbdcf2d9dd477cb3cfd865bfbbad40f8ee3bc64377b0a8328fa00cf88e",
+    "services/platform/server.py": "ad7a5c4079b3a92d7ac887dd681e1917c31ee510289478761aae396975cfbc35",
+    "services/platform/service.py": "36fe5d59cc37ba11ad831f8dce2ba31be1a139adb4474837662f896c68bc409a",
+    "services/platform/sources.py": "992fdbc6bf67b4f2f31ba0d10e2d75156b938608eb363f5ae0a6da9c483be33d",
+    "services/platform/storage.py": "a174a63378e9eecdea2b15db6ce2a3153eda6dc7cf76ffb991cdbae781382d30",
+    "services/platform/tasks.py": "980086d1eb063e856f4ee0c3325662605ea5e6230559db508a8d71964ea98bb6",
+    "services/platform/transport.py": "6a9d8b8fd52ad60b12cabfe13a2880b49dfc03acfaec59c3328c6ef55d1f03dc",
+    "services/platform/web_asset_queries.py": "9d7f7b328f3abc18696be7245095916a7c9af91e0db66dc21a397a28cf63df3b",
+    "services/platform/web_assets.py": "f1d4f50b3babbf5d07cfe56f440d0a05bdcba4cf05e09f7a803d0b285b7a1dd3",
+    "services/platform/web_console.py": "f2c82fb2ec2a7d271f3015c0de230bf2abe77c1825a97deab493b77884e98926",
+    "services/platform/web_dialogue.py": "0853253d5bf2bf21023c05dc9a10053b5da9053eb5e7a3640c1f07a018d60f09",
+    "services/platform/web_models.py": "7eb6909041fe54ffc154c9bd2df9875510e430cf3ff4e640b3c8b52ceaf516b0",
+    "services/platform/web_personas.py": "b9da756244da9a305f5d50725dde4eb6f48e87ab86637a6334668ef9b9912c21",
+    "services/platform/web_sender.py": "b5735f1b2b3cb7f01457d31bbeddcf07dabf14685d429b421f376afbb65ac6df"
+  },
+  "contract_manifests": {
+    "text-dialogue/v1": "0f9880a1bfb151eb7ec48db1c086d779c99c972c51933de0501d77da535605f8",
+    "profile-memory/v1": "20ef6f36b64e39080101e1186672dbc9e5b20529e0c56971e1cc5a2880fe6048",
+    "source-sync/v1": "178d0ce66210bdfad4cfb85d8b5f0905b0b67f834e2a530efe5636ff0373633d",
+    "web-conversation/v1": "e493a1b5d0f4cec8d55995553faf84042f4c33a59365d15423e57f4dc70a6c09",
+    "model-protocol/v1": "52711a71de56dbceebd1d5d96b2baf59a2d9551168029972d59111480f815141",
+    "diagnostics/v1": "5d89f7a21637fd57cea4a236e17f8d8c4917799497ff44f87ee68ea614d4805f",
+    "model-origin-renewal/v1": "c5017724187c1386b647fcc5b41ab3cb1702f27d6192f3a87fcefb23e7a5a61c"
+  },
+  "results": [
+    {
+      "scenario": "liveness",
+      "public_cli_actions": [
+        "issue"
+      ],
+      "status": "passed",
+      "private_ref_injection": true
+    },
+    {
+      "scenario": "synthetic-dialogue",
+      "public_cli_actions": [
+        "publish",
+        "issue"
+      ],
+      "status": "passed",
+      "private_ref_injection": true
+    }
+  ],
+  "linux": false,
+  "docker": false,
+  "nas_acceptance": false,
+  "release_ready": false,
+  "schema_version": "dep-g-local-evidence/1",
+  "captured_at": "2026-09-22T15:44:42.018231+00:00",
+  "host": {
+    "system": "Windows",
+    "python": "3.12.14",
+    "docker_available": false,
+    "wsl_available": false
+  },
+  "test_runs": [
+    {
+      "command": "python -m unittest discover -s tests/deployment/packaging -p test*.py -v",
+      "passed": 61,
+      "skipped": 0,
+      "basis": "final local unit and mocked Docker boundaries; includes 21 DEP-G tests"
+    }
+  ],
+  "checks": {
+    "ruff": "passed",
+    "pip_check": "passed",
+    "fixed_git_exports": "passed",
+    "raw_contract_inventory": "passed",
+    "plan": "not_run",
+    "execute_on_windows": "refused:linux_host_required"
+  },
+  "source_inventory_sha256": "03cfdd234c8c05908bfd18d5848a2ba24bf9ca0e286b3b2f8d99efe9ba013d56",
+  "unexecuted_dimensions": [
+    "linux_image_build",
+    "linux_image_inspect",
+    "linux_uid_gid_mount_permissions",
+    "linux_flock",
+    "linux_compose_lifecycle",
+    "linux_authenticated_readiness",
+    "linux_synthetic_dialogue",
+    "full_log_chain",
+    "nine_owner_restore",
+    "nas_acceptance",
+    "real_models",
+    "browser_rendering"
+  ],
+  "cli_report_sha256": {
+    "linux-smoke-report.json": "e6664199158bd77ab88ed8024445658badc9a8d219ff38664aa06e877204f655",
+    "unavailable.json": "ad1ad91474f1e1b279a4bdfe73a6668b6714b10b828bb0063cf2aa326784d539"
+  },
+  "final_execute_refusal": "linux_host_required"
+}

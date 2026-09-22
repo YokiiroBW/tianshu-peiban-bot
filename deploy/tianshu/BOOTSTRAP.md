@@ -1,5 +1,10 @@
 # 首次全新合成安装的授权引导
 
+DEP-G 新增容器入口见 [LINUX-VALIDATION.md](LINUX-VALIDATION.md)：
+`synthetic_init.py` 创建新 scope，`linux_validate.py` 默认 plan；显式执行后由平台容器公开 CLI
+初始化/签发，合成对话模式才 publish 专用模型。私有 ref 更新与 inventory 绑定、不确定结果
+不重试，两种场景分别记录。下文 DEP-E 是既有本地进程路径，不替代 Linux 容器证据。
+
 普通包 `init` 只准备配置/空卷，不产生可用来源，也不启动产品。
 本轮自动执行边界是 `tests/release_acceptance/product_stack.py`：四个新数据库、随机私有凭据、
 临时CA、loopback HTTPS、明确的 `provider-synthetic`。不能用于旧部署、真实账户或真实模型。
