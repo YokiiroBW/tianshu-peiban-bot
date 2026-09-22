@@ -1,0 +1,381 @@
+{
+  "report_version": "dep-f-lifecycle/1",
+  "started_at": "2026-09-22T14:30:44.516509+00:00",
+  "finished_at": "2026-09-22T14:31:44.452809+00:00",
+  "runtime": {
+    "python": "3.12.14",
+    "sqlite": "3.53.1",
+    "os": "Windows"
+  },
+  "tests": {
+    "run": 63,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0,
+    "results": [
+      {
+        "case": "test_compose_lifecycle.ComposeContractTests.test_abnormal_exit_oom_and_running_owner_rejected",
+        "status": "passed",
+        "duration_seconds": 0.266
+      },
+      {
+        "case": "test_compose_lifecycle.ComposeContractTests.test_compose_binding_requires_pinned_release_and_no_extra_write_mount",
+        "status": "passed",
+        "duration_seconds": 0.156
+      },
+      {
+        "case": "test_compose_lifecycle.ComposeContractTests.test_foreign_project_readonly_mount_also_rejected",
+        "status": "passed",
+        "duration_seconds": 0.141
+      },
+      {
+        "case": "test_compose_lifecycle.ComposeContractTests.test_remote_docker_endpoint_rejected_without_execution",
+        "status": "passed",
+        "duration_seconds": 0.109
+      },
+      {
+        "case": "test_compose_lifecycle.ComposeContractTests.test_replacement_and_automatic_restart_rejected_after_quiescence",
+        "status": "passed",
+        "duration_seconds": 0.156
+      },
+      {
+        "case": "test_compose_lifecycle.ComposeContractTests.test_two_project_identity_restart_and_sigterm_contract",
+        "status": "passed",
+        "duration_seconds": 0.282
+      },
+      {
+        "case": "test_compose_lifecycle.ComposeContractTests.test_wrong_project_directory_image_mount_and_extra_owner_fail_closed",
+        "status": "passed",
+        "duration_seconds": 0.156
+      },
+      {
+        "case": "test_enumeration_failures.EnumerationFailureTests.test_backup_stage_enumeration_fault_cannot_publish",
+        "status": "passed",
+        "duration_seconds": 3.141
+      },
+      {
+        "case": "test_enumeration_failures.EnumerationFailureTests.test_new_source_fault_after_nine_writers_exit_keeps_gate",
+        "status": "passed",
+        "duration_seconds": 1.5
+      },
+      {
+        "case": "test_enumeration_failures.EnumerationFailureTests.test_partial_scandir_iteration_aborts_all_enumeration_consumers",
+        "status": "passed",
+        "duration_seconds": 0.234
+      },
+      {
+        "case": "test_enumeration_failures.EnumerationFailureTests.test_payload_fault_cannot_hide_extra_file_from_verify_or_restore",
+        "status": "passed",
+        "duration_seconds": 2.594
+      },
+      {
+        "case": "test_enumeration_failures.EnumerationFailureTests.test_restore_stage_enumeration_fault_cannot_publish_target",
+        "status": "passed",
+        "duration_seconds": 4.297
+      },
+      {
+        "case": "test_enumeration_failures.EnumerationFailureTests.test_source_entry_metadata_failure_cannot_hide_a_directory",
+        "status": "passed",
+        "duration_seconds": 1.5
+      },
+      {
+        "case": "test_enumeration_failures.EnumerationFailureTests.test_source_enumeration_fault_rejected_before_stopping",
+        "status": "passed",
+        "duration_seconds": 0.953
+      },
+      {
+        "case": "test_lifecycle.LifecycleTests.test_cancel_during_stop_keeps_gate_and_no_backup",
+        "status": "passed",
+        "duration_seconds": 1.062
+      },
+      {
+        "case": "test_lifecycle.LifecycleTests.test_code_update_and_rollback_only_select_disabled_code",
+        "status": "passed",
+        "duration_seconds": 3.703
+      },
+      {
+        "case": "test_lifecycle.LifecycleTests.test_current_authority_change_blocks_old_restore_and_target_not_overwritten",
+        "status": "passed",
+        "duration_seconds": 3.563
+      },
+      {
+        "case": "test_lifecycle.LifecycleTests.test_direct_legacy_backup_cannot_bypass_registered_lifecycle",
+        "status": "passed",
+        "duration_seconds": 1.031
+      },
+      {
+        "case": "test_lifecycle.LifecycleTests.test_existing_backup_is_rejected_before_stopping_writers",
+        "status": "passed",
+        "duration_seconds": 0.922
+      },
+      {
+        "case": "test_lifecycle.LifecycleTests.test_exit_receipt_does_not_replace_kernel_exit",
+        "status": "passed",
+        "duration_seconds": 1.406
+      },
+      {
+        "case": "test_lifecycle.LifecycleTests.test_fixed_depe_interface_and_missing_or_misowned_volumes",
+        "status": "passed",
+        "duration_seconds": 0.156
+      },
+      {
+        "case": "test_lifecycle.LifecycleTests.test_nine_real_writers_stop_backup_restore_and_remain_disabled",
+        "status": "passed",
+        "duration_seconds": 4.969
+      },
+      {
+        "case": "test_lifecycle.LifecycleTests.test_plan_is_readonly_without_process_or_docker",
+        "status": "passed",
+        "duration_seconds": 1.016
+      },
+      {
+        "case": "test_lifecycle.LifecycleTests.test_timeout_with_residual_writer_never_publishes",
+        "status": "passed",
+        "duration_seconds": 1.484
+      },
+      {
+        "case": "test_lifecycle.LifecycleTests.test_wrong_birth_unknown_owner_and_binding_drift_rejected_before_stop",
+        "status": "passed",
+        "duration_seconds": 1.781
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_backup_failure_prevents_code_switch",
+        "status": "passed",
+        "duration_seconds": 0.219
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_cancellation_mid_snapshot_releases_locks",
+        "status": "passed",
+        "duration_seconds": 0.516
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_changed_implicit_rowid_cannot_bypass_current_authority",
+        "status": "passed",
+        "duration_seconds": 0.656
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_cli_plan_and_error_redaction",
+        "status": "passed",
+        "duration_seconds": 0.297
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_code_switch_failure_recovers_previous_selection_without_data_restore",
+        "status": "passed",
+        "duration_seconds": 0.875
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_code_update_backs_up_first_and_never_changes_data",
+        "status": "passed",
+        "duration_seconds": 0.719
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_damaged_payload_and_changed_index_rejected",
+        "status": "passed",
+        "duration_seconds": 0.422
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_duplicate_json_and_cross_product_volume_overlap",
+        "status": "passed",
+        "duration_seconds": 0.062
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_extra_package_file_rejected",
+        "status": "passed",
+        "duration_seconds": 0.547
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_failure_after_quarantine_rolls_back_only_directory_switch",
+        "status": "passed",
+        "duration_seconds": 1.391
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_full_snapshot_wal_sidecar_guard_contract_and_restore",
+        "status": "passed",
+        "duration_seconds": 0.672
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_hardlink_rejected_before_copy",
+        "status": "passed",
+        "duration_seconds": 0.078
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_incompatible_or_unverified_code_rejected",
+        "status": "passed",
+        "duration_seconds": 0.125
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_init_and_backup_default_plan_do_not_write",
+        "status": "passed",
+        "duration_seconds": 0.156
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_limits_and_broken_sqlite",
+        "status": "passed",
+        "duration_seconds": 0.157
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_memory_guard_ahead_of_db_fails_closed",
+        "status": "passed",
+        "duration_seconds": 0.109
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_missing_sidecar_and_undeclared_file_rejected",
+        "status": "passed",
+        "duration_seconds": 0.141
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_no_authority_or_wrong_identity_rejected",
+        "status": "passed",
+        "duration_seconds": 0.531
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_old_backup_cannot_revive_forgotten_record_with_old_guard",
+        "status": "passed",
+        "duration_seconds": 0.641
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_partial_copy_failure_never_publishes",
+        "status": "passed",
+        "duration_seconds": 0.906
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_path_escape_drive_unc_reserved_and_wrong_scope",
+        "status": "passed",
+        "duration_seconds": 0.078
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_platform_companion_gateway_new_facts_each_block_old_restore",
+        "status": "passed",
+        "duration_seconds": 0.844
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_replacement_requires_identity_and_retains_previous_target",
+        "status": "passed",
+        "duration_seconds": 1.093
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_restore_failure_does_not_publish_target",
+        "status": "passed",
+        "duration_seconds": 0.579
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_restore_plan_keeps_all_files_unchanged",
+        "status": "passed",
+        "duration_seconds": 0.609
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_restored_synthetic_app_functionality_and_restart",
+        "status": "passed",
+        "duration_seconds": 0.984
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_rowid_all_aliases_shadowed_without_identity_proof_rejects_backup",
+        "status": "passed",
+        "duration_seconds": 1.407
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_rowid_case_shadowing_blocks_complete_restore_after_identity_change",
+        "status": "passed",
+        "duration_seconds": 1.921
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_rowid_integer_primary_key_controls_with_all_aliases_shadowed",
+        "status": "passed",
+        "duration_seconds": 3.0
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_rowid_without_rowid_controls_restore_then_reject_changed_primary_key",
+        "status": "passed",
+        "duration_seconds": 1.735
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_snapshot_traversal_and_duplicate_entries_rejected_even_with_digest",
+        "status": "passed",
+        "duration_seconds": 0.375
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_sqlite_active_writer_blocks_snapshot",
+        "status": "passed",
+        "duration_seconds": 0.281
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_sqlite_cannot_be_misclassified_as_raw_sidecar",
+        "status": "passed",
+        "duration_seconds": 0.078
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_symlink_or_windows_junction_rejected",
+        "status": "passed",
+        "duration_seconds": 0.094
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_unknown_secret_field_is_not_copied_into_backup",
+        "status": "passed",
+        "duration_seconds": 0.047
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_unrelated_or_restored_authority_never_trusted",
+        "status": "passed",
+        "duration_seconds": 0.719
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_update_plan_keeps_wal_and_every_file_unchanged",
+        "status": "passed",
+        "duration_seconds": 0.156
+      },
+      {
+        "case": "test_recovery.RecoveryTests.test_verified_release_is_explicitly_unsupported_until_evidence_adapter",
+        "status": "passed",
+        "duration_seconds": 0.062
+      }
+    ]
+  },
+  "source_sha256": {
+    "ops/recovery/__init__.py": "4104f0004d183cb09b53215ea182b9cad0bb142ac5545693716cdd652bc7de6c",
+    "ops/recovery/__main__.py": "78b23f458c8d42d3a2ab5e54742166ad8e542874cbde581f5cff8a4256ee0424",
+    "ops/recovery/compose_backend.py": "7431a5619b2c2caee5be316962bd2ff6bc0e2a1688e02ca7d8a0de8b0e690cad",
+    "ops/recovery/engine.py": "c615c02eed531d1bc569d53c84232fb9978d3d58ad265d5ddfd61b4a7e4c906e",
+    "ops/recovery/lifecycle.py": "d2312f84cb49ff23f8f6506adfaa99e4793c61db6ba4a27714c522102f4f9406",
+    "ops/recovery/lifecycle_binding.py": "395a54b58383cbd3dd1217f34c779c7426e0205a3e1f0e868f47b0f179cb77da",
+    "ops/recovery/manifest.py": "2e0406e9b51a15be1978c524ded650bba90994c628c59d94c9da924b08014f9e",
+    "ops/recovery/process_backend.py": "57f95883c9fe37fb23058a8b2727e5f29efaba7cabde2efa0c54e89ec431b9fd",
+    "ops/recovery/process_identity.py": "6eb342892122c48b3f2167ebd6081516fbdcda1dda8c6b6fba75e1ca4f87a699",
+    "ops/recovery/safety.py": "13da1598a988e4101e564462fd33893134c5bffe8b37e8ca7f2ce25313a8d5e2",
+    "ops/recovery/snapshot.py": "e3b552b3d27b1f07c77dbec71e9901eefb943643582d5e1f8aac4270d71feb8c",
+    "tests/deployment/recovery/fixture_app.py": "0fe7c86e2b9bc9c8f7300a94275ee5dcae4c1c579e39feef49f4749c97841a2b",
+    "tests/deployment/recovery/fixtures.py": "eec074c2cab77c46cb72785f94ab5faeee1565406fc50f188ea6a9198af8a921",
+    "tests/deployment/recovery/lifecycle_fixtures.py": "8e899e36a9afed9c06b6be85a84bddfb5f9ef2875b7d566afe7c5ffb3bc6628d",
+    "tests/deployment/recovery/lifecycle_worker.py": "a90d14131b86a899b1bf7fbebbb33ab24dc24ecfb878b9665e566f27b06d2b03",
+    "tests/deployment/recovery/run_verification.py": "f3d656f4c227039a46fb4137383a932e8a02be35225888bcf36be27cfbbae93d",
+    "tests/deployment/recovery/test_compose_lifecycle.py": "83519c34ab13eec3779d454710b0b598832dbdabd3f1773872fd8b45131e0411",
+    "tests/deployment/recovery/test_enumeration_failures.py": "62e82f3372acc3771c342942e1d93d9de65b3de855673a0c8cbbcd94cccf5004",
+    "tests/deployment/recovery/test_lifecycle.py": "725a023f05f32651d1923a2fe806cb9be4bbceec0cbe2d3141354456e44f7add",
+    "tests/deployment/recovery/test_recovery.py": "7b1ebc1a8f680730279bf8dbfcc0105744f98ab83ece50b1d4cac001fbb558c2"
+  },
+  "dep_a_interface": {
+    "status": "not_run",
+    "reason": "explicit_fixed_inputs_not_supplied"
+  },
+  "dep_e_interface": {
+    "commit": "cb371ab453621841e4a498598529a4ddcc41d3b2",
+    "consumer": "ops/recovery/manifest.py",
+    "blob_sha256": {
+      "VOLUME-INTERFACE.md": "0f35a84c7ab6088f796d60c6311ca09cfc99089638f0c5e1f1192269caf3b2ba",
+      "release-manifest.schema.json": "9f7382c0bdcaf049558c6c37e75738331d200c23a98d568b34c3b73ac72704fe",
+      "release-manifest.example.json": "2d44a4e2e9fa17d51a8063ed8177614d5384e59ea75e3835defe238e509f7722"
+    }
+  },
+  "claims": {
+    "synthetic_recovery": true,
+    "real_product_restore": false,
+    "linux_container": false,
+    "nas": false,
+    "disaster_recovery_without_current_authority": false,
+    "real_model": false,
+    "production_restore_drill_evidence": false,
+    "local_synthetic_process_lifecycle": true,
+    "compose_contract_only": true,
+    "automatic_service_activation": false
+  },
+  "status": "passed"
+}

@@ -1,6 +1,27 @@
 # DEP-F：真实合成进程停写、备份恢复与更新生命周期
 
-状态：**ready_for_review，已固定本地实现与证据；未集成，Linux 容器/四真实产品/NAS 未验收。**
+状态：**R1 目录枚举失败关闭返修完成，ready_for_review；未集成，Linux 容器/四真实产品/NAS 未验收。**
+
+## 2026-09-22 R1 返修：枚举错误不得发布不完整备份
+
+返修基线 `4598bb902f5c23b0da31698c773bb669c5a9e426`。已只读协调的 `docs/development/reviews/DEP-F-review-2026-09-22.md` 与 `.runtime/review-dep-f/probe_unreadable.py`。协调原 56 项通过，但独立九进程反例确认 `os.walk` 默认吞掉不可读 Loki 子目录，导致源文件存在而备份缺失仍 complete；原提交未通过验收、未合并。**下方首轮 56 项及其机器报告为历史，当前证据以本节为准。**
+
+运行时只改 `ops/recovery/safety.py`、`snapshot.py`：新增共享 `walk_tree` 显式使用 `os.scandir`，文件集合、完整卷目录集合、发布前 `sync_tree` 三个消费者全部使用。目录打开、迭代和 `DirEntry.is_dir` 的 PermissionError/OSError 都转为固定 `directory_enumeration_failed`，不输出异常正文、路径或内容。不仅添加 `os.walk(onerror=...)`，因为其条目类型查询仍会自行吞错。每层迭代器在交还结果前关闭，以显式栈保留 topdown/bottom-up 行为；不改变备份/恢复合同、owner 及门禁逻辑，不删除锁或恢复 writer。
+
+新增 `test_enumeration_failures.py` 七项：
+
+- 源嵌套卷 PermissionError/OSError 在可预检时先拒绝，九 writer 继续正常运行，无新门禁、备份或完成收据。
+- 九个真实 writer 全部退出后才出现源枚举故障，备份不发布，源 must-retain 原字节、维护门禁及原锁 inode/大小保持。
+- 条目元数据查询错误不能把目录误判为文件而略过其子树。
+- payload 原空子目录加入未登记文件，再隐藏该目录的枚举；包验证和恢复都拒绝，不发布目标/新增完成收据。
+- 迭代中途 PermissionError/OSError 对 files、volume_directories、sync_tree 三条路径均失败关闭。
+- 备份及恢复各自在停写、复制之后的暂存目录枚举故障，不发布备份/目标/完成收据；未完成 staging 标为 ABORTED 并保留。
+
+测试仅注入文件系统枚举故障，没有替换真实停止、封包或恢复。原 `test_lifecycle.py` helper 新增等待登记后 action lease 真正释放，避免启动下一真实 writer 与前一登记释放的小窗口竞争；本轮第一次故障套件也发现 Windows 活动 byte lock 不允许读内容，检查改为 inode/大小。首次修前包枚举/部分迭代反例已失败，测试环境错误修正后才计通过。
+
+验证：新增七项专项 **7/0错误/0失败/0skip，14.578 秒**；完整受影响回归 **63/0错误/0失败/0skip，59.886 秒**，退出 0。命令仍为同一 `run_verification.py`，本次输出 [verification-depf-r1-2026-09-22.json](../../tests/deployment/recovery/verification-depf-r1-2026-09-22.json)。Ruff 0.14.0 检查及格式通过（20 Python 文件），完整返修 diff 和空白检查通过；20 个源文件 SHA256 与当前工作树及 Git 暂存 blob 逐项一致。Python3.12.14/SQLite3.53.1/Windows，原 DEP-E 固定接口未变化、未重跑产品或扩大范围。
+
+本次增量共七文件：两个运行时文件、`LIFECYCLE.md`、两个测试文件、新机器报告、本交接。返修提交为包含本节的 Git 提交，完整 HEAD 另发总协调；固定后停写。旧版本在枚举失败时生成的包可能已漏数据，无法仅由该包证明完整，应从可读且停写的当前权威重备份。Linux 容器、四真实产品恢复、NAS、权威丢失灾难恢复及自动放行的所有既有缺口保持，未增加任何实机通过声明。
 
 ## 目标、范围与固定版本
 

@@ -15,7 +15,7 @@ from lifecycle_fixtures import compose_fixture, interface
 from ops.recovery.engine import Recovery
 from ops.recovery.lifecycle import operate
 from ops.recovery.manifest import release
-from ops.recovery.safety import RecoveryError, file_hash, files
+from ops.recovery.safety import RecoveryError, file_hash, files, lease
 
 HERE = Path(__file__).resolve().parent
 WORKSPACE = HERE.parents[2]
@@ -116,6 +116,16 @@ class LifecycleTests(unittest.TestCase):
                 self.assertIsNone(process.poll(), service)
                 self.assertLess(time.monotonic(), deadline)
                 time.sleep(0.02)
+            # Registration is written just before admission releases its lease.
+            # Wait for that release before starting the next real writer.
+            while True:
+                try:
+                    with lease(self.source / ".lifecycle/action.lock"):
+                        break
+                except RecoveryError as error:
+                    self.assertEqual(str(error), "deployment_busy")
+                    self.assertLess(time.monotonic(), deadline)
+                    time.sleep(0.02)
         return binding
 
     def action(self, name="backup", *args, execute=True, expected=0):

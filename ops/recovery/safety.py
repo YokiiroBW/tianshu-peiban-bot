@@ -145,10 +145,37 @@ def sync_dir(path):
             os.close(descriptor)
 
 
+def walk_tree(root, *, topdown=True):
+    """Never interpret failed readdir or entry classification as an empty subtree.
+
+    os.walk also suppresses DirEntry.is_dir errors even when onerror is supplied,
+    so enumerate explicitly. Close each iterator before yielding; use an explicit
+    stack to retain the existing top-down/bottom-up behavior without recursion.
+    """
+    pending = [(safe_path(root), None, None)]
+    while pending:
+        directory, dirs, names = pending.pop()
+        if dirs is not None:
+            yield str(directory), dirs, names
+            continue
+        dirs, names = [], []
+        try:
+            with os.scandir(safe_path(directory)) as entries:
+                for entry in entries:
+                    safe_path(directory / entry.name)
+                    collection = dirs if entry.is_dir(follow_symlinks=False) else names
+                    collection.append(entry.name)
+        except OSError:
+            raise RecoveryError("directory_enumeration_failed") from None
+        if topdown:
+            yield str(directory), dirs, names
+        else:
+            pending.append((directory, dirs, names))
+        pending.extend((directory / name, None, None) for name in reversed(dirs))
+
+
 def sync_tree(root):
-    for directory, dirs, _ in os.walk(
-        safe_path(root), topdown=False, followlinks=False
-    ):
+    for directory, dirs, _ in walk_tree(root, topdown=False):
         for name in dirs:
             safe_path(Path(directory) / name)
         sync_dir(safe_path(directory))
@@ -192,7 +219,7 @@ def files(root, *, max_files=10000):
     root = safe_path(root)
     result = []
     folded = set()
-    for directory, dirs, names in os.walk(root, followlinks=False):
+    for directory, dirs, names in walk_tree(root):
         for name in sorted(dirs + names):
             path = safe_path(Path(directory) / name)
             rel = path.relative_to(root).as_posix()

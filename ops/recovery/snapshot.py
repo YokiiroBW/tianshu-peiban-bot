@@ -15,6 +15,7 @@ from .safety import (
     read_json,
     require,
     safe_path,
+    walk_tree,
 )
 
 ASCII_LOWER = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
@@ -26,7 +27,7 @@ def volume_directories(root, manifest, *, max_directories):
         if volume["kind"] != "directory":
             continue
         base = child(root, volume["host_path"])
-        for directory, dirs, _ in os.walk(base, followlinks=False):
+        for directory, dirs, _ in walk_tree(base):
             for path in [
                 safe_path(directory),
                 *(safe_path(os.path.join(directory, name)) for name in dirs),
