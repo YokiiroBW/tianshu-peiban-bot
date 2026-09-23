@@ -34,7 +34,7 @@ def compose(
             "mem_limit": memory,
             "cpus": 1.5 if name == "loki" else 0.75,
             "restart": "unless-stopped",
-            "stop_grace_period": "30s",
+            "stop_grace_period": "90s" if name == "vector" else "30s",
             "logging": {
                 "driver": "local",
                 "options": {"max-size": "10m", "max-file": "3"},

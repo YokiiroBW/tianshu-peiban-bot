@@ -71,6 +71,30 @@ class ProductInventoryTests(unittest.TestCase):
         }
         self.assertEqual(before, after)
 
+    def test_directory_config_pins_every_nested_file_and_rejects_empty_tree(self):
+        service = next(s for s in self.manifest["services"] if s["id"] == "obs-grafana")
+        service["config_path"] = "observability/config/provisioning"
+        put(self.source / "release-manifest.json", self.manifest)
+        directory = self.source / service["config_path"]
+        self.assertTrue(directory.is_file())
+        directory.unlink()
+        directory.mkdir(parents=True)
+        with self.assertRaisesRegex(RecoveryError, "empty_service_config_tree"):
+            inventory(self.source)
+        put(directory / "datasources/main.yaml", {"synthetic": True})
+        put(directory / "alerting/rules.yaml", {"synthetic": True})
+        original = inventory(self.source)
+        refs = [
+            r
+            for r in original["config_references"]
+            if r["id"].startswith("obs-grafana-")
+        ]
+        self.assertEqual(len(refs), 2)
+        put(directory / "alerting/rules.yaml", {"synthetic": "changed"})
+        self.assertNotEqual(
+            inventory(self.source)["config_references"], original["config_references"]
+        )
+
     def test_missing_guard_or_settings_rejected(self):
         guard = self.source / "data/memory/main.db.source-guard.json"
         raw = guard.read_bytes()

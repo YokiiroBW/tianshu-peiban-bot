@@ -74,14 +74,22 @@ def inventory(directory, *, max_files=10000):
             }
         )
     # Pin every settings document; values, tokens and paths in settings never leave IO.
-    refs = [
-        {
-            "id": service["id"],
-            "reference": "deployment:" + service["config_path"],
-            "sha256": file_hash(child(directory, service["config_path"])),
-        }
-        for service in manifest["services"]
-    ]
+    refs = []
+    for service in manifest["services"]:
+        base = child(directory, service["config_path"])
+        names = files(base, max_files=max_files) if base.is_dir() else [None]
+        require(bool(names), "empty_service_config_tree")
+        for name in names:
+            relative = service["config_path"] + ("/" + name if name else "")
+            refs.append(
+                {
+                    "id": service["id"]
+                    + ("-" + digest(name.encode())[:16] if name else ""),
+                    "reference": "deployment:" + relative,
+                    "sha256": file_hash(child(directory, relative)),
+                }
+            )
+            require(len(refs) + len(resources) <= max_files, "file_count_limit")
     return {
         "schema_version": "1.0.0",
         "release_manifest_sha256": file_hash(manifest_path),

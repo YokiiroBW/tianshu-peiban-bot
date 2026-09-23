@@ -7,7 +7,7 @@ from acceptance import require
 
 
 class OwnedContainers:
-    def __init__(self, docker, binding, evidence, timeout=30):
+    def __init__(self, docker, binding, evidence, timeout=90):
         self.docker, self.binding, self.evidence = docker, binding, evidence
         self.timeout = timeout
         self.pins = {}
