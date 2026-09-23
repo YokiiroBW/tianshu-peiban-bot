@@ -126,7 +126,7 @@ class Runner:
         return result.stdout if capture else None
 
 
-def execute(root, contexts, steps, report, path, *, dialogue=False):
+def execute(root, contexts, steps, report, path, *, dialogue=False, real_provider=None):
     endpoint = local_daemon()
     with lifecycle_lease(root):
         from linux_validate import plan
@@ -142,6 +142,7 @@ def execute(root, contexts, steps, report, path, *, dialogue=False):
                 report,
                 path,
                 dialogue=dialogue,
+                real_provider=real_provider,
                 endpoint=endpoint,
             )
             report["result"] = "passed"
@@ -172,6 +173,7 @@ def leased_execute(
     path,
     *,
     dialogue=False,
+    real_provider=None,
     endpoint="unix:///var/run/docker.sock",
 ):
     core_only = not (root / "observability-release.json").exists()
@@ -316,7 +318,7 @@ def leased_execute(
                 report.setdefault("installed_dependencies", {})[owner] = json.loads(
                     installed
                 )
-        publication, password = prepare(root, dialogue)
+        publication, password = prepare(root, dialogue, real_provider=real_provider)
         dimensions["linux_images"] = "passed"
         dimensions["installed_dependencies"] = "passed"
         first_install_container(root, compose, lifecycle.oneoff, publication)
@@ -450,6 +452,24 @@ def leased_execute(
                 input=json.dumps(dict(password=password)).encode(),
             )
             dimensions["synthetic_dialogue"] = "passed"
+        if real_provider is not None:
+            script = (root / "tools/container_probe.py").read_text()
+            run(
+                "real_model_dialogue",
+                [
+                    *compose,
+                    "exec",
+                    "-T",
+                    "platform",
+                    "python",
+                    "-c",
+                    script,
+                    "real-dialogue",
+                ],
+                100,
+                input=json.dumps(dict(password=password)).encode(),
+            )
+            dimensions["real_model_dialogue"] = "passed"
         run(
             "platform_preflight",
             [

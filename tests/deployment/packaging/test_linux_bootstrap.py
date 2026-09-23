@@ -93,6 +93,54 @@ class LinuxBootstrapTests(unittest.TestCase):
         self.assertIs(config["web"]["dialogue_enabled"], False)
         verify_integrity(self.root)
 
+    def test_explicit_real_provider_keeps_secret_out_of_publication_and_config(self):
+        provider = dict(
+            base_url="https://provider.example/v1",
+            model_id="test-text",
+            addresses=["8.8.8.8"],
+            secret="test-secret-only",
+            text_probe_passed=True,
+        )
+        publication, _ = prepare(self.root, False, real_provider=provider)
+        model = publication["providers"][0]
+        self.assertEqual(model["base_url"], provider["base_url"])
+        self.assertEqual(model["verified_capabilities"], ["text"])
+        self.assertNotIn(provider["secret"], json.dumps(publication))
+        self.assertNotIn(
+            provider["secret"],
+            (self.root / "config/platform/settings.json").read_text(),
+        )
+        self.assertIn(
+            "TS_ACCEPTANCE_MODEL='test-secret-only'",
+            (self.root / "private/gateway.env").read_text(),
+        )
+        verify_integrity(self.root)
+
+    def test_real_provider_rejects_private_targets_and_secret_interpolation_before_mutation(
+        self,
+    ):
+        original = (self.root / "bundle-integrity.json").read_bytes()
+        baseline = dict(
+            base_url="https://provider.example/v1",
+            model_id="test-text",
+            addresses=["8.8.8.8"],
+            secret="test-secret-only",
+            text_probe_passed=True,
+        )
+        for changes in (
+            {"addresses": ["127.0.0.1"]},
+            {"secret": "bad'\\nKEY=x"},
+            {"secret": "${TOKEN}"},
+            {"text_probe_passed": False},
+            {"base_url": "http://provider.example/v1"},
+        ):
+            with self.subTest(changes=changes), self.assertRaises(Refused):
+                prepare(self.root, False, real_provider={**baseline, **changes})
+        with self.assertRaises(Refused):
+            prepare(self.root, True, real_provider=baseline)
+        self.assertEqual(original, (self.root / "bundle-integrity.json").read_bytes())
+        verify_integrity(self.root)
+
     def test_synthetic_dialogue_only_modifies_private_candidate(self):
         original = (PACKAGE / "release-manifest.example.json").read_bytes()
         publication, _ = prepare(self.root, True)

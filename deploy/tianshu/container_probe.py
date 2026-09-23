@@ -120,7 +120,7 @@ def ready(role, port):
     )
 
 
-def dialogue():
+def dialogue(*, real=False):
     password = json.load(sys.stdin)["password"]
     settings = json.load(open("/etc/tianshu/settings.json"))
     base = "https://platform.internal:8443"
@@ -142,7 +142,11 @@ def dialogue():
         base + "/api/web/messages",
         {
             **selection,
-            "text": "DEP-G synthetic container check",
+            "text": (
+                "This is a synthetic deployment acceptance message. Reply briefly with: Tianshu OK."
+                if real
+                else "DEP-G synthetic container check"
+            ),
             "client_id": str(uuid.uuid4()),
         },
         headers,
@@ -164,7 +168,11 @@ def dialogue():
                     assert item["replies"] and all(
                         r["state"] == "sent"
                         and r["content_state"] == "available"
-                        and r["text"] == "DEP-G synthetic recorded reply."
+                        and (
+                            isinstance(r["text"], str) and bool(r["text"].strip())
+                            if real
+                            else r["text"] == "DEP-G synthetic recorded reply."
+                        )
                         for r in item["replies"]
                     )
                     return
@@ -197,6 +205,8 @@ if __name__ == "__main__":
             ready(sys.argv[2], sys.argv[3])
         elif sys.argv[1] == "dialogue":
             dialogue()
+        elif sys.argv[1] == "real-dialogue":
+            dialogue(real=True)
         elif sys.argv[1] == "model-ready":
             model_ready()
         else:

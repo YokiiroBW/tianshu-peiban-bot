@@ -43,6 +43,7 @@ TOOLS = (
     "linux_runtime.py",
     "linux_lifecycle.py",
     "linux_bootstrap.py",
+    "real_provider.py",
     "bootstrap.py",
     "runtime_identity.py",
     "runtime-identity.schema.json",

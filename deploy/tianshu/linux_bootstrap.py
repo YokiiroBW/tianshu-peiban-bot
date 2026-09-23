@@ -66,8 +66,13 @@ def request_frame(document):
     return data
 
 
-def prepare(root, dialogue):
+def prepare(root, dialogue, *, real_provider=None):
     """Only a fresh explicit synthetic deployment can call this, under the shared lease."""
+    require(not (dialogue and real_provider is not None), "model_scenarios_conflict")
+    if real_provider is not None:
+        from real_provider import validate
+
+        validate(real_provider)
     platform = read_json(root / "config/platform/settings.json")
     gateway = read_json(root / "config/gateway/settings.json")
     require(
@@ -106,7 +111,7 @@ def prepare(root, dialogue):
     )
     changes = {"private/gateway.env": env.encode()}
     publication = None
-    if dialogue:
+    if dialogue or real_provider is not None:
         address = read_json(root / "deployment.json")["compose_inputs"]["service_ips"][
             "gateway"
         ]
@@ -122,8 +127,22 @@ def prepare(root, dialogue):
             model_policy=dict(mode="preserve_client", fields={}),
             reasoning_policy=dict(mode="preserve_client", fields={}),
         )
+        addresses = [address]
+        secret_name, secret = "TS_SYNTHETIC_MODEL", secrets.token_urlsafe(32)
+        if real_provider is not None:
+            model.update(
+                provider_id="provider-acceptance",
+                base_url=real_provider["base_url"],
+                credential_ref="secret-ref:acceptance",
+                credential_namespace="operator-acceptance",
+                model_id=real_provider["model_id"],
+                capability_verification="verified_test_account",
+                verified_capabilities=["text"],
+            )
+            addresses = real_provider["addresses"]
+            secret_name, secret = "TS_ACCEPTANCE_MODEL", real_provider["secret"]
         platform["providers"] = {
-            "provider-synthetic": {
+            model["provider_id"]: {
                 **{
                     k: model[k]
                     for k in (
@@ -136,21 +155,21 @@ def prepare(root, dialogue):
                     )
                 },
                 "model_ids": [model["model_id"]],
-                "reviewed_addresses": [address],
+                "reviewed_addresses": addresses,
             }
         }
         platform["web"]["dialogue_enabled"] = True
         gateway["targets"].append(
             dict(
                 base_url=model["base_url"],
-                addresses=[address],
+                addresses=addresses,
                 allow_private_http=False,
             )
         )
-        gateway["clients"][0]["provider_id"] = "provider-synthetic"
-        gateway["secret_references"]["secret-ref:synthetic"] = "TS_SYNTHETIC_MODEL"
+        gateway["clients"][0]["provider_id"] = model["provider_id"]
+        gateway["secret_references"][model["credential_ref"]] = secret_name
         changes["private/gateway.env"] = (
-            env + "TS_SYNTHETIC_MODEL='" + secrets.token_urlsafe(32) + "'\n"
+            env + secret_name + "='" + secret + "'\n"
         ).encode()
         manifest = read_json(root / "release-manifest.json")
         require(manifest["status"] == "candidate", "candidate_required")
