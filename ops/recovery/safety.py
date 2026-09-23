@@ -59,7 +59,11 @@ def relative(value):
     parts = value.split("/")
     for part in parts:
         require(part not in ("", ".", ".."), "path_escape")
-        require(re.fullmatch(r"[A-Za-z0-9_.-]+", part) is not None, "invalid_path_name")
+        # Loki filesystem chunks use base64 padding. These are ordinary filename
+        # characters on both hosts; path escapes and drive syntax remain refused.
+        require(
+            re.fullmatch(r"[A-Za-z0-9_.+=-]+", part) is not None, "invalid_path_name"
+        )
         require(not part.endswith((".", " ")), "invalid_path_name")
         require(
             part.split(".")[0].upper()

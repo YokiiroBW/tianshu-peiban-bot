@@ -266,6 +266,17 @@ class RecoveryTests(unittest.TestCase):
         with self.assertRaisesRegex(RecoveryError, "unexpected_or_missing_fields"):
             release(document)
 
+    def test_base64_padded_filename_round_trip(self):
+        name = "logs/platform/chunks/MWEwY2Y3MTAyN2Y6+Zg=="
+        path = self.source / name
+        path.parent.mkdir()
+        path.write_bytes(b"synthetic opaque chunk")
+        checksum = self.backup()
+        self.restore(checksum)
+        self.assertEqual(
+            (self.root / "deployments/restored" / name).read_bytes(), path.read_bytes()
+        )
+
     def test_full_snapshot_wal_sidecar_guard_contract_and_restore(self):
         # An idle SQLite connection leaves committed data only in WAL. No fixture owner runs.
         db = sqlite3.connect(self.source / "data/companion/main.db")
