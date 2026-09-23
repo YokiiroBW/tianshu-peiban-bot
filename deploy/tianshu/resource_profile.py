@@ -1,9 +1,29 @@
 """Explicit NAS QA resource profile; never presents missing PID control as verified."""
 
 from manifest import require
+import ipaddress
+from urllib.parse import urlsplit
 
 KIND = "nas-cpuset-qa-v1"
 LAN_KIND = "nas-cpuset-lan-qa-v1"
+
+
+def validate_bind(profile, address, origin):
+    if profile["kind"] != LAN_KIND:
+        require(address == "127.0.0.1", "nas_profile_loopback_only")
+        return
+    address = ipaddress.ip_address(address)
+    require(
+        address.version == 4
+        and any(
+            address in ipaddress.ip_network(n)
+            for n in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
+        ),
+        "nas_lan_profile_explicit_private_address_required",
+    )
+    require(
+        urlsplit(origin).hostname == str(address), "nas_lan_origin_address_mismatch"
+    )
 
 
 def validate(profile):

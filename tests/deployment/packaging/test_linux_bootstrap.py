@@ -452,6 +452,7 @@ class LinuxBootstrapTests(unittest.TestCase):
             read_json(root / "compose.json")["services"]["platform"]["ports"],
             ["192.168.31.210:20443:8443"],
         )
+        self.assertEqual(preflight(root, core_only=True)["status"], "package_valid")
         with self.assertRaisesRegex(Refused, "nas_qa_profile_not_release_approved"):
             preflight(root, release=True)
 

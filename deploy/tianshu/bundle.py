@@ -385,7 +385,7 @@ def preflight(root, release=False, runtime=False, *, core_only=False):
     from urllib.parse import urlsplit
 
     metadata = read_json(root / "deployment.json")
-    from resource_profile import validate
+    from resource_profile import validate, validate_bind
 
     profile = validate(metadata["compose_inputs"].get("resource_profile"))
     if profile is not None:
@@ -394,9 +394,8 @@ def preflight(root, release=False, runtime=False, *, core_only=False):
             metadata["project_name"].startswith("tianshu-qa-"),
             "nas_profile_synthetic_only",
         )
-        require(
-            metadata["compose_inputs"]["bind_address"] == "127.0.0.1",
-            "nas_profile_loopback_only",
+        validate_bind(
+            profile, metadata["compose_inputs"]["bind_address"], metadata["web_origin"]
         )
         require(
             all(v == "isolated_test" for v in metadata["tls_provenance"].values()),
