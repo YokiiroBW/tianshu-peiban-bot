@@ -9,6 +9,7 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+from datetime import datetime
 
 from helpers import emit, event
 from acceptance import require
@@ -20,6 +21,19 @@ from reconcile import compare, read_logs
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
+
+
+def query_start(records, now_ns):
+    # Collectors can ingest the retained G baseline before this scenario starts.
+    # Include that baseline rather than comparing it against a later-only query.
+    timestamps = [
+        int(
+            datetime.fromisoformat(row["timestamp"].replace("Z", "+00:00")).timestamp()
+            * 10**9
+        )
+        for row in records
+    ]
+    return min([now_ns, *timestamps]) - 10**9
 
 
 class Scenarios:
@@ -36,7 +50,7 @@ class Scenarios:
         evidence.artifact("baseline-source.json", self.generated)
         self.instances = {p: str(uuid.uuid4()) for p in binding.logs}
         self.sequences = {p: 0 for p in binding.logs}
-        self.start = time.time_ns() - 10**9
+        self.start = query_start(self.generated, time.time_ns())
         self.batch_index = 0
         context = ssl.create_default_context(cafile=str(binding.ca))
         self.opener = urllib.request.build_opener(

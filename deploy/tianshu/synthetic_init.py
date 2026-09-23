@@ -100,6 +100,7 @@ def create(
     web_port,
     resource_profile=None,
     auxiliary_subnets=None,
+    recovery_scope_id=None,
 ):
     import re
     from resource_profile import validate
@@ -117,7 +118,18 @@ def create(
     require(1024 <= web_port <= 65535, "synthetic_web_port_invalid")
     load_manifest(manifest_path)
     scope = fresh_target(scope)
-    scope.mkdir(mode=0o700)
+    if recovery_scope_id is None:
+        scope.mkdir(mode=0o700)
+    else:
+        # Coordinate two initializers only for a brand-new scope. Never retrofit
+        # recovery ownership onto an already executed deployment.
+        import sys
+
+        repository = HERE.parents[1]
+        sys.path.insert(0, str(repository))
+        from ops.recovery.engine import create_sandbox
+
+        create_sandbox(scope, recovery_scope_id, execute=True)
     inputs = scope / "inputs"
     shutil.copytree(HERE / "templates", inputs)
     tls(inputs / "tls")
@@ -155,7 +167,8 @@ def create(
             )
             values.setdefault(actual, secrets.token_urlsafe(32))
     write_json(sitepath, site)
-    (scope / "deployments").mkdir(mode=0o700)
+    if recovery_scope_id is None:
+        (scope / "deployments").mkdir(mode=0o700)
     initialize(manifest_path, sitepath, contracts, scope / "deployments/source", values)
     # No passwords/tokens printed or persisted outside the already protected bundle.
     return scope / "deployments/source"
@@ -171,6 +184,9 @@ def main():
     parser.add_argument("--web-port", required=True, type=int)
     parser.add_argument("--execute", action="store_true")
     parser.add_argument(
+        "--recovery-scope-id", help="Explicit UUID for a new joint recovery scope"
+    )
+    parser.add_argument(
         "--resource-profile",
         type=Path,
         help="Explicit NAS QA profile JSON; default portable limits remain unchanged",
@@ -185,6 +201,7 @@ def main():
             args.subnet,
             args.web_port,
             read_json(args.resource_profile) if args.resource_profile else None,
+            recovery_scope_id=args.recovery_scope_id,
         )
         print("synthetic_bundle_initialized_not_started")
     else:

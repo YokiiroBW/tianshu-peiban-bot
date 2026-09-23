@@ -345,6 +345,32 @@ class LinuxBootstrapTests(unittest.TestCase):
         )
         self.assertIn("logs.internal", san.get_values_for_type(x509.DNSName))
 
+    def test_joint_recovery_scope_is_new_and_preserves_bundle_identity(self):
+        from synthetic_init import create
+        import uuid
+
+        scope = self.fixture.root / "joint-scope"
+        scope_id = str(uuid.uuid4())
+        args = (
+            scope,
+            self.fixture.manifestpath,
+            self.fixture.contracts,
+            "tianshu-qa-joint",
+            "172.30.91.0/24",
+            20443,
+        )
+        root = create(*args, recovery_scope_id=scope_id)
+        from ops.recovery.engine import Recovery
+
+        recovery = Recovery(scope, scope_id)
+        self.assertEqual(recovery.root, scope)
+        self.assertEqual(root, scope / "deployments/source")
+        verify_integrity(root)
+        self.assertTrue((scope / "backups").is_dir())
+        self.assertFalse((root / ".deployment.json").exists())
+        with self.assertRaises(Refused):
+            create(*args, recovery_scope_id=scope_id)
+
 
 if __name__ == "__main__":
     unittest.main()
