@@ -165,6 +165,9 @@ def compose_document(manifest, site):
     }
     services["gateway"]["networks"]["egress"] = {}
     services["platform"]["networks"]["frontend"] = {}
+    from network_plan import validate as validate_networks
+
+    auxiliary = validate_networks(site.get("auxiliary_subnets"), site["subnet"])
     return {
         "name": site["project_name"],
         "services": services,
@@ -173,7 +176,21 @@ def compose_document(manifest, site):
                 "internal": True,
                 "ipam": {"config": [{"subnet": site["subnet"]}]},
             },
-            "egress": {"internal": False},
-            "frontend": {"internal": False},
+            "egress": {
+                "internal": False,
+                **(
+                    {"ipam": {"config": [{"subnet": auxiliary["egress"]}]}}
+                    if auxiliary
+                    else {}
+                ),
+            },
+            "frontend": {
+                "internal": False,
+                **(
+                    {"ipam": {"config": [{"subnet": auxiliary["frontend"]}]}}
+                    if auxiliary
+                    else {}
+                ),
+            },
         },
     }

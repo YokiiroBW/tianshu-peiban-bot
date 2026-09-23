@@ -138,6 +138,9 @@ def prepare(root, settings, manifest, output_relative, snapshot, candidate=False
     from nas_resources import bind
 
     profile = bind(root, settings.get("resource_profile"))
+    from nas_resources import network_plan
+
+    subnets = network_plan(root, settings.get("network_subnets"))
     if profile is not None and not candidate:
         raise ValueError("nas_qa_profile_not_release_approved")
     output = confined(root, output_relative, exists=False)
@@ -223,6 +226,9 @@ def prepare(root, settings, manifest, output_relative, snapshot, candidate=False
         shutil.copyfile(HERE / name, output / "code" / name)
     write("code/vocabulary.json", snapshot)
     stack = compose(output, logs, contract, tls, tokens, images, ports, profile)
+    if subnets:
+        for name, subnet in subnets.items():
+            stack["networks"][name]["ipam"] = {"config": [{"subnet": subnet}]}
     stack["services"]["obs-grafana"]["environment"].update(
         {
             "GF_SERVER_DOMAIN": settings["grafana_hostname"],

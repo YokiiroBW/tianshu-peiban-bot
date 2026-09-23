@@ -53,7 +53,11 @@ def load_inputs(path):
     require(isinstance(site, dict), "inputs_shape_invalid")
     profile = validate(site.get("resource_profile"))
     shape(
-        {k: v for k, v in site.items() if k != "resource_profile"},
+        {
+            k: v
+            for k, v in site.items()
+            if k not in {"resource_profile", "auxiliary_subnets"}
+        },
         {
             "project_name",
             "web_origin",
@@ -113,6 +117,9 @@ def load_inputs(path):
     )
     require(not origin.hostname.endswith(".invalid"), "placeholder_origin")
     network = ipaddress.ip_network(site["subnet"], strict=True)
+    from network_plan import validate as validate_networks
+
+    validate_networks(site.get("auxiliary_subnets"), site["subnet"])
     require(
         network.version == 4 and 24 <= network.prefixlen <= 28 and network.is_private,
         "private_small_subnet_required",

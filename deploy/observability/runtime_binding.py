@@ -458,7 +458,9 @@ class Binding:
                 "running_image_mismatch",
             )
             require(row["State"]["Running"] is True, "observability_not_running")
-            process = docker.call(["exec", row["Id"], "cat", "/proc/1/status"]).decode()
+            from process_identity import process_status
+
+            process = process_status(docker, row)
             for field in ("Uid", "Gid"):
                 values = next(
                     (

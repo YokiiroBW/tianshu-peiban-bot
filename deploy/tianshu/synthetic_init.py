@@ -92,7 +92,14 @@ def tls(directory):
 
 
 def create(
-    scope, manifest_path, contracts, project, subnet, web_port, resource_profile=None
+    scope,
+    manifest_path,
+    contracts,
+    project,
+    subnet,
+    web_port,
+    resource_profile=None,
+    auxiliary_subnets=None,
 ):
     import re
     from resource_profile import validate
@@ -129,6 +136,8 @@ def create(
     values = {}
     if resource_profile is not None:
         site["resource_profile"] = resource_profile
+    if auxiliary_subnets is not None:
+        site["auxiliary_subnets"] = auxiliary_subnets
     for p in PRODUCTS:
         site["tls"][p]["provenance"] = "isolated_test"
         config_path = inputs / (p + ".json")

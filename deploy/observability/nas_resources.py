@@ -1,6 +1,7 @@
 """Explicit NAS QA resource profile; never presents missing PID control as verified."""
 
 import json
+import ipaddress
 
 
 def require(condition, code):
@@ -9,6 +10,31 @@ def require(condition, code):
 
 
 KIND = "nas-cpuset-qa-v1"
+
+
+def network_plan(root, subnets):
+    if subnets is None:
+        return None
+    require(
+        isinstance(subnets, dict) and set(subnets) == {"observe", "storage"},
+        "observe_network_shape",
+    )
+    site = json.loads((root / "deployment.json").read_bytes())["compose_inputs"]
+    nets = [
+        ipaddress.ip_network(v, strict=True)
+        for v in [site["subnet"], *site.get("auxiliary_subnets", {}).values()]
+    ]
+    for value in subnets.values():
+        net = ipaddress.ip_network(value, strict=True)
+        require(
+            net.version == 4 and net.is_private and 24 <= net.prefixlen <= 28,
+            "observe_private_small_subnet_required",
+        )
+        require(
+            not any(net.overlaps(other) for other in nets), "observe_network_overlap"
+        )
+        nets.append(net)
+    return subnets
 
 
 def validate(profile):
