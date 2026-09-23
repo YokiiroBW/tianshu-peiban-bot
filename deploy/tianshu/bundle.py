@@ -44,6 +44,7 @@ TOOLS = (
     "linux_lifecycle.py",
     "linux_bootstrap.py",
     "real_provider.py",
+    "browser_lease.py",
     "bootstrap.py",
     "runtime_identity.py",
     "runtime-identity.schema.json",

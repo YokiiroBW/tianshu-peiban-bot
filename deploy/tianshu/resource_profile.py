@@ -3,6 +3,7 @@
 from manifest import require
 
 KIND = "nas-cpuset-qa-v1"
+LAN_KIND = "nas-cpuset-lan-qa-v1"
 
 
 def validate(profile):
@@ -13,7 +14,7 @@ def validate(profile):
         "resource_profile_shape",
     )
     require(
-        profile["kind"] == KIND and profile["pid_limit"] == "unsupported",
+        profile["kind"] in {KIND, LAN_KIND} and profile["pid_limit"] == "unsupported",
         "resource_profile_invalid",
     )
     cpus = profile["cpus"]

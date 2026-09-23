@@ -419,6 +419,64 @@ class LinuxBootstrapTests(unittest.TestCase):
         with self.assertRaises(Refused):
             create(*args, recovery_scope_id=scope_id)
 
+    def test_lan_qa_tls_and_port_are_bound_to_explicit_address(self):
+        from synthetic_init import create
+        from cryptography import x509
+        import ipaddress
+
+        profile = {
+            "kind": "nas-cpuset-lan-qa-v1",
+            "cpus": [6, 7],
+            "pid_limit": "unsupported",
+        }
+        scope = self.fixture.root / "lan-scope"
+        root = create(
+            scope,
+            self.fixture.manifestpath,
+            self.fixture.contracts,
+            "tianshu-qa-lan-test",
+            "172.30.91.0/24",
+            20443,
+            resource_profile=profile,
+            lan_address="192.168.31.210",
+        )
+        cert = x509.load_pem_x509_certificate(
+            (root / "config/platform/tls/server.pem").read_bytes()
+        )
+        san = cert.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
+        self.assertIn(
+            ipaddress.ip_address("192.168.31.210"),
+            san.get_values_for_type(x509.IPAddress),
+        )
+        self.assertEqual(
+            read_json(root / "compose.json")["services"]["platform"]["ports"],
+            ["192.168.31.210:20443:8443"],
+        )
+        with self.assertRaisesRegex(Refused, "nas_qa_profile_not_release_approved"):
+            preflight(root, release=True)
+
+    def test_browser_window_closes_without_claim_and_removes_private_login(self):
+        import browser_lease
+
+        metadata = read_json(self.root / "deployment.json")
+        metadata["compose_inputs"]["resource_profile"] = {
+            "kind": "nas-cpuset-lan-qa-v1"
+        }
+        write_json(self.root / "deployment.json", metadata)
+
+        def finish(_):
+            self.assertEqual(
+                read_json(self.root / "reports/browser-private/login.json")["password"],
+                "private-test",
+            )
+            write_json(self.root / "reports/browser-finish.json", {"finished": True})
+
+        with patch.object(browser_lease.time, "sleep", finish), patch("builtins.print"):
+            self.assertEqual(
+                browser_lease.wait(self.root, "private-test", 10), "closed_by_operator"
+            )
+        self.assertFalse((self.root / "reports/browser-private/login.json").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

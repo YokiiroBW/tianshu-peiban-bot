@@ -150,6 +150,28 @@ class ProfilePackagingTests(unittest.TestCase):
                 f.init()
             self.assertFalse(f.output.exists())
 
+    def test_lan_qa_requires_separate_profile_and_matching_private_ip_origin(self):
+        from configuration import load_inputs
+
+        f = self.fixture
+        site = {
+            **f.site,
+            "resource_profile": {**PROFILE, "kind": "nas-cpuset-lan-qa-v1"},
+            "bind_address": "192.168.31.210",
+            "web_origin": "https://192.168.31.210:18443",
+        }
+        write_json(f.sitepath, site)
+        self.assertEqual(load_inputs(f.sitepath)["bind_address"], "192.168.31.210")
+        for change in (
+            {"bind_address": "0.0.0.0"},
+            {"bind_address": "8.8.8.8"},
+            {"bind_address": "127.0.0.1"},
+            {"web_origin": "https://other.test:18443"},
+        ):
+            write_json(f.sitepath, {**site, **change})
+            with self.subTest(change=change), self.assertRaises(Refused):
+                load_inputs(f.sitepath)
+
     def exercise_runtime(self, wrong_memory=False, missing_controller=False):
         f = self.fixture
         f.site.update(resource_profile=PROFILE, bind_address="127.0.0.1")

@@ -10,6 +10,7 @@ def require(condition, code):
 
 
 KIND = "nas-cpuset-qa-v1"
+LAN_KIND = "nas-cpuset-lan-qa-v1"
 
 
 def network_plan(root, subnets):
@@ -47,7 +48,7 @@ def validate(profile):
         "resource_profile_shape",
     )
     require(
-        profile["kind"] == KIND and profile["pid_limit"] == "unsupported",
+        profile["kind"] in {KIND, LAN_KIND} and profile["pid_limit"] == "unsupported",
         "resource_profile_invalid",
     )
     cpus = profile["cpus"]
@@ -133,10 +134,27 @@ def bind(root, profile):
     require(
         metadata["project_name"].startswith("tianshu-qa-"), "nas_profile_synthetic_only"
     )
-    require(
-        metadata["compose_inputs"]["bind_address"] == "127.0.0.1",
-        "nas_profile_loopback_only",
-    )
+    if profile["kind"] == LAN_KIND:
+        from urllib.parse import urlsplit
+
+        address = ipaddress.ip_address(metadata["compose_inputs"]["bind_address"])
+        require(
+            address.version == 4
+            and any(
+                address in ipaddress.ip_network(n)
+                for n in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
+            ),
+            "nas_lan_profile_explicit_private_address_required",
+        )
+        require(
+            urlsplit(metadata["compose_inputs"]["web_origin"]).hostname == str(address),
+            "nas_lan_origin_address_mismatch",
+        )
+    else:
+        require(
+            metadata["compose_inputs"]["bind_address"] == "127.0.0.1",
+            "nas_profile_loopback_only",
+        )
     require(
         set(metadata["tls_provenance"])
         == {"platform", "companion", "memory", "gateway"}

@@ -78,6 +78,20 @@ class NasResourcesTests(unittest.TestCase):
             with self.subTest(key=key), self.assertRaises(ValueError):
                 host_check(PROFILE, dict(info, **{key: value}))
 
+    def test_explicit_lan_qa_profile_requires_matching_private_origin(self):
+        profile = {**PROFILE, "kind": "nas-cpuset-lan-qa-v1"}
+        self.metadata["compose_inputs"].update(
+            resource_profile=profile,
+            bind_address="192.168.31.210",
+            web_origin="https://192.168.31.210:19443",
+        )
+        self.write_metadata()
+        self.assertEqual(bind(self.root, profile), profile)
+        self.metadata["compose_inputs"]["web_origin"] = "https://other.test:19443"
+        self.write_metadata()
+        with self.assertRaisesRegex(ValueError, "nas_lan_origin_address_mismatch"):
+            bind(self.root, profile)
+
     def test_actual_resource_mismatches_rejected(self):
         spec = {"cpuset": "6,7", "mem_limit": "768m"}
         config = {

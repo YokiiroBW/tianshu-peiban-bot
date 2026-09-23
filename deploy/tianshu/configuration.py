@@ -77,7 +77,22 @@ def load_inputs(path):
             and site["project_name"].startswith("tianshu-qa-"),
             "nas_profile_synthetic_only",
         )
-        require(site["bind_address"] == "127.0.0.1", "nas_profile_loopback_only")
+        if profile["kind"] == "nas-cpuset-lan-qa-v1":
+            address = ipaddress.ip_address(site["bind_address"])
+            require(
+                address.version == 4
+                and any(
+                    address in ipaddress.ip_network(n)
+                    for n in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
+                ),
+                "nas_lan_profile_explicit_private_address_required",
+            )
+            require(
+                urlsplit(site["web_origin"]).hostname == str(address),
+                "nas_lan_origin_address_mismatch",
+            )
+        else:
+            require(site["bind_address"] == "127.0.0.1", "nas_profile_loopback_only")
         require(
             isinstance(site["tls"], dict)
             and all(

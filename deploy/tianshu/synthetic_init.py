@@ -25,7 +25,7 @@ from manifest import (
 )
 
 
-def tls(directory):
+def tls(directory, *, lan_address=None):
     directory.mkdir(mode=0o700)
     now = datetime.now(timezone.utc)
     ca_key = ec.generate_private_key(ec.SECP256R1())
@@ -62,6 +62,8 @@ def tls(directory):
         ]
         if role == "platform":
             names.append(x509.DNSName("console.synthetic.test"))
+            if lan_address is not None:
+                names.append(x509.IPAddress(ipaddress.ip_address(lan_address)))
         cert = (
             x509.CertificateBuilder()
             .subject_name(
@@ -101,11 +103,23 @@ def create(
     resource_profile=None,
     auxiliary_subnets=None,
     recovery_scope_id=None,
+    lan_address=None,
 ):
     import re
     from resource_profile import validate
 
     validate(resource_profile)
+    require(
+        (
+            lan_address is None
+            and (resource_profile or {}).get("kind") != "nas-cpuset-lan-qa-v1"
+        )
+        or (
+            lan_address is not None
+            and (resource_profile or {}).get("kind") == "nas-cpuset-lan-qa-v1"
+        ),
+        "explicit_lan_profile_and_address_required",
+    )
 
     require(
         re.fullmatch(r"tianshu-qa-[a-z0-9-]+", project), "isolated_qa_project_required"
@@ -132,15 +146,18 @@ def create(
         create_sandbox(scope, recovery_scope_id, execute=True)
     inputs = scope / "inputs"
     shutil.copytree(HERE / "templates", inputs)
-    tls(inputs / "tls")
+    tls(inputs / "tls", lan_address=lan_address)
     sitepath = inputs / "deployment-input.example.json"
     site = read_json(sitepath)
     site.update(
         project_name=project,
         subnet=str(net),
         web_port=web_port,
-        bind_address="127.0.0.1",
-        web_origin="https://console.synthetic.test:" + str(web_port),
+        bind_address=lan_address or "127.0.0.1",
+        web_origin="https://"
+        + (lan_address or "console.synthetic.test")
+        + ":"
+        + str(web_port),
         service_ips={
             p: str(net.network_address + 10 + i) for i, p in enumerate(PRODUCTS)
         },

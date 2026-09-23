@@ -126,7 +126,17 @@ class Runner:
         return result.stdout if capture else None
 
 
-def execute(root, contexts, steps, report, path, *, dialogue=False, real_provider=None):
+def execute(
+    root,
+    contexts,
+    steps,
+    report,
+    path,
+    *,
+    dialogue=False,
+    real_provider=None,
+    browser_wait_seconds=0,
+):
     endpoint = local_daemon()
     with lifecycle_lease(root):
         from linux_validate import plan
@@ -143,6 +153,7 @@ def execute(root, contexts, steps, report, path, *, dialogue=False, real_provide
                 path,
                 dialogue=dialogue,
                 real_provider=real_provider,
+                browser_wait_seconds=browser_wait_seconds,
                 endpoint=endpoint,
             )
             report["result"] = "passed"
@@ -174,8 +185,17 @@ def leased_execute(
     *,
     dialogue=False,
     real_provider=None,
+    browser_wait_seconds=0,
     endpoint="unix:///var/run/docker.sock",
 ):
+    require(
+        type(browser_wait_seconds) is int and 0 <= browser_wait_seconds <= 600,
+        "browser_window_budget_invalid",
+    )
+    require(
+        not browser_wait_seconds or real_provider is not None,
+        "browser_window_requires_real_dialogue",
+    )
     core_only = not (root / "observability-release.json").exists()
     preflight(root, runtime=True, core_only=core_only)
     dimensions = report.setdefault("dimensions", {})
@@ -470,6 +490,10 @@ def leased_execute(
                 input=json.dumps(dict(password=password)).encode(),
             )
             dimensions["real_model_dialogue"] = "passed"
+        if browser_wait_seconds:
+            from browser_lease import wait
+
+            report["browser_window"] = wait(root, password, browser_wait_seconds)
         run(
             "platform_preflight",
             [
