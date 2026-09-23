@@ -270,7 +270,9 @@ def run(
     remaining = min(value["max_runtime_seconds"], value["expires_at"] - time.time())
     require(remaining > 65, "drill_shutdown_reserve_required")
     total_end = time.monotonic() + remaining
-    work = Deadline(remaining - 60, cancel)
+    cleanup_reserve = 90 if resource_profile is not None else 60
+    require(remaining > cleanup_reserve, "drill_insufficient_cleanup_budget")
+    work = Deadline(remaining - cleanup_reserve, cancel)
     docker = DockerCLI(docker_executable, "unix:///var/run/docker.sock", work)
     check_host(docker, resource_profile)
     original = ComposeBackend(source, source / ".lifecycle", binding, work, docker)
@@ -457,7 +459,9 @@ def run(
         except (RecoveryError, OSError, ValueError, KeyError, TypeError, sqlite3.Error):
             failure = "drill_failed_or_cancelled"
         finally:
-            cleanup = Deadline(max(0.1, min(60, total_end - time.monotonic())))
+            cleanup = Deadline(
+                max(0.1, min(cleanup_reserve, total_end - time.monotonic()))
+            )
             cleanup_docker = DockerCLI(
                 docker_executable, "unix:///var/run/docker.sock", cleanup
             )

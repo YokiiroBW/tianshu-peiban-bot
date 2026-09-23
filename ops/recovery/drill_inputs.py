@@ -203,11 +203,14 @@ def isolated_inputs(value, manifest, *, resource_profile=None):
             document["networks"]
             and all(
                 isinstance(n, dict)
-                and n.get("internal") is True
+                and (
+                    n.get("internal") is True
+                    or (name == "access" and n.get("internal") is False)
+                )
                 and not n.get("external")
                 and set(n) <= {"internal", "driver", "ipam"}
                 and n.get("driver", "bridge") == "bridge"
-                for n in document["networks"].values()
+                for name, n in document["networks"].items()
             ),
             "drill_internal_network_required",
         )
@@ -271,6 +274,17 @@ def isolated_inputs(value, manifest, *, resource_profile=None):
                 networks and set(networks) <= set(document["networks"]),
                 "drill_network_mismatch",
             )
+            # Docker suppresses host port publication on internal-only networks.
+            # A dedicated access bridge is allowed only for explicitly loopback-
+            # published owners. The existing port and endpoint checks still apply.
+            if (
+                "access" in networks
+                and document["networks"]["access"].get("internal") is False
+            ):
+                require(
+                    bool(definition.get("ports")),
+                    "drill_access_requires_loopback_publication",
+                )
             if isinstance(networks, dict):
                 for settings in networks.values():
                     if settings:

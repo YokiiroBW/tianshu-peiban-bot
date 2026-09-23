@@ -275,6 +275,34 @@ class DrillTests(unittest.TestCase):
         self.assertFalse((self.root / "drill-claims").exists())
         self.assertEqual(self.calls, [])
 
+    def test_access_bridge_requires_loopback_published_members(self):
+        document = self.documents["core"]
+        document["networks"]["access"] = {"internal": False, "driver": "bridge"}
+        document["services"]["gateway"]["networks"].append("access")
+        put(self.inputs / "compose.json", document)
+        self.save()
+        isolated_inputs(self.value, self.manifest)
+        document["services"]["gateway"]["ports"][0]["host_ip"] = "0.0.0.0"
+        put(self.inputs / "compose.json", document)
+        self.save()
+        with self.assertRaisesRegex(RecoveryError, "drill_loopback_port_required"):
+            isolated_inputs(self.value, self.manifest)
+        document["services"]["gateway"]["ports"] = []
+        put(self.inputs / "compose.json", document)
+        self.save()
+        with self.assertRaisesRegex(
+            RecoveryError, "drill_access_requires_loopback_publication"
+        ):
+            isolated_inputs(self.value, self.manifest)
+
+    def test_other_external_bridge_remains_forbidden(self):
+        document = self.documents["core"]
+        document["networks"]["isolated"]["internal"] = False
+        put(self.inputs / "compose.json", document)
+        self.save()
+        with self.assertRaisesRegex(RecoveryError, "drill_internal_network_required"):
+            isolated_inputs(self.value, self.manifest)
+
     def test_one_use_clone_preserves_originals_and_stops_nine_owners(self):
         for container in self.clone_docker.containers:
             if container["Config"]["Labels"]["com.docker.compose.service"].startswith(
