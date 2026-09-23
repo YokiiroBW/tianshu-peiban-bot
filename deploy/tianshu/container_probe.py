@@ -8,6 +8,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from urllib.parse import urlsplit
 import uuid
 
 CHECKS = {
@@ -77,6 +78,25 @@ def request(opener, url, data=None, headers=None):
     return status, json.loads(raw)
 
 
+class ConsoleHost(urllib.request.BaseHandler):
+    handler_order = 100
+
+    def __init__(self, origin):
+        self.host = urlsplit(origin).netloc
+
+    def https_request(self, request):
+        request.add_unredirected_header("Host", self.host)
+        return request
+
+
+def web_client(origin):
+    # Internal TLS/DNS remains platform.internal; HTTP authority must match the
+    # configured public console, as it does behind a TLS-terminating proxy.
+    opener = client()
+    opener.add_handler(ConsoleHost(origin))
+    return opener
+
+
 def ready(role, port):
     opener = client()
     url = "https://" + role + ".internal:" + port + "/health/ready"
@@ -104,7 +124,7 @@ def dialogue():
     password = json.load(sys.stdin)["password"]
     settings = json.load(open("/etc/tianshu/settings.json"))
     base = "https://platform.internal:8443"
-    opener = client()
+    opener = web_client(settings["web"]["origin"])
     status, session = request(opener, base + "/api/web/session")
     assert status == 200 and session["authenticated"] is False
     headers = {"Origin": settings["web"]["origin"], "X-CSRF-Token": session["csrf"]}
