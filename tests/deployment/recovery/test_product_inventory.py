@@ -71,6 +71,37 @@ class ProductInventoryTests(unittest.TestCase):
         }
         self.assertEqual(before, after)
 
+    def test_optional_sidecar_absence_is_allowed_but_new_unregistered_file_is_not(self):
+        from copy import deepcopy
+
+        parent = next(
+            v
+            for v in self.manifest["volumes"]
+            if v["category"] == "state" and v["product"] == "platform"
+        )
+        sidecar = deepcopy(parent)
+        sidecar.update(
+            id="optional-platform-test",
+            category="sidecar",
+            kind="file",
+            mount=False,
+            host_path=parent["host_path"] + "/lazy.sqlite",
+            container_path=parent["container_path"] + "/lazy.sqlite",
+        )
+        self.manifest["volumes"].append(sidecar)
+        put(self.source / "release-manifest.json", self.manifest)
+        put(self.source / "recovery-inventory.json", inventory(self.source))
+        manifest, _, resources = load_deployment(self.source)
+        result = enumerate_inputs(
+            self.source, manifest, resources, max_bytes=10**7, max_files=1000
+        )
+        self.assertNotIn(sidecar["host_path"], result)
+        (self.source / sidecar["host_path"]).write_bytes(b"new-unregistered-state")
+        with self.assertRaisesRegex(RecoveryError, "unregistered_state_file"):
+            enumerate_inputs(
+                self.source, manifest, resources, max_bytes=10**7, max_files=1000
+            )
+
     def test_directory_config_pins_every_nested_file_and_rejects_empty_tree(self):
         service = next(s for s in self.manifest["services"] if s["id"] == "obs-grafana")
         service["config_path"] = "observability/config/provisioning"

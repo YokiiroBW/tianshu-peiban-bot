@@ -161,6 +161,32 @@ def enumerate_inputs(root, manifest, resources, *, max_bytes, max_files, omitted
     for volume in manifest["volumes"]:
         if volume["host_path"] in omitted:
             continue
+        # Some optional features create sidecar databases only on first use.
+        # Absence is permitted only when the independently captured inventory
+        # never registered the file and an owned state directory covers it.
+        if (
+            volume["category"] == "sidecar"
+            and volume["mount"] is False
+            and volume["kind"] == "file"
+            and volume["host_path"] not in declared
+        ):
+            optional = child(root, volume["host_path"], exists=False)
+            if not optional.exists():
+                require(
+                    any(
+                        parent["category"] == "state"
+                        and parent["mount"]
+                        and parent["kind"] == "directory"
+                        and volume["host_path"].startswith(parent["host_path"] + "/")
+                        and all(
+                            parent[key] == volume[key]
+                            for key in ("product", "owner_service", "backup_group")
+                        )
+                        for parent in manifest["volumes"]
+                    ),
+                    "unowned_optional_sidecar",
+                )
+                continue
         base = child(root, volume["host_path"])
         require(
             base.is_dir() == (volume["kind"] == "directory"), "volume_kind_mismatch"
