@@ -48,6 +48,17 @@ def export_package(repository, manifest, destination):
 def verify_layout(root, manifest):
     directory = inside(root, manifest["observability"]["output_relative"])
     stack = read_json(directory / "compose.yaml")
+    from resource_profile import validate, constrain
+
+    profile = validate(
+        read_json(root / "deployment.json")["compose_inputs"].get("resource_profile")
+    )
+    if profile is not None:
+        for service in stack["services"].values():
+            require(
+                service == constrain(dict(service), profile),
+                "observability_resource_profile_mismatch",
+            )
     require(
         set(stack["services"]) == {"obs-" + c for c in COMPONENTS},
         "observability_composition_mismatch",
@@ -81,14 +92,21 @@ def configure(root, settings_path, repository, projects=None):
 
     root = root.absolute()
     verify_integrity(root)
-    require(
-        read_json(root / "deployment.json")["compose_inputs"].get("resource_profile")
-        is None,
-        "nas_qa_observability_profile_not_yet_validated",
+    from bundle import preflight
+
+    preflight(root)
+    profile = read_json(root / "deployment.json")["compose_inputs"].get(
+        "resource_profile"
     )
     manifest = load_manifest(root / "release-manifest.json")
     require(manifest["schema_version"] == "1.1.0", "observability_manifest_required")
     settings = read_json(settings_path)
+    require(
+        settings.get("resource_profile", profile) == profile,
+        "observability_resource_profile_override",
+    )
+    if profile is not None:
+        settings["resource_profile"] = profile
     require(
         settings["grafana_hostname"] == "logs.internal",
         "manifest_grafana_name_mismatch",

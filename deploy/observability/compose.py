@@ -11,7 +11,11 @@ def mount(source, target, readonly=True):
     }
 
 
-def compose(bundle, log_roots, contract, tls, tokens, images, ports):
+def compose(
+    bundle, log_roots, contract, tls, tokens, images, ports, resource_profile=None
+):
+    from nas_resources import constrain
+
     services = {}
     for name, memory in (
         ("vector", "768m"),
@@ -39,6 +43,9 @@ def compose(bundle, log_roots, contract, tls, tokens, images, ports):
             "networks": ["observe"],
             "volumes": [mount(bundle / "data" / name, "/var/lib/" + name, False)],
         }
+
+    for service in services.values():
+        constrain(service, resource_profile)
 
     def add(name, source, target, readonly=True):
         services["obs-" + name]["volumes"].append(mount(source, target, readonly))

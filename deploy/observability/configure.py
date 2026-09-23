@@ -135,6 +135,11 @@ def manifest_logs(manifest, snapshot, root):
 
 def prepare(root, settings, manifest, output_relative, snapshot, candidate=False):
     root = root.resolve(strict=True)
+    from nas_resources import bind
+
+    profile = bind(root, settings.get("resource_profile"))
+    if profile is not None and not candidate:
+        raise ValueError("nas_qa_profile_not_release_approved")
     output = confined(root, output_relative, exists=False)
     if output.exists():
         raise ValueError("new_bundle_directory_required")
@@ -217,7 +222,7 @@ def prepare(root, settings, manifest, output_relative, snapshot, candidate=False
     ):
         shutil.copyfile(HERE / name, output / "code" / name)
     write("code/vocabulary.json", snapshot)
-    stack = compose(output, logs, contract, tls, tokens, images, ports)
+    stack = compose(output, logs, contract, tls, tokens, images, ports, profile)
     stack["services"]["obs-grafana"]["environment"].update(
         {
             "GF_SERVER_DOMAIN": settings["grafana_hostname"],

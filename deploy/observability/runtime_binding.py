@@ -132,6 +132,16 @@ class Binding:
                 "compose_binding_changed",
             )
         self.stack = document["projects"]["observability"]["compose_json"]
+        from nas_resources import bind, check_compose
+
+        metadata = json.loads((self.root / "deployment.json").read_bytes())
+        self.resource_profile = bind(
+            self.root, metadata["compose_inputs"].get("resource_profile")
+        )
+        for group in ("core", "observability"):
+            check_compose(
+                document["projects"][group]["compose_json"], self.resource_profile
+            )
         volume_layout(self.root, self.manifest, self.stack)
         declared = {m["id"]: m for m in document["mounts"]}
         mounted = [m for m in self.manifest["volumes"] if m["mount"]]
@@ -267,6 +277,9 @@ class Binding:
         return json.loads(docker.call(["inspect", *ids])) if ids else []
 
     def check_container(self, row, project, owner, spec):
+        from nas_resources import container_check
+
+        container_check(spec, row)
         labels = row["Config"].get("Labels") or {}
         require(
             labels.get("com.docker.compose.project") == project
@@ -307,6 +320,13 @@ class Binding:
             "core_stopped": [],
             "mounts": [],
         }
+        if self.resource_profile is not None:
+            from nas_resources import host_check
+
+            facts["resource_capabilities"] = host_check(
+                self.resource_profile,
+                json.loads(docker.call(["info", "--format", "{{json .}}"])),
+            )
         core_project = self.document["project_name"]
         cores = self.containers(docker, core_project)
         require(len(cores) == 4, "four_stopped_core_containers_required")
