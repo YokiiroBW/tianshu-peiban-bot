@@ -104,8 +104,13 @@ def compose(
         "--storage.tsdb.path=/var/lib/prometheus",
         "--storage.tsdb.retention.time=30d",
         "--storage.tsdb.retention.size=2GB",
-        "--web.enable-admin-api=false",
+        "--no-web.enable-admin-api",
     ]
+    # The upstream image declares VOLUME /prometheus; mask that unused path so
+    # Docker cannot create an untracked anonymous persistent volume there.
+    services["obs-prometheus"]["tmpfs"].append(
+        "/prometheus:ro,noexec,nosuid,size=1m,uid=10001,gid=10001,mode=0700"
+    )
     certs("grafana", ["grafana.pem", "grafana.key"])
     secret("grafana", "query_token")
     secret("grafana", "grafana_admin_password")

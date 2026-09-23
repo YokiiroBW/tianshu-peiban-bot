@@ -340,6 +340,12 @@ class ConfigurationTests(WorkspaceTest):
         generated = json.loads((bundle / "compose.yaml").read_bytes())
         self.assertTrue((bundle / "code/transport.py").is_file())
         self.assertEqual(len(generated["services"]), 5)
+        prometheus_service = generated["services"]["obs-prometheus"]
+        self.assertIn("--no-web.enable-admin-api", prometheus_service["command"])
+        self.assertIn(
+            "/prometheus:ro,noexec,nosuid,size=1m,uid=10001,gid=10001,mode=0700",
+            prometheus_service["tmpfs"],
+        )
         self.assertNotIn("docker.sock", json.dumps(generated))
         for service in generated["services"].values():
             self.assertNotEqual(service["user"], "0")
