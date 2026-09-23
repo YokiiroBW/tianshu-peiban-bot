@@ -16,6 +16,37 @@ INTERFACE_COMMIT = "880c2c33ffc4c12b9267d38267c2dacde074890d"
 PRODUCTS = ("platform", "companion", "memory", "gateway")
 
 
+def validate_networks(stack):
+    networks = stack["networks"]
+    require(
+        set(networks) in ({"observe", "storage"}, {"observe", "storage", "access"}),
+        "observability_network_set_changed",
+    )
+    for name, spec in networks.items():
+        require(
+            set(spec) <= {"internal", "driver", "ipam"}
+            and spec.get("driver", "bridge") == "bridge"
+            and spec.get("internal") is (name != "access"),
+            "external_observability_network_refused",
+        )
+    expected = {"obs-grafana", "obs-guard"} if "access" in networks else set()
+    actual = {
+        name
+        for name, spec in stack["services"].items()
+        if "access" in spec.get("networks", [])
+    }
+    require(actual == expected, "observability_access_membership_changed")
+    for name, spec in stack["services"].items():
+        if spec.get("ports"):
+            port = {"obs-grafana": "3000", "obs-guard": "8443"}.get(name)
+            require(
+                port is not None
+                and len(spec["ports"]) == 1
+                and re.fullmatch(r"127\.0\.0\.1:[0-9]+:" + port, spec["ports"][0]),
+                "loopback_only_port_required",
+            )
+
+
 def load_identity(path, expected):
     from jsonschema import Draft202012Validator
 
@@ -258,13 +289,7 @@ class Binding:
             json.loads((self.obs_root / "config/loki.json").read_bytes()) == loki(),
             "production_retention_configuration_changed",
         )
-        require(
-            all(
-                n.get("internal") is True and not n.get("external")
-                for n in self.stack["networks"].values()
-            ),
-            "external_observability_network_refused",
-        )
+        validate_networks(self.stack)
 
     def containers(self, docker, project):
         ids = (

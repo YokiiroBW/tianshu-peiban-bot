@@ -22,6 +22,45 @@ from linux_receiver import safe_alerts
 
 
 class AcceptanceBoundaryTests(unittest.TestCase):
+    def test_access_bridge_only_allows_two_loopback_tls_entrypoints(self):
+        from runtime_binding import validate_networks
+
+        stack = {
+            "networks": {
+                "observe": {"internal": True},
+                "storage": {"internal": True},
+                "access": {"internal": False},
+            },
+            "services": {
+                "obs-grafana": {
+                    "networks": ["observe", "access"],
+                    "ports": ["127.0.0.1:19444:3000"],
+                },
+                "obs-guard": {
+                    "networks": ["observe", "storage", "access"],
+                    "ports": ["127.0.0.1:19445:8443"],
+                },
+                "obs-loki": {"networks": ["storage"]},
+            },
+        }
+        validate_networks(stack)
+        bad = copy.deepcopy(stack)
+        bad["services"]["obs-loki"]["networks"].append("access")
+        with self.assertRaises(ValueError):
+            validate_networks(bad)
+        bad = copy.deepcopy(stack)
+        bad["services"]["obs-grafana"]["ports"] = ["0.0.0.0:19444:3000"]
+        with self.assertRaises(ValueError):
+            validate_networks(bad)
+        bad = copy.deepcopy(stack)
+        bad["networks"]["storage"]["internal"] = False
+        with self.assertRaises(ValueError):
+            validate_networks(bad)
+        bad = copy.deepcopy(stack)
+        bad["networks"]["access"]["external"] = True
+        with self.assertRaises(ValueError):
+            validate_networks(bad)
+
     @unittest.skipUnless(sys.platform == "linux", "real flock requires Linux")
     def test_shared_lease_same_inode_and_nonblocking_contention(self):
         from runtime_binding import lifecycle_lease
