@@ -54,6 +54,10 @@ def clone_binding(root, documents, manifest, value):
                     key=lambda m: m["target"],
                 ),
             }
+            from .nas_resources import limits
+
+            if limits(definition) is not None:
+                services[service]["resource_limits"] = limits(definition)
     return {"services": services}
 
 
@@ -89,6 +93,13 @@ def _input_provenance(source, runtime, documents, index, clone_root):
                 ),
                 "drill_mount_provenance_mismatch",
             )
+            if "cpuset" in prior:
+                from .nas_resources import limits
+
+                require(
+                    limits(definition) == limits(prior),
+                    "drill_resource_provenance_mismatch",
+                )
             for field in (
                 "entrypoint",
                 "command",
@@ -224,7 +235,12 @@ def run(
         == {s: v["image_id"] for s, v in runtime["services"].items()},
         "drill_image_identity_mismatch",
     )
-    index, documents = isolated_inputs(value, manifest)
+    from .nas_resources import profile_for, check_host
+
+    resource_profile = profile_for(source, runtime)
+    index, documents = isolated_inputs(
+        value, manifest, resource_profile=resource_profile
+    )
     _input_provenance(source, runtime, documents, index, clone)
     marker = read_json(child(restored, "RESTORE.json"))
     require(
@@ -256,6 +272,7 @@ def run(
     total_end = time.monotonic() + remaining
     work = Deadline(remaining - 60, cancel)
     docker = DockerCLI(docker_executable, "unix:///var/run/docker.sock", work)
+    check_host(docker, resource_profile)
     original = ComposeBackend(source, source / ".lifecycle", binding, work, docker)
     original.identities = {
         s: tuple(i) for s, i in registration["initial_owner_ids"].items()
@@ -361,7 +378,8 @@ def run(
                         check_cancel=work.check,
                     )
             require(
-                isolated_inputs(value, manifest) == (index, documents),
+                isolated_inputs(value, manifest, resource_profile=resource_profile)
+                == (index, documents),
                 "drill_inputs_changed_during_copy",
             )
             for name, expected in index["files"].items():

@@ -186,6 +186,9 @@ class ComposeBackend:
                 "container_mount_mismatch",
             )
             host = container["HostConfig"]
+            from .nas_resources import check_container
+
+            check_container(expected, container)
             require(
                 not host.get("Privileged")
                 and not host.get("PidMode")

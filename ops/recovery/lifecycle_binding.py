@@ -90,6 +90,15 @@ def describe(
             {"path": name, "sha256": file_hash(path), "project": compose_project}
         )
     require(len({p["path"] for p in pins}) == len(pins), "duplicate_compose_file")
+    from .nas_resources import profile_for, limits
+
+    if runtime is not None:
+        profile_for(directory, runtime)
+    else:
+        require(
+            all("cpuset" not in s for s in documents.values()),
+            "recovery_unbound_cpu_set",
+        )
     require(
         set(documents) == set(service_map(manifest)), "compose_service_set_mismatch"
     )
@@ -199,6 +208,8 @@ def describe(
             ],
         }
         if runtime is not None:
+            if limits(definition) is not None:
+                services[service]["resource_limits"] = limits(definition)
             observed = runtime["services"][service]
             services[service].update(
                 image_id=observed["image_id"],

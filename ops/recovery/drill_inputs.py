@@ -126,7 +126,7 @@ def _strings(value):
         yield value
 
 
-def isolated_inputs(value, manifest):
+def isolated_inputs(value, manifest, *, resource_profile=None):
     inputs = safe_path(value["inputs_directory"])
     index_path = child(inputs, "inputs.json")
     require(
@@ -215,7 +215,7 @@ def isolated_inputs(value, manifest):
             require(
                 set(definition)
                 <= set(
-                    "image platform user read_only init cap_drop security_opt pids_limit mem_limit cpus restart scale stop_signal stop_grace_period entrypoint command environment env_file tmpfs volumes networks healthcheck logging labels depends_on ports pull_policy".split()
+                    "image platform user read_only init cap_drop security_opt pids_limit mem_limit cpus cpuset restart scale stop_signal stop_grace_period entrypoint command environment env_file tmpfs volumes networks healthcheck logging labels depends_on ports pull_policy".split()
                 ),
                 "drill_unknown_service_field",
             )
@@ -254,10 +254,16 @@ def isolated_inputs(value, manifest):
                 definition.get("image") == value["image_ids"][service],
                 "drill_local_image_pin_required",
             )
+            from .nas_resources import check_definition
+
+            nas_profile = check_definition(definition, resource_profile)
             require(
-                definition.get("pids_limit", 0) in range(1, 257)
-                and definition.get("mem_limit")
-                and float(definition.get("cpus", 0)) in (0.5, 0.75, 1.0, 1.5, 2.0),
+                nas_profile
+                or (
+                    definition.get("pids_limit", 0) in range(1, 257)
+                    and definition.get("mem_limit")
+                    and float(definition.get("cpus", 0)) in (0.5, 0.75, 1.0, 1.5, 2.0)
+                ),
                 "drill_resource_limits_required",
             )
             networks = definition.get("networks", {})
