@@ -321,7 +321,13 @@ def isolated_inputs(value, manifest, *, resource_profile=None):
                     require(
                         relative in index["files"]
                         or any(p.startswith(relative + "/") for p in index["files"])
-                        or relative.startswith("logs/"),
+                        or relative.startswith("logs/")
+                        or any(
+                            v["mount"]
+                            and v["kind"] == "directory"
+                            and v["host_path"] == relative
+                            for v in manifest["volumes"]
+                        ),
                         "drill_read_mount_unregistered",
                     )
             for volume in manifest["volumes"]:

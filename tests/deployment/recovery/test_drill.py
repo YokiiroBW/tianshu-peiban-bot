@@ -303,6 +303,31 @@ class DrillTests(unittest.TestCase):
         with self.assertRaisesRegex(RecoveryError, "drill_internal_network_required"):
             isolated_inputs(self.value, self.manifest)
 
+    def test_capacity_reader_requires_registered_clone_data_directory(self):
+        document = self.documents["observability"]
+        volume = next(
+            v
+            for v in self.manifest["volumes"]
+            if v["mount"]
+            and v["kind"] == "directory"
+            and v["owner_service"] == "obs-vector"
+        )
+        mount = dict(
+            type="bind",
+            source=str(self.clone / volume["host_path"]),
+            target="/capacity/vector",
+            read_only=True,
+        )
+        document["services"]["obs-guard"]["volumes"].append(mount)
+        put(self.inputs / "observability/compose.yaml", document)
+        self.save()
+        isolated_inputs(self.value, self.manifest)
+        mount["source"] = str(self.clone / "unregistered-data")
+        put(self.inputs / "observability/compose.yaml", document)
+        self.save()
+        with self.assertRaisesRegex(RecoveryError, "drill_read_mount_unregistered"):
+            isolated_inputs(self.value, self.manifest)
+
     def test_one_use_clone_preserves_originals_and_stops_nine_owners(self):
         for container in self.clone_docker.containers:
             if container["Config"]["Labels"]["com.docker.compose.service"].startswith(
