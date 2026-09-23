@@ -340,6 +340,17 @@ class ConfigurationTests(WorkspaceTest):
         generated = json.loads((bundle / "compose.yaml").read_bytes())
         self.assertTrue((bundle / "code/transport.py").is_file())
         self.assertEqual(len(generated["services"]), 5)
+        self.assertFalse(generated["networks"]["access"]["internal"])
+        self.assertTrue(generated["networks"]["observe"]["internal"])
+        self.assertTrue(generated["networks"]["storage"]["internal"])
+        self.assertEqual(
+            {
+                name
+                for name, spec in generated["services"].items()
+                if "access" in spec["networks"]
+            },
+            {"obs-grafana", "obs-guard"},
+        )
         prometheus_service = generated["services"]["obs-prometheus"]
         self.assertIn("--no-web.enable-admin-api", prometheus_service["command"])
         self.assertIn(

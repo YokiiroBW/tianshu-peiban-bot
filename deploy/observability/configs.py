@@ -235,7 +235,7 @@ ALERTS = {
         "1m",
     ),
     "DiskForecast": (
-        'min(predict_linear({__name__=~"tianshu_obs_storage_.*_free_bytes"}[1h],86400)) < bool 1073741824',
+        'min(predict_linear(label_replace({__name__=~"tianshu_obs_storage_.*_free_bytes"}, "storage_metric", "$1", "__name__", "(.*)")[1h:1m],86400)) < bool 1073741824',
         "10m",
     ),
     "LedgerCapacity": ("tianshu_obs_landed_events > bool 900000", "1m"),

@@ -16,7 +16,9 @@ def network_plan(root, subnets):
     if subnets is None:
         return None
     require(
-        isinstance(subnets, dict) and set(subnets) == {"observe", "storage"},
+        isinstance(subnets, dict)
+        and {"observe", "storage"} <= set(subnets)
+        and set(subnets) <= {"observe", "storage", "access"},
         "observe_network_shape",
     )
     site = json.loads((root / "deployment.json").read_bytes())["compose_inputs"]

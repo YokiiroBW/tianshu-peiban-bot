@@ -86,7 +86,7 @@ def compose(
         "--settings",
         "/etc/tianshu/guard.json",
     ]
-    services["obs-guard"]["networks"] = ["observe", "storage"]
+    services["obs-guard"]["networks"] = ["observe", "storage", "access"]
     services["obs-guard"]["ports"] = [f"127.0.0.1:{ports['query']}:8443"]
     certs(
         "prometheus",
@@ -146,8 +146,15 @@ def compose(
         "GF_UNIFIED_ALERTING_ENABLED": "true",
     }
     services["obs-grafana"]["ports"] = [f"127.0.0.1:{ports['grafana']}:3000"]
+    services["obs-grafana"]["networks"] = ["observe", "access"]
     return {
         "name": "tianshu-observability",
         "services": services,
-        "networks": {"observe": {"internal": True}, "storage": {"internal": True}},
+        "networks": {
+            "observe": {"internal": True},
+            "storage": {"internal": True},
+            # Docker does not publish host ports for internal-only containers.
+            # Only the two authenticated TLS entrypoints join this bridge.
+            "access": {"internal": False},
+        },
     }
