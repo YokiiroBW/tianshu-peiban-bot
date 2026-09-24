@@ -171,9 +171,13 @@ def apply_prometheus_admin_flag(document):
 
 
 def apply_runtime_permissions(root):
-    """Give only mounted OBS inputs/data to the configured 10001:10001 runtime."""
+    """Give mounted private config and OBS inputs/data to runtime UID/GID 10001."""
     require(os.name == "posix", "linux_permissions_not_verified")
     for relative in (
+        "config/platform",
+        "config/companion",
+        "config/memory",
+        "config/gateway",
         "observability/data",
         "observability/config",
         "observability/code",
