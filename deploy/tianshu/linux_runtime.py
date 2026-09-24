@@ -136,6 +136,7 @@ def execute(
     dialogue=False,
     real_provider=None,
     browser_wait_seconds=0,
+    browser_only=False,
 ):
     endpoint = local_daemon()
     with lifecycle_lease(root):
@@ -154,6 +155,7 @@ def execute(
                 dialogue=dialogue,
                 real_provider=real_provider,
                 browser_wait_seconds=browser_wait_seconds,
+                browser_only=browser_only,
                 endpoint=endpoint,
             )
             report["result"] = "passed"
@@ -186,6 +188,7 @@ def leased_execute(
     dialogue=False,
     real_provider=None,
     browser_wait_seconds=0,
+    browser_only=False,
     endpoint="unix:///var/run/docker.sock",
 ):
     require(
@@ -195,6 +198,10 @@ def leased_execute(
     require(
         not browser_wait_seconds or real_provider is not None,
         "browser_window_requires_real_dialogue",
+    )
+    require(
+        type(browser_only) is bool and (not browser_only or browser_wait_seconds > 0),
+        "browser_only_requires_bounded_window",
     )
     core_only = not (root / "observability-release.json").exists()
     preflight(root, runtime=True, core_only=core_only)
@@ -472,7 +479,7 @@ def leased_execute(
                 input=json.dumps(dict(password=password)).encode(),
             )
             dimensions["synthetic_dialogue"] = "passed"
-        if real_provider is not None:
+        if real_provider is not None and not browser_only:
             script = (root / "tools/container_probe.py").read_text()
             run(
                 "real_model_dialogue",
@@ -490,6 +497,8 @@ def leased_execute(
                 input=json.dumps(dict(password=password)).encode(),
             )
             dimensions["real_model_dialogue"] = "passed"
+        if browser_only:
+            dimensions["real_model_dialogue"] = "not_run"
         if browser_wait_seconds:
             from browser_lease import wait
 

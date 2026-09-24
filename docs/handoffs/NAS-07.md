@@ -21,3 +21,6 @@ m1 仅预检拒绝容量只读挂载，没有创建容器。m2 实际启动因�
 LAN 新增独立 nas-cpuset-lan-qa-v1，仅 QA 项目、明确 RFC1918 IPv4、相同 IP 的 HTTPS origin 和专用测试 TLS，原 loopback profile 不放宽，正式 release 仍拒绝。提供最多 600 秒的浏览器窗口，密码只在 NAS 私有临时文件中，关闭/到期移除，停止流程保持固定容器 ID。96 项 packaging、5 项日志资源通过；NAS p 预检发现 bundle 二次校验漏适配（未启动），97eeec5 复用核心地址规则修正，并补候选 preflight 正例，13 项专项通过。
 
 NAS q /volume2/tianshu-v2-validation-wave1/next-q/scope-q/deployments/source 已完整准备、preflight 通过，尚未执行/构建/启动，代码 coordination-nas07k=97eeec5853bdcbd15bf3ade7df194f636e1a6571。计划入口 https://192.168.31.210:19443。Windows 临时信任专用 CA 的许可已向用户请求，尚未获得，不导入也不跳过浏览器安全提示；公钥证书 .runtime/nas-wave1/lan-q-ca.pem，指纹见协调 nas-lan-certificate-2026-09-24.json。CA 2026-09-25 19:07 UTC 到期，叶证书比 CA 提前一天到期；若过期必须准备新证书，不能关闭校验。获准后只加入当前用户信任，验收后移除精确证书。
+
+
+2026-09-24 HTTP用户选择：TS-113平台48c19b4已本地集成，部署支持public_web显式映射NAS19443到网页8080；内部8443仍TLS。根e80961f打包97项通过；b2ed419仅为NAS公共网页设置2000ms有界fsync确认。用户选择默认HTTP，旧CA信任问题作废，未导入任何证书。s实机登录/已有模型回执可见，但浏览器UUID与250ms日志预算失败，四容器退出0不等于网页/日志通过。失败证据独立保留。平台修复的2项慢盘预算测试、8项浏览器匹配测试与87项健康回归通过；t新的固定源scope正在实际验收。示例清单平台源更新48c19b4，其余产品不变。
