@@ -1,6 +1,13 @@
 """Compose output is JSON (also valid YAML), with no interpolation of secrets or host paths."""
 
-from configuration import CA, DATABASE, PORTS, STATE, endpoint
+from configuration import (
+    CA,
+    DATABASE,
+    PORTS,
+    STATE,
+    endpoint,
+    validate_a1_loopback_api_ports,
+)
 from manifest import PRODUCTS
 from resource_profile import constrain
 
@@ -16,6 +23,7 @@ def bind(source, target, readonly=True):
 
 
 def compose_document(manifest, site):
+    a1_loopback_api_ports = validate_a1_loopback_api_ports(site)
     services = {}
     for product in PRODUCTS:
         info = manifest["products"][product]["image"]
@@ -159,6 +167,11 @@ def compose_document(manifest, site):
     services["platform"]["ports"] = [
         f"{site['bind_address']}:{site['web_port']}:{public_port}"
     ]
+    if a1_loopback_api_ports is not None:
+        for product, host_port in a1_loopback_api_ports.items():
+            services[product]["ports"] = [
+                f"127.0.0.1:{host_port}:{PORTS[product]}"
+            ]
     # No dependency cycle: platform answers authority queries before peers start. Liveness
     # only orders startup. Release acceptance must separately authenticate /health/ready.
     for product in ("memory", "gateway"):

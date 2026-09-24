@@ -130,7 +130,7 @@ def bind_a1_networks(root, egress_subnet, frontend_subnet):
 def bind_a1_ports(root):
     """Expose only the existing Platform web port plus loopback API ports."""
     root = Path(root).resolve(strict=True)
-    verify_integrity, _, _, read_json = _imports(root)
+    verify_integrity, compose_document, _, read_json = _imports(root)
     verify_integrity(root)
     metadata = read_json(root / "deployment.json")
     if not metadata["project_name"].startswith("tianshu-qa-a1-"):
@@ -138,29 +138,39 @@ def bind_a1_ports(root):
     site = metadata["compose_inputs"]
     if site["bind_address"] != "127.0.0.1":
         raise ValueError("a1_loopback_scope_required")
-    compose = read_json(root / "compose.json")
-
-    def port(target, published):
-        return {
-            "host_ip": "127.0.0.1",
-            "target": target,
-            "published": str(published),
-            "protocol": "tcp",
-            "mode": "host",
-        }
-
-    compose["services"]["platform"]["ports"] = [
-        port(8443, site["web_port"])
-    ]
-    compose["services"]["companion"]["ports"] = [port(8765, 19512)]
-    compose["services"]["memory"]["ports"] = [port(8130, 19513)]
-    compose["services"]["gateway"]["ports"] = [port(8443, 19514)]
-    _update_bundle(root, {"compose.json": _raw(compose)})
-    return {"platform": site["web_port"], "companion": 19512, "memory": 19513, "gateway": 19514}
+    site["a1_loopback_api_ports"] = {
+        "companion": 19512,
+        "memory": 19513,
+        "gateway": 19514,
+    }
+    manifest = read_json(root / "release-manifest.json")
+    compose = compose_document(manifest, site)
+    _update_bundle(
+        root,
+        {
+            "deployment.json": _raw(metadata),
+            "compose.json": _raw(compose),
+            "tools/bundle.py": _deployment_tool_bytes("bundle.py"),
+            "tools/compose.py": _deployment_tool_bytes("compose.py"),
+            "tools/configuration.py": _deployment_tool_bytes("configuration.py"),
+        },
+    )
+    return {
+        "platform": site["web_port"],
+        "companion": 19512,
+        "memory": 19513,
+        "gateway": 19514,
+    }
 
 
 def _raw(document):
     return (json.dumps(document, ensure_ascii=False, indent=2) + "\n").encode()
+
+
+def _deployment_tool_bytes(name):
+    return (
+        Path(__file__).resolve().parents[2] / "deploy/tianshu" / name
+    ).read_bytes()
 
 
 def _update_env(raw, values):
@@ -282,30 +292,25 @@ def prepare_synthetic(root):
     companion_env_raw = _update_env(
         companion_env.read_bytes(), {"TS_A1_SINK_TOKEN": sink_token}
     )
+    site["a1_loopback_api_ports"] = {
+        "companion": 19512,
+        "memory": 19513,
+        "gateway": 19514,
+    }
     compose = compose_document(manifest, site)
-
-    def loopback_port(target, published):
-        return {
-            "host_ip": "127.0.0.1",
-            "target": target,
-            "published": str(published),
-            "protocol": "tcp",
-            "mode": "host",
-        }
-
-    compose["services"]["platform"]["ports"] = [loopback_port(8443, site["web_port"])]
-    compose["services"]["companion"]["ports"] = [loopback_port(8765, 19512)]
-    compose["services"]["memory"]["ports"] = [loopback_port(8130, 19513)]
-    compose["services"]["gateway"]["ports"] = [loopback_port(8443, 19514)]
     _update_bundle(
         root,
         {
+            "deployment.json": _raw(metadata),
             "config/platform/settings.json": _raw(platform),
             "config/companion/settings.json": _raw(companion),
             "config/memory/settings.json": _raw(memory),
             "private/gateway.env": gateway_env_raw,
             "private/companion.env": companion_env_raw,
             "compose.json": _raw(compose),
+            "tools/bundle.py": _deployment_tool_bytes("bundle.py"),
+            "tools/compose.py": _deployment_tool_bytes("compose.py"),
+            "tools/configuration.py": _deployment_tool_bytes("configuration.py"),
         },
     )
     return {

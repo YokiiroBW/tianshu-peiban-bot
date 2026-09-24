@@ -14,6 +14,7 @@ from cryptography import x509
 from manifest import PRODUCTS, inside, read_json, require
 
 PORTS = {"platform": 8443, "companion": 8765, "memory": 8130, "gateway": 8443}
+A1_LOOPBACK_API_PORTS = {"companion": 19512, "memory": 19513, "gateway": 19514}
 STATE = {
     "platform": "/var/lib/tianshu",
     "companion": "/data",
@@ -42,6 +43,32 @@ def endpoint(product):
     return f"https://{product}.internal:{PORTS[product]}"
 
 
+def validate_a1_loopback_api_ports(site):
+    ports = site.get("a1_loopback_api_ports")
+    if ports is None:
+        return None
+    profile = site.get("resource_profile")
+    require(
+        isinstance(site.get("project_name"), str)
+        and site["project_name"].startswith("tianshu-qa-a1-")
+        and site.get("bind_address") == "127.0.0.1"
+        and isinstance(profile, dict)
+        and profile.get("kind") == "nas-cpuset-qa-v1",
+        "a1_loopback_service_ports_scope_required",
+    )
+    require(
+        type(ports) is dict
+        and set(ports) == set(A1_LOOPBACK_API_PORTS)
+        and all(
+            type(ports[name]) is int and ports[name] == port
+            for name, port in A1_LOOPBACK_API_PORTS.items()
+        )
+        and site.get("web_port") not in ports.values(),
+        "a1_loopback_service_ports_invalid",
+    )
+    return ports
+
+
 def shape(document, fields, code):
     require(isinstance(document, dict) and set(document) == set(fields), code)
 
@@ -56,7 +83,13 @@ def load_inputs(path):
         {
             k: v
             for k, v in site.items()
-            if k not in {"resource_profile", "auxiliary_subnets", "public_web"}
+            if k
+            not in {
+                "resource_profile",
+                "auxiliary_subnets",
+                "public_web",
+                "a1_loopback_api_ports",
+            }
         },
         {
             "project_name",
@@ -104,6 +137,7 @@ def load_inputs(path):
         "invalid_public_port",
     )
     require(type(site.get("public_web", False)) is bool, "public_web_flag_invalid")
+    validate_a1_loopback_api_ports(site)
     origin = urlsplit(site["web_origin"])
     require(
         origin.scheme in ({"http", "https"} if site.get("public_web") else {"https"})

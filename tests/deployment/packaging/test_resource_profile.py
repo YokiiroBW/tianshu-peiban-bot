@@ -105,6 +105,59 @@ class ProfileTests(unittest.TestCase):
 
 
 class ProfilePackagingTests(unittest.TestCase):
+    def test_a1_loopback_api_ports_are_declared_and_reproducible(self):
+        f = self.fixture
+        f.site.update(
+            project_name="tianshu-qa-a1-ports",
+            bind_address="127.0.0.1",
+            resource_profile=PROFILE,
+            a1_loopback_api_ports={
+                "companion": 19512,
+                "memory": 19513,
+                "gateway": 19514,
+            },
+        )
+        write_json(f.sitepath, f.site)
+        f.init()
+
+        self.assertEqual(preflight(f.output)["status"], "package_valid")
+        services = read_json(f.output / "compose.json")["services"]
+        self.assertEqual(services["platform"]["ports"], ["127.0.0.1:18443:8443"])
+        self.assertEqual(services["companion"]["ports"], ["127.0.0.1:19512:8765"])
+        self.assertEqual(services["memory"]["ports"], ["127.0.0.1:19513:8130"])
+        self.assertEqual(services["gateway"]["ports"], ["127.0.0.1:19514:8443"])
+        self.assertEqual(
+            read_json(f.output / "deployment.json")["compose_inputs"][
+                "a1_loopback_api_ports"
+            ],
+            f.site["a1_loopback_api_ports"],
+        )
+
+    def test_a1_loopback_api_ports_reject_other_scopes_and_values(self):
+        f = self.fixture
+        base = {
+            **f.site,
+            "project_name": "tianshu-qa-a1-ports",
+            "bind_address": "127.0.0.1",
+            "resource_profile": PROFILE,
+            "a1_loopback_api_ports": {
+                "companion": 19512,
+                "memory": 19513,
+                "gateway": 19514,
+            },
+        }
+        for change in (
+            {"project_name": "tianshu-qa-other"},
+            {"bind_address": "192.168.31.210"},
+            {"resource_profile": None},
+            {"a1_loopback_api_ports": {"companion": 19520, "memory": 19513, "gateway": 19514}},
+        ):
+            with self.subTest(change=change):
+                write_json(f.sitepath, {**base, **change})
+                with self.assertRaises(Refused):
+                    f.init()
+                self.assertFalse(f.output.exists())
+
     def test_public_http_binds_web_only_and_is_recorded(self):
         f = self.fixture
         f.site["public_web"] = True
