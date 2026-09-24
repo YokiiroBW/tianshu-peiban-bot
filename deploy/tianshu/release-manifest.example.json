@@ -6,10 +6,10 @@
     "platform": {
       "source": {
         "repo": "tianshu-platform",
-        "commit": "48c19b415e4cc197fa5dace5d9f4b247ee795a0c"
+        "commit": "c1c7547680911462439ee9c9a09f4e72f44f36a3"
       },
       "image": {
-        "reference": "tianshu/platform:48c19b415e4c",
+        "reference": "tianshu/platform:c1c754768091",
         "digest": null,
         "verification": "unverified"
       },
