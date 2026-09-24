@@ -2,11 +2,21 @@
 
 import ipaddress
 import json
+import os
+import stat
 import subprocess
 import sys
 from pathlib import Path
 
-from manifest import digest, inside, load_manifest, read_json, require, write_json
+from manifest import (
+    digest,
+    inside,
+    load_manifest,
+    no_links,
+    read_json,
+    require,
+    write_json,
+)
 from observability_contract import COMPONENTS, legacy_view
 
 
@@ -145,6 +155,45 @@ def apply_network_plan(document, subnets, occupied_subnets):
     return document
 
 
+def apply_prometheus_admin_flag(document):
+    """Use the supported false boolean spelling for the pinned Prometheus image."""
+    services = document.get("services") if isinstance(document, dict) else None
+    prometheus = services.get("obs-prometheus") if isinstance(services, dict) else None
+    command = prometheus.get("command") if isinstance(prometheus, dict) else None
+    require(isinstance(command, list), "observability_prometheus_command_invalid")
+    old, new = "--web.enable-admin-api=false", "--no-web.enable-admin-api"
+    if old in command and new not in command:
+        require(command.count(old) == 1, "observability_prometheus_command_invalid")
+        prometheus["command"] = [new if value == old else value for value in command]
+    else:
+        require(old not in command and new in command, "observability_prometheus_command_invalid")
+    return document
+
+
+def apply_runtime_permissions(root):
+    """Give only mounted OBS inputs/data to the configured 10001:10001 runtime."""
+    require(os.name == "posix", "linux_permissions_not_verified")
+    for relative in (
+        "observability/data",
+        "observability/config",
+        "observability/code",
+        "observability-input/tls",
+        "observability-input/secrets",
+    ):
+        base = inside(root, relative)
+        require(base.is_dir(), "observability_runtime_path_missing")
+        for path in (base, *base.rglob("*")):
+            path = no_links(path)
+            st = path.stat()
+            if stat.S_ISDIR(st.st_mode):
+                mode = 0o750
+            else:
+                require(stat.S_ISREG(st.st_mode), "observability_runtime_type_invalid")
+                mode = 0o640
+            os.chown(path, 10001, 10001, follow_symlinks=False)
+            path.chmod(mode)
+
+
 def configure(root, settings_path, repository, projects=None):
     from bundle import verify_integrity
 
@@ -229,6 +278,8 @@ def configure(root, settings_path, repository, projects=None):
         ]
     )
     compose_path = root / "observability/compose.yaml"
+    network_document = apply_prometheus_admin_flag(read_json(compose_path))
+    write_json(compose_path, network_document)
     apply_resource_profile(compose_path, profile)
     compose_inputs = read_json(root / "deployment.json")["compose_inputs"]
     network_document = read_json(compose_path)
@@ -301,6 +352,7 @@ def configure(root, settings_path, repository, projects=None):
         (root / "observability-release.json").read_bytes()
     )
     write_json(root / "bundle-integrity.json", inventory)
+    apply_runtime_permissions(root)
     (root / "INCOMPLETE").unlink()
     return {
         "status": "observability_configured",

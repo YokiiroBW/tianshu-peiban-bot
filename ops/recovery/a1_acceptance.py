@@ -192,8 +192,13 @@ def bind_a1_observability_networks(root):
     import sys
 
     sys.path.insert(0, str(root.parents[2] / "tooling" / "deploy" / "tianshu"))
-    from observability_release import apply_network_plan
+    from observability_release import (
+        apply_network_plan,
+        apply_prometheus_admin_flag,
+        apply_runtime_permissions,
+    )
 
+    document = apply_prometheus_admin_flag(document)
     document = apply_network_plan(
         document,
         subnets,
@@ -210,6 +215,7 @@ def bind_a1_observability_networks(root):
             "observability/compose.yaml": _raw(document),
         },
     )
+    apply_runtime_permissions(root)
     return {name: subnets[name] for name in sorted(subnets)}
 
 

@@ -10,7 +10,11 @@ import test_packaging as packaging
 from bundle import preflight
 from manifest import Refused, read_json, write_json
 from resource_profile import constrain, container_check, host_check, validate
-from observability_release import apply_network_plan, apply_resource_profile
+from observability_release import (
+    apply_network_plan,
+    apply_prometheus_admin_flag,
+    apply_resource_profile,
+)
 from fake_linux_docker import Docker, clock_patches
 from linux_runtime import leased_execute
 
@@ -106,6 +110,21 @@ class ProfileTests(unittest.TestCase):
 
 
 class ProfilePackagingTests(unittest.TestCase):
+    def test_pinned_prometheus_false_boolean_uses_supported_cli_form(self):
+        document = {
+            "services": {
+                "obs-prometheus": {
+                    "command": ["--web.enable-admin-api=false"]
+                }
+            }
+        }
+        result = apply_prometheus_admin_flag(document)
+        self.assertEqual(
+            result["services"]["obs-prometheus"]["command"],
+            ["--no-web.enable-admin-api"],
+        )
+        self.assertIs(apply_prometheus_admin_flag(result), result)
+
     def test_observability_network_plan_pins_declared_subnets(self):
         document = {
             "networks": {
