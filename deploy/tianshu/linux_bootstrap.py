@@ -1,13 +1,14 @@
 """Once-only synthetic bootstrap, via the installed platform CLI inside its image."""
 
 import json
+import re
 import secrets
 from datetime import datetime, timedelta, timezone
 
 from bootstrap import remaining
 from bundle import verify_integrity
 from configuration import resolve_config
-from manifest import digest, read_json, require, write_json
+from manifest import Refused, digest, read_json, require, write_json
 
 # Inputs and CLI output travel on private pipes; no credential/ref in argv or report.
 CLI = """import json,os,subprocess,sys,tempfile
@@ -283,3 +284,103 @@ def first_install_container(root, compose, runner, publication):
         ),
     )
     return receipt
+
+
+def begin_reauthorization(root, *, now=None):
+    """Record a one-shot operator recovery attempt after the boot ref has expired."""
+    from bundle import verify_integrity
+
+    verify_integrity(root)
+    work = root / "reports/bootstrap"
+    prior_path = work / "result.json"
+    marker_path = work / "reauthorization-attempt.json"
+    require(prior_path.is_file(), "bootstrap_result_required")
+    require(not marker_path.exists(), "reauthorization_already_attempted")
+    prior = read_json(prior_path)
+    require(
+        prior.get("state") == "authority_initialized"
+        and prior.get("issuer") == "product_platform_cli",
+        "bootstrap_result_invalid",
+    )
+    try:
+        expiry = datetime.fromisoformat(prior["expires_at"].replace("Z", "+00:00"))
+    except (KeyError, TypeError, ValueError):
+        raise Refused("bootstrap_expiry_invalid") from None
+    current = now or datetime.now(timezone.utc)
+    require(
+        expiry.tzinfo is not None and expiry <= current,
+        "bootstrap_origin_not_expired",
+    )
+    write_json(
+        marker_path,
+        {
+            "state": "started",
+            "issuer": "product_platform_cli",
+            "old_expires_at": prior["expires_at"],
+            "automatic_retry": False,
+        },
+    )
+    return marker_path
+
+
+def store_reauthorization_receipt(root, receipt, *, now=None, minimum_seconds=120):
+    """Replace only the expired private gateway ref with a fresh public-CLI receipt."""
+    from bundle import verify_integrity
+
+    verify_integrity(root)
+    work = root / "reports/bootstrap"
+    marker_path = work / "reauthorization-attempt.json"
+    result_path = work / "reauthorization-result.json"
+    require(marker_path.is_file(), "reauthorization_attempt_required")
+    require(not result_path.exists(), "reauthorization_already_completed")
+    marker = read_json(marker_path)
+    require(marker.get("state") == "started", "reauthorization_attempt_invalid")
+
+    current = now or datetime.now(timezone.utc)
+    try:
+        expiry = datetime.fromisoformat(marker["old_expires_at"].replace("Z", "+00:00"))
+    except (KeyError, TypeError, ValueError):
+        raise Refused("reauthorization_expiry_invalid") from None
+    require(expiry.tzinfo is not None and expiry <= current, "bootstrap_origin_not_expired")
+    require(
+        isinstance(receipt, dict)
+        and set(receipt) <= {"assertion_ref", "expires_at", "mode"}
+        and {"assertion_ref", "expires_at"} <= set(receipt),
+        "product_issue_receipt_invalid",
+    )
+    remaining(receipt, now=current.timestamp(), minimum_seconds=minimum_seconds)
+
+    gateway = read_json(root / "config/gateway/settings.json")
+    variable = gateway["platform_origin_env"]
+    prefix = variable + "="
+    env_path = root / "private/gateway.env"
+    original = env_path.read_bytes()
+    try:
+        lines = original.decode("utf-8").splitlines(keepends=True)
+    except UnicodeError:
+        raise Refused("gateway_environment_invalid") from None
+    matches = [i for i, line in enumerate(lines) if line.rstrip("\r\n").startswith(prefix)]
+    require(len(matches) == 1, "origin_environment_single_value_required")
+    index = matches[0]
+    old_line = lines[index].rstrip("\r\n")
+    old_match = re.fullmatch(re.escape(prefix) + r"'(origin:[0-9a-f]{32})'", old_line)
+    require(old_match is not None, "origin_environment_value_invalid")
+    require(receipt["assertion_ref"] != old_match.group(1), "new_assertion_required")
+
+    updated = list(lines)
+    updated[index] = prefix + "'" + receipt["assertion_ref"] + "'\n"
+    update(root, {"private/gateway.env": "".join(updated).encode("utf-8")})
+    result = {
+        "state": "reauthorized",
+        "issuer": "product_platform_cli",
+        "old_expires_at": marker["old_expires_at"],
+        "expires_at": receipt["expires_at"],
+        "previous_ref_replaced": True,
+        "ref_in_report": False,
+        "automatic_retry": False,
+    }
+    write_json(result_path, result)
+    marker["state"] = "completed"
+    write_json(marker_path, marker)
+    verify_integrity(root)
+    return result

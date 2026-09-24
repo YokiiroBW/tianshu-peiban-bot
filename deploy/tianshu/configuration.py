@@ -74,7 +74,9 @@ def load_inputs(path):
     if profile is not None:
         require(
             isinstance(site["project_name"], str)
-            and site["project_name"].startswith("tianshu-qa-"),
+            and site["project_name"].startswith(
+                ("tianshu-qa-", "tianshu-accept-a3-")
+            ),
             "nas_profile_synthetic_only",
         )
         validate_bind(profile, site["bind_address"], site["web_origin"])
@@ -87,7 +89,12 @@ def load_inputs(path):
             "nas_profile_test_tls_only",
         )
     require(
-        bool(re.fullmatch(r"tianshu-[a-z0-9-]{3,40}", site["project_name"])),
+        bool(
+            re.fullmatch(
+                r"tianshu-(?:qa|accept-a3)-[a-z0-9-]{3,40}",
+                site["project_name"],
+            )
+        ),
         "dedicated_project_required",
     )
     require(

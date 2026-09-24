@@ -1,0 +1,189 @@
+{
+  "schema_version": "1.0.0",
+  "task": "NAS-A3",
+  "recorded_at": "2026-09-25T01:41:06+08:00",
+  "branch": "codex/nas-a3",
+  "baseline_commit": "2e04eff5d0bf1283a321d9042d9b62f94a54dabb",
+  "nas": {
+    "docker": "24.0.2",
+    "compose": "v2.20.1-6047",
+    "controllers": {
+      "memory_limit": true,
+      "cpu_set": true,
+      "cpu_cfs_period": false,
+      "cpu_cfs_quota": false,
+      "pid_limit": false
+    },
+    "available_memory_before_run_gib_approx": 18.5
+  },
+  "candidate": {
+    "release_id": "tianshu-nas-acceptance-a3-20260925",
+    "source_commits": {
+      "platform": "48c19b415e4cc197fa5dace5d9f4b247ee795a0c",
+      "companion": "e94b609099365f75ca933d9fed03cdfbc83ec235",
+      "memory": "9a3b2bed6aebff9f0677f2c62e979859769e0c9c",
+      "gateway": "601974194042641c5a85cc3c061cbd1880d7daf1"
+    },
+    "image_ids": {
+      "platform": "sha256:1c8812e9e2817995a1ade3bc1cd2a02f65fc7cdbef802187e0ea927f2d33e7d6",
+      "companion": "sha256:6b7467e534dd39ec9663d78e8051dd5b8c8a4a69b394217e0bc33355b19a0a70",
+      "memory": "sha256:6a36e18a5696f3f54d0a89c6ba237381fa585c07defbf810f3aa7df9401cc6ee",
+      "gateway": "sha256:10746fed0f95f138501609620368e94d4764888dab08363124dfeccc2273a7be"
+    },
+    "resource_profile": {
+      "kind": "nas-cpuset-qa-v1",
+      "cpus": [6, 7],
+      "memory_limit_per_service": "1 GiB",
+      "memory_limit_total": "4 GiB",
+      "pid_limit": "unsupported",
+      "release_ready": false
+    }
+  },
+  "scopes": [
+    {
+      "project": "tianshu-accept-a3-resident",
+      "core_subnet": "10.204.60.0/24",
+      "egress_subnet": "10.204.61.0/24",
+      "frontend_subnet": "10.204.62.0/24",
+      "loopback_port": "127.0.0.1:19530",
+      "linux_liveness": {
+        "result": "passed",
+        "release_ready": false,
+        "dimensions": {
+          "linux_images": "passed",
+          "installed_dependencies": "passed",
+          "linux_permissions": "passed",
+          "runtime_uid_gid": "passed",
+          "authenticated_readiness": "passed",
+          "core_stop_observed": "passed",
+          "synthetic_dialogue": "not_run",
+          "log_chain": "not_run",
+          "normal_restore": "not_run",
+          "nas_acceptance": "not_run",
+          "real_models": "not_run",
+          "browser_rendering": "not_run"
+        }
+      },
+      "natural_expiry": {
+        "result": "passed",
+        "old_origin_expires_at": "2026-09-24T17:05:20.437609Z",
+        "platform_remained_healthy": true,
+        "gateway_exit_code": 1,
+        "gateway_oom_killed": false,
+        "companion_and_memory_remained_stopped": true,
+        "automatic_retry": false
+      },
+      "reauthorization": {
+        "state": "failed_or_unknown",
+        "failure_code": "reauthorization_runtime_failed",
+        "result_report_written": false,
+        "automatic_retry": false,
+        "scope_replayed": false
+      },
+      "final_containers": [
+        {"service": "platform", "id": "7c27891e01a1fde1a43e0d15ab382a1d07e0c78dcf2e8aa4cba4338c4c41b07e", "status": "exited", "exit_code": 0, "oom_killed": false, "restart_count": 0},
+        {"service": "companion", "id": "d6daf90855de4f1935bdc0064875368759cfb187e9633f65bbf9f900fc6c8161", "status": "exited", "exit_code": 0, "oom_killed": false, "restart_count": 0},
+        {"service": "memory", "id": "0812a2668f57a8ca476b72676e44412971d283ea1008d8b49b6752dc8c9b8828", "status": "exited", "exit_code": 0, "oom_killed": false, "restart_count": 0},
+        {"service": "gateway", "id": "f8991abc2e24f6f9e31ba6ef84f29b2f5609631deb169cbf2f706fc53b471e9b", "status": "exited", "exit_code": 1, "oom_killed": false, "restart_count": 0}
+      ],
+      "reports": {
+        "linux-executed.json": "de6173977d970560dc2dec8f829b35a38771a6ee6077048e3393ae023683d4f0",
+        "expired-gateway-restart.json": "32e5990f6f7c40ba298fe9bf584d66ce09bd10d1c7a936ff3abc499fd302f8ea",
+        "bootstrap/reauthorization-attempt.json": "e4336c4d20d6b7e0b7c4547dd4296a159144921d779c9a9e16300eccd93252bb",
+        "bootstrap/result.json": "71f73c7a636fd94a931acddc14ee117a4b596011f8faa69852210af790d3f064"
+      }
+    },
+    {
+      "project": "tianshu-accept-a3-recovery",
+      "core_subnet": "10.204.63.0/24",
+      "egress_subnet": "10.204.64.0/24",
+      "frontend_subnet": "10.204.65.0/24",
+      "loopback_port": "127.0.0.1:19531",
+      "linux_liveness": {
+        "result": "passed",
+        "release_ready": false,
+        "dimensions": {
+          "linux_images": "passed",
+          "installed_dependencies": "passed",
+          "linux_permissions": "passed",
+          "runtime_uid_gid": "passed",
+          "authenticated_readiness": "passed",
+          "core_stop_observed": "passed",
+          "synthetic_dialogue": "not_run",
+          "log_chain": "not_run",
+          "normal_restore": "not_run",
+          "nas_acceptance": "not_run",
+          "real_models": "not_run",
+          "browser_rendering": "not_run"
+        }
+      },
+      "natural_expiry": {
+        "result": "passed",
+        "old_origin_expires_at": "2026-09-24T17:24:13.407162Z",
+        "platform_remained_healthy": true,
+        "gateway_exit_code": 1,
+        "gateway_oom_killed": false,
+        "companion_and_memory_remained_stopped": true,
+        "automatic_retry": false
+      },
+      "reauthorization": {
+        "state": "reauthorized",
+        "old_origin_expires_at": "2026-09-24T17:24:13.407162Z",
+        "new_origin_expires_at": "2026-09-24T17:32:06.223890Z",
+        "previous_ref_replaced": true,
+        "ref_in_report": false,
+        "automatic_retry": false
+      },
+      "gateway_recreation": {
+        "first_create_attempt": "rejected: Synology Compose v2.20.1 create does not support --no-deps",
+        "container_created_by_first_attempt": false,
+        "corrected_resume_result": "refused: new_origin_budget_insufficient",
+        "replacement_gateway_created": false,
+        "origin_reissued_again": false
+      },
+      "final_containers": [
+        {"service": "platform", "id": "86009466efdcf552e941dd09dfdc65bd2ee692f8533d42d1c84b00f057cf199f", "status": "exited", "exit_code": 0, "oom_killed": false, "restart_count": 0},
+        {"service": "companion", "id": "1505768bf2a94496042e5403a510c695e1c42a3bb67d5c7246c96ca7fc6985fd", "status": "exited", "exit_code": 0, "oom_killed": false, "restart_count": 0},
+        {"service": "memory", "id": "9213619efc9fb8829022d6e7814d6d7c14f8240c11b245f35eedc34b76053994", "status": "exited", "exit_code": 0, "oom_killed": false, "restart_count": 0}
+      ],
+      "removed_expired_gateway_id": "7a30bd9ae814cf1dfd8b71c95e4b4cba303747b84bda9056ee9ea66346c7d4e9",
+      "reports": {
+        "linux-executed.json": "b01f95366b1daa1cf10a92aa5641473286eefccd295eff50bd2fa9da82292770",
+        "expired-gateway-restart.json": "ef6905363ca870c5ea5a75a7258be4696691376914bf09f42dba4498bf1eaa74",
+        "bootstrap/reauthorization-attempt.json": "343fcd57b9a30f4a7bc867b4b7bf2aaec4556edf10c93c7badb55c599cd84f24",
+        "bootstrap/reauthorization-result.json": "bb55a110ff2459bfa9e4b680e35894a46d37b6ad3c7d0312439072d9a1f3c925",
+        "bootstrap/result.json": "a6bafa2962c283e35b3ec22eee14364874e642218ea48e3ebee08de632d2e358"
+      }
+    }
+  ],
+  "final_runtime_state": {
+    "verified_at": "2026-09-24T17:41:06.642326Z",
+    "method": "docker inspect of every container in both exact Compose projects",
+    "project_container_count": 7,
+    "running_count": 0,
+    "all_recovery_containers_exit_code_zero": true
+  },
+  "limits": {
+    "real_models": false,
+    "external_proxy": false,
+    "dockge_stack_write": false,
+    "release_ready": false,
+    "unverified_dimensions": [
+      "synthetic_dialogue",
+      "log_chain",
+      "normal_restore",
+      "full_gateway_reauthorization_and_recreation_cycle",
+      "real_models",
+      "browser_rendering"
+    ],
+    "blockers": [
+      "NAS lacks CPU CFS quota and PID-limit controllers required by the release profile.",
+      "The successfully reauthorized origin expired before a replacement Gateway could be created and verified."
+    ]
+  },
+  "sanitization": {
+    "origin_refs_included": false,
+    "private_environment_included": false,
+    "credentials_or_tokens_included": false
+  }
+}

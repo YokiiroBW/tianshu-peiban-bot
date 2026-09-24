@@ -217,7 +217,7 @@ def leased_execute(
         )
         report["resource_capabilities"] = host_check(profile, json.loads(information))
     require(
-        re.fullmatch(r"tianshu-qa-[a-z0-9-]+", meta["project_name"]),
+        re.fullmatch(r"tianshu-(?:qa|accept-a3)-[a-z0-9-]+", meta["project_name"]),
         "isolated_qa_project_required",
     )
     require(

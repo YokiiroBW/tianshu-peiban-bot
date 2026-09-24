@@ -1,6 +1,6 @@
 """Explicit local Linux image/liveness smoke, never a release or NAS acceptance claim.
 
-Default is plan. --execute requires a fresh tianshu-qa-* bundle with test TLS, no provider,
+Default is plan. --execute requires a fresh tianshu-qa-* or tianshu-accept-a3-* bundle with test TLS, no provider,
 no dialogue, empty state/log mounts, and a local Linux Docker daemon. Logs are not collected:
 product build/runtime diagnostics may contain operator input. Only exit codes are reported.
 """

@@ -8,7 +8,7 @@ DEP-I/J 必须校验本文件绑定的固定 Git 提交及报告原字节 SHA256
 
 - `scope`: `synthetic_only=true`, `release_ready=false`, `nas_acceptance=false`。
   `host.system` 为实际执行宿主系统；未执行为 null，不以该 scope 字段否认宿主事实。
-- `release_id`、`deployment_root`（Linux 绝对路径）、`project_name`（tianshu-qa-*）。
+- `release_id`、`deployment_root`（Linux 绝对路径）、`project_name`（tianshu-qa-* 或一次性验收命名空间 tianshu-accept-a3-*）。
 - `projects.core/observability`: `name`, `directory`, `compose_file`, `lifecycle_owner`。
   core 名字等于 project_name、目录 deployment_root、文件 compose.json；observability 名字
   为 project_name 加 -obs、目录 deployment_root/observability、文件 compose.yaml。
@@ -59,5 +59,5 @@ G/I/J 共同锁只有 `<deployment_root>/.runtime-owner.lock`。调用
 才可写合成日志，J 必须确认九 owner 正常停写。不得为每个执行器另取不同锁。
 
 为配合 J，可将新部署直接初始化到显式新 synthetic scope 的 `deployments/<source>`。
-root 必须是全新目录，project_name 仍为 tianshu-qa-*。G 不移动现有部署；J 的独立
+root 必须是全新目录，project_name 为 tianshu-qa-* 或一次性验收命名空间 tianshu-accept-a3-*。G 不移动现有部署；J 的独立
 prepare 登记负责恢复库存和 authority 证据，本身份生成器继续保留 null。

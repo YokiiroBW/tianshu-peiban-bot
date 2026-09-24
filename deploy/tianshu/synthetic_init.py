@@ -123,7 +123,8 @@ def create(
     )
 
     require(
-        re.fullmatch(r"tianshu-qa-[a-z0-9-]+", project), "isolated_qa_project_required"
+        re.fullmatch(r"tianshu-(?:qa|accept-a3)-[a-z0-9-]+", project),
+        "isolated_qa_project_required",
     )
     net = ipaddress.ip_network(subnet, strict=True)
     require(
@@ -215,6 +216,8 @@ def main():
     parser.add_argument("--project", required=True)
     parser.add_argument("--subnet", required=True)
     parser.add_argument("--web-port", required=True, type=int)
+    parser.add_argument("--egress-subnet")
+    parser.add_argument("--frontend-subnet")
     parser.add_argument("--execute", action="store_true")
     parser.add_argument(
         "--recovery-scope-id", help="Explicit UUID for a new joint recovery scope"
@@ -225,6 +228,8 @@ def main():
         help="Explicit NAS QA profile JSON; default portable limits remain unchanged",
     )
     args = parser.parse_args()
+    if bool(args.egress_subnet) != bool(args.frontend_subnet):
+        parser.error("--egress-subnet and --frontend-subnet must be provided together")
     if args.execute:
         create(
             args.scope.absolute(),
@@ -235,6 +240,14 @@ def main():
             args.web_port,
             read_json(args.resource_profile) if args.resource_profile else None,
             recovery_scope_id=args.recovery_scope_id,
+            auxiliary_subnets=(
+                {
+                    "egress": args.egress_subnet,
+                    "frontend": args.frontend_subnet,
+                }
+                if args.egress_subnet
+                else None
+            ),
         )
         print("synthetic_bundle_initialized_not_started")
     else:

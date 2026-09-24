@@ -73,7 +73,8 @@ def identity(root, *, observed=None, state="planned", linux_stat=False):
     meta = read_json(root / "deployment.json")
     name = meta["project_name"]
     require(
-        re.fullmatch(r"tianshu-qa-[a-z0-9-]+", name), "isolated_qa_project_required"
+        re.fullmatch(r"tianshu-(?:qa|accept-a3)-[a-z0-9-]+", name),
+        "isolated_qa_project_required",
     )
     projects = dict(
         core=project(root, name, root, "compose.json"),

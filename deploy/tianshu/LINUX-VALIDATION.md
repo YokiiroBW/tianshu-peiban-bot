@@ -89,6 +89,33 @@ flock，全程持锁。重复执行 marker、已有项目（含孤儿）、非�
 通过真实 Web 登录/CSRF、四服务链和可读发送回执核固定合成回答，不属于浏览器渲染验收。
 source/config/observability 投影摘要按受控步骤更新，保留 candidate/unverified，不回填默认例子。
 
+## 过期 origin 的操作者恢复
+
+自动续期只延长尚未过期且未撤销的 origin，并受入口 `expires_at` 硬上限约束。Gateway
+不会替操作者重签；过期或撤销引用必须失败关闭。对于**origin 已过期、config-entry 仍有效且
+未撤销**的合成部署，先核对 `reports/bootstrap/result.json` 中原 `expires_at` 已过，Platform
+仍运行，另外三个容器停止，Gateway 已以非 OOM 非零退出。随后预演并显式执行：
+
+```sh
+python deploy/tianshu/linux_reauthorize.py --bundle /explicit/new-synthetic-scope/deployments/source
+python deploy/tianshu/linux_reauthorize.py --bundle /explicit/new-synthetic-scope/deployments/source --execute
+```
+
+执行器核对本 scope 恰有四个已登记容器及其固定 ID、owner、image ID、Compose 路径；它通过有界
+`docker exec -i` 标准输入调用 Platform 容器公开 CLI `local issue`，不复制临时授权文件，不读取
+或延长旧 ref，不访问模型，也不直写数据库。新 ref 只写入 `private/gateway.env`，完整性摘要同步更新；终端和证据仅含期限与
+状态，不含 ref。此工具不重启服务。
+
+Synology Compose v2.20.1 的 create 不支持 --no-deps。A3 上创建固定镜像的命令为
+docker compose -p <project> --project-directory <bundle-root> -f <bundle-root>/compose.json create --no-build --pull never gateway。
+
+创建时写入的容器环境不会因宿主 env 文件变化而更新。运行 `docker rm <核实后的旧 Gateway ID>`
+前必须确认旧容器已退出且 owner、project、Compose 来源均吻合；不带 `-f`、`-v`。从同一 bundle
+按新私有 env 重新 `docker compose create gateway`，创建后先核 image ID、资源配置、owner 与挂载，
+再启动 Gateway 并检查鉴权就绪。失败保留现场，不自动重签或重放。`config-entry` 的总
+`expires_at` 已到期时，`local issue` 应拒绝；需按 TS-109 重新配置授权并走全新的公开引导。已撤销
+的 origin、entry 或 principal 不允许复活，必须先取得明确的新授权。
+
 四服务存活后，用独立诊断凭据检查 /health/ready 并确认匿名请求被拒。镜像检查分别记录
 linux/amd64、实际 local image ID、实际 RepoDigests（可空）、已安装解释器/依赖、容器 UID/GID。
 Memory pip-free venv 用官方基础 Python pip 的 `--python <应用解释器> check` 验证，不向 venv 装 pip。

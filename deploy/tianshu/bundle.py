@@ -393,7 +393,9 @@ def preflight(root, release=False, runtime=False, *, core_only=False):
     if profile is not None:
         require(not release, "nas_qa_profile_not_release_approved")
         require(
-            metadata["project_name"].startswith("tianshu-qa-"),
+            metadata["project_name"].startswith(
+                ("tianshu-qa-", "tianshu-accept-a3-")
+            ),
             "nas_profile_synthetic_only",
         )
         validate_bind(

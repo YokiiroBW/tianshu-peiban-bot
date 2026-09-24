@@ -105,6 +105,22 @@ class ProfileTests(unittest.TestCase):
 
 
 class ProfilePackagingTests(unittest.TestCase):
+    def test_a3_acceptance_namespace_is_valid_but_production_name_is_not(self):
+        f = self.fixture
+        f.site["project_name"] = "tianshu-accept-a3-resident"
+        f.site["resource_profile"] = PROFILE
+        write_json(f.sitepath, f.site)
+        f.init()
+        self.assertEqual(preflight(f.output)["status"], "package_valid")
+        self.assertEqual(
+            read_json(f.output / "deployment.json")["project_name"],
+            "tianshu-accept-a3-resident",
+        )
+        self.assertEqual(
+            read_json(f.output / "compose.json")["name"],
+            "tianshu-accept-a3-resident",
+        )
+
     def test_public_http_binds_web_only_and_is_recorded(self):
         f = self.fixture
         f.site["public_web"] = True
