@@ -177,6 +177,8 @@ def create(
         if p == "platform":
             config["web"].update(origin=site["web_origin"], username="synthetic-dep-g")
             if public_web:
+                if resource_profile is not None:
+                    config["diagnostics"]["durability_timeout_ms"] = 2000
                 config["web_access"] = {
                     "host": "0.0.0.0",
                     "port": 8080,
