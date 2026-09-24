@@ -1,5 +1,7 @@
-from pathlib import Path
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
 import nas_a2_probe as probe
 
@@ -69,6 +71,26 @@ class NasA2BoundaryTests(unittest.TestCase):
         self.assertFalse(report["source_logs_deleted"])
         self.assertEqual(
             report["dimensions"]["application_reclamation_gate"]["status"], "blocked"
+        )
+
+    def test_report_write_replaces_atomically_without_stale_temp_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "report.json"
+            path.write_text('{"old":true}\n', encoding="utf-8")
+            probe.write_json(path, {"new": True})
+            self.assertEqual(
+                json.loads(path.read_text(encoding="utf-8")), {"new": True}
+            )
+            self.assertEqual(list(path.parent.glob(".report.json.*.tmp")), [])
+
+    def test_immutable_image_ids_are_pinned_in_the_probe(self):
+        self.assertEqual(
+            probe.EXPECTED_VECTOR_IMAGE_ID,
+            "sha256:92c275b73d880922a265918a7c3c4f2cc0dd87338447ff357809f2d18a64a48e",
+        )
+        self.assertEqual(
+            probe.EXPECTED_LOKI_IMAGE_ID,
+            "sha256:ceccdbc45e274f08eb23d6ca6e0b648921d580c592ab47b4304225c0f17a406a",
         )
 
     def test_buffer_padding_is_marked_as_synthetic_only(self):

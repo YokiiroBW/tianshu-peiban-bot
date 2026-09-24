@@ -1,0 +1,26 @@
+{
+  "attempt": 1,
+  "attempt_started_at": "not_recorded",
+  "inspection_recorded_at": "2026-09-25T03:58:48+08:00",
+  "run_id": "recovery-vector-20260925-r5",
+  "status": "failed_before_container_or_network_creation",
+  "observed_exception": "AttributeError: 'dict' object has no attribute 'stop'",
+  "observed_exception_site": "nas_a2_followup_probe.py:_run_probe finally guard-state stop",
+  "preflight_failure_inference": {
+    "error_code": "prior_followup_instance_not_released",
+    "basis": "A second preflight attempt recorded this ProbeError. R2 containers and network were stopped/empty; the R2 container validator incorrectly compared their historical scope labels against the current R5 project label.",
+    "captured_directly": false,
+    "r4_attachment_count_drift": "Also found: R4 report recorded one stopped network attachment while the current network has zero. The corrected R4 validator accepts only a decrease among known owned containers."
+  },
+  "variable_collision": "A Docker container State mapping named state shadowed the Guard State object; the finally block then raised before writing the normal report.",
+  "nas_state_at_inspection": {
+    "r5_report_present": false,
+    "r5_container_count": 0,
+    "r5_network_count": 0,
+    "r5_tmpfs_total_bytes": 536870912,
+    "r5_tmpfs_used_bytes": 0
+  },
+  "synthetic_events_generated": false,
+  "application_source_modified": false,
+  "recovery_action": "Preserve this attempt record, rename the colliding state variables, and allow live stopped-network attachment count to decrease from its recorded value when every current attachment is an owned R4 container. Reuse the empty R5 scope and tmpfs; no R5 container, network, or test data existed to retain."
+}

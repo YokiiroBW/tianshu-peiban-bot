@@ -1,0 +1,86 @@
+{
+  "archive": {
+    "bytes": 14802592,
+    "integrity_verified": true,
+    "member_count": 107,
+    "path": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r5/evidence/tmpfs-snapshot-after-drain-continuation.tar.gz",
+    "sha256": "63eab69566cb7f291d32da5b7fdce2778c452c0a84a9226695ee2437f14c7042",
+    "uncompressed_file_bytes": 135875524
+  },
+  "containers": [
+    {
+      "exit_code": 0,
+      "name": "tianshu-accept-a2-vfull-20260925-r5-vector",
+      "oom_killed": false,
+      "state": "exited"
+    },
+    {
+      "exit_code": 0,
+      "name": "tianshu-accept-a2-vfull-20260925-r5-loki",
+      "oom_killed": false,
+      "state": "exited"
+    }
+  ],
+  "evidence_type": "continuation-drain-reconciliation",
+  "gates": {
+    "application_reclamation": "blocked",
+    "physical_enospc": "not_run",
+    "production_30_day_retention": "not_run"
+  },
+  "loki_config_sha256": "26ee21549dfd4e91a0bd3143b9e9aac1f5a34fcce1f36eec95220820076d3b4f",
+  "network": {
+    "attached_container_count_after_stop": 0,
+    "internal": true,
+    "name": "tianshu-accept-a2-vfull-20260925-r5"
+  },
+  "observed_at_utc": "2026-09-24T20:47:59Z",
+  "reconciliation": {
+    "actual_lines": 120001,
+    "expected_lines": 120001,
+    "finding": "84 expected event IDs are absent and 84 returned event IDs are absent from the source; the two sets do not overlap.",
+    "identity_multiset_match": false,
+    "matching_identity_hash_count": 119917,
+    "missing_event_id_count": 84,
+    "missing_identity_hash_count": 84,
+    "query_bounds_ns": {
+      "end": 1790280320223247233,
+      "start": 1790280017225747233
+    },
+    "query_errors": [],
+    "query_store_only": false,
+    "requests": 304,
+    "route": "direct_loki_query_range",
+    "same_event_id_with_different_payload_count": 0,
+    "service_label": "nas-a2-vector-r5-3a0b297a8761",
+    "unexpected_event_id_count": 84,
+    "unexpected_identity_hash_count": 84
+  },
+  "run_id": "recovery-vector-20260925-r5",
+  "source": {
+    "bytes": 39729227,
+    "line_count": 120001,
+    "path": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r5/tmpfs/vector-source/events.jsonl",
+    "sha256": "7c2541c324b8e5dda0e57ecb03c484b65ae47d00b43edb82d928985f4b38d4b8",
+    "unchanged_from_run_report": true,
+    "vector_checkpoint_at_eof": true
+  },
+  "status": "partial",
+  "task": "NAS-A2",
+  "tmpfs": {
+    "archive_verified_before_unmount": true,
+    "free_bytes_after_stop": 400912384,
+    "limit_bytes": 536870912,
+    "used_bytes_after_stop": 135958528
+  },
+  "vector_metrics": {
+    "backpressure_full_buffer_verified": false,
+    "buffer_bytes_after_reconnect": 0,
+    "configured_buffer_bytes": 268435488,
+    "loopback_published_metrics_endpoint_worked": false,
+    "metrics_endpoint": "direct container bridge IP 10.204.54.2:9598/metrics",
+    "prior_stalled_buffer_bytes": 131846120,
+    "sink_sent_events_after_reconnect": 72723,
+    "source_sent_events_after_reconnect": 72723,
+    "stable_observation_seconds": 90
+  }
+}

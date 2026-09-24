@@ -3,13 +3,10 @@
 from __future__ import annotations
 
 import argparse
-from collections import Counter
-from datetime import datetime, timezone
 import hashlib
 import ipaddress
 import json
 import os
-from pathlib import Path
 import re
 import secrets
 import shutil
@@ -19,18 +16,19 @@ import subprocess
 import sys
 import threading
 import time
-
+from collections import Counter
+from datetime import datetime, timezone
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 PACKAGE = ROOT / "deploy/observability"
 sys.path.insert(0, str(PACKAGE))
 from configs import loki as loki_config  # noqa: E402
 from guard import Server, State  # noqa: E402
+from helpers import certificates, event  # noqa: E402
 from monitor import capacities  # noqa: E402
 from policy import canonical, digest  # noqa: E402
 from query import LokiClient  # noqa: E402
-from helpers import certificates, event  # noqa: E402
-
 
 TASK = "NAS-A2"
 EXPECTED_ROOT = Path("/volume2/tianshu-v2-validation-wave1/accept-20260925-a2")
@@ -41,6 +39,12 @@ VECTOR_NAME = PROJECT + "-vector"
 LOKI_NAME = PROJECT + "-loki"
 VECTOR_IMAGE_REFERENCE = "timberio/vector:0.58.0-debian"
 LOKI_IMAGE_REFERENCE = "grafana/loki:3.7.8"
+EXPECTED_VECTOR_IMAGE_ID = (
+    "sha256:92c275b73d880922a265918a7c3c4f2cc0dd87338447ff357809f2d18a64a48e"
+)
+EXPECTED_LOKI_IMAGE_ID = (
+    "sha256:ceccdbc45e274f08eb23d6ca6e0b648921d580c592ab47b4304225c0f17a406a"
+)
 VECTOR_MINIMUM_BUFFER_BYTES = 268435488
 GUARD_HOST_PORT = 19522
 PORTS = (GUARD_HOST_PORT,)
@@ -88,8 +92,7 @@ def parse_cpu_list(value: str) -> list[int]:
     for part in value.split(","):
         bounds = part.split("-", 1)
         require(
-            len(bounds) in (1, 2)
-            and all(bound.isdigit() for bound in bounds),
+            len(bounds) in (1, 2) and all(bound.isdigit() for bound in bounds),
             "cpu_affinity_unavailable",
         )
         first = int(bounds[0])
@@ -164,17 +167,25 @@ def sha_file(path: Path) -> str:
 
 def write_json(path: Path, value) -> None:
     data = (json.dumps(value, sort_keys=True, indent=2) + "\n").encode()
-    temporary = path.with_suffix(path.suffix + ".tmp")
-    with temporary.open("xb") as stream:
-        stream.write(data)
-        stream.flush()
-        os.fsync(stream.fileno())
-    temporary.replace(path)
-    fd = os.open(path.parent, os.O_DIRECTORY)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.{secrets.token_hex(8)}.tmp")
     try:
-        os.fsync(fd)
+        with temporary.open("xb") as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        temporary.replace(path)
+        directory_flag = getattr(os, "O_DIRECTORY", None)
+        if directory_flag is not None:
+            fd = os.open(path.parent, directory_flag)
+            try:
+                os.fsync(fd)
+            finally:
+                os.close(fd)
     finally:
-        os.close(fd)
+        try:
+            temporary.unlink()
+        except FileNotFoundError:
+            pass
 
 
 def _overlap(left: Path, right: Path) -> bool:
@@ -241,6 +252,11 @@ def _ignore_owned_network_route(routes: str, network_id: str) -> str:
 
 def preflight(root: Path, vector_image_id: str, loki_image_id: str) -> dict:
     require(sys.platform == "linux", "linux_required")
+    require(
+        vector_image_id == EXPECTED_VECTOR_IMAGE_ID
+        and loki_image_id == EXPECTED_LOKI_IMAGE_ID,
+        "image_digest_not_authorized",
+    )
     resolved = validate_root(root)
     tmpfs = resolved / "tmpfs"
     mounts = Path("/proc/mounts").read_text().splitlines()
@@ -288,8 +304,10 @@ def preflight(root: Path, vector_image_id: str, loki_image_id: str) -> dict:
             and labels.get(SCOPE_LABEL) == PROJECT
         )
         for mount in container.get("Mounts", []):
-            if not owned_a2 and mount.get("Type") == "bind" and _overlap(
-                Path(mount["Source"]), resolved
+            if (
+                not owned_a2
+                and mount.get("Type") == "bind"
+                and _overlap(Path(mount["Source"]), resolved)
             ):
                 conflicts.append(
                     container.get("Name", "unknown") + ":" + mount["Source"]
@@ -413,9 +431,7 @@ def preflight(root: Path, vector_image_id: str, loki_image_id: str) -> dict:
         "candidate_subnets_checked": [f"10.204.{n}.0/24" for n in range(50, 58)],
         "selected_subnet": str(SUBNET),
         "subnet_conflicts": collisions,
-        "selected_network_id": selected_network.get("Id")
-        if selected_network
-        else None,
+        "selected_network_id": selected_network.get("Id") if selected_network else None,
         "selected_network_reused": selected_network is not None,
         "existing_owned_containers": existing_owned_containers,
         "docker_cpu_cfs_quota_supported": docker_info.get("CpuCfsQuota"),
@@ -647,9 +663,7 @@ def _write_vector_config(path: Path, tls: Path) -> bytes:
     return data
 
 
-def _container_common(
-    name: str, memory: int, cpu_set: str, data: Path
-) -> list[str]:
+def _container_common(name: str, memory: int, cpu_set: str, data: Path) -> list[str]:
     return [
         "run",
         "-d",
@@ -821,8 +835,20 @@ def _start_guard_probe(root: Path, paths: dict[str, Path], backend: LokiClient):
     monitor_thread = threading.Thread(
         target=state.run_monitor, name="nas-a2-monitor-test"
     )
-    server_thread.start()
-    monitor_thread.start()
+    server_started = False
+    try:
+        server_thread.start()
+        server_started = True
+        monitor_thread.start()
+    except BaseException:
+        state.stop.set()
+        if server_started:
+            server.shutdown()
+            server_thread.join(timeout=5)
+        server.server_close()
+        if monitor_thread.ident is not None:
+            monitor_thread.join(timeout=5)
+        raise
     return settings, state, server, server_thread, monitor_thread
 
 
@@ -943,9 +969,7 @@ def _run_loki_retention_only(
     report["containers"]["loki"].setdefault("transitions", []).append(stopped)
     _start_existing(loki_id, LOKI_NAME, image_id)
     clients["loki"] = _loki_client(paths)
-    _wait(
-        lambda: _loki_ready(clients["loki"]), timeout=90, code="loki_restart_timeout"
-    )
+    _wait(lambda: _loki_ready(clients["loki"]), timeout=90, code="loki_restart_timeout")
     deadline = time.monotonic() + 180
     expired = False
     while time.monotonic() < deadline:
@@ -1085,13 +1109,13 @@ def _run_buffer_scenario(
     existing_loki = report["preflight"]["existing_owned_containers"].get("loki")
     if existing_loki:
         loki_id = existing_loki["id"]
-        _start_existing(loki_id, LOKI_NAME, image_ids["loki"])
         report["containers"]["loki"] = {
             "id": loki_id,
             "name": LOKI_NAME,
             "image_id": image_ids["loki"],
             "reused": True,
         }
+        _start_existing(loki_id, LOKI_NAME, image_ids["loki"])
     else:
         loki_id = docker(*loki_args).strip()
         report["containers"]["loki"] = {
@@ -1106,9 +1130,7 @@ def _run_buffer_scenario(
     _wait(lambda: _loki_ready(clients["loki"]), timeout=90, code="loki_ready_timeout")
 
     if not run_vector:
-        existing_vector = report["preflight"]["existing_owned_containers"].get(
-            "vector"
-        )
+        existing_vector = report["preflight"]["existing_owned_containers"].get("vector")
         report["dimensions"]["vector_buffer_full"] = {
             "status": "not_run",
             "reason": "vector_minimum_disk_buffer_exceeds_bounded_tmpfs",
@@ -1122,9 +1144,7 @@ def _run_buffer_scenario(
                 **existing_vector,
                 "expected_stopped_failure": True,
             }
-        _run_loki_retention_only(
-            paths, report, clients, loki_id, image_ids["loki"]
-        )
+        _run_loki_retention_only(paths, report, clients, loki_id, image_ids["loki"])
         return
 
     vector_args = _container_common(
@@ -1158,6 +1178,7 @@ def _run_buffer_scenario(
         "image_id": image_ids["vector"],
     }
     _check_owned(_container_by_id(vector_id), VECTOR_NAME, image_ids["vector"])
+
     def baseline_seen():
         rows = _query(
             clients["loki"],
@@ -1197,7 +1218,7 @@ def _run_buffer_scenario(
         buffer_peak = max(buffer_peak, size)
         buffer_max = max(buffer_max, maximum)
         discarded_peak = max(discarded_peak, discarded)
-        return maximum > 0 and size >= maximum * 0.8
+        return maximum > 0 and size >= maximum * 0.98
 
     _wait(full_buffer_observed, timeout=120, interval=1, code="vector_buffer_not_full")
     report["dimensions"]["vector_buffer_full"] = {
@@ -1397,6 +1418,7 @@ def _run_guard_capacity(
     )
     clients["guard_writer"] = _guard_client(paths, "writer")
     clients["guard_metrics"] = _guard_client(paths, "metrics")
+    filler_file = None
     try:
         _wait(
             lambda: (
@@ -1416,8 +1438,7 @@ def _run_guard_capacity(
         if fixture_reused:
             try:
                 source_rows = [
-                    json.loads(line)
-                    for line in app_source.read_bytes().splitlines()
+                    json.loads(line) for line in app_source.read_bytes().splitlines()
                 ]
             except (TypeError, ValueError):
                 raise ProbeError("existing_application_fixture_unexpected") from None
@@ -1463,10 +1484,11 @@ def _run_guard_capacity(
             before_free > reserve + 8 * 1024**2,
             "tmpfs_headroom_too_low_for_capacity_probe",
         )
-        filler = capacity_dir / "a2-disk-watermark-fixture.bin"
+        filler_path = capacity_dir / "a2-disk-watermark-fixture.bin"
         written = 0
         block = secrets.token_bytes(256 * 1024)
-        with filler.open("xb", buffering=0) as stream:
+        with filler_path.open("xb", buffering=0) as stream:
+            filler_file = filler_path
             while shutil.disk_usage(capacity_dir).free > reserve:
                 require(
                     written + len(block) <= MAX_FILLER_BYTES,
@@ -1508,7 +1530,8 @@ def _run_guard_capacity(
             timeout=30,
             code="disk_capacity_alert_missing",
         )
-        filler.unlink()
+        filler_file.unlink()
+        filler_file = None
         after_free = shutil.disk_usage(capacity_dir).free
         require(after_free > reserve, "watermark_space_not_recovered")
         accepted = _record(910002)
@@ -1623,6 +1646,15 @@ def _run_guard_capacity(
             if client_name in clients:
                 clients[client_name].close()
         backend.close()
+        fixture_cleanup_failed = False
+        if filler_file is not None:
+            try:
+                filler_file.unlink()
+            except FileNotFoundError:
+                pass
+            except OSError:
+                fixture_cleanup_failed = True
+        require(not fixture_cleanup_failed, "capacity_fixture_cleanup_failed")
 
 
 def _initial_report(root: Path) -> dict:
@@ -1752,7 +1784,9 @@ def main(argv=None) -> int:
                 except Exception as exc:
                     report["status"] = "failed"
                     report["cleanup_error_code"] = (
-                        str(exc) if isinstance(exc, ProbeError) else "cleanup_unconfirmed"
+                        str(exc)
+                        if isinstance(exc, ProbeError)
+                        else "cleanup_unconfirmed"
                     )
                 continue
             try:

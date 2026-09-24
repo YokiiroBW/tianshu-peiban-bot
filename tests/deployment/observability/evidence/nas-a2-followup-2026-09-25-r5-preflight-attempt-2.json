@@ -1,0 +1,43 @@
+{
+  "application_reclamation_authorized": false,
+  "artifacts": {},
+  "containers": {},
+  "dimensions": {
+    "accelerated_ttl": {
+      "status": "not_run"
+    },
+    "application_capacity_alert": {
+      "status": "not_run"
+    },
+    "application_reclamation_gate": {
+      "reason": "no_frozen_application_log_reclamation_contract",
+      "status": "blocked"
+    },
+    "disk_watermark_rejection": {
+      "status": "not_run"
+    },
+    "physical_enospc": {
+      "status": "not_run"
+    },
+    "production_30_day_retention": {
+      "status": "not_run"
+    },
+    "recovery_query_diagnostics": {
+      "status": "not_run"
+    },
+    "vector_buffer_full": {
+      "status": "not_run"
+    }
+  },
+  "error_code": "prior_followup_instance_not_released",
+  "nas_verified": false,
+  "project": "tianshu-accept-a2-vfull-20260925-r5",
+  "release_ready": false,
+  "run_id": "recovery-vector-20260925-r5",
+  "schema_version": "tianshu-nas-a2/1",
+  "scope": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r5",
+  "source_logs_deleted": false,
+  "status": "failed",
+  "task": "NAS-A2",
+  "tmpfs_used_bytes_after_stop": 0
+}
