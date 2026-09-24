@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "task": "NAS-A3",
-  "recorded_at": "2026-09-25T01:41:06+08:00",
+  "recorded_at": "2026-09-24T19:19:07+00:00",
   "branch": "codex/nas-a3",
   "baseline_commit": "2e04eff5d0bf1283a321d9042d9b62f94a54dabb",
   "nas": {
@@ -157,11 +157,14 @@
     }
   ],
   "final_runtime_state": {
-    "verified_at": "2026-09-24T17:41:06.642326Z",
-    "method": "docker inspect of every container in both exact Compose projects",
-    "project_container_count": 7,
+    "verified_at": "2026-09-24T19:19:07+00:00",
+    "method": "docker inspect of every A3 release-labeled container and every A3 network",
+    "project_container_count": 19,
     "running_count": 0,
-    "all_recovery_containers_exit_code_zero": true
+    "a3_network_count": 15,
+    "a3_networks_with_endpoints": 0,
+    "all_recovery_containers_exit_code_zero": true,
+    "historical_expected_expiry_exit_nonzero": "tianshu-accept-a3-resident/gateway"
   },
   "limits": {
     "real_models": false,
@@ -172,18 +175,234 @@
       "synthetic_dialogue",
       "log_chain",
       "normal_restore",
-      "full_gateway_reauthorization_and_recreation_cycle",
+      "representative_sustained_workload",
       "real_models",
       "browser_rendering"
     ],
     "blockers": [
       "NAS lacks CPU CFS quota and PID-limit controllers required by the release profile.",
-      "The successfully reauthorized origin expired before a replacement Gateway could be created and verified."
+      "Representative sustained workload and production recovery acceptance remain unverified."
     ]
   },
   "sanitization": {
     "origin_refs_included": false,
     "private_environment_included": false,
     "credentials_or_tokens_included": false
+  },
+  "followup_2026_09_25": {
+    "completed_scope": {
+      "scope": "cycle-20260925-renewal7",
+      "project": "tianshu-accept-a3-renewal7",
+      "network_cidrs": [
+        "10.204.76.0/26",
+        "10.204.76.64/26",
+        "10.204.77.0/26"
+      ],
+      "loopback_port": "127.0.0.1:19538",
+      "release_ready": false,
+      "compose_help": {
+        "version": "v2.20.1-6047-g6817716",
+        "create_supports": [
+          "--no-recreate",
+          "--no-build",
+          "--pull"
+        ],
+        "create_supports_no_deps": false,
+        "command_used": "docker compose -p <project> --project-directory <root> -f <root>/compose.json create --no-recreate --no-build --pull never gateway"
+      },
+      "renewal_configuration": {
+        "gateway_platform_origin_renewal": true,
+        "platform_model_origin_renewal_http": true,
+        "config_entry_ttl_seconds": 300,
+        "absolute_config_entry_expiry": false,
+        "initial_issue_receipt_expiry_is_not_renewal_state": true,
+        "initial_issue_receipt_expires_at": "2026-09-24T18:58:17.603545Z"
+      },
+      "active_renewal_probe": {
+        "result": "passed",
+        "authenticated_readiness_seconds": 345,
+        "passed_beyond_initial_issue_receipt_expiry": true,
+        "same_existing_gateway_container": true,
+        "models_called": false
+      },
+      "natural_expiry": {
+        "result": "passed",
+        "gateway_stopped_seconds_before_retry": 345,
+        "old_gateway_id": "f45f663a0b2f8ea46df795ebf2ce515c62b3dfd5d0cf8b20f3747f4af9bf48e7",
+        "old_gateway_exit_code": 1,
+        "old_gateway_oom_killed": false,
+        "platform_remained_healthy": true,
+        "companion_and_memory_remained_stopped": true,
+        "automatic_retry": false
+      },
+      "reauthorization": {
+        "result": "reauthorized",
+        "issuer": "product_platform_cli",
+        "previous_initial_issue_receipt_expires_at": "2026-09-24T18:58:17.603545Z",
+        "new_issue_receipt_expires_at": "2026-09-24T19:14:10.763127Z",
+        "remaining_seconds_before_create": 299,
+        "previous_ref_replaced": true,
+        "ref_in_report": false,
+        "automatic_retry": false,
+        "elapsed_through_final_stop_seconds": 105.1
+      },
+      "gateway_recreation": {
+        "old_gateway_removed_normally": true,
+        "force_remove_used": false,
+        "volumes_removed": false,
+        "dependency_precheck": {
+          "platform_fixed_id_healthy": true,
+          "memory_fixed_id_stopped": true,
+          "companion_fixed_id_stopped": true,
+          "gateway_depends_only_on_platform": true
+        },
+        "compose_create_exit_code": 0,
+        "no_deps_option_used": false,
+        "no_extra_containers": true,
+        "old_gateway_id": "f45f663a0b2f8ea46df795ebf2ce515c62b3dfd5d0cf8b20f3747f4af9bf48e7",
+        "new_gateway_id": "b314afadb11a733122ef254748f8431565e3c4a81fe9df7440f70fc1142447cb",
+        "image_id": "sha256:10746fed0f95f138501609620368e94d4764888dab08363124dfeccc2273a7be",
+        "user": "10001:10001",
+        "memory_limit_bytes": 1073741824,
+        "cpuset": "6,7",
+        "cpu_quota": 0,
+        "pids_limit": null,
+        "restart_policy": "no",
+        "bind_mount_targets": [
+          "/contracts",
+          "/etc/tianshu",
+          "/opt/dep-a/runtime_guard.py",
+          "/var/lib/tianshu",
+          "/var/log/tianshu"
+        ]
+      },
+      "readiness": {
+        "platform": "passed",
+        "gateway": "passed",
+        "memory": "passed",
+        "companion": "passed",
+        "all_four_authenticated": true
+      },
+      "final_containers": [
+        {
+          "service": "platform",
+          "id": "35edca5c1a9693fe02410c4c711cea0fd31411c6950d78684fd93c83504b6aa8",
+          "status": "exited",
+          "exit_code": 0,
+          "oom_killed": false,
+          "restart_count": 0
+        },
+        {
+          "service": "gateway",
+          "id": "b314afadb11a733122ef254748f8431565e3c4a81fe9df7440f70fc1142447cb",
+          "status": "exited",
+          "exit_code": 0,
+          "oom_killed": false,
+          "restart_count": 0
+        },
+        {
+          "service": "memory",
+          "id": "2fb07939beca6ef5474cb77e947097e528acf05e96e23d14b4802f8a40e92cdc",
+          "status": "exited",
+          "exit_code": 0,
+          "oom_killed": false,
+          "restart_count": 0
+        },
+        {
+          "service": "companion",
+          "id": "083a347621a65f0947aa182d465f1c0be66c080e5bbb7991c95e940173e0135b",
+          "status": "exited",
+          "exit_code": 0,
+          "oom_killed": false,
+          "restart_count": 0
+        }
+      ],
+      "all_a3_running_containers_after_cycle": 0,
+      "a3_networks_retained_and_empty": 15,
+      "dockge_stack_written": false,
+      "real_models": false,
+      "report_hashes": {
+        "linux-executed.json": "65a8d1d2c1cc7cca4b03d12f1ab0af19256ca3daafa366520ae77253be857705",
+        "bootstrap/result.json": "057851dca31036868c7b8dce70b23d10016f4ab5b3626c950b0048fc3d535e49",
+        "bootstrap/reauthorization-attempt.json": "47b4f79d249f60a77ae40e6f3cd3b6220a81ef86c2cd34e70b6b39a6c1bd5dea",
+        "bootstrap/reauthorization-result.json": "60cde83d58b97dc8bdfecb24754dd7071dc9d44e0581543956905d53d632b042",
+        "bundle-integrity.json": "8faeb1b095b64bdefdaaa68f102fd81bbed05376d5ea6008f1610d2508384146",
+        "compose.json": "68ed0d04ba49565dd81f9bf6974879f127cbb0d2d4511feffe8b82b34d5fcdfe",
+        "reauthorization-recovery-cycle.json": "66a3bec54d870f0dc0c27c20f90e2b8621bbc75ed105abb0ab9fec86c57c5e73",
+        "complete-cycle.py": "a192b4d0b64e6383c83e2ca03eb24ea14060b4d009e39547cfe17169cdb5245a",
+        "shared-source-inventory.json": "ffa41ae611f00bdec8eae48aa2b20809d6d9665bc61fd3822425f48058ab21fa"
+      },
+      "sanitization": {
+        "origin_refs_included": false,
+        "private_environment_included": false,
+        "credentials_or_tokens_included": false
+      }
+    },
+    "attempt_history": [
+      {
+        "scope": "cycle-20260925-renewal",
+        "result": "refused_existing_candidate_image_tag",
+        "remote_containers_created": false,
+        "origin_issued": false,
+        "networks_created": false,
+        "scope_replayed": false
+      },
+      {
+        "scope": "cycle-20260925-renewal2",
+        "result": "liveness_passed_recovery_script_preflight_failed",
+        "failure": "No module named bundle; source tool path pointed at the Python venv directory",
+        "reauthorization_attempted": false,
+        "container_states_after_failure": "four original IDs remained exited 0",
+        "scope_replayed": false
+      },
+      {
+        "scopes": [
+          "cycle-20260925-renewal3",
+          "cycle-20260925-renewal4"
+        ],
+        "result": "local_synthetic_tls_preparation_failed",
+        "failures": [
+          "missing Authority Key Identifier",
+          "CA keyCertSign usage missing"
+        ],
+        "uploaded_to_nas": false
+      },
+      {
+        "scope": "cycle-20260925-renewal5",
+        "result": "bundle_integrity_refused_unlisted_python_bytecode_cache",
+        "images_built": false,
+        "containers_created": false,
+        "origin_issued": false,
+        "scope_replayed": false
+      },
+      {
+        "scope": "cycle-20260925-renewal6",
+        "result": "liveness_passed_recovery_script_path_check_failed",
+        "failure": "NAS runtime virtual-environment path was derived from the separate source-tool path",
+        "reauthorization_attempted": false,
+        "container_states_after_failure": "four original IDs remained exited 0",
+        "scope_replayed": false
+      },
+      {
+        "scope": "cycle-20260925-renewal7",
+        "result": "passed",
+        "complete_cycle_report": "cycle-20260925-renewal7/reports/reauthorization-recovery-cycle.json"
+      }
+    ],
+    "resource_observations": {
+      "docker": "24.0.2",
+      "compose": "v2.20.1-6047-g6817716",
+      "cgroup_version": "1",
+      "memory_limit": true,
+      "cpu_set": true,
+      "cpu_shares": true,
+      "cpu_cfs_period": null,
+      "cpu_cfs_quota": null,
+      "pid_limit": false,
+      "memory_total_bytes": 50106032128,
+      "cycle7_idle_and_readiness_samples_only": true,
+      "docker_stats_pid_samples": "0; not valid PID usage evidence on this host",
+      "steady_resource_minimum_established": false
+    }
   }
 }
