@@ -16,7 +16,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 
-from ops.recovery.drill_http import check, matches
+from ops.recovery.drill_http import check, check_readiness, matches
 from ops.recovery.lifecycle import Deadline
 from ops.recovery.safety import RecoveryError
 
@@ -63,6 +63,7 @@ class DrillHTTPTests(unittest.TestCase):
         (cls.root / "token").write_text("isolated-test-only-token")
         cls.requests = []
         cls.post_requests = []
+        cls.readiness_status = 200
 
         class Handler(BaseHTTPRequestHandler):
             def log_message(self, *_):
@@ -91,10 +92,29 @@ class DrillHTTPTests(unittest.TestCase):
                     self.send_header("Location", "/sentinel")
                     self.end_headers()
                     return
-                data = json.dumps({"status": "unknown", "detail": "fixture"}).encode()
+                if self.path == "/health/ready":
+                    ready = cls.readiness_status == 200
+                    data = json.dumps(
+                        {
+                            "status": "ready" if ready else "not_ready",
+                            "service": "companion",
+                            "checks": {
+                                "configuration": "ok",
+                                "logs": "ok",
+                                "runtime": "ok" if ready else "failed",
+                                "dependencies": "not_verified",
+                            },
+                        }
+                    ).encode()
+                    response_status = cls.readiness_status
+                else:
+                    data = json.dumps(
+                        {"status": "unknown", "detail": "fixture", "history": []}
+                    ).encode()
+                    response_status = 200
                 if self.path == "/large":
                     data = b"x" * (300 * 1024)
-                self.send_response(200)
+                self.send_response(response_status)
                 self.send_header("Content-Length", str(len(data)))
                 self.end_headers()
                 try:
@@ -177,6 +197,24 @@ class DrillHTTPTests(unittest.TestCase):
         with self.assertRaisesRegex(RecoveryError, "drill_assertion_endpoint_forbidden"):
             check(self.root, wrong_service, Deadline(3))
 
+    def test_companion_web_snapshot_is_an_allowlisted_read_boundary(self):
+        assertion = self.assertion("/internal/v1/conversation/web-snapshot")
+        assertion.update(
+            method="POST",
+            request_json={"schema_version": 1, "query": {"request_id": "read:1"}},
+        )
+        result = check(self.root, assertion, Deadline(3))
+        self.assertEqual(result["status"], "passed")
+        self.assertIn(
+            (
+                "/internal/v1/conversation/web-snapshot",
+                "Bearer isolated-test-only-token",
+                "application/json",
+                b'{"query":{"request_id":"read:1"},"schema_version":1}',
+            ),
+            self.post_requests,
+        )
+
     def test_mutating_or_wrong_service_post_is_rejected_before_network(self):
         initial = len(self.post_requests)
         cases = (
@@ -223,3 +261,46 @@ class DrillHTTPTests(unittest.TestCase):
         with self.assertRaisesRegex(RecoveryError, "drill_response_limit"):
             check(self.root, self.assertion("/large"), Deadline(3))
         self.assertFalse(matches({"value": True}, {"value": 1}))
+
+    def test_array_expectations_require_exact_length_and_recurse(self):
+        expected = [{"turn": {"id": "t1"}}, {"turn": {"id": "t2"}}]
+        self.assertTrue(
+            matches(
+                [
+                    {"turn": {"id": "t1", "phase": "closed_unknown"}},
+                    {"turn": {"id": "t2", "phase": "closed_unknown"}},
+                ],
+                expected,
+            )
+        )
+        self.assertFalse(
+            matches(
+                [
+                    {"turn": {"id": "t1"}},
+                    {"turn": {"id": "t2"}},
+                    {"turn": {"id": "t3"}},
+                ],
+                expected,
+            )
+        )
+        self.assertFalse(matches([{"id": "t1"}], expected))
+
+    def test_dedicated_readiness_probe_accepts_only_ready_or_retryable_startup(self):
+        config = {
+            "url": f"https://127.0.0.1:{self.server.server_port}/health/ready",
+            "ca_file": "ca.pem",
+            "token_file": "token",
+        }
+        self.assertEqual(
+            check_readiness(self.root, config, Deadline(3))["runtime"], "ok"
+        )
+        self.__class__.readiness_status = 503
+        self.assertEqual(
+            check_readiness(
+                self.root, config, Deadline(3), allow_not_ready=True
+            )["status"],
+            "not_ready",
+        )
+        with self.assertRaisesRegex(RecoveryError, "drill_worker_runtime_unhealthy"):
+            check_readiness(self.root, config, Deadline(3))
+        self.__class__.readiness_status = 200

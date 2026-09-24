@@ -150,6 +150,23 @@ class DrillTests(unittest.TestCase):
         self.partial_start_failure = False
         self.bad_exit = False
         self.calls = []
+        self.readback_running_states = []
+        self.gateway_running_states = []
+        self.gateway_counts = {}
+        for index, outcome in enumerate(
+            ("unknown", "unknown", "succeeded", "succeeded"), 1
+        ):
+            correlation = f"{index:032x}"
+            self.gateway_counts[correlation] = {
+                "request.accepted": {"succeeded": 1},
+                "upstream.call_started": {"started": 1},
+                "upstream.call_finished": {outcome: 1},
+            }
+        self.gateway_counts[f"{4:032x}"]["request.accepted"]["succeeded"] = 2
+        for index in range(5, 10):
+            self.gateway_counts[f"{index:032x}"] = {
+                "request.accepted": {"succeeded": 1}
+            }
         outer = self
 
         class Combined:
@@ -234,13 +251,123 @@ class DrillTests(unittest.TestCase):
             patch.object(
                 drill,
                 "http_check",
-                lambda root, a, b: {
-                    "id": a["id"],
-                    "service": a["service"],
-                    "status": "passed",
+                self._record_readback,
+            )
+        )
+        self.base.stack.enter_context(
+            patch.object(
+                drill,
+                "check_readiness",
+                lambda *_args, **_kwargs: {
+                    "status": "ready",
+                    "runtime": "ok",
+                    "response_sha256": "0" * 64,
                 },
             )
         )
+        self.base.stack.enter_context(
+            patch.object(
+                drill,
+                "gateway_counters",
+                self._record_gateway_snapshot,
+            )
+        )
+
+    def _record_readback(
+        self, root, assertion, deadline, *, capture_unknown_turns=False
+    ):
+        self.readback_running_states.append(
+            all(c["State"]["Running"] for c in self.clone_docker.containers)
+        )
+        result = {
+            "id": assertion["id"],
+            "service": assertion["service"],
+            "status": "passed",
+        }
+        if capture_unknown_turns and "runtime_observation" in self.index:
+            result["unknown_turns"] = deepcopy(
+                self.index["runtime_observation"]["unknown_turns"]
+            )
+        return result
+
+    def _record_gateway_snapshot(self, *_args, **_kwargs):
+        self.gateway_running_states.append(
+            all(c["State"]["Running"] for c in self.clone_docker.containers)
+        )
+        return deepcopy(self.gateway_counts)
+
+    def enable_a1_observation(self, *, window_seconds=1):
+        self.value["projects"] = {
+            "core": "tianshu-accept-a1-readback",
+            "observability": "tianshu-accept-a1-readback-obs",
+        }
+        for group, filename in (
+            ("core", "compose.json"),
+            ("observability", "observability/compose.yaml"),
+        ):
+            self.documents[group]["name"] = self.value["projects"][group]
+            put(self.inputs / filename, self.documents[group])
+        for container in self.clone_docker.containers:
+            service = container["Config"]["Labels"]["com.docker.compose.service"]
+            group = "core" if service in self.manifest["products"] else "observability"
+            container["Config"]["Labels"]["com.docker.compose.project"] = self.value[
+                "projects"
+            ][group]
+        put(self.inputs / "private/diagnostics.token", "diagnostics-test-only")
+        companion_port = self.documents["core"]["services"]["companion"]["ports"][0][
+            "published"
+        ]
+        self.index["runtime_observation"] = {
+            "window_seconds": window_seconds,
+            "worker_readiness": {
+                "url": f"https://127.0.0.1:{companion_port}/health/ready",
+                "ca_file": "config/ca.pem",
+                "token_file": "private/diagnostics.token",
+            },
+            "unknown_turns": [
+                {
+                    "turn_id": "turn:4090732d24934b05a90f47640afac279",
+                    "turn_sequence": 8,
+                    "phase": "closed_unknown",
+                    "delivery_state": "unknown",
+                    "replies": [
+                        {
+                            "reply_id": "reply:4a499ec193754d219bf2de646d3bfc58",
+                            "state": "unknown",
+                        }
+                    ],
+                },
+                {
+                    "turn_id": "turn:1bcde083e8204998aaa8f7bd420536bf",
+                    "turn_sequence": 9,
+                    "phase": "closed_unknown",
+                    "delivery_state": "unknown",
+                    "replies": [
+                        {
+                            "reply_id": "reply:82542ea0041e4a73acbf45f992d23024",
+                            "state": "unknown",
+                        }
+                    ],
+                },
+            ],
+        }
+        unknown_assertion = next(
+            item
+            for item in self.index["assertions"]
+            if item["id"] == "unknown_no_resend"
+        )
+        unknown_port = self.documents["core"]["services"]["companion"]["ports"][0][
+            "published"
+        ]
+        unknown_assertion.update(
+            method="POST",
+            request_json={"schema_version": 1, "fixture_only": True},
+            url=(
+                f"https://127.0.0.1:{unknown_port}"
+                "/internal/v1/conversation/web-snapshot"
+            ),
+        )
+        self.save()
 
     def tearDown(self):
         self.base.tearDown()
@@ -291,38 +418,29 @@ class DrillTests(unittest.TestCase):
         self.assertFalse((self.root / "drill-claims").exists())
         self.assertEqual(self.calls, [])
 
-    def test_a1_projects_are_allowed_and_service_coverage_is_staged(self):
-        self.value["projects"] = {
-            "core": "tianshu-accept-a1-readback",
-            "observability": "tianshu-accept-a1-readback-obs",
-        }
-        for group, filename in (
-            ("core", "compose.json"),
-            ("observability", "observability/compose.yaml"),
-        ):
-            self.documents[group]["name"] = self.value["projects"][group]
-            put(self.inputs / filename, self.documents[group])
-        for container in self.clone_docker.containers:
-            service = container["Config"]["Labels"]["com.docker.compose.service"]
-            group = "core" if service in self.manifest["products"] else "observability"
-            container["Config"]["Labels"]["com.docker.compose.project"] = self.value[
-                "projects"
-            ][group]
-        self.save()
+    def test_a1_projects_are_allowed_and_all_nine_services_stay_running(self):
+        self.enable_a1_observation()
         permit(self.recovery, self.permit_path, file_hash(self.permit_path))
         result = self.run_drill()
         self.assertEqual(result["status"], "drill_passed")
-        self.assertEqual(result["service_coverage"]["mode"], "staged")
-        self.assertFalse(result["service_coverage"]["all_nine_simultaneous"])
+        self.assertEqual(result["service_coverage"]["mode"], "simultaneous")
+        self.assertTrue(result["service_coverage"]["all_nine_simultaneous"])
         self.assertTrue(
             result["service_coverage"]["observability"][
-                "stopped_exit_code_zero_before_core_start"
+                "running_during_functional_readback"
             ]
         )
         self.assertTrue(
             result["service_coverage"]["core"][
-                "healthy_during_functional_readback"
+                "healthchecks_healthy_during_functional_readback"
             ]
+        )
+        self.assertEqual(
+            result["service_coverage"]["core"]["configured_healthchecks"],
+            sum(
+                bool(spec.get("healthcheck"))
+                for spec in self.documents["core"]["services"].values()
+            ),
         )
         starts = [
             call[call.index("--project-name") + 1]
@@ -336,6 +454,57 @@ class DrillTests(unittest.TestCase):
                 self.value["projects"]["core"],
             ],
         )
+        self.assertEqual(len(self.readback_running_states), 6)
+        self.assertTrue(all(self.readback_running_states))
+        self.assertEqual(self.gateway_running_states, [False, True])
+        observation = result["unknown_no_resend_observation"]
+        self.assertEqual(observation["status"], "passed")
+        self.assertEqual(observation["api_unknown_turn_count"], 2)
+        self.assertEqual(observation["api_unknown_reply_record_count"], 2)
+        self.assertTrue(observation["gateway_counters_unchanged_by_correlation"])
+        self.assertEqual(
+            observation["gateway_baseline"]["successful_control_groups"], 2
+        )
+
+    def test_a1_observation_fails_if_any_gateway_correlation_count_grows(self):
+        self.enable_a1_observation()
+        changed = deepcopy(self.gateway_counts)
+        changed["0" * 31 + "1"]["upstream.call_started"]["started"] = 2
+        with patch.object(
+            drill,
+            "gateway_counters",
+            side_effect=[deepcopy(self.gateway_counts), changed],
+        ):
+            result = self.run_drill()
+        self.assertEqual(result["status"], "drill_failed_or_cancelled")
+        self.assertTrue(
+            all(not c["State"]["Running"] for c in self.clone_docker.containers)
+        )
+
+    def test_a1_observation_requires_the_companion_web_snapshot_endpoint(self):
+        self.enable_a1_observation()
+        unknown_assertion = next(
+            item
+            for item in self.index["assertions"]
+            if item["id"] == "unknown_no_resend"
+        )
+        unknown_assertion["url"] = unknown_assertion["url"].replace(
+            "/internal/v1/conversation/web-snapshot", "/internal/v1/source-facts/read"
+        )
+        self.save()
+        with self.assertRaisesRegex(
+            RecoveryError, "drill_unknown_assertion_endpoint_forbidden"
+        ):
+            isolated_inputs(self.value, self.manifest)
+
+    def test_a1_readiness_requires_a_dedicated_diagnostics_token(self):
+        self.enable_a1_observation()
+        self.index["runtime_observation"]["worker_readiness"][
+            "token_file"
+        ] = "private/token"
+        self.save()
+        with self.assertRaisesRegex(RecoveryError, "drill_readiness_input_invalid"):
+            isolated_inputs(self.value, self.manifest)
 
     def test_post_input_is_restricted_to_documented_read_endpoints(self):
         assertion = self.index["assertions"][0]

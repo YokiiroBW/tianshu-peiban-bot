@@ -7,8 +7,13 @@ from contextlib import ExitStack
 from pathlib import Path
 
 from .compose_backend import ComposeBackend, DockerCLI
-from .drill_http import check as http_check
+from .drill_http import (
+    check as http_check,
+    check_readiness,
+    matches as response_matches,
+)
 from .drill_inputs import isolated_inputs, permit, restoration_facts
+from .drill_observation import gateway_counters, summarize_a1_gateway_counts
 from .lifecycle import Deadline, stop_order
 from .linux_recovery import registered
 from .runtime_identity import load_identity, runtime_lease
@@ -196,6 +201,25 @@ def _stop(backend):
         )
 
 
+def _assert_clone_services(backend, documents, all_services, work):
+    work.check()
+    backend.inspect(allow_missing=True)
+    require(set(backend.current) == all_services, "missing_project_container")
+    require(
+        all(backend.current[s]["State"]["Running"] for s in all_services),
+        "drill_product_not_running",
+    )
+    require(
+        all(
+            backend.current[s]["State"].get("Health", {}).get("Status") == "healthy"
+            for group in ("core", "observability")
+            for s, spec in documents[group]["services"].items()
+            if spec.get("healthcheck")
+        ),
+        "drill_product_unhealthy",
+    )
+
+
 def run(
     recovery,
     permit_path,
@@ -264,20 +288,32 @@ def run(
         "activation": "disabled",
         "functional_assertions": [],
         "service_coverage": {
-            "mode": "staged",
+            "mode": "simultaneous",
             "all_nine_simultaneous": False,
             "observability": {
                 "owners": sorted(documents["observability"]["services"]),
-                "healthy_before_core_start": False,
-                "stopped_exit_code_zero_before_core_start": False,
+                "running_during_functional_readback": False,
+                "configured_healthchecks": sum(
+                    bool(spec.get("healthcheck"))
+                    for spec in documents["observability"]["services"].values()
+                ),
             },
             "core": {
                 "owners": sorted(documents["core"]["services"]),
-                "healthy_during_functional_readback": False,
+                "healthchecks_healthy_during_functional_readback": False,
+                "configured_healthchecks": sum(
+                    bool(spec.get("healthcheck"))
+                    for spec in documents["core"]["services"].values()
+                ),
             },
         },
         "linux_executed": False,
     }
+    if "runtime_observation" in index:
+        result["unknown_no_resend_observation"] = {
+            "status": "not_run",
+            "window_seconds": index["runtime_observation"]["window_seconds"],
+        }
     if not execute:
         return result | {"status": "planned", "actual_owners_and_facts": "not_checked"}
     remaining = min(value["max_runtime_seconds"], value["expires_at"] - time.time())
@@ -428,6 +464,14 @@ def run(
             )
             clone_owner = clone_binding(clone, documents, manifest, value)
             backend = ComposeBackend(clone, clone, clone_owner, work, docker)
+            observation = index.get("runtime_observation")
+            gateway_before = None
+            baseline_summary = None
+            readiness_state = None
+            if observation is not None:
+                # Read the restored source baseline before any cloned owner starts.
+                gateway_before = gateway_counters(clone, work)
+                baseline_summary = summarize_a1_gateway_counts(gateway_before)
             for group, filename in (
                 ("observability", "observability/compose.yaml"),
                 ("core", "compose.json"),
@@ -466,52 +510,143 @@ def run(
                     time.sleep(0.1)
                 if group == "observability":
                     result["service_coverage"]["observability"][
-                        "healthy_before_core_start"
+                        "running_during_functional_readback"
                     ] = True
-                    for service in stop_order(backend.binding):
-                        if service in services:
-                            backend.stop(service, allow_missing=True)
-                    while True:
-                        work.check()
-                        backend.inspect(allow_missing=True)
-                        require(services <= set(backend.current), "drill_owner_disappeared")
-                        states = [backend.current[s]["State"] for s in services]
-                        if not any(
-                            state["Running"]
-                            or state["Restarting"]
-                            or state["Paused"]
-                            for state in states
-                        ):
-                            require(
-                                all(
-                                    state["Status"] == "exited"
-                                    and state["ExitCode"] == 0
-                                    and not state["OOMKilled"]
-                                    and not state["Dead"]
-                                    and not state["Error"]
-                                    for state in states
-                                ),
-                                "owner_exit_unconfirmed",
-                            )
-                            break
-                        time.sleep(0.05)
-                    result["service_coverage"]["observability"][
-                        "stopped_exit_code_zero_before_core_start"
-                    ] = True
-                else:
-                    require(
-                        set(backend.current) == set(backend.binding["services"]),
-                        "missing_project_container",
+
+            all_services = set(backend.binding["services"])
+            _assert_clone_services(backend, documents, all_services, work)
+            result["service_coverage"]["all_nine_simultaneous"] = True
+            result["service_coverage"]["observability"][
+                "running_during_functional_readback"
+            ] = True
+            result["service_coverage"]["core"][
+                "healthchecks_healthy_during_functional_readback"
+            ] = True
+
+            if observation is not None:
+                # It must contain the two unknown and two successful control groups
+                # recorded by the source scope. New clone events must change the
+                # counters.
+                while readiness_state is None:
+                    _assert_clone_services(backend, documents, all_services, work)
+                    readiness = check_readiness(
+                        clone,
+                        observation["worker_readiness"],
+                        work,
+                        allow_not_ready=True,
                     )
-                    result["service_coverage"]["core"][
-                        "healthy_during_functional_readback"
-                    ] = True
+                    if readiness["status"] == "ready":
+                        readiness_state = readiness
+                        break
+                    work.check()
+                    time.sleep(min(1.0, max(0.01, work.ends - time.monotonic())))
+
+            initial_unknown_turns = None
             for assertion in index["assertions"]:
                 original.assert_stopped()
                 _unused(docker, set(), restored)
-                result["functional_assertions"].append(
-                    http_check(clone, assertion, work)
+                _assert_clone_services(backend, documents, all_services, work)
+                checked = http_check(
+                    clone,
+                    assertion,
+                    work,
+                    capture_unknown_turns=(
+                        observation is not None
+                        and assertion["id"] == "unknown_no_resend"
+                    ),
                 )
+                result["functional_assertions"].append(checked)
+                if assertion["id"] == "unknown_no_resend" and observation is not None:
+                    initial_unknown_turns = checked.get("unknown_turns")
+                    require(
+                        response_matches(
+                            initial_unknown_turns, observation["unknown_turns"]
+                        ),
+                        "drill_unknown_turn_readback_mismatch",
+                    )
+
+            if observation is not None:
+                require(
+                    initial_unknown_turns is not None,
+                    "drill_unknown_assertion_required",
+                )
+                initial_readiness = check_readiness(
+                    clone, observation["worker_readiness"], work
+                )
+                window_seconds = observation["window_seconds"]
+                window_start = time.monotonic()
+                window_end = window_start + window_seconds
+                readiness_checks = 0
+                service_state_checks = 0
+                while True:
+                    _assert_clone_services(backend, documents, all_services, work)
+                    service_state_checks += 1
+                    readiness = check_readiness(
+                        clone, observation["worker_readiness"], work
+                    )
+                    require(
+                        readiness["runtime"] == "ok",
+                        "drill_worker_runtime_unhealthy",
+                    )
+                    readiness_checks += 1
+                    remaining_window = window_end - time.monotonic()
+                    if remaining_window <= 0:
+                        break
+                    work.check()
+                    time.sleep(min(5.0, remaining_window))
+
+                _assert_clone_services(backend, documents, all_services, work)
+                service_state_checks += 1
+                final_readiness = check_readiness(
+                    clone, observation["worker_readiness"], work
+                )
+                readiness_checks += 1
+                unknown_assertion = next(
+                    item
+                    for item in index["assertions"]
+                    if item["id"] == "unknown_no_resend"
+                )
+                repeated_unknown = http_check(
+                    clone,
+                    unknown_assertion,
+                    work,
+                    capture_unknown_turns=True,
+                )
+                _assert_clone_services(backend, documents, all_services, work)
+                require(
+                    response_matches(
+                        repeated_unknown.get("unknown_turns"),
+                        observation["unknown_turns"],
+                    )
+                    and repeated_unknown.get("unknown_turns") == initial_unknown_turns,
+                    "drill_unknown_turn_readback_changed",
+                )
+                gateway_after = gateway_counters(clone, work)
+                after_summary = summarize_a1_gateway_counts(gateway_after)
+                require(
+                    gateway_after == gateway_before
+                    and after_summary == baseline_summary,
+                    "drill_unknown_upstream_counters_changed",
+                )
+                result["unknown_no_resend_observation"] = {
+                    "status": "passed",
+                    "window_seconds": window_seconds,
+                    "observed_seconds": round(time.monotonic() - window_start, 3),
+                    "worker_runtime_before_window": initial_readiness["runtime"],
+                    "worker_runtime_after_window": final_readiness["runtime"],
+                    "readiness_checks_during_window": readiness_checks,
+                    "all_nine_state_checks_during_window": service_state_checks,
+                    "api_unknown_turn_count": len(initial_unknown_turns),
+                    "api_unknown_reply_record_count": sum(
+                        len(turn["replies"]) for turn in initial_unknown_turns
+                    ),
+                    "api_reply_snapshot_unchanged": True,
+                    "gateway_counters_unchanged_by_correlation": True,
+                    "gateway_baseline": baseline_summary,
+                    "gateway_after_window": after_summary,
+                    "control_comparison": "two successful upstream groups unchanged",
+                    "delivery_attempt_counter_exposed": False,
+                }
         except (RecoveryError, OSError, ValueError, KeyError, TypeError, sqlite3.Error):
             failure = "drill_failed_or_cancelled"
         finally:
@@ -570,16 +705,18 @@ def run(
                     "partial_functional_coverage"
                     if missing
                     or products != set(manifest["products"])
-                    or not all(
-                        result["service_coverage"]["observability"][key]
-                        for key in (
-                            "healthy_before_core_start",
-                            "stopped_exit_code_zero_before_core_start",
-                        )
-                    )
-                    or not result["service_coverage"]["core"][
-                        "healthy_during_functional_readback"
+                    or not result["service_coverage"]["all_nine_simultaneous"]
+                    or not result["service_coverage"]["observability"][
+                        "running_during_functional_readback"
                     ]
+                    or not result["service_coverage"]["core"][
+                        "healthchecks_healthy_during_functional_readback"
+                    ]
+                    or (
+                        "runtime_observation" in index
+                        and result["unknown_no_resend_observation"]["status"]
+                        != "passed"
+                    )
                     else "drill_passed"
                 ),
                 linux_executed=True,

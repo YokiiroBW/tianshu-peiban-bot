@@ -25,6 +25,7 @@ FIELD = re.compile(rb"[!#$%&'*+.^_`|~0-9A-Za-z-]+")
 READ_ONLY_POST_ENDPOINTS = frozenset(
     {
         ("companion", "/internal/v1/source-facts/read"),
+        ("companion", "/internal/v1/conversation/web-snapshot"),
         ("companion", "/internal/v1/life-read/actors"),
         ("companion", "/internal/v1/life-read/snapshot"),
         ("companion", "/internal/v1/life-read/diaries"),
@@ -247,7 +248,16 @@ class Reader:
 
 
 def _request(
-    url, token, tls, budget, expected_status, *, method, service=None, body=None
+    url,
+    token,
+    tls,
+    budget,
+    expected_status,
+    *,
+    method,
+    service=None,
+    body=None,
+    return_status=False,
 ):
     target = urlsplit(url)
     require(
@@ -281,7 +291,8 @@ def _request(
         "drill_token_invalid",
     )
     require(
-        type(expected_status) is int and 200 <= expected_status <= 599,
+        expected_status == "readiness"
+        or (type(expected_status) is int and 200 <= expected_status <= 599),
         "drill_assertion_invalid",
     )
     headers = [
@@ -307,13 +318,19 @@ def _request(
                 re.fullmatch(rb"HTTP/1\.[01] [0-9]{3}(?: [^\r\n]*)?\r\n", status),
                 "drill_http_status_invalid",
             )
+            actual_status = int(status.split(b" ", 2)[1])
+            allowed_statuses = (
+                {200, 503}
+                if expected_status == "readiness"
+                else {expected_status}
+            )
             require(
-                int(status.split(b" ", 2)[1]) == expected_status,
+                actual_status in allowed_statuses,
                 "drill_assertion_status_mismatch",
             )
             data = reader.body(reader.headers())
             budget.check()
-            return data
+            return (actual_status, data) if return_status else data
     except OSError:
         budget.check()
         raise RecoveryError("drill_tls_or_transport_failed") from None
@@ -321,6 +338,19 @@ def _request(
 
 def get(url, token, tls, budget, expected_status):
     return _request(url, token, tls, budget, expected_status, method="GET")
+
+
+def get_readiness(url, token, tls, budget):
+    """Read Companion readiness, allowing its normal 503 startup state."""
+    return _request(
+        url,
+        token,
+        tls,
+        budget,
+        "readiness",
+        method="GET",
+        return_status=True,
+    )
 
 
 def post_readonly(url, token, service, body, tls, budget, expected_status):

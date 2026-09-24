@@ -9,7 +9,10 @@
 ## 变更
 
 - 恢复断言默认保留 GET；新增 POST 时必须同时提供 `method: "POST"` 和 JSON 请求体。
-- POST 仅访问明确列出的只读路径并绑定到对应服务，拒绝写接口、错误服务映射、查询字符串和超大请求体。TLS 请求全程共用总期限，响应摘要受 256 KiB 限制。
+- POST 仅访问明确列出的只读路径（包括 Companion web-snapshot）并绑定到对应服务，拒绝写接口、错误服务映射、查询字符串和超大请求体。TLS 请求全程共用总期限，响应摘要受 256 KiB 限制。
+- 恢复副本的五个 observability owner 与四个 core owner 在功能读回时同时保持运行；只对 Compose 中实际配置 healthcheck 的服务报告 healthy，未配置 healthcheck 的 owner 只报告 running。
+- 新增可选 A1 `runtime_observation`：独立 Companion diagnostics token 的 `/health/ready` 探针、1–300 秒窗口、窗口前后稳定的 unknown turn/reply API 读回，以及按 correlation ID 对比 Gateway accepted/started/finished 计数和成功控制组。Gateway 基线在任何克隆 owner 启动前读取。
+- JSON 期望对象递归按子集比较，数组递归比较且长度必须精确相同；观察报告明确只计 API 可见 reply records，不声称未暴露的投递尝试计数，也不把有界观察写成永久保证。
 - 增加 A1 专用验收适配器，通过 Platform/Companion/Memory 的既有 CLI 与 HTTPS API 建立、确认及读回合成状态。适配器不访问或直接写入产品数据库。
 
 ## A1 source scope 的功能证据
@@ -38,13 +41,16 @@ DEP-J 的只读备份计划对 scope `b3f59a3a-0fd4-4d47-8ff9-2c7a00d8b7a5` 返�
 
 没有创建新的备份或恢复目标，也没有启动副本。没有触碰之前的 `scope-a1`、`next-m`；没有使用 SQL、任意写接口、真实模型或生产数据。
 
+本轮继续只修改本地 DEP-J 工具、文档和合成测试；没有在 NAS 新启动容器、登记 owner、创建快照/恢复目标或运行克隆。下面的回归结果仅验证本地演练逻辑，不替代恢复副本的真实读回。
+
 ## 验证
 
-- CPython 3.13.11、jsonschema 4.26.0：`test_drill_http*.py` 19 项通过；`test_drill.py` 16 项通过。CPython 3.12.14 环境缺少 jsonschema，恢复演练套件在 setup 阶段无法启动，改用上述环境重跑通过。
-- `ops/recovery/a1_acceptance.py` 的 Python 编译检查与 handoff JSON 解析通过；最终 `git diff --check` 通过。
+- bundled CPython 3.12.14、临时隔离依赖 `jsonschema 4.26.0`：`test_drill_http*.py` 22 项通过，`test_drill_observation.py` 3 项通过，`test_drill.py` 全套 19 项通过；最后修改后重跑 A1 定向用例 4 项通过。HTTP 与事件扫描使用合成 loopback/TLS、Docker 和日志夹具。
+- 新增事件夹具覆盖源日志的 9 个 correlation groups（2 unknown、2 成功 upstream、5 accepted-only）及一个成功控制组的重复 accepted；额外 upstream 事件会使观察失败。
+- 修改文件的 Python `compileall` 与 `git diff --check` 通过。
 - Ruff 检查和格式检查在最终工作树未重跑：可用环境没有 Ruff 可执行文件；此前已记录的检查通过结果早于本次 A1 适配器和 handoff 更新。
-- NAS 上的 A1 功能证据来自真实产品 CLI/API，但没有在恢复副本上执行；不能据此标记完整恢复验收通过。
+- NAS 上既有 A1 source 功能证据来自真实产品 CLI/API，但没有在恢复副本上执行；不能据此标记完整恢复验收通过。新增的 readiness 与限时 no-resend 逻辑尚无恢复副本运行证据。
 
 ## 下一步
 
-协调补齐并按 DEP-J 登记与当前 A1 数据相匹配的五个 observability owner、`observability/compose.yaml`、部署 marker 和 recovery inventory；之后再按要求正常停写、创建新快照、恢复到新的 `restored_disabled` 目录并运行一次性隔离克隆。不得通过 SQL、伪造 owner 状态或复用旧 scope 绕过缺失的 authority。
+按公开 DEP-B/DEP-G/DEP-J 流程为当前 A1 scope 配置并登记五个 observability owner、`observability/compose.yaml`、部署 marker 和 recovery inventory；随后正常停写、创建新快照、恢复到新的 `restored_disabled` 目录，最后用独立凭据/TLS、九 owner 和限时运行观察执行一次性隔离克隆。不得通过 SQL、伪造 owner 状态或复用旧 scope 绕过 authority。完成前继续保持 `needs_validation`。

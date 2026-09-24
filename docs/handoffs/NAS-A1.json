@@ -8,6 +8,10 @@
   "handoff_path": "C:/Users/Administrator/.codex/worktrees/04e5/tianshu-peiban-bot/docs/handoffs/NAS-A1.md",
   "changes": [
     "Added bounded TLS POST assertions for explicitly allowlisted read-only product endpoints.",
+    "Kept all nine restored-clone owners running through functional readback, with health reported only for configured Compose healthchecks.",
+    "Added optional bounded A1 unknown-no-resend observation using Companion runtime readiness, stable API-visible turn/reply records, and per-correlation Gateway event counters with successful controls.",
+    "Added the fixed Companion web-snapshot POST read boundary, required it for the observed unknown assertion, and required a separate diagnostics token.",
+    "Made expected JSON arrays recursively exact-length while preserving object subset matching.",
     "Added an A1-only adapter for supported Platform, Companion, and Memory CLI/API acceptance paths; no product database was directly opened or written.",
     "Recorded source-scope functional evidence and the exact DEP-J recovery registration blocker."
   ],
@@ -16,17 +20,33 @@
       "name": "HTTP transport regression",
       "command": "python -m unittest discover -s tests/deployment/recovery -p 'test_drill_http*.py' -v",
       "status": "passed",
-      "passed": 19,
+      "passed": 22,
       "failed": 0,
-      "environment": "CPython 3.13.11; synthetic loopback TLS server"
+      "environment": "bundled CPython 3.12.14; synthetic loopback TLS server"
     },
     {
       "name": "Recovery drill regression",
       "command": "python -m unittest discover -s tests/deployment/recovery -p 'test_drill.py' -v",
       "status": "passed",
-      "passed": 16,
+      "passed": 19,
       "failed": 0,
-      "environment": "CPython 3.13.11; jsonschema 4.26.0"
+      "environment": "bundled CPython 3.12.14; jsonschema 4.26.0 from isolated temporary directory"
+    },
+    {
+      "name": "A1 bounded observation counter regression",
+      "command": "python -m unittest discover -s tests/deployment/recovery -p 'test_drill_observation.py' -v",
+      "status": "passed",
+      "passed": 3,
+      "failed": 0,
+      "environment": "bundled CPython 3.12.14; synthetic Gateway JSONL"
+    },
+    {
+      "name": "Final A1-specific drill regression",
+      "command": "python -m unittest discover -s tests/deployment/recovery -p 'test_drill.py' -k a1_ -v",
+      "status": "passed",
+      "passed": 4,
+      "failed": 0,
+      "environment": "bundled CPython 3.12.14; synthetic Docker, TLS, and observation fixtures"
     },
     {
       "name": "POST input allowlist regression",
@@ -36,7 +56,7 @@
     {
       "name": "Ruff check, Ruff format check, git diff --check",
       "status": "git_diff_check_passed;ruff_not_available_for_final_rerun",
-      "files_checked": 10,
+      "files_checked": 11,
       "prior_ruff_check": "passed_before_final_A1_adapter_and_handoff_updates",
       "final_ruff_check": "not_run"
     }
@@ -127,7 +147,7 @@
     "direct_database_writes": 0
   },
   "remaining": [
-    "Register and observe the five observability owners with matching Compose, deployment marker, and recovery inventory for this A1 scope.",
-    "After registration, create a fresh snapshot, restore into a new restored_disabled directory, and run the one-use nine-owner isolated clone with product API assertions."
+    "Use the public DEP-B/DEP-G/DEP-J workflow to configure and register the five observability owners with matching Compose, deployment marker, and recovery inventory for this A1 scope.",
+    "Create a fresh snapshot, restore into a new restored_disabled directory, and run the one-use nine-owner isolated clone with product API assertions and the bounded unknown-no-resend runtime observation."
   ]
 }

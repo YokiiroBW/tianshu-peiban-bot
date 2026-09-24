@@ -134,7 +134,11 @@ def isolated_inputs(value, manifest, *, resource_profile=None):
         file_hash(index_path) == value["inputs_sha256"], "drill_inputs_digest_mismatch"
     )
     index = read_json(index_path)
-    fields(index, "schema_version files assertions")
+    fields(
+        index,
+        "schema_version files assertions"
+        + (" runtime_observation" if "runtime_observation" in index else ""),
+    )
     require(
         index["schema_version"] == "dep-j-drill-inputs/1"
         and isinstance(index["files"], dict),
@@ -450,5 +454,102 @@ def isolated_inputs(value, manifest, *, resource_profile=None):
         require(
             url.path not in {"/health/live", "/health/ready", "/health"},
             "health_is_not_functional_assertion",
+        )
+    if "runtime_observation" in index:
+        observation = index["runtime_observation"]
+        fields(observation, "window_seconds worker_readiness unknown_turns")
+        require(
+            type(observation["window_seconds"]) is int
+            and 1 <= observation["window_seconds"] <= 300,
+            "drill_observation_window_invalid",
+        )
+        readiness = observation["worker_readiness"]
+        fields(readiness, "url ca_file token_file")
+        ready_url = urlsplit(readiness["url"])
+        require(
+            ready_url.scheme == "https"
+            and ready_url.hostname == "127.0.0.1"
+            and ready_url.port in endpoints
+            and endpoints[ready_url.port] == "companion"
+            and ready_url.path == "/health/ready"
+            and not ready_url.query
+            and not ready_url.fragment
+            and not ready_url.username
+            and not ready_url.password,
+            "drill_readiness_endpoint_forbidden",
+        )
+        require(
+            readiness["ca_file"] in index["files"]
+            and readiness["token_file"] in index["files"]
+            and readiness["ca_file"].startswith("config/")
+            and readiness["token_file"].startswith("private/"),
+            "drill_readiness_input_invalid",
+        )
+        functional_token_paths = {
+            assertion["token_file"] for assertion in index["assertions"]
+        }
+        require(
+            readiness["token_file"] not in functional_token_paths
+            and all(
+                index["files"][readiness["token_file"]]
+                != index["files"][token_path]
+                for token_path in functional_token_paths
+            ),
+            "drill_readiness_input_invalid",
+        )
+        expected_turns = observation["unknown_turns"]
+        require(
+            isinstance(expected_turns, list) and 1 <= len(expected_turns) <= 8,
+            "drill_unknown_turns_invalid",
+        )
+        turn_ids, sequences = set(), set()
+        for turn in expected_turns:
+            fields(
+                turn,
+                "turn_id turn_sequence phase delivery_state replies",
+            )
+            require(
+                isinstance(turn["turn_id"], str)
+                and 1 <= len(turn["turn_id"]) <= 128
+                and type(turn["turn_sequence"]) is int
+                and turn["turn_sequence"] > 0
+                and turn["phase"] == "closed_unknown"
+                and turn["delivery_state"] == "unknown"
+                and turn["turn_id"] not in turn_ids
+                and turn["turn_sequence"] not in sequences,
+                "drill_unknown_turns_invalid",
+            )
+            turn_ids.add(turn["turn_id"])
+            sequences.add(turn["turn_sequence"])
+            replies = turn["replies"]
+            require(
+                isinstance(replies, list) and 1 <= len(replies) <= 32,
+                "drill_unknown_replies_invalid",
+            )
+            reply_ids = set()
+            for reply in replies:
+                fields(reply, "reply_id state")
+                require(
+                    isinstance(reply["reply_id"], str)
+                    and 1 <= len(reply["reply_id"]) <= 128
+                    and reply["state"] == "unknown"
+                    and reply["reply_id"] not in reply_ids,
+                    "drill_unknown_replies_invalid",
+                )
+                reply_ids.add(reply["reply_id"])
+        unknown_assertions = [
+            assertion
+            for assertion in index["assertions"]
+            if assertion["id"] == "unknown_no_resend"
+        ]
+        require(len(unknown_assertions) == 1, "drill_unknown_assertion_required")
+        unknown_assertion = unknown_assertions[0]
+        unknown_url = urlsplit(unknown_assertion["url"])
+        require(
+            unknown_assertion["service"] == "companion"
+            and unknown_assertion.get("method", "GET") == "POST"
+            and unknown_url.path == "/internal/v1/conversation/web-snapshot"
+            and not unknown_url.query,
+            "drill_unknown_assertion_endpoint_forbidden",
         )
     return index, documents
