@@ -45,7 +45,7 @@ def emit(path, records):
         os.fsync(stream.fileno())
 
 
-def certificates(root):
+def certificates(root, loki_ip=None):
     from cryptography import x509
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import rsa
@@ -76,6 +76,9 @@ def certificates(root):
         subject = x509.Name(
             [x509.NameAttribute(NameOID.COMMON_NAME, "DEP-B synthetic " + role)]
         )
+        addresses = [x509.IPAddress(ipaddress.ip_address("127.0.0.1"))]
+        if role == "loki" and loki_ip is not None:
+            addresses.append(x509.IPAddress(ipaddress.ip_address(loki_ip)))
         cert = (
             x509.CertificateBuilder()
             .subject_name(subject)
@@ -92,7 +95,7 @@ def certificates(root):
                     [
                         x509.DNSName("obs-" + role),
                         x509.DNSName("localhost"),
-                        x509.IPAddress(ipaddress.ip_address("127.0.0.1")),
+                        *addresses,
                     ]
                 ),
                 critical=False,
