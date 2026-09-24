@@ -104,6 +104,7 @@ def create(
     auxiliary_subnets=None,
     recovery_scope_id=None,
     lan_address=None,
+    public_web=False,
 ):
     import re
     from resource_profile import validate
@@ -154,7 +155,7 @@ def create(
         subnet=str(net),
         web_port=web_port,
         bind_address=lan_address or "127.0.0.1",
-        web_origin="https://"
+        web_origin=("http://" if public_web else "https://")
         + (lan_address or "console.synthetic.test")
         + ":"
         + str(web_port),
@@ -162,6 +163,8 @@ def create(
             p: str(net.network_address + 10 + i) for i, p in enumerate(PRODUCTS)
         },
     )
+    if public_web:
+        site["public_web"] = True
     values = {}
     if resource_profile is not None:
         site["resource_profile"] = resource_profile
@@ -173,6 +176,17 @@ def create(
         config = read_json(config_path)
         if p == "platform":
             config["web"].update(origin=site["web_origin"], username="synthetic-dep-g")
+            if public_web:
+                config["web_access"] = {
+                    "host": "0.0.0.0",
+                    "port": 8080,
+                    "initial": {
+                        "mode": "http",
+                        "origin": site["web_origin"],
+                        "certificate": None,
+                    },
+                    "certificates": {"nas-web": config["tls"]},
+                }
         if p == "gateway":
             config["targets"][0]["addresses"] = [site["service_ips"]["platform"]]
         write_json(config_path, config)

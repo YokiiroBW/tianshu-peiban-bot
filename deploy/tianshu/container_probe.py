@@ -84,9 +84,11 @@ class ConsoleHost(urllib.request.BaseHandler):
     def __init__(self, origin):
         self.host = urlsplit(origin).netloc
 
-    def https_request(self, request):
+    def http_request(self, request):
         request.add_unredirected_header("Host", self.host)
         return request
+
+    https_request = http_request
 
 
 def web_client(origin):
@@ -123,7 +125,11 @@ def ready(role, port):
 def dialogue(*, real=False):
     password = json.load(sys.stdin)["password"]
     settings = json.load(open("/etc/tianshu/settings.json"))
-    base = "https://platform.internal:8443"
+    base = (
+        "http://127.0.0.1:8080"
+        if settings.get("web_access")
+        else "https://platform.internal:8443"
+    )
     opener = web_client(settings["web"]["origin"])
     status, session = request(opener, base + "/api/web/session")
     assert status == 200 and session["authenticated"] is False

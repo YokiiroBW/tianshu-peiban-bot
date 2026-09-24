@@ -153,6 +153,8 @@ def initialize(manifest_path, inputs_path, contracts_root, target, environ=None)
         "permissions": "requires_linux_uid_gid_10001_verification",
         "observability": "external_DEP-B_package_not_embedded",
     }
+    if site.get("public_web") is not None:
+        metadata["compose_inputs"]["public_web"] = site["public_web"]
     if site.get("resource_profile") is not None:
         metadata["compose_inputs"]["resource_profile"] = site["resource_profile"]
     if site.get("auxiliary_subnets") is not None:

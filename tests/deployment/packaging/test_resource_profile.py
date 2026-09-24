@@ -105,6 +105,39 @@ class ProfileTests(unittest.TestCase):
 
 
 class ProfilePackagingTests(unittest.TestCase):
+    def test_public_http_binds_web_only_and_is_recorded(self):
+        f = self.fixture
+        f.site["public_web"] = True
+        f.site["web_origin"] = f.site["web_origin"].replace("https:", "http:")
+        p = f.configs["platform"]
+        p["web"]["origin"] = f.site["web_origin"]
+        p["web_access"] = {
+            "host": "0.0.0.0",
+            "port": 8080,
+            "initial": {
+                "mode": "http",
+                "origin": f.site["web_origin"],
+                "certificate": None,
+            },
+            "certificates": {"nas-web": p["tls"]},
+        }
+        f.save_configs()
+        write_json(f.sitepath, f.site)
+        f.init()
+        self.assertEqual(preflight(f.output)["status"], "package_valid")
+        services = read_json(f.output / "compose.json")["services"]
+        self.assertEqual(
+            services["platform"]["ports"],
+            [f"{f.site['bind_address']}:{f.site['web_port']}:8080"],
+        )
+        self.assertTrue(
+            read_json(f.output / "deployment.json")["compose_inputs"]["public_web"]
+        )
+        self.assertTrue(
+            all("ports" not in services[p] for p in ("companion", "memory", "gateway"))
+        )
+        self.assertEqual(p["mode"], "service_https")
+
     def setUp(self):
         self.fixture = packaging.PackagingTests()
         self.fixture.setUpClass()

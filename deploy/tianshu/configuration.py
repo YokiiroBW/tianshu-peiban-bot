@@ -56,7 +56,7 @@ def load_inputs(path):
         {
             k: v
             for k, v in site.items()
-            if k not in {"resource_profile", "auxiliary_subnets"}
+            if k not in {"resource_profile", "auxiliary_subnets", "public_web"}
         },
         {
             "project_name",
@@ -103,16 +103,18 @@ def load_inputs(path):
         type(site["web_port"]) is int and 1024 <= site["web_port"] <= 65535,
         "invalid_public_port",
     )
+    require(type(site.get("public_web", False)) is bool, "public_web_flag_invalid")
     origin = urlsplit(site["web_origin"])
     require(
-        origin.scheme == "https"
+        origin.scheme in ({"http", "https"} if site.get("public_web") else {"https"})
         and origin.hostname
         and not origin.username
         and not origin.password
         and not origin.path
         and not origin.query
         and not origin.fragment
-        and (origin.port or 443) == site["web_port"],
+        and (origin.port or (443 if origin.scheme == "https" else 80))
+        == site["web_port"],
         "origin_port_mismatch",
     )
     require(not origin.hostname.endswith(".invalid"), "placeholder_origin")
@@ -339,6 +341,25 @@ def validate_configs(configs, site, manifest):
         and p["web"]["static_directory"] == "/srv/tianshu/web",
         "web_origin_or_static_mapping",
     )
+    if site.get("public_web"):
+        require(
+            p.get("web_access")
+            == {
+                "host": "0.0.0.0",
+                "port": 8080,
+                "initial": {
+                    "mode": urlsplit(site["web_origin"]).scheme,
+                    "origin": site["web_origin"],
+                    "certificate": "nas-web"
+                    if site["web_origin"].startswith("https:")
+                    else None,
+                },
+                "certificates": {"nas-web": p["tls"]},
+            },
+            "public_web_config_mismatch",
+        )
+    else:
+        require("web_access" not in p, "unexpected_public_web")
     require(
         set(p["web"]["password_hash"]) == {"$password_env"}
         if isinstance(p["web"]["password_hash"], dict)

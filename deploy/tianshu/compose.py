@@ -155,7 +155,10 @@ def compose_document(manifest, site):
         }
     for service in services.values():
         constrain(service, site.get("resource_profile"))
-    services["platform"]["ports"] = [f"{site['bind_address']}:{site['web_port']}:8443"]
+    public_port = 8080 if site.get("public_web") else 8443
+    services["platform"]["ports"] = [
+        f"{site['bind_address']}:{site['web_port']}:{public_port}"
+    ]
     # No dependency cycle: platform answers authority queries before peers start. Liveness
     # only orders startup. Release acceptance must separately authenticate /health/ready.
     for product in ("memory", "gateway"):
