@@ -10,6 +10,7 @@ import test_packaging as packaging
 from bundle import preflight
 from manifest import Refused, read_json, write_json
 from resource_profile import constrain, container_check, host_check, validate
+from observability_release import apply_resource_profile
 from fake_linux_docker import Docker, clock_patches
 from linux_runtime import leased_execute
 
@@ -105,6 +106,37 @@ class ProfileTests(unittest.TestCase):
 
 
 class ProfilePackagingTests(unittest.TestCase):
+    def test_observability_profile_rewrites_pinned_compose_resource_fields(self):
+        f = self.fixture
+        path = f.root / "observability" / "compose.yaml"
+        path.parent.mkdir()
+        write_json(
+            path,
+            {
+                "services": {
+                    "obs-grafana": {
+                        "cpus": 0.75,
+                        "pids_limit": 128,
+                        "mem_limit": "512m",
+                    },
+                    "obs-loki": {
+                        "cpus": 1.5,
+                        "pids_limit": 128,
+                        "mem_limit": "1536m",
+                    },
+                }
+            },
+        )
+
+        apply_resource_profile(path, PROFILE)
+
+        services = read_json(path)["services"]
+        for name, limit in (("obs-grafana", "512m"), ("obs-loki", "1536m")):
+            self.assertEqual(services[name]["cpuset"], "6,7")
+            self.assertEqual(services[name]["mem_limit"], limit)
+            self.assertNotIn("cpus", services[name])
+            self.assertNotIn("pids_limit", services[name])
+
     def test_a1_loopback_api_ports_are_declared_and_reproducible(self):
         f = self.fixture
         f.site.update(

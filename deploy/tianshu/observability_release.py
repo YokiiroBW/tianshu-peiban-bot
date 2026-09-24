@@ -87,6 +87,24 @@ def verify_layout(root, manifest):
     return stack
 
 
+def apply_resource_profile(compose_path, profile):
+    """Apply the deployment CPU-set policy to an older pinned DEP-B Compose output."""
+    from resource_profile import constrain, validate
+
+    profile = validate(profile)
+    if profile is None:
+        return
+    document = read_json(compose_path)
+    require(
+        isinstance(document, dict) and isinstance(document.get("services"), dict),
+        "observability_composition_invalid",
+    )
+    for service in document["services"].values():
+        require(isinstance(service, dict), "observability_service_invalid")
+        constrain(service, profile)
+    write_json(compose_path, document)
+
+
 def configure(root, settings_path, repository, projects=None):
     from bundle import verify_integrity
 
@@ -170,6 +188,7 @@ def configure(root, settings_path, repository, projects=None):
             "--candidate",
         ]
     )
+    apply_resource_profile(root / "observability/compose.yaml", profile)
     verify_layout(root, manifest)
     project = read_json(root / "deployment.json")["project_name"] + "-obs"
     binding = {
