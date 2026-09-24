@@ -1,5 +1,6 @@
 """Compose the pinned DEP-B package via its public CLIs, without changing its source."""
 
+import ipaddress
 import json
 import subprocess
 import sys
@@ -105,6 +106,45 @@ def apply_resource_profile(compose_path, profile):
     write_json(compose_path, document)
 
 
+def apply_network_plan(document, subnets, occupied_subnets):
+    """Pin only the network names emitted by the exact DEP-B package revision."""
+    if subnets is None:
+        return document
+    require(
+        type(subnets) is dict
+        and {"observe", "storage"} <= set(subnets)
+        and set(subnets) <= {"observe", "storage", "access"},
+        "observability_network_plan_invalid",
+    )
+    networks = document.get("networks") if isinstance(document, dict) else None
+    require(
+        isinstance(networks, dict) and set(networks) == set(subnets),
+        "observability_network_plan_mismatch",
+    )
+    used = [ipaddress.ip_network(value, strict=True) for value in occupied_subnets]
+    for name, value in subnets.items():
+        network = ipaddress.ip_network(value, strict=True)
+        require(
+            network.version == 4
+            and network.is_private
+            and 24 <= network.prefixlen <= 28,
+            "observability_private_subnet_required",
+        )
+        require(
+            not any(network.overlaps(other) for other in used),
+            "observability_network_overlap",
+        )
+        spec = networks[name]
+        require(
+            isinstance(spec, dict)
+            and spec.get("internal") is (name != "access"),
+            "external_observability_network_refused",
+        )
+        spec["ipam"] = {"config": [{"subnet": str(network)}]}
+        used.append(network)
+    return document
+
+
 def configure(root, settings_path, repository, projects=None):
     from bundle import verify_integrity
 
@@ -188,7 +228,40 @@ def configure(root, settings_path, repository, projects=None):
             "--candidate",
         ]
     )
-    apply_resource_profile(root / "observability/compose.yaml", profile)
+    compose_path = root / "observability/compose.yaml"
+    apply_resource_profile(compose_path, profile)
+    compose_inputs = read_json(root / "deployment.json")["compose_inputs"]
+    network_document = read_json(compose_path)
+    network_names = set(network_document["networks"])
+    network_subnets = settings.get("network_subnets")
+    if network_subnets is not None:
+        require(
+            type(network_subnets) is dict,
+            "observability_network_plan_invalid",
+        )
+        omitted = set(network_subnets) - network_names
+        require(
+            omitted <= {"access"}
+            and {"observe", "storage"} <= network_names
+            and set(network_subnets) & network_names == network_names,
+            "observability_network_plan_mismatch",
+        )
+        network_subnets = {
+            name: subnet
+            for name, subnet in network_subnets.items()
+            if name in network_names
+        }
+        settings["network_subnets"] = network_subnets
+        write_json(root / "observability-input/settings.json", settings)
+    network_document = apply_network_plan(
+        network_document,
+        network_subnets,
+        [
+            compose_inputs["subnet"],
+            *compose_inputs.get("auxiliary_subnets", {}).values(),
+        ],
+    )
+    write_json(compose_path, network_document)
     verify_layout(root, manifest)
     project = read_json(root / "deployment.json")["project_name"] + "-obs"
     binding = {

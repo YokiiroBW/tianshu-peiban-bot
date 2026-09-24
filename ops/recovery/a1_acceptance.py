@@ -163,6 +163,56 @@ def bind_a1_ports(root):
     }
 
 
+def bind_a1_observability_networks(root):
+    """Apply the pinned OBS package's exact network set to a prepared A1 bundle."""
+    root = Path(root).resolve(strict=True)
+    verify_integrity, _, _, read_json = _imports(root)
+    verify_integrity(root)
+    metadata = read_json(root / "deployment.json")
+    if (
+        not metadata["project_name"].startswith("tianshu-qa-a1-")
+        or metadata["compose_inputs"]["bind_address"] != "127.0.0.1"
+    ):
+        raise ValueError("a1_loopback_scope_required")
+    settings_path = root / "observability-input/settings.json"
+    compose_path = root / "observability/compose.yaml"
+    settings = read_json(settings_path)
+    document = read_json(compose_path)
+    networks = set(document["networks"])
+    provided = settings["network_subnets"]
+    omitted = set(provided) - networks
+    if (
+        omitted - {"access"}
+        or not {"observe", "storage"} <= networks
+        or set(provided) & networks != networks
+    ):
+        raise ValueError("a1_observability_network_plan_mismatch")
+    subnets = {name: value for name, value in provided.items() if name in networks}
+    site = metadata["compose_inputs"]
+    import sys
+
+    sys.path.insert(0, str(root.parents[2] / "tooling" / "deploy" / "tianshu"))
+    from observability_release import apply_network_plan
+
+    document = apply_network_plan(
+        document,
+        subnets,
+        [
+            site["subnet"],
+            *site.get("auxiliary_subnets", {}).values(),
+        ],
+    )
+    settings["network_subnets"] = subnets
+    _update_bundle(
+        root,
+        {
+            "observability-input/settings.json": _raw(settings),
+            "observability/compose.yaml": _raw(document),
+        },
+    )
+    return {name: subnets[name] for name in sorted(subnets)}
+
+
 def _raw(document):
     return (json.dumps(document, ensure_ascii=False, indent=2) + "\n").encode()
 
@@ -1320,6 +1370,7 @@ def main():
             "rebind-image-tags",
             "bind-a1-networks",
             "bind-a1-ports",
+            "bind-a1-observability-networks",
             "prepare-synthetic",
             "make-synthetic-inputs",
             "make-fanout-request",
@@ -1358,6 +1409,8 @@ def main():
         result = bind_a1_networks(args.bundle, args.egress_subnet, args.frontend_subnet)
     elif args.command == "bind-a1-ports":
         result = bind_a1_ports(args.bundle)
+    elif args.command == "bind-a1-observability-networks":
+        result = bind_a1_observability_networks(args.bundle)
     elif args.command == "prepare-synthetic":
         result = prepare_synthetic(args.bundle)
     elif args.command == "make-synthetic-inputs":

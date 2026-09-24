@@ -10,7 +10,7 @@ import test_packaging as packaging
 from bundle import preflight
 from manifest import Refused, read_json, write_json
 from resource_profile import constrain, container_check, host_check, validate
-from observability_release import apply_resource_profile
+from observability_release import apply_network_plan, apply_resource_profile
 from fake_linux_docker import Docker, clock_patches
 from linux_runtime import leased_execute
 
@@ -106,6 +106,38 @@ class ProfileTests(unittest.TestCase):
 
 
 class ProfilePackagingTests(unittest.TestCase):
+    def test_observability_network_plan_pins_declared_subnets(self):
+        document = {
+            "networks": {
+                "observe": {"internal": True},
+                "storage": {"internal": True},
+            }
+        }
+        result = apply_network_plan(
+            document,
+            {"observe": "10.204.46.0/24", "storage": "10.204.47.0/24"},
+            ["10.204.43.0/24", "10.204.44.0/24", "10.204.45.0/24"],
+        )
+        self.assertEqual(
+            result["networks"]["observe"]["ipam"]["config"][0]["subnet"],
+            "10.204.46.0/24",
+        )
+        self.assertEqual(
+            result["networks"]["storage"]["ipam"]["config"][0]["subnet"],
+            "10.204.47.0/24",
+        )
+        with self.assertRaises(Refused):
+            apply_network_plan(
+                {
+                    "networks": {
+                        "observe": {"internal": True},
+                        "storage": {"internal": True},
+                    }
+                },
+                {"observe": "10.204.45.0/24", "storage": "10.204.47.0/24"},
+                ["10.204.43.0/24", "10.204.44.0/24", "10.204.45.0/24"],
+            )
+
     def test_observability_profile_rewrites_pinned_compose_resource_fields(self):
         f = self.fixture
         path = f.root / "observability" / "compose.yaml"
