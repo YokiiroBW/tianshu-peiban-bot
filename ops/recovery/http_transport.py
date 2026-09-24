@@ -33,6 +33,7 @@ READ_ONLY_POST_ENDPOINTS = frozenset(
         ("memory", "/internal/v1/memory/profiles/select"),
         ("memory", "/internal/v1/memory/source-sync/check"),
         ("platform", "/internal/v1/source-access/read"),
+        ("platform", "/internal/v1/model-config/snapshot"),
     }
 )
 

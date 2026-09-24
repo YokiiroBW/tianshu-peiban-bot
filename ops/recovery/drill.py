@@ -263,6 +263,19 @@ def run(
         "original_restore_activation": False,
         "activation": "disabled",
         "functional_assertions": [],
+        "service_coverage": {
+            "mode": "staged",
+            "all_nine_simultaneous": False,
+            "observability": {
+                "owners": sorted(documents["observability"]["services"]),
+                "healthy_before_core_start": False,
+                "stopped_exit_code_zero_before_core_start": False,
+            },
+            "core": {
+                "owners": sorted(documents["core"]["services"]),
+                "healthy_during_functional_readback": False,
+            },
+        },
         "linux_executed": False,
     }
     if not execute:
@@ -434,22 +447,65 @@ def run(
                     "--pull",
                     "never",
                 )
-            while True:
-                work.check()
-                backend.inspect()
-                require(
-                    all(c["State"]["Running"] for c in backend.current.values()),
-                    "drill_product_not_running",
-                )
-                if all(
-                    c["State"].get("Health", {}).get("Status") == "healthy"
-                    for service, c in backend.current.items()
-                    if documents[
-                        "core" if service in manifest["products"] else "observability"
-                    ]["services"][service].get("healthcheck")
-                ):
-                    break
-                time.sleep(0.1)
+                services = set(documents[group]["services"])
+                while True:
+                    work.check()
+                    backend.inspect(allow_missing=True)
+                    require(services <= set(backend.current), "missing_project_container")
+                    require(
+                        all(backend.current[s]["State"]["Running"] for s in services),
+                        "drill_product_not_running",
+                    )
+                    if all(
+                        backend.current[s]["State"].get("Health", {}).get("Status")
+                        == "healthy"
+                        for s in services
+                        if documents[group]["services"][s].get("healthcheck")
+                    ):
+                        break
+                    time.sleep(0.1)
+                if group == "observability":
+                    result["service_coverage"]["observability"][
+                        "healthy_before_core_start"
+                    ] = True
+                    for service in stop_order(backend.binding):
+                        if service in services:
+                            backend.stop(service, allow_missing=True)
+                    while True:
+                        work.check()
+                        backend.inspect(allow_missing=True)
+                        require(services <= set(backend.current), "drill_owner_disappeared")
+                        states = [backend.current[s]["State"] for s in services]
+                        if not any(
+                            state["Running"]
+                            or state["Restarting"]
+                            or state["Paused"]
+                            for state in states
+                        ):
+                            require(
+                                all(
+                                    state["Status"] == "exited"
+                                    and state["ExitCode"] == 0
+                                    and not state["OOMKilled"]
+                                    and not state["Dead"]
+                                    and not state["Error"]
+                                    for state in states
+                                ),
+                                "owner_exit_unconfirmed",
+                            )
+                            break
+                        time.sleep(0.05)
+                    result["service_coverage"]["observability"][
+                        "stopped_exit_code_zero_before_core_start"
+                    ] = True
+                else:
+                    require(
+                        set(backend.current) == set(backend.binding["services"]),
+                        "missing_project_container",
+                    )
+                    result["service_coverage"]["core"][
+                        "healthy_during_functional_readback"
+                    ] = True
             for assertion in index["assertions"]:
                 original.assert_stopped()
                 _unused(docker, set(), restored)
@@ -512,7 +568,18 @@ def run(
                 status=failure
                 or (
                     "partial_functional_coverage"
-                    if missing or products != set(manifest["products"])
+                    if missing
+                    or products != set(manifest["products"])
+                    or not all(
+                        result["service_coverage"]["observability"][key]
+                        for key in (
+                            "healthy_before_core_start",
+                            "stopped_exit_code_zero_before_core_start",
+                        )
+                    )
+                    or not result["service_coverage"]["core"][
+                        "healthy_during_functional_readback"
+                    ]
                     else "drill_passed"
                 ),
                 linux_executed=True,

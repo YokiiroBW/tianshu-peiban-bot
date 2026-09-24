@@ -164,6 +164,14 @@ class DrillTests(unittest.TestCase):
                             :2
                         ]
                         raise RecoveryError("injected_compose_failure")
+                    if "up" in args:
+                        project = args[args.index("--project-name") + 1]
+                        for container in outer.clone_docker.containers:
+                            labels = container["Config"]["Labels"]
+                            if labels["com.docker.compose.project"] == project:
+                                container["State"].update(
+                                    Status="running", Running=True, ExitCode=0
+                                )
                     return ""
                 containers = outer.base.docker.containers + (
                     outer.clone_docker.containers if outer.created else []
@@ -193,12 +201,20 @@ class DrillTests(unittest.TestCase):
                         )
                         else outer.base.docker
                     )
-                    return backend.run(*args)
+                    result = backend.run(*args)
+                    if (
+                        outer.bad_exit
+                        and args[:2] == ("container", "kill")
+                        and args[-1] == outer.clone_docker.containers[0]["Id"]
+                    ):
+                        outer.clone_docker.containers[0]["State"]["ExitCode"] = 143
+                    return result
                 raise AssertionError(args)
 
         for index, c in enumerate(self.clone_docker.containers, 1):
             c["Id"] = f"{index + 100:064x}"
             c["State"]["Health"] = {"Status": "healthy"}
+            c["State"].update(Status="exited", Running=False)
             c["HostConfig"]["RestartPolicy"]["Name"] = "no"
         self.base.stack.enter_context(
             patch.object(drill, "runtime_lease", lambda *_: nullcontext())
@@ -274,6 +290,52 @@ class DrillTests(unittest.TestCase):
         self.assertFalse(self.clone.exists())
         self.assertFalse((self.root / "drill-claims").exists())
         self.assertEqual(self.calls, [])
+
+    def test_a1_projects_are_allowed_and_service_coverage_is_staged(self):
+        self.value["projects"] = {
+            "core": "tianshu-accept-a1-readback",
+            "observability": "tianshu-accept-a1-readback-obs",
+        }
+        for group, filename in (
+            ("core", "compose.json"),
+            ("observability", "observability/compose.yaml"),
+        ):
+            self.documents[group]["name"] = self.value["projects"][group]
+            put(self.inputs / filename, self.documents[group])
+        for container in self.clone_docker.containers:
+            service = container["Config"]["Labels"]["com.docker.compose.service"]
+            group = "core" if service in self.manifest["products"] else "observability"
+            container["Config"]["Labels"]["com.docker.compose.project"] = self.value[
+                "projects"
+            ][group]
+        self.save()
+        permit(self.recovery, self.permit_path, file_hash(self.permit_path))
+        result = self.run_drill()
+        self.assertEqual(result["status"], "drill_passed")
+        self.assertEqual(result["service_coverage"]["mode"], "staged")
+        self.assertFalse(result["service_coverage"]["all_nine_simultaneous"])
+        self.assertTrue(
+            result["service_coverage"]["observability"][
+                "stopped_exit_code_zero_before_core_start"
+            ]
+        )
+        self.assertTrue(
+            result["service_coverage"]["core"][
+                "healthy_during_functional_readback"
+            ]
+        )
+        starts = [
+            call[call.index("--project-name") + 1]
+            for call in self.calls
+            if call[:1] == ("compose",) and "up" in call
+        ]
+        self.assertEqual(
+            starts,
+            [
+                self.value["projects"]["observability"],
+                self.value["projects"]["core"],
+            ],
+        )
 
     def test_post_input_is_restricted_to_documented_read_endpoints(self):
         assertion = self.index["assertions"][0]
@@ -423,7 +485,7 @@ class DrillTests(unittest.TestCase):
             isolated_inputs(self.value, self.manifest)
 
     def test_abnormal_clone_exit_reports_unconfirmed_and_keeps_claim(self):
-        self.clone_docker.containers[0]["State"]["ExitCode"] = 143
+        self.bad_exit = True
         result = self.run_drill()
         self.assertEqual(result["status"], "stop_unconfirmed")
         self.assertEqual(result["activation"], "stop_unconfirmed")

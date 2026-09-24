@@ -155,6 +155,28 @@ class DrillHTTPTests(unittest.TestCase):
             self.post_requests,
         )
 
+    def test_platform_model_snapshot_is_an_allowlisted_read_boundary(self):
+        assertion = self.assertion("/internal/v1/model-config/snapshot")
+        assertion.update(
+            service="platform",
+            method="POST",
+            request_json={"schema_version": 1, "request_id": "read:1"},
+        )
+        result = check(self.root, assertion, Deadline(3))
+        self.assertEqual(result["status"], "passed")
+        self.assertIn(
+            (
+                "/internal/v1/model-config/snapshot",
+                "Bearer isolated-test-only-token",
+                "application/json",
+                b'{"request_id":"read:1","schema_version":1}',
+            ),
+            self.post_requests,
+        )
+        wrong_service = dict(assertion, service="gateway")
+        with self.assertRaisesRegex(RecoveryError, "drill_assertion_endpoint_forbidden"):
+            check(self.root, wrong_service, Deadline(3))
+
     def test_mutating_or_wrong_service_post_is_rejected_before_network(self):
         initial = len(self.post_requests)
         cases = (

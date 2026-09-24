@@ -45,9 +45,9 @@ python -B -m ops.recovery --root <scope> --scope-id <scope-uuid> --execute linux
 
 Compose 两项目名来自许可，四产品+五日志 owner，镜像使用已核本地 `sha256:...` ID、pull_policy=never、禁 build/pull。全部网络 internal，全部 bind 属于新副本，所有写挂载须与五卷合同/产品卷 owner 完全一致。端口仅显式 long syntax 的 127.0.0.1 高端口。未列出的 service 字段拒绝，原代码/command/entrypoint 不可换成任意 argv。
 
-assertion 结构：`id`（data_readback/source_revoked/model_revoked/forgotten/unknown_no_resend）、`service`、`url`、`ca_file`、`token_file`、`expected_status`、`expected_json`。只允许到该 service 已发布 loopback 端口的 HTTPS GET，无代理/重定向；令牌取副本专属文件，CA 必须校验证书，响应有总预算/体积限制。expected_json 对对象按子集比较、其他类型严格相等。禁止 `/health*` 代替功能；实际端点和断言须由协调依据固定产品公开接口准备，不能使用测试里的 fixture URL/响应。
+assertion 结构必需字段为 `id`（data_readback/source_revoked/model_revoked/forgotten/unknown_no_resend）、`service`、`url`、`ca_file`、`token_file`、`expected_status`、`expected_json`；可选字段为 `method` 和 `request_json`。默认 GET 不带请求体。POST 必须同时给出 `method: "POST"` 和 JSON 对象请求体，且只允许 Companion source-facts/life-read、Memory select/source-sync/check、Platform source-access/read 与 model-config snapshot 的固定只读路径；写入路径、其他服务映射和带查询字符串的 POST 在连接前拒绝。POST 请求体上限 16 KiB，响应上限 256 KiB；TLS 建连、请求写入和响应解析共享总期限，不跟随重定向、不重试。令牌取副本专属文件，CA 必须校验证书。expected_json 对对象按子集比较、其他类型严格相等。禁止 `/health*` 代替功能；实际端点和断言须由协调依据固定产品公开接口准备，不能使用测试里的 fixture URL/响应。
 
-R1使用非阻塞连接/TLS/HTTP解析，所有网络阶段共用同一取消/截止时间，没有后台超时线程。状态行1024字节、单头行8192、累计头及chunk元数据32KiB/102行、正文256KiB；HTTP/1.0/1.1固定GET支持Content-Length/chunked/close framing，异常或到期先关闭socket再返回。不能把持续收到状态/头部字节当作延长停机预留预算的理由。
+R1使用非阻塞连接/TLS/HTTP解析，所有网络阶段共用同一取消/截止时间，没有后台超时线程。状态行1024字节、单头行8192、累计头及chunk元数据32KiB/102行、响应正文256KiB；HTTP/1.0/1.1固定 GET 与只读 allowlisted POST 支持 Content-Length/chunked/close framing，POST 请求体上限16KiB。异常或到期先关闭socket再返回。不能把持续收到状态/头部字节当作延长停机预留预算的理由。
 
 ```text
 python -B -m ops.recovery --root <scope> --scope-id <scope-uuid> drill-clone --permit <独立准备的许可.json> --permit-sha256 <另存hash>

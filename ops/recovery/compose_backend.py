@@ -219,8 +219,8 @@ class ComposeBackend:
         self.restart_disabled = True
         self.inspect()
 
-    def stop(self, service):
-        self.inspect()
+    def stop(self, service, *, allow_missing=False):
+        self.inspect(allow_missing=allow_missing)
         state = self.current[service]["State"]
         require(
             not state["Paused"] and not state["Restarting"], "container_not_stoppable"
