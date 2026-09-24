@@ -62,6 +62,7 @@ class DrillHTTPTests(unittest.TestCase):
         )
         (cls.root / "token").write_text("isolated-test-only-token")
         cls.requests = []
+        cls.post_requests = []
 
         class Handler(BaseHTTPRequestHandler):
             def log_message(self, *_):
@@ -69,6 +70,22 @@ class DrillHTTPTests(unittest.TestCase):
 
             def do_GET(self):
                 cls.requests.append((self.path, self.headers.get("Authorization")))
+                self.respond()
+
+            def do_POST(self):
+                length = int(self.headers.get("Content-Length", "0"))
+                body = self.rfile.read(length)
+                cls.post_requests.append(
+                    (
+                        self.path,
+                        self.headers.get("Authorization"),
+                        self.headers.get("Content-Type"),
+                        body,
+                    )
+                )
+                self.respond()
+
+            def respond(self):
                 if self.path == "/redirect":
                     self.send_response(302)
                     self.send_header("Location", "/sentinel")
@@ -121,6 +138,53 @@ class DrillHTTPTests(unittest.TestCase):
         self.assertEqual(result["status"], "passed")
         self.assertNotIn("fixture", json.dumps(result))
         self.assertIn(("/good", "Bearer isolated-test-only-token"), self.requests)
+
+    def test_allowlisted_readonly_post_sends_bounded_json_and_redacts_response(self):
+        assertion = self.assertion("/internal/v1/life-read/actors")
+        assertion.update(method="POST", request_json={"schema_version": 1, "limit": 2})
+        result = check(self.root, assertion, Deadline(3))
+        self.assertEqual(result["status"], "passed")
+        self.assertNotIn("fixture", json.dumps(result))
+        self.assertIn(
+            (
+                "/internal/v1/life-read/actors",
+                "Bearer isolated-test-only-token",
+                "application/json",
+                b'{"limit":2,"schema_version":1}',
+            ),
+            self.post_requests,
+        )
+
+    def test_mutating_or_wrong_service_post_is_rejected_before_network(self):
+        initial = len(self.post_requests)
+        cases = (
+            ("/internal/v1/conversation/ingest", "companion"),
+            ("/internal/v1/life-read/actors", "gateway"),
+        )
+        for path, service in cases:
+            with self.subTest(path=path, service=service):
+                assertion = self.assertion(path)
+                assertion.update(service=service, method="POST", request_json={})
+                with self.assertRaisesRegex(
+                    RecoveryError, "drill_assertion_endpoint_forbidden"
+                ):
+                    check(self.root, assertion, Deadline(3))
+        self.assertEqual(len(self.post_requests), initial)
+
+    def test_post_query_and_oversized_body_are_rejected_before_network(self):
+        initial = len(self.post_requests)
+        query = self.assertion("/internal/v1/life-read/actors?limit=2")
+        query.update(method="POST", request_json={})
+        with self.assertRaisesRegex(
+            RecoveryError, "drill_assertion_endpoint_forbidden"
+        ):
+            check(self.root, query, Deadline(3))
+
+        oversized = self.assertion("/internal/v1/life-read/actors")
+        oversized.update(method="POST", request_json={"padding": "x" * (16 * 1024)})
+        with self.assertRaisesRegex(RecoveryError, "drill_request_limit"):
+            check(self.root, oversized, Deadline(3))
+        self.assertEqual(len(self.post_requests), initial)
 
     def test_redirect_is_never_followed(self):
         with self.assertRaisesRegex(RecoveryError, "drill_assertion_status_mismatch"):

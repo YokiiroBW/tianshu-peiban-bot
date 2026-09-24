@@ -275,6 +275,24 @@ class DrillTests(unittest.TestCase):
         self.assertFalse((self.root / "drill-claims").exists())
         self.assertEqual(self.calls, [])
 
+    def test_post_input_is_restricted_to_documented_read_endpoints(self):
+        assertion = self.index["assertions"][0]
+        port = self.documents["core"]["services"]["platform"]["ports"][0]["published"]
+        assertion.update(
+            method="POST",
+            request_json={"schema_version": 1, "operation": "current"},
+            url=f"https://127.0.0.1:{port}/internal/v1/source-access/read",
+        )
+        self.save()
+        isolated_inputs(self.value, self.manifest)
+
+        assertion["url"] = f"https://127.0.0.1:{port}/internal/v1/conversation/send"
+        self.save()
+        with self.assertRaisesRegex(
+            RecoveryError, "drill_assertion_endpoint_forbidden"
+        ):
+            isolated_inputs(self.value, self.manifest)
+
     def test_access_bridge_requires_loopback_published_members(self):
         document = self.documents["core"]
         document["networks"]["access"] = {"internal": False, "driver": "bridge"}

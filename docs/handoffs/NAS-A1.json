@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "task_id": "NAS-A1",
+  "status": "needs_validation",
+  "base_commit": "2e04eff5d0bf1283a321d9042d9b62f94a54dabb",
+  "branch": "codex/nas-a1",
+  "worktree": "C:/Users/Administrator/.codex/worktrees/04e5/tianshu-peiban-bot",
+  "handoff_path": "C:/Users/Administrator/.codex/worktrees/04e5/tianshu-peiban-bot/docs/handoffs/NAS-A1.md",
+  "changes": [
+    "Added bounded POST JSON assertions over an explicit service/path allowlist of documented read-only endpoints.",
+    "Kept GET assertions backward compatible; POST requests share the existing TLS and total-deadline transport, with 16 KiB request and 256 KiB response caps.",
+    "Added positive and negative synthetic TLS tests and strict input validation for POST assertions."
+  ],
+  "checks": [
+    {
+      "name": "HTTP transport regression",
+      "command": "python -m unittest discover -s tests/deployment/recovery -p 'test_drill_http*.py' -v",
+      "status": "passed",
+      "passed": 18,
+      "failed": 0,
+      "environment": "CPython 3.12.14; synthetic loopback TLS server"
+    },
+    {
+      "name": "Recovery drill regression",
+      "command": "python -m unittest discover -s tests/deployment/recovery -p 'test_drill.py' -v",
+      "status": "passed",
+      "passed": 14,
+      "failed": 0
+    },
+    {
+      "name": "POST input allowlist regression",
+      "command": "python -m unittest discover -s tests/deployment/recovery -p 'test_drill.py' -k post_input -v",
+      "status": "passed",
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "name": "Ruff check, Ruff format check, git diff --check",
+      "status": "passed",
+      "files_checked": 6
+    }
+  ],
+  "nas": {
+    "target_directory": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a1",
+    "target_directory_created": false,
+    "containers_created": [],
+    "functional_validation": "not_run",
+    "preflight": {
+      "target_previously_absent": true,
+      "candidate_subnet_conflicts": [],
+      "candidate_route_conflicts": [],
+      "candidate_tcp_listeners": [],
+      "candidate_docker_published_ports": [],
+      "target_mount_ancestor_conflicts": [],
+      "preexisting_a1_projects": [],
+      "mem_available_kib": 18525568,
+      "max_task_memory_kib": 4194304,
+      "volume2_free_bytes": 475439718400
+    },
+    "read_only_prestate_inspection": {
+      "snapshot_path": "/volume2/tianshu-v2-validation-wave1/next-m/scope-m/backups/nas-first-snapshot/payload/data",
+      "restored_copy_path": "/volume2/tianshu-v2-validation-wave1/next-m/scope-m/deployments/restore-disabled/data",
+      "mode": "SQLite immutable/read-only aggregate table counts; no row bodies",
+      "counts": {
+        "companion": {
+          "turns": 1,
+          "life_access": 0,
+          "life_actors": 0,
+          "life_diaries": 0
+        },
+        "memory": {
+          "accounts": 1,
+          "people": 1,
+          "records": 0,
+          "groups": 0,
+          "sources": 0,
+          "source_admissions": 0,
+          "suppression": 0
+        },
+        "gateway": {
+          "requests": 1,
+          "turns": 1,
+          "revoked": 0,
+          "native_revoked": 0
+        },
+        "platform": {
+          "sources": 0,
+          "revoked_entries": 0,
+          "revoked_principals": 0,
+          "web_input_submissions": 1,
+          "web_replies": 1
+        }
+      }
+    },
+    "previous_partial_receipt": {
+      "path": "C:/YOKI/Codex/tianshu-peiban-bot/docs/development/nas-restore-readback-2026-09-24.json",
+      "reported_status": "partial_functional_coverage",
+      "only_passed_assertion": "gateway data_readback",
+      "missing_products": ["companion", "memory", "platform"],
+      "missing_semantics": [
+        "forgotten",
+        "model_revoked",
+        "source_revoked",
+        "unknown_no_resend"
+      ]
+    },
+    "not_run_reason": "The read-only snapshot inventory has no Memory business records, Companion life/forgotten rows, or Platform source/revocation rows. The previous m3 report validated only a Gateway historical success receipt and did not validate unknown/no-resend. Running a new clone would not verify the requested coverage, and direct database mutation is prohibited.",
+    "model_requests_made": 0,
+    "provider_credentials_read": false,
+    "old_scope_mutated_or_started": false
+  },
+  "remaining": [
+    "Prepare approved synthetic business and revocation states through product-supported paths and include them in a fresh recoverable snapshot.",
+    "Run four-product NAS business-data readback and forgotten/source_revoked/model_revoked/unknown_no_resend checks in the new isolated A1 scope."
+  ]
+}

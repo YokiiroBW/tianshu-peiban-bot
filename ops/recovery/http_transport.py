@@ -5,6 +5,7 @@ socket never waits for a peer TLS close_notify. Limits include chunk framing.
 """
 
 import errno
+import json
 import re
 import select
 import socket
@@ -16,7 +17,40 @@ from .safety import RecoveryError, require
 
 HEADER_LIMIT = 32 * 1024
 BODY_LIMIT = 256 * 1024
+POST_BODY_LIMIT = 16 * 1024
 FIELD = re.compile(rb"[!#$%&'*+.^_`|~0-9A-Za-z-]+")
+
+# These POST routes are documented read boundaries in the product contracts. Keep this
+# list closed: adding a path requires reviewing that product handler for side effects.
+READ_ONLY_POST_ENDPOINTS = frozenset(
+    {
+        ("companion", "/internal/v1/source-facts/read"),
+        ("companion", "/internal/v1/life-read/actors"),
+        ("companion", "/internal/v1/life-read/snapshot"),
+        ("companion", "/internal/v1/life-read/diaries"),
+        ("companion", "/internal/v1/life-read/revision"),
+        ("memory", "/internal/v1/memory/select"),
+        ("memory", "/internal/v1/memory/profiles/select"),
+        ("memory", "/internal/v1/memory/source-sync/check"),
+        ("platform", "/internal/v1/source-access/read"),
+    }
+)
+
+
+def encode_post_body(body):
+    require(type(body) is dict, "drill_request_invalid")
+    try:
+        encoded = json.dumps(
+            body,
+            ensure_ascii=True,
+            allow_nan=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("ascii")
+    except (TypeError, ValueError, RecursionError):
+        raise RecoveryError("drill_request_invalid") from None
+    require(len(encoded) <= POST_BODY_LIMIT, "drill_request_limit")
+    return encoded
 
 
 class Connection:
@@ -211,7 +245,9 @@ class Reader:
             data.extend(part)
 
 
-def get(url, token, tls, budget, expected_status):
+def _request(
+    url, token, tls, budget, expected_status, *, method, service=None, body=None
+):
     target = urlsplit(url)
     require(
         target.scheme == "https"
@@ -222,7 +258,19 @@ def get(url, token, tls, budget, expected_status):
         and not target.fragment,
         "drill_assertion_endpoint_forbidden",
     )
-    path = (target.path or "/") + ("?" + target.query if target.query else "")
+    path = target.path or "/"
+    if method == "GET":
+        require(service is None and body is None, "drill_request_invalid")
+        path += "?" + target.query if target.query else ""
+    else:
+        require(
+            method == "POST"
+            and service is not None
+            and not target.query
+            and (service, target.path) in READ_ONLY_POST_ENDPOINTS,
+            "drill_assertion_endpoint_forbidden",
+        )
+        body = encode_post_body(body)
     require(
         all(32 < ord(c) < 127 for c in path) and len(path) <= 4096,
         "drill_request_invalid",
@@ -231,13 +279,27 @@ def get(url, token, tls, budget, expected_status):
         token and all(32 < ord(c) < 127 for c in token) and len(token) <= 4096,
         "drill_token_invalid",
     )
-    request = (
-        f"GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{target.port}\r\nAuthorization: Bearer {token}\r\n"
-        "Accept: application/json\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n"
-    ).encode("ascii")
+    require(
+        type(expected_status) is int and 200 <= expected_status <= 599,
+        "drill_assertion_invalid",
+    )
+    headers = [
+        f"{method} {path} HTTP/1.1",
+        f"Host: 127.0.0.1:{target.port}",
+        f"Authorization: Bearer {token}",
+        "Accept: application/json",
+        "Accept-Encoding: identity",
+    ]
+    if method == "POST":
+        headers.extend(
+            ("Content-Type: application/json", f"Content-Length: {len(body)}")
+        )
+    request = ("\r\n".join(headers) + "\r\nConnection: close\r\n\r\n").encode("ascii")
     try:
         with Connection(tls, target.port, budget) as connection:
             connection.send(request)
+            if method == "POST":
+                connection.send(body)
             reader = Reader(connection)
             status = reader.line(limit=1024, header=True)
             require(
@@ -254,3 +316,20 @@ def get(url, token, tls, budget, expected_status):
     except OSError:
         budget.check()
         raise RecoveryError("drill_tls_or_transport_failed") from None
+
+
+def get(url, token, tls, budget, expected_status):
+    return _request(url, token, tls, budget, expected_status, method="GET")
+
+
+def post_readonly(url, token, service, body, tls, budget, expected_status):
+    return _request(
+        url,
+        token,
+        tls,
+        budget,
+        expected_status,
+        method="POST",
+        service=service,
+        body=body,
+    )

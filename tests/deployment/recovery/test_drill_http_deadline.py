@@ -171,6 +171,20 @@ class HTTPDeadlineTests(unittest.TestCase):
 
         self.bounded(send)
 
+    def test_allowlisted_post_uses_the_same_total_deadline(self):
+        with self.server(
+            self.trickle(b"HTTP/1.1 200 OK\r\nContent-Length: 200\r\n\r\n", b"a" * 200)
+        ) as assertion:
+            assertion["url"] = assertion["url"].replace(
+                "/receipt", "/internal/v1/life-read/actors"
+            )
+            assertion["method"] = "POST"
+            assertion["request_json"] = {"schema_version": 1}
+            started = time.monotonic()
+            with self.assertRaisesRegex(RecoveryError, "lifecycle_timeout"):
+                check(self.root, assertion, Deadline(0.15))
+            self.assertLess(time.monotonic() - started, 0.4)
+
     def test_untrusted_certificate_is_rejected_and_socket_closed(self):
         untrusted = ssl.create_default_context()
         with self.server(

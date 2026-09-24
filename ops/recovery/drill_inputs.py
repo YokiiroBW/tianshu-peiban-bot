@@ -5,6 +5,7 @@ import uuid
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from .http_transport import READ_ONLY_POST_ENDPOINTS, encode_post_body
 from .manifest import PRODUCTS, fields, sha256
 from .runtime_identity import schema_check
 from .safety import child, file_hash, files, read_json, require, safe_path
@@ -384,8 +385,21 @@ def isolated_inputs(value, manifest, *, resource_profile=None):
         "drill_assertions_required",
     )
     for assertion in index["assertions"]:
-        fields(
-            assertion, "id service url ca_file token_file expected_status expected_json"
+        required = {
+            "id",
+            "service",
+            "url",
+            "ca_file",
+            "token_file",
+            "expected_status",
+            "expected_json",
+        }
+        optional = {"method", "request_json"}
+        require(
+            isinstance(assertion, dict)
+            and required <= set(assertion)
+            and set(assertion) <= required | optional,
+            "unexpected_or_missing_fields",
         )
         require(
             assertion["id"]
@@ -399,6 +413,11 @@ def isolated_inputs(value, manifest, *, resource_profile=None):
             and assertion["service"] in PRODUCTS,
             "drill_assertion_kind_invalid",
         )
+        method = assertion.get("method", "GET")
+        require(
+            type(method) is str and method in {"GET", "POST"},
+            "drill_assertion_method_invalid",
+        )
         url = urlsplit(assertion["url"])
         require(
             url.scheme == "https"
@@ -410,6 +429,15 @@ def isolated_inputs(value, manifest, *, resource_profile=None):
             and not url.fragment,
             "drill_assertion_endpoint_forbidden",
         )
+        if method == "GET":
+            require("request_json" not in assertion, "drill_assertion_invalid")
+        else:
+            require(
+                not url.query
+                and (assertion["service"], url.path) in READ_ONLY_POST_ENDPOINTS,
+                "drill_assertion_endpoint_forbidden",
+            )
+            encode_post_body(assertion.get("request_json"))
         require(
             assertion["ca_file"] in index["files"]
             and assertion["token_file"] in index["files"]
