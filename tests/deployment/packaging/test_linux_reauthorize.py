@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import test_packaging as packaging
+import linux_bootstrap
 import linux_reauthorize
 from bundle import verify_integrity
 from linux_bootstrap import (
@@ -182,6 +183,83 @@ class LinuxReauthorizationTests(unittest.TestCase):
         self.assertEqual(result["status"], "reauthorized")
         self.assertFalse(result["ref_in_report"])
         self.assertNotIn(self.new_ref, json.dumps(result))
+        self.assertIn(
+            self.variable + "='" + self.new_ref + "'",
+            (self.root / "private/gateway.env").read_text(),
+        )
+        verify_integrity(self.root)
+
+    def _execute_with_delayed_issue(self, receipt_lifetime_seconds):
+        write_json(
+            self.root / "reports/linux-executed.json",
+            {"result": "passed", "owned_containers": {}},
+        )
+        current = [self.now]
+
+        class Clock:
+            @staticmethod
+            def now(tz):
+                self.assertEqual(tz, timezone.utc)
+                return current[0]
+
+            fromisoformat = staticmethod(datetime.fromisoformat)
+
+        def issue(argv, *, timeout=20, input=None):
+            self.assertEqual(argv[:4], ["docker", "exec", "-i", "platform-id"])
+            self.assertEqual(input, request_frame({"entry_id": "config-entry"}))
+            current[0] += timedelta(seconds=25)
+            expiry = self.now + timedelta(seconds=receipt_lifetime_seconds)
+            return json.dumps(
+                {
+                    "assertion_ref": self.new_ref,
+                    "expires_at": expiry.isoformat().replace("+00:00", "Z"),
+                    "mode": "local_rehearsal",
+                }
+            ).encode()
+
+        with (
+            patch.object(
+                linux_reauthorize, "_owned_platform", return_value="platform-id"
+            ),
+            patch.object(linux_reauthorize, "_run", side_effect=issue) as run,
+            patch.object(linux_reauthorize, "datetime", Clock),
+            patch.object(linux_bootstrap, "datetime", Clock),
+        ):
+            try:
+                return linux_reauthorize.execute(self.root)
+            finally:
+                run.assert_called_once()
+
+    def test_execute_rejects_receipt_when_cli_delay_consumes_budget(self):
+        before = (self.root / "private/gateway.env").read_bytes()
+        with self.assertRaisesRegex(
+            Refused, "assertion_expired_or_budget_insufficient"
+        ):
+            self._execute_with_delayed_issue(receipt_lifetime_seconds=120)
+
+        self.assertEqual((self.root / "private/gateway.env").read_bytes(), before)
+        self.assertEqual(
+            read_json(self.root / "reports/bootstrap/reauthorization-attempt.json")[
+                "state"
+            ],
+            "failed_or_unknown",
+        )
+        self.assertFalse(
+            (self.root / "reports/bootstrap/reauthorization-result.json").exists()
+        )
+        verify_integrity(self.root)
+
+    def test_execute_accepts_receipt_with_budget_after_cli_delay(self):
+        result = self._execute_with_delayed_issue(receipt_lifetime_seconds=145)
+
+        self.assertEqual(result["status"], "reauthorized")
+        self.assertNotIn(self.new_ref, json.dumps(result))
+        self.assertEqual(
+            read_json(self.root / "reports/bootstrap/reauthorization-attempt.json")[
+                "state"
+            ],
+            "completed",
+        )
         self.assertIn(
             self.variable + "='" + self.new_ref + "'",
             (self.root / "private/gateway.env").read_text(),

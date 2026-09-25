@@ -129,7 +129,7 @@ def execute(root):
             receipt = json.loads(raw_receipt)
         except (ValueError, UnicodeError):
             raise Refused("product_issue_receipt_invalid") from None
-        result = store_reauthorization_receipt(root, receipt, now=now)
+        result = store_reauthorization_receipt(root, receipt)
     except Exception:
         # The public issue may already have succeeded. A marker prevents replay after an
         # uncertain outcome; the product output is deliberately discarded.
