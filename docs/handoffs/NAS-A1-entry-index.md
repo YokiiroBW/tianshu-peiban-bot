@@ -52,4 +52,4 @@ ABS_PYTHON -B -m ops.recovery.a1_once --config ABS_SCOPE/inputs/a1-once.json --e
 
 每阶段有私有原始 stdout/stderr 与 SHA、结构化收据、UTC 与单调时间。CLI 超时仅给该 CLI 主进程 SIGTERM，再等 90 秒正常清理；存活状态不明即 `stop_unconfirmed`，不启动第二写入者。seal 子进程已退出但失败时只尝试一次精确已登记九 owner 的 `linux-rehearse` 正常停写/备份/禁用恢复；失败、许可拒绝、执行失败均不自动重试或重放 claim。任何结果后只读核对 source/clone 九 owner、恢复目标仍禁用、claim、四项目及网络端点，并保存现场。
 
-离线定向验证为准备链 20 项、单次驱动 38 项、源端入口 5 项；真实 bundle initializer、固定 OBS Git 包与四产品词表、静态合成配置/九输入、克隆占位生成及同一封印包的 `drill_inputs.isolated_inputs` 消费者校验已运行。源端入口的顺序夹具逐步走到登记完成标记，全部产品行为为离线替身。Windows 不支持的 OBS Linux 权限函数被单点替换；同步 Platform issue/publication、Docker、Linux 权限/资源、实际九 owner 及六项 HTTPS 均未在新范围执行。真实 NAS 新范围、许可和容器本轮均未创建。
+离线定向验证为准备链 20 项、单次驱动 38 项、源端入口 8 项；真实 bundle initializer、固定 OBS Git 包与四产品词表、静态合成配置/九输入、克隆占位生成及同一封印包的 `drill_inputs.isolated_inputs` 消费者校验已运行。源端入口的顺序夹具逐步走到登记完成标记，全部产品行为为离线替身；另对实际 Memory 读回适配器使用新随机 person/conv ID 做绑定正反例，并检查资源 profile `[6,7]` 与两份 Compose/九 owner 观测一致。Windows 不支持的 OBS Linux 权限函数被单点替换；同步 Platform issue/publication、Docker、Linux 权限/资源、实际九 owner 及六项 HTTPS 均未在新范围执行。真实 NAS 新范围、许可和容器本轮均未创建。

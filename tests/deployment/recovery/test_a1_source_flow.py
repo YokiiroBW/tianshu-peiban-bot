@@ -1,14 +1,16 @@
 """Offline boundary checks for the parameterized source entry."""
 
+from contextlib import nullcontext
 import json
 import tempfile
 import unittest
 import uuid
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from ops.recovery import a1_source_flow
-from ops.recovery.safety import RecoveryError
+from ops.recovery.safety import RecoveryError, read_json
 
 
 def put(path, value):
@@ -60,6 +62,107 @@ class SourceFlowTests(unittest.TestCase):
         history[1]["replies"].append({"reply_id": "duplicate", "state": "unknown"})
         with self.assertRaises(RecoveryError):
             a1_source_flow._unknown(result)
+
+    def test_real_memory_reader_accepts_current_bound_ids_only(self):
+        scope = {"actor_id": "actor:a1-source",
+            "person_id": "person:" + uuid.uuid4().hex,
+            "audience": "self_private", "conversation_id": "conv:" + uuid.uuid4().hex}
+        put(self.source / "config/memory/settings.json", {"callers": {
+            "companion": {"event_scopes": [scope]}}, "local_users": {
+            "a1-local-owner": {"revision_scopes": [scope]}}})
+        request = {"query": {"schema_version": 1, "request_id": "new-scope",
+                    "origin": {"assertion_ref": "origin:new"}},
+                   "requested_scope": scope, "query_text": "绿色",
+                   "selection": ["identity"]}
+        path = self.reports / "memory-reader-request.json"
+        put(path, request)
+        output = SimpleNamespace(returncode=0,
+            stdout=b'{"http_status":200,"body":{"selected_units":[]}}', stderr=b"")
+        with patch.object(a1_source_flow.product, "_imports",
+                          return_value=(lambda _root: None, None, None, read_json)), \
+             patch.object(a1_source_flow.product.subprocess, "run", return_value=output) as run:
+            result = a1_source_flow.product.read_memory_selection(
+                self.source, path, docker_executable=self.config["docker"])
+            self.assertEqual(result["http_status"], 200)
+            self.assertEqual(run.call_args.args[0][0], self.config["docker"])
+            request["requested_scope"] = dict(scope, conversation_id="conv:other")
+            put(path, request)
+            with self.assertRaises(ValueError):
+                a1_source_flow.product.read_memory_selection(
+                    self.source, path, docker_executable=self.config["docker"])
+            self.assertEqual(run.call_count, 1)
+
+    def test_cpuset_comes_from_locked_profile_and_both_compose_files(self):
+        profile = {"kind": "nas-cpuset-qa-v1", "cpus": [6, 7],
+                   "pid_limit": "unsupported"}
+        path = Path(self.temp.name) / "resource-profile.json"
+        put(path, profile)
+        self.config["resource_profile"] = str(path)
+        put(self.source / "deployment.json", {"project_name": self.config["source_project"],
+            "compose_inputs": {"resource_profile": profile}})
+        put(self.source / "compose.json", {"services": {
+            owner: {"cpuset": "6,7"} for owner in a1_source_flow.CORE}})
+        put(self.source / "observability/compose.yaml", {"services": {
+            owner: {"cpuset": "6,7"} for owner in a1_source_flow.OBS}})
+        runner = a1_source_flow.Source(self.config)
+        with patch.object(a1_source_flow, "deploy_module",
+                          return_value=SimpleNamespace(validate=lambda value: value)):
+            self.assertEqual(runner.expected_cpuset(), "6,7")
+            obs = read_json(self.source / "observability/compose.yaml")
+            obs["services"]["obs-loki"]["cpuset"] = "0,1"
+            put(self.source / "observability/compose.yaml", obs)
+            with self.assertRaises(RecoveryError):
+                runner.expected_cpuset()
+
+    def test_runtime_identity_checks_observed_allocated_cpu_pair(self):
+        runner = a1_source_flow.Source(self.config)
+        project = self.config["source_project"]
+        owners = (*a1_source_flow.CORE, *a1_source_flow.OBS)
+        names = {owner: f"{project}{'-obs' if owner in a1_source_flow.OBS else ''}-{owner}-1"
+                 for owner in owners}
+        memory = {"obs-vector": 805306368, "obs-loki": 1610612736,
+                  "obs-grafana": 536870912, "obs-prometheus": 536870912,
+                  "obs-guard": 268435456}
+        containers = []
+        for owner in owners:
+            containers.append({"Name": "/" + names[owner],
+                "Config": {"Labels": {"com.docker.compose.project":
+                    project + ("-obs" if owner in a1_source_flow.OBS else ""),
+                    "com.docker.compose.service": owner,
+                    "com.docker.compose.oneoff": "False"}, "User": "10001:10001"},
+                "State": {"Status": "running", "OOMKilled": False, "Pid": 123,
+                          "Health": {"Status": "healthy"}},
+                "RestartCount": 0, "HostConfig": {"CpusetCpus": "6,7",
+                    "ReadonlyRootfs": True, "CapDrop": ["ALL"],
+                    "Memory": 1073741824 if owner in a1_source_flow.CORE else memory[owner]},
+                "Mounts": [], "Image": "sha256:" + owner, "Id": "container:" + owner})
+
+        def command(_self, argv, **_kwargs):
+            if argv[1:3] == ["ps", "-a"]:
+                selected = (a1_source_flow.OBS if any(
+                    item == "label=com.docker.compose.project=" + project + "-obs"
+                    for item in argv) else a1_source_flow.CORE)
+                return ("\n".join(names[owner] for owner in selected) + "\n").encode()
+            if argv[1] == "inspect":
+                return json.dumps(containers).encode()
+            if argv[1:3] == ["image", "inspect"]:
+                return json.dumps([{"Id": argv[3], "Os": "linux",
+                    "Architecture": "amd64", "RepoDigests": []}]).encode()
+            raise AssertionError(argv)
+
+        def save(_root, **_kwargs):
+            put(self.source / "reports/runtime-identity.json", {"observed": True})
+
+        module = SimpleNamespace(lifecycle_lease=lambda _root: nullcontext(), save=save)
+        with patch.object(a1_source_flow.Source, "expected_cpuset", return_value="6,7"), \
+             patch.object(a1_source_flow.Source, "command", command), \
+             patch.object(a1_source_flow, "deploy_module", return_value=module), \
+             patch.object(Path, "read_text", return_value="Uid:\t10001\nGid:\t10001\n"):
+            runner.runtime_identity()
+            self.assertTrue((self.source / "reports/runtime-identity.json").is_file())
+            containers[-1]["HostConfig"]["CpusetCpus"] = "0,1"
+            with self.assertRaises(RecoveryError):
+                runner.runtime_identity()
 
     def test_product_api_uses_only_configured_docker_and_private_receipt(self):
         runner = a1_source_flow.Source(self.config)

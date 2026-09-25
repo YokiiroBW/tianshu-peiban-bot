@@ -90,11 +90,28 @@ class Source:
         _write_once(path, value)
         return path
 
+    def expected_cpuset(self):
+        profile = read_json(self.c["resource_profile"])
+        resource = deploy_module(self.c["code_root"], "resource_profile")
+        resource.validate(profile)
+        site = read_json(self.root / "deployment.json")["compose_inputs"]
+        require(site.get("resource_profile") == profile,
+                "a1_source_resource_profile_mismatch")
+        expected = ",".join(map(str, profile["cpus"]))
+        core = read_json(self.root / "compose.json")["services"]
+        obs = read_json(self.root / "observability/compose.yaml")["services"]
+        require(set(core) == set(CORE) and set(obs) == set(OBS) and
+                all(core[owner].get("cpuset") == expected for owner in CORE) and
+                all(obs[owner].get("cpuset") == expected for owner in OBS),
+                "a1_source_compose_cpuset_mismatch")
+        return expected
+
     def preflight(self):
         """Read current host allocations before any source product writer starts."""
         require(sys.platform == "linux", "a1_source_linux_required")
         nets = _network_plan(self.c["networks"])
         ports = _ports(self.c["ports"])
+        cpuset = self.expected_cpuset()
         def docker_read(*args):
             result = subprocess.run([self.docker, *args], capture_output=True,
                                     timeout=25, cwd=self.c["code_root"])
@@ -136,7 +153,8 @@ class Source:
         require(available and int(available.group(1)) >= 11.5 * 1024 * 1024,
                 "a1_source_host_memory_insufficient")
         return {"status": "host_preflight_passed", "networks_checked": len(nets),
-                "ports_checked": len(ports), "projects_checked": 4}
+                "ports_checked": len(ports), "projects_checked": 4,
+                "cpuset": cpuset}
 
     def command(self, argv, *, input_bytes=None, timeout=45):
         try:
@@ -578,6 +596,7 @@ class Source:
                 "registration_sha256": file_hash(self.root / ".recovery-registration.json")}
 
     def runtime_identity(self):
+        cpuset = self.expected_cpuset()
         expected = {owner: (f"{self.c['source_project']}-{owner}-1" if owner in CORE else
                             f"{self.c['source_project']}-obs-{owner}-1")
                     for owner in (*CORE, *OBS)}
@@ -608,7 +627,7 @@ class Source:
                     state["Status"] == "running" and not state["OOMKilled"] and
                     container["RestartCount"] == 0 and
                     container["Config"]["User"] == "10001:10001" and
-                    host["CpusetCpus"] == "0,1" and host["ReadonlyRootfs"] and
+                    host["CpusetCpus"] == cpuset and host["ReadonlyRootfs"] and
                     host["CapDrop"] == ["ALL"] and
                     host["Memory"] == (1073741824 if owner in CORE else memory[owner]) and
                     all(mount["Source"].startswith(str(self.root) + os.sep)

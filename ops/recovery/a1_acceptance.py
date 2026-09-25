@@ -782,6 +782,12 @@ def read_memory_selection(root, input_path, *, docker_executable="/volume2/@apps
         raise ValueError("a1_scope_required")
     request = json.loads(Path(input_path).resolve(strict=True).read_bytes())
     scope = request.get("requested_scope")
+    memory = read_json(root / "config/memory/settings.json")
+    scopes = memory.get("callers", {}).get("companion", {}).get("event_scopes")
+    local_owner = memory.get("local_users", {}).get("a1-local-owner", {})
+    if (not isinstance(scopes, list) or len(scopes) != 1 or
+            local_owner.get("revision_scopes") != scopes):
+        raise ValueError("a1_exact_memory_scope_binding_required")
     query = request.get("query")
     origin_ref = (
         query.get("origin", {}).get("assertion_ref")
@@ -790,10 +796,14 @@ def read_memory_selection(root, input_path, *, docker_executable="/volume2/@apps
     )
     if (
         not isinstance(scope, dict)
+        or scope != scopes[0]
+        or set(scope) != {"actor_id", "person_id", "audience", "conversation_id"}
         or scope.get("actor_id") != "actor:a1-source"
-        or scope.get("person_id") != "person:a8894fdd11b1479191994548603f42c1"
+        or not isinstance(scope.get("person_id"), str)
+        or not scope["person_id"].startswith("person:")
         or scope.get("audience") != "self_private"
-        or scope.get("conversation_id") != "conv:d530b7572e244c27a441a49909d187a8"
+        or not isinstance(scope.get("conversation_id"), str)
+        or not scope["conversation_id"].startswith("conv:")
         or request.get("selection") != ["identity"]
         or not isinstance(origin_ref, str)
         or not origin_ref.startswith("origin:")
