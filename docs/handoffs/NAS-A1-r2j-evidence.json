@@ -1,0 +1,383 @@
+{
+  "final_resources": {
+    "clone_project_containers": 0,
+    "registration_absent": true,
+    "source_complete_absent": true,
+    "source_networks": [
+      {
+        "endpoints": 0,
+        "name": "tianshu-qa-a1-r2j-source-obs_observe",
+        "subnet": "10.205.50.48/28"
+      },
+      {
+        "endpoints": 0,
+        "name": "tianshu-qa-a1-r2j-source-obs_storage",
+        "subnet": "10.205.50.64/28"
+      },
+      {
+        "endpoints": 0,
+        "name": "tianshu-qa-a1-r2j-source_core",
+        "subnet": "10.205.50.0/28"
+      },
+      {
+        "endpoints": 0,
+        "name": "tianshu-qa-a1-r2j-source_egress",
+        "subnet": "10.205.50.16/28"
+      },
+      {
+        "endpoints": 0,
+        "name": "tianshu-qa-a1-r2j-source_frontend",
+        "subnet": "10.205.50.32/28"
+      }
+    ],
+    "source_owners": {
+      "companion": {
+        "exit_code": 0,
+        "id": "51fe4151b4df27b9c7178b0bd1fed6d6027ad66fcba2b711b55ab5f457c54a78",
+        "oom_killed": false,
+        "status": "exited"
+      },
+      "gateway": {
+        "exit_code": 0,
+        "id": "3463313a38bd1e0c7ec7a2956808081181fdfcde3892a6fad7da047cf2115c1e",
+        "oom_killed": false,
+        "status": "exited"
+      },
+      "memory": {
+        "exit_code": 0,
+        "id": "8ca0ecd2494c3a6f74522746b71529f4ac2a993046c391da4d3fb59356b43316",
+        "oom_killed": false,
+        "status": "exited"
+      },
+      "obs-grafana": {
+        "exit_code": 0,
+        "id": "81bbdd055ada659908887a38872a9773a37a826407cb333817fce11c60460125",
+        "oom_killed": false,
+        "status": "exited"
+      },
+      "obs-guard": {
+        "exit_code": 0,
+        "id": "6726b042ef1d8d18083c8dcda3557e2c9e2041a15d084ea0996f18a4cfdd8a2c",
+        "oom_killed": false,
+        "status": "exited"
+      },
+      "obs-loki": {
+        "exit_code": 0,
+        "id": "2eeffc5978644f1354ba469fd07a7199784097433ad02427b1e8b58f47b52218",
+        "oom_killed": false,
+        "status": "exited"
+      },
+      "obs-prometheus": {
+        "exit_code": 0,
+        "id": "e9f993d8e0d269d29553bcc6984e717501309a909ee4b7dd8498185ada40dee3",
+        "oom_killed": false,
+        "status": "exited"
+      },
+      "obs-vector": {
+        "exit_code": 0,
+        "id": "a82e34fa7578a4eaef236d17c44ce4778965c4920dd2ccc57d9bf7efcc4b2f9f",
+        "oom_killed": false,
+        "status": "exited"
+      },
+      "platform": {
+        "exit_code": 0,
+        "id": "e52e9f3bcd78f7576c917c682ab26b4b64e8ef3ac60a41999d25f37c193ffb47",
+        "oom_killed": false,
+        "status": "exited"
+      }
+    },
+    "source_process_absent_before_stop": true
+  },
+  "fixed_inputs": {
+    "code_commit": "619355ca7079058f557e7f9cb1966685df96450c",
+    "code_lock_sha256": "5f0a78a756f9b6024843114047de07eddaffa66cbe3f457f9eee1d0fc438ec54",
+    "code_tar_sha256": "9234b1c922d69ce2f225b95bcb7d2e5e2a8bcd55f119025c2e33657b2e5dc36d",
+    "code_tree_sha256": "f7a4a769715f8b0c59ed9c862264f1683adafdf6ac2a1a32d148dbf82d390402",
+    "gateway_source_commit": "601974194042641c5a85cc3c061cbd1880d7daf1",
+    "gateway_source_tree_sha256": "39355bc3de216f18c37ee8d2f9f70673ae5aeb2eeaee8b8beacff314e7915755",
+    "gateway_uv_lock_sha256": "56de5d63a49b0f4544ca3926eadfab4ff6b8f5b7506f976cb9b8832002700e29",
+    "preparation_config_sha256": "4a68759370faf30bc85b26434f9f19cdf22a7feeeb13878faccd55c3418b7ac3",
+    "superseded_first_config_sha256": "f14f6bbb57fb3ca04cc1f4ae3a62f6328c6f8c4e25440671c30a93e78970e29a"
+  },
+  "local_validation": {
+    "a1_targeted_tests": 83,
+    "fixed_gateway_cli_fixture": {
+      "actual_entry": "ops.recovery.a1_clone_prepare._usage",
+      "empty_window_total": 0,
+      "environment": "isolated Windows CPython 3.12 with exact Gateway uv.lock runtime versions",
+      "not_nas_ledger_evidence": true,
+      "sqlite_bytes_unchanged": true,
+      "synthetic_four_attempts": {
+        "succeeded": 2,
+        "total": 4,
+        "unknown": 2
+      },
+      "wrong_identity_exit": 3
+    }
+  },
+  "observed_source_semantics": {
+    "fanouts": {
+      "forget-success-v3": {
+        "outcomes": [
+          {
+            "admission_message_key": [
+              "a1-forget-success-v3",
+              1
+            ],
+            "state": "accepted"
+          }
+        ],
+        "registered_message_key": [
+          "a1-forget-success-v3",
+          1
+        ]
+      },
+      "source-revoke-success-v3": {
+        "outcomes": [
+          {
+            "admission_message_key": [
+              "a1-source-revoke-success-v3",
+              1
+            ],
+            "state": "accepted"
+          }
+        ],
+        "registered_message_key": [
+          "a1-source-revoke-success-v3",
+          1
+        ]
+      }
+    },
+    "final_active_turns": 0,
+    "final_collectors": 0,
+    "initial_wait_phases": {
+      "1": [],
+      "2": [
+        "closed_unknown"
+      ],
+      "3": [
+        "closed_unknown"
+      ],
+      "4": [
+        "closed_unknown"
+      ],
+      "5": [
+        "closed_unknown",
+        "closed_unknown"
+      ]
+    },
+    "memory_selected_counts": {
+      "after-forget": {
+        "green": 0,
+        "reading": 0,
+        "red": 1
+      },
+      "after-retract": {
+        "green": 0,
+        "reading": 0,
+        "red": 0
+      },
+      "after-source-revoke": {
+        "green": 0,
+        "reading": 0,
+        "red": 1
+      },
+      "baseline": {
+        "green": 1,
+        "reading": 1,
+        "red": 1
+      }
+    },
+    "offline_controls": [
+      {
+        "body_code": "result_unknown",
+        "execution_state": "unknown",
+        "http_status": 502,
+        "request_id": "a1-r2j-20260926-offline-control-5"
+      },
+      {
+        "body_code": "result_unknown",
+        "execution_state": "unknown",
+        "http_status": 502,
+        "request_id": "a1-r2j-20260926-offline-control-6"
+      }
+    ],
+    "published": {
+      "v3": {
+        "action": "publish",
+        "config_version": 3,
+        "published": true
+      },
+      "v4": {
+        "action": "publish",
+        "config_version": 4,
+        "published": true
+      }
+    },
+    "raw_report_sha256": {
+      "a1-source-failure-private.json": "4b8bdb8130721c106f23d4a0757feb8bdb4af3424ecb6b2e1c61b8b0276c29c9",
+      "gateway-offline-controls.json": "45e30706e57d64bc4dff604015c3e3b9a13bc6c0cd5ffdc42812ea6013a04411",
+      "source-facts.json": "6aa348d15e9f07112458c41ab238f1f3bc6cb634380c44c667b50bca74d2f9f9",
+      "unknown-after-v4-readback.json": "2bd1644a463a5fbabb7da26888b46d0177c6414dd5f3227c4e7f081662db76ed",
+      "web-initial-wait-005.json": "4fab8058f74acaa11ea136eb581980e5fff1ea41ff79a5e209d51e4812e1ee5b",
+      "web-snapshot-initial.json": "1fe6550b20f4d595cbed250c86d69968bc35931c14c4a15ca521a81f28df1fce"
+    },
+    "revoked_model_api": {
+      "body_code": "forbidden",
+      "execution_state": "not_started",
+      "http_status": 410
+    },
+    "source_fact_turns": [
+      {
+        "committed_reality": "fictional",
+        "committed_sequence": 1,
+        "delivery_state": "unknown",
+        "input_message_keys": [
+          [
+            "a1-forget-success-v3",
+            1
+          ]
+        ],
+        "input_revision": 1,
+        "phase": "closed_unknown",
+        "turn_id": "turn:00a398777347409b9accfda54aaf2b5e"
+      },
+      {
+        "committed_reality": "fictional",
+        "committed_sequence": 2,
+        "delivery_state": "unknown",
+        "input_message_keys": [
+          [
+            "a1-source-revoke-success-v3",
+            1
+          ]
+        ],
+        "input_revision": 1,
+        "phase": "closed_unknown",
+        "turn_id": "turn:6ebb8a19509b418ab4df77ef094f2ebd"
+      }
+    ],
+    "unknown_after_v4": {
+      "after": [
+        [
+          "turn:00a398777347409b9accfda54aaf2b5e",
+          "closed_unknown",
+          "unknown"
+        ],
+        [
+          "turn:6ebb8a19509b418ab4df77ef094f2ebd",
+          "closed_unknown",
+          "unknown"
+        ]
+      ],
+      "before": [
+        [
+          "turn:00a398777347409b9accfda54aaf2b5e",
+          "closed_unknown",
+          "unknown"
+        ],
+        [
+          "turn:6ebb8a19509b418ab4df77ef094f2ebd",
+          "closed_unknown",
+          "unknown"
+        ]
+      ],
+      "matches_pre_restart": true
+    },
+    "wait_005_active_turns": 0,
+    "wait_005_and_final_turn_reply_message_identity_equal": true,
+    "wait_005_collectors": 0
+  },
+  "private_receipts": {
+    "gateway-usage-diagnostic-private-v2.json": {
+      "local_private_path": ".runtime/nas-a1-r2j/gateway-usage-diagnostic-private-v2.json",
+      "sha256": "aa0426b9e8fa3a6728862803575341d1c29f45c2dbd838853c381836f15211fd"
+    },
+    "public-prep-execute.json": {
+      "local_private_path": ".runtime/nas-a1-r2j/public-prep-execute.json",
+      "sha256": "750f816bdf874e4421fbd0d473d282c926a43141920f61934899dba43d29687f"
+    },
+    "public-prep-plan.json": {
+      "local_private_path": ".runtime/nas-a1-r2j/public-prep-plan.json",
+      "sha256": "56ea5fc4661edeeda6410eff9d91fefb495f5e7ad4c480e8bf48fdf55a00cef8"
+    },
+    "public-source-execute.json": {
+      "local_private_path": ".runtime/nas-a1-r2j/public-source-execute.json",
+      "sha256": "1b4c533fb6a38006d6074e9b2e2a9380eec469c0d2d5cccfca918d7f73fddb0f"
+    },
+    "public-source-plan.json": {
+      "local_private_path": ".runtime/nas-a1-r2j/public-source-plan.json",
+      "sha256": "83a5d306b8da2da558472a38d5f5ced13dcdaa89b716ca6f6080b079bdd67a73"
+    },
+    "source-failure-audit.json": {
+      "local_private_path": ".runtime/nas-a1-r2j/source-failure-audit.json",
+      "sha256": "54975da6e062cd0fc1e3d76095035158c28f29991b26fbf846d3e46ca53118d5"
+    },
+    "source-normal-stop.json": {
+      "local_private_path": ".runtime/nas-a1-r2j/source-normal-stop.json",
+      "sha256": "2a32862053120168298f9a3869a7b08d686d50ff17bd0391f50ba3ecb317282d"
+    },
+    "source-preflight-live.json": {
+      "local_private_path": ".runtime/nas-a1-r2j/source-preflight-live.json",
+      "sha256": "07aee04a24861e0756eecfca7adae0305c8953490b275f0f69a3f57f78985b43"
+    },
+    "source-semantic-readonly.json": {
+      "local_private_path": ".runtime/nas-a1-r2j/source-semantic-readonly.json",
+      "sha256": "1f6dd8131e5e4d5828fb2ce52d0da726ebcfac814f46d48cc631f02ebe34dd78"
+    },
+    "v2-installed-readback.json": {
+      "local_private_path": ".runtime/nas-a1-r2j/v2-installed-readback.json",
+      "sha256": "d6d09a1bddb97cc9b7cb34a2d5377bb6b49cca6b7d25d3cc5df564b18d01bcc0"
+    },
+    "venv-create.json": {
+      "local_private_path": ".runtime/nas-a1-r2j/venv-create.json",
+      "sha256": "2eceaff328fa60211523cc60cf52fad509f4ace8d9d74f5687fe5f9669ef859b"
+    }
+  },
+  "schema_version": "nas-a1-r2j-evidence/1",
+  "scope": {
+    "allocation_sha256": "5fc2ad22b78b109cb42aa78fbc32a02d67564cee342c95aa2c716e654d0535f1",
+    "execution_id": "b5ebf2e9-836d-4e9b-b94c-21b1ee10a0a6",
+    "id": "72d01f54-fef9-4bfe-8e4c-50ec8263fef7",
+    "name": "scope-a1-r2j",
+    "parent": "/volume2/tianshu-v2-validation-wave1/accept-20260926-a1-r2j"
+  },
+  "stages": {
+    "clone_https_assertions": "not_run",
+    "clone_inputs": "not_created",
+    "gateway_usage_cli": {
+      "child_exit_code": 1,
+      "four_attempt_report": "not_read",
+      "missing_module": "aiohttp",
+      "module_file": "/volume2/tianshu-v2-validation-wave1/accept-20260926-a1-r2j/tooling/gateway-pythonpath/tianshu_gateway/usage_report.py",
+      "python": "/volume2/tianshu-v2-validation-wave1/accept-20260926-a1-r2j/tooling/venv/bin/python",
+      "status": "import_failed_before_ledger_read",
+      "stderr_sha256": "059fe3403dd746c4e8da29a3032a343f6ac9ad9767bd532bbd3106acbea5f6ce",
+      "stdout_bytes": 0
+    },
+    "live_preflight": {
+      "cpuset": "6,7",
+      "networks_checked": 12,
+      "ports_checked": 12,
+      "projects_checked": 4,
+      "status": "host_preflight_passed"
+    },
+    "permit": "not_issued",
+    "recovery": "not_started",
+    "runtime_identity": "not_reached",
+    "source_execute": {
+      "attempt_count": 1,
+      "failed_at_utc": "2026-09-25T18:56:42Z",
+      "private_error_type": "RecoveryError",
+      "public_exit_code": 2,
+      "public_reason": "a1_clone_gateway_usage_failed"
+    },
+    "source_registration": "not_reached",
+    "static_preparation": {
+      "source_manifest_sha256": "49decd6b47e2fb7eb64735681b0754dc2ae015b0cffc46eb6bd8cab63e2d1f3d",
+      "status": "static_source_prepared",
+      "synthetic_input_count": 9
+    }
+  },
+  "status": "needs_validation"
+}
