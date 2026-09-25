@@ -170,6 +170,25 @@ def apply_prometheus_admin_flag(document):
     return document
 
 
+def apply_prometheus_volume_mask(document):
+    """Mask the pinned Prometheus image's unused anonymous /prometheus volume."""
+    services = document.get("services") if isinstance(document, dict) else None
+    prometheus = services.get("obs-prometheus") if isinstance(services, dict) else None
+    require(isinstance(prometheus, dict), "observability_prometheus_service_invalid")
+    tmpfs = prometheus.get("tmpfs")
+    require(
+        isinstance(tmpfs, list) and all(isinstance(value, str) for value in tmpfs),
+        "observability_prometheus_tmpfs_invalid",
+    )
+    expected = "/prometheus:ro,noexec,nosuid,size=1m,uid=10001,gid=10001,mode=0700"
+    entries = [value for value in tmpfs if value.split(":", 1)[0] == "/prometheus"]
+    if not entries:
+        tmpfs.append(expected)
+    else:
+        require(entries == [expected], "observability_prometheus_tmpfs_invalid")
+    return document
+
+
 def apply_runtime_permissions(root):
     """Give mounted private config and OBS inputs/data to runtime UID/GID 10001."""
     require(os.name == "posix", "linux_permissions_not_verified")
@@ -283,6 +302,7 @@ def configure(root, settings_path, repository, projects=None):
     )
     compose_path = root / "observability/compose.yaml"
     network_document = apply_prometheus_admin_flag(read_json(compose_path))
+    network_document = apply_prometheus_volume_mask(network_document)
     write_json(compose_path, network_document)
     apply_resource_profile(compose_path, profile)
     compose_inputs = read_json(root / "deployment.json")["compose_inputs"]

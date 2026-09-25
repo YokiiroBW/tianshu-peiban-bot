@@ -13,6 +13,7 @@ from resource_profile import constrain, container_check, host_check, validate
 from observability_release import (
     apply_network_plan,
     apply_prometheus_admin_flag,
+    apply_prometheus_volume_mask,
     apply_resource_profile,
 )
 from fake_linux_docker import Docker, clock_patches
@@ -124,6 +125,16 @@ class ProfilePackagingTests(unittest.TestCase):
             ["--no-web.enable-admin-api"],
         )
         self.assertIs(apply_prometheus_admin_flag(result), result)
+
+    def test_pinned_prometheus_anonymous_volume_is_masked_idempotently(self):
+        document = {"services": {"obs-prometheus": {"tmpfs": ["/tmp:rw,size=64m"]}}}
+        expected = "/prometheus:ro,noexec,nosuid,size=1m,uid=10001,gid=10001,mode=0700"
+        result = apply_prometheus_volume_mask(document)
+        self.assertIn(expected, result["services"]["obs-prometheus"]["tmpfs"])
+        self.assertIs(apply_prometheus_volume_mask(result), result)
+        result["services"]["obs-prometheus"]["tmpfs"].append(expected)
+        with self.assertRaisesRegex(ValueError, "observability_prometheus_tmpfs_invalid"):
+            apply_prometheus_volume_mask(result)
 
     def test_observability_network_plan_pins_declared_subnets(self):
         document = {

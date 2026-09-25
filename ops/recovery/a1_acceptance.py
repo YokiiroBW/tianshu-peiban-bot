@@ -195,10 +195,12 @@ def bind_a1_observability_networks(root):
     from observability_release import (
         apply_network_plan,
         apply_prometheus_admin_flag,
+        apply_prometheus_volume_mask,
         apply_runtime_permissions,
     )
 
     document = apply_prometheus_admin_flag(document)
+    document = apply_prometheus_volume_mask(document)
     document = apply_network_plan(
         document,
         subnets,
