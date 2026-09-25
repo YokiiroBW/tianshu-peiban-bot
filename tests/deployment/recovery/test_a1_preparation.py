@@ -13,6 +13,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from ops.recovery import a1_acceptance, a1_clone_prepare, a1_once, a1_prepare
+from ops.recovery.a1_code import deploy_module
 from ops.recovery.safety import read_json
 import test_a1_once
 
@@ -23,13 +24,14 @@ class PreparationTests(unittest.TestCase):
     def setUp(self):
         test_a1_once.Fixture.setUp(self)
         home = Path(self.temp.name)
-        self.parent = home / "preparation-root"
+        self.parent = home
         (self.parent / "preparations").mkdir(parents=True)
         self.contracts = home / "contracts"
         self.contracts.mkdir()
-        self.obs = home / "observability-repository"
-        self.obs.mkdir()
-        (self.obs / "source.txt").write_text("fixed observability source\n")
+        self.obs = Path(__file__).resolve().parents[3]
+        self.projects = Path("C:/YOKI/Codex/tianshu-peiban-bot/projects")
+        if not self.projects.is_dir():
+            self.skipTest("fixed product Git repositories unavailable locally")
         self.gateway = home / "gateway-import"
         self.gateway.mkdir()
         (self.gateway / "module.py").write_text("fixed gateway source\n")
@@ -49,7 +51,9 @@ class PreparationTests(unittest.TestCase):
             "resource_profile": str(self.profile),
             "resource_profile_sha256": a1_once.file_hash(self.profile),
             "observability_repository": str(self.obs),
-            "observability_repository_sha256": a1_prepare._tree(self.obs),
+            "observability_repository_sha256": a1_prepare._git_commit_digest(
+                self.obs, "65b88a6d1c2b5047ca6bfb2f7f7484749eb14154"),
+            "projects_root": str(self.projects),
             "source_project": "tianshu-qa-a1-source-new-fixture",
             "clone_project": "tianshu-qa-a1-clone-new-fixture",
             "networks": {"source": self.nets[:5], "clone": self.nets[5:]},
@@ -88,7 +92,10 @@ class PreparationTests(unittest.TestCase):
                     "channel": {"namespace": "web", "binding_id": "web-source",
                                 "channel_conversation_id": "a1-fixture"},
                     "account": {"id": "fixture-account"}}}})
-            return {"status": "prepared", "synthetic_only": True}
+            return {"status": "prepared", "synthetic_only": True,
+                    "publication": {"config_version": 1, "providers": [{
+                        "provider_id": "provider-synthetic",
+                        "base_url": "https://gateway.internal:9443/v1"}]}}
         def inputs(source, output):
             with patch("ops.recovery.a1_acceptance._imports",
                        return_value=(lambda root: None, None, None, read_json)):
@@ -98,7 +105,7 @@ class PreparationTests(unittest.TestCase):
     def _source(self):
         self.assertEqual(a1_prepare.load(self.prep_path), self.prep)
         result = a1_prepare.prepare_source(self.prep, initializer=self._initializer,
-            observability=lambda source, settings, repo:
+            observability=lambda source, settings, repo, projects:
                 {"status": "observability_configured"},
             synthetic=self._synthetic())
         self.assertEqual(result["status"], "static_source_prepared")
@@ -259,12 +266,52 @@ class PreparationTests(unittest.TestCase):
         self.assertEqual(a1_once.file_hash(self.original),
                          a1_prepare.FIXED_ORIGINAL_MANIFEST_SHA256)
 
-    def test_public_source_plan_is_read_only(self):
+    def test_tooling_must_be_the_scope_parent_locked_tree(self):
+        elsewhere = self.parent / "elsewhere"
+        shutil.copytree(self.code, elsewhere)
+        self.prep["code_root"] = str(elsewhere)
+        self.prep["code_tree_sha256"] = a1_once._code_tree(elsewhere)
+        put(self.lock, {"schema_version": "a1-code-lock/1",
+            "tree_sha256": self.prep["code_tree_sha256"],
+            "files": dict(a1_once._code_files(elsewhere))})
+        self.prep["code_lock_sha256"] = a1_once.file_hash(self.lock)
+        put(self.prep_path, self.prep)
+        with self.assertRaises(Exception):
+            a1_prepare.load(self.prep_path)
+
+    def test_cached_deployment_module_from_other_tree_is_rejected(self):
+        fake = type("Cached", (), {"__file__": str(self.gateway / "module.py")})()
+        with patch.dict(sys.modules, {"bundle": fake}):
+            with self.assertRaises(Exception):
+                deploy_module(self.code, "bundle")
+
+    def test_fixed_product_git_objects_are_required(self):
+        self.prep["projects_root"] = str(self.parent / "missing-projects")
+        put(self.prep_path, self.prep)
+        with self.assertRaises(Exception):
+            a1_prepare.load(self.prep_path)
+
+    def test_missing_fixed_git_commit_is_rejected_before_scope_creation(self):
+        with patch("ops.recovery.a1_prepare.subprocess.run",
+                   return_value=subprocess.CompletedProcess([], 1, b"", b"")):
+            with self.assertRaises(Exception):
+                a1_prepare.load(self.prep_path)
+        self.assertFalse((self.parent / self.prep["scope_name"]).exists())
+
+    def test_source_api_ports_must_match_fixed_candidate(self):
+        self.prep["ports"]["source"][1] = 21999
+        put(self.prep_path, self.prep)
+        with self.assertRaises(Exception):
+            a1_prepare.load(self.prep_path)
+        self.assertFalse((self.parent / self.prep["scope_name"]).exists())
+
+    def test_public_source_plan_rejects_wrong_loaded_tree_without_write(self):
         result = subprocess.run([sys.executable, "-B", "-m", "ops.recovery.a1_prepare",
             "--config", str(self.prep_path)], cwd=Path(__file__).resolve().parents[3],
             capture_output=True, text=True, timeout=20)
-        self.assertEqual(result.returncode, 0)
-        self.assertEqual(json.loads(result.stdout)["status"], "planned")
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(json.loads(result.stdout)["reason"],
+                         "a1_entry_code_root_mismatch")
         self.assertFalse((self.parent / self.prep["scope_name"]).exists())
 
     def test_source_preparation_parameter_generation(self):
@@ -281,7 +328,7 @@ class PreparationTests(unittest.TestCase):
         self.assertEqual(a1_prepare.load(self.prep_path), self.prep)
         with self.assertRaises(RuntimeError):
             a1_prepare.prepare_source(self.prep, initializer=self._initializer,
-                observability=lambda source, settings, repo:
+                observability=lambda source, settings, repo, projects:
                     (_ for _ in ()).throw(RuntimeError("fixture observability failure")),
                 synthetic=self._synthetic())
         scope = self.parent / self.prep["scope_name"]
@@ -290,7 +337,7 @@ class PreparationTests(unittest.TestCase):
         with self.assertRaises(Exception):
             a1_prepare.load(self.prep_path)
 
-    def test_real_bundle_initializer_in_isolated_directory(self):
+    def _real_static_source(self):
         repository = Path(__file__).resolve().parents[3]
         manifest = json.loads(self.original.read_text())
         candidates = [repository / "contracts",
@@ -305,16 +352,131 @@ class PreparationTests(unittest.TestCase):
                    "pid_limit": "unsupported"}
         put(self.profile, profile)
         self.prep["resource_profile_sha256"] = a1_once.file_hash(self.profile)
-        self.prep["code_root"] = str(repository)
+        shutil.copytree(repository / "ops", self.code / "ops", dirs_exist_ok=True)
+        shutil.copytree(repository / "deploy", self.code / "deploy", dirs_exist_ok=True)
+        # Each real CLI is a fresh interpreter. Emulate that boundary for only
+        # the copied top-level deployment modules in this in-process test.
+        for path in (self.code / "deploy/tianshu").glob("*.py"):
+            sys.modules.pop(path.stem, None)
+        self.prep["code_tree_sha256"] = a1_once._code_tree(self.code)
+        put(self.lock, {"schema_version": "a1-code-lock/1",
+            "tree_sha256": self.prep["code_tree_sha256"],
+            "files": dict(a1_once._code_files(self.code))})
+        self.prep["code_lock_sha256"] = a1_once.file_hash(self.lock)
         self.prep["contracts_root"] = str(contracts)
-        result = a1_prepare.prepare_source(self.prep,
-            observability=lambda source, settings, repo:
-                {"status": "observability_configured"},
-            synthetic=self._synthetic())
+        put(self.prep_path, self.prep)
+        self.assertEqual(a1_prepare.load(self.prep_path), self.prep)
+        planned = subprocess.run([sys.executable, "-B", "-m", "ops.recovery.a1_prepare",
+            "--config", str(self.prep_path)], cwd=self.code, capture_output=True,
+            text=True, timeout=20)
+        self.assertEqual(planned.returncode, 0, planned.stderr)
+        self.assertEqual(json.loads(planned.stdout)["status"], "planned")
+        release = a1_prepare.deploy_module(self.code, "observability_release")
+        with patch.object(release, "apply_runtime_permissions") as linux_permissions:
+            result = a1_prepare.prepare_source(self.prep)
+        linux_permissions.assert_called_once()
         self.assertEqual(result["status"], "static_source_prepared")
-        source = self.parent / self.prep["scope_name"] / "deployments/source"
+        scope = self.parent / self.prep["scope_name"]
+        return scope, scope / "deployments/source"
+
+    def test_real_bundle_initializer_in_isolated_directory(self):
+        scope, source = self._real_static_source()
         self.assertTrue((source / "bundle-integrity.json").is_file())
         self.assertFalse((source / "INCOMPLETE").exists())
+        observed = json.loads((source / "observability/compose.yaml").read_text())
+        self.assertEqual(set(observed["networks"]), {"observe", "storage"})
+        self.assertEqual(len(list((source / "reports" / self.prep["run_label"]).glob(
+            "register-*.json"))), 9)
+
+    def _real_semantic_receipts_fixture(self, scope, source):
+        """Fixture-only source business state; product CLIs are not invoked."""
+        event_scope = {"actor_id": "actor:a1-source", "person_id": "fixture-person",
+                       "audience": "self_private", "conversation_id": "fixture-conversation"}
+        a1_acceptance.bind_memory_scopes(source, {"scopes": [event_scope] * 3,
+            "account": {"namespace": "fixture", "immutable_account_id": "fixture-account"}})
+        a1_acceptance.set_gateway_origin(source, "origin:fixture-source")
+        platform = read_json(source / "config/platform/settings.json")
+        gateway = read_json(source / "config/gateway/settings.json")
+        companion = read_json(source / "config/companion/settings.json")
+        memory = read_json(source / "config/memory/settings.json")
+        platform["principals"]["gateway"]["config_versions"] = [1, 3]
+        gateway["clients"][0]["allowed_versions"] = [1, 3]
+        companion["config_version"] = 3
+        a1_acceptance._update_bundle(source, {
+            "config/platform/settings.json": a1_acceptance._raw(platform),
+            "config/gateway/settings.json": a1_acceptance._raw(gateway),
+            "config/companion/settings.json": a1_acceptance._raw(companion),
+            "config/memory/settings.json": a1_acceptance._raw(memory)})
+        core = read_json(source / "compose.json")
+        obs = read_json(source / "observability/compose.yaml")
+        owners = set(core["services"]) | set(obs["services"])
+        put(source / "reports/runtime-identity.json", {
+            "projects": {"core": {"compose_json": core},
+                         "observability": {"compose_json": obs}},
+            "services": {name: {"image_id": "sha256:" + str(i) * 64}
+                         for i, name in enumerate(sorted(owners), 1)}})
+        put(source / ".recovery-registration.json", {
+            "scope_id": self.prep["scope_id"], "authority_id": str(uuid.uuid4()),
+            "runtime_identity": {"sha256": a1_once.file_hash(
+                source / "reports/runtime-identity.json")}})
+        report = source / "reports" / self.prep["run_label"]
+        turns = [{"turn_id": f"turn-{i}", "phase": "closed_unknown",
+                  "committed_event": {"reality": "fictional", "turn_sequence": i}}
+                 for i in (1, 2)]
+        put(report / "source-facts.json", {"body": {"schema_version": 1,
+            "turns": turns}})
+        unknown = [{"turn_id": f"turn-{i}", "sequence": i,
+            "phase": "closed_unknown", "delivery_state": "unknown",
+            "replies": [{"reply_id": f"reply-{i}", "state": "unknown"}]}
+            for i in (1, 2)]
+        put(report / "unknown-after-v4-readback.json", {"after": {"turns": unknown}})
+        put(report / "web-snapshot-initial.json", {"body": {"history": [
+            {"turn": {"turn_id": f"turn-{i}", "turn_sequence": i,
+                      "phase": "closed_unknown", "delivery_state": "unknown"},
+             "replies": [{"reply_id": f"reply-{i}", "state": "unknown"}]}
+            for i in (1, 2)]}})
+
+    def test_real_static_source_clone_inputs_reach_consumer(self):
+        from ops.recovery.drill_inputs import isolated_inputs
+        scope, source = self._real_static_source()
+        self._real_semantic_receipts_fixture(scope, source)
+        clone_plan = subprocess.run([sys.executable, "-B", "-m",
+            "ops.recovery.a1_clone_prepare", "--config", str(self.prep_path)],
+            cwd=self.code, capture_output=True, text=True, timeout=20)
+        self.assertEqual(clone_plan.returncode, 0, clone_plan.stderr)
+        self.assertEqual(json.loads(clone_plan.stdout)["status"], "planned")
+        result = a1_clone_prepare.prepare_clone(self.prep,
+            route_reader=lambda source, turns: {"model:" + "a" * 32,
+                                                "model:" + "b" * 32},
+            usage_reader=self._usage, now=datetime(2026, 9, 25, tzinfo=timezone.utc))
+        self.assertEqual(result["assertions"], 6)
+        config = a1_once.load_config(scope / "inputs/a1-once.json")
+        def diagnose(source, request):
+            return {"valid": True}
+        def publish(source, action, request):
+            if action == "publish":
+                return {"action": action, "receipt": {"config_version": 5}}
+            return {"action": "issue", "receipt": {
+                "assertion_ref": "origin:fixture-" + request.stem,
+                "expires_at": "2099-01-01T00:00:00Z"}}
+        a1_once.seal(config, publisher=(diagnose, publish),
+                     attempt_id=str(uuid.uuid4()))
+        inputs = scope / "drill-inputs/clone-inputs"
+        index = read_json(inputs / "inputs.json")
+        runtime = read_json(source / "reports/runtime-identity.json")
+        value = {"inputs_directory": str(inputs), "inputs_sha256": a1_once.file_hash(
+            inputs / "inputs.json"), "drill_directory": str(scope / "deployments/clone"),
+            "config_sha256": {name: checksum for name, checksum in index["files"].items()
+                if name.startswith(("config/", "private/", "observability/config/",
+                                    "observability/private/", "observability-input/"))},
+            "compose_sha256": {"core": index["files"]["compose.json"],
+                "observability": index["files"]["observability/compose.yaml"]},
+            "projects": config["projects"],
+            "image_ids": {name: row["image_id"] for name, row in
+                          runtime["services"].items()}}
+        manifest = read_json(source / "release-manifest.json")
+        isolated_inputs(value, manifest, resource_profile=read_json(self.profile))
+        self.assertEqual(value["inputs_sha256"], a1_once.file_hash(inputs / "inputs.json"))
 
     def test_wrong_original_manifest_and_nonempty_target_stop_before_initializer(self):
         bad = self.parent / "preparations/bad-manifest.json"
@@ -368,6 +530,24 @@ class PreparationTests(unittest.TestCase):
                 index_path = scope / "drill-inputs/clone-inputs/inputs.json"
                 index = json.loads(index_path.read_text())
                 index["a1_origin_admission"] = {"minimum_remaining_seconds": 180}
+                publish = scope / "inputs/clone-publish-receipt.json"
+                config = scope / "drill-inputs/clone-inputs/private/a1-config-origin-issue.json"
+                actor = scope / "drill-inputs/clone-inputs/private/a1-actor-origin-issue.json"
+                put(publish, {"action": "publish", "receipt": {"config_version": 5}})
+                for name, path in (("config", config), ("actor", actor)):
+                    put(path, {"action": "issue", "receipt": {
+                        "assertion_ref": "origin:fixture-" + name,
+                        "expires_at": "2099-01-01T00:00:00Z"}})
+                for path in (config, actor):
+                    index["files"][path.relative_to(index_path.parent).as_posix()] = (
+                        a1_once.file_hash(path))
+                put(scope / "inputs/a1-seal-actions-complete.json", {
+                    "schema_version": "a1-seal-actions-complete/1",
+                    "scope_id": self.prep["scope_id"],
+                    "attempt_id": argv[argv.index("--attempt-id") + 1],
+                    "receipts": {"publish": a1_once.file_hash(publish),
+                        "config": a1_once.file_hash(config),
+                        "actor": a1_once.file_hash(actor)}})
                 put(index_path, index)
                 checksum = a1_once.file_hash(index_path)
                 put(scope / "inputs/clone-inputs-finalized.json", {"inputs_sha256": checksum})
@@ -468,14 +648,15 @@ class PreparationTests(unittest.TestCase):
                 route_reader=lambda source, turns: set(), usage_reader=self._usage)
         self.assertFalse((scope / "inputs/tls-clone-inputs").exists())
 
-    def test_public_clone_plan_is_read_only(self):
+    def test_public_clone_plan_rejects_wrong_loaded_tree_without_write(self):
         scope, source = self._clone_ready()
         result = subprocess.run([sys.executable, "-B", "-m",
             "ops.recovery.a1_clone_prepare", "--config", str(self.prep_path)],
             cwd=Path(__file__).resolve().parents[3], capture_output=True,
             text=True, timeout=20)
-        self.assertEqual(result.returncode, 0)
-        self.assertEqual(json.loads(result.stdout)["status"], "planned")
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(json.loads(result.stdout)["reason"],
+                         "a1_entry_code_root_mismatch")
         self.assertFalse((scope / "drill-inputs/clone-inputs").exists())
 
 

@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from .a1_once import ASSERTIONS, _write_raw_once, load_config
+from .a1_code import require_entry_origin
 from .a1_prepare import make_tls, NETWORK_NAMES, PORT_NAMES, load as load_preparation
 from .drill_inputs import OWNERS
 from .safety import canonical, child, file_hash, read_json, require
@@ -348,7 +349,8 @@ def _compose(c, p, clone_ips, clone_ports):
         spec["scale"] = 1
         spec["volumes"] = [mount(value) for value in spec["volumes"]]
         if spec.get("ports"):
-            spec["networks"].append("access")
+            if "access" not in spec["networks"]:
+                spec["networks"].append("access")
             port(spec, clone_ports[owner])
     for name, doc in (("compose.json", core), ("observability/compose.yaml", obs)):
         path = inputs / name
@@ -517,6 +519,8 @@ def main(argv=None):
     parser.add_argument("--config", required=True)
     parser.add_argument("--execute", action="store_true")
     args = parser.parse_args(argv)
+    require_entry_origin(read_json(args.config)["code_root"], __file__,
+                         "ops/recovery/a1_clone_prepare.py")
     c = load_preparation(args.config, phase="clone")
     p = _paths(c)
     require(not p["inputs"].exists() and not p["clone"].exists() and

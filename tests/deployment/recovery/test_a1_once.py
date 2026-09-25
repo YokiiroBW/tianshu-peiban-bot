@@ -25,7 +25,7 @@ class Fixture(unittest.TestCase):
         home = Path(self.temp.name)
         self.scope = home / "scope-a1-fixture"
         self.scope.mkdir()
-        self.code = home / "code"
+        self.code = home / "tooling"
         driver = self.code / "ops/recovery/a1_once.py"
         driver.parent.mkdir(parents=True)
         driver.write_text("fixture pinned coordinator\n")
@@ -44,7 +44,8 @@ class Fixture(unittest.TestCase):
         self.private.mkdir(parents=True)
         self.nets = [str(x) for x in __import__("ipaddress").ip_network(
             "10.205.48.0/24").subnets(new_prefix=28)][:12]
-        self.ports = list(range(22001, 22013))
+        self.ports = [22001, 19512, 19513, 19514, 22005, 22006,
+                      22007, 22008, 22009, 22010, 22011, 22012]
         def compose(name, nets, ports):
             return {"name": name, "networks": {f"net{n}": {
                 "ipam": {"config": [{"subnet": subnet}]}}
@@ -54,7 +55,7 @@ class Fixture(unittest.TestCase):
         source_docs = [compose("source-core", self.nets[:3], self.ports[:4]),
                        compose("source-obs", self.nets[3:5], self.ports[4:6])]
         clone_docs = [compose("tianshu-qa-a1-fixture", self.nets[5:10], self.ports[6:10]),
-                      compose("tianshu-qa-a1-fixture-obs", self.nets[10:12], self.ports[10:12])]
+                       compose("tianshu-qa-a1-fixture-obs", self.nets[10:12], self.ports[10:12])]
         put(self.inputs / "compose.json", clone_docs[0])
         put(self.inputs / "observability/compose.yaml", clone_docs[1])
         put(self.source / "reports/runtime-identity.json", {
@@ -119,6 +120,22 @@ class Fixture(unittest.TestCase):
         self.path = self.private / "a1-once.json"
         put(self.path, self.config)
 
+    def _mark_safe_seal(self, argv):
+        names = {"publish": self.private / "clone-publish-receipt.json",
+                 "config": self.inputs / "private/a1-config-origin-issue.json",
+                 "actor": self.inputs / "private/a1-actor-origin-issue.json"}
+        put(names["publish"], {"action": "publish", "receipt": {"config_version": 5}})
+        for name in ("config", "actor"):
+            put(names[name], {"action": "issue", "receipt": {
+                "assertion_ref": "origin:fixture-" + name,
+                "expires_at": "2099-01-01T00:00:00Z"}})
+        put(self.private / "a1-seal-actions-complete.json", {
+            "schema_version": "a1-seal-actions-complete/1",
+            "scope_id": self.uuid,
+            "attempt_id": argv[argv.index("--attempt-id") + 1],
+            "receipts": {key: a1_once.file_hash(path)
+                         for key, path in names.items()}})
+
     def _runner(self, *, fail=None, remaining=181, mutate=True):
         seen = []
         def run(argv, timeout):
@@ -132,6 +149,7 @@ class Fixture(unittest.TestCase):
                 return 124 if fail == "drill-execute" else 2, {
                     "status": "stop_unconfirmed" if fail == "drill-execute" else "rejected"}
             if stage == "seal":
+                self._mark_safe_seal(argv)
                 if mutate:
                     index = json.loads((self.inputs / "inputs.json").read_text())
                     index["a1_origin_admission"] = {"minimum_remaining_seconds": 180}
@@ -173,13 +191,24 @@ class Fixture(unittest.TestCase):
         self.assertEqual(json.loads(result.stdout)["reason"], "a1_execute_flag_required")
         self.assertFalse((self.private / "receipts").exists())
 
+    def test_public_execute_rejects_wrong_loaded_code_before_receipt(self):
+        result = subprocess.run([sys.executable, "-B", "-m", "ops.recovery.a1_once",
+            "--config", str(self.path), "--execute"],
+            cwd=Path(__file__).resolve().parents[3], capture_output=True,
+            text=True, timeout=10)
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(json.loads(result.stdout)["reason"],
+                         "a1_entry_code_root_mismatch")
+        self.assertFalse((self.private / "receipts").exists())
+
     def test_success_one_execute(self):
         seen, runner = self._runner()
         result = a1_once.drive(self.config, runner=runner)
         self.assertEqual(result["execute_calls"], 1)
         self.assertEqual(seen, list(a1_once.STAGES))
         receipts = list((self.private / "receipts").glob("*.json"))
-        self.assertEqual(len(receipts), 6)
+        self.assertEqual(len(receipts), 7)
+        self.assertTrue((self.private / "receipts/attempt.json").is_file())
 
     def test_raw_receipt_is_private_and_hashed(self):
         seen, base = self._runner()
@@ -243,19 +272,20 @@ class Fixture(unittest.TestCase):
         with self.assertRaises(Exception):
             a1_once.load_config(self.path)
 
-    def test_failure_stops_before_permit_and_runs_source_stop(self):
+    def test_unmarked_seal_failure_does_not_start_second_writer(self):
         seen, runner = self._runner(fail="seal")
         result = a1_once.drive(self.config, runner=runner)
         self.assertEqual(result["failed_stage"], "seal")
-        self.assertEqual(seen, ["seal", "linux-rehearse"])
-        self.assertEqual(result["source_stop_status"], "disabled_restore_complete")
-        self.assertTrue((self.private / "receipts/seal-failure-source-stop.json").is_file())
+        self.assertEqual(seen, ["seal"])
+        self.assertEqual(result["source_stop_status"], "stop_unconfirmed")
+        self.assertFalse((self.private / "receipts/seal-failure-source-stop.json").exists())
 
     def _bad_seal(self, fault):
         seen, base = self._runner()
         def runner(argv, timeout):
             code, receipt = base(argv, timeout)
             if "seal" in argv:
+                self._mark_safe_seal(argv)
                 receipt = dict(receipt)
                 if fault == "bad_status":
                     receipt["status"] = "unexpected"
@@ -284,7 +314,7 @@ class Fixture(unittest.TestCase):
         self.assertEqual(result["source_stop_status"], "stop_unconfirmed")
         self.assertFalse((self.private / "receipts/seal-failure-source-stop.json").exists())
 
-    def test_seal_timeout_with_exited_child_runs_source_stop_once(self):
+    def test_seal_timeout_with_exited_child_without_marker_stops(self):
         seen, base = self._runner()
         def runner(argv, timeout):
             if "seal" in argv:
@@ -292,15 +322,100 @@ class Fixture(unittest.TestCase):
                 return 124, {"status": "child_terminated_after_timeout"}
             return base(argv, timeout)
         result = a1_once.drive(self.config, runner=runner)
-        self.assertEqual(seen, ["seal", "linux-rehearse"])
+        self.assertEqual(seen, ["seal"])
+        self.assertEqual(result["source_stop_status"], "stop_unconfirmed")
+
+    def test_previous_seal_marker_rejects_new_attempt_before_child(self):
+        self._mark_safe_seal(["--attempt-id", str(uuid.uuid4())])
+        with self.assertRaises(Exception):
+            a1_once.drive(self.config, runner=lambda argv, timeout: self.fail(
+                "a previous marker must stop before any child"))
+        self.assertFalse((self.private / "receipts").exists())
+
+    def test_wrong_attempt_id_marker_cannot_start_source_stop(self):
+        calls = []
+        def runner(argv, timeout):
+            calls.append(argv)
+            self._mark_safe_seal(argv)
+            marker = json.loads((self.private / "a1-seal-actions-complete.json").read_text())
+            marker["attempt_id"] = str(uuid.uuid4())
+            put(self.private / "a1-seal-actions-complete.json", marker)
+            return 2, {"status": "rejected"}
+        result = a1_once.drive(self.config, runner=runner)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(result["source_stop_status"], "stop_unconfirmed")
+
+    def test_partial_seal_marker_cannot_start_source_stop(self):
+        calls = []
+        def runner(argv, timeout):
+            calls.append(argv)
+            (self.private / "a1-seal-actions-complete.json").write_bytes(b'{"scope_id":')
+            return 124, {"status": "child_terminated_after_timeout"}
+        result = a1_once.drive(self.config, runner=runner)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(result["source_stop_status"], "stop_unconfirmed")
+
+    def test_seal_exit_zero_without_marker_cannot_start_second_writer(self):
+        seen, base = self._runner()
+        def runner(argv, timeout):
+            code, result = base(argv, timeout)
+            if "seal" in argv:
+                (self.private / "a1-seal-actions-complete.json").unlink()
+            return code, result
+        result = a1_once.drive(self.config, runner=runner)
+        self.assertEqual(seen, ["seal"])
+        self.assertEqual(result["source_stop_status"], "stop_unconfirmed")
+
+    def test_seal_exit_zero_with_wrong_attempt_cannot_advance(self):
+        seen, base = self._runner()
+        def runner(argv, timeout):
+            code, result = base(argv, timeout)
+            if "seal" in argv:
+                marker_path = self.private / "a1-seal-actions-complete.json"
+                marker = json.loads(marker_path.read_text())
+                marker["attempt_id"] = str(uuid.uuid4())
+                put(marker_path, marker)
+            return code, result
+        outcome = a1_once.drive(self.config, runner=runner)
+        self.assertEqual(seen, ["seal"])
+        self.assertEqual(outcome["source_stop_status"], "stop_unconfirmed")
+
+    def test_seal_exit_zero_with_changed_action_receipt_cannot_advance(self):
+        seen, base = self._runner()
+        def runner(argv, timeout):
+            code, result = base(argv, timeout)
+            if "seal" in argv:
+                put(self.inputs / "private/a1-actor-origin-issue.json",
+                    {"action": "issue", "receipt": {"assertion_ref": "origin:changed",
+                        "expires_at": "2099-01-01T00:00:00Z"}})
+            return code, result
+        outcome = a1_once.drive(self.config, runner=runner)
+        self.assertEqual(seen, ["seal"])
+        self.assertEqual(outcome["source_stop_status"], "stop_unconfirmed")
+
+    def test_seal_bad_stdout_but_confirmed_exited_and_actions_stops_source(self):
+        calls = []
+        def runner(argv, timeout):
+            calls.append(argv)
+            if len(calls) == 1:
+                self._mark_safe_seal(argv)
+                return 2, {"status": "stop_unconfirmed", "_child_process_exited": True}
+            return 0, {"status": "disabled_restore_complete",
+                       "runtime_owners_stopped": 9}
+        result = a1_once.drive(self.config, runner=runner)
+        self.assertEqual(len(calls), 2)
         self.assertEqual(result["source_stop_status"], "disabled_restore_complete")
+
+    def test_seal_outer_budget_covers_bounded_product_calls(self):
+        self.assertGreaterEqual(a1_once.TIMEOUTS["seal"], 4 * 45 + 30)
 
     def test_source_stop_timeout_does_not_claim_cleanup(self):
         seen = []
         def runner(argv, timeout):
             if "seal" in argv:
                 seen.append("seal")
-                return 2, {"status": "rejected"}
+                self._mark_safe_seal(argv)
+                return 2, {"status": "sealed"}
             seen.append("linux-rehearse")
             return 124, {"status": "stop_unconfirmed"}
         result = a1_once.drive(self.config, runner=runner)
@@ -311,7 +426,9 @@ class Fixture(unittest.TestCase):
         calls = []
         def runner(argv, timeout):
             calls.append(argv)
-            return (2, {"status": "rejected"}) if len(calls) == 1 else (
+            if len(calls) == 1:
+                self._mark_safe_seal(argv)
+            return (2, {"status": "sealed"}) if len(calls) == 1 else (
                 2, {"status": "child_start_failed"})
         result = a1_once.drive(self.config, runner=runner)
         self.assertEqual(len(calls), 2)
@@ -379,7 +496,8 @@ class Fixture(unittest.TestCase):
             return {"action": "issue", "receipt": {
                 "assertion_ref": "origin:" + request.stem,
                 "expires_at": "2099-01-01T00:00:00Z"}}
-        result = a1_once.seal(self.config, publisher=(diagnose, publish))
+        result = a1_once.seal(self.config, publisher=(diagnose, publish),
+                              attempt_id=str(uuid.uuid4()))
         self.assertEqual(calls, ["diagnose", "publish", "issue", "issue"])
         self.assertEqual(result["status"], "sealed")
         index = json.loads((self.inputs / "inputs.json").read_text())
@@ -492,6 +610,8 @@ class Fixture(unittest.TestCase):
         def runner(argv, timeout):
             calls.append(argv)
             if len(calls) == 1:
+                if expected_calls == 2:
+                    self._mark_safe_seal(argv)
                 return 125, {"status": child_status}
             return 0, {"status": "disabled_restore_complete",
                        "runtime_owners_stopped": 9}
@@ -512,15 +632,20 @@ class Fixture(unittest.TestCase):
         def runner(argv, timeout):
             calls.append(argv)
             return 125, {"status": "stop_unconfirmed"}
-        with patch("ops.recovery.a1_once._write_once", side_effect=OSError()):
+        actual_write = a1_once._write_once
+        def fail_after_attempt(path, value):
+            if path.name == "attempt.json":
+                return actual_write(path, value)
+            raise OSError()
+        with patch("ops.recovery.a1_once._write_once", side_effect=fail_after_attempt):
             result = a1_once.drive(self.config, runner=runner)
         self.assertEqual(len(calls), 1)
         self.assertEqual(result["source_stop_status"], "stop_unconfirmed")
         self.assertEqual(result["phase_status"], "receipt_storage_failed")
 
-    def test_communication_failure_exited_child_runs_source_stop(self):
+    def test_communication_failure_exited_child_remains_unconfirmed(self):
         self._oserror_state("child_terminated_after_io_error",
-                            "disabled_restore_complete", 2)
+                            "stop_unconfirmed", 1)
 
 
 if __name__ == "__main__":

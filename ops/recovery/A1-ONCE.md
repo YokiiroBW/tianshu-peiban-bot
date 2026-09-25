@@ -8,15 +8,19 @@ refuses an existing receipt directory, restored target, clone target, or permit.
 
 ## Preparation boundary
 
-`python -B -m ops.recovery.a1_prepare --config ABSOLUTE_PREPARATION_JSON`
+From the exact `scope_parent/tooling` code directory,
+`ABS_PYTHON -B -m ops.recovery.a1_prepare --config ABSOLUTE_PREPARATION_JSON`
 checks a private `a1-preparation/1` plan without writing. `--execute` creates
 only the specified fresh scope, deriving its candidate manifest by changing
 the pinned original's `web_text_dialogue.enabled` from true to false. It
 initializes the source bundle, fresh TLS and credentials, observability, and
 nine explicitly fictional product input files. Its config binds a per-file
-`ops`/`deploy` code lock, original manifest, resource profile, observability
-repository, Gateway import trees, source/clone project names, twelve distinct
-`/28` networks in the assigned pool, and twelve loopback ports. The config
+`ops`/`deploy` code lock, original manifest, resource profile, fixed
+observability Git commit, four fixed product Git commits under `projects_root`,
+Gateway import trees, source/clone project names, twelve distinct `/28`
+networks in the assigned pool, and twelve loopback ports. Source Companion,
+Memory and Gateway API ports are fixed by the candidate at 19512/19513/19514.
+The config
 lives at `scope_parent/preparations/scope_name.json`; its lock is the adjacent
 `scope_name.code-lock.json`. Values must be explicitly supplied. There is no
 default allocation. A partial failure leaves the scope for inspection and
@@ -28,7 +32,8 @@ five running observability owners, two closed unknown turns, forgetting,
 revocations, and four Gateway usage attempts. Static preparation alone does
 not establish these facts.
 
-`python -B -m ops.recovery.a1_clone_prepare --config ABSOLUTE_PREPARATION_JSON`
+From that same code directory,
+`ABS_PYTHON -B -m ops.recovery.a1_clone_prepare --config ABSOLUTE_PREPARATION_JSON`
 checks a read-only clone plan after source registration. `--execute` verifies
 the source semantic receipts, two Companion route IDs, Gateway usage CLI
 report, model template, and registered source. It creates a separate clone
@@ -61,7 +66,8 @@ The `a1-once/1` JSON config contains exactly these fields:
   hash map and the tree digest. Generate its content with
   `--emit-code-lock ABSOLUTE_CODE_ROOT` and copy its `tree_sha256` into the
   config. These private
-  inputs are outside Git.
+  inputs are outside Git. The actual loaded entry and recovery modules must
+  resolve inside the locked `scope_parent/tooling` tree.
 
 The preliminary clone package must have six fixed functional assertions in
 order. The seal child publishes synthetic model version 5, issues two Platform
@@ -80,12 +86,19 @@ retains its own identity, owner, restore, resource, 180-second origin, and
 one-use claim checks. A plan result is a static check and explicitly does not
 certify owner state or recovery facts.
 
-Each child has a finite timeout. The outer timer signals only the child CLI
+Each child has a finite timeout; seal allows 240 seconds for four bounded
+Platform calls and local input sealing. The outer timer signals only the child CLI
 process with SIGTERM, then waits up to 90 seconds for its normal cleanup. It
 never signals the Docker subprocess group or hard-kills a container. A child
 still running after that wait is `stop_unconfirmed`; no other writer starts.
-If seal fails after its child exits, the driver attempts one exact registered
-owner `linux-rehearse` stop/backup/restore and reports that outcome separately.
+Seal writes a private, durable completion marker only after the Platform
+publication and both issue calls return synchronously and their three receipts
+are stored. The marker binds this scope, the driver's one-use attempt UUID,
+and all three receipt hashes. Normal seal success requires that marker too.
+If seal fails after its child exits and this marker verifies, the driver
+attempts one exact registered owner `linux-rehearse` stop/backup/restore and
+reports that outcome separately. A missing or invalid marker never allows a
+second writer, even if the seal CLI exited.
 A failed or incomplete drill execute is never replayed.
 
 The private receipt directory is created mode 0700 once. Each phase records

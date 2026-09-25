@@ -6,13 +6,15 @@ import ipaddress
 import json
 import os
 import secrets
+import subprocess
 import sys
 import tempfile
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from .a1_once import _code_files, _code_tree, _network_plan, _ports, _sha
+from .a1_once import _code_files, _code_tree, _network_plan, _ports, _sha, _write_once
+from .a1_code import deploy_module, require_entry_origin
 from .safety import RecoveryError, canonical, file_hash, read_json, require
 
 PREP_KEYS = {"schema_version", "scope_parent", "scope_name", "scope_id",
@@ -20,6 +22,7 @@ PREP_KEYS = {"schema_version", "scope_parent", "scope_name", "scope_id",
              "original_manifest", "original_manifest_sha256", "contracts_root",
              "resource_profile", "resource_profile_sha256",
              "observability_repository", "observability_repository_sha256",
+             "projects_root",
              "source_project", "clone_project", "networks", "ports", "run_label",
              "restored_name", "clone_name", "clone_inputs_name", "backup_name",
              "permit_name", "receipt_name", "gateway_pythonpath"}
@@ -45,6 +48,14 @@ def _tree(root):
     return _sha(canonical(rows))
 
 
+def _git_commit_digest(repository, commit):
+    result = subprocess.run(["git", "-C", str(repository), "cat-file", "-p", commit],
+                            capture_output=True, timeout=30)
+    require(result.returncode == 0 and result.stdout.startswith(b"tree "),
+            "a1_prep_fixed_commit_missing")
+    return _sha(result.stdout)
+
+
 def load(path, *, phase="source"):
     path = Path(path)
     require(path.is_absolute() and path.is_file() and not path.is_symlink(),
@@ -57,6 +68,7 @@ def load(path, *, phase="source"):
     require(parent.is_absolute() and parent.is_dir() and not parent.is_symlink() and
             code.is_absolute() and code.is_dir() and not code.is_symlink() and
             parent.resolve(strict=True) == parent and code.resolve(strict=True) == code and
+            code == parent / "tooling" and
             path == parent / "preparations" / (c["scope_name"] + ".json"),
             "a1_prep_path_invalid")
     require(c["scope_name"].startswith("scope-a1-") and "-r2" not in c["scope_name"] and
@@ -75,7 +87,7 @@ def load(path, *, phase="source"):
         item = Path(c[name])
         require(item.is_absolute() and item.is_file() and not item.is_symlink(),
                 "a1_prep_input_missing")
-    for name in ("contracts_root", "observability_repository"):
+    for name in ("contracts_root", "observability_repository", "projects_root"):
         item = Path(c[name])
         require(item.is_absolute() and item.is_dir() and not item.is_symlink(),
                 "a1_prep_input_missing")
@@ -84,9 +96,12 @@ def load(path, *, phase="source"):
                 _tree(item) == checksum
                 for item, checksum in c["gateway_pythonpath"].items()),
             "a1_prep_gateway_code_mismatch")
+    original = read_json(c["original_manifest"])
     require(file_hash(c["original_manifest"]) == c["original_manifest_sha256"] and
             file_hash(c["resource_profile"]) == c["resource_profile_sha256"] and
-            _tree(c["observability_repository"]) == c["observability_repository_sha256"],
+            _git_commit_digest(c["observability_repository"],
+                original["observability"]["source"]["commit"]) ==
+                c["observability_repository_sha256"],
             "a1_prep_input_changed")
     _network_plan(c["networks"])
     _ports(c["ports"])
@@ -102,6 +117,21 @@ def load(path, *, phase="source"):
         require(type(c[name]) is str and NAME.fullmatch(c[name]) is not None,
                 "a1_prep_name_invalid")
     derive_manifest(c)
+    manifest = original
+    repositories = [(Path(c["observability_repository"]),
+                     manifest["observability"]["source"]["repo"],
+                     manifest["observability"]["source"]["commit"])]
+    repositories += [(Path(c["projects_root"]) / row["source"]["repo"],
+                      row["source"]["repo"], row["source"]["commit"])
+                     for row in manifest["products"].values()]
+    for repository, name, commit in repositories:
+        require(repository.is_dir() and not repository.is_symlink() and
+                repository.name == name and repository.resolve(strict=True) == repository,
+                "a1_prep_repository_invalid")
+        result = subprocess.run(["git", "-C", str(repository), "cat-file", "-t", commit],
+                                capture_output=True, timeout=30)
+        require(result.returncode == 0 and result.stdout.strip() == b"commit",
+                "a1_prep_fixed_commit_missing")
     return c
 
 
@@ -243,8 +273,7 @@ def prepare_source(c, *, initializer=None, observability=None, synthetic=None):
         manifest_path.chmod(0o600)
         source_nets = c["networks"]["source"]
         if initializer is None:
-            sys.path.insert(0, str(Path(c["code_root"]) / "deploy/tianshu"))
-            import synthetic_init
+            synthetic_init = deploy_module(c["code_root"], "synthetic_init")
             old_tls = synthetic_init.tls
             synthetic_init.tls = make_tls
             try:
@@ -266,10 +295,9 @@ def prepare_source(c, *, initializer=None, observability=None, synthetic=None):
         manifest_path.unlink(missing_ok=True)
     settings = _obs_settings(scope, c)
     if observability is None:
-        sys.path.insert(0, str(Path(c["code_root"]) / "deploy/tianshu"))
-        from observability_release import configure
-        observability = configure
-    observed = observability(source, settings, Path(c["observability_repository"]))
+        observability = deploy_module(c["code_root"], "observability_release").configure
+    observed = observability(source, settings, Path(c["observability_repository"]),
+                             projects=Path(c["projects_root"]))
     require(observed.get("status") == "observability_configured",
             "a1_prep_observability_failed")
     if synthetic is None:
@@ -279,8 +307,16 @@ def prepare_source(c, *, initializer=None, observability=None, synthetic=None):
         api_ports=dict(zip(PORT_NAMES[1:4], c["ports"]["source"][1:4])),
         tooling_root=c["code_root"])
     require(prepared.get("status") == "prepared" and
-            prepared.get("synthetic_only") is True,
+            prepared.get("synthetic_only") is True and
+            type(prepared.get("publication")) is dict and
+            prepared["publication"].get("config_version") == 1 and
+            type(prepared["publication"].get("providers")) is list and
+            len(prepared["publication"]["providers"]) == 1 and
+            prepared["publication"]["providers"][0].get("provider_id") ==
+                "provider-synthetic",
             "a1_prep_synthetic_configuration_failed")
+    _write_once(scope / "inputs/model-publication-template.json",
+                prepared["publication"])
     report = source / "reports" / c["run_label"]
     generated = synthetic[1](source, report)
     require(generated.get("synthetic_only") is True and
@@ -298,6 +334,8 @@ def main(argv=None):
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--phase", choices=("source",), default="source")
     args = parser.parse_args(argv)
+    require_entry_origin(read_json(args.config)["code_root"], __file__,
+                         "ops/recovery/a1_prepare.py")
     c = load(args.config, phase=args.phase)
     if not args.execute:
         result = {"status": "planned", "scope_id": c["scope_id"],

@@ -21,11 +21,12 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from .safety import RecoveryError, canonical, child, file_hash, files, read_json, require
+from .a1_code import require_entry_origin
 
 HEX = re.compile(r"[0-9a-f]{64}\Z")
 NAME = re.compile(r"[a-z][a-z0-9-]{2,63}\Z")
 STAGES = ("seal", "linux-rehearse", "host-preflight", "permit", "drill-plan", "drill-execute")
-TIMEOUTS = {"seal": 30, "linux-rehearse": 330, "host-preflight": 60,
+TIMEOUTS = {"seal": 240, "linux-rehearse": 330, "host-preflight": 60,
             "permit": 30, "drill-plan": 30, "drill-execute": 540}
 STREAM_LIMIT = 1024 * 1024
 CONFIG_KEYS = {"schema_version", "scope_root", "scope_id", "code_root", "code_tree_sha256",
@@ -49,6 +50,7 @@ def _write_once(path, value):
         stream.write(canonical(value) + b"\n")
         stream.flush()
         os.fsync(stream.fileno())
+    _fsync_parent(path)
 
 
 def _write_raw_once(path, raw):
@@ -57,6 +59,18 @@ def _write_raw_once(path, raw):
         stream.write(raw)
         stream.flush()
         os.fsync(stream.fileno())
+    _fsync_parent(path)
+
+
+def _fsync_parent(path):
+    # Linux NAS durability includes the new directory entry. Windows fixtures
+    # exercise structure and ordering but cannot prove this Linux operation.
+    if os.name == "posix":
+        fd = os.open(Path(path).parent, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
 
 
 def _inside(root, name, parent):
@@ -111,6 +125,8 @@ def _ports(value):
     ports = value["source"] + value["clone"]
     require(all(type(port) is int and 1024 <= port <= 65535 for port in ports) and
             len(set(ports)) == 12, "a1_port_invalid")
+    require(value["source"][1:4] == [19512, 19513, 19514],
+            "a1_fixed_source_api_ports_required")
     return ports
 
 
@@ -126,6 +142,7 @@ def load_config(path, *, phase=None):
     require(root.is_absolute() and root.is_dir() and not root.is_symlink() and
             code.is_absolute() and code.is_dir() and not code.is_symlink() and
             root.resolve(strict=True) == root and code.resolve(strict=True) == code and
+            code == root.parent / "tooling" and
             path.parent == root / "inputs" and
             str(uuid.UUID(value["scope_id"])) == value["scope_id"],
             "a1_scope_binding_invalid")
@@ -253,8 +270,10 @@ def _stamp(moment):
     return moment.isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
-def seal(c, *, publisher=None):
+def seal(c, *, publisher=None, attempt_id=None):
     """Parameter generation for the final Platform publication and two origins."""
+    require(type(attempt_id) is str and str(uuid.UUID(attempt_id)) == attempt_id,
+            "a1_seal_attempt_id_required")
     from .a1_acceptance import diagnose_platform_publication, run_platform_cli
     publisher = publisher or (
         lambda source, request: diagnose_platform_publication(
@@ -273,7 +292,7 @@ def seal(c, *, publisher=None):
     placeholder = "TS_GATEWAY_ORIGIN=origin:clone-config-pending\n"
     require(original.count(placeholder) == 1, "a1_origin_placeholder_missing")
     for name in ("clone-publish-request.json", "clone-publish-receipt.json",
-                 "clone-inputs-finalized.json"):
+                 "clone-inputs-finalized.json", "a1-seal-actions-complete.json"):
         require(not (private / name).exists(), "a1_seal_already_attempted")
     template = read_json(private / "model-publication-template.json")
     require(template.get("config_version") == 1 and
@@ -289,6 +308,9 @@ def seal(c, *, publisher=None):
     require(publisher[0](p["source"], request).get("valid") is True,
             "a1_publication_invalid")
     published = publisher[1](p["source"], "publish", request)
+    require(published.get("action") == "publish" and
+            type(published.get("receipt")) is dict and published["receipt"],
+            "a1_publication_receipt_invalid")
     _write_once(private / "clone-publish-receipt.json", published)
     refs, expiries = {}, {}
     for name, entry in (("config", "config-entry"), ("actor", "web-source-actor")):
@@ -296,12 +318,19 @@ def seal(c, *, publisher=None):
         issue_file = p["inputs"] / f"private/a1-{name}-origin-issue.json"
         _write_once(request_file, {"entry_id": entry})
         result = publisher[1](p["source"], "issue", request_file)
+        require(result.get("action") == "issue", "a1_origin_action_invalid")
         receipt = result.get("receipt", {})
         require(type(receipt.get("assertion_ref")) is str and
                 receipt["assertion_ref"].startswith("origin:") and
                 type(receipt.get("expires_at")) is str, "a1_origin_issue_invalid")
         _write_once(issue_file, result)
         refs[name], expiries[name] = receipt["assertion_ref"], receipt["expires_at"]
+    _write_once(private / "a1-seal-actions-complete.json", {
+        "schema_version": "a1-seal-actions-complete/1", "scope_id": c["scope_id"],
+        "attempt_id": attempt_id,
+        "receipts": {"publish": file_hash(private / "clone-publish-receipt.json"),
+            "config": file_hash(p["inputs"] / "private/a1-config-origin-issue.json"),
+            "actor": file_hash(p["inputs"] / "private/a1-actor-origin-issue.json")}})
     env.write_text(original.replace(placeholder, "TS_GATEWAY_ORIGIN=" + refs["config"] + "\n"))
     env.chmod(0o600)
     deadline = _stamp(datetime.now(timezone.utc) + timedelta(minutes=4, seconds=45))
@@ -445,14 +474,19 @@ def _bind(port):
 
 
 def _json_child(argv, timeout, *, runner=None, cwd=None):
-    """Cooperative timeout: TERM once, wait for the child's normal cleanup."""
+    """TERM the CLI only; report its process state separately from its stdout."""
     if runner is not None:
-        return runner(argv, timeout)
+        code, result = runner(argv, timeout)
+        if type(result) is dict:
+            return code, result | {"_child_process_exited": result.get(
+                "_child_process_exited", result.get("status") not in
+                {"stop_unconfirmed", "child_start_failed"})}
+        return code, result
     try:
         proc = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                                 start_new_session=True, cwd=cwd)
     except OSError:
-        return 2, {"status": "child_start_failed"}
+        return 2, {"status": "child_start_failed", "_child_process_exited": False}
     try:
         out, err = proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired as expired:
@@ -466,31 +500,40 @@ def _json_child(argv, timeout, *, runner=None, cwd=None):
             out, err = proc.communicate(timeout=90)
         except subprocess.TimeoutExpired:
             return 124, _with_streams({"status": "stop_unconfirmed"},
-                expired.stdout or b"", expired.stderr or b"")
+                expired.stdout or b"", expired.stderr or b"") | {
+                    "_child_process_exited": False}
         except OSError:
             if _child_exited(proc):
                 return 124, _with_streams({"status": "child_terminated_after_timeout"},
-                    expired.stdout or b"", expired.stderr or b"")
+                    expired.stdout or b"", expired.stderr or b"") | {
+                        "_child_process_exited": True}
             return 124, _with_streams({"status": "stop_unconfirmed"},
-                expired.stdout or b"", expired.stderr or b"")
-        return 124, _with_streams({"status": "child_terminated_after_timeout"}, out, err)
+                expired.stdout or b"", expired.stderr or b"") | {
+                    "_child_process_exited": False}
+        return 124, _with_streams({"status": "child_terminated_after_timeout"}, out, err) | {
+            "_child_process_exited": True}
     except OSError:
         if _child_exited(proc):
-            return 125, {"status": "child_terminated_after_io_error"}
+            return 125, {"status": "child_terminated_after_io_error",
+                         "_child_process_exited": True}
         try:
             proc.send_signal(signal.SIGTERM)
         except OSError:
             pass
+        exited = _child_exited(proc, wait=True)
         return 125, {"status": "child_terminated_after_io_error"
-                     if _child_exited(proc, wait=True) else "stop_unconfirmed"}
+                     if exited else "stop_unconfirmed", "_child_process_exited": exited}
     if max(len(_raw_bytes(out)), len(_raw_bytes(err))) > STREAM_LIMIT:
-        return proc.returncode, _with_streams({"status": "child_output_too_large"}, out, err)
+        return proc.returncode, _with_streams({"status": "child_output_too_large"}, out, err) | {
+            "_child_process_exited": True}
     try:
         parsed = json.loads(_raw_bytes(out).strip().splitlines()[-1])
         require(type(parsed) is dict, "a1_child_receipt_invalid")
-        return proc.returncode, _with_streams(parsed, out, err)
+        return proc.returncode, _with_streams(parsed, out, err) | {
+            "_child_process_exited": True}
     except (RecoveryError, ValueError, IndexError, TypeError):
-        return proc.returncode, _with_streams({"status": "invalid_child_receipt"}, out, err)
+        return proc.returncode, _with_streams({"status": "invalid_child_receipt"}, out, err) | {
+            "_child_process_exited": True}
 
 
 def _raw_bytes(value):
@@ -518,12 +561,16 @@ def _with_streams(result, stdout, stderr):
                      "_stream_sha256": {"stdout": _sha(stdout), "stderr": _sha(stderr)}}
 
 
-def command(c, stage, *, verification=None, permit_sha=None):
+def command(c, stage, *, verification=None, permit_sha=None, attempt_id=None):
     p = _paths(c)
     base = [c["python"], "-B", "-m"]
     if stage in {"seal", "host-preflight", "permit"}:
         result = base + ["ops.recovery.a1_once", "--config",
                          str(p["root"] / "inputs/a1-once.json"), "--phase", stage, "--execute"]
+        if stage == "seal":
+            require(type(attempt_id) is str and str(uuid.UUID(attempt_id)) == attempt_id,
+                    "a1_seal_attempt_id_required")
+            result += ["--attempt-id", attempt_id]
         if stage == "permit":
             require(type(verification) is str and HEX.fullmatch(verification),
                     "a1_verification_missing")
@@ -569,21 +616,56 @@ def _phase_result(stage, result):
         require(result.get("status") == "drill_passed", "a1_execute_result_invalid")
 
 
+def _seal_actions_complete(c, attempt_id):
+    """Only completed receipts for every product call permit another writer."""
+    private = Path(c["scope_root"]) / "inputs"
+    try:
+        marker = read_json(private / "a1-seal-actions-complete.json")
+        inputs = Path(c["scope_root"]) / "drill-inputs" / c["inputs_name"]
+        publish = read_json(private / "clone-publish-receipt.json")
+        config = read_json(inputs / "private/a1-config-origin-issue.json")
+        actor = read_json(inputs / "private/a1-actor-origin-issue.json")
+        if not (publish.get("action") == "publish" and
+                type(publish.get("receipt")) is dict and publish["receipt"] and
+                all(row.get("action") == "issue" and
+                    type(row.get("receipt")) is dict and
+                    type(row["receipt"].get("assertion_ref")) is str and
+                    row["receipt"]["assertion_ref"].startswith("origin:") and
+                    type(row["receipt"].get("expires_at")) is str
+                    for row in (config, actor))):
+            return False
+        return marker == {"schema_version": "a1-seal-actions-complete/1",
+            "scope_id": c["scope_id"], "attempt_id": attempt_id, "receipts": {
+                "publish": file_hash(private / "clone-publish-receipt.json"),
+                "config": file_hash(inputs / "private/a1-config-origin-issue.json"),
+                "actor": file_hash(inputs / "private/a1-actor-origin-issue.json")}}
+    except (RecoveryError, OSError, ValueError, KeyError, TypeError):
+        return False
+
+
 def drive(c, *, runner=None, clock=None):
     """At most one execute. Every phase receipt is private and durable."""
     clock = clock or (lambda: (datetime.now(timezone.utc).isoformat(), time.monotonic_ns()))
     p = _paths(c)
     receipt_dir = p["root"] / "inputs" / c["receipt_name"]
+    require(not (p["root"] / "inputs/a1-seal-actions-complete.json").exists(),
+            "a1_seal_previous_attempt_exists")
     receipt_dir.mkdir(mode=0o700)
+    attempt_id = str(uuid.uuid4())
+    _write_once(receipt_dir / "attempt.json", {"attempt_id": attempt_id,
+                                                "scope_id": c["scope_id"]})
     verification = permit_sha = None
     completed = []
     for stage in STAGES:
         start_utc, start_mono = clock()
-        argv = command(c, stage, verification=verification, permit_sha=permit_sha)
+        argv = command(c, stage, verification=verification, permit_sha=permit_sha,
+                       attempt_id=attempt_id)
         code, result = _json_child(argv, TIMEOUTS[stage], runner=runner,
                                    cwd=c["code_root"])
         end_utc, end_mono = clock()
         child_status = result.get("status") if type(result) is dict else None
+        child_process_exited = (result.pop("_child_process_exited", False)
+                                if type(result) is dict else False)
         streams = result.pop("_stream_sha256", None) if type(result) is dict else None
         raw = result.pop("_stream_raw", None) if type(result) is dict else None
         truncated = result.pop("_stream_truncated", None) if type(result) is dict else None
@@ -599,10 +681,13 @@ def drive(c, *, runner=None, clock=None):
         try:
             require(type(result) is dict, "a1_child_receipt_invalid")
             if code == 0:
+                require(child_process_exited is True, "a1_child_process_still_running")
                 _phase_result(stage, result)
                 if stage == "seal":
                     require(file_hash(p["inputs"] / "inputs.json") ==
-                            result["inputs_sha256"], "a1_seal_digest_mismatch")
+                            result["inputs_sha256"] and
+                            _seal_actions_complete(c, attempt_id),
+                            "a1_seal_digest_or_actions_unconfirmed")
                 elif stage == "permit":
                     require(file_hash(p["permit"]) == result["permit_sha256"],
                             "a1_permit_digest_mismatch")
@@ -617,6 +702,7 @@ def drive(c, *, runner=None, clock=None):
                    "monotonic_elapsed_ns": end_mono - start_mono,
                    "command_sha256": _sha(canonical(argv)), "exit_code": code,
                    "result_sha256": _sha(canonical(result)), "status": result.get("status"),
+                   "child_process_exited": child_process_exited,
                    "stream_sha256": streams, "stream_truncated": truncated,
                    "validated": validated}
         try:
@@ -626,14 +712,14 @@ def drive(c, *, runner=None, clock=None):
             result = {"status": "receipt_storage_failed"}
         if code != 0 or not validated:
             source_stop_status = None
-            if stage == "seal" and child_status not in {
-                "stop_unconfirmed", "child_start_failed"}:
+            if stage == "seal" and child_process_exited is True and _seal_actions_complete(c, attempt_id):
                 cleanup_argv = command(c, "linux-rehearse")
                 cleanup_code, cleanup_result = _json_child(cleanup_argv,
                     TIMEOUTS["linux-rehearse"], runner=runner, cwd=c["code_root"])
                 cleanup_streams = cleanup_result.pop("_stream_sha256", None)
                 cleanup_raw = cleanup_result.pop("_stream_raw", None)
                 cleanup_truncated = cleanup_result.pop("_stream_truncated", None)
+                cleanup_exited = cleanup_result.pop("_child_process_exited", False)
                 if cleanup_raw is not None:
                     for kind in ("stdout", "stderr"):
                         try:
@@ -642,7 +728,7 @@ def drive(c, *, runner=None, clock=None):
                         except OSError:
                             pass
                 source_stop_status = ("disabled_restore_complete"
-                    if cleanup_code == 0 and cleanup_result.get("status") ==
+                    if cleanup_exited is True and cleanup_code == 0 and cleanup_result.get("status") ==
                        "disabled_restore_complete" and
                        cleanup_result.get("runtime_owners_stopped") == 9
                     else "stop_unconfirmed")
@@ -652,6 +738,7 @@ def drive(c, *, runner=None, clock=None):
                                  "exit_code": cleanup_code,
                                  "stream_sha256": cleanup_streams,
                                  "stream_truncated": cleanup_truncated,
+                                 "child_process_exited": cleanup_exited,
                                  "command_sha256": _sha(canonical(cleanup_argv))})
                 except OSError:
                     pass
@@ -679,6 +766,7 @@ def main(argv=None):
     parser.add_argument("--emit-code-lock", metavar="ABSOLUTE_CODE_ROOT")
     parser.add_argument("--phase", choices=STAGES[:1] + STAGES[2:4])
     parser.add_argument("--verification-sha256")
+    parser.add_argument("--attempt-id")
     parser.add_argument("--execute", action="store_true")
     args = parser.parse_args(argv)
     if args.emit_code_lock:
@@ -690,10 +778,12 @@ def main(argv=None):
         return 0
     require(args.config is not None, "a1_config_required")
     require(args.execute, "a1_execute_flag_required")
+    require_entry_origin(read_json(args.config)["code_root"], __file__,
+                         "ops/recovery/a1_once.py")
     c = load_config(args.config, phase=args.phase)
     require(Path(args.config).name == "a1-once.json", "a1_config_name_invalid")
     if args.phase == "seal":
-        output = seal(c)
+        output = seal(c, attempt_id=args.attempt_id)
     elif args.phase == "host-preflight":
         output = preflight(c)
     elif args.phase == "permit":

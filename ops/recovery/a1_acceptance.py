@@ -18,14 +18,13 @@ from pathlib import Path
 
 
 def _imports(root):
-    import sys
+    from ops.recovery.a1_code import deploy_module
 
-    sys.path.insert(0, str(root.parents[2] / "tooling" / "deploy" / "tianshu"))
-    from bundle import verify_integrity
-    from compose import compose_document
-    from manifest import digest, read_json
-
-    return verify_integrity, compose_document, digest, read_json
+    code = root.parents[2] / "tooling"
+    bundle = deploy_module(code, "bundle")
+    compose = deploy_module(code, "compose")
+    manifest = deploy_module(code, "manifest")
+    return bundle.verify_integrity, compose.compose_document, manifest.digest, manifest.read_json
 
 
 def _update_bundle(root, changes):
@@ -189,15 +188,13 @@ def bind_a1_observability_networks(root):
         raise ValueError("a1_observability_network_plan_mismatch")
     subnets = {name: value for name, value in provided.items() if name in networks}
     site = metadata["compose_inputs"]
-    import sys
+    from ops.recovery.a1_code import deploy_module
 
-    sys.path.insert(0, str(root.parents[2] / "tooling" / "deploy" / "tianshu"))
-    from observability_release import (
-        apply_network_plan,
-        apply_prometheus_admin_flag,
-        apply_prometheus_volume_mask,
-        apply_runtime_permissions,
-    )
+    release = deploy_module(root.parents[2] / "tooling", "observability_release")
+    apply_network_plan = release.apply_network_plan
+    apply_prometheus_admin_flag = release.apply_prometheus_admin_flag
+    apply_prometheus_volume_mask = release.apply_prometheus_volume_mask
+    apply_runtime_permissions = release.apply_runtime_permissions
 
     document = apply_prometheus_admin_flag(document)
     document = apply_prometheus_volume_mask(document)
@@ -283,12 +280,13 @@ def prepare_synthetic(root, *, api_ports=None, tooling_root=None):
         raise ValueError("a1_synthetic_configuration_not_fresh")
 
     # DEP-G owns synthetic model settings and its secret; no real provider is used.
-    import sys
+    from ops.recovery.a1_code import deploy_module
 
     if tooling_root is None:
-        tooling_root = root / "tooling"
-    sys.path.insert(0, str(Path(tooling_root) / "deploy/tianshu"))
-    from linux_bootstrap import prepare
+        tooling_root = root.parents[2] / "tooling"
+    if Path(tooling_root).resolve(strict=True) != (root.parents[2] / "tooling").resolve(strict=True):
+        raise ValueError("a1_tooling_root_mismatch")
+    prepare = deploy_module(tooling_root, "linux_bootstrap").prepare
 
     publication, _ = prepare(root, True)
     platform = read_json(platform_path)
