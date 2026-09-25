@@ -109,7 +109,7 @@ class Source:
     def preflight(self):
         """Read current host allocations before any source product writer starts."""
         require(sys.platform == "linux", "a1_source_linux_required")
-        nets = _network_plan(self.c["networks"])
+        nets = _network_plan(self.c["networks"], self.c)
         ports = _ports(self.c["ports"])
         cpuset = self.expected_cpuset()
         def docker_read(*args):

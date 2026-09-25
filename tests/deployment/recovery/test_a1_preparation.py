@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
-from ops.recovery import a1_acceptance, a1_clone_prepare, a1_once, a1_prepare
+from ops.recovery import a1_acceptance, a1_clone_prepare, a1_once, a1_prepare, a1_source_flow
 from ops.recovery.a1_code import deploy_module
 from ops.recovery.safety import read_json
 import test_a1_once
@@ -25,7 +25,10 @@ class PreparationTests(unittest.TestCase):
         test_a1_once.Fixture.setUp(self)
         home = Path(self.temp.name)
         self.parent = home
-        (self.parent / "preparations").mkdir(parents=True)
+        self.assertEqual(self.scope.parent, home)
+        self.assertFalse(self.scope.is_symlink())
+        shutil.rmtree(self.scope)
+        (self.parent / "preparations").mkdir(parents=True, exist_ok=True)
         self.contracts = home / "contracts"
         self.contracts.mkdir()
         self.obs = Path(__file__).resolve().parents[3]
@@ -42,9 +45,12 @@ class PreparationTests(unittest.TestCase):
             (self.code / "ops/recovery" / name).write_text("fixture pinned module\n")
         self.prep = {
             "schema_version": "a1-preparation/1", "scope_parent": str(self.parent),
-            "scope_name": "scope-a1-new-fixture", "scope_id": str(uuid.uuid4()),
+            "scope_name": "scope-a1-r2i", "scope_id": str(uuid.uuid4()),
             "code_root": str(self.code), "code_tree_sha256": a1_once._code_tree(self.code),
             "code_lock_sha256": "", "python": str(self.python), "docker": str(self.docker),
+            "allocation_file": str(self.allocation_file),
+            "allocation_sha256": a1_once.ALLOCATION_SHA256,
+            "execution_id": self.config["execution_id"],
             "original_manifest": str(self.original),
             "original_manifest_sha256": a1_once.file_hash(self.original),
             "contracts_root": str(self.contracts),
@@ -63,12 +69,12 @@ class PreparationTests(unittest.TestCase):
             "backup_name": "backup", "permit_name": "permit", "receipt_name": "receipts",
             "gateway_pythonpath": {str(self.gateway): a1_prepare._tree(self.gateway)},
         }
-        self.lock = self.parent / "preparations/scope-a1-new-fixture.code-lock.json"
+        self.lock = self.parent / "preparations/scope-a1-r2i.code-lock.json"
         put(self.lock, {"schema_version": "a1-code-lock/1",
             "tree_sha256": self.prep["code_tree_sha256"],
             "files": dict(a1_once._code_files(self.code))})
         self.prep["code_lock_sha256"] = a1_once.file_hash(self.lock)
-        self.prep_path = self.parent / "preparations/scope-a1-new-fixture.json"
+        self.prep_path = self.parent / "preparations/scope-a1-r2i.json"
         put(self.prep_path, self.prep)
 
     def _initializer(self, scope, manifest_path, c):
@@ -142,11 +148,11 @@ class PreparationTests(unittest.TestCase):
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text("".join(f"{key}='{value}'\n" for key, value in values.items()))
         put(source / "config/platform/settings.json", {
-            "providers": {"provider-synthetic": {"reviewed_addresses": ["10.205.48.13"]}},
+            "providers": {"provider-synthetic": {"reviewed_addresses": ["10.205.49.13"]}},
             "web": {"origin": "https://console.synthetic.test:22001"},
             "principals": {"gateway": {"config_versions": [1, 3]}}})
         put(source / "config/gateway/settings.json", {
-            "targets": [{"addresses": ["10.205.48.10", "10.205.48.13"]}],
+            "targets": [{"addresses": ["10.205.49.10", "10.205.49.13"]}],
             "clients": [{"service": "companion", "provider_id": "provider-synthetic",
                          "internal": True, "allowed_versions": [3]}]})
         put(source / "config/companion/settings.json", {"config_version": 3})
@@ -266,6 +272,46 @@ class PreparationTests(unittest.TestCase):
         self.assertEqual(a1_once.file_hash(self.original),
                          a1_prepare.FIXED_ORIGINAL_MANIFEST_SHA256)
 
+    def test_prepare_rejects_allocation_drift_before_scope_creation(self):
+        variants = []
+        for field, value in (("allocation_sha256", "0" * 64),
+                             ("execution_id", str(uuid.uuid4())),
+                             ("allocation_file", str(self.prep_path)),
+                             ("scope_name", "scope-a1-r2h")):
+            bad = copy.deepcopy(self.prep)
+            bad[field] = value
+            variants.append((field, bad))
+        for group, index, subnet in (("source", 0, "10.205.48.0/28"),
+                                     ("clone", 6, "10.205.49.192/28")):
+            bad = copy.deepcopy(self.prep)
+            bad["networks"][group][index] = subnet
+            variants.append((subnet, bad))
+        bad = copy.deepcopy(self.prep)
+        bad["ports"]["clone"][0] = 29921
+        variants.append(("port", bad))
+        for label, bad in variants:
+            with self.subTest(label=label):
+                put(self.prep_path, bad)
+                with self.assertRaises(Exception):
+                    a1_prepare.load(self.prep_path)
+                self.assertFalse((self.parent / self.prep["scope_name"]).exists())
+        put(self.prep_path, self.prep)
+        self.allocation_file.write_bytes(self.allocation_file.read_bytes() + b" ")
+        with self.assertRaises(Exception):
+            a1_prepare.load(self.prep_path)
+
+    def test_source_preflight_rejects_other_pool_before_host_probes(self):
+        _, source_root = self._source()
+        put(source_root / "deployment.json", {"project_name": self.prep["source_project"]})
+        bad = copy.deepcopy(self.prep)
+        bad["networks"]["source"][0] = "10.205.48.0/28"
+        source = a1_source_flow.Source(bad)
+        with patch.object(a1_source_flow.sys, "platform", "linux"), patch.object(
+                source, "expected_cpuset", side_effect=AssertionError("host probe reached")):
+            with self.assertRaises(Exception) as caught:
+                source.preflight()
+        self.assertNotIn("host probe reached", str(caught.exception))
+
     def test_tooling_must_be_the_scope_parent_locked_tree(self):
         elsewhere = self.parent / "elsewhere"
         shutil.copytree(self.code, elsewhere)
@@ -377,6 +423,11 @@ class PreparationTests(unittest.TestCase):
         linux_permissions.assert_called_once()
         self.assertEqual(result["status"], "static_source_prepared")
         scope = self.parent / self.prep["scope_name"]
+        source_plan = subprocess.run([sys.executable, "-B", "-m",
+            "ops.recovery.a1_source_flow", "--config", str(self.prep_path)],
+            cwd=self.code, capture_output=True, text=True, timeout=20)
+        self.assertEqual(source_plan.returncode, 0, source_plan.stdout + source_plan.stderr)
+        self.assertEqual(json.loads(source_plan.stdout)["status"], "planned")
         return scope, scope / "deployments/source"
 
     def test_real_bundle_initializer_in_isolated_directory(self):
@@ -451,6 +502,9 @@ class PreparationTests(unittest.TestCase):
             usage_reader=self._usage, now=datetime(2026, 9, 25, tzinfo=timezone.utc))
         self.assertEqual(result["assertions"], 6)
         config = a1_once.load_config(scope / "inputs/a1-once.json")
+        self.assertEqual(config["allocation_file"], self.prep["allocation_file"])
+        self.assertEqual(config["allocation_sha256"], self.prep["allocation_sha256"])
+        self.assertEqual(config["execution_id"], self.prep["execution_id"])
         def diagnose(source, request):
             return {"valid": True}
         def publish(source, action, request):

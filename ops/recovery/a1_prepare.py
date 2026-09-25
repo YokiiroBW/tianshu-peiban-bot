@@ -19,6 +19,7 @@ from .safety import RecoveryError, canonical, file_hash, read_json, require
 
 PREP_KEYS = {"schema_version", "scope_parent", "scope_name", "scope_id",
              "code_root", "code_tree_sha256", "code_lock_sha256", "python", "docker",
+             "allocation_file", "allocation_sha256", "execution_id",
              "original_manifest", "original_manifest_sha256", "contracts_root",
              "resource_profile", "resource_profile_sha256",
              "observability_repository", "observability_repository_sha256",
@@ -71,7 +72,7 @@ def load(path, *, phase="source"):
             code == parent / "tooling" and
             path == parent / "preparations" / (c["scope_name"] + ".json"),
             "a1_prep_path_invalid")
-    require(c["scope_name"].startswith("scope-a1-") and "-r2" not in c["scope_name"] and
+    require(c["scope_name"].startswith("scope-a1-") and
             all(char.islower() or char.isdigit() or char == "-" for char in c["scope_name"]) and
             str(uuid.UUID(c["scope_id"])) == c["scope_id"], "a1_prep_scope_invalid")
     scope = parent / c["scope_name"]
@@ -103,7 +104,7 @@ def load(path, *, phase="source"):
                 original["observability"]["source"]["commit"]) ==
                 c["observability_repository_sha256"],
             "a1_prep_input_changed")
-    _network_plan(c["networks"])
+    _network_plan(c["networks"], c)
     _ports(c["ports"])
     require(c["source_project"].startswith("tianshu-qa-a1-") and
             c["clone_project"].startswith("tianshu-qa-a1-") and

@@ -2,9 +2,9 @@
 
 ## 输入与固定文件
 
-这份索引用于尚未分配的新 A1 测试范围；它不是执行授权或已运行记录。当前代码提供静态 source、参数化源端业务入口、克隆占位输入和单次短时驱动。真实 NAS 地址、端口、资源与短时许可均不存在，不能用 r2h/r2g 的值代填。
+这份索引用于协调者已分配的单次 r2i 测试范围；它不是已运行记录。当前代码提供静态 source、参数化源端业务入口、克隆占位输入和单次短时驱动。短时许可尚不存在，不能用 r2h/r2g 的值代填。
 
-操作者需在 NAS **另行明确分配并实时预检**：规范化绝对 `scope_parent`、未存在的 `scope-a1-*` 名称及新 UUID、source/clone 两个专属 Compose 项目名、从 `10.205.48.0/24` 分出的五加七段互不重叠 `/28`（不使用 `10.205.48.192/26`）、source/clone 各六个不同回环端口、可用内存至少 11.5 GiB 和九 owner 资源约束。固定产品要求 source Companion/Memory/Gateway 回环 API 端口依次为 `19512/19513/19514`；其他九端口仍需显式分配。准备 JSON 还需指定固定代码根 `scope_parent/tooling`、绝对 Python/Docker 可执行文件、原始固定候选 manifest、合同根、资源 profile、固定OBS Git仓库及其 manifest 提交对象 SHA256、四产品固定 Git 仓库的 `projects_root`、Gateway CLI 导入树及其逐树 SHA、`run_label`、恢复/克隆/备份/许可/收据名称。所有值都在 `scope_parent/preparations/scope_name.json`，严格符合 `a1-preparation/1`；本仓库没有真实配置范本或默认分配。
+本次固定分配是 `scope-a1-r2i`、execution ID `7a8aeaf2-80af-4cc6-a109-18d2c249552d`，以及 `10.205.49.0/24` 内 source 五段、clone 七段互不重叠的 `/28`；尾段 `10.205.49.192/26` 不分配。source/clone 回环端口各六个，以 `scope_parent/preparations/nas-a1-network-allocation-r2i.json` 为准，其原始字节 SHA256 必须是 `8dd4844321d0b396adc09451d8c6cea26abab7ef08f2bc21d70164fa87aa3d55`。配置须引用该文件并带同一哈希与 execution ID；准备、源端、克隆及单次驱动分别核对。创建前仍须在 NAS 实时预检所有网络、路由、端口、至少 11.5 GiB 可用内存和九 owner 资源约束。固定产品要求 source Companion/Memory/Gateway 回环 API 端口依次为 `19512/19513/19514`。准备 JSON 还需指定规范化绝对 `scope_parent`、新 scope UUID、两个专属 Compose 项目名、固定代码根 `scope_parent/tooling`、绝对 Python/Docker 可执行文件、原始固定候选 manifest、合同根、资源 profile、固定 OBS Git 仓库及其 manifest 提交对象 SHA256、四产品固定 Git 仓库的 `projects_root`、Gateway CLI 导入树及其逐树 SHA、`run_label`、恢复/克隆/备份/许可/收据名称。所有值都在 `scope_parent/preparations/scope-a1-r2i.json`，严格符合 `a1-preparation/1`。
 
 代码锁由以下只读命令输出 `a1-code-lock/1` JSON，原样置于相邻 `scope_name.code-lock.json`；准备 JSON 中的 `code_tree_sha256` 与 `code_lock_sha256` 分别来自内容字段和锁文件原始字节。原 manifest 原始字节 SHA256 必须为 `ce68ed58f4dbbaac6b9a09fc3632fd2522afc97501a63b790e1447b0af9fc4e2`，派生仅改 `web_text_dialogue.enabled: true → false`。OBS 固定提交对象、四产品固定提交对象、Gateway 导入树、资源 profile 也必须锁定。打包后任何 `ops/` 或 `deploy/` 字节变化都使配置失效，应先审新包并重新锁定。所有公开 `-m` 命令须在锁定的 `scope_parent/tooling` 工作目录启动；程序仍会校验实际加载模块的来源，不以工作目录声明代替校验。
 

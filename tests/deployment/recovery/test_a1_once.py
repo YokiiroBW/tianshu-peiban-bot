@@ -2,6 +2,7 @@
 
 import copy
 import json
+import shutil
 import tempfile
 import unittest
 import uuid
@@ -23,7 +24,7 @@ class Fixture(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         home = Path(self.temp.name)
-        self.scope = home / "scope-a1-fixture"
+        self.scope = home / "scope-a1-r2i"
         self.scope.mkdir()
         self.code = home / "tooling"
         driver = self.code / "ops/recovery/a1_once.py"
@@ -42,10 +43,17 @@ class Fixture(unittest.TestCase):
         self.source.mkdir(parents=True)
         self.inputs.mkdir(parents=True)
         self.private.mkdir(parents=True)
-        self.nets = [str(x) for x in __import__("ipaddress").ip_network(
-            "10.205.48.0/24").subnets(new_prefix=28)][:12]
-        self.ports = [22001, 19512, 19513, 19514, 22005, 22006,
-                      22007, 22008, 22009, 22010, 22011, 22012]
+        allocation = Path(__file__).parent / "fixtures/nas-a1-network-allocation-r2i.json"
+        self.allocation_file = home / "preparations/nas-a1-network-allocation-r2i.json"
+        self.allocation_file.parent.mkdir()
+        shutil.copyfile(allocation, self.allocation_file)
+        allocated = json.loads(allocation.read_text(encoding="utf-8"))
+        self.nets = ([allocated["source"][key] for key in a1_once.SOURCE_PURPOSES] +
+                     [allocated["clone"][key] for key in a1_once.CLONE_PURPOSES])
+        self.ports = ([allocated["source_loopback_ports"][key]
+                       for key in a1_once.PORT_PURPOSES] +
+                      [allocated["clone_loopback_ports"][key]
+                       for key in a1_once.PORT_PURPOSES])
         def compose(name, nets, ports):
             return {"name": name, "networks": {f"net{n}": {
                 "ipam": {"config": [{"subnet": subnet}]}}
@@ -93,6 +101,9 @@ class Fixture(unittest.TestCase):
         self.config = {
             "schema_version": "a1-once/1", "scope_root": str(self.scope),
             "scope_id": self.uuid, "code_root": str(self.code),
+            "allocation_file": str(self.allocation_file),
+            "allocation_sha256": a1_once.ALLOCATION_SHA256,
+            "execution_id": allocated["execution_id"],
             "code_tree_sha256": a1_once._code_tree(self.code),
             "code_lock_sha256": "",
             "python": str(self.python), "docker": str(self.docker),
@@ -181,6 +192,36 @@ class Fixture(unittest.TestCase):
         self.assertEqual(argv.count("--execute"), 1)
         self.assertIn(str(self.docker), argv)
         self.assertNotIn("r2h", " ".join(argv))
+
+    def test_exact_r2i_allocation_is_required(self):
+        self.assertEqual(a1_once.file_hash(self.allocation_file),
+                         a1_once.ALLOCATION_SHA256)
+        for field, value in (("allocation_sha256", "0" * 64),
+                             ("execution_id", str(uuid.uuid4())),
+                             ("allocation_file", str(self.path))):
+            with self.subTest(field=field):
+                bad = copy.deepcopy(self.config)
+                bad[field] = value
+                put(self.path, bad)
+                with self.assertRaises(Exception):
+                    a1_once.load_config(self.path)
+        for group, index, subnet in (("source", 0, "10.205.48.0/28"),
+                                     ("clone", 6, "10.205.49.192/28")):
+            with self.subTest(subnet=subnet):
+                bad = copy.deepcopy(self.config)
+                bad["networks"][group][index] = subnet
+                put(self.path, bad)
+                with self.assertRaises(Exception):
+                    a1_once.load_config(self.path)
+        bad = copy.deepcopy(self.config)
+        bad["ports"]["clone"][0] = 29921
+        put(self.path, bad)
+        with self.assertRaises(Exception):
+            a1_once.load_config(self.path)
+        put(self.path, self.config)
+        self.allocation_file.write_bytes(self.allocation_file.read_bytes() + b" ")
+        with self.assertRaises(Exception):
+            a1_once.load_config(self.path)
 
     def test_public_cli_requires_explicit_execute(self):
         result = subprocess.run([sys.executable, "-B", "-m", "ops.recovery.a1_once",
@@ -553,7 +594,7 @@ class Fixture(unittest.TestCase):
         with self.assertRaises(ValueError):
             a1_once.preflight(self.config, docker_run=docker,
                 route_reader=lambda: "Iface Destination Gateway Flags RefCnt Use Metric Mask\n"
-                                     "br0 5030CD0A 00000000 0001 0 0 0 F0FFFFFF\n",
+                                     "br0 5031CD0A 00000000 0001 0 0 0 F0FFFFFF\n",
                 bind=bound.append,
                 memory_reader=lambda: "MemAvailable: 13000000 kB\n")
 

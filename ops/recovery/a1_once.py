@@ -30,7 +30,7 @@ TIMEOUTS = {"seal": 240, "linux-rehearse": 330, "host-preflight": 60,
             "permit": 30, "drill-plan": 30, "drill-execute": 540}
 STREAM_LIMIT = 1024 * 1024
 CONFIG_KEYS = {"schema_version", "scope_root", "scope_id", "code_root", "code_tree_sha256",
-               "code_lock_sha256",
+               "code_lock_sha256", "allocation_file", "allocation_sha256", "execution_id",
                "python", "docker", "source_name", "restored_name", "clone_name",
                "inputs_name", "backup_name", "permit_name", "receipt_name",
                "registration_sha256", "source_manifest_sha256", "initial_inputs_sha256",
@@ -99,7 +99,55 @@ def _code_tree(root):
     return _sha(canonical(_code_files(root)))
 
 
-def _network_plan(value):
+ALLOCATION_SHA256 = "8dd4844321d0b396adc09451d8c6cea26abab7ef08f2bc21d70164fa87aa3d55"
+SOURCE_PURPOSES = ("core", "egress", "frontend", "observe", "storage")
+CLONE_PURPOSES = ("core", "egress", "frontend", "access", "observe", "storage",
+                  "observability_access")
+PORT_PURPOSES = ("platform", "companion", "memory", "gateway", "grafana", "guard")
+
+
+def _allocation(c):
+    parent = Path(c["scope_parent"]) if "scope_parent" in c else Path(c["scope_root"]).parent
+    path = Path(c["allocation_file"])
+    require(path.is_absolute() and path.is_file() and not path.is_symlink() and
+            path.resolve(strict=True) == path and
+            path == parent / "preparations/nas-a1-network-allocation-r2i.json" and
+            c["allocation_sha256"] == ALLOCATION_SHA256 and
+            file_hash(path) == ALLOCATION_SHA256,
+            "a1_allocation_file_mismatch")
+    document = read_json(path)
+    scope_name = c["scope_name"] if "scope_name" in c else Path(c["scope_root"]).name
+    require(document["task"] == "NAS-A1" and
+            document["status"] == "allocated_for_one_r2i_attempt_after_live_preflight" and
+            document["scope_name"] == scope_name and
+            document["execution_id"] == c["execution_id"] and
+            str(uuid.UUID(c["execution_id"])) == c["execution_id"] and
+            document["create_block_network"] is False and
+            set(document["source"]) == set(SOURCE_PURPOSES) and
+            set(document["clone"]) == set(CLONE_PURPOSES) and
+            set(document["source_loopback_ports"]) == set(PORT_PURPOSES) and
+            set(document["clone_loopback_ports"]) == set(PORT_PURPOSES),
+            "a1_allocation_identity_mismatch")
+    expected_networks = {
+        "source": [document["source"][name] for name in SOURCE_PURPOSES],
+        "clone": [document["clone"][name] for name in CLONE_PURPOSES]}
+    expected_ports = {
+        "source": [document["source_loopback_ports"][name] for name in PORT_PURPOSES],
+        "clone": [document["clone_loopback_ports"][name] for name in PORT_PURPOSES]}
+    require(c["networks"] == expected_networks and c["ports"] == expected_ports,
+            "a1_allocation_plan_mismatch")
+    pool = ipaddress.ip_network(document["candidate_block"], strict=True)
+    withheld = ipaddress.ip_network(document["unallocated"], strict=True)
+    require(pool.version == 4 and pool.prefixlen == 24 and
+            withheld.version == 4 and withheld.prefixlen == 26 and
+            withheld.subnet_of(pool) and
+            withheld.network_address == pool.network_address + 192,
+            "a1_allocation_pool_invalid")
+    return document, pool, withheld
+
+
+def _network_plan(value, c):
+    _, pool, withheld = _allocation(c)
     require(set(value) == {"source", "clone"} and
             len(value["source"]) == 5 and len(value["clone"]) == 7,
             "a1_network_count_invalid")
@@ -109,8 +157,8 @@ def _network_plan(value):
             require(type(entry) is str, "a1_network_invalid")
             network = ipaddress.ip_network(entry, strict=True)
             require(network.version == 4 and network.prefixlen == 28 and
-                    network.subnet_of(ipaddress.ip_network("10.205.48.0/24")) and
-                    not network.overlaps(ipaddress.ip_network("10.205.48.192/26")),
+                    network.subnet_of(pool) and
+                    not network.overlaps(withheld) and network.num_addresses >= 14,
                     "a1_network_out_of_pool")
             require(not any(network.overlaps(other) for other in all_nets),
                     "a1_network_overlap")
@@ -146,7 +194,7 @@ def load_config(path, *, phase=None):
             path.parent == root / "inputs" and
             str(uuid.UUID(value["scope_id"])) == value["scope_id"],
             "a1_scope_binding_invalid")
-    require(root.name.startswith("scope-a1-") and "-r2" not in root.name and
+    require(root.name.startswith("scope-a1-") and
             read_json(root / ".recovery-scope.json")["scope_id"] == value["scope_id"],
             "a1_old_scope_forbidden")
     require(type(value["code_tree_sha256"]) is str and
@@ -175,7 +223,7 @@ def load_config(path, *, phase=None):
             value["projects"]["observability"] == value["projects"]["core"] + "-obs" and
             value["projects"]["core"].startswith("tianshu-qa-a1-"),
             "a1_project_invalid")
-    _network_plan(value["networks"])
+    _network_plan(value["networks"], value)
     _ports(value["ports"])
     for key in ("registration_sha256", "source_manifest_sha256", "initial_inputs_sha256",
                 "source_runtime_sha256", "source_deployment_sha256", "model_template_sha256"):
@@ -428,7 +476,7 @@ def preflight(c, *, docker_run=None, route_reader=None, bind=None, memory_reader
     route_reader = route_reader or (lambda: Path("/proc/net/route").read_text())
     bind = bind or (lambda port: _bind(port))
     memory_reader = memory_reader or (lambda: Path("/proc/meminfo").read_text())
-    nets = _network_plan(c["networks"])
+    nets = _network_plan(c["networks"], c)
     _ports(c["ports"])
     clone_nets = nets[5:]
     routes = route_reader()
