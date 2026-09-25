@@ -2,7 +2,33 @@
 
 ## 目标与结论
 
-最新隔离合成 A1 r2g scope 已完成 source 语义读回、九 owner 登记与正常停写、一致性快照和 `restored_disabled` 恢复。独立九 owner 克隆上的 `data_readback`、`forgotten`、`source_revoked`、`model_revoked`、`unknown_no_resend` 五项真实 API 断言全部通过，10 秒有界 no-resend 观察通过。恢复工具仍返回 `partial_functional_coverage`、`release_ready=false`：许可中没有独立的 Gateway 功能 API 断言，`missing_products=["gateway"]`。source 与克隆各九个 owner 均正常退出，恢复目标保持禁用，许可已消耗且未重放。状态保持 `needs_validation`，不能称完整恢复验收通过。旧轮次作为历史保留。
+最新隔离合成 A1 r2h scope 已完成 source 语义准备、九 owner 登记与正常停写、一致性快照和 `restored_disabled` 恢复。克隆入口因来源和 unknown 请求截止组成的最短预算低于固定 180 秒入场阈值，返回 `drill_origin_lifetime_insufficient`；没有创建 claim、克隆目录或克隆容器，六项克隆 API 断言均未运行。许可签发时最短预算为 198 秒，本次是入场阈值拒绝，不能称产品来源已经过期。状态保持 `needs_validation`、`release_ready=false`。前一轮 r2g 的五项克隆语义与有界观察已通过，但缺独立 Gateway API 断言，其 `partial_functional_coverage` 结论不变。
+
+## A1 r2h 单次 source、恢复与许可入场（2026-09-25）
+
+固定代码提交 `07dfbb81bffd814834f169b6b7d061b9c7308512`，NAS 执行包 tar SHA256 `0a891b771a52d781a54f640c01f908d29f36dcda971a949b09ce424df3b7d2b5`。唯一新 scope 为 `/volume2/tianshu-v2-validation-wave1/accept-20260925-a1/scope-a1-r2h`，UUID `b9e36ccb-45df-4333-be96-28ddcafc6f29`。原始候选产品镜像和最终 release manifest SHA256 `ce68ed58f4dbbaac6b9a09fc3632fd2522afc97501a63b790e1447b0af9fc4e2` 未变；初始化 manifest 仅将 `web_text_dialogue.enabled` 从 true 设为 false，SHA256 `de3526cea7a20a56051b1a6db92fe9c40f8a3a204a816a61625c1dcdfb57c932`。同 scope 的两次初始化前受控拒绝分别来自误用最终 manifest 和空目录 guard 逻辑，均留存原收据；经 A4 复核的修正 helper 后初始化成功，没有另开 scope。执行仅使用 NAS 已验证的 CPython 3.12.14 绝对路径及新 `tooling-r2h`，没有把隔离 wheel 目录加入执行路径。
+
+source 五段、clone 七段均在协调者分配的 `10.205.48.0/24` 中，各为互不重叠的 `/28`；尾部 `10.205.48.192/26` 未分配。12 个专属回环端口与 9 owner 的 7.5 GiB 内存上限通过初次和启动前预检。source 的四 core 全部 healthy、五 OBS running。两条虚构消息各为 `closed_unknown`、各一条 unknown 回复；Companion committed event、Memory 三条候选记录和 Gateway 账本均经固定产品路径读回。遗忘绿色记录后绿色及同源阅读为 `no_match`，红色仍可选；单独撤销输入凭据后红色仍可选，经 Platform revision 2 retract/fanout 后为 `no_match`。模型 v3 撤销后 Gateway→Platform snapshot 为 HTTP 410/`forbidden`。v4 离线上游两组 unknown 与两组成功控制，重启前后两条 unknown turn/reply 相同。源端 Gateway 基线为四个关联组、两组 unknown、两组成功控制；克隆的独立 Gateway HTTP 断言尚未执行。
+
+source 准备期间另有两处受控续接：合成 v2 发布脚本在完成发布后因分类/Memory handoff 尚未绑定而停止，绑定后继续到 v3；遗忘脚本首次因正在运行的 Memory 尚未载入新本地凭据返回 401。只重载本 scope 的 Memory，用**同一个**已写入的遗忘请求经产品 CLI 确认，并由 API 返回 HTTP 200、`authoritative_state=tombstoned`；之后的绿色、红色与阅读读回如上。Memory 重载在最终九 owner 身份采集与 authority 登记**之前**。这次续接的原始失败与成功输出从任务会话提取至忽略目录，文件明确标为事后提取；失败脚本本应写的 `forget-approval-result.json`、`forget-revision-result.json` 未在冻结 source 补写，交接不冒充原始现场文件。
+
+九 owner runtime identity SHA256 `e74697ae84fa0fe6dc3f1fa31330bab2104071fc93af9fcf99fa615df7cebb80`；authority `84d542a8-1d4e-46c1-a907-2fe723a9ecad`，registration SHA256 `63161b4bddc81d707d0bc4a8aa8c25f50510ee189344f974c8741146c2508166`。`linux-prepare` 首次 execute 漏传 NAS Docker 绝对路径，被受控拒绝且没有登记；带绝对路径的同 authority execute 成功。正常 `linux-rehearse` 停止九个 source owner，全部退出码 0；备份 `a1-r2h-backup-20260925` 的 snapshot SHA256 `286fb6e4c8f0bf2c641cc70296e0c4f4bbb81a56ad529a56b0b9956ff98f3b01`，恢复目标 `a1-r2h-restored-20260925` 为 `restored_disabled`，verification SHA256 `5cfb011e6d7120237464bc03fde6a6257d428743a24c272627325185b283f5eb`。
+
+clone 占位输入共 184 文件、六项断言（原五项加独立 `gateway_usage_readback`），独立 Gateway 源端 CLI 预探针已记录，七段 clone 网络和六个端口在 source 运行时、source 停止后两次复核均无冲突。最终签发的 config/actor 来源分别在 14:36:43.159696Z、14:36:44.262127Z 到期，unknown 请求截止 14:36:29Z；最短预算取 unknown 截止。`inputs.json` SHA256 `8215df7b571890c5a2336a0fc3bd04a7d823efc34c7fdafce569c116fbd8c8db`。单次许可 ID `ca0cb455-dff9-4ef8-a64d-a6c34cdbb326`、SHA256 `2ca8a2251d9932291bf624bc05c25d7a25232410c80f90c79e20794d651aaad9`，14:33:10Z 签发时入口检查返回剩余 198 秒，超过 180 秒阈值；许可自身的 600 秒有效期至 14:43:10Z，不能延长更短的产品来源与 unknown 截止。
+
+| 阶段（UTC） | 实测结果 |
+| --- | --- |
+| 14:31:40.274–14:31:44.960 | v5 与双来源密封，工具单调计时 4.686 秒 |
+| 14:31:55.744–14:32:52.467 | `linux-rehearse`，工具单调计时 56.724 秒；九 owner 在 14:32:00–16Z 退出，14:32:22Z 写入 snapshot，14:32:45Z 写入禁用态恢复标记 |
+| 14:33:09.136–14:33:11.037 | 许可签发，工具单调计时 1.902 秒；最短剩余 198 秒 |
+| 14:33:36.550–14:33:37.347 | `drill-clone` plan 通过，工具单调计时 0.797 秒 |
+| 14:33:47.045–14:33:52.120 | 唯一一次 `drill-clone --execute` 返回 `drill_origin_lifetime_insufficient`、退出码 1，工具单调计时 5.075 秒 |
+
+签发完成到 execute 开始相隔约 36 秒，其中约 25.5 秒在查找已知命令格式、约 9.7 秒在 plan 之后；这些步骤可以在密封前准备或紧接许可执行。14:33:47Z 时最短截止还约 162 秒，执行内实际复核发生在 5.075 秒调用窗口中，约剩 157–162 秒；工具没有输出该次精确秒数，故这里只给时间窗推算。**来源当时尚未到期**，但已低于已审定的 180 秒 claim 闸门。`drill-clone` 在写 claim 前拒绝：`drill-claims/<permit-id>.json` 不存在、克隆目录和两个克隆项目容器均不存在。没有重试、第二许可或第二 scope，也没有降低 180 秒阈值。source 九 owner 均 exited(0)，五个新网络端点数均为 0，恢复目标仍禁用；r2h 没有克隆功能读回结论。
+
+本轮可在当前工具内改进的是把命令、静态克隆预检和待签发 plan 的可检查部分提前准备，并用一个有硬超时的顺序协调器连续执行密封→停写/恢复→许可→plan→一次 execute；任一阶段预算不足即停止，不重复 claim。它能减少本轮约 36 秒的人为间隔，但 300 秒产品来源寿命仍可能被主机负载和恢复时长耗尽，不能据此保证验收。产品化方案应由 Platform/恢复边界提供**快照绑定、仅限克隆只读端点、用途及租期受限、一次性消费**的恢复授权，在禁用态恢复与输入哈希核验之后由独立受信发行方签发；它不能修改冻结 source/备份、不能复用旧许可，且须把来源失效、撤销、审计与九 owner 正常清理纳入双方契约。该方案仅为后续架构建议，本次没有改产品或恢复工具代码。
+
+机器证据索引见 [`NAS-A1-r2h-evidence.json`](NAS-A1-r2h-evidence.json)。NAS 私有输入、来源原文及完整会话仍只在隔离现场与本工作树忽略目录；索引仅存路径、哈希、状态和脱敏时间线。最终 A4 独立复核尚待协调者安排。
 
 ## A1 r2 配置失败的确切原因与 r2b 接续（2026-09-25）
 
@@ -127,8 +153,9 @@ scope `b3f59a3a-0fd4-4d47-8ff9-2c7a00d8b7a5` 为 r1 轮的唯一 NAS 目标。OB
 - Ruff 检查和格式检查在最终工作树未重跑：可用环境没有 Ruff 可执行文件；此前已记录的检查通过结果早于本次 A1 适配器和 handoff 更新。
 - NAS r2g 的 source 功能准备、九 owner 登记/停写、备份、禁用恢复与克隆五项 API 断言均真实执行；有界 no-resend 观察通过，最终源端与克隆各九个 owner 均 exited(0)，分属四个项目。总状态因缺少克隆 Gateway 独立功能断言仍为 `partial_functional_coverage`，不能标记完整恢复验收通过。旧 r2f 结论见上节；既有本地单测未因纯交接更新重跑。
 - Gateway 接续本地定向验证：恢复演练 `test_drill.py` 24 项通过（完整一遍）；改为 `view=attempts` 和凭据静态核对后 4 项定向通过，另有 1 项证实缺 Gateway 独立读回仍为 `partial_functional_coverage`；回环 TLS `test_drill_http.py` 17 项通过；事件/账本 `test_drill_observation.py` 5 项通过。固定产品 Gateway 的五项用量接口定向测试在 NAS 隔离依赖环境通过，停机克隆的 CLI 探针正例、空窗口、错误身份及读前后哈希均符合预期；夹具对实际四条 CLI 尝试的递归子集比较通过。这里没有重新执行 NAS HTTP drill。
-- A4 对 `124f06e` 的独立报告 `167421e` 未发现代码集成阻断，离线检查 `test_drill.py` 26 项、`test_drill_http.py` 17 项、`test_drill_observation.py` 5 项通过。其后新增的 origin 寿命闸门另交增量复核；本地 `test_drill_origin_admission.py` 8 项及受影响的 `test_drill.py` 28 项通过，覆盖续期、回退、失配、非法期限、180 秒边界、运行时失效与非空 WAL 拒绝；Python 编译、JSON 解析与差异空白检查通过。没有重跑 NAS HTTP drill。
+- A4 对 `124f06e` 的独立报告 `167421e` 未发现代码集成阻断，离线检查 `test_drill.py` 26 项、`test_drill_http.py` 17 项、`test_drill_observation.py` 5 项通过。其后 A4 对 origin 寿命闸门的独立报告 `a3780b65d2afb574ddeb467156562df7197bc970` 也未发现新的代码阻断；本地 `test_drill_origin_admission.py` 8 项及受影响的 `test_drill.py` 28 项通过，覆盖续期、回退、失配、非法期限、180 秒边界、运行时失效与非空 WAL 拒绝；Python 编译、JSON 解析与差异空白检查通过。没有重跑 NAS HTTP drill。
+- NAS r2h 公开 source 预检、两份 Compose 配置、九 owner 身份、`linux-prepare` 登记、`linux-rehearse` 停写/快照/恢复及 clone 静态输入计划均实际通过；恢复工具执行入口以 `drill_origin_lifetime_insufficient` 拒绝，六项克隆 API 断言没有运行。source 九 owner 最终 exited(0)，恢复目标禁用，五个新网络端点为 0，claim 和 clone 均不存在。原始阶段输出、现场文件 SHA256、两次受控续接与时序见 r2h 证据索引。本次未改产品代码，也未为交接重复运行本地单测。
 
 ## 下一步
 
-协调者完成 origin 闸门增量审查与执行放行后，按已分配网段为新隔离 A1 scope 先做动态碰撞/容量预检，再准备新的 source、authority、快照、新克隆输入及一次性许可，执行独立 Gateway HTTP GET 与原五项断言和有界观察。r2g 的五项语义与限时观察结果已通过，不能靠重写结果、把源端控制调用算作克隆断言或重放 r2g 许可消除 `missing_products=["gateway"]`。完成前保持 `needs_validation`。
+协调者先安排 A4 独立复核 r2h 的固定证据与入场拒绝，保持该 source、恢复目标和历史 scope 原样停止/禁用。若仍需完整恢复验收，须明确授权新的独立 scope、authority、快照、输入和单次许可，并在密封前准备命令及静态预检；不得重放 r2h/r2g 许可，也不能仅凭本轮时间窗把 180 秒阈值降低。产品化的快照绑定恢复授权需另立跨产品契约与验收。完成克隆六项 API 断言和有界观察前继续标为 `needs_validation`。

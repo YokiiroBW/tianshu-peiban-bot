@@ -430,7 +430,7 @@
     "r2g_result_unchanged": true
   },
   "nas_a1_next_scope_local_preparation": {
-    "status": "allocated_and_local_preflight_only_pending_a4_incremental_review_and_execution_release",
+    "status": "historical_pre_execution_record_superseded_by_nas_r2h",
     "allocation_document_sha256": "5667b859a8c7bb62cff8f9e88d580dce8620ff3960a68a9f78a959846ae6b893",
     "allocation_block": "10.205.48.0/24",
     "source_network_count": 5,
@@ -451,11 +451,37 @@
       "product_ttl_seconds": 300,
       "release_ready": false
     },
-    "remaining": "A4 incremental review, fresh host preflight, new paths/credentials/authority/snapshot and coordinator execution release"
+    "remaining": "Historical preparation record only; actual r2h execution and its incomplete acceptance are recorded in nas_r2h."
+  },
+  "nas_r2h": {
+    "status": "preclaim_origin_lifetime_rejected",
+    "scope_id": "b9e36ccb-45df-4333-be96-28ddcafc6f29",
+    "fixed_commit": "07dfbb81bffd814834f169b6b7d061b9c7308512",
+    "source_semantics": "passed_on_source_only",
+    "source_owners_exited_zero": 9,
+    "runtime_identity_sha256": "e74697ae84fa0fe6dc3f1fa31330bab2104071fc93af9fcf99fa615df7cebb80",
+    "registration_sha256": "63161b4bddc81d707d0bc4a8aa8c25f50510ee189344f974c8741146c2508166",
+    "snapshot_sha256": "286fb6e4c8f0bf2c641cc70296e0c4f4bbb81a56ad529a56b0b9956ff98f3b01",
+    "restoration_verification_sha256": "5cfb011e6d7120237464bc03fde6a6257d428743a24c272627325185b283f5eb",
+    "restored_status": "restored_disabled",
+    "clone_input_files": 184,
+    "clone_assertion_count": 6,
+    "permit_id": "ca0cb455-dff9-4ef8-a64d-a6c34cdbb326",
+    "permit_sha256": "2ca8a2251d9932291bf624bc05c25d7a25232410c80f90c79e20794d651aaad9",
+    "permit_admission_remaining_seconds": 198,
+    "execute_reason": "drill_origin_lifetime_insufficient",
+    "claim_created": false,
+    "clone_created": false,
+    "clone_assertions_run": 0,
+    "restored_clone_validation": "not_run",
+    "release_ready": false,
+    "evidence_index": "docs/handoffs/NAS-A1-r2h-evidence.json",
+    "independent_final_review": "pending_A4"
   },
   "remaining": [
-    "Review the local Gateway assertion and strict observation bridge, then allocate non-overlapping networks for a fresh isolated A1 source and clone.",
-    "If full recovery acceptance remains required, create a new authority, snapshot and one-use permit, execute the independent Gateway HTTP read and all existing gates; do not replay r2g or rewrite its immutable result."
+    "A4 independently review the immutable r2h evidence and the preclaim lifetime rejection; keep source and restored target stopped/disabled.",
+    "Any further attempt requires coordinator approval and a fresh scope/authority/snapshot/permit; do not replay r2h or r2g permits or lower the 180-second gate from this observation alone.",
+    "Evaluate a snapshot-bound recovery authorization design so short-lived source origins need not be minted before the full stop/backup/restore interval."
   ],
-  "implementation_commit": "2a55de2fd7827dd7f1710d6cb8cc6c71bdb40856"
+  "implementation_commit": "07dfbb81bffd814834f169b6b7d061b9c7308512"
 }
