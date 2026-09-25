@@ -36,10 +36,16 @@
   "observed_at_utc": "2026-09-24T20:47:59Z",
   "reconciliation": {
     "actual_lines": 120001,
+    "actual_unique_event_id_count": 119917,
+    "actual_unique_event_identity_hash_count": 119917,
     "expected_lines": 120001,
-    "finding": "84 expected event IDs are absent and 84 returned event IDs are absent from the source; the two sets do not overlap.",
+    "duplicate_event_id_count": 84,
+    "duplicate_event_ids_preserved": false,
+    "duplicate_identity_occurrence_count": 84,
+    "finding": "All 119917 distinct returned event identities match the source fixture exactly. The 120001 returned lines include 84 extra occurrences of matching identities, while 84 source event IDs are absent. No distinct returned identity or event ID is outside the source, and no matching event ID has a payload digest mismatch. The prior report mislabeled Counter(actual - expected), which counts excess occurrences, as unexpected source-external IDs.",
     "identity_multiset_match": false,
     "matching_identity_hash_count": 119917,
+    "missing_event_ids_preserved": false,
     "missing_event_id_count": 84,
     "missing_identity_hash_count": 84,
     "query_bounds_ns": {
@@ -52,8 +58,10 @@
     "route": "direct_loki_query_range",
     "same_event_id_with_different_payload_count": 0,
     "service_label": "nas-a2-vector-r5-3a0b297a8761",
-    "unexpected_event_id_count": 84,
-    "unexpected_identity_hash_count": 84
+    "unexpected_event_id_count": 0,
+    "unexpected_identity_hash_count": 0,
+    "unexpected_identity_occurrence_count": 84,
+    "unexpected_unique_identity_hash_count": 0
   },
   "run_id": "recovery-vector-20260925-r5",
   "source": {

@@ -1438,15 +1438,24 @@
         "flush_status": 204,
         "identity_hash_multiset_match": false,
         "ingester_fallback_reconciliation": {
+          "actual_unique_event_id_count": 47194,
           "actual_unique_event_identity_hash_count": 47194,
           "expected_unique_event_count": 120001,
+          "expected_unique_event_id_count": 120001,
           "identity_hash_multiset_match": false,
           "matching_identity_hash_count": 47194,
+          "missing_event_id_count": 72807,
           "missing_identity_hash_count": 72807,
           "query_errors": [],
           "request_count": 304,
           "result_lines": 47278,
-          "unexpected_or_duplicate_identity_hash_count": 84
+          "unexpected_event_id_count": 0,
+          "unexpected_unique_identity_hash_count": 0,
+          "duplicate_identity_occurrence_count": 84,
+          "duplicate_event_id_count": 84,
+          "duplicate_source_sequence_range_in_loki_wal": [2, 85],
+          "same_event_id_with_different_payload_count": 0,
+          "unexpected_identity_occurrence_count": 84
         },
         "matching_identity_hash_count": 0,
         "missing_identity_hash_count": 120001,
@@ -2915,7 +2924,10 @@
           "ready": false
         },
         "store_only_identity_status": "failed",
-        "unexpected_or_duplicate_identity_hash_count": 0
+        "unexpected_event_id_count": 0,
+        "unexpected_unique_identity_hash_count": 0,
+        "duplicate_identity_occurrence_count": 0,
+        "unexpected_identity_occurrence_count": 0
       },
       "replay_drain_error": "vector_metrics_unavailable",
       "sink_reconnected": true,

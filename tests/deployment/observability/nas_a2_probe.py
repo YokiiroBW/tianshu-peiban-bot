@@ -428,7 +428,7 @@ def preflight(root: Path, vector_image_id: str, loki_image_id: str) -> dict:
         "docker_containers_inspected": len(containers),
         "docker_mount_overlap": False,
         "docker_networks_inspected": len(networks),
-        "candidate_subnets_checked": [f"10.204.{n}.0/24" for n in range(50, 58)],
+        "candidate_subnets_checked": [str(SUBNET)],
         "selected_subnet": str(SUBNET),
         "subnet_conflicts": collisions,
         "selected_network_id": selected_network.get("Id") if selected_network else None,

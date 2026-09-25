@@ -1,0 +1,115 @@
+{
+  "task": "NAS-A2",
+  "run_id": "recovery-vector-20260925-r10",
+  "evidence_type": "post-probe-cleanup-verification",
+  "status": "partial",
+  "resource_preflight": {
+    "allocation_range": "10.205.16.0/20",
+    "selected_subnet": "10.205.19.0/24",
+    "selected_loopback_port": 19523,
+    "docker_containers_inspected": 277,
+    "docker_networks_inspected": 151,
+    "subnet_conflicts": [],
+    "nondefault_route_conflicts": [],
+    "port_conflicts": [],
+    "historical_mounted_tmpfs_used_bytes": 229376,
+    "new_run_plan_bytes": 2684354560,
+    "concurrent_resources_bytes": 2684583936,
+    "budget_bytes": 4294967296,
+    "within_budget": true
+  },
+  "source": {
+    "path": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r10/tmpfs/vector-source/events.jsonl",
+    "bytes": 39728900,
+    "line_count": 120000,
+    "sha256": "15c7f1fde43d7ce4a4f0eac3be172cd84fabf0f7843dbb0c5ff6b691b7e05671",
+    "source_hash_preserved_at_fill_timeout_after_reconnect_and_after_stop": true,
+    "archive_member_sha256_verified": true
+  },
+  "vector_buffer": {
+    "status": "partial",
+    "reason": "vector_buffer_not_full",
+    "fill_wait_seconds": 600,
+    "peak_buffer_bytes": 134125696,
+    "configured_buffer_bytes": 268435488,
+    "peak_ratio": 0.49966,
+    "source_sent_events_at_fill_timeout": 120000,
+    "sink_available_during_fill": true,
+    "sink_rate_limited_during_fill": true,
+    "sink_stopped_before_vector_start": false,
+    "source_preserved": true,
+    "backpressure_verified": false,
+    "source_replay_complete": true,
+    "metrics_after_reconnect": {
+      "source_sent_events": 120000,
+      "sink_sent_events": 120000,
+      "buffer_bytes": 0,
+      "discarded_events": 0,
+      "component_errors": 0
+    },
+    "padding_bytes_added_by_transform": 2500,
+    "timeout_metric_note": "The final buffer snapshot was zero after the source and sink had both reached 120000; the recorded peak was 134125696 bytes. The zero describes the drained queue at timeout and is not used to replace the recorded peak."
+  },
+  "replay": {
+    "store_only_index_readiness": false,
+    "store_only_readiness_wait_seconds": 120,
+    "store_only_result_lines": 0,
+    "store_only_identity_status": "failed",
+    "ingester_fallback_result_lines": 120000,
+    "ingester_fallback_identity_multiset_match": true,
+    "expected_unique_event_ids": 120000,
+    "actual_unique_event_ids": 120000,
+    "missing_event_ids": 0,
+    "duplicate_event_ids": 0,
+    "unexpected_event_ids": 0,
+    "payload_mismatches": 0,
+    "query_errors": 0
+  },
+  "containers": [
+    {
+      "name": "tianshu-accept-a2-vfull-20260925-r10-vector",
+      "status": "exited",
+      "exit_code": 0,
+      "oom_killed": false
+    },
+    {
+      "name": "tianshu-accept-a2-vfull-20260925-r10-loki",
+      "status": "exited",
+      "exit_code": 0,
+      "oom_killed": false
+    }
+  ],
+  "network": {
+    "name": "tianshu-accept-a2-vfull-20260925-r10",
+    "subnet": "10.205.19.0/24",
+    "internal": true,
+    "attached_container_count_after_stop": 0,
+    "retained": true
+  },
+  "tmpfs": {
+    "limit_bytes": 1073741824,
+    "used_bytes_after_stop": 131432448,
+    "archive_verified_before_unmount": true,
+    "unmounted_after_verification": true
+  },
+  "archive": {
+    "path": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r10/evidence/tmpfs-snapshot-after-probe.tar.gz",
+    "bytes": 10555798,
+    "sha256": "bbd5ec351d2a983f447e2c96f50a1c4c9fb7d412289f7690d8b15b52c8fd057d",
+    "member_count": 64,
+    "source_matches_report": true,
+    "gzip_integrity_verified": true
+  },
+  "nas_report": {
+    "path": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r10/evidence/nas-a2-followup-report.json",
+    "local_sha256": "13656b04f5aa2be793ce3faf26a4ea8813ea683197a4424c85dc35f8256ef1a9",
+    "nas_verified": true
+  },
+  "gates": {
+    "application_reclamation": "blocked",
+    "physical_enospc": "not_run",
+    "production_30_day_retention": "not_run",
+    "release_ready": false,
+    "application_reclamation_authorized": false
+  }
+}

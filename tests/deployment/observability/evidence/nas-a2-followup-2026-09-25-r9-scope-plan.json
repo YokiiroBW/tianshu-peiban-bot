@@ -1,0 +1,74 @@
+{
+  "task": "NAS-A2",
+  "run_id": "recovery-vector-20260925-r9",
+  "status": "assigned_and_preflight_clear",
+  "scope": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r9",
+  "network_allocation_record": {
+    "path": "C:/YOKI/Codex/tianshu-peiban-bot/docs/development/nas-network-allocation-2026-09-25.json",
+    "sha256": "99caaf2ec76273deeffdff0d317473c0d607841d8c0ec92f4c2d5b0bc10ddb51",
+    "assigned_range": "10.205.16.0/20",
+    "exact_subnet": "10.205.18.0/24"
+  },
+  "preflight": {
+    "nas_host": "authorized_private_nas",
+    "docker_networks_inspected": 143,
+    "docker_subnet_conflicts": [],
+    "nondefault_route_conflicts": [],
+    "candidate_ports_checked": [
+      19520,
+      19521,
+      19522,
+      19523,
+      19524,
+      19525,
+      19526,
+      19527,
+      19528,
+      19529
+    ],
+    "candidate_port_reservations": [
+      {
+        "port": 19520,
+        "container": "tianshu-accept-a2-capacity-20260925-vector"
+      },
+      {
+        "port": 19521,
+        "container": "tianshu-accept-a2-capacity-20260925-loki"
+      },
+      {
+        "port": 19521,
+        "container": "tianshu-qa-a1-source-r2b-platform-1"
+      },
+      {
+        "port": 19528,
+        "container": "tianshu-accept-a2-vfull-20260925-r5-vector"
+      }
+    ],
+    "guard_port": 19529,
+    "guard_port_docker_reservations": [],
+    "guard_port_listener": false,
+    "r8_tmpfs_mounted": false,
+    "r8_network_internal_and_empty": true,
+    "r9_containers_or_network_already_present": false
+  },
+  "resource_plan": {
+    "concurrent_budget_bytes": 4294967296,
+    "new_run_plan_bytes": 2684354560,
+    "historical_mounted_tmpfs_used_bytes": 229376,
+    "concurrent_resources_bytes": 2684583936,
+    "within_budget": true,
+    "tmpfs_limit_bytes": 1073741824,
+    "vector_buffer_limit_bytes": 268435488
+  },
+  "probe_adjustment": {
+    "fixture_records": 120000,
+    "buffer_fill_timeout_seconds": 600,
+    "replay_drain_timeout_seconds": 900,
+    "padding_bytes": 5250,
+    "request_concurrency": "none",
+    "request_rate_limit_per_second": 4,
+    "request_timeout_seconds": 60,
+    "batch_max_bytes": 262144,
+    "basis": "R7 and R8 both plateaued near 49000 source events and 49 percent of the byte limit, including after a 600 second wait. R8's measured peak was 131464864 bytes for 49093 events with 2500 padding bytes. Adding 2750 padding bytes per event predicts about 266470614 buffered bytes at that same event count (99.27 percent of the 268435488 byte limit), enough to test whether the plateau is caused by an event-count boundary. This is an estimate from R8, not a result. The tmpfs limit is increased to 1 GiB for replay headroom; the resulting plan remains below the 4 GiB task budget."
+  }
+}

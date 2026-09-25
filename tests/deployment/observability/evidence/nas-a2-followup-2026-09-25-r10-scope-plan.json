@@ -1,0 +1,73 @@
+{
+  "task": "NAS-A2",
+  "run_id": "recovery-vector-20260925-r10",
+  "status": "assigned_and_preflight_clear",
+  "scope": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r10",
+  "network_allocation_record": {
+    "path": "C:/YOKI/Codex/tianshu-peiban-bot/docs/development/nas-network-allocation-2026-09-25.json",
+    "sha256": "99caaf2ec76273deeffdff0d317473c0d607841d8c0ec92f4c2d5b0bc10ddb51",
+    "assigned_range": "10.205.16.0/20",
+    "exact_subnet": "10.205.19.0/24"
+  },
+  "preflight": {
+    "nas_host": "authorized_private_nas",
+    "docker_containers_inspected": 277,
+    "docker_networks_inspected": 151,
+    "docker_subnet_conflicts": [],
+    "nondefault_route_conflicts": [],
+    "candidate_ports_checked": [
+      19520,
+      19521,
+      19522,
+      19523,
+      19524,
+      19525,
+      19526,
+      19527,
+      19528,
+      19529
+    ],
+    "guard_port": 19523,
+    "guard_port_docker_reservations": [],
+    "guard_port_listener": false,
+    "all_container_bindings_including_stopped_checked": true,
+    "guard_port_socket_bind_checked": true,
+    "selected_network_reused": false,
+    "existing_owned_containers": {},
+    "tmpfs_mount": {
+      "filesystem": "tmpfs",
+      "total_bytes": 1073741824
+    },
+    "memory_available_bytes": 19515027456,
+    "memory_limit_plan_bytes": 2684354560
+  },
+  "prior_run_release": {
+    "r9_containers_stopped_exit_zero_no_oom": true,
+    "r9_network_internal_and_empty_retained": true,
+    "r9_tmpfs_unmounted": true,
+    "r9_archive_sha256": "0d9687eab99c1eb7f4712f150a29cef46630f61080f3e8259a55fce740901bca",
+    "r9_archive_gzip_verified": true,
+    "r9_archive_member_source_sha256_verified": true
+  },
+  "resource_plan": {
+    "concurrent_budget_bytes": 4294967296,
+    "new_run_plan_bytes": 2684354560,
+    "historical_mounted_tmpfs_used_bytes": 229376,
+    "concurrent_resources_bytes": 2684583936,
+    "within_budget": true,
+    "tmpfs_limit_bytes": 1073741824,
+    "vector_buffer_limit_bytes": 268435488
+  },
+  "probe_adjustment": {
+    "fixture_records": 120000,
+    "padding_bytes": 2500,
+    "buffer_fill_timeout_seconds": 600,
+    "replay_drain_timeout_seconds": 900,
+    "sink_stays_available_during_fill": true,
+    "request_concurrency": "none",
+    "request_rate_limit_per_second": 4,
+    "request_timeout_seconds": 60,
+    "batch_max_bytes": 262144,
+    "basis": "R9 added 5250 padding bytes and Loki rejected 5599-byte entries against its 4096-byte maximum; R10 restores 2500 padding bytes. R7-R9 stopped Loki during fill and plateaued near one 128 MiB data file. R10 keeps Loki live with the established 4 request/second limit so Vector can consume and rotate buffer files while the source continues. This rotation explanation remains a hypothesis to test."
+  }
+}

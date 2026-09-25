@@ -1,0 +1,83 @@
+{
+  "task": "NAS-A2",
+  "run_id": "recovery-vector-20260925-r6",
+  "evidence_type": "post-probe-cleanup-verification",
+  "status": "partial",
+  "source": {
+    "path": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r6/tmpfs/vector-source/events.jsonl",
+    "bytes": 39728900,
+    "line_count": 120000,
+    "sha256": "3cc17cf9643219e60f90a1d1501f4cc51a7eb33c02c2b5dd691b2730951b18c2",
+    "archive_member_sha256_verified": true
+  },
+  "archive": {
+    "path": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r6/evidence/tmpfs-snapshot-after-probe.tar.gz",
+    "bytes": 13507891,
+    "sha256": "f01556c65d445e82dc6de938c18d11bb1a0366fa244187f17de49db11f0174fd",
+    "member_count": 73,
+    "gzip_integrity_verified": true,
+    "tmpfs_source_hash_matches": true
+  },
+  "containers": [
+    {
+      "name": "tianshu-accept-a2-vfull-20260925-r6-vector",
+      "status": "exited",
+      "exit_code": 0,
+      "oom_killed": false
+    },
+    {
+      "name": "tianshu-accept-a2-vfull-20260925-r6-loki",
+      "status": "exited",
+      "exit_code": 0,
+      "oom_killed": false
+    }
+  ],
+  "network": {
+    "name": "tianshu-accept-a2-vfull-20260925-r6",
+    "subnet": "10.204.55.0/24",
+    "internal": true,
+    "attached_container_count_after_stop": 0,
+    "retained": true
+  },
+  "tmpfs": {
+    "limit_bytes": 536870912,
+    "used_bytes_after_stop": 253997056,
+    "archive_verified_before_unmount": true,
+    "unmounted_after_verification": true
+  },
+  "replay": {
+    "source_replay_complete": true,
+    "source_events": 120000,
+    "sink_events_after_reconnect": 117684,
+    "buffer_bytes_after_reconnect": 11458984,
+    "discarded_events_after_reconnect": 0,
+    "store_only_index_readiness": false,
+    "store_only_query_result_lines": 0,
+    "ingester_fallback_result_lines": 120000,
+    "ingester_fallback_identity_multiset_match": true,
+    "missing_event_ids": 0,
+    "duplicate_event_ids": 0,
+    "unexpected_event_ids": 0,
+    "payload_mismatches": 0
+  },
+  "vector_buffer": {
+    "status": "partial",
+    "initial_metrics_scrape_error": "vector_metrics_unavailable",
+    "backpressure_verified": false,
+    "peak_buffer_metrics_observed": false,
+    "source_hash_preserved": true,
+    "interpretation": "The startup metrics scrape race left no valid full-buffer sample; a zero recorded peak is not evidence that the configured buffer remained empty."
+  },
+  "nas_report": {
+    "path": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r6/evidence/nas-a2-followup-report.json",
+    "local_sha256": "06b9a45c28610f64210c82106762ec1580c49aade32e98298af8640fcf8f1219",
+    "nas_verified": true
+  },
+  "gates": {
+    "application_reclamation": "blocked",
+    "physical_enospc": "not_run",
+    "production_30_day_retention": "not_run",
+    "release_ready": false,
+    "application_reclamation_authorized": false
+  }
+}

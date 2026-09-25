@@ -20,27 +20,36 @@ from urllib.parse import urlencode
 import nas_a2_probe as base
 
 BASE_SCOPE = Path("/volume2/tianshu-v2-validation-wave1/accept-20260925-a2")
-RUN_ROOT = BASE_SCOPE / "runs" / "recovery-vector-20260925-r5"
-PROJECT = "tianshu-accept-a2-vfull-20260925-r5"
+RUN_ROOT = BASE_SCOPE / "runs" / "recovery-vector-20260925-r11"
+PROJECT = "tianshu-accept-a2-vfull-20260925-r11"
 NETWORK = PROJECT
-SUBNET = ipaddress.ip_network("10.204.54.0/24")
+SUBNET = ipaddress.ip_network("10.205.20.0/24")
 VECTOR_NAME = PROJECT + "-vector"
 LOKI_NAME = PROJECT + "-loki"
-VECTOR_IP = "10.204.54.11"
-LOKI_IP = "10.204.54.10"
-GUARD_PORT = 19527
+VECTOR_IP = "10.205.20.11"
+LOKI_IP = "10.205.20.10"
+GUARD_PORT = 19524
 VECTOR_METRICS_PORT = 9598
-TMPFS_BYTES = 512 * 1024**2
+TMPFS_BYTES = 1024 * 1024**2
 VECTOR_BUFFER_BYTES = base.VECTOR_MINIMUM_BUFFER_BYTES
+VECTOR_BUFFER_FULL_TIMEOUT_SECONDS = 600
+VECTOR_REPLAY_DRAIN_TIMEOUT_SECONDS = 1800
+VECTOR_REQUEST_RATE_LIMIT_PER_SECOND = 1
 VECTOR_PADDING_BYTES = 2500
 VECTOR_RECORDS = 120_000
 VECTOR_TIMESTAMP_STEP_NS = 2_500_000
-VECTOR_SERVICE = "nas-a2-vector-r5-" + uuid.uuid4().hex[:12]
-RECOVERY_SERVICE = "nas-a2-recovery-r5-" + uuid.uuid4().hex[:12]
+VECTOR_SERVICE = "nas-a2-vector-r11-" + uuid.uuid4().hex[:12]
+RECOVERY_SERVICE = "nas-a2-recovery-r11-" + uuid.uuid4().hex[:12]
 VECTOR_IMAGE_ID = base.EXPECTED_VECTOR_IMAGE_ID
 LOKI_IMAGE_ID = base.EXPECTED_LOKI_IMAGE_ID
 REPORT_NAME = "nas-a2-followup-report.json"
 R4_SNAPSHOT_SHA256 = "03ce158cb5e3139ce46610418c6c846ece2c4751d02d67a3e33c5c1b441604dc"
+R5_SNAPSHOT_SHA256 = "63eab69566cb7f291d32da5b7fdce2778c452c0a84a9226695ee2437f14c7042"
+R6_SNAPSHOT_SHA256 = "f01556c65d445e82dc6de938c18d11bb1a0366fa244187f17de49db11f0174fd"
+R7_SNAPSHOT_SHA256 = "8ecf8838fea69cb0a3030c72ade3c70b127c59d21f276eb60c2c2aa3c718bcdf"
+R8_SNAPSHOT_SHA256 = "b0181f5d500e93f0f2c72ce1a8268b020515273095003b455ebb8d5cb5d48b2b"
+R9_SNAPSHOT_SHA256 = "0d9687eab99c1eb7f4712f150a29cef46630f61080f3e8259a55fce740901bca"
+R10_SNAPSHOT_SHA256 = "bbd5ec351d2a983f447e2c96f50a1c4c9fb7d412289f7690d8b15b52c8fd057d"
 
 
 def _configure_scope() -> None:
@@ -114,6 +123,50 @@ def _resource_snapshot() -> dict:
         ),
         "a2_running_container_count": len(a2),
         "a2_current_mem_bytes": sum(row[1] for row in a2),
+    }
+
+
+def _tmpfs_mount_usage(path: Path) -> dict:
+    mountpoint = str(path.resolve())
+    for line in Path("/proc/mounts").read_text().splitlines():
+        fields = line.split()
+        if len(fields) < 3 or fields[1].replace("\\040", " ") != mountpoint:
+            continue
+        filesystem = fields[2]
+        if filesystem != "tmpfs":
+            raise base.ProbeError("historical_tmpfs_mount_type_unrecognized")
+        usage = shutil.disk_usage(path)
+        return {
+            "mountpoint": mountpoint,
+            "mounted": True,
+            "filesystem": filesystem,
+            "used_bytes": usage.used,
+            "total_bytes": usage.total,
+        }
+    return {
+        "mountpoint": mountpoint,
+        "mounted": False,
+        "filesystem": None,
+        "used_bytes": 0,
+        "total_bytes": 0,
+    }
+
+
+def _concurrent_a2_resource_budget(
+    new_run_plan_bytes: int, current_a2_resident_bytes: int, historical_tmpfs: dict
+) -> dict:
+    historical_used_bytes = sum(
+        usage["used_bytes"] for usage in historical_tmpfs.values()
+    )
+    total = new_run_plan_bytes + current_a2_resident_bytes + historical_used_bytes
+    budget = 4 * 1024**3
+    return {
+        "historical_mounted_tmpfs_used_bytes": historical_used_bytes,
+        "currently_running_a2_resident_bytes": current_a2_resident_bytes,
+        "new_run_plan_bytes": new_run_plan_bytes,
+        "total_concurrent_resources_bytes": total,
+        "task_budget_bytes": budget,
+        "within_budget": total <= budget,
     }
 
 
@@ -672,6 +725,12 @@ def _vector_config(path: Path, tls: Path) -> bytes:
     config["sinks"]["loki"]["labels"]["service"] = VECTOR_SERVICE
     config["sinks"]["loki"]["remove_timestamp"] = False
     config["sinks"]["loki"]["buffer"]["max_size"] = VECTOR_BUFFER_BYTES
+    config["sinks"]["loki"]["request"].update(
+        concurrency="none",
+        rate_limit_duration_secs=1,
+        rate_limit_num=VECTOR_REQUEST_RATE_LIMIT_PER_SECOND,
+        timeout_secs=60,
+    )
     data = (json.dumps(config, sort_keys=True, indent=2) + "\n").encode()
     path.write_bytes(data)
     os.chmod(path, 0o644)
@@ -740,6 +799,17 @@ def _vector_prometheus_samples() -> dict[str, list[tuple[dict[str, str], float]]
 
 def _vector_metrics_snapshot() -> dict:
     samples = _vector_prometheus_samples()
+    required_components = (
+        ("vector_buffer_size_bytes", "loki"),
+        ("vector_buffer_max_size_bytes", "loki"),
+        ("vector_component_sent_events_total", "a2_file"),
+    )
+    for metric, component in required_components:
+        if not any(
+            labels.get("component_id") == component
+            for labels, _ in samples.get(metric, [])
+        ):
+            raise base.ProbeError("vector_required_metric_missing")
     return {
         "buffer_bytes": base._metric_sum(samples, "vector_buffer_size_bytes", "loki"),
         "buffer_max_bytes": base._metric_sum(
@@ -756,6 +826,31 @@ def _vector_metrics_snapshot() -> dict:
         ),
         "component_errors": base._metric_sum(samples, "vector_component_errors_total"),
     }
+
+
+def _try_vector_metrics_snapshot() -> dict | None:
+    try:
+        return _vector_metrics_snapshot()
+    except base.ProbeError:
+        return None
+
+
+def _backpressure_verified(
+    source_progress: list[int],
+    buffer_progress: list[int],
+    source_sent_total: int,
+    buffer_max_bytes: int,
+) -> bool:
+    source_stalled = (
+        len(source_progress) >= 3
+        and len(set(source_progress[-3:])) == 1
+        and source_progress[-1] < source_sent_total
+    )
+    buffer_remained_full = (
+        len(buffer_progress) >= 3
+        and all(value >= buffer_max_bytes * 0.98 for value in buffer_progress[-3:])
+    )
+    return source_stalled and buffer_remained_full
 
 
 def _query_all_events(
@@ -785,19 +880,86 @@ def _query_all_events(
             except (ValueError, KeyError, TypeError):
                 errors.append({"start_ns": low, "error": "invalid_log_line"})
         low = high + 1
-    matching = sum((actual & expected).values())
-    missing = sum((expected - actual).values())
-    unexpected = sum((actual - expected).values())
+    reconciliation = _reconcile_event_identities(actual, expected)
     return {
         "result_lines": result_lines,
-        "expected_unique_event_count": sum(expected.values()),
-        "actual_unique_event_identity_hash_count": len(actual),
-        "matching_identity_hash_count": matching,
-        "missing_identity_hash_count": missing,
-        "unexpected_or_duplicate_identity_hash_count": unexpected,
+        **reconciliation,
         "identity_hash_multiset_match": actual == expected,
         "request_count": requests,
         "query_errors": errors[:20],
+    }
+
+
+def _reconcile_event_identities(actual: Counter, expected: Counter) -> dict:
+    actual_ids = {event_id for event_id, _ in actual}
+    expected_ids = {event_id for event_id, _ in expected}
+    actual_by_id = {}
+    expected_by_id = {}
+    actual_count_by_id = Counter()
+    expected_count_by_id = Counter()
+    for (event_id, payload_hash), count in actual.items():
+        actual_by_id.setdefault(event_id, set()).add(payload_hash)
+        actual_count_by_id[event_id] += count
+    for (event_id, payload_hash), count in expected.items():
+        expected_by_id.setdefault(event_id, set()).add(payload_hash)
+        expected_count_by_id[event_id] += count
+
+    missing_ids = sorted(expected_ids - actual_ids)
+    unexpected_ids = sorted(actual_ids - expected_ids)
+    payload_mismatch_ids = sorted(
+        event_id
+        for event_id in actual_ids & expected_ids
+        if actual_by_id[event_id] != expected_by_id[event_id]
+    )
+    duplicate_ids = sorted(
+        event_id
+        for event_id in actual_ids & expected_ids
+        if actual_count_by_id[event_id] > expected_count_by_id[event_id]
+        and any(
+            actual[(event_id, payload_hash)] > expected[(event_id, payload_hash)]
+            for payload_hash in expected_by_id[event_id]
+        )
+    )
+    duplicate_occurrences = sum(
+        max(count - expected[identity], 0)
+        for identity, count in actual.items()
+        if identity in expected
+    )
+    unexpected_identity_hashes = sorted(
+        identity for identity in actual if identity not in expected
+    )
+    missing_identity_hashes = sum((expected - actual).values())
+    extra_identity_occurrences = sum((actual - expected).values())
+    sample_limit = 200
+
+    return {
+        "expected_unique_event_count": sum(expected.values()),
+        "expected_unique_event_id_count": len(expected_ids),
+        "actual_unique_event_identity_hash_count": len(actual),
+        "actual_unique_event_id_count": len(actual_ids),
+        "matching_identity_hash_count": sum((actual & expected).values()),
+        "missing_identity_hash_count": missing_identity_hashes,
+        "missing_event_id_count": len(missing_ids),
+        "missing_event_ids_sample": missing_ids[:sample_limit],
+        "unexpected_unique_identity_hash_count": len(unexpected_identity_hashes),
+        "unexpected_event_id_count": len(unexpected_ids),
+        "unexpected_event_ids_sample": unexpected_ids[:sample_limit],
+        "duplicate_identity_occurrence_count": duplicate_occurrences,
+        "duplicate_event_id_count": len(duplicate_ids),
+        "duplicate_event_ids_sample": duplicate_ids[:sample_limit],
+        "payload_mismatch_event_id_count": len(payload_mismatch_ids),
+        "payload_mismatch_event_ids_sample": payload_mismatch_ids[:sample_limit],
+        "same_event_id_with_different_payload_count": len(payload_mismatch_ids),
+        "unexpected_identity_occurrence_count": extra_identity_occurrences,
+        "identity_id_samples_truncated": any(
+            len(values) > sample_limit
+            for values in (
+                missing_ids,
+                unexpected_ids,
+                duplicate_ids,
+                payload_mismatch_ids,
+            )
+        ),
     }
 
 
@@ -811,53 +973,15 @@ def _run_vector_buffer(
 ) -> None:
     source = paths["vector_source"] / "events.jsonl"
     base_ns = time.time_ns() - 330 * 10**9
-    baseline_ns = base_ns - 10**9
-    baseline = base._record(1, service="gateway")
-    baseline["event_id"] = str(uuid.uuid4())
-    baseline["timestamp"] = (
-        datetime.fromtimestamp(baseline_ns / 1e9, timezone.utc)
-        .isoformat()
-        .replace("+00:00", "Z")
+    start_ns = base_ns - 10**9
+    bulk_expected, source_hash_before_pressure = _write_vector_backlog(
+        source, base_ns
     )
-    base._write_synthetic(source, [baseline])
-    os.chown(source, 10001, 10001)
-    os.chmod(source, 0o600)
+    expected_pairs = Counter(bulk_expected)
+    source_size = source.stat().st_size
+    source_sent_total = VECTOR_RECORDS
     config = _vector_config(paths["config"] / "vector.json", paths["tls"])
     report["config_sha256"]["vector"] = base.sha(config)
-    vector_id = base.docker(*_vector_args(paths, cpu)).strip()
-    report["containers"]["vector"] = {
-        "id": vector_id,
-        "name": VECTOR_NAME,
-        "image_id": VECTOR_IMAGE_ID,
-    }
-    _checkpoint(checkpoint_path, report)
-    base._check_owned(base._container_by_id(vector_id), VECTOR_NAME, VECTOR_IMAGE_ID)
-
-    baseline_selector = f'{{stack="tianshu",service="{VECTOR_SERVICE}"}}'
-    baseline_padded = {**baseline, "a2_buffer_fixture": "x" * VECTOR_PADDING_BYTES}
-    baseline_query = _wait_for_event(
-        clients["loki"],
-        baseline_selector,
-        baseline_ns - 10**9,
-        baseline_ns + 10**9,
-        baseline_padded,
-    )
-    if baseline_query["final"].get("semantic_payload_match_count") != 1:
-        report["dimensions"]["vector_buffer_full"] = {
-            "status": "failed",
-            "reason": "vector_baseline_not_queryable",
-            "baseline_query": baseline_query,
-        }
-        return
-
-    source_sent_total = VECTOR_RECORDS + 1
-    expected_pairs = Counter([(baseline["event_id"], base.digest(baseline_padded))])
-    # The expected hashes are filled as the compact source backlog is written.
-    base.docker("network", "disconnect", "--force", NETWORK, loki_id)
-    bulk_expected, source_hash_before_pressure = _write_vector_backlog(source, base_ns)
-    expected_pairs.update(bulk_expected)
-    source_size = source.stat().st_size
-
     dimension = {
         "status": "running",
         "filesystem": "dedicated_tmpfs",
@@ -870,18 +994,33 @@ def _run_vector_buffer(
         "source_sha256_before_pressure": source_hash_before_pressure,
         "source_preserved_at_full": False,
         "source_progress_samples": [],
+        "buffer_progress_samples": [],
         "backpressure_verified": False,
+        "sink_stopped_before_vector_start": False,
+        "sink_available_during_fill": True,
+        "sink_rate_limited_during_fill": True,
         "replay": {"status": "not_run"},
     }
     report["dimensions"]["vector_buffer_full"] = dimension
     _checkpoint(checkpoint_path, report)
+    vector_id = base.docker(*_vector_args(paths, cpu)).strip()
+    report["containers"]["vector"] = {
+        "id": vector_id,
+        "name": VECTOR_NAME,
+        "image_id": VECTOR_IMAGE_ID,
+    }
+    _checkpoint(checkpoint_path, report)
+    base._check_owned(base._container_by_id(vector_id), VECTOR_NAME, VECTOR_IMAGE_ID)
 
     peak = {"buffer_bytes": 0, "buffer_max_bytes": 0}
     last_snapshot = {}
 
     def full_observed():
         nonlocal last_snapshot
-        last_snapshot = _vector_metrics_snapshot()
+        snapshot = _try_vector_metrics_snapshot()
+        if snapshot is None:
+            return False
+        last_snapshot = snapshot
         peak["buffer_bytes"] = max(peak["buffer_bytes"], last_snapshot["buffer_bytes"])
         peak["buffer_max_bytes"] = max(
             peak["buffer_max_bytes"], last_snapshot["buffer_max_bytes"]
@@ -894,22 +1033,42 @@ def _run_vector_buffer(
 
     try:
         base._wait(
-            full_observed, timeout=240, interval=1, code="vector_buffer_not_full"
+            full_observed,
+            timeout=VECTOR_BUFFER_FULL_TIMEOUT_SECONDS,
+            interval=1,
+            code="vector_buffer_not_full",
         )
         progress = []
+        buffer_progress = []
         progress_deadline = time.monotonic() + 30
         while time.monotonic() < progress_deadline:
-            snapshot = _vector_metrics_snapshot()
+            snapshot = _try_vector_metrics_snapshot()
+            if snapshot is None:
+                time.sleep(2)
+                continue
             last_snapshot = snapshot
             progress.append(snapshot["source_sent_events"])
-            if len(progress) >= 3 and len(set(progress[-3:])) == 1:
-                break
+            buffer_progress.append(snapshot["buffer_bytes"])
             if snapshot["source_sent_events"] >= source_sent_total:
                 break
             time.sleep(2)
+        if not progress:
+            raise base.ProbeError("vector_metrics_unavailable")
         source_hash_at_full = base.sha_file(source)
         source_stalled = len(progress) >= 3 and len(set(progress[-3:])) == 1
-        backpressure = progress[-1] < source_sent_total and source_stalled
+        buffer_remained_full = (
+            len(buffer_progress) >= 3
+            and all(
+                value >= last_snapshot["buffer_max_bytes"] * 0.98
+                for value in buffer_progress[-3:]
+            )
+        )
+        backpressure = _backpressure_verified(
+            progress,
+            buffer_progress,
+            source_sent_total,
+            last_snapshot["buffer_max_bytes"],
+        )
         dimension.update(
             peak_buffer_bytes=peak["buffer_bytes"],
             buffer_max_bytes=peak["buffer_max_bytes"],
@@ -920,6 +1079,9 @@ def _run_vector_buffer(
             ),
             source_events_sent_at_full=progress[-1],
             source_progress_samples=progress,
+            buffer_progress_samples=buffer_progress,
+            source_progress_stalled=source_stalled,
+            buffer_remained_full_during_progress_window=buffer_remained_full,
             source_sha256_at_full=source_hash_at_full,
             source_preserved_at_full=source_hash_at_full == source_hash_before_pressure,
             source_file_bytes_at_full=source.stat().st_size,
@@ -943,15 +1105,16 @@ def _run_vector_buffer(
         )
     _checkpoint(checkpoint_path, report)
 
-    base.docker(
-        "network", "connect", "--alias", "obs-loki", "--ip", LOKI_IP, NETWORK, loki_id
-    )
-    dimension["sink_reconnected"] = True
+    dimension["loki_started_after_buffer_full"] = False
+    dimension["sink_already_available_after_full"] = True
     _checkpoint(checkpoint_path, report)
 
     def replay_drained():
         nonlocal last_snapshot
-        last_snapshot = _vector_metrics_snapshot()
+        snapshot = _try_vector_metrics_snapshot()
+        if snapshot is None:
+            return False
+        last_snapshot = snapshot
         return (
             last_snapshot["source_sent_events"] >= source_sent_total
             and last_snapshot["buffer_max_bytes"] > 0
@@ -961,7 +1124,10 @@ def _run_vector_buffer(
 
     try:
         base._wait(
-            replay_drained, timeout=600, interval=2, code="vector_replay_not_drained"
+            replay_drained,
+            timeout=VECTOR_REPLAY_DRAIN_TIMEOUT_SECONDS,
+            interval=2,
+            code="vector_replay_not_drained",
         )
         dimension["source_replay_complete"] = True
     except base.ProbeError as exc:
@@ -986,8 +1152,7 @@ def _run_vector_buffer(
         timeout=90,
         code="loki_vector_store_restart_timeout",
     )
-    selector = baseline_selector
-    start_ns = baseline_ns - 10**9
+    selector = f'{{stack="tianshu",service="{VECTOR_SERVICE}"}}'
     end_ns = base_ns + (VECTOR_RECORDS - 1) * VECTOR_TIMESTAMP_STEP_NS + 10**9
     store_index_readiness = _wait_for_series_routes(
         {"store_only_direct_loki": clients["loki"]},
@@ -1086,9 +1251,6 @@ def _run_probe(root: Path) -> dict:
         base.validate_tmpfs_size(shutil.disk_usage(paths["scratch"]).total)
         host_resources = _resource_snapshot()
         preflight["host_resource_snapshot"] = host_resources
-        previous_path = BASE_SCOPE / "evidence" / "nas-a2-report.json"
-        previous = json.loads(previous_path.read_text(encoding="utf-8"))
-        previous_plan = previous["preflight"]["memory_limit_plan_bytes"]
         r2_report_path = (
             BASE_SCOPE
             / "runs"
@@ -1262,45 +1424,523 @@ def _run_probe(root: Path) -> dict:
             and r4_archive_sha256 == R4_SNAPSHOT_SHA256
         ):
             raise base.ProbeError("prior_r4_evidence_or_resources_unverified")
+
+        r5_root = BASE_SCOPE / "runs" / "recovery-vector-20260925-r5"
+        r5_report = json.loads(
+            (r5_root / "evidence" / REPORT_NAME).read_text(encoding="utf-8")
+        )
+        r5_network_name = "tianshu-accept-a2-vfull-20260925-r5"
+        r5_network = json.loads(base.docker("network", "inspect", r5_network_name))[0]
+        r5_expected = {
+            "vector": (r5_network_name + "-vector", VECTOR_IMAGE_ID),
+            "loki": (r5_network_name + "-loki", LOKI_IMAGE_ID),
+        }
+        r5_containers_stopped = True
+        r5_names = set()
+        for key, (name, image_id) in r5_expected.items():
+            entry = r5_report.get("containers", {}).get(key, {})
+            if not entry.get("id"):
+                r5_containers_stopped = False
+                continue
+            container = base._container_by_id(entry["id"])
+            labels = container.get("Config", {}).get("Labels") or {}
+            container_state = container.get("State", {})
+            mounts_in_scope = all(
+                mount.get("Type") != "bind"
+                or base._overlap(Path(mount["Source"]), r5_root)
+                for mount in container.get("Mounts", [])
+            )
+            r5_containers_stopped &= (
+                container.get("Name", "").lstrip("/") == name
+                and container.get("Image") == image_id
+                and labels.get(base.OWNER_LABEL) == base.TASK
+                and labels.get(base.SCOPE_LABEL) == r5_network_name
+                and container.get("HostConfig", {}).get("RestartPolicy", {}).get("Name")
+                == "no"
+                and container.get("RestartCount", 0) == 0
+                and container_state.get("Status") == "exited"
+                and container_state.get("ExitCode") == 0
+                and not container_state.get("Running")
+                and not container_state.get("OOMKilled")
+                and entry.get("running") is False
+                and entry.get("exit_code") == 0
+                and mounts_in_scope
+            )
+            r5_names.add(name)
+        r5_network_containers = r5_network.get("Containers") or {}
+        r5_network_labels = r5_network.get("Labels") or {}
+        r5_network_names = {
+            item.get("Name") for item in r5_network_containers.values()
+        }
+        r5_network_empty = (
+            r5_network.get("Name") == r5_network_name
+            and r5_network.get("Id") == r5_report.get("network", {}).get("id")
+            and r5_network_labels.get(base.OWNER_LABEL) == base.TASK
+            and r5_network_labels.get(base.SCOPE_LABEL) == r5_network_name
+            and r5_network.get("Internal") is True
+            and r5_network.get("IPAM", {}).get("Config", [{}])[0].get("Subnet")
+            == "10.204.54.0/24"
+            and not r5_network_names
+            and r5_report.get("network", {}).get("attached_container_count_after_stop")
+            == 0
+            and r5_names == {name for name, _ in r5_expected.values()}
+        )
+        r5_archive_path = (
+            r5_root
+            / "evidence"
+            / "tmpfs-snapshot-after-drain-continuation.tar.gz"
+        )
+        r5_archive_sha256 = (
+            base.sha_file(r5_archive_path) if r5_archive_path.is_file() else None
+        )
+        r5_tmpfs_usage = _tmpfs_mount_usage(r5_root / "tmpfs")
+        if not (
+            r5_containers_stopped
+            and r5_network_empty
+            and not r5_tmpfs_usage["mounted"]
+            and r5_archive_sha256 == R5_SNAPSHOT_SHA256
+        ):
+            raise base.ProbeError("prior_r5_evidence_or_resources_unverified")
+
+        r6_root = BASE_SCOPE / "runs" / "recovery-vector-20260925-r6"
+        r6_report = json.loads(
+            (r6_root / "evidence" / REPORT_NAME).read_text(encoding="utf-8")
+        )
+        r6_network_name = "tianshu-accept-a2-vfull-20260925-r6"
+        r6_network = json.loads(base.docker("network", "inspect", r6_network_name))[0]
+        r6_expected = {
+            "vector": (r6_network_name + "-vector", VECTOR_IMAGE_ID),
+            "loki": (r6_network_name + "-loki", LOKI_IMAGE_ID),
+        }
+        r6_containers_stopped = r6_report.get("nas_verified") is True
+        r6_names = set()
+        for key, (name, image_id) in r6_expected.items():
+            entry = r6_report.get("containers", {}).get(key, {})
+            if not entry.get("id"):
+                r6_containers_stopped = False
+                continue
+            container = base._container_by_id(entry["id"])
+            labels = container.get("Config", {}).get("Labels") or {}
+            container_state = container.get("State", {})
+            mounts_in_scope = all(
+                mount.get("Type") != "bind"
+                or base._overlap(Path(mount["Source"]), r6_root)
+                for mount in container.get("Mounts", [])
+            )
+            r6_containers_stopped &= (
+                container.get("Name", "").lstrip("/") == name
+                and container.get("Image") == image_id
+                and labels.get(base.OWNER_LABEL) == base.TASK
+                and labels.get(base.SCOPE_LABEL) == r6_network_name
+                and container.get("HostConfig", {}).get("RestartPolicy", {}).get("Name")
+                == "no"
+                and container.get("RestartCount", 0) == 0
+                and container_state.get("Status") == "exited"
+                and container_state.get("ExitCode") == 0
+                and not container_state.get("Running")
+                and not container_state.get("OOMKilled")
+                and entry.get("running") is False
+                and entry.get("exit_code") == 0
+                and mounts_in_scope
+            )
+            r6_names.add(name)
+        r6_network_containers = r6_network.get("Containers") or {}
+        r6_network_labels = r6_network.get("Labels") or {}
+        r6_network_empty = (
+            r6_report.get("status") == "partial"
+            and r6_network.get("Name") == r6_network_name
+            and r6_network.get("Id") == r6_report.get("network", {}).get("id")
+            and r6_network_labels.get(base.OWNER_LABEL) == base.TASK
+            and r6_network_labels.get(base.SCOPE_LABEL) == r6_network_name
+            and r6_network.get("Internal") is True
+            and r6_network.get("IPAM", {}).get("Config", [{}])[0].get("Subnet")
+            == "10.204.55.0/24"
+            and not r6_network_containers
+            and r6_report.get("network", {}).get("attached_container_count_after_stop")
+            == 0
+            and r6_names == {name for name, _ in r6_expected.values()}
+        )
+        r6_archive_path = (
+            r6_root / "evidence" / "tmpfs-snapshot-after-probe.tar.gz"
+        )
+        r6_archive_sha256 = (
+            base.sha_file(r6_archive_path) if r6_archive_path.is_file() else None
+        )
+        r6_tmpfs_usage = _tmpfs_mount_usage(r6_root / "tmpfs")
+        if not (
+            r6_containers_stopped
+            and r6_network_empty
+            and not r6_tmpfs_usage["mounted"]
+            and r6_archive_sha256 == R6_SNAPSHOT_SHA256
+        ):
+            raise base.ProbeError("prior_r6_evidence_or_resources_unverified")
+
+        r7_root = BASE_SCOPE / "runs" / "recovery-vector-20260925-r7"
+        r7_report = json.loads(
+            (r7_root / "evidence" / REPORT_NAME).read_text(encoding="utf-8")
+        )
+        r7_network_name = "tianshu-accept-a2-vfull-20260925-r7"
+        r7_network = json.loads(base.docker("network", "inspect", r7_network_name))[0]
+        r7_expected = {
+            "vector": (r7_network_name + "-vector", VECTOR_IMAGE_ID),
+            "loki": (r7_network_name + "-loki", LOKI_IMAGE_ID),
+        }
+        r7_containers_stopped = r7_report.get("nas_verified") is True
+        r7_names = set()
+        for key, (name, image_id) in r7_expected.items():
+            entry = r7_report.get("containers", {}).get(key, {})
+            if not entry.get("id"):
+                r7_containers_stopped = False
+                continue
+            container = base._container_by_id(entry["id"])
+            labels = container.get("Config", {}).get("Labels") or {}
+            container_state = container.get("State", {})
+            mounts_in_scope = all(
+                mount.get("Type") != "bind"
+                or base._overlap(Path(mount["Source"]), r7_root)
+                for mount in container.get("Mounts", [])
+            )
+            r7_containers_stopped &= (
+                container.get("Name", "").lstrip("/") == name
+                and container.get("Image") == image_id
+                and labels.get(base.OWNER_LABEL) == base.TASK
+                and labels.get(base.SCOPE_LABEL) == r7_network_name
+                and container.get("HostConfig", {}).get("RestartPolicy", {}).get("Name")
+                == "no"
+                and container.get("RestartCount", 0) == 0
+                and container_state.get("Status") == "exited"
+                and container_state.get("ExitCode") == 0
+                and not container_state.get("Running")
+                and not container_state.get("OOMKilled")
+                and entry.get("running") is False
+                and entry.get("exit_code") == 0
+                and mounts_in_scope
+            )
+            r7_names.add(name)
+        r7_network_containers = r7_network.get("Containers") or {}
+        r7_network_labels = r7_network.get("Labels") or {}
+        r7_network_empty = (
+            r7_report.get("status") == "partial"
+            and r7_network.get("Name") == r7_network_name
+            and r7_network.get("Id") == r7_report.get("network", {}).get("id")
+            and r7_network_labels.get(base.OWNER_LABEL) == base.TASK
+            and r7_network_labels.get(base.SCOPE_LABEL) == r7_network_name
+            and r7_network.get("Internal") is True
+            and r7_network.get("IPAM", {}).get("Config", [{}])[0].get("Subnet")
+            == "10.205.16.0/24"
+            and not r7_network_containers
+            and r7_report.get("network", {}).get("attached_container_count_after_stop")
+            == 0
+            and r7_names == {name for name, _ in r7_expected.values()}
+        )
+        r7_archive_path = (
+            r7_root / "evidence" / "tmpfs-snapshot-after-probe.tar.gz"
+        )
+        r7_archive_sha256 = (
+            base.sha_file(r7_archive_path) if r7_archive_path.is_file() else None
+        )
+        r7_tmpfs_usage = _tmpfs_mount_usage(r7_root / "tmpfs")
+        if not (
+            r7_containers_stopped
+            and r7_network_empty
+            and not r7_tmpfs_usage["mounted"]
+            and r7_archive_sha256 == R7_SNAPSHOT_SHA256
+        ):
+            raise base.ProbeError("prior_r7_evidence_or_resources_unverified")
+
+        r8_root = BASE_SCOPE / "runs" / "recovery-vector-20260925-r8"
+        r8_report = json.loads(
+            (r8_root / "evidence" / REPORT_NAME).read_text(encoding="utf-8")
+        )
+        r8_network_name = "tianshu-accept-a2-vfull-20260925-r8"
+        r8_network = json.loads(base.docker("network", "inspect", r8_network_name))[0]
+        r8_expected = {
+            "vector": (r8_network_name + "-vector", VECTOR_IMAGE_ID),
+            "loki": (r8_network_name + "-loki", LOKI_IMAGE_ID),
+        }
+        r8_containers_stopped = r8_report.get("nas_verified") is True
+        r8_names = set()
+        for key, (name, image_id) in r8_expected.items():
+            entry = r8_report.get("containers", {}).get(key, {})
+            if not entry.get("id"):
+                r8_containers_stopped = False
+                continue
+            container = base._container_by_id(entry["id"])
+            labels = container.get("Config", {}).get("Labels") or {}
+            container_state = container.get("State", {})
+            mounts_in_scope = all(
+                mount.get("Type") != "bind"
+                or base._overlap(Path(mount["Source"]), r8_root)
+                for mount in container.get("Mounts", [])
+            )
+            r8_containers_stopped &= (
+                container.get("Name", "").lstrip("/") == name
+                and container.get("Image") == image_id
+                and labels.get(base.OWNER_LABEL) == base.TASK
+                and labels.get(base.SCOPE_LABEL) == r8_network_name
+                and container.get("HostConfig", {}).get("RestartPolicy", {}).get(
+                    "Name"
+                )
+                == "no"
+                and container.get("RestartCount", 0) == 0
+                and container_state.get("Status") == "exited"
+                and container_state.get("ExitCode") == 0
+                and not container_state.get("Running")
+                and not container_state.get("OOMKilled")
+                and entry.get("running") is False
+                and entry.get("exit_code") == 0
+                and mounts_in_scope
+            )
+            r8_names.add(name)
+        r8_network_containers = r8_network.get("Containers") or {}
+        r8_network_labels = r8_network.get("Labels") or {}
+        r8_network_empty = (
+            r8_report.get("status") == "partial"
+            and r8_network.get("Name") == r8_network_name
+            and r8_network.get("Id") == r8_report.get("network", {}).get("id")
+            and r8_network_labels.get(base.OWNER_LABEL) == base.TASK
+            and r8_network_labels.get(base.SCOPE_LABEL) == r8_network_name
+            and r8_network.get("Internal") is True
+            and r8_network.get("IPAM", {}).get("Config", [{}])[0].get("Subnet")
+            == "10.205.17.0/24"
+            and not r8_network_containers
+            and r8_report.get("network", {}).get("attached_container_count_after_stop")
+            == 0
+            and r8_names == {name for name, _ in r8_expected.values()}
+        )
+        r8_archive_path = (
+            r8_root / "evidence" / "tmpfs-snapshot-after-probe.tar.gz"
+        )
+        r8_archive_sha256 = (
+            base.sha_file(r8_archive_path) if r8_archive_path.is_file() else None
+        )
+        r8_tmpfs_usage = _tmpfs_mount_usage(r8_root / "tmpfs")
+        if not (
+            r8_containers_stopped
+            and r8_network_empty
+            and not r8_tmpfs_usage["mounted"]
+            and r8_archive_sha256 == R8_SNAPSHOT_SHA256
+        ):
+            raise base.ProbeError("prior_r8_evidence_or_resources_unverified")
+
+        r9_root = BASE_SCOPE / "runs" / "recovery-vector-20260925-r9"
+        r9_report = json.loads(
+            (r9_root / "evidence" / REPORT_NAME).read_text(encoding="utf-8")
+        )
+        r9_network_name = "tianshu-accept-a2-vfull-20260925-r9"
+        r9_network = json.loads(base.docker("network", "inspect", r9_network_name))[0]
+        r9_expected = {
+            "vector": (r9_network_name + "-vector", VECTOR_IMAGE_ID),
+            "loki": (r9_network_name + "-loki", LOKI_IMAGE_ID),
+        }
+        r9_containers_stopped = r9_report.get("nas_verified") is True
+        r9_names = set()
+        for key, (name, image_id) in r9_expected.items():
+            entry = r9_report.get("containers", {}).get(key, {})
+            if not entry.get("id"):
+                r9_containers_stopped = False
+                continue
+            container = base._container_by_id(entry["id"])
+            labels = container.get("Config", {}).get("Labels") or {}
+            container_state = container.get("State", {})
+            mounts_in_scope = all(
+                mount.get("Type") != "bind"
+                or base._overlap(Path(mount["Source"]), r9_root)
+                for mount in container.get("Mounts", [])
+            )
+            r9_containers_stopped &= (
+                container.get("Name", "").lstrip("/") == name
+                and container.get("Image") == image_id
+                and labels.get(base.OWNER_LABEL) == base.TASK
+                and labels.get(base.SCOPE_LABEL) == r9_network_name
+                and container.get("HostConfig", {}).get("RestartPolicy", {}).get(
+                    "Name"
+                )
+                == "no"
+                and container.get("RestartCount", 0) == 0
+                and container_state.get("Status") == "exited"
+                and container_state.get("ExitCode") == 0
+                and not container_state.get("Running")
+                and not container_state.get("OOMKilled")
+                and entry.get("running") is False
+                and entry.get("exit_code") == 0
+                and mounts_in_scope
+            )
+            r9_names.add(name)
+        r9_network_containers = r9_network.get("Containers") or {}
+        r9_network_labels = r9_network.get("Labels") or {}
+        r9_network_empty = (
+            r9_report.get("status") == "partial"
+            and r9_network.get("Name") == r9_network_name
+            and r9_network.get("Id") == r9_report.get("network", {}).get("id")
+            and r9_network_labels.get(base.OWNER_LABEL) == base.TASK
+            and r9_network_labels.get(base.SCOPE_LABEL) == r9_network_name
+            and r9_network.get("Internal") is True
+            and r9_network.get("IPAM", {}).get("Config", [{}])[0].get("Subnet")
+            == "10.205.18.0/24"
+            and not r9_network_containers
+            and r9_report.get("network", {}).get("attached_container_count_after_stop")
+            == 0
+            and r9_names == {name for name, _ in r9_expected.values()}
+        )
+        r9_archive_path = (
+            r9_root / "evidence" / "tmpfs-snapshot-after-probe.tar.gz"
+        )
+        r9_archive_sha256 = (
+            base.sha_file(r9_archive_path) if r9_archive_path.is_file() else None
+        )
+        r9_tmpfs_usage = _tmpfs_mount_usage(r9_root / "tmpfs")
+        if not (
+            r9_containers_stopped
+            and r9_network_empty
+            and not r9_tmpfs_usage["mounted"]
+            and r9_archive_sha256 == R9_SNAPSHOT_SHA256
+        ):
+            raise base.ProbeError("prior_r9_evidence_or_resources_unverified")
+
+        r10_root = BASE_SCOPE / "runs" / "recovery-vector-20260925-r10"
+        r10_report = json.loads(
+            (r10_root / "evidence" / REPORT_NAME).read_text(encoding="utf-8")
+        )
+        r10_network_name = "tianshu-accept-a2-vfull-20260925-r10"
+        r10_network = json.loads(base.docker("network", "inspect", r10_network_name))[0]
+        r10_expected = {
+            "vector": (r10_network_name + "-vector", VECTOR_IMAGE_ID),
+            "loki": (r10_network_name + "-loki", LOKI_IMAGE_ID),
+        }
+        r10_containers_stopped = r10_report.get("nas_verified") is True
+        r10_names = set()
+        for key, (name, image_id) in r10_expected.items():
+            entry = r10_report.get("containers", {}).get(key, {})
+            if not entry.get("id"):
+                r10_containers_stopped = False
+                continue
+            container = base._container_by_id(entry["id"])
+            labels = container.get("Config", {}).get("Labels") or {}
+            container_state = container.get("State", {})
+            mounts_in_scope = all(
+                mount.get("Type") != "bind"
+                or base._overlap(Path(mount["Source"]), r10_root)
+                for mount in container.get("Mounts", [])
+            )
+            r10_containers_stopped &= (
+                container.get("Name", "").lstrip("/") == name
+                and container.get("Image") == image_id
+                and labels.get(base.OWNER_LABEL) == base.TASK
+                and labels.get(base.SCOPE_LABEL) == r10_network_name
+                and container.get("HostConfig", {}).get("RestartPolicy", {}).get(
+                    "Name"
+                )
+                == "no"
+                and container.get("RestartCount", 0) == 0
+                and container_state.get("Status") == "exited"
+                and container_state.get("ExitCode") == 0
+                and not container_state.get("Running")
+                and not container_state.get("OOMKilled")
+                and entry.get("running") is False
+                and entry.get("exit_code") == 0
+                and mounts_in_scope
+            )
+            r10_names.add(name)
+        r10_network_containers = r10_network.get("Containers") or {}
+        r10_network_labels = r10_network.get("Labels") or {}
+        r10_network_empty = (
+            r10_report.get("status") == "partial"
+            and r10_network.get("Name") == r10_network_name
+            and r10_network.get("Id") == r10_report.get("network", {}).get("id")
+            and r10_network_labels.get(base.OWNER_LABEL) == base.TASK
+            and r10_network_labels.get(base.SCOPE_LABEL) == r10_network_name
+            and r10_network.get("Internal") is True
+            and r10_network.get("IPAM", {}).get("Config", [{}])[0].get("Subnet")
+            == "10.205.19.0/24"
+            and not r10_network_containers
+            and r10_report.get("network", {}).get("attached_container_count_after_stop")
+            == 0
+            and r10_names == {name for name, _ in r10_expected.values()}
+        )
+        r10_archive_path = (
+            r10_root / "evidence" / "tmpfs-snapshot-after-probe.tar.gz"
+        )
+        r10_archive_sha256 = (
+            base.sha_file(r10_archive_path) if r10_archive_path.is_file() else None
+        )
+        r10_tmpfs_usage = _tmpfs_mount_usage(r10_root / "tmpfs")
+        if not (
+            r10_containers_stopped
+            and r10_network_empty
+            and not r10_tmpfs_usage["mounted"]
+            and r10_archive_sha256 == R10_SNAPSHOT_SHA256
+        ):
+            raise base.ProbeError("prior_r10_evidence_or_resources_unverified")
+
         if host_resources["a2_running_container_count"] != 0:
             raise base.ProbeError("another_a2_instance_running")
-        r2_tmpfs_used = shutil.disk_usage(
-            BASE_SCOPE / "runs" / "recovery-vector-20260925-r2" / "tmpfs"
-        ).used
-        r3_tmpfs_used = shutil.disk_usage(r3_root / "tmpfs").used
-        r4_tmpfs_used = 0
-        cumulative_plan = (
-            previous_plan
-            + base.MEMORY_PLAN
-            + r2_tmpfs_used
-            + r3_tmpfs_used
-            + r4_tmpfs_used
+        historical_tmpfs = {
+            run: _tmpfs_mount_usage(BASE_SCOPE / "runs" / run / "tmpfs")
+            for run in (
+                "recovery-vector-20260925-r2",
+                "recovery-vector-20260925-r3",
+                "recovery-vector-20260925-r4",
+                "recovery-vector-20260925-r5",
+                "recovery-vector-20260925-r6",
+                "recovery-vector-20260925-r7",
+                "recovery-vector-20260925-r8",
+                "recovery-vector-20260925-r9",
+                "recovery-vector-20260925-r10",
+            )
+        }
+        resource_budget = _concurrent_a2_resource_budget(
+            base.MEMORY_PLAN,
+            host_resources["a2_current_mem_bytes"],
+            historical_tmpfs,
         )
-        preflight["cumulative_a2_memory_plan"] = {
-            "previous_run_bytes": previous_plan,
+        preflight["concurrent_a2_resource_budget"] = {
             "r2_containers_stopped": r2_containers_stopped,
             "r2_network_empty_after_stop": r2_network_empty,
-            "r2_tmpfs_used_bytes_after_stop": r2_tmpfs_used,
             "r3_failed_loki_container_unstarted": r3_container_unstarted,
             "r3_network_empty": r3_network_empty,
-            "r3_tmpfs_used_bytes": r3_tmpfs_used,
             "r4_containers_stopped": r4_containers_stopped,
             "r4_network_owned_stopped": r4_network_owned,
-            "r4_tmpfs_unmounted": r4_tmpfs_unmounted,
-            "r4_tmpfs_used_bytes": r4_tmpfs_used,
             "r4_snapshot_archive_bytes": archive_path.stat().st_size,
             "r4_snapshot_archive_sha256": r4_archive_sha256,
-            "this_run_bytes": base.MEMORY_PLAN,
-            "total_reserved_bytes": cumulative_plan,
-            "task_budget_bytes": 4 * 1024**3,
-            "within_budget": cumulative_plan <= 4 * 1024**3,
+            "r5_containers_stopped": r5_containers_stopped,
+            "r5_network_empty_after_stop": r5_network_empty,
+            "r5_snapshot_archive_bytes": r5_archive_path.stat().st_size,
+            "r5_snapshot_archive_sha256": r5_archive_sha256,
+            "r6_containers_stopped": r6_containers_stopped,
+            "r6_network_empty_after_stop": r6_network_empty,
+            "r6_snapshot_archive_bytes": r6_archive_path.stat().st_size,
+            "r6_snapshot_archive_sha256": r6_archive_sha256,
+            "r7_containers_stopped": r7_containers_stopped,
+            "r7_network_empty_after_stop": r7_network_empty,
+            "r7_snapshot_archive_bytes": r7_archive_path.stat().st_size,
+            "r7_snapshot_archive_sha256": r7_archive_sha256,
+            "r8_containers_stopped": r8_containers_stopped,
+            "r8_network_empty_after_stop": r8_network_empty,
+            "r8_snapshot_archive_bytes": r8_archive_path.stat().st_size,
+            "r8_snapshot_archive_sha256": r8_archive_sha256,
+            "r9_containers_stopped": r9_containers_stopped,
+            "r9_network_empty_after_stop": r9_network_empty,
+            "r9_snapshot_archive_bytes": r9_archive_path.stat().st_size,
+            "r9_snapshot_archive_sha256": r9_archive_sha256,
+            "r10_containers_stopped": r10_containers_stopped,
+            "r10_network_empty_after_stop": r10_network_empty,
+            "r10_snapshot_archive_bytes": r10_archive_path.stat().st_size,
+            "r10_snapshot_archive_sha256": r10_archive_sha256,
+            "historical_mounted_tmpfs": historical_tmpfs,
+            "currently_running_a2_container_count": host_resources[
+                "a2_running_container_count"
+            ],
+            **resource_budget,
         }
-        if cumulative_plan > 4 * 1024**3:
-            raise base.ProbeError("cumulative_a2_memory_budget_exceeded")
+        if not resource_budget["within_budget"]:
+            raise base.ProbeError("concurrent_a2_resource_budget_exceeded")
         if host_resources["host_bytes"]["MemAvailable"] < 2 * 1024**3:
             raise base.ProbeError("host_memory_headroom_insufficient")
         if host_resources["task_volume_bytes"]["free"] < 512 * 1024**2:
             raise base.ProbeError("task_volume_headroom_insufficient")
+        preflight["allocation_range"] = "10.205.16.0/20"
+        preflight["candidate_subnets_checked"] = [str(SUBNET)]
         report["preflight"] = preflight
         base.certificates(paths["tls"], loki_ip=LOKI_IP)
         for path in paths["tls"].glob("*.pem"):
@@ -1377,27 +2017,10 @@ def _run_probe(root: Path) -> dict:
             timeout=90,
             code="loki_initial_ready_timeout",
         )
-        guard_backend = base._loki_client(paths)
-        settings, guard_state, server, server_thread, monitor_thread = (
-            base._start_guard_probe(root.resolve(), paths, guard_backend)
-        )
-        report["guard_probe"] = {
-            "loopback_port": GUARD_PORT,
-            "vector_metrics_container_ip": VECTOR_IP,
-            "vector_metrics_container_port": VECTOR_METRICS_PORT,
-            "reserve_bytes": settings["reserve_bytes"],
-            "source_budget_bytes": settings["log_budgets"]["platform"],
+        report["dimensions"]["recovery_query_diagnostics"] = {
+            "status": "not_run",
+            "reason": "isolated_vector_full_buffer_probe",
         }
-        clients["guard_backend"] = guard_backend
-        _run_recovery_diagnostic(
-            root.resolve(),
-            paths,
-            report,
-            clients,
-            loki_id,
-            preflight["cpu_affinity"]["loki"],
-            checkpoint,
-        )
         _run_vector_buffer(
             paths,
             report,
@@ -1522,6 +2145,8 @@ def _run_probe(root: Path) -> dict:
                 {
                     "status": report["status"],
                     "nas_verified": report.get("nas_verified", False),
+                    "error_code": report.get("error_code"),
+                    "cleanup_error_code": report.get("cleanup_error_code"),
                     "report": str(report_path),
                 }
             )

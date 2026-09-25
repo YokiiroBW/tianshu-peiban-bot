@@ -1,0 +1,37 @@
+{
+  "task": "NAS-A2",
+  "run_id": "recovery-vector-20260925-r8",
+  "status": "assigned_and_preflight_clear",
+  "scope": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r8",
+  "network_allocation_record": {
+    "path": "C:/YOKI/Codex/tianshu-peiban-bot/docs/development/nas-network-allocation-2026-09-25.json",
+    "sha256": "99caaf2ec76273deeffdff0d317473c0d607841d8c0ec92f4c2d5b0bc10ddb51",
+    "assigned_range": "10.205.16.0/20",
+    "exact_subnet": "10.205.17.0/24"
+  },
+  "preflight": {
+    "nas_host": "authorized_private_nas",
+    "docker_networks_inspected": 129,
+    "docker_subnet_conflicts": [],
+    "nondefault_route_conflicts": [],
+    "guard_port": 19527,
+    "guard_port_docker_reservations": [],
+    "guard_port_listener": false,
+    "r7_tmpfs_mounted": false,
+    "r8_containers_or_network_already_present": false
+  },
+  "resource_plan": {
+    "concurrent_budget_bytes": 4294967296,
+    "new_run_plan_bytes": 2147483648,
+    "tmpfs_limit_bytes": 536870912,
+    "vector_buffer_limit_bytes": 268435488
+  },
+  "probe_adjustment": {
+    "fixture_records": 120000,
+    "buffer_fill_timeout_seconds": 600,
+    "request_concurrency": "none",
+    "request_rate_limit_per_second": 4,
+    "request_timeout_seconds": 60,
+    "basis": "R7 observed peak buffer 131316136 of 268435488 bytes and source progress 49042 events at the previous 240-second fill timeout; extend observation time without changing the source workload."
+  }
+}

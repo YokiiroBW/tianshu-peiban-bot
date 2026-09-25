@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unittest
+from collections import Counter
 from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
@@ -16,13 +17,19 @@ class NasA2FollowupBudgetTests(unittest.TestCase):
         self.assertTrue(followup.PROJECT.startswith("tianshu-accept-a2-"))
         self.assertTrue(followup.VECTOR_NAME.startswith("tianshu-accept-a2-"))
         self.assertTrue(followup.LOKI_NAME.startswith("tianshu-accept-a2-"))
-        self.assertTrue(followup.RUN_ROOT.name.endswith("r5"))
-        self.assertEqual(str(followup.SUBNET), "10.204.54.0/24")
-        self.assertEqual(followup.LOKI_IP, "10.204.54.10")
-        self.assertEqual(followup.VECTOR_IP, "10.204.54.11")
-        self.assertEqual(followup.GUARD_PORT, 19527)
+        self.assertTrue(followup.RUN_ROOT.name.endswith("r11"))
+        self.assertTrue(followup.VECTOR_SERVICE.startswith("nas-a2-vector-r11-"))
+        self.assertTrue(followup.RECOVERY_SERVICE.startswith("nas-a2-recovery-r11-"))
+        self.assertEqual(str(followup.SUBNET), "10.205.20.0/24")
+        self.assertEqual(followup.LOKI_IP, "10.205.20.10")
+        self.assertEqual(followup.VECTOR_IP, "10.205.20.11")
+        self.assertEqual(followup.GUARD_PORT, 19524)
         self.assertEqual(followup.VECTOR_METRICS_PORT, 9598)
-        self.assertEqual(followup.TMPFS_BYTES, 512 * 1024**2)
+        self.assertEqual(followup.VECTOR_BUFFER_FULL_TIMEOUT_SECONDS, 600)
+        self.assertEqual(followup.VECTOR_REPLAY_DRAIN_TIMEOUT_SECONDS, 1800)
+        self.assertEqual(followup.VECTOR_REQUEST_RATE_LIMIT_PER_SECOND, 1)
+        self.assertEqual(followup.VECTOR_PADDING_BYTES, 2500)
+        self.assertEqual(followup.TMPFS_BYTES, 1024**3)
         self.assertEqual(followup.VECTOR_BUFFER_BYTES, 268435488)
 
     def test_compact_source_and_enriched_output_fit_the_new_tmpfs_budget(self):
@@ -38,6 +45,24 @@ class NasA2FollowupBudgetTests(unittest.TestCase):
             source_bytes + followup.VECTOR_BUFFER_BYTES, followup.TMPFS_BYTES
         )
 
+    def test_resource_gate_counts_live_resident_memory_and_mounted_tmpfs_only(self):
+        historical_tmpfs = {
+            "r2": {"mounted": True, "used_bytes": 229376},
+            "r3": {"mounted": True, "used_bytes": 0},
+            "r4": {"mounted": False, "used_bytes": 0},
+            "r5": {"mounted": False, "used_bytes": 0},
+        }
+
+        result = followup._concurrent_a2_resource_budget(
+            2 * 1024**3, 0, historical_tmpfs
+        )
+
+        self.assertEqual(result["historical_mounted_tmpfs_used_bytes"], 229376)
+        self.assertEqual(
+            result["total_concurrent_resources_bytes"], 2 * 1024**3 + 229376
+        )
+        self.assertTrue(result["within_budget"])
+
     def test_followup_vector_config_pins_full_buffer_and_unique_stream(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "vector.json"
@@ -50,6 +75,12 @@ class NasA2FollowupBudgetTests(unittest.TestCase):
                 config["sinks"]["loki"]["labels"]["service"],
                 followup.VECTOR_SERVICE,
             )
+            self.assertEqual(config["sinks"]["loki"]["request"]["concurrency"], "none")
+            self.assertEqual(
+                config["sinks"]["loki"]["request"]["rate_limit_num"],
+                followup.VECTOR_REQUEST_RATE_LIMIT_PER_SECOND,
+            )
+            self.assertEqual(config["sinks"]["loki"]["request"]["timeout_secs"], 60)
             self.assertEqual(config["log_schema"]["timestamp_key"], "timestamp")
             self.assertFalse(config["sinks"]["loki"]["remove_timestamp"])
             self.assertIn(
@@ -64,7 +95,7 @@ class NasA2FollowupBudgetTests(unittest.TestCase):
                 **probe._record(8),
                 "a2_buffer_fixture": "x" * followup.VECTOR_PADDING_BYTES,
             }
-            self.assertLess(len(canonical(padded_row)), 4095)
+            self.assertLess(len(canonical(padded_row)), 6144)
 
     def test_vector_event_match_accepts_equivalent_json_field_order(self):
         row = probe._record(8)
@@ -107,6 +138,51 @@ class NasA2FollowupBudgetTests(unittest.TestCase):
             f"http://{followup.VECTOR_IP}:{followup.VECTOR_METRICS_PORT}/metrics",
         )
 
+    def test_missing_buffer_size_metric_is_retryable_not_reported_as_zero(self):
+        payload = (
+            b'vector_buffer_max_size_bytes{buffer_id="loki",component_id="loki"} 100\n'
+            b'vector_component_sent_events_total{component_id="a2_file"} 7\n'
+        )
+        with patch.object(
+            followup.urllib.request, "urlopen", return_value=BytesIO(payload)
+        ):
+            with self.assertRaisesRegex(
+                probe.ProbeError, "vector_required_metric_missing"
+            ):
+                followup._vector_metrics_snapshot()
+
+    def test_transient_vector_metrics_failure_is_retryable(self):
+        expected = {"buffer_bytes": 0, "source_sent_events": 0}
+        with patch.object(
+            followup,
+            "_vector_metrics_snapshot",
+            side_effect=[probe.ProbeError("vector_metrics_unavailable"), expected],
+        ):
+            self.assertIsNone(followup._try_vector_metrics_snapshot())
+            self.assertEqual(followup._try_vector_metrics_snapshot(), expected)
+
+    def test_backpressure_requires_full_buffer_and_stalled_incomplete_source(self):
+        self.assertTrue(
+            followup._backpressure_verified(
+                [40, 40, 40], [99, 99, 99], 100, 100
+            )
+        )
+        self.assertFalse(
+            followup._backpressure_verified(
+                [40, 41, 42], [99, 99, 99], 100, 100
+            )
+        )
+        self.assertFalse(
+            followup._backpressure_verified(
+                [40, 40, 40], [99, 98, 97], 100, 100
+            )
+        )
+        self.assertFalse(
+            followup._backpressure_verified(
+                [100, 100, 100], [99, 99, 99], 100, 100
+            )
+        )
+
     def test_vector_metrics_are_not_host_published_and_use_the_fixed_container_ip(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -124,6 +200,58 @@ class NasA2FollowupBudgetTests(unittest.TestCase):
         self.assertIn("--ip", args)
         self.assertEqual(args[args.index("--ip") + 1], followup.VECTOR_IP)
         self.assertNotIn("--publish", args)
+
+    def test_reconciliation_separates_missing_rows_from_duplicate_occurrences(self):
+        expected = Counter(
+            (f"event-{index}", f"digest-{index}") for index in range(1, 201)
+        )
+        actual = expected.copy()
+        for index in range(117, 201):
+            del actual[(f"event-{index}", f"digest-{index}")]
+        for index in range(1, 85):
+            actual[(f"event-{index}", f"digest-{index}")] += 1
+
+        result = followup._reconcile_event_identities(actual, expected)
+
+        self.assertEqual(result["expected_unique_event_count"], 200)
+        self.assertEqual(result["actual_unique_event_identity_hash_count"], 116)
+        self.assertEqual(result["matching_identity_hash_count"], 116)
+        self.assertEqual(result["missing_identity_hash_count"], 84)
+        self.assertEqual(result["missing_event_id_count"], 84)
+        self.assertEqual(result["unexpected_unique_identity_hash_count"], 0)
+        self.assertEqual(result["unexpected_event_id_count"], 0)
+        self.assertEqual(result["duplicate_identity_occurrence_count"], 84)
+        self.assertEqual(result["duplicate_event_id_count"], 84)
+        self.assertEqual(result["payload_mismatch_event_id_count"], 0)
+        self.assertEqual(len(result["missing_event_ids_sample"]), 84)
+        self.assertEqual(len(result["duplicate_event_ids_sample"]), 84)
+        self.assertEqual(result["unexpected_identity_occurrence_count"], 84)
+
+    def test_reconciliation_identifies_unexpected_ids_and_payload_mismatches(self):
+        expected = Counter(
+            {
+                ("event-a", "digest-a"): 1,
+                ("event-b", "digest-b"): 1,
+            }
+        )
+        actual = Counter(
+            {
+                ("event-a", "digest-a"): 2,
+                ("event-b", "digest-wrong"): 1,
+                ("event-new", "digest-new"): 1,
+            }
+        )
+
+        result = followup._reconcile_event_identities(actual, expected)
+
+        self.assertEqual(result["missing_event_id_count"], 0)
+        self.assertEqual(result["missing_identity_hash_count"], 1)
+        self.assertEqual(result["unexpected_unique_identity_hash_count"], 2)
+        self.assertEqual(result["unexpected_event_id_count"], 1)
+        self.assertEqual(result["duplicate_identity_occurrence_count"], 1)
+        self.assertEqual(result["duplicate_event_id_count"], 1)
+        self.assertEqual(result["payload_mismatch_event_id_count"], 1)
+        self.assertEqual(result["unexpected_identity_occurrence_count"], 3)
 
 
 if __name__ == "__main__":
