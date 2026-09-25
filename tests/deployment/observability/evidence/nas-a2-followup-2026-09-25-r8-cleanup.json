@@ -1,0 +1,112 @@
+{
+  "task": "NAS-A2",
+  "run_id": "recovery-vector-20260925-r8",
+  "evidence_type": "post-probe-cleanup-verification",
+  "status": "partial",
+  "resource_preflight": {
+    "allocation_range": "10.205.16.0/20",
+    "selected_subnet": "10.205.17.0/24",
+    "selected_loopback_port": 19527,
+    "subnet_conflicts": [],
+    "nondefault_route_conflicts": [],
+    "port_conflicts": [],
+    "historical_mounted_tmpfs_used_bytes": 229376,
+    "new_run_plan_bytes": 2147483648,
+    "concurrent_resources_bytes": 2147713024,
+    "budget_bytes": 4294967296,
+    "within_budget": true
+  },
+  "source": {
+    "path": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r8/tmpfs/vector-source/events.jsonl",
+    "bytes": 39728900,
+    "line_count": 120000,
+    "sha256": "febd8d793d6bccc2e62243742b04363fda8ab49dabdc8ec8911c34602624cfc8",
+    "source_hash_preserved_before_pressure_at_timeout_after_reconnect_and_after_stop": true,
+    "archive_member_sha256_verified": true
+  },
+  "vector_buffer": {
+    "status": "partial",
+    "reason": "vector_buffer_not_full",
+    "fill_wait_seconds": 600,
+    "peak_buffer_bytes": 131464864,
+    "configured_buffer_bytes": 268435488,
+    "peak_ratio": 0.48974,
+    "source_events_at_timeout": 49093,
+    "source_preserved": true,
+    "source_replay_complete": true,
+    "metrics_after_reconnect": {
+      "source_sent_events": 120000,
+      "sink_sent_events": 117768,
+      "buffer_bytes": 11391936,
+      "discarded_events": 0,
+      "component_errors": 0
+    },
+    "timeout_metric_note": "The report's last_metrics.buffer_bytes is 0 despite its recorded peak of 131464864 bytes. Direct samples during the run observed a queue above 131 MB; the final zero is an inconsistent snapshot and is not treated as evidence that the queue was empty.",
+    "loki_replay_errors_observed": [
+      "Vector retried HTTP 500 responses during replay.",
+      "Loki logged an empty ingester ring."
+    ]
+  },
+  "replay": {
+    "store_only_index_readiness": false,
+    "store_only_readiness_wait_seconds": 120,
+    "store_only_result_lines": 0,
+    "store_only_identity_status": "failed",
+    "ingester_fallback_result_lines": 120000,
+    "ingester_fallback_identity_multiset_match": true,
+    "expected_unique_event_ids": 120000,
+    "actual_unique_event_ids": 120000,
+    "missing_event_ids": 0,
+    "duplicate_event_ids": 0,
+    "unexpected_event_ids": 0,
+    "payload_mismatches": 0,
+    "query_errors": 0
+  },
+  "containers": [
+    {
+      "name": "tianshu-accept-a2-vfull-20260925-r8-vector",
+      "status": "exited",
+      "exit_code": 0,
+      "oom_killed": false
+    },
+    {
+      "name": "tianshu-accept-a2-vfull-20260925-r8-loki",
+      "status": "exited",
+      "exit_code": 0,
+      "oom_killed": false
+    }
+  ],
+  "network": {
+    "name": "tianshu-accept-a2-vfull-20260925-r8",
+    "subnet": "10.205.17.0/24",
+    "internal": true,
+    "attached_container_count_after_stop": 0,
+    "retained": true
+  },
+  "tmpfs": {
+    "limit_bytes": 536870912,
+    "used_bytes_after_stop": 250753024,
+    "archive_verified_before_unmount": true,
+    "unmounted_after_verification": true
+  },
+  "archive": {
+    "path": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r8/evidence/tmpfs-snapshot-after-probe.tar.gz",
+    "bytes": 13400142,
+    "sha256": "b0181f5d500e93f0f2c72ce1a8268b020515273095003b455ebb8d5cb5d48b2b",
+    "member_count": 71,
+    "source_matches_report": true,
+    "gzip_integrity_verified": true
+  },
+  "nas_report": {
+    "path": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r8/evidence/nas-a2-followup-report.json",
+    "local_sha256": "dc33f24161f96c984d2827c499f050f5be9ac822759b9475c8e3d24edc377d61",
+    "nas_verified": true
+  },
+  "gates": {
+    "application_reclamation": "blocked",
+    "physical_enospc": "not_run",
+    "production_30_day_retention": "not_run",
+    "release_ready": false,
+    "application_reclamation_authorized": false
+  }
+}

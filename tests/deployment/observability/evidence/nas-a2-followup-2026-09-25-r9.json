@@ -1,0 +1,2271 @@
+{
+  "application_reclamation_authorized": false,
+  "artifacts": {
+    "ca_pem_sha256": "3aa4526753fedfe2007ea2b87191cd153fb826af8bdae694f5afbd99f126c594",
+    "contract_sha256": {}
+  },
+  "code_sha256": {
+    "deploy/observability/alerts.py": "57bb862905b87a6382caf18164256e5138a5f884fe64812eb231dde1e0b23419",
+    "deploy/observability/configs.py": "94d16a1b11dbd6281f9d0fcd71b7ef723d37fda7772dfea51e9e17a39ef4469f",
+    "deploy/observability/guard.py": "91c6479b23a4c1bdd989c355311b544cf88527f68e1400973039c940fd178bf8",
+    "deploy/observability/monitor.py": "fe4186dca5a8dfc119a74116e8a078e5602bcd79d30038304a0c79932b18b772",
+    "deploy/observability/policy.py": "73863acf4d7f269d57b32f4908c2e7a5e9025bd46b8d76d7bf02bd66120ae9ee",
+    "deploy/observability/query.py": "b24c11613fe55d11ce2f0d36047baca3f099a5f5bc2570c9b154cd69d4a8092c",
+    "deploy/observability/transport.py": "5bec7e88112c6a190e5cf66d5188b5b57b8b9a2faed0b4dee538bbbadc33dd65",
+    "deploy/observability/vocabulary.json": "3f8f31daf506d5a2600813c60870a1d487e5e02b43d9803e1c3fddde3e3ca5fe",
+    "tests/deployment/observability/helpers.py": "22bbb495c343ab95387fae266447da2a0b86059eaee0ac688d3c3f6ae31f5883",
+    "tests/deployment/observability/nas_a2_followup_probe.py": "c3b0e1af5eaa3ddc183172a636534fd76a9c690e36e49693d09b6526e6bcefe0",
+    "tests/deployment/observability/nas_a2_probe.py": "af784869f581b77ab8b9b2db4776ac0ffa26843000c433f3aa954f7d6fb24ed7"
+  },
+  "config_sha256": {
+    "loki_ingester_enabled": "59aeb3753fbc2fc62b10552526be6053a05e09782af9bbeff84953dd43404fa9",
+    "loki_ingester_path": "59aeb3753fbc2fc62b10552526be6053a05e09782af9bbeff84953dd43404fa9",
+    "loki_store_only": "f73179c59fffa0bd2bd9cd7a31d42d2076f990a86c841c662122e101ab251329",
+    "vector": "cdfbbfafb1ab3b945176157e2ad0d36dc551c750c753569b221ed888c82dc226"
+  },
+  "containers": {
+    "loki": {
+      "exit_code": 0,
+      "id": "7e1f9ad2a3886d33fc05dfd30e61c57576b60aa0ddec69609d0080d49aed0d94",
+      "image_id": "sha256:ceccdbc45e274f08eb23d6ca6e0b648921d580c592ab47b4304225c0f17a406a",
+      "name": "tianshu-accept-a2-vfull-20260925-r9-loki",
+      "oom_killed": false,
+      "resource_controls": {
+        "cpu_affinity": "1",
+        "cpu_quota_micros": 0,
+        "memory_limit_bytes": 805306368,
+        "memory_swap_limit_bytes": 805306368,
+        "pids_limit": null
+      },
+      "restart_count": 0,
+      "restart_policy": "no",
+      "reused": false,
+      "running": false,
+      "transitions": [
+        {
+          "exit_code": 0,
+          "id": "7e1f9ad2a3886d33fc05dfd30e61c57576b60aa0ddec69609d0080d49aed0d94",
+          "image_id": "sha256:ceccdbc45e274f08eb23d6ca6e0b648921d580c592ab47b4304225c0f17a406a",
+          "name": "tianshu-accept-a2-vfull-20260925-r9-loki",
+          "oom_killed": false,
+          "resource_controls": {
+            "cpu_affinity": "1",
+            "cpu_quota_micros": 0,
+            "memory_limit_bytes": 805306368,
+            "memory_swap_limit_bytes": 805306368,
+            "pids_limit": null
+          },
+          "restart_count": 0,
+          "restart_policy": "no",
+          "running": false
+        },
+        {
+          "exit_code": 0,
+          "id": "7e1f9ad2a3886d33fc05dfd30e61c57576b60aa0ddec69609d0080d49aed0d94",
+          "image_id": "sha256:ceccdbc45e274f08eb23d6ca6e0b648921d580c592ab47b4304225c0f17a406a",
+          "name": "tianshu-accept-a2-vfull-20260925-r9-loki",
+          "oom_killed": false,
+          "resource_controls": {
+            "cpu_affinity": "1",
+            "cpu_quota_micros": 0,
+            "memory_limit_bytes": 805306368,
+            "memory_swap_limit_bytes": 805306368,
+            "pids_limit": null
+          },
+          "restart_count": 0,
+          "restart_policy": "no",
+          "running": false
+        }
+      ]
+    },
+    "vector": {
+      "exit_code": 0,
+      "id": "543b94f6989d01c4fa5477ab96125975fe79e4765fe8b94d6b39de4fbf85dfa0",
+      "image_id": "sha256:92c275b73d880922a265918a7c3c4f2cc0dd87338447ff357809f2d18a64a48e",
+      "name": "tianshu-accept-a2-vfull-20260925-r9-vector",
+      "oom_killed": false,
+      "resource_controls": {
+        "cpu_affinity": "0",
+        "cpu_quota_micros": 0,
+        "memory_limit_bytes": 536870912,
+        "memory_swap_limit_bytes": 536870912,
+        "pids_limit": null
+      },
+      "restart_count": 0,
+      "restart_policy": "no",
+      "running": false
+    }
+  },
+  "dimensions": {
+    "accelerated_ttl": {
+      "status": "not_run"
+    },
+    "application_capacity_alert": {
+      "status": "not_run"
+    },
+    "application_reclamation_gate": {
+      "reason": "no_frozen_application_log_reclamation_contract",
+      "source_deletion_performed": false,
+      "status": "blocked"
+    },
+    "disk_watermark_rejection": {
+      "status": "not_run"
+    },
+    "physical_enospc": {
+      "status": "not_run"
+    },
+    "production_30_day_retention": {
+      "status": "not_run"
+    },
+    "recovery_query_diagnostics": {
+      "reason": "isolated_vector_full_buffer_probe",
+      "status": "not_run"
+    },
+    "vector_buffer_full": {
+      "backpressure_verified": false,
+      "buffer_max_bytes": 268435488.0,
+      "configured_buffer_bytes": 268435488,
+      "filesystem": "dedicated_tmpfs",
+      "last_metrics": {
+        "buffer_bytes": 0,
+        "buffer_max_bytes": 268435488.0,
+        "component_errors": 0,
+        "discarded_events": 0,
+        "sink_sent_events": 0,
+        "source_sent_events": 26102.0
+      },
+      "loki_flush_status": 204,
+      "loki_started_after_buffer_full": true,
+      "metrics_after_reconnect": {
+        "buffer_bytes": 10753664.0,
+        "buffer_max_bytes": 268435488.0,
+        "component_errors": 2713.0,
+        "discarded_events": 119372.0,
+        "sink_sent_events": 0,
+        "source_sent_events": 120000.0
+      },
+      "padding_bytes_added_by_transform": 5250,
+      "peak_buffer_bytes": 130653496.0,
+      "reason": "vector_buffer_not_full",
+      "replay": {
+        "actual_unique_event_id_count": 0,
+        "actual_unique_event_identity_hash_count": 0,
+        "buffer_replay_identity_status": "failed",
+        "discarded_events_after_reconnect": 119372.0,
+        "duplicate_event_id_count": 0,
+        "duplicate_event_ids_sample": [],
+        "duplicate_identity_occurrence_count": 0,
+        "expected_unique_event_count": 120000,
+        "expected_unique_event_id_count": 120000,
+        "flush_status": 204,
+        "identity_hash_multiset_match": false,
+        "identity_id_samples_truncated": true,
+        "ingester_fallback_reconciliation": {
+          "actual_unique_event_id_count": 0,
+          "actual_unique_event_identity_hash_count": 0,
+          "duplicate_event_id_count": 0,
+          "duplicate_event_ids_sample": [],
+          "duplicate_identity_occurrence_count": 0,
+          "expected_unique_event_count": 120000,
+          "expected_unique_event_id_count": 120000,
+          "identity_hash_multiset_match": false,
+          "identity_id_samples_truncated": true,
+          "matching_identity_hash_count": 0,
+          "missing_event_id_count": 120000,
+          "missing_event_ids_sample": [
+            "00006fe4-f8e6-4df1-879d-d9b253fb9a60",
+            "0000f874-0f60-4a7c-8ea4-3a3f01fce13a",
+            "0001111a-7514-4fec-990f-ea98e19540ab",
+            "0001e507-4b54-4aa3-bfd3-ce5e2df32ce5",
+            "0002144b-f601-474a-b087-9ae82c2f4a4b",
+            "00022084-09df-40da-9660-7ce647793cd7",
+            "0002dcf6-6895-45cb-8692-18c74c09647b",
+            "000365cb-88c1-453e-966b-312e8b8f6a8c",
+            "00037e25-8a24-4f1c-a9e9-db30c97b4d76",
+            "0004d009-e2c7-4d70-8e22-d10775dde62c",
+            "0004eb8e-9354-4a32-805e-24296312c391",
+            "0005581b-91ef-4937-95f8-b3e8347d92ff",
+            "00069ef5-3952-46ce-944b-88d992b301b8",
+            "000712c2-5c10-446e-adf0-e1c7f0b012e1",
+            "00077b8d-d663-414e-ad7c-eb8e3543f8df",
+            "000952c3-976a-405d-b2fb-3e91fecc1d8f",
+            "000a55ca-0bb1-4925-bbc1-f8c7d568b4a6",
+            "000a74f9-3b51-4996-b718-a7f83b85558b",
+            "000adb4a-1f3f-49fc-878a-8ad53c44fe1c",
+            "000bb5a1-9b90-44be-aa27-77c394d434ba",
+            "000c537a-6a7d-4f48-8862-54bb0836a737",
+            "000c5605-9a5d-43a9-acc9-f03bcdc1f1eb",
+            "000cda44-1d77-4c02-83b0-371fc7d20da9",
+            "000dcc55-396f-487b-93df-ac4e49eaa104",
+            "000dd369-de9a-4f34-b0b5-e6665c5b0740",
+            "000df06c-36ab-4f93-8887-808529d9fc56",
+            "000fc1ec-b965-436c-8194-99edf31b84da",
+            "00110602-0e83-4808-bb06-16893e7cbe81",
+            "0011a8c9-609d-418f-82a7-1ff2a80b8748",
+            "0011e12c-608c-4218-be3b-5b07393d61d3",
+            "0011e8b3-7408-439c-952b-af29aad7ef1f",
+            "0012fb9c-760c-4f75-9724-51d613ed406e",
+            "0013682a-7855-46ba-bea0-d26b1c7ef048",
+            "00143b2a-3bcb-45e5-b2d9-23b3e49a790b",
+            "0015ed8a-24d2-4c3b-a3d9-17d3a66a439c",
+            "001678d7-c2e5-46b7-8512-89580aac3c13",
+            "00168340-22f3-433d-b76f-32e560c12f41",
+            "00168c08-41dc-4e8f-ae25-65580efd2cce",
+            "00169175-4654-4e8b-8c46-9850db9ee8bb",
+            "0016f858-2427-450b-a5e9-562191700cc1",
+            "001850e8-cb72-4448-90f2-3548ef5ed12d",
+            "0018bc89-3470-475b-879d-aa65ab2f8ab8",
+            "00194fc2-2f42-4859-9c0a-0d88222d94e8",
+            "00199abc-fa99-4d48-b2bb-ae874b5e2804",
+            "0019c40d-8539-4829-a113-a97d654edaf5",
+            "001a2028-104a-4db1-b8fc-8b491b552381",
+            "001ad87d-645e-455f-9591-cf606e54f817",
+            "001bda22-2b21-4b4b-bad9-28dfdf749747",
+            "001bde02-ef48-4804-889e-1668b0017cce",
+            "001c28e7-3b75-4526-ad79-7365e9781b51",
+            "001c51b7-bc26-452e-8805-b34029a1017e",
+            "001c8979-70be-4162-833d-7ddb6204f441",
+            "001c9096-1fd5-452f-ba21-c4dc65c430bb",
+            "001d015c-6fc2-443d-bbf1-7764d7085aac",
+            "001d9936-c0a9-4a7e-9569-cfdcfe5d0926",
+            "00202646-c4d1-4351-8372-cd961ac42541",
+            "002252f7-e93a-46ff-b8e2-657d873f38fb",
+            "0022e672-eb26-4c6a-89ff-a585b1a13c51",
+            "0023058f-c6a6-4837-81e2-5e26a3e3c940",
+            "00244c63-fc8d-4ad0-8fce-4778fe596ea2",
+            "0025448e-b410-4372-81a1-3c53ae95245d",
+            "002571f3-5052-4b52-8fe4-169b34c1a7a1",
+            "0025fa82-1165-41e7-90cd-de0a3f86b49a",
+            "0025ffa2-77d5-42a8-bd63-70e7caaa5931",
+            "00265bd6-88b8-4af0-bd55-3dcb2409470e",
+            "00267801-3860-43d8-8c6f-283f30325ea4",
+            "0026bf38-e013-41be-a034-6a077045e00b",
+            "0026d9ed-e908-419c-a464-f2b67eb0f38a",
+            "0026fa47-8102-4120-80ad-e76e81d1a31c",
+            "002823f4-ac94-48b3-9b78-68c2355c63ce",
+            "0028b0a9-ca14-4a9b-9f00-b3679cf0fd2e",
+            "00295162-3640-4983-bcb2-d401abb599af",
+            "0029e0fd-9b4c-4458-ba30-f65ea13a31f2",
+            "002a4fec-d859-45cb-995f-d1bb24f4dff4",
+            "002ad709-7ad2-4d36-89e5-f9c495e35770",
+            "002b190b-6055-4d39-9988-8694dce67fc9",
+            "002b1fd0-4e79-4a69-ab74-50b2a6a606da",
+            "002b7784-68f2-4270-ae45-f4b900dbf5f3",
+            "002bcfa4-af73-4818-b0c9-33b41fac7fff",
+            "002c0d2c-f2ef-40d5-940a-d8082005fc6b",
+            "002cc50d-c768-4b07-94f8-04b97ef7bb18",
+            "002cc84c-e1d1-45e9-aed1-177310093ed9",
+            "002cf91a-fa72-421e-b276-60026df1c195",
+            "002d4a66-ac9b-4ef1-ac13-8c1bc83f9065",
+            "002d8159-6d20-4315-8f00-4d30a2369671",
+            "002ed90c-8ee3-488f-b4db-8604bc3dec9f",
+            "002eee13-04e7-4b13-a86c-ed0f9349b5c5",
+            "002f2bb5-2d58-40c1-87ad-ef60419720b1",
+            "002fca0b-aab9-457b-8d30-18ce844049e6",
+            "00304890-adee-49a4-8cae-c655d5b9bf8f",
+            "003064f9-90e8-41ed-8566-68fc23f2b524",
+            "00307b00-d323-432e-982d-c27d6982e553",
+            "0030b712-e77e-4978-8cad-d92c25e9ed31",
+            "003464c5-8b8a-42aa-bf65-6591891dc1cd",
+            "003523c0-e91f-465a-9aaf-bd7771c01884",
+            "0035a476-3296-4570-9d94-218051228a06",
+            "0036d93a-3f7f-4d4f-a8db-43fca65cb4b6",
+            "00373a29-0838-4f62-b78c-8a4cf4f22976",
+            "0037a083-2064-4e3a-a24b-f9add0d198fd",
+            "00385a75-1122-41fe-9f60-c9bc5496b6e9",
+            "003957a7-2cd5-4211-bf04-4e2bad0f76ac",
+            "00396581-ac89-4e86-bcdc-9168c1d8d166",
+            "0039dbbb-0eed-46c3-8732-c618a8b88a5b",
+            "003ac82b-206a-4489-9d96-23a0e976e9c0",
+            "003b27e3-346f-4b14-910f-4edcfdc142ce",
+            "003b7d67-c490-40fb-89da-005d3ce045a0",
+            "003bb188-5b08-4325-9c43-0c4b34618bec",
+            "003dbf94-7104-4f4e-8ab6-43ca243f3139",
+            "003e5fc1-6372-4750-92ac-e4404a52c610",
+            "003efba9-8d5c-4faf-a89d-a1a9afc4f0db",
+            "003f2d01-e786-452a-9608-900d414db256",
+            "003f8dfb-b32b-4e8b-bb6a-56421bcb81ef",
+            "0040229b-4e9e-4b24-94e5-9f351b08ed8d",
+            "00419204-638d-467a-a5ec-77c0e09d250c",
+            "0041de1e-746d-43e7-ae7c-e5cf0096d6fd",
+            "0042af7c-53f0-47cb-b971-f638e1c851f4",
+            "0042c3d6-413e-4a7d-a6c5-2e5ed42c122e",
+            "00430b6a-8de4-4d6d-a060-73b591459281",
+            "0044420c-86cd-43bd-9b22-b2ebfaabfe9c",
+            "0044d54b-a038-414d-85b5-5ad48ac12501",
+            "0044fe83-b7c4-4c6e-9412-4b0b42540259",
+            "00458392-676c-406c-8b12-d4ab60f18c10",
+            "00464569-dd2b-4c19-9a48-45741189c930",
+            "00465494-c0ac-4c5a-ba4c-353f94d4e386",
+            "00472fbf-8437-4e62-8978-96c767e01e3c",
+            "0047c65d-f35e-4d6a-83a4-f84123e30f16",
+            "0047f569-69e3-4c53-b14d-51245bc6e03c",
+            "0049d7be-3f93-414b-8831-ad805726c208",
+            "004a9559-426a-4c78-a89f-c99ec905c99c",
+            "004aa5dd-3a9f-47a1-a9d6-223961181fd9",
+            "004c3d22-373b-4cc5-bfc1-d53d04d47def",
+            "004c6ec6-c175-4b67-bc44-fb12ce7d55c3",
+            "004c7158-a691-4dff-b838-80f5b3db2393",
+            "004c78b3-4550-4398-94ab-f5a5b318d2ad",
+            "004d1174-d93a-4e87-9f19-d4968c50332a",
+            "004e11eb-4a76-4bf8-a42a-aa602a1e91e0",
+            "004f69c6-74f6-4712-88d5-dcdf30ab7aff",
+            "004fe505-7955-4b07-8ea0-76d5e03e2cf3",
+            "005012f4-2b8f-4868-b39b-1a59d474c499",
+            "005073cc-ebfc-4b0f-a598-9fccd6344b3f",
+            "0050fc22-e89e-49d8-bf03-61503cab2f8d",
+            "005185f8-aef8-4265-aa54-0e0ebc9ef393",
+            "00526f36-12bd-45a9-bed8-2433c9a25b5b",
+            "00528527-0c18-4139-8dea-da3cc591040e",
+            "0053280e-64be-49f0-a2fc-2e9ddb1de038",
+            "00537cf7-d3d5-4a12-80c4-015f0de5f3b9",
+            "0053d3ae-08d6-477d-aaa8-3aa5fc2b984f",
+            "005402e5-5fb0-4634-8acf-1bd93909ad81",
+            "0054eab8-05ff-4071-9551-465e6572aa86",
+            "00574a9a-ecb4-4ffb-9f2f-923f09430f18",
+            "0057adc6-577d-4a1c-bd1f-ac71e1d792ef",
+            "0057b688-5e1a-460d-9a3d-ed1a01b2551f",
+            "0057d0e4-7cc1-4595-9f7b-553989feca63",
+            "005859db-5e32-432b-b313-65d00ac20c58",
+            "0058cd8d-8ec0-4bbc-9aff-6e33668a43ba",
+            "00590c85-abd8-4f27-befd-fc035f0c6467",
+            "00597b39-ef5b-471b-9568-5bfab040ff5a",
+            "0059f24d-189b-48ac-bc25-c203d0fe700c",
+            "005a1f77-b9cb-4540-9c9b-ec89637699b8",
+            "005ab005-eade-4f8b-9a17-4a818714476e",
+            "005adf2a-aabc-4c76-a522-9209924d5b38",
+            "005b6be5-9373-4a7a-8e77-9b6c0a96cb4c",
+            "005c0c72-00d0-493e-8129-934afef410fb",
+            "005d99c7-d933-4d90-a0ff-0f6ae9f356d3",
+            "005de25d-a18f-4f3d-9202-0a514f94c76b",
+            "005eea34-e0a4-4662-afae-956b5a5a48bc",
+            "005f455a-cd71-49cb-a1b4-db05c012da59",
+            "005f671e-8406-4934-a7ed-a948fed32d23",
+            "005f7e18-c024-400a-9131-75c628760a32",
+            "005fdd45-c679-44f2-996f-9518dc13f529",
+            "006121d1-40a6-4069-8379-de8d35bbcea8",
+            "0061745d-eae7-46f8-940a-7aa6e4aef7b7",
+            "00626fa8-ff37-4bb9-b70e-57705fa71e7d",
+            "0062d899-0fc9-41ff-a119-4e47f0664609",
+            "0062e5b1-45bd-45fc-91f1-ba8f0e91e00e",
+            "0062f241-663e-498b-b1c1-f6b454a8e7dc",
+            "00634597-d244-4591-8553-17699395827a",
+            "00639f02-0b2d-4070-b73a-283262f3751d",
+            "0063b14b-aee5-4597-9e4f-9a2ad5ac097f",
+            "00649624-7f8d-4769-8b34-4ce233a2e111",
+            "00649f65-a03a-4bc2-ae55-26ae795b6494",
+            "006599f5-01d9-44d3-b7dd-185e2fbbd5c1",
+            "006709cd-9b01-42b8-9f3c-e3bc16300191",
+            "00671345-3436-422c-9333-08b9d3e4f63e",
+            "00672837-655b-4051-a228-01c4cf899342",
+            "0067f311-238c-4ae0-9305-596d57448502",
+            "006881af-f277-43bd-8055-ed3583ababfb",
+            "00695b82-5a75-4df0-bdc9-356e7446d7fe",
+            "00698b78-bbf8-4b78-ba02-bf98fcae9bf8",
+            "0069ba74-8f14-488f-95c0-b9f5cfef9728",
+            "006adb26-28ab-4e23-8181-f197e4d3e0e6",
+            "006c7c9a-1ec5-4686-971c-606e72aa0307",
+            "006d42a8-2c9f-4066-858c-841a76fe8b64",
+            "006f343c-2caa-4a5b-89a1-3655d7f46ccd",
+            "006f9f5e-351b-4d95-8d67-b932d4eba236",
+            "007002ac-7b45-458f-910b-5ba1f06a9e62",
+            "00711d2f-6280-4e10-b675-ed567c90d21d",
+            "0071d7ee-b89d-47bd-97e5-6d9e92fbd562",
+            "0071dcab-6b8e-4e96-80b4-c98a1c1c10d2",
+            "00727555-6f38-4679-9da2-8c12e4dd2807"
+          ],
+          "missing_identity_hash_count": 120000,
+          "payload_mismatch_event_id_count": 0,
+          "payload_mismatch_event_ids_sample": [],
+          "query_errors": [],
+          "request_count": 303,
+          "result_lines": 0,
+          "same_event_id_with_different_payload_count": 0,
+          "unexpected_event_id_count": 0,
+          "unexpected_event_ids_sample": [],
+          "unexpected_identity_occurrence_count": 0,
+          "unexpected_unique_identity_hash_count": 0
+        },
+        "matching_identity_hash_count": 0,
+        "missing_event_id_count": 120000,
+        "missing_event_ids_sample": [
+          "00006fe4-f8e6-4df1-879d-d9b253fb9a60",
+          "0000f874-0f60-4a7c-8ea4-3a3f01fce13a",
+          "0001111a-7514-4fec-990f-ea98e19540ab",
+          "0001e507-4b54-4aa3-bfd3-ce5e2df32ce5",
+          "0002144b-f601-474a-b087-9ae82c2f4a4b",
+          "00022084-09df-40da-9660-7ce647793cd7",
+          "0002dcf6-6895-45cb-8692-18c74c09647b",
+          "000365cb-88c1-453e-966b-312e8b8f6a8c",
+          "00037e25-8a24-4f1c-a9e9-db30c97b4d76",
+          "0004d009-e2c7-4d70-8e22-d10775dde62c",
+          "0004eb8e-9354-4a32-805e-24296312c391",
+          "0005581b-91ef-4937-95f8-b3e8347d92ff",
+          "00069ef5-3952-46ce-944b-88d992b301b8",
+          "000712c2-5c10-446e-adf0-e1c7f0b012e1",
+          "00077b8d-d663-414e-ad7c-eb8e3543f8df",
+          "000952c3-976a-405d-b2fb-3e91fecc1d8f",
+          "000a55ca-0bb1-4925-bbc1-f8c7d568b4a6",
+          "000a74f9-3b51-4996-b718-a7f83b85558b",
+          "000adb4a-1f3f-49fc-878a-8ad53c44fe1c",
+          "000bb5a1-9b90-44be-aa27-77c394d434ba",
+          "000c537a-6a7d-4f48-8862-54bb0836a737",
+          "000c5605-9a5d-43a9-acc9-f03bcdc1f1eb",
+          "000cda44-1d77-4c02-83b0-371fc7d20da9",
+          "000dcc55-396f-487b-93df-ac4e49eaa104",
+          "000dd369-de9a-4f34-b0b5-e6665c5b0740",
+          "000df06c-36ab-4f93-8887-808529d9fc56",
+          "000fc1ec-b965-436c-8194-99edf31b84da",
+          "00110602-0e83-4808-bb06-16893e7cbe81",
+          "0011a8c9-609d-418f-82a7-1ff2a80b8748",
+          "0011e12c-608c-4218-be3b-5b07393d61d3",
+          "0011e8b3-7408-439c-952b-af29aad7ef1f",
+          "0012fb9c-760c-4f75-9724-51d613ed406e",
+          "0013682a-7855-46ba-bea0-d26b1c7ef048",
+          "00143b2a-3bcb-45e5-b2d9-23b3e49a790b",
+          "0015ed8a-24d2-4c3b-a3d9-17d3a66a439c",
+          "001678d7-c2e5-46b7-8512-89580aac3c13",
+          "00168340-22f3-433d-b76f-32e560c12f41",
+          "00168c08-41dc-4e8f-ae25-65580efd2cce",
+          "00169175-4654-4e8b-8c46-9850db9ee8bb",
+          "0016f858-2427-450b-a5e9-562191700cc1",
+          "001850e8-cb72-4448-90f2-3548ef5ed12d",
+          "0018bc89-3470-475b-879d-aa65ab2f8ab8",
+          "00194fc2-2f42-4859-9c0a-0d88222d94e8",
+          "00199abc-fa99-4d48-b2bb-ae874b5e2804",
+          "0019c40d-8539-4829-a113-a97d654edaf5",
+          "001a2028-104a-4db1-b8fc-8b491b552381",
+          "001ad87d-645e-455f-9591-cf606e54f817",
+          "001bda22-2b21-4b4b-bad9-28dfdf749747",
+          "001bde02-ef48-4804-889e-1668b0017cce",
+          "001c28e7-3b75-4526-ad79-7365e9781b51",
+          "001c51b7-bc26-452e-8805-b34029a1017e",
+          "001c8979-70be-4162-833d-7ddb6204f441",
+          "001c9096-1fd5-452f-ba21-c4dc65c430bb",
+          "001d015c-6fc2-443d-bbf1-7764d7085aac",
+          "001d9936-c0a9-4a7e-9569-cfdcfe5d0926",
+          "00202646-c4d1-4351-8372-cd961ac42541",
+          "002252f7-e93a-46ff-b8e2-657d873f38fb",
+          "0022e672-eb26-4c6a-89ff-a585b1a13c51",
+          "0023058f-c6a6-4837-81e2-5e26a3e3c940",
+          "00244c63-fc8d-4ad0-8fce-4778fe596ea2",
+          "0025448e-b410-4372-81a1-3c53ae95245d",
+          "002571f3-5052-4b52-8fe4-169b34c1a7a1",
+          "0025fa82-1165-41e7-90cd-de0a3f86b49a",
+          "0025ffa2-77d5-42a8-bd63-70e7caaa5931",
+          "00265bd6-88b8-4af0-bd55-3dcb2409470e",
+          "00267801-3860-43d8-8c6f-283f30325ea4",
+          "0026bf38-e013-41be-a034-6a077045e00b",
+          "0026d9ed-e908-419c-a464-f2b67eb0f38a",
+          "0026fa47-8102-4120-80ad-e76e81d1a31c",
+          "002823f4-ac94-48b3-9b78-68c2355c63ce",
+          "0028b0a9-ca14-4a9b-9f00-b3679cf0fd2e",
+          "00295162-3640-4983-bcb2-d401abb599af",
+          "0029e0fd-9b4c-4458-ba30-f65ea13a31f2",
+          "002a4fec-d859-45cb-995f-d1bb24f4dff4",
+          "002ad709-7ad2-4d36-89e5-f9c495e35770",
+          "002b190b-6055-4d39-9988-8694dce67fc9",
+          "002b1fd0-4e79-4a69-ab74-50b2a6a606da",
+          "002b7784-68f2-4270-ae45-f4b900dbf5f3",
+          "002bcfa4-af73-4818-b0c9-33b41fac7fff",
+          "002c0d2c-f2ef-40d5-940a-d8082005fc6b",
+          "002cc50d-c768-4b07-94f8-04b97ef7bb18",
+          "002cc84c-e1d1-45e9-aed1-177310093ed9",
+          "002cf91a-fa72-421e-b276-60026df1c195",
+          "002d4a66-ac9b-4ef1-ac13-8c1bc83f9065",
+          "002d8159-6d20-4315-8f00-4d30a2369671",
+          "002ed90c-8ee3-488f-b4db-8604bc3dec9f",
+          "002eee13-04e7-4b13-a86c-ed0f9349b5c5",
+          "002f2bb5-2d58-40c1-87ad-ef60419720b1",
+          "002fca0b-aab9-457b-8d30-18ce844049e6",
+          "00304890-adee-49a4-8cae-c655d5b9bf8f",
+          "003064f9-90e8-41ed-8566-68fc23f2b524",
+          "00307b00-d323-432e-982d-c27d6982e553",
+          "0030b712-e77e-4978-8cad-d92c25e9ed31",
+          "003464c5-8b8a-42aa-bf65-6591891dc1cd",
+          "003523c0-e91f-465a-9aaf-bd7771c01884",
+          "0035a476-3296-4570-9d94-218051228a06",
+          "0036d93a-3f7f-4d4f-a8db-43fca65cb4b6",
+          "00373a29-0838-4f62-b78c-8a4cf4f22976",
+          "0037a083-2064-4e3a-a24b-f9add0d198fd",
+          "00385a75-1122-41fe-9f60-c9bc5496b6e9",
+          "003957a7-2cd5-4211-bf04-4e2bad0f76ac",
+          "00396581-ac89-4e86-bcdc-9168c1d8d166",
+          "0039dbbb-0eed-46c3-8732-c618a8b88a5b",
+          "003ac82b-206a-4489-9d96-23a0e976e9c0",
+          "003b27e3-346f-4b14-910f-4edcfdc142ce",
+          "003b7d67-c490-40fb-89da-005d3ce045a0",
+          "003bb188-5b08-4325-9c43-0c4b34618bec",
+          "003dbf94-7104-4f4e-8ab6-43ca243f3139",
+          "003e5fc1-6372-4750-92ac-e4404a52c610",
+          "003efba9-8d5c-4faf-a89d-a1a9afc4f0db",
+          "003f2d01-e786-452a-9608-900d414db256",
+          "003f8dfb-b32b-4e8b-bb6a-56421bcb81ef",
+          "0040229b-4e9e-4b24-94e5-9f351b08ed8d",
+          "00419204-638d-467a-a5ec-77c0e09d250c",
+          "0041de1e-746d-43e7-ae7c-e5cf0096d6fd",
+          "0042af7c-53f0-47cb-b971-f638e1c851f4",
+          "0042c3d6-413e-4a7d-a6c5-2e5ed42c122e",
+          "00430b6a-8de4-4d6d-a060-73b591459281",
+          "0044420c-86cd-43bd-9b22-b2ebfaabfe9c",
+          "0044d54b-a038-414d-85b5-5ad48ac12501",
+          "0044fe83-b7c4-4c6e-9412-4b0b42540259",
+          "00458392-676c-406c-8b12-d4ab60f18c10",
+          "00464569-dd2b-4c19-9a48-45741189c930",
+          "00465494-c0ac-4c5a-ba4c-353f94d4e386",
+          "00472fbf-8437-4e62-8978-96c767e01e3c",
+          "0047c65d-f35e-4d6a-83a4-f84123e30f16",
+          "0047f569-69e3-4c53-b14d-51245bc6e03c",
+          "0049d7be-3f93-414b-8831-ad805726c208",
+          "004a9559-426a-4c78-a89f-c99ec905c99c",
+          "004aa5dd-3a9f-47a1-a9d6-223961181fd9",
+          "004c3d22-373b-4cc5-bfc1-d53d04d47def",
+          "004c6ec6-c175-4b67-bc44-fb12ce7d55c3",
+          "004c7158-a691-4dff-b838-80f5b3db2393",
+          "004c78b3-4550-4398-94ab-f5a5b318d2ad",
+          "004d1174-d93a-4e87-9f19-d4968c50332a",
+          "004e11eb-4a76-4bf8-a42a-aa602a1e91e0",
+          "004f69c6-74f6-4712-88d5-dcdf30ab7aff",
+          "004fe505-7955-4b07-8ea0-76d5e03e2cf3",
+          "005012f4-2b8f-4868-b39b-1a59d474c499",
+          "005073cc-ebfc-4b0f-a598-9fccd6344b3f",
+          "0050fc22-e89e-49d8-bf03-61503cab2f8d",
+          "005185f8-aef8-4265-aa54-0e0ebc9ef393",
+          "00526f36-12bd-45a9-bed8-2433c9a25b5b",
+          "00528527-0c18-4139-8dea-da3cc591040e",
+          "0053280e-64be-49f0-a2fc-2e9ddb1de038",
+          "00537cf7-d3d5-4a12-80c4-015f0de5f3b9",
+          "0053d3ae-08d6-477d-aaa8-3aa5fc2b984f",
+          "005402e5-5fb0-4634-8acf-1bd93909ad81",
+          "0054eab8-05ff-4071-9551-465e6572aa86",
+          "00574a9a-ecb4-4ffb-9f2f-923f09430f18",
+          "0057adc6-577d-4a1c-bd1f-ac71e1d792ef",
+          "0057b688-5e1a-460d-9a3d-ed1a01b2551f",
+          "0057d0e4-7cc1-4595-9f7b-553989feca63",
+          "005859db-5e32-432b-b313-65d00ac20c58",
+          "0058cd8d-8ec0-4bbc-9aff-6e33668a43ba",
+          "00590c85-abd8-4f27-befd-fc035f0c6467",
+          "00597b39-ef5b-471b-9568-5bfab040ff5a",
+          "0059f24d-189b-48ac-bc25-c203d0fe700c",
+          "005a1f77-b9cb-4540-9c9b-ec89637699b8",
+          "005ab005-eade-4f8b-9a17-4a818714476e",
+          "005adf2a-aabc-4c76-a522-9209924d5b38",
+          "005b6be5-9373-4a7a-8e77-9b6c0a96cb4c",
+          "005c0c72-00d0-493e-8129-934afef410fb",
+          "005d99c7-d933-4d90-a0ff-0f6ae9f356d3",
+          "005de25d-a18f-4f3d-9202-0a514f94c76b",
+          "005eea34-e0a4-4662-afae-956b5a5a48bc",
+          "005f455a-cd71-49cb-a1b4-db05c012da59",
+          "005f671e-8406-4934-a7ed-a948fed32d23",
+          "005f7e18-c024-400a-9131-75c628760a32",
+          "005fdd45-c679-44f2-996f-9518dc13f529",
+          "006121d1-40a6-4069-8379-de8d35bbcea8",
+          "0061745d-eae7-46f8-940a-7aa6e4aef7b7",
+          "00626fa8-ff37-4bb9-b70e-57705fa71e7d",
+          "0062d899-0fc9-41ff-a119-4e47f0664609",
+          "0062e5b1-45bd-45fc-91f1-ba8f0e91e00e",
+          "0062f241-663e-498b-b1c1-f6b454a8e7dc",
+          "00634597-d244-4591-8553-17699395827a",
+          "00639f02-0b2d-4070-b73a-283262f3751d",
+          "0063b14b-aee5-4597-9e4f-9a2ad5ac097f",
+          "00649624-7f8d-4769-8b34-4ce233a2e111",
+          "00649f65-a03a-4bc2-ae55-26ae795b6494",
+          "006599f5-01d9-44d3-b7dd-185e2fbbd5c1",
+          "006709cd-9b01-42b8-9f3c-e3bc16300191",
+          "00671345-3436-422c-9333-08b9d3e4f63e",
+          "00672837-655b-4051-a228-01c4cf899342",
+          "0067f311-238c-4ae0-9305-596d57448502",
+          "006881af-f277-43bd-8055-ed3583ababfb",
+          "00695b82-5a75-4df0-bdc9-356e7446d7fe",
+          "00698b78-bbf8-4b78-ba02-bf98fcae9bf8",
+          "0069ba74-8f14-488f-95c0-b9f5cfef9728",
+          "006adb26-28ab-4e23-8181-f197e4d3e0e6",
+          "006c7c9a-1ec5-4686-971c-606e72aa0307",
+          "006d42a8-2c9f-4066-858c-841a76fe8b64",
+          "006f343c-2caa-4a5b-89a1-3655d7f46ccd",
+          "006f9f5e-351b-4d95-8d67-b932d4eba236",
+          "007002ac-7b45-458f-910b-5ba1f06a9e62",
+          "00711d2f-6280-4e10-b675-ed567c90d21d",
+          "0071d7ee-b89d-47bd-97e5-6d9e92fbd562",
+          "0071dcab-6b8e-4e96-80b4-c98a1c1c10d2",
+          "00727555-6f38-4679-9da2-8c12e4dd2807"
+        ],
+        "missing_identity_hash_count": 120000,
+        "payload_mismatch_event_id_count": 0,
+        "payload_mismatch_event_ids_sample": [],
+        "query_bounds_ns": {
+          "end": 1790308965161367787,
+          "start": 1790308663163867787
+        },
+        "query_errors": [],
+        "query_store_only": true,
+        "request_count": 303,
+        "result_lines": 0,
+        "same_event_id_with_different_payload_count": 0,
+        "service_label": "nas-a2-vector-r8-92ff625681b9",
+        "status": "partial",
+        "store_index_readiness": {
+          "final": {
+            "store_only_direct_loki": {
+              "contains_selector_series": false,
+              "contains_unique_service": false,
+              "http_status": 200,
+              "series_count": 0,
+              "success": true
+            }
+          },
+          "observations": [
+            {
+              "elapsed_seconds": 0.02,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 1.04,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 2.06,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 3.07,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 4.09,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 5.1,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 6.12,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 7.13,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 8.15,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 9.16,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 10.18,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 11.2,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 12.21,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 13.23,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 14.25,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 15.26,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 16.27,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 17.29,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 18.31,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 19.32,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 20.34,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 21.36,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 22.37,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 23.4,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 24.41,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 25.42,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 26.44,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 27.45,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 28.47,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 29.48,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 30.5,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 31.51,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 32.52,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 33.54,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 34.56,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 35.57,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 36.59,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 37.6,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 38.62,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 39.63,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 40.65,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 41.66,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 42.67,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 43.69,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 44.7,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 45.73,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 46.74,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 47.76,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 48.77,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 49.79,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 50.8,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 51.82,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 52.83,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 53.85,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 54.86,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 55.88,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 56.89,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 57.91,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 58.93,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 59.95,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 60.96,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 61.98,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 62.99,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 64.01,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 65.02,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 66.04,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 67.05,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 68.06,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 69.08,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 70.09,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 71.11,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 72.12,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 73.14,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 74.16,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 75.18,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 76.19,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 77.21,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 78.22,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 79.24,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 80.25,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 81.26,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 82.28,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 83.29,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 84.31,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 85.32,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 86.34,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 87.35,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 88.41,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 89.43,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 90.44,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 91.46,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 92.47,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 93.49,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 94.5,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 95.52,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 96.53,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 97.55,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 98.56,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 99.58,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 100.59,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 101.61,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 102.63,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 103.64,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 104.65,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 105.67,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 106.68,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 107.7,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 108.71,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 109.73,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 110.74,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 111.76,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 112.77,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 113.79,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 114.8,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 115.81,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 116.84,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 117.85,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 118.87,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 119.88,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            },
+            {
+              "elapsed_seconds": 120,
+              "routes": {
+                "store_only_direct_loki": {
+                  "contains_selector_series": false,
+                  "contains_unique_service": false,
+                  "http_status": 200,
+                  "series_count": 0,
+                  "success": true
+                }
+              }
+            }
+          ],
+          "ready": false
+        },
+        "store_only_identity_status": "failed",
+        "unexpected_event_id_count": 0,
+        "unexpected_event_ids_sample": [],
+        "unexpected_identity_occurrence_count": 0,
+        "unexpected_unique_identity_hash_count": 0
+      },
+      "sink_reconnected": true,
+      "sink_stopped_before_vector_start": true,
+      "source_bytes": 39728900,
+      "source_file_bytes_at_full": 39728900,
+      "source_preserved_after_reconnect": true,
+      "source_preserved_at_full": true,
+      "source_progress_samples": [],
+      "source_replay_complete": true,
+      "source_sha256_after_reconnect": "570cf9931b1352189ad6c8e4fdb3495d3d4e51629e8a9c6ad5530f452878c531",
+      "source_sha256_after_vector_stop": "570cf9931b1352189ad6c8e4fdb3495d3d4e51629e8a9c6ad5530f452878c531",
+      "source_sha256_at_full": "570cf9931b1352189ad6c8e4fdb3495d3d4e51629e8a9c6ad5530f452878c531",
+      "source_sha256_before_pressure": "570cf9931b1352189ad6c8e4fdb3495d3d4e51629e8a9c6ad5530f452878c531",
+      "status": "failed",
+      "synthetic_record_count": 120000,
+      "tmpfs_limit_bytes": 1073741824,
+      "vector_minimum_buffer_bytes": 268435488
+    }
+  },
+  "nas_verified": true,
+  "network": {
+    "attached_container_count_after_stop": 0,
+    "id": "9ac2306ffb0f44afefbadc1ee9056a9f214e1129620c4e0391173c7f4e39c13c",
+    "internal": true,
+    "name": "tianshu-accept-a2-vfull-20260925-r9",
+    "reused": false,
+    "subnet": "10.205.18.0/24"
+  },
+  "preflight": {
+    "allocation_range": "10.205.16.0/20",
+    "candidate_ports_checked": [
+      19520,
+      19521,
+      19522,
+      19523,
+      19524,
+      19525,
+      19526,
+      19527,
+      19528,
+      19529
+    ],
+    "candidate_subnets_checked": [
+      "10.205.18.0/24"
+    ],
+    "concurrent_a2_resource_budget": {
+      "currently_running_a2_container_count": 0,
+      "currently_running_a2_resident_bytes": 0,
+      "historical_mounted_tmpfs": {
+        "recovery-vector-20260925-r2": {
+          "filesystem": "tmpfs",
+          "mounted": true,
+          "mountpoint": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r2/tmpfs",
+          "total_bytes": 536870912,
+          "used_bytes": 229376
+        },
+        "recovery-vector-20260925-r3": {
+          "filesystem": "tmpfs",
+          "mounted": true,
+          "mountpoint": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r3/tmpfs",
+          "total_bytes": 536870912,
+          "used_bytes": 0
+        },
+        "recovery-vector-20260925-r4": {
+          "filesystem": null,
+          "mounted": false,
+          "mountpoint": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r4/tmpfs",
+          "total_bytes": 0,
+          "used_bytes": 0
+        },
+        "recovery-vector-20260925-r5": {
+          "filesystem": null,
+          "mounted": false,
+          "mountpoint": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r5/tmpfs",
+          "total_bytes": 0,
+          "used_bytes": 0
+        },
+        "recovery-vector-20260925-r6": {
+          "filesystem": null,
+          "mounted": false,
+          "mountpoint": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r6/tmpfs",
+          "total_bytes": 0,
+          "used_bytes": 0
+        },
+        "recovery-vector-20260925-r7": {
+          "filesystem": null,
+          "mounted": false,
+          "mountpoint": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r7/tmpfs",
+          "total_bytes": 0,
+          "used_bytes": 0
+        },
+        "recovery-vector-20260925-r8": {
+          "filesystem": null,
+          "mounted": false,
+          "mountpoint": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r8/tmpfs",
+          "total_bytes": 0,
+          "used_bytes": 0
+        }
+      },
+      "historical_mounted_tmpfs_used_bytes": 229376,
+      "new_run_plan_bytes": 2684354560,
+      "r2_containers_stopped": true,
+      "r2_network_empty_after_stop": true,
+      "r3_failed_loki_container_unstarted": true,
+      "r3_network_empty": true,
+      "r4_containers_stopped": true,
+      "r4_network_owned_stopped": true,
+      "r4_snapshot_archive_bytes": 10426623,
+      "r4_snapshot_archive_sha256": "03ce158cb5e3139ce46610418c6c846ece2c4751d02d67a3e33c5c1b441604dc",
+      "r5_containers_stopped": true,
+      "r5_network_empty_after_stop": true,
+      "r5_snapshot_archive_bytes": 14802592,
+      "r5_snapshot_archive_sha256": "63eab69566cb7f291d32da5b7fdce2778c452c0a84a9226695ee2437f14c7042",
+      "r6_containers_stopped": true,
+      "r6_network_empty_after_stop": true,
+      "r6_snapshot_archive_bytes": 13507891,
+      "r6_snapshot_archive_sha256": "f01556c65d445e82dc6de938c18d11bb1a0366fa244187f17de49db11f0174fd",
+      "r7_containers_stopped": true,
+      "r7_network_empty_after_stop": true,
+      "r7_snapshot_archive_bytes": 13263282,
+      "r7_snapshot_archive_sha256": "8ecf8838fea69cb0a3030c72ade3c70b127c59d21f276eb60c2c2aa3c718bcdf",
+      "r8_containers_stopped": true,
+      "r8_network_empty_after_stop": true,
+      "r8_snapshot_archive_bytes": 13400142,
+      "r8_snapshot_archive_sha256": "b0181f5d500e93f0f2c72ce1a8268b020515273095003b455ebb8d5cb5d48b2b",
+      "task_budget_bytes": 4294967296,
+      "total_concurrent_resources_bytes": 2684583936,
+      "within_budget": true
+    },
+    "cpu_affinity": {
+      "loki": "1",
+      "vector": "0"
+    },
+    "docker_containers_inspected": 261,
+    "docker_cpu_cfs_quota_supported": false,
+    "docker_cpuset_supported": true,
+    "docker_mount_overlap": false,
+    "docker_networks_inspected": 141,
+    "docker_pids_limit_supported": false,
+    "existing_owned_containers": {},
+    "host_resource_snapshot": {
+      "a2_current_mem_bytes": 0,
+      "a2_running_container_count": 0,
+      "host_bytes": {
+        "MemAvailable": 19140415488,
+        "MemTotal": 50106032128,
+        "SwapFree": 18624311296,
+        "SwapTotal": 32211185664
+      },
+      "largest_other_container_current_mem_bytes": 2911987826,
+      "loadavg": "3.24 3.09 3.19 6/7360 26042",
+      "other_current_mem_bytes": 18832404773,
+      "other_running_container_count": 82,
+      "running_container_count": 82,
+      "task_volume_bytes": {
+        "free": 473471574016,
+        "total": 972004786176,
+        "used": 446841757696
+      }
+    },
+    "images": {
+      "loki": {
+        "configured_user": "10001",
+        "id": "sha256:ceccdbc45e274f08eb23d6ca6e0b648921d580c592ab47b4304225c0f17a406a",
+        "reference": "grafana/loki:3.7.8",
+        "repo_digests": [
+          "grafana/loki@sha256:1107dd5274e0ada47e42472b7a7e71f3b2a2fe878878108f3e2f9e51528f0193"
+        ]
+      },
+      "vector": {
+        "configured_user": "",
+        "id": "sha256:92c275b73d880922a265918a7c3c4f2cc0dd87338447ff357809f2d18a64a48e",
+        "reference": "timberio/vector:0.58.0-debian",
+        "repo_digests": [
+          "timberio/vector@sha256:1c1ea358c617ea0b23003d5af87f7a678b30f8f7096437e680380c47fc13d2d9"
+        ]
+      }
+    },
+    "memory_available_bytes": 19146256384,
+    "memory_limit_plan_bytes": 2684354560,
+    "scope": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r9",
+    "selected_loopback_ports": [
+      19529
+    ],
+    "selected_network_id": null,
+    "selected_network_reused": false,
+    "selected_ports_available": true,
+    "selected_subnet": "10.205.18.0/24",
+    "subnet_conflicts": [],
+    "task_memory_budget_bytes": 4294967296,
+    "tmpfs_mount": {
+      "filesystem": "tmpfs",
+      "path": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r9/tmpfs",
+      "total_bytes": 1073741824
+    }
+  },
+  "project": "tianshu-accept-a2-vfull-20260925-r9",
+  "release_ready": false,
+  "run_id": "recovery-vector-20260925-r9",
+  "schema_version": "tianshu-nas-a2/1",
+  "scope": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r9",
+  "source_logs_deleted": false,
+  "status": "partial",
+  "task": "NAS-A2",
+  "tmpfs_used_bytes_after_stop": 67543040
+}

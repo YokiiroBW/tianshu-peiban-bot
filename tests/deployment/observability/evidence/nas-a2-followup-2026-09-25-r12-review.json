@@ -1,0 +1,26 @@
+{
+  "source_report_sha256": "3eb58cf653f73583b59e211bd5eacc2a122908461353bb3f41533db6b147f09c",
+  "review_basis": "NAS-A5 fixed review c0f07c1, docs/handoffs/NAS-A5.md and NAS-A5.json",
+  "original_r12_report_modified": false,
+  "functional_backpressure_and_lossless_replay": {
+    "status": "passed",
+    "basis": "52 UTC and monotonic samples show source 49102/60000 stalled below EOF with Loki offline, stable source hash and zero discards; restoration drained source and sink to 60000 with buffer zero and an exact 60000-row mixed query."
+  },
+  "exact_full_buffer_capacity": {
+    "status": "not_measured",
+    "internal_limit_bytes": 134217760,
+    "peak_metric_bytes": 131490992,
+    "headroom_bytes": 2726768,
+    "next_serialized_record_length_bytes": null,
+    "basis": "The next serialized disk-buffer record size was not captured. The sink HTTP batch limit is not the disk record size."
+  },
+  "r12_store_only_persistence": {
+    "status": "not_tested_on_store_route",
+    "loki_derived_exclusion_seconds": 1635,
+    "oldest_event_age_seconds_first_last_query": [833.981, 1103.993],
+    "complete_zero_result_queries": 19,
+    "reason": "All R12 event timestamps were newer than the all/filesystem store cutoff; query_store_only=true suppressed ingester queries and the computed store interval was empty."
+  },
+  "release_ready": false,
+  "application_reclamation_authorized": false
+}

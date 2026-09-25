@@ -1,0 +1,99 @@
+{
+  "task": "NAS-A2",
+  "run_id": "recovery-vector-20260925-r7",
+  "evidence_type": "post-probe-cleanup-verification",
+  "status": "partial",
+  "resource_preflight": {
+    "allocation_range": "10.205.16.0/20",
+    "selected_subnet": "10.205.16.0/24",
+    "selected_loopback_port": 19526,
+    "subnet_conflicts": [],
+    "historical_mounted_tmpfs_used_bytes": 229376,
+    "new_run_plan_bytes": 2147483648,
+    "concurrent_resources_bytes": 2147713024,
+    "budget_bytes": 4294967296,
+    "within_budget": true
+  },
+  "source": {
+    "path": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r7/tmpfs/vector-source/events.jsonl",
+    "bytes": 39728900,
+    "line_count": 120000,
+    "sha256": "574e0a62a272aef458cfa472c0b8366303425ad45d1812013eee238037d214a5",
+    "archive_member_sha256_verified": true
+  },
+  "vector_buffer": {
+    "status": "partial",
+    "reason": "vector_buffer_not_full",
+    "fill_wait_seconds": 240,
+    "peak_buffer_bytes": 131316136,
+    "configured_buffer_bytes": 268435488,
+    "peak_ratio": 0.48914,
+    "source_events_at_timeout": 49042,
+    "source_hash_preserved": true,
+    "source_replay_complete": true,
+    "metrics_after_reconnect": {
+      "source_sent_events": 120000,
+      "sink_sent_events": 117432,
+      "buffer_bytes": 11540648,
+      "discarded_events": 0,
+      "component_errors": 0
+    }
+  },
+  "replay": {
+    "store_only_index_readiness": false,
+    "store_only_result_lines": 0,
+    "ingester_fallback_result_lines": 120000,
+    "ingester_fallback_identity_multiset_match": true,
+    "missing_event_ids": 0,
+    "duplicate_event_ids": 0,
+    "unexpected_event_ids": 0,
+    "payload_mismatches": 0
+  },
+  "containers": [
+    {
+      "name": "tianshu-accept-a2-vfull-20260925-r7-vector",
+      "status": "exited",
+      "exit_code": 0,
+      "oom_killed": false
+    },
+    {
+      "name": "tianshu-accept-a2-vfull-20260925-r7-loki",
+      "status": "exited",
+      "exit_code": 0,
+      "oom_killed": false
+    }
+  ],
+  "network": {
+    "name": "tianshu-accept-a2-vfull-20260925-r7",
+    "subnet": "10.205.16.0/24",
+    "internal": true,
+    "attached_container_count_after_stop": 0,
+    "retained": true
+  },
+  "tmpfs": {
+    "limit_bytes": 536870912,
+    "used_bytes_after_stop": 247934976,
+    "archive_verified_before_unmount": true,
+    "unmounted_after_verification": true
+  },
+  "archive": {
+    "path": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r7/evidence/tmpfs-snapshot-after-probe.tar.gz",
+    "bytes": 13263282,
+    "sha256": "8ecf8838fea69cb0a3030c72ade3c70b127c59d21f276eb60c2c2aa3c718bcdf",
+    "member_count": 71,
+    "source_matches_report": true,
+    "gzip_integrity_verified": true
+  },
+  "nas_report": {
+    "path": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r7/evidence/nas-a2-followup-report.json",
+    "local_sha256": "dd101d2852afdd78098d8f8f54437b7cd4fa81c4fc645afa1a6ff0d74eb551d9",
+    "nas_verified": true
+  },
+  "gates": {
+    "application_reclamation": "blocked",
+    "physical_enospc": "not_run",
+    "production_30_day_retention": "not_run",
+    "release_ready": false,
+    "application_reclamation_authorized": false
+  }
+}

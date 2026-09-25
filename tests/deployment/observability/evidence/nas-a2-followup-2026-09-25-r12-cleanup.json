@@ -1,0 +1,30 @@
+{
+  "run_id": "recovery-vector-20260925-r12",
+  "checked_at_utc": "2026-09-25T06:49:25Z",
+  "report_sha256_local_and_nas": "3eb58cf653f73583b59e211bd5eacc2a122908461353bb3f41533db6b147f09c",
+  "report_status": "partial",
+  "elapsed_seconds": 815.186,
+  "total_deadline_seconds": 1500,
+  "vector": {"status": "exited", "exit_code": 0, "oom_killed": false},
+  "loki": {"status": "exited", "exit_code": 0, "oom_killed": false},
+  "network": {
+    "name": "tianshu-accept-a2-vfull-20260925-r12",
+    "subnet": "10.205.21.0/24",
+    "internal": true,
+    "attached_containers": 0
+  },
+  "tmpfs": {
+    "limit_bytes": 536870912,
+    "source_preserved": true,
+    "source_sha256": "321f51ed7d4e05598cd3ee359f7cffd1c6dd5358204b8e96e663f2ab94930aaa",
+    "archive_bytes": 8077601,
+    "archive_members": 62,
+    "archive_sha256": "5c591348c57a33446d713254913fd262939cb6cb0d3f72996707c18281d7b94e",
+    "archive_gzip_verified_by_probe_and_independent_gzip_test": true,
+    "archive_source_hash_matches_live": true,
+    "unmounted_after_archive_verification": true,
+    "absent_from_proc_mounts_after_run": true
+  },
+  "source_deleted": false,
+  "new_scope_retried": false
+}

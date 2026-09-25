@@ -1,0 +1,107 @@
+{
+  "task": "NAS-A2",
+  "run_id": "recovery-vector-20260925-r9",
+  "evidence_type": "post-probe-cleanup-verification",
+  "status": "partial",
+  "resource_preflight": {
+    "allocation_range": "10.205.16.0/20",
+    "selected_subnet": "10.205.18.0/24",
+    "selected_loopback_port": 19529,
+    "subnet_conflicts": [],
+    "nondefault_route_conflicts": [],
+    "port_conflicts": [],
+    "new_run_plan_bytes": 2684354560,
+    "historical_mounted_tmpfs_used_bytes": 229376,
+    "concurrent_resources_bytes": 2684583936,
+    "budget_bytes": 4294967296,
+    "within_budget": true
+  },
+  "source": {
+    "path": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r9/tmpfs/vector-source/events.jsonl",
+    "bytes": 39728900,
+    "line_count": 120000,
+    "sha256": "570cf9931b1352189ad6c8e4fdb3495d3d4e51629e8a9c6ad5530f452878c531",
+    "source_hash_preserved_before_pressure_at_timeout_after_reconnect_and_after_stop": true,
+    "archive_member_sha256_verified": true
+  },
+  "vector_buffer": {
+    "status": "failed",
+    "reason": "vector_buffer_not_full",
+    "fill_wait_seconds": 600,
+    "peak_buffer_bytes": 130653496,
+    "configured_buffer_bytes": 268435488,
+    "peak_ratio": 0.4869,
+    "source_events_sent_at_timeout": 26102,
+    "source_hash_preserved": true,
+    "source_replay_complete": true,
+    "metrics_after_reconnect": {
+      "source_sent_events": 120000,
+      "sink_sent_events": 0,
+      "buffer_bytes": 10753664,
+      "discarded_events": 119372,
+      "component_errors": 2713
+    },
+    "padding_bytes_added_by_transform": 5250,
+    "loki_entry_limit_bytes": 4096,
+    "observed_loki_rejected_entry_bytes": 5599,
+    "loki_flush_status": 204,
+    "store_only_index_ready": false,
+    "store_only_result_lines": 0,
+    "store_only_identity_status": "failed",
+    "ingester_fallback_result_lines": 0,
+    "ingester_fallback_identity_status": "failed",
+    "replay_missing_event_ids": 120000,
+    "timeout_metric_note": "The final timeout snapshot reported buffer_bytes=0 despite a recorded 130653496-byte peak and direct samples during the run; the zero is not treated as evidence that the queue was empty.",
+    "loki_replay_errors_observed": [
+      "Loki rejected entries because their 5599-byte length exceeded the 4096-byte maximum.",
+      "Vector logged dropped events after the non-retriable HTTP 400 responses."
+    ]
+  },
+  "containers": [
+    {
+      "name": "tianshu-accept-a2-vfull-20260925-r9-vector",
+      "status": "exited",
+      "exit_code": 0,
+      "oom_killed": false
+    },
+    {
+      "name": "tianshu-accept-a2-vfull-20260925-r9-loki",
+      "status": "exited",
+      "exit_code": 0,
+      "oom_killed": false
+    }
+  ],
+  "network": {
+    "name": "tianshu-accept-a2-vfull-20260925-r9",
+    "subnet": "10.205.18.0/24",
+    "internal": true,
+    "attached_container_count_after_stop": 0,
+    "retained": true
+  },
+  "tmpfs": {
+    "limit_bytes": 1073741824,
+    "used_bytes_after_stop": 67543040,
+    "archive_verified_before_unmount": true,
+    "unmounted_after_verification": true
+  },
+  "archive": {
+    "path": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r9/evidence/tmpfs-snapshot-after-probe.tar.gz",
+    "bytes": 4004124,
+    "sha256": "0d9687eab99c1eb7f4712f150a29cef46630f61080f3e8259a55fce740901bca",
+    "member_count": 46,
+    "source_matches_report": true,
+    "gzip_integrity_verified": true
+  },
+  "nas_report": {
+    "path": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a2/runs/recovery-vector-20260925-r9/evidence/nas-a2-followup-report.json",
+    "local_sha256": "5e4ace5e2d371e2a716331d83623cc23d0fe8fe04903a6fd29f8ec9ec83edbce",
+    "nas_verified": true
+  },
+  "gates": {
+    "application_reclamation": "blocked",
+    "physical_enospc": "not_run",
+    "production_30_day_retention": "not_run",
+    "release_ready": false,
+    "application_reclamation_authorized": false
+  }
+}

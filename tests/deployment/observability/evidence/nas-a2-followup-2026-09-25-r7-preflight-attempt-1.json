@@ -1,0 +1,29 @@
+{
+  "task": "NAS-A2",
+  "run_id": "recovery-vector-20260925-r7",
+  "attempt": 1,
+  "status": "preflight_failed",
+  "observed_at_utc": "2026-09-25T02:50:33Z",
+  "failure": {
+    "phase": "base.preflight",
+    "error_code": "bounded_tmpfs_required",
+    "evidence": "preflight requires /runs/recovery-vector-20260925-r7/tmpfs to already be mounted as tmpfs; the mount was absent"
+  },
+  "side_effects": {
+    "probe_report_written": false,
+    "containers_created": false,
+    "docker_network_created": false,
+    "tmpfs_mount_created": false,
+    "source_file_written": false
+  },
+  "resource_precheck": {
+    "a2_running_container_count": 0,
+    "available_bytes": 18713059328,
+    "volume_free_bytes": 473622802432,
+    "new_run_plan_bytes": 2147483648,
+    "mounted_historical_tmpfs_used_bytes": 229376,
+    "concurrent_resources_bytes": 2147713024,
+    "budget_bytes": 4294967296,
+    "within_budget": true
+  }
+}

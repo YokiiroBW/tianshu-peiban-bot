@@ -45,13 +45,15 @@ def emit(path, records):
         os.fsync(stream.fileno())
 
 
-def certificates(root):
+def certificates(root, loki_ip=None, write_file=None):
     from cryptography import x509
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import rsa
     from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
-    root.mkdir(exist_ok=True)
+    if write_file is None:
+        root.mkdir(exist_ok=True)
+        write_file = Path.write_bytes
     now = datetime.now(timezone.utc)
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     name = x509.Name(
@@ -69,13 +71,16 @@ def certificates(root):
         .sign(key, hashes.SHA256())
     )
     pem = ca.public_bytes(serialization.Encoding.PEM)
-    (root / "ca.pem").write_bytes(pem)
-    (root / "client-ca.pem").write_bytes(pem)
+    write_file(root / "ca.pem", pem)
+    write_file(root / "client-ca.pem", pem)
     for role in ("guard", "loki", "grafana", "prometheus", "vector", "client"):
         private = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         subject = x509.Name(
             [x509.NameAttribute(NameOID.COMMON_NAME, "DEP-B synthetic " + role)]
         )
+        addresses = [x509.IPAddress(ipaddress.ip_address("127.0.0.1"))]
+        if role == "loki" and loki_ip is not None:
+            addresses.append(x509.IPAddress(ipaddress.ip_address(loki_ip)))
         cert = (
             x509.CertificateBuilder()
             .subject_name(subject)
@@ -92,7 +97,7 @@ def certificates(root):
                     [
                         x509.DNSName("obs-" + role),
                         x509.DNSName("localhost"),
-                        x509.IPAddress(ipaddress.ip_address("127.0.0.1")),
+                        *addresses,
                     ]
                 ),
                 critical=False,
@@ -109,15 +114,17 @@ def certificates(root):
             )
             .sign(key, hashes.SHA256())
         )
-        (root / (role + ".pem")).write_bytes(
-            cert.public_bytes(serialization.Encoding.PEM)
+        write_file(
+            root / (role + ".pem"),
+            cert.public_bytes(serialization.Encoding.PEM),
         )
-        (root / (role + ".key")).write_bytes(
+        write_file(
+            root / (role + ".key"),
             private.private_bytes(
                 serialization.Encoding.PEM,
                 serialization.PrivateFormat.PKCS8,
                 serialization.NoEncryption(),
-            )
+            ),
         )
 
 
