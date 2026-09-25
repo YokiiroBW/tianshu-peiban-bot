@@ -105,7 +105,8 @@ def _code_tree(root):
     return _sha(canonical(_code_files(root)))
 
 
-ALLOCATION_STATUSES = {
+STABLE_ALLOCATION_STATUS = "allocated_for_one_attempt_after_live_preflight"
+LEGACY_ALLOCATION_STATUSES = {
     "allocated_for_one_r2i_attempt_after_live_preflight",
     "allocated_for_one_r2j_attempt_after_live_preflight",
 }
@@ -127,11 +128,14 @@ def _allocation(c):
             "a1_allocation_file_mismatch")
     document = read_json(path)
     scope_name = c["scope_name"] if "scope_name" in c else Path(c["scope_root"]).name
+    legacy_status_matches_scope = (
+        type(scope_name) is str and scope_name.startswith("scope-a1-") and
+        document["status"] in LEGACY_ALLOCATION_STATUSES and
+        document["status"] == "allocated_for_one_" + scope_name[len("scope-a1-"):] +
+            "_attempt_after_live_preflight")
     require(document["task"] == "NAS-A1" and
-            document["status"] in ALLOCATION_STATUSES and
+            (document["status"] == STABLE_ALLOCATION_STATUS or legacy_status_matches_scope) and
             type(scope_name) is str and scope_name.startswith("scope-a1-") and
-            document["status"] == "allocated_for_one_" + scope_name[len("scope-a1-"):] +
-                "_attempt_after_live_preflight" and
             document["scope"] == "one_new_source_and_clone_only" and
             document["scope_name"] == scope_name and
             document["execution_id"] == c["execution_id"] and

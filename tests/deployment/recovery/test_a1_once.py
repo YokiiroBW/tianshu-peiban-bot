@@ -292,6 +292,61 @@ class Fixture(unittest.TestCase):
                 with self.assertRaises(Exception):
                     a1_once._allocation(mixed_status)
 
+    def test_stable_status_accepts_r2k_and_a_future_round_with_exact_identity(self):
+        source = Path(__file__).parent / "fixtures/nas-a1-network-allocation-r2k-v2.json"
+        self.assertEqual(a1_once.file_hash(source),
+            "1fc828704d3099f16d5ed2fec7b0af4955f600c9fc9ee1cad80e7a3c33f40293")
+        for flavor in ("r2k", "r2m"):
+            with self.subTest(flavor=flavor):
+                target = self.allocation_file.parent / ("allocation-" + flavor + ".json")
+                allocation = json.loads(source.read_text(encoding="utf-8"))
+                if flavor == "r2k":
+                    shutil.copyfile(source, target)
+                else:
+                    allocation["scope_name"] = "scope-a1-r2m"
+                    allocation["execution_id"] = str(uuid.uuid4())
+                    put(target, allocation)
+                config = copy.deepcopy(self.config)
+                config.update(scope_root=str(target.parent.parent / allocation["scope_name"]),
+                              allocation_file=str(target),
+                              allocation_sha256=a1_once.file_hash(target),
+                              execution_id=allocation["execution_id"],
+                              networks={"source": [allocation["source"][key]
+                                  for key in a1_once.SOURCE_PURPOSES],
+                                  "clone": [allocation["clone"][key]
+                                  for key in a1_once.CLONE_PURPOSES]},
+                              ports={"source": [allocation["source_loopback_ports"][key]
+                                  for key in a1_once.PORT_PURPOSES],
+                                  "clone": [allocation["clone_loopback_ports"][key]
+                                  for key in a1_once.PORT_PURPOSES]})
+                checked, pool, withheld = a1_once._allocation(config)
+                self.assertEqual(checked, allocation)
+                self.assertEqual(str(pool), allocation["candidate_block"])
+                self.assertEqual(str(withheld), allocation["unallocated"])
+                self.assertEqual(len(a1_once._network_plan(config["networks"], config)), 12)
+                self.assertEqual(len(a1_once._ports(config["ports"])), 12)
+
+                for changed in (
+                    {"scope_root": str(target.parent.parent / "scope-a1-other")},
+                    {"execution_id": str(uuid.uuid4())},
+                    {"allocation_sha256": "0" * 64},
+                    {"networks": {**config["networks"], "source": self.nets[:5]}},
+                    {"ports": {**config["ports"], "clone": [29921] + config["ports"]["clone"][1:]}},
+                ):
+                    with self.assertRaises(Exception):
+                        a1_once._allocation({**config, **changed})
+                for status in ("unallocated", "allocated_for_one_r2j_attempt_after_live_preflight"):
+                    wrong = dict(allocation, status=status)
+                    mismatch = target.with_name(target.stem + "-wrong-status.json")
+                    put(mismatch, wrong)
+                    with self.assertRaises(Exception):
+                        a1_once._allocation({**config, "allocation_file": str(mismatch),
+                            "allocation_sha256": a1_once.file_hash(mismatch)})
+                with target.open("ab") as stream:
+                    stream.write(b" ")
+                with self.assertRaises(Exception):
+                    a1_once._allocation(config)
+
     def test_public_cli_requires_explicit_execute(self):
         result = subprocess.run([sys.executable, "-B", "-m", "ops.recovery.a1_once",
                                  "--config", str(self.path)],

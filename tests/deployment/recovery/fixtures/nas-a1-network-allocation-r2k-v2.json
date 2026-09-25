@@ -1,0 +1,60 @@
+{
+  "task": "NAS-A1",
+  "status": "allocated_for_one_attempt_after_live_preflight",
+  "candidate_block": "10.205.51.0/24",
+  "create_block_network": false,
+  "scope": "one_new_source_and_clone_only",
+  "source": {
+    "core": "10.205.51.0/28",
+    "egress": "10.205.51.16/28",
+    "frontend": "10.205.51.32/28",
+    "observe": "10.205.51.48/28",
+    "storage": "10.205.51.64/28"
+  },
+  "clone": {
+    "core": "10.205.51.80/28",
+    "egress": "10.205.51.96/28",
+    "frontend": "10.205.51.112/28",
+    "access": "10.205.51.128/28",
+    "observe": "10.205.51.144/28",
+    "storage": "10.205.51.160/28",
+    "observability_access": "10.205.51.176/28"
+  },
+  "unallocated": "10.205.51.192/26",
+  "source_loopback_ports": {
+    "companion": 19512,
+    "memory": 19513,
+    "gateway": 19514,
+    "platform": 20121,
+    "grafana": 20115,
+    "guard": 20116
+  },
+  "clone_loopback_ports": {
+    "companion": 19912,
+    "memory": 19913,
+    "gateway": 19914,
+    "platform": 19921,
+    "grafana": 19915,
+    "guard": 19916
+  },
+  "live_memory_limit_gib": 7.5,
+  "minimum_available_memory_gib": 11.5,
+  "probe": {
+    "reported_timestamp": "2026-09-26T03:58:25.789317+08:00",
+    "network_count": 182,
+    "docker_ipam_and_nondefault_ipv4_routes_conflicts": [],
+    "local_path": ".runtime/nas-wave1/a1-network-r2k-probe-20260926.json",
+    "sha256": "7b317f7e3269d254e6ae2e897f5f2091a13b49ae1f52e1f3dc2413831d59dfea"
+  },
+  "conditions": [
+    "One new r2k attempt authorized after reviewed allocation-status parameterization patch and fixed complete input hashes; live preflight required.",
+    "Recheck live IPAM, all IPv4 routes, ports, memory and static addresses before creation.",
+    "Core static addresses are each subnet base plus 10,11,12,13; never carry old full addresses into new subnets.",
+    "No aggregate /24 reservation network; create only the twelve exact /28 networks.",
+    "Source and clone run serially, never 15 GiB concurrently.",
+    "Check actual remaining origin expiry before clone claim/start and functional assertions; permit lifetime is not origin lifetime.",
+    "Do not delete historical networks, replay permits or expand this allocation."
+  ],
+  "scope_name": "scope-a1-r2k",
+  "execution_id": "01c71acd-6dc5-48a4-83dc-182ab766f20f"
+}
