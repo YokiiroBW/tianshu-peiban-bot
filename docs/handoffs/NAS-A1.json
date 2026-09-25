@@ -476,11 +476,12 @@
     "restored_clone_validation": "not_run",
     "release_ready": false,
     "evidence_index": "docs/handoffs/NAS-A1-r2h-evidence.json",
+    "next_run_plan": "docs/handoffs/NAS-A1-next-run-plan.md",
     "independent_final_review": "pending_A4"
   },
   "remaining": [
     "A4 independently review the immutable r2h evidence and the preclaim lifetime rejection; keep source and restored target stopped/disabled.",
-    "Any further attempt requires coordinator approval and a fresh scope/authority/snapshot/permit; do not replay r2h or r2g permits or lower the 180-second gate from this observation alone.",
+    "The coordinator will decide the next release from evidence under the existing acceptance authorization; use a fresh scope/authority/snapshot/permit and never replay r2h or r2g permits or lower the 180-second gate from this observation alone.",
     "Evaluate a snapshot-bound recovery authorization design so short-lived source origins need not be minted before the full stop/backup/restore interval."
   ],
   "implementation_commit": "07dfbb81bffd814834f169b6b7d061b9c7308512"
