@@ -1,4 +1,5 @@
 *.py text eol=lf
 *.json text eol=lf
 tests/deployment/recovery/fixtures/nas-a1-network-allocation-r2i.json -text whitespace=cr-at-eol
+tests/deployment/recovery/fixtures/nas-a1-network-allocation-r2j.json -text whitespace=cr-at-eol
 *.md text eol=lf

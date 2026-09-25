@@ -49,7 +49,7 @@ class PreparationTests(unittest.TestCase):
             "code_root": str(self.code), "code_tree_sha256": a1_once._code_tree(self.code),
             "code_lock_sha256": "", "python": str(self.python), "docker": str(self.docker),
             "allocation_file": str(self.allocation_file),
-            "allocation_sha256": a1_once.ALLOCATION_SHA256,
+            "allocation_sha256": self.config["allocation_sha256"],
             "execution_id": self.config["execution_id"],
             "original_manifest": str(self.original),
             "original_manifest_sha256": a1_once.file_hash(self.original),
@@ -120,6 +120,10 @@ class PreparationTests(unittest.TestCase):
 
     def _semantic_fixture(self, scope, source):
         """Fixture-only product state after simulated source exercise/registration."""
+        put(source / "reports" / self.prep["run_label"] / "a1-source-attempt.json",
+            {"scope_id": self.prep["scope_id"],
+             "preparation_config_sha256": a1_once.file_hash(self.prep_path),
+             "allocation_sha256": self.prep["allocation_sha256"]})
         put(scope / "inputs/model-publication-template.json", {
             "config_version": 1, "providers": [{"provider_id": "provider-synthetic",
                 "base_url": "https://gateway.internal:9443/v1"}]})
@@ -271,6 +275,48 @@ class PreparationTests(unittest.TestCase):
         self.assertEqual(derived, original)
         self.assertEqual(a1_once.file_hash(self.original),
                          a1_prepare.FIXED_ORIGINAL_MANIFEST_SHA256)
+
+    def test_r2j_coordinator_allocation_uses_same_preparation_entry(self):
+        original = Path(__file__).parent / "fixtures/nas-a1-network-allocation-r2j.json"
+        self.assertEqual(a1_once.file_hash(original),
+            "5fc2ad22b78b109cb42aa78fbc32a02d67564cee342c95aa2c716e654d0535f1")
+        allocation = self.parent / "preparations/nas-a1-network-allocation-r2j.json"
+        shutil.copyfile(original, allocation)
+        document = json.loads(allocation.read_text(encoding="utf-8"))
+        config = copy.deepcopy(self.prep)
+        config.update(scope_name=document["scope_name"],
+                      scope_id=str(uuid.uuid4()), allocation_file=str(allocation),
+                      allocation_sha256=a1_once.file_hash(allocation),
+                      execution_id=document["execution_id"],
+                      source_project="tianshu-qa-a1-r2j-source",
+                      clone_project="tianshu-qa-a1-r2j-clone",
+                      networks={"source": [document["source"][key]
+                          for key in a1_once.SOURCE_PURPOSES],
+                          "clone": [document["clone"][key]
+                          for key in a1_once.CLONE_PURPOSES]},
+                      ports={"source": [document["source_loopback_ports"][key]
+                          for key in a1_once.PORT_PURPOSES],
+                          "clone": [document["clone_loopback_ports"][key]
+                          for key in a1_once.PORT_PURPOSES]})
+        lock = self.parent / "preparations" / (document["scope_name"] + ".code-lock.json")
+        shutil.copyfile(self.lock, lock)
+        path = self.parent / "preparations" / (document["scope_name"] + ".json")
+        put(path, config)
+        self.assertEqual(a1_prepare.load(path), config)
+        wrong_sha = copy.deepcopy(config)
+        wrong_sha["allocation_sha256"] = "0" * 64
+        put(path, wrong_sha)
+        with self.assertRaises(Exception):
+            a1_prepare.load(path)
+        wrong_purpose = copy.deepcopy(config)
+        wrong_purpose["networks"]["source"][0] = document["source"]["egress"]
+        put(path, wrong_purpose)
+        with self.assertRaises(Exception):
+            a1_prepare.load(path)
+        put(path, config)
+        (self.parent / document["scope_name"]).mkdir()
+        with self.assertRaises(Exception):
+            a1_prepare.load(path, phase="source")
 
     def test_prepare_rejects_allocation_drift_before_scope_creation(self):
         variants = []
@@ -441,6 +487,10 @@ class PreparationTests(unittest.TestCase):
 
     def _real_semantic_receipts_fixture(self, scope, source):
         """Fixture-only source business state; product CLIs are not invoked."""
+        put(source / "reports" / self.prep["run_label"] / "a1-source-attempt.json",
+            {"scope_id": self.prep["scope_id"],
+             "preparation_config_sha256": a1_once.file_hash(self.prep_path),
+             "allocation_sha256": self.prep["allocation_sha256"]})
         event_scope = {"actor_id": "actor:a1-source", "person_id": "fixture-person",
                        "audience": "self_private", "conversation_id": "fixture-conversation"}
         a1_acceptance.bind_memory_scopes(source, {"scopes": [event_scope] * 3,
@@ -567,6 +617,7 @@ class PreparationTests(unittest.TestCase):
         self.assertNotEqual((source / "private/gateway.env").read_bytes(),
                             (scope / "drill-inputs/clone-inputs/private/gateway.env").read_bytes())
         self.assertFalse((scope / "deployments/clone").exists())
+
         clone_env = (scope / "drill-inputs/clone-inputs/private/gateway.env").read_text()
         companion_env = (scope / "drill-inputs/clone-inputs/private/companion.env").read_text()
         sink = next(line.split("=", 1)[1] for line in clone_env.splitlines()
@@ -625,6 +676,17 @@ class PreparationTests(unittest.TestCase):
         self.assertEqual(execution["execute_calls"], 1)
         self.assertEqual(stages, list(a1_once.STAGES))
         self.assertFalse((scope / "deployments/clone").exists())
+
+    def test_clone_rejects_source_preparation_config_drift_before_writing(self):
+        scope, source = self._source()
+        self._semantic_fixture(scope, source)
+        marker = source / "reports" / self.prep["run_label"] / "a1-source-attempt.json"
+        attempt = read_json(marker)
+        attempt["preparation_config_sha256"] = "0" * 64
+        put(marker, attempt)
+        with self.assertRaises(Exception):
+            a1_clone_prepare.prepare_clone(self.prep)
+        self.assertFalse((scope / "drill-inputs/clone-inputs").exists())
 
     def _clone_ready(self):
         scope, source = self._source()

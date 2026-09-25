@@ -18,12 +18,14 @@ nine explicitly fictional product input files. Its config binds a per-file
 `ops`/`deploy` code lock, original manifest, resource profile, fixed
 observability Git commit, four fixed product Git commits under `projects_root`,
 Gateway import trees, source/clone project names, twelve distinct `/28`
-networks in the assigned pool, and twelve loopback ports. This r2i attempt
-requires the exact `scope_parent/preparations/nas-a1-network-allocation-r2i.json`
-bytes with SHA256 `8dd4844321d0b396adc09451d8c6cea26abab7ef08f2bc21d70164fa87aa3d55`.
-The preparation and driver configs both bind its `scope-a1-r2i` name,
-`7a8aeaf2-80af-4cc6-a109-18d2c249552d` execution ID, purpose-ordered
-networks and ports. Source Companion,
+networks in the assigned pool, and twelve loopback ports. The preparation
+config explicitly supplies the allocation file's absolute path and expected
+SHA256. Both preparation and driver verify the original file bytes, its
+scope name, execution UUID, purpose-ordered networks and ports. The source
+attempt records the observed preparation-config SHA; clone preparation
+requires that same SHA and carries it into the driver config and attempt
+receipt. The coordinator separately fixes the expected config SHA before
+upload and checks plan and execution receipts against it. Source Companion,
 Memory and Gateway API ports are fixed by the candidate at 19512/19513/19514.
 The config
 lives at `scope_parent/preparations/scope_name.json`; its lock is the adjacent
@@ -76,11 +78,15 @@ The `a1-once/1` JSON config contains exactly these fields:
 - `networks` and `ports`: `source` and `clone` arrays, respectively 5+7
   disjoint `/28` subnets and 6+6 distinct loopback ports. They must match the
   pinned allocation, source runtime identity and clone Compose. The last
-  `/26` of `10.205.49.0/24` is unallocated.
-- `allocation_file`, `allocation_sha256`, `execution_id`: the exact r2i
-  allocation file, its pinned SHA256, and its fixed execution UUID. The
-  allocation file must reside beside the preparation config under
-  `scope_parent/preparations`.
+  `/26` of the assigned `/24` remains unallocated.
+- `allocation_file`, `allocation_sha256`, `execution_id`: the explicitly
+  supplied absolute allocation path, its SHA256, and its execution UUID.
+  The file must reside beside the preparation config under
+  `scope_parent/preparations`. The coordinator supplies and records the
+  config and allocation SHA values; the code never chooses a default file.
+- `preparation_config_sha256`: the SHA of the preparation JSON used by the
+  source attempt. The driver verifies the same bytes and records this digest
+  with its own config and allocation digests in the one-attempt receipt.
 - `registration_sha256`, `source_manifest_sha256`, `source_runtime_sha256`,
   `source_deployment_sha256`, `model_template_sha256`,
   `initial_inputs_sha256`: exact file hashes. The initial input index must

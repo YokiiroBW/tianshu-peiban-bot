@@ -323,7 +323,10 @@ def prepare_source(c, *, initializer=None, observability=None, synthetic=None):
     require(generated.get("synthetic_only") is True and
             len(generated.get("inputs", [])) == 9,
             "a1_prep_synthetic_inputs_failed")
+    config_path = Path(c["scope_parent"]) / "preparations" / (c["scope_name"] + ".json")
     return {"status": "static_source_prepared", "scope_id": c["scope_id"],
+            "preparation_config_sha256": file_hash(config_path),
+            "allocation_sha256": c["allocation_sha256"],
             "source_manifest_sha256": file_hash(source / "release-manifest.json"),
             "synthetic_input_count": 9,
             "source_directory": str(source)}
@@ -340,6 +343,8 @@ def main(argv=None):
     c = load(args.config, phase=args.phase)
     if not args.execute:
         result = {"status": "planned", "scope_id": c["scope_id"],
+                  "preparation_config_sha256": file_hash(args.config),
+                  "allocation_sha256": c["allocation_sha256"],
                   "derived_manifest_sha256": _sha(canonical(derive_manifest(c))),
                   "source_directory": str(Path(c["scope_parent"]) /
                                           c["scope_name"] / "deployments/source")}

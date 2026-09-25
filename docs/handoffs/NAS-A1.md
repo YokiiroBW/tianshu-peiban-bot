@@ -207,3 +207,9 @@ A4 只读复核报告 `b3c1e837928f68b35479f2132147c3306daa8b23` 确认第二条
 在本地代码中，两次 fanout 后先用授权的 Companion web snapshot 有界轮询，要求同一会话恰好两条预期序号的 turn 均为 `closed_unknown`、各一条 unknown 回复，并且无活动 turn、无未完 collector；只有确认终态后才绑定观察到的 scope 并重建 Memory。每条 turn 的消息 ID/修订必须与本轮已注册输入及对应 fanout admission 相同，首次就绪读与最终读的 turn/reply 身份及终态必须精确一致。任一错误终态、输入关联错误、快照不一致或 90 秒期限届满立即拒绝，保留单次尝试与逐次私有读回，不重发输入。每次快照查询使用独立 request ID，最终确认读取不会与上一轮询同号。后续 source-facts 读取与 trusted Memory commit 原路径保持；Companion outbox 的 `unknown` 仅是本地持久事件，不能当作 Memory 已提交。
 
 A4 对首版提交 `4b3ee2a` 的只读复核报告 `a32db0938ca0f2df9a188fba2fa82ab9b27b4d3e` 指出两次都满足终态但 turn/reply ID 被替换仍可通过；其阻断项已在修正版 `f56d63c` 补上身份比较，并加入 ID 替换、输入序号错配及 admission 与注册输入错配负例。修正版离线定向 77 项通过。A4 在固定 Companion 代码确认 fanout admission 的 `source.message_key` 来自已接受输入，turn bundle 与正式 web snapshot 保留相同 message ID/修订；独立顺序与负例 4 项及 diff 检查通过，结论是没有进一步确认的本地代码阻断，报告补充提交 `0f823d73ec7b5326ae6fd921c2a017c2520b1121`。这仍不等于真实产品异步 HTTP 验收。**未上传 NAS，未在 r2i 原范围重试，也未获新 scope 或许可授权**。
+
+## r2j 新分配入场准备（2026-09-26）
+
+协调者授权一个新的 `scope-a1-r2j` 实机范围，分配原件位于主仓 `docs/development/nas-a1-network-allocation-r2j-2026-09-26.json`，原始 SHA256 `5fc2ad22b78b109cb42aa78fbc32a02d67564cee342c95aa2c716e654d0535f1`，execution ID `b5ebf2e9-836d-4e9b-b94c-21b1ee10a0a6`。本地入口去掉 r2i 文件名和哈希常量，改由受控准备配置给出绝对分配路径与预期 SHA；同一代码静态接受 r2i/r2j 两份协调原件，按 scope/status/执行 ID、用途顺序网段及端口精确匹配，错原件、错哈希、跨实例、错用途及目标已存在均拒绝。准备、源端、克隆与单次驱动收据串接准备配置和分配文件 SHA，单次驱动还核对准备原件。此处记录的是跨阶段一致性；协调者须在上传前独立固定真实准备 JSON 原始 SHA，不能把运行时新算的哈希当作既有预期。
+
+本地定向 `test_a1_*.py` 81 项通过。NAS 创建前只读预检原始收据保存在本工作树忽略目录 `.runtime/nas-a1-r2j/preflight-before-create.json`（SHA256 `66e0afa4ce0c24116193bcba3dab574b20afad34d1ee007bc674768e1214ea0c`）：当时 726 条 IPv4 路由、177 个 Docker 网络、12 个端口和四个项目名均无冲突，预计静态地址不冲突，MemAvailable 17.74 GiB，CPU 在线 0–7；新 parent 尚不存在。代码增量待 A4 复核，真实准备配置还未固定/上传，NAS 尚未创建 r2j parent、scope、网络、容器或许可；历史 r2i 现场保持停止。

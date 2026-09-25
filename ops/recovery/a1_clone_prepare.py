@@ -472,6 +472,15 @@ def prepare_clone(c, *, route_reader=None, usage_reader=None, tls_factory=None, 
             registration["runtime_identity"]["sha256"] ==
             file_hash(source / "reports/runtime-identity.json"),
             "a1_clone_scope_or_runtime_mismatch")
+    preparation_path = Path(c["scope_parent"]) / "preparations" / (
+        c["scope_name"] + ".json")
+    source_attempt = read_json(source / "reports" / c["run_label"] /
+                               "a1-source-attempt.json")
+    require(source_attempt.get("scope_id") == c["scope_id"] and
+            source_attempt.get("preparation_config_sha256") ==
+                file_hash(preparation_path) and
+            source_attempt.get("allocation_sha256") == c["allocation_sha256"],
+            "a1_clone_source_config_mismatch")
     evidence = _evidence(c, route_reader=route_reader, usage_reader=usage_reader,
                          now=now)
     require(type(evidence["usage_raw"]) is bytes and
@@ -489,6 +498,7 @@ def prepare_clone(c, *, route_reader=None, usage_reader=None, tls_factory=None, 
         "scope_id": c["scope_id"], "code_root": c["code_root"],
         "allocation_file": c["allocation_file"],
         "allocation_sha256": c["allocation_sha256"],
+        "preparation_config_sha256": file_hash(preparation_path),
         "execution_id": c["execution_id"],
         "code_tree_sha256": c["code_tree_sha256"],
         "code_lock_sha256": file_hash(scope / "inputs/a1-code-files.json"),

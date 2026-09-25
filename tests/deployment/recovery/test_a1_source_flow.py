@@ -44,7 +44,9 @@ class SourceFlowTests(unittest.TestCase):
             "scope_id": json.loads((scope / ".recovery-scope.json").read_text())["scope_id"],
             "source_project": "tianshu-qa-a1-source-new-offline",
             "run_label": "a1-new-offline", "docker": str(parent / "docker"),
-            "python": str(parent / "python"), "code_root": str(parent / "tooling")}
+            "python": str(parent / "python"), "code_root": str(parent / "tooling"),
+            "allocation_sha256": "a" * 64}
+        put(parent / "preparations" / (scope.name + ".json"), self.config)
         Path(self.config["code_root"]).mkdir()
 
     def test_scope_binding_and_one_attempt_marker(self):

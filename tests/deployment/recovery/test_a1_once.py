@@ -47,6 +47,7 @@ class Fixture(unittest.TestCase):
         self.allocation_file = home / "preparations/nas-a1-network-allocation-r2i.json"
         self.allocation_file.parent.mkdir()
         shutil.copyfile(allocation, self.allocation_file)
+        self.allocation_sha256 = a1_once.file_hash(self.allocation_file)
         allocated = json.loads(allocation.read_text(encoding="utf-8"))
         self.nets = ([allocated["source"][key] for key in a1_once.SOURCE_PURPOSES] +
                      [allocated["clone"][key] for key in a1_once.CLONE_PURPOSES])
@@ -102,7 +103,7 @@ class Fixture(unittest.TestCase):
             "schema_version": "a1-once/1", "scope_root": str(self.scope),
             "scope_id": self.uuid, "code_root": str(self.code),
             "allocation_file": str(self.allocation_file),
-            "allocation_sha256": a1_once.ALLOCATION_SHA256,
+            "allocation_sha256": self.allocation_sha256,
             "execution_id": allocated["execution_id"],
             "code_tree_sha256": a1_once._code_tree(self.code),
             "code_lock_sha256": "",
@@ -123,6 +124,14 @@ class Fixture(unittest.TestCase):
             "networks": {"source": self.nets[:5], "clone": self.nets[5:]},
             "ports": {"source": self.ports[:6], "clone": self.ports[6:]},
         }
+        prep_path = home / "preparations/scope-a1-r2i.json"
+        put(prep_path, {"scope_name": self.scope.name, "scope_id": self.uuid,
+            "allocation_file": str(self.allocation_file),
+            "allocation_sha256": self.allocation_sha256,
+            "execution_id": allocated["execution_id"],
+            "networks": self.config["networks"], "ports": self.config["ports"],
+            "clone_project": self.config["projects"]["core"]})
+        self.config["preparation_config_sha256"] = a1_once.file_hash(prep_path)
         lock = self.private / "a1-code-files.json"
         put(lock, {"schema_version": "a1-code-lock/1",
                    "tree_sha256": self.config["code_tree_sha256"],
@@ -193,9 +202,21 @@ class Fixture(unittest.TestCase):
         self.assertIn(str(self.docker), argv)
         self.assertNotIn("r2h", " ".join(argv))
 
+    def test_preparation_config_is_locked_into_driver(self):
+        bad = copy.deepcopy(self.config)
+        bad["preparation_config_sha256"] = "0" * 64
+        put(self.path, bad)
+        with self.assertRaises(Exception):
+            a1_once.load_config(self.path)
+        put(self.path, self.config)
+        prep = self.scope.parent / "preparations" / (self.scope.name + ".json")
+        prep.write_bytes(prep.read_bytes() + b" ")
+        with self.assertRaises(Exception):
+            a1_once.load_config(self.path)
+
     def test_exact_r2i_allocation_is_required(self):
         self.assertEqual(a1_once.file_hash(self.allocation_file),
-                         a1_once.ALLOCATION_SHA256)
+                         "8dd4844321d0b396adc09451d8c6cea26abab7ef08f2bc21d70164fa87aa3d55")
         for field, value in (("allocation_sha256", "0" * 64),
                              ("execution_id", str(uuid.uuid4())),
                              ("allocation_file", str(self.path))):
@@ -222,6 +243,54 @@ class Fixture(unittest.TestCase):
         self.allocation_file.write_bytes(self.allocation_file.read_bytes() + b" ")
         with self.assertRaises(Exception):
             a1_once.load_config(self.path)
+
+    def test_same_static_entry_accepts_both_coordinator_allocations(self):
+        r2j_original = Path(__file__).parent / "fixtures/nas-a1-network-allocation-r2j.json"
+        self.assertEqual(a1_once.file_hash(r2j_original),
+            "5fc2ad22b78b109cb42aa78fbc32a02d67564cee342c95aa2c716e654d0535f1")
+        for flavor, source in (("r2i", Path(__file__).parent /
+                                "fixtures/nas-a1-network-allocation-r2i.json"),
+                               ("r2j", r2j_original)):
+            with self.subTest(flavor=flavor):
+                target = self.allocation_file.parent / ("allocation-" + flavor + ".json")
+                shutil.copyfile(source, target)
+                allocation = json.loads(target.read_text(encoding="utf-8"))
+                config = copy.deepcopy(self.config)
+                config.update(scope_root=str(target.parent.parent / allocation["scope_name"]),
+                              allocation_file=str(target),
+                              allocation_sha256=a1_once.file_hash(target),
+                              execution_id=allocation["execution_id"],
+                              networks={"source": [allocation["source"][key]
+                                  for key in a1_once.SOURCE_PURPOSES],
+                                  "clone": [allocation["clone"][key]
+                                  for key in a1_once.CLONE_PURPOSES]},
+                              ports={"source": [allocation["source_loopback_ports"][key]
+                                  for key in a1_once.PORT_PURPOSES],
+                                  "clone": [allocation["clone_loopback_ports"][key]
+                                  for key in a1_once.PORT_PURPOSES]})
+                checked, pool, withheld = a1_once._allocation(config)
+                self.assertEqual(checked, allocation)
+                self.assertEqual(str(pool), allocation["candidate_block"])
+                self.assertEqual(str(withheld), allocation["unallocated"])
+                self.assertEqual(len(a1_once._network_plan(config["networks"], config)), 12)
+                self.assertEqual(len(a1_once._ports(config["ports"])), 12)
+                mixed = copy.deepcopy(config)
+                opposite = "scope-a1-r2j" if flavor == "r2i" else "scope-a1-r2i"
+                mixed["scope_root"] = str(target.parent.parent / opposite)
+                with self.assertRaises(Exception):
+                    a1_once._allocation(mixed)
+                wrong_status = dict(allocation)
+                wrong_status["status"] = (
+                    "allocated_for_one_r2j_attempt_after_live_preflight"
+                    if flavor == "r2i" else
+                    "allocated_for_one_r2i_attempt_after_live_preflight")
+                mismatch = self.allocation_file.parent / ("status-mismatch-" + flavor + ".json")
+                put(mismatch, wrong_status)
+                mixed_status = copy.deepcopy(config)
+                mixed_status["allocation_file"] = str(mismatch)
+                mixed_status["allocation_sha256"] = a1_once.file_hash(mismatch)
+                with self.assertRaises(Exception):
+                    a1_once._allocation(mixed_status)
 
     def test_public_cli_requires_explicit_execute(self):
         result = subprocess.run([sys.executable, "-B", "-m", "ops.recovery.a1_once",
@@ -250,6 +319,11 @@ class Fixture(unittest.TestCase):
         receipts = list((self.private / "receipts").glob("*.json"))
         self.assertEqual(len(receipts), 7)
         self.assertTrue((self.private / "receipts/attempt.json").is_file())
+        attempt = json.loads((self.private / "receipts/attempt.json").read_text())
+        self.assertEqual(attempt["preparation_config_sha256"],
+                         self.config["preparation_config_sha256"])
+        self.assertEqual(attempt["allocation_sha256"], self.allocation_sha256)
+        self.assertEqual(attempt["driver_config_sha256"], a1_once.file_hash(self.path))
 
     def test_raw_receipt_is_private_and_hashed(self):
         seen, base = self._runner()

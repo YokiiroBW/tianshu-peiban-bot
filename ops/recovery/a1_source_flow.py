@@ -432,6 +432,9 @@ class Source:
         self.save("a1-source-attempt.json", {"schema_version": "a1-source-attempt/1",
             "scope_id": self.c["scope_id"], "run_label": self.c["run_label"],
             "source_project": self.c["source_project"],
+            "preparation_config_sha256": file_hash(
+                self.scope.parent / "preparations" / (self.scope.name + ".json")),
+            "allocation_sha256": self.c["allocation_sha256"],
             "authority_id": self.authority_id, "started_at": _utc()})
         if preflight is not None:
             self.save("host-preflight.json", preflight)

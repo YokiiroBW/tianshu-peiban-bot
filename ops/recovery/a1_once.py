@@ -30,7 +30,8 @@ TIMEOUTS = {"seal": 240, "linux-rehearse": 330, "host-preflight": 60,
             "permit": 30, "drill-plan": 30, "drill-execute": 540}
 STREAM_LIMIT = 1024 * 1024
 CONFIG_KEYS = {"schema_version", "scope_root", "scope_id", "code_root", "code_tree_sha256",
-               "code_lock_sha256", "allocation_file", "allocation_sha256", "execution_id",
+               "code_lock_sha256", "allocation_file", "allocation_sha256",
+               "preparation_config_sha256", "execution_id",
                "python", "docker", "source_name", "restored_name", "clone_name",
                "inputs_name", "backup_name", "permit_name", "receipt_name",
                "registration_sha256", "source_manifest_sha256", "initial_inputs_sha256",
@@ -99,7 +100,10 @@ def _code_tree(root):
     return _sha(canonical(_code_files(root)))
 
 
-ALLOCATION_SHA256 = "8dd4844321d0b396adc09451d8c6cea26abab7ef08f2bc21d70164fa87aa3d55"
+ALLOCATION_STATUSES = {
+    "allocated_for_one_r2i_attempt_after_live_preflight",
+    "allocated_for_one_r2j_attempt_after_live_preflight",
+}
 SOURCE_PURPOSES = ("core", "egress", "frontend", "observe", "storage")
 CLONE_PURPOSES = ("core", "egress", "frontend", "access", "observe", "storage",
                   "observability_access")
@@ -111,14 +115,19 @@ def _allocation(c):
     path = Path(c["allocation_file"])
     require(path.is_absolute() and path.is_file() and not path.is_symlink() and
             path.resolve(strict=True) == path and
-            path == parent / "preparations/nas-a1-network-allocation-r2i.json" and
-            c["allocation_sha256"] == ALLOCATION_SHA256 and
-            file_hash(path) == ALLOCATION_SHA256,
+            path.parent == parent / "preparations" and
+            type(c["allocation_sha256"]) is str and
+            HEX.fullmatch(c["allocation_sha256"]) and
+            file_hash(path) == c["allocation_sha256"],
             "a1_allocation_file_mismatch")
     document = read_json(path)
     scope_name = c["scope_name"] if "scope_name" in c else Path(c["scope_root"]).name
     require(document["task"] == "NAS-A1" and
-            document["status"] == "allocated_for_one_r2i_attempt_after_live_preflight" and
+            document["status"] in ALLOCATION_STATUSES and
+            type(scope_name) is str and scope_name.startswith("scope-a1-") and
+            document["status"] == "allocated_for_one_" + scope_name[len("scope-a1-"):] +
+                "_attempt_after_live_preflight" and
+            document["scope"] == "one_new_source_and_clone_only" and
             document["scope_name"] == scope_name and
             document["execution_id"] == c["execution_id"] and
             str(uuid.UUID(c["execution_id"])) == c["execution_id"] and
@@ -139,6 +148,10 @@ def _allocation(c):
     pool = ipaddress.ip_network(document["candidate_block"], strict=True)
     withheld = ipaddress.ip_network(document["unallocated"], strict=True)
     require(pool.version == 4 and pool.prefixlen == 24 and
+            any(pool.subnet_of(private) for private in (
+                ipaddress.ip_network("10.0.0.0/8"),
+                ipaddress.ip_network("172.16.0.0/12"),
+                ipaddress.ip_network("192.168.0.0/16"))) and
             withheld.version == 4 and withheld.prefixlen == 26 and
             withheld.subnet_of(pool) and
             withheld.network_address == pool.network_address + 192,
@@ -197,6 +210,20 @@ def load_config(path, *, phase=None):
     require(root.name.startswith("scope-a1-") and
             read_json(root / ".recovery-scope.json")["scope_id"] == value["scope_id"],
             "a1_old_scope_forbidden")
+    prep_path = root.parent / "preparations" / (root.name + ".json")
+    require(type(value["preparation_config_sha256"]) is str and
+            HEX.fullmatch(value["preparation_config_sha256"]) and
+            file_hash(prep_path) == value["preparation_config_sha256"],
+            "a1_preparation_config_mismatch")
+    prep = read_json(prep_path)
+    require(all(prep.get(key) == expected for key, expected in {
+                "scope_name": root.name, "scope_id": value["scope_id"],
+                "allocation_file": value["allocation_file"],
+                "allocation_sha256": value["allocation_sha256"],
+                "execution_id": value["execution_id"],
+                "networks": value["networks"], "ports": value["ports"],
+                "clone_project": value["projects"]["core"]}.items()),
+            "a1_preparation_config_mismatch")
     require(type(value["code_tree_sha256"]) is str and
             HEX.fullmatch(value["code_tree_sha256"]) and
             _code_tree(code) == value["code_tree_sha256"], "a1_code_digest_mismatch")
@@ -701,7 +728,10 @@ def drive(c, *, runner=None, clock=None):
     receipt_dir.mkdir(mode=0o700)
     attempt_id = str(uuid.uuid4())
     _write_once(receipt_dir / "attempt.json", {"attempt_id": attempt_id,
-                                                "scope_id": c["scope_id"]})
+        "scope_id": c["scope_id"],
+        "driver_config_sha256": file_hash(p["root"] / "inputs/a1-once.json"),
+        "preparation_config_sha256": c["preparation_config_sha256"],
+        "allocation_sha256": c["allocation_sha256"]})
     verification = permit_sha = None
     completed = []
     for stage in STAGES:
