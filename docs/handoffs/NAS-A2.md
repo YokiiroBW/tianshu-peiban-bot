@@ -62,12 +62,20 @@
 - A5 固定源码分析确认 Vector 0.58.0 的 disk-v2 内部可用上限为 `268435488 - 134217728 = 134217760` 字节，公开 max gauge 仍为配置值。因此 R11 先前按公开 max 的 98% 判据不可达。R12 探针改记 UTC 与 monotonic 原始指标、至少三次相隔 5 秒的 source 停滞、内部上限与批次余量，并把预期离线连接重试与解析/磁盘/丢弃/HTTP 错误分开。先完成本地边界检查，然后只运行 `recovery-vector-20260925-r12` 一次；独立内网 `10.205.21.0/24`、512 MiB tmpfs、60,000 个唯一合成 ID、2500 字节 padding，实际 Loki 单行最长 2853 字节。
 - 离线填充 300 秒中保存 52 个带双时钟时间戳的样本。source 在 49,102/60,000 停滞、未到 EOF，sink 离线、源 SHA 不变、无事件丢弃和非预期错误；Vector 日志中的 28 条连接失败按预期重试单列。buffer 峰值 `131490992` 字节，距内部上限 `2726768` 字节。首个可读指标已处于平台值，缺少正增长区间来测得实际编码事件大小；现有 262144 字节批次上限不能解释该差额。因此 **source 停滞有证据，但“队列接近内部上限且余量可解释”的满 buffer 判据未通过**，不能声称已验证 Vector 满 buffer。
 - 恢复后 Vector source/sink 均到 60,000，队列为 0、丢弃为 0，源 SHA 仍一致；正常停止 Vector。`query_store_only=false` 的 ingester + store **混合查询**一次完整返回 60,000 行，所有唯一 ID 与载荷哈希精确匹配，无查询错误、重复、源外身份或超长行。此结果证明本次合成事件的混合查询可见性，不单独证明持久化 store 可见性。
-- `/flush` 返回 204 后正常停止 Loki，并以 `query_store_only=true` 重启。06:41:52–06:46:22 UTC 每 15 秒发起的 19 次完整查询均返回 0/60,000，查询本身无错误；300 秒窗口内 **store-only 未通过**。chunk、object-index、active-index、index-cache 的逐次时间戳与 SHA-256、flush/TSDB shipper/下载指标均在主报告。期间出现 5 个 chunk 文件与对象索引文件，shipper 上传计数增长，但 store-only 查询仍无行、重启后的 chunk 下载计数为 0；这将问题收窄到索引发布/查询可见性等持久化读路径，尚不能凭这些指标确定唯一根因。
+- `/flush` 返回 204 后正常停止 Loki，并以 `query_store_only=true` 重启。06:41:52–06:46:22 UTC 每 15 秒发起的 19 次完整查询均返回 0/60,000，查询本身无错误；R12 自动探针记录 **store-only 未通过**。chunk、object-index、active-index、index-cache 的逐次时间戳与 SHA-256、flush/TSDB shipper/下载指标均在主报告。该次零结果的原因由后续 A5 固定源码与归档审计厘清：全部事件还处于 Loki `all`/filesystem 自动计算的 1635 秒近期排除窗口，store 区间为空，故 R12 并未实际测试持久化 store 读回；不能据此推断索引或数据丢失。
 - 总运行 815.186 秒，未超 1500 秒期限；报告整体 `partial`，`release_ready=false`。Vector/Loki 均 exit 0、非 OOM；内部网络无附件。原合成源未删，tmpfs 归档 8,077,601 字节、62 个成员，SHA-256 `5c591348…81d7b94e`；归档内源 SHA 与运行源一致，独立 `gzip -t` 通过，随后确认 tmpfs 已卸载。见 [R12 主报告](../../tests/deployment/observability/evidence/nas-a2-followup-2026-09-25-r12.json) 与 [R12 收尾核对](../../tests/deployment/observability/evidence/nas-a2-followup-2026-09-25-r12-cleanup.json)。报告 NAS 与本地 SHA-256 同为 `3eb58cf6…47f09c`；旧 R2–R11 原始报告未修改。
 - 本地针对性回归 28 项通过；R12 两份 JSON 可解析，`git diff --check` 通过。以上是探针判据与证据格式检查，不将它们替代 NAS 上未通过的两项验收。
 
+## A5 复核与唯一持久化读取补验 R13
+
+- A5 在固定提交 `c0f07c1` 中复核 R12 的 52 个双时钟样本及 Vector 0.58.0 源码：source 49,102/60,000 在 sink 离线时持续停滞，源不变、无丢弃，恢复后 source/sink 60,000、buffer 0、混合查询全量精确。**功能性背压与无损复放为 passed**。但 R12 峰值距内部上限 2,726,768 字节，下一条 disk-v2 序列化记录长度没有采集；**精确满 buffer 容量为 not_measured**，不把 sink HTTP 的 262144 字节 batch 上限当磁盘记录长度。R12 原报告保持原样，纠正口径见 [R12 复核附注](../../tests/deployment/observability/evidence/nas-a2-followup-2026-09-25-r12-review.json)。
+- A5 同时确认 Loki 3.7.8 `all`/filesystem 自动导出 27 分 15 秒（1635 秒）store 近期排除窗口；R12 19 次查询的最老事件年龄只有 833.981–1103.993 秒。`query_store_only=true` 关闭 ingester 分支，而 store 分支区间为空，确定性返回 0。R12 的“store-only 失败”是无效测试结果，不作为存储丢失证据。
+- 在此基础上只运行一次新 R13 scope：`10.205.22.0/24` 内网、512 MiB tmpfs、60,000 个唯一合成 ID、2500 字节 padding。预检子网冲突为 0，端口可用，A2 内存计划 2 GiB / 4 GiB、主机可用约 19.18 GB。事件基准时间固定为运行开始约 1 小时前，2.5 ms 递增，实际最长 Loki 行 2853 字节。运行前离线回归检查从现在到 1500 秒期限的完整查询窗口始终早于 1635 秒截点，且在 3 小时策略、48 小时保留、720 小时拒收界限内；运行中 store-only 查询再按实际 UTC 时刻逐桶检查。没有等待事件变老，也没有重复 R12 的离线填充/停滞试验。
+- Loki 在线时 Vector 受限速发送后，source/sink 均 60,000、buffer 0、丢弃/组件错误 0，源 SHA 保持 `23d7bc9e…968811`。Vector 正常停止。混合查询第三次完整扫描返回 **60,000/60,000** 身份与载荷精确匹配；前两次结果不全，均保存在主报告。`/flush` 204 后正常停止 Loki 并切为 store-only；查询开始 07:23:40 UTC，最老/最新事件年龄分别 3844.237/3694.239 秒，完整查询窗口处于非空 store 区间。第一次完整 store-only 查询返回 **60,000/60,000**，无缺失、重复、额外身份、载荷差异、查询错误或超长行。**本次隔离合成数据的持久化 store 读取验收通过**，不外推到生产 30 天保留。
+- R13 保存 flush 前后、停机后、store 重启后和查询当刻的 chunk/object-index/active-index/index-cache 时间戳与 SHA-256，以及 Loki flush/shipper/下载指标。总运行 283.467 秒，未超 1500 秒期限；主报告整体仍为 `partial`，因回收合同、物理 ENOSPC 和生产保留等独立门禁未完成，`release_ready=false`。Vector/Loki 均 exit 0、非 OOM；内网无附件。原合成源未删，tmpfs 归档 8,195,440 字节、SHA-256 `6037eb71…0ad6d4`，归档源哈希吻合、独立 `gzip -t` 通过后卸载。见 [R13 主报告](../../tests/deployment/observability/evidence/nas-a2-followup-2026-09-25-r13.json) 与 [R13 收尾核对](../../tests/deployment/observability/evidence/nas-a2-followup-2026-09-25-r13-cleanup.json)；NAS 与本地报告 SHA-256 同为 `37337b0c…19d8f5`。R12 原始证据未修改，未追加第二 scope。
+
 ## 未完成与下一步
 
-1. A5 已核对 Vector 0.58.0 disk-v2 的内部容量。R12 证实 source 在 sink 离线时停滞、恢复后混合查询 60,000 条精确，但队列指标距内部上限 2,726,768 字节且缺少可解释的编码余量；满 buffer 仍未验收。store-only 19 次完整查询均为 0，需对照本次索引文件与 Loki 查询/shipper 路径定位，不得以混合查询或 `/flush` 204 代替持久化可查证明。按本次授权不自动追加新 scope 或延长期限。
-2. 在应用回收合同冻结前保持回收门禁关闭，不删源数据；物理 ENOSPC、Vector 满 buffer 与 30 天生产保留需另行获批和设计隔离条件。
+1. A5 已厘清 R12 的容量与 Loki 查询区间口径；R12 功能性背压与无损回放通过，精确下一条序列化记录长度仍未测量。R13 在非空 store 分支完成 60,000 条合成事件的持久化读回；这不等于生产保留期或回收门禁通过。按本次授权不自动追加新 scope 或延长期限。
+2. 在应用回收合同冻结前保持回收门禁关闭，不删源数据；精确满 buffer 容量、物理 ENOSPC 与 30 天生产保留仍需另行设计隔离验收条件。
 3. 本任务未推送、合并或更新协调仓库任务板。
