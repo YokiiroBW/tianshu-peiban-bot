@@ -13,12 +13,45 @@ import ssl
 import time
 from urllib.parse import urlsplit
 
-from .safety import RecoveryError, require
+from .safety import DrillDiagnosticError, RecoveryError, require
 
 HEADER_LIMIT = 32 * 1024
 BODY_LIMIT = 256 * 1024
 POST_BODY_LIMIT = 16 * 1024
 FIELD = re.compile(rb"[!#$%&'*+.^_`|~0-9A-Za-z-]+")
+SAFE_RESPONSE_KEYS = frozenset(
+    {"status", "code", "selected_units", "omissions", "history", "turns", "request_id"}
+)
+SAFE_PRODUCT_CODES = frozenset(
+    {
+        "invalid_host",
+        "unauthorized",
+        "forbidden",
+        "invalid_input",
+        "no_match",
+        "dependency_unavailable",
+    }
+)
+
+
+def response_structure(data):
+    """Summarize bounded JSON shape without persisting any returned content."""
+    try:
+        value = json.loads(data)
+    except (ValueError, UnicodeError):
+        return {"kind": "invalid_json"}
+    if isinstance(value, dict):
+        summary = {
+            "kind": "object",
+            "key_count": len(value),
+            "known_keys": sorted(set(value) & SAFE_RESPONSE_KEYS),
+        }
+        if isinstance(value.get("code"), str) and value["code"] in SAFE_PRODUCT_CODES:
+            summary["product_code"] = value["code"]
+        return summary
+    if isinstance(value, list):
+        return {"kind": "array", "item_count": len(value)}
+    return {"kind": type(value).__name__}
 
 # These POST routes are documented read boundaries in the product contracts. Keep this
 # list closed: adding a path requires reviewing that product handler for side effects.
@@ -90,6 +123,8 @@ class Connection:
         self.socket.setblocking(False)
         try:
             status = self.socket.connect_ex(("127.0.0.1", self.port))
+            if status == errno.ECONNREFUSED:
+                raise RecoveryError("drill_connection_refused")
             require(
                 status in {0, errno.EINPROGRESS, errno.EWOULDBLOCK, errno.EALREADY},
                 "drill_connection_failed",
@@ -101,9 +136,11 @@ class Connection:
                     )
                     self.budget.check()
                     if writable or errors:
+                        connected = self.socket.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
+                        if connected == errno.ECONNREFUSED:
+                            raise RecoveryError("drill_connection_refused")
                         require(
-                            self.socket.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
-                            == 0,
+                            connected == 0,
                             "drill_connection_failed",
                         )
                         break
@@ -258,6 +295,7 @@ def _request(
     service=None,
     body=None,
     return_status=False,
+    authority=None,
 ):
     target = urlsplit(url)
     require(
@@ -295,9 +333,18 @@ def _request(
         or (type(expected_status) is int and 200 <= expected_status <= 599),
         "drill_assertion_invalid",
     )
+    # Only the already-validated Memory deployment authority may override Host.
+    # The connection and TLS peer remain the explicitly pinned loopback endpoint.
+    require(
+        authority is None or (
+            method == "POST" and service == "memory" and authority == "memory.internal:8130"
+        ),
+        "drill_assertion_authority_forbidden",
+    )
+    host = authority or f"127.0.0.1:{target.port}"
     headers = [
         f"{method} {path} HTTP/1.1",
-        f"Host: 127.0.0.1:{target.port}",
+        f"Host: {host}",
         f"Authorization: Bearer {token}",
         "Accept: application/json",
         "Accept-Encoding: identity",
@@ -307,12 +354,18 @@ def _request(
             ("Content-Type: application/json", f"Content-Length: {len(body)}")
         )
     request = ("\r\n".join(headers) + "\r\nConnection: close\r\n\r\n").encode("ascii")
+    stage = "connect"
+    actual_status = None
+    structure = None
     try:
         with Connection(tls, target.port, budget) as connection:
+            stage = "send_headers"
             connection.send(request)
             if method == "POST":
+                stage = "send_body"
                 connection.send(body)
             reader = Reader(connection)
+            stage = "read_status"
             status = reader.line(limit=1024, header=True)
             require(
                 re.fullmatch(rb"HTTP/1\.[01] [0-9]{3}(?: [^\r\n]*)?\r\n", status),
@@ -324,16 +377,36 @@ def _request(
                 if expected_status == "readiness"
                 else {expected_status}
             )
-            require(
-                actual_status in allowed_statuses,
-                "drill_assertion_status_mismatch",
-            )
-            data = reader.body(reader.headers())
+            stage = "read_headers"
+            response_headers = reader.headers()
+            stage = "read_body"
+            data = reader.body(response_headers)
+            structure = response_structure(data)
             budget.check()
+            stage = "match_status"
+            require(actual_status in allowed_statuses, "drill_assertion_status_mismatch")
             return (actual_status, data) if return_status else data
-    except OSError:
+    except DrillDiagnosticError:
+        raise
+    except RecoveryError as error:
+        raise DrillDiagnosticError(
+            str(error), stage=stage, actual_status=actual_status,
+            response_structure=structure,
+        ) from None
+    except ssl.SSLError:
         budget.check()
-        raise RecoveryError("drill_tls_or_transport_failed") from None
+        raise DrillDiagnosticError(
+            "drill_tls_handshake_failed" if stage == "connect" else "drill_tls_transport_failed",
+            stage=stage, actual_status=actual_status,
+        ) from None
+    except OSError as error:
+        budget.check()
+        code = (
+            "drill_connection_refused"
+            if stage == "connect" and error.errno == errno.ECONNREFUSED
+            else "drill_tls_or_transport_failed"
+        )
+        raise DrillDiagnosticError(code, stage=stage, actual_status=actual_status) from None
 
 
 def get(url, token, tls, budget, expected_status):
@@ -353,7 +426,7 @@ def get_readiness(url, token, tls, budget):
     )
 
 
-def post_readonly(url, token, service, body, tls, budget, expected_status):
+def post_readonly(url, token, service, body, tls, budget, expected_status, *, authority=None):
     return _request(
         url,
         token,
@@ -363,4 +436,5 @@ def post_readonly(url, token, service, body, tls, budget, expected_status):
         method="POST",
         service=service,
         body=body,
+        authority=authority,
     )

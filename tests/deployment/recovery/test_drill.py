@@ -418,6 +418,21 @@ class DrillTests(unittest.TestCase):
         self.assertFalse((self.root / "drill-claims").exists())
         self.assertEqual(self.calls, [])
 
+    def test_memory_post_requires_verified_host_before_permit_claim(self):
+        assertion = next(
+            row for row in self.index["assertions"] if row["service"] == "memory"
+        )
+        port = self.documents["core"]["services"]["memory"]["ports"][0]["published"]
+        assertion.update(
+            method="POST", request_json={"query_text": "green"},
+            url=f"https://127.0.0.1:{port}/internal/v1/memory/select",
+        )
+        self.save()
+        with self.assertRaisesRegex(RecoveryError, "drill_memory_authority_invalid"):
+            self.run_drill(False)
+        self.assertFalse(self.clone.exists())
+        self.assertFalse((self.root / "drill-claims").exists())
+
     def test_a1_projects_are_allowed_and_all_nine_services_stay_running(self):
         self.enable_a1_observation()
         permit(self.recovery, self.permit_path, file_hash(self.permit_path))
@@ -706,9 +721,36 @@ class DrillTests(unittest.TestCase):
         ):
             result = self.run_drill()
         self.assertEqual(result["status"], "drill_failed_or_cancelled")
+        self.assertEqual(result["failure_detail"], {
+            "phase": "assertion_data_readback", "code": "assertion_failed"
+        })
         self.assertTrue(
             all(not c["State"]["Running"] for c in self.clone_docker.containers)
         )
         self.assertTrue(
             (self.root / "drill-claims" / (self.value["permit_id"] + ".json")).exists()
         )
+
+    def test_failed_http_assertion_persists_only_bounded_diagnostic(self):
+        from ops.recovery.safety import DrillDiagnosticError
+
+        error = DrillDiagnosticError(
+            "drill_assertion_status_mismatch", stage="match_status",
+            actual_status=400,
+            response_structure={"kind": "object", "key_count": 2,
+                                "known_keys": ["code", "status"],
+                                "product_code": "invalid_host"},
+        )
+        with patch.object(drill, "http_check", side_effect=error):
+            result = self.run_drill()
+        self.assertEqual(result["failure_detail"], {
+            "phase": "assertion_data_readback",
+            "code": "drill_assertion_status_mismatch",
+            "stage": "match_status",
+            "actual_http_status": 400,
+            "response_structure": {"kind": "object", "key_count": 2,
+                                   "known_keys": ["code", "status"],
+                                   "product_code": "invalid_host"},
+        })
+        persisted = json.loads((self.clone / "drill-result.json").read_text())
+        self.assertEqual(result["failure_detail"], persisted["failure_detail"])

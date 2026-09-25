@@ -2,6 +2,7 @@
 
 import ipaddress
 import json
+import socket
 import ssl
 import tempfile
 import threading
@@ -17,8 +18,9 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 
 from ops.recovery.drill_http import check, check_readiness, matches
+from ops.recovery.http_transport import post_readonly, response_structure
 from ops.recovery.lifecycle import Deadline
-from ops.recovery.safety import RecoveryError
+from ops.recovery.safety import DrillDiagnosticError, RecoveryError
 
 
 class DrillHTTPTests(unittest.TestCase):
@@ -61,8 +63,17 @@ class DrillHTTPTests(unittest.TestCase):
             )
         )
         (cls.root / "token").write_text("isolated-test-only-token")
+        (cls.root / "wrong-token").write_text("isolated-wrong-token")
+        (cls.root / "compose.json").write_text(
+            json.dumps(
+                {"services": {"memory": {"command": [
+                    "serve", "--port", "8130", "--allowed-host", "memory.internal:8130"
+                ]}}}
+            )
+        )
         cls.requests = []
         cls.post_requests = []
+        cls.host_headers = []
         cls.readiness_status = 200
 
         class Handler(BaseHTTPRequestHandler):
@@ -76,6 +87,7 @@ class DrillHTTPTests(unittest.TestCase):
             def do_POST(self):
                 length = int(self.headers.get("Content-Length", "0"))
                 body = self.rfile.read(length)
+                cls.host_headers.append((self.path, self.headers.get("Host")))
                 cls.post_requests.append(
                     (
                         self.path,
@@ -84,7 +96,26 @@ class DrillHTTPTests(unittest.TestCase):
                         body,
                     )
                 )
+                if self.path == "/internal/v1/memory/select":
+                    if self.headers.get("Host") != "memory.internal:8130":
+                        self.respond_json(400, {"status": "failed", "code": "invalid_host"})
+                    elif self.headers.get("Authorization") != "Bearer isolated-test-only-token":
+                        self.respond_json(401, {"status": "failed", "code": "unauthorized"})
+                    elif json.loads(body).get("query_text") == "forbidden":
+                        self.respond_json(403, {"status": "failed", "code": "forbidden"})
+                    elif json.loads(body).get("query_text") == "contract_invalid":
+                        self.respond_json(400, {"status": "failed", "code": "invalid_input"})
+                    else:
+                        self.respond_json(200, {"selected_units": [], "omissions": ["no_match"]})
+                    return
                 self.respond()
+
+            def respond_json(self, status, value):
+                data = json.dumps(value).encode()
+                self.send_response(status)
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
 
             def respond(self):
                 if self.path == "/redirect":
@@ -152,6 +183,113 @@ class DrillHTTPTests(unittest.TestCase):
             "expected_status": 200,
             "expected_json": {"status": "unknown"},
         }
+
+    def memory_assertion(self, term="green"):
+        assertion = self.assertion("/internal/v1/memory/select")
+        assertion.update(
+            id="forgotten", service="memory", method="POST",
+            request_json={"query_text": term},
+            expected_json={"selected_units": [], "omissions": ["no_match"]},
+        )
+        return assertion
+
+    def test_memory_host_comes_from_pinned_compose_listener(self):
+        assertion = self.memory_assertion()
+        tls = ssl.create_default_context(cafile=str(self.root / "ca.pem"))
+        with self.assertRaises(DrillDiagnosticError) as wrong_host:
+            post_readonly(
+                assertion["url"], "isolated-test-only-token", "memory",
+                assertion["request_json"], tls, Deadline(3), 200,
+            )
+        self.assertEqual(wrong_host.exception.detail()["actual_http_status"], 400)
+        self.assertEqual(
+            wrong_host.exception.detail()["response_structure"]["product_code"],
+            "invalid_host",
+        )
+        self.assertEqual(check(self.root, assertion, Deadline(3))["status"], "passed")
+        self.assertEqual(self.host_headers[-1], (
+            "/internal/v1/memory/select", "memory.internal:8130"))
+
+    def test_memory_host_cannot_be_supplied_by_untrusted_compose_input(self):
+        path = self.root / "compose.json"
+        original = path.read_bytes()
+        document = json.loads(original)
+        document["services"]["memory"]["command"][-1] = "evil.example.test:8130"
+        before = len(self.host_headers)
+        try:
+            path.write_text(json.dumps(document))
+            with self.assertRaisesRegex(RecoveryError, "drill_memory_authority_invalid"):
+                check(self.root, self.memory_assertion(), Deadline(3))
+        finally:
+            path.write_bytes(original)
+        self.assertEqual(len(self.host_headers), before)
+
+    def test_memory_auth_contract_and_business_outcomes_are_distinct(self):
+        cases = (
+            ("wrong-token", "green", 401, "unauthorized"),
+            ("token", "forbidden", 403, "forbidden"),
+            ("token", "contract_invalid", 400, "invalid_input"),
+        )
+        for token_file, term, status, product_code in cases:
+            with self.subTest(status=status, code=product_code):
+                assertion = self.memory_assertion(term)
+                assertion["token_file"] = token_file
+                with self.assertRaises(DrillDiagnosticError) as failed:
+                    check(self.root, assertion, Deadline(3))
+                detail = failed.exception.detail()
+                self.assertEqual(detail["code"], "drill_assertion_status_mismatch")
+                self.assertEqual(detail["stage"], "match_status")
+                self.assertEqual(detail["actual_http_status"], status)
+                self.assertEqual(
+                    detail["response_structure"]["product_code"], product_code
+                )
+        self.assertEqual(
+            check(self.root, self.memory_assertion(), Deadline(3))["status"], "passed"
+        )
+        mismatched = self.memory_assertion()
+        mismatched["expected_json"] = {"selected_units": [{"id": "expected"}]}
+        with self.assertRaises(DrillDiagnosticError) as body_failure:
+            check(self.root, mismatched, Deadline(3))
+        self.assertEqual(body_failure.exception.detail()["stage"], "match_body")
+        self.assertEqual(body_failure.exception.detail()["actual_http_status"], 200)
+
+    def test_connection_refusal_and_tls_failure_have_separate_codes(self):
+        with socket.socket() as reserved:
+            reserved.bind(("127.0.0.1", 0))
+            unused_port = reserved.getsockname()[1]
+        refused = self.memory_assertion()
+        refused["url"] = f"https://127.0.0.1:{unused_port}/internal/v1/memory/select"
+        with self.assertRaises(DrillDiagnosticError) as connection:
+            check(self.root, refused, Deadline(3))
+        self.assertEqual(connection.exception.detail(), {
+            "code": "drill_connection_refused", "stage": "connect"})
+
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "wrong-test-ca")])
+        now = datetime.now(timezone.utc)
+        wrong_ca = (x509.CertificateBuilder().subject_name(subject).issuer_name(subject)
+                    .public_key(key.public_key()).serial_number(x509.random_serial_number())
+                    .not_valid_before(now - timedelta(minutes=1))
+                    .not_valid_after(now + timedelta(hours=1))
+                    .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+                    .sign(key, hashes.SHA256()))
+        (self.root / "wrong-ca.pem").write_bytes(
+            wrong_ca.public_bytes(serialization.Encoding.PEM)
+        )
+        wrong_tls = self.memory_assertion()
+        wrong_tls["ca_file"] = "wrong-ca.pem"
+        with self.assertRaises(DrillDiagnosticError) as handshake:
+            check(self.root, wrong_tls, Deadline(3))
+        self.assertEqual(handshake.exception.detail(), {
+            "code": "drill_tls_handshake_failed", "stage": "connect"})
+
+    def test_response_structure_never_copies_untrusted_values_or_keys(self):
+        shape = response_structure(
+            b'{"code":"invalid_host","status":"failed","secret-token":"private"}'
+        )
+        self.assertEqual(shape, {"kind": "object", "key_count": 3,
+                                 "known_keys": ["code", "status"],
+                                 "product_code": "invalid_host"})
 
     def test_actual_tls_authenticated_get_redacts_response(self):
         result = check(self.root, self.assertion("/good"), Deadline(3))

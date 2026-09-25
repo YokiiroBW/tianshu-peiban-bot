@@ -3,8 +3,8 @@
 import json
 import ssl
 
-from .http_transport import get, get_readiness, post_readonly
-from .safety import child, digest, read_bytes, require
+from .http_transport import get, get_readiness, post_readonly, response_structure
+from .safety import DrillDiagnosticError, child, digest, read_bytes, read_json, require
 
 
 def matches(actual, expected):
@@ -17,6 +17,25 @@ def matches(actual, expected):
             matches(left, right) for left, right in zip(actual, expected)
         )
     return type(actual) is type(expected) and actual == expected
+
+
+def memory_authority(root):
+    """Pin Memory's Host to its verified Compose listener, never to user input."""
+    document = read_json(child(root, "compose.json"))
+    services = document.get("services")
+    service = services.get("memory") if isinstance(services, dict) else None
+    command = service.get("command") if isinstance(service, dict) else None
+    require(isinstance(command, list) and all(isinstance(x, str) for x in command),
+            "drill_memory_authority_invalid")
+    require(command.count("--allowed-host") == 1 and command.count("--port") == 1,
+            "drill_memory_authority_invalid")
+    allowed = command.index("--allowed-host")
+    port = command.index("--port")
+    require(allowed + 1 < len(command) and port + 1 < len(command),
+            "drill_memory_authority_invalid")
+    require(command[allowed + 1] == "memory.internal:8130" and command[port + 1] == "8130",
+            "drill_memory_authority_invalid")
+    return command[allowed + 1]
 
 
 def unknown_turns(data):
@@ -86,10 +105,14 @@ def check(root, assertion, budget, *, capture_unknown_turns=False):
         read_bytes(child(root, assertion["token_file"]), limit=4096).decode().strip()
     )
     require(token and "\r" not in token and "\n" not in token, "drill_token_invalid")
-    tls = ssl.create_default_context(cafile=str(child(root, assertion["ca_file"])))
+    try:
+        tls = ssl.create_default_context(cafile=str(child(root, assertion["ca_file"])))
+    except (OSError, ssl.SSLError):
+        raise DrillDiagnosticError("drill_tls_ca_invalid", stage="tls_context") from None
     if method == "GET":
         data = get(assertion["url"], token, tls, budget, assertion["expected_status"])
     else:
+        authority = memory_authority(root) if assertion["service"] == "memory" else None
         data = post_readonly(
             assertion["url"],
             token,
@@ -98,12 +121,23 @@ def check(root, assertion, budget, *, capture_unknown_turns=False):
             tls,
             budget,
             assertion["expected_status"],
+            authority=authority,
         )
     budget.check()
-    require(
-        matches(json.loads(data), assertion["expected_json"]),
-        "drill_assertion_body_mismatch",
-    )
+    try:
+        actual = json.loads(data)
+    except (ValueError, UnicodeError):
+        raise DrillDiagnosticError(
+            "drill_assertion_json_invalid", stage="parse_json",
+            actual_status=assertion["expected_status"],
+            response_structure={"kind": "invalid_json"},
+        ) from None
+    if not matches(actual, assertion["expected_json"]):
+        raise DrillDiagnosticError(
+            "drill_assertion_body_mismatch", stage="match_body",
+            actual_status=assertion["expected_status"],
+            response_structure=response_structure(data),
+        )
     result = {
         "id": assertion["id"],
         "service": assertion["service"],

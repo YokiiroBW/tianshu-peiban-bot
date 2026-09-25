@@ -1,6 +1,7 @@
 """One-use synthetic clone, fixed Compose startup and public readback; originals stay off."""
 
 import os
+import re
 import sqlite3
 import time
 from contextlib import ExitStack
@@ -10,6 +11,7 @@ from .compose_backend import ComposeBackend, DockerCLI
 from .drill_http import (
     check as http_check,
     check_readiness,
+    memory_authority,
     matches as response_matches,
 )
 from .drill_inputs import isolated_inputs, permit, restoration_facts
@@ -18,6 +20,7 @@ from .lifecycle import Deadline, stop_order
 from .linux_recovery import registered
 from .runtime_identity import load_identity, runtime_lease
 from .safety import (
+    DrillDiagnosticError,
     RecoveryError,
     canonical,
     child,
@@ -31,6 +34,19 @@ from .safety import (
     walk_tree,
     write_new,
 )
+
+
+def _failure_detail(error, phase):
+    """Persist only fixed recovery codes and bounded assertion metadata."""
+    code = str(error) if isinstance(error, RecoveryError) else "drill_unclassified_error"
+    if re.fullmatch(r"[a-z][a-z0-9_]{0,63}", code) is None:
+        code = "drill_unclassified_error"
+    if re.fullmatch(r"[a-z][a-z0-9_]{0,63}", phase) is None:
+        phase = "drill_execution"
+    detail = {"phase": phase, "code": code}
+    if isinstance(error, DrillDiagnosticError):
+        detail.update(error.detail())
+    return detail
 
 
 def clone_binding(root, documents, manifest, value):
@@ -266,6 +282,11 @@ def run(
         value, manifest, resource_profile=resource_profile
     )
     _input_provenance(source, runtime, documents, index, clone)
+    if any(
+        assertion["service"] == "memory" and assertion.get("method") == "POST"
+        for assertion in index["assertions"]
+    ):
+        memory_authority(Path(value["inputs_directory"]))
     marker = read_json(child(restored, "RESTORE.json"))
     require(
         marker.get("snapshot_sha256") == value["snapshot_sha256"],
@@ -331,6 +352,7 @@ def run(
     original.restart_disabled = True
     backend = None
     failure = None
+    phase = "clone_copy"
     with runtime_lease(source), ExitStack() as clone_leases:
         permit(recovery, permit_path, permit_sha256)
         pin = registration["runtime_identity"]
@@ -476,6 +498,7 @@ def run(
                 ("observability", "observability/compose.yaml"),
                 ("core", "compose.json"),
             ):
+                phase = "start_observability" if group == "observability" else "start_core"
                 work.check()
                 docker.run(
                     "compose",
@@ -524,6 +547,7 @@ def run(
             ] = True
 
             if observation is not None:
+                phase = "worker_readiness"
                 # It must contain the two unknown and two successful control groups
                 # recorded by the source scope. New clone events must change the
                 # counters.
@@ -543,6 +567,7 @@ def run(
 
             initial_unknown_turns = None
             for assertion in index["assertions"]:
+                phase = "assertion_" + assertion["id"]
                 original.assert_stopped()
                 _unused(docker, set(), restored)
                 _assert_clone_services(backend, documents, all_services, work)
@@ -566,6 +591,7 @@ def run(
                     )
 
             if observation is not None:
+                phase = "unknown_observation"
                 require(
                     initial_unknown_turns is not None,
                     "drill_unknown_assertion_required",
@@ -647,8 +673,9 @@ def run(
                     "control_comparison": "two successful upstream groups unchanged",
                     "delivery_attempt_counter_exposed": False,
                 }
-        except (RecoveryError, OSError, ValueError, KeyError, TypeError, sqlite3.Error):
+        except (RecoveryError, OSError, ValueError, KeyError, TypeError, sqlite3.Error) as error:
             failure = "drill_failed_or_cancelled"
+            result["failure_detail"] = _failure_detail(error, phase)
         finally:
             cleanup = Deadline(
                 max(0.1, min(cleanup_reserve, total_end - time.monotonic()))
@@ -667,8 +694,9 @@ def run(
                     KeyError,
                     TypeError,
                     sqlite3.Error,
-                ):
+                ) as error:
                     failure = "stop_unconfirmed"
+                    result["cleanup_failure_detail"] = _failure_detail(error, "clone_stop")
             original.budget, original.docker = cleanup, cleanup_docker
             try:
                 original.assert_stopped()
@@ -685,8 +713,9 @@ def run(
                 KeyError,
                 TypeError,
                 sqlite3.Error,
-            ):
+            ) as error:
                 failure = "original_state_unconfirmed"
+                result["cleanup_failure_detail"] = _failure_detail(error, "original_state")
             kinds = {r["id"] for r in result["functional_assertions"]}
             missing = sorted(
                 {
