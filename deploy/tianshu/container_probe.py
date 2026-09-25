@@ -1,6 +1,7 @@
 """Executed inside an owned product container; no response bodies/secrets on stdout."""
 
 import http.cookiejar
+import hashlib
 import json
 import os
 import ssl
@@ -8,6 +9,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime, timezone
 from urllib.parse import urlsplit
 import uuid
 
@@ -143,6 +145,7 @@ def dialogue(*, real=False):
     assert status == 200 and session["authenticated"] is True
     headers["X-CSRF-Token"] = session["csrf"]
     selection = dict(conversation="web-input", actor="actor:household")
+    client_id = str(uuid.uuid4())
     status, receipt = request(
         opener,
         base + "/api/web/messages",
@@ -153,7 +156,7 @@ def dialogue(*, real=False):
                 if real
                 else "DEP-G synthetic container check"
             ),
-            "client_id": str(uuid.uuid4()),
+            "client_id": client_id,
         },
         headers,
     )
@@ -181,6 +184,23 @@ def dialogue(*, real=False):
                         )
                         for r in item["replies"]
                     )
+                    if not real:
+                        print(json.dumps({
+                            "schema_version": "synthetic-dialogue-proof/v1",
+                            "observed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                            "client_id": client_id,
+                            "message_id": receipt["message_id"],
+                            "turn_id": item["turn"]["turn_id"],
+                            "reply_ids": [r["reply_id"] for r in item["replies"]],
+                            "receipt_state": receipt["state"],
+                            "turn_phase": item["turn"]["phase"],
+                            "reply_count": len(item["replies"]),
+                            "reply_state": "sent",
+                            "content_state": "available",
+                            "reply_sha256": hashlib.sha256(
+                                item["replies"][0]["text"].encode()
+                            ).hexdigest(),
+                        }, sort_keys=True))
                     return
                 assert item["turn"]["phase"] not in {
                     "failed",
