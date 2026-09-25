@@ -1,5 +1,6 @@
 """Offline boundary checks for the parameterized source entry."""
 
+import copy
 from contextlib import nullcontext
 import json
 import tempfile
@@ -62,6 +63,132 @@ class SourceFlowTests(unittest.TestCase):
         history[1]["replies"].append({"reply_id": "duplicate", "state": "unknown"})
         with self.assertRaises(RecoveryError):
             a1_source_flow._unknown(result)
+
+    def test_initial_wait_rejects_failed_turn_without_final_read(self):
+        runner = a1_source_flow.Source(self.config)
+        history = [{"turn": {"turn_sequence": index, "turn_id": f"turn:{index}",
+                    "phase": "closed_unknown" if index == 1 else "failed",
+                    "delivery_state": "unknown" if index == 1 else "failed"},
+                    "replies": [{"reply_id": "reply:1", "state": "unknown"}]
+                    if index == 1 else []} for index in (1, 2)]
+        snapshot = {"http_status": 200, "body": {"conversation_id": "conv:fixture",
+            "history": history, "active_turns": [], "collectors": []}}
+        with patch.object(runner, "web", return_value=snapshot) as web:
+            with self.assertRaisesRegex(RecoveryError,
+                    "a1_source_initial_turn_terminal_mismatch"):
+                runner.await_initial_unknown("origin:fixture", "conv:fixture")
+        self.assertEqual(web.call_count, 1)
+        self.assertEqual(web.call_args.args[0], "web-initial-wait-001")
+
+    def test_initial_wait_times_out_on_unfinished_turn(self):
+        runner = a1_source_flow.Source(self.config)
+        history = [{"turn": {"turn_sequence": index, "turn_id": f"turn:{index}",
+                    "phase": "preparing", "delivery_state": "not_started"},
+                    "replies": []} for index in (1, 2)]
+        snapshot = {"http_status": 200, "body": {"conversation_id": "conv:fixture",
+            "history": history, "active_turns": [{"turn_sequence": 2}],
+            "collectors": []}}
+        tick = [0.0]
+        def pause(seconds):
+            tick[0] += seconds
+        with patch.object(runner, "web", return_value=snapshot) as web:
+            with self.assertRaisesRegex(RecoveryError,
+                    "a1_source_initial_turn_timeout"):
+                runner.await_initial_unknown("origin:fixture", "conv:fixture",
+                    timeout_seconds=2, clock=lambda: tick[0], pause=pause)
+        self.assertEqual(web.call_count, 3)
+        self.assertEqual(tick[0], 2)
+
+    def test_initial_web_reads_have_distinct_request_ids(self):
+        runner = a1_source_flow.Source(self.config)
+        snapshot = {"http_status": 200, "body": {"conversation_id": "conv:fixture",
+            "history": [], "active_turns": [], "collectors": []}}
+        with patch.object(a1_source_flow.product, "read_companion_web_snapshot",
+                          return_value=snapshot):
+            runner.web("web-initial-wait-001", "origin:fixture", "conv:fixture")
+            runner.web("web-snapshot-initial", "origin:fixture", "conv:fixture")
+        first = read_json(self.reports / "web-initial-wait-001-request.json")
+        final = read_json(self.reports / "web-snapshot-initial-request.json")
+        self.assertNotEqual(first["query"]["request_id"],
+                            final["query"]["request_id"])
+
+    def test_initial_wait_rejects_changed_final_snapshot(self):
+        runner = a1_source_flow.Source(self.config)
+        history = [{"turn": {"turn_sequence": index, "turn_id": f"turn:{index}",
+                    "phase": "closed_unknown", "delivery_state": "unknown"},
+                    "replies": [{"reply_id": f"reply:{index}", "state": "unknown"}]}
+                   for index in (1, 2)]
+        complete = {"http_status": 200, "body": {"conversation_id": "conv:fixture",
+            "history": history, "active_turns": [], "collectors": []}}
+        changed = copy.deepcopy(complete)
+        changed["body"]["collectors"] = [{"state": "processing"}]
+        with patch.object(runner, "web", side_effect=[complete, changed]) as web:
+            with self.assertRaisesRegex(RecoveryError,
+                    "a1_source_initial_turn_changed"):
+                runner.await_initial_unknown("origin:fixture", "conv:fixture")
+        self.assertEqual([call.args[0] for call in web.call_args_list],
+                         ["web-initial-wait-001", "web-snapshot-initial"])
+
+    def test_failed_async_turn_stops_run_before_memory_rebuild(self):
+        runner = a1_source_flow.Source(self.config)
+        observed = []
+        exact_scope = {"actor_id": "actor:a1-source", "person_id": "person:fixture",
+                       "audience": "self_private", "conversation_id": "conv:fixture"}
+        account = {"namespace": "web", "immutable_account_id": "fixture"}
+        history = [{"turn": {"turn_sequence": index, "turn_id": f"turn:{index}",
+                    "phase": "closed_unknown" if index == 1 else "failed",
+                    "delivery_state": "unknown" if index == 1 else "failed"},
+                    "replies": [{"reply_id": "reply:1", "state": "unknown"}]
+                    if index == 1 else []} for index in (1, 2)]
+        def compose(_self, owner, *args, **_kwargs):
+            observed.append(("compose", owner, args))
+            if "migrate-profiles" in args or "migrate-sources" in args:
+                name = "profiles" if "migrate-profiles" in args else "sources"
+                return json.dumps({"schema": 2 if name == "profiles" else 3,
+                    "backup": f"/srv/tianshu/first-install.pre-{name}.sqlite",
+                    "unverified_admissions": 0}).encode()
+            return b""
+        def dispatch(_self, label):
+            observed.append(("dispatch", label))
+            outcome = {"state": "accepted", "admission": {"scope": exact_scope},
+                       "receipt": {"collection_key": {"author": account}}}
+            return "source-input:" + label, {"conversation_id": "conv:fixture"}, outcome
+        def web(_self, name, _origin, conversation):
+            observed.append(("web", name))
+            return {"http_status": 200, "body": {"conversation_id": conversation,
+                "history": history, "active_turns": [], "collectors": []}}
+        def bind(_root, _document):
+            observed.append(("bind",))
+            return {"status": "bound"}
+        with patch.object(a1_source_flow.Source, "compose", compose), \
+             patch.object(a1_source_flow.Source, "initial_permissions",
+                          lambda *_args: None), \
+             patch.object(a1_source_flow.Source, "wait_owners", lambda *_args: None), \
+             patch.object(a1_source_flow.Source, "origin",
+                          lambda _self, *_args: "origin:fixture"), \
+             patch.object(a1_source_flow.Source, "dispatch", dispatch), \
+             patch.object(a1_source_flow.Source, "web", web), \
+             patch.multiple(a1_source_flow.product,
+                bind_synthetic_classification=lambda *_args: None,
+                enable_synthetic_memory_candidates=lambda *_args: None,
+                bind_synthetic_model_version=lambda *_args: None,
+                set_gateway_origin=lambda *_args: None,
+                start_synthetic_model=lambda *_args, **_kwargs:
+                    {"status": "ready", "fixture_only": True},
+                publish_synthetic_config=lambda *_args, **_kwargs:
+                    {"action": "publish", "receipt": {"config_version": 3,
+                                                       "published": True}},
+                bind_memory_scopes=bind):
+            with self.assertRaisesRegex(RecoveryError,
+                    "a1_source_initial_turn_terminal_mismatch"):
+                runner.run()
+        self.assertEqual([row[1] for row in observed if row[0] == "dispatch"],
+                         ["forget-success-v3", "source-revoke-success-v3"])
+        self.assertEqual([row[1] for row in observed if row[0] == "web"],
+                         ["web-initial-wait-001"])
+        self.assertNotIn(("bind",), observed)
+        self.assertFalse(any(row[0] == "compose" and "--force-recreate" in row[2]
+                             for row in observed))
 
     def test_real_memory_reader_accepts_current_bound_ids_only(self):
         scope = {"actor_id": "actor:a1-source",
@@ -239,6 +366,27 @@ class SourceFlowTests(unittest.TestCase):
                         "receipt": {"collection_key": {"author": account}}}
             return "source-input:" + label, {"conversation_id": "conv:fixture"}, accepted
 
+        def web(_self, name, _origin, conversation):
+            observed.append(("web", name))
+            if name == "web-initial-wait-001":
+                pending = copy.deepcopy(history)
+                pending[1]["turn"].update(phase="preparing",
+                                          delivery_state="not_started")
+                pending[1]["replies"] = []
+                return {"http_status": 200, "body": {"conversation_id": conversation,
+                    "history": pending, "active_turns": [{"turn_sequence": 2}],
+                    "collectors": []}}
+            if name == "web-initial-wait-002":
+                return {"http_status": 200, "body": {"conversation_id": conversation,
+                    "history": history, "active_turns": [],
+                    "collectors": [{"state": "processing"}]}}
+            return {"http_status": 200, "body": {"conversation_id": conversation,
+                "history": history, "active_turns": [], "collectors": []}}
+
+        def bind(_root, _document):
+            observed.append(("bind_memory_scopes",))
+            return {"status": "bound"}
+
         def memory(_self, stage, _origin, _scope, expected):
             observed.append(("memory", stage))
             return {key: [{"record_id": key + ":record"}] if count else []
@@ -276,7 +424,7 @@ class SourceFlowTests(unittest.TestCase):
              patch.object(a1_source_flow.Source, "dispatch", dispatch), \
              patch.object(a1_source_flow.Source, "memory", memory), \
              patch.object(a1_source_flow.Source, "reader", reader), \
-             patch.object(a1_source_flow.Source, "web", lambda _self, *args: {"http_status": 200, "body": {"history": history}}), \
+             patch.object(a1_source_flow.Source, "web", web), \
              patch.object(a1_source_flow.Source, "api", api), \
              patch.object(a1_source_flow.Source, "runtime_identity", identity), \
              patch.object(a1_source_flow.Source, "register", register), \
@@ -288,7 +436,7 @@ class SourceFlowTests(unittest.TestCase):
                 enable_synthetic_memory_candidates=lambda *_args: None,
                 bind_synthetic_model_version=lambda *_args: None,
                 set_gateway_origin=lambda *_args: None,
-                bind_memory_scopes=lambda *_args: {"status": "bound"},
+                bind_memory_scopes=bind,
                 start_synthetic_model=lambda *_args, **_kwargs: {"status": "ready", "fixture_only": True},
                 publish_synthetic_config=lambda *_args, **_kwargs: {"action": "publish", "receipt": {"config_version": 3, "published": True}},
                 trusted_memory_commit=commit,
@@ -301,6 +449,12 @@ class SourceFlowTests(unittest.TestCase):
         self.assertEqual(result["status"], "source_complete")
         self.assertEqual([row[1] for row in observed if row[0] == "dispatch"],
                          ["forget-success-v3", "source-revoke-success-v3"])
+        final = observed.index(("web", "web-snapshot-initial"))
+        restart = next(index for index, row in enumerate(observed)
+            if row[0] == "compose" and "--force-recreate" in row[2])
+        self.assertLess(observed.index(("web", "web-initial-wait-003")), final)
+        self.assertLess(final, observed.index(("bind_memory_scopes",)))
+        self.assertLess(final, restart)
         self.assertEqual([row[1] for row in observed if row[0] == "memory"],
                          ["baseline", "after-forget", "after-source-revoke", "after-retract"])
         self.assertEqual(json.loads((self.reports / "gateway-usage-readback.json").read_text()),

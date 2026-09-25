@@ -43,6 +43,14 @@ private receipts and cannot be repeated in that scope. The offline fixture
 checks action order; an actual Linux/NAS run is required to establish product
 and owner facts.
 
+Platform fanout acceptance starts asynchronous Companion work. The source
+entry polls its authorized web snapshot until both expected turns have one
+unknown reply and `closed_unknown` state, with no active turn or collector,
+before it binds the observed Memory scope and rebuilds Memory. A failed turn,
+changed final snapshot, or bounded wait expiry stops the source attempt. The
+later Companion source-facts read and trusted Memory commit remain separate
+checks; an automatic outbox entry marked unknown is not a Memory commit.
+
 From that same code directory,
 `ABS_PYTHON -B -m ops.recovery.a1_clone_prepare --config ABSOLUTE_PREPARATION_JSON`
 checks a read-only clone plan after source registration. `--execute` verifies

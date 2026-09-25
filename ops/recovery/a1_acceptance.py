@@ -1375,7 +1375,8 @@ def build_web_snapshot_request(source_ref, conversation_id, output):
         "schema_version": 1,
         "query": {
             "schema_version": 1,
-            "request_id": "a1-web-snapshot-" + str(int(now.timestamp())),
+            "request_id": "a1-web-snapshot-" + str(int(now.timestamp())) +
+                "-" + secrets.token_hex(6),
             "origin": {"assertion_ref": source_ref},
         },
         "deadline_at": (now + timedelta(minutes=1)).isoformat(timespec="seconds").replace(

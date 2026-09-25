@@ -199,3 +199,9 @@ A4 对分配入口提交 `104aa50e70784712d5ef39e215fd7bb70ad8687d` 的独立报
 同一 UTC 时间线中，旧 Memory 实例于 17:27:40.341 开始正常停机、17:27:40.445 停止，新实例到 17:27:43.761 才 ready。固定源端编排当前顺序是 **两次 fanout → 绑定 Memory 精确 scope → 强制重建 Memory → 读取 turn**，而 fanout 接受并不等待 Companion 异步处理终结。Companion 第 2 条的依赖调用与 Memory 重建窗口重叠；产品事件中 peer 未带目标名，结合固定 `_preflight` 调用次序和 Memory 日志，Memory 连接竞态是当前最有力归因，待 A4 独立核对。两条 `committed_event` 已在 Companion 本轮 outbox 保留为 fictional；第 2 条 `failed` 不符合 source 继续要求，不能重发消息或续接该范围。
 
 故障后未运行 source 注册、克隆占位、`a1_once`、恢复、许可或六项克隆 HTTPS。核对唯一项目标签、九个完整容器 ID、九服务集合及所有 bind 挂载均属本范围，确认 source CLI 已退出且无活动 turn 后，使用 `docker stop --time -1` 正常停止九个 owner：全部 `exited(0)`，五个本范围 `/28` 网络端点为 0，克隆网络未创建；保留容器、网络、数据和原始私有收据。去敏状态、精确时间线、文件 SHA、缺失后续产物与只读检查见 [`NAS-A1-r2i-evidence.json`](NAS-A1-r2i-evidence.json)。本次总体仍为 `needs_validation`，不宣称六断言恢复通过；历史范围未改动。下一步只在本地修正该编排竞态并做独立复核，是否另行授权新范围由协调者决定。
+
+## r2i 竞态的本地编排修正（2026-09-26）
+
+A4 只读复核报告 `b3c1e837928f68b35479f2132147c3306daa8b23` 确认第二条 turn 已以 `dependency_unavailable` 终结，`accepted` 仅保证 Companion 入站，Memory 连接竞态是最有力归因；peer 安全日志未记录目标名，故不把具体 RPC 目标写成直接观测事实。固定 Memory 产品代码中 `event_scopes` 约束 `consume/check_sources`，不约束普通选择查询；当轮第一条 turn 在绑定前已完成一次模型调用并得到 `closed_unknown`，第二条也在绑定前完成准备。精确 scope 仍在后续 trusted Memory commit 和来源检查之前必须绑定，不能删去。
+
+在本地代码中，两次 fanout 后先用授权的 Companion web snapshot 有界轮询，要求同一会话恰好两条预期序号的 turn 均为 `closed_unknown`、各一条 unknown 回复，并且无活动 turn、无未完 collector；只有确认终态后才绑定观察到的 scope 并重建 Memory。任一错误终态、快照不一致或 90 秒期限届满立即拒绝，保留单次尝试与逐次私有读回，不重发输入。每次快照查询使用独立 request ID，最终确认读取不会与上一轮询同号。后续 source-facts 读取与 trusted Memory commit 原路径保持；Companion outbox 的 `unknown` 仅是本地持久事件，不能当作 Memory 已提交。离线定向全套 74 项通过，其中新增可控异步夹具让第二条 turn 先处于准备中、两条终态后仍有未完 collector、最后才清空，验证在此之前不绑定/重建；错误终态、最终快照变化与可控时钟超时均停链。本地修正待 A4 代码复核；**未上传 NAS，未在 r2i 原范围重试，也未获新 scope 或许可授权**。

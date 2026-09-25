@@ -62,6 +62,42 @@ def _unknown(result):
     return {"http_status": 200, "turns": turns}
 
 
+def _initial_turn_state(result, conversation):
+    body = _result(result)
+    require(body.get("conversation_id") == conversation and
+            type(body.get("history")) is list and
+            len(body["history"]) <= 2 and
+            type(body.get("active_turns")) is list and
+            type(body.get("collectors")) is list,
+            "a1_source_initial_snapshot_invalid")
+    turns = {}
+    for row in body["history"]:
+        require(type(row) is dict and type(row.get("turn")) is dict,
+                "a1_source_initial_snapshot_invalid")
+        turn = row["turn"]
+        sequence = turn.get("turn_sequence")
+        require(type(sequence) is int and sequence in (1, 2) and
+                type(turn.get("phase")) is str,
+                "a1_source_initial_snapshot_invalid")
+        require(sequence not in turns and type(turn.get("turn_id")) is str and
+                turn["turn_id"].startswith("turn:") and
+                type(row.get("replies")) is list,
+                "a1_source_initial_snapshot_invalid")
+        turns[sequence] = row
+        if turn.get("phase") in {"failed", "cancelled", "observed", "sent"}:
+            require(False, "a1_source_initial_turn_terminal_mismatch")
+        if turn.get("phase") == "closed_unknown":
+            require(turn.get("delivery_state") == "unknown" and
+                    len(row["replies"]) == 1 and
+                    type(row["replies"][0]) is dict and
+                    row["replies"][0].get("state") == "unknown",
+                    "a1_source_initial_turn_terminal_mismatch")
+    return (set(turns) == {1, 2} and
+            all(row["turn"].get("phase") == "closed_unknown"
+                for row in turns.values()) and
+            not body["active_turns"] and not body["collectors"])
+
+
 class Source:
     def __init__(self, c):
         self.c = c
@@ -299,6 +335,27 @@ class Source:
         self.save(name + ".json", result)
         return result
 
+    def await_initial_unknown(self, origin, conversation, *, timeout_seconds=90,
+                              clock=None, pause=None):
+        """Wait for both accepted inputs to finish before rebuilding Memory."""
+        clock = clock or time.monotonic
+        pause = pause or time.sleep
+        deadline = clock() + timeout_seconds
+        attempt = 0
+        while True:
+            attempt += 1
+            snapshot = self.web(f"web-initial-wait-{attempt:03d}", origin, conversation)
+            require(clock() < deadline, "a1_source_initial_turn_timeout")
+            if _initial_turn_state(snapshot, conversation):
+                final = self.web("web-snapshot-initial", origin, conversation)
+                require(clock() < deadline, "a1_source_initial_turn_timeout")
+                require(_initial_turn_state(final, conversation),
+                        "a1_source_initial_turn_changed")
+                return _unknown(final)
+            remaining = deadline - clock()
+            require(remaining > 0, "a1_source_initial_turn_timeout")
+            pause(min(1.0, remaining))
+
     def memory(self, stage, origin, scope, expected):
         selections = {}
         for label, term in MEMORY.items():
@@ -384,14 +441,16 @@ class Source:
         require(scopes[0] == scopes[1] and accounts[0] == accounts[1] and
                 green["conversation_id"] == red["conversation_id"],
                 "a1_source_fanout_scope_mismatch")
+        # Platform acceptance starts asynchronous Companion work. Wait for both
+        # turns to finish before the scope-binding Memory restart.
+        actor_origin = self.origin("initial-web")
+        initial_unknown = self.await_initial_unknown(
+            actor_origin, green["conversation_id"])
         bound = product.bind_memory_scopes(self.root,
             {"scopes": [scopes[0]] * 3, "account": accounts[0]})
         require(bound.get("status") == "bound", "a1_source_memory_scope_not_bound")
         self.compose("core", "up", "-d", "--force-recreate", "memory", timeout=120)
         self.wait_owners(CORE)
-        actor_origin = self.origin("initial-web")
-        initial = self.web("web-snapshot-initial", actor_origin, green["conversation_id"])
-        initial_unknown = _unknown(initial)
         facts_request = {"schema_version": 1,
             "request_id": self.c["run_label"] + "-source-facts",
             "mode": "snapshot", "selectors": [],
