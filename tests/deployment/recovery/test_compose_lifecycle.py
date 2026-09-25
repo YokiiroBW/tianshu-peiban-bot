@@ -5,11 +5,13 @@ import tempfile
 import unittest
 from copy import deepcopy
 from pathlib import Path
+from unittest.mock import patch
 
 from fixtures import fixture, put
 from lifecycle_fixtures import compose_fixture
 
 from ops.recovery.compose_backend import ComposeBackend, DockerCLI
+from ops.recovery.compose_backend import MASKED_PROMETHEUS_VOLUME
 from ops.recovery.engine import Recovery
 from ops.recovery.lifecycle import Deadline
 from ops.recovery.lifecycle_binding import describe
@@ -210,6 +212,46 @@ class ComposeContractTests(unittest.TestCase):
         self.docker.containers.append(foreign)
         with self.assertRaisesRegex(RecoveryError, "foreign_container_mount_overlap"):
             self.backend.inspect()
+
+    def test_only_verified_prometheus_tmpfs_may_mask_its_image_volume(self):
+        container = next(
+            item
+            for item in self.docker.containers
+            if item["Config"]["Labels"]["com.docker.compose.service"]
+            == "obs-prometheus"
+        )
+        _, target, options = MASKED_PROMETHEUS_VOLUME
+        container["Config"]["Volumes"] = {target: {}}
+        container["HostConfig"]["Tmpfs"] = {target: options}
+        container["State"]["Pid"] = 123
+        container["Mounts"].append(
+            {
+                "Type": "volume",
+                "Name": "synthetic-image-volume",
+                "Source": "/var/lib/docker/volumes/synthetic-image-volume/_data",
+                "Destination": target,
+                "RW": True,
+            }
+        )
+        visible_tmpfs = (
+            "42 30 0:40 / /prometheus ro,nosuid,nodev,noexec,relatime - "
+            "tmpfs tmpfs rw,size=1024k"
+        )
+        with patch(
+            "ops.recovery.compose_backend.Path.read_text", return_value=visible_tmpfs
+        ):
+            self.backend.inspect()
+
+        container["HostConfig"]["Tmpfs"][target] = "rw,size=1m"
+        with self.assertRaisesRegex(RecoveryError, "unregistered_container_volume"):
+            self.backend.inspect()
+        container["HostConfig"]["Tmpfs"][target] = options
+        with patch(
+            "ops.recovery.compose_backend.Path.read_text",
+            return_value=visible_tmpfs.replace("tmpfs tmpfs", "ext4 /dev/sda"),
+        ):
+            with self.assertRaisesRegex(RecoveryError, "unregistered_container_volume"):
+                self.backend.inspect()
 
     def test_replacement_and_automatic_restart_rejected_after_quiescence(self):
         self.backend.inspect()

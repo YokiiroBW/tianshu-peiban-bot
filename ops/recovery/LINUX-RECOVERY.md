@@ -33,6 +33,8 @@ python -B -m ops.recovery --root <scope> --scope-id <scope-uuid> --execute linux
 
 全程独占 G/I/J 共用 `<source>/.runtime-owner.lock` 的同一 inode 非阻塞 flock；不嵌套重新持锁、不删锁。九 owner 身份在初次登记及操作时双重核验，防止同项目旧容器被替代。先禁 restart 并核读回，再逐 owner SIGTERM；只接受 exited/0、非 OOM/Dead/Error、无运行/重启/暂停。143/137、不确认退出、目录枚举异常均不发布完成备份，无强杀退路。
 
+Prometheus 上游镜像声明了 `/prometheus` image volume，但本部署只把 `/var/lib/prometheus` 登记为状态卷。DEP-J 仅在镜像声明该路径、容器 HostConfig 与 Compose tmpfs 选项完全匹配，并且运行中的 mount namespace 证实该路径由只读 tmpfs 覆盖时，忽略此匿名 image volume；停止容器只接受仍绑定精确 tmpfs 配置的正常 exited 状态。该卷不进入恢复清单；其它未登记 volume 一律拒绝。
+
 备份以 SQLite Backup API 合 WAL，五日志卷全目录原字节含内部 WAL、空目录；恢复到此前不存在目录，状态始终 restored_disabled。全事实指纹包括所有表/rowid/账本，另核 Memory guard；不能用旧包复活后来撤销/遗忘/unknown。源 authority 丢失仍拒绝。返回 `verification_sha256` 绑定当前 authority、恢复 UUID、完整事实与原备份逐文件核验；它不是公开业务验收结果。
 
 代码选版依旧使用旧 prepare-update/rollback-code；不将“选版本”当作镜像切换，不恢复旧数据，也不自动激活原恢复目标。

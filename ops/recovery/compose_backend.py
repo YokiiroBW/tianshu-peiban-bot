@@ -10,6 +10,54 @@ from pathlib import Path
 
 from .safety import child, require, safe_path
 
+MASKED_PROMETHEUS_VOLUME = (
+    "obs-prometheus",
+    "/prometheus",
+    "ro,noexec,nosuid,size=1m,uid=10001,gid=10001,mode=0700",
+)
+
+
+def _verify_masked_prometheus_volume(container):
+    """Accept only the image's /prometheus volume when a verified tmpfs hides it."""
+    _, target, options = MASKED_PROMETHEUS_VOLUME
+    require(
+        target in (container["Config"].get("Volumes") or {})
+        and container["HostConfig"].get("Tmpfs", {}).get(target) == options,
+        "unregistered_container_volume",
+    )
+    state = container["State"]
+    if not state.get("Running"):
+        require(
+            state.get("Status") == "exited"
+            and not state.get("Restarting")
+            and not state.get("Paused")
+            and not state.get("Dead"),
+            "unregistered_container_volume",
+        )
+        return
+
+    pid = state.get("Pid")
+    require(type(pid) is int and pid > 0, "unregistered_container_volume")
+    mountinfo = Path(f"/proc/{pid}/mountinfo").read_text(encoding="utf-8")
+    matches, nested = [], []
+    for line in mountinfo.splitlines():
+        left, separator, right = line.partition(" - ")
+        require(bool(separator), "unregistered_container_volume")
+        before, after = left.split(), right.split()
+        require(len(before) >= 6 and len(after) >= 2, "unregistered_container_volume")
+        mountpoint = before[4]
+        if mountpoint == target:
+            matches.append((after[0], set(before[5].split(","))))
+        elif mountpoint.startswith(target + "/"):
+            nested.append(mountpoint)
+    require(
+        len(matches) == 1
+        and matches[0][0] == "tmpfs"
+        and {"ro", "nosuid", "noexec"} <= matches[0][1]
+        and not nested,
+        "unregistered_container_volume",
+    )
+
 
 class DockerCLI:
     def __init__(self, executable, endpoint, budget):
@@ -164,9 +212,18 @@ class ComposeBackend:
                 self.images[expected["image"]] == container["Image"],
                 "container_image_mismatch",
             )
+            host = container["HostConfig"]
             actual = []
             for mount in container["Mounts"]:
                 if mount["Type"] == "tmpfs":
+                    continue
+                if mount["Type"] == "volume":
+                    require(
+                        (service, mount["Destination"])
+                        == MASKED_PROMETHEUS_VOLUME[:2],
+                        "unregistered_container_volume",
+                    )
+                    _verify_masked_prometheus_volume(container)
                     continue
                 require(mount["Type"] == "bind", "unregistered_container_volume")
                 path = safe_path(mount["Source"])
@@ -185,7 +242,6 @@ class ComposeBackend:
                 sorted(actual, key=lambda m: m["target"]) == expected["mounts"],
                 "container_mount_mismatch",
             )
-            host = container["HostConfig"]
             from .nas_resources import check_container
 
             check_container(expected, container)
