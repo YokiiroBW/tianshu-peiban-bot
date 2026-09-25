@@ -150,6 +150,26 @@ class DrillTests(unittest.TestCase):
         self.partial_start_failure = False
         self.bad_exit = False
         self.calls = []
+        self.readback_running_states = []
+        self.gateway_running_states = []
+        self.gateway_read_seen = False
+        self.gateway_extra_upstream = False
+        self.gateway_ledger_changed = False
+        self.gateway_counts = {}
+        for index, outcome in enumerate(
+            ("unknown", "unknown", "succeeded", "succeeded"), 1
+        ):
+            correlation = f"{index:032x}"
+            self.gateway_counts[correlation] = {
+                "request.accepted": {"succeeded": 1},
+                "upstream.call_started": {"started": 1},
+                "upstream.call_finished": {outcome: 1},
+            }
+        self.gateway_counts[f"{4:032x}"]["request.accepted"]["succeeded"] = 2
+        for index in range(5, 10):
+            self.gateway_counts[f"{index:032x}"] = {
+                "request.accepted": {"succeeded": 1}
+            }
         outer = self
 
         class Combined:
@@ -164,6 +184,14 @@ class DrillTests(unittest.TestCase):
                             :2
                         ]
                         raise RecoveryError("injected_compose_failure")
+                    if "up" in args:
+                        project = args[args.index("--project-name") + 1]
+                        for container in outer.clone_docker.containers:
+                            labels = container["Config"]["Labels"]
+                            if labels["com.docker.compose.project"] == project:
+                                container["State"].update(
+                                    Status="running", Running=True, ExitCode=0
+                                )
                     return ""
                 containers = outer.base.docker.containers + (
                     outer.clone_docker.containers if outer.created else []
@@ -193,12 +221,20 @@ class DrillTests(unittest.TestCase):
                         )
                         else outer.base.docker
                     )
-                    return backend.run(*args)
+                    result = backend.run(*args)
+                    if (
+                        outer.bad_exit
+                        and args[:2] == ("container", "kill")
+                        and args[-1] == outer.clone_docker.containers[0]["Id"]
+                    ):
+                        outer.clone_docker.containers[0]["State"]["ExitCode"] = 143
+                    return result
                 raise AssertionError(args)
 
         for index, c in enumerate(self.clone_docker.containers, 1):
             c["Id"] = f"{index + 100:064x}"
             c["State"]["Health"] = {"Status": "healthy"}
+            c["State"].update(Status="exited", Running=False)
             c["HostConfig"]["RestartPolicy"]["Name"] = "no"
         self.base.stack.enter_context(
             patch.object(drill, "runtime_lease", lambda *_: nullcontext())
@@ -218,13 +254,233 @@ class DrillTests(unittest.TestCase):
             patch.object(
                 drill,
                 "http_check",
-                lambda root, a, b: {
-                    "id": a["id"],
-                    "service": a["service"],
-                    "status": "passed",
+                self._record_readback,
+            )
+        )
+        self.base.stack.enter_context(
+            patch.object(
+                drill,
+                "check_readiness",
+                lambda *_args, **_kwargs: {
+                    "status": "ready",
+                    "runtime": "ok",
+                    "response_sha256": "0" * 64,
                 },
             )
         )
+        self.base.stack.enter_context(
+            patch.object(
+                drill,
+                "gateway_counters",
+                self._record_gateway_snapshot,
+            )
+        )
+        self.base.stack.enter_context(
+            patch.object(
+                drill,
+                "gateway_ledger_snapshot",
+                lambda *_: {
+                    "ledger": "changed"
+                    if self.gateway_read_seen and self.gateway_ledger_changed
+                    else "stable"
+                },
+            )
+        )
+
+    def _record_readback(
+        self, root, assertion, deadline, *, capture_unknown_turns=False,
+        correlation_id=None,
+    ):
+        self.readback_running_states.append(
+            all(c["State"]["Running"] for c in self.clone_docker.containers)
+        )
+        result = {
+            "id": assertion["id"],
+            "service": assertion["service"],
+            "status": "passed",
+        }
+        if assertion["id"] == "gateway_usage_readback":
+            self.gateway_read_seen = True
+            self.gateway_counts[correlation_id] = {
+                "request.accepted": {"succeeded": 1}
+            }
+            if self.gateway_extra_upstream:
+                self.gateway_counts[correlation_id]["upstream.call_started"] = {
+                    "started": 1
+                }
+        if capture_unknown_turns and "runtime_observation" in self.index:
+            result["unknown_turns"] = deepcopy(
+                self.index["runtime_observation"]["unknown_turns"]
+            )
+        return result
+
+    def _record_gateway_snapshot(self, *_args, **_kwargs):
+        self.gateway_running_states.append(
+            all(c["State"]["Running"] for c in self.clone_docker.containers)
+        )
+        return deepcopy(self.gateway_counts)
+
+    def enable_a1_observation(self, *, window_seconds=1):
+        self.value["projects"] = {
+            "core": "tianshu-accept-a1-readback",
+            "observability": "tianshu-accept-a1-readback-obs",
+        }
+        for group, filename in (
+            ("core", "compose.json"),
+            ("observability", "observability/compose.yaml"),
+        ):
+            self.documents[group]["name"] = self.value["projects"][group]
+            put(self.inputs / filename, self.documents[group])
+        for container in self.clone_docker.containers:
+            service = container["Config"]["Labels"]["com.docker.compose.service"]
+            group = "core" if service in self.manifest["products"] else "observability"
+            container["Config"]["Labels"]["com.docker.compose.project"] = self.value[
+                "projects"
+            ][group]
+        put(self.inputs / "private/diagnostics.token", "diagnostics-test-only")
+        companion_port = self.documents["core"]["services"]["companion"]["ports"][0][
+            "published"
+        ]
+        self.index["runtime_observation"] = {
+            "window_seconds": window_seconds,
+            "worker_readiness": {
+                "url": f"https://127.0.0.1:{companion_port}/health/ready",
+                "ca_file": "config/ca.pem",
+                "token_file": "private/diagnostics.token",
+            },
+            "unknown_turns": [
+                {
+                    "turn_id": "turn:4090732d24934b05a90f47640afac279",
+                    "turn_sequence": 8,
+                    "phase": "closed_unknown",
+                    "delivery_state": "unknown",
+                    "replies": [
+                        {
+                            "reply_id": "reply:4a499ec193754d219bf2de646d3bfc58",
+                            "state": "unknown",
+                        }
+                    ],
+                },
+                {
+                    "turn_id": "turn:1bcde083e8204998aaa8f7bd420536bf",
+                    "turn_sequence": 9,
+                    "phase": "closed_unknown",
+                    "delivery_state": "unknown",
+                    "replies": [
+                        {
+                            "reply_id": "reply:82542ea0041e4a73acbf45f992d23024",
+                            "state": "unknown",
+                        }
+                    ],
+                },
+            ],
+        }
+        unknown_assertion = next(
+            item
+            for item in self.index["assertions"]
+            if item["id"] == "unknown_no_resend"
+        )
+        unknown_port = self.documents["core"]["services"]["companion"]["ports"][0][
+            "published"
+        ]
+        unknown_assertion.update(
+            method="POST",
+            request_json={"schema_version": 1, "fixture_only": True},
+            url=(
+                f"https://127.0.0.1:{unknown_port}"
+                "/internal/v1/conversation/web-snapshot"
+            ),
+        )
+        self.save()
+
+    def add_gateway_usage_assertion(self):
+        self.enable_a1_observation()
+        self.index["a1_origin_admission"] = {"minimum_remaining_seconds": 180}
+        for name, entry in (("config", "config-entry"), ("actor", "web-source-actor")):
+            put(self.inputs / f"private/a1-{name}-origin-request.json", {"entry_id": entry})
+            put(self.inputs / f"private/a1-{name}-origin-issue.json", {
+                "action": "issue",
+                "receipt": {
+                    "assertion_ref": "origin:" + ("a" if name == "config" else "b") * 32,
+                    "expires_at": "2099-01-01T00:00:00Z",
+                    "mode": "service_https",
+                },
+            })
+        # Runtime admission is exercised against a stopped SQLite source in
+        # test_drill_origin_admission; this Docker fixture has no Platform DB.
+        self.base.stack.enter_context(patch.object(
+            drill, "check_origin_admission",
+            lambda *_args, **_kwargs: {
+                "minimum_remaining_seconds": 180,
+                "remaining_at_check_seconds": 200,
+                "source_receipts_and_bindings_verified": True,
+            },
+        ))
+        model = next(
+            item for item in self.index["assertions"] if item["id"] == "model_revoked"
+        )
+        model["service"] = "platform"
+        model["url"] = model["url"].replace(
+            f":{self.documents['core']['services']['gateway']['ports'][0]['published']}",
+            f":{self.documents['core']['services']['platform']['ports'][0]['published']}",
+        )
+        put(self.inputs / "config/gateway/tls/ca.pem", "fixture-ca")
+        put(self.inputs / "config/gateway/settings.json", {
+            "clients": [{"service": "companion", "credential_ref": "companion"}],
+            "secret_references": {"companion": "TS_CORE_GATEWAY"},
+        })
+        for filename in (
+            "private/gateway.env", "private/companion.env",
+            "private/token-gateway-usage",
+        ):
+            path = self.inputs / filename
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(
+                "fixture-isolated-gateway-token\n"
+                if filename == "private/token-gateway-usage"
+                else "TS_CORE_GATEWAY=fixture-isolated-gateway-token\n",
+                encoding="utf-8",
+            )
+        port = self.documents["core"]["services"]["gateway"]["ports"][0][
+            "published"
+        ]
+        self.index["assertions"].append({
+            "id": "gateway_usage_readback",
+            "service": "gateway",
+            "method": "GET",
+            "url": (
+                f"https://127.0.0.1:{port}/internal/v1/model-usage"
+                "?view=attempts&since=2026-09-25T00:00:00Z"
+                "&until=2026-09-26T00:00:00Z"
+            ),
+            "ca_file": "config/gateway/tls/ca.pem",
+            "token_file": "private/token-gateway-usage",
+            "expected_status": 200,
+            "expected_json": {
+                "schema_version": 1,
+                "key_space": "chat",
+                "identity": {"service": "companion"},
+                "coverage": {
+                    "matching": 4, "scanned": 4,
+                    "truncated": False, "unmetered_total": 0,
+                },
+                "counts": {
+                    "total": 4, "succeeded": 2, "failed": 0,
+                    "cancelled": 0, "unknown": 2,
+                },
+                "attempts": [
+                    {"request_id": f"fixture-{number}", "reason": reason,
+                     "outcome": outcome}
+                    for number, (reason, outcome) in enumerate((
+                        ("transport_unknown", "unknown"),
+                        ("transport_unknown", "unknown"),
+                        ("completed", "succeeded"),
+                        ("completed", "succeeded"),
+                    ), 1)
+                ],
+            },
+        })
+        self.save()
 
     def tearDown(self):
         self.base.tearDown()
@@ -274,6 +530,247 @@ class DrillTests(unittest.TestCase):
         self.assertFalse(self.clone.exists())
         self.assertFalse((self.root / "drill-claims").exists())
         self.assertEqual(self.calls, [])
+
+    def test_memory_post_requires_verified_host_before_permit_claim(self):
+        assertion = next(
+            row for row in self.index["assertions"] if row["service"] == "memory"
+        )
+        port = self.documents["core"]["services"]["memory"]["ports"][0]["published"]
+        assertion.update(
+            method="POST", request_json={"query_text": "green"},
+            url=f"https://127.0.0.1:{port}/internal/v1/memory/select",
+        )
+        self.save()
+        with self.assertRaisesRegex(RecoveryError, "drill_memory_authority_invalid"):
+            self.run_drill(False)
+        self.assertFalse(self.clone.exists())
+        self.assertFalse((self.root / "drill-claims").exists())
+
+    def test_a1_projects_are_allowed_and_all_nine_services_stay_running(self):
+        self.enable_a1_observation()
+        permit(self.recovery, self.permit_path, file_hash(self.permit_path))
+        result = self.run_drill()
+        self.assertEqual(result["status"], "drill_passed")
+        self.assertEqual(result["service_coverage"]["mode"], "simultaneous")
+        self.assertTrue(result["service_coverage"]["all_nine_simultaneous"])
+        self.assertTrue(
+            result["service_coverage"]["observability"][
+                "running_during_functional_readback"
+            ]
+        )
+        self.assertTrue(
+            result["service_coverage"]["core"][
+                "healthchecks_healthy_during_functional_readback"
+            ]
+        )
+        self.assertEqual(
+            result["service_coverage"]["core"]["configured_healthchecks"],
+            sum(
+                bool(spec.get("healthcheck"))
+                for spec in self.documents["core"]["services"].values()
+            ),
+        )
+        starts = [
+            call[call.index("--project-name") + 1]
+            for call in self.calls
+            if call[:1] == ("compose",) and "up" in call
+        ]
+        self.assertEqual(
+            starts,
+            [
+                self.value["projects"]["observability"],
+                self.value["projects"]["core"],
+            ],
+        )
+        self.assertEqual(len(self.readback_running_states), 6)
+        self.assertTrue(all(self.readback_running_states))
+        self.assertEqual(self.gateway_running_states, [False, True, True])
+        observation = result["unknown_no_resend_observation"]
+        self.assertEqual(observation["status"], "passed")
+        self.assertEqual(observation["api_unknown_turn_count"], 2)
+        self.assertEqual(observation["api_unknown_reply_record_count"], 2)
+        self.assertTrue(observation["gateway_counters_unchanged_by_correlation"])
+        self.assertEqual(
+            observation["gateway_baseline"]["successful_control_groups"], 2
+        )
+
+    def test_a1_observation_fails_if_any_gateway_correlation_count_grows(self):
+        self.enable_a1_observation()
+        changed = deepcopy(self.gateway_counts)
+        changed["0" * 31 + "1"]["upstream.call_started"]["started"] = 2
+        with patch.object(
+            drill,
+            "gateway_counters",
+            side_effect=[deepcopy(self.gateway_counts), changed],
+        ):
+            result = self.run_drill()
+        self.assertEqual(result["status"], "drill_failed_or_cancelled")
+        self.assertTrue(
+            all(not c["State"]["Running"] for c in self.clone_docker.containers)
+        )
+
+    def test_gateway_usage_readback_covers_gateway_without_relaxing_observation(self):
+        self.add_gateway_usage_assertion()
+        isolated_inputs(self.value, self.manifest)
+        result = self.run_drill()
+        self.assertEqual(result["status"], "drill_passed")
+        self.assertEqual(result["missing_products"], [])
+        self.assertEqual(result["missing_semantics"], [])
+        self.assertEqual(
+            [item["id"] for item in result["functional_assertions"]][-1],
+            "gateway_usage_readback",
+        )
+        observation = result["unknown_no_resend_observation"]
+        self.assertTrue(observation["gateway_read_bridge_checked"])
+        self.assertEqual(observation["gateway_baseline"]["correlation_groups"], 9)
+        self.assertEqual(observation["gateway_before_window"]["correlation_groups"], 10)
+        self.assertEqual(observation["gateway_after_window"]["correlation_groups"], 10)
+
+    def test_gateway_coverage_stays_partial_without_its_independent_read(self):
+        self.add_gateway_usage_assertion()
+        self.index["assertions"].pop()
+        self.index.pop("a1_origin_admission")
+        self.save()
+        result = self.run_drill()
+        self.assertEqual(result["status"], "partial_functional_coverage")
+        self.assertEqual(result["missing_products"], ["gateway"])
+        self.assertEqual(result["missing_semantics"], [])
+
+    def test_gateway_usage_readback_rejects_wrong_route_identity_and_order(self):
+        self.add_gateway_usage_assertion()
+        assertion = self.index["assertions"][-1]
+        for key, value, code in (
+            ("service", "platform", "drill_assertion_endpoint_forbidden"),
+            ("url", assertion["url"].replace("model-usage", "health/ready"),
+             "drill_gateway_usage_assertion_invalid"),
+            ("expected_json", {"counts": {"total": 0}},
+             "drill_gateway_usage_assertion_invalid"),
+        ):
+            with self.subTest(key=key):
+                original = assertion[key]
+                assertion[key] = value
+                self.save()
+                with self.assertRaisesRegex(RecoveryError, code):
+                    isolated_inputs(self.value, self.manifest)
+                assertion[key] = original
+        self.index["assertions"].insert(0, self.index["assertions"].pop())
+        self.save()
+        with self.assertRaisesRegex(RecoveryError, "drill_gateway_usage_order_invalid"):
+            isolated_inputs(self.value, self.manifest)
+
+    def test_gateway_usage_readback_requires_registered_matching_credential(self):
+        self.add_gateway_usage_assertion()
+        token = self.inputs / "private/token-gateway-usage"
+        token.write_text("wrong-isolated-gateway-token\n", encoding="utf-8")
+        self.save()
+        with self.assertRaisesRegex(
+            RecoveryError, "drill_gateway_usage_credential_invalid"
+        ):
+            isolated_inputs(self.value, self.manifest)
+        token.write_text("fixture-isolated-gateway-token\n", encoding="utf-8")
+        settings = self.inputs / "config/gateway/settings.json"
+        put(settings, {
+            "clients": [{"service": "other", "credential_ref": "companion"}],
+            "secret_references": {"companion": "TS_CORE_GATEWAY"},
+        })
+        self.save()
+        with self.assertRaisesRegex(
+            RecoveryError, "drill_gateway_usage_credential_invalid"
+        ):
+            isolated_inputs(self.value, self.manifest)
+
+    def test_gateway_origin_lifetime_failure_does_not_claim_permit(self):
+        self.add_gateway_usage_assertion()
+        with patch.object(
+            drill, "check_origin_admission",
+            side_effect=RecoveryError("drill_origin_lifetime_insufficient"),
+        ):
+            with self.assertRaisesRegex(
+                RecoveryError, "drill_origin_lifetime_insufficient"
+            ):
+                self.run_drill()
+        self.assertFalse((self.root / "drill-claims").exists())
+        self.assertFalse(self.clone.exists())
+
+    def test_gateway_origin_expiry_after_claim_stops_with_failure_receipt(self):
+        self.add_gateway_usage_assertion()
+        summary = {
+            "minimum_remaining_seconds": 180,
+            "remaining_at_check_seconds": 180,
+            "source_receipts_and_bindings_verified": True,
+        }
+        with patch.object(
+            drill, "check_origin_admission",
+            side_effect=[summary, RecoveryError("drill_origin_lifetime_insufficient")],
+        ):
+            result = self.run_drill()
+        self.assertEqual(result["status"], "drill_failed_or_cancelled")
+        self.assertEqual(result["failure_detail"]["code"],
+                         "drill_origin_lifetime_insufficient")
+        self.assertTrue((self.root / "drill-claims" / (self.value["permit_id"] + ".json")).exists())
+        self.assertFalse(any(container["State"]["Running"]
+                             for container in self.clone_docker.containers))
+
+    def test_gateway_usage_readback_rejects_extra_upstream_or_ledger_write(self):
+        for attribute, code in (
+            ("gateway_extra_upstream", "drill_gateway_read_bridge_invalid"),
+            ("gateway_ledger_changed", "drill_gateway_ledger_changed_by_read"),
+        ):
+            with self.subTest(attribute=attribute):
+                # A one-use drill cannot be replayed, so each case gets a fresh fixture.
+                case = DrillTests()
+                case.setUp()
+                try:
+                    case.add_gateway_usage_assertion()
+                    setattr(case, attribute, True)
+                    result = case.run_drill()
+                    self.assertEqual(result["status"], "drill_failed_or_cancelled")
+                    self.assertEqual(result["failure_detail"]["code"], code)
+                finally:
+                    case.tearDown()
+
+    def test_a1_observation_requires_the_companion_web_snapshot_endpoint(self):
+        self.enable_a1_observation()
+        unknown_assertion = next(
+            item
+            for item in self.index["assertions"]
+            if item["id"] == "unknown_no_resend"
+        )
+        unknown_assertion["url"] = unknown_assertion["url"].replace(
+            "/internal/v1/conversation/web-snapshot", "/internal/v1/source-facts/read"
+        )
+        self.save()
+        with self.assertRaisesRegex(
+            RecoveryError, "drill_unknown_assertion_endpoint_forbidden"
+        ):
+            isolated_inputs(self.value, self.manifest)
+
+    def test_a1_readiness_requires_a_dedicated_diagnostics_token(self):
+        self.enable_a1_observation()
+        self.index["runtime_observation"]["worker_readiness"][
+            "token_file"
+        ] = "private/token"
+        self.save()
+        with self.assertRaisesRegex(RecoveryError, "drill_readiness_input_invalid"):
+            isolated_inputs(self.value, self.manifest)
+
+    def test_post_input_is_restricted_to_documented_read_endpoints(self):
+        assertion = self.index["assertions"][0]
+        port = self.documents["core"]["services"]["platform"]["ports"][0]["published"]
+        assertion.update(
+            method="POST",
+            request_json={"schema_version": 1, "operation": "current"},
+            url=f"https://127.0.0.1:{port}/internal/v1/source-access/read",
+        )
+        self.save()
+        isolated_inputs(self.value, self.manifest)
+
+        assertion["url"] = f"https://127.0.0.1:{port}/internal/v1/conversation/send"
+        self.save()
+        with self.assertRaisesRegex(
+            RecoveryError, "drill_assertion_endpoint_forbidden"
+        ):
+            isolated_inputs(self.value, self.manifest)
 
     def test_access_bridge_requires_loopback_published_members(self):
         document = self.documents["core"]
@@ -405,7 +902,7 @@ class DrillTests(unittest.TestCase):
             isolated_inputs(self.value, self.manifest)
 
     def test_abnormal_clone_exit_reports_unconfirmed_and_keeps_claim(self):
-        self.clone_docker.containers[0]["State"]["ExitCode"] = 143
+        self.bad_exit = True
         result = self.run_drill()
         self.assertEqual(result["status"], "stop_unconfirmed")
         self.assertEqual(result["activation"], "stop_unconfirmed")
@@ -457,9 +954,36 @@ class DrillTests(unittest.TestCase):
         ):
             result = self.run_drill()
         self.assertEqual(result["status"], "drill_failed_or_cancelled")
+        self.assertEqual(result["failure_detail"], {
+            "phase": "assertion_data_readback", "code": "assertion_failed"
+        })
         self.assertTrue(
             all(not c["State"]["Running"] for c in self.clone_docker.containers)
         )
         self.assertTrue(
             (self.root / "drill-claims" / (self.value["permit_id"] + ".json")).exists()
         )
+
+    def test_failed_http_assertion_persists_only_bounded_diagnostic(self):
+        from ops.recovery.safety import DrillDiagnosticError
+
+        error = DrillDiagnosticError(
+            "drill_assertion_status_mismatch", stage="match_status",
+            actual_status=400,
+            response_structure={"kind": "object", "key_count": 2,
+                                "known_keys": ["code", "status"],
+                                "product_code": "invalid_host"},
+        )
+        with patch.object(drill, "http_check", side_effect=error):
+            result = self.run_drill()
+        self.assertEqual(result["failure_detail"], {
+            "phase": "assertion_data_readback",
+            "code": "drill_assertion_status_mismatch",
+            "stage": "match_status",
+            "actual_http_status": 400,
+            "response_structure": {"kind": "object", "key_count": 2,
+                                   "known_keys": ["code", "status"],
+                                   "product_code": "invalid_host"},
+        })
+        persisted = json.loads((self.clone / "drill-result.json").read_text())
+        self.assertEqual(result["failure_detail"], persisted["failure_detail"])

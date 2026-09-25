@@ -255,9 +255,15 @@ def main(argv=None):
             else 0
         )
     except RecoveryError as error:
+        from .drill_origin_admission import OriginLifetimeInsufficient
+
+        detail = ({"remaining_at_check_seconds": error.remaining,
+                   "checked_at": error.checked_at}
+                  if isinstance(error, OriginLifetimeInsufficient) else {})
         print(
             json.dumps(
                 {"status": "rejected", "reason": str(error), "activation": "disabled"}
+                | detail
             )
         )
         return 130 if str(error) == "cancelled" else 2

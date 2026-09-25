@@ -1,11 +1,22 @@
 """Compose the pinned DEP-B package via its public CLIs, without changing its source."""
 
+import ipaddress
 import json
+import os
+import stat
 import subprocess
 import sys
 from pathlib import Path
 
-from manifest import digest, inside, load_manifest, read_json, require, write_json
+from manifest import (
+    digest,
+    inside,
+    load_manifest,
+    no_links,
+    read_json,
+    require,
+    write_json,
+)
 from observability_contract import COMPONENTS, legacy_view
 
 
@@ -85,6 +96,125 @@ def verify_layout(root, manifest):
         "observability_legacy_binding_mismatch",
     )
     return stack
+
+
+def apply_resource_profile(compose_path, profile):
+    """Apply the deployment CPU-set policy to an older pinned DEP-B Compose output."""
+    from resource_profile import constrain, validate
+
+    profile = validate(profile)
+    if profile is None:
+        return
+    document = read_json(compose_path)
+    require(
+        isinstance(document, dict) and isinstance(document.get("services"), dict),
+        "observability_composition_invalid",
+    )
+    for service in document["services"].values():
+        require(isinstance(service, dict), "observability_service_invalid")
+        constrain(service, profile)
+    write_json(compose_path, document)
+
+
+def apply_network_plan(document, subnets, occupied_subnets):
+    """Pin only the network names emitted by the exact DEP-B package revision."""
+    if subnets is None:
+        return document
+    require(
+        type(subnets) is dict
+        and {"observe", "storage"} <= set(subnets)
+        and set(subnets) <= {"observe", "storage", "access"},
+        "observability_network_plan_invalid",
+    )
+    networks = document.get("networks") if isinstance(document, dict) else None
+    require(
+        isinstance(networks, dict) and set(networks) == set(subnets),
+        "observability_network_plan_mismatch",
+    )
+    used = [ipaddress.ip_network(value, strict=True) for value in occupied_subnets]
+    for name, value in subnets.items():
+        network = ipaddress.ip_network(value, strict=True)
+        require(
+            network.version == 4
+            and network.is_private
+            and 24 <= network.prefixlen <= 28,
+            "observability_private_subnet_required",
+        )
+        require(
+            not any(network.overlaps(other) for other in used),
+            "observability_network_overlap",
+        )
+        spec = networks[name]
+        require(
+            isinstance(spec, dict)
+            and spec.get("internal") is (name != "access"),
+            "external_observability_network_refused",
+        )
+        spec["ipam"] = {"config": [{"subnet": str(network)}]}
+        used.append(network)
+    return document
+
+
+def apply_prometheus_admin_flag(document):
+    """Use the supported false boolean spelling for the pinned Prometheus image."""
+    services = document.get("services") if isinstance(document, dict) else None
+    prometheus = services.get("obs-prometheus") if isinstance(services, dict) else None
+    command = prometheus.get("command") if isinstance(prometheus, dict) else None
+    require(isinstance(command, list), "observability_prometheus_command_invalid")
+    old, new = "--web.enable-admin-api=false", "--no-web.enable-admin-api"
+    if old in command and new not in command:
+        require(command.count(old) == 1, "observability_prometheus_command_invalid")
+        prometheus["command"] = [new if value == old else value for value in command]
+    else:
+        require(old not in command and new in command, "observability_prometheus_command_invalid")
+    return document
+
+
+def apply_prometheus_volume_mask(document):
+    """Mask the pinned Prometheus image's unused anonymous /prometheus volume."""
+    services = document.get("services") if isinstance(document, dict) else None
+    prometheus = services.get("obs-prometheus") if isinstance(services, dict) else None
+    require(isinstance(prometheus, dict), "observability_prometheus_service_invalid")
+    tmpfs = prometheus.get("tmpfs")
+    require(
+        isinstance(tmpfs, list) and all(isinstance(value, str) for value in tmpfs),
+        "observability_prometheus_tmpfs_invalid",
+    )
+    expected = "/prometheus:ro,noexec,nosuid,size=1m,uid=10001,gid=10001,mode=0700"
+    entries = [value for value in tmpfs if value.split(":", 1)[0] == "/prometheus"]
+    if not entries:
+        tmpfs.append(expected)
+    else:
+        require(entries == [expected], "observability_prometheus_tmpfs_invalid")
+    return document
+
+
+def apply_runtime_permissions(root):
+    """Give mounted private config and OBS inputs/data to runtime UID/GID 10001."""
+    require(os.name == "posix", "linux_permissions_not_verified")
+    for relative in (
+        "config/platform",
+        "config/companion",
+        "config/memory",
+        "config/gateway",
+        "observability/data",
+        "observability/config",
+        "observability/code",
+        "observability-input/tls",
+        "observability-input/secrets",
+    ):
+        base = inside(root, relative)
+        require(base.is_dir(), "observability_runtime_path_missing")
+        for path in (base, *base.rglob("*")):
+            path = no_links(path)
+            st = path.stat()
+            if stat.S_ISDIR(st.st_mode):
+                mode = 0o750
+            else:
+                require(stat.S_ISREG(st.st_mode), "observability_runtime_type_invalid")
+                mode = 0o640
+            os.chown(path, 10001, 10001, follow_symlinks=False)
+            path.chmod(mode)
 
 
 def configure(root, settings_path, repository, projects=None):
@@ -170,6 +300,43 @@ def configure(root, settings_path, repository, projects=None):
             "--candidate",
         ]
     )
+    compose_path = root / "observability/compose.yaml"
+    network_document = apply_prometheus_admin_flag(read_json(compose_path))
+    network_document = apply_prometheus_volume_mask(network_document)
+    write_json(compose_path, network_document)
+    apply_resource_profile(compose_path, profile)
+    compose_inputs = read_json(root / "deployment.json")["compose_inputs"]
+    network_document = read_json(compose_path)
+    network_names = set(network_document["networks"])
+    network_subnets = settings.get("network_subnets")
+    if network_subnets is not None:
+        require(
+            type(network_subnets) is dict,
+            "observability_network_plan_invalid",
+        )
+        omitted = set(network_subnets) - network_names
+        require(
+            omitted <= {"access"}
+            and {"observe", "storage"} <= network_names
+            and set(network_subnets) & network_names == network_names,
+            "observability_network_plan_mismatch",
+        )
+        network_subnets = {
+            name: subnet
+            for name, subnet in network_subnets.items()
+            if name in network_names
+        }
+        settings["network_subnets"] = network_subnets
+        write_json(root / "observability-input/settings.json", settings)
+    network_document = apply_network_plan(
+        network_document,
+        network_subnets,
+        [
+            compose_inputs["subnet"],
+            *compose_inputs.get("auxiliary_subnets", {}).values(),
+        ],
+    )
+    write_json(compose_path, network_document)
     verify_layout(root, manifest)
     project = read_json(root / "deployment.json")["project_name"] + "-obs"
     binding = {
@@ -209,6 +376,7 @@ def configure(root, settings_path, repository, projects=None):
         (root / "observability-release.json").read_bytes()
     )
     write_json(root / "bundle-integrity.json", inventory)
+    apply_runtime_permissions(root)
     (root / "INCOMPLETE").unlink()
     return {
         "status": "observability_configured",

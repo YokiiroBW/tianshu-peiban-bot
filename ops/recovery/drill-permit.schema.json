@@ -86,11 +86,11 @@
       "properties": {
         "core": {
           "type": "string",
-          "pattern": "^tianshu-qa-[a-z0-9-]{1,40}$"
+          "pattern": "^tianshu-(?:qa|accept-a1)-[a-z0-9-]{1,40}$"
         },
         "observability": {
           "type": "string",
-          "pattern": "^tianshu-qa-[a-z0-9-]{1,40}$"
+          "pattern": "^tianshu-(?:qa|accept-a1)-[a-z0-9-]{1,40}$"
         }
       }
     },

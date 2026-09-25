@@ -159,6 +159,10 @@ def initialize(manifest_path, inputs_path, contracts_root, target, environ=None)
         metadata["compose_inputs"]["resource_profile"] = site["resource_profile"]
     if site.get("auxiliary_subnets") is not None:
         metadata["compose_inputs"]["auxiliary_subnets"] = site["auxiliary_subnets"]
+    if site.get("a1_loopback_api_ports") is not None:
+        metadata["compose_inputs"]["a1_loopback_api_ports"] = site[
+            "a1_loopback_api_ports"
+        ]
     write_json(target / "deployment.json", metadata)
     write_json(target / "compose.json", compose_document(manifest, site))
     commands = {

@@ -5,6 +5,7 @@ socket never waits for a peer TLS close_notify. Limits include chunk framing.
 """
 
 import errno
+import json
 import re
 import select
 import socket
@@ -12,11 +13,79 @@ import ssl
 import time
 from urllib.parse import urlsplit
 
-from .safety import RecoveryError, require
+from .safety import DrillDiagnosticError, RecoveryError, require
 
 HEADER_LIMIT = 32 * 1024
 BODY_LIMIT = 256 * 1024
+POST_BODY_LIMIT = 16 * 1024
 FIELD = re.compile(rb"[!#$%&'*+.^_`|~0-9A-Za-z-]+")
+SAFE_RESPONSE_KEYS = frozenset(
+    {"status", "code", "selected_units", "omissions", "history", "turns", "request_id"}
+)
+SAFE_PRODUCT_CODES = frozenset(
+    {
+        "invalid_host",
+        "unauthorized",
+        "forbidden",
+        "invalid_input",
+        "no_match",
+        "dependency_unavailable",
+    }
+)
+
+
+def response_structure(data):
+    """Summarize bounded JSON shape without persisting any returned content."""
+    try:
+        value = json.loads(data)
+    except (ValueError, UnicodeError):
+        return {"kind": "invalid_json"}
+    if isinstance(value, dict):
+        summary = {
+            "kind": "object",
+            "key_count": len(value),
+            "known_keys": sorted(set(value) & SAFE_RESPONSE_KEYS),
+        }
+        if isinstance(value.get("code"), str) and value["code"] in SAFE_PRODUCT_CODES:
+            summary["product_code"] = value["code"]
+        return summary
+    if isinstance(value, list):
+        return {"kind": "array", "item_count": len(value)}
+    return {"kind": type(value).__name__}
+
+# These POST routes are documented read boundaries in the product contracts. Keep this
+# list closed: adding a path requires reviewing that product handler for side effects.
+READ_ONLY_POST_ENDPOINTS = frozenset(
+    {
+        ("companion", "/internal/v1/source-facts/read"),
+        ("companion", "/internal/v1/conversation/web-snapshot"),
+        ("companion", "/internal/v1/life-read/actors"),
+        ("companion", "/internal/v1/life-read/snapshot"),
+        ("companion", "/internal/v1/life-read/diaries"),
+        ("companion", "/internal/v1/life-read/revision"),
+        ("memory", "/internal/v1/memory/select"),
+        ("memory", "/internal/v1/memory/profiles/select"),
+        ("memory", "/internal/v1/memory/source-sync/check"),
+        ("platform", "/internal/v1/source-access/read"),
+        ("platform", "/internal/v1/model-config/snapshot"),
+    }
+)
+
+
+def encode_post_body(body):
+    require(type(body) is dict, "drill_request_invalid")
+    try:
+        encoded = json.dumps(
+            body,
+            ensure_ascii=True,
+            allow_nan=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("ascii")
+    except (TypeError, ValueError, RecursionError):
+        raise RecoveryError("drill_request_invalid") from None
+    require(len(encoded) <= POST_BODY_LIMIT, "drill_request_limit")
+    return encoded
 
 
 class Connection:
@@ -54,6 +123,8 @@ class Connection:
         self.socket.setblocking(False)
         try:
             status = self.socket.connect_ex(("127.0.0.1", self.port))
+            if status == errno.ECONNREFUSED:
+                raise RecoveryError("drill_connection_refused")
             require(
                 status in {0, errno.EINPROGRESS, errno.EWOULDBLOCK, errno.EALREADY},
                 "drill_connection_failed",
@@ -65,9 +136,11 @@ class Connection:
                     )
                     self.budget.check()
                     if writable or errors:
+                        connected = self.socket.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
+                        if connected == errno.ECONNREFUSED:
+                            raise RecoveryError("drill_connection_refused")
                         require(
-                            self.socket.getsockopt(socket.SOL_SOCKET, socket.SO_ERROR)
-                            == 0,
+                            connected == 0,
                             "drill_connection_failed",
                         )
                         break
@@ -211,7 +284,20 @@ class Reader:
             data.extend(part)
 
 
-def get(url, token, tls, budget, expected_status):
+def _request(
+    url,
+    token,
+    tls,
+    budget,
+    expected_status,
+    *,
+    method,
+    service=None,
+    body=None,
+    return_status=False,
+    authority=None,
+    correlation_id=None,
+):
     target = urlsplit(url)
     require(
         target.scheme == "https"
@@ -222,7 +308,19 @@ def get(url, token, tls, budget, expected_status):
         and not target.fragment,
         "drill_assertion_endpoint_forbidden",
     )
-    path = (target.path or "/") + ("?" + target.query if target.query else "")
+    path = target.path or "/"
+    if method == "GET":
+        require(service is None and body is None, "drill_request_invalid")
+        path += "?" + target.query if target.query else ""
+    else:
+        require(
+            method == "POST"
+            and service is not None
+            and not target.query
+            and (service, target.path) in READ_ONLY_POST_ENDPOINTS,
+            "drill_assertion_endpoint_forbidden",
+        )
+        body = encode_post_body(body)
     require(
         all(32 < ord(c) < 127 for c in path) and len(path) <= 4096,
         "drill_request_invalid",
@@ -231,26 +329,123 @@ def get(url, token, tls, budget, expected_status):
         token and all(32 < ord(c) < 127 for c in token) and len(token) <= 4096,
         "drill_token_invalid",
     )
-    request = (
-        f"GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{target.port}\r\nAuthorization: Bearer {token}\r\n"
-        "Accept: application/json\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n"
-    ).encode("ascii")
+    require(
+        expected_status == "readiness"
+        or (type(expected_status) is int and 200 <= expected_status <= 599),
+        "drill_assertion_invalid",
+    )
+    # Only the already-validated Memory deployment authority may override Host.
+    # The connection and TLS peer remain the explicitly pinned loopback endpoint.
+    require(
+        authority is None or (
+            method == "POST" and service == "memory" and authority == "memory.internal:8130"
+        ),
+        "drill_assertion_authority_forbidden",
+    )
+    require(
+        correlation_id is None
+        or (method == "GET" and re.fullmatch(r"[a-f0-9]{32}", correlation_id)),
+        "drill_correlation_invalid",
+    )
+    host = authority or f"127.0.0.1:{target.port}"
+    headers = [
+        f"{method} {path} HTTP/1.1",
+        f"Host: {host}",
+        f"Authorization: Bearer {token}",
+        "Accept: application/json",
+        "Accept-Encoding: identity",
+    ]
+    if correlation_id is not None:
+        headers.append(f"X-Tianshu-Correlation-Id: {correlation_id}")
+    if method == "POST":
+        headers.extend(
+            ("Content-Type: application/json", f"Content-Length: {len(body)}")
+        )
+    request = ("\r\n".join(headers) + "\r\nConnection: close\r\n\r\n").encode("ascii")
+    stage = "connect"
+    actual_status = None
+    structure = None
     try:
         with Connection(tls, target.port, budget) as connection:
+            stage = "send_headers"
             connection.send(request)
+            if method == "POST":
+                stage = "send_body"
+                connection.send(body)
             reader = Reader(connection)
+            stage = "read_status"
             status = reader.line(limit=1024, header=True)
             require(
                 re.fullmatch(rb"HTTP/1\.[01] [0-9]{3}(?: [^\r\n]*)?\r\n", status),
                 "drill_http_status_invalid",
             )
-            require(
-                int(status.split(b" ", 2)[1]) == expected_status,
-                "drill_assertion_status_mismatch",
+            actual_status = int(status.split(b" ", 2)[1])
+            allowed_statuses = (
+                {200, 503}
+                if expected_status == "readiness"
+                else {expected_status}
             )
-            data = reader.body(reader.headers())
+            stage = "read_headers"
+            response_headers = reader.headers()
+            stage = "read_body"
+            data = reader.body(response_headers)
+            structure = response_structure(data)
             budget.check()
-            return data
-    except OSError:
+            stage = "match_status"
+            require(actual_status in allowed_statuses, "drill_assertion_status_mismatch")
+            return (actual_status, data) if return_status else data
+    except DrillDiagnosticError:
+        raise
+    except RecoveryError as error:
+        raise DrillDiagnosticError(
+            str(error), stage=stage, actual_status=actual_status,
+            response_structure=structure,
+        ) from None
+    except ssl.SSLError:
         budget.check()
-        raise RecoveryError("drill_tls_or_transport_failed") from None
+        raise DrillDiagnosticError(
+            "drill_tls_handshake_failed" if stage == "connect" else "drill_tls_transport_failed",
+            stage=stage, actual_status=actual_status,
+        ) from None
+    except OSError as error:
+        budget.check()
+        code = (
+            "drill_connection_refused"
+            if stage == "connect" and error.errno == errno.ECONNREFUSED
+            else "drill_tls_or_transport_failed"
+        )
+        raise DrillDiagnosticError(code, stage=stage, actual_status=actual_status) from None
+
+
+def get(url, token, tls, budget, expected_status, *, correlation_id=None):
+    return _request(
+        url, token, tls, budget, expected_status, method="GET",
+        correlation_id=correlation_id,
+    )
+
+
+def get_readiness(url, token, tls, budget):
+    """Read Companion readiness, allowing its normal 503 startup state."""
+    return _request(
+        url,
+        token,
+        tls,
+        budget,
+        "readiness",
+        method="GET",
+        return_status=True,
+    )
+
+
+def post_readonly(url, token, service, body, tls, budget, expected_status, *, authority=None):
+    return _request(
+        url,
+        token,
+        tls,
+        budget,
+        expected_status,
+        method="POST",
+        service=service,
+        body=body,
+        authority=authority,
+    )

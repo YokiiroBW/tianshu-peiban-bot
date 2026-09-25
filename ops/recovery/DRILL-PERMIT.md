@@ -8,7 +8,9 @@
 
 `inputs_directory` 是同一 scope 下 drill-inputs 直属、与三部署目录完全不重叠的人工准备目录。`inputs_sha256` 绑定其中 `inputs.json` 的原字节；其封闭 files 清单绑定专属 config/private/TLS/contracts/tools 及 core/obs Compose，不继承原秘密。`compose_sha256` 绑定两份 Compose 原字节，`config_sha256` 绑定全部 config/private/TLS 文件集合。`versions` 固定四产品完整提交，`image_ids` 固定九 owner 的本地 image ID；这不是 registry digest。
 
-两个新项目必须 tianshu-qa-*、obs=core+-obs，均不同于原项目。只允许副本内 bind，原 authority/恢复目标/inputs 均不挂载；无宿主socket、named volumes、额外owner、特权、devices、host网络、外部network、build、pull或隐式服务。network全为新的internal网络；loopback端口必须显式绑定且无自动随机外露。所有出站只在此网络内到合成录制端口；配置内出现外部URL/地址即拒绝，不把“localhost”当容器外真实服务的授权。
+A1 的 `gateway_usage_readback` 还要求 `inputs.json` 带 `a1_origin_admission: {"minimum_remaining_seconds":180}`，以及四个私有文件 `private/a1-{config,actor}-origin-{request,issue}.json`。`request` 为固定 Platform entry_id，`issue` 保存对应 `run_platform_cli(..., "issue", ...)` 的完整输出。它们须进入 `files`、`config_sha256` 和 `inputs_sha256` 封印；Gateway env 与四项相关断言必须引用同一对 origin。执行器在 claim 前只读核对停止且已绑定快照的 source Platform origin 行，同 ref/entry/digest、未撤销、实际到期不早于原签发回执；正常续期后以冻结 DB 当前到期与 unknown 请求期限的最小值计算剩余。少于 180 秒拒绝且不 claim；运行关键阶段继续检查，到期则停止并正常清理。此入场阈值不延长产品 300 秒 TTL，也不把 540 秒 permit 上限当成来源有效期保证。非空 Platform WAL 拒绝，不清理或 checkpoint。旧的不含 Gateway 断言的演练不需要此 A1 扩展。
+
+两个新项目必须使用隔离的 tianshu-qa-* 或本任务限定的 tianshu-accept-a1-* 前缀，obs=core+-obs，均不同于原项目。只允许副本内 bind，原 authority/恢复目标/inputs 均不挂载；无宿主socket、named volumes、额外owner、特权、devices、host网络、外部network、build、pull或隐式服务。network全为新的internal网络；loopback端口必须显式绑定且无自动随机外露。所有出站只在此网络内到合成录制端口；配置内出现外部URL/地址即拒绝，不把“localhost”当容器外真实服务的授权。
 
 操作全程持有G固定的源 `.runtime-owner.lock` 同 inode 非阻塞 flock，并持有副本租约；不删除锁。复制前后复核原 authority 完整事实与九owner正常停止；原恢复目标从未启动。数据在新副本按原恢复包复制；锁仅在副本重新创建。启动后经公开HTTP功能断言，不以健康200替代撤销/遗忘/unknown语义。证据仅状态与hash，不记录敏感响应正文。
 

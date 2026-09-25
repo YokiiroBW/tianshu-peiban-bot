@@ -13,6 +13,24 @@ class RecoveryError(Exception):
     """Only fixed reason codes reach the public CLI."""
 
 
+class DrillDiagnosticError(RecoveryError):
+    """Fixed assertion failure facts without response bodies or credentials."""
+
+    def __init__(self, code, *, stage, actual_status=None, response_structure=None):
+        super().__init__(code)
+        self.stage = stage
+        self.actual_status = actual_status
+        self.response_structure = response_structure
+
+    def detail(self):
+        value = {"code": self.args[0], "stage": self.stage}
+        if self.actual_status is not None:
+            value["actual_http_status"] = self.actual_status
+        if self.response_structure is not None:
+            value["response_structure"] = self.response_structure
+        return value
+
+
 def require(condition, code):
     if not condition:
         raise RecoveryError(code)

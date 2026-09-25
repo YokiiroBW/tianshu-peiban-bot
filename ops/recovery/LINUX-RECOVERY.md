@@ -33,6 +33,8 @@ python -B -m ops.recovery --root <scope> --scope-id <scope-uuid> --execute linux
 
 全程独占 G/I/J 共用 `<source>/.runtime-owner.lock` 的同一 inode 非阻塞 flock；不嵌套重新持锁、不删锁。九 owner 身份在初次登记及操作时双重核验，防止同项目旧容器被替代。先禁 restart 并核读回，再逐 owner SIGTERM；只接受 exited/0、非 OOM/Dead/Error、无运行/重启/暂停。143/137、不确认退出、目录枚举异常均不发布完成备份，无强杀退路。
 
+Prometheus 上游镜像声明了 `/prometheus` image volume，但本部署只把 `/var/lib/prometheus` 登记为状态卷。DEP-J 仅在镜像声明该路径、容器 HostConfig 与 Compose tmpfs 选项完全匹配，并且运行中的 mount namespace 证实该路径由只读 tmpfs 覆盖时，忽略此匿名 image volume；停止容器只接受仍绑定精确 tmpfs 配置的正常 exited 状态。该卷不进入恢复清单；其它未登记 volume 一律拒绝。
+
 备份以 SQLite Backup API 合 WAL，五日志卷全目录原字节含内部 WAL、空目录；恢复到此前不存在目录，状态始终 restored_disabled。全事实指纹包括所有表/rowid/账本，另核 Memory guard；不能用旧包复活后来撤销/遗忘/unknown。源 authority 丢失仍拒绝。返回 `verification_sha256` 绑定当前 authority、恢复 UUID、完整事实与原备份逐文件核验；它不是公开业务验收结果。
 
 代码选版依旧使用旧 prepare-update/rollback-code；不将“选版本”当作镜像切换，不恢复旧数据，也不自动激活原恢复目标。
@@ -45,9 +47,11 @@ python -B -m ops.recovery --root <scope> --scope-id <scope-uuid> --execute linux
 
 Compose 两项目名来自许可，四产品+五日志 owner，镜像使用已核本地 `sha256:...` ID、pull_policy=never、禁 build/pull。全部网络 internal，全部 bind 属于新副本，所有写挂载须与五卷合同/产品卷 owner 完全一致。端口仅显式 long syntax 的 127.0.0.1 高端口。未列出的 service 字段拒绝，原代码/command/entrypoint 不可换成任意 argv。
 
-assertion 结构：`id`（data_readback/source_revoked/model_revoked/forgotten/unknown_no_resend）、`service`、`url`、`ca_file`、`token_file`、`expected_status`、`expected_json`。只允许到该 service 已发布 loopback 端口的 HTTPS GET，无代理/重定向；令牌取副本专属文件，CA 必须校验证书，响应有总预算/体积限制。expected_json 对对象按子集比较、其他类型严格相等。禁止 `/health*` 代替功能；实际端点和断言须由协调依据固定产品公开接口准备，不能使用测试里的 fixture URL/响应。
+assertion 结构必需字段为 `id`（data_readback/source_revoked/model_revoked/forgotten/unknown_no_resend）、`service`、`url`、`ca_file`、`token_file`、`expected_status`、`expected_json`；可选字段为 `method` 和 `request_json`。默认 GET 不带请求体。POST 必须同时给出 `method: "POST"` 和 JSON 对象请求体，且只允许 Companion source-facts/web-snapshot/life-read、Memory select/source-sync/check、Platform source-access/read 与 model-config snapshot 的固定只读路径；写入路径、其他服务映射和带查询字符串的 POST 在连接前拒绝。POST 请求体上限 16 KiB，响应上限 256 KiB；TLS 建连、请求写入和响应解析共享总期限，不跟随重定向、不重试。令牌取副本专属文件，CA 必须校验证书。`expected_json` 对对象递归按子集比较；数组长度必须相同且逐项递归比较；标量值和类型严格相等。禁止 `/health*` 代替功能；实际端点和断言须由协调依据固定产品公开接口准备，不能使用测试里的 fixture URL/响应。
 
-R1使用非阻塞连接/TLS/HTTP解析，所有网络阶段共用同一取消/截止时间，没有后台超时线程。状态行1024字节、单头行8192、累计头及chunk元数据32KiB/102行、正文256KiB；HTTP/1.0/1.1固定GET支持Content-Length/chunked/close framing，异常或到期先关闭socket再返回。不能把持续收到状态/头部字节当作延长停机预留预算的理由。
+可选 `runtime_observation` 为 `unknown_no_resend` 增加限时恢复副本观察：窗口为 1–300 秒；就绪探针固定为 Companion loopback TLS `/health/ready`，使用副本专属 CA 和 diagnostics token。只在启动等待阶段接受 HTTP 503；窗口开始前、窗口内和结束后均要求 HTTP 200 且 `checks.runtime=ok`。窗口内九个 owner 必须一直运行，已配置 healthcheck 的服务必须为 healthy；没有 Compose healthcheck 的服务只报告 running，不推断 healthy。Companion API 在窗口前后必须读回相同的 unknown turn/reply ID、sequence 和状态，并与许可输入中明确列出的 unknown 记录完全一致；报告仅计数 API 可见 reply records，不声称底层投递尝试计数已暴露。Gateway JSONL 在窗口前后按 correlation ID 比较 `request.accepted`、`upstream.call_started` 和 `upstream.call_finished` 计数，并要求保留两个 unknown 组与两个成功控制组。这个有界观察支持本次副本未重发的结论，不构成永久保证；source scope 与恢复副本的证据必须分开记录。
+
+R1使用非阻塞连接/TLS/HTTP解析，所有网络阶段共用同一取消/截止时间，没有后台超时线程。状态行1024字节、单头行8192、累计头及chunk元数据32KiB/102行、响应正文256KiB；HTTP/1.0/1.1固定 GET 与只读 allowlisted POST 支持 Content-Length/chunked/close framing，POST 请求体上限16KiB。异常或到期先关闭socket再返回。不能把持续收到状态/头部字节当作延长停机预留预算的理由。
 
 ```text
 python -B -m ops.recovery --root <scope> --scope-id <scope-uuid> drill-clone --permit <独立准备的许可.json> --permit-sha256 <另存hash>

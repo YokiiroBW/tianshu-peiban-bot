@@ -10,6 +10,12 @@ import test_packaging as packaging
 from bundle import preflight
 from manifest import Refused, read_json, write_json
 from resource_profile import constrain, container_check, host_check, validate
+from observability_release import (
+    apply_network_plan,
+    apply_prometheus_admin_flag,
+    apply_prometheus_volume_mask,
+    apply_resource_profile,
+)
 from fake_linux_docker import Docker, clock_patches
 from linux_runtime import leased_execute
 
@@ -142,6 +148,147 @@ class ProfilePackagingTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(Refused, "nas_qa_profile_not_release_approved"):
             preflight(f.output, release=True)
+
+    def test_pinned_prometheus_false_boolean_uses_supported_cli_form(self):
+        document = {
+            "services": {
+                "obs-prometheus": {
+                    "command": ["--web.enable-admin-api=false"]
+                }
+            }
+        }
+        result = apply_prometheus_admin_flag(document)
+        self.assertEqual(
+            result["services"]["obs-prometheus"]["command"],
+            ["--no-web.enable-admin-api"],
+        )
+        self.assertIs(apply_prometheus_admin_flag(result), result)
+
+    def test_pinned_prometheus_anonymous_volume_is_masked_idempotently(self):
+        document = {"services": {"obs-prometheus": {"tmpfs": ["/tmp:rw,size=64m"]}}}
+        expected = "/prometheus:ro,noexec,nosuid,size=1m,uid=10001,gid=10001,mode=0700"
+        result = apply_prometheus_volume_mask(document)
+        self.assertIn(expected, result["services"]["obs-prometheus"]["tmpfs"])
+        self.assertIs(apply_prometheus_volume_mask(result), result)
+        result["services"]["obs-prometheus"]["tmpfs"].append(expected)
+        with self.assertRaisesRegex(ValueError, "observability_prometheus_tmpfs_invalid"):
+            apply_prometheus_volume_mask(result)
+
+    def test_observability_network_plan_pins_declared_subnets(self):
+        document = {
+            "networks": {
+                "observe": {"internal": True},
+                "storage": {"internal": True},
+            }
+        }
+        result = apply_network_plan(
+            document,
+            {"observe": "10.204.46.0/24", "storage": "10.204.47.0/24"},
+            ["10.204.43.0/24", "10.204.44.0/24", "10.204.45.0/24"],
+        )
+        self.assertEqual(
+            result["networks"]["observe"]["ipam"]["config"][0]["subnet"],
+            "10.204.46.0/24",
+        )
+        self.assertEqual(
+            result["networks"]["storage"]["ipam"]["config"][0]["subnet"],
+            "10.204.47.0/24",
+        )
+        with self.assertRaises(Refused):
+            apply_network_plan(
+                {
+                    "networks": {
+                        "observe": {"internal": True},
+                        "storage": {"internal": True},
+                    }
+                },
+                {"observe": "10.204.45.0/24", "storage": "10.204.47.0/24"},
+                ["10.204.43.0/24", "10.204.44.0/24", "10.204.45.0/24"],
+            )
+
+    def test_observability_profile_rewrites_pinned_compose_resource_fields(self):
+        f = self.fixture
+        path = f.root / "observability" / "compose.yaml"
+        path.parent.mkdir()
+        write_json(
+            path,
+            {
+                "services": {
+                    "obs-grafana": {
+                        "cpus": 0.75,
+                        "pids_limit": 128,
+                        "mem_limit": "512m",
+                    },
+                    "obs-loki": {
+                        "cpus": 1.5,
+                        "pids_limit": 128,
+                        "mem_limit": "1536m",
+                    },
+                }
+            },
+        )
+
+        apply_resource_profile(path, PROFILE)
+
+        services = read_json(path)["services"]
+        for name, limit in (("obs-grafana", "512m"), ("obs-loki", "1536m")):
+            self.assertEqual(services[name]["cpuset"], "6,7")
+            self.assertEqual(services[name]["mem_limit"], limit)
+            self.assertNotIn("cpus", services[name])
+            self.assertNotIn("pids_limit", services[name])
+
+    def test_a1_loopback_api_ports_are_declared_and_reproducible(self):
+        f = self.fixture
+        f.site.update(
+            project_name="tianshu-qa-a1-ports",
+            bind_address="127.0.0.1",
+            resource_profile=PROFILE,
+            a1_loopback_api_ports={
+                "companion": 19512,
+                "memory": 19513,
+                "gateway": 19514,
+            },
+        )
+        write_json(f.sitepath, f.site)
+        f.init()
+
+        self.assertEqual(preflight(f.output)["status"], "package_valid")
+        services = read_json(f.output / "compose.json")["services"]
+        self.assertEqual(services["platform"]["ports"], ["127.0.0.1:18443:8443"])
+        self.assertEqual(services["companion"]["ports"], ["127.0.0.1:19512:8765"])
+        self.assertEqual(services["memory"]["ports"], ["127.0.0.1:19513:8130"])
+        self.assertEqual(services["gateway"]["ports"], ["127.0.0.1:19514:8443"])
+        self.assertEqual(
+            read_json(f.output / "deployment.json")["compose_inputs"][
+                "a1_loopback_api_ports"
+            ],
+            f.site["a1_loopback_api_ports"],
+        )
+
+    def test_a1_loopback_api_ports_reject_other_scopes_and_values(self):
+        f = self.fixture
+        base = {
+            **f.site,
+            "project_name": "tianshu-qa-a1-ports",
+            "bind_address": "127.0.0.1",
+            "resource_profile": PROFILE,
+            "a1_loopback_api_ports": {
+                "companion": 19512,
+                "memory": 19513,
+                "gateway": 19514,
+            },
+        }
+        for change in (
+            {"project_name": "tianshu-qa-other"},
+            {"bind_address": "192.168.31.210"},
+            {"resource_profile": None},
+            {"a1_loopback_api_ports": {"companion": 19520, "memory": 19513, "gateway": 19514}},
+        ):
+            with self.subTest(change=change):
+                write_json(f.sitepath, {**base, **change})
+                with self.assertRaises(Refused):
+                    f.init()
+                self.assertFalse(f.output.exists())
 
     def test_public_http_binds_web_only_and_is_recorded(self):
         f = self.fixture

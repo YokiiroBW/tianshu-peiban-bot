@@ -1,0 +1,302 @@
+{
+  "absent": {
+    "deployments/clone": true,
+    "deployments/restored": true,
+    "deployments/source/.recovery-registration.json": true,
+    "deployments/source/reports/runtime-identity.json": true,
+    "drill-inputs": true,
+    "inputs/a1-once.json": true,
+    "inputs/permit": true
+  },
+  "collected_at_utc": "2026-09-25T17:40:55.760335+00:00",
+  "companion_events": [
+    {
+      "correlation_id": "9d8045ab9f26f0844bfd97cc0b224d7f",
+      "error_code": null,
+      "event": "turn.prepared",
+      "outcome": "succeeded",
+      "timestamp": "2026-09-25T17:27:40.408Z"
+    },
+    {
+      "correlation_id": "9d8045ab9f26f0844bfd97cc0b224d7f",
+      "error_code": "connect_error",
+      "event": "peer.call.finished",
+      "outcome": "failed",
+      "timestamp": "2026-09-25T17:27:40.436Z"
+    },
+    {
+      "correlation_id": "9d8045ab9f26f0844bfd97cc0b224d7f",
+      "error_code": "dependency_unavailable",
+      "event": "turn.generation.finished",
+      "outcome": "failed",
+      "timestamp": "2026-09-25T17:27:40.436Z"
+    },
+    {
+      "correlation_id": "9d8045ab9f26f0844bfd97cc0b224d7f",
+      "error_code": "connect_error",
+      "event": "peer.call.finished",
+      "outcome": "failed",
+      "timestamp": "2026-09-25T17:27:40.671Z"
+    },
+    {
+      "correlation_id": "9d8045ab9f26f0844bfd97cc0b224d7f",
+      "error_code": "dependency_unavailable",
+      "event": "outbox.flush",
+      "outcome": "unknown",
+      "timestamp": "2026-09-25T17:27:40.684Z"
+    }
+  ],
+  "fanouts": [
+    {
+      "conversation_id": "conv:1dde39ed81a5480182a4a8e2b12938c5",
+      "label": "forget-success-v3",
+      "outcomes": [
+        {
+          "accepted_at": "2026-09-25T17:27:37.094Z",
+          "actor_id": "actor:a1-source",
+          "physical_receipt_id": "physical:3923863e36c941868a48b0514a6ef594",
+          "scope": {
+            "actor_id": "actor:a1-source",
+            "audience": "self_private",
+            "conversation_id": "conv:1dde39ed81a5480182a4a8e2b12938c5",
+            "person_id": "person:16b5063398204c268709c6652ddde197"
+          },
+          "state": "accepted"
+        }
+      ]
+    },
+    {
+      "conversation_id": "conv:1dde39ed81a5480182a4a8e2b12938c5",
+      "label": "source-revoke-success-v3",
+      "outcomes": [
+        {
+          "accepted_at": "2026-09-25T17:27:39.690Z",
+          "actor_id": "actor:a1-source",
+          "physical_receipt_id": "physical:fa865d64dff2473ba0410666edc7b963",
+          "scope": {
+            "actor_id": "actor:a1-source",
+            "audience": "self_private",
+            "conversation_id": "conv:1dde39ed81a5480182a4a8e2b12938c5",
+            "person_id": "person:16b5063398204c268709c6652ddde197"
+          },
+          "state": "accepted"
+        }
+      ]
+    }
+  ],
+  "file_sha256": {
+    "preparations/nas-a1-network-allocation-r2i.json": "8dd4844321d0b396adc09451d8c6cea26abab7ef08f2bc21d70164fa87aa3d55",
+    "preparations/scope-a1-r2i.code-lock.json": "7f77fcb6160794139cf120cd7022350afe07d1281269e89315b664f4746547e2",
+    "preparations/scope-a1-r2i.json": "9e7330f18bf1beffc77e4d6566c029941def71378991ce1496491e1c852d3c50",
+    "scope-a1-r2i/deployments/source/logs/companion/companion.jsonl": "5abf5b2958b20198ebdcd1ba17ed0d0db5ac09e4ed48f79a80743078b728d952",
+    "scope-a1-r2i/deployments/source/logs/memory/41ca2fff-c979-43fd-a75c-f81149bd691f.000000.jsonl": "b0f3c79876d231edee14bdf9ff112e56352d1a2300781644520533af98af6d29",
+    "scope-a1-r2i/deployments/source/logs/memory/6a877c6b-e8cc-4182-b0a1-8d2c17625879.000000.jsonl": "4250696952832eab54b14800096f7941d79d65cd9d4a7e58c22628f355ffd203",
+    "scope-a1-r2i/deployments/source/release-manifest.json": "49decd6b47e2fb7eb64735681b0754dc2ae015b0cffc46eb6bd8cab63e2d1f3d",
+    "scope-a1-r2i/deployments/source/reports/a1-r2i-20260926/a1-source-attempt.json": "d7fc780aeafe22ef76cb8ae7db67d01bad39d1195c2519951338256a50e6d9c9",
+    "scope-a1-r2i/deployments/source/reports/a1-r2i-20260926/a1-source-failure-private.json": "6c8850511f4f2c1195523276b65ec270c1154517d4d6b35a9ec4d04ca4365e37",
+    "scope-a1-r2i/deployments/source/reports/a1-r2i-20260926/fanout-forget-success-v3-receipt.json": "d66b7932dd6959fe13c4540cfb11bd5a760bf63d6fa2e3e4bfea9153e1752998",
+    "scope-a1-r2i/deployments/source/reports/a1-r2i-20260926/fanout-source-revoke-success-v3-receipt.json": "28a5db4f5d75ae2b6ecc499f1af3d861bed3389151f6a24c9c0b6263af70f6b6",
+    "scope-a1-r2i/deployments/source/reports/a1-r2i-20260926/host-preflight.json": "9c444c57a9f76ae3985bf583a36c14f379de7760e6af27caca712dce8bbbacbe",
+    "scope-a1-r2i/deployments/source/reports/a1-r2i-20260926/package-preflight.json": "a68c0ebe7ee02e9b5099b67533f6180497ff6e891aee1b979c3b5f1851c4b809",
+    "scope-a1-r2i/deployments/source/reports/a1-r2i-20260926/web-snapshot-initial.json": "6bb6ee68582aa92ddf63cc6da00d98f85d8281d622ba7bd8c2cedb184c44ebb8",
+    "tooling/code-104aa50.tar": "e48c9e544490ab54c898c7bfa4cf5163d2378c306af3c70ebfe4e54c83687171"
+  },
+  "memory_events": [
+    {
+      "event": "runtime.stopping",
+      "outcome": "started",
+      "timestamp": "2026-09-25T17:27:40.341Z"
+    },
+    {
+      "event": "runtime.stopped",
+      "outcome": "succeeded",
+      "timestamp": "2026-09-25T17:27:40.445Z"
+    },
+    {
+      "event": "runtime.starting",
+      "outcome": "started",
+      "timestamp": "2026-09-25T17:27:43.574Z"
+    },
+    {
+      "event": "runtime.started",
+      "outcome": "succeeded",
+      "timestamp": "2026-09-25T17:27:43.753Z"
+    },
+    {
+      "event": "runtime.ready",
+      "outcome": "succeeded",
+      "timestamp": "2026-09-25T17:27:43.761Z"
+    }
+  ],
+  "networks": [
+    {
+      "endpoints": 0,
+      "id": "993537d10a360d2444307e805d6d93b63870706b10639245ffd722204561a896",
+      "name": "tianshu-qa-a1-r2i-source_core",
+      "subnets": [
+        "10.205.49.0/28"
+      ]
+    },
+    {
+      "endpoints": 0,
+      "id": "c28b35960ead69d97f1c4bf0c07e916a44a3dbc9bc2182a3828f49132c7819fc",
+      "name": "tianshu-qa-a1-r2i-source_egress",
+      "subnets": [
+        "10.205.49.16/28"
+      ]
+    },
+    {
+      "endpoints": 0,
+      "id": "219b8147715a663a11c804fee460652f689aa39ac848fe6d6095facb1e0c2834",
+      "name": "tianshu-qa-a1-r2i-source_frontend",
+      "subnets": [
+        "10.205.49.32/28"
+      ]
+    },
+    {
+      "endpoints": 0,
+      "id": "0ec6d49e2c04afe1efb702bd32e2a467f624c3c5103f63b29cbf5e5db86570e1",
+      "name": "tianshu-qa-a1-r2i-source-obs_observe",
+      "subnets": [
+        "10.205.49.48/28"
+      ]
+    },
+    {
+      "endpoints": 0,
+      "id": "05e28f983c9fe76c0c311d08748cd1d8c927428bc46e2e0ac2672df2771e8090",
+      "name": "tianshu-qa-a1-r2i-source-obs_storage",
+      "subnets": [
+        "10.205.49.64/28"
+      ]
+    }
+  ],
+  "owners": [
+    {
+      "all_binds_in_scope": true,
+      "exit_code": 0,
+      "id": "4bccfaf1e4ff4d1c326a92a5b3eec650bbdb683a0c4d195a609e40dd9c106e07",
+      "name": "/tianshu-qa-a1-r2i-source-memory-1",
+      "project": "tianshu-qa-a1-r2i-source",
+      "running": false,
+      "service": "memory"
+    },
+    {
+      "all_binds_in_scope": true,
+      "exit_code": 0,
+      "id": "add347fa1635a887634370242e6906199d2067404b658e8bb04267e49bb8e88c",
+      "name": "/tianshu-qa-a1-r2i-source-companion-1",
+      "project": "tianshu-qa-a1-r2i-source",
+      "running": false,
+      "service": "companion"
+    },
+    {
+      "all_binds_in_scope": true,
+      "exit_code": 0,
+      "id": "ab90457c14442d72e1121b0387deb50bb019303271d1c720b0171c25ed8fbd59",
+      "name": "/tianshu-qa-a1-r2i-source-gateway-1",
+      "project": "tianshu-qa-a1-r2i-source",
+      "running": false,
+      "service": "gateway"
+    },
+    {
+      "all_binds_in_scope": true,
+      "exit_code": 0,
+      "id": "3e7f9c1fb3f8c7a6dbcbcc14beedbf985da60909466c348505e01f3e4145b6d9",
+      "name": "/tianshu-qa-a1-r2i-source-platform-1",
+      "project": "tianshu-qa-a1-r2i-source",
+      "running": false,
+      "service": "platform"
+    },
+    {
+      "all_binds_in_scope": true,
+      "exit_code": 0,
+      "id": "771801524ea9f7947e344f01d0c5900894136596fce91b6e9f7856f79600fa69",
+      "name": "/tianshu-qa-a1-r2i-source-obs-obs-loki-1",
+      "project": "tianshu-qa-a1-r2i-source-obs",
+      "running": false,
+      "service": "obs-loki"
+    },
+    {
+      "all_binds_in_scope": true,
+      "exit_code": 0,
+      "id": "758aaae7d96da729699fc144fc8de66fbe07c1f5fe4b3590c146bf9222ab2418",
+      "name": "/tianshu-qa-a1-r2i-source-obs-obs-grafana-1",
+      "project": "tianshu-qa-a1-r2i-source-obs",
+      "running": false,
+      "service": "obs-grafana"
+    },
+    {
+      "all_binds_in_scope": true,
+      "exit_code": 0,
+      "id": "5cbbb9b7b1ccaba8810c71e5f32d583edc64616bc8ff9f0c4cf709c3b0130acd",
+      "name": "/tianshu-qa-a1-r2i-source-obs-obs-guard-1",
+      "project": "tianshu-qa-a1-r2i-source-obs",
+      "running": false,
+      "service": "obs-guard"
+    },
+    {
+      "all_binds_in_scope": true,
+      "exit_code": 0,
+      "id": "b5e7de587682eacce6cd439bc82fa54cf93e0353e60c5b675278bb43a367cce6",
+      "name": "/tianshu-qa-a1-r2i-source-obs-obs-vector-1",
+      "project": "tianshu-qa-a1-r2i-source-obs",
+      "running": false,
+      "service": "obs-vector"
+    },
+    {
+      "all_binds_in_scope": true,
+      "exit_code": 0,
+      "id": "d81ee6eac439b411927a49018dbdcba5630bca7e05d69a05b5fd15f76164eca8",
+      "name": "/tianshu-qa-a1-r2i-source-obs-obs-prometheus-1",
+      "project": "tianshu-qa-a1-r2i-source-obs",
+      "running": false,
+      "service": "obs-prometheus"
+    }
+  ],
+  "safe_stopped": true,
+  "scope_id": "9972bea7-b68c-40e9-9bee-6be1cc212c2e",
+  "turns": [
+    {
+      "conversation_id": "conv:1dde39ed81a5480182a4a8e2b12938c5",
+      "created_at": "2026-09-25T17:27:37.621Z",
+      "failure": null,
+      "model_calls": 1,
+      "sequence": 1,
+      "status": "closed_unknown",
+      "turn_id": "turn:10652c76222c418682659b36aa150939",
+      "updated_at": "2026-09-25T17:27:41.709Z"
+    },
+    {
+      "conversation_id": "conv:1dde39ed81a5480182a4a8e2b12938c5",
+      "created_at": "2026-09-25T17:27:40.232Z",
+      "failure": "dependency_unavailable",
+      "model_calls": 0,
+      "sequence": 2,
+      "status": "failed",
+      "turn_id": "turn:d9c1e8394b3b48b7a332d9825ef5524c",
+      "updated_at": "2026-09-25T17:27:40.440Z"
+    }
+  ],
+  "web_snapshot": {
+    "active_turns_count": 0,
+    "conversation_id": "conv:1dde39ed81a5480182a4a8e2b12938c5",
+    "history": [
+      {
+        "delivery_state": "failed",
+        "phase": "failed",
+        "reply_states": [],
+        "sequence": 2,
+        "turn_id": "turn:d9c1e8394b3b48b7a332d9825ef5524c"
+      },
+      {
+        "delivery_state": "unknown",
+        "phase": "closed_unknown",
+        "reply_states": [
+          "unknown"
+        ],
+        "sequence": 1,
+        "turn_id": "turn:10652c76222c418682659b36aa150939"
+      }
+    ]
+  }
+}

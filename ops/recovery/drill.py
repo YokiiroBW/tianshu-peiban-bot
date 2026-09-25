@@ -1,18 +1,33 @@
 """One-use synthetic clone, fixed Compose startup and public readback; originals stay off."""
 
 import os
+import re
 import sqlite3
 import time
+import uuid
 from contextlib import ExitStack
 from pathlib import Path
 
 from .compose_backend import ComposeBackend, DockerCLI
-from .drill_http import check as http_check
+from .drill_http import (
+    check as http_check,
+    check_readiness,
+    memory_authority,
+    matches as response_matches,
+)
 from .drill_inputs import isolated_inputs, permit, restoration_facts
+from .drill_observation import (
+    gateway_counters,
+    gateway_ledger_snapshot,
+    gateway_read_bridge,
+    summarize_a1_gateway_counts,
+)
+from .drill_origin_admission import MINIMUM_REMAINING_SECONDS, check_origin_admission
 from .lifecycle import Deadline, stop_order
 from .linux_recovery import registered
 from .runtime_identity import load_identity, runtime_lease
 from .safety import (
+    DrillDiagnosticError,
     RecoveryError,
     canonical,
     child,
@@ -26,6 +41,19 @@ from .safety import (
     walk_tree,
     write_new,
 )
+
+
+def _failure_detail(error, phase):
+    """Persist only fixed recovery codes and bounded assertion metadata."""
+    code = str(error) if isinstance(error, RecoveryError) else "drill_unclassified_error"
+    if re.fullmatch(r"[a-z][a-z0-9_]{0,63}", code) is None:
+        code = "drill_unclassified_error"
+    if re.fullmatch(r"[a-z][a-z0-9_]{0,63}", phase) is None:
+        phase = "drill_execution"
+    detail = {"phase": phase, "code": code}
+    if isinstance(error, DrillDiagnosticError):
+        detail.update(error.detail())
+    return detail
 
 
 def clone_binding(root, documents, manifest, value):
@@ -196,6 +224,25 @@ def _stop(backend):
         )
 
 
+def _assert_clone_services(backend, documents, all_services, work):
+    work.check()
+    backend.inspect(allow_missing=True)
+    require(set(backend.current) == all_services, "missing_project_container")
+    require(
+        all(backend.current[s]["State"]["Running"] for s in all_services),
+        "drill_product_not_running",
+    )
+    require(
+        all(
+            backend.current[s]["State"].get("Health", {}).get("Status") == "healthy"
+            for group in ("core", "observability")
+            for s, spec in documents[group]["services"].items()
+            if spec.get("healthcheck")
+        ),
+        "drill_product_unhealthy",
+    )
+
+
 def run(
     recovery,
     permit_path,
@@ -242,6 +289,11 @@ def run(
         value, manifest, resource_profile=resource_profile
     )
     _input_provenance(source, runtime, documents, index, clone)
+    if any(
+        assertion["service"] == "memory" and assertion.get("method") == "POST"
+        for assertion in index["assertions"]
+    ):
+        memory_authority(Path(value["inputs_directory"]))
     marker = read_json(child(restored, "RESTORE.json"))
     require(
         marker.get("snapshot_sha256") == value["snapshot_sha256"],
@@ -263,10 +315,44 @@ def run(
         "original_restore_activation": False,
         "activation": "disabled",
         "functional_assertions": [],
+        "service_coverage": {
+            "mode": "simultaneous",
+            "all_nine_simultaneous": False,
+            "observability": {
+                "owners": sorted(documents["observability"]["services"]),
+                "running_during_functional_readback": False,
+                "configured_healthchecks": sum(
+                    bool(spec.get("healthcheck"))
+                    for spec in documents["observability"]["services"].values()
+                ),
+            },
+            "core": {
+                "owners": sorted(documents["core"]["services"]),
+                "healthchecks_healthy_during_functional_readback": False,
+                "configured_healthchecks": sum(
+                    bool(spec.get("healthcheck"))
+                    for spec in documents["core"]["services"].values()
+                ),
+            },
+        },
         "linux_executed": False,
     }
+    if "runtime_observation" in index:
+        result["unknown_no_resend_observation"] = {
+            "status": "not_run",
+            "window_seconds": index["runtime_observation"]["window_seconds"],
+        }
     if not execute:
         return result | {"status": "planned", "actual_owners_and_facts": "not_checked"}
+
+    def origin_check(minimum=0):
+        if "a1_origin_admission" in index:
+            return check_origin_admission(
+                source, value["inputs_directory"], index,
+                minimum_remaining=minimum,
+            )
+        return None
+
     remaining = min(value["max_runtime_seconds"], value["expires_at"] - time.time())
     require(remaining > 65, "drill_shutdown_reserve_required")
     total_end = time.monotonic() + remaining
@@ -282,6 +368,7 @@ def run(
     original.restart_disabled = True
     backend = None
     failure = None
+    phase = "clone_copy"
     with runtime_lease(source), ExitStack() as clone_leases:
         permit(recovery, permit_path, permit_sha256)
         pin = registration["runtime_identity"]
@@ -308,6 +395,9 @@ def run(
             <= recovery.max_bytes,
             "total_size_limit",
         )
+        admission = origin_check(MINIMUM_REMAINING_SECONDS)
+        if admission is not None:
+            result["a1_origin_admission"] = admission
         # Bound one-use admission is durable before clone creation or any startup.
         write_new(
             claim,
@@ -384,6 +474,7 @@ def run(
                 == (index, documents),
                 "drill_inputs_changed_during_copy",
             )
+            origin_check()
             for name, expected in index["files"].items():
                 require(
                     file_hash(child(clone, name)) == expected,
@@ -415,10 +506,23 @@ def run(
             )
             clone_owner = clone_binding(clone, documents, manifest, value)
             backend = ComposeBackend(clone, clone, clone_owner, work, docker)
+            observation = index.get("runtime_observation")
+            gateway_before = None
+            baseline_summary = None
+            gateway_pre_window = None
+            pre_window_summary = None
+            gateway_read_checked = False
+            readiness_state = None
+            if observation is not None:
+                # Read the restored source baseline before any cloned owner starts.
+                gateway_before = gateway_counters(clone, work)
+                baseline_summary = summarize_a1_gateway_counts(gateway_before)
             for group, filename in (
                 ("observability", "observability/compose.yaml"),
                 ("core", "compose.json"),
             ):
+                phase = "start_observability" if group == "observability" else "start_core"
+                origin_check()
                 work.check()
                 docker.run(
                     "compose",
@@ -434,30 +538,229 @@ def run(
                     "--pull",
                     "never",
                 )
-            while True:
-                work.check()
-                backend.inspect()
-                require(
-                    all(c["State"]["Running"] for c in backend.current.values()),
-                    "drill_product_not_running",
-                )
-                if all(
-                    c["State"].get("Health", {}).get("Status") == "healthy"
-                    for service, c in backend.current.items()
-                    if documents[
-                        "core" if service in manifest["products"] else "observability"
-                    ]["services"][service].get("healthcheck")
-                ):
-                    break
-                time.sleep(0.1)
+                services = set(documents[group]["services"])
+                while True:
+                    origin_check()
+                    work.check()
+                    backend.inspect(allow_missing=True)
+                    require(services <= set(backend.current), "missing_project_container")
+                    require(
+                        all(backend.current[s]["State"]["Running"] for s in services),
+                        "drill_product_not_running",
+                    )
+                    if all(
+                        backend.current[s]["State"].get("Health", {}).get("Status")
+                        == "healthy"
+                        for s in services
+                        if documents[group]["services"][s].get("healthcheck")
+                    ):
+                        break
+                    time.sleep(0.1)
+                if group == "observability":
+                    result["service_coverage"]["observability"][
+                        "running_during_functional_readback"
+                    ] = True
+
+            all_services = set(backend.binding["services"])
+            _assert_clone_services(backend, documents, all_services, work)
+            result["service_coverage"]["all_nine_simultaneous"] = True
+            result["service_coverage"]["observability"][
+                "running_during_functional_readback"
+            ] = True
+            result["service_coverage"]["core"][
+                "healthchecks_healthy_during_functional_readback"
+            ] = True
+
+            if observation is not None:
+                phase = "worker_readiness"
+                # It must contain the two unknown and two successful control groups
+                # recorded by the source scope. New clone events must change the
+                # counters.
+                while readiness_state is None:
+                    origin_check()
+                    _assert_clone_services(backend, documents, all_services, work)
+                    readiness = check_readiness(
+                        clone,
+                        observation["worker_readiness"],
+                        work,
+                        allow_not_ready=True,
+                    )
+                    if readiness["status"] == "ready":
+                        readiness_state = readiness
+                        break
+                    work.check()
+                    time.sleep(min(1.0, max(0.01, work.ends - time.monotonic())))
+
+            initial_unknown_turns = None
             for assertion in index["assertions"]:
+                phase = "assertion_" + assertion["id"]
+                origin_check()
                 original.assert_stopped()
                 _unused(docker, set(), restored)
-                result["functional_assertions"].append(
-                    http_check(clone, assertion, work)
+                _assert_clone_services(backend, documents, all_services, work)
+                gateway_read = assertion["id"] == "gateway_usage_readback"
+                if gateway_read:
+                    require(observation is not None, "drill_gateway_observation_required")
+                    gateway_prior = gateway_counters(clone, work)
+                    require(
+                        gateway_prior == gateway_before,
+                        "drill_unknown_upstream_counters_changed",
+                    )
+                    ledger_before = gateway_ledger_snapshot(clone)
+                    correlation = uuid.uuid4().hex
+                    require(correlation not in gateway_prior, "drill_gateway_read_bridge_invalid")
+                checked = http_check(
+                    clone,
+                    assertion,
+                    work,
+                    capture_unknown_turns=(
+                        observation is not None
+                        and assertion["id"] == "unknown_no_resend"
+                    ),
+                    **({"correlation_id": correlation} if gateway_read else {}),
                 )
-        except (RecoveryError, OSError, ValueError, KeyError, TypeError, sqlite3.Error):
+                result["functional_assertions"].append(checked)
+                if assertion["id"] == "unknown_no_resend" and observation is not None:
+                    initial_unknown_turns = checked.get("unknown_turns")
+                    require(
+                        response_matches(
+                            initial_unknown_turns, observation["unknown_turns"]
+                        ),
+                        "drill_unknown_turn_readback_mismatch",
+                    )
+                if gateway_read:
+                    require(
+                        gateway_ledger_snapshot(clone) == ledger_before,
+                        "drill_gateway_ledger_changed_by_read",
+                    )
+                    unknown_assertion = next(
+                        item for item in index["assertions"]
+                        if item["id"] == "unknown_no_resend"
+                    )
+                    post_read_unknown = http_check(
+                        clone, unknown_assertion, work, capture_unknown_turns=True,
+                    )
+                    require(
+                        post_read_unknown.get("unknown_turns") == initial_unknown_turns,
+                        "drill_unknown_turn_readback_changed",
+                    )
+                    bridge_deadline = min(work.ends, time.monotonic() + 5.0)
+                    while True:
+                        origin_check()
+                        gateway_pre_window = gateway_counters(clone, work)
+                        if correlation in gateway_pre_window:
+                            gateway_read_bridge(
+                                gateway_prior, gateway_pre_window, correlation,
+                            )
+                            break
+                        require(
+                            gateway_pre_window == gateway_prior
+                            and time.monotonic() < bridge_deadline,
+                            "drill_gateway_read_bridge_invalid",
+                        )
+                        work.check()
+                        time.sleep(0.05)
+                    pre_window_summary = summarize_a1_gateway_counts(gateway_pre_window)
+                    gateway_read_checked = True
+
+            if observation is not None:
+                phase = "unknown_observation"
+                origin_check()
+                require(
+                    initial_unknown_turns is not None,
+                    "drill_unknown_assertion_required",
+                )
+                if gateway_pre_window is None:
+                    gateway_pre_window = gateway_counters(clone, work)
+                    require(
+                        gateway_pre_window == gateway_before,
+                        "drill_unknown_upstream_counters_changed",
+                    )
+                    pre_window_summary = baseline_summary
+                initial_readiness = check_readiness(
+                    clone, observation["worker_readiness"], work
+                )
+                window_seconds = observation["window_seconds"]
+                window_start = time.monotonic()
+                window_end = window_start + window_seconds
+                readiness_checks = 0
+                service_state_checks = 0
+                while True:
+                    origin_check()
+                    _assert_clone_services(backend, documents, all_services, work)
+                    service_state_checks += 1
+                    readiness = check_readiness(
+                        clone, observation["worker_readiness"], work
+                    )
+                    require(
+                        readiness["runtime"] == "ok",
+                        "drill_worker_runtime_unhealthy",
+                    )
+                    readiness_checks += 1
+                    remaining_window = window_end - time.monotonic()
+                    if remaining_window <= 0:
+                        break
+                    work.check()
+                    time.sleep(min(5.0, remaining_window))
+
+                _assert_clone_services(backend, documents, all_services, work)
+                service_state_checks += 1
+                final_readiness = check_readiness(
+                    clone, observation["worker_readiness"], work
+                )
+                readiness_checks += 1
+                unknown_assertion = next(
+                    item
+                    for item in index["assertions"]
+                    if item["id"] == "unknown_no_resend"
+                )
+                repeated_unknown = http_check(
+                    clone,
+                    unknown_assertion,
+                    work,
+                    capture_unknown_turns=True,
+                )
+                _assert_clone_services(backend, documents, all_services, work)
+                require(
+                    response_matches(
+                        repeated_unknown.get("unknown_turns"),
+                        observation["unknown_turns"],
+                    )
+                    and repeated_unknown.get("unknown_turns") == initial_unknown_turns,
+                    "drill_unknown_turn_readback_changed",
+                )
+                gateway_after = gateway_counters(clone, work)
+                after_summary = summarize_a1_gateway_counts(gateway_after)
+                require(
+                    gateway_after == gateway_pre_window
+                    and after_summary == pre_window_summary,
+                    "drill_unknown_upstream_counters_changed",
+                )
+                result["unknown_no_resend_observation"] = {
+                    "status": "passed",
+                    "window_seconds": window_seconds,
+                    "observed_seconds": round(time.monotonic() - window_start, 3),
+                    "worker_runtime_before_window": initial_readiness["runtime"],
+                    "worker_runtime_after_window": final_readiness["runtime"],
+                    "readiness_checks_during_window": readiness_checks,
+                    "all_nine_state_checks_during_window": service_state_checks,
+                    "api_unknown_turn_count": len(initial_unknown_turns),
+                    "api_unknown_reply_record_count": sum(
+                        len(turn["replies"]) for turn in initial_unknown_turns
+                    ),
+                    "api_reply_snapshot_unchanged": True,
+                    "gateway_counters_unchanged_by_correlation": True,
+                    "gateway_baseline": baseline_summary,
+                    "gateway_before_window": pre_window_summary,
+                    "gateway_read_bridge_checked": gateway_read_checked,
+                    "gateway_after_window": after_summary,
+                    "control_comparison": "two successful upstream groups unchanged",
+                    "delivery_attempt_counter_exposed": False,
+                }
+                origin_check()
+        except (RecoveryError, OSError, ValueError, KeyError, TypeError, sqlite3.Error) as error:
             failure = "drill_failed_or_cancelled"
+            result["failure_detail"] = _failure_detail(error, phase)
         finally:
             cleanup = Deadline(
                 max(0.1, min(cleanup_reserve, total_end - time.monotonic()))
@@ -476,8 +779,9 @@ def run(
                     KeyError,
                     TypeError,
                     sqlite3.Error,
-                ):
+                ) as error:
                     failure = "stop_unconfirmed"
+                    result["cleanup_failure_detail"] = _failure_detail(error, "clone_stop")
             original.budget, original.docker = cleanup, cleanup_docker
             try:
                 original.assert_stopped()
@@ -494,8 +798,9 @@ def run(
                 KeyError,
                 TypeError,
                 sqlite3.Error,
-            ):
+            ) as error:
                 failure = "original_state_unconfirmed"
+                result["cleanup_failure_detail"] = _failure_detail(error, "original_state")
             kinds = {r["id"] for r in result["functional_assertions"]}
             missing = sorted(
                 {
@@ -512,7 +817,20 @@ def run(
                 status=failure
                 or (
                     "partial_functional_coverage"
-                    if missing or products != set(manifest["products"])
+                    if missing
+                    or products != set(manifest["products"])
+                    or not result["service_coverage"]["all_nine_simultaneous"]
+                    or not result["service_coverage"]["observability"][
+                        "running_during_functional_readback"
+                    ]
+                    or not result["service_coverage"]["core"][
+                        "healthchecks_healthy_during_functional_readback"
+                    ]
+                    or (
+                        "runtime_observation" in index
+                        and result["unknown_no_resend_observation"]["status"]
+                        != "passed"
+                    )
                     else "drill_passed"
                 ),
                 linux_executed=True,

@@ -1,0 +1,51 @@
+{
+  "id": "gateway_usage_readback",
+  "service": "gateway",
+  "method": "GET",
+  "url": "https://127.0.0.1:19914/internal/v1/model-usage?view=attempts&since=2026-09-25T00:00:00Z&until=2026-09-26T00:00:00Z",
+  "ca_file": "config/gateway/tls/ca.pem",
+  "token_file": "private/token-gateway-usage",
+  "expected_status": 200,
+  "expected_json": {
+    "schema_version": 1,
+    "key_space": "chat",
+    "identity": {
+      "service": "companion"
+    },
+    "coverage": {
+      "matching": 4,
+      "scanned": 4,
+      "truncated": false,
+      "unmetered_total": 0
+    },
+    "counts": {
+      "total": 4,
+      "succeeded": 2,
+      "failed": 0,
+      "cancelled": 0,
+      "unknown": 2
+    },
+    "attempts": [
+      {
+        "request_id": "a1-r2g-offline-control-6",
+        "reason": "transport_unknown",
+        "outcome": "unknown"
+      },
+      {
+        "request_id": "a1-r2g-offline-control-5",
+        "reason": "transport_unknown",
+        "outcome": "unknown"
+      },
+      {
+        "request_id": "model:0e8503e3f8b14a8aadf21b3344966828",
+        "reason": "completed",
+        "outcome": "succeeded"
+      },
+      {
+        "request_id": "model:b5b94a0b5ba340f5b8e375082375ae14",
+        "reason": "completed",
+        "outcome": "succeeded"
+      }
+    ]
+  }
+}
