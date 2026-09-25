@@ -45,8 +45,10 @@ and owner facts.
 
 Platform fanout acceptance starts asynchronous Companion work. The source
 entry polls its authorized web snapshot until both expected turns have one
-unknown reply and `closed_unknown` state, with no active turn or collector,
-before it binds the observed Memory scope and rebuilds Memory. A failed turn,
+unknown reply and `closed_unknown` state, with no active turn or collector.
+Each turn's message ID and revision must match its registered input and the
+fanout admission. A second read must preserve turn and reply identity before
+the entry binds the observed Memory scope and rebuilds Memory. A failed turn,
 changed final snapshot, or bounded wait expiry stops the source attempt. The
 later Companion source-facts read and trusted Memory commit remain separate
 checks; an automatic outbox entry marked unknown is not a Memory commit.

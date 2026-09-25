@@ -62,7 +62,7 @@ def _unknown(result):
     return {"http_status": 200, "turns": turns}
 
 
-def _initial_turn_state(result, conversation):
+def _initial_turn_state(result, conversation, expected_messages):
     body = _result(result)
     require(body.get("conversation_id") == conversation and
             type(body.get("history")) is list and
@@ -81,8 +81,17 @@ def _initial_turn_state(result, conversation):
                 "a1_source_initial_snapshot_invalid")
         require(sequence not in turns and type(turn.get("turn_id")) is str and
                 turn["turn_id"].startswith("turn:") and
-                type(row.get("replies")) is list,
+                type(row.get("replies")) is list and
+                type(row.get("messages")) is list and
+                len(row["messages"]) == 1 and
+                type(row["messages"][0]) is dict,
                 "a1_source_initial_snapshot_invalid")
+        message = row["messages"][0]
+        require(type(message.get("message_id")) is str and
+                type(message.get("revision")) is int and
+                (message["message_id"], message["revision"]) ==
+                expected_messages[sequence],
+                "a1_source_initial_message_mismatch")
         turns[sequence] = row
         if turn.get("phase") in {"failed", "cancelled", "observed", "sent"}:
             require(False, "a1_source_initial_turn_terminal_mismatch")
@@ -90,12 +99,40 @@ def _initial_turn_state(result, conversation):
             require(turn.get("delivery_state") == "unknown" and
                     len(row["replies"]) == 1 and
                     type(row["replies"][0]) is dict and
+                    type(row["replies"][0].get("reply_id")) is str and
                     row["replies"][0].get("state") == "unknown",
                     "a1_source_initial_turn_terminal_mismatch")
     return (set(turns) == {1, 2} and
             all(row["turn"].get("phase") == "closed_unknown"
                 for row in turns.values()) and
             not body["active_turns"] and not body["collectors"])
+
+
+def _initial_turn_identity(result):
+    return tuple(sorted((row["turn"]["turn_sequence"], row["turn"]["turn_id"],
+        row["turn"]["phase"], row["turn"]["delivery_state"],
+        row["replies"][0]["reply_id"], row["replies"][0]["state"])
+        for row in _result(result)["history"]))
+
+
+def _accepted_initial_messages(report, outcomes):
+    expected = {}
+    for sequence, label, outcome in ((1, "forget-success-v3", outcomes[0]),
+                                     (2, "source-revoke-success-v3", outcomes[1])):
+        registered = read_json(report / ("register-" + label + ".json"))
+        message_key = registered.get("input", {}).get("message_key")
+        admission = outcome.get("admission")
+        source = admission.get("source") if type(admission) is dict else None
+        admission_key = source.get("message_key") if type(source) is dict else None
+        require(type(message_key) is dict and admission_key == message_key and
+                type(message_key.get("message_id")) is str and
+                type(message_key.get("revision")) is int and
+                message_key["revision"] == 1,
+                "a1_source_fanout_message_mismatch")
+        expected[sequence] = (message_key["message_id"], 1)
+    require(expected[1][0] != expected[2][0],
+            "a1_source_fanout_message_mismatch")
+    return expected
 
 
 class Source:
@@ -335,7 +372,7 @@ class Source:
         self.save(name + ".json", result)
         return result
 
-    def await_initial_unknown(self, origin, conversation, *, timeout_seconds=90,
+    def await_initial_unknown(self, origin, conversation, expected_messages, *, timeout_seconds=90,
                               clock=None, pause=None):
         """Wait for both accepted inputs to finish before rebuilding Memory."""
         clock = clock or time.monotonic
@@ -346,10 +383,11 @@ class Source:
             attempt += 1
             snapshot = self.web(f"web-initial-wait-{attempt:03d}", origin, conversation)
             require(clock() < deadline, "a1_source_initial_turn_timeout")
-            if _initial_turn_state(snapshot, conversation):
+            if _initial_turn_state(snapshot, conversation, expected_messages):
                 final = self.web("web-snapshot-initial", origin, conversation)
                 require(clock() < deadline, "a1_source_initial_turn_timeout")
-                require(_initial_turn_state(final, conversation),
+                require(_initial_turn_state(final, conversation, expected_messages) and
+                        _initial_turn_identity(final) == _initial_turn_identity(snapshot),
                         "a1_source_initial_turn_changed")
                 return _unknown(final)
             remaining = deadline - clock()
@@ -441,11 +479,13 @@ class Source:
         require(scopes[0] == scopes[1] and accounts[0] == accounts[1] and
                 green["conversation_id"] == red["conversation_id"],
                 "a1_source_fanout_scope_mismatch")
+        expected_messages = _accepted_initial_messages(
+            self.report, (green_outcome, red_outcome))
         # Platform acceptance starts asynchronous Companion work. Wait for both
         # turns to finish before the scope-binding Memory restart.
         actor_origin = self.origin("initial-web")
         initial_unknown = self.await_initial_unknown(
-            actor_origin, green["conversation_id"])
+            actor_origin, green["conversation_id"], expected_messages)
         bound = product.bind_memory_scopes(self.root,
             {"scopes": [scopes[0]] * 3, "account": accounts[0]})
         require(bound.get("status") == "bound", "a1_source_memory_scope_not_bound")
