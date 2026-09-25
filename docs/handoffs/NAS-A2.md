@@ -74,6 +74,13 @@
 - Loki 在线时 Vector 受限速发送后，source/sink 均 60,000、buffer 0、丢弃/组件错误 0，源 SHA 保持 `23d7bc9e…968811`。Vector 正常停止。混合查询第三次完整扫描返回 **60,000/60,000** 身份与载荷精确匹配；前两次结果不全，均保存在主报告。`/flush` 204 后正常停止 Loki 并切为 store-only；查询开始 07:23:40 UTC，最老/最新事件年龄分别 3844.237/3694.239 秒，完整查询窗口处于非空 store 区间。第一次完整 store-only 查询返回 **60,000/60,000**，无缺失、重复、额外身份、载荷差异、查询错误或超长行。**本次隔离合成数据的持久化 store 读取验收通过**，不外推到生产 30 天保留。
 - R13 保存 flush 前后、停机后、store 重启后和查询当刻的 chunk/object-index/active-index/index-cache 时间戳与 SHA-256，以及 Loki flush/shipper/下载指标。总运行 283.467 秒，未超 1500 秒期限；主报告整体仍为 `partial`，因回收合同、物理 ENOSPC 和生产保留等独立门禁未完成，`release_ready=false`。Vector/Loki 均 exit 0、非 OOM；内网无附件。原合成源未删，tmpfs 归档 8,195,440 字节、SHA-256 `6037eb71…0ad6d4`，归档源哈希吻合、独立 `gzip -t` 通过后卸载。见 [R13 主报告](../../tests/deployment/observability/evidence/nas-a2-followup-2026-09-25-r13.json) 与 [R13 收尾核对](../../tests/deployment/observability/evidence/nas-a2-followup-2026-09-25-r13-cleanup.json)；NAS 与本地报告 SHA-256 同为 `37337b0c…19d8f5`。R12 原始证据未修改，未追加第二 scope。
 
+## A4 集成审查后 A2-I1 探针边界修复
+
+- A4 固定审查 `0e58ae1` 指出基础探针把用于**冲突检测**的双向 `_overlap` 误用于容器操作归属。修复保留该冲突检测语义；容器归属改为固定 scope 的单向规范路径包含，并核对 Loki 5 个、Vector 6 个**精确 bind 源、目的地及读写位**。零 bind、父目录 bind、额外挂载或错误目的地一律拒绝。start/TERM 均使用并在操作前后复核完整 64 位容器 ID、名称、任务/Scope 标签、固定镜像与 `restart=no`；followup/store 两个入口复用同一 helper。
+- 路径检查在解析前逐级检查 symlink/reparse，并拒绝 `..` 与逃出固定根的路径。NAS Linux 上目录创建及权限调整经 `O_NOFOLLOW` 目录描述符进行；已存在的 scope 子项、配置/合成源输出文件和最终报告路径也在写入前检查。路径不可信时拒绝进一步写入或容器操作，不尝试穿过链接清理目标。
+- 仅做本地定向验证：42 项 NAS-A2 测试通过，覆盖父目录/零 bind、错误或额外挂载、只读位、替换 ID、链接/逃逸以及合法精确挂载；三份探针按 Python 3.8 语法解析，`git diff --check` 通过。没有新 NAS 写试验或复放。R12/R13 原始报告 SHA-256 与 NAS 中已执行脚本保持历史值，**不以本次修后源码哈希回填旧报告**。
+- Docker 外部命令已有单次超时（默认 30 秒，批量 inspect 60 秒，TERM 10 秒），Loki HTTP 客户端单次请求有 10 秒 deadline，指标/日志/卸载调用也各有上限；异常仍经 `finally` 进入资源收尾。原 1500 秒字段只是**收尾后的期限检查**，不是独立 watchdog；若将来要求严格硬截止，需另行设计和验收，不把本次局部修复称为该保证。A2 在 A4 复核前仍暂停合入和新 NAS 执行。
+
 ## 未完成与下一步
 
 1. A5 已厘清 R12 的容量与 Loki 查询区间口径；R12 功能性背压与无损回放通过，精确下一条序列化记录长度仍未测量。R13 在非空 store 分支完成 60,000 条合成事件的持久化读回；这不等于生产保留期或回收门禁通过。按本次授权不自动追加新 scope 或延长期限。

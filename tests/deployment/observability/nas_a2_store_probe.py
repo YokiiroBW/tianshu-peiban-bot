@@ -186,7 +186,8 @@ def _run_store_probe(paths: dict[str, Path], report: dict, clients: dict,
         "image_id": prior.VECTOR_IMAGE_ID,
     }
     base._check_owned(base._container_by_id(vector_id),
-                      prior.VECTOR_NAME, prior.VECTOR_IMAGE_ID)
+                      prior.VECTOR_NAME, prior.VECTOR_IMAGE_ID,
+                      expected_id=vector_id)
     prior._checkpoint(checkpoint_path, report)
     send = dimension["online_send"]
     send_deadline = min(time.monotonic() + ONLINE_SEND_TIMEOUT_SECONDS,

@@ -12,6 +12,7 @@ import secrets
 import shutil
 import socket
 import ssl
+import stat
 import subprocess
 import sys
 import threading
@@ -197,6 +198,113 @@ def _overlap(left: Path, right: Path) -> bool:
     return common == a or common == b
 
 
+def _is_link_or_reparse(path: Path) -> bool:
+    try:
+        metadata = path.lstat()
+    except FileNotFoundError:
+        return False
+    return stat.S_ISLNK(metadata.st_mode) or bool(
+        getattr(metadata, "st_file_attributes", 0) & 0x400
+    )
+
+
+def _scope_path(path: Path, *, must_exist: bool = False) -> Path:
+    """Check each lexical component before resolving an in-scope path."""
+    path = Path(path)
+    require(path.is_absolute() and ".." not in path.parts, "scope_path_invalid")
+    root = validate_root(EXPECTED_ROOT)
+    require(not _is_link_or_reparse(root), "scope_symlink_or_reparse_refused")
+    try:
+        relative = path.relative_to(root)
+    except ValueError:
+        raise ProbeError("scope_path_outside_root") from None
+    current = root
+    for component in relative.parts:
+        current = current / component
+        require(
+            not _is_link_or_reparse(current), "scope_symlink_or_reparse_refused"
+        )
+    if must_exist:
+        require(path.exists(), "scope_path_missing")
+    resolved = path.resolve(strict=must_exist)
+    require(resolved == root or root in resolved.parents, "scope_path_outside_root")
+    return resolved
+
+
+def _ensure_scope_dir(path: Path, *, owned: bool = False) -> None:
+    """Create or open a scope directory without following child links on NAS."""
+    _scope_path(path)
+    root = validate_root(EXPECTED_ROOT)
+    relative = path.relative_to(root)
+    if sys.platform == "linux":
+        flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+        descriptor = None
+        try:
+            descriptor = os.open(root, flags)
+            for component in relative.parts:
+                try:
+                    child = os.open(component, flags, dir_fd=descriptor)
+                except FileNotFoundError:
+                    os.mkdir(component, mode=0o700, dir_fd=descriptor)
+                    child = os.open(component, flags, dir_fd=descriptor)
+                os.close(descriptor)
+                descriptor = child
+            if owned:
+                os.fchown(descriptor, 10001, 10001)
+                os.fchmod(descriptor, 0o700)
+        except OSError:
+            raise ProbeError("scope_directory_unsafe") from None
+        finally:
+            if descriptor is not None:
+                os.close(descriptor)
+    else:
+        path.mkdir(parents=True, exist_ok=True)
+        _scope_path(path, must_exist=True)
+        if owned:
+            if hasattr(os, "chown"):
+                os.chown(path, 10001, 10001)
+            os.chmod(path, 0o700)
+    _scope_path(path, must_exist=True)
+
+
+def _reject_scope_links_below(root: Path, *, max_entries: int = 100000) -> None:
+    _scope_path(root, must_exist=True)
+    entries = 0
+
+    def unavailable(_error):
+        raise ProbeError("scope_walk_unavailable")
+
+    for directory, children, files in os.walk(root, followlinks=False, onerror=unavailable):
+        for name in children + files:
+            entries += 1
+            require(entries <= max_entries, "scope_walk_budget_exceeded")
+            _scope_path(Path(directory) / name, must_exist=True)
+
+
+def _expected_bind_mounts(name: str) -> dict[str, tuple[Path, bool, bool]]:
+    root = EXPECTED_ROOT
+    if name == LOKI_NAME:
+        return {
+            "/var/lib/loki": (root / "tmpfs/loki", True, True),
+            "/etc/tianshu/loki.json": (root / "config/loki.json", False, False),
+            "/run/tls/loki.pem": (root / "tls/loki.pem", False, False),
+            "/run/tls/loki.key": (root / "tls/loki.key", False, False),
+            "/run/tls/client-ca.pem": (root / "tls/client-ca.pem", False, False),
+        }
+    if name == VECTOR_NAME:
+        return {
+            "/var/lib/vector": (root / "tmpfs/vector", True, True),
+            "/etc/tianshu/vector.json": (
+                root / "config/vector.json", False, False
+            ),
+            "/sources": (root / "tmpfs/vector-source", False, True),
+            "/run/tls/ca.pem": (root / "tls/ca.pem", False, False),
+            "/run/tls/client.pem": (root / "tls/client.pem", False, False),
+            "/run/tls/client.key": (root / "tls/client.key", False, False),
+        }
+    raise ProbeError("container_name_not_owned")
+
+
 def _inspect_all_containers() -> list[dict]:
     ids = docker("ps", "-aq").split()
     return json.loads(docker("inspect", *ids, timeout=60)) if ids else []
@@ -323,7 +431,7 @@ def preflight(root: Path, vector_image_id: str, loki_image_id: str) -> dict:
     existing_owned_containers = {}
     for name, container in existing_by_name.items():
         image_id = expected_images[name]
-        _check_owned(container, name, image_id)
+        _check_owned(container, name, image_id, expected_id=container["Id"])
         state = container.get("State", {})
         require(
             not state.get("Running")
@@ -461,12 +569,21 @@ def _container_by_id(container_id: str) -> dict:
     return json.loads(docker("inspect", container_id))[0]
 
 
-def _check_owned(container: dict, expected_name: str, expected_image: str) -> None:
+def _check_owned(
+    container: dict, expected_name: str, expected_image: str,
+    *, expected_id: str | None = None,
+) -> None:
     labels = container.get("Config", {}).get("Labels") or {}
     require(
         container.get("Id") and container.get("Name", "").lstrip("/") == expected_name,
         "container_identity_mismatch",
     )
+    if expected_id is not None:
+        require(
+            re.fullmatch(r"[0-9a-f]{64}", expected_id) is not None
+            and container["Id"] == expected_id,
+            "container_id_mismatch",
+        )
     require(
         labels.get(OWNER_LABEL) == TASK and labels.get(SCOPE_LABEL) == PROJECT,
         "container_owner_mismatch",
@@ -476,28 +593,50 @@ def _check_owned(container: dict, expected_name: str, expected_image: str) -> No
         container.get("HostConfig", {}).get("RestartPolicy", {}).get("Name") == "no",
         "container_restart_policy_mismatch",
     )
-    for mount in container.get("Mounts", []):
-        if mount.get("Type") == "bind":
-            require(
-                _overlap(Path(mount["Source"]), EXPECTED_ROOT),
-                "container_mount_out_of_scope",
-            )
+    expected_mounts = _expected_bind_mounts(expected_name)
+    mounts = container.get("Mounts")
+    require(isinstance(mounts, list), "container_mount_set_mismatch")
+    require(len(mounts) == len(expected_mounts), "container_mount_set_mismatch")
+    seen = set()
+    for mount in mounts:
+        require(mount.get("Type") == "bind", "container_mount_set_mismatch")
+        destination = mount.get("Destination")
+        require(
+            destination in expected_mounts and destination not in seen,
+            "container_mount_set_mismatch",
+        )
+        seen.add(destination)
+        expected_source, expected_rw, expected_directory = expected_mounts[
+            destination
+        ]
+        actual_source = Path(mount.get("Source") or "")
+        _scope_path(expected_source, must_exist=True)
+        _scope_path(actual_source, must_exist=True)
+        require(actual_source == expected_source, "container_mount_source_mismatch")
+        require(
+            mount.get("RW") is expected_rw, "container_mount_access_mismatch"
+        )
+        require(
+            expected_source.is_dir() if expected_directory else expected_source.is_file(),
+            "container_mount_source_type_mismatch",
+        )
+    require(seen == set(expected_mounts), "container_mount_set_mismatch")
 
 
 def _stop_owned(container_id: str, name: str, image_id: str, timeout: int = 30) -> dict:
     container = _container_by_id(container_id)
-    _check_owned(container, name, image_id)
+    _check_owned(container, name, image_id, expected_id=container_id)
     if container["State"].get("Running"):
         docker("kill", "--signal", "TERM", container_id, timeout=10)
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             container = _container_by_id(container_id)
-            _check_owned(container, name, image_id)
+            _check_owned(container, name, image_id, expected_id=container_id)
             if not container["State"].get("Running"):
                 break
             time.sleep(0.25)
     container = _container_by_id(container_id)
-    _check_owned(container, name, image_id)
+    _check_owned(container, name, image_id, expected_id=container_id)
     require(not container["State"].get("Running"), "term_exit_unconfirmed")
     require(container["State"].get("ExitCode") == 0, "container_exit_not_zero")
     require(not container["State"].get("OOMKilled"), "container_oom")
@@ -524,7 +663,7 @@ def _stop_owned(container_id: str, name: str, image_id: str, timeout: int = 30) 
 
 def _start_existing(container_id: str, name: str, image_id: str) -> None:
     container = _container_by_id(container_id)
-    _check_owned(container, name, image_id)
+    _check_owned(container, name, image_id, expected_id=container_id)
     require(
         not container["State"].get("Running"), "container_must_be_stopped_before_start"
     )
@@ -532,7 +671,7 @@ def _start_existing(container_id: str, name: str, image_id: str) -> None:
     deadline = time.monotonic() + 30
     while time.monotonic() < deadline:
         container = _container_by_id(container_id)
-        _check_owned(container, name, image_id)
+        _check_owned(container, name, image_id, expected_id=container_id)
         if container["State"].get("Running"):
             return
         time.sleep(0.25)
@@ -540,6 +679,7 @@ def _start_existing(container_id: str, name: str, image_id: str) -> None:
 
 
 def _base_dirs(root: Path) -> dict[str, Path]:
+    root = validate_root(root)
     tmpfs = root / "tmpfs"
     paths = {
         "config": root / "config",
@@ -556,21 +696,18 @@ def _base_dirs(root: Path) -> dict[str, Path]:
         "contract": root / "code/contracts/diagnostics/v1",
         "snapshot": root / "code/deploy/observability/vocabulary.json",
     }
-    for name, path in paths.items():
-        if name not in {
-            "config",
-            "tls",
-            "secrets",
-            "evidence",
-            "scratch",
-            "contract",
-            "snapshot",
-        }:
-            path.mkdir(parents=True, exist_ok=True)
-            os.chown(path, 10001, 10001)
-            os.chmod(path, 0o700)
-    for path in (paths["config"], paths["tls"], paths["secrets"], paths["evidence"]):
-        path.mkdir(parents=True, exist_ok=True)
+    for path in paths.values():
+        _scope_path(path)
+    _scope_path(tmpfs, must_exist=True)
+    require(tmpfs.is_dir(), "bounded_tmpfs_required")
+    for name in (
+        "source", "vector_source", "vector_data", "loki_data", "guard_data",
+        "capacity",
+    ):
+        _ensure_scope_dir(paths[name], owned=True)
+    for name in ("config", "tls", "secrets", "evidence"):
+        _ensure_scope_dir(paths[name])
+    _reject_scope_links_below(root)
     return paths
 
 
@@ -592,6 +729,7 @@ def _write_loki_config(path: Path, retention: str) -> bytes:
     }
     config["query_range"] = {"cache_results": False}
     data = (json.dumps(config, sort_keys=True, indent=2) + "\n").encode()
+    _scope_path(path)
     path.write_bytes(data)
     os.chmod(path, 0o644)
     return data
@@ -658,6 +796,7 @@ def _write_vector_config(path: Path, tls: Path) -> bytes:
         },
     }
     data = (json.dumps(config, sort_keys=True, indent=2) + "\n").encode()
+    _scope_path(path)
     path.write_bytes(data)
     os.chmod(path, 0o644)
     return data
@@ -691,6 +830,7 @@ def _container_common(name: str, memory: int, cpu_set: str, data: Path) -> list[
 
 
 def _write_synthetic(path: Path, rows: list[dict], append: bool = False) -> None:
+    _scope_path(path)
     mode = "ab" if append else "xb"
     with path.open(mode) as stream:
         for row in rows:
@@ -1124,7 +1264,10 @@ def _run_buffer_scenario(
             "image_id": image_ids["loki"],
             "reused": False,
         }
-        _check_owned(_container_by_id(loki_id), LOKI_NAME, image_ids["loki"])
+        _check_owned(
+            _container_by_id(loki_id), LOKI_NAME, image_ids["loki"],
+            expected_id=loki_id,
+        )
 
     clients["loki"] = _loki_client(paths)
     _wait(lambda: _loki_ready(clients["loki"]), timeout=90, code="loki_ready_timeout")
@@ -1177,7 +1320,10 @@ def _run_buffer_scenario(
         "name": VECTOR_NAME,
         "image_id": image_ids["vector"],
     }
-    _check_owned(_container_by_id(vector_id), VECTOR_NAME, image_ids["vector"])
+    _check_owned(
+        _container_by_id(vector_id), VECTOR_NAME, image_ids["vector"],
+        expected_id=vector_id,
+    )
 
     def baseline_seen():
         rows = _query(
@@ -1772,7 +1918,9 @@ def main(argv=None) -> int:
             if entry.get("expected_stopped_failure"):
                 try:
                     container = _container_by_id(entry["id"])
-                    _check_owned(container, name, image)
+                    _check_owned(
+                        container, name, image, expected_id=entry["id"]
+                    )
                     state = container.get("State", {})
                     require(
                         not state.get("Running")
@@ -1805,7 +1953,8 @@ def main(argv=None) -> int:
         report["release_ready"] = False
         report_path = root / "evidence/nas-a2-report.json"
         try:
-            report_path.parent.mkdir(parents=True, exist_ok=True)
+            _scope_path(report_path)
+            _ensure_scope_dir(report_path.parent)
             write_json(report_path, report)
         except Exception:
             report["status"] = "failed"

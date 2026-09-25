@@ -207,6 +207,7 @@ def _write_loki_config(path: Path, *, query_store_only: bool) -> bytes:
     }
     config["query_range"] = {"cache_results": False}
     data = (json.dumps(config, sort_keys=True, indent=2) + "\n").encode()
+    base._scope_path(path)
     path.write_bytes(data)
     os.chmod(path, 0o644)
     return data
@@ -491,7 +492,10 @@ def _start_loki(paths: dict[str, Path], report: dict, cpu: str) -> str:
         "image_id": LOKI_IMAGE_ID,
         "reused": False,
     }
-    base._check_owned(base._container_by_id(container_id), LOKI_NAME, LOKI_IMAGE_ID)
+    base._check_owned(
+        base._container_by_id(container_id), LOKI_NAME, LOKI_IMAGE_ID,
+        expected_id=container_id,
+    )
     return container_id
 
 
@@ -746,6 +750,7 @@ def _vector_config(path: Path, tls: Path) -> bytes:
         timeout_secs=60,
     )
     data = (json.dumps(config, sort_keys=True, indent=2) + "\n").encode()
+    base._scope_path(path)
     path.write_bytes(data)
     os.chmod(path, 0o644)
     return data
@@ -1385,7 +1390,10 @@ def _run_vector_buffer(
         "name": VECTOR_NAME,
         "image_id": VECTOR_IMAGE_ID,
     }
-    base._check_owned(base._container_by_id(vector_id), VECTOR_NAME, VECTOR_IMAGE_ID)
+    base._check_owned(
+        base._container_by_id(vector_id), VECTOR_NAME, VECTOR_IMAGE_ID,
+        expected_id=vector_id,
+    )
     _checkpoint(checkpoint_path, report)
 
     fill_samples = dimension["fill_samples"]

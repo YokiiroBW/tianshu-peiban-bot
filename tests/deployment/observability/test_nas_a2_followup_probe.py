@@ -87,7 +87,8 @@ class NasA2FollowupBudgetTests(unittest.TestCase):
     def test_followup_vector_config_pins_full_buffer_and_unique_stream(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "vector.json"
-            config = json.loads(followup._vector_config(path, Path(directory)))
+            with patch.object(probe, "EXPECTED_ROOT", Path(directory).resolve()):
+                config = json.loads(followup._vector_config(path, Path(directory)))
             self.assertEqual(
                 config["sinks"]["loki"]["buffer"]["max_size"],
                 followup.VECTOR_BUFFER_BYTES,
