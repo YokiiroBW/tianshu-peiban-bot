@@ -13,7 +13,8 @@
     "Added the fixed Companion web-snapshot POST read boundary, required it for the observed unknown assertion, and required a separate diagnostics token.",
     "Made expected JSON arrays recursively exact-length while preserving object subset matching.",
     "Added an A1-only adapter for supported Platform, Companion, and Memory CLI/API acceptance paths; no product database was directly opened or written.",
-    "Recorded source-scope functional evidence and the exact DEP-J recovery registration blocker."
+    "Recorded source-scope functional evidence and the exact DEP-J recovery registration blocker.",
+    "Added a narrowly verified exception for the Prometheus image-declared /prometheus volume when an exact configured read-only tmpfs masks it in the running mount namespace."
   ],
   "checks": [
     {
@@ -59,6 +60,28 @@
       "files_checked": 11,
       "prior_ruff_check": "passed_before_final_A1_adapter_and_handoff_updates",
       "final_ruff_check": "not_run"
+    },
+    {
+      "name": "Prometheus image-volume mask regression",
+      "command": "python -m unittest discover -s tests/deployment/recovery -p test_compose_lifecycle.py -v",
+      "status": "passed",
+      "passed": 8,
+      "failed": 0,
+      "environment": "bundled CPython; synthetic Docker and mountinfo fixture"
+    },
+    {
+      "name": "Recovery adapter compile and whitespace check",
+      "command": "python -m compileall -q ops/recovery/compose_backend.py tests/deployment/recovery/test_compose_lifecycle.py; git diff --check",
+      "status": "passed"
+    },
+    {
+      "name": "Full deployment packaging suite",
+      "command": "python -m unittest discover -s tests/deployment/packaging -v",
+      "status": "completed_with_errors",
+      "total": 103,
+      "passed": 99,
+      "errors": 4,
+      "note": "One TLS round-trip and three synthetic-init cases errored during TLS handshake with Missing Authority Key Identifier."
     }
   ],
   "nas": {
@@ -67,7 +90,17 @@
     "source_deployment": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a1/scope-a1-r1/deployments/source",
     "source_project": "tianshu-qa-a1-source-r1",
     "target_directory_created": true,
-    "containers_created": ["platform", "companion", "memory", "gateway"],
+    "containers_created": [
+      "platform",
+      "companion",
+      "memory",
+      "gateway",
+      "obs-vector",
+      "obs-loki",
+      "obs-grafana",
+      "obs-prometheus",
+      "obs-guard"
+    ],
     "source_scope_functional_validation": "partial_pass",
     "restored_clone_validation": "not_run",
     "synthetic_only": true,
@@ -103,7 +136,10 @@
       },
       "unknown_no_resend": {
         "status": "passed_on_source_scope",
-        "companion_sequences": [8, 9],
+        "companion_sequences": [
+          8,
+          9
+        ],
         "phase": "closed_unknown",
         "delivery_state": "unknown",
         "snapshots": 2,
@@ -113,41 +149,72 @@
       }
     },
     "normal_stop": {
-      "command": "docker compose stop --timeout 120",
-      "services": ["companion", "memory", "gateway", "platform"],
+      "command": "DEP-J linux-rehearse SIGTERM stop",
+      "services": [
+        "platform",
+        "companion",
+        "memory",
+        "gateway",
+        "obs-vector",
+        "obs-guard",
+        "obs-grafana",
+        "obs-prometheus",
+        "obs-loki"
+      ],
       "all_exited": true,
-      "all_exit_codes_zero": true
+      "all_exit_codes_zero": true,
+      "source_remains_stopped": true
     },
     "recovery_preflight": {
-      "read_only_backup_plan": {
-        "status": "rejected",
-        "reason": "path_missing",
-        "activation": "disabled"
-      },
-      "core_services": ["companion", "gateway", "memory", "platform"],
-      "observability_compose_present": false,
-      "observability_services": [],
-      "not_observed_owners": [
+      "status": "registered_nine_owner_deployment",
+      "core_services": [
+        "companion",
+        "gateway",
+        "memory",
+        "platform"
+      ],
+      "observability_compose_present": true,
+      "observability_services": [
         "obs-vector",
         "obs-loki",
         "obs-grafana",
         "obs-prometheus",
         "obs-guard"
       ],
-      "deployment_marker_present": false,
-      "recovery_inventory_present": false,
-      "fresh_snapshot_created": false,
-      "restored_disabled_target_created": false,
+      "observed_owners": 9,
+      "runtime_identity_sha256": "79809f34bff2e7d57b0d3ebd7bf88407373de098781eb6a3e604ec7203ab6b34",
+      "linux_prepare_plan": "passed",
+      "registration_sha256": "f6b46d5595d90d0c0c058ee0e924b335ae00afc9fe3c247405101379a07a58e3",
+      "authority_id": "61e7cc33-8ece-44f5-80b0-a3ea22e04e60",
+      "binding_sha256": "d0f2dafecf30a9a09d11d3d7849b84be07dd0ca3d090c0f17c14ef8d3fa3058f",
+      "fresh_snapshot_created": true,
+      "backup_name": "a1-r1-backup-20260925",
+      "snapshot_sha256": "208e4da028e8ebc43dc44889232acd38d18ae18a2da4b2654b97fbee91f5129f",
+      "snapshot_files": 204,
+      "backup_integrity": "integrity_verified",
+      "restored_disabled_target_created": true,
+      "restored_target": "a1-r1-restored-20260925",
+      "verification_sha256": "b5525653daaa359255dadf4c1df204d10f4458215f1feb3a9daa734e8ef72cd3",
+      "restored_status": "restored_disabled",
       "isolated_clone_started": false,
-      "blocking_reason": "DEP-J requires a registered nine-owner deployment; A1 currently has four core services, no observability Compose, and no deployment marker or recovery inventory."
+      "blocking_reason": "No independent drill-inputs or one-use permit exists. The registered r1 source and restored-disabled target are frozen; changing bound inputs to refresh a short-lived config-origin would invalidate the current identity/registration/restore evidence."
     },
     "report_directory": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a1/scope-a1-r1/deployments/source/reports/a1-synthetic-inputs-r4",
     "prior_scope_a1_mutated_or_started": false,
     "next_m_mutated_or_started": false,
-    "direct_database_writes": 0
+    "direct_database_writes": 0,
+    "clone_preparation": {
+      "drill_inputs_directory_present": false,
+      "permit_present": false,
+      "clone_directory_created": false,
+      "clone_started": false,
+      "current_config_origin_receipt": "not_verified; stored gateway.env differs from older issued-origin-summary hash",
+      "blocking_reason": "A compliant clone requires dedicated credentials/TLS, current origin evidence, fixed public read assertions, and a separately prepared one-use permit. Do not mutate the registered r1 source or restored target to refresh it."
+    }
   },
   "remaining": [
-    "Use the public DEP-B/DEP-G/DEP-J workflow to configure and register the five observability owners with matching Compose, deployment marker, and recovery inventory for this A1 scope.",
-    "Create a fresh snapshot, restore into a new restored_disabled directory, and run the one-use nine-owner isolated clone with product API assertions and the bounded unknown-no-resend runtime observation."
-  ]
+    "Confirm and authorize a fresh isolated A1 scope for clone preparation; issue and record a current config-origin before the source is registered and snapshotted.",
+    "Prepare dedicated clone credentials/TLS, fresh non-overlapping network/loopback-port plan, public assertions for all five semantic IDs, and a one-use permit; then run the nine-owner clone and bounded unknown-no-resend observation."
+  ],
+  "implementation_commit": "2a55de2fd7827dd7f1710d6cb8cc6c71bdb40856"
 }
