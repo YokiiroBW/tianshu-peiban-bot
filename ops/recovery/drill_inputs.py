@@ -1,19 +1,42 @@
 """Permit and isolated-input validation. No execution and no implicit permit creation."""
 
+import re
 import time
 import uuid
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from .http_transport import READ_ONLY_POST_ENDPOINTS, encode_post_body
 from .manifest import PRODUCTS, fields, sha256
 from .runtime_identity import schema_check
-from .safety import child, file_hash, files, read_json, require, safe_path
+from .safety import child, file_hash, files, read_bytes, read_json, require, safe_path
 from .snapshot import state_fingerprints, verify_guards
 
 OWNERS = PRODUCTS | {
     "obs-" + n for n in ("vector", "loki", "grafana", "prometheus", "guard")
 }
+
+
+def _env_token(inputs, filename, name):
+    """Read one bounded clone-only env assignment without reporting its value."""
+    try:
+        lines = read_bytes(child(inputs, filename), limit=65536).decode("utf-8").splitlines()
+    except UnicodeError:
+        require(False, "drill_gateway_usage_credential_invalid")
+    values = [
+        line.split("=", 1)[1].strip()
+        for line in lines
+        if line.startswith(name + "=")
+    ]
+    require(len(values) == 1, "drill_gateway_usage_credential_invalid")
+    value = values[0]
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        value = value[1:-1]
+    require(
+        16 <= len(value) <= 4096 and all(32 < ord(char) < 127 for char in value),
+        "drill_gateway_usage_credential_invalid",
+    )
+    return value
 
 
 def restoration_facts(recovery, source, target, authority_id):
@@ -388,6 +411,7 @@ def isolated_inputs(value, manifest, *, resource_profile=None):
         isinstance(index["assertions"], list) and 1 <= len(index["assertions"]) <= 32,
         "drill_assertions_required",
     )
+    assertion_ids = set()
     for assertion in index["assertions"]:
         required = {
             "id",
@@ -413,10 +437,13 @@ def isolated_inputs(value, manifest, *, resource_profile=None):
                 "model_revoked",
                 "forgotten",
                 "unknown_no_resend",
+                "gateway_usage_readback",
             }
             and assertion["service"] in PRODUCTS,
             "drill_assertion_kind_invalid",
         )
+        require(assertion["id"] not in assertion_ids, "drill_assertion_duplicate")
+        assertion_ids.add(assertion["id"])
         method = assertion.get("method", "GET")
         require(
             type(method) is str and method in {"GET", "POST"},
@@ -454,6 +481,99 @@ def isolated_inputs(value, manifest, *, resource_profile=None):
         require(
             url.path not in {"/health/live", "/health/ready", "/health"},
             "health_is_not_functional_assertion",
+        )
+        if assertion["id"] == "gateway_usage_readback":
+            gateway_settings = read_json(child(inputs, "config/gateway/settings.json"))
+            clients = gateway_settings.get("clients")
+            require(
+                isinstance(clients, list)
+                and len([
+                    row for row in clients
+                    if isinstance(row, dict) and row.get("service") == "companion"
+                ]) == 1,
+                "drill_gateway_usage_credential_invalid",
+            )
+            companion = next(
+                row for row in clients
+                if isinstance(row, dict) and row.get("service") == "companion"
+            )
+            references = gateway_settings.get("secret_references")
+            require(
+                isinstance(references, dict)
+                and references.get(companion.get("credential_ref")) == "TS_CORE_GATEWAY",
+                "drill_gateway_usage_credential_invalid",
+            )
+            token = read_bytes(child(inputs, "private/token-gateway-usage"), limit=4096)
+            try:
+                token = token.decode("utf-8").strip()
+            except UnicodeError:
+                require(False, "drill_gateway_usage_credential_invalid")
+            require(
+                token == _env_token(inputs, "private/gateway.env", "TS_CORE_GATEWAY")
+                == _env_token(inputs, "private/companion.env", "TS_CORE_GATEWAY"),
+                "drill_gateway_usage_credential_invalid",
+            )
+            expected_attempts = assertion["expected_json"].get("attempts")
+            require(
+                assertion["service"] == "gateway"
+                and method == "GET"
+                and url.path == "/internal/v1/model-usage"
+                and assertion["ca_file"] == "config/gateway/tls/ca.pem"
+                and assertion["token_file"] == "private/token-gateway-usage"
+                and assertion["expected_status"] == 200
+                and assertion["expected_json"].get("schema_version") == 1
+                and assertion["expected_json"].get("key_space") == "chat"
+                and assertion["expected_json"].get("identity") == {"service": "companion"}
+                and assertion["expected_json"].get("counts")
+                == {
+                    "total": 4,
+                    "succeeded": 2,
+                    "failed": 0,
+                    "cancelled": 0,
+                    "unknown": 2,
+                }
+                and assertion["expected_json"].get("coverage")
+                == {
+                    "matching": 4,
+                    "scanned": 4,
+                    "truncated": False,
+                    "unmetered_total": 0,
+                }
+                and isinstance(expected_attempts, list)
+                and len(expected_attempts) == 4
+                and all(
+                    isinstance(row, dict)
+                    and isinstance(row.get("request_id"), str)
+                    and row["request_id"]
+                    and isinstance(row.get("reason"), str)
+                    and row["reason"]
+                    and row.get("outcome") in {"unknown", "succeeded"}
+                    for row in expected_attempts
+                )
+                and len({row["request_id"] for row in expected_attempts}) == 4
+                and sorted(row["outcome"] for row in expected_attempts)
+                == ["succeeded", "succeeded", "unknown", "unknown"],
+                "drill_gateway_usage_assertion_invalid",
+            )
+            try:
+                query = parse_qs(url.query, strict_parsing=True)
+            except ValueError:
+                require(False, "drill_gateway_usage_window_invalid")
+            require(
+                set(query) == {"view", "since", "until"}
+                and all(len(values) == 1 for values in query.values())
+                and query["view"] == ["attempts"]
+                and all(
+                    re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", query[name][0])
+                    for name in ("since", "until")
+                ),
+                "drill_gateway_usage_window_invalid",
+            )
+    if "gateway_usage_readback" in assertion_ids:
+        require(
+            "runtime_observation" in index
+            and index["assertions"][-1]["id"] == "gateway_usage_readback",
+            "drill_gateway_usage_order_invalid",
         )
     if "runtime_observation" in index:
         observation = index["runtime_observation"]

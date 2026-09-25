@@ -152,6 +152,9 @@ class DrillTests(unittest.TestCase):
         self.calls = []
         self.readback_running_states = []
         self.gateway_running_states = []
+        self.gateway_read_seen = False
+        self.gateway_extra_upstream = False
+        self.gateway_ledger_changed = False
         self.gateway_counts = {}
         for index, outcome in enumerate(
             ("unknown", "unknown", "succeeded", "succeeded"), 1
@@ -272,9 +275,21 @@ class DrillTests(unittest.TestCase):
                 self._record_gateway_snapshot,
             )
         )
+        self.base.stack.enter_context(
+            patch.object(
+                drill,
+                "gateway_ledger_snapshot",
+                lambda *_: {
+                    "ledger": "changed"
+                    if self.gateway_read_seen and self.gateway_ledger_changed
+                    else "stable"
+                },
+            )
+        )
 
     def _record_readback(
-        self, root, assertion, deadline, *, capture_unknown_turns=False
+        self, root, assertion, deadline, *, capture_unknown_turns=False,
+        correlation_id=None,
     ):
         self.readback_running_states.append(
             all(c["State"]["Running"] for c in self.clone_docker.containers)
@@ -284,6 +299,15 @@ class DrillTests(unittest.TestCase):
             "service": assertion["service"],
             "status": "passed",
         }
+        if assertion["id"] == "gateway_usage_readback":
+            self.gateway_read_seen = True
+            self.gateway_counts[correlation_id] = {
+                "request.accepted": {"succeeded": 1}
+            }
+            if self.gateway_extra_upstream:
+                self.gateway_counts[correlation_id]["upstream.call_started"] = {
+                    "started": 1
+                }
         if capture_unknown_turns and "runtime_observation" in self.index:
             result["unknown_turns"] = deepcopy(
                 self.index["runtime_observation"]["unknown_turns"]
@@ -367,6 +391,74 @@ class DrillTests(unittest.TestCase):
                 "/internal/v1/conversation/web-snapshot"
             ),
         )
+        self.save()
+
+    def add_gateway_usage_assertion(self):
+        self.enable_a1_observation()
+        model = next(
+            item for item in self.index["assertions"] if item["id"] == "model_revoked"
+        )
+        model["service"] = "platform"
+        model["url"] = model["url"].replace(
+            f":{self.documents['core']['services']['gateway']['ports'][0]['published']}",
+            f":{self.documents['core']['services']['platform']['ports'][0]['published']}",
+        )
+        put(self.inputs / "config/gateway/tls/ca.pem", "fixture-ca")
+        put(self.inputs / "config/gateway/settings.json", {
+            "clients": [{"service": "companion", "credential_ref": "companion"}],
+            "secret_references": {"companion": "TS_CORE_GATEWAY"},
+        })
+        for filename in (
+            "private/gateway.env", "private/companion.env",
+            "private/token-gateway-usage",
+        ):
+            path = self.inputs / filename
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(
+                "fixture-isolated-gateway-token\n"
+                if filename == "private/token-gateway-usage"
+                else "TS_CORE_GATEWAY=fixture-isolated-gateway-token\n",
+                encoding="utf-8",
+            )
+        port = self.documents["core"]["services"]["gateway"]["ports"][0][
+            "published"
+        ]
+        self.index["assertions"].append({
+            "id": "gateway_usage_readback",
+            "service": "gateway",
+            "method": "GET",
+            "url": (
+                f"https://127.0.0.1:{port}/internal/v1/model-usage"
+                "?view=attempts&since=2026-09-25T00:00:00Z"
+                "&until=2026-09-26T00:00:00Z"
+            ),
+            "ca_file": "config/gateway/tls/ca.pem",
+            "token_file": "private/token-gateway-usage",
+            "expected_status": 200,
+            "expected_json": {
+                "schema_version": 1,
+                "key_space": "chat",
+                "identity": {"service": "companion"},
+                "coverage": {
+                    "matching": 4, "scanned": 4,
+                    "truncated": False, "unmetered_total": 0,
+                },
+                "counts": {
+                    "total": 4, "succeeded": 2, "failed": 0,
+                    "cancelled": 0, "unknown": 2,
+                },
+                "attempts": [
+                    {"request_id": f"fixture-{number}", "reason": reason,
+                     "outcome": outcome}
+                    for number, (reason, outcome) in enumerate((
+                        ("transport_unknown", "unknown"),
+                        ("transport_unknown", "unknown"),
+                        ("completed", "succeeded"),
+                        ("completed", "succeeded"),
+                    ), 1)
+                ],
+            },
+        })
         self.save()
 
     def tearDown(self):
@@ -471,7 +563,7 @@ class DrillTests(unittest.TestCase):
         )
         self.assertEqual(len(self.readback_running_states), 6)
         self.assertTrue(all(self.readback_running_states))
-        self.assertEqual(self.gateway_running_states, [False, True])
+        self.assertEqual(self.gateway_running_states, [False, True, True])
         observation = result["unknown_no_resend_observation"]
         self.assertEqual(observation["status"], "passed")
         self.assertEqual(observation["api_unknown_turn_count"], 2)
@@ -495,6 +587,93 @@ class DrillTests(unittest.TestCase):
         self.assertTrue(
             all(not c["State"]["Running"] for c in self.clone_docker.containers)
         )
+
+    def test_gateway_usage_readback_covers_gateway_without_relaxing_observation(self):
+        self.add_gateway_usage_assertion()
+        isolated_inputs(self.value, self.manifest)
+        result = self.run_drill()
+        self.assertEqual(result["status"], "drill_passed")
+        self.assertEqual(result["missing_products"], [])
+        self.assertEqual(result["missing_semantics"], [])
+        self.assertEqual(
+            [item["id"] for item in result["functional_assertions"]][-1],
+            "gateway_usage_readback",
+        )
+        observation = result["unknown_no_resend_observation"]
+        self.assertTrue(observation["gateway_read_bridge_checked"])
+        self.assertEqual(observation["gateway_baseline"]["correlation_groups"], 9)
+        self.assertEqual(observation["gateway_before_window"]["correlation_groups"], 10)
+        self.assertEqual(observation["gateway_after_window"]["correlation_groups"], 10)
+
+    def test_gateway_coverage_stays_partial_without_its_independent_read(self):
+        self.add_gateway_usage_assertion()
+        self.index["assertions"].pop()
+        self.save()
+        result = self.run_drill()
+        self.assertEqual(result["status"], "partial_functional_coverage")
+        self.assertEqual(result["missing_products"], ["gateway"])
+        self.assertEqual(result["missing_semantics"], [])
+
+    def test_gateway_usage_readback_rejects_wrong_route_identity_and_order(self):
+        self.add_gateway_usage_assertion()
+        assertion = self.index["assertions"][-1]
+        for key, value, code in (
+            ("service", "platform", "drill_assertion_endpoint_forbidden"),
+            ("url", assertion["url"].replace("model-usage", "health/ready"),
+             "drill_gateway_usage_assertion_invalid"),
+            ("expected_json", {"counts": {"total": 0}},
+             "drill_gateway_usage_assertion_invalid"),
+        ):
+            with self.subTest(key=key):
+                original = assertion[key]
+                assertion[key] = value
+                self.save()
+                with self.assertRaisesRegex(RecoveryError, code):
+                    isolated_inputs(self.value, self.manifest)
+                assertion[key] = original
+        self.index["assertions"].insert(0, self.index["assertions"].pop())
+        self.save()
+        with self.assertRaisesRegex(RecoveryError, "drill_gateway_usage_order_invalid"):
+            isolated_inputs(self.value, self.manifest)
+
+    def test_gateway_usage_readback_requires_registered_matching_credential(self):
+        self.add_gateway_usage_assertion()
+        token = self.inputs / "private/token-gateway-usage"
+        token.write_text("wrong-isolated-gateway-token\n", encoding="utf-8")
+        self.save()
+        with self.assertRaisesRegex(
+            RecoveryError, "drill_gateway_usage_credential_invalid"
+        ):
+            isolated_inputs(self.value, self.manifest)
+        token.write_text("fixture-isolated-gateway-token\n", encoding="utf-8")
+        settings = self.inputs / "config/gateway/settings.json"
+        put(settings, {
+            "clients": [{"service": "other", "credential_ref": "companion"}],
+            "secret_references": {"companion": "TS_CORE_GATEWAY"},
+        })
+        self.save()
+        with self.assertRaisesRegex(
+            RecoveryError, "drill_gateway_usage_credential_invalid"
+        ):
+            isolated_inputs(self.value, self.manifest)
+
+    def test_gateway_usage_readback_rejects_extra_upstream_or_ledger_write(self):
+        for attribute, code in (
+            ("gateway_extra_upstream", "drill_gateway_read_bridge_invalid"),
+            ("gateway_ledger_changed", "drill_gateway_ledger_changed_by_read"),
+        ):
+            with self.subTest(attribute=attribute):
+                # A one-use drill cannot be replayed, so each case gets a fresh fixture.
+                case = DrillTests()
+                case.setUp()
+                try:
+                    case.add_gateway_usage_assertion()
+                    setattr(case, attribute, True)
+                    result = case.run_drill()
+                    self.assertEqual(result["status"], "drill_failed_or_cancelled")
+                    self.assertEqual(result["failure_detail"]["code"], code)
+                finally:
+                    case.tearDown()
 
     def test_a1_observation_requires_the_companion_web_snapshot_endpoint(self):
         self.enable_a1_observation()

@@ -74,7 +74,7 @@ def unknown_turns(data):
     return turns
 
 
-def check(root, assertion, budget, *, capture_unknown_turns=False):
+def check(root, assertion, budget, *, capture_unknown_turns=False, correlation_id=None):
     budget.check()
     required = {
         "id",
@@ -99,8 +99,13 @@ def check(root, assertion, budget, *, capture_unknown_turns=False):
     )
     if method == "GET":
         require("request_json" not in assertion, "drill_assertion_invalid")
+        require(
+            correlation_id is None or assertion["id"] == "gateway_usage_readback",
+            "drill_correlation_invalid",
+        )
     else:
         require(type(assertion.get("request_json")) is dict, "drill_assertion_invalid")
+        require(correlation_id is None, "drill_correlation_invalid")
     token = (
         read_bytes(child(root, assertion["token_file"]), limit=4096).decode().strip()
     )
@@ -110,7 +115,10 @@ def check(root, assertion, budget, *, capture_unknown_turns=False):
     except (OSError, ssl.SSLError):
         raise DrillDiagnosticError("drill_tls_ca_invalid", stage="tls_context") from None
     if method == "GET":
-        data = get(assertion["url"], token, tls, budget, assertion["expected_status"])
+        data = get(
+            assertion["url"], token, tls, budget, assertion["expected_status"],
+            correlation_id=correlation_id,
+        )
     else:
         authority = memory_authority(root) if assertion["service"] == "memory" else None
         data = post_readonly(

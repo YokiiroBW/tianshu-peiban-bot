@@ -406,9 +406,32 @@
     },
     "recovery_clone_validation": "five_semantic_assertions_and_bounded_observation_passed_but_gateway_functional_assertion_missing"
   },
+  "nas_r2g_gateway_followup": {
+    "status": "local_tooling_and_fixture_verified_no_new_nas_scope_or_http_drill",
+    "base_commit": "e33e8ef28b681510f6273afdaee20a45cd6478dd",
+    "proposed_fixture": "docs/handoffs/NAS-A1-gateway-assertion.proposed.json",
+    "product_gateway_commit": "601974194042641c5a85cc3c061cbd1880d7daf1",
+    "cli_ledger_object": "r2g stopped clone data/gateway/diagnostics.sqlite; not source, backup or restored_disabled target",
+    "cli_ledger_sha256_before_after": "1e0f2a47c1b7c5286eb3b3904d5ab6be5b42739aa3e3bb494e0ded53eb57e959",
+    "cli_positive": "2026-09-25 UTC attempts: 4; succeeded 2; unknown 2; four synthetic request IDs match proposed expected_json",
+    "cli_negative": "previous UTC day has zero attempts; unregistered identity exits 3; ledger hash unchanged",
+    "tooling": "gateway_usage_readback has its own id and published GET with exact caller, counts and attempts; pre-permit Gateway registration and three-way token mapping; correlated accepted-only bridge, ledger fingerprint, unknown turn/reply comparison and strict post-read observation",
+    "address_deviation": "Five new r2g source /24 networks were created at 10.204.95.0-10.204.99.0, outside the explicitly allocated 10.205.0.0/20; original collision preflight did not authorize them",
+    "network_inventory": "167 total; 42 A1-related with zero endpoints; 63 of 64 reserved /26 slots occupied; only 10.205.15.192/26 free",
+    "minimum_proven_topology": "5 source plus 7 clone networks; nine owners; clone service endpoints per network 4,1,1,4,4,2,2; 7.5 GiB owner limits, 11.5 GiB MemAvailable gate",
+    "evidence_sha256": {
+      "precreation_preflight_transcript_copy_not_original_file": "f9f1c174fd9fbe26c2823054fb6154af139802f4bfc7e1a7251db43c8b604a8f",
+      "current_network_inventory": "548efeac238c92d61dc0a12a9e81256f95fbd692eb6afaeb3b5153c0b708f426",
+      "clone_topology": "cbcef04d65220e1afd54d16fbd78ff750f2c4605f16bcc239078ed579fcbf4b7",
+      "gateway_cli_attempts_probe": "99e23c7bfab161669a7339e2969649dbb2c3009da2bbb5a6573b58cf79e76bc0"
+    },
+    "evidence_directory": ".runtime/nas-a1-20260925/reports",
+    "new_scope_required": true,
+    "r2g_result_unchanged": true
+  },
   "remaining": [
-    "Define and review a supported Gateway read-only functional API assertion for an independent synthetic clone.",
-    "If full recovery acceptance remains required, use a newly authorized isolated A1 scope and permit; do not replay r2g or rewrite its immutable result."
+    "Review the local Gateway assertion and strict observation bridge, then allocate non-overlapping networks for a fresh isolated A1 source and clone.",
+    "If full recovery acceptance remains required, create a new authority, snapshot and one-use permit, execute the independent Gateway HTTP read and all existing gates; do not replay r2g or rewrite its immutable result."
   ],
   "implementation_commit": "2a55de2fd7827dd7f1710d6cb8cc6c71bdb40856"
 }

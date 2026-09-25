@@ -46,9 +46,28 @@ Memory schema 2/3 首次迁移通过。源端两条虚构消息均为 `closed_un
 
 最终 `drill-result.json` SHA256 `b31260604e67341f9bed1d01d460522725e69a5699b02f4ca77ed752221da733`，状态 `partial_functional_coverage`，五项语义均通过、`missing_semantics=[]`，但 `missing_products=["gateway"]`，`release_ready=false`。克隆没有独立 Gateway 功能 API 断言；已有 Gateway 日志计数和源端控制调用不能代替克隆的产品功能读回。claim 为 `claimed`；source 与克隆各九个容器均 exited(0)，四项目 running=0，恢复目标仍 `restored_disabled`。现场及旧 scope 均保留，不重放许可、不改写绑定快照。
 
+## r2g 网络偏差与只读现场复核
+
+创建 r2g 前的宿主预检检查了 155 个 Docker 网络、路由、12 个回环端口和 `MemAvailable=18,915,728 KiB`，对拟用的 12 个网段均未发现冲突。这只证明当时没有碰撞；我误将明确分配的 `10.205.0.0/20` 理解为仅限克隆，实际新建的五个 source 网络 `10.204.95.0/24`–`10.204.99.0/24` 均在该分配之外。这是地址分配偏差，不应把无碰撞预检写成合规批准，也不能称这五段是历史网络。创建时间为 2026-09-25 19:43–19:45 +08；七个克隆 /26 网络创建于 19:58 +08。网络与容器保持现场，不以清理旧范围释放空间。
+
+只读 Docker 库存现有 167 个网络，其中 A1 相关 42 个，端点数均为 0；`10.205.0.0/20` 的 64 个 /26 槽位占用 63 个，仅 `10.205.15.192/26` 空闲。原先的预检结果没有在执行时另存原始文件；交接目录的 `r2g-precreation-preflight-transcript-copy.json` 是从当时工具输出逐字补存的副本，不能冒充同期原始收据。预检脚本 SHA256 `78decc060f128c0315a0c19c5cc3966b164c0c14c1dfcb88e602f5c9fc751e9c`，副本 SHA256 `f9f1c174fd9fbe26c2823054fb6154af139802f4bfc7e1a7251db43c8b604a8f`；当前原始 Docker inspect 库存 `r2g-network-inventory-20260925.json` SHA256 `548efeac238c92d61dc0a12a9e81256f95fbd692eb6afaeb3b5153c0b708f426`。这些文件在本 worktree 的忽略目录 `.runtime/nas-a1-20260925/reports/`，不入库。
+
+## Gateway 独立只读断言的本地定义与验证
+
+本次接续基线为 `e33e8ef28b681510f6273afdaee20a45cd6478dd`；改动限于恢复验收工具、定向用例及本交接夹具，没有修改固定产品仓库。
+
+固定产品 Gateway 提交 `601974194042641c5a85cc3c061cbd1880d7daf1` 发布 `GET /internal/v1/model-usage`，按已认证的 Chat `service` 读取用量账本；它不调用上游，也不执行产品业务写入，但路由的 `observed` 包装会写一条 `request.accepted` 诊断日志。拟议断言见 [`NAS-A1-gateway-assertion.proposed.json`](NAS-A1-gateway-assertion.proposed.json)：Gateway 克隆 TLS 回环端口 19914、明确 UTC 半开窗口、`view=attempts`、身份 `companion`、4 条合成请求 ID/结果、2 成功及 2 未知，并核对 `coverage` 无截断/未计量。凭据文件 `private/token-gateway-usage` 应在**新的**独立输入中由轮换后的 `TS_CORE_GATEWAY` 写入；r2g Gateway 注册的 `companion` 凭据引用正映射至该环境变量。夹具是 r2g 冻结数据的设计样例，绝不是已消耗许可的补丁；新 scope 的请求 ID、时间窗、端口与凭据须从其合成数据重新固定。
+
+只读产品 CLI 实际读取的是 **r2g 已停机克隆的持久 Gateway 账本** `/volume2/tianshu-v2-validation-wave1/accept-20260925-a1/scope-a1-r2g/deployments/a1-r2g-clone-20260925/data/gateway/diagnostics.sqlite`，不是源端、备份或 `restored_disabled` 目标；账本前后 SHA256 均为 `1e0f2a47c1b7c5286eb3b3904d5ab6be5b42739aa3e3bb494e0ded53eb57e959`。同一固定产品 CLI 的正例与夹具递归子集匹配；前一日空窗口得到 0，错误身份 `not-registered` 退出 3 且无报告。脱敏探针 `r2g-gateway-usage-probe-attempts-20260925.json` SHA256 `99e23c7bfab161669a7339e2969649dbb2c3009da2bbb5a6573b58cf79e76bc0`，位于上述忽略目录。固定产品的五项定向测试已通过，覆盖 HTTP 身份隔离、撤销/失效凭据拒绝、HTTP 与 CLI 对同一账本的读回及 CLI 身份拒绝。这些是固定产品行为与停机克隆 CLI 证据；**新的克隆 HTTP 断言尚未执行**，r2g 总结论不变。
+
+本地恢复工具现接受独立 ID `gateway_usage_readback`，强制它最后执行、走上述 Gateway GET、指定 CA/独立凭据、固定 4 条尝试与计数，并要求原有 `runtime_observation`。签发许可前还核对 Gateway 的 `companion` 注册引用指向 `TS_CORE_GATEWAY`，Gateway/Companion 两份 env 与独立 token 文件三者一致。该 GET 带工具生成的 32 位关联 ID。读取前后 Gateway 账本及 WAL 哈希、Companion API 可见的两条 unknown turn/reply 必须不变；日志仅允许该关联 ID 新增**一条** `request.accepted`，旧关联组及其他新组均不得变化。待这条记录可见后才取观察窗基线，窗口结束仍要求每个关联组的 accepted/started/finished 计数完全一致；额外上游事件、额外无关 accepted、账本写入或未知回复变化均失败。旧五项 ID 与旧观察门槛保持兼容。当前 `drill_passed` 只在新许可真实完成 Gateway HTTP、原五项、九 owner 与观察后才能产生；不能直接改 `missing_products`。
+
+按已验证 r2g 拓扑，独立 source 与克隆分别需要 5 与 7 个不重叠网络；克隆七段 /26 每段 62 个可用地址，实际所需端点按 core、egress、frontend、access、observe、storage、OBS access 分别为 4、1、1、4、4、2、2。九 owner 的内存上限合计 7.5 GiB，既有宿主预检门槛为可用至少 11.5 GiB（含 4 GiB 余量）；r2g 克隆单次执行约 2.5 分钟，许可运行上限 540 秒/有效期 600 秒，短时来源约 5 分钟。拓扑原始报告 `r2g-clone-topology-20260925.json` SHA256 `cbcef04d65220e1afd54d16fbd78ff750f2c4605f16bcc239078ed579fcbf4b7`。当前预留范围只余一段 /26，无法支持相同独立拓扑；后续须由协调者重新明确分配 source 与克隆全部地址并完成新的碰撞/容量检查。r2g 的短时来源已过期，恢复工具的 `restoration_facts` 固定原 authority/restore 内容，独立输入文件集也不允许注入产品数据库，故不能从旧备份直接签新许可跳过新 source/快照。
+
 ## 变更
 
 - A1 接续修复：Memory POST 的 HTTP Host 从已验证的克隆 Compose `--allowed-host memory.internal:8130` 读取并严格固定；TCP/TLS 仍只连既定 `127.0.0.1` 回环端口。签发许可前检查该配置，拒绝任意 Host。
+- Gateway 接续设计：新增有独立 ID 的正式用量 GET，精确限制身份、UTC 时间窗、四条合成请求、TLS/凭据路径；为此请求提供固定关联 ID，并在观察窗前只接受其一条 `request.accepted`。账本及 unknown API 状态在该 GET 前后不变，观察窗内继续严格逐组比较。
 - drill 失败收据增加受控阶段、原因码、取得的 HTTP 状态和不含响应值的结构摘要；分别标识连接拒绝、TLS 失败、HTTP 401/403/400、JSON/业务断言失败，保留原失败原因并独立记录清理失败。
 - 恢复断言默认保留 GET；新增 POST 时必须同时提供 `method: "POST"` 和 JSON 请求体。
 - POST 仅访问明确列出的只读路径（包括 Companion web-snapshot）并绑定到对应服务，拒绝写接口、错误服务映射、查询字符串和超大请求体。TLS 请求全程共用总期限，响应摘要受 256 KiB 限制。
@@ -97,7 +116,8 @@ scope `b3f59a3a-0fd4-4d47-8ff9-2c7a00d8b7a5` 为 r1 轮的唯一 NAS 目标。OB
 - 完整 packaging suite 共 103 项，其中 4 项报错（99 项通过）：1 项 TLS round-trip 和 3 项 synthetic-init 用例均在 TLS handshake 报 `Missing Authority Key Identifier`。这些失败发生在本次恢复适配器覆盖之外，仍作为未通过项记录。
 - Ruff 检查和格式检查在最终工作树未重跑：可用环境没有 Ruff 可执行文件；此前已记录的检查通过结果早于本次 A1 适配器和 handoff 更新。
 - NAS r2g 的 source 功能准备、九 owner 登记/停写、备份、禁用恢复与克隆五项 API 断言均真实执行；有界 no-resend 观察通过，最终源端与克隆各九个 owner 均 exited(0)，分属四个项目。总状态因缺少克隆 Gateway 独立功能断言仍为 `partial_functional_coverage`，不能标记完整恢复验收通过。旧 r2f 结论见上节；既有本地单测未因纯交接更新重跑。
+- Gateway 接续本地定向验证：恢复演练 `test_drill.py` 24 项通过（完整一遍）；改为 `view=attempts` 和凭据静态核对后 4 项定向通过，另有 1 项证实缺 Gateway 独立读回仍为 `partial_functional_coverage`；回环 TLS `test_drill_http.py` 17 项通过；事件/账本 `test_drill_observation.py` 5 项通过。固定产品 Gateway 的五项用量接口定向测试在 NAS 隔离依赖环境通过，停机克隆的 CLI 探针正例、空窗口、错误身份及读前后哈希均符合预期；夹具对实际四条 CLI 尝试的递归子集比较通过。这里没有重新执行 NAS HTTP drill。
 
 ## 下一步
 
-如需把整体状态推进至完整通过，应先为克隆 Gateway 明确一个受支持的只读功能 API 断言及预期响应，审查它与离线合成配置的真实关系，再在另行授权的新隔离 A1 scope 中重新完成 authority、快照和一次性许可。r2g 的五项语义与限时观察结果已通过，不能靠重写结果、把源端控制调用算作克隆断言或重放 r2g 许可消除 `missing_products=["gateway"]`。完成前保持 `needs_validation`。
+协调者审查本次恢复工具差异和拟议夹具后，先重新分配全部 source/克隆网段（当前 A1 预留内只余一段 /26），再为新隔离 A1 scope 完成合成 source、authority、快照、新克隆输入及一次性许可，执行独立 Gateway HTTP GET 与原五项断言和有界观察。r2g 的五项语义与限时观察结果已通过，不能靠重写结果、把源端控制调用算作克隆断言或重放 r2g 许可消除 `missing_products=["gateway"]`。完成前保持 `needs_validation`。

@@ -72,6 +72,7 @@ class DrillHTTPTests(unittest.TestCase):
             )
         )
         cls.requests = []
+        cls.correlation_headers = []
         cls.post_requests = []
         cls.host_headers = []
         cls.readiness_status = 200
@@ -82,6 +83,9 @@ class DrillHTTPTests(unittest.TestCase):
 
             def do_GET(self):
                 cls.requests.append((self.path, self.headers.get("Authorization")))
+                cls.correlation_headers.append(
+                    (self.path, self.headers.get("X-Tianshu-Correlation-Id"))
+                )
                 self.respond()
 
             def do_POST(self):
@@ -296,6 +300,16 @@ class DrillHTTPTests(unittest.TestCase):
         self.assertEqual(result["status"], "passed")
         self.assertNotIn("fixture", json.dumps(result))
         self.assertIn(("/good", "Bearer isolated-test-only-token"), self.requests)
+
+    def test_gateway_read_has_an_exact_attributable_correlation(self):
+        assertion = self.assertion("/good")
+        assertion.update(id="gateway_usage_readback", service="gateway")
+        correlation = "a" * 32
+        result = check(self.root, assertion, Deadline(3), correlation_id=correlation)
+        self.assertEqual(result["status"], "passed")
+        self.assertIn(("/good", correlation), self.correlation_headers)
+        with self.assertRaisesRegex(RecoveryError, "drill_correlation_invalid"):
+            check(self.root, assertion, Deadline(3), correlation_id="not-a-correlation")
 
     def test_allowlisted_readonly_post_sends_bounded_json_and_redacts_response(self):
         assertion = self.assertion("/internal/v1/life-read/actors")

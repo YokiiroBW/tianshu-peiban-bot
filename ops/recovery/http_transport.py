@@ -296,6 +296,7 @@ def _request(
     body=None,
     return_status=False,
     authority=None,
+    correlation_id=None,
 ):
     target = urlsplit(url)
     require(
@@ -341,6 +342,11 @@ def _request(
         ),
         "drill_assertion_authority_forbidden",
     )
+    require(
+        correlation_id is None
+        or (method == "GET" and re.fullmatch(r"[a-f0-9]{32}", correlation_id)),
+        "drill_correlation_invalid",
+    )
     host = authority or f"127.0.0.1:{target.port}"
     headers = [
         f"{method} {path} HTTP/1.1",
@@ -349,6 +355,8 @@ def _request(
         "Accept: application/json",
         "Accept-Encoding: identity",
     ]
+    if correlation_id is not None:
+        headers.append(f"X-Tianshu-Correlation-Id: {correlation_id}")
     if method == "POST":
         headers.extend(
             ("Content-Type: application/json", f"Content-Length: {len(body)}")
@@ -409,8 +417,11 @@ def _request(
         raise DrillDiagnosticError(code, stage=stage, actual_status=actual_status) from None
 
 
-def get(url, token, tls, budget, expected_status):
-    return _request(url, token, tls, budget, expected_status, method="GET")
+def get(url, token, tls, budget, expected_status, *, correlation_id=None):
+    return _request(
+        url, token, tls, budget, expected_status, method="GET",
+        correlation_id=correlation_id,
+    )
 
 
 def get_readiness(url, token, tls, budget):

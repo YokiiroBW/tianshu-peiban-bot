@@ -4,13 +4,37 @@ import json
 import re
 from collections import Counter, defaultdict
 
-from .safety import child, require, safe_path
+from .safety import child, file_hash, require, safe_path
 
 MAX_LOG_FILES = 256
 MAX_LOG_BYTES = 256 * 1024**2
 MAX_LOG_LINE = 4096
 CORRELATION = re.compile(r"^[a-f0-9]{32}$")
 TRACKED = {"request.accepted", "upstream.call_started", "upstream.call_finished"}
+
+
+def gateway_ledger_snapshot(root):
+    """Fingerprint the persisted Gateway business ledger, excluding SQLite lock state."""
+    path = child(root, "data/gateway/diagnostics.sqlite", exists=False)
+    require(path.is_file(), "drill_gateway_ledger_missing")
+    result = {"diagnostics.sqlite": file_hash(path)}
+    wal = child(root, "data/gateway/diagnostics.sqlite-wal", exists=False)
+    if wal.exists():
+        require(wal.is_file(), "drill_gateway_ledger_invalid")
+        result["diagnostics.sqlite-wal"] = file_hash(wal)
+    return result
+
+
+def gateway_read_bridge(before, after, correlation):
+    """Allow exactly the known Gateway GET's accepted event and no other growth."""
+    require(
+        CORRELATION.fullmatch(correlation) is not None
+        and correlation not in before
+        and set(after) == set(before) | {correlation}
+        and all(after[key] == value for key, value in before.items())
+        and after[correlation] == {"request.accepted": {"succeeded": 1}},
+        "drill_gateway_read_bridge_invalid",
+    )
 
 
 def gateway_counters(root, budget):

@@ -4,6 +4,7 @@ import os
 import re
 import sqlite3
 import time
+import uuid
 from contextlib import ExitStack
 from pathlib import Path
 
@@ -15,7 +16,12 @@ from .drill_http import (
     matches as response_matches,
 )
 from .drill_inputs import isolated_inputs, permit, restoration_facts
-from .drill_observation import gateway_counters, summarize_a1_gateway_counts
+from .drill_observation import (
+    gateway_counters,
+    gateway_ledger_snapshot,
+    gateway_read_bridge,
+    summarize_a1_gateway_counts,
+)
 from .lifecycle import Deadline, stop_order
 from .linux_recovery import registered
 from .runtime_identity import load_identity, runtime_lease
@@ -489,6 +495,9 @@ def run(
             observation = index.get("runtime_observation")
             gateway_before = None
             baseline_summary = None
+            gateway_pre_window = None
+            pre_window_summary = None
+            gateway_read_checked = False
             readiness_state = None
             if observation is not None:
                 # Read the restored source baseline before any cloned owner starts.
@@ -571,6 +580,17 @@ def run(
                 original.assert_stopped()
                 _unused(docker, set(), restored)
                 _assert_clone_services(backend, documents, all_services, work)
+                gateway_read = assertion["id"] == "gateway_usage_readback"
+                if gateway_read:
+                    require(observation is not None, "drill_gateway_observation_required")
+                    gateway_prior = gateway_counters(clone, work)
+                    require(
+                        gateway_prior == gateway_before,
+                        "drill_unknown_upstream_counters_changed",
+                    )
+                    ledger_before = gateway_ledger_snapshot(clone)
+                    correlation = uuid.uuid4().hex
+                    require(correlation not in gateway_prior, "drill_gateway_read_bridge_invalid")
                 checked = http_check(
                     clone,
                     assertion,
@@ -579,6 +599,7 @@ def run(
                         observation is not None
                         and assertion["id"] == "unknown_no_resend"
                     ),
+                    **({"correlation_id": correlation} if gateway_read else {}),
                 )
                 result["functional_assertions"].append(checked)
                 if assertion["id"] == "unknown_no_resend" and observation is not None:
@@ -589,6 +610,39 @@ def run(
                         ),
                         "drill_unknown_turn_readback_mismatch",
                     )
+                if gateway_read:
+                    require(
+                        gateway_ledger_snapshot(clone) == ledger_before,
+                        "drill_gateway_ledger_changed_by_read",
+                    )
+                    unknown_assertion = next(
+                        item for item in index["assertions"]
+                        if item["id"] == "unknown_no_resend"
+                    )
+                    post_read_unknown = http_check(
+                        clone, unknown_assertion, work, capture_unknown_turns=True,
+                    )
+                    require(
+                        post_read_unknown.get("unknown_turns") == initial_unknown_turns,
+                        "drill_unknown_turn_readback_changed",
+                    )
+                    bridge_deadline = min(work.ends, time.monotonic() + 5.0)
+                    while True:
+                        gateway_pre_window = gateway_counters(clone, work)
+                        if correlation in gateway_pre_window:
+                            gateway_read_bridge(
+                                gateway_prior, gateway_pre_window, correlation,
+                            )
+                            break
+                        require(
+                            gateway_pre_window == gateway_prior
+                            and time.monotonic() < bridge_deadline,
+                            "drill_gateway_read_bridge_invalid",
+                        )
+                        work.check()
+                        time.sleep(0.05)
+                    pre_window_summary = summarize_a1_gateway_counts(gateway_pre_window)
+                    gateway_read_checked = True
 
             if observation is not None:
                 phase = "unknown_observation"
@@ -596,6 +650,13 @@ def run(
                     initial_unknown_turns is not None,
                     "drill_unknown_assertion_required",
                 )
+                if gateway_pre_window is None:
+                    gateway_pre_window = gateway_counters(clone, work)
+                    require(
+                        gateway_pre_window == gateway_before,
+                        "drill_unknown_upstream_counters_changed",
+                    )
+                    pre_window_summary = baseline_summary
                 initial_readiness = check_readiness(
                     clone, observation["worker_readiness"], work
                 )
@@ -650,8 +711,8 @@ def run(
                 gateway_after = gateway_counters(clone, work)
                 after_summary = summarize_a1_gateway_counts(gateway_after)
                 require(
-                    gateway_after == gateway_before
-                    and after_summary == baseline_summary,
+                    gateway_after == gateway_pre_window
+                    and after_summary == pre_window_summary,
                     "drill_unknown_upstream_counters_changed",
                 )
                 result["unknown_no_resend_observation"] = {
@@ -669,6 +730,8 @@ def run(
                     "api_reply_snapshot_unchanged": True,
                     "gateway_counters_unchanged_by_correlation": True,
                     "gateway_baseline": baseline_summary,
+                    "gateway_before_window": pre_window_summary,
+                    "gateway_read_bridge_checked": gateway_read_checked,
                     "gateway_after_window": after_summary,
                     "control_comparison": "two successful upstream groups unchanged",
                     "delivery_attempt_counter_exposed": False,
