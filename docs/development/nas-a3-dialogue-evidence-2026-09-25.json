@@ -61,6 +61,7 @@
     "networks": ["10.205.36.0/26", "10.205.36.64/26", "10.205.37.0/26"],
     "loopback_port": "127.0.0.1:19543",
     "archive_sha256": "90ec410dea520c08ae250ae0b3537f781eff5ba4cad5d03dbe1173d8cd98bd1d",
+    "archive_sha256_evidence_level": "recorded_in_original_cycle; original archive unavailable for independent local rehash",
     "result": "passed",
     "release_ready": false,
     "real_models": false,
@@ -90,6 +91,41 @@
     "new_origin_receipt_expires_at": "2026-09-25T03:20:37.617475Z",
     "new_gateway_id": "e1d29fc76f429ce1258566e876deb2e6dee3ad257d0d92f4a113ec8d6393d709",
     "new_gateway_image_id": "sha256:10746fed0f95f138501609620368e94d4764888dab08363124dfeccc2273a7be",
+    "source_to_image_chain": {
+      "method": "source-inventory archive and pinned commit -> release-manifest/Compose unique image tag -> linux-executed build and image inspect -> final Docker container inspect",
+      "platform": {
+        "source_commit": "48c19b415e4cc197fa5dace5d9f4b247ee795a0c",
+        "source_archive_sha256": "372aeacd944d26f846aab5dcad259bccb463ee4977fac8629000e781660b4959",
+        "image_tag": "tianshu/platform:nas-accept-a3-cycle-20260925-d5-9ea6e15a81a4",
+        "build_step": "passed",
+        "image_id": "sha256:1c8812e9e2817995a1ade3bc1cd2a02f65fc7cdbef802187e0ea927f2d33e7d6",
+        "final_container_id": "01a81c1fb08d17d25f3a92ba017bd2f31a13b9d4e5275a155e105ad42822c63b"
+      },
+      "companion": {
+        "source_commit": "e94b609099365f75ca933d9fed03cdfbc83ec235",
+        "source_archive_sha256": "0b63a8e0e333eecd2b6382710a04c6d6f7a08602a5ca6ab3f76797c28109d60a",
+        "image_tag": "tianshu/companion:nas-accept-a3-cycle-20260925-d5-d7b95c458464",
+        "build_step": "passed",
+        "image_id": "sha256:6b7467e534dd39ec9663d78e8051dd5b8c8a4a69b394217e0bc33355b19a0a70",
+        "final_container_id": "411a2e0eab859352de16bc601bcb6947a621658b3ec6ca11a5c7486f9fc00386"
+      },
+      "memory": {
+        "source_commit": "9a3b2bed6aebff9f0677f2c62e979859769e0c9c",
+        "source_archive_sha256": "5b0b8ffd92c9c6e766d942b8df0a4251d8aad1c16629303e3a55b1e7f1760dd6",
+        "image_tag": "tianshu/memory:nas-accept-a3-cycle-20260925-d5-a075e8c8c074",
+        "build_step": "passed",
+        "image_id": "sha256:6a36e18a5696f3f54d0a89c6ba237381fa585c07defbf810f3aa7df9401cc6ee",
+        "final_container_id": "c563466595f28d335fca70faee5d54d1b2ea03f3396048761b0288e67aa99a79"
+      },
+      "gateway": {
+        "source_commit": "601974194042641c5a85cc3c061cbd1880d7daf1",
+        "source_archive_sha256": "d2ff489b59a1c5d67ad1914447f2400f5ba432b76ab67be45e72dc987ecce10b",
+        "image_tag": "tianshu/gateway:nas-accept-a3-cycle-20260925-d5-e2cd4b5a70bf",
+        "build_step": "passed",
+        "image_id": "sha256:10746fed0f95f138501609620368e94d4764888dab08363124dfeccc2273a7be",
+        "final_container_id": "e1d29fc76f429ce1258566e876deb2e6dee3ad257d0d92f4a113ec8d6393d709"
+      }
+    },
     "third_dialogue_bound_to_new_gateway": true,
     "all_four_authenticated_readiness_after_recovery": true,
     "issue_to_final_normal_stop_seconds": 112.9,
@@ -109,6 +145,13 @@
     }
   },
   "limits": {
+    "strict_proof_parser_in_default_runner": false,
+    "proof_parser_in_general_bundle_tools": false,
+    "explicit_synthetic_only_one_shot_operator": "deploy/tianshu/acceptance/nas-a3-dialogue5/complete-synthetic-cycle.py",
+    "old_gateway_exit_classification": "exit 1 after verified stopped TTL plus grace and non-OOM; no dedicated expiry error code captured",
+    "outer_operator_exit_separately_archived": false,
+    "cleanup_when_docker_inspect_fails": "best_effort",
+    "signed_oci_image_provenance": false,
     "full_configured_worst_case_startup_within_300_second_initial_receipt": "not_proven",
     "real_model_dialogue": "not_run",
     "log_chain": "not_run",

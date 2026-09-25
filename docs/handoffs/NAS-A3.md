@@ -23,6 +23,9 @@
 - 标准校验正常 SIGTERM 停止四服务后，再保守观察 345 秒，持续核实四个原 ID 均 exit 0、非 OOM、无重启。Platform 重启健康，旧 Gateway 原 ID `6a690e8b922d9f5ff567c11bc6bd67b808f98b1382ecda4048b9e0999ca567a9` 在停机自然过期后以 exit 1、非 OOM 退出。
 - 随后只调用一次 Platform 公开 CLI 重新授权，无自动重试，报告不含 origin ref；正常移除已停止的旧 Gateway 并由 Compose 创建新 ID `e1d29fc76f429ce1258566e876deb2e6dee3ad257d0d92f4a113ec8d6393d709`，镜像 ID 仍为 `sha256:10746fed0f95f138501609620368e94d4764888dab08363124dfeccc2273a7be`。四服务鉴权 readiness 通过；第三条全新 ID 的合成请求在新 Gateway 上获得 accepted 与最终 sent。签发至最终正常停止耗时 112.9 秒。最终四服务均 exit 0、非 OOM、重启数 0；三个本项目网络 endpoint 数均为 0。采样的主机 MemAvailable 最低 `18,216,517,632` 字节，超过运行时 4 GiB 保留门槛。
 - 本次合成模型发布窗口是 1800 秒，低于 Platform pin 的默认上限 3600 秒；Gateway origin 初次回执 TTL 仍为 300 秒。此调整仅属于一次性合成验收输入，不改变真实模型或发布配置。`release_ready=false`。详情和报告摘要见[合成周期证据](../development/nas-a3-dialogue-evidence-2026-09-25.json)。
+- NAS 实际执行的一次性操作器、后续请求探针、证明解析器和阶段预算已按字节摘要归档在[dialogue5 验收目录](../../deploy/tianshu/acceptance/nas-a3-dialogue5/README.md)。证据 JSON 将每个源码 pin 和归档摘要关联至唯一镜像标签、构建结果、镜像 ID 和最终容器 ID。严格证明解析是该一次性操作器中的同进程 hook，并非默认 Runner 能力。
+- 本次旧 Gateway 的自然过期归因依据停机时长、exit 1 与非 OOM 状态，没有专用过期错误码；周期报告可核验通过，但最外层操作器退出码未另存。失败清理在 Docker inspect 不可用时只能尽力而为；镜像链无签名 OCI provenance。上述边界不改变 `release_ready=false`。
+- 归档基线为 `ddaced278211c9b7c2beccc290ac9fbd5be38e69`，归档版本即本交接所在提交。本地重算四份归档文件 SHA-256 与当轮记录一致；冻结源清单摘要一致，四条源码到最终容器的关联逐项核对通过，证明解析器定向测试 3/3 通过，JSON 解析与 diff 检查通过，凭据特征扫描未发现匹配。原始 bundle 归档不在当前本地，仅保留当轮记录的 SHA-256；本次未重跑 NAS。
 
 ## dialogue1–dialogue4 保留的失败 scope
 

@@ -1,0 +1,129 @@
+{
+  "active_renewal": {
+    "boundary": "initial issue receipt expiry plus 15 seconds",
+    "checks": [
+      "same four container and image IDs before and after boundary",
+      "no restart or reauthorization marker",
+      "periodic authenticated readiness and host resource checks",
+      "new request ID and message ID, accepted receipt, final sent reply after boundary"
+    ],
+    "maximum_hook_seconds": 600,
+    "maximum_wait_seconds": 345
+  },
+  "dialogue1_observed_failure": {
+    "guard_failure_at": "2026-09-25T01:55:56.029318Z",
+    "initial_issue_receipt_expiry": "2026-09-25T01:56:12.799740Z",
+    "reauthorization_attempted": false,
+    "remaining_at_failure_seconds_approximately": 16,
+    "second_start_companion": "2026-09-25T01:55:25.27424069Z",
+    "second_start_gateway": "2026-09-25T01:54:21.547019212Z",
+    "second_start_memory": "2026-09-25T01:54:54.404588199Z",
+    "second_start_platform": "2026-09-25T01:53:48.473754938Z"
+  },
+  "dialogue2_observed_failure": {
+    "failed_at": "2026-09-25T02:24:14.011687Z",
+    "linux_error": "runtime_step_failed_create_core",
+    "overlap_with_concurrent_a1_networks": [
+      "10.204.83.0/24",
+      "10.204.84.0/24"
+    ],
+    "project_containers_after_failure": 0,
+    "result": "failed before any core container or dialogue",
+    "scope": "cycle-20260925-dialogue2",
+    "scope_replay_allowed": false,
+    "stage": "standard create_core",
+    "stop_confirmed": false,
+    "uncertain_create": true
+  },
+  "dialogue3_observed_failure": {
+    "all_four_stopped_exit_zero": true,
+    "failed_at": "2026-09-25T02:32:45.477691Z",
+    "hook_error": "standard_synthetic_proof_invalid",
+    "reauthorization_attempted": false,
+    "root_cause": "JSON proof plus legacy container_probe_passed sentinel parsed as one JSON document",
+    "scope": "cycle-20260925-dialogue3",
+    "scope_replay_allowed": false,
+    "standard_synthetic_dialogue_step": "passed_exit_zero_duration_6.901_seconds",
+    "stop_confirmed": true
+  },
+  "dialogue4_observed_failure": {
+    "distinct_post_expiry_dialogue": "accepted_and_sent",
+    "failed_at": "2026-09-25T02:58:00.843410Z",
+    "failure_code": "synthetic_publication_budget_before_reauthorization_insufficient",
+    "natural_expiry": "old_gateway_exit_1_non_oom_after_345_seconds_stopped",
+    "publication_usable_until": "2026-09-25T03:00:54.869Z",
+    "reauthorization_attempted": false,
+    "same_four_ids_across_initial_expiry": true,
+    "scope": "cycle-20260925-dialogue4",
+    "scope_replay_allowed": false,
+    "standard_dialogue": "passed_before_initial_expiry"
+  },
+  "initial_receipt_ttl_seconds": 300,
+  "issue_to_first_delivery": {
+    "configured_step_timeouts_can_exceed_ttl": true,
+    "on_insufficient_budget": "fail once, normally stop owned containers, no new issue or replay",
+    "required_actual_evidence": [
+      "standard dialogue actual step completion before initial receipt expiry",
+      "standard request client/message/turn/reply IDs with accepted receipt and matching sent reply"
+    ],
+    "sequence": [
+      "public Platform CLI issue",
+      "two Memory migrations",
+      "core Compose create",
+      "Platform, Memory, Gateway, Companion dependency ordered starts and health",
+      "four authenticated readiness probes",
+      "synthetic model fixture start and ready",
+      "standard synthetic dialogue with captured success-only proof"
+    ]
+  },
+  "network_allocation": {
+    "coordinator_assigned": true,
+    "core": "10.205.36.0/26",
+    "egress": "10.205.36.64/26",
+    "exclusive_parent": "10.205.36.0/20",
+    "frontend": "10.205.37.0/26",
+    "loopback_port": "127.0.0.1:19543"
+  },
+  "normal_stop_and_expiry": {
+    "checks": "all four fixed containers exited 0, no OOM or restart",
+    "method": "standard Linux validation SIGTERM stop, then 345 seconds of inspected downtime"
+  },
+  "one_shot": true,
+  "pre_issue": [
+    "bundle and source hashes",
+    "Compose config",
+    "four image builds",
+    "four dependency probes",
+    "synthetic configuration and public model publication"
+  ],
+  "project": "tianshu-accept-a3-dialogue5",
+  "proof_capture": {
+    "blank_stdout_or_extra_nonempty_lines": "refuse",
+    "expected_lines": [
+      "versioned JSON proof",
+      "container_probe_passed"
+    ],
+    "nas_compose_exec_stdout_probe": "isolated no-network container captured expected JSON, exit 0",
+    "parser_version": "synthetic_probe_proof.py sha256 d9d63d957704ef89bd849cfe320e9ada424441c3c9ba2b1450b8f494aa53414a"
+  },
+  "recovery": {
+    "compose_create_options": [
+      "--no-recreate",
+      "--no-build",
+      "--pull never"
+    ],
+    "delivery_probe_timeout_seconds": 90,
+    "no_automatic_retry": true,
+    "pre_delivery_remaining_receipt_and_publication_seconds": 110,
+    "sequence": "start Platform, classify old Gateway expiry, one public CLI reissue, normal old Gateway removal, Compose create, four readiness, new synthetic request and sent reply, normal stop"
+  },
+  "scope": "cycle-20260925-dialogue5",
+  "synthetic_publication": {
+    "does_not_change_origin_receipt_ttl_seconds": 300,
+    "platform_default_max_lifetime_seconds": 3600,
+    "reason": "dialogue4 retained only 174 seconds before 180-second post-downtime reauthorization gate",
+    "requested_lifetime_seconds": 1800,
+    "scope": "synthetic_only",
+    "standard_lifetime_seconds": 900
+  }
+}

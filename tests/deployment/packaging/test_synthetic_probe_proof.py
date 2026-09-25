@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "deploy/tianshu"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "deploy/tianshu/acceptance/nas-a3-dialogue5"))
 from synthetic_probe_proof import InvalidProof, parse  # noqa: E402
 
 
