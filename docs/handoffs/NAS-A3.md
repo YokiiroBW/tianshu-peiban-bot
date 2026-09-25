@@ -15,6 +15,22 @@
 - 新 Gateway、Platform、Memory、Companion 的鉴权 readiness 均通过。四服务随后按 Companion、Gateway、Memory、Platform 顺序以 SIGTERM 正常停止，exit 0、OOM false、restart count 0。全 A3 检查共 19 个既有容器，运行数 0；15 个 A3 网络均无 endpoints，均保留未删除。
 - `release_ready=false`。未调用真实模型，未写 Dockge，A1/A2 未操作。
 
+## dialogue5 合成对话与重新授权完整实测
+
+- 独立一次性 scope：`cycle-20260925-dialogue5`，项目 `tianshu-accept-a3-dialogue5`。使用协调分配的 A3 `10.205.32.0/20` 内三个子网：core `10.205.36.0/26`、egress `10.205.36.64/26`、frontend `10.205.37.0/26`；回环端口 `127.0.0.1:19543`。四服务仍各限 1 GiB、cpuset `6,7`，无真实模型或 Dockge 写入。
+- 源码 pin 与上文候选相同。A4-R1 修正提交 `0ad6165` 将重新授权的 120 秒余量在公开 CLI 实际签发后测量；Python 3.12 定向测试 7/7 通过。探针提交 `501eddd` 仅在合成对话成功时输出版本化 accepted/sent 证明；解析器独立提交 `20012f4` 严格读取该 JSON 行与原有 `container_probe_passed` 成功行，定向测试 3/3 及实际 Runner→hook 离线回归通过。
+- 标准合成对话于 `2026-09-25T03:06:05.591480Z` 完成，早于初次签发回执 `03:08:35.443037Z` 过期。四服务 ID 和镜像在活动观察的两侧相同，旧 Gateway 未重建、未出现重新授权标记；初次过期后另一条新 client/message/turn/reply ID 的请求于 `03:09:08.135900Z` 得到 accepted 回执和最终 sent 回复。初次回执的时间仅用作观察边界，未当作活动续期后的当前授权有效期。
+- 标准校验正常 SIGTERM 停止四服务后，再保守观察 345 秒，持续核实四个原 ID 均 exit 0、非 OOM、无重启。Platform 重启健康，旧 Gateway 原 ID `6a690e8b922d9f5ff567c11bc6bd67b808f98b1382ecda4048b9e0999ca567a9` 在停机自然过期后以 exit 1、非 OOM 退出。
+- 随后只调用一次 Platform 公开 CLI 重新授权，无自动重试，报告不含 origin ref；正常移除已停止的旧 Gateway 并由 Compose 创建新 ID `e1d29fc76f429ce1258566e876deb2e6dee3ad257d0d92f4a113ec8d6393d709`，镜像 ID 仍为 `sha256:10746fed0f95f138501609620368e94d4764888dab08363124dfeccc2273a7be`。四服务鉴权 readiness 通过；第三条全新 ID 的合成请求在新 Gateway 上获得 accepted 与最终 sent。签发至最终正常停止耗时 112.9 秒。最终四服务均 exit 0、非 OOM、重启数 0；三个本项目网络 endpoint 数均为 0。采样的主机 MemAvailable 最低 `18,216,517,632` 字节，超过运行时 4 GiB 保留门槛。
+- 本次合成模型发布窗口是 1800 秒，低于 Platform pin 的默认上限 3600 秒；Gateway origin 初次回执 TTL 仍为 300 秒。此调整仅属于一次性合成验收输入，不改变真实模型或发布配置。`release_ready=false`。详情和报告摘要见[合成周期证据](../development/nas-a3-dialogue-evidence-2026-09-25.json)。
+
+## dialogue1–dialogue4 保留的失败 scope
+
+- `dialogue1` 的标准合成对话及正常停止通过，但额外首轮探针在初次回执过期前仅剩约 16 秒时被预算门槛拒绝；无重新授权或重建。后续改用标准首轮作为对照，未重放该 scope。
+- `dialogue2` 在标准 `create_core` 失败；同时 A1 创建了覆盖当时 A3 计划的 `10.204.83.0/24`、`10.204.84.0/24` 网络。Docker stderr 未保存，网段重叠足以解释失败；该项目最终零容器，但 Linux 报告的 `stop_confirmed=false` 保留原值。协调随后给 A3 分配独占 `10.205.32.0/20`。
+- `dialogue3` 的四服务健康、标准合成对话成功，但 hook 将“JSON 证明 + 原有成功行”整体解析为单个 JSON，导致证据解析失败；四服务随后正常 exit 0。独立无网络工具容器在 NAS 上证实 Compose exec 可捕获 stdout，该问题不是 NAS 输出丢失。解析器修正后另起新 scope，未重放原 scope。
+- `dialogue4` 证实首轮和越过初次回执后的两条合成请求均 accepted/sent、活动期间四 ID 固定、停止 345 秒后的旧 Gateway exit 1 非 OOM；其 15 分钟合成模型发布到期前只剩约 174 秒，未达到恢复前 180 秒门槛，故未尝试重新授权。四服务按预期正常收尾。`dialogue5` 使用 30 分钟合成发布窗口完成后续恢复。
+
 ## 先前 scope 与失败记录
 
 - 之前两个自然过期观察发生在服务干净停止之后；当时没有覆盖“Gateway 活动期间越过初次签发回执有效期”的探针。cycle7 完成了该区分。
@@ -29,14 +45,14 @@
 - cycle7 只做无模型启动/闲置与 readiness 采样：每服务快照约 29–53 MiB，主机 MemAvailable 最低约 17.1 GiB；Docker stats 的 PIDs 样本为 0，不能作为真实 PID 用量。该观察不足以设定服务最低资源或长期峰值。
 - steady NAS 候选与复核探针见[资源计划](../development/nas-a3-resident-resource-candidate.md)。这只是待评审方案，未写入 Compose/Dockge，也未改变 `release_ready`。
 
-## 验证与证据
+## cycle7 验证与证据
 
 - NAS `reports/linux-executed.json` SHA-256：`65a8d1d2c1cc7cca4b03d12f1ab0af19256ca3daafa366520ae77253be857705`。
 - NAS `reports/reauthorization-recovery-cycle.json` SHA-256：`66a3bec54d870f0dc0c27c20f90e2b8621bbc75ed105abb0ab9fec86c57c5e73`；报告与重新授权回执均未包含 origin ref。
 - NAS `reports/bootstrap/reauthorization-result.json` SHA-256：`60cde83d58b97dc8bdfecb24754dd7071dc9d44e0581543956905d53d632b042`。
 - 操作脚本 SHA-256：`a192b4d0b64e6383c83e2ca03eb24ea14060b4d009e39547cfe17169cdb5245a`。完整摘要在[nas-a3-evidence-2026-09-25.json](../development/nas-a3-evidence-2026-09-25.json)。
-- 本轮没有重跑单元测试。只核验 NAS 的 liveness、完整生命周期脚本结果、最终容器/网络状态，并将候选资源计划写成文档。
+- cycle7 当轮没有重跑单元测试。只核验 NAS 的 liveness、完整生命周期脚本结果、最终容器/网络状态，并将候选资源计划写成文档。
 
 ## 尚未验收
 
-真实模型调用、合成对话、日志链、常规恢复、浏览器渲染和代表性持续负载仍未验收。NAS 缺 CPU quota 与 PID controller 时，不将该 profile 标记为 release-ready。
+真实模型调用、日志链、常规恢复、浏览器渲染和代表性持续负载仍未验收。标准校验的配置超时上限总和可能超过 300 秒初次 origin TTL；本次实际首轮及时完成，不证明所有最坏配置时长均可成功。产品化时应另行调整签发位置或启动预算。NAS 缺 CPU quota 与 PID controller 时，不将该 profile 标记为 release-ready。

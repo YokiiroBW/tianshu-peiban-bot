@@ -1,0 +1,120 @@
+{
+  "schema_version": "1.0.0",
+  "task": "NAS-A3",
+  "recorded_at": "2026-09-25T03:20:01Z",
+  "branch": "codex/nas-a3",
+  "source_inventory_sha256": "ffa41ae611f00bdec8eae48aa2b20809d6d9665bc61fd3822425f48058ab21fa",
+  "source_commits": {
+    "platform": "48c19b415e4cc197fa5dace5d9f4b247ee795a0c",
+    "companion": "e94b609099365f75ca933d9fed03cdfbc83ec235",
+    "memory": "9a3b2bed6aebff9f0677f2c62e979859769e0c9c",
+    "gateway": "601974194042641c5a85cc3c061cbd1880d7daf1"
+  },
+  "implementation_commits": {
+    "reauthorization_actual_issue_time": "0ad6165924e96476d66ab0ed974ced7ad693699d",
+    "synthetic_probe_success_proof": "501eddd",
+    "two_line_probe_parser": "20012f41ebb122b30764bcbc92aff74f2960d8c3"
+  },
+  "targeted_verification": {
+    "reauthorization_execute_tests_python_3_12": "7/7 passed",
+    "proof_parser_tests_python_3_12": "3/3 passed",
+    "scope_hook_offline_regression": "passed: actual CLI sentinel, Runner capture, strict proof, empty/mixed/failure rejection, legacy uncaptured steps, synthetic publication 1800 seconds",
+    "nas_isolated_exec_channel": "passed: no-network Python tool container, Compose exec and direct Docker exec each returned exit 0 and identical 26-byte expected JSON stdout; final probe containers and networks zero",
+    "nas_dialogue5_local_and_remote_plan": "passed"
+  },
+  "preserved_one_shot_scopes": [
+    {
+      "scope": "cycle-20260925-dialogue1",
+      "result": "blocked",
+      "reason": "extra pre-expiry control gate found about 16 seconds remaining",
+      "reauthorization_attempted": false,
+      "final_report_sha256": "97fefaa716ef2e7d789fb7a624efc3ccd23f00e2efcbc32adb37c08dc4845e94"
+    },
+    {
+      "scope": "cycle-20260925-dialogue2",
+      "result": "blocked",
+      "reason": "standard create_core failure with concurrent A1 subnet overlap; Docker stderr suppressed",
+      "project_containers_after_failure": 0,
+      "linux_stop_confirmed": false,
+      "final_report_sha256": "77e87d426da3d7b1c47ce56ddafec0565c6f47df2f86c80a24dd88e3bc4323e2"
+    },
+    {
+      "scope": "cycle-20260925-dialogue3",
+      "result": "blocked",
+      "reason": "standard dialogue passed, hook parsed proof JSON and legacy success sentinel as one JSON document",
+      "all_four_normal_stop": true,
+      "final_report_sha256": "6f0686308af1df030ffbe71a4db5d30587eb653840d69fa83d0b3478da824cb9"
+    },
+    {
+      "scope": "cycle-20260925-dialogue4",
+      "result": "blocked",
+      "reason": "active synthetic renewal and natural expiry passed; 15-minute synthetic publication had about 174 seconds remaining before a 180-second recovery gate",
+      "reauthorization_attempted": false,
+      "final_report_sha256": "731ac3333ef34f5a724296f5f8eb54a688a1640b50e771eb5ef79db973bf83df"
+    }
+  ],
+  "successful_scope": {
+    "scope": "cycle-20260925-dialogue5",
+    "nas_path": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a3/cycle-20260925-dialogue5",
+    "project": "tianshu-accept-a3-dialogue5",
+    "network_allocation_parent": "10.205.32.0/20",
+    "networks": ["10.205.36.0/26", "10.205.36.64/26", "10.205.37.0/26"],
+    "loopback_port": "127.0.0.1:19543",
+    "archive_sha256": "90ec410dea520c08ae250ae0b3537f781eff5ba4cad5d03dbe1173d8cd98bd1d",
+    "result": "passed",
+    "release_ready": false,
+    "real_models": false,
+    "memory_limit_per_service_bytes": 1073741824,
+    "cpu_set": "6,7",
+    "initial_origin_receipt_ttl_seconds": 300,
+    "synthetic_publication_requested_lifetime_seconds": 1800,
+    "synthetic_publication_usable_until": "2026-09-25T03:33:28.681Z",
+    "standard_dialogue_completed_at": "2026-09-25T03:06:05.591480Z",
+    "standard_probe_stdout_byte_count": 545,
+    "standard_probe_stdout_sha256": "0c4851516a65df0ce2e745f37fd7d59e7ec14e696e86bd1c4f1faaa8756f03b7",
+    "initial_origin_receipt_expires_at": "2026-09-25T03:08:35.443037Z",
+    "post_expiry_dialogue_observed_at": "2026-09-25T03:09:08.135900Z",
+    "standard_before_expiry": true,
+    "second_after_expiry": true,
+    "same_four_ids_and_images_across_boundary": true,
+    "three_distinct_client_message_turn_reply_ids": true,
+    "all_three_receipts_accepted_and_replies_sent": true,
+    "initial_normal_stop_all_four_exit_zero": true,
+    "conservative_stopped_observation_seconds": 345,
+    "old_gateway_id": "6a690e8b922d9f5ff567c11bc6bd67b808f98b1382ecda4048b9e0999ca567a9",
+    "old_gateway_restart_exit_code": 1,
+    "old_gateway_oom_killed": false,
+    "reauthorization_status": "reauthorized",
+    "reauthorization_automatic_retry": false,
+    "reauthorization_ref_in_report": false,
+    "new_origin_receipt_expires_at": "2026-09-25T03:20:37.617475Z",
+    "new_gateway_id": "e1d29fc76f429ce1258566e876deb2e6dee3ad257d0d92f4a113ec8d6393d709",
+    "new_gateway_image_id": "sha256:10746fed0f95f138501609620368e94d4764888dab08363124dfeccc2273a7be",
+    "third_dialogue_bound_to_new_gateway": true,
+    "all_four_authenticated_readiness_after_recovery": true,
+    "issue_to_final_normal_stop_seconds": 112.9,
+    "final_project_containers": 4,
+    "final_all_four_exited_zero_non_oom_no_restart": true,
+    "final_project_network_endpoints": 0,
+    "minimum_sampled_host_mem_available_bytes": 18216517632,
+    "sensitive_field_pattern_present_in_report": false,
+    "sha256": {
+      "final_report": "08f2a8ff537e0ab84a1c992ff41f14c4305abad3ae6881e12c9e23aa2d562aa7",
+      "linux_report": "aad82e87842651a57a121707033733475bd19cc64a5c0881aa2f3997ae95a32a",
+      "reauthorization_result": "15f3afe6f16496f32814c6afa6b4af513928862a7f5b2a17e907cab58e2bd4b9",
+      "operator_script": "225fa65f93d28ae4381ffc819150e00ddb3bff5b08ee0a51d32688b225a7bb02",
+      "standard_probe": "1cece914b3d1d1f3d45a89a6b9c9380cd3bd35fd307c7375fb52fc9664dacfa9",
+      "parser": "d9d63d957704ef89bd849cfe320e9ada424441c3c9ba2b1450b8f494aa53414a",
+      "followup_probe": "b9972a41d706523c10d1824396ad81b1cf9e40d626f825303c0ede925250db32"
+    }
+  },
+  "limits": {
+    "full_configured_worst_case_startup_within_300_second_initial_receipt": "not_proven",
+    "real_model_dialogue": "not_run",
+    "log_chain": "not_run",
+    "browser_rendering": "not_run",
+    "representative_sustained_workload": "not_run",
+    "cpu_quota_and_pid_hard_limit_on_nas": "unsupported",
+    "release_ready": false
+  }
+}
