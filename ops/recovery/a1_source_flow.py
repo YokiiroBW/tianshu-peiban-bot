@@ -22,6 +22,7 @@ from pathlib import Path
 from .a1_code import deploy_module, require_entry_origin
 from .a1_once import _network_plan, _ports, _write_once
 from .a1_prepare import load as load_preparation
+from . import a1_gateway_cli
 from .safety import RecoveryError, file_hash, read_json, require
 from . import a1_acceptance as product
 
@@ -225,9 +226,10 @@ class Source:
         available = re.search(r"^MemAvailable:\s+(\d+) kB$", memory, re.MULTILINE)
         require(available and int(available.group(1)) >= 11.5 * 1024 * 1024,
                 "a1_source_host_memory_insufficient")
+        gateway = a1_gateway_cli.verify_usage_before_owners(self.c, self.root)
         return {"status": "host_preflight_passed", "networks_checked": len(nets),
                 "ports_checked": len(ports), "projects_checked": 4,
-                "cpuset": cpuset}
+                "cpuset": cpuset, "gateway_usage_cli": gateway}
 
     def command(self, argv, *, input_bytes=None, timeout=45):
         try:

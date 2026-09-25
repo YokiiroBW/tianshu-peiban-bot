@@ -36,13 +36,17 @@ class PreparationTests(unittest.TestCase):
         if not self.projects.is_dir():
             self.skipTest("fixed product Git repositories unavailable locally")
         self.gateway = home / "gateway-import"
-        self.gateway.mkdir()
-        (self.gateway / "module.py").write_text("fixed gateway source\n")
+        shutil.copytree(self.projects / "tianshu-model-gateway/src", self.gateway)
+        self.assertEqual(a1_prepare._tree(self.gateway),
+                         a1_prepare.a1_gateway_cli.GATEWAY_TREE_SHA256)
         self.profile = home / "resource-profile.json"
         put(self.profile, {"kind": "fixture-only"})
         self.original = Path(__file__).parent / "fixtures/a1-fixed-original-manifest.json"
         for name in ("a1_prepare.py", "a1_clone_prepare.py"):
             (self.code / "ops/recovery" / name).write_text("fixture pinned module\n")
+        shutil.copy2(Path(__file__).resolve().parents[3] /
+                     "ops/recovery/a1_gateway_runtime.lock.json",
+                     self.code / "ops/recovery/a1_gateway_runtime.lock.json")
         self.prep = {
             "schema_version": "a1-preparation/1", "scope_parent": str(self.parent),
             "scope_name": "scope-a1-r2i", "scope_id": str(uuid.uuid4()),
@@ -68,6 +72,8 @@ class PreparationTests(unittest.TestCase):
             "clone_name": "clone", "clone_inputs_name": "clone-inputs",
             "backup_name": "backup", "permit_name": "permit", "receipt_name": "receipts",
             "gateway_pythonpath": {str(self.gateway): a1_prepare._tree(self.gateway)},
+            "gateway_runtime_lock": str(self.code / "ops/recovery/a1_gateway_runtime.lock.json"),
+            "gateway_runtime_lock_sha256": a1_prepare.a1_gateway_cli.LOCK_SHA256,
         }
         self.lock = self.parent / "preparations/scope-a1-r2i.code-lock.json"
         put(self.lock, {"schema_version": "a1-code-lock/1",
@@ -113,7 +119,8 @@ class PreparationTests(unittest.TestCase):
         result = a1_prepare.prepare_source(self.prep, initializer=self._initializer,
             observability=lambda source, settings, repo, projects:
                 {"status": "observability_configured"},
-            synthetic=self._synthetic())
+            synthetic=self._synthetic(), runtime_checker=lambda _c:
+                {"status": "gateway_runtime_ready"})
         self.assertEqual(result["status"], "static_source_prepared")
         scope = self.parent / self.prep["scope_name"]
         return scope, scope / "deployments/source"
@@ -422,7 +429,8 @@ class PreparationTests(unittest.TestCase):
             a1_prepare.prepare_source(self.prep, initializer=self._initializer,
                 observability=lambda source, settings, repo, projects:
                     (_ for _ in ()).throw(RuntimeError("fixture observability failure")),
-                synthetic=self._synthetic())
+                synthetic=self._synthetic(), runtime_checker=lambda _c:
+                    {"status": "gateway_runtime_ready"})
         scope = self.parent / self.prep["scope_name"]
         self.assertTrue((scope / "deployments/source/release-manifest.json").is_file())
         self.assertFalse((scope / "deployments/source/reports/a1-new-fixture").exists())
@@ -465,7 +473,8 @@ class PreparationTests(unittest.TestCase):
         self.assertEqual(json.loads(planned.stdout)["status"], "planned")
         release = a1_prepare.deploy_module(self.code, "observability_release")
         with patch.object(release, "apply_runtime_permissions") as linux_permissions:
-            result = a1_prepare.prepare_source(self.prep)
+            result = a1_prepare.prepare_source(self.prep,
+                runtime_checker=lambda _c: {"status": "gateway_runtime_ready"})
         linux_permissions.assert_called_once()
         self.assertEqual(result["status"], "static_source_prepared")
         scope = self.parent / self.prep["scope_name"]

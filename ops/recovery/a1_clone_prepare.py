@@ -66,8 +66,13 @@ def _usage(source, c, since, until):
         require("=" in line, "a1_clone_source_env_invalid")
         key, value = line.split("=", 1)
         environment[key] = value.strip("\"'")
+    for name in ("PYTHONOPTIMIZE", "PYTHONHOME", "PYTHONPATH", "PYTHONUSERBASE",
+                 "PYTHONSTARTUP"):
+        environment.pop(name, None)
     environment["PYTHONPATH"] = os.pathsep.join(c["gateway_pythonpath"])
-    argv = [c["python"], "-B", "-m", "tianshu_gateway.usage_report",
+    environment["PYTHONNOUSERSITE"] = "1"
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    argv = [c["python"], "-B", "-s", "-m", "tianshu_gateway.usage_report",
             "--settings", str(source / "config/gateway/settings.json"),
             "--database", str(source / "data/gateway/diagnostics.sqlite"),
             "--service", "companion", "--view", "attempts",

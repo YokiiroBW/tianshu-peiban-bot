@@ -19,7 +19,21 @@ nine explicitly fictional product input files. Its config binds a per-file
 observability Git commit, four fixed product Git commits under `projects_root`,
 Gateway import trees, source/clone project names, twelve distinct `/28`
 networks in the assigned pool, and twelve loopback ports. The preparation
-config explicitly supplies the allocation file's absolute path and expected
+config also binds `gateway_runtime_lock` to
+`code_root/ops/recovery/a1_gateway_runtime.lock.json` and its exact SHA256.
+This portable lock pins the fixed Gateway commit, `uv.lock` bytes, import
+tree, and all 14 host usage-CLI runtime packages/wheel hashes. The host
+tool venv retains the recovery CLI requirements and adds the eight Gateway
+packages missing from the earlier nine-package r2j environment; a fixed
+offline wheel install must precede `a1_prepare --execute`. The execute path
+checks all 14 installed versions and import origins with the configured
+`python` before creating the scope. The production preflight requires a Linux
+x86_64 interpreter matching the pinned wheel platform; local Windows fixture
+checks exercise logic only. The generic `ops/recovery/requirements.txt` still
+pins `jsonschema==4.25.1` for older recovery use and is not an A1 install
+recipe: the A1 runtime requires the locked `jsonschema==4.26.0` overlap and
+the original recovery-only packages in the same venv. The preparation config
+explicitly supplies the allocation file's absolute path and expected
 SHA256. Both preparation and driver verify the original file bytes, its
 scope name, execution UUID, purpose-ordered networks and ports. The source
 attempt records the observed preparation-config SHA; clone preparation
@@ -35,7 +49,13 @@ cannot be retried into that scope.
 
 From the same locked code directory,
 `ABS_PYTHON -B -m ops.recovery.a1_source_flow --config ABSOLUTE_PREPARATION_JSON`
-plans the source run. `--execute` checks live allocations, then makes one
+plans the source run. `--execute` checks live allocations and runs the actual
+`_usage`/Gateway report entry against a temporary one-attempt synthetic
+SQLite ledger with the configured `python`, Gateway source tree, and copied
+synthetic settings/env. The temporary files are removed, and the new source
+bundle's Gateway data directory must stay unchanged. This check finishes
+before the attempt marker or any `compose up`; a missing runtime package or
+unusable CLI leaves the fresh scope available for correction. It then makes one
 source attempt through the public product CLIs and HTTPS APIs: Memory
 migrations, nine owner startup, fictional v3 turns and Memory facts,
 forget/retract/model revocation, v4 offline controls, Gateway usage readback,

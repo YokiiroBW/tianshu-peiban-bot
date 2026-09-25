@@ -16,6 +16,7 @@ from pathlib import Path
 from .a1_once import (_code_files, _code_tree, _network_plan, _ports,
                       _posix_path_key, _sha, _write_once)
 from .a1_code import deploy_module, require_entry_origin
+from . import a1_gateway_cli
 from .safety import RecoveryError, canonical, file_hash, read_json, require
 
 PREP_KEYS = {"schema_version", "scope_parent", "scope_name", "scope_id",
@@ -27,7 +28,8 @@ PREP_KEYS = {"schema_version", "scope_parent", "scope_name", "scope_id",
              "projects_root",
              "source_project", "clone_project", "networks", "ports", "run_label",
              "restored_name", "clone_name", "clone_inputs_name", "backup_name",
-             "permit_name", "receipt_name", "gateway_pythonpath"}
+             "permit_name", "receipt_name", "gateway_pythonpath",
+             "gateway_runtime_lock", "gateway_runtime_lock_sha256"}
 NETWORK_NAMES = {"source": ("core", "egress", "frontend", "observe", "storage"),
                  "clone": ("core", "egress", "frontend", "access", "observe",
                            "storage", "observability_access")}
@@ -98,6 +100,7 @@ def load(path, *, phase="source"):
                 _tree(item) == checksum
                 for item, checksum in c["gateway_pythonpath"].items()),
             "a1_prep_gateway_code_mismatch")
+    a1_gateway_cli.verify_preparation(c)
     original = read_json(c["original_manifest"])
     require(file_hash(c["original_manifest"]) == c["original_manifest_sha256"] and
             file_hash(c["resource_profile"]) == c["resource_profile_sha256"] and
@@ -259,11 +262,15 @@ def _obs_settings(scope, c):
     return path
 
 
-def prepare_source(c, *, initializer=None, observability=None, synthetic=None):
+def prepare_source(c, *, initializer=None, observability=None, synthetic=None,
+                   runtime_checker=None):
     """Create a fresh source bundle; failures leave partial artifacts for review."""
     parent = Path(c["scope_parent"])
     scope = parent / c["scope_name"]
     require(not scope.exists(), "a1_prep_scope_not_empty")
+    runtime = (runtime_checker or a1_gateway_cli.verify_runtime)(c)
+    require(type(runtime) is dict and runtime.get("status") == "gateway_runtime_ready",
+            "a1_prep_gateway_runtime_preflight_invalid")
     derived = derive_manifest(c)
     manifest_file = tempfile.NamedTemporaryFile(mode="wb", prefix="a1-manifest-",
         suffix=".json", dir=parent / "preparations", delete=False)
@@ -330,6 +337,7 @@ def prepare_source(c, *, initializer=None, observability=None, synthetic=None):
             "allocation_sha256": c["allocation_sha256"],
             "source_manifest_sha256": file_hash(source / "release-manifest.json"),
             "synthetic_input_count": 9,
+            "gateway_runtime_preflight": runtime,
             "source_directory": str(source)}
 
 
