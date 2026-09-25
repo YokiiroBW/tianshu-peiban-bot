@@ -12,6 +12,7 @@ import re
 import stat
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -38,6 +39,22 @@ FIXED_COMMITS = {
     "gateway": "601974194042641c5a85cc3c061cbd1880d7daf1",
 }
 FIXED_OBSERVABILITY = "a194fa7b527ac2da0f13b8c3e95e76a1b836b4b3"
+FIXED_A3_EXPORT = "8e381646cee06f37a61e80c16e9e2b50cd5984a9"
+# Every local module imported by the fixed exporter comes from the same Git
+# object. A checkout script or its imports are never executed for this gate.
+A3_EXPORT_SOURCES = (
+    "resident_export.py", "bundle.py", "manifest.py", "configuration.py",
+    "compose.py", "observability_release.py", "observability_contract.py",
+    "resource_profile.py", "network_plan.py", "release-manifest.schema.json",
+)
+
+
+def _fixed_git_env():
+    environment = os.environ.copy()
+    environment["GIT_NO_REPLACE_OBJECTS"] = "1"
+    return environment
+
+
 CORE_PROJECT = "tianshu-v2-resident"
 OBS_PROJECT = "tianshu-v2-resident-obs"
 REF = re.compile(r"origin:[0-9a-f]{32}\Z")
@@ -221,9 +238,22 @@ def _gateway_origin_precheck(root, gateway):
 
 
 def _clean_install(root):
-    for product in PRODUCTS:
-        folder = inside(root, "data/" + product)
-        require(folder.is_dir() and not any(folder.iterdir()), "nonempty_product_data_refused")
+    for category, owners in (
+        ("data", set(PRODUCTS)),
+        ("logs", set(PRODUCTS)),
+        ("observability/data", {"vector", "loki", "grafana", "prometheus", "guard"}),
+    ):
+        base = inside(root, category)
+        require(
+            base.is_dir() and {item.name for item in base.iterdir()} == owners,
+            "first_install_mutable_layout_changed",
+        )
+        for owner in owners:
+            folder = no_links(base / owner)
+            require(
+                folder.is_dir() and not any(folder.iterdir()),
+                "nonempty_first_install_mutable_state_refused",
+            )
     require(
         not (root / "reports" / "resident-install").exists()
         and not (root / "INCOMPLETE").exists(),
@@ -332,6 +362,58 @@ def _export_lock(root, lock_path, manifest, compose):
     return images, stack_files, hashes
 
 
+def _trusted_export(root, repository, output, *, deployment_root=None):
+    """Recompute an A3 export using only code from its fixed Git commit."""
+    with tempfile.TemporaryDirectory(prefix="tianshu-a3-source-") as temporary:
+        source = Path(temporary)
+        for name in A3_EXPORT_SOURCES:
+            raw = _run(
+                ["git", "-C", str(repository), "show",
+                 f"{FIXED_A3_EXPORT}:deploy/tianshu/{name}"],
+                cwd=root, seconds=30, env=_fixed_git_env(),
+            )
+            (source / name).write_bytes(raw)
+        _run(
+            [sys.executable, "-E", "-s", "-B", str(source / "resident_export.py"),
+             "--bundle", str(root), "--repository", str(repository),
+             "--deployment-root", deployment_root or str(root),
+             "--output", str(output)],
+            cwd=root, seconds=120, env=_fixed_git_env(),
+        )
+
+
+def _trusted_export_matches(root, lock_path, stacks, repository, *, compare_lock):
+    """Compare executable stacks with a fresh export from fixed A3 Git code."""
+    lock_path = _private(lock_path)
+    repository = no_links(Path(repository))
+    require(repository.is_dir(), "fixed_export_repository_required")
+    with tempfile.TemporaryDirectory(prefix="tianshu-a3-recompute-") as temporary:
+        output = Path(temporary) / "export"
+        _trusted_export(
+            root, repository, output,
+            deployment_root=read_json(lock_path).get("deployment_root"),
+        )
+        if compare_lock:
+            expected_lock = output / "resident-export.lock.json"
+            require(
+                lock_path.read_bytes() == expected_lock.read_bytes(),
+                "resident_export_not_trusted",
+            )
+        for project in (CORE_PROJECT, OBS_PROJECT):
+            require(
+                stacks[project].read_bytes()
+                == (output / project / "compose.yaml").read_bytes(),
+                "resident_export_not_trusted",
+            )
+
+
+def _trusted_first_export(root, lock_path, stacks, repository):
+    """Reject changed first execution input before any Docker command can run."""
+    _trusted_export_matches(
+        root, lock_path, stacks, repository, compare_lock=True,
+    )
+
+
 def _repo_digest(reference):
     repository_and_tag, image_digest = reference.rsplit("@", 1)
     tail = repository_and_tag.rsplit("/", 1)[-1]
@@ -359,14 +441,63 @@ def _local_images_present(images, root):
         )
 
 
+def _root_mount(container, root):
+    """Inspect real Docker mount sources, including created containers."""
+    sources = []
+    for mount in container.get("Mounts", []):
+        sources.append(mount.get("Source"))
+    host = container.get("HostConfig", {})
+    for mount in host.get("Mounts") or []:
+        if mount.get("Type") == "bind":
+            sources.append(mount.get("Source"))
+    for bind in host.get("Binds") or []:
+        if isinstance(bind, str):
+            sources.append(bind.split(":", 1)[0])
+    for source in sources:
+        if isinstance(source, str) and source.startswith("/"):
+            path = Path(source).resolve()
+            if path.is_relative_to(root) or root.is_relative_to(path):
+                return True
+    return False
+
+
+def _docker_occupants(root):
+    raw = _run(
+        ["docker", "ps", "-a", "--no-trunc", "--format", "{{.ID}}"],
+        cwd=root, seconds=20,
+    )
+    try:
+        ids = raw.decode("ascii").splitlines()
+    except UnicodeError:
+        raise Refused("docker_container_inventory_invalid") from None
+    require(
+        len(ids) == len(set(ids))
+        and all(re.fullmatch(r"[0-9a-f]{64}", item) for item in ids),
+        "docker_container_inventory_invalid",
+    )
+    if not ids:
+        return []
+    raw = _run(["docker", "inspect", *ids], cwd=root, seconds=30)
+    try:
+        containers = json.loads(raw)
+    except (UnicodeError, ValueError):
+        raise Refused("docker_container_inventory_invalid") from None
+    require(
+        isinstance(containers, list)
+        and all(isinstance(item, dict) for item in containers)
+        and {item.get("Id") for item in containers} == set(ids),
+        "docker_container_inventory_invalid",
+    )
+    return [
+        item for item in containers
+        if (item.get("Config", {}).get("Labels") or {}).get("com.docker.compose.project")
+        in (CORE_PROJECT, OBS_PROJECT)
+        or _root_mount(item, root)
+    ]
+
+
 def _projects_empty(root):
-    for project in (CORE_PROJECT, OBS_PROJECT):
-        raw = _run(
-            ["docker", "ps", "-a", "--filter",
-             "label=com.docker.compose.project=" + project, "--format", "{{.ID}}"],
-            cwd=root, seconds=20,
-        )
-        require(not raw.strip(), "resident_project_already_occupied")
+    require(not _docker_occupants(root), "resident_deployment_root_occupied")
 
 
 def _exporter_ready(root, repository, output):
@@ -382,15 +513,13 @@ def _exporter_ready(root, repository, output):
         and not root.is_relative_to(output),
         "fresh_final_export_target_required",
     )
-    script = no_links(repository / "deploy" / "tianshu" / "resident_export.py")
-    require(script.is_file(), "resident_exporter_required")
-    kind = _run(
-        ["git", "-C", str(repository), "cat-file", "-t", FIXED_OBSERVABILITY],
-        cwd=root, seconds=20,
-    )
-    require(kind.strip() == b"commit", "fixed_observability_source_unavailable")
-    _run([sys.executable, "-B", str(script), "--help"], cwd=root, seconds=20)
-    return repository, output, script
+    for commit in (FIXED_A3_EXPORT, FIXED_OBSERVABILITY):
+        kind = _run(
+            ["git", "-C", str(repository), "cat-file", "-t", commit],
+            cwd=root, seconds=20, env=_fixed_git_env(),
+        )
+        require(kind.strip() == b"commit", "fixed_export_source_unavailable")
+    return repository, output
 
 
 def _provider(root, publication_path):
@@ -480,11 +609,11 @@ def _provider(root, publication_path):
     return publication
 
 
-def _run(command, *, cwd, input_bytes=None, seconds=90):
+def _run(command, *, cwd, input_bytes=None, seconds=90, env=None):
     try:
         result = subprocess.run(
             command, cwd=cwd, input=input_bytes, capture_output=True,
-            timeout=seconds, check=False,
+            timeout=seconds, check=False, env=env,
         )
     except (OSError, subprocess.TimeoutExpired):
         raise Refused("product_command_unavailable_or_timeout") from None
@@ -548,27 +677,35 @@ def _install_ref(root, receipt, origin):
 
 
 def _platform_only(root, stacks, *, expected_id=None):
-    running = {}
-    for project in (CORE_PROJECT, OBS_PROJECT):
-        raw = _run(
-            ["docker", "compose", "--project-directory", str(root), "-f",
-             str(stacks[project]), "ps", "--status", "running", "--services"],
-            cwd=root, seconds=20,
-        )
-        running[project] = sorted(raw.decode("utf-8").splitlines())
+    occupants = _docker_occupants(root)
+    require(len(occupants) == 1, "resident_start_stage_changed")
+    container = occupants[0]
+    labels = container.get("Config", {}).get("Labels") or {}
+    state = container.get("State", {})
+    container_id = container.get("Id")
+    service = read_json(stacks[CORE_PROJECT])["services"]["platform"]
+    expected_mounts = {
+        (volume["source"], volume["target"], volume.get("read_only") is not True)
+        for volume in service.get("volumes", [])
+    }
+    actual_mounts = {
+        (mount.get("Source"), mount.get("Destination"), mount.get("RW"))
+        for mount in container.get("Mounts", []) if mount.get("Type") == "bind"
+    }
     require(
-        running == {CORE_PROJECT: ["platform"], OBS_PROJECT: []},
-        "resident_start_stage_changed",
-    )
-    raw = _run(
-        ["docker", "compose", "--project-directory", str(root), "-f",
-         str(stacks[CORE_PROJECT]), "ps", "-q", "platform"],
-        cwd=root, seconds=20,
-    )
-    container_id = raw.decode("ascii").strip()
-    require(
-        re.fullmatch(r"[0-9a-f]{12,64}", container_id) is not None
-        and (expected_id is None or container_id == expected_id),
+        isinstance(container_id, str)
+        and re.fullmatch(r"[0-9a-f]{64}", container_id) is not None
+        and (expected_id is None or container_id == expected_id)
+        and labels.get("com.docker.compose.project") == CORE_PROJECT
+        and labels.get("com.docker.compose.service") == "platform"
+        and labels.get("com.docker.compose.project.working_dir") == str(root)
+        and labels.get("com.docker.compose.project.config_files")
+        == str(stacks[CORE_PROJECT])
+        and state.get("Running") is True
+        and state.get("Status") == "running"
+        and container.get("Config", {}).get("Image") == service["image"]
+        and container.get("HostConfig", {}).get("Privileged") is False
+        and actual_mounts == expected_mounts,
         "platform_container_identity_changed",
     )
     return container_id
@@ -607,11 +744,12 @@ def activate(bundle_root, *, export_lock_path, export_repository,
     publication = _provider(root, publication_path)
     gateway = read_json(root / "config" / "gateway" / "settings.json")
     origin = _gateway_origin_precheck(root, gateway)
-    _local_images_present(images, root)
-    _projects_empty(root)
-    repository, final_output, exporter = _exporter_ready(
+    repository, final_output = _exporter_ready(
         root, export_repository, final_export_output
     )
+    _trusted_first_export(root, export_lock_path, stacks, repository)
+    _local_images_present(images, root)
+    _projects_empty(root)
     compose = stacks[CORE_PROJECT]
     work = root / "reports" / "resident-install"
     work.mkdir(parents=True, mode=0o700)
@@ -621,6 +759,7 @@ def activate(bundle_root, *, export_lock_path, export_repository,
         "release_id": manifest["release_id"],
         "compose_sha256": digest(compose.read_bytes()),
         "export_compose_sha256": hashes,
+        "export_repository": str(repository),
         "provider": "configured" if publication else "not_configured",
     })
     base = ["docker", "compose", "--project-directory", str(root), "-f", str(compose)]
@@ -671,13 +810,10 @@ def activate(bundle_root, *, export_lock_path, export_repository,
             "new_export_lock_required": True,
             "release_ready": False,
         })
-        _step(
-            work, "final_export",
-            [sys.executable, "-B", str(exporter),
-             "--bundle", str(root), "--repository", str(repository),
-             "--deployment-root", str(root), "--output", str(final_output)],
-            cwd=root, seconds=120,
-        )
+        _write_private(work / "final_export-attempt.json", {
+            "stage": "final_export", "state": "started", "automatic_retry": False,
+        })
+        _trusted_export(root, repository, final_output)
         final = finalize(
             root, export_lock_path=final_output / "resident-export.lock.json"
         )
@@ -750,10 +886,15 @@ def reauthorize(bundle_root, *, first_export_lock_path, export_repository,
         ),
         "first_export_compose_changed",
     )
-    _platform_only(root, stacks, expected_id=initial.get("platform_container_id"))
-    repository, final_output, exporter = _exporter_ready(
+    repository, final_output = _exporter_ready(
         root, export_repository, final_export_output
     )
+    require(str(repository) == attempt.get("export_repository"),
+            "fixed_export_repository_changed")
+    _trusted_export_matches(
+        root, lock_path, stacks, repository, compare_lock=False,
+    )
+    _platform_only(root, stacks, expected_id=initial.get("platform_container_id"))
     _write_private(work / "reauthorization-attempt.json", {
         "state": "started", "automatic_retry": False,
         "old_expires_at": initial["expires_at"],
@@ -779,13 +920,11 @@ def reauthorize(bundle_root, *, first_export_lock_path, export_repository,
             "new_export_lock_required": True,
             "release_ready": False,
         })
-        _step(
-            work, "reauthorization-final-export",
-            [sys.executable, "-B", str(exporter),
-             "--bundle", str(root), "--repository", str(repository),
-             "--deployment-root", str(root), "--output", str(final_output)],
-            cwd=root, seconds=120,
-        )
+        _write_private(work / "reauthorization-final-export-attempt.json", {
+            "stage": "reauthorization-final-export", "state": "started",
+            "automatic_retry": False,
+        })
+        _trusted_export(root, repository, final_output)
         final = finalize(
             root, export_lock_path=final_output / "resident-export.lock.json"
         )
@@ -843,6 +982,10 @@ def finalize(bundle_root, *, export_lock_path):
     _current_ref(root, current.get("gateway_ref_sha256"))
     _, stacks, hashes = _export_lock(
         root, export_lock_path, manifest, read_json(prepared)
+    )
+    _trusted_export_matches(
+        root, export_lock_path, stacks, attempt.get("export_repository"),
+        compare_lock=True,
     )
     require(
         hashes == attempt["export_compose_sha256"],

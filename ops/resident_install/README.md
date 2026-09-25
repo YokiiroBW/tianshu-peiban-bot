@@ -53,12 +53,18 @@ is unavailable and the report says so; no placeholder provider is created.
    permission checker. Activation refuses mismatches; it never silently
    changes ownership.
 3. Copy the complete bundle and this first export to the declared empty Linux
-   deployment root. Confirm both fixed Compose projects have no containers.
+   deployment root. Product data/logs and OBS data must all be empty, and no
+   container may belong to either fixed Compose project or mount the deployment
+   root, including stopped containers from other projects.
    With stopped writers, use
    `python -m ops.resident_install.install activate --bundle-root BUNDLE
    --export-lock FIRST_EXPORT_LOCK --export-repository FIXED_ROOT_REPO
    --final-export-output NEW_EMPTY_OUTPUT`.
-   This validates the integrity-indexed `BUNDLE/compose.json`, then uses the
+   This validates the integrity-indexed `BUNDLE/compose.json` and recomputes
+   the complete first export using every required exporter module from fixed
+   A3 Git commit `8e381646cee06f37a61e80c16e9e2b50cd5984a9`.
+   It compares the lock and both Compose files byte-for-byte before any Docker
+   command, then uses the
    first exported core Compose with image pulls disabled: Compose config,
    Memory schema 1→2→3 public migrations with backups, Platform-only start
    and healthy wait, Platform read-only preflight, optional model config
@@ -67,11 +73,12 @@ is unavailable and the report says so; no placeholder provider is created.
    point only Platform runs; its mounted settings and exported service
    definition have not changed.
 4. Issuance makes the first export lock stale. `activate` immediately invokes
-   A3's public exporter from `FIXED_ROOT_REPO` into `NEW_EMPTY_OUTPUT`,
+   fixed A3 Git exporter from `FIXED_ROOT_REPO` into `NEW_EMPTY_OUTPUT`,
    then calls the same readback as `finalize`. Before any Docker effects it
-   checks that the exporter, fixed OBS Git object and empty output target are
-   available. The final lock must match the updated bundle; both Compose
-   files must be byte-identical to the first export, only Platform may run,
+   checks that the fixed A3 and OBS Git objects and empty output target are
+   available. The final lock is rederived from the updated bundle; both Compose
+   files must be byte-identical to the first export, only the same Platform
+   container with the expected project, image and bind mounts may exist,
    and at least 120 seconds of source lifetime must remain. If export or
    readback fails after issue, leave all other services stopped. An operator
    may diagnose the one attempt and explicitly run

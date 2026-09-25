@@ -15,7 +15,7 @@ def joint_child():
     sys.path.insert(0, str(a3 / "deploy" / "tianshu"))
     sys.path.insert(0, str(a3 / "tests" / "deployment" / "packaging"))
     import test_resident_export as a3_test
-    from manifest import digest, read_json, write_json
+    from manifest import Refused, digest, read_json, write_json
     from resident_export import export
 
     # Import A1 after A3's fixed adapter modules are loaded. The A1 wrapper
@@ -57,6 +57,20 @@ def joint_child():
         test.configure_observability()
         out = fixture.root / "joint-dockge-export"
         result = export(bundle, a3, "/volume1/tianshu-v2-resident", out)
+        install._clean_install(bundle)
+        for relative in (
+            "logs/platform/prior.jsonl", "observability/data/loki/old",
+        ):
+            stale = bundle / relative
+            stale.write_text("prior resident state", encoding="utf-8")
+            try:
+                install._clean_install(bundle)
+            except Refused as error:
+                assert str(error) == "nonempty_first_install_mutable_state_refused"
+            else:
+                raise AssertionError(relative + " was accepted")
+            stale.unlink()
+        install._clean_install(bundle)
         lock = read_json(out / "resident-export.lock.json")
         assert result["status"] == "resident_candidate"
         assert lock["manifest_sha256"] == digest(
@@ -85,6 +99,70 @@ def joint_child():
             assert lock["compose_sha256"][project] == digest(
                 (out / project / "compose.yaml").read_bytes()
             )
+        stacks = {
+            project: out / project / "compose.yaml" for project in lock["projects"]
+        }
+        lock_path = out / "resident-export.lock.json"
+        install._trusted_first_export(bundle, lock_path, stacks, a3)
+        original_lock = lock_path.read_bytes()
+        original_core = stacks[install.CORE_PROJECT].read_bytes()
+        original_obs = stacks[install.OBS_PROJECT].read_bytes()
+        mutations = {
+            "privileged": lambda service: service.update(privileged=True),
+            "host_bind": lambda service: service["volumes"].append({
+                "type": "bind", "source": "/", "target": "/host",
+                "read_only": False,
+            }),
+            "command": lambda service: service.update(command=["sh", "-c", "id"]),
+            "entrypoint": lambda service: service.update(entrypoint=["sh", "-c"]),
+            "env_file": lambda service: service.update(env_file=["/etc/shadow"]),
+        }
+        for name, mutate in mutations.items():
+            core = json.loads(original_core)
+            mutate(core["services"]["platform"])
+            write_json(stacks[install.CORE_PROJECT], core)
+            forged_lock = json.loads(original_lock)
+            forged_lock["compose_sha256"][install.CORE_PROJECT] = digest(
+                stacks[install.CORE_PROJECT].read_bytes()
+            )
+            write_json(lock_path, forged_lock)
+            # Every self-reported hash agrees, but the fixed exporter never
+            # produced this Compose. On Linux activate runs this gate before
+            # its first Docker call.
+            try:
+                install._trusted_first_export(bundle, lock_path, stacks, a3)
+            except Refused as error:
+                assert str(error) == "resident_export_not_trusted", name
+            else:
+                raise AssertionError(name + " was accepted")
+            stacks[install.CORE_PROJECT].write_bytes(original_core)
+            lock_path.write_bytes(original_lock)
+        obs = json.loads(original_obs)
+        obs["services"]["obs-vector"]["privileged"] = True
+        write_json(stacks[install.OBS_PROJECT], obs)
+        forged_lock = json.loads(original_lock)
+        forged_lock["compose_sha256"][install.OBS_PROJECT] = digest(
+            stacks[install.OBS_PROJECT].read_bytes()
+        )
+        write_json(lock_path, forged_lock)
+        try:
+            install._trusted_first_export(bundle, lock_path, stacks, a3)
+        except Refused as error:
+            assert str(error) == "resident_export_not_trusted"
+        else:
+            raise AssertionError("observability Compose mutation was accepted")
+        stacks[install.OBS_PROJECT].write_bytes(original_obs)
+        lock_path.write_bytes(original_lock)
+        forged_lock = json.loads(original_lock)
+        forged_lock["mounts"] = []
+        write_json(lock_path, forged_lock)
+        try:
+            install._trusted_first_export(bundle, lock_path, stacks, a3)
+        except Refused as error:
+            assert str(error) == "resident_export_not_trusted"
+        else:
+            raise AssertionError("lock execution metadata mutation was accepted")
+        lock_path.write_bytes(original_lock)
         # Use the installed fixed Platform public CLI against this bundle's own
         # new isolated DB, then prove A3 can export the changed private env
         # without changing either Compose service definition.
@@ -132,6 +210,11 @@ def joint_child():
         after = fixture.root / "joint-dockge-final"
         export(bundle, a3, "/volume1/tianshu-v2-resident", after)
         final_lock = read_json(after / "resident-export.lock.json")
+        install._trusted_export_matches(
+            bundle, after / "resident-export.lock.json",
+            {project: after / project / "compose.yaml" for project in lock["projects"]},
+            a3, compare_lock=True,
+        )
         assert final_lock["bundle_integrity_sha256"] != lock["bundle_integrity_sha256"]
         assert final_lock["compose_sha256"] == lock["compose_sha256"]
         print(json.dumps({
@@ -156,7 +239,7 @@ class JointA3Tests(unittest.TestCase):
     def test_a1_prepare_to_a3_actual_export(self):
         child = subprocess.run(
             [sys.executable, "-B", str(Path(__file__).resolve()), "--joint-child"],
-            env=os.environ.copy(), capture_output=True, timeout=120,
+            env=os.environ.copy(), capture_output=True, timeout=300,
         )
         self.assertEqual(
             child.returncode, 0,

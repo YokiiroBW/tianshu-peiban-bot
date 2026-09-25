@@ -6,6 +6,7 @@ import subprocess
 import sys
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXED_CONTRACTS = os.environ.get("TS_FIXED_CONTRACTS")
@@ -67,6 +68,80 @@ class ResidentInstallTests(unittest.TestCase):
             install._repo_digest(pinned),
             "registry.example:5000/tianshu/platform@sha256:" + "a" * 64,
         )
+
+    def test_docker_occupancy_checks_stopped_and_other_project_bind(self):
+        root = Path("/volume1/tianshu-v2-resident").resolve()
+        platform_id = "a" * 64
+        other_id = "b" * 64
+        core = self.fixture.root / "core-compose.json"
+        obs = self.fixture.root / "obs-compose.json"
+        pinned = "example/platform@sha256:" + "c" * 64
+        mount = {"type": "bind", "source": "/volume1/tianshu-v2-resident/data/platform",
+                 "target": "/srv/tianshu", "read_only": False}
+        write_json(core, {"services": {"platform": {"image": pinned,
+                                                     "volumes": [mount]}}})
+        write_json(obs, {})
+        platform = {
+            "Id": platform_id,
+            "Config": {"Image": pinned, "Labels": {
+                "com.docker.compose.project": install.CORE_PROJECT,
+                "com.docker.compose.service": "platform",
+                "com.docker.compose.project.working_dir": str(root),
+                "com.docker.compose.project.config_files": str(core),
+            }},
+            "State": {"Running": True, "Status": "running"},
+            "HostConfig": {"Privileged": False},
+            "Mounts": [{"Type": "bind", "Source": mount["source"],
+                        "Destination": mount["target"], "RW": True}],
+        }
+        unrelated = {
+            "Id": other_id, "Config": {"Labels": {
+                "com.docker.compose.project": "unrelated"}},
+            "State": {"Running": False, "Status": "exited"},
+            "HostConfig": {}, "Mounts": [],
+        }
+        visible = [platform, unrelated]
+
+        def fake_run(command, **_kwargs):
+            if command[:2] == ["docker", "ps"]:
+                return ("".join(item["Id"] + "\n" for item in visible)).encode()
+            if command[:2] == ["docker", "inspect"]:
+                return json.dumps(visible).encode()
+            raise AssertionError(command)
+
+        with mock.patch.object(install, "_run", side_effect=fake_run):
+            self.assertEqual(
+                install._platform_only(root, {
+                    install.CORE_PROJECT: core, install.OBS_PROJECT: obs,
+                }, expected_id=platform_id), platform_id,
+            )
+            visible[:] = [unrelated]
+            unrelated["Config"]["Labels"] = None
+            install._projects_empty(root)
+            unrelated["HostConfig"]["Binds"] = [
+                "/volume1/tianshu-v2-resident/logs/platform:/host-logs:ro"
+            ]
+            with self.assertRaisesRegex(Refused, "resident_deployment_root_occupied"):
+                install._projects_empty(root)
+            visible[:] = [platform, unrelated]
+            with self.assertRaisesRegex(Refused, "resident_start_stage_changed"):
+                install._platform_only(root, {
+                    install.CORE_PROJECT: core, install.OBS_PROJECT: obs,
+                }, expected_id=platform_id)
+            visible[:] = [platform]
+            with self.assertRaisesRegex(Refused, "resident_deployment_root_occupied"):
+                install._projects_empty(root)
+            platform["Mounts"][0]["RW"] = False
+            with self.assertRaisesRegex(Refused, "platform_container_identity_changed"):
+                install._platform_only(root, {
+                    install.CORE_PROJECT: core, install.OBS_PROJECT: obs,
+                }, expected_id=platform_id)
+            platform["Mounts"][0]["RW"] = True
+            platform["State"] = {"Running": False, "Status": "exited"}
+            with self.assertRaisesRegex(Refused, "platform_container_identity_changed"):
+                install._platform_only(root, {
+                    install.CORE_PROJECT: core, install.OBS_PROJECT: obs,
+                }, expected_id=platform_id)
 
     def test_export_lock_refuses_unpinned_image_before_docker(self):
         root = self.bundle()
@@ -148,7 +223,8 @@ class ResidentInstallTests(unittest.TestCase):
         self.assertEqual(platform["providers"], {})
         self.assertFalse(platform["web"]["dialogue_enabled"])
         self.assertIsNone(install._provider(root, None))
-        install._clean_install(root)
+        with self.assertRaisesRegex(Refused, "first_install_mutable_layout_changed"):
+            install._clean_install(root)
 
         memory = read_json(root / "config/memory/settings.json")
         memory["database_path"] = str(root / "data/memory/memory.sqlite")
@@ -223,7 +299,7 @@ class ResidentInstallTests(unittest.TestCase):
             root, digest(receipt["assertion_ref"].encode())
         )
         self.assertEqual(current, receipt["assertion_ref"])
-        with self.assertRaisesRegex(Refused, "nonempty_product_data_refused"):
+        with self.assertRaisesRegex(Refused, "nonempty_first_install_mutable_state_refused"):
             install._clean_install(root)
         with self.assertRaisesRegex(Refused, "gateway_origin_already_issued"):
             install._gateway_origin_precheck(
