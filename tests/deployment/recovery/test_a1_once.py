@@ -307,6 +307,19 @@ class Fixture(unittest.TestCase):
         self.assertEqual(seen, ["seal", "linux-rehearse"])
         self.assertEqual(result["source_stop_status"], "stop_unconfirmed")
 
+    def test_source_stop_start_failure_is_persisted(self):
+        calls = []
+        def runner(argv, timeout):
+            calls.append(argv)
+            return (2, {"status": "rejected"}) if len(calls) == 1 else (
+                2, {"status": "child_start_failed"})
+        result = a1_once.drive(self.config, runner=runner)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(result["source_stop_status"], "stop_unconfirmed")
+        receipt = json.loads((self.private /
+            "receipts/seal-failure-source-stop.json").read_text())
+        self.assertEqual(receipt["status"], "stop_unconfirmed")
+
     def test_phase_failure_does_not_advance(self):
         seen, runner = self._runner(fail="host-preflight")
         result = a1_once.drive(self.config, runner=runner)
@@ -448,6 +461,66 @@ class Fixture(unittest.TestCase):
         self.assertEqual(child.signals, [a1_once.signal.SIGTERM])
         self.assertEqual(result["_stream_sha256"]["stdout"],
                          a1_once._sha(b'{"status":"stopped"}\n'))
+
+    def test_child_start_and_communication_oserror_are_structured(self):
+        with patch("ops.recovery.a1_once.subprocess.Popen", side_effect=OSError()):
+            self.assertEqual(a1_once._json_child([str(self.python)], 1)[1]["status"],
+                             "child_start_failed")
+        class Child:
+            def __init__(self, exited):
+                self.exited = exited
+                self.signals = []
+            def communicate(self, timeout):
+                raise OSError("fixture pipe error")
+            def poll(self):
+                return 2 if self.exited else None
+            def send_signal(self, value):
+                self.signals.append(value)
+            def wait(self, timeout):
+                raise subprocess.TimeoutExpired("fixture", timeout)
+        for exited, expected in ((True, "child_terminated_after_io_error"),
+                                 (False, "stop_unconfirmed")):
+            child = Child(exited)
+            with patch("ops.recovery.a1_once.subprocess.Popen", return_value=child):
+                code, result = a1_once._json_child([str(self.python)], 1)
+            self.assertEqual(code, 125)
+            self.assertEqual(result["status"], expected)
+            self.assertEqual(child.signals, [] if exited else [a1_once.signal.SIGTERM])
+
+    def _oserror_state(self, child_status, source_status, expected_calls):
+        calls = []
+        def runner(argv, timeout):
+            calls.append(argv)
+            if len(calls) == 1:
+                return 125, {"status": child_status}
+            return 0, {"status": "disabled_restore_complete",
+                       "runtime_owners_stopped": 9}
+        result = a1_once.drive(self.config, runner=runner)
+        self.assertEqual(result["source_stop_status"], source_status)
+        self.assertEqual(len(calls), expected_calls)
+        self.assertFalse((self.private / "permit").exists())
+        self.assertTrue((self.private / "receipts/01-seal.json").exists())
+
+    def test_popen_failure_does_not_start_source_stop_or_permit(self):
+        self._oserror_state("child_start_failed", "source_active_child_not_started", 1)
+
+    def test_communication_failure_live_child_does_not_start_second_writer(self):
+        self._oserror_state("stop_unconfirmed", "stop_unconfirmed", 1)
+
+    def test_receipt_write_failure_cannot_start_second_writer(self):
+        calls = []
+        def runner(argv, timeout):
+            calls.append(argv)
+            return 125, {"status": "stop_unconfirmed"}
+        with patch("ops.recovery.a1_once._write_once", side_effect=OSError()):
+            result = a1_once.drive(self.config, runner=runner)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(result["source_stop_status"], "stop_unconfirmed")
+        self.assertEqual(result["phase_status"], "receipt_storage_failed")
+
+    def test_communication_failure_exited_child_runs_source_stop(self):
+        self._oserror_state("child_terminated_after_io_error",
+                            "disabled_restore_complete", 2)
 
 
 if __name__ == "__main__":

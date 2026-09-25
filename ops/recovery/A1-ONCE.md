@@ -8,15 +8,35 @@ refuses an existing receipt directory, restored target, clone target, or permit.
 
 ## Preparation boundary
 
-A separate preparation step must create a **new** registered A1 source with
-synthetic semantic receipts and a placeholder clone input package before
-short-lived origins are issued. This coordinator does not create that source,
-initialize credentials/TLS, or infer expected assertions from a previous scope.
-The old `a1_r2h_*` scripts have hardcoded r2h paths and must not be reused.
-The operator must independently verify four healthy core owners, five running
-observability owners, two unknown turns, revocations, forgetting, and four
-Gateway usage attempts. These prerequisites are not established by the
-driver's offline fixture.
+`python -B -m ops.recovery.a1_prepare --config ABSOLUTE_PREPARATION_JSON`
+checks a private `a1-preparation/1` plan without writing. `--execute` creates
+only the specified fresh scope, deriving its candidate manifest by changing
+the pinned original's `web_text_dialogue.enabled` from true to false. It
+initializes the source bundle, fresh TLS and credentials, observability, and
+nine explicitly fictional product input files. Its config binds a per-file
+`ops`/`deploy` code lock, original manifest, resource profile, observability
+repository, Gateway import trees, source/clone project names, twelve distinct
+`/28` networks in the assigned pool, and twelve loopback ports. The config
+lives at `scope_parent/preparations/scope_name.json`; its lock is the adjacent
+`scope_name.code-lock.json`. Values must be explicitly supplied. There is no
+default allocation. A partial failure leaves the scope for inspection and
+cannot be retried into that scope.
+
+The source must then be exercised and registered through the public product
+and recovery CLIs. Independent checks must establish four healthy core owners,
+five running observability owners, two closed unknown turns, forgetting,
+revocations, and four Gateway usage attempts. Static preparation alone does
+not establish these facts.
+
+`python -B -m ops.recovery.a1_clone_prepare --config ABSOLUTE_PREPARATION_JSON`
+checks a read-only clone plan after source registration. `--execute` verifies
+the source semantic receipts, two Companion route IDs, Gateway usage CLI
+report, model template, and registered source. It creates a separate clone
+input package with fresh TLS and mapped credentials, six fixed assertions,
+private Gateway probe, the code lock, and `inputs/a1-once.json`. It does not
+create or run the clone. Partial output is one-way and requires a fresh scope
+to try again. The old `a1_r2h_*` helpers contain fixed r2h paths and must not
+be reused.
 
 The `a1-once/1` JSON config contains exactly these fields:
 
@@ -74,9 +94,10 @@ validation state, and raw stdout/stderr SHA. Up to 1 MiB per raw stream is
 kept mode 0600; oversized output is marked truncated and fails the phase.
 Public output contains only stage/status summaries.
 
-The offline fixture exercises the real coordinator, static binding, seal and
-permit parameter generation, preflight logic, command construction, and phase
-state machine with injected product/Docker adapters. It cannot demonstrate
-live nine-owner shutdown, NAS routing/resource state, or six HTTPS assertions.
-Those remain admission requirements of the real public CLIs. No fresh scope,
-permit, or container is created by the fixture.
+The offline fixture exercises static source creation, real bundle
+initialization with local fixed contract bytes when available, synthetic input
+generation, clone placeholder creation, static binding, and the real driver
+control flow with injected product/Docker adapters. It cannot demonstrate
+live source semantics, nine-owner shutdown, NAS routing/resource state, or six
+HTTPS assertions. Those remain admission requirements of the real public CLIs.
+The fixture creates no NAS scope, permit, or container.

@@ -242,7 +242,7 @@ def _update_env(raw, values):
     return ("\n".join(retained) + "\n").encode()
 
 
-def prepare_synthetic(root):
+def prepare_synthetic(root, *, api_ports=None, tooling_root=None):
     """Prepare only this new A1 source package for explicitly fictional dialogue."""
     root = Path(root).resolve(strict=True)
     verify_integrity, compose_document, _, read_json = _imports(root)
@@ -285,7 +285,9 @@ def prepare_synthetic(root):
     # DEP-G owns synthetic model settings and its secret; no real provider is used.
     import sys
 
-    sys.path.insert(0, str(root / "tooling/deploy/tianshu"))
+    if tooling_root is None:
+        tooling_root = root / "tooling"
+    sys.path.insert(0, str(Path(tooling_root) / "deploy/tianshu"))
     from linux_bootstrap import prepare
 
     publication, _ = prepare(root, True)
@@ -350,11 +352,14 @@ def prepare_synthetic(root):
     companion_env_raw = _update_env(
         companion_env.read_bytes(), {"TS_A1_SINK_TOKEN": sink_token}
     )
-    site["a1_loopback_api_ports"] = {
-        "companion": 19512,
-        "memory": 19513,
-        "gateway": 19514,
-    }
+    if api_ports is None:
+        api_ports = {"companion": 19512, "memory": 19513, "gateway": 19514}
+    if (set(api_ports) != {"companion", "memory", "gateway"}
+            or any(type(port) is not int or not 1024 <= port <= 65535
+                   for port in api_ports.values())
+            or len(set(api_ports.values())) != 3):
+        raise ValueError("a1_loopback_api_ports_invalid")
+    site["a1_loopback_api_ports"] = api_ports
     compose = compose_document(manifest, site)
     _update_bundle(
         root,

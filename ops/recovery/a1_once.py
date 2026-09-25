@@ -455,15 +455,34 @@ def _json_child(argv, timeout, *, runner=None, cwd=None):
         return 2, {"status": "child_start_failed"}
     try:
         out, err = proc.communicate(timeout=timeout)
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as expired:
         # Only the recovery CLI receives cancellation. Its own Docker children
         # must remain available for its bounded normal shutdown path.
-        proc.send_signal(signal.SIGTERM)
+        try:
+            proc.send_signal(signal.SIGTERM)
+        except OSError:
+            pass
         try:
             out, err = proc.communicate(timeout=90)
         except subprocess.TimeoutExpired:
-            return 124, {"status": "stop_unconfirmed"}
+            return 124, _with_streams({"status": "stop_unconfirmed"},
+                expired.stdout or b"", expired.stderr or b"")
+        except OSError:
+            if _child_exited(proc):
+                return 124, _with_streams({"status": "child_terminated_after_timeout"},
+                    expired.stdout or b"", expired.stderr or b"")
+            return 124, _with_streams({"status": "stop_unconfirmed"},
+                expired.stdout or b"", expired.stderr or b"")
         return 124, _with_streams({"status": "child_terminated_after_timeout"}, out, err)
+    except OSError:
+        if _child_exited(proc):
+            return 125, {"status": "child_terminated_after_io_error"}
+        try:
+            proc.send_signal(signal.SIGTERM)
+        except OSError:
+            pass
+        return 125, {"status": "child_terminated_after_io_error"
+                     if _child_exited(proc, wait=True) else "stop_unconfirmed"}
     if max(len(_raw_bytes(out)), len(_raw_bytes(err))) > STREAM_LIMIT:
         return proc.returncode, _with_streams({"status": "child_output_too_large"}, out, err)
     try:
@@ -476,6 +495,18 @@ def _json_child(argv, timeout, *, runner=None, cwd=None):
 
 def _raw_bytes(value):
     return value.encode("utf-8") if type(value) is str else value
+
+
+def _child_exited(proc, *, wait=False):
+    try:
+        if proc.poll() is not None:
+            return True
+        if wait:
+            proc.wait(timeout=90)
+            return True
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    return False
 
 
 def _with_streams(result, stdout, stderr):
@@ -552,13 +583,18 @@ def drive(c, *, runner=None, clock=None):
         code, result = _json_child(argv, TIMEOUTS[stage], runner=runner,
                                    cwd=c["code_root"])
         end_utc, end_mono = clock()
+        child_status = result.get("status") if type(result) is dict else None
         streams = result.pop("_stream_sha256", None) if type(result) is dict else None
         raw = result.pop("_stream_raw", None) if type(result) is dict else None
         truncated = result.pop("_stream_truncated", None) if type(result) is dict else None
+        receipt_storage_failed = False
         if raw is not None:
             for kind in ("stdout", "stderr"):
-                _write_raw_once(receipt_dir / f"{len(completed) + 1:02d}-{stage}.{kind}",
-                                raw[kind])
+                try:
+                    _write_raw_once(receipt_dir / f"{len(completed) + 1:02d}-{stage}.{kind}",
+                                    raw[kind])
+                except OSError:
+                    receipt_storage_failed = True
         validated = False
         try:
             require(type(result) is dict, "a1_child_receipt_invalid")
@@ -573,6 +609,9 @@ def drive(c, *, runner=None, clock=None):
                 validated = True
         except (RecoveryError, OSError, ValueError, TypeError, KeyError):
             result = {"status": "invalid_child_receipt"}
+        if receipt_storage_failed:
+            validated = False
+            result = {"status": "receipt_storage_failed"}
         receipt = {"stage": stage, "utc_started": start_utc, "utc_finished": end_utc,
                    "monotonic_started_ns": start_mono, "monotonic_finished_ns": end_mono,
                    "monotonic_elapsed_ns": end_mono - start_mono,
@@ -580,10 +619,15 @@ def drive(c, *, runner=None, clock=None):
                    "result_sha256": _sha(canonical(result)), "status": result.get("status"),
                    "stream_sha256": streams, "stream_truncated": truncated,
                    "validated": validated}
-        _write_once(receipt_dir / f"{len(completed) + 1:02d}-{stage}.json", receipt)
+        try:
+            _write_once(receipt_dir / f"{len(completed) + 1:02d}-{stage}.json", receipt)
+        except OSError:
+            validated = False
+            result = {"status": "receipt_storage_failed"}
         if code != 0 or not validated:
             source_stop_status = None
-            if stage == "seal" and result.get("status") != "stop_unconfirmed":
+            if stage == "seal" and child_status not in {
+                "stop_unconfirmed", "child_start_failed"}:
                 cleanup_argv = command(c, "linux-rehearse")
                 cleanup_code, cleanup_result = _json_child(cleanup_argv,
                     TIMEOUTS["linux-rehearse"], runner=runner, cwd=c["code_root"])
@@ -592,23 +636,34 @@ def drive(c, *, runner=None, clock=None):
                 cleanup_truncated = cleanup_result.pop("_stream_truncated", None)
                 if cleanup_raw is not None:
                     for kind in ("stdout", "stderr"):
-                        _write_raw_once(receipt_dir / f"seal-failure-source-stop.{kind}",
-                                        cleanup_raw[kind])
+                        try:
+                            _write_raw_once(receipt_dir / f"seal-failure-source-stop.{kind}",
+                                            cleanup_raw[kind])
+                        except OSError:
+                            pass
                 source_stop_status = ("disabled_restore_complete"
                     if cleanup_code == 0 and cleanup_result.get("status") ==
                        "disabled_restore_complete" and
                        cleanup_result.get("runtime_owners_stopped") == 9
                     else "stop_unconfirmed")
-                _write_once(receipt_dir / "seal-failure-source-stop.json",
-                            {"status": source_stop_status,
-                             "exit_code": cleanup_code,
-                             "stream_sha256": cleanup_streams,
-                             "stream_truncated": cleanup_truncated,
-                             "command_sha256": _sha(canonical(cleanup_argv))})
+                try:
+                    _write_once(receipt_dir / "seal-failure-source-stop.json",
+                                {"status": source_stop_status,
+                                 "exit_code": cleanup_code,
+                                 "stream_sha256": cleanup_streams,
+                                 "stream_truncated": cleanup_truncated,
+                                 "command_sha256": _sha(canonical(cleanup_argv))})
+                except OSError:
+                    pass
             return {"status": "stopped", "failed_stage": stage,
-                    "child_status": result.get("status"),
+                    "child_status": child_status,
+                    "phase_status": result.get("status"),
                     "source_stop_status": source_stop_status or
-                                          ("stop_unconfirmed" if stage == "seal" else None),
+                                          ("source_active_child_not_started"
+                                           if stage == "seal" and
+                                              child_status == "child_start_failed"
+                                           else "stop_unconfirmed" if stage == "seal"
+                                           else None),
                     "completed": completed}
         completed.append(stage)
         if stage == "linux-rehearse":

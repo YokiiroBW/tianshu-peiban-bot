@@ -1,5 +1,11 @@
 # NAS-A1 下一轮单次驱动与预演方案（仅架构）
 
+> 后续进展（2026-09-25）：`ops/recovery/a1_prepare.py`、
+> `a1_clone_prepare.py` 与 `a1_once.py` 已实现静态 source 准备、克隆占位
+> 输入及单次短时驱动，操作边界见 [`A1-ONCE.md`](../../ops/recovery/A1-ONCE.md)。
+> 以下方案保留当时预算与 r2h 证据；“仍需实现助手链”等表述为原始规划，
+> 当前剩余实证是新 scope 的真实产品语义、九 owner、NAS 资源与六项 HTTPS。
+
 ## 适用范围与结论
 
 本方案基于固定恢复工具提交 `07dfbb81bffd814834f169b6b7d061b9c7308512`、[r2h 原始证据索引](NAS-A1-r2h-evidence.json)和 2026-09-25 的一次 NAS 执行。它只定义后续**新 scope**的顺序、边界和验收资料；没有再次操作 NAS、改变产品/恢复代码、降低 180 秒闸门或许可重放。
