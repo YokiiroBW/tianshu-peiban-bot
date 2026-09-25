@@ -105,6 +105,26 @@ class ProfileTests(unittest.TestCase):
 
 
 class ProfilePackagingTests(unittest.TestCase):
+    def test_general_project_names_keep_original_boundary(self):
+        from configuration import load_inputs
+
+        f = self.fixture
+        template_name = read_json(
+            packaging.PACKAGE / "templates/deployment-input.example.json"
+        )["project_name"]
+        for name in (template_name, "tianshu-family-prod", "tianshu-" + "a" * 40):
+            with self.subTest(name=name):
+                write_json(f.sitepath, {**f.site, "project_name": name})
+                self.assertEqual(load_inputs(f.sitepath)["project_name"], name)
+        for name in ("tianshu-control-hub", "tianshu-observability"):
+            with self.subTest(name=name):
+                write_json(f.sitepath, {**f.site, "project_name": name})
+                with self.assertRaisesRegex(Refused, "reserved_project"):
+                    load_inputs(f.sitepath)
+        write_json(f.sitepath, {**f.site, "project_name": "tianshu-" + "a" * 41})
+        with self.assertRaisesRegex(Refused, "dedicated_project_required"):
+            load_inputs(f.sitepath)
+
     def test_a3_acceptance_namespace_is_valid_but_production_name_is_not(self):
         f = self.fixture
         f.site["project_name"] = "tianshu-accept-a3-resident"
@@ -120,6 +140,8 @@ class ProfilePackagingTests(unittest.TestCase):
             read_json(f.output / "compose.json")["name"],
             "tianshu-accept-a3-resident",
         )
+        with self.assertRaisesRegex(Refused, "nas_qa_profile_not_release_approved"):
+            preflight(f.output, release=True)
 
     def test_public_http_binds_web_only_and_is_recorded(self):
         f = self.fixture
@@ -198,6 +220,18 @@ class ProfilePackagingTests(unittest.TestCase):
             with self.subTest(key=key), self.assertRaises(Refused):
                 f.init()
             self.assertFalse(f.output.exists())
+
+    def test_nas_profile_refuses_non_qa_a3_project_at_input_gate(self):
+        from configuration import load_inputs
+
+        f = self.fixture
+        write_json(f.sitepath, {
+            **f.site,
+            "project_name": "tianshu-isolated-candidate",
+            "resource_profile": PROFILE,
+        })
+        with self.assertRaisesRegex(Refused, "nas_profile_synthetic_only"):
+            load_inputs(f.sitepath)
 
     def test_lan_qa_requires_separate_profile_and_matching_private_ip_origin(self):
         from configuration import load_inputs

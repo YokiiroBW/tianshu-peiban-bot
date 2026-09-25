@@ -26,6 +26,7 @@
 - NAS 实际执行的一次性操作器、后续请求探针、证明解析器和阶段预算已按字节摘要归档在[dialogue5 验收目录](../../deploy/tianshu/acceptance/nas-a3-dialogue5/README.md)。证据 JSON 将每个源码 pin 和归档摘要关联至唯一镜像标签、构建结果、镜像 ID 和最终容器 ID。严格证明解析是该一次性操作器中的同进程 hook，并非默认 Runner 能力。
 - 本次旧 Gateway 的自然过期归因依据停机时长、exit 1 与非 OOM 状态，没有专用过期错误码；周期报告可核验通过，但最外层操作器退出码未另存。失败清理在 Docker inspect 不可用时只能尽力而为；镜像链无签名 OCI provenance。上述边界不改变 `release_ready=false`。
 - 归档基线为 `ddaced278211c9b7c2beccc290ac9fbd5be38e69`，归档版本即本交接所在提交。本地重算四份归档文件 SHA-256 与当轮记录一致；冻结源清单摘要一致，四条源码到最终容器的关联逐项核对通过，证明解析器定向测试 3/3 通过，JSON 解析与 diff 检查通过，凭据特征扫描未发现匹配。原始 bundle 归档不在当前本地，仅保留当轮记录的 SHA-256；本次未重跑 NAS。
+- 归档后的协调 diff 审查发现通用 `project_name` 正则误限为 QA/A3，导致无 NAS profile 的仓库示例名称被拒。以 `e56eccc7681783195d5fdbb50e82957a181f1778` 为基线恢复原通用正则及长度边界；NAS profile 的 QA/A3 前缀门禁、保留名拒绝和 release 拒绝保持独立。四项定向回归通过，覆盖原模板、自定义名称、保留名、长度边界、非 QA/A3 profile 拒绝、A3 接受及 A3 release 拒绝；未触碰一次性验收归档文件，也未重跑 NAS。
 
 ## dialogue1–dialogue4 保留的失败 scope
 

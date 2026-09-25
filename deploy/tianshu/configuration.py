@@ -89,12 +89,7 @@ def load_inputs(path):
             "nas_profile_test_tls_only",
         )
     require(
-        bool(
-            re.fullmatch(
-                r"tianshu-(?:qa|accept-a3)-[a-z0-9-]{3,40}",
-                site["project_name"],
-            )
-        ),
+        bool(re.fullmatch(r"tianshu-[a-z0-9-]{3,40}", site["project_name"])),
         "dedicated_project_required",
     )
     require(
