@@ -1,0 +1,112 @@
+{
+  "task": "NAS-A1",
+  "attempt": "r2k",
+  "date": "2026-09-26",
+  "result": "isolated_synthetic_nas_recovery_passed_independent_review",
+  "independent_runtime_review": {
+    "status": "pass_with_isolated_synthetic_scope_limit",
+    "commit": "ef9acc9",
+    "document": "docs/handoffs/NAS-A1-R2K-RUNTIME-INDEPENDENT-REVIEW.md"
+  },
+  "scope": {
+    "parent": "/volume2/tianshu-v2-validation-wave1/accept-20260926-a1-r2k",
+    "name": "scope-a1-r2k",
+    "scope_id": "36617739-0fc6-498b-9752-872a6c788742",
+    "execution_id": "01c71acd-6dc5-48a4-83dc-182ab766f20f",
+    "attempt_id": "77399777-7524-45d1-ace3-7a10d108934d"
+  },
+  "fixed_inputs": {
+    "code_commit": "195b7a5fa838b4e294205eb33421c0a82aec2053",
+    "code_tree_sha256": "8cf502d880084cba2b605b2769f58bd17b861100834196674c3563a656f26198",
+    "code_tar_sha256": "3e5a9e94c449333d32245beb2bc1834a1a52329b3b4f93e4c039132af3045039",
+    "code_lock_sha256": "1165f611bc535f236c5de3bc6eef025a5fedd5cb40e6d6eaf6da60fe108e3115",
+    "allocation_sha256": "1fc828704d3099f16d5ed2fec7b0af4955f600c9fc9ee1cad80e7a3c33f40293",
+    "preparation_config_sha256": "0aafd6aa48dbfb5d1f1da097a58e00443c6e6d19d704c4d243cbe2b457ab8ce4",
+    "gateway_runtime_lock_sha256": "20321ac2bbb40bd801ccbb5804c415af8144b226b3469516f8ffe92317f06280",
+    "offline_wheel_count": 17,
+    "offline_wheel_lock_sha256": "a08fa366b68fa56ee1e6820237ca012b7557435e02b3fcdd23230cd86b4a7932",
+    "offline_wheel_tar_sha256": "4d2600235ab0409c36b406e76969adc3ba6ad16a87609c590effc82604777302"
+  },
+  "live_preflight": {
+    "result": "passed",
+    "checked_at_utc": "2026-09-25T20:21:14.705434+00:00",
+    "docker_network_count_before_creation": 182,
+    "ipv4_route_count": 746,
+    "candidate_route_ipam_port_project_conflicts": 0,
+    "memory_available_gib": 17.88,
+    "base_python": "CPython 3.12.14 Linux x86_64",
+    "gateway_source_files": 17,
+    "gateway_source_tree_sha256": "39355bc3de216f18c37ee8d2f9f70673ae5aeb2eeaee8b8beacff314e7915755"
+  },
+  "source": {
+    "status": "source_complete",
+    "source_registration_sha256": "8cf4019f3eb2346e9733c3b97372a7a7714708b14095a9ca612180a947d08ac6",
+    "same_runtime_gateway_cli_preflight": "passed_on_temporary_synthetic_ledger",
+    "original_gateway_ledger_untouched_in_preflight": true
+  },
+  "clone_inputs": {
+    "status": "clone_placeholders_prepared",
+    "assertions": 6,
+    "files": 184,
+    "driver_config_sha256": "07501cd1fbc7010e58b5d3952298c5c5909d16d9334d7fcc9fcf9150f80c5a9d",
+    "initial_inputs_sha256": "ed240ae6ab12f249d1adfda1840cdcdbd8f06b7a1c163ae1ffa0278dc65eb699"
+  },
+  "once_driver": {
+    "status": "completed",
+    "execute_calls": 1,
+    "stages": ["seal", "linux-rehearse", "host-preflight", "permit", "drill-plan", "drill-execute"],
+    "all_stage_receipts": "exit_0_validated_true_child_exited_true",
+    "source_owners_stopped": 9,
+    "origin_remaining_at_permit_seconds": 208,
+    "earliest_origin_expiry_utc": "2026-09-25T20:33:37.617243Z",
+    "drill_finished_utc": "2026-09-25T20:32:32Z",
+    "earliest_origin_remaining_at_finish_seconds": 65.36,
+    "drill_status": "drill_passed",
+    "drill_result_sha256": "98b8956c917fb279a74638207fa89883e9b919b901a29e6f88f0ac1e1b0fb904",
+    "functional_assertions": {
+      "data_readback": "passed",
+      "forgotten": "passed",
+      "source_revoked": "passed",
+      "model_revoked": "passed",
+      "unknown_no_resend": "passed",
+      "gateway_usage_readback": "passed"
+    },
+    "functional_request_transport": "all_six_https_five_post_one_get_expected_200_or_410",
+    "all_nine_simultaneous": true,
+    "unknown_window_seconds": 10,
+    "unknown_observed_seconds": 12.765,
+    "unknown_turns": 2,
+    "unknown_reply_records": 2,
+    "api_reply_snapshot_unchanged": true,
+    "gateway_counters_unchanged_by_correlation": true,
+    "missing_semantics": [],
+    "missing_products": [],
+    "activation": "disabled"
+  },
+  "final_state": {
+    "source_project_containers": 9,
+    "clone_project_containers": 9,
+    "source_and_clone_running_containers": 0,
+    "all_eighteen_containers": "exited_0",
+    "container_cpuset": "6,7",
+    "source_memory_limit_gib": 7.5,
+    "clone_memory_limit_gib": 7.5,
+    "cpu_quota": "not_configured",
+    "pid_limit": "unsupported",
+    "allocated_networks": "twelve_exact_10.205.51.0/24_slash_28_subnets_no_aggregate_block_network",
+    "historical_r2j_gateway_companion_data_directories": "five_entries_byte_sha_inode_mtime_size_equal_to_prior_baseline",
+    "historical_r2j_data_baseline_sha256": "cb9c5f11bfeeabc8627e9d80a894c2453f59fb62f04c3c1845c4c83b4acd2ddc"
+  },
+  "private_local_receipts": {
+    "root": ".runtime/nas-a1-r2k-v2",
+    "static_plan_sha256": "1b0d1846f7090c289dfd2ce763eb8a05b8a55a059a14cd8e6ceec83dbc0b817c",
+    "a1_once_execute_sha256": "e698da938af603af2f81d13867c339461260208dea1f716390482d5e5022f658",
+    "final_readonly_sha256": "38690de5c1d52d19f24f110df5921d94b8d9cddffd6f5650639ef499db7ac70c",
+    "old_source_invariance_sha256": "e4067d792f42501b526786508940ccc191e77a7b90feb0a4a7b02b6082cc31a4"
+  },
+  "limits": [
+    "Acceptance covers this synthetic NAS recovery attempt and the listed before/after checks, not all NAS data.",
+    "A4 independently reviewed the actual NAS stage receipts, HTTPS inputs, origin timing, resources, and historical data comparison.",
+    "Production resident deployment and coordinator integration remain separate."
+  ]
+}
