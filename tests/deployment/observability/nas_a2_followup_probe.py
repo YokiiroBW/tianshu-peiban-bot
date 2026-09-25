@@ -207,9 +207,7 @@ def _write_loki_config(path: Path, *, query_store_only: bool) -> bytes:
     }
     config["query_range"] = {"cache_results": False}
     data = (json.dumps(config, sort_keys=True, indent=2) + "\n").encode()
-    base._scope_path(path)
-    path.write_bytes(data)
-    os.chmod(path, 0o644)
+    base._scope_write_bound_file(path, data)
     return data
 
 
@@ -276,6 +274,10 @@ def _vector_args(paths: dict[str, Path], cpu: str) -> list[str]:
 
 def _checkpoint(path: Path, report: dict) -> None:
     base.write_json(path, report)
+
+
+def _write_evidence_text(paths: dict[str, Path], name: str, value: str) -> None:
+    base._scope_write_bytes(paths["evidence"] / name, value.encode("utf-8"))
 
 
 def _query_once(client, selector: str, start_ns: int, end_ns: int) -> dict:
@@ -750,9 +752,7 @@ def _vector_config(path: Path, tls: Path) -> bytes:
         timeout_secs=60,
     )
     data = (json.dumps(config, sort_keys=True, indent=2) + "\n").encode()
-    base._scope_path(path)
-    path.write_bytes(data)
-    os.chmod(path, 0o644)
+    base._scope_write_bound_file(path, data)
     return data
 
 
@@ -782,7 +782,7 @@ def _write_vector_backlog(source: Path, base_ns: int) -> tuple[list, str, dict]:
             yield row
 
     base._write_synthetic(source, rows(), append=True)
-    os.chown(source, 10001, 10001)
+    base._scope_set_metadata(source, owner=(10001, 10001))
     base.require(
         len({event_id for event_id, _ in expected}) == VECTOR_RECORDS,
         "synthetic_event_id_collision",
@@ -1161,35 +1161,41 @@ def _archive_and_unmount_new_scope(paths: dict[str, Path], report: dict) -> None
     scratch = paths["scratch"]
     base.require(scratch.resolve() == (RUN_ROOT / "tmpfs").resolve(), "tmpfs_scope_mismatch")
     archive = paths["evidence"] / "tmpfs-snapshot-after-probe.tar.gz"
-    temporary = paths["evidence"] / "tmpfs-snapshot-after-probe.tar.gz.tmp"
-    with tarfile.open(temporary, "w:gz") as bundle:
-        bundle.add(scratch, arcname=".")
-    os.replace(temporary, archive)
-    with gzip.open(archive, "rb") as stream:
-        while stream.read(1024 * 1024):
-            pass
+    with base._scope_atomic_stream(archive) as stream:
+        with tarfile.open(fileobj=stream, mode="w:gz") as bundle:
+            bundle.add(scratch, arcname=".")
+    with base._scope_read_stream(archive) as stream:
+        with gzip.GzipFile(fileobj=stream, mode="rb") as gzip_stream:
+            while gzip_stream.read(1024 * 1024):
+                pass
     source_digest = None
-    with tarfile.open(archive, "r:gz") as bundle:
-        members = bundle.getmembers()
-        source_member = next(
-            (item for item in members if item.name.lstrip("./") == "vector-source/events.jsonl"),
-            None,
-        )
-        if source_member is not None:
-            source_stream = bundle.extractfile(source_member)
-            base.require(source_stream is not None, "archive_source_unreadable")
-            digest = hashlib.sha256()
-            with source_stream:
-                while chunk := source_stream.read(1024 * 1024):
-                    digest.update(chunk)
-            source_digest = digest.hexdigest()
+    with base._scope_read_stream(archive) as stream:
+        with tarfile.open(fileobj=stream, mode="r:gz") as bundle:
+            members = bundle.getmembers()
+            source_member = next(
+                (item for item in members if item.name.lstrip("./") == "vector-source/events.jsonl"),
+                None,
+            )
+            if source_member is not None:
+                source_stream = bundle.extractfile(source_member)
+                base.require(source_stream is not None, "archive_source_unreadable")
+                digest = hashlib.sha256()
+                with source_stream:
+                    while chunk := source_stream.read(1024 * 1024):
+                        digest.update(chunk)
+                source_digest = digest.hexdigest()
     source = paths["vector_source"] / "events.jsonl"
     expected_source_digest = base.sha_file(source) if source.is_file() else None
     base.require(source_digest == expected_source_digest, "archive_source_hash_mismatch")
+    with base._scope_read_stream(archive) as stream:
+        archive_size = os.fstat(stream.fileno()).st_size
+        archive_sha256 = hashlib.sha256()
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            archive_sha256.update(chunk)
     report["archive"] = {
         "path": str(archive),
-        "bytes": archive.stat().st_size,
-        "sha256": base.sha_file(archive),
+        "bytes": archive_size,
+        "sha256": archive_sha256.hexdigest(),
         "member_count": len(members),
         "gzip_verified": True,
         "source_sha256": source_digest,
@@ -1454,7 +1460,7 @@ def _run_vector_buffer(
     dimension["source_sha256_after_fill"] = base.sha_file(source)
     dimension["source_preserved_at_fill"] = dimension["source_sha256_after_fill"] == source_hash
     fill_logs = _vector_logs(vector_id)
-    (paths["evidence"] / "vector-fill-logs.txt").write_text(fill_logs, encoding="utf-8")
+    _write_evidence_text(paths, "vector-fill-logs.txt", fill_logs)
     dimension["fill_logs_sha256"] = base.sha(fill_logs.encode())
     dimension["fill_log_classification"] = _classify_vector_error_logs(fill_logs, sink_offline=True)
     dimension["backpressure_verified"] = (
@@ -1523,7 +1529,7 @@ def _run_vector_buffer(
     replay["source_preserved"] = replay["source_sha256_after_replay"] == source_hash
     all_logs = _vector_logs(vector_id)
     recovery_logs = all_logs[len(fill_logs):] if all_logs.startswith(fill_logs) else all_logs
-    (paths["evidence"] / "vector-recovery-logs.txt").write_text(recovery_logs, encoding="utf-8")
+    _write_evidence_text(paths, "vector-recovery-logs.txt", recovery_logs)
     replay["recovery_logs_sha256"] = base.sha(recovery_logs.encode())
     replay["recovery_log_classification"] = _classify_vector_error_logs(
         recovery_logs, sink_offline=False, allow_recovery_transport_retry=True
@@ -2451,17 +2457,15 @@ def _run_probe(root: Path) -> int:
         preflight["allocation_range"] = "10.205.16.0/20"
         preflight["candidate_subnets_checked"] = [str(SUBNET)]
         report["preflight"] = preflight
-        base.certificates(paths["tls"], loki_ip=LOKI_IP)
-        for path in paths["tls"].glob("*.pem"):
-            os.chown(path, 10001, 10001)
-            os.chmod(path, 0o444)
-        for path in paths["tls"].glob("*.key"):
-            os.chown(path, 10001, 10001)
-            os.chmod(path, 0o440)
+        base.certificates(
+            paths["tls"], loki_ip=LOKI_IP,
+            write_file=base._write_certificate,
+        )
         for role in ("writer", "query", "metrics"):
             token_path = paths["secrets"] / f"{role}_token"
-            token_path.write_text(secrets.token_urlsafe(32), encoding="utf-8")
-            os.chmod(token_path, 0o600)
+            base._scope_write_bytes(
+                token_path, secrets.token_urlsafe(32).encode("utf-8")
+            )
 
         contract_hashes = {
             path.name: base.sha_file(path)

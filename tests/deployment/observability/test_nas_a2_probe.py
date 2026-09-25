@@ -1,5 +1,6 @@
 import json
 import stat
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -80,7 +81,15 @@ class NasA2BoundaryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "report.json"
             path.write_text('{"old":true}\n', encoding="utf-8")
-            probe.write_json(path, {"new": True})
+            if sys.platform != "linux":
+                with self.assertRaisesRegex(
+                    probe.ProbeError, "scope_fd_linux_required"
+                ):
+                    probe.write_json(path, {"new": True})
+                self.assertEqual(json.loads(path.read_text()), {"old": True})
+                return
+            with patch.object(probe, "EXPECTED_ROOT", Path(directory).resolve()):
+                probe.write_json(path, {"new": True})
             self.assertEqual(
                 json.loads(path.read_text(encoding="utf-8")), {"new": True}
             )
@@ -286,14 +295,18 @@ class NasA2OwnedContainerTests(unittest.TestCase):
         with self.assertRaisesRegex(probe.ProbeError, "scope_path_outside_root"):
             probe._scope_path(self.root.parent / "outside")
 
+    @unittest.skipUnless(sys.platform == "linux", "directory fd boundary requires Linux")
     def test_valid_scope_subdirectories_are_created_inside_root(self):
-        with patch.object(probe.os, "chown", create=True):
+        with patch.object(probe.os, "chown", create=True), patch.object(
+            probe.os, "fchown", create=True
+        ):
             paths = probe._base_dirs(self.root)
         self.assertTrue(paths["source"].is_dir())
         self.assertTrue(paths["vector_source"].is_dir())
         self.assertTrue(paths["evidence"].is_dir())
         self.assertEqual(paths["source"].resolve().parents[1], self.root)
 
+    @unittest.skipUnless(sys.platform == "linux", "directory fd boundary requires Linux")
     def test_existing_linked_output_file_is_rejected_before_write_or_append(self):
         config = self.root / "config/loki.json"
         source = self.root / "tmpfs/vector-source/events.jsonl"
@@ -330,6 +343,120 @@ class NasA2OwnedContainerTests(unittest.TestCase):
                 imported_helper._check_owned(
                     forged, probe.LOKI_NAME, forged["Image"]
                 )
+
+
+@unittest.skipUnless(sys.platform == "linux", "directory fd boundary requires Linux")
+class NasA2LinuxOutputBoundaryTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        parent = Path(self.temporary.name).resolve()
+        self.root = parent / "scope"
+        self.root.mkdir()
+        self.evidence = self.root / "evidence"
+        self.evidence.mkdir()
+        self.outside = parent / "outside"
+        self.outside.mkdir()
+        self.expected_root = patch.object(probe, "EXPECTED_ROOT", self.root)
+        self.expected_root.start()
+        self.addCleanup(self.expected_root.stop)
+
+    def _swap_evidence(self):
+        self.evidence.rename(self.root / "evidence-original")
+        self.evidence.symlink_to(self.outside, target_is_directory=True)
+
+    def _assert_swap_after_check_refuses(self, target: Path, write):
+        probe._scope_path(target)
+        original = probe._scope_path
+        swapped = False
+
+        def check_then_swap(path, **kwargs):
+            nonlocal swapped
+            result = original(path, **kwargs)
+            if Path(path) == target and not swapped:
+                self._swap_evidence()
+                swapped = True
+            return result
+
+        with patch.object(probe, "_scope_path", side_effect=check_then_swap):
+            with self.assertRaises(probe.ProbeError):
+                write()
+        self.assertTrue(swapped)
+        self.assertEqual(list(self.outside.iterdir()), [])
+
+    def test_checkpoint_and_final_report_refuse_swapped_parent(self):
+        import nas_a2_followup_probe as followup
+
+        checkpoint = self.evidence / "checkpoint.json"
+        self._assert_swap_after_check_refuses(
+            checkpoint, lambda: followup._checkpoint(checkpoint, {"status": "failed"})
+        )
+        self.evidence.unlink()
+        (self.root / "evidence-original").rename(self.evidence)
+        final = self.evidence / "nas-a2-report.json"
+        self._assert_swap_after_check_refuses(
+            final, lambda: probe.write_json(final, {"status": "failed"})
+        )
+
+    def test_log_output_refuses_swapped_parent(self):
+        import nas_a2_followup_probe as followup
+
+        target = self.evidence / "vector-fill-logs.txt"
+        self._assert_swap_after_check_refuses(
+            target,
+            lambda: followup._write_evidence_text(
+                {"evidence": self.evidence}, target.name, "synthetic log"
+            ),
+        )
+
+    def test_archive_output_refuses_swapped_parent(self):
+        import nas_a2_followup_probe as followup
+
+        scratch = self.root / "tmpfs"
+        source = scratch / "vector-source" / "events.jsonl"
+        source.parent.mkdir(parents=True)
+        source.write_bytes(b'{"event_id":"synthetic"}\n')
+        target = self.evidence / "tmpfs-snapshot-after-probe.tar.gz"
+        with patch.object(followup, "RUN_ROOT", self.root):
+            self._assert_swap_after_check_refuses(
+                target,
+                lambda: followup._archive_and_unmount_new_scope(
+                    {"scratch": scratch, "vector_source": source.parent,
+                     "evidence": self.evidence}, {}
+                ),
+            )
+
+    def test_open_parent_fd_stays_on_original_directory_after_swap(self):
+        target = self.evidence / "checkpoint.json"
+        with probe._scope_atomic_stream(target) as stream:
+            self._swap_evidence()
+            stream.write(b"safe\n")
+        self.assertEqual(list(self.outside.iterdir()), [])
+        self.assertEqual(
+            (self.root / "evidence-original" / target.name).read_bytes(), b"safe\n"
+        )
+
+    def test_bound_loki_config_keeps_inode_across_mode_switch(self):
+        import nas_a2_followup_probe as followup
+
+        config = self.root / "config"
+        config.mkdir()
+        path = config / "loki.json"
+        followup._write_loki_config(path, query_store_only=False)
+        original_inode = path.stat().st_ino
+        followup._write_loki_config(path, query_store_only=True)
+        self.assertEqual(path.stat().st_ino, original_inode)
+        self.assertTrue(json.loads(path.read_bytes())["querier"]["query_store_only"])
+        tls = self.root / "tls"
+        tls.mkdir()
+        certificate = tls / "loki.pem"
+        with patch.object(probe.os, "fchown"):
+            probe._write_certificate(certificate, b"first")
+            certificate_inode = certificate.stat().st_ino
+            certificate.chmod(0o644)  # Test user lacks probe's root privileges.
+            probe._write_certificate(certificate, b"second")
+        self.assertEqual(certificate.stat().st_ino, certificate_inode)
+        self.assertEqual(certificate.read_bytes(), b"second")
 
 
 if __name__ == "__main__":

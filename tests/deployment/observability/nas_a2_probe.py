@@ -18,6 +18,7 @@ import sys
 import threading
 import time
 from collections import Counter
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -168,25 +169,7 @@ def sha_file(path: Path) -> str:
 
 def write_json(path: Path, value) -> None:
     data = (json.dumps(value, sort_keys=True, indent=2) + "\n").encode()
-    temporary = path.with_name(f".{path.name}.{os.getpid()}.{secrets.token_hex(8)}.tmp")
-    try:
-        with temporary.open("xb") as stream:
-            stream.write(data)
-            stream.flush()
-            os.fsync(stream.fileno())
-        temporary.replace(path)
-        directory_flag = getattr(os, "O_DIRECTORY", None)
-        if directory_flag is not None:
-            fd = os.open(path.parent, directory_flag)
-            try:
-                os.fsync(fd)
-            finally:
-                os.close(fd)
-    finally:
-        try:
-            temporary.unlink()
-        except FileNotFoundError:
-            pass
+    _scope_write_bytes(path, data)
 
 
 def _overlap(left: Path, right: Path) -> bool:
@@ -231,6 +214,172 @@ def _scope_path(path: Path, *, must_exist: bool = False) -> Path:
     return resolved
 
 
+@contextmanager
+def _scope_parent_fd(path: Path):
+    """Hold a no-follow directory chain from / through an output operation."""
+    if sys.platform != "linux":
+        raise ProbeError("scope_fd_linux_required")
+    path = Path(path)
+    _scope_path(path)
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    descriptor = os.open("/", flags)
+    try:
+        for component in path.parent.relative_to(Path("/")).parts:
+            child = os.open(component, flags, dir_fd=descriptor)
+            os.close(descriptor)
+            descriptor = child
+        yield descriptor, path.name
+    except OSError:
+        raise ProbeError("scope_directory_unsafe") from None
+    finally:
+        os.close(descriptor)
+
+
+@contextmanager
+def _scope_atomic_stream(
+    path: Path, *, mode: int = 0o600, owner: tuple[int, int] | None = None
+):
+    """Write and rename using one verified parent fd, including failure cleanup."""
+    with _scope_parent_fd(path) as (parent, name):
+        try:
+            existing = os.stat(name, dir_fd=parent, follow_symlinks=False)
+        except FileNotFoundError:
+            existing = None
+        require(
+            existing is None or not stat.S_ISLNK(existing.st_mode),
+            "scope_symlink_or_reparse_refused",
+        )
+        temporary = f".{name}.{os.getpid()}.{secrets.token_hex(8)}.tmp"
+        created = False
+        try:
+            fd = os.open(
+                temporary,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                mode,
+                dir_fd=parent,
+            )
+            created = True
+            with os.fdopen(fd, "wb") as stream:
+                yield stream
+                stream.flush()
+                if owner is not None:
+                    os.fchown(stream.fileno(), *owner)
+                os.fchmod(stream.fileno(), mode)
+                os.fsync(stream.fileno())
+            os.replace(temporary, name, src_dir_fd=parent, dst_dir_fd=parent)
+            created = False
+            os.fsync(parent)
+        finally:
+            if created:
+                try:
+                    os.unlink(temporary, dir_fd=parent)
+                except FileNotFoundError:
+                    pass
+
+
+def _scope_write_bytes(
+    path: Path, data: bytes, *, mode: int = 0o600,
+    owner: tuple[int, int] | None = None,
+) -> None:
+    with _scope_atomic_stream(path, mode=mode, owner=owner) as stream:
+        stream.write(data)
+
+
+def _scope_write_bound_file(
+    path: Path, data: bytes, *, mode: int = 0o644,
+    owner: tuple[int, int] | None = None,
+) -> None:
+    """Keep the inode seen by an existing Docker file bind across a restart."""
+    with _scope_parent_fd(path) as (parent, name):
+        fd = os.open(
+            name, os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW,
+            mode, dir_fd=parent,
+        )
+        with os.fdopen(fd, "wb") as stream:
+            metadata = os.fstat(stream.fileno())
+            require(
+                stat.S_ISREG(metadata.st_mode) and metadata.st_nlink == 1,
+                "scope_file_type_invalid",
+            )
+            os.ftruncate(stream.fileno(), 0)
+            stream.write(data)
+            stream.flush()
+            if owner is not None:
+                os.fchown(stream.fileno(), *owner)
+            os.fchmod(stream.fileno(), mode)
+            os.fsync(stream.fileno())
+        os.fsync(parent)
+
+
+def _write_certificate(path: Path, data: bytes) -> None:
+    _scope_write_bound_file(
+        path, data,
+        mode=0o440 if path.suffix == ".key" else 0o444,
+        owner=(10001, 10001),
+    )
+
+
+@contextmanager
+def _scope_output_stream(
+    path: Path, *, append: bool = False, buffering: int = -1
+):
+    with _scope_parent_fd(path) as (parent, name):
+        flags = os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW
+        flags |= os.O_APPEND if append else os.O_EXCL
+        fd = os.open(name, flags, 0o600, dir_fd=parent)
+        with os.fdopen(fd, "ab" if append else "wb", buffering=buffering) as stream:
+            metadata = os.fstat(stream.fileno())
+            require(
+                stat.S_ISREG(metadata.st_mode) and metadata.st_nlink == 1,
+                "scope_file_type_invalid",
+            )
+            yield stream
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.fsync(parent)
+
+
+def _scope_set_metadata(
+    path: Path, *, mode: int | None = None,
+    owner: tuple[int, int] | None = None,
+) -> None:
+    with _scope_parent_fd(path) as (parent, name):
+        fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=parent)
+        try:
+            metadata = os.fstat(fd)
+            require(
+                stat.S_ISREG(metadata.st_mode) and metadata.st_nlink == 1,
+                "scope_file_type_invalid",
+            )
+            if owner is not None:
+                os.fchown(fd, *owner)
+            if mode is not None:
+                os.fchmod(fd, mode)
+        finally:
+            os.close(fd)
+
+
+def _scope_unlink(path: Path, *, missing_ok: bool = False) -> None:
+    with _scope_parent_fd(path) as (parent, name):
+        try:
+            metadata = os.stat(name, dir_fd=parent, follow_symlinks=False)
+            require(stat.S_ISREG(metadata.st_mode), "scope_file_type_invalid")
+            os.unlink(name, dir_fd=parent)
+            os.fsync(parent)
+        except FileNotFoundError:
+            if not missing_ok:
+                raise
+
+
+@contextmanager
+def _scope_read_stream(path: Path):
+    with _scope_parent_fd(path) as (parent, name):
+        fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=parent)
+        with os.fdopen(fd, "rb") as stream:
+            require(stat.S_ISREG(os.fstat(fd).st_mode), "scope_file_type_invalid")
+            yield stream
+
+
 def _ensure_scope_dir(path: Path, *, owned: bool = False) -> None:
     """Create or open a scope directory without following child links on NAS."""
     _scope_path(path)
@@ -240,7 +389,11 @@ def _ensure_scope_dir(path: Path, *, owned: bool = False) -> None:
         flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
         descriptor = None
         try:
-            descriptor = os.open(root, flags)
+            descriptor = os.open("/", flags)
+            for component in root.relative_to(Path("/")).parts:
+                child = os.open(component, flags, dir_fd=descriptor)
+                os.close(descriptor)
+                descriptor = child
             for component in relative.parts:
                 try:
                     child = os.open(component, flags, dir_fd=descriptor)
@@ -258,12 +411,7 @@ def _ensure_scope_dir(path: Path, *, owned: bool = False) -> None:
             if descriptor is not None:
                 os.close(descriptor)
     else:
-        path.mkdir(parents=True, exist_ok=True)
-        _scope_path(path, must_exist=True)
-        if owned:
-            if hasattr(os, "chown"):
-                os.chown(path, 10001, 10001)
-            os.chmod(path, 0o700)
+        raise ProbeError("scope_fd_linux_required")
     _scope_path(path, must_exist=True)
 
 
@@ -729,9 +877,7 @@ def _write_loki_config(path: Path, retention: str) -> bytes:
     }
     config["query_range"] = {"cache_results": False}
     data = (json.dumps(config, sort_keys=True, indent=2) + "\n").encode()
-    _scope_path(path)
-    path.write_bytes(data)
-    os.chmod(path, 0o644)
+    _scope_write_bound_file(path, data)
     return data
 
 
@@ -796,9 +942,7 @@ def _write_vector_config(path: Path, tls: Path) -> bytes:
         },
     }
     data = (json.dumps(config, sort_keys=True, indent=2) + "\n").encode()
-    _scope_path(path)
-    path.write_bytes(data)
-    os.chmod(path, 0o644)
+    _scope_write_bound_file(path, data)
     return data
 
 
@@ -830,13 +974,9 @@ def _container_common(name: str, memory: int, cpu_set: str, data: Path) -> list[
 
 
 def _write_synthetic(path: Path, rows: list[dict], append: bool = False) -> None:
-    _scope_path(path)
-    mode = "ab" if append else "xb"
-    with path.open(mode) as stream:
+    with _scope_output_stream(path, append=append) as stream:
         for row in rows:
             stream.write(canonical(row) + b"\n")
-        stream.flush()
-        os.fsync(stream.fileno())
 
 
 def _record(seq: int, service: str = "gateway", *, pad: bool = False) -> dict:
@@ -934,7 +1074,7 @@ def _start_guard_probe(root: Path, paths: dict[str, Path], backend: LokiClient):
     source_roots = {}
     for service in ("platform", "companion", "memory", "gateway"):
         path = paths["source"] / service
-        path.mkdir(parents=True, exist_ok=True)
+        _ensure_scope_dir(path)
         source_roots[service] = str(path)
     settings = {
         "loki_url": f"https://{LOKI_IP}:3100",
@@ -1172,8 +1312,7 @@ def _run_buffer_scenario(
             )
         else:
             _write_synthetic(source, [baseline])
-        os.chown(source, 10001, 10001)
-        os.chmod(source, 0o600)
+        _scope_set_metadata(source, mode=0o600, owner=(10001, 10001))
         baseline_ns = int(
             datetime.fromisoformat(
                 baseline["timestamp"].replace("Z", "+00:00")
@@ -1348,7 +1487,7 @@ def _run_buffer_scenario(
     docker("network", "disconnect", "--force", NETWORK, loki_id)
     bulk = [_record(n + 2, pad=True) for n in range(8000)]
     _write_synthetic(source, bulk, append=True)
-    os.chown(source, 10001, 10001)
+    _scope_set_metadata(source, owner=(10001, 10001))
     expected = [baseline, *bulk]
     source_digest = sha_file(source)
     buffer_peak = 0.0
@@ -1633,7 +1772,7 @@ def _run_guard_capacity(
         filler_path = capacity_dir / "a2-disk-watermark-fixture.bin"
         written = 0
         block = secrets.token_bytes(256 * 1024)
-        with filler_path.open("xb", buffering=0) as stream:
+        with _scope_output_stream(filler_path, buffering=0) as stream:
             filler_file = filler_path
             while shutil.disk_usage(capacity_dir).free > reserve:
                 require(
@@ -1676,7 +1815,7 @@ def _run_guard_capacity(
             timeout=30,
             code="disk_capacity_alert_missing",
         )
-        filler_file.unlink()
+        _scope_unlink(filler_file)
         filler_file = None
         after_free = shutil.disk_usage(capacity_dir).free
         require(after_free > reserve, "watermark_space_not_recovered")
@@ -1795,10 +1934,10 @@ def _run_guard_capacity(
         fixture_cleanup_failed = False
         if filler_file is not None:
             try:
-                filler_file.unlink()
+                _scope_unlink(filler_file, missing_ok=True)
             except FileNotFoundError:
                 pass
-            except OSError:
+            except (OSError, ProbeError):
                 fixture_cleanup_failed = True
         require(not fixture_cleanup_failed, "capacity_fixture_cleanup_failed")
 
@@ -1845,15 +1984,12 @@ def main(argv=None) -> int:
         preflight_report = preflight(root, args.vector_image_id, args.loki_image_id)
         report["preflight"] = preflight_report
         paths = _base_dirs(root.resolve())
-        certificates(paths["tls"], loki_ip=LOKI_IP)
-        for filename in ("*.pem", "*.key"):
-            for path in paths["tls"].glob(filename):
-                os.chown(path, 10001, 10001)
-                os.chmod(path, 0o440 if path.suffix == ".key" else 0o444)
+        certificates(
+            paths["tls"], loki_ip=LOKI_IP, write_file=_write_certificate
+        )
         for role in ("writer", "query", "metrics"):
             path = paths["secrets"] / f"{role}_token"
-            path.write_text(secrets.token_urlsafe(32))
-            os.chmod(path, 0o600)
+            _scope_write_bytes(path, secrets.token_urlsafe(32).encode())
         contract_hashes = {}
         for path in sorted(paths["contract"].glob("*")):
             if path.is_file():

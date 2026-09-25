@@ -1,4 +1,5 @@
 import json
+import sys
 import tempfile
 import unittest
 from collections import Counter
@@ -84,6 +85,7 @@ class NasA2FollowupBudgetTests(unittest.TestCase):
         )
         self.assertTrue(result["within_budget"])
 
+    @unittest.skipUnless(sys.platform == "linux", "directory fd boundary requires Linux")
     def test_followup_vector_config_pins_full_buffer_and_unique_stream(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "vector.json"
@@ -277,10 +279,9 @@ class NasA2FollowupBudgetTests(unittest.TestCase):
             def container(container_id):
                 return {"State": {"Running": container_id == "vector-id"}}
 
-            with (
-                patch.object(followup, "_vector_prometheus_body", return_value=payload),
-                patch.object(probe, "_container_by_id", side_effect=container),
-            ):
+            with patch.object(
+                followup, "_vector_prometheus_body", return_value=payload
+            ), patch.object(probe, "_container_by_id", side_effect=container):
                 sample = followup._timestamped_vector_sample(
                     paths, source, "vector-id", "loki-id"
                 )
@@ -314,6 +315,8 @@ class NasA2FollowupBudgetTests(unittest.TestCase):
                 self.assertGreater(records[0]["mtime_ns"], 0)
 
     def test_scope_archive_verifies_source_before_unmount(self):
+        if sys.platform != "linux":
+            self.skipTest("directory fd boundary requires Linux")
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             scratch = root / "tmpfs"
@@ -328,10 +331,9 @@ class NasA2FollowupBudgetTests(unittest.TestCase):
                 "evidence": evidence,
             }
             report = {}
-            with (
-                patch.object(followup, "RUN_ROOT", root),
-                patch.object(followup.subprocess, "run") as umount,
-            ):
+            with patch.object(followup, "RUN_ROOT", root), patch.object(
+                probe, "EXPECTED_ROOT", root
+            ), patch.object(followup.subprocess, "run") as umount:
                 umount.return_value.returncode = 0
                 followup._archive_and_unmount_new_scope(paths, report)
             self.assertTrue(report["archive"]["gzip_verified"])
@@ -349,9 +351,8 @@ class NasA2FollowupBudgetTests(unittest.TestCase):
                 "vector_source": root,
                 "vector_data": root,
             }
-            with (
-                patch.object(probe, "PROJECT", followup.PROJECT),
-                patch.object(probe, "VECTOR_NAME", followup.VECTOR_NAME),
+            with patch.object(probe, "PROJECT", followup.PROJECT), patch.object(
+                probe, "VECTOR_NAME", followup.VECTOR_NAME
             ):
                 args = followup._vector_args(paths, "0")
         self.assertIn("--ip", args)

@@ -221,7 +221,7 @@ def _run_store_probe(paths: dict[str, Path], report: dict, clients: dict,
     send["finished_at"] = prior._stamp()
     send["last_metrics"] = send["samples"][-1]["metrics"] if send["samples"] else None
     logs = prior._vector_logs(vector_id)
-    (paths["evidence"] / "vector-online-logs.txt").write_text(logs, encoding="utf-8")
+    prior._write_evidence_text(paths, "vector-online-logs.txt", logs)
     send["logs_sha256"] = base.sha(logs.encode())
     send["log_classification"] = prior._classify_vector_error_logs(
         logs, sink_offline=False
