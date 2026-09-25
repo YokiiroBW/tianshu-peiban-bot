@@ -429,6 +429,30 @@
     "new_scope_required": true,
     "r2g_result_unchanged": true
   },
+  "nas_a1_next_scope_local_preparation": {
+    "status": "allocated_and_local_preflight_only_pending_a4_incremental_review_and_execution_release",
+    "allocation_document_sha256": "5667b859a8c7bb62cff8f9e88d580dce8620ff3960a68a9f78a959846ae6b893",
+    "allocation_block": "10.205.48.0/24",
+    "source_network_count": 5,
+    "clone_network_count": 7,
+    "network_prefix": 28,
+    "unallocated_tail": "10.205.48.192/26",
+    "local_projection_diff_sha256": "682517b5b05597a48102a934b58aafa06e28fee009dae3d696a908c583a9ba5f",
+    "local_preflight_sha256": "9ec0ab4e56bdb1934319fb40cbd662ef96f87eeaed0fdd23eec18f7c27f09644",
+    "network_projection_is_deployable": false,
+    "nas_writes_or_resource_starts": 0,
+    "origin_admission": {
+      "sealed_inputs": "two full Platform issue adapter outputs and matching entry requests in private clone inputs",
+      "source_authority": "stopped snapshot-bound Platform origins SQLite read-only immutable, nonempty WAL refused",
+      "renewal": "source DB expiry may be later than initial issue receipt; never earlier",
+      "budget": "minimum of current source config origin, actor origin and unknown deadline; at least 180 seconds before claim",
+      "runtime": "recheck before starts, during health/readiness, assertions, bridge and observation; expiry fails then normal cleanup",
+      "permit_on_preclaim_failure": "not_claimed",
+      "product_ttl_seconds": 300,
+      "release_ready": false
+    },
+    "remaining": "A4 incremental review, fresh host preflight, new paths/credentials/authority/snapshot and coordinator execution release"
+  },
   "remaining": [
     "Review the local Gateway assertion and strict observation bridge, then allocate non-overlapping networks for a fresh isolated A1 source and clone.",
     "If full recovery acceptance remains required, create a new authority, snapshot and one-use permit, execute the independent Gateway HTTP read and all existing gates; do not replay r2g or rewrite its immutable result."

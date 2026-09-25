@@ -22,6 +22,7 @@ from .drill_observation import (
     gateway_read_bridge,
     summarize_a1_gateway_counts,
 )
+from .drill_origin_admission import MINIMUM_REMAINING_SECONDS, check_origin_admission
 from .lifecycle import Deadline, stop_order
 from .linux_recovery import registered
 from .runtime_identity import load_identity, runtime_lease
@@ -343,6 +344,15 @@ def run(
         }
     if not execute:
         return result | {"status": "planned", "actual_owners_and_facts": "not_checked"}
+
+    def origin_check(minimum=0):
+        if "a1_origin_admission" in index:
+            return check_origin_admission(
+                source, value["inputs_directory"], index,
+                minimum_remaining=minimum,
+            )
+        return None
+
     remaining = min(value["max_runtime_seconds"], value["expires_at"] - time.time())
     require(remaining > 65, "drill_shutdown_reserve_required")
     total_end = time.monotonic() + remaining
@@ -385,6 +395,9 @@ def run(
             <= recovery.max_bytes,
             "total_size_limit",
         )
+        admission = origin_check(MINIMUM_REMAINING_SECONDS)
+        if admission is not None:
+            result["a1_origin_admission"] = admission
         # Bound one-use admission is durable before clone creation or any startup.
         write_new(
             claim,
@@ -461,6 +474,7 @@ def run(
                 == (index, documents),
                 "drill_inputs_changed_during_copy",
             )
+            origin_check()
             for name, expected in index["files"].items():
                 require(
                     file_hash(child(clone, name)) == expected,
@@ -508,6 +522,7 @@ def run(
                 ("core", "compose.json"),
             ):
                 phase = "start_observability" if group == "observability" else "start_core"
+                origin_check()
                 work.check()
                 docker.run(
                     "compose",
@@ -525,6 +540,7 @@ def run(
                 )
                 services = set(documents[group]["services"])
                 while True:
+                    origin_check()
                     work.check()
                     backend.inspect(allow_missing=True)
                     require(services <= set(backend.current), "missing_project_container")
@@ -561,6 +577,7 @@ def run(
                 # recorded by the source scope. New clone events must change the
                 # counters.
                 while readiness_state is None:
+                    origin_check()
                     _assert_clone_services(backend, documents, all_services, work)
                     readiness = check_readiness(
                         clone,
@@ -577,6 +594,7 @@ def run(
             initial_unknown_turns = None
             for assertion in index["assertions"]:
                 phase = "assertion_" + assertion["id"]
+                origin_check()
                 original.assert_stopped()
                 _unused(docker, set(), restored)
                 _assert_clone_services(backend, documents, all_services, work)
@@ -628,6 +646,7 @@ def run(
                     )
                     bridge_deadline = min(work.ends, time.monotonic() + 5.0)
                     while True:
+                        origin_check()
                         gateway_pre_window = gateway_counters(clone, work)
                         if correlation in gateway_pre_window:
                             gateway_read_bridge(
@@ -646,6 +665,7 @@ def run(
 
             if observation is not None:
                 phase = "unknown_observation"
+                origin_check()
                 require(
                     initial_unknown_turns is not None,
                     "drill_unknown_assertion_required",
@@ -666,6 +686,7 @@ def run(
                 readiness_checks = 0
                 service_state_checks = 0
                 while True:
+                    origin_check()
                     _assert_clone_services(backend, documents, all_services, work)
                     service_state_checks += 1
                     readiness = check_readiness(
@@ -736,6 +757,7 @@ def run(
                     "control_comparison": "two successful upstream groups unchanged",
                     "delivery_attempt_counter_exposed": False,
                 }
+                origin_check()
         except (RecoveryError, OSError, ValueError, KeyError, TypeError, sqlite3.Error) as error:
             failure = "drill_failed_or_cancelled"
             result["failure_detail"] = _failure_detail(error, phase)

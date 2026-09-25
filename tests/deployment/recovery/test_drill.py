@@ -395,6 +395,27 @@ class DrillTests(unittest.TestCase):
 
     def add_gateway_usage_assertion(self):
         self.enable_a1_observation()
+        self.index["a1_origin_admission"] = {"minimum_remaining_seconds": 180}
+        for name, entry in (("config", "config-entry"), ("actor", "web-source-actor")):
+            put(self.inputs / f"private/a1-{name}-origin-request.json", {"entry_id": entry})
+            put(self.inputs / f"private/a1-{name}-origin-issue.json", {
+                "action": "issue",
+                "receipt": {
+                    "assertion_ref": "origin:" + ("a" if name == "config" else "b") * 32,
+                    "expires_at": "2099-01-01T00:00:00Z",
+                    "mode": "service_https",
+                },
+            })
+        # Runtime admission is exercised against a stopped SQLite source in
+        # test_drill_origin_admission; this Docker fixture has no Platform DB.
+        self.base.stack.enter_context(patch.object(
+            drill, "check_origin_admission",
+            lambda *_args, **_kwargs: {
+                "minimum_remaining_seconds": 180,
+                "remaining_at_check_seconds": 200,
+                "source_receipts_and_bindings_verified": True,
+            },
+        ))
         model = next(
             item for item in self.index["assertions"] if item["id"] == "model_revoked"
         )
@@ -608,6 +629,7 @@ class DrillTests(unittest.TestCase):
     def test_gateway_coverage_stays_partial_without_its_independent_read(self):
         self.add_gateway_usage_assertion()
         self.index["assertions"].pop()
+        self.index.pop("a1_origin_admission")
         self.save()
         result = self.run_drill()
         self.assertEqual(result["status"], "partial_functional_coverage")
@@ -656,6 +678,38 @@ class DrillTests(unittest.TestCase):
             RecoveryError, "drill_gateway_usage_credential_invalid"
         ):
             isolated_inputs(self.value, self.manifest)
+
+    def test_gateway_origin_lifetime_failure_does_not_claim_permit(self):
+        self.add_gateway_usage_assertion()
+        with patch.object(
+            drill, "check_origin_admission",
+            side_effect=RecoveryError("drill_origin_lifetime_insufficient"),
+        ):
+            with self.assertRaisesRegex(
+                RecoveryError, "drill_origin_lifetime_insufficient"
+            ):
+                self.run_drill()
+        self.assertFalse((self.root / "drill-claims").exists())
+        self.assertFalse(self.clone.exists())
+
+    def test_gateway_origin_expiry_after_claim_stops_with_failure_receipt(self):
+        self.add_gateway_usage_assertion()
+        summary = {
+            "minimum_remaining_seconds": 180,
+            "remaining_at_check_seconds": 180,
+            "source_receipts_and_bindings_verified": True,
+        }
+        with patch.object(
+            drill, "check_origin_admission",
+            side_effect=[summary, RecoveryError("drill_origin_lifetime_insufficient")],
+        ):
+            result = self.run_drill()
+        self.assertEqual(result["status"], "drill_failed_or_cancelled")
+        self.assertEqual(result["failure_detail"]["code"],
+                         "drill_origin_lifetime_insufficient")
+        self.assertTrue((self.root / "drill-claims" / (self.value["permit_id"] + ".json")).exists())
+        self.assertFalse(any(container["State"]["Running"]
+                             for container in self.clone_docker.containers))
 
     def test_gateway_usage_readback_rejects_extra_upstream_or_ledger_write(self):
         for attribute, code in (

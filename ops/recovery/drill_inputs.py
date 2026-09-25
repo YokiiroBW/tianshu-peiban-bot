@@ -7,6 +7,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 from .http_transport import READ_ONLY_POST_ENDPOINTS, encode_post_body
+from .drill_origin_admission import MINIMUM_REMAINING_SECONDS
 from .manifest import PRODUCTS, fields, sha256
 from .runtime_identity import schema_check
 from .safety import child, file_hash, files, read_bytes, read_json, require, safe_path
@@ -160,7 +161,8 @@ def isolated_inputs(value, manifest, *, resource_profile=None):
     fields(
         index,
         "schema_version files assertions"
-        + (" runtime_observation" if "runtime_observation" in index else ""),
+        + (" runtime_observation" if "runtime_observation" in index else "")
+        + (" a1_origin_admission" if "a1_origin_admission" in index else ""),
     )
     require(
         index["schema_version"] == "dep-j-drill-inputs/1"
@@ -575,6 +577,20 @@ def isolated_inputs(value, manifest, *, resource_profile=None):
             and index["assertions"][-1]["id"] == "gateway_usage_readback",
             "drill_gateway_usage_order_invalid",
         )
+        require(
+            index.get("a1_origin_admission")
+            == {"minimum_remaining_seconds": MINIMUM_REMAINING_SECONDS}
+            and all(name in index["files"] for name in (
+                "private/a1-config-origin-request.json",
+                "private/a1-config-origin-issue.json",
+                "private/a1-actor-origin-request.json",
+                "private/a1-actor-origin-issue.json",
+            )),
+            "drill_origin_admission_required",
+        )
+    else:
+        require("a1_origin_admission" not in index,
+                "drill_origin_admission_invalid")
     if "runtime_observation" in index:
         observation = index["runtime_observation"]
         fields(observation, "window_seconds worker_readiness unknown_turns")
