@@ -106,7 +106,13 @@
       "empty_window_total": 0,
       "environment": "isolated Windows CPython 3.12 with exact Gateway uv.lock runtime versions",
       "not_nas_ledger_evidence": true,
-      "sqlite_bytes_unchanged": true,
+      "main_db_bytes_unchanged": true,
+      "sqlite_directory_unchanged": false,
+      "added_sidecars": [
+        "diagnostics.sqlite-shm",
+        "diagnostics.sqlite-wal"
+      ],
+      "interpretation": "The existing main DB bytes stayed fixed; the CLI created WAL/SHM sidecars in the synthetic fixture. This does not prove an original SQLite directory is write free.",
       "synthetic_four_attempts": {
         "succeeded": 2,
         "total": 4,
@@ -289,6 +295,10 @@
     "wait_005_collectors": 0
   },
   "private_receipts": {
+    "gateway-cli-local-sidecar-check.json": {
+      "local_private_path": ".runtime/nas-a1-r2j/gateway-cli-local-sidecar-check.json",
+      "sha256": "e21bb5c475cf04c48fc6c82b446ae91a1c37e3176ff05d4c0ff15a964bbd748e"
+    },
     "gateway-usage-diagnostic-private-v2.json": {
       "local_private_path": ".runtime/nas-a1-r2j/gateway-usage-diagnostic-private-v2.json",
       "sha256": "aa0426b9e8fa3a6728862803575341d1c29f45c2dbd838853c381836f15211fd"

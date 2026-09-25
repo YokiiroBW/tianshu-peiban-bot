@@ -1,0 +1,80 @@
+{
+  "schema_version": "nas-a1-r2j-ledger-copy-readback/1",
+  "status": "copy_readback_validated",
+  "interpretation": "One stopped-ledger consistency-copy readback of the already failed r2j source. It does not change the source failure or validate clone, recovery, permit, registration, runtime identity, or six HTTPS assertions.",
+  "scope_id": "72d01f54-fef9-4bfe-8e4c-50ec8263fef7",
+  "source_execute_attempts": 1,
+  "copy_readback_attempts": 1,
+  "dedicated_directory": "/volume2/tianshu-v2-validation-wave1/accept-20260926-a1-r2j/usage-readback",
+  "reviewed_scripts_sha256": {
+    "setup_remote": "f7eda9c603f79804eb07b9641fbc81f2e3ed9452aed9d892cf03da391ed486ec",
+    "query_remote": "e773b4c2b3f9d17e47b8d69744e64261f232b510927aa93d3ee7ea721b527c93",
+    "query_dispatcher": "610740b941c738b75139bc9d4b799f5a4664740164959d80fa7c867a3335474c"
+  },
+  "fixed_inputs_sha256": {
+    "gateway_uv_lock": "56de5d63a49b0f4544ca3926eadfab4ff6b8f5b7506f976cb9b8832002700e29",
+    "gateway_source_tree": "39355bc3de216f18c37ee8d2f9f70673ae5aeb2eeaee8b8beacff314e7915755",
+    "recovery_source_tree": "f7a4a769715f8b0c59ed9c862264f1683adafdf6ac2a1a32d148dbf82d390402",
+    "gateway_runtime_wheel_lock": "8d19ce53b3de99fec8455eb762963f5e531956a3b6fb8781ab16c949b7b7aa9c",
+    "gateway_runtime_wheelhouse": "d1af9087750e52b97741026a8f8164ec0b3403ceb02aaf35e3ae098ba13370e8"
+  },
+  "runtime": {
+    "python": "CPython 3.12.14 --copies --without-pip in the dedicated directory",
+    "fixed_gateway_runtime_packages": 14,
+    "all_distribution_versions_and_import_origins_checked": true,
+    "gateway_module_from_fixed_original_tree": true
+  },
+  "sqlite_copy": {
+    "source_containers_stopped_before_and_after": 9,
+    "source_networks_with_zero_endpoints_before_and_after": 5,
+    "original_gateway_main_sha256": "3a8bfa8ccfee5643c3fd74eec9ccbc2f21cdc25f433a921bbf5dca51f9f90ed2",
+    "original_companion_main_sha256": "bdc4d8e7a81bcf5ca0937c8e9ee9a40d173312e4ec52b13426cffd21d3f43131",
+    "existing_original_wal_or_shm_count": 0,
+    "main_files_copied_byte_identically": true,
+    "copied_gateway_wal_and_shm_created_by_cli": true,
+    "copied_companion_wal_and_shm_created_by_route_read": true,
+    "original_gateway_and_companion_complete_directory_listings_size_sha256_inode_mtime_unchanged": true,
+    "original_settings_env_bundle_inventory_recovery_venv_marker_locks_failure_receipt_unchanged": true,
+    "original_recovery_and_gateway_code_trees_unchanged": true
+  },
+  "gateway_usage_copy_cli": {
+    "exit_code": 0,
+    "stderr_bytes": 0,
+    "stdout_bytes": 4641,
+    "schema_version": 1,
+    "key_space": "chat",
+    "identity_service": "companion",
+    "view": "attempts",
+    "since_utc": "2026-09-25T00:00:00Z",
+    "until_utc": "2026-09-26T00:00:00Z",
+    "counts": {
+      "total": 4,
+      "succeeded": 2,
+      "failed": 0,
+      "cancelled": 0,
+      "unknown": 2
+    },
+    "coverage": {
+      "matching": 4,
+      "scanned": 4,
+      "truncated": false,
+      "unmetered_total": 0
+    },
+    "companion_copy_route_ids_fixed_before_gateway_query": 2,
+    "fixed_offline_control_ids": 2,
+    "exact_four_request_ids_and_reasons_match": true,
+    "all_completed_at_within_fixed_utc_window": true,
+    "raw_stdout_sha256": "3d8c544d6a7fa9d25fb75b92504647fd58404e540f96c181dc507b5a19457c12",
+    "raw_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "private_receipts": {
+    "local_base": ".runtime/nas-a1-r2j/usage-readback-private",
+    "setup_receipt_sha256": "6c1f9b1d3c0dab21f86eeddafc5881c256b77b965d4d567f8efb5afcdeef0b20",
+    "source_baseline_sha256": "cb9c5f11bfeeabc8627e9d80a894c2453f59fb62f04c3c1845c4c83b4acd2ddc",
+    "expected_request_ids_sha256": "5962664949c6d41edf3747c02ea2f5bf209c50c8f930d224794c2eb7ca51927f",
+    "query_receipt_sha256": "08552f630b75b8205954cc2e8c8f926aadf12781b828f8d7937b18ab12e56385",
+    "setup_dispatch_sha256": "e1ccd28db950912c835a2e8ad5f1318f296b9ef03d4bc857932d68f0d2140e60",
+    "query_dispatch_sha256": "1cb47ceda6ca3adf18292cf0d52b27dcecdae887465c4948ec92c0a761fe1a04",
+    "independent_readback_sha256": "36a42a6f1bc485d84871656afae45f25e94cc073f766ddc5d25159455d92866a"
+  }
+}
