@@ -2,7 +2,7 @@
 
 ## 输入与固定文件
 
-这份索引用于协调者已分配的单次 r2i 测试范围；它不是已运行记录。当前代码提供静态 source、参数化源端业务入口、克隆占位输入和单次短时驱动。短时许可尚不存在，不能用 r2h/r2g 的值代填。
+这份索引记录协调者分配的单次 r2i 测试入口；实际尝试在源端停止，结果见 [`NAS-A1.md`](NAS-A1.md) 的 r2i 实机交接。当前代码提供静态 source、参数化源端业务入口、克隆占位输入和单次短时驱动。短时许可尚不存在，不能用 r2h/r2g 的值代填。
 
 本次固定分配是 `scope-a1-r2i`、execution ID `7a8aeaf2-80af-4cc6-a109-18d2c249552d`，以及 `10.205.49.0/24` 内 source 五段、clone 七段互不重叠的 `/28`；尾段 `10.205.49.192/26` 不分配。source/clone 回环端口各六个，以 `scope_parent/preparations/nas-a1-network-allocation-r2i.json` 为准，其原始字节 SHA256 必须是 `8dd4844321d0b396adc09451d8c6cea26abab7ef08f2bc21d70164fa87aa3d55`。配置须引用该文件并带同一哈希与 execution ID；准备、源端、克隆及单次驱动分别核对。创建前仍须在 NAS 实时预检所有网络、路由、端口、至少 11.5 GiB 可用内存和九 owner 资源约束。固定产品要求 source Companion/Memory/Gateway 回环 API 端口依次为 `19512/19513/19514`。准备 JSON 还需指定规范化绝对 `scope_parent`、新 scope UUID、两个专属 Compose 项目名、固定代码根 `scope_parent/tooling`、绝对 Python/Docker 可执行文件、原始固定候选 manifest、合同根、资源 profile、固定 OBS Git 仓库及其 manifest 提交对象 SHA256、四产品固定 Git 仓库的 `projects_root`、Gateway CLI 导入树及其逐树 SHA、`run_label`、恢复/克隆/备份/许可/收据名称。所有值都在 `scope_parent/preparations/scope-a1-r2i.json`，严格符合 `a1-preparation/1`。
 
