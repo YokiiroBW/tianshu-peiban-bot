@@ -14,7 +14,8 @@
     "Made expected JSON arrays recursively exact-length while preserving object subset matching.",
     "Added an A1-only adapter for supported Platform, Companion, and Memory CLI/API acceptance paths; no product database was directly opened or written.",
     "Recorded source-scope functional evidence and the exact DEP-J recovery registration blocker.",
-    "Added a narrowly verified exception for the Prometheus image-declared /prometheus volume when an exact configured read-only tmpfs masks it in the running mount namespace."
+    "Added a narrowly verified exception for the Prometheus image-declared /prometheus volume when an exact configured read-only tmpfs masks it in the running mount namespace.",
+    "Pinned Memory POST Host to the verified Compose listener while keeping TCP/TLS on loopback; added bounded failure-stage, HTTP-status, and safe response-structure diagnostics."
   ],
   "checks": [
     {
@@ -212,9 +213,202 @@
       "blocking_reason": "A compliant clone requires dedicated credentials/TLS, current origin evidence, fixed public read assertions, and a separately prepared one-use permit. Do not mutate the registered r1 source or restored target to refresh it."
     }
   },
+  "nas_r2_attempt": {
+    "scope_root": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a1/scope-a1-r2",
+    "scope_id": "0e141711-16e9-44cc-a0d3-af32f3297ae8",
+    "source_deployment": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a1/scope-a1-r2/deployments/source",
+    "source_project": "tianshu-qa-a1-source-r2",
+    "resource_profile": "nas-cpuset-qa-v1",
+    "synthetic_only": true,
+    "real_model_requests": 0,
+    "core_and_obs_inputs_prepared": true,
+    "public_observability_configure": {
+      "status": "refused",
+      "error_code": "observability_public_cli_failed",
+      "exit_code": 1,
+      "internal_error_code": "vocabulary_source_commit_mismatch",
+      "root_cause": "The public configure command omitted --projects, so the pinned OBS vocabulary did not match the four product commits in the candidate manifest. This was reproduced on an isolated local copy with the child CLI error code retained."
+    },
+    "source_state_after_refusal": {
+      "incomplete_marker_present": true,
+      "partial_observability_input_present": true,
+      "fixed_observability_tool_export_present": true,
+      "observability_output_directory_present": false,
+      "bundle_integrity_updated_after_refusal": false,
+      "containers_present": false,
+      "docker_networks_present": false,
+      "started": false
+    },
+    "blocking_reason": "The omitted --projects argument caused a fixed-vocabulary source-commit mismatch. The failed source is marked INCOMPLETE and remains untouched.",
+    "next_step": "Continue in the separate r2b scope with public --projects vocabulary regeneration; preserve this failed r2 source."
+  },
+  "nas_r2b": {
+    "scope_root": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a1/scope-a1-r2b",
+    "scope_id": "9aaffd16-009c-4617-99e1-802ad21759a8",
+    "source_project": "tianshu-qa-a1-source-r2b",
+    "synthetic_only": true,
+    "real_model_requests": 0,
+    "observability_configuration": "observability_configured_with_public_projects_snapshot",
+    "fixed_product_git_commits_present": 4,
+    "core_memory_limit_gib": 4,
+    "observability_memory_limit_gib": 3.5,
+    "total_memory_limit_gib": 7.5,
+    "compose_config": "core_and_observability_passed",
+    "public_preflight_with_linux_permissions": "package_valid",
+    "services_started": true,
+    "source_semantics": "passed_for_forgotten_source_retracted_model_revoked_and_unknown_no_resend_using_product_apis_and_offline_synthetic_model",
+    "recovery": {
+      "observed_owners": 9,
+      "runtime_identity_sha256": "4124e0468045589bc846e63757db6316b1e33986b83ffe748639ffc4d762dd21",
+      "authority_id": "89655ec6-d541-4630-8fa2-dfcd5b525cfd",
+      "registration_sha256": "a1308307d552adb3de9d607734259ccbcad570f52880833569196ef97ae59530",
+      "backup_name": "a1-r2b-backup-20260925",
+      "snapshot_sha256": "843edc0659f38e1826f7758bcbee44bf356048c190ba3eb1b0b31e651d5e6c9c",
+      "restored_target": "a1-r2b-restored-20260925",
+      "restored_status": "restored_disabled",
+      "verification_sha256": "f89569eb32b85bdb9338a9c19117e82b7651bdbc191851512b8078482ec4ce6b",
+      "source_owners_exited_zero": 9
+    },
+    "clone": {
+      "name": "a1-r2b-clone-20260925",
+      "independent_input_files": 183,
+      "permit_id": "f9763c43-acd3-4320-a06c-4f15fc3b1efa",
+      "permit_sha256": "6af82c9ab174fafa82d5851724d697d8dabafe151b0b0ae84529b4101bf4bbd1",
+      "permit_consumed": true,
+      "owner_coverage": "nine_simultaneously_running;four_core_healthy;five_observability_running",
+      "data_readback": "passed",
+      "data_readback_response_sha256": "59237c6db3f73ae5e97d1567079c0af3d89c77a8e9280a7a1d5296e560560937",
+      "drill_status": "drill_failed_or_cancelled",
+      "failed_assertion": "forgotten",
+      "remaining_assertions": "not_run",
+      "unknown_no_resend_observation": "not_run",
+      "clone_owners_exited_zero": 9,
+      "root_cause": "Clone preparation rotated Companion TS_CORE_MEMORY without rebinding Memory callers.companion.token, which would fail bearer authentication if the request reached it. The old drill also sent loopback Host while fixed Memory allowed only memory.internal:8130, so Host validation would reject first. Actual HTTP status was not persisted. Two source-sync token mappings remained stale and the unknown request deadline was too short. These are acceptance fixture errors, not evidence of lost recovered data."
+    },
+    "recovery_clone_validation": "failed_fixture_needs_new_scope_and_permit"
+  },
+  "nas_r2c_r2e_preparation": {
+    "r2c": "Fixed candidate initialization refused feature_configuration_mismatch after using a post-preparation manifest; no containers or authority.",
+    "r2d": "First migration could not allocate an auxiliary Docker network from the exhausted default address pool; no authority or backup.",
+    "r2e": "Nine owners started with explicit subnets, but A1 prepare-synthetic was omitted and the synthetic provider was absent; containers and networks were stopped and removed without deleting retained state. No authority or backup."
+  },
+  "nas_r2f": {
+    "scope_root": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a1/scope-a1-r2f",
+    "scope_id": "9de11d89-3149-4fab-86d8-fab1f065ebf1",
+    "source_project": "tianshu-qa-a1-source-r2f",
+    "synthetic_only": true,
+    "real_model_requests": 0,
+    "source_semantics": "passed_for_forgotten_source_retracted_model_revoked_and_unknown_no_resend_using_product_apis_and_offline_synthetic_model",
+    "first_registration_attempt": "rejected_compose_directory_mismatch_before_authority_write; OBS owners recreated with correct project directory and nine-owner identity resampled",
+    "recovery": {
+      "observed_owners": 9,
+      "runtime_identity_sha256": "9f09b62ee6f19d9107a3cef7cf16051ab2ede69d4bea690a888cd85bbcd45f32",
+      "authority_id": "4896b5d0-252b-4a68-9c02-4481e64efb0a",
+      "registration_sha256": "5cee58aee5e54dbf0587039f4da5175d1567fffb4dcd2e270f5c18f11444b67a",
+      "backup_name": "a1-r2f-backup-20260925",
+      "snapshot_sha256": "d9b0bac2951be846c7a47f3058f2e27b91511b0be583b7eb40985f3eb58800f5",
+      "restored_target": "a1-r2f-restored-20260925",
+      "restored_status": "restored_disabled",
+      "verification_sha256": "53d59da93081df3f9324313535f8552c2f50154441ca16b842a9483583bfead5",
+      "source_owners_exited_zero": 9
+    },
+    "clone": {
+      "name": "a1-r2f-clone-20260925",
+      "independent_input_files": 183,
+      "static_inputs_and_provenance": "passed",
+      "cross_service_credential_equality": "passed_for_memory_caller_platform_issuer_and_both_source_sync_tokens",
+      "host_subnets_and_ports": "passed",
+      "permit_id": "4810fd1a-185f-4b2e-a3ca-fb754ddc54fd",
+      "permit_sha256": "04e0383e3356abdb652121a222c4fe2cac5c75e2bede0933d33d1290e6059633",
+      "permit_consumed": true,
+      "owner_coverage": "nine_simultaneously_running;four_core_healthy;five_observability_running",
+      "data_readback": "passed",
+      "data_readback_response_sha256": "e9b0f57046346bdaf6cc9a6b3954dd4a8029682b3141fc3672f4b7ec924c6f11",
+      "drill_status": "drill_failed_or_cancelled",
+      "failed_assertion": "forgotten",
+      "failed_assertion_actual_status": "not_recorded",
+      "remaining_assertions": "not_run",
+      "unknown_no_resend_observation": "not_run",
+      "clone_owners_exited_zero": 9,
+      "read_only_diagnosis": "Memory caller token, drill token, issuer and source-sync mappings matched; select request satisfied published contract and allowed operation; TLS SAN and host port were present. Clone Memory instance recorded no request.started. Fixed Memory runtime allowed only Host memory.internal:8130 while the old drill sent Host 127.0.0.1:19813. Product Host validation precedes diagnostic middleware and would return HTTP 400 invalid_host; the r2f receipt did not persist actual HTTP status."
+    },
+    "recovery_clone_validation": "incomplete_needs_new_scope_and_permit"
+  },
+  "nas_r2g": {
+    "scope_root": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a1/scope-a1-r2g",
+    "scope_id": "2b1f206a-5794-492e-a005-aad9befb5e84",
+    "tooling_snapshot": "/volume2/tianshu-v2-validation-wave1/accept-20260925-a1/tooling-r2g",
+    "host_fix_commit": "a60bf049892180bf60c4a12284630c39a6c69d78",
+    "synthetic_only": true,
+    "real_model_requests": 0,
+    "source_project": "tianshu-qa-a1-source-r2g",
+    "source_subnets": ["10.204.95.0/24", "10.204.96.0/24", "10.204.97.0/24", "10.204.98.0/24", "10.204.99.0/24"],
+    "source_semantics": "passed_for_forgotten_source_retracted_model_revoked_and_unknown_no_resend_using_product_apis_and_offline_synthetic_model",
+    "initial_obs_project_correction": "Only the five new r2g OBS containers and their two networks were removed after their mounts were verified inside r2g; they were restarted under the dedicated source-r2g-obs project before runtime identity capture.",
+    "recovery": {
+      "observed_owners": 9,
+      "runtime_identity_sha256": "3e124f81a211453ba3765fc802c15902fa012cb142dcbd7b37d4459c46fbed2e",
+      "authority_id": "0617ca53-071a-4fc4-9dd1-82a47b90d07e",
+      "registration_sha256": "5e31a497078ca72fb2c08a2f0f5696f4a7c0ed19eec4801417a9ed21e4803e9b",
+      "backup_name": "a1-r2g-backup-20260925",
+      "snapshot_sha256": "9d88242dab67723d387b7b7df1cb7b1b9ad107420bab21c51ff2d946a65f793e",
+      "restored_target": "a1-r2g-restored-20260925",
+      "restored_status": "restored_disabled",
+      "verification_sha256": "18526ea304185d5f9617ca87c7317e558061d683939c0cfb77235c03276f7d6d",
+      "source_owners_exited_zero": 9
+    },
+    "clone": {
+      "name": "a1-r2g-clone-20260925",
+      "independent_input_files": 183,
+      "subnets": ["10.205.14.0/26", "10.205.14.64/26", "10.205.14.128/26", "10.205.14.192/26", "10.205.15.0/26", "10.205.15.64/26", "10.205.15.128/26"],
+      "host_network_route_port_capacity_preflight": "passed",
+      "static_inputs_and_provenance": "passed",
+      "memory_authority_preclaim": "memory.internal:8130_verified_from_clone_compose",
+      "permit_id": "e0c12ffc-181d-4dd4-8549-f3ba282817a7",
+      "permit_sha256": "75acb564fee81436a09a27fda9c5d9809f0a1590bef1260f703750897f800a0a",
+      "permit_consumed": true,
+      "claim_status": "claimed",
+      "owner_coverage": "nine_simultaneously_running;four_core_healthy;five_observability_running",
+      "assertions": {
+        "data_readback": "passed",
+        "forgotten": "passed",
+        "source_revoked": "passed",
+        "model_revoked": "passed",
+        "unknown_no_resend": "passed"
+      },
+      "assertion_response_sha256": {
+        "data_readback": "2c464a15b4e79b19d8c93bbd2b972c57949bf6f8db3a195407b6a5b7ef339069",
+        "forgotten": "93f272b12221fc97d7eec5c7ee5b6246c2c5851bb8bfaaa3a325ac70ed78beed",
+        "source_revoked": "f2718f38fb2847f4a10c995b3d72a12af8682742bd488f0a6efa91de6a6a4f5c",
+        "model_revoked": "ea10f4c9dbc6b68451d62a3ca5c035c34cf1935381d49b960da39fc4a8859276",
+        "unknown_no_resend": "ac91bf1c117d34544f3dc3f51505fdd6477933e34a29e3ce88a9860bc8479d71"
+      },
+      "unknown_no_resend_observation": {
+        "status": "passed",
+        "window_seconds": 10,
+        "observed_seconds": 12.428,
+        "api_unknown_turn_count": 2,
+        "api_unknown_reply_record_count": 2,
+        "api_reply_snapshot_unchanged": true,
+        "gateway_counters_unchanged_by_correlation": true,
+        "successful_control_groups": 2,
+        "unknown_groups": 2,
+        "owner_state_checks": 4,
+        "readiness_checks": 4
+      },
+      "missing_semantics": [],
+      "missing_products": ["gateway"],
+      "drill_status": "partial_functional_coverage",
+      "drill_result_sha256": "b31260604e67341f9bed1d01d460522725e69a5699b02f4ca77ed752221da733",
+      "claim_sha256": "750f4c2c8d40ee621a3b75a9dbac53d3fd9121208bd34a5ee18117be0b9fae3f",
+      "release_ready": false,
+      "clone_owners_exited_zero": 9
+    },
+    "recovery_clone_validation": "five_semantic_assertions_and_bounded_observation_passed_but_gateway_functional_assertion_missing"
+  },
   "remaining": [
-    "Confirm and authorize a fresh isolated A1 scope for clone preparation; issue and record a current config-origin before the source is registered and snapshotted.",
-    "Prepare dedicated clone credentials/TLS, fresh non-overlapping network/loopback-port plan, public assertions for all five semantic IDs, and a one-use permit; then run the nine-owner clone and bounded unknown-no-resend observation."
+    "Define and review a supported Gateway read-only functional API assertion for an independent synthetic clone.",
+    "If full recovery acceptance remains required, use a newly authorized isolated A1 scope and permit; do not replay r2g or rewrite its immutable result."
   ],
   "implementation_commit": "2a55de2fd7827dd7f1710d6cb8cc6c71bdb40856"
 }
