@@ -4,7 +4,7 @@
 
 本方案基于固定恢复工具提交 `07dfbb81bffd814834f169b6b7d061b9c7308512`、[r2h 原始证据索引](NAS-A1-r2h-evidence.json)和 2026-09-25 的一次 NAS 执行。它只定义后续**新 scope**的顺序、边界和验收资料；没有再次操作 NAS、改变产品/恢复代码、降低 180 秒闸门或许可重放。
 
-当前 r2h helper 包不能直接作为新 scope 的“完整 dry-run 后执行”工具：31 个 helper 中 30 个写死 `scope-a1-r2h` 绝对路径，多数在模块顶层直接执行，几乎没有参数化 `--dry-run`。现有恢复测试有合成 Docker/HTTP 替身，但没有 `a1_r2h_*` 助手链集成用例；本轮 19 例本地 dry-run 仅覆盖初始化 guard。现有 `linux-rehearse` plan 和 `drill-clone` plan 都跳过真实 owner/恢复事实及短时来源入场，后者明确返回 `actual_owners_and_facts=not_checked`。因此，当前工具**可以做静态和替身预演，不能在新 scope 创建前证明真实九 owner、Platform 签发、SQLite 冻结事实或六项克隆 HTTP 断言**。若要防止 NAS 上逐错试，需先交 DSH 将 A1 helper 链参数化并增加无副作用的 fixture 模式，再经独立审查；恢复核心工具的安全复核不得因预演而删减。
+当前 r2h helper 包不能直接作为新 scope 的“完整 dry-run 后执行”工具：31 个 helper 中 30 个写死 `scope-a1-r2h` 绝对路径，多数在模块顶层直接执行，几乎没有参数化 `--dry-run`。现有恢复测试有合成 Docker/HTTP 替身，但没有 `a1_r2h_*` 助手链集成用例；本轮 19 例本地 dry-run 仅覆盖初始化 guard。现有 `linux-rehearse` plan 和 `drill-clone` plan 都跳过真实 owner/恢复事实及短时来源入场，后者明确返回 `actual_owners_and_facts=not_checked`。因此，当前工具**可以做静态和替身预演，不能在新 scope 创建前证明真实九 owner、Platform 签发、SQLite 冻结事实或六项克隆 HTTP 断言**。若要防止 NAS 上逐错试，需先将 A1 helper 链参数化并增加无副作用的 fixture 模式，再经独立审查；恢复核心工具的安全复核不得因预演而删减。
 
 ## 本轮实测预算
 
@@ -73,10 +73,10 @@ r2g 已完成的五断言克隆 execute 在任务原始会话中的 11:58:04.051
 | 参数化脚本的 Python 编译、精确路径生成、旧 scope 字符串残留扫描、单次执行 guard、输入文件清单及哈希、初始/最终 manifest 差异、固定产品镜像/提交、12 段 `/28` 和 12 端口不重叠、Compose 渲染、合同/JSON schema、权限模板 | NAS 当时的路由/端口/内存与 Docker 对象、实际九 owner 身份和 stop 结果、Platform issue/续期的数据库行、backup/restore 全事实、一次性许可、六项真实克隆 HTTPS 与有界 no-resend |
 | 在临时合成目录与严格替身中跑**整个助手顺序**，模拟成功、初始/最终 manifest 误用、非空目录 guard、缺模型模板、先发布后绑定、凭据未重载、漏传 Docker 绝对路径、超时、部分签发、来源 179/180/181 秒、非空 WAL、重复许可、错误项目/网络；断言失败时不调用后续阶段、不触碰工作区/NAS | 替身结果不能当真实产品 API 或恢复副本断言通过；`drill-clone plan` 只校验静态输入并明确不检查真实 owner/facts |
 
-要称“新 scope 前完整助手链预演”，DSH 至少需交付：一套通过 `--scope-root`/显式参数运行、默认无副作用的 A1 helper；只在 `--execute` 时创建本轮范围文件的写入边界；可注入的 Docker/Platform/Memory/Companion/Gateway 适配器；覆盖上述失败路径的合成夹具；一个输出确切阶段、输入/输出文件与命令摘要的计划；以及由 A4 独立复核的 fixture 结果和包 SHA。**现有 r2h 硬编码脚本与局部 19 例初始化 dry-run 不满足这个门槛**。在该能力到位前，可先做静态本地核对和 NAS 创建前只读宿主预检，但不得宣称“完整预演通过”，也不能通过跳过实时安全校验换速度。
+要称“新 scope 前完整助手链预演”，执行者至少需交付：一套通过 `--scope-root`/显式参数运行、默认无副作用的 A1 helper；只在 `--execute` 时创建本轮范围文件的写入边界；可注入的 Docker/Platform/Memory/Companion/Gateway 适配器；覆盖上述失败路径的合成夹具；一个输出确切阶段、输入/输出文件与命令摘要的计划；以及由 A4 独立复核的 fixture 结果和包 SHA。**现有 r2h 硬编码脚本与局部 19 例初始化 dry-run 不满足这个门槛**。在该能力到位前，可先做静态本地核对和 NAS 创建前只读宿主预检，但不得宣称“完整预演通过”，也不能通过跳过实时安全校验换速度。
 
 ## 决策输入
 
-协调者/A4应分别判断：新 scope 脚本是否已经参数化并完成替身链预演；固定六断言是否具备足够实测运行余量（r2g 的 151.597 秒只覆盖五断言）；单次驱动的失败停止与 90 秒清理窗口是否经过独立审查。若这些条件尚未满足，保留 r2h `needs_validation` 与现场，先交 DSH 补助手链，不拿旧冻结 source 或未 claim 的 r2h 许可做试跑。
+协调者/A4应分别判断：新 scope 脚本是否已经参数化并完成替身链预演；固定六断言是否具备足够实测运行余量（r2g 的 151.597 秒只覆盖五断言）；单次驱动的失败停止与 90 秒清理窗口是否经过独立审查。若这些条件尚未满足，保留 r2h `needs_validation` 与现场，先补助手链，不拿旧冻结 source 或未 claim 的 r2h 许可做试跑。
 
-长期产品化方向仍是把克隆只读恢复授权与短时 source origin 分开：由受信恢复发行方在禁用态快照及输入哈希核验后签发**快照/authority/clone/端点/用途/时限全部绑定**、单次消费且可审计的能力；Platform、Gateway、Memory、Companion 必须共同验证撤销与到期语义。该能力不能通过放宽现有 180 秒门槛或修改冻结 source 数据伪造，需独立合同、DSH 实现及联合验收。
+长期产品化方向仍是把克隆只读恢复授权与短时 source origin 分开：由受信恢复发行方在禁用态快照及输入哈希核验后签发**快照/authority/clone/端点/用途/时限全部绑定**、单次消费且可审计的能力；Platform、Gateway、Memory、Companion 必须共同验证撤销与到期语义。该能力不能通过放宽现有 180 秒门槛或修改冻结 source 数据伪造，需独立合同、实现及联合验收。

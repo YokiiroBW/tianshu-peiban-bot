@@ -6,10 +6,17 @@ import re
 import sqlite3
 import time
 from contextlib import closing
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
-from .safety import child, read_bytes, read_json, require
+from .safety import RecoveryError, child, read_bytes, read_json, require
+
+
+class OriginLifetimeInsufficient(RecoveryError):
+    def __init__(self, remaining, checked_at):
+        super().__init__("drill_origin_lifetime_insufficient")
+        self.remaining = int(remaining)
+        self.checked_at = checked_at
 
 
 MINIMUM_REMAINING_SECONDS = 180
@@ -168,10 +175,13 @@ def check_origin_admission(source, inputs, index, *, now=None, minimum_remaining
                 "drill_origin_source_mismatch")
         effective_expiries[name] = row[2]
     remaining = min(*effective_expiries.values(), deadline) - current
-    require(remaining > 0 and remaining >= minimum_remaining,
-            "drill_origin_lifetime_insufficient")
+    checked_at = datetime.fromtimestamp(current, timezone.utc).isoformat(
+        timespec="milliseconds").replace("+00:00", "Z")
+    if not (remaining > 0 and remaining >= minimum_remaining):
+        raise OriginLifetimeInsufficient(remaining, checked_at)
     return {
         "minimum_remaining_seconds": MINIMUM_REMAINING_SECONDS,
         "remaining_at_check_seconds": int(remaining),
+        "checked_at": checked_at,
         "source_receipts_and_bindings_verified": True,
     }

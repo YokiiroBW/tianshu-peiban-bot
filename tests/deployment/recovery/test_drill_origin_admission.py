@@ -108,8 +108,10 @@ class OriginAdmissionTests(unittest.TestCase):
     def test_fixed_product_receipts_source_rows_and_exact_boundary(self):
         self.assertEqual(self.check()["remaining_at_check_seconds"], 220)
         self.assertEqual(self.check(now=self.now + 40)["remaining_at_check_seconds"], 180)
-        with self.assertRaisesRegex(RecoveryError, "drill_origin_lifetime_insufficient"):
+        with self.assertRaisesRegex(RecoveryError, "drill_origin_lifetime_insufficient") as short:
             self.check(now=self.now + 40.001)
+        self.assertEqual(short.exception.remaining, 179)
+        self.assertTrue(short.exception.checked_at.endswith("Z"))
         self.assertEqual(self.check(now=self.now + 219, minimum=0)[
             "remaining_at_check_seconds"], 1)
         with self.assertRaisesRegex(RecoveryError, "drill_origin_lifetime_insufficient"):

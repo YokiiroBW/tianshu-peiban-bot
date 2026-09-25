@@ -1061,7 +1061,7 @@ def trusted_memory_commit(root, input_path):
     }
 
 
-def run_platform_cli(root, action, input_path):
+def run_platform_cli(root, action, input_path, *, docker_executable="/volume2/@appstore/ContainerManager/usr/bin/docker"):
     """Run an allowlisted Platform action through its supported in-container CLI."""
     root = Path(root).resolve(strict=True)
     _, _, _, read_json = _imports(root)
@@ -1108,7 +1108,7 @@ def run_platform_cli(root, action, input_path):
         " sys.exit(result.returncode)"
     )
     command = [
-        "/volume2/@appstore/ContainerManager/usr/bin/docker",
+        docker_executable,
         "compose",
         "-p",
         project,
@@ -1139,7 +1139,7 @@ def run_platform_cli(root, action, input_path):
     return {"action": action, "receipt": receipt}
 
 
-def diagnose_platform_publication(root, input_path):
+def diagnose_platform_publication(root, input_path, *, docker_executable="/volume2/@appstore/ContainerManager/usr/bin/docker"):
     """Run Platform's pure publication validators without opening its product store."""
     root = Path(root).resolve(strict=True)
     _, _, _, read_json = _imports(root)
@@ -1173,7 +1173,7 @@ def diagnose_platform_publication(root, input_path):
         "print(json.dumps({'valid':True}))"
     )
     command = [
-        "/volume2/@appstore/ContainerManager/usr/bin/docker",
+        docker_executable,
         "compose",
         "-p",
         project,

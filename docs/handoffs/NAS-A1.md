@@ -159,3 +159,11 @@ scope `b3f59a3a-0fd4-4d47-8ff9-2c7a00d8b7a5` 为 r1 轮的唯一 NAS 目标。OB
 ## 下一步
 
 协调者先安排 A4 独立复核 r2h 的固定证据与入场拒绝，保持该 source、恢复目标和历史 scope 原样停止/禁用。若仍需完整恢复验收，须使用新的独立 scope、authority、快照、输入和单次许可，并在密封前准备命令及静态预检；不得重放 r2h/r2g 许可，也不能仅凭本轮时间窗把 180 秒阈值降低。单次驱动与新 scope 前预演边界见 [`NAS-A1-next-run-plan.md`](NAS-A1-next-run-plan.md)。产品化的快照绑定恢复授权需另立跨产品契约与验收。完成克隆六项 API 断言和有界观察前继续标为 `needs_validation`。
+
+## 下一轮本地单次驱动交接（2026-09-25）
+
+按本轮 Codex 执行授权，新增 `ops/recovery/a1_once.py` 与 `A1-ONCE.md`。驱动只接受事先准备的新 A1 source 和占位 clone 输入，锁定打包代码逐文件清单、源 manifest/registration/runtime/deployment、模型模板、初始输入索引及其每个文件的 SHA；12 段 `/28`、12 个回环端口与实际 Compose 双向核对。它按 seal → `linux-rehearse --execute` → 实时宿主预检 → 独立许可 → `drill-clone` plan → **一次** execute 串行调用公开 CLI，不修改恢复执行器原有的 owner、恢复事实、180 秒来源与 claim 检查。每阶段有 UTC/monotonic 收据、命令/结果/原始流 SHA 和 mode 0700/0600 的私有原始流；超时仅向 CLI 主进程发 SIGTERM 并等待其正常清理。若 seal 已结束却失败，尝试一次已登记九 owner 的正常停写/备份/禁用恢复；主进程仍存活或收束失败时标 `stop_unconfirmed`，不进入许可或克隆。
+
+隔离临时目录预演运行实际驱动控制流、密封/许可参数生成和宿主预检算法；模拟的产品/Docker 回执不作为真实九 owner、Platform 来源、NAS 网络或六项 HTTPS 通过记录。新增驱动 23 项、实际来源闸门 8 项通过；恢复演练 28 项初次因本地缺 `jsonschema` 在 setUp 前全部报错，隔离安装该依赖后重跑 28 项通过。定向夹具覆盖正常六阶段仅一次 execute、配置/代码清单/manifest/模板/index/旧 scope/已有许可拒绝、非空目标、179/180/181 秒边界、错误来源/非空 WAL 造成 permit 非零退出后的阶段截断、坏回执/错 hash、seal 部分成功后的正常收束、退出与未退出两种超时以及无强杀行为。实际来源 SQLite/WAL 和真实克隆清理边界另由恢复核心既有定向测试覆盖；完整 NAS 六断言运行时间仍未测得，不能凭本地预演保证短时窗口足够。
+
+本轮未新建 scope，未签发真实许可、启动容器或操作 NAS。后续在协调/A4 审查驱动固定提交后，仍需单独准备并审查新 source 和 clone 占位包：旧 31 个 r2h helper 的固定路径和模块顶层副作用不可直接复用；必须填入经实时资源核对的实际分配，独立核验 source 的四 core、五 OBS、产品语义和 Gateway 四尝试，再决定是否进入短时链。r2h 原现场与证据结论不变。
