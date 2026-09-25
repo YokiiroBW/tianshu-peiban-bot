@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import hashlib
+import gzip
 import ipaddress
 import json
+import math
 import os
 import re
 import secrets
 import shutil
+import subprocess
+import tarfile
 import time
 import urllib.request
 import uuid
@@ -20,26 +24,31 @@ from urllib.parse import urlencode
 import nas_a2_probe as base
 
 BASE_SCOPE = Path("/volume2/tianshu-v2-validation-wave1/accept-20260925-a2")
-RUN_ROOT = BASE_SCOPE / "runs" / "recovery-vector-20260925-r11"
-PROJECT = "tianshu-accept-a2-vfull-20260925-r11"
+RUN_ROOT = BASE_SCOPE / "runs" / "recovery-vector-20260925-r12"
+PROJECT = "tianshu-accept-a2-vfull-20260925-r12"
 NETWORK = PROJECT
-SUBNET = ipaddress.ip_network("10.205.20.0/24")
+SUBNET = ipaddress.ip_network("10.205.21.0/24")
 VECTOR_NAME = PROJECT + "-vector"
 LOKI_NAME = PROJECT + "-loki"
-VECTOR_IP = "10.205.20.11"
-LOKI_IP = "10.205.20.10"
-GUARD_PORT = 19524
+VECTOR_IP = "10.205.21.11"
+LOKI_IP = "10.205.21.10"
+GUARD_PORT = 19525
 VECTOR_METRICS_PORT = 9598
-TMPFS_BYTES = 1024 * 1024**2
+TMPFS_BYTES = 512 * 1024**2
 VECTOR_BUFFER_BYTES = base.VECTOR_MINIMUM_BUFFER_BYTES
-VECTOR_BUFFER_FULL_TIMEOUT_SECONDS = 600
-VECTOR_REPLAY_DRAIN_TIMEOUT_SECONDS = 1800
-VECTOR_REQUEST_RATE_LIMIT_PER_SECOND = 1
+VECTOR_DATA_FILE_BYTES = 128 * 1024**2
+VECTOR_INTERNAL_BUFFER_BYTES = VECTOR_BUFFER_BYTES - VECTOR_DATA_FILE_BYTES
+VECTOR_BUFFER_FULL_TIMEOUT_SECONDS = 300
+VECTOR_REPLAY_DRAIN_TIMEOUT_SECONDS = 600
+STORE_ONLY_QUERY_TIMEOUT_SECONDS = 300
+TOTAL_RUN_TIMEOUT_SECONDS = 1500
+WORK_TIMEOUT_SECONDS = 1200
+VECTOR_REQUEST_RATE_LIMIT_PER_SECOND = 4
 VECTOR_PADDING_BYTES = 2500
-VECTOR_RECORDS = 120_000
+VECTOR_RECORDS = 60_000
 VECTOR_TIMESTAMP_STEP_NS = 2_500_000
-VECTOR_SERVICE = "nas-a2-vector-r11-" + uuid.uuid4().hex[:12]
-RECOVERY_SERVICE = "nas-a2-recovery-r11-" + uuid.uuid4().hex[:12]
+VECTOR_SERVICE = "nas-a2-vector-r12-" + uuid.uuid4().hex[:12]
+RECOVERY_SERVICE = "nas-a2-recovery-r12-" + uuid.uuid4().hex[:12]
 VECTOR_IMAGE_ID = base.EXPECTED_VECTOR_IMAGE_ID
 LOKI_IMAGE_ID = base.EXPECTED_LOKI_IMAGE_ID
 REPORT_NAME = "nas-a2-followup-report.json"
@@ -50,9 +59,14 @@ R7_SNAPSHOT_SHA256 = "8ecf8838fea69cb0a3030c72ade3c70b127c59d21f276eb60c2c2aa3c7
 R8_SNAPSHOT_SHA256 = "b0181f5d500e93f0f2c72ce1a8268b020515273095003b455ebb8d5cb5d48b2b"
 R9_SNAPSHOT_SHA256 = "0d9687eab99c1eb7f4712f150a29cef46630f61080f3e8259a55fce740901bca"
 R10_SNAPSHOT_SHA256 = "bbd5ec351d2a983f447e2c96f50a1c4c9fb7d412289f7690d8b15b52c8fd057d"
+R11_SNAPSHOT_SHA256 = "d0d7c9601bd232c6e338c09d4122075a42f535c55ef265b4b268dfd203704b83"
 
 
 def _configure_scope() -> None:
+    base.require(
+        SUBNET.subnet_of(ipaddress.ip_network("10.205.16.0/20")),
+        "subnet_outside_assigned_range",
+    )
     base.EXPECTED_ROOT = RUN_ROOT
     base.PROJECT = PROJECT
     base.NETWORK = NETWORK
@@ -737,11 +751,14 @@ def _vector_config(path: Path, tls: Path) -> bytes:
     return data
 
 
-def _write_vector_backlog(source: Path, base_ns: int) -> tuple[list, str]:
+def _write_vector_backlog(source: Path, base_ns: int) -> tuple[list, str, dict]:
     expected = []
     padding = "x" * VECTOR_PADDING_BYTES
+    max_loki_line_bytes = 0
+    logical_loki_json_bytes = 0
 
     def rows():
+        nonlocal max_loki_line_bytes, logical_loki_json_bytes
         for index in range(VECTOR_RECORDS):
             row = base._record(index + 2, service="gateway")
             row["event_id"] = str(uuid.uuid4())
@@ -752,15 +769,27 @@ def _write_vector_backlog(source: Path, base_ns: int) -> tuple[list, str]:
                 .replace("+00:00", "Z")
             )
             enriched = {**row, "a2_buffer_fixture": padding}
+            encoded_line_bytes = len(base.canonical(enriched))
+            base.require(encoded_line_bytes < 4096, "synthetic_loki_line_too_long")
+            max_loki_line_bytes = max(max_loki_line_bytes, encoded_line_bytes)
+            logical_loki_json_bytes += encoded_line_bytes + 1
             expected.append((row["event_id"], base.digest(enriched)))
             yield row
 
     base._write_synthetic(source, rows(), append=True)
     os.chown(source, 10001, 10001)
-    return expected, base.sha_file(source)
+    base.require(
+        len({event_id for event_id, _ in expected}) == VECTOR_RECORDS,
+        "synthetic_event_id_collision",
+    )
+    return expected, base.sha_file(source), {
+        "max_projected_loki_line_bytes": max_loki_line_bytes,
+        "logical_loki_json_bytes": logical_loki_json_bytes,
+        "source_file_bytes": source.stat().st_size,
+    }
 
 
-def _vector_prometheus_samples() -> dict[str, list[tuple[dict[str, str], float]]]:
+def _vector_prometheus_body() -> bytes:
     request = urllib.request.Request(
         f"http://{VECTOR_IP}:{VECTOR_METRICS_PORT}/metrics"
     )
@@ -770,6 +799,14 @@ def _vector_prometheus_samples() -> dict[str, list[tuple[dict[str, str], float]]
     except Exception:
         raise base.ProbeError("vector_metrics_unavailable") from None
     base.require(len(body) <= 8 * 1024**2, "vector_metrics_over_budget")
+    return body
+
+
+def _vector_prometheus_samples(
+    body: bytes | None = None,
+) -> dict[str, list[tuple[dict[str, str], float]]]:
+    if body is None:
+        body = _vector_prometheus_body()
     samples: dict[str, list[tuple[dict[str, str], float]]] = {}
     for line in body.decode("utf-8", "replace").splitlines():
         if not line or line.startswith("#"):
@@ -797,8 +834,8 @@ def _vector_prometheus_samples() -> dict[str, list[tuple[dict[str, str], float]]
     return samples
 
 
-def _vector_metrics_snapshot() -> dict:
-    samples = _vector_prometheus_samples()
+def _vector_metrics_snapshot(body: bytes | None = None) -> dict:
+    samples = _vector_prometheus_samples(body)
     required_components = (
         ("vector_buffer_size_bytes", "loki"),
         ("vector_buffer_max_size_bytes", "loki"),
@@ -825,6 +862,10 @@ def _vector_metrics_snapshot() -> dict:
             samples, "vector_component_discarded_events_total"
         ),
         "component_errors": base._metric_sum(samples, "vector_component_errors_total"),
+        "component_error_series": [
+            {"labels": labels, "value": value}
+            for labels, value in samples.get("vector_component_errors_total", [])
+        ],
     }
 
 
@@ -835,34 +876,353 @@ def _try_vector_metrics_snapshot() -> dict | None:
         return None
 
 
-def _backpressure_verified(
-    source_progress: list[int],
-    buffer_progress: list[int],
-    source_sent_total: int,
-    buffer_max_bytes: int,
-) -> bool:
-    source_stalled = (
-        len(source_progress) >= 3
-        and len(set(source_progress[-3:])) == 1
-        and source_progress[-1] < source_sent_total
+def _stamp() -> dict:
+    return {
+        "utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "monotonic_ns": time.monotonic_ns(),
+    }
+
+
+def _timestamped_vector_sample(
+    paths: dict[str, Path], source: Path, vector_id: str, loki_id: str
+) -> dict:
+    scrape_started_ns = time.monotonic_ns()
+    body = _vector_prometheus_body()
+    observed = _stamp()
+    metrics = _vector_metrics_snapshot(body)
+    selected_names = (
+        "vector_buffer_size_bytes",
+        "vector_buffer_max_size_bytes",
+        "vector_component_sent_events_total",
+        "vector_component_discarded_events_total",
+        "vector_component_errors_total",
     )
-    buffer_remained_full = (
-        len(buffer_progress) >= 3
-        and all(value >= buffer_max_bytes * 0.98 for value in buffer_progress[-3:])
+    raw_lines = [
+        line
+        for line in body.decode("utf-8", "replace").splitlines()
+        if line.startswith(selected_names)
+    ]
+    buffer_root = paths["vector_data"] / "buffer" / "v2" / "loki"
+    data_files = [
+        {"name": path.name, "bytes": path.stat().st_size}
+        for path in sorted(buffer_root.glob("buffer-data-*.dat"))
+        if path.is_file() and not path.is_symlink()
+    ]
+    return {
+        "scrape_started_monotonic_ns": scrape_started_ns,
+        "observed_at": observed,
+        "raw_prometheus_selected_lines": raw_lines,
+        "raw_prometheus_sha256": base.sha(body),
+        "raw_prometheus_bytes": len(body),
+        "metrics": metrics,
+        "vector_running": base._container_by_id(vector_id)["State"]["Running"],
+        "sink_running": base._container_by_id(loki_id)["State"]["Running"],
+        "source_file_bytes": source.stat().st_size,
+        "source_sha256": base.sha_file(source),
+        "buffer_data_files": data_files,
+    }
+
+
+def _empirical_encoded_event_bytes(samples: list[dict]) -> int | None:
+    estimates = []
+    for previous, current in zip(samples, samples[1:]):
+        source_delta = (
+            current["metrics"]["source_sent_events"]
+            - previous["metrics"]["source_sent_events"]
+        )
+        buffer_delta = (
+            current["metrics"]["buffer_bytes"]
+            - previous["metrics"]["buffer_bytes"]
+        )
+        if source_delta > 0 and buffer_delta > 0:
+            estimates.append(math.ceil(buffer_delta / source_delta))
+    return max(estimates, default=None)
+
+
+def _backpressure_evidence(
+    samples: list[dict], source_sent_total: int, encoded_event_bytes: int | None,
+    batch_max_bytes: int = 262144,
+) -> dict:
+    tail = samples[-3:]
+    allowance = (
+        batch_max_bytes + encoded_event_bytes
+        if encoded_event_bytes is not None
+        else None
     )
-    return source_stalled and buffer_remained_full
+    spacing_ok = len(tail) == 3 and all(
+        current["observed_at"]["monotonic_ns"]
+        - previous["observed_at"]["monotonic_ns"] >= 5_000_000_000
+        for previous, current in zip(tail, tail[1:])
+    )
+    source_counts = [sample["metrics"]["source_sent_events"] for sample in tail]
+    buffer_sizes = [sample["metrics"]["buffer_bytes"] for sample in tail]
+    gaps = [VECTOR_INTERNAL_BUFFER_BYTES - value for value in buffer_sizes]
+    source_stalled_before_eof = (
+        len(tail) == 3
+        and len(set(source_counts)) == 1
+        and source_counts[0] < source_sent_total
+    )
+    queue_near_internal_limit = (
+        len(tail) == 3
+        and allowance is not None
+        and all(0 <= gap <= allowance for gap in gaps)
+        and max(buffer_sizes) - min(buffer_sizes) <= allowance
+    )
+    source_unchanged = len(tail) == 3 and len(
+        {sample["source_sha256"] for sample in tail}
+    ) == 1 and len({sample["source_file_bytes"] for sample in tail}) == 1
+    sink_offline = len(tail) == 3 and all(not item["sink_running"] for item in tail)
+    vector_running = len(tail) == 3 and all(item["vector_running"] for item in tail)
+    no_discards = len(tail) == 3 and all(
+        item["metrics"]["discarded_events"] == 0 for item in tail
+    )
+    no_unexpected_metric_errors = len(tail) == 3 and all(
+        all(
+            series["labels"].get("component_id") == "loki"
+            and series["labels"].get("error_type") == "request_failed"
+            for series in item["metrics"]["component_error_series"]
+            if series["value"] > 0
+        )
+        for item in tail
+    )
+    checks = {
+        "three_spaced_samples": spacing_ok,
+        "source_stalled_before_eof": source_stalled_before_eof,
+        "sink_offline": sink_offline,
+        "vector_running": vector_running,
+        "queue_near_internal_limit": queue_near_internal_limit,
+        "source_unchanged": source_unchanged,
+        "no_discards": no_discards,
+        "no_unexpected_metric_errors": no_unexpected_metric_errors,
+    }
+    return {
+        "passed": all(checks.values()),
+        "checks": checks,
+        "configured_buffer_bytes": VECTOR_BUFFER_BYTES,
+        "internal_buffer_limit_bytes": VECTOR_INTERNAL_BUFFER_BYTES,
+        "data_file_reservation_bytes": VECTOR_DATA_FILE_BYTES,
+        "empirical_metric_bytes_per_source_event": encoded_event_bytes,
+        "batch_max_bytes": batch_max_bytes,
+        "explainable_headroom_bytes": allowance,
+        "observed_headroom_bytes": gaps,
+        "sample_monotonic_ns": [
+            sample["observed_at"]["monotonic_ns"] for sample in tail
+        ],
+    }
+
+
+def _vector_logs(container_id: str) -> str:
+    env = os.environ.copy()
+    for key in ("DOCKER_HOST", "DOCKER_CONTEXT", "DOCKER_TLS_VERIFY", "DOCKER_CERT_PATH"):
+        env.pop(key, None)
+    process = subprocess.run(
+        [base.DOCKER, "logs", "--timestamps", container_id],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=30,
+        check=False,
+        env=env,
+    )
+    base.require(process.returncode == 0, "vector_logs_unavailable")
+    return process.stdout + process.stderr
+
+
+def _classify_vector_error_logs(
+    logs: str, *, sink_offline: bool, allow_recovery_transport_retry: bool = False
+) -> dict:
+    expected_transport = []
+    unexpected = []
+    for line in logs.splitlines():
+        if "Internal log [" in line and ("suppressed" in line or "suppression" in line):
+            continue
+        if "error=" not in line and " ERROR " not in line:
+            continue
+        transport = any(
+            phrase in line.lower()
+            for phrase in (
+                "failed to lookup address information",
+                "temporary failure in name resolution",
+                "connection refused",
+                "error trying to connect",
+            )
+        )
+        response_error = any(
+            phrase in line.lower()
+            for phrase in (
+                "server responded with an error",
+                "http status",
+                "status code",
+            )
+        )
+        if (
+            (sink_offline or allow_recovery_transport_retry)
+            and transport
+            and not response_error
+            and "component_id=loki" in line
+        ):
+            expected_transport.append(line)
+        else:
+            unexpected.append(line)
+    return {
+        "expected_transport_retry_count": len(expected_transport),
+        "unexpected_error_count": len(unexpected),
+        "expected_transport_retry_samples": expected_transport[:10],
+        "unexpected_error_samples": unexpected[:20],
+    }
+
+
+def _loki_file_inventory(paths: dict[str, Path], hash_cache: dict) -> dict:
+    data = paths["loki_data"]
+    roots = {
+        "chunks": data / "chunks" / "tianshu",
+        "object_index": data / "chunks" / "index",
+        "active_index": data / "index",
+        "index_cache": data / "index-cache",
+    }
+    inventory = {"observed_at": _stamp(), "categories": {}}
+    for category, root in roots.items():
+        files = []
+        if root.exists():
+            for path in sorted(root.rglob("*")):
+                if path.is_symlink() or not path.is_file():
+                    continue
+                try:
+                    stat = path.stat()
+                    relative = path.relative_to(data).as_posix()
+                    cache_key = (relative, stat.st_size, stat.st_mtime_ns)
+                    digest = hash_cache.get(cache_key)
+                    if digest is None:
+                        digest = base.sha_file(path)
+                    after = path.stat()
+                    if (
+                        after.st_size != stat.st_size
+                        or after.st_mtime_ns != stat.st_mtime_ns
+                    ):
+                        files.append(
+                            {
+                                "path": relative,
+                                "changed_during_snapshot": True,
+                                "size_before": stat.st_size,
+                                "size_after": after.st_size,
+                                "mtime_ns_before": stat.st_mtime_ns,
+                                "mtime_ns_after": after.st_mtime_ns,
+                            }
+                        )
+                        continue
+                    hash_cache[cache_key] = digest
+                    files.append(
+                        {
+                            "path": relative,
+                            "bytes": stat.st_size,
+                            "mtime_ns": stat.st_mtime_ns,
+                            "mtime_utc": datetime.fromtimestamp(
+                                stat.st_mtime, timezone.utc
+                            ).isoformat().replace("+00:00", "Z"),
+                            "sha256": digest,
+                        }
+                    )
+                except OSError:
+                    files.append({"path": path.relative_to(data).as_posix(), "unreadable_or_changed": True})
+        inventory["categories"][category] = files
+    return inventory
+
+
+def _loki_metrics_evidence(client) -> dict:
+    observed = _stamp()
+    try:
+        status, body, _ = client.request("/metrics")
+    except Exception:
+        return {"observed_at": observed, "transport_error": True}
+    lines = []
+    for line in body.decode("utf-8", "replace").splitlines():
+        name = line.split("{", 1)[0].split(" ", 1)[0].lower()
+        if name.startswith("loki_") and any(
+            part in name
+            for part in ("flush", "shipper", "upload", "download", "chunk", "index")
+        ):
+            lines.append(line)
+    return {
+        "observed_at": observed,
+        "http_status": status,
+        "raw_metrics_sha256": base.sha(body),
+        "raw_metrics_bytes": len(body),
+        "selected_raw_metric_lines": lines[:2500],
+        "selected_lines_truncated": len(lines) > 2500,
+    }
+
+
+def _archive_and_unmount_new_scope(paths: dict[str, Path], report: dict) -> None:
+    scratch = paths["scratch"]
+    base.require(scratch.resolve() == (RUN_ROOT / "tmpfs").resolve(), "tmpfs_scope_mismatch")
+    archive = paths["evidence"] / "tmpfs-snapshot-after-probe.tar.gz"
+    temporary = paths["evidence"] / "tmpfs-snapshot-after-probe.tar.gz.tmp"
+    with tarfile.open(temporary, "w:gz") as bundle:
+        bundle.add(scratch, arcname=".")
+    os.replace(temporary, archive)
+    with gzip.open(archive, "rb") as stream:
+        while stream.read(1024 * 1024):
+            pass
+    source_digest = None
+    with tarfile.open(archive, "r:gz") as bundle:
+        members = bundle.getmembers()
+        source_member = next(
+            (item for item in members if item.name.lstrip("./") == "vector-source/events.jsonl"),
+            None,
+        )
+        if source_member is not None:
+            source_stream = bundle.extractfile(source_member)
+            base.require(source_stream is not None, "archive_source_unreadable")
+            digest = hashlib.sha256()
+            with source_stream:
+                while chunk := source_stream.read(1024 * 1024):
+                    digest.update(chunk)
+            source_digest = digest.hexdigest()
+    source = paths["vector_source"] / "events.jsonl"
+    expected_source_digest = base.sha_file(source) if source.is_file() else None
+    base.require(source_digest == expected_source_digest, "archive_source_hash_mismatch")
+    report["archive"] = {
+        "path": str(archive),
+        "bytes": archive.stat().st_size,
+        "sha256": base.sha_file(archive),
+        "member_count": len(members),
+        "gzip_verified": True,
+        "source_sha256": source_digest,
+        "source_matches_live": True,
+    }
+    process = subprocess.run(
+        ["umount", str(scratch)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    base.require(process.returncode == 0, "new_scope_tmpfs_unmount_failed")
+    report["archive"]["tmpfs_unmounted_after_verification"] = True
 
 
 def _query_all_events(
-    client, selector: str, start_ns: int, end_ns: int, expected: Counter
+    client,
+    selector: str,
+    start_ns: int,
+    end_ns: int,
+    expected: Counter,
+    *,
+    deadline_monotonic: float | None = None,
 ) -> dict:
     actual = Counter()
     result_lines = 0
     requests = 0
     errors = []
+    max_actual_line_bytes = 0
+    oversized_line_count = 0
     bucket_ns = 10**9
     low = (start_ns // bucket_ns) * bucket_ns
     while low <= end_ns:
+        if deadline_monotonic is not None and time.monotonic() >= deadline_monotonic:
+            errors.append({"start_ns": low, "error": "query_deadline_exceeded"})
+            break
         high = min(end_ns, low + bucket_ns - 1)
         try:
             rows = client.range(selector, low, high, limit=1000, max_requests=8)
@@ -874,6 +1234,9 @@ def _query_all_events(
         requests += 1
         for _, line in rows:
             result_lines += 1
+            line_bytes = len(line.encode("utf-8"))
+            max_actual_line_bytes = max(max_actual_line_bytes, line_bytes)
+            oversized_line_count += line_bytes >= 4096
             try:
                 row = json.loads(line)
                 actual[(row["event_id"], base.digest(row))] += 1
@@ -884,9 +1247,14 @@ def _query_all_events(
     return {
         "result_lines": result_lines,
         **reconciliation,
-        "identity_hash_multiset_match": actual == expected,
+        "identity_hash_multiset_match": (
+            low > end_ns and actual == expected and not errors and not oversized_line_count
+        ),
         "request_count": requests,
         "query_errors": errors[:20],
+        "query_complete": low > end_ns,
+        "max_actual_loki_line_bytes": max_actual_line_bytes,
+        "oversized_loki_line_count": oversized_line_count,
     }
 
 
@@ -970,38 +1338,46 @@ def _run_vector_buffer(
     loki_id: str,
     cpu: str,
     checkpoint_path: Path,
+    run_start_monotonic: float,
 ) -> None:
     source = paths["vector_source"] / "events.jsonl"
     base_ns = time.time_ns() - 330 * 10**9
     start_ns = base_ns - 10**9
-    bulk_expected, source_hash_before_pressure = _write_vector_backlog(
-        source, base_ns
-    )
-    expected_pairs = Counter(bulk_expected)
-    source_size = source.stat().st_size
-    source_sent_total = VECTOR_RECORDS
+    expected, source_hash, fixture_bytes = _write_vector_backlog(source, base_ns)
+    expected_pairs = Counter(expected)
+    base.require(len(expected_pairs) == VECTOR_RECORDS, "synthetic_id_count_mismatch")
     config = _vector_config(paths["config"] / "vector.json", paths["tls"])
     report["config_sha256"]["vector"] = base.sha(config)
+    selector = f'{{stack="tianshu",service="{VECTOR_SERVICE}"}}'
+    end_ns = base_ns + (VECTOR_RECORDS - 1) * VECTOR_TIMESTAMP_STEP_NS + 10**9
+    work_deadline = run_start_monotonic + WORK_TIMEOUT_SECONDS
+    fill_deadline = min(run_start_monotonic + VECTOR_BUFFER_FULL_TIMEOUT_SECONDS, work_deadline)
     dimension = {
         "status": "running",
         "filesystem": "dedicated_tmpfs",
         "tmpfs_limit_bytes": TMPFS_BYTES,
         "configured_buffer_bytes": VECTOR_BUFFER_BYTES,
-        "vector_minimum_buffer_bytes": base.VECTOR_MINIMUM_BUFFER_BYTES,
+        "internal_buffer_limit_bytes": VECTOR_INTERNAL_BUFFER_BYTES,
+        "reserved_data_file_bytes": VECTOR_DATA_FILE_BYTES,
+        "synthetic_record_count": VECTOR_RECORDS,
         "padding_bytes_added_by_transform": VECTOR_PADDING_BYTES,
-        "synthetic_record_count": source_sent_total,
-        "source_bytes": source_size,
-        "source_sha256_before_pressure": source_hash_before_pressure,
-        "source_preserved_at_full": False,
+        "fixture_bytes": fixture_bytes,
+        "source_sha256_before_pressure": source_hash,
         "source_progress_samples": [],
-        "buffer_progress_samples": [],
+        "fill_samples": [],
+        "fill_sample_errors": [],
         "backpressure_verified": False,
         "sink_stopped_before_vector_start": False,
-        "sink_available_during_fill": True,
-        "sink_rate_limited_during_fill": True,
         "replay": {"status": "not_run"},
+        "store_only": {"status": "not_run"},
     }
     report["dimensions"]["vector_buffer_full"] = dimension
+    _checkpoint(checkpoint_path, report)
+
+    loki_stop = base._stop_owned(loki_id, LOKI_NAME, LOKI_IMAGE_ID, timeout=30)
+    report["containers"]["loki"].setdefault("transitions", []).append(loki_stop)
+    dimension["sink_stopped_before_vector_start"] = True
+    dimension["sink_offline_at"] = _stamp()
     _checkpoint(checkpoint_path, report)
     vector_id = base.docker(*_vector_args(paths, cpu)).strip()
     report["containers"]["vector"] = {
@@ -1009,227 +1385,272 @@ def _run_vector_buffer(
         "name": VECTOR_NAME,
         "image_id": VECTOR_IMAGE_ID,
     }
-    _checkpoint(checkpoint_path, report)
     base._check_owned(base._container_by_id(vector_id), VECTOR_NAME, VECTOR_IMAGE_ID)
+    _checkpoint(checkpoint_path, report)
 
-    peak = {"buffer_bytes": 0, "buffer_max_bytes": 0}
-    last_snapshot = {}
-
-    def full_observed():
-        nonlocal last_snapshot
-        snapshot = _try_vector_metrics_snapshot()
-        if snapshot is None:
-            return False
-        last_snapshot = snapshot
-        peak["buffer_bytes"] = max(peak["buffer_bytes"], last_snapshot["buffer_bytes"])
-        peak["buffer_max_bytes"] = max(
-            peak["buffer_max_bytes"], last_snapshot["buffer_max_bytes"]
-        )
-        return (
-            last_snapshot["buffer_max_bytes"] >= VECTOR_BUFFER_BYTES * 0.99
-            and last_snapshot["buffer_bytes"]
-            >= last_snapshot["buffer_max_bytes"] * 0.98
-        )
-
-    try:
-        base._wait(
-            full_observed,
-            timeout=VECTOR_BUFFER_FULL_TIMEOUT_SECONDS,
-            interval=1,
-            code="vector_buffer_not_full",
-        )
-        progress = []
-        buffer_progress = []
-        progress_deadline = time.monotonic() + 30
-        while time.monotonic() < progress_deadline:
-            snapshot = _try_vector_metrics_snapshot()
-            if snapshot is None:
-                time.sleep(2)
-                continue
-            last_snapshot = snapshot
-            progress.append(snapshot["source_sent_events"])
-            buffer_progress.append(snapshot["buffer_bytes"])
-            if snapshot["source_sent_events"] >= source_sent_total:
-                break
-            time.sleep(2)
-        if not progress:
-            raise base.ProbeError("vector_metrics_unavailable")
-        source_hash_at_full = base.sha_file(source)
-        source_stalled = len(progress) >= 3 and len(set(progress[-3:])) == 1
-        buffer_remained_full = (
-            len(buffer_progress) >= 3
-            and all(
-                value >= last_snapshot["buffer_max_bytes"] * 0.98
-                for value in buffer_progress[-3:]
+    fill_samples = dimension["fill_samples"]
+    fill_gate = _backpressure_evidence([], VECTOR_RECORDS, None)
+    fill_failure = None
+    peak_buffer_bytes = 0
+    while time.monotonic() < fill_deadline:
+        try:
+            sample = _timestamped_vector_sample(paths, source, vector_id, loki_id)
+        except base.ProbeError as exc:
+            dimension["fill_sample_errors"].append({"observed_at": _stamp(), "error": str(exc)})
+            time.sleep(min(5.1, max(0, fill_deadline - time.monotonic())))
+            continue
+        fill_samples.append(sample)
+        metrics = sample["metrics"]
+        peak_buffer_bytes = max(peak_buffer_bytes, metrics["buffer_bytes"])
+        estimate = _empirical_encoded_event_bytes(fill_samples)
+        fill_gate = _backpressure_evidence(fill_samples, VECTOR_RECORDS, estimate)
+        dimension["fill_gate"] = fill_gate
+        dimension["source_progress_samples"].append(metrics["source_sent_events"])
+        dimension["peak_buffer_bytes"] = peak_buffer_bytes
+        _checkpoint(checkpoint_path, report)
+        unexpected_series = [
+            series
+            for series in metrics["component_error_series"]
+            if series["value"] > 0
+            and not (
+                series["labels"].get("component_id") == "loki"
+                and series["labels"].get("error_type") == "request_failed"
             )
-        )
-        backpressure = _backpressure_verified(
-            progress,
-            buffer_progress,
-            source_sent_total,
-            last_snapshot["buffer_max_bytes"],
-        )
-        dimension.update(
-            peak_buffer_bytes=peak["buffer_bytes"],
-            buffer_max_bytes=peak["buffer_max_bytes"],
-            peak_ratio=(
-                round(peak["buffer_bytes"] / peak["buffer_max_bytes"], 5)
-                if peak["buffer_max_bytes"]
-                else 0
-            ),
-            source_events_sent_at_full=progress[-1],
-            source_progress_samples=progress,
-            buffer_progress_samples=buffer_progress,
-            source_progress_stalled=source_stalled,
-            buffer_remained_full_during_progress_window=buffer_remained_full,
-            source_sha256_at_full=source_hash_at_full,
-            source_preserved_at_full=source_hash_at_full == source_hash_before_pressure,
-            source_file_bytes_at_full=source.stat().st_size,
-            tmpfs_used_bytes_at_full=shutil.disk_usage(paths["scratch"]).used,
-            tmpfs_free_bytes_at_full=shutil.disk_usage(paths["scratch"]).free,
-            discarded_events_at_full=last_snapshot["discarded_events"],
-            component_errors_at_full=last_snapshot["component_errors"],
-            backpressure_verified=backpressure,
-        )
-    except base.ProbeError as exc:
-        dimension.update(
-            status="failed",
-            reason=str(exc),
-            last_metrics=last_snapshot,
-            peak_buffer_bytes=peak["buffer_bytes"],
-            buffer_max_bytes=peak["buffer_max_bytes"],
-            source_sha256_at_full=base.sha_file(source),
-            source_preserved_at_full=base.sha_file(source)
-            == source_hash_before_pressure,
-            source_file_bytes_at_full=source.stat().st_size,
-        )
-    _checkpoint(checkpoint_path, report)
-
-    dimension["loki_started_after_buffer_full"] = False
-    dimension["sink_already_available_after_full"] = True
-    _checkpoint(checkpoint_path, report)
-
-    def replay_drained():
-        nonlocal last_snapshot
-        snapshot = _try_vector_metrics_snapshot()
-        if snapshot is None:
-            return False
-        last_snapshot = snapshot
-        return (
-            last_snapshot["source_sent_events"] >= source_sent_total
-            and last_snapshot["buffer_max_bytes"] > 0
-            and last_snapshot["buffer_bytes"]
-            <= last_snapshot["buffer_max_bytes"] * 0.05
-        )
-
-    try:
-        base._wait(
-            replay_drained,
-            timeout=VECTOR_REPLAY_DRAIN_TIMEOUT_SECONDS,
-            interval=2,
-            code="vector_replay_not_drained",
-        )
-        dimension["source_replay_complete"] = True
-    except base.ProbeError as exc:
-        dimension["source_replay_complete"] = False
-        dimension["replay_drain_error"] = str(exc)
-    dimension["metrics_after_reconnect"] = last_snapshot
-    dimension["source_sha256_after_reconnect"] = base.sha_file(source)
-    dimension["source_preserved_after_reconnect"] = (
-        dimension["source_sha256_after_reconnect"] == source_hash_before_pressure
+        ]
+        if sample["source_sha256"] != source_hash or sample["source_file_bytes"] != fixture_bytes["source_file_bytes"]:
+            fill_failure = "synthetic_source_changed"
+            break
+        if not sample["vector_running"]:
+            fill_failure = "vector_exited_during_fill"
+            break
+        if sample["sink_running"]:
+            fill_failure = "sink_running_during_offline_fill"
+            break
+        if metrics["discarded_events"] > 0:
+            fill_failure = "vector_events_discarded"
+            break
+        if unexpected_series:
+            fill_failure = "unexpected_vector_component_error"
+            dimension["unexpected_component_error_series"] = unexpected_series
+            break
+        if fill_gate["passed"]:
+            break
+        if metrics["source_sent_events"] >= VECTOR_RECORDS:
+            fill_failure = "source_reached_eof_before_backpressure"
+            break
+        time.sleep(min(5.1, max(0, fill_deadline - time.monotonic())))
+    dimension["fill_finished_at"] = _stamp()
+    dimension["fill_failure"] = fill_failure
+    dimension["peak_buffer_bytes"] = peak_buffer_bytes
+    dimension["gap_to_internal_limit_bytes"] = VECTOR_INTERNAL_BUFFER_BYTES - peak_buffer_bytes
+    dimension["source_sha256_after_fill"] = base.sha_file(source)
+    dimension["source_preserved_at_fill"] = dimension["source_sha256_after_fill"] == source_hash
+    fill_logs = _vector_logs(vector_id)
+    (paths["evidence"] / "vector-fill-logs.txt").write_text(fill_logs, encoding="utf-8")
+    dimension["fill_logs_sha256"] = base.sha(fill_logs.encode())
+    dimension["fill_log_classification"] = _classify_vector_error_logs(fill_logs, sink_offline=True)
+    dimension["backpressure_verified"] = (
+        fill_gate["passed"]
+        and fill_failure is None
+        and dimension["source_preserved_at_fill"]
+        and dimension["fill_log_classification"]["unexpected_error_count"] == 0
     )
     _checkpoint(checkpoint_path, report)
 
-    flush_status, _, _ = clients["loki"].request("/flush", "POST", b"")
-    dimension["loki_flush_status"] = flush_status
-    vector_stop = base._stop_owned(vector_id, VECTOR_NAME, VECTOR_IMAGE_ID, timeout=90)
-    report["containers"]["vector"].update(vector_stop)
-    dimension["source_sha256_after_vector_stop"] = base.sha_file(source)
-
-    _switch_loki_mode(paths, report, loki_id, query_store_only=True)
+    replay_deadline = min(time.monotonic() + VECTOR_REPLAY_DRAIN_TIMEOUT_SECONDS,
+                          run_start_monotonic + 900, work_deadline)
+    replay = {
+        "status": "running",
+        "sink_restored_at": _stamp(),
+        "samples": [],
+        "mixed_query_attempts": [],
+        "source_replay_complete": False,
+    }
+    dimension["replay"] = replay
+    base._start_existing(loki_id, LOKI_NAME, LOKI_IMAGE_ID)
+    ready_remaining = replay_deadline - time.monotonic()
+    base.require(ready_remaining > 0, "replay_time_budget_exceeded")
     base._wait(
         lambda: base._loki_ready(clients["loki"]),
-        timeout=90,
-        code="loki_vector_store_restart_timeout",
+        timeout=min(90, ready_remaining),
+        code="loki_recovery_ready_timeout",
     )
-    selector = f'{{stack="tianshu",service="{VECTOR_SERVICE}"}}'
-    end_ns = base_ns + (VECTOR_RECORDS - 1) * VECTOR_TIMESTAMP_STEP_NS + 10**9
-    store_index_readiness = _wait_for_series_routes(
-        {"store_only_direct_loki": clients["loki"]},
-        selector,
-        start_ns,
-        end_ns,
-        timeout=120,
+    replay["loki_ready_at"] = _stamp()
+    try:
+        ready_sample = _timestamped_vector_sample(paths, source, vector_id, loki_id)
+        replay["samples"].append(ready_sample)
+    except base.ProbeError as exc:
+        replay["sample_errors"] = [{"observed_at": _stamp(), "error": str(exc)}]
+    while time.monotonic() < replay_deadline:
+        try:
+            sample = _timestamped_vector_sample(paths, source, vector_id, loki_id)
+        except base.ProbeError as exc:
+            replay.setdefault("sample_errors", []).append({"observed_at": _stamp(), "error": str(exc)})
+            time.sleep(min(5.1, max(0, replay_deadline - time.monotonic())))
+            continue
+        replay["samples"].append(sample)
+        metrics = sample["metrics"]
+        _checkpoint(checkpoint_path, report)
+        if sample["source_sha256"] != source_hash or metrics["discarded_events"] > 0:
+            replay["failure"] = "source_changed_or_events_discarded"
+            break
+        unexpected_series = [
+            series for series in metrics["component_error_series"]
+            if series["value"] > 0 and not (
+                series["labels"].get("component_id") == "loki"
+                and series["labels"].get("error_type") == "request_failed"
+            )
+        ]
+        if unexpected_series:
+            replay["failure"] = "unexpected_vector_component_error"
+            replay["unexpected_component_error_series"] = unexpected_series
+            break
+        if metrics["source_sent_events"] >= VECTOR_RECORDS and metrics["buffer_bytes"] == 0:
+            replay["source_replay_complete"] = True
+            break
+        time.sleep(min(5.1, max(0, replay_deadline - time.monotonic())))
+    replay["finished_at"] = _stamp()
+    replay["last_metrics"] = replay["samples"][-1]["metrics"] if replay["samples"] else None
+    replay["source_sha256_after_replay"] = base.sha_file(source)
+    replay["source_preserved"] = replay["source_sha256_after_replay"] == source_hash
+    all_logs = _vector_logs(vector_id)
+    recovery_logs = all_logs[len(fill_logs):] if all_logs.startswith(fill_logs) else all_logs
+    (paths["evidence"] / "vector-recovery-logs.txt").write_text(recovery_logs, encoding="utf-8")
+    replay["recovery_logs_sha256"] = base.sha(recovery_logs.encode())
+    replay["recovery_log_classification"] = _classify_vector_error_logs(
+        recovery_logs, sink_offline=False, allow_recovery_transport_retry=True
     )
-    dimension["replay"] = {
+    _checkpoint(checkpoint_path, report)
+
+    vector_stop = base._stop_owned(vector_id, VECTOR_NAME, VECTOR_IMAGE_ID, timeout=90)
+    report["containers"]["vector"].update(vector_stop)
+    replay["source_sha256_after_vector_stop"] = base.sha_file(source)
+    replay["source_preserved_after_vector_stop"] = replay["source_sha256_after_vector_stop"] == source_hash
+    replay["buffer_data_files_after_vector_stop"] = [
+        {"name": path.name, "bytes": path.stat().st_size, "sha256": base.sha_file(path)}
+        for path in sorted((paths["vector_data"] / "buffer" / "v2" / "loki").glob("buffer-data-*.dat"))
+        if path.is_file() and not path.is_symlink()
+    ]
+    _checkpoint(checkpoint_path, report)
+
+    next_query_at = time.monotonic()
+    while time.monotonic() < replay_deadline:
+        attempt = _query_all_events(
+            clients["loki"], selector, start_ns, end_ns, expected_pairs,
+            deadline_monotonic=replay_deadline,
+        )
+        attempt["observed_at"] = _stamp()
+        replay["mixed_query_attempts"].append(attempt)
+        _checkpoint(checkpoint_path, report)
+        if attempt["identity_hash_multiset_match"]:
+            break
+        next_query_at += 15
+        time.sleep(min(max(0, next_query_at - time.monotonic()),
+                       max(0, replay_deadline - time.monotonic())))
+    mixed = replay["mixed_query_attempts"][-1] if replay["mixed_query_attempts"] else {}
+    replay["mixed_route_identity_status"] = "passed" if mixed.get("identity_hash_multiset_match") else "failed"
+    replay["status"] = (
+        "passed" if replay["source_replay_complete"]
+        and replay["mixed_route_identity_status"] == "passed"
+        and replay["source_preserved_after_vector_stop"]
+        and replay["recovery_log_classification"]["unexpected_error_count"] == 0
+        and replay["last_metrics"] is not None
+        and replay["last_metrics"]["discarded_events"] == 0
+        and not replay.get("failure")
+        else "failed"
+    )
+    _checkpoint(checkpoint_path, report)
+
+    hash_cache = {}
+    store = {
         "status": "running",
         "query_store_only": True,
-        "store_index_readiness": store_index_readiness,
+        "snapshots": [],
+        "query_attempts": [],
     }
+    dimension["store_only"] = store
+    store["snapshots"].append({"phase": "before_flush", "inventory": _loki_file_inventory(paths, hash_cache),
+                               "metrics": _loki_metrics_evidence(clients["loki"])})
+    flush_at = _stamp()
+    flush_status, _, _ = clients["loki"].request("/flush", "POST", b"")
+    store["flush"] = {"called_at": flush_at, "http_status": flush_status,
+                       "completion_proven_by_status": False}
+    store["snapshots"].append({"phase": "after_flush_response", "inventory": _loki_file_inventory(paths, hash_cache),
+                               "metrics": _loki_metrics_evidence(clients["loki"])})
     _checkpoint(checkpoint_path, report)
-    replay = _query_all_events(
-        clients["loki"], selector, start_ns, end_ns, expected_pairs
+
+    transition = base._stop_owned(loki_id, LOKI_NAME, LOKI_IMAGE_ID, timeout=90)
+    report["containers"]["loki"].setdefault("transitions", []).append(transition)
+    store["snapshots"].append({"phase": "after_loki_stop", "inventory": _loki_file_inventory(paths, hash_cache)})
+    store_config = _write_loki_config(paths["config"] / "loki.json", query_store_only=True)
+    report["config_sha256"]["loki_store_only"] = base.sha(store_config)
+    base._start_existing(loki_id, LOKI_NAME, LOKI_IMAGE_ID)
+    store_deadline = min(time.monotonic() + STORE_ONLY_QUERY_TIMEOUT_SECONDS,
+                         run_start_monotonic + WORK_TIMEOUT_SECONDS)
+    store_ready_remaining = store_deadline - time.monotonic()
+    base.require(store_ready_remaining > 0, "store_only_time_budget_exceeded")
+    base._wait(
+        lambda: base._loki_ready(clients["loki"]),
+        timeout=min(90, store_ready_remaining),
+        code="loki_store_only_ready_timeout",
     )
-    replay["store_index_readiness"] = store_index_readiness
-    replay.update(
-        {
-            "query_store_only": True,
-            "query_bounds_ns": {"start": start_ns, "end": end_ns},
-            "service_label": VECTOR_SERVICE,
-            "flush_status": flush_status,
-            "discarded_events_after_reconnect": last_snapshot.get("discarded_events"),
-        }
-    )
-    replay["store_only_identity_status"] = (
-        "passed"
-        if replay["identity_hash_multiset_match"]
-        and replay["store_index_readiness"]["ready"]
+    store["snapshots"].append({"phase": "after_store_restart", "inventory": _loki_file_inventory(paths, hash_cache),
+                               "metrics": _loki_metrics_evidence(clients["loki"])})
+    _checkpoint(checkpoint_path, report)
+    next_query_at = time.monotonic()
+    while time.monotonic() < store_deadline:
+        attempt_started = _stamp()
+        inventory = _loki_file_inventory(paths, hash_cache)
+        metrics_evidence = _loki_metrics_evidence(clients["loki"])
+        query = _query_all_events(
+            clients["loki"], selector, start_ns, end_ns, expected_pairs,
+            deadline_monotonic=store_deadline,
+        )
+        store["query_attempts"].append({
+            "started_at": attempt_started,
+            "finished_at": _stamp(),
+            "inventory": inventory,
+            "loki_metrics": metrics_evidence,
+            "query": query,
+        })
+        _checkpoint(checkpoint_path, report)
+        if query["identity_hash_multiset_match"]:
+            break
+        next_query_at += 15
+        time.sleep(min(max(0, next_query_at - time.monotonic()),
+                       max(0, store_deadline - time.monotonic())))
+    final_store_query = store["query_attempts"][-1]["query"] if store["query_attempts"] else {}
+    store["finished_at"] = _stamp()
+    store["identity_status"] = "passed" if final_store_query.get("identity_hash_multiset_match") else "failed"
+    store["status"] = (
+        "passed" if store["identity_status"] == "passed" and flush_status == 204
         else "failed"
     )
-    if replay["store_only_identity_status"] != "passed":
-        _switch_loki_mode(paths, report, loki_id, query_store_only=False)
-        base._wait(
-            lambda: base._loki_ready(clients["loki"]),
-            timeout=90,
-            code="loki_vector_ingester_fallback_timeout",
-        )
-        replay["ingester_fallback_reconciliation"] = _query_all_events(
-            clients["loki"], selector, start_ns, end_ns, expected_pairs
-        )
-    ingester_fallback = replay.get("ingester_fallback_reconciliation", {})
-    identity_reconciled = replay[
-        "identity_hash_multiset_match"
-    ] or ingester_fallback.get("identity_hash_multiset_match", False)
-    replay["buffer_replay_identity_status"] = (
-        "passed" if identity_reconciled else "failed"
-    )
-    safety_passed = (
-        dimension.get("backpressure_verified")
-        and dimension.get("source_preserved_at_full")
-        and dimension.get("source_replay_complete")
-        and dimension.get("source_preserved_after_reconnect")
-        and last_snapshot.get("discarded_events") == 0
-    )
-    replay["status"] = "passed" if identity_reconciled and safety_passed else "partial"
-    dimension["replay"] = replay
     dimension["status"] = (
-        "passed"
-        if replay["status"] == "passed"
-        and replay["store_only_identity_status"] == "passed"
-        else "partial"
-        if replay["buffer_replay_identity_status"] == "passed"
-        else "failed"
+        "passed" if dimension["backpressure_verified"]
+        and replay["status"] == "passed"
+        and store["status"] == "passed"
+        else "failed" if fill_failure or replay.get("failure") else "partial"
     )
     _checkpoint(checkpoint_path, report)
 
 
-def _run_probe(root: Path) -> dict:
+def _run_probe(root: Path) -> int:
+    run_start_monotonic = time.monotonic()
     _configure_scope()
     report = base._initial_report(root)
     report["project"] = PROJECT
     report["run_id"] = RUN_ROOT.name
     report["application_reclamation_authorized"] = False
     report["release_ready"] = False
+    report["bounded_run"] = {
+        "started_at": _stamp(),
+        "total_timeout_seconds": TOTAL_RUN_TIMEOUT_SECONDS,
+        "work_timeout_seconds": WORK_TIMEOUT_SECONDS,
+        "fill_timeout_seconds": VECTOR_BUFFER_FULL_TIMEOUT_SECONDS,
+        "replay_timeout_seconds": VECTOR_REPLAY_DRAIN_TIMEOUT_SECONDS,
+        "store_only_timeout_seconds": STORE_ONLY_QUERY_TIMEOUT_SECONDS,
+    }
     report["dimensions"].update(
         {
             "recovery_query_diagnostics": {"status": "not_run"},
@@ -1873,6 +2294,81 @@ def _run_probe(root: Path) -> dict:
         ):
             raise base.ProbeError("prior_r10_evidence_or_resources_unverified")
 
+        r11_root = BASE_SCOPE / "runs" / "recovery-vector-20260925-r11"
+        r11_report = json.loads(
+            (r11_root / "evidence" / REPORT_NAME).read_text(encoding="utf-8")
+        )
+        r11_network_name = "tianshu-accept-a2-vfull-20260925-r11"
+        r11_network = json.loads(base.docker("network", "inspect", r11_network_name))[0]
+        r11_expected = {
+            "vector": (r11_network_name + "-vector", VECTOR_IMAGE_ID),
+            "loki": (r11_network_name + "-loki", LOKI_IMAGE_ID),
+        }
+        r11_containers_stopped = r11_report.get("nas_verified") is True
+        r11_names = set()
+        for key, (name, image_id) in r11_expected.items():
+            entry = r11_report.get("containers", {}).get(key, {})
+            if not entry.get("id"):
+                r11_containers_stopped = False
+                continue
+            container = base._container_by_id(entry["id"])
+            labels = container.get("Config", {}).get("Labels") or {}
+            container_state = container.get("State", {})
+            mounts_in_scope = all(
+                mount.get("Type") != "bind"
+                or base._overlap(Path(mount["Source"]), r11_root)
+                for mount in container.get("Mounts", [])
+            )
+            r11_containers_stopped &= (
+                container.get("Name", "").lstrip("/") == name
+                and container.get("Image") == image_id
+                and labels.get(base.OWNER_LABEL) == base.TASK
+                and labels.get(base.SCOPE_LABEL) == r11_network_name
+                and container.get("HostConfig", {}).get("RestartPolicy", {}).get(
+                    "Name"
+                )
+                == "no"
+                and container.get("RestartCount", 0) == 0
+                and container_state.get("Status") == "exited"
+                and container_state.get("ExitCode") == 0
+                and not container_state.get("Running")
+                and not container_state.get("OOMKilled")
+                and entry.get("running") is False
+                and entry.get("exit_code") == 0
+                and mounts_in_scope
+            )
+            r11_names.add(name)
+        r11_network_containers = r11_network.get("Containers") or {}
+        r11_network_labels = r11_network.get("Labels") or {}
+        r11_network_empty = (
+            r11_report.get("status") == "partial"
+            and r11_network.get("Name") == r11_network_name
+            and r11_network.get("Id") == r11_report.get("network", {}).get("id")
+            and r11_network_labels.get(base.OWNER_LABEL) == base.TASK
+            and r11_network_labels.get(base.SCOPE_LABEL) == r11_network_name
+            and r11_network.get("Internal") is True
+            and r11_network.get("IPAM", {}).get("Config", [{}])[0].get("Subnet")
+            == "10.205.20.0/24"
+            and not r11_network_containers
+            and r11_report.get("network", {}).get("attached_container_count_after_stop")
+            == 0
+            and r11_names == {name for name, _ in r11_expected.values()}
+        )
+        r11_archive_path = (
+            r11_root / "evidence" / "tmpfs-snapshot-after-probe.tar.gz"
+        )
+        r11_archive_sha256 = (
+            base.sha_file(r11_archive_path) if r11_archive_path.is_file() else None
+        )
+        r11_tmpfs_usage = _tmpfs_mount_usage(r11_root / "tmpfs")
+        if not (
+            r11_containers_stopped
+            and r11_network_empty
+            and not r11_tmpfs_usage["mounted"]
+            and r11_archive_sha256 == R11_SNAPSHOT_SHA256
+        ):
+            raise base.ProbeError("prior_r11_evidence_or_resources_unverified")
+
         if host_resources["a2_running_container_count"] != 0:
             raise base.ProbeError("another_a2_instance_running")
         historical_tmpfs = {
@@ -1887,6 +2383,7 @@ def _run_probe(root: Path) -> dict:
                 "recovery-vector-20260925-r8",
                 "recovery-vector-20260925-r9",
                 "recovery-vector-20260925-r10",
+                "recovery-vector-20260925-r11",
             )
         }
         resource_budget = _concurrent_a2_resource_budget(
@@ -1927,6 +2424,10 @@ def _run_probe(root: Path) -> dict:
             "r10_network_empty_after_stop": r10_network_empty,
             "r10_snapshot_archive_bytes": r10_archive_path.stat().st_size,
             "r10_snapshot_archive_sha256": r10_archive_sha256,
+            "r11_containers_stopped": r11_containers_stopped,
+            "r11_network_empty_after_stop": r11_network_empty,
+            "r11_snapshot_archive_bytes": r11_archive_path.stat().st_size,
+            "r11_snapshot_archive_sha256": r11_archive_sha256,
             "historical_mounted_tmpfs": historical_tmpfs,
             "currently_running_a2_container_count": host_resources[
                 "a2_running_container_count"
@@ -1935,7 +2436,7 @@ def _run_probe(root: Path) -> dict:
         }
         if not resource_budget["within_budget"]:
             raise base.ProbeError("concurrent_a2_resource_budget_exceeded")
-        if host_resources["host_bytes"]["MemAvailable"] < 2 * 1024**3:
+        if host_resources["host_bytes"]["MemAvailable"] < 4 * 1024**3:
             raise base.ProbeError("host_memory_headroom_insufficient")
         if host_resources["task_volume_bytes"]["free"] < 512 * 1024**2:
             raise base.ProbeError("task_volume_headroom_insufficient")
@@ -2028,6 +2529,7 @@ def _run_probe(root: Path) -> dict:
             loki_id,
             preflight["cpu_affinity"]["vector"],
             checkpoint,
+            run_start_monotonic,
         )
         report["dimensions"]["application_reclamation_gate"] = {
             "status": "blocked",
@@ -2072,33 +2574,49 @@ def _run_probe(root: Path) -> dict:
                 client.close()
             except Exception:
                 pass
-        if "network" in report:
-            vector = report.get("containers", {}).get("vector")
-            loki = report.get("containers", {}).get("loki")
-            if vector and loki:
-                try:
-                    network_state = json.loads(
-                        base.docker("network", "inspect", NETWORK)
-                    )[0]
-                    attached = network_state.get("Containers") or {}
-                    attached_names = {item.get("Name") for item in attached.values()}
-                    if (
-                        VECTOR_NAME in attached_names
-                        and LOKI_NAME not in attached_names
-                    ):
-                        base.docker(
-                            "network",
-                            "connect",
-                            "--alias",
-                            "obs-loki",
-                            "--ip",
-                            LOKI_IP,
-                            NETWORK,
-                            loki["id"],
+        vector = report.get("containers", {}).get("vector")
+        loki = report.get("containers", {}).get("loki")
+        if vector and loki and vector.get("id") and loki.get("id"):
+            try:
+                vector_state = base._container_by_id(vector["id"])["State"]
+                loki_state = base._container_by_id(loki["id"])["State"]
+                if vector_state.get("Running"):
+                    rescue = {"started_at": _stamp(), "samples": []}
+                    report["cleanup_recovery"] = rescue
+                    if not loki_state.get("Running"):
+                        base._start_existing(loki["id"], LOKI_NAME, LOKI_IMAGE_ID)
+                        rescue["loki_restarted_for_drain"] = True
+                    rescue_client = base._loki_client(paths)
+                    try:
+                        base._wait(
+                            lambda: base._loki_ready(rescue_client),
+                            timeout=60,
+                            code="cleanup_loki_ready_timeout",
                         )
-                except Exception:
-                    report["cleanup_error_code"] = "network_reattach_unconfirmed"
-                    report["status"] = "failed"
+                    finally:
+                        rescue_client.close()
+                    rescue_deadline = min(
+                        time.monotonic() + 150,
+                        run_start_monotonic + TOTAL_RUN_TIMEOUT_SECONDS - 120,
+                    )
+                    while time.monotonic() < rescue_deadline:
+                        snapshot = _try_vector_metrics_snapshot()
+                        if snapshot is not None:
+                            rescue["samples"].append({"observed_at": _stamp(), "metrics": snapshot})
+                            if (
+                                snapshot["source_sent_events"] >= VECTOR_RECORDS
+                                and snapshot["buffer_bytes"] == 0
+                            ):
+                                rescue["drained"] = True
+                                break
+                        time.sleep(min(5, max(0, rescue_deadline - time.monotonic())))
+                    rescue["finished_at"] = _stamp()
+            except Exception as exc:
+                report["cleanup_error_code"] = (
+                    str(exc) if isinstance(exc, base.ProbeError)
+                    else "cleanup_recovery_unconfirmed"
+                )
+                report["status"] = "failed"
         for key, name, image_id in (
             ("vector", VECTOR_NAME, VECTOR_IMAGE_ID),
             ("loki", LOKI_NAME, LOKI_IMAGE_ID),
@@ -2132,9 +2650,50 @@ def _run_probe(root: Path) -> dict:
                     report["network"]["attached_container_count_after_stop"] = len(
                         network.get("Containers") or {}
                     )
+                    if (
+                        report["network"]["internal"] is not True
+                        or report["network"]["attached_container_count_after_stop"] != 0
+                    ):
+                        report["cleanup_error_code"] = "network_not_internal_and_empty"
+                        report["status"] = "failed"
                 except Exception:
                     report["cleanup_error_code"] = "network_state_unconfirmed"
                     report["status"] = "failed"
+            all_stopped = True
+            for entry in report.get("containers", {}).values():
+                if entry.get("id"):
+                    try:
+                        all_stopped &= not base._container_by_id(entry["id"])[
+                            "State"
+                        ].get("Running")
+                    except Exception:
+                        all_stopped = False
+            if all_stopped:
+                try:
+                    _archive_and_unmount_new_scope(paths, report)
+                except Exception as exc:
+                    report["cleanup_error_code"] = (
+                        str(exc)
+                        if isinstance(exc, base.ProbeError)
+                        else "new_scope_archive_or_unmount_failed"
+                    )
+                    report["status"] = "failed"
+            else:
+                report["cleanup_error_code"] = "containers_still_running_at_archive"
+                report["status"] = "failed"
+            report["bounded_run"]["finished_at"] = _stamp()
+            report["bounded_run"]["elapsed_seconds"] = round(
+                time.monotonic() - run_start_monotonic, 3
+            )
+            report["bounded_run"]["deadline_exceeded"] = (
+                report["bounded_run"]["elapsed_seconds"]
+                > TOTAL_RUN_TIMEOUT_SECONDS
+            )
+            if report["bounded_run"]["deadline_exceeded"]:
+                report["status"] = "failed"
+                report["cleanup_error_code"] = "total_run_deadline_exceeded"
+            if report["status"] == "failed":
+                report["nas_verified"] = False
             try:
                 _checkpoint(paths["evidence"] / REPORT_NAME, report)
             except Exception:
@@ -2151,7 +2710,7 @@ def _run_probe(root: Path) -> dict:
                 }
             )
         )
-    return 0 if report.get("nas_verified") else 1
+    return 0 if report.get("nas_verified") and report["status"] != "failed" else 1
 
 
 def main() -> int:
