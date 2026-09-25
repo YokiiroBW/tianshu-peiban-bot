@@ -79,13 +79,18 @@ def _inside(root, name, parent):
     return root / parent / name
 
 
+def _posix_path_key(root, path):
+    """Stable, case-sensitive path ordering on Windows and Linux."""
+    return path.relative_to(root).as_posix().encode("utf-8")
+
+
 def _code_files(root):
     """Pin every packaged ops/deploy file, including this coordinator."""
     rows = []
     for base in ("ops", "deploy"):
         directory = root / base
         require(directory.is_dir(), "a1_code_root_incomplete")
-        for path in sorted(directory.rglob("*")):
+        for path in sorted(directory.rglob("*"), key=lambda item: _posix_path_key(root, item)):
             if "__pycache__" in path.parts or path.suffix in {".pyc", ".pyo"}:
                 continue
             require(not path.is_symlink(), "a1_code_symlink")

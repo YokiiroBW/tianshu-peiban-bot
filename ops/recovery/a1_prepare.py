@@ -13,7 +13,8 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from .a1_once import _code_files, _code_tree, _network_plan, _ports, _sha, _write_once
+from .a1_once import (_code_files, _code_tree, _network_plan, _ports,
+                      _posix_path_key, _sha, _write_once)
 from .a1_code import deploy_module, require_entry_origin
 from .safety import RecoveryError, canonical, file_hash, read_json, require
 
@@ -39,7 +40,7 @@ FIXED_ORIGINAL_MANIFEST_SHA256 = (
 def _tree(root):
     root = Path(root)
     rows = []
-    for path in sorted(root.rglob("*")):
+    for path in sorted(root.rglob("*"), key=lambda item: _posix_path_key(root, item)):
         if ".git" in path.parts or "__pycache__" in path.parts or path.suffix == ".pyc":
             continue
         require(not path.is_symlink(), "a1_prep_repository_linked")

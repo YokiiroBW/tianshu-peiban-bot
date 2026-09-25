@@ -213,3 +213,9 @@ A4 对首版提交 `4b3ee2a` 的只读复核报告 `a32db0938ca0f2df9a188fba2fa8
 协调者授权一个新的 `scope-a1-r2j` 实机范围，分配原件位于主仓 `docs/development/nas-a1-network-allocation-r2j-2026-09-26.json`，原始 SHA256 `5fc2ad22b78b109cb42aa78fbc32a02d67564cee342c95aa2c716e654d0535f1`，execution ID `b5ebf2e9-836d-4e9b-b94c-21b1ee10a0a6`。本地入口去掉 r2i 文件名和哈希常量，改由受控准备配置给出绝对分配路径与预期 SHA；同一代码静态接受 r2i/r2j 两份协调原件，按 scope/status/执行 ID、用途顺序网段及端口精确匹配，错原件、错哈希、跨实例、错用途及目标已存在均拒绝。准备、源端、克隆与单次驱动收据串接准备配置和分配文件 SHA，单次驱动还核对准备原件。此处记录的是跨阶段一致性；协调者须在上传前独立固定真实准备 JSON 原始 SHA，不能把运行时新算的哈希当作既有预期。
 
 本地定向 `test_a1_*.py` 81 项通过。NAS 创建前只读预检原始收据保存在本工作树忽略目录 `.runtime/nas-a1-r2j/preflight-before-create.json`（SHA256 `66e0afa4ce0c24116193bcba3dab574b20afad34d1ee007bc674768e1214ea0c`）：当时 726 条 IPv4 路由、177 个 Docker 网络、12 个端口和四个项目名均无冲突，预计静态地址不冲突，MemAvailable 17.74 GiB，CPU 在线 0–7；新 parent 尚不存在。代码增量待 A4 复核，真实准备配置还未固定/上传，NAS 尚未创建 r2j parent、scope、网络、容器或许可；历史 r2i 现场保持停止。
+
+## r2j 工具包跨平台代码树锁修正（2026-09-26）
+
+协调者与 A4 已复核 r2j 参数化增量 `8bd62b1`，并独立固定第一版准备文件 SHA256 `f14f6bbb57fb3ca04cc1f4ae3a62f6328c6f8c4e25440671c30a93e78970e29a`。同一 parent `/volume2/tianshu-v2-validation-wave1/accept-20260926-a1-r2j` 已创建，并以独占创建、原字节读回上传分配、代码锁、准备配置与 `code-8bd62b1.tar`；没有创建 scope。第一次工具包组装时，Windows 锁定的 114 文件代码树 SHA256 `b802989f4e4cf62e5b7a74239045ec7105e8816e95d51b68a5320deb32974ea7` 与 NAS Linux 重算 `e8b0b05d8f4463ba67ce786df0106929c98877c19eecb5e83ef107a49e788138` 不符，包装器当即停止。逐文件 114 项的路径和 SHA 均相同；差异仅在整体清单排序：Windows `Path` 比较忽略大小写，Linux 比较区分大小写，97 个位置不同。原始收据保存在忽略目录 `.runtime/nas-a1-r2j/assembled-code-diff.json`，只读停止核查在 `setup-stop-readonly.json`：scope 和 venv 均不存在，四项目容器和 r2j 网络均未创建，许可和恢复链未启动。旧上传文件与失败收据保持原样。
+
+本地修正统一使用相对根的 POSIX 路径 UTF-8 字节序，对代码锁和 Gateway 源树采用同一个排序键；生成者与消费者继续共用 `_code_files`。新增混合大小写夹具模拟 Windows 忽略大小写排序，证实规范树锁与旧排序不同，内容和路径增删改变哈希。当前固定 Gateway 17 文件源树的哈希仍为 `39355bc3de216f18c37ee8d2f9f70673ae5aeb2eeaee8b8beacff314e7915755`。完整 A1 定向离线测试 83 项通过，`git diff --check` 通过。此修正尚待 A4 独立审查及新版本执行包、代码锁、准备配置重新固定；在新输入获独立确认前，NAS 仅保持只读。
