@@ -26,11 +26,17 @@ lives at `scope_parent/preparations/scope_name.json`; its lock is the adjacent
 default allocation. A partial failure leaves the scope for inspection and
 cannot be retried into that scope.
 
-The source must then be exercised and registered through the public product
-and recovery CLIs. Independent checks must establish four healthy core owners,
-five running observability owners, two closed unknown turns, forgetting,
-revocations, and four Gateway usage attempts. Static preparation alone does
-not establish these facts.
+From the same locked code directory,
+`ABS_PYTHON -B -m ops.recovery.a1_source_flow --config ABSOLUTE_PREPARATION_JSON`
+plans the source run. `--execute` checks live allocations, then makes one
+source attempt through the public product CLIs and HTTPS APIs: Memory
+migrations, nine owner startup, fictional v3 turns and Memory facts,
+forget/retract/model revocation, v4 offline controls, Gateway usage readback,
+runtime identity, and `linux-prepare` authority registration. It uses the
+configured Docker executable throughout. A failed attempt retains its
+private receipts and cannot be repeated in that scope. The offline fixture
+checks action order; an actual Linux/NAS run is required to establish product
+and owner facts.
 
 From that same code directory,
 `ABS_PYTHON -B -m ops.recovery.a1_clone_prepare --config ABSOLUTE_PREPARATION_JSON`

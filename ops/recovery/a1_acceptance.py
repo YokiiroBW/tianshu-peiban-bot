@@ -46,6 +46,10 @@ def _update_bundle(root, changes):
                 stream.write(raw)
                 stream.flush()
                 os.fsync(stream.fileno())
+            original = path.stat()
+            if os.name == "posix":
+                os.chown(temporary, original.st_uid, original.st_gid)
+            os.chmod(temporary, original.st_mode & 0o777)
             os.replace(temporary, path)
             index["files"][name] = digest(raw)
         index_raw = (json.dumps(index, ensure_ascii=False, indent=2) + "\n").encode()
@@ -55,6 +59,10 @@ def _update_bundle(root, changes):
             stream.write(index_raw)
             stream.flush()
             os.fsync(stream.fileno())
+        original = index_path.stat()
+        if os.name == "posix":
+            os.chown(temporary, original.st_uid, original.st_gid)
+        os.chmod(temporary, original.st_mode & 0o777)
         os.replace(temporary, index_path)
         marker.unlink()
     except BaseException:
@@ -702,7 +710,7 @@ def bind_memory_scopes(root, document):
     }
 
 
-def read_companion_source_facts(root, input_path):
+def read_companion_source_facts(root, input_path, *, docker_executable="/volume2/@appstore/ContainerManager/usr/bin/docker"):
     """Read real Companion owner events with Memory's registered source-facts identity."""
     root = Path(root).resolve(strict=True)
     verify_integrity, _, _, read_json = _imports(root)
@@ -736,7 +744,7 @@ def read_companion_source_facts(root, input_path):
         "sys.stdout.buffer.write(json.dumps({'http_status':response.status,'body':json.loads(result)},ensure_ascii=False).encode())"
     )
     command = [
-        "/volume2/@appstore/ContainerManager/usr/bin/docker",
+        docker_executable,
         "compose",
         "-p",
         project,
@@ -763,7 +771,7 @@ def read_companion_source_facts(root, input_path):
         raise RuntimeError("companion_source_facts_read_invalid") from exc
 
 
-def read_memory_selection(root, input_path):
+def read_memory_selection(root, input_path, *, docker_executable="/volume2/@appstore/ContainerManager/usr/bin/docker"):
     """Read the real Memory select API for the one bound fictional A1 scope."""
     root = Path(root).resolve(strict=True)
     verify_integrity, _, _, read_json = _imports(root)
@@ -807,7 +815,7 @@ def read_memory_selection(root, input_path):
         "sys.stdout.buffer.write(json.dumps({'http_status':response.status,'body':json.loads(result)},ensure_ascii=False).encode())"
     )
     command = [
-        "/volume2/@appstore/ContainerManager/usr/bin/docker",
+        docker_executable,
         "compose",
         "-p",
         project,
@@ -834,7 +842,7 @@ def read_memory_selection(root, input_path):
         raise RuntimeError("a1_memory_select_invalid") from exc
 
 
-def run_local_user_action(root, input_path):
+def run_local_user_action(root, input_path, *, docker_executable="/volume2/@appstore/ContainerManager/usr/bin/docker"):
     """Run Memory's explicit user-action CLI with the private configured owner token."""
     root = Path(root).resolve(strict=True)
     verify_integrity, _, _, read_json = _imports(root)
@@ -853,7 +861,7 @@ def run_local_user_action(root, input_path):
         raise ValueError("a1_local_user_operation_required")
     frame = (json.dumps(operation, ensure_ascii=False, separators=(",", ":"), allow_nan=False) + "\n").encode()
     compose = [
-        "/volume2/@appstore/ContainerManager/usr/bin/docker",
+        docker_executable,
         "compose",
         "-p",
         project,
@@ -908,7 +916,7 @@ def run_local_user_action(root, input_path):
         raise RuntimeError("a1_local_user_action_invalid") from exc
 
 
-def post_memory_revision(root, input_path):
+def post_memory_revision(root, input_path, *, docker_executable="/volume2/@appstore/ContainerManager/usr/bin/docker"):
     """Post the same confirmed request through the existing Companion→Memory API."""
     root = Path(root).resolve(strict=True)
     verify_integrity, _, _, read_json = _imports(root)
@@ -936,7 +944,7 @@ def post_memory_revision(root, input_path):
         "sys.stdout.buffer.write(json.dumps({'http_status':response.status,'body':json.loads(result)},ensure_ascii=False).encode())"
     )
     command = [
-        "/volume2/@appstore/ContainerManager/usr/bin/docker",
+        docker_executable,
         "compose",
         "-p",
         project,
@@ -963,7 +971,7 @@ def post_memory_revision(root, input_path):
         raise RuntimeError("a1_memory_revision_post_invalid") from exc
 
 
-def trusted_memory_commit(root, input_path):
+def trusted_memory_commit(root, input_path, *, docker_executable="/volume2/@appstore/ContainerManager/usr/bin/docker"):
     """Use the deployed Memory API and its actual TrustedWorkflow, no SQL writes."""
     root = Path(root).resolve(strict=True)
     verify_integrity, _, _, read_json = _imports(root)
@@ -993,7 +1001,7 @@ def trusted_memory_commit(root, input_path):
         "sys.stdout.buffer.write(result)"
     )
     base_command = [
-        "/volume2/@appstore/ContainerManager/usr/bin/docker",
+        docker_executable,
         "compose",
         "-p",
         project,
@@ -1200,7 +1208,7 @@ def diagnose_platform_publication(root, input_path, *, docker_executable="/volum
         raise RuntimeError("platform_validation_diagnostic_failed") from exc
 
 
-def publish_synthetic_config(root, template_path, config_version=1):
+def publish_synthetic_config(root, template_path, config_version=1, *, docker_executable="/volume2/@appstore/ContainerManager/usr/bin/docker"):
     """Refresh only the A1 fixture's short validity window, then use Platform's CLI."""
     document = json.loads(Path(template_path).read_text(encoding="utf-8"))
     providers = document.get("providers")
@@ -1227,16 +1235,16 @@ def publish_synthetic_config(root, template_path, config_version=1):
     with tempfile.NamedTemporaryFile(mode="wb", suffix=".json", dir="/tmp") as stream:
         stream.write(_raw(document))
         stream.flush()
-        validation = diagnose_platform_publication(root, stream.name)
+        validation = diagnose_platform_publication(root, stream.name, docker_executable=docker_executable)
         if validation.get("valid") is not True:
             raise ValueError("a1_publication_validation_failed:" + json.dumps(validation))
-        result = run_platform_cli(root, "publish", stream.name)
+        result = run_platform_cli(root, "publish", stream.name, docker_executable=docker_executable)
     result["published_at"] = document["published_at"]
     result["usable_until"] = document["usable_until"]
     return result
 
 
-def read_companion_web_snapshot(root, input_path):
+def read_companion_web_snapshot(root, input_path, *, docker_executable="/volume2/@appstore/ContainerManager/usr/bin/docker"):
     """Read the published Companion snapshot API from the owned A1 service container."""
     root = Path(root).resolve(strict=True)
     _, _, _, read_json = _imports(root)
@@ -1263,7 +1271,7 @@ def read_companion_web_snapshot(root, input_path):
         "sys.stdout.buffer.write(json.dumps({'http_status':response.status,'body':json.loads(result)},ensure_ascii=False).encode())"
     )
     command = [
-        "/volume2/@appstore/ContainerManager/usr/bin/docker",
+        docker_executable,
         "compose",
         "-p",
         project,
@@ -1288,7 +1296,7 @@ def read_companion_web_snapshot(root, input_path):
         raise RuntimeError("companion_web_snapshot_invalid") from exc
 
 
-def start_synthetic_model(root):
+def start_synthetic_model(root, *, docker_executable="/volume2/@appstore/ContainerManager/usr/bin/docker"):
     """Start and health-check the packaged offline Gateway upstream fixture."""
     root = Path(root).resolve(strict=True)
     verify_integrity, _, _, read_json = _imports(root)
@@ -1302,7 +1310,7 @@ def start_synthetic_model(root):
     if not fixture_path.is_file() or not probe_path.is_file():
         raise ValueError("a1_synthetic_model_fixture_required")
     compose = [
-        "/volume2/@appstore/ContainerManager/usr/bin/docker",
+        docker_executable,
         "compose",
         "-p",
         project,

@@ -177,3 +177,9 @@ scope `b3f59a3a-0fd4-4d47-8ff9-2c7a00d8b7a5` 为 r1 轮的唯一 NAS 目标。OB
 后续集中复核修正：`scope_parent/tooling` 被设为唯一代码根，三处公开入口还核对实际加载的自有模块路径及逐文件代码锁；固定 source API 三端口须为 19512/19513/19514。OBS 配置现在明确传入 `projects_root` 并核对四产品固定 Git 提交，用固定 OBS Git 提交生成词表；模型发布模板从静态准备结果持久化。seal 的四个同步 Platform 调用外层上界为 240 秒；驱动生成本轮 attempt UUID，只有三份产品动作回执及带 scope/attempt/哈希的完成标记均有效、且 CLI 主进程确已退出，才允许进入九 owner 停写。缺失、半写、旧标记、错误 attempt 与父进程退出但产品动作未确认均不启动第二写入者。180 秒来源入场门槛不变。
 
 本地定向准备 20 项、驱动 38 项通过。真实静态链在临时树跑了 bundle 初始化、固定 OBS Git 包/四产品词表、合成配置和九输入；因 Windows 无法验证 Linux chmod/chown，OBS 最终权限函数在这项测试里单点替换，不能宣称 Linux 权限已验。随后用明确的 fixture-only 产品事实和假同步短时签发，把真实生成的克隆输入送入 `drill_inputs.isolated_inputs`，同一份输入 SHA 通过消费者结构、Compose、TLS/凭据和六断言校验。**源端业务事实公开 CLI 编排与真正的九 owner/六 HTTPS 仍未完成**，此增量不能被称作完整实机链。逐阶段入口及缺口见 [`NAS-A1-entry-index.md`](NAS-A1-entry-index.md)。
+
+## 新 scope 源端业务入口补充（2026-09-26）
+
+基于固定准备修复提交 `8d640d10c443c7f03b66f6b479eb19cc123830a5`，新增 `ops/recovery/a1_source_flow.py`。它从同一 `a1-preparation/1` 配置绑定当轮 scope、代码锁、项目和绝对 Docker/Python；默认只读，执行前实时检查全部 12 网络/12 端口、四项目与可用内存。执行时先留下不可重用的 attempt 标记，仅调整新 scope 的空运行目录权限并经打包 Linux 权限预检，然后按公开 CLI/API 完成两项 Memory 迁移、source/OBS 启动、合成 v3 发布和两份虚构输入、Companion 两条 unknown 与 source facts、Memory 三条事实及遗忘/撤源、模型 v3 撤销、v4 离线控制和四组 Gateway 官方 usage 读回，最后采集九 owner runtime identity 并以 `linux-prepare` 登记 authority。回执只写本 scope 的私有报告目录；失败不自动重放。相关 `a1_acceptance` 入口现接受配置中的 Docker 路径，bundle 更新也保留原文件所有者/权限，不再由该流程继承固定 NAS 路径。运行命令和具体输入见 [`NAS-A1-entry-index.md`](NAS-A1-entry-index.md)。
+
+定向离线检查：已有准备 20 项和驱动 38 项在此增量后仍通过；新增源端入口 5 项通过，覆盖整个动作序列的注入式产品替身、scope/单次门禁、unknown 精确结构、配置 Docker 路径和失败私有诊断。既有真实静态 bundle→clone 输入消费者夹具仍通过。新入口没有在 Linux/NAS 上实际运行：真实 Memory 迁移、Platform 同步写入、HTTPS、Docker 九 owner、Linux 权限/进程身份及源端 SQLite/Gateway 账本仍需在全新明确分配的 scope 中验证。真实许可、恢复与六项克隆 HTTPS 均未签发或执行；旧 r2h/r2g 证据与结论保持原样。下一步是 A4 对固定增量独立复核，然后由协调者提供新 scope 的实际分配并决定是否运行实机链。

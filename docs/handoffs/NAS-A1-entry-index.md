@@ -2,7 +2,7 @@
 
 ## 输入与固定文件
 
-这份索引用于尚未分配的新 A1 测试范围；它不是执行授权或已运行记录。`92f49171abaf7e1d516b209cfb8dab904e442b40` 提供静态 source、克隆占位输入和单次短时驱动。真实 NAS 地址、端口、资源与短时许可均不存在，不能用 r2h/r2g 的值代填。
+这份索引用于尚未分配的新 A1 测试范围；它不是执行授权或已运行记录。当前代码提供静态 source、参数化源端业务入口、克隆占位输入和单次短时驱动。真实 NAS 地址、端口、资源与短时许可均不存在，不能用 r2h/r2g 的值代填。
 
 操作者需在 NAS **另行明确分配并实时预检**：规范化绝对 `scope_parent`、未存在的 `scope-a1-*` 名称及新 UUID、source/clone 两个专属 Compose 项目名、从 `10.205.48.0/24` 分出的五加七段互不重叠 `/28`（不使用 `10.205.48.192/26`）、source/clone 各六个不同回环端口、可用内存至少 11.5 GiB 和九 owner 资源约束。固定产品要求 source Companion/Memory/Gateway 回环 API 端口依次为 `19512/19513/19514`；其他九端口仍需显式分配。准备 JSON 还需指定固定代码根 `scope_parent/tooling`、绝对 Python/Docker 可执行文件、原始固定候选 manifest、合同根、资源 profile、固定OBS Git仓库及其 manifest 提交对象 SHA256、四产品固定 Git 仓库的 `projects_root`、Gateway CLI 导入树及其逐树 SHA、`run_label`、恢复/克隆/备份/许可/收据名称。所有值都在 `scope_parent/preparations/scope_name.json`，严格符合 `a1-preparation/1`；本仓库没有真实配置范本或默认分配。
 
@@ -17,9 +17,15 @@ ABS_PYTHON -B -m ops.recovery.a1_prepare --config ABS_PREPARATION_JSON --execute
 
 默认第一项准备命令是只读计划；`--execute` 才在全新范围写 source、OBS、独立 TLS/凭据、模型发布模板及九个虚构产品输入。部分失败保留新范围，不能在同一范围重试。创建前须检查原 manifest、合同字节、所有分配网络/路由、回环端口、宿主资源、镜像/产品提交及两份 Compose 的实际配置。
 
-## 源端业务事实：当前未自动完成
+## 源端业务事实：参数化入口
 
-静态 source 包之后、克隆占位之前，当前仍需按公开产品和恢复 CLI 完成下列**真实操作和收据**；`a1_prepare` 的本地夹具把这些产品行为注入替身，不能把九份输入生成当作九份业务结果。旧 `a1_r2h_*` helper 含硬编码路径及顶层副作用，不能用于新范围。当前提交尚无参数化 source 业务编排入口，所以**不能称“从新范围创建到完整 A1 验收的一键链已完成”**。
+静态 source 包之后、克隆占位之前，`a1_source_flow` 使用准备配置中的同一 scope、项目、Docker/Python 路径，并经公开产品 CLI/HTTPS 完成下列**真实操作和收据**。默认是只读计划；`--execute` 先实时检查 12 网络、12 回环端口、四个项目名和可用内存，再写一次性 attempt 标记。仅对全新空数据/日志目录设置运行 UID/GID，随后调用打包的 Linux 权限 preflight，成功后才启动服务。任何写入后失败都保留现场，禁止同范围重放。旧 `a1_r2h_*` helper 含硬编码路径及顶层副作用，不能用于新范围。
+
+```text
+cd ABS_CODE_ROOT
+ABS_PYTHON -B -m ops.recovery.a1_source_flow --config ABS_PREPARATION_JSON
+ABS_PYTHON -B -m ops.recovery.a1_source_flow --config ABS_PREPARATION_JSON --execute
+```
 
 | 顺序 | 必须取得的实际状态/固定文件 |
 | --- | --- |
@@ -30,7 +36,7 @@ ABS_PYTHON -B -m ops.recovery.a1_prepare --config ABS_PREPARATION_JSON --execute
 | 5 | 撤销模型 v3 后经 Gateway→Platform snapshot 得到 HTTP 410/`forbidden`。发布并绑定 v4；离线上游两组 unknown、两组成功控制写入源端 Gateway 账本，官方 usage CLI 读回四组；Companion 两条 unknown turn/reply 重启前后稳定。 |
 | 6 | 从当轮九 owner 采集 `reports/runtime-identity.json`，使用公开 `linux-prepare` 登记 authority 和 `.recovery-registration.json`，核实 scope ID、文件哈希、镜像与 owner。不要预签发克隆 v5/origin。 |
 
-克隆占位生成器要求 `source/reports/RUN_LABEL/` 下 `source-facts.json`、`unknown-after-v4-readback.json`、`web-snapshot-initial.json`；源端 SQLite 只读 route receipts、Gateway 官方 usage CLI 四组，以及 `scope/inputs/model-publication-template.json`、`source/reports/runtime-identity.json` 和 `.recovery-registration.json`。收据必须来自当轮 source，而非旧范围复制。
+克隆占位生成器要求 `source/reports/RUN_LABEL/` 下 `source-facts.json`、`unknown-after-v4-readback.json`、`web-snapshot-initial.json`；源端 SQLite 只读 route receipts、Gateway 官方 usage CLI 四组，以及 `scope/inputs/model-publication-template.json`、`source/reports/runtime-identity.json` 和 `.recovery-registration.json`。入口在登记前也调用同一源证据消费者，写 `gateway-usage-readback.json`；收据必须来自当轮 source，而非旧范围复制。
 
 ## 克隆占位和短时单次链
 
@@ -46,4 +52,4 @@ ABS_PYTHON -B -m ops.recovery.a1_once --config ABS_SCOPE/inputs/a1-once.json --e
 
 每阶段有私有原始 stdout/stderr 与 SHA、结构化收据、UTC 与单调时间。CLI 超时仅给该 CLI 主进程 SIGTERM，再等 90 秒正常清理；存活状态不明即 `stop_unconfirmed`，不启动第二写入者。seal 子进程已退出但失败时只尝试一次精确已登记九 owner 的 `linux-rehearse` 正常停写/备份/禁用恢复；失败、许可拒绝、执行失败均不自动重试或重放 claim。任何结果后只读核对 source/clone 九 owner、恢复目标仍禁用、claim、四项目及网络端点，并保存现场。
 
-离线定向验证为准备链 20 项、单次驱动 38 项；真实 bundle initializer、固定 OBS Git 包与四产品词表、静态合成配置/九输入、克隆占位生成及同一封印包的 `drill_inputs.isolated_inputs` 消费者校验已运行。Windows 不支持的 OBS Linux 权限函数被单点替换；源端业务事实、同步 Platform issue/publication、Docker、宿主资源及六项 HTTPS 是替身或未执行。真实 NAS 新范围、许可和容器本轮均未创建。
+离线定向验证为准备链 20 项、单次驱动 38 项、源端入口 5 项；真实 bundle initializer、固定 OBS Git 包与四产品词表、静态合成配置/九输入、克隆占位生成及同一封印包的 `drill_inputs.isolated_inputs` 消费者校验已运行。源端入口的顺序夹具逐步走到登记完成标记，全部产品行为为离线替身。Windows 不支持的 OBS Linux 权限函数被单点替换；同步 Platform issue/publication、Docker、Linux 权限/资源、实际九 owner 及六项 HTTPS 均未在新范围执行。真实 NAS 新范围、许可和容器本轮均未创建。
