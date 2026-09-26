@@ -1,5 +1,6 @@
 {
-  "phase": "first_round_review_complete_visual_rework_required",
+  "phase": "first_round_archived_followup_asset_wave2_active",
+  "followup_status": "room-art-wave2-status-2026-09-26.json",
   "visual_accepted": false,
   "deployed": false,
   "nas_changed": false,
@@ -59,7 +60,7 @@
     "furniture": "requires_art_revision",
     "materials": "requires_art_revision",
     "lighting": "R1B_real_window_light_improved_reference_width_softness_not_accepted",
-    "page": "layout_accessibility_passed_candidate_minor_spacing_gap_remains",
+    "page": "accepted_by_user_frozen_in_wave2",
     "life_state_integration": "outstanding_separate_phase"
   },
   "next_work": "room-art-rework-next-2026-09-26.md; cards prepared, no new writers dispatched; current three workers completed",
