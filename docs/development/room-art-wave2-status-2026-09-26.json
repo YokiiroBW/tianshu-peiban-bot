@@ -1,5 +1,5 @@
 {
-  "phase": "candidate_c_integrated_visual_revision_still_required",
+  "phase": "candidate_c_style_rejected_requires_art_direction_proof",
   "user_accepted_page_layout": true,
   "page_layout_frozen": true,
   "baseline": "cbddfe3b5cf20a5cbf253d57e5ff23a9d282b467",
@@ -27,7 +27,7 @@
   "visual_accepted": false,
   "nas_changed": false,
   "deployed": false,
-  "resume": "This bounded asset wave is delivered and reviewed. Keep user-approved UI frozen; continue remaining visual gaps from C within the existing visual-repair scope. Do not rerun old DSH or deployment initialization.",
+  "resume": "User rejected C overall art style as cheap modeling. Preserve accepted page and tested engineering, first prove original-concept style in a window/chair/curtain sample using identical editable assets in offline and browser renders; do not continue whole-room detail expansion as proof of style. See styleCorrection.",
   "integrationCommit": "0b2ed4ebb26bbef5cf16e5f3b5694e2054669655",
   "report": "room-art-wave2-review-2026-09-26.md",
   "evidence": "../design/room-reference-v1/evidence/candidate-c.json",
@@ -36,5 +36,6 @@
     "room_internal_geometry_proportions",
     "curtains_and_warm_light",
     "physical_device_performance"
-  ]
+  ],
+  "styleCorrection": "room-style-correction-2026-09-26.md"
 }
