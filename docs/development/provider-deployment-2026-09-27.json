@@ -1,0 +1,147 @@
+{
+  "status": "deployed_live_runtime_verified",
+  "time": 1790443260.136477,
+  "url": "http://192.168.31.210:18446",
+  "containers": [
+    {
+      "service": "obs-grafana",
+      "id": "4116511371c5cefcfcc3c2ab3b8d78b8a1f65d2f456a91b36c5d464e68c56b45",
+      "image": "grafana/grafana:13.2.2@sha256:ac461fb352abc50da10a51c7d02462e9c05488f11f53f14b3ad79a8145f638a0",
+      "image_id": "sha256:747aaf291145d9a84a547f1fa4edf48697371db6ab386b81c95ad3a725c20f17",
+      "revision": null,
+      "health": null,
+      "status": "running",
+      "restart": "unless-stopped"
+    },
+    {
+      "service": "obs-guard",
+      "id": "0ceb6ee9f1567a4c5d0e2d6a76502229d68c4e14b25b492437ed0578a05138c4",
+      "image": "python:3.12.14-slim-bookworm@sha256:392307d22300de8b5986851a12d9176dfc0fc073e65bf6523ebd7dcbeb23564e",
+      "image_id": "sha256:febd0be41adb897a0ab8f1f1c693d8912669ea60c4940e076e9946b60e210ef0",
+      "revision": null,
+      "health": null,
+      "status": "running",
+      "restart": "unless-stopped"
+    },
+    {
+      "service": "obs-loki",
+      "id": "9978e2ffe2a8abbfe5c89705025212dcc54eb42213e95b9f672fca59181d0146",
+      "image": "grafana/loki:3.7.8@sha256:1107dd5274e0ada47e42472b7a7e71f3b2a2fe878878108f3e2f9e51528f0193",
+      "image_id": "sha256:ceccdbc45e274f08eb23d6ca6e0b648921d580c592ab47b4304225c0f17a406a",
+      "revision": null,
+      "health": null,
+      "status": "running",
+      "restart": "unless-stopped"
+    },
+    {
+      "service": "obs-prometheus",
+      "id": "c790402c35fb452279cbc4bde793b6dfbdebc08346c76181372a05c17749fc6a",
+      "image": "prom/prometheus:v3.13.3@sha256:6976aa8a60fec930796ce5772b8d12da7a318a5daa8d40d69c5c7819a05eeed7",
+      "image_id": "sha256:7d467fbb6bbbd6a96d87a0e4b2ef53840ce11521af0a8c27b995daa82896a241",
+      "revision": null,
+      "health": null,
+      "status": "running",
+      "restart": "unless-stopped"
+    },
+    {
+      "service": "obs-vector",
+      "id": "f4ea56aada9c88a8e18d726d4de31e362886fb3ca47d2b848df8a77f9df6159b",
+      "image": "timberio/vector:0.58.0-debian@sha256:1c1ea358c617ea0b23003d5af87f7a678b30f8f7096437e680380c47fc13d2d9",
+      "image_id": "sha256:92c275b73d880922a265918a7c3c4f2cc0dd87338447ff357809f2d18a64a48e",
+      "revision": null,
+      "health": null,
+      "status": "running",
+      "restart": "unless-stopped"
+    },
+    {
+      "service": "companion",
+      "id": "cfd597acb15450ea11b700a5fb1cb372d30cb364c6d347a4d26d3998c34730c9",
+      "image": "127.0.0.1:19550/tianshu/companion@sha256:05b3b76bdcf0b424c771838c4f925529ee277fbea91febdd8a646a2509f792fd",
+      "image_id": "sha256:78ab496572ffa6d9cc8636b66d10ced9de35b49a3d2ca48d44f6823332b79038",
+      "revision": "31677983798ba27b24d57925feab4774c2eec30f",
+      "health": "healthy",
+      "status": "running",
+      "restart": "unless-stopped"
+    },
+    {
+      "service": "gateway",
+      "id": "f87f9ffb64123c93ce963765fedbcf344406229e02b585d4506f2340fe3fcfa2",
+      "image": "127.0.0.1:19550/tianshu/gateway@sha256:b336e15bb7cf6b017aa871a3ab181ab62f4ec6b07bac3fca0592ef70f32af9db",
+      "image_id": "sha256:67132c34145ffde548fd6df5dbf3f916116c13098265c416d588da80a7bbf30a",
+      "revision": "e4f112f02d28a1ded134126feed33f15e003ec20",
+      "health": "healthy",
+      "status": "running",
+      "restart": "unless-stopped"
+    },
+    {
+      "service": "memory",
+      "id": "a46c4f1b989ca4da58228d6e8d244b4c4d1ceab6c6a20bbd95400e845adefd41",
+      "image": "127.0.0.1:19550/tianshu/memory:9a3b2bed6aeb-resident1@sha256:7fe62999504ff099bd68220d5488eb6bf917380a9d04785114740d8792b9a076",
+      "image_id": "sha256:31048b9faf32516ca567e3c50955d7abcccbed899307cc9488c5d46d1772152b",
+      "revision": "9a3b2bed6aebff9f0677f2c62e979859769e0c9c",
+      "health": "healthy",
+      "status": "running",
+      "restart": "unless-stopped"
+    },
+    {
+      "service": "platform",
+      "id": "7833fbadded5a869f3d15c94ceb09be2c3464d99231e015753daf4f89a5eb6d0",
+      "image": "127.0.0.1:19550/tianshu/platform@sha256:fd2ce777b67a18cd432da278e6d562d2b962b42a858bf4d73bda7f8d4d7324ac",
+      "image_id": "sha256:4a3e0a7f49c7097b608168e39df7f94760c2ed22470bd13b89783379d5bb55c1",
+      "revision": "1d51d888ff77594a1f6fbb1c7e0d4fdf92285ff8",
+      "health": "healthy",
+      "status": "running",
+      "restart": "unless-stopped"
+    }
+  ],
+  "capacity": {
+    "deployment_bytes": 47447132,
+    "heartbeat_age_seconds": 1.517,
+    "minimum_free_bytes": 465574649856,
+    "services": 9,
+    "status": "ready"
+  },
+  "capacity_state": "/volume2/tianshu-v2-resident-updates/providers-20260927/gateway-r1-release/capacity-state",
+  "core_compose": "/volume2/tianshu-v2-resident-updates/providers-20260927/core.compose.json",
+  "platform_compose": "/volume2/tianshu-v2-resident-updates/providers-20260927/platform.compose.json",
+  "dockge_same_bytes": true,
+  "existing_account_preserved": true,
+  "session_state": "sign_in",
+  "provider_test": {
+    "status": "real_short_reply_passed",
+    "model": "deepseek-v4-flash",
+    "default_configured": true
+  },
+  "runtime_probe": {
+    "status": "runtime_reply_passed",
+    "nonempty_reply": true,
+    "receipt_outcome": "succeeded",
+    "resolved_model": "deepseek-v4-flash",
+    "version_bound": true,
+    "synthetic_only": true,
+    "web_and_memory_turn_tested": false
+  },
+  "backups": [
+    {
+      "path": "/volume2/tianshu-v2-resident-updates/providers-20260927/deployment-before.tar",
+      "bytes": 54999040,
+      "sha256": "2100d74999cc4557fc310470578a7a90252f7c6e350b16d50018c7d30763bb76"
+    },
+    {
+      "path": "/volume2/tianshu-v2-resident-updates/providers-20260927/gateway-r1-release/deployment-before.tar",
+      "bytes": 46714880,
+      "sha256": "156f0e33390ad4a8b40c51e43181ccc7239da61ac0e4ba2ccc8c7348b3284587"
+    }
+  ],
+  "gateway_hotfix": {
+    "image": "127.0.0.1:19550/tianshu/gateway@sha256:b336e15bb7cf6b017aa871a3ab181ab62f4ec6b07bac3fca0592ef70f32af9db",
+    "id": "sha256:67132c34145ffde548fd6df5dbf3f916116c13098265c416d588da80a7bbf30a",
+    "commit": "e4f112f02d28a1ded134126feed33f15e003ec20",
+    "archive_sha256": "05ada941019fbe1f72bdb75da5bdc81d7f606545633bab2825dd761072a47f3b"
+  },
+  "limitations": [
+    "Browser authenticated model management and full Memory/Core delivery not exercised without user login.",
+    "Initial 16-token response body not retained; 256-token diagnostic succeeded.",
+    "Prior capacity guard docker inventory failure preserved; race with removed transient build containers suspected, not conclusively proven."
+  ]
+}

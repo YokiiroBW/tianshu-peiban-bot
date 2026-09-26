@@ -1,5 +1,5 @@
 {
-  "status": "reviewed_integrated_locally_not_deployed",
+  "status": "deployed_live_runtime_verified_browser_login_pending",
   "date": "2026-09-26",
   "execution": "Codex agents; isolated local implementation only",
   "model": "gpt-6-astra",
@@ -53,7 +53,7 @@
     "known_dependency": "P1 mature authenticated encryption needs a reviewed production cryptography dependency; no plaintext fallback",
     "nas_operations_authorized_to_workers": false,
     "public_api_frozen": false,
-    "current_nas_unchanged": true
+    "current_nas_unchanged": false
   },
   "visible_continuations": [
     {
@@ -61,7 +61,7 @@
       "model": "gpt-6-sol",
       "effort": "xhigh",
       "clientThreadId": "client-new-thread:211e0403-f70f-464a-b6fb-9d99bd7db4b8",
-      "status": "delivered_reviewed_integrated_locally",
+      "status": "reviewed_integrated_deployed",
       "contract_root": "C:/Users/Administrator/.codex/worktrees/6bd8/tianshu-peiban-bot",
       "root_commit": "578908b202e79fcf4332ff28e873241d9a9946a4",
       "product_commits": {
@@ -76,11 +76,11 @@
       "model": "gpt-6-sol",
       "effort": "xhigh",
       "clientThreadId": "client-new-thread:d0cc573e-87de-4d27-82b6-e216885852cf",
-      "status": "delivered_reviewed_integrated_locally",
+      "status": "reviewed_integrated_deployed",
       "threadId": "01a0de35-4858-70a0-9a1f-57473538f5a5",
       "commit": "3072ec610a3b5af7e1eeeb19a56504018f757c23",
       "handoff": "worktrees/PROVIDER-U1/tianshu-platform/docs/handoffs/PROVIDER-U1.md",
-      "integration_allowed": false,
+      "integration_allowed": true,
       "reported_browser_tests": "7/7; result_unknown includes injected response; no NAS"
     },
     {
@@ -88,7 +88,7 @@
       "model": "gpt-6-luna",
       "effort": "max",
       "clientThreadId": "client-new-thread:64e07341-a18c-4603-aba5-5be9c80f4c6e",
-      "status": "delivered_reviewed_integrated_locally",
+      "status": "reviewed_integrated_deployed",
       "threadId": "01a0de35-b1e4-7f32-9604-f0b341c6346d",
       "commit": "bda9ce7733a28cbe09b14403cb950ed2e8fe2f63",
       "report": "C:/Users/Administrator/.codex/worktrees/999f/tianshu-peiban-bot/docs/reviews/provider-wave1-independent-review-2026-09-26.md",
@@ -107,11 +107,19 @@
   "integration": {
     "date": "2026-09-27",
     "platform": "1d51d888ff77594a1f6fbb1c7e0d4fdf92285ff8",
-    "gateway": "f93b08a6ce2d31774d2f1b27dc00fd4d5f3ee26d",
+    "gateway": "e4f112f02d28a1ded134126feed33f15e003ec20",
     "companion": "31677983798ba27b24d57925feab4774c2eec30f",
     "contract_candidate": "578908b202e79fcf4332ff28e873241d9a9946a4",
     "review_import": "bdc6d7b",
     "parent_joint_tests": "6 passed; imports exact reviewed PROVIDER worktrees; integrated backend/frontend paths compared equal",
-    "nas_changed": false
+    "nas_changed": true
+  },
+  "deployment": {
+    "date": "2026-09-27",
+    "report": "docs/development/provider-deployment-2026-09-27.json",
+    "url": "http://192.168.31.210:18446",
+    "default_model": "deepseek-v4-flash",
+    "real_runtime_passed": true,
+    "authenticated_browser_acceptance": false
   }
 }
