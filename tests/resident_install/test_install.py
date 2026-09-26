@@ -69,6 +69,49 @@ class ResidentInstallTests(unittest.TestCase):
             "registry.example:5000/tianshu/platform@sha256:" + "a" * 64,
         )
 
+    def test_failed_product_command_records_bounded_private_diagnostics(self):
+        work = self.fixture.root / "private-command-evidence"
+        work.mkdir()
+        with self.assertRaisesRegex(Refused, "product_command_failed"):
+            install._step(
+                work, "memory_schema_2_resume",
+                [sys.executable, "-c",
+                 "import sys; sys.stdout.buffer.write(b'a'*70000); "
+                 "sys.stderr.buffer.write(b'compose run rejected'); sys.exit(16)"],
+                cwd=self.fixture.root,
+            )
+        result = read_json(work / "memory_schema_2_resume-result.json")
+        self.assertEqual(result["state"], "command_failed")
+        self.assertEqual(result["returncode"], 16)
+        self.assertEqual(result["stdout_bytes"], 70000)
+        self.assertEqual(result["stored_tail_bytes_limit"], 65536)
+        self.assertEqual(len((work / "memory_schema_2_resume.stdout").read_bytes()), 65536)
+        self.assertEqual((work / "memory_schema_2_resume.stderr").read_bytes(),
+                         b"compose run rejected")
+
+    def test_resume_activation_uses_supported_compose_run_without_pull_flag(self):
+        captured = []
+
+        def stop_after_schema2(_work, stage, command, **_kwargs):
+            captured.append((stage, command))
+            if stage == "memory_schema_2_resume":
+                raise Refused("deliberate_stop")
+
+        with (mock.patch.object(install, "_step", side_effect=stop_after_schema2),
+              mock.patch.object(install, "_local_images_present")):
+            with self.assertRaisesRegex(Refused, "deliberate_stop"):
+                install._activation_steps(
+                    self.fixture.root, self.fixture.root,
+                    {"memory": "pinned"},
+                    {install.CORE_PROJECT: self.fixture.root / "compose.yaml"},
+                    None, None, None, None, resuming=True,
+                )
+        self.assertEqual([stage for stage, _ in captured],
+                         ["compose_config_resume", "memory_schema_2_resume"])
+        self.assertIn("run", captured[-1][1])
+        self.assertNotIn("--pull", captured[-1][1])
+        self.assertIn("--no-deps", captured[-1][1])
+
     def test_docker_occupancy_checks_stopped_and_other_project_bind(self):
         root = (self.fixture.root / "tianshu-v2-resident").resolve()
         slash_root = "/" + root.as_posix().split(":/", 1)[-1].lstrip("/")

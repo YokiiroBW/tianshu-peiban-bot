@@ -76,3 +76,30 @@ The initial resume gate used A1's later activation check, which expects OBS
 data directories that are only created during OBS configuration. The narrow
 correction checks the actual post-prepare layout: exactly four empty product
 directories under each of `data/` and `logs/`, with no OBS or reports tree.
+
+## Pre-migration schema-2 NAS correction
+
+The next NAS attempt completed OBS configuration, preflight and first A3
+export. It failed at `memory_schema_2` before any migration because Compose
+v2.20.1 rejects `docker compose run --pull never`. The coordinator confirmed
+exact container stop, no project networks, 13 empty mutable directories, no
+issued Platform origin and no final export. The four original A1 report files
+and prior runner evidence remain fixed by SHA-256.
+
+The narrow correction removes `--pull never` from the three Compose `run`
+sites while retaining it for `up`. Each product CLI `run` checks the pinned
+local RepoDigest first. A failed command now leaves bounded private stdout,
+stderr, return code and hashes. A product-command timeout propagates
+unconfirmed effects so the runner does not automatically stop uncertain
+containers. The exact `--resume-after-schema2` path checks fixed input hashes,
+prior child failure and cleanup receipts, empty mutable state, original A3
+export, local images and Docker occupants before a single resumed activation.
+The precheck uses automatically removed temporary export directories without
+changing deployment state. New result/failure markers preserve the original
+failure files. Command and precise paths are in `ops/resident_install/REAL-DEPLOYMENT.md`.
+
+Local verification: scoped resident-install and runner tests, Python 3.12
+compile, CLI help, full changed diff and whitespace check. These are local
+checks; NAS continuation, remaining service startup, A2 arm and A4 live
+acceptance are still coordinator-owned and not claimed here. No NAS write,
+push or merge was performed in this worktree.

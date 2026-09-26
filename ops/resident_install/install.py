@@ -40,6 +40,12 @@ FIXED_COMMITS = {
 }
 FIXED_OBSERVABILITY = "a194fa7b527ac2da0f13b8c3e95e76a1b836b4b3"
 FIXED_A3_EXPORT = "8e381646cee06f37a61e80c16e9e2b50cd5984a9"
+SCHEMA2_RESUME_HASHES = {
+    "bundle-integrity.json": "187ab0d8dbbfda2c9ec387e9929a67cb368a58309ae577573069ba8f08ed498a",
+    "first-lock": "3a2428f6abbea54d2d002efcf40ce969d325900a15f1eb9a193c115745d5516d",
+    "attempt.json": "16da1cf690eaf96d6c204c87d463c05804c4c3b2bfea73acba91135d0905ed3d",
+    "failure.json": "9baabf9bbf658e8d396604ef6b4493d7256bff91e8b3363316e5deaea9d4765f",
+}
 # Every local module imported by the fixed exporter comes from the same Git
 # object. A checkout script or its imports are never executed for this gate.
 A3_EXPORT_SOURCES = (
@@ -105,6 +111,14 @@ def _fixed(manifest):
 
 def _write_private(path, document):
     raw = (json.dumps(document, ensure_ascii=False, allow_nan=False, indent=2) + "\n").encode()
+    with path.open("xb") as stream:
+        os.chmod(path, 0o600)
+        stream.write(raw)
+        stream.flush()
+        os.fsync(stream.fileno())
+
+
+def _write_private_bytes(path, raw):
     with path.open("xb") as stream:
         os.chmod(path, 0o600)
         stream.write(raw)
@@ -237,7 +251,7 @@ def _gateway_origin_precheck(root, gateway):
     return path, lines, matches[0], name
 
 
-def _clean_install(root):
+def _clean_install(root, *, existing_attempt=False):
     for category, owners in (
         ("data", set(PRODUCTS)),
         ("logs", set(PRODUCTS)),
@@ -255,7 +269,7 @@ def _clean_install(root):
                 "nonempty_first_install_mutable_state_refused",
             )
     require(
-        not (root / "reports" / "resident-install").exists()
+        (existing_attempt or not (root / "reports" / "resident-install").exists())
         and not (root / "INCOMPLETE").exists(),
         "installation_already_attempted",
     )
@@ -628,14 +642,37 @@ def _provider(root, publication_path):
     return publication
 
 
-def _run(command, *, cwd, input_bytes=None, seconds=90, env=None):
+def _run(command, *, cwd, input_bytes=None, seconds=90, env=None,
+         failure_evidence=None):
+    def record(status, returncode, stdout=b"", stderr=b""):
+        if failure_evidence is None:
+            return
+        work, name = failure_evidence
+        stdout, stderr = stdout or b"", stderr or b""
+        limit = 65536
+        _write_private_bytes(work / (name + ".stdout"), stdout[-limit:])
+        _write_private_bytes(work / (name + ".stderr"), stderr[-limit:])
+        _write_private(work / (name + "-result.json"), {
+            "state": status, "returncode": returncode,
+            "stdout": name + ".stdout", "stderr": name + ".stderr",
+            "stdout_bytes": len(stdout), "stderr_bytes": len(stderr),
+            "stdout_sha256": digest(stdout), "stderr_sha256": digest(stderr),
+            "stored_tail_bytes_limit": limit,
+            "automatic_retry": False,
+        })
     try:
         result = subprocess.run(
             command, cwd=cwd, input=input_bytes, capture_output=True,
             timeout=seconds, check=False, env=env,
         )
-    except (OSError, subprocess.TimeoutExpired):
+    except subprocess.TimeoutExpired as error:
+        record("effects_unconfirmed_timeout", None, error.stdout, error.stderr)
+        raise Refused("product_effects_unconfirmed_timeout") from None
+    except OSError:
+        record("command_unavailable", None)
         raise Refused("product_command_unavailable_or_timeout") from None
+    if result.returncode != 0:
+        record("command_failed", result.returncode, result.stdout, result.stderr)
     require(result.returncode == 0, "product_command_failed")
     return result.stdout
 
@@ -644,15 +681,19 @@ def _step(work, name, command, *, cwd, input_bytes=None, seconds=90):
     _write_private(work / (name + "-attempt.json"), {
         "stage": name, "state": "started", "automatic_retry": False,
     })
-    return _run(command, cwd=cwd, input_bytes=input_bytes, seconds=seconds)
+    return _run(command, cwd=cwd, input_bytes=input_bytes, seconds=seconds,
+                failure_evidence=(work, name))
 
 
 def _local(base, work, action, document, root, *, marker=None):
     frame = (json.dumps(document, ensure_ascii=False, separators=(",", ":")) + "\n").encode()
     require(len(frame) <= 1048576, "publication_too_large")
+    _local_images_present({
+        "platform": read_json(Path(base[-1]))["services"]["platform"]["image"],
+    }, root)
     raw = _step(
         work, marker or action,
-        [*base, "run", "--pull", "never", "--rm", "--no-deps", "-T", "--entrypoint",
+        [*base, "run", "--rm", "--no-deps", "-T", "--entrypoint",
          "python", "platform", "-c", LOCAL_CLI, action],
         cwd=root, input_bytes=frame, seconds=60,
     )
@@ -745,6 +786,82 @@ def _current_ref(root, expected_hash):
     return ref, (path, lines, matches[0], name)
 
 
+def _activation_steps(root, work, images, stacks, publication, origin,
+                      repository, final_output, *, resuming=False):
+    """Shared single-pass activation tail; a resumed schema-2 uses new markers."""
+    compose = stacks[CORE_PROJECT]
+    base = ["docker", "compose", "--project-directory", str(root), "-f", str(compose)]
+    _step(work, "compose_config_resume" if resuming else "compose_config",
+          [*base, "config", "--quiet"], cwd=root)
+    for stage, operation, backup in (
+        ("memory_schema_2", "migrate-profiles", "first-install.pre-profiles.sqlite"),
+        ("memory_schema_3", "migrate-sources", "first-install.pre-sources.sqlite"),
+    ):
+        _local_images_present({"memory": images["memory"]}, root)
+        marker = "memory_schema_2_resume" if resuming and stage == "memory_schema_2" else stage
+        _step(
+            work, marker,
+            [*base, "run", "--rm", "--no-deps", "memory", "--config",
+             "/etc/tianshu/settings.json", operation, "--backup",
+             "/srv/tianshu/" + backup],
+            cwd=root, seconds=120,
+        )
+    _step(
+        work, "platform_start",
+        [*base, "up", "--pull", "never", "-d", "--no-deps",
+         "--wait", "--wait-timeout", "120", "platform"],
+        cwd=root, seconds=180,
+    )
+    _local_images_present({"platform": images["platform"]}, root)
+    _step(
+        work, "platform_preflight",
+        [*base, "run", "--rm", "--no-deps", "--entrypoint", "python",
+         "platform", "-B", "-m", "services.platform", "--settings",
+         "/etc/tianshu/settings.json", "preflight"],
+        cwd=root,
+    )
+    platform_id = _platform_only(root, stacks)
+    if publication is not None:
+        _local(base, work, "publish", publication, root)
+    receipt = _local(base, work, "issue", {"entry_id": "config-entry"}, root)
+    expiry = _install_ref(root, receipt, origin)
+    _write_private(work / "result.json", {
+        "state": "authority_initialized_pending_final_export",
+        "issuer": "fixed_product_public_cli",
+        "gateway_ref": "private_file_only",
+        "gateway_ref_sha256": digest(receipt["assertion_ref"].encode()),
+        "expires_at": expiry,
+        "provider": "configured" if publication else "not_configured",
+        "functional_limit": None if publication else "model_dialogue_unavailable",
+        "running_services": ["platform"],
+        "platform_container_id": platform_id,
+        "automatic_retry": False,
+        "new_export_lock_required": True,
+        "release_ready": False,
+    })
+    _write_private(work / "final_export-attempt.json", {
+        "stage": "final_export", "state": "started", "automatic_retry": False,
+    })
+    _trusted_export(root, repository, final_output)
+    final = finalize(root, export_lock_path=final_output / "resident-export.lock.json")
+    if resuming:
+        _write_private(work / "schema2-resume-result.json", {
+            "state": "resumed_and_final_export_verified",
+            "original_failure": "failure.json", "release_ready": False,
+        })
+    return {
+        "status": "resident_first_install_export_verified",
+        "provider": "configured" if publication else "not_configured",
+        "gateway_ref": "private_file_only",
+        "expires_at": expiry,
+        "running_services": ["platform"],
+        "platform_container_id": platform_id,
+        "final_export": str(final_output),
+        "remaining_seconds_at_check": final["remaining_seconds_at_check"],
+        "release_ready": False,
+    }
+
+
 def activate(bundle_root, *, export_lock_path, export_repository,
              final_export_output, publication_path=None):
     """One attempt: real Memory migrations, Platform readiness and public CLI authority."""
@@ -781,75 +898,98 @@ def activate(bundle_root, *, export_lock_path, export_repository,
         "export_repository": str(repository),
         "provider": "configured" if publication else "not_configured",
     })
-    base = ["docker", "compose", "--project-directory", str(root), "-f", str(compose)]
     try:
-        _step(work, "compose_config", [*base, "config", "--quiet"], cwd=root)
-        for stage, operation, backup in (
-            ("memory_schema_2", "migrate-profiles", "first-install.pre-profiles.sqlite"),
-            ("memory_schema_3", "migrate-sources", "first-install.pre-sources.sqlite"),
-        ):
-            _step(
-                work, stage,
-                [*base, "run", "--pull", "never", "--rm", "--no-deps",
-                 "memory", "--config",
-                 "/etc/tianshu/settings.json", operation, "--backup",
-                 "/srv/tianshu/" + backup],
-                cwd=root, seconds=120,
-            )
-        _step(
-            work, "platform_start",
-            [*base, "up", "--pull", "never", "-d", "--no-deps",
-             "--wait", "--wait-timeout", "120", "platform"],
-            cwd=root, seconds=180,
-        )
-        _step(
-            work, "platform_preflight",
-            [*base, "run", "--pull", "never", "--rm", "--no-deps",
-             "--entrypoint", "python",
-             "platform", "-B", "-m", "services.platform", "--settings",
-             "/etc/tianshu/settings.json", "preflight"],
-            cwd=root,
-        )
-        platform_id = _platform_only(root, stacks)
-        if publication is not None:
-            _local(base, work, "publish", publication, root)
-        receipt = _local(base, work, "issue", {"entry_id": "config-entry"}, root)
-        expiry = _install_ref(root, receipt, origin)
-        _write_private(work / "result.json", {
-            "state": "authority_initialized_pending_final_export",
-            "issuer": "fixed_product_public_cli",
-            "gateway_ref": "private_file_only",
-            "gateway_ref_sha256": digest(receipt["assertion_ref"].encode()),
-            "expires_at": expiry,
-            "provider": "configured" if publication else "not_configured",
-            "functional_limit": None if publication else "model_dialogue_unavailable",
-            "running_services": ["platform"],
-            "platform_container_id": platform_id,
-            "automatic_retry": False,
-            "new_export_lock_required": True,
-            "release_ready": False,
-        })
-        _write_private(work / "final_export-attempt.json", {
-            "stage": "final_export", "state": "started", "automatic_retry": False,
-        })
-        _trusted_export(root, repository, final_output)
-        final = finalize(
-            root, export_lock_path=final_output / "resident-export.lock.json"
-        )
-        return {
-            "status": "resident_first_install_export_verified",
-            "provider": "configured" if publication else "not_configured",
-            "gateway_ref": "private_file_only",
-            "expires_at": expiry,
-            "running_services": ["platform"],
-            "platform_container_id": platform_id,
-            "final_export": str(final_output),
-            "remaining_seconds_at_check": final["remaining_seconds_at_check"],
-            "release_ready": False,
-        }
+        return _activation_steps(root, work, images, stacks, publication, origin,
+                                 repository, final_output)
     except Exception as exc:
         code = str(exc) if isinstance(exc, Refused) else "unexpected_install_failure"
         _write_private(work / "failure.json", {
+            "state": "needs_diagnosis", "code": code, "automatic_retry": False,
+        })
+        raise Refused(code) from None
+
+
+def resume_schema2(bundle_root, *, export_lock_path, export_repository,
+                   final_export_output, check_only=False):
+    """Resume only the fixed Compose-flag rejection before any Memory write."""
+    require(os.name == "posix", "linux_activation_required")
+    root = no_links(Path(bundle_root))
+    require(str(root) == "/volume2/tianshu-v2-resident" and root.is_dir(),
+            "fixed_resume_root_required")
+    require(
+        digest((root / "bundle-integrity.json").read_bytes())
+        == SCHEMA2_RESUME_HASHES["bundle-integrity.json"]
+        and digest(no_links(Path(export_lock_path)).read_bytes())
+        == SCHEMA2_RESUME_HASHES["first-lock"],
+        "fixed_pre_migration_bundle_required",
+    )
+    verify_integrity(root)
+    manifest = read_json(root / "release-manifest.json")
+    _fixed(manifest)
+    prepared_compose = _compose(root, None)
+    work = no_links(root / "reports" / "resident-install")
+    require(
+        work.is_dir() and {item.name for item in work.iterdir()} == {
+            "attempt.json", "compose_config-attempt.json",
+            "memory_schema_2-attempt.json", "failure.json",
+        }
+        and digest(no_links(work / "attempt.json").read_bytes())
+        == SCHEMA2_RESUME_HASHES["attempt.json"]
+        and digest(no_links(work / "failure.json").read_bytes())
+        == SCHEMA2_RESUME_HASHES["failure.json"]
+        and read_json(no_links(work / "compose_config-attempt.json")) == {
+            "stage": "compose_config", "state": "started", "automatic_retry": False,
+        }
+        and read_json(no_links(work / "memory_schema_2-attempt.json")) == {
+            "stage": "memory_schema_2", "state": "started", "automatic_retry": False,
+        }
+        and read_json(work / "failure.json") == {
+            "state": "needs_diagnosis", "code": "product_command_failed",
+            "automatic_retry": False,
+        },
+        "fixed_pre_migration_failure_required",
+    )
+    _clean_install(root, existing_attempt=True)
+    permission_checks(root, core_only=True)
+    images, stacks, hashes = _export_lock(
+        root, export_lock_path, manifest, read_json(prepared_compose)
+    )
+    attempt = read_json(work / "attempt.json")
+    require(
+        attempt.get("state") == "started"
+        and attempt.get("automatic_retry") is False
+        and attempt.get("release_id") == manifest["release_id"]
+        and attempt.get("compose_sha256") == digest(stacks[CORE_PROJECT].read_bytes())
+        and attempt.get("export_compose_sha256") == hashes
+        and attempt.get("provider") == "not_configured",
+        "first_activation_attempt_changed",
+    )
+    publication = _provider(root, None)
+    require(publication is None, "provider_not_configured_required")
+    gateway = read_json(root / "config" / "gateway" / "settings.json")
+    origin = _gateway_origin_precheck(root, gateway)
+    repository, final_output = _exporter_ready(
+        root, export_repository, final_export_output
+    )
+    require(str(repository) == attempt.get("export_repository"),
+            "first_export_repository_changed")
+    _trusted_first_export(root, export_lock_path, stacks, repository)
+    _local_images_present(images, root)
+    _projects_empty(root)
+    if check_only:
+        return {"status": "schema2_resume_ready", "release_ready": False,
+                "failed_stage": "memory_schema_2",
+                "failure_sha256": SCHEMA2_RESUME_HASHES["failure.json"]}
+    _write_private(work / "schema2-resume-attempt.json", {
+        "state": "started", "boundary": "before_memory_schema_2",
+        "original_failure": "failure.json", "automatic_retry": False,
+    })
+    try:
+        return _activation_steps(root, work, images, stacks, publication, origin,
+                                 repository, final_output, resuming=True)
+    except Exception as exc:
+        code = str(exc) if isinstance(exc, Refused) else "unexpected_install_failure"
+        _write_private(work / "schema2-resume-failure.json", {
             "state": "needs_diagnosis", "code": code, "automatic_retry": False,
         })
         raise Refused(code) from None
@@ -1051,6 +1191,16 @@ def main(argv=None):
     run.add_argument("--export-repository", required=True, type=Path)
     run.add_argument("--final-export-output", required=True, type=Path)
     run.add_argument("--provider-publication-file", type=Path)
+    resume = sub.add_parser("resume-schema2")
+    resume.add_argument("--bundle-root", required=True, type=Path)
+    resume.add_argument("--export-lock", required=True, type=Path)
+    resume.add_argument("--export-repository", required=True, type=Path)
+    resume.add_argument("--final-export-output", required=True, type=Path)
+    check_resume = sub.add_parser("check-schema2-resume")
+    check_resume.add_argument("--bundle-root", required=True, type=Path)
+    check_resume.add_argument("--export-lock", required=True, type=Path)
+    check_resume.add_argument("--export-repository", required=True, type=Path)
+    check_resume.add_argument("--final-export-output", required=True, type=Path)
     finish = sub.add_parser("finalize")
     finish.add_argument("--bundle-root", required=True, type=Path)
     finish.add_argument("--export-lock", required=True, type=Path)
@@ -1070,6 +1220,17 @@ def main(argv=None):
                               export_repository=args.export_repository,
                               final_export_output=args.final_export_output,
                               publication_path=args.provider_publication_file)
+        elif args.action == "resume-schema2":
+            result = resume_schema2(args.bundle_root,
+                                    export_lock_path=args.export_lock,
+                                    export_repository=args.export_repository,
+                                    final_export_output=args.final_export_output)
+        elif args.action == "check-schema2-resume":
+            result = resume_schema2(args.bundle_root,
+                                    export_lock_path=args.export_lock,
+                                    export_repository=args.export_repository,
+                                    final_export_output=args.final_export_output,
+                                    check_only=True)
         elif args.action == "finalize":
             result = finalize(args.bundle_root, export_lock_path=args.export_lock)
         else:
