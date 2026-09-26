@@ -491,7 +491,7 @@ def _docker_occupants(root):
         '"Config":{"Image":{{json .Config.Image}},"Labels":{{json .Config.Labels}}},'
         '"State":{"Running":{{json .State.Running}},"Status":{{json .State.Status}}},'
         '"HostConfig":{"Privileged":{{json .HostConfig.Privileged}},'
-        '"Binds":{{json .HostConfig.Binds}},"Mounts":{{json .HostConfig.Mounts}}},'
+        '"Binds":{{json .HostConfig.Binds}},"Mounts":{{json (index .HostConfig "Mounts")}}},'
         '"Mounts":{{json .Mounts}}}'
     )
     raw = _run(["docker", "inspect", "--format", selected, *ids],
