@@ -1,0 +1,50 @@
+{
+  "status": "dispatched_running_not_integrated",
+  "date": "2026-09-26",
+  "execution": "Codex agents; isolated local implementation only",
+  "model": "gpt-6-astra",
+  "reasoning_effort": "medium",
+  "specification": "docs/development/provider-wave1-dispatch-2026-09-26.md",
+  "tasks": [
+    {
+      "id": "PROVIDER-P1",
+      "agent": "/root/provider_platform",
+      "status": "in_progress",
+      "worktree": "worktrees/PROVIDER-P1/tianshu-platform",
+      "branch": "codex/provider-platform-20260926",
+      "baseline": "bc41c05808271dc03d643d567e43788978e1e587",
+      "scope": "Persistent provider catalog, private credential storage, revisions, defaults and test state"
+    },
+    {
+      "id": "PROVIDER-G1",
+      "agent": "/root/provider_gateway",
+      "status": "in_progress",
+      "worktree": "worktrees/PROVIDER-G1/tianshu-model-gateway",
+      "branch": "codex/provider-gateway-20260926",
+      "baseline": "601974194042641c5a85cc3c061cbd1880d7daf1",
+      "scope": "OpenAI-compatible model enumeration, short reply test, controlled target and credential execution"
+    },
+    {
+      "id": "PROVIDER-C1",
+      "agent": "/root/provider_companion",
+      "status": "in_progress",
+      "worktree": "worktrees/PROVIDER-C1/tianshu-companion",
+      "branch": "codex/provider-companion-20260926",
+      "baseline": "e94b609099365f75ca933d9fed03cdfbc83ec235",
+      "scope": "Injectable default model selection with persistent immutable per-turn version pin"
+    },
+    {
+      "id": "PROVIDER-U1",
+      "status": "queued_not_dispatched",
+      "depends_on": "Coordinator HTTP/API contract and agreed producer-consumer interfaces",
+      "scope": "Provider CRUD, model selection, explicit tests, default selection and start-chat guidance"
+    }
+  ],
+  "coordinator": {
+    "owns": ["Cross-product contracts", "Production dependency locks", "Integration and expiry renewal", "Joint tests", "Deployment packaging and live acceptance"],
+    "known_dependency": "P1 mature authenticated encryption needs a reviewed production cryptography dependency; no plaintext fallback",
+    "nas_operations_authorized_to_workers": false,
+    "public_api_frozen": false,
+    "current_nas_unchanged": true
+  }
+}
