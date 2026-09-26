@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>小屋重做 · 原图对照验收</title>
+<style>[hidden]{display:none!important}
+*{box-sizing:border-box}body{font:16px/1.65 system-ui,"Microsoft YaHei",sans-serif;margin:0;background:#eef0f7;color:#252d42}main{max-width:1700px;margin:auto;padding:28px}h1{font-size:26px;margin:0}p{margin:8px 0 16px;color:#526078}a{color:#3c4eb7}fieldset{border:1px solid #ccd2e3;border-radius:14px;padding:16px;margin:20px 0;display:flex;gap:24px;align-items:center;flex-wrap:wrap}label{display:flex;gap:12px;align-items:center}input{max-width:100%}input[type=range]{width:220px}.columns{display:grid;grid-template-columns:1fr 1fr;gap:18px}.card{background:white;border:1px solid #d8deed;border-radius:16px;padding:12px;margin:0}.card figcaption{padding:4px 6px 12px;font-weight:600}.frame{position:relative;aspect-ratio:1586/992;background:#f5f6fa;overflow:hidden}.frame img{width:100%;height:100%;object-fit:contain;display:block}.empty{display:grid;place-items:center;height:100%;padding:24px;color:#637086}.comparison{display:none}.comparison .frame{max-width:1586px;margin:auto}.comparison .candidate{position:absolute;inset:0;opacity:.5}body[data-mode=overlay] .columns{display:none}body[data-mode=overlay] .comparison{display:block}.checks{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}.checks span{padding:8px 14px;border:1px solid #d3d9e8;border-radius:8px;background:white}.note{font-size:14px}#status{font-weight:600;color:#71572b}@media(max-width:800px){main{padding:16px}.columns{grid-template-columns:1fr}fieldset{gap:12px}}
+</style>
+<main>
+<h1>小屋重做 · 原图对照验收</h1>
+<p>以原概念图为基准。候选必须是实际浏览器的原始截图；此页只作并排和透明叠加，不加工截图、不生成相似度通过分数。</p>
+<p id="status">尚未加载候选截图 · 不代表视觉通过</p>
+<fieldset><legend>查看方式</legend>
+<label>候选原始截图 <input id="file" type="file" accept="image/png,image/webp,image/jpeg"></label>
+<label>对照 <select id="mode"><option value="side">并排</option><option value="overlay">透明叠加</option></select></label>
+<label>候选透明度 <input id="opacity" type="range" min="0" max="100" value="50"><output id="percent">50%</output></label>
+</fieldset>
+<div class="columns">
+<figure class="card"><figcaption>原概念图 · 1586 × 992</figcaption><div class="frame"><img src="primary.png" alt="原始澄汐小屋概念图"></div></figure>
+<figure class="card"><figcaption>候选 · 未验收</figcaption><div class="frame" id="candidate-frame"><div class="empty">载入真实浏览器截图后逐项核对</div><img id="candidate" hidden alt="候选原始浏览器截图"></div></figure>
+</div>
+<figure class="card comparison"><figcaption>原图与候选叠加 · 核对轮廓、家具和人物位置</figcaption><div class="frame"><img src="primary.png" alt="原图底层"><img id="overlay" class="candidate" hidden alt="候选叠加层"></div></figure>
+<div class="checks"><span>构图与比例</span><span>人物形象与姿态</span><span>家具与软装</span><span>材质与纹理</span><span>光照与接触</span><span>页面层级</span></div>
+<p class="note">六项分别验收，任何明显占位或风格偏差都不能靠其他项抵消。首次校准：1586 × 992、DPR 1、浅色、14:00、减少动态。实际截图应保留代码版本、资产版本和采集条件。</p>
+<p class="note"><a href="../../development/room-r1-visual-baseline-2026-09-26.json">原图指纹与锚点记录</a> · <a href="../../development/room-visual-rebuild-plan-2026-09-26.md">重做方案</a></p>
+</main>
+<script>
+let previousUrl;
+const candidate=document.querySelector('#candidate'),overlay=document.querySelector('#overlay');
+document.querySelector('#file').addEventListener('change',event=>{
+ const file=event.target.files[0];if(!file)return;
+ const nextUrl=URL.createObjectURL(file);const probe=new Image();
+ probe.onload=()=>{if(previousUrl)URL.revokeObjectURL(previousUrl);previousUrl=nextUrl;candidate.src=overlay.src=nextUrl;candidate.hidden=overlay.hidden=false;document.querySelector('.empty').hidden=true;document.querySelector('#status').textContent=`${file.name} · ${probe.naturalWidth} × ${probe.naturalHeight} · ${probe.naturalWidth===1586&&probe.naturalHeight===992?'尺寸一致，待逐项验收':'尺寸不一致，只能粗略参考；需按基准重新采集'}`;};
+ probe.onerror=()=>{URL.revokeObjectURL(nextUrl);document.querySelector('#status').textContent='无法读取候选图片，请选择有效原始截图';};probe.src=nextUrl;
+});
+document.querySelector('#mode').addEventListener('change',event=>document.body.dataset.mode=event.target.value);
+document.querySelector('#opacity').addEventListener('input',event=>{overlay.style.opacity=event.target.value/100;document.querySelector('#percent').textContent=event.target.value+'%';});
+</script>
+</html>

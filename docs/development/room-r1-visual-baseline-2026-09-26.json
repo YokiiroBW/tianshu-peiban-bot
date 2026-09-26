@@ -1,0 +1,68 @@
+{
+  "status": "reference_locked_candidate_not_accepted",
+  "reference": {
+    "path": "docs/design/room-reference-v1/primary.png",
+    "original_path": "output/ui/product-pages-v1/01-character-home.png",
+    "sha256": "131d5cb2cd3157751f22965b59cf4b1608441e6d4cc691d98682cca71f1213f0",
+    "width": 1586,
+    "height": 992
+  },
+  "environment_reference": {
+    "path": "docs/design/room-reference-v1/day-cycle.png",
+    "original_path": "output/ui/room-environment-v1/day-cycle-study.png",
+    "sha256": "3ec360863dad126136ab7578f293aa1d285f2061fbd4b1d709ebc805f918b1cc",
+    "controls": "atmosphere_only_primary_image_controls_geometry"
+  },
+  "character_reference": {
+    "path": "docs/design/room-reference-v1/character.png",
+    "original_path": "output/ui/management-v2/character-art.png",
+    "sha256": "63270dc8b2aa3df7c721eeb474a145315070eee431cedda82c4125b934957869"
+  },
+  "capture": {
+    "viewport": [1586, 992],
+    "device_scale_factor": 1,
+    "time": "14:00",
+    "motion": "reduce",
+    "theme": "light",
+    "mobile_viewport": [390, 844],
+    "evidence": "raw_browser_screenshot_plus_asset_and_commit_hashes"
+  },
+  "reference_room_bounds_px": [107, 158, 1135, 845],
+  "measurement_note": "Manual approximate landmarks in original image pixels; labels intentionally excluded. Review alongside images; numbers alone do not constitute visual acceptance.",
+  "landmarks_px": {
+    "wall_left_top": [144, 260],
+    "wall_peak": [543, 159],
+    "wall_right_top": [1125, 266],
+    "floor_left_corner": [109, 631],
+    "floor_front_corner": [649, 844],
+    "floor_right_corner": [1127, 683],
+    "window_center": [340, 372],
+    "bookshelf_center": [614, 369],
+    "wardrobe_center": [792, 400],
+    "bed_center": [914, 582],
+    "desk_center": [592, 683],
+    "desk_chair_center": [596, 754],
+    "reading_chair_center": [440, 533],
+    "reader_head_center": [425, 415],
+    "reader_feet_center": [528, 603],
+    "round_side_table_center": [342, 560],
+    "bedside_lamp_center": [879, 457],
+    "window_plant_center": [231, 489]
+  },
+  "geometry_tolerance": "Target maximum 3 percent of registered room bounds per axis; obvious wrong composition still fails.",
+  "independent_visual_gates": [
+    "composition_and_scale",
+    "character_identity_and_pose",
+    "furniture_and_soft_furnishing_detail",
+    "materials_and_texture",
+    "lighting_and_contact",
+    "page_hierarchy_and_readability"
+  ],
+  "prohibited_substitutions": [
+    "concept_image_as_entire_scene",
+    "primitive_mannequin_as_finished_character",
+    "generated_render_presented_as_browser_capture",
+    "test_pass_as_visual_acceptance",
+    "example_schedule_or_mood_presented_as_live_data"
+  ]
+}

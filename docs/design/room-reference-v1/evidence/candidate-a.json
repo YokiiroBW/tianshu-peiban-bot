@@ -1,0 +1,48 @@
+{
+  "boxes": {
+    ".sidebar": {
+      "x": 16,
+      "y": 24,
+      "width": 96,
+      "height": 534
+    },
+    ".room-topline": {
+      "x": 136,
+      "y": 80,
+      "width": 1434,
+      "height": 75.859375
+    },
+    ".room-stage": {
+      "x": 137,
+      "y": 168.859375,
+      "width": 992.984375,
+      "height": 632.46875
+    },
+    ".room-chat-entry": {
+      "x": 136,
+      "y": 895.90625,
+      "width": 994.984375,
+      "height": 70
+    },
+    ".room-life-sidebar": {
+      "x": 1146.984375,
+      "y": 167.859375,
+      "width": 423.015625,
+      "height": 798.046875
+    }
+  },
+  "focusReturned": true,
+  "normalSidebar": {
+    "x": 65,
+    "y": 24,
+    "width": 232,
+    "height": 944
+  },
+  "mobileHorizontalOverflow": false,
+  "errors": [],
+  "visualScene": "R1 authored GLB plus R2 page; requires art revision",
+  "platform_commit": "4497bb6",
+  "desktop_sha256": "a1a6a99c2e3bf26a8e5fd7539bf65f8690d77280f0b19d2257c499fe287dfc25",
+  "mobile_sha256": "15803a13811aa3a1c5fb5c41f1b4507444d6fa43f33969fbd91149eeda53a15d",
+  "visual_accepted": false
+}

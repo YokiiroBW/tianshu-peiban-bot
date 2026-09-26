@@ -1,0 +1,63 @@
+{
+  "phase": "local_candidate_integration_and_art_rework",
+  "visual_accepted": false,
+  "deployed": false,
+  "nas_changed": false,
+  "platform_baseline": "c1c7547680911462439ee9c9a09f4e72f44f36a3",
+  "specification": "docs/development/room-r1-execution-2026-09-26.md",
+  "reference": "docs/development/room-r1-visual-baseline-2026-09-26.json",
+  "tasks": [
+    {
+      "id": "ROOM-R1",
+      "agent": "/root/room_environment",
+      "model": "gpt-6-sol",
+      "reasoning": "xhigh",
+      "scope": "environment_assets_and_renderer",
+      "worktree": "worktrees/ROOM-R1/tianshu-platform",
+      "branch": "codex/room-r1-scene-20260926",
+      "status": "candidate_integrated_art_rejected_R1B_lighting_in_progress",
+      "commit": "59a986b8891a39a55691883fda35950926068edc"
+    },
+    {
+      "id": "ROOM-R2",
+      "agent": "/root/room_page",
+      "model": "gpt-6-sol",
+      "reasoning": "xhigh",
+      "scope": "room_page_and_interaction",
+      "worktree": "worktrees/ROOM-R2/tianshu-platform",
+      "branch": "codex/room-r1-page-20260926",
+      "status": "candidate_integrated_independent_visual_review_complete",
+      "commit": "2237ad34da30b31424604969bf793d4e81970e8f"
+    },
+    {
+      "id": "ROOM-R3",
+      "agent": "/root/room_character",
+      "model": "gpt-6-sol",
+      "reasoning": "xhigh",
+      "scope": "character_assets_and_feasibility",
+      "worktree": "worktrees/ROOM-R3/tianshu-platform",
+      "branch": "codex/room-r1-character-20260926",
+      "status": "R3B_actual_MPFb_rigged_mesh_proof_complete_costume_reading_sample_in_progress",
+      "integrated": false
+    }
+  ],
+  "integration": {
+    "worktree": "worktrees/ROOM-INTEGRATION/tianshu-platform",
+    "branch": "codex/room-r1-integration-20260926",
+    "scope": "room_scoped_shell_candidate_and_acceptance",
+    "status": "R1_R2_integrated_local_only_behavior_validation_in_progress",
+    "head_at_initial_joint_capture": "d43213c",
+    "preview_url": "http://127.0.0.1:5186/#/room",
+    "preview_note": "Local temporary process, availability must be checked before referring the user to it. Not NAS."
+  },
+  "gates": {
+    "composition": "rejected_room_too_small_walls_too_tall_furniture_landmarks_displaced",
+    "character": "missing_accepted_production_asset_actual_rigged_trial_underway",
+    "furniture": "requires_art_revision",
+    "materials": "requires_art_revision",
+    "lighting": "rejected_flat_cool_daylight_R1B_underway",
+    "page": "layout_accessibility_passed_candidate_minor_spacing_gap_remains",
+    "life_state_integration": "outstanding_separate_phase"
+  },
+  "resumption": "Read this file and candidate handoffs. Do not restart old DSH tasks or rerun NAS installation. Do not deploy without actual visual acceptance."
+}
