@@ -462,9 +462,16 @@ def _root_mount(container, root):
 
 
 def _docker_occupants(root):
+    root = Path(root)
+    # The first live preflight requires a fresh, absent deployment root. Docker
+    # inventory itself is read-only and must run from an existing directory.
+    require(root.is_absolute() and (root.is_dir() or not root.exists()),
+            "docker_inventory_root_invalid")
+    inventory_cwd = root if root.is_dir() else root.parent
+    require(inventory_cwd.is_dir(), "docker_inventory_workdir_missing")
     raw = _run(
         ["docker", "ps", "-a", "--no-trunc", "--format", "{{.ID}}"],
-        cwd=root, seconds=20,
+        cwd=inventory_cwd, seconds=20,
     )
     try:
         ids = raw.decode("ascii").splitlines()
@@ -477,13 +484,25 @@ def _docker_occupants(root):
     )
     if not ids:
         return []
-    raw = _run(["docker", "inspect", *ids], cwd=root, seconds=30)
+    # Select only ownership and mount metadata. A full inspect includes
+    # Config.Env from every unrelated container on the host.
+    selected = (
+        '{"Id":{{json .Id}},'
+        '"Config":{"Image":{{json .Config.Image}},"Labels":{{json .Config.Labels}}},'
+        '"State":{"Running":{{json .State.Running}},"Status":{{json .State.Status}}},'
+        '"HostConfig":{"Privileged":{{json .HostConfig.Privileged}},'
+        '"Binds":{{json .HostConfig.Binds}},"Mounts":{{json .HostConfig.Mounts}}},'
+        '"Mounts":{{json .Mounts}}}'
+    )
+    raw = _run(["docker", "inspect", "--format", selected, *ids],
+               cwd=inventory_cwd, seconds=30)
     try:
-        containers = json.loads(raw)
+        containers = [json.loads(line) for line in raw.decode("utf-8").splitlines()]
     except (UnicodeError, ValueError):
         raise Refused("docker_container_inventory_invalid") from None
     require(
         isinstance(containers, list)
+        and len(containers) == len(ids)
         and all(isinstance(item, dict) for item in containers)
         and {item.get("Id") for item in containers} == set(ids),
         "docker_container_inventory_invalid",

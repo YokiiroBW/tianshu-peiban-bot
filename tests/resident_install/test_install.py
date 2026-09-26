@@ -70,13 +70,14 @@ class ResidentInstallTests(unittest.TestCase):
         )
 
     def test_docker_occupancy_checks_stopped_and_other_project_bind(self):
-        root = Path("/volume1/tianshu-v2-resident").resolve()
+        root = (self.fixture.root / "tianshu-v2-resident").resolve()
+        slash_root = "/" + root.as_posix().split(":/", 1)[-1].lstrip("/")
         platform_id = "a" * 64
         other_id = "b" * 64
         core = self.fixture.root / "core-compose.json"
         obs = self.fixture.root / "obs-compose.json"
         pinned = "example/platform@sha256:" + "c" * 64
-        mount = {"type": "bind", "source": "/volume1/tianshu-v2-resident/data/platform",
+        mount = {"type": "bind", "source": slash_root + "/data/platform",
                  "target": "/srv/tianshu", "read_only": False}
         write_json(core, {"services": {"platform": {"image": pinned,
                                                      "volumes": [mount]}}})
@@ -106,7 +107,9 @@ class ResidentInstallTests(unittest.TestCase):
             if command[:2] == ["docker", "ps"]:
                 return ("".join(item["Id"] + "\n" for item in visible)).encode()
             if command[:2] == ["docker", "inspect"]:
-                return json.dumps(visible).encode()
+                self.assertEqual(command[2], "--format")
+                self.assertNotIn("Env", command[3])
+                return ("\n".join(json.dumps(item) for item in visible) + "\n").encode()
             raise AssertionError(command)
 
         with mock.patch.object(install, "_run", side_effect=fake_run):
@@ -119,7 +122,7 @@ class ResidentInstallTests(unittest.TestCase):
             unrelated["Config"]["Labels"] = None
             install._projects_empty(root)
             unrelated["HostConfig"]["Binds"] = [
-                "/volume1/tianshu-v2-resident/logs/platform:/host-logs:ro"
+                slash_root + "/logs/platform:/host-logs:ro"
             ]
             with self.assertRaisesRegex(Refused, "resident_deployment_root_occupied"):
                 install._projects_empty(root)
@@ -142,6 +145,39 @@ class ResidentInstallTests(unittest.TestCase):
                 install._platform_only(root, {
                     install.CORE_PROJECT: core, install.OBS_PROJECT: obs,
                 }, expected_id=platform_id)
+
+    def test_absent_resident_root_inventory_uses_existing_parent_for_both_commands(self):
+        root = self.fixture.root / "fresh-resident-root"
+        self.assertFalse(root.exists())
+        with self.assertRaisesRegex(Refused, "product_command_unavailable_or_timeout"):
+            install._run([sys.executable, "-c", "print('ok')"], cwd=root)
+        self.assertEqual(
+            install._run([sys.executable, "-c", "print('ok')"], cwd=root.parent).strip(),
+            b"ok",
+        )
+        container_id = "a" * 64
+        inspected = {"Id": container_id, "Config": {"Image": "fixed", "Labels": {
+            "com.docker.compose.project": install.CORE_PROJECT}},
+            "State": {"Running": False, "Status": "exited"},
+            "HostConfig": {"Binds": None, "Mounts": None, "Privileged": False},
+            "Mounts": []}
+        calls = []
+
+        def fake_run(command, *, cwd, **_kwargs):
+            if not Path(cwd).is_dir():
+                raise FileNotFoundError("nonexistent inventory cwd")
+            calls.append((command, cwd))
+            if command[:2] == ["docker", "ps"]:
+                return (container_id + "\n").encode()
+            if command[:3] == ["docker", "inspect", "--format"]:
+                self.assertNotIn("Env", command[3])
+                return (json.dumps(inspected) + "\n").encode()
+            raise AssertionError(command)
+
+        with mock.patch.object(install, "_run", side_effect=fake_run):
+            self.assertEqual(install._docker_occupants(root), [inspected])
+        self.assertEqual(len(calls), 2)
+        self.assertTrue(all(cwd == root.parent for _, cwd in calls))
 
     def test_export_lock_refuses_unpinned_image_before_docker(self):
         root = self.bundle()
