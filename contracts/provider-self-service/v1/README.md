@@ -45,24 +45,31 @@ remains available. `default` requires a successful test for that exact revision.
 
 Every mutation uses a fresh UUID `client_id`; replay of that ID and identical fields
 returns the original receipt without another write or paid request, including after restart.
+For `test`, a process lost after claiming the UUID but before the verdict transaction
+commits returns `409 result_unknown` on replay: the upstream effect cannot be inferred and
+the same UUID never submits it again.
 Reuse with different fields is `409 idempotency_conflict`. Edit/clear/delete/test/default
 CAS on the exact provider revision; `default` also CASes the pointer revision. A changed
 provider revision invalidates its test and default. Failed or cancelled tests never record
 success. A client cancellation has unknown upstream execution state; the UI must not retry
-automatically. The server checks login and management lease again after queued work.
+automatically. Test verdict and replay receipt commit in one SQLite transaction. Timeout,
+connection loss, invalid upstream response or an interrupted call records `test.outcome` as
+`unknown`; a fixed error code remains available for the UI. The server checks the live login,
+current operator authority and management lease again before queued work and before reply.
 
 Errors are JSON `{ "schema_version": 1, "request_id": string, "code": string,
 "execution_state": "not_started"|"unknown", "retryable": boolean }` with no
 upstream body, header, URL or key. Common status/code: 400 `invalid_input`, 401
 `unauthorized`/`session_expired`, 403 `forbidden`/`management_required`, 404
 `provider_not_found`, 409 `revision_conflict`/`default_revision_conflict`/
-`idempotency_conflict`/`provider_not_tested`/`provider_unavailable`, 413
+`idempotency_conflict`/`provider_not_tested`/`provider_unavailable`/`result_unknown`, 413
 `budget_exceeded`, 429 `too_many_requests`, 503 `dependency_unavailable`.
 Upstream operation errors are fixed codes `authentication_failed`, `endpoint_failed`,
 `model_not_found`, `enumeration_unsupported`, `connection_failed`, `timed_out`,
 `upstream_invalid`, `upstream_rejected`; their status is 502, 503 or 504 as appropriate.
 The UI may show a retry button only for an explicit new user action. On timeout/cancel
-`execution_state` is `unknown`.
+or an uncertain test response, `execution_state` is `unknown`; replay with the same
+`client_id` never submits another paid call.
 
 ## Internal service binding
 
@@ -80,7 +87,9 @@ Deployment must isolate that network or add TLS without imposing HTTPS on the br
   ensures its publication and exact-version grant, and returns
   `{config_version, expires_at, revoked:false, caller_service:"companion",
   workload:"companion.text"}`. `expires_at` is epoch seconds. The companion persists
-  this version before Memory/generation; later default changes do not repin it.
+  this version with the first accepted input's collection before acknowledging that input,
+  then transfers it to the queued turn before Memory/generation. Later default changes do
+  not repin it. If selection fails, the input is not accepted.
 * Gateway `POST /internal/v1/provider-self-service/runtime` on platform:
   `{config_version, caller_service, workload, turn_id}`. The platform
   authenticates the gateway, checks the exact published version, bound provider revision,

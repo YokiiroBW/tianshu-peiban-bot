@@ -21,10 +21,23 @@
 
 ## 已运行验证
 
-- 根联合套件：4 项通过。真实 aiohttp 浏览器 Cookie/CSRF 管理请求、平台↔网关 HTTP、网关↔隔离录制上游 TLS、陪伴 Core 新回合贯通；覆盖空目录、保存/枚举/测试/设默认、真实转发、重启、默认切换与旧回合、超过一小时续期、清密钥撤销、错误密钥/地址、枚举不支持、超时、取消不重发及 SQLite 无明文密钥。首次初始化命令一次成功、重试拒绝、损坏备份 preflight 拒绝。仅测试目标策略在夹具中允许 loopback，生产策略未放宽。
-- 平台专项 `test_provider_catalog` 19 项、现有 `test_web_models` 26 项通过。网关 `test_provider_adapter` 17 项、`test_gateway_http` 28 项通过。陪伴 `test_model_selection` 10 项、`test_bootstrap` 5 项、`test_gateway` 1 项通过。三个产品改动文件的 Ruff check 与 format check 通过，`git diff --check` 待提交前复核。
+- 根联合套件：修复后 6 项通过。真实 aiohttp 浏览器 Cookie/CSRF 管理请求、平台↔网关 HTTP、网关↔隔离录制上游 TLS、陪伴 Core 新回合贯通；覆盖空目录、保存/枚举/测试/设默认、真实转发、重启、默认切换与旧回合、超过一小时续期、清密钥撤销、错误密钥/地址、枚举不支持、超时、取消不重发及 SQLite 无明文密钥。另覆盖 queued turn 切换、锁定后的 view 拒绝及排队写入身份撤销。首次初始化命令一次成功、重试拒绝、损坏备份 preflight 拒绝。仅测试目标策略在夹具中允许 loopback，生产策略未放宽。
+- 平台专项 `test_provider_catalog` 修复后 20 项、现有 `test_web_models` 26 项通过。网关 `test_provider_adapter` 修复后 18 项、`test_gateway_http` 28 项通过。陪伴 `test_model_selection` 修复后 11 项、`test_bootstrap` 5 项、`test_gateway` 1 项通过。三个产品改动文件的 Ruff check 与 format check、四个检出的 `git diff --check` 均通过。
 - 平台 `scripts/build/check_install.py --execute` 在已提交代码上，用 Windows Python 3.12 独立 build/runtime venv 构建非 editable wheel，hash-locked 依赖安装、`pip check`、已安装 CLI 均通过；证据在产品工作树忽略目录 `.runtime/provider-build-committed-20260926/evidence.json`。Linux 镜像没有执行。
 
 ## 仍需验收
 
 网页添加/编辑/选择/状态与“开始对话”流程由网页任务按已冻结 HTTP 契约完成；本次没有改页面。生产/ NAS 未启用此配置，没有真实供应商、付费模型或真实聊天数据测试。联合测试的陪伴服务客户端使用受控本地 HTTP 测试传输，生产 `JsonService` 的 HTTPS 配置与证书联验仍待部署。根合同 `v1` 是本地集成候选，合入协调仓库前需按单负责人顺序审查各提交。
+
+## 独立审查后的后端修复
+
+Luna 复核指出三个可复现的竞态/崩溃窗口，另有一个依赖 NAT64 路由条件的地址策略问题。本轮后端在原工作树修复，未修改网页或 NAS：
+
+- 陪伴端在首条输入受理事务前取得精确版本与 turn grant，随 collection 持久化并在封口时转交 queued turn。选择失败时输入不被受理；已经受理的 queued turn 不会因后台 tick 前的默认切换而漂移。重试与后续模型调用继续使用该版本，有界租期过期时如实失败。
+- 平台供应商 view 在 LocalWork 执行时及回包前复核完整登录 authority、当前管理解锁；写操作在排队后也复核当前 principal。针对锁定后 view 地址泄露和管理员身份撤销后的排队写入加入联合测试。
+- 一次测试的 provider verdict 与 `client_id` 最终回执在同一个 SQLite 事务提交。故障注入让回执更新失败时，两者一同回滚；提交后重启重放同一 UUID 返回原回执且不重发付费调用。超时、连接中断或无效响应以 `unknown` 测试状态和固定错误码呈现，错误 envelope 标识执行结果未知。
+- 网关解析 RFC 6052 的 well-known NAT64 前缀中嵌入的 IPv4，再应用原公网/内网策略；部署可用 `provider_nat64_prefixes` 登记网络专用 /32、/40、/48、/56、/64、/96 前缀。未登记的非标准翻译/路由不能从 DNS 答案自动推断，仍需部署出站网络策略；TLS 主机名校验继续保留。上游 v1 仍仅接受公共 HTTPS，网页 LAN HTTP 入口是独立边界。
+
+修复后针对性结果：根 HTTP/TLS 联合套件 6 项、平台目录 20 项、旧模型页 26 项、网关适配器 18 项及 HTTP 28 项、陪伴选择 11 项及 bootstrap 5 项通过。因改动了通用 `source_sync` 入口，另运行陪伴完整套件：600 passed、8 skipped、101 subtests passed（107.40 秒）。平台修复提交后又运行一次 Windows 隔离 wheel 安装、hash-locked 依赖、`pip check` 和已安装 CLI，均通过；证据在平台忽略目录 `.runtime/provider-build-review-20260927/evidence.json`，wheel SHA-256 为 `5ed83e26b0b5d024057d371209e0cb5fe1b87f50f26cb5ffa2350b23d0858ab2`。这些证据仍不代表真实供应商或 NAS 验收。
+
+修复提交：平台 `5ead3759a44744a15f50f095870c4e34f40eb7b5`、网关 `f93b08a6ce2d31774d2f1b27dc00fd4d5f3ee26d`、陪伴 `74dfdaefbd8c38a77d52ebbfb69a942d5c2b2963`。均位于原任务 worktree 的对应分支，未推送、未集成到协调检出。根合同与联合测试在本交接所在检出另行提交。

@@ -6,6 +6,7 @@ import os
 import ssl
 import sys
 import tempfile
+import threading
 import time
 import unittest
 import uuid
@@ -15,6 +16,7 @@ from unittest.mock import patch
 
 import aiohttp
 from aiohttp import web
+from jsonschema import Draft202012Validator
 
 WORKSPACE = Path(os.environ["TIANSHU_WORKSPACE"])
 PRODUCTS = WORKSPACE / "worktrees"
@@ -35,6 +37,7 @@ from observability_fixtures import start_tls, write_tls  # noqa: E402
 from services.platform.provider_catalog import ProviderCatalog  # noqa: E402
 from services.platform.server import create_app as platform_app  # noqa: E402
 from services.platform.service import Platform  # noqa: E402
+from services.platform.web_console import WebConsole  # noqa: E402
 from tianshu_gateway.config import ClientGrant  # noqa: E402
 from tianshu_gateway.provider_adapter import OpenAIAdapter  # noqa: E402
 from tianshu_gateway.server import GATEWAY, Settings, create_app as gateway_app  # noqa: E402
@@ -67,6 +70,11 @@ class LocalServiceClient:
 
 
 class JointTest(unittest.IsolatedAsyncioTestCase):
+    def assert_provider_error(self, document):
+        schema = json.loads((Path(__file__).resolve().parents[2] /
+                             "contracts/provider-self-service/v1/schema.json").read_text())
+        Draft202012Validator({"$ref": "#/$defs/error", "$defs": schema["$defs"]}).validate(document)
+
     async def asyncSetUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -98,7 +106,10 @@ class JointTest(unittest.IsolatedAsyncioTestCase):
             "gateway_token_env": "TS_PROVIDER_MANAGEMENT",
         }
         self.platform = Platform(settings, clock=lambda: self.clock_value)
-        self.platform_runner, self.platform_url = await start_http(platform_app(self.platform))
+        self.console = WebConsole(self.platform)
+        self.platform_runner, self.platform_url = await start_http(
+            platform_app(self.platform, console=self.console)
+        )
         self.addAsyncCleanup(self.platform_runner.cleanup)
         settings["web"]["origin"] = self.platform_url
         self.settings = settings
@@ -189,7 +200,8 @@ class JointTest(unittest.IsolatedAsyncioTestCase):
         await self.platform_runner.cleanup()
         self.platform.close()
         self.platform = Platform(self.settings, clock=lambda: self.clock_value)
-        runner = web.AppRunner(platform_app(self.platform), handler_cancellation=True,
+        self.console = WebConsole(self.platform)
+        runner = web.AppRunner(platform_app(self.platform, console=self.console), handler_cancellation=True,
                                access_log=None)
         await runner.setup()
         await web.TCPSite(runner, "127.0.0.1", port).start()
@@ -273,6 +285,21 @@ class JointTest(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(harness.sender.calls)
         finally:
             await harness.core.close()
+        queued_harness = Harness(self.root / "queued-companion.sqlite", silence_ms=0)
+        await queued_harness.core.close()
+        queued_harness.gateway = CompanionGateway(queued_harness.contracts, LocalServiceClient(
+            self.gateway_url, ENV["TS012_COMPANION"], self.internal_client))
+        queued_selector = HttpDefaultModelSelector(LocalServiceClient(
+            self.platform_url, ENV["TS012_COMPANION"], self.internal_client))
+        queued_harness.core = queued_harness.new_core(default_model_selector=queued_selector)
+        self.addAsyncCleanup(queued_harness.core.close)
+        await queued_harness.ingest(text="Queued before default switch")
+        with queued_harness.core.store.transaction():
+            queued_harness.core._seal_due(queued_harness.clock())
+        self.assertEqual(
+            ("queued", selection["config_version"]),
+            (queued_harness.turns()[0]["phase"], queued_harness.turns()[0]["config_version"]),
+        )
         self.clock_value += 3700
         status, renewed = await self.service("select", {
             **request, "turn_id": "turn-fixture-renewed"}, "COMPANION")
@@ -293,6 +320,13 @@ class JointTest(unittest.IsolatedAsyncioTestCase):
             "provider_id": second["provider_id"], "expected_revision": 1,
             "expected_default_revision": chosen["revision"]})
         self.assertEqual(status, 200)
+        await queued_harness.cycles(70)
+        self.assertEqual(
+            ("sent", selection["config_version"]),
+            (queued_harness.turns()[0]["phase"], queued_harness.turns()[0]["config_version"]),
+        )
+        self.assertEqual(self.calls[-1][1], "Bearer " + key)
+        await queued_harness.core.close()
         status, newer = await self.service("select", {
             **request, "turn_id": "turn-fixture-new"}, "COMPANION")
         self.assertEqual(status, 200)
@@ -347,11 +381,13 @@ class JointTest(unittest.IsolatedAsyncioTestCase):
         status, refusal = await self.web("providers/models", {
             "provider_id": pid, "expected_revision": 1})
         self.assertEqual((status, refusal["code"]), (502, "enumeration_unsupported"))
+        self.assert_provider_error(refusal)
         self.mode = "wrong-key"
         test_id = str(uuid.uuid4())
         status, refusal = await self.web("providers/test", {
             "client_id": test_id, "provider_id": pid, "expected_revision": 1})
         self.assertEqual((status, refusal["code"]), (502, "authentication_failed"))
+        self.assert_provider_error(refusal)
         self.assertNotIn(key, json.dumps(refusal))
         before = len(self.calls)
         status, replay = await self.web("providers/test", {
@@ -382,6 +418,7 @@ class JointTest(unittest.IsolatedAsyncioTestCase):
             "client_id": cancel_id, "provider_id": pid, "expected_revision": 1})
         self.assertEqual((status, unknown["code"]), (409, "result_unknown"))
         self.assertEqual((unknown["execution_state"], unknown["retryable"]), ("unknown", False))
+        self.assert_provider_error(unknown)
         self.assertEqual(len(self.calls), count)
         self.mode = "normal"
         status, changed = await self.web("providers/save", {
@@ -407,6 +444,64 @@ class JointTest(unittest.IsolatedAsyncioTestCase):
             "client_id": str(uuid.uuid4()), "provider_id": pid, "expected_revision": 3})
         self.assertEqual((status, timed["code"]), (504, "timed_out"))
         self.assertEqual((timed["execution_state"], timed["retryable"]), ("unknown", False))
+        self.assert_provider_error(timed)
+        status, state = await self.web("providers/view", {})
+        self.assertEqual(status, 200)
+        self.assertEqual(state["providers"][0]["test"]["outcome"], "unknown")
+
+    async def test_management_view_rechecks_lock_after_blocked_read(self):
+        status, provider = await self.web("providers/save", {
+            "client_id": str(uuid.uuid4()), "name": "Private address fixture",
+            "protocol": "openai-chat-completions", "base_url": self.upstream_url + "/v1",
+            "model_id": "fixture-text-model", "enabled": True,
+            "api_key": "synthetic-view-key-1234567890",
+        })
+        self.assertEqual(status, 200, provider)
+        entered, release = threading.Event(), threading.Event()
+        original = self.platform.provider_catalog.view
+
+        def blocked_view():
+            entered.set()
+            release.wait(3)
+            return original()
+
+        with patch.object(self.platform.provider_catalog, "view", side_effect=blocked_view):
+            pending = asyncio.create_task(self.web("providers/view", {}))
+            self.assertTrue(await asyncio.to_thread(entered.wait, 2))
+            try:
+                lock_status, _ = await self.web("models/lock", {})
+                self.assertEqual(lock_status, 200)
+            finally:
+                release.set()
+            status, denied = await pending
+        self.assertEqual((status, denied["code"]), (403, "management_required"))
+        self.assertNotIn(self.upstream_url, json.dumps(denied))
+
+    async def test_queued_mutation_rechecks_revoked_principal(self):
+        entered, release = threading.Event(), threading.Event()
+        original = self.console.providers._write
+
+        def blocked_write(*args, **kwargs):
+            entered.set()
+            release.wait(3)
+            return original(*args, **kwargs)
+
+        with patch.object(self.console.providers, "_write", side_effect=blocked_write):
+            pending = asyncio.create_task(self.web("providers/save", {
+                "client_id": str(uuid.uuid4()), "name": "Must not commit",
+                "protocol": "openai-chat-completions", "base_url": self.upstream_url + "/v1",
+                "model_id": "fixture-text-model", "enabled": True,
+                "api_key": "synthetic-revocation-key-12345",
+            }))
+            self.assertTrue(await asyncio.to_thread(entered.wait, 2))
+            try:
+                with self.platform.store.connect(write=True) as db:
+                    db.execute("INSERT INTO revoked_principals VALUES (?)", ("admin",))
+            finally:
+                release.set()
+            status, denied = await pending
+        self.assertEqual(status, 401, denied)
+        self.assertEqual(self.platform.provider_catalog.view()["providers"], [])
 
 
 if __name__ == "__main__":
