@@ -384,10 +384,10 @@ def _resume_schema2_history(root, args):
             "activation_failure_sha256": _sha(work / "failure.json")}
 
 
-def _read_only(command, *, seconds=30):
+def _read_only(command, *, seconds=30, cwd=None):
     try:
         process = subprocess.run(
-            command, capture_output=True, timeout=seconds, check=False,
+            command, cwd=cwd, capture_output=True, timeout=seconds, check=False,
         )
     except (OSError, subprocess.TimeoutExpired):
         raise Stopped("live_preflight", "inspection_unavailable") from None
@@ -868,7 +868,7 @@ def run(args):
             "--export-lock", str(args.first_export / "resident-export.lock.json"),
             "--export-repository", str(args.root_repository),
             "--final-export-output", str(args.final_export),
-        ], seconds=180))
+        ], seconds=180, cwd=ROOT))
         if (checked.get("status") != "schema2_resume_ready"
                 or checked.get("release_ready") is not False):
             raise Stopped("resume", "schema2_read_only_gate_required")
