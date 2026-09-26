@@ -25,8 +25,8 @@ DNS name and static IP; Platform also includes `192.168.31.210`.
 | `prepared-real-v1/site/deployment-input.json` | `a9cf63b1f5eea2377cf9ffe7408c423d833564b4459c9b5373e9975e406b1586` |
 | `prepared-real-v1/obs-input/settings.json` | `c561e85d4ce0c506b76a9e31cc8a42d9d38a7d8638acd07c245c1d83aabda6f8` |
 | `prepared-real-v1/site/tls/ca.pem` | `2d133981f715bd7308f9b7d2155e11f17a2e571779aca3564af0e8f6013ca7c1` |
-| `capacity-prepared-v1/resident-capacity.json` | `e5a8d3fc7fa13507943000eac1a2a538b4545c0c54b9652c80b967901e8a3b63` |
-| `capacity-prepared-v1/tianshu-resident-capacity.service` | `77620ca2c757484a09288bf52a427a94f316757219987bb3a4e8c914181d1f63` |
+| `capacity-prepared-v2/resident-capacity.json` | `c0cf7314a5bd987182728b2679ba21cde9d79d0dfedf5d2f88ae0ab235c16b26` |
+| `capacity-prepared-v2/tianshu-resident-capacity.service` | `77620ca2c757484a09288bf52a427a94f316757219987bb3a4e8c914181d1f63` |
 
 All nine image pins come from A3's NAS `RepoDigests`; the four products were
 built from fixed complete Git SHAs, pushed to `127.0.0.1:19550`, then pulled
@@ -69,7 +69,9 @@ exporter.
 offline A3 export and A2 unit template at commit
 `1edf794e8ee7936f41e97fd01c6e3190c2d15bdd`. Its config lists the nine
 real `repo@sha256` images, all bind mounts, `/volume2/@docker` as the Docker
-data root, 20 GiB free/tree limits, and a 120-second TERM limit. The unit has
+data root, the resolved nonsymlink Docker binary
+`/volume2/@appstore/ContainerManager/usr/bin/docker`, 20 GiB free/tree limits,
+and a 120-second TERM limit. The unit has
 `TimeoutStopSec=600s`. The coordinator installs the exact rendered bytes at
 `/etc/systemd/system/tianshu-resident-capacity.service`, reloads systemd and
 leaves it inactive until the runner arms A2.
@@ -94,8 +96,10 @@ sudo -n /volume2/Dockers/tianshu-v2-validation/wave1-20260923a/tooling/venv/bin/
 ```
 
 The runner requires fresh paths, the reviewed input hashes and an inactive
-loaded A2 unit matching the rendered bytes. It compares the manifest to the
-**original contract bytes** before writing. It invokes public A1 `prepare`, public OBS
+loaded A2 unit matching the fixed SHA with no drop-ins or pending daemon
+reload. It clears Docker/Compose overrides, fixes the local Unix daemon and
+both project names, and compares the manifest to the **original contract
+bytes** before writing. It invokes public A1 `prepare`, public OBS
 `configure-observability`, permission preflight, first A3 export, A1 `activate`
 and final export readback. Only then does the optional phase use the final
 Compose with pulls disabled to start Memory, Gateway, Companion, then OBS.
@@ -103,14 +107,17 @@ Platform is never targeted by a second `up`. It compares the capacity config
 against the actual first and final A3 exports, including every bind mount. It
 checks the same full Platform container ID and the live origin budget between
 stages, then calls A2 `arm`, starts `tianshu-resident-capacity.service`, checks
-that unit is active and asks
-A2 `status` for a ready readback of all nine IDs.
+that unit is active and asks A2 `status` for a ready readback of all nine IDs.
+It checks the origin expiry again before reporting pending live acceptance.
 
 On a normal command failure after activation begins, the runner inspects exact
-project, image, Compose origin and all bind identities, then disables restart
-and TERM-stops matching containers. During optional startup, it also calls A2
-`fail-close` and stops the capacity unit. It preserves containers, logs, DBs and
-evidence for diagnosis; unknown or unconfirmed IDs are reported and require
+project, image, Compose origin and all bind identities, then disables restart,
+sends TERM and reads back matching containers for up to 120 seconds. During
+optional startup, it first stops the capacity unit and waits for its
+`ExecStopPost` to finish, then calls A2 `fail-close` and only then the exact-ID
+fallback. A CLI timeout or uncertain stop prevents further writers and
+requires immediate manual inspection. It preserves containers, logs, DBs and
+evidence for diagnosis; unknown or unconfirmed IDs require
 the coordinator's immediate manual stop. A process kill before A2 arm cannot
 be closed by Python exception handling; the coordinator must remain online,
 inspect exact IDs and stop them. No blind retry, project-wide `down`, unrelated

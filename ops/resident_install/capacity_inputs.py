@@ -89,7 +89,7 @@ def render(export, template, python, output):
     config = {
         "deployment_root": ROOT,
         "state_dir": TOOLING + "/capacity-state",
-        "docker_binary": "/usr/bin/docker",
+        "docker_binary": "/volume2/@appstore/ContainerManager/usr/bin/docker",
         "compose": {
             CORE: {"workdir": ROOT, "file": final_core},
             OBS: {"workdir": ROOT, "file": final_obs},
