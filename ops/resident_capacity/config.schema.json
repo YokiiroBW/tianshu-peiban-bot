@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Fixed TianShu resident capacity guard configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "deployment_root", "state_dir", "docker_binary", "compose",
+    "platform_first_compose", "images", "free_paths", "min_free_bytes",
+    "max_deployment_bytes", "poll_seconds", "term_timeout_seconds"
+  ],
+  "properties": {
+    "deployment_root": {"type": "string", "const": "/volume2/tianshu-v2-resident"},
+    "state_dir": {"type": "string", "pattern": "^/"},
+    "docker_binary": {"type": "string", "pattern": "^/"},
+    "compose": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tianshu-v2-resident", "tianshu-v2-resident-obs"],
+      "properties": {
+        "tianshu-v2-resident": {"$ref": "#/$defs/compose_origin"},
+        "tianshu-v2-resident-obs": {"$ref": "#/$defs/compose_origin"}
+      }
+    },
+    "platform_first_compose": {"$ref": "#/$defs/compose_origin"},
+    "images": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platform", "companion", "memory", "gateway", "obs-vector",
+        "obs-loki", "obs-grafana", "obs-prometheus", "obs-guard"
+      ],
+      "properties": {
+        "platform": {"$ref": "#/$defs/image"},
+        "companion": {"$ref": "#/$defs/image"},
+        "memory": {"$ref": "#/$defs/image"},
+        "gateway": {"$ref": "#/$defs/image"},
+        "obs-vector": {"$ref": "#/$defs/image"},
+        "obs-loki": {"$ref": "#/$defs/image"},
+        "obs-grafana": {"$ref": "#/$defs/image"},
+        "obs-prometheus": {"$ref": "#/$defs/image"},
+        "obs-guard": {"$ref": "#/$defs/image"}
+      }
+    },
+    "free_paths": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^/"}},
+    "min_free_bytes": {"type": "integer", "minimum": 1073741824, "maximum": 1099511627776},
+    "max_deployment_bytes": {"type": "integer", "minimum": 1073741824, "maximum": 1099511627776},
+    "poll_seconds": {"type": "integer", "minimum": 1, "maximum": 10},
+    "term_timeout_seconds": {"type": "integer", "minimum": 10, "maximum": 300}
+  },
+  "$defs": {
+    "compose_origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workdir", "file"],
+      "properties": {
+        "workdir": {"type": "string", "pattern": "^/"},
+        "file": {"type": "string", "pattern": "^/"}
+      }
+    },
+    "image": {"type": "string", "pattern": "^.+@sha256:[0-9a-f]{64}$"}
+  }
+}
