@@ -1,0 +1,81 @@
+{
+  "status": "live_update_verified_pending_user_account",
+  "image": {
+    "image": "127.0.0.1:19550/tianshu/platform@sha256:a236de76dc192895d7a67f460ce48db45f33f895b9a9f5d72a7895dc6aca398d",
+    "id": "sha256:39f9bf92d4d999cef3c9273b21e5cda85a9b81d3f9926065ec7b573a06daceef",
+    "commit": "bc41c05808271dc03d643d567e43788978e1e587",
+    "source_archive_sha256": "d7e5b6e17c6eb9a49285623e0f59e66a9b2b983303c76144ddac2002e6f691f5"
+  },
+  "services": [
+    {
+      "service": "platform",
+      "id": "18a5823565a6f75a2efb89b625e0a416581b9a92ae46adfb7641be3565e938bb",
+      "health": "healthy",
+      "running": true
+    },
+    {
+      "service": "obs-grafana",
+      "id": "4116511371c5cefcfcc3c2ab3b8d78b8a1f65d2f456a91b36c5d464e68c56b45",
+      "health": "not_defined",
+      "running": true
+    },
+    {
+      "service": "obs-guard",
+      "id": "0ceb6ee9f1567a4c5d0e2d6a76502229d68c4e14b25b492437ed0578a05138c4",
+      "health": "not_defined",
+      "running": true
+    },
+    {
+      "service": "obs-loki",
+      "id": "9978e2ffe2a8abbfe5c89705025212dcc54eb42213e95b9f672fca59181d0146",
+      "health": "not_defined",
+      "running": true
+    },
+    {
+      "service": "obs-prometheus",
+      "id": "c790402c35fb452279cbc4bde793b6dfbdebc08346c76181372a05c17749fc6a",
+      "health": "not_defined",
+      "running": true
+    },
+    {
+      "service": "obs-vector",
+      "id": "f4ea56aada9c88a8e18d726d4de31e362886fb3ca47d2b848df8a77f9df6159b",
+      "health": "not_defined",
+      "running": true
+    },
+    {
+      "service": "companion",
+      "id": "150a558436f77f53abfdb7f29da756517e897d988be4e81dff7f80737838b1a6",
+      "health": "healthy",
+      "running": true
+    },
+    {
+      "service": "gateway",
+      "id": "9e4e92c3dc884763fc9362ea8871b25118eb0fd36abba54ac0acc83066c16a27",
+      "health": "healthy",
+      "running": true
+    },
+    {
+      "service": "memory",
+      "id": "f234d4ad10f15e6e41a2f62b4b96ffc6144b648a7150be83e873965e69570942",
+      "health": "healthy",
+      "running": true
+    }
+  ],
+  "capacity": {
+    "deployment_bytes": 64081348,
+    "heartbeat_age_seconds": 4.65,
+    "minimum_free_bytes": 465430433792,
+    "services": 9,
+    "status": "ready"
+  },
+  "account": "create_admin",
+  "old_login": "setup_required",
+  "account_not_precreated": true,
+  "backup": {
+    "sha256": "4780aca7b0643a762fcc51cca4582ff590487bfbc9eb1de20da6c4a7c03cd968",
+    "bytes": 64512000
+  },
+  "dockge_compose_matches": true,
+  "time": 1790429270.3607528
+}
