@@ -103,3 +103,26 @@ compile, CLI help, full changed diff and whitespace check. These are local
 checks; NAS continuation, remaining service startup, A2 arm and A4 live
 acceptance are still coordinator-owned and not claimed here. No NAS write,
 push or merge was performed in this worktree.
+
+## Platform static-IP preflight correction
+
+The supervised schema-2 attempt completed both Memory migrations and started
+a healthy Platform, then `platform_preflight` failed because Compose `run`
+created a second Platform container on its occupied static IP. The coordinator
+exact-stopped the original container; this branch did not operate the NAS.
+Neither migration nor the schema-2 resume may be replayed.
+
+`install._platform_activation_tail(root, work, images, stacks, publication,
+origin, repository, final_output, *, preflight_marker="platform_preflight",
+expected_id=None)` now contains the shared post-start path. It verifies the
+running Platform identity before `compose exec -T` preflight, rechecks the same
+ID after preflight and around the public CLI, then performs the existing
+receipt/origin/final-export logic. `_local` uses `exec -T` with its protected
+stdin frame and emits child stderr only to the private failure capture. The
+coordinator will gate the exact stopped container and completed migrations,
+restart only that ID, and call this tail with a new preflight marker; no new
+generic resume CLI was added here. Local targeted tests cover command shape,
+identity-before-exec and exact-ID tail invocation. The scoped suite passed
+17/17 with original-byte coordination contracts; Python 3.12 compile and
+`git diff --check` passed. Real NAS continuation and remaining services are
+pending.

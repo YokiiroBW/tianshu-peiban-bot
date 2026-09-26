@@ -112,6 +112,89 @@ class ResidentInstallTests(unittest.TestCase):
         self.assertNotIn("--pull", captured[-1][1])
         self.assertIn("--no-deps", captured[-1][1])
 
+    def test_platform_preflight_exec_checks_running_container_first(self):
+        events = []
+
+        def capture_step(_work, stage, command, **_kwargs):
+            events.append((stage, command))
+            if stage == "platform_preflight":
+                raise Refused("deliberate_stop")
+
+        def capture_platform(*_args, **kwargs):
+            events.append(("platform_identity", kwargs))
+            return "a" * 64
+
+        with (mock.patch.object(install, "_step", side_effect=capture_step),
+              mock.patch.object(install, "_local_images_present"),
+              mock.patch.object(install, "_platform_only", side_effect=capture_platform)):
+            with self.assertRaisesRegex(Refused, "deliberate_stop"):
+                install._activation_steps(
+                    self.fixture.root, self.fixture.root,
+                    {"memory": "pinned", "platform": "pinned"},
+                    {install.CORE_PROJECT: self.fixture.root / "compose.yaml"},
+                    None, None, None, None,
+                )
+        self.assertEqual(events[-2][0], "platform_identity")
+        self.assertEqual(events[-1][0], "platform_preflight")
+        self.assertEqual(events[-1][1][-10:], [
+            "exec", "-T", "platform", "python", "-B", "-m",
+            "services.platform", "--settings", "/etc/tianshu/settings.json",
+            "preflight",
+        ])
+
+    def test_local_public_cli_exec_uses_stdin_on_same_platform(self):
+        compose = self.fixture.root / "compose-local.json"
+        write_json(compose, {"services": {"platform": {"image": "pinned"}}})
+        base = ["docker", "compose", "-f", str(compose)]
+        captured = []
+
+        def capture_identity(*_args, **kwargs):
+            captured.append(("identity", kwargs.get("expected_id")))
+            return "a" * 64
+
+        def capture_step(_work, stage, command, **kwargs):
+            captured.append((stage, command, kwargs["input_bytes"]))
+            return b'{"status":"ok"}'
+
+        with (mock.patch.object(install, "_platform_only", side_effect=capture_identity),
+              mock.patch.object(install, "_local_images_present"),
+              mock.patch.object(install, "_step", side_effect=capture_step)):
+            result = install._local(
+                base, self.fixture.root, "issue", {"entry_id": "config-entry"},
+                self.fixture.root, expected_id="a" * 64,
+            )
+        self.assertEqual(result, {"status": "ok"})
+        self.assertEqual(captured[0], ("identity", "a" * 64))
+        self.assertEqual(captured[1][1][-7:-3], ["exec", "-T", "platform", "python"])
+        self.assertTrue(captured[1][2].endswith(b"\n"))
+
+    def test_platform_tail_reuses_exact_container_and_new_preflight_marker(self):
+        seen = []
+
+        def capture_platform(*_args, **kwargs):
+            seen.append(("identity", kwargs["expected_id"]))
+            return "b" * 64
+
+        def stop_at_preflight(_work, stage, command, **_kwargs):
+            seen.append((stage, command))
+            raise Refused("deliberate_stop")
+
+        with (mock.patch.object(install, "_platform_only", side_effect=capture_platform),
+              mock.patch.object(install, "_local_images_present"),
+              mock.patch.object(install, "_step", side_effect=stop_at_preflight)):
+            with self.assertRaisesRegex(Refused, "deliberate_stop"):
+                install._platform_activation_tail(
+                    self.fixture.root, self.fixture.root,
+                    {"platform": "pinned"},
+                    {install.CORE_PROJECT: self.fixture.root / "compose.yaml"},
+                    None, None, None, None,
+                    preflight_marker="platform_preflight_resume",
+                    expected_id="b" * 64,
+                )
+        self.assertEqual(seen[0], ("identity", "b" * 64))
+        self.assertEqual(seen[1][0], "platform_preflight_resume")
+        self.assertEqual(seen[1][1][-10:-7], ["exec", "-T", "platform"])
+
     def test_docker_occupancy_checks_stopped_and_other_project_bind(self):
         root = (self.fixture.root / "tianshu-v2-resident").resolve()
         slash_root = "/" + root.as_posix().split(":/", 1)[-1].lstrip("/")
