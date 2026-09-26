@@ -1,5 +1,5 @@
 {
-  "phase": "local_candidate_integration_and_art_rework",
+  "phase": "first_round_review_complete_visual_rework_required",
   "visual_accepted": false,
   "deployed": false,
   "nas_changed": false,
@@ -15,8 +15,8 @@
       "scope": "environment_assets_and_renderer",
       "worktree": "worktrees/ROOM-R1/tianshu-platform",
       "branch": "codex/room-r1-scene-20260926",
-      "status": "candidate_integrated_art_rejected_R1B_lighting_in_progress",
-      "commit": "59a986b8891a39a55691883fda35950926068edc"
+      "status": "R1B_candidate_integrated_window_light_improved_art_rejected",
+      "commit": "a01b166d84b670e80bbb01039f94d5934b146faf"
     },
     {
       "id": "ROOM-R2",
@@ -37,7 +37,8 @@
       "scope": "character_assets_and_feasibility",
       "worktree": "worktrees/ROOM-R3/tianshu-platform",
       "branch": "codex/room-r1-character-20260926",
-      "status": "R3B_actual_MPFb_rigged_mesh_proof_complete_costume_reading_sample_in_progress",
+      "status": "R3B_technical_trial_delivered_visual_rejected_not_integrated",
+      "commit": "ec153aced96b5e60a7c0e28b960842a3694b2a83",
       "integrated": false
     }
   ],
@@ -45,19 +46,22 @@
     "worktree": "worktrees/ROOM-INTEGRATION/tianshu-platform",
     "branch": "codex/room-r1-integration-20260926",
     "scope": "room_scoped_shell_candidate_and_acceptance",
-    "status": "R1_R2_integrated_local_only_behavior_validation_in_progress",
+    "status": "R1B_R2_integrated_local_only_behavior_passed_art_rejected",
+    "final_candidate_head": "cbddfe3",
+    "head_before_R1B": "94642af",
     "head_at_initial_joint_capture": "d43213c",
     "preview_url": "http://127.0.0.1:5186/#/room",
     "preview_note": "Local temporary process, availability must be checked before referring the user to it. Not NAS."
   },
   "gates": {
     "composition": "rejected_room_too_small_walls_too_tall_furniture_landmarks_displaced",
-    "character": "missing_accepted_production_asset_actual_rigged_trial_underway",
+    "character": "R3B_trial_rejected_wrong_identity_style_costume_grip_and_ground_contact",
     "furniture": "requires_art_revision",
     "materials": "requires_art_revision",
-    "lighting": "rejected_flat_cool_daylight_R1B_underway",
+    "lighting": "R1B_real_window_light_improved_reference_width_softness_not_accepted",
     "page": "layout_accessibility_passed_candidate_minor_spacing_gap_remains",
     "life_state_integration": "outstanding_separate_phase"
   },
+  "next_work": "room-art-rework-next-2026-09-26.md; cards prepared, no new writers dispatched; current three workers completed",
   "resumption": "Read this file and candidate handoffs. Do not restart old DSH tasks or rerun NAS installation. Do not deploy without actual visual acceptance."
 }

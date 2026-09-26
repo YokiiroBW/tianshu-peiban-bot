@@ -1,0 +1,48 @@
+{
+  "boxes": {
+    ".sidebar": {
+      "x": 16,
+      "y": 24,
+      "width": 96,
+      "height": 534
+    },
+    ".room-topline": {
+      "x": 136,
+      "y": 80,
+      "width": 1434,
+      "height": 75.859375
+    },
+    ".room-stage": {
+      "x": 137,
+      "y": 168.859375,
+      "width": 992.984375,
+      "height": 632.46875
+    },
+    ".room-chat-entry": {
+      "x": 136,
+      "y": 895.90625,
+      "width": 994.984375,
+      "height": 70
+    },
+    ".room-life-sidebar": {
+      "x": 1146.984375,
+      "y": 167.859375,
+      "width": 423.015625,
+      "height": 798.046875
+    }
+  },
+  "focusReturned": true,
+  "normalSidebar": {
+    "x": 65,
+    "y": 24,
+    "width": 232,
+    "height": 944
+  },
+  "mobileHorizontalOverflow": false,
+  "errors": [],
+  "visualScene": "R1B window light plus R2 page; requires art revision",
+  "platform_commit": "cbddfe3",
+  "desktop_sha256": "7b13861571b1b8786537467d15e26e7b88cf7fb33669b5c3f55bf2f025450374",
+  "mobile_sha256": "69fd52dbbd3c9f564465e2c3b541ac3cf7a3e9cf4841e3deb647e427cb44e1b2",
+  "visual_accepted": false
+}
