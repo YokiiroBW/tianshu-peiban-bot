@@ -9,24 +9,37 @@
 <main>
 <h1>小屋重做 · 原图对照验收</h1>
 <p>以原概念图为基准。候选必须是实际浏览器的原始截图；此页只作并排和透明叠加，不加工截图、不生成相似度通过分数。</p>
-<p id="status">候选 B · 实际浏览器 1586 × 992 · 视觉验收未通过</p>
+<p id="status">资产返修 C · 实际浏览器 1586 × 992 · 页面布局保留；整体概念一致性仍未通过</p>
 <fieldset><legend>查看方式</legend>
+<label>对照基准 <select id="baseline"><option value="primary.png">原概念图</option><option value="evidence/candidate-b-desktop.png" selected>返修前 B</option></select></label>
 <label>候选原始截图 <input id="file" type="file" accept="image/png,image/webp,image/jpeg"></label>
 <label>对照 <select id="mode"><option value="side">并排</option><option value="overlay">透明叠加</option></select></label>
 <label>候选透明度 <input id="opacity" type="range" min="0" max="100" value="50"><output id="percent">50%</output></label>
 </fieldset>
 <div class="columns">
-<figure class="card"><figcaption>原概念图 · 1586 × 992</figcaption><div class="frame"><img src="primary.png" alt="原始澄汐小屋概念图"></div></figure>
-<figure class="card"><figcaption>候选 · 不代表通过</figcaption><div class="frame" id="candidate-frame"><div class="empty" hidden>载入真实浏览器截图后逐项核对</div><img id="candidate" src="evidence/candidate-b-desktop.png" alt="候选原始浏览器截图"></div></figure>
+<figure class="card"><figcaption id="baseline-label">返修前 B · 1586 × 992</figcaption><div class="frame"><img data-reference src="evidence/candidate-b-desktop.png" alt="返修前 B 实际浏览器截图"></div></figure>
+<figure class="card"><figcaption>资产返修 C · 不代表整体通过</figcaption><div class="frame" id="candidate-frame"><div class="empty" hidden>载入真实浏览器截图后逐项核对</div><img id="candidate" src="evidence/candidate-c-desktop.png" alt="候选 C 原始浏览器截图"></div></figure>
 </div>
-<figure class="card comparison"><figcaption>原图与候选叠加 · 核对轮廓、家具和人物位置</figcaption><div class="frame"><img src="primary.png" alt="原图底层"><img id="overlay" class="candidate" src="evidence/candidate-b-desktop.png" alt="候选叠加层"></div></figure>
+<figure class="card comparison"><figcaption>所选基准与候选叠加 · 核对轮廓、家具和人物位置</figcaption><div class="frame"><img data-reference src="evidence/candidate-b-desktop.png" alt="对照基准底层"><img id="overlay" class="candidate" src="evidence/candidate-c-desktop.png" alt="候选叠加层"></div></figure>
 <div class="checks"><span>构图与比例</span><span>人物形象与姿态</span><span>家具与软装</span><span>材质与纹理</span><span>光照与接触</span><span>页面层级</span></div>
 <p class="note">六项分别验收，任何明显占位或风格偏差都不能靠其他项抵消。首次校准：1586 × 992、DPR 1、浅色、14:00、减少动态。实际截图应保留代码版本、资产版本和采集条件。</p>
+<h2>床被局部 · 同一浏览器区域</h2>
+<p>左为返修前 B，右为返修 C。原始截图裁取相同位置，未修图；布料几何与材质一起核对。</p>
+<div style="display:flex;gap:18px;flex-wrap:wrap">
+<figure class="card"><figcaption>返修前 B</figcaption><img src="evidence/candidate-b-bed.png" alt="B 版床被局部" style="max-width:100%"></figure>
+<figure class="card"><figcaption>返修 C</figcaption><img src="evidence/candidate-c-bed.png" alt="C 版床被局部" style="max-width:100%"></figure>
+</div>
+<p class="note">本轮重做床椅、书本、植物与材质，页面未改。阅读人物仍缺，房间内部比例、窗帘及整体暖光仍需后续处理。候选仅在本地，NAS 页面未更新。</p>
 <p class="note"><a href="../../development/room-r1-visual-baseline-2026-09-26.json">原图指纹与锚点记录</a> · <a href="../../development/room-visual-rebuild-plan-2026-09-26.md">重做方案</a></p>
 </main>
 <script>
 let previousUrl;
 const candidate=document.querySelector('#candidate'),overlay=document.querySelector('#overlay');
+document.querySelector('#baseline').addEventListener('change',event=>{
+ const label=event.target.selectedOptions[0].textContent;
+ document.querySelectorAll('img[data-reference]').forEach(img=>{img.src=event.target.value;img.alt=label;});
+ document.querySelector('#baseline-label').textContent=label+' · 1586 × 992';
+});
 document.querySelector('#file').addEventListener('change',event=>{
  const file=event.target.files[0];if(!file)return;
  const nextUrl=URL.createObjectURL(file);const probe=new Image();

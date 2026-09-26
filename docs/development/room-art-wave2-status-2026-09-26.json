@@ -1,17 +1,40 @@
 {
-  "phase": "asset_rework_in_progress",
+  "phase": "candidate_c_integrated_visual_revision_still_required",
   "user_accepted_page_layout": true,
   "page_layout_frozen": true,
   "baseline": "cbddfe3b5cf20a5cbf253d57e5ff23a9d282b467",
   "specification": "room-art-wave2-2026-09-26.md",
   "tasks": {
-    "ROOM-ART-A": {"agent": "/root/room_environment", "worktree": "worktrees/ROOM-ART/tianshu-platform", "status": "soft_furnishing_local_samples_rejected_refining_mesh_and_cloth"},
-    "ROOM-ART-B": {"agent": "/root/room_character", "worktree": "worktrees/ROOM-PROPS/tianshu-platform", "status": "module_delivered_pending_combined_browser_acceptance", "commit": "e7db67f4077199c40b235cf86a66012616aed6cb"},
-    "material_review": {"agent": "/root/room_page", "status": "readonly_review_complete_feedback_sent_to_A"}
+    "ROOM-ART-A": {
+      "agent": "/root/room_environment",
+      "worktree": "worktrees/ROOM-ART/tianshu-platform",
+      "status": "delivered_integrated_and_regression_checked",
+      "commit": "a9588b5",
+      "lampFixCommit": "677d73c"
+    },
+    "ROOM-ART-B": {
+      "agent": "/root/room_character",
+      "worktree": "worktrees/ROOM-PROPS/tianshu-platform",
+      "status": "delivered_integrated_visible_improvement_confirmed",
+      "commit": "e7db67f4077199c40b235cf86a66012616aed6cb"
+    },
+    "material_review": {
+      "agent": "/root/room_page",
+      "status": "independent_visual_review_complete_remaining_gaps_recorded"
+    }
   },
   "generated_material_sources": "docs/design/room-materials-v2",
   "visual_accepted": false,
   "nas_changed": false,
   "deployed": false,
-  "resume": "Continue this authorized asset wave, preserve user-approved UI, do not rerun old deployment or DSH tasks."
+  "resume": "This bounded asset wave is delivered and reviewed. Keep user-approved UI frozen; continue remaining visual gaps from C within the existing visual-repair scope. Do not rerun old DSH or deployment initialization.",
+  "integrationCommit": "0b2ed4ebb26bbef5cf16e5f3b5694e2054669655",
+  "report": "room-art-wave2-review-2026-09-26.md",
+  "evidence": "../design/room-reference-v1/evidence/candidate-c.json",
+  "outstanding": [
+    "reading_character",
+    "room_internal_geometry_proportions",
+    "curtains_and_warm_light",
+    "physical_device_performance"
+  ]
 }

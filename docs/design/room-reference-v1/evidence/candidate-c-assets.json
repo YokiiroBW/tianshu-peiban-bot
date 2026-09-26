@@ -1,0 +1,14 @@
+{
+  "sha256": "548b9616de35413acee4f455e7db4a207e385d150c6d90615489f7980da00377",
+  "bytes": 15723820,
+  "gzipBytes": 11213529,
+  "images": 8,
+  "materials": 43,
+  "meshes": 57,
+  "externalDependencies": 0,
+  "sourceHashes": {
+    "lavender-botanical-cotton-v1.png": "1464313c0bd8f7d28ff0d574121aa7ec083edc95e10a7857dd92e15b11651c8e",
+    "pale-ash-wood-v1.png": "cb31ef62bf35960885e886b7ac4152ba6174a5fb8833941a132b5e84ef50bcc9",
+    "window-city-vista-v1.png": "27e2b02d9cb649194a0c068706bc6e769c9748064fe929ef977bd544a18d377c"
+  }
+}

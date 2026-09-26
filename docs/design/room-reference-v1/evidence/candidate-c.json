@@ -1,0 +1,35 @@
+{
+  "viewport": [
+    1586,
+    992
+  ],
+  "mobile": [
+    390,
+    844
+  ],
+  "dpr": 1,
+  "hour": 14,
+  "theme": "light",
+  "motion": "reduced",
+  "metrics": {
+    "drawCalls": "188",
+    "triangles": "912630"
+  },
+  "overflow": false,
+  "errors": [],
+  "integrationCommit": "0b2ed4ebb26bbef5cf16e5f3b5694e2054669655",
+  "assetVersion": "r2.0.1",
+  "screenshotSha256": {
+    "candidate-c-bed.png": "ef1a05129a780e1fc9e96af3c113b55885773fb1578b55636362b6901ad6d74c",
+    "candidate-c-bedside-only.png": "a7e3a05425f62ff20437f5599080eca9414a759534bbf408426c1babcdf5c513",
+    "candidate-c-bookcase.png": "3e0a7142e739936a68e2f99bcd62cabdfd0f9b3a32a709ce055a14a51a06ab1a",
+    "candidate-c-chair-window.png": "3d062fa8d0e4de59252398d5f95a865dafdf9b0f02135cc11cfcba366d511827",
+    "candidate-c-desk-only.png": "0edd25854544b79cba2d97a0fb3305fd5eb52120f52f495036abfd97f41b428d",
+    "candidate-c-desktop.png": "fab637ea7a8b39f9c99c530fdcb99b9aa151954402e81cbe6e4ca74ea2571a49",
+    "candidate-c-dusk.png": "bff353a12fd85a23de335d355df3122bb2bb1d79d17c16553841322d0183027b",
+    "candidate-c-mobile.png": "87900c412fd5cfe88513162f0eb9147c4e3156651e85cd3464a079eb8f6334ce",
+    "candidate-c-morning.png": "e45ef31d179b190b2370c11106dc74b93d2d8f3f1b0f0b08389955776c7c91e1",
+    "candidate-c-night-open-curtains.png": "fb9ba88ff9c2d26d4fed14fb9dfe05b63509f816bb7f7f639a3d96d75600dcb7",
+    "candidate-c-night.png": "5f9ee95299ba893bf528d0ee162bf120f91bbd98979e635ef8bd3f87314e5894"
+  }
+}
