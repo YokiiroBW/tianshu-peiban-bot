@@ -161,6 +161,68 @@ class ResidentRunnerReceiptTests(unittest.TestCase):
                                             "fixed_pre_migration_failure_required"):
                     run_candidate._resume_schema2_history(root, args)
 
+    def test_remaining_services_uses_renewed_final_receipt_and_expiry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            root, first, final, evidence = (base / name for name in
+                                            ("root", "first", "final", "evidence"))
+            work = root / "reports/resident-install"
+            work.mkdir(parents=True)
+            evidence.mkdir()
+            hashes = {}
+            for project in (run_candidate.CORE_PROJECT, run_candidate.OBS_PROJECT):
+                raw = project.encode()
+                for output in (first, final):
+                    path = output / project / "compose.yaml"
+                    path.parent.mkdir(parents=True)
+                    path.write_bytes(raw)
+                hashes[project] = hashlib.sha256(raw).hexdigest()
+
+            def write(path, value):
+                path.write_text(json.dumps(value), encoding="utf-8")
+
+            final_lock = final / "resident-export.lock.json"
+            write(final_lock, {"compose_sha256": hashes})
+            write(work / "attempt.json", {"export_compose_sha256": hashes})
+            write(work / "result.json", {
+                "state": "authority_initialized_pending_final_export",
+                "platform_container_id": "a" * 64,
+                "expires_at": "old-expiry", "gateway_ref_sha256": "old-hash",
+            })
+            write(work / "reauthorization-result.json", {
+                "state": "manual_reauthorized", "expires_at": "new-expiry",
+                "gateway_ref_sha256": "b" * 64,
+            })
+            final_receipt = {
+                "state": "final_export_verified", "manual_reauthorization": True,
+                "source_expires_at": "new-expiry", "gateway_ref_sha256": "b" * 64,
+                "export_lock_sha256": run_candidate._sha(final_lock),
+            }
+            write(work / "final-export-after-renewal.json", final_receipt)
+            capacity = base / "capacity.json"
+            capacity.write_bytes(b"{}")
+            result = {"status": "manual_reauthorized_export_verified",
+                      "expires_at": "new-expiry", "final_export": str(final)}
+            with (mock.patch.object(run_candidate, "_capacity_config_matches"),
+                  mock.patch.object(run_candidate, "_platform_id") as platform_id,
+                  mock.patch.object(run_candidate, "_remaining", return_value=180),
+                  mock.patch.object(run_candidate, "_command",
+                                    side_effect=run_candidate.Stopped(
+                                        "final_core_config", "deliberate_stop"))):
+                with self.assertRaisesRegex(run_candidate.Stopped, "deliberate_stop"):
+                    run_candidate._start_remaining(
+                        root, first, final, result, evidence, capacity, "unit.service"
+                    )
+                self.assertEqual(platform_id.call_args.args[1], "a" * 64)
+                attempt = json.loads((evidence / "remaining-services-attempt.json").read_text())
+                self.assertEqual(attempt["source_expires_at"], "new-expiry")
+                result["expires_at"] = "old-expiry"
+                with self.assertRaisesRegex(run_candidate.Stopped,
+                                            "final_export_or_platform_identity_invalid"):
+                    run_candidate._start_remaining(
+                        root, first, final, result, evidence, capacity, "unit.service"
+                    )
+
     def test_explicit_resume_skips_prepare_and_writes_new_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)

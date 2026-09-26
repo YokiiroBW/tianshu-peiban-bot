@@ -199,6 +199,18 @@ public CLI use `compose exec -T` on the verified running container. An internal
 recovery to restart that exact stopped Platform ID and continue at preflight;
 the coordinator owns the evidence and live command for this new boundary.
 
+The next supervised attempt completed Platform preflight, public CLI issue and
+final A3 export. `finalize` rejected the running Platform because its Compose
+identity still points to the first export, while the readback compared it to
+the final export's different path. The corrected `finalize` requires both lock
+paths, verifies that first and final Compose hashes match, and checks the
+Platform ID and labels against the first Compose path. The original origin
+expired before this correction; the existing one-shot `reauthorize` flow must
+issue a new origin and make a new final export before remaining services start.
+Neither migration nor the first issue may be repeated. The runner selects the
+renewed final readback and its matching expiry/hash when reauthorization was
+performed; a stale initial receipt cannot start remaining services.
+
 ## Local evidence and remaining live work
 
 The local Python 3.12 generator created distinct credentials and the private
