@@ -1,5 +1,5 @@
 {
-  "status": "dispatched_running_not_integrated",
+  "status": "reviewed_integrated_locally_not_deployed",
   "date": "2026-09-26",
   "execution": "Codex agents; isolated local implementation only",
   "model": "gpt-6-astra",
@@ -9,42 +9,109 @@
     {
       "id": "PROVIDER-P1",
       "agent": "/root/provider_platform",
-      "status": "in_progress",
+      "status": "module_delivered_not_integrated",
       "worktree": "worktrees/PROVIDER-P1/tianshu-platform",
       "branch": "codex/provider-platform-20260926",
       "baseline": "bc41c05808271dc03d643d567e43788978e1e587",
-      "scope": "Persistent provider catalog, private credential storage, revisions, defaults and test state"
+      "scope": "Persistent provider catalog, private credential storage, revisions, defaults and test state",
+      "commit": "3ae3a66d9335dee93c9f2a7ad6203a5a27bae384"
     },
     {
       "id": "PROVIDER-G1",
       "agent": "/root/provider_gateway",
-      "status": "in_progress",
+      "status": "module_delivered_not_integrated",
       "worktree": "worktrees/PROVIDER-G1/tianshu-model-gateway",
       "branch": "codex/provider-gateway-20260926",
       "baseline": "601974194042641c5a85cc3c061cbd1880d7daf1",
-      "scope": "OpenAI-compatible model enumeration, short reply test, controlled target and credential execution"
+      "scope": "OpenAI-compatible model enumeration, short reply test, controlled target and credential execution",
+      "commit": "0e208a9f084bbd6d10bf8e16e6c356ee441f89d4"
     },
     {
       "id": "PROVIDER-C1",
       "agent": "/root/provider_companion",
-      "status": "in_progress",
+      "status": "module_delivered_not_integrated",
       "worktree": "worktrees/PROVIDER-C1/tianshu-companion",
       "branch": "codex/provider-companion-20260926",
       "baseline": "e94b609099365f75ca933d9fed03cdfbc83ec235",
-      "scope": "Injectable default model selection with persistent immutable per-turn version pin"
+      "scope": "Injectable default model selection with persistent immutable per-turn version pin",
+      "commit": "d794882d7ae3f5ba41ccff9cea76401f4f599216"
     },
     {
       "id": "PROVIDER-U1",
-      "status": "queued_not_dispatched",
+      "status": "visible_continuation_queued",
       "depends_on": "Coordinator HTTP/API contract and agreed producer-consumer interfaces",
       "scope": "Provider CRUD, model selection, explicit tests, default selection and start-chat guidance"
     }
   ],
   "coordinator": {
-    "owns": ["Cross-product contracts", "Production dependency locks", "Integration and expiry renewal", "Joint tests", "Deployment packaging and live acceptance"],
+    "owns": [
+      "Contract review",
+      "Integration review",
+      "Acceptance",
+      "Deployment packaging and live acceptance"
+    ],
     "known_dependency": "P1 mature authenticated encryption needs a reviewed production cryptography dependency; no plaintext fallback",
     "nas_operations_authorized_to_workers": false,
     "public_api_frozen": false,
     "current_nas_unchanged": true
+  },
+  "visible_continuations": [
+    {
+      "title": "供应商接入：后端贯通与自动续期",
+      "model": "gpt-6-sol",
+      "effort": "xhigh",
+      "clientThreadId": "client-new-thread:211e0403-f70f-464a-b6fb-9d99bd7db4b8",
+      "status": "delivered_reviewed_integrated_locally",
+      "contract_root": "C:/Users/Administrator/.codex/worktrees/6bd8/tianshu-peiban-bot",
+      "root_commit": "578908b202e79fcf4332ff28e873241d9a9946a4",
+      "product_commits": {
+        "platform": "5ead3759a44744a15f50f095870c4e34f40eb7b5",
+        "gateway": "f93b08a6ce2d31774d2f1b27dc00fd4d5f3ee26d",
+        "companion": "31677983798ba27b24d57925feab4774c2eec30f"
+      },
+      "threadId": "01a0de32-6334-79d0-8c77-4aaef1118678"
+    },
+    {
+      "title": "供应商接入：可视化配置与首次对话引导",
+      "model": "gpt-6-sol",
+      "effort": "xhigh",
+      "clientThreadId": "client-new-thread:d0cc573e-87de-4d27-82b6-e216885852cf",
+      "status": "delivered_reviewed_integrated_locally",
+      "threadId": "01a0de35-4858-70a0-9a1f-57473538f5a5",
+      "commit": "3072ec610a3b5af7e1eeeb19a56504018f757c23",
+      "handoff": "worktrees/PROVIDER-U1/tianshu-platform/docs/handoffs/PROVIDER-U1.md",
+      "integration_allowed": false,
+      "reported_browser_tests": "7/7; result_unknown includes injected response; no NAS"
+    },
+    {
+      "title": "供应商接入：独立架构与使用流程审查",
+      "model": "gpt-6-luna",
+      "effort": "max",
+      "clientThreadId": "client-new-thread:64e07341-a18c-4603-aba5-5be9c80f4c6e",
+      "status": "delivered_reviewed_integrated_locally",
+      "threadId": "01a0de35-b1e4-7f32-9604-f0b341c6346d",
+      "commit": "bda9ce7733a28cbe09b14403cb950ed2e8fe2f63",
+      "report": "C:/Users/Administrator/.codex/worktrees/999f/tianshu-peiban-bot/docs/reviews/provider-wave1-independent-review-2026-09-26.md",
+      "findings": [
+        "P2 queued accepted turn may select changed default",
+        "P2 NAT64 target policy conditional on translation routing; HTTPS certificate checks still apply"
+      ]
+    }
+  ],
+  "continuation_backend_owns": [
+    "Candidate HTTP contracts",
+    "Production dependency locks",
+    "Integration and expiry renewal",
+    "Local joint tests"
+  ],
+  "integration": {
+    "date": "2026-09-27",
+    "platform": "1d51d888ff77594a1f6fbb1c7e0d4fdf92285ff8",
+    "gateway": "f93b08a6ce2d31774d2f1b27dc00fd4d5f3ee26d",
+    "companion": "31677983798ba27b24d57925feab4774c2eec30f",
+    "contract_candidate": "578908b202e79fcf4332ff28e873241d9a9946a4",
+    "review_import": "bdc6d7b",
+    "parent_joint_tests": "6 passed; imports exact reviewed PROVIDER worktrees; integrated backend/frontend paths compared equal",
+    "nas_changed": false
   }
 }
