@@ -87,6 +87,80 @@ class ResidentRunnerReceiptTests(unittest.TestCase):
             self.assertEqual((evidence / "prepare.stderr").read_bytes(), b"")
             self.assertTrue((evidence / "prepare-attempt.json").is_file())
 
+    def test_child_product_timeout_preserves_uncertain_effects(self):
+        with tempfile.TemporaryDirectory() as directory:
+            evidence = Path(directory)
+            command = [
+                sys.executable, "-c",
+                "import json,sys; print(json.dumps({'status':'refused',"
+                "'code':'product_effects_unconfirmed_timeout'})); sys.exit(2)",
+            ]
+            with self.assertRaises(run_candidate.Stopped) as caught:
+                run_candidate._command("activate", command, evidence, timeout=15)
+            self.assertEqual(caught.exception.code, "child_effects_unconfirmed_timeout")
+            self.assertTrue(caught.exception.effects_unconfirmed)
+            self.assertEqual(json.loads((evidence / "activate.stdout").read_bytes())["code"],
+                             "product_effects_unconfirmed_timeout")
+
+    def test_schema2_history_requires_exact_failed_child_receipt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            root = base / "root"
+            prior = base / "prior"
+            work = root / "reports/resident-install"
+            export = base / "first"
+            for path in (work, prior, export):
+                path.mkdir(parents=True)
+
+            def write(path, value):
+                path.write_text(json.dumps(value), encoding="utf-8")
+
+            write(prior / "run-attempt.json", {
+                "deployment_root": str(root), "plan_sha256": "fixed-plan",
+                "start_remaining_requested": True, "resume_after_prepare": True,
+                "prior_evidence": str(prior),
+            })
+            write(prior / "run-stopped.json", {
+                "state": "needs_diagnosis", "stage": "activate",
+                "code": "command_failed", "automatic_retry": False,
+                "cleanup": {"exact_stop": "exact_containers_stopped"},
+                "manual_stop_required": False, "release_ready": False,
+            })
+            write(prior / "first_export.stdout", {
+                "status": "resident_candidate", "release_ready": False,
+            })
+            write(prior / "activate-attempt.json", {
+                "stage": "activate", "state": "started", "automatic_retry": False,
+            })
+            write(prior / "activate.stdout", {
+                "status": "refused", "code": "product_command_failed",
+            })
+            (prior / "activate.stderr").write_bytes(b"")
+            for name in ("attempt.json", "compose_config-attempt.json",
+                         "memory_schema_2-attempt.json", "failure.json"):
+                (work / name).write_bytes(name.encode())
+            (root / "bundle-integrity.json").write_bytes(b"bundle")
+            (export / "resident-export.lock.json").write_bytes(b"lock")
+            hashes = {
+                "bundle-integrity.json": run_candidate._sha(root / "bundle-integrity.json"),
+                "first-lock": run_candidate._sha(export / "resident-export.lock.json"),
+                "attempt.json": run_candidate._sha(work / "attempt.json"),
+                "failure.json": run_candidate._sha(work / "failure.json"),
+            }
+            args = SimpleNamespace(prior_evidence=prior, first_export=export)
+            with (mock.patch.object(run_candidate, "PREPARE_RESUME_EVIDENCE", prior),
+                  mock.patch.object(run_candidate, "FIXED_INPUT_HASHES", {"plan": "fixed-plan"}),
+                  mock.patch.object(run_candidate, "SCHEMA2_RESUME_HASHES", hashes),
+                  mock.patch.object(run_candidate, "verify_integrity")):
+                self.assertIn("activation_failure_sha256",
+                              run_candidate._resume_schema2_history(root, args))
+                write(prior / "activate.stdout", {
+                    "status": "refused", "code": "different_failure",
+                })
+                with self.assertRaisesRegex(run_candidate.Stopped,
+                                            "fixed_pre_migration_failure_required"):
+                    run_candidate._resume_schema2_history(root, args)
+
     def test_explicit_resume_skips_prepare_and_writes_new_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
@@ -95,7 +169,8 @@ class ResidentRunnerReceiptTests(unittest.TestCase):
             prior = base / "prior-evidence"
             prior.mkdir()
             args = SimpleNamespace(
-                plan=plan, resume_after_prepare=True, prior_evidence=prior,
+                plan=plan, resume_after_prepare=True, resume_after_schema2=False,
+                prior_evidence=prior,
                 start_remaining=False, evidence=base / "resume-evidence",
             )
             with (mock.patch.object(run_candidate, "_local_docker_environment"),

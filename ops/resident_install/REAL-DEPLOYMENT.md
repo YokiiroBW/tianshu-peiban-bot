@@ -156,6 +156,39 @@ edits the original evidence. The coordinator also verifies no old CLI or
 supervisor process remains before starting this command. A mismatch stops
 without creating the new evidence directory.
 
+## Exact pre-migration schema-2 continuation
+
+The post-prepare continuation completed OBS setup, preflight and first A3
+export, then stopped at `memory_schema_2` because NAS Docker Compose v2.20.1
+rejects `compose run --pull never`. It stopped the exact containers. The four
+original resident-install report files and earlier runner evidence remain
+unchanged; all 13 mutable product/OBS directories are empty, with no resident
+container or project network. No Memory migration or Platform origin ran.
+
+For this fixed state only, use the same command above with the original
+`--first-export`, absent `--final-export`, and these replacements/additions:
+
+```text
+  --evidence /volume2/tianshu-v2-resident-tooling/evidence/resume-after-schema2-20260926 \
+  --resume-after-schema2 \
+  --prior-evidence /volume2/tianshu-v2-resident-tooling/evidence/resume-after-prepare-20260926
+```
+
+Before creating the new evidence directory, the runner checks the exact prior
+failure receipts, original report and export hashes, unchanged first A3 lock
+and both Compose files, empty mutable directories, no Docker occupants, pinned
+local image RepoDigests, and the inactive capacity unit. The trusted A3 export
+comparison uses temporary directories that are automatically removed; this
+precheck does not change deployment state. The activation command checks the
+same gates again, writes separate `schema2-resume-*` markers, and starts at
+Memory schema 2. It does not repeat prepare, OBS setup or first export. Compose
+`run` no longer passes the unsupported `--pull` option; `up --pull never` stays
+in place, and every product CLI `run` checks its pinned local RepoDigest first.
+On a failed product command, private bounded stdout, stderr, return code and
+hashes are retained in `reports/resident-install/`. A timeout is classified as
+unconfirmed effects and requires manual exact-state inspection before any stop
+or retry. This continuation remains a candidate with `release_ready=false`.
+
 ## Local evidence and remaining live work
 
 The local Python 3.12 generator created distinct credentials and the private
