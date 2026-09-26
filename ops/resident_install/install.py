@@ -827,7 +827,10 @@ def _platform_activation_tail(root, work, images, stacks, publication, origin,
         "stage": "final_export", "state": "started", "automatic_retry": False,
     })
     _trusted_export(root, repository, final_output)
-    final = finalize(root, export_lock_path=final_output / "resident-export.lock.json")
+    final = finalize(
+        root, export_lock_path=final_output / "resident-export.lock.json",
+        first_export_lock_path=stacks[CORE_PROJECT].parent.parent / "resident-export.lock.json",
+    )
     return {
         "status": "resident_first_install_export_verified",
         "provider": "configured" if publication else "not_configured",
@@ -1101,7 +1104,8 @@ def reauthorize(bundle_root, *, first_export_lock_path, export_repository,
         })
         _trusted_export(root, repository, final_output)
         final = finalize(
-            root, export_lock_path=final_output / "resident-export.lock.json"
+            root, export_lock_path=final_output / "resident-export.lock.json",
+            first_export_lock_path=lock_path,
         )
         return {
             "status": "manual_reauthorized_export_verified",
@@ -1118,7 +1122,7 @@ def reauthorize(bundle_root, *, first_export_lock_path, export_repository,
         raise Refused(code) from None
 
 
-def finalize(bundle_root, *, export_lock_path):
+def finalize(bundle_root, *, export_lock_path, first_export_lock_path):
     """Read back the post-issue A3 export while only Platform remains running."""
     require(os.name == "posix", "linux_activation_required")
     root = no_links(Path(bundle_root))
@@ -1166,6 +1170,23 @@ def finalize(bundle_root, *, export_lock_path):
         hashes == attempt["export_compose_sha256"],
         "post_issue_stack_configuration_changed",
     )
+    first_lock_path = _private(first_export_lock_path)
+    first_lock = read_json(first_lock_path)
+    first_stacks = {
+        project: no_links(first_lock_path.parent / project / "compose.yaml")
+        for project in (CORE_PROJECT, OBS_PROJECT)
+    }
+    require(
+        first_lock.get("deployment_root") == str(root)
+        and first_lock.get("manifest_sha256")
+        == digest((root / "release-manifest.json").read_bytes())
+        and first_lock.get("compose_sha256") == hashes
+        and all(
+            stack.is_file() and digest(stack.read_bytes()) == hashes[project]
+            for project, stack in first_stacks.items()
+        ),
+        "first_export_compose_changed",
+    )
     try:
         expiry = datetime.fromisoformat(current["expires_at"].replace("Z", "+00:00"))
         remaining = expiry.timestamp() - datetime.now(timezone.utc).timestamp()
@@ -1176,7 +1197,7 @@ def finalize(bundle_root, *, export_lock_path):
         "post_issue_origin_budget_insufficient",
     )
     _platform_only(
-        root, stacks, expected_id=result.get("platform_container_id")
+        root, first_stacks, expected_id=result.get("platform_container_id")
     )
     report = {
         "state": "final_export_verified",
@@ -1220,6 +1241,7 @@ def main(argv=None):
     finish = sub.add_parser("finalize")
     finish.add_argument("--bundle-root", required=True, type=Path)
     finish.add_argument("--export-lock", required=True, type=Path)
+    finish.add_argument("--first-export-lock", required=True, type=Path)
     renew = sub.add_parser("reauthorize")
     renew.add_argument("--bundle-root", required=True, type=Path)
     renew.add_argument("--first-export-lock", required=True, type=Path)
@@ -1248,7 +1270,8 @@ def main(argv=None):
                                     final_export_output=args.final_export_output,
                                     check_only=True)
         elif args.action == "finalize":
-            result = finalize(args.bundle_root, export_lock_path=args.export_lock)
+            result = finalize(args.bundle_root, export_lock_path=args.export_lock,
+                              first_export_lock_path=args.first_export_lock)
         else:
             result = reauthorize(
                 args.bundle_root, first_export_lock_path=args.first_export_lock,

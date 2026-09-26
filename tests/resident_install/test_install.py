@@ -5,7 +5,9 @@ import os
 import subprocess
 import sys
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -194,6 +196,63 @@ class ResidentInstallTests(unittest.TestCase):
         self.assertEqual(seen[0], ("identity", "b" * 64))
         self.assertEqual(seen[1][0], "platform_preflight_resume")
         self.assertEqual(seen[1][1][-10:-7], ["exec", "-T", "platform"])
+
+    def test_finalize_checks_first_compose_identity_after_final_hash_match(self):
+        base = self.fixture.root
+        root = base / "resident"
+        work = root / "reports/resident-install"
+        work.mkdir(parents=True)
+        manifest = root / "release-manifest.json"
+        write_json(manifest, {})
+        prepared = root / "compose.json"
+        write_json(prepared, {})
+        first = base / "first"
+        final = base / "final"
+        hashes = {}
+        first_stacks, final_stacks = {}, {}
+        for project in (install.CORE_PROJECT, install.OBS_PROJECT):
+            for target, mapping in ((first, first_stacks), (final, final_stacks)):
+                path = target / project / "compose.yaml"
+                path.parent.mkdir(parents=True)
+                path.write_bytes(project.encode())
+                mapping[project] = path
+            hashes[project] = digest(project.encode())
+        first_lock = first / "resident-export.lock.json"
+        final_lock = final / "resident-export.lock.json"
+        write_json(first_lock, {
+            "deployment_root": str(root), "manifest_sha256": digest(manifest.read_bytes()),
+            "compose_sha256": hashes,
+        })
+        write_json(final_lock, {})
+        expiry = (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()
+        write_json(work / "attempt.json", {
+            "state": "started", "export_compose_sha256": hashes,
+            "export_repository": str(base),
+        })
+        write_json(work / "result.json", {
+            "state": "authority_initialized_pending_final_export",
+            "expires_at": expiry, "gateway_ref_sha256": "fixed-ref-hash",
+            "platform_container_id": "a" * 64, "provider": "not_configured",
+        })
+        with (mock.patch.object(install, "os", SimpleNamespace(name="posix")),
+              mock.patch.object(install, "_private", side_effect=lambda path: Path(path)),
+              mock.patch.object(install, "verify_integrity"),
+              mock.patch.object(install, "_fixed"),
+              mock.patch.object(install, "_compose", return_value=prepared),
+              mock.patch.object(install, "_current_ref"),
+              mock.patch.object(install, "_export_lock",
+                                return_value=({}, final_stacks, hashes)),
+              mock.patch.object(install, "_trusted_export_matches"),
+              mock.patch.object(install, "_platform_only") as platform_only,
+              mock.patch.object(install, "_write_private")):
+            report = install.finalize(root, export_lock_path=final_lock,
+                                      first_export_lock_path=first_lock)
+            self.assertEqual(report["state"], "final_export_verified")
+            self.assertEqual(platform_only.call_args.args[1], first_stacks)
+            first_stacks[install.CORE_PROJECT].write_bytes(b"changed")
+            with self.assertRaisesRegex(Refused, "first_export_compose_changed"):
+                install.finalize(root, export_lock_path=final_lock,
+                                 first_export_lock_path=first_lock)
 
     def test_docker_occupancy_checks_stopped_and_other_project_bind(self):
         root = (self.fixture.root / "tianshu-v2-resident").resolve()

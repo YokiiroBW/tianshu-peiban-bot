@@ -586,27 +586,53 @@ def _start_remaining(root, first, final, result, evidence, capacity_config, capa
     core = final / CORE_PROJECT / "compose.yaml"
     obs = final / OBS_PROJECT / "compose.yaml"
     lock = _read(final / "resident-export.lock.json")
-    attempt = _read(root / "reports/resident-install/attempt.json")
-    finalized = _read(root / "reports/resident-install/final-export.json")
+    work = root / "reports/resident-install"
+    attempt = _read(work / "attempt.json")
+    initial = _read(work / "result.json")
+    renewed = (work / "reauthorization-result.json").is_file()
+    source = (_read(work / "reauthorization-result.json") if renewed else initial)
+    finalized = _read(work / (
+        "final-export-after-renewal.json" if renewed else "final-export.json"
+    ))
+    platform_id = initial.get("platform_container_id")
+    source_expiry = source.get("expires_at")
+    receipt_valid = (
+        result.get("status") == (
+            "manual_reauthorized_export_verified" if renewed
+            else "resident_first_install_export_verified"
+        )
+        and result.get("expires_at") == source_expiry
+        and result.get("final_export") == str(final)
+        and (result.get("platform_container_id") in (None, platform_id)
+             if renewed else result.get("platform_container_id") == platform_id)
+    )
     if (finalized.get("state") != "final_export_verified"
+            or finalized.get("manual_reauthorization") is not renewed
+            or initial.get("state") != "authority_initialized_pending_final_export"
+            or (renewed and source.get("state") != "manual_reauthorized")
+            or not isinstance(source_expiry, str)
+            or not isinstance(source.get("gateway_ref_sha256"), str)
+            or re.fullmatch(r"[0-9a-f]{64}", source["gateway_ref_sha256"]) is None
+            or finalized.get("source_expires_at") != source_expiry
+            or finalized.get("gateway_ref_sha256") != source.get("gateway_ref_sha256")
             or lock.get("compose_sha256") != attempt.get("export_compose_sha256")
             or any(_sha(path) != lock["compose_sha256"][project]
                    for project, path in ((CORE_PROJECT, core), (OBS_PROJECT, obs)))
             or _sha(final / "resident-export.lock.json") != finalized.get("export_lock_sha256")
-            or result.get("platform_container_id") is None):
+            or platform_id is None
+            or not receipt_valid):
         raise Stopped("start_remaining", "final_export_or_platform_identity_invalid")
     first_core = first / CORE_PROJECT / "compose.yaml"
     if _sha(first_core) != _sha(core):
         raise Stopped("start_remaining", "first_and_final_core_differ")
     _capacity_config_matches(root, first, final, capacity_config)
-    platform_id = result["platform_container_id"]
     _platform_id(root, platform_id, first_core, evidence)
-    if _remaining(result["expires_at"]) < 120:
+    if _remaining(source_expiry) < 120:
         raise Stopped("start_remaining", "origin_budget_below_120_seconds")
     _write(evidence / "remaining-services-attempt.json", {
         "state": "started", "automatic_retry": False,
         "platform_container_id": platform_id,
-        "source_expires_at": result["expires_at"],
+        "source_expires_at": source_expiry,
         "capacity_config_sha256": _sha(capacity_config),
     })
     core_base = ["/usr/bin/docker", "compose", "--project-directory", str(root),
@@ -617,7 +643,7 @@ def _start_remaining(root, first, final, result, evidence, capacity_config, capa
     _command("final_obs_config", [*obs_base, "config", "--quiet"], evidence, cwd=root, timeout=30)
     for name in ("memory", "gateway", "companion"):
         _platform_id(root, platform_id, first_core, evidence)
-        if _remaining(result["expires_at"]) < 45:
+        if _remaining(source_expiry) < 45:
             raise Stopped("start_" + name, "origin_budget_below_45_seconds")
         _command(
             "start_" + name,
@@ -626,7 +652,7 @@ def _start_remaining(root, first, final, result, evidence, capacity_config, capa
             evidence, cwd=root, timeout=120,
         )
         _platform_id(root, platform_id, first_core, evidence)
-    if _remaining(result["expires_at"]) <= 0:
+    if _remaining(source_expiry) <= 0:
         raise Stopped("start_observability", "origin_expired_before_observability")
     _command(
         "start_observability",
@@ -634,7 +660,7 @@ def _start_remaining(root, first, final, result, evidence, capacity_config, capa
         evidence, cwd=root, timeout=150,
     )
     _platform_id(root, platform_id, first_core, evidence)
-    if _remaining(result["expires_at"]) <= 0:
+    if _remaining(source_expiry) <= 0:
         raise Stopped("capacity_arm", "origin_expired_before_capacity_arm")
     arm = _json_command(
         "capacity_arm",
@@ -663,12 +689,12 @@ def _start_remaining(root, first, final, result, evidence, capacity_config, capa
     if guarded.get("status") != "ready":
         raise Stopped("capacity_status", "capacity_guard_not_ready")
     _platform_id(root, platform_id, first_core, evidence)
-    if _remaining(result["expires_at"]) <= 0:
+    if _remaining(source_expiry) <= 0:
         raise Stopped("capacity_status", "origin_expired_before_ready")
     return {
         "status": "resident_services_started_pending_live_acceptance",
         "platform_container_id": platform_id,
-        "source_expires_at": result["expires_at"],
+        "source_expires_at": source_expiry,
         "capacity_guard": "ready",
         "release_ready": False,
     }

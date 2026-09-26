@@ -126,3 +126,21 @@ identity-before-exec and exact-ID tail invocation. The scoped suite passed
 17/17 with original-byte coordination contracts; Python 3.12 compile and
 `git diff --check` passed. Real NAS continuation and remaining services are
 pending.
+
+## Finalize first-export identity and renewal readback
+
+The next NAS attempt passed Platform `exec` preflight, the public issue and
+final export, but `finalize` compared the running Platform's original Compose
+path against the new final-export path. Exact stop succeeded. The origin later
+expired. `finalize` now requires the original first-export lock, checks its
+manifest/root and both Compose hashes against the verified final export, and
+uses the first Compose path for exact Platform container identity. The public
+CLI accepts `--first-export-lock`; activation and reauthorization pass it
+internally. `_start_remaining` selects `final-export-after-renewal.json` when
+the existing reauthorization receipt is present, validates its expiry/ref hash
+and the matching public result, retains the original Platform ID, and enforces
+the existing live expiry budget. This branch did not reissue or run NAS. Local
+tests cover first-path identity, first-stack mutation refusal, renewed receipt
+selection and stale initial result refusal. The scoped suite passed 19/19 with
+original-byte coordination contracts; `finalize --help`, Python 3.12 compile
+and `git diff --check` passed.

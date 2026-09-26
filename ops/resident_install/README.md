@@ -83,7 +83,8 @@ is unavailable and the report says so; no placeholder provider is created.
    readback fails after issue, leave all other services stopped. An operator
    may diagnose the one attempt and explicitly run
    `python -m ops.resident_install.install finalize --bundle-root BUNDLE
-   --export-lock NEW_LOCK` after a fresh A3 export; `issue` is never retried
+   --export-lock NEW_LOCK --first-export-lock FIRST_EXPORT_LOCK` after a fresh
+   A3 export; `issue` is never retried
    by `activate`.
 5. Use the final export for Dockge import and separately reviewed startup of
    Memory, Gateway, Companion and OBS. Authenticate live readiness before
