@@ -11,6 +11,7 @@ import argparse
 import hashlib
 import json
 import os
+import posixpath
 import re
 import shutil
 import socket
@@ -33,6 +34,18 @@ SERVICES = {
 ALL_KEYS = frozenset(f"{project}/{service}" for project, names in SERVICES.items() for service in names)
 GIB = 1024**3
 DEFAULT_LIMIT = 20 * GIB
+DOCKER_CALL_SECONDS = 10
+DOCKER_BATCH_INSPECT_SECONDS = 15
+MAX_TERM_SECONDS = 120
+# Initial inventory; nine update/readbacks; nine readback/TERMs; the terminal
+# wait plus one final inventory; and a 60 s allowance for state fsync/scheduling.
+MAX_FAIL_CLOSE_SECONDS = (
+    DOCKER_CALL_SECONDS + DOCKER_BATCH_INSPECT_SECONDS
+    + 9 * 2 * DOCKER_CALL_SECONDS
+    + 9 * 2 * DOCKER_CALL_SECONDS
+    + MAX_TERM_SECONDS + DOCKER_CALL_SECONDS + DOCKER_BATCH_INSPECT_SECONDS
+    + 60
+)
 ID = re.compile(r"[0-9a-f]{64}\Z")
 IMAGE = re.compile(r".+@sha256:[0-9a-f]{64}\Z")
 INSPECT_FORMAT = "[" + ",".join(
@@ -62,6 +75,7 @@ class Config:
     compose: dict
     platform_first_compose: dict
     images: dict
+    binds: dict
     free_paths: tuple[Path, ...]
     min_free_bytes: int = DEFAULT_LIMIT
     max_deployment_bytes: int = DEFAULT_LIMIT
@@ -76,6 +90,7 @@ class Config:
                 "workdir": (self.platform_first_compose if service == "platform" else self.compose[project])["workdir"],
                 "compose_file": (self.platform_first_compose if service == "platform" else self.compose[project])["file"],
                 "image": self.images[service],
+                "binds": self.binds[service],
             }
             for project, names in SERVICES.items()
             for service in names
@@ -92,7 +107,7 @@ class Container:
     image: str | None
     status: str | None
     restart: str | None
-    mounts: tuple[tuple[str, str], ...]
+    mounts: tuple[tuple[str, str, str, bool], ...]
 
     @classmethod
     def parse(cls, raw):
@@ -105,7 +120,17 @@ class Container:
         for mount in mounts:
             if not isinstance(mount, dict):
                 raise Unsafe("docker_metadata_invalid")
-            pairs.append((mount.get("Type"), mount.get("Source")))
+            if (
+                not isinstance(mount.get("Type"), str)
+                or not isinstance(mount.get("Source"), str)
+                or not isinstance(mount.get("Destination"), str)
+                or type(mount.get("RW")) is not bool
+            ):
+                raise Unsafe("docker_metadata_invalid")
+            pairs.append((
+                mount.get("Type"), mount.get("Source"),
+                mount.get("Destination"), mount.get("RW"),
+            ))
         return cls(*raw[:8], tuple(pairs))
 
 
@@ -125,9 +150,17 @@ def _owned(container: Container, signatures: dict, root: str) -> bool:
         for field in ("project", "service", "workdir", "compose_file", "image")
     ):
         return False
-    binds = [(kind, source) for kind, source in container.mounts if kind == "bind"]
-    return bool(binds) and all(_within(source, root) for _, source in binds) and all(
-        kind in {"bind", "tmpfs"} for kind, _ in container.mounts
+    if any(kind == "bind" and type(writable) is not bool for kind, _, _, writable in container.mounts):
+        return False
+    actual = sorted(
+        (source, target, not writable)
+        for kind, source, target, writable in container.mounts if kind == "bind"
+    )
+    expected = sorted((item["source"], item["target"], item["read_only"]) for item in signature["binds"])
+    return (
+        bool(actual) and actual == expected
+        and all(_within(source, root) for source, _, _ in actual)
+        and all(kind in {"bind", "tmpfs"} for kind, _, _, _ in container.mounts)
     )
 
 
@@ -141,7 +174,7 @@ def classify(containers: list[Container], signatures: dict, root: str):
                 conflicts.append("resident_identity_conflict")
             else:
                 owned[key] = container
-        elif any(kind == "bind" and _within(source, root) for kind, source in container.mounts):
+        elif any(kind == "bind" and _within(source, root) for kind, source, _, _ in container.mounts):
             conflicts.append("foreign_deployment_mount")
     return owned, conflicts
 
@@ -165,7 +198,7 @@ class Docker:
     def __init__(self, binary: str):
         self.prefix = [binary, "--host", "unix:///var/run/docker.sock"]
 
-    def _run(self, *args, timeout=25):
+    def _run(self, *args, timeout=DOCKER_CALL_SECONDS):
         try:
             result = subprocess.run(
                 [*self.prefix, *args], capture_output=True, timeout=timeout, check=False
@@ -183,7 +216,7 @@ class Docker:
             raise Unsafe("docker_inventory_invalid")
         if not ids:
             return []
-        lines = self._run("inspect", "--format", INSPECT_FORMAT, *ids, timeout=40).splitlines()
+        lines = self._run("inspect", "--format", INSPECT_FORMAT, *ids, timeout=DOCKER_BATCH_INSPECT_SECONDS).splitlines()
         if len(lines) != len(ids):
             raise Unsafe("docker_inventory_changed")
         try:
@@ -228,6 +261,28 @@ def _safe_path(raw, *, must_exist=True):
     return path
 
 
+def _validate_limits(value):
+    for name, lower, upper in (
+        ("min_free_bytes", DEFAULT_LIMIT, 1024 * GIB),
+        ("max_deployment_bytes", GIB, DEFAULT_LIMIT),
+        ("poll_seconds", 1, 10),
+        ("term_timeout_seconds", 10, MAX_TERM_SECONDS),
+    ):
+        number = value.get(name)
+        if type(number) is not int or not lower <= number <= upper:
+            raise Unsafe("capacity_config_invalid")
+
+
+def _compose_entry(entry, root: Path):
+    if not isinstance(entry, dict) or set(entry) != {"workdir", "file"}:
+        raise ValueError()
+    workdir = _safe_path(entry["workdir"])
+    file = _safe_path(entry["file"])
+    if workdir != root or not workdir.is_dir() or not file.is_file():
+        raise ValueError()
+    return {"workdir": str(workdir), "file": str(file)}
+
+
 def load_config(path: Path):
     path = _safe_path(path)
     if os.name != "posix" or os.geteuid() != 0:
@@ -240,7 +295,7 @@ def load_config(path: Path):
         value = json.loads(raw)
         if not isinstance(value, dict) or set(value) != {
             "deployment_root", "state_dir", "docker_binary", "compose",
-            "platform_first_compose", "images", "free_paths",
+            "platform_first_compose", "images", "binds", "free_paths",
             "min_free_bytes", "max_deployment_bytes", "poll_seconds", "term_timeout_seconds",
         }:
             raise ValueError()
@@ -255,17 +310,9 @@ def load_config(path: Path):
         if set(value["compose"]) != set(SERVICES):
             raise ValueError()
         compose = {}
-        def compose_entry(entry):
-            if set(entry) != {"workdir", "file"}:
-                raise ValueError()
-            workdir = _safe_path(entry["workdir"])
-            file = _safe_path(entry["file"])
-            if not workdir.is_dir() or not file.is_file() or file.parent != workdir:
-                raise ValueError()
-            return {"workdir": str(workdir), "file": str(file)}
         for project in SERVICES:
-            compose[project] = compose_entry(value["compose"][project])
-        platform_first = compose_entry(value["platform_first_compose"])
+            compose[project] = _compose_entry(value["compose"][project], root)
+        platform_first = _compose_entry(value["platform_first_compose"], root)
         if platform_first == compose[CORE]:
             raise ValueError()
         if not isinstance(value["free_paths"], list) or not value["free_paths"]:
@@ -277,17 +324,31 @@ def load_config(path: Path):
             raise ValueError()
         if any(not isinstance(image, str) or not IMAGE.fullmatch(image) for image in value["images"].values()):
             raise ValueError()
-        for name, lower, upper in (
-            ("min_free_bytes", GIB, 1024 * GIB),
-            ("max_deployment_bytes", GIB, 1024 * GIB),
-            ("poll_seconds", 1, 10),
-            ("term_timeout_seconds", 10, 300),
-        ):
-            number = value[name]
-            if type(number) is not int or not lower <= number <= upper:
+        if set(value["binds"]) != set(value["images"]):
+            raise ValueError()
+        binds = {}
+        for service, entries in value["binds"].items():
+            if not isinstance(entries, list) or not entries:
                 raise ValueError()
+            normalized = []
+            for entry in entries:
+                if not isinstance(entry, dict) or set(entry) != {"source", "target", "read_only"}:
+                    raise ValueError()
+                source = _safe_path(entry["source"])
+                target = entry["target"]
+                if (
+                    not _within(str(source), str(root)) or not isinstance(target, str)
+                    or not target.startswith("/") or posixpath.normpath(target) != target
+                    or type(entry["read_only"]) is not bool
+                ):
+                    raise ValueError()
+                normalized.append({"source": str(source), "target": target, "read_only": entry["read_only"]})
+            if len({entry["target"] for entry in normalized}) != len(normalized):
+                raise ValueError()
+            binds[service] = normalized
+        _validate_limits(value)
         config = Config(
-            root, state_dir, docker, compose, platform_first, value["images"],
+            root, state_dir, docker, compose, platform_first, value["images"], binds,
             (root, Path(compose[CORE]["workdir"]), Path(compose[OBS]["workdir"]),
              Path(platform_first["workdir"]), *free_paths),
             value["min_free_bytes"], value["max_deployment_bytes"],

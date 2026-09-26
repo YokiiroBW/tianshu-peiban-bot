@@ -64,14 +64,18 @@ class ResidentCapacityTests(unittest.TestCase):
         }
         platform_first = {"workdir": str(first), "file": str(first / "compose.yaml")}
         images = {service: service + "@sha256:" + "a" * 64 for names in guard.SERVICES.values() for service in names}
-        self.config = guard.Config(root, state, Path("/usr/bin/docker"), compose, platform_first, images, (root,), 20 * guard.GIB, 20 * guard.GIB, 5, 10)
+        binds = {}
+        for service in images:
+            (root / service).mkdir()
+            binds[service] = [{"source": str(root / service), "target": f"/mnt/{service}", "read_only": False}]
+        self.config = guard.Config(root, state, Path("/usr/bin/docker"), compose, platform_first, images, binds, (root,), 20 * guard.GIB, 20 * guard.GIB, 5, 10)
         self.containers = []
         for index, key in enumerate(sorted(guard.ALL_KEYS), 1):
             signature = self.config.signatures()[key]
             self.containers.append(guard.Container(
                 f"{index:064x}", signature["project"], signature["service"],
                 signature["workdir"], signature["compose_file"], signature["image"],
-                "running", "unless-stopped", (("bind", str(root / signature["service"])),),
+                "running", "unless-stopped", (("bind", str(root / signature["service"]), f"/mnt/{signature['service']}", True),),
             ))
         self.docker = FakeDocker(self.containers)
 
@@ -110,10 +114,27 @@ class ResidentCapacityTests(unittest.TestCase):
                 guard.arm(self.config, "a" * 64, self.docker)
         self.assertFalse((self.config.state_dir / "armed.json").exists())
 
+    def test_project_workdir_may_differ_from_export_file_directory(self):
+        entry = {"workdir": str(self.config.root), "file": self.config.compose[guard.CORE]["file"]}
+        self.assertEqual(guard._compose_entry(entry, self.config.root), entry)
+        with self.assertRaises(ValueError):
+            guard._compose_entry(self.config.compose[guard.CORE], self.config.root)
+
     def test_project_name_alone_never_authorizes_foreign_container(self):
         wrong = replace(self.containers[0], workdir="/another/project", id="f" * 64)
         with self.assertRaisesRegex(guard.Unsafe, "resident_identity_conflict"):
             guard.assess([*self.containers, wrong], self.config.signatures(), str(self.config.root))
+
+    def test_missing_or_wrong_bind_is_identity_conflict(self):
+        original = self.containers[0]
+        for mounts in (
+            (),
+            (("bind", str(self.config.root / original.service), "/wrong-target", True),),
+            (("bind", str(self.config.root / original.service), f"/mnt/{original.service}", False),),
+        ):
+            altered = replace(original, mounts=mounts)
+            with self.assertRaisesRegex(guard.Unsafe, "resident_identity_conflict"):
+                guard.assess([altered, *self.containers[1:]], self.config.signatures(), str(self.config.root))
 
     def test_changed_id_or_failed_service_refuses_running_sample(self):
         self.docker.containers[self.containers[0].id] = replace(self.containers[0], status="exited")
@@ -133,6 +154,17 @@ class ResidentCapacityTests(unittest.TestCase):
         with patch.object(guard, "capacity", return_value=(1, 20 * guard.GIB)):
             with self.assertRaisesRegex(guard.Unsafe, "host_free_floor_reached"):
                 guard.sample(self.config, self._marker(), self.docker)
+
+    def test_weaker_than_fixed_allocation_is_rejected(self):
+        values = {"min_free_bytes": 20 * guard.GIB, "max_deployment_bytes": 20 * guard.GIB,
+                  "poll_seconds": 5, "term_timeout_seconds": 120}
+        guard._validate_limits(values)
+        for key, weak in (("min_free_bytes", guard.GIB),
+                          ("max_deployment_bytes", 1024 * guard.GIB),
+                          ("term_timeout_seconds", 300)):
+            with self.subTest(key=key):
+                with self.assertRaisesRegex(guard.Unsafe, "capacity_config_invalid"):
+                    guard._validate_limits({**values, key: weak})
 
     def test_fail_close_updates_restart_then_terms_only_exact_owned(self):
         self._write_marker()
@@ -246,8 +278,13 @@ class ResidentCapacityTests(unittest.TestCase):
         self.assertIn("Type=notify", unit)
         self.assertIn("WatchdogSec=30s", unit)
         self.assertIn("ExecStopPost=", unit)
+        self.assertIn("TimeoutStopSec=600s", unit)
+        self.assertLess(guard.MAX_FAIL_CLOSE_SECONDS, 600)
         schema = json.loads((Path(__file__).parents[2] / "ops/resident_capacity/config.schema.json").read_text(encoding="utf-8"))
         self.assertEqual(schema["properties"]["deployment_root"]["const"], guard.DEPLOYMENT_ROOT)
+        self.assertGreaterEqual(schema["properties"]["min_free_bytes"]["minimum"], 20 * guard.GIB)
+        self.assertLessEqual(schema["properties"]["max_deployment_bytes"]["maximum"], 20 * guard.GIB)
+        self.assertLessEqual(schema["properties"]["term_timeout_seconds"]["maximum"], guard.MAX_TERM_SECONDS)
 
 
 if __name__ == "__main__":

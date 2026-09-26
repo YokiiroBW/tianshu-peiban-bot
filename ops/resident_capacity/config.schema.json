@@ -5,7 +5,7 @@
   "additionalProperties": false,
   "required": [
     "deployment_root", "state_dir", "docker_binary", "compose",
-    "platform_first_compose", "images", "free_paths", "min_free_bytes",
+    "platform_first_compose", "images", "binds", "free_paths", "min_free_bytes",
     "max_deployment_bytes", "poll_seconds", "term_timeout_seconds"
   ],
   "properties": {
@@ -41,11 +41,30 @@
         "obs-guard": {"$ref": "#/$defs/image"}
       }
     },
+    "binds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platform", "companion", "memory", "gateway", "obs-vector",
+        "obs-loki", "obs-grafana", "obs-prometheus", "obs-guard"
+      ],
+      "properties": {
+        "platform": {"$ref": "#/$defs/bind_list"},
+        "companion": {"$ref": "#/$defs/bind_list"},
+        "memory": {"$ref": "#/$defs/bind_list"},
+        "gateway": {"$ref": "#/$defs/bind_list"},
+        "obs-vector": {"$ref": "#/$defs/bind_list"},
+        "obs-loki": {"$ref": "#/$defs/bind_list"},
+        "obs-grafana": {"$ref": "#/$defs/bind_list"},
+        "obs-prometheus": {"$ref": "#/$defs/bind_list"},
+        "obs-guard": {"$ref": "#/$defs/bind_list"}
+      }
+    },
     "free_paths": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^/"}},
-    "min_free_bytes": {"type": "integer", "minimum": 1073741824, "maximum": 1099511627776},
-    "max_deployment_bytes": {"type": "integer", "minimum": 1073741824, "maximum": 1099511627776},
+    "min_free_bytes": {"type": "integer", "minimum": 21474836480, "maximum": 1099511627776},
+    "max_deployment_bytes": {"type": "integer", "minimum": 1073741824, "maximum": 21474836480},
     "poll_seconds": {"type": "integer", "minimum": 1, "maximum": 10},
-    "term_timeout_seconds": {"type": "integer", "minimum": 10, "maximum": 300}
+    "term_timeout_seconds": {"type": "integer", "minimum": 10, "maximum": 120}
   },
   "$defs": {
     "compose_origin": {
@@ -53,10 +72,21 @@
       "additionalProperties": false,
       "required": ["workdir", "file"],
       "properties": {
-        "workdir": {"type": "string", "pattern": "^/"},
+        "workdir": {"type": "string", "const": "/volume2/tianshu-v2-resident"},
         "file": {"type": "string", "pattern": "^/"}
       }
     },
-    "image": {"type": "string", "pattern": "^.+@sha256:[0-9a-f]{64}$"}
+    "image": {"type": "string", "pattern": "^.+@sha256:[0-9a-f]{64}$"},
+    "bind_list": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/bind"}},
+    "bind": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "target", "read_only"],
+      "properties": {
+        "source": {"type": "string", "pattern": "^/volume2/tianshu-v2-resident(?:/|$)"},
+        "target": {"type": "string", "pattern": "^/"},
+        "read_only": {"type": "boolean"}
+      }
+    }
   }
 }

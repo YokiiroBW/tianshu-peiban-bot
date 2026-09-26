@@ -4,8 +4,9 @@ This is one fixed-deployment guard for `tianshu-v2-resident` and
 `tianshu-v2-resident-obs`. It does not collect logs, delete data, or read
 secret contents. It counts file metadata below the deployment root and checks
 free space on every deployment filesystem and on the configured `free_paths`.
-The default intended thresholds are 20 GiB deployment bytes and 20 GiB free
-on **each** checked filesystem. A threshold breach or measurement/identity
+The configuration requires a deployment budget no greater than 20 GiB and
+at least 20 GiB free on **each** checked filesystem; stricter values are
+allowed. A threshold breach or measurement/identity
 failure latches the deployment and stops only precisely identified resident
 containers. There is no automatic resume.
 
@@ -16,13 +17,21 @@ validator. The expected deployment root is `/volume2/tianshu-v2-resident`;
 the real path is still an explicit input. `compose` contains the actual
 `com.docker.compose.project.working_dir` and
 `com.docker.compose.project.config_files` label values for both final stacks.
-`platform_first_compose` contains the **different, exact** first-export label
-values of the already-running Platform container. Those values are never
-wildcards or prefixes. `images` lists the nine digest-pinned `.Config.Image`
-values from the locked resident export. `free_paths` must name all host filesystems
+Because the installer uses `--project-directory`, all three `workdir` values
+are the deployment root while their `file` values point to separate first/final
+export files. `platform_first_compose` contains the **different, exact**
+first-export file of the already-running Platform container. Those values are
+never wildcards or prefixes. `images` lists the nine digest-pinned
+`.Config.Image` values from the locked resident export. `binds` lists **all**
+`type=bind` mounts of each of the nine services as objects with `source`,
+`target`, and boolean `read_only`; use the first export for Platform and the
+final export for the other eight. The guard matches Docker's selected mount
+metadata, including target and RW bit. `free_paths` must name all host filesystems
 whose free space the operator wants protected, including the Docker data root
 if it is outside the deployment tree. The guard also checks the deployment
-root and all three Compose workdirs. It reads file metadata, never file data.
+root and any mounted filesystems found below it. Include the external Compose
+volume in `free_paths` when it needs the same floor. It reads file metadata,
+never file data.
 
 The current expected root and project names are fixed in the code. The first
 export path and Docker binary path must be read from the actual host; do not
@@ -91,6 +100,14 @@ If another container replaces a locked ID, the guard reports it as unconfirmed
 and does not automatically stop that replacement under a reused project name.
 Once latched, the loop cannot return to ready or rearm without an explicit
 review and a new state generation.
+
+The configured TERM wait is at most 120 seconds. Docker commands time out at
+10 seconds each and the batch inspect at 15 seconds. The calculated upper
+bound for external Docker waits plus TERM polling is 530 seconds; the unit's
+`TimeoutStopSec=600s` leaves 70 seconds for state writes and scheduling.
+A hung kernel filesystem operation has no guaranteed Python timeout, so the
+systemd stop result and receipt still need live readback. The unit never
+claims a stop solely because its deadline elapsed.
 
 For one explicit recovery with the **same nine IDs**, first verify the old
 `failure.json` and every `stop-*.json`, read back that all nine are exited with
