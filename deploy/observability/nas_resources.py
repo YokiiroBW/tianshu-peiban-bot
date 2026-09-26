@@ -11,6 +11,7 @@ def require(condition, code):
 
 KIND = "nas-cpuset-qa-v1"
 LAN_KIND = "nas-cpuset-lan-qa-v1"
+RESIDENT_KIND = "nas-cpuset-resident-v1"
 
 
 def network_plan(root, subnets):
@@ -48,7 +49,8 @@ def validate(profile):
         "resource_profile_shape",
     )
     require(
-        profile["kind"] in {KIND, LAN_KIND} and profile["pid_limit"] == "unsupported",
+        profile["kind"] in {KIND, LAN_KIND, RESIDENT_KIND}
+        and profile["pid_limit"] == "unsupported",
         "resource_profile_invalid",
     )
     cpus = profile["cpus"]
@@ -59,6 +61,8 @@ def validate(profile):
         "resource_cpu_set_invalid",
     )
     require(cpus == sorted(set(cpus)), "resource_cpu_set_invalid")
+    if profile["kind"] == RESIDENT_KIND:
+        require(cpus == [6, 7], "resident_cpu_set_mismatch")
     return profile
 
 
@@ -131,10 +135,16 @@ def bind(root, profile):
         metadata["compose_inputs"].get("resource_profile") == profile,
         "nas_profile_core_binding_mismatch",
     )
-    require(
-        metadata["project_name"].startswith("tianshu-qa-"), "nas_profile_synthetic_only"
-    )
-    if profile["kind"] == LAN_KIND:
+    resident = profile["kind"] == RESIDENT_KIND
+    if resident:
+        require(metadata["project_name"] == "tianshu-v2-resident", "resident_project_required")
+        require(metadata["compose_inputs"].get("public_web") is True, "resident_public_web_required")
+        require(metadata["compose_inputs"].get("a1_loopback_api_ports") is None, "resident_loopback_api_ports_refused")
+    else:
+        require(
+            metadata["project_name"].startswith("tianshu-qa-"), "nas_profile_synthetic_only"
+        )
+    if profile["kind"] in {LAN_KIND, RESIDENT_KIND}:
         from urllib.parse import urlsplit
 
         address = ipaddress.ip_address(metadata["compose_inputs"]["bind_address"])
@@ -146,10 +156,10 @@ def bind(root, profile):
             ),
             "nas_lan_profile_explicit_private_address_required",
         )
-        require(
-            urlsplit(metadata["compose_inputs"]["web_origin"]).hostname == str(address),
-            "nas_lan_origin_address_mismatch",
-        )
+        origin = urlsplit(metadata["compose_inputs"]["web_origin"])
+        require(origin.hostname == str(address), "nas_lan_origin_address_mismatch")
+        if resident:
+            require(origin.scheme == "http", "resident_http_ip_origin_required")
     else:
         require(
             metadata["compose_inputs"]["bind_address"] == "127.0.0.1",
@@ -158,8 +168,8 @@ def bind(root, profile):
     require(
         set(metadata["tls_provenance"])
         == {"platform", "companion", "memory", "gateway"}
-        and all(v == "isolated_test" for v in metadata["tls_provenance"].values()),
-        "nas_profile_test_tls_only",
+        and all(v == ("operator_supplied" if resident else "isolated_test") for v in metadata["tls_provenance"].values()),
+        "resident_operator_tls_required" if resident else "nas_profile_test_tls_only",
     )
     return profile
 

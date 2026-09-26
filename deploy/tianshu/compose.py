@@ -9,7 +9,7 @@ from configuration import (
     validate_a1_loopback_api_ports,
 )
 from manifest import PRODUCTS
-from resource_profile import constrain
+from resource_profile import RESIDENT_KIND, constrain
 
 
 def bind(source, target, readonly=True):
@@ -117,7 +117,9 @@ def compose_document(manifest, site):
             "pids_limit": 128,
             "mem_limit": "1g",
             "cpus": "2.0",
-            "restart": "no",
+            "restart": "unless-stopped"
+            if (site.get("resource_profile") or {}).get("kind") == RESIDENT_KIND
+            else "no",
             "scale": 1,
             "stop_signal": "SIGTERM",
             "stop_grace_period": "30s",

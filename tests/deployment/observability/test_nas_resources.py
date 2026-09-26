@@ -92,6 +92,37 @@ class NasResourcesTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "nas_lan_origin_address_mismatch"):
             bind(self.root, profile)
 
+    def test_resident_profile_requires_exact_project_lan_http_and_operator_tls(self):
+        profile = {**PROFILE, "kind": "nas-cpuset-resident-v1"}
+        self.metadata.update(project_name="tianshu-v2-resident")
+        self.metadata["compose_inputs"].update(
+            resource_profile=profile,
+            bind_address="192.168.31.210",
+            web_origin="http://192.168.31.210:18443",
+            public_web=True,
+        )
+        self.metadata["tls_provenance"] = dict.fromkeys(
+            ("platform", "companion", "memory", "gateway"), "operator_supplied"
+        )
+        self.write_metadata()
+        self.assertEqual(bind(self.root, profile), profile)
+        for section, key, value in (
+            ("metadata", "project_name", "tianshu-qa-nas-observe"),
+            ("compose_inputs", "bind_address", "127.0.0.1"),
+            ("compose_inputs", "web_origin", "https://192.168.31.210:18443"),
+            ("compose_inputs", "public_web", False),
+            ("tls_provenance", "platform", "isolated_test"),
+        ):
+            original = copy.deepcopy(self.metadata)
+            target = self.metadata if section == "metadata" else self.metadata[section]
+            target[key] = value
+            self.write_metadata()
+            with self.subTest(section=section, key=key), self.assertRaises(ValueError):
+                bind(self.root, profile)
+            self.metadata = original
+        with self.assertRaisesRegex(ValueError, "resident_cpu_set_mismatch"):
+            validate({**profile, "cpus": [4, 5]})
+
     def test_actual_resource_mismatches_rejected(self):
         spec = {"cpuset": "6,7", "mem_limit": "768m"}
         config = {

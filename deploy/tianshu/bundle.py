@@ -34,6 +34,7 @@ TOOLS = (
     "configuration.py",
     "compose.py",
     "resource_profile.py",
+    "resident_export.py",
     "network_plan.py",
     "bundle.py",
     "runtime_guard.py",
@@ -391,23 +392,33 @@ def preflight(root, release=False, runtime=False, *, core_only=False):
     from urllib.parse import urlsplit
 
     metadata = read_json(root / "deployment.json")
-    from resource_profile import validate, validate_bind
+    from resource_profile import RESIDENT_KIND, validate, validate_bind
 
     profile = validate(metadata["compose_inputs"].get("resource_profile"))
     if profile is not None:
-        require(not release, "nas_qa_profile_not_release_approved")
+        resident = profile["kind"] == RESIDENT_KIND
         require(
-            metadata["project_name"].startswith(
-                ("tianshu-qa-", "tianshu-accept-a3-")
-            ),
-            "nas_profile_synthetic_only",
+            not release,
+            "resident_not_release_approved" if resident else "nas_qa_profile_not_release_approved",
         )
+        if resident:
+            require(metadata["project_name"] == "tianshu-v2-resident", "resident_project_required")
+            require(metadata["compose_inputs"].get("public_web") is True, "resident_public_web_required")
+            require(metadata["compose_inputs"].get("a1_loopback_api_ports") is None, "resident_loopback_api_ports_refused")
+            require(metadata["compose_inputs"].get("auxiliary_subnets") is not None, "resident_auxiliary_subnets_required")
+        else:
+            require(
+                metadata["project_name"].startswith(
+                    ("tianshu-qa-", "tianshu-accept-a3-")
+                ),
+                "nas_profile_synthetic_only",
+            )
         validate_bind(
             profile, metadata["compose_inputs"]["bind_address"], metadata["web_origin"]
         )
         require(
-            all(v == "isolated_test" for v in metadata["tls_provenance"].values()),
-            "nas_profile_test_tls_only",
+            all(v == ("operator_supplied" if resident else "isolated_test") for v in metadata["tls_provenance"].values()),
+            "resident_operator_tls_required" if resident else "nas_profile_test_tls_only",
         )
     require(
         read_json(root / "compose.json")
@@ -498,7 +509,8 @@ def preflight(root, release=False, runtime=False, *, core_only=False):
             ],
         }
     return {
-        "status": "package_valid",
+        "status": "resident_candidate" if profile and profile["kind"] == RESIDENT_KIND else "package_valid",
+        **({"acceptance": "pending_live_acceptance"} if profile and profile["kind"] == RESIDENT_KIND else {}),
         "release_ready": False,
         "checks": checks,
         "blockers": failures,

@@ -75,7 +75,7 @@ def shape(document, fields, code):
 
 def load_inputs(path):
     site = read_json(path)
-    from resource_profile import validate, validate_bind
+    from resource_profile import RESIDENT_KIND, validate, validate_bind
 
     require(isinstance(site, dict), "inputs_shape_invalid")
     profile = validate(site.get("resource_profile"))
@@ -105,21 +105,29 @@ def load_inputs(path):
         "inputs_shape_invalid",
     )
     if profile is not None:
-        require(
-            isinstance(site["project_name"], str)
-            and site["project_name"].startswith(
-                ("tianshu-qa-", "tianshu-accept-a3-")
-            ),
-            "nas_profile_synthetic_only",
-        )
+        resident = profile["kind"] == RESIDENT_KIND
+        if resident:
+            require(site["project_name"] == "tianshu-v2-resident", "resident_project_required")
+            require(site.get("public_web") is True, "resident_public_web_required")
+            require(site.get("a1_loopback_api_ports") is None, "resident_loopback_api_ports_refused")
+            require(site.get("auxiliary_subnets") is not None, "resident_auxiliary_subnets_required")
+        else:
+            require(
+                isinstance(site["project_name"], str)
+                and site["project_name"].startswith(
+                    ("tianshu-qa-", "tianshu-accept-a3-")
+                ),
+                "nas_profile_synthetic_only",
+            )
         validate_bind(profile, site["bind_address"], site["web_origin"])
         require(
             isinstance(site["tls"], dict)
             and all(
-                isinstance(v, dict) and v.get("provenance") == "isolated_test"
+                isinstance(v, dict)
+                and v.get("provenance") == ("operator_supplied" if resident else "isolated_test")
                 for v in site["tls"].values()
             ),
-            "nas_profile_test_tls_only",
+            "resident_operator_tls_required" if resident else "nas_profile_test_tls_only",
         )
     require(
         bool(re.fullmatch(r"tianshu-[a-z0-9-]{3,40}", site["project_name"])),

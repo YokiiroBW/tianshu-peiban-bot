@@ -6,9 +6,25 @@ from urllib.parse import urlsplit
 
 KIND = "nas-cpuset-qa-v1"
 LAN_KIND = "nas-cpuset-lan-qa-v1"
+RESIDENT_KIND = "nas-cpuset-resident-v1"
 
 
 def validate_bind(profile, address, origin):
+    if profile["kind"] == RESIDENT_KIND:
+        address = ipaddress.ip_address(address)
+        require(
+            address.version == 4
+            and any(address in ipaddress.ip_network(n) for n in (
+                "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"
+            )),
+            "resident_private_ipv4_required",
+        )
+        parsed = urlsplit(origin)
+        require(
+            parsed.scheme == "http" and parsed.hostname == str(address),
+            "resident_http_ip_origin_required",
+        )
+        return
     if profile["kind"] != LAN_KIND:
         require(address == "127.0.0.1", "nas_profile_loopback_only")
         return
@@ -34,7 +50,8 @@ def validate(profile):
         "resource_profile_shape",
     )
     require(
-        profile["kind"] in {KIND, LAN_KIND} and profile["pid_limit"] == "unsupported",
+        profile["kind"] in {KIND, LAN_KIND, RESIDENT_KIND}
+        and profile["pid_limit"] == "unsupported",
         "resource_profile_invalid",
     )
     cpus = profile["cpus"]
@@ -45,6 +62,8 @@ def validate(profile):
         "resource_cpu_set_invalid",
     )
     require(cpus == sorted(set(cpus)), "resource_cpu_set_invalid")
+    if profile["kind"] == RESIDENT_KIND:
+        require(cpus == [6, 7], "resident_cpu_set_mismatch")
     return profile
 
 

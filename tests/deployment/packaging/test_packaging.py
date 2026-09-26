@@ -3,6 +3,7 @@
 import contextlib
 import copy
 import io
+import ipaddress
 import json
 import os
 import shutil
@@ -84,7 +85,9 @@ def certificates(target, names, *, bad_name=False, expired=False, other_ca=False
             .add_extension(
                 x509.SubjectAlternativeName(
                     [
-                        x509.DNSName(n)
+                        x509.IPAddress(ipaddress.ip_address(n))
+                        if n.replace(".", "").isdigit()
+                        else x509.DNSName(n)
                         for n in (["wrong.test"] if bad_name else names[product])
                     ]
                 ),
