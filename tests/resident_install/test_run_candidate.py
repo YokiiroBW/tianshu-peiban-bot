@@ -18,6 +18,9 @@ class ResidentRunnerReceiptTests(unittest.TestCase):
             base = Path(directory)
             root = base / "prepared-root"
             root.mkdir()
+            for category in ("data", "logs"):
+                for product in run_candidate.PRODUCTS:
+                    (root / category / product).mkdir(parents=True)
             manifest = root / "release-manifest.json"
             manifest.write_bytes(b"{}")
             integrity = root / "bundle-integrity.json"
@@ -52,11 +55,15 @@ class ResidentRunnerReceiptTests(unittest.TestCase):
                   mock.patch.object(run_candidate, "PREPARED_BUNDLE_INTEGRITY_SHA256",
                                     hashlib.sha256(integrity.read_bytes()).hexdigest()),
                   mock.patch.object(run_candidate, "verify_integrity"),
-                  mock.patch.object(run_candidate, "_clean_install"),
                   mock.patch.object(run_candidate, "load_manifest", return_value={}),
                   mock.patch.object(run_candidate, "check_contracts")):
                 receipt = run_candidate._resume_prepared(root, args)
                 self.assertIn("prepare_receipt_sha256", receipt)
+                (root / "data" / "platform" / "unexpected.sqlite").write_bytes(b"x")
+                with self.assertRaisesRegex(run_candidate.Stopped,
+                                            "prepared_mutable_layout_changed"):
+                    run_candidate._resume_prepared(root, args)
+                (root / "data" / "platform" / "unexpected.sqlite").unlink()
                 (prior / "first_export-attempt.json").write_text("{}")
                 with self.assertRaisesRegex(run_candidate.Stopped,
                                             "later_stage_evidence_present"):
