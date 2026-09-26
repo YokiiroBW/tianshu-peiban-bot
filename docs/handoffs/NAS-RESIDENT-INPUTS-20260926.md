@@ -19,7 +19,8 @@ branch: `codex/nas-resident-inputs-20260926`.
   the public A1/OBS/A3 interfaces. Its optional full-start phase checks the
   original Platform ID and origin expiry between stages and arms A2 only after
   all nine services are running. Ordinary failures after activation trigger
-  exact-ID fail-closed cleanup; no automatic retry or deletion occurs.
+  serial, exact-ID fail-closed cleanup. An uncertain CLI or stop state requires
+  manual inspection; no automatic retry, SIGKILL or deletion occurs.
 - `REAL-DEPLOYMENT.md` gives paths, hashes, commands and failure boundary.
 
 ## Actual local verification
@@ -34,10 +35,10 @@ branch: `codex/nas-resident-inputs-20260926`.
   Windows harness, the actual public A1 prepare, OBS configure and A3 export
   completed with the real inputs. This is offline export evidence, not a live
   NAS activation.
-- Generated `.runtime/nas-resident/capacity-prepared-v1` from that export and
+- Generated `.runtime/nas-resident/capacity-prepared-v2` from that export and
   A2 fixed commit `1edf794e8ee7936f41e97fd01c6e3190c2d15bdd`;
   JSON Schema validation passed. Config SHA-256:
-  `e5a8d3fc7fa13507943000eac1a2a538b4545c0c54b9652c80b967901e8a3b63`.
+  `c0cf7314a5bd987182728b2679ba21cde9d79d0dfedf5d2f88ae0ab235c16b26`.
   Rendered unit SHA-256:
   `77620ca2c757484a09288bf52a427a94f316757219987bb3a4e8c914181d1f63`.
 - Python 3.12 `compileall` and the three CLIs' `--help` completed; staged
@@ -47,7 +48,7 @@ branch: `codex/nas-resident-inputs-20260926`.
 
 Coordinator integrates A2 and this branch, verifies the final tooling Git
 objects, copies only `.runtime/nas-resident/prepared-real-v1`, `plan.real.json`,
-`capacity-prepared-v1` and original contracts into a fresh NAS tooling root,
+`capacity-prepared-v2` and original contracts into a fresh NAS tooling root,
 and installs the byte-identical systemd unit inactive. Before running, repeat
 the live host preflight. A4 reviews the actual final lock, both Compose files,
 bundle, live administrator login and A2 ready status before acceptance.

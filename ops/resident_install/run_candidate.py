@@ -17,11 +17,13 @@ import socket
 import stat
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 DEPLOYMENT_ROOT = Path("/volume2/tianshu-v2-resident")
+CAPACITY_UNIT_SHA256 = "77620ca2c757484a09288bf52a427a94f316757219987bb3a4e8c914181d1f63"
 FIXED_INPUT_HASHES = {
     "plan": "1f2406873734c0deb7fa3108af3cd6df1efd0eea306401549810aa878b565412",
     "release-manifest.json": "8762c8d6ce660868cdd79374960139c64013586d63eb271484d51b541e8a3ab0",
@@ -38,10 +40,11 @@ from manifest import Refused, check_contracts, load_manifest  # noqa: E402
 
 
 class Stopped(Exception):
-    def __init__(self, stage, code):
+    def __init__(self, stage, code, *, effects_unconfirmed=False):
         super().__init__(code)
         self.stage = stage
         self.code = code
+        self.effects_unconfirmed = effects_unconfirmed
 
 
 def _read(path):
@@ -61,20 +64,56 @@ def _sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+def _local_docker_environment():
+    """Pin all descendant Docker calls, including those inside public A1 CLIs."""
+    for name in tuple(os.environ):
+        if name.startswith(("DOCKER_", "COMPOSE_")):
+            del os.environ[name]
+    os.environ["DOCKER_HOST"] = "unix:///var/run/docker.sock"
+    os.environ["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+
 def _command(stage, command, evidence, *, cwd=ROOT, timeout=180):
     _write(evidence / (stage + "-attempt.json"), {
         "stage": stage, "state": "started", "automatic_retry": False,
     })
     try:
-        process = subprocess.run(
-            command, cwd=cwd, capture_output=True, timeout=timeout, check=False,
+        process = subprocess.Popen(
+            command, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
         )
-    except (OSError, subprocess.TimeoutExpired):
-        raise Stopped(stage, "command_unavailable_or_timeout") from None
+    except OSError:
+        raise Stopped(stage, "command_unavailable") from None
+    try:
+        stdout, stderr = process.communicate(timeout=timeout)
+    except (subprocess.TimeoutExpired, KeyboardInterrupt):
+        # Only the direct CLI process is signalled. Its descendants and Docker
+        # daemon effects may persist, even if it exits after TERM.
+        try:
+            process.terminate()
+        except OSError:
+            pass
+        try:
+            process.communicate(timeout=30)
+            parent_state = "exited_after_term"
+        except (subprocess.TimeoutExpired, OSError):
+            parent_state = "unconfirmed_after_term"
+        try:
+            _write(evidence / (stage + "-effects-unconfirmed.json"), {
+                "stage": stage, "state": "effects_unconfirmed",
+                "cli_pid": process.pid, "cli_parent_state": parent_state,
+                "automatic_cleanup": False,
+            })
+        except OSError:
+            pass
+        raise Stopped(stage, "effects_unconfirmed_after_timeout_or_interrupt",
+                      effects_unconfirmed=True) from None
+    except OSError:
+        raise Stopped(stage, "effects_unconfirmed_after_cli_io_failure",
+                      effects_unconfirmed=True) from None
     # The command receives secrets by protected file path. Keep diagnostics
     # private because an unexpected upstream error could include input values.
-    for suffix, raw in (("stdout", process.stdout), ("stderr", process.stderr)):
+    for suffix, raw in (("stdout", stdout), ("stderr", stderr)):
         with (evidence / (stage + "." + suffix)).open("xb") as stream:
             os.chmod(stream.name, 0o600)
             stream.write(raw)
@@ -194,16 +233,20 @@ def _capacity_unit_preflight(args):
         raise Stopped("live_preflight", "capacity_unit_name_invalid")
     installed = Path("/etc/systemd/system") / args.capacity_unit
     if (not installed.is_file() or installed.is_symlink()
-            or _sha(installed) != _sha(args.capacity_unit_file)):
+            or _sha(installed) != CAPACITY_UNIT_SHA256
+            or _sha(args.capacity_unit_file) != CAPACITY_UNIT_SHA256):
         raise Stopped("live_preflight", "capacity_unit_install_mismatch")
     raw = _read_only([
         "/usr/bin/systemctl", "show", args.capacity_unit,
         "--property=FragmentPath", "--property=LoadState", "--property=ActiveState",
+        "--property=DropInPaths", "--property=NeedDaemonReload",
     ]).decode("utf-8", "strict")
     state = dict(line.split("=", 1) for line in raw.splitlines() if "=" in line)
     if (state.get("FragmentPath") != str(installed)
             or state.get("LoadState") != "loaded"
-            or state.get("ActiveState") != "inactive"):
+            or state.get("ActiveState") != "inactive"
+            or state.get("DropInPaths") != ""
+            or state.get("NeedDaemonReload") != "no"):
         raise Stopped("live_preflight", "capacity_unit_not_loaded_inactive")
 
 
@@ -292,7 +335,7 @@ def _capacity_config_matches(root, first, final, capacity_config):
                     "workdir": str(root), "file": str(first_core),
                 } or value["deployment_root"] != str(root)
                 or value["state_dir"] != "/volume2/tianshu-v2-resident-tooling/capacity-state"
-                or value["docker_binary"] != "/usr/bin/docker"
+                or value["docker_binary"] != "/volume2/@appstore/ContainerManager/usr/bin/docker"
                 or "/volume2/@docker" not in value["free_paths"]
                 or value["min_free_bytes"] != 20 * 1024**3
                 or value["max_deployment_bytes"] != 20 * 1024**3
@@ -398,8 +441,10 @@ def _start_remaining(root, first, final, result, evidence, capacity_config, capa
         "source_expires_at": result["expires_at"],
         "capacity_config_sha256": _sha(capacity_config),
     })
-    core_base = ["docker", "compose", "--project-directory", str(root), "-f", str(core)]
-    obs_base = ["docker", "compose", "--project-directory", str(root), "-f", str(obs)]
+    core_base = ["/usr/bin/docker", "compose", "--project-directory", str(root),
+                 "-p", CORE_PROJECT, "-f", str(core)]
+    obs_base = ["/usr/bin/docker", "compose", "--project-directory", str(root),
+                "-p", OBS_PROJECT, "-f", str(obs)]
     _command("final_core_config", [*core_base, "config", "--quiet"], evidence, cwd=root, timeout=30)
     _command("final_obs_config", [*obs_base, "config", "--quiet"], evidence, cwd=root, timeout=30)
     for name in ("memory", "gateway", "companion"):
@@ -433,7 +478,7 @@ def _start_remaining(root, first, final, result, evidence, capacity_config, capa
         raise Stopped("capacity_arm", "nine_container_guard_arm_required")
     _command(
         "capacity_unit_start", ["/usr/bin/systemctl", "start", capacity_unit],
-        evidence, timeout=40,
+        evidence, timeout=90,
     )
     active = _command(
         "capacity_unit_active", ["/usr/bin/systemctl", "is-active", capacity_unit],
@@ -450,6 +495,8 @@ def _start_remaining(root, first, final, result, evidence, capacity_config, capa
     if guarded.get("status") != "ready":
         raise Stopped("capacity_status", "capacity_guard_not_ready")
     _platform_id(root, platform_id, first_core, evidence)
+    if _remaining(result["expires_at"]) <= 0:
+        raise Stopped("capacity_status", "origin_expired_before_ready")
     return {
         "status": "resident_services_started_pending_live_acceptance",
         "platform_container_id": platform_id,
@@ -548,17 +595,24 @@ def _exact_stop(root, first, final, evidence):
                 raise Stopped("exact_stop", "restart_policy_disable_unconfirmed")
             if running:
                 _command(
-                    "cleanup_stop_" + service + "_" + container_id[:12],
-                    ["/usr/bin/docker", "stop", "--time", "30", container_id],
-                    evidence, cwd=root, timeout=45,
+                    "cleanup_term_" + service + "_" + container_id[:12],
+                    ["/usr/bin/docker", "kill", "--signal=TERM", container_id],
+                    evidence, cwd=root, timeout=30,
                 )
-            observed = _read_only([
-                "/usr/bin/docker", "inspect", "--format", "{{.State.Running}}",
-                container_id,
-            ]).strip()
-            if observed != b"false":
-                raise Stopped("exact_stop", "container_stop_unconfirmed")
+            deadline = time.monotonic() + 120
+            while True:
+                observed = _read_only([
+                    "/usr/bin/docker", "inspect", "--format", "{{.State.Running}}",
+                    container_id,
+                ], seconds=10).strip()
+                if observed == b"false":
+                    break
+                if observed != b"true" or time.monotonic() >= deadline:
+                    raise Stopped("exact_stop", "container_term_unconfirmed")
+                time.sleep(1)
         except (Stopped, OSError, ValueError, TypeError) as error:
+            if isinstance(error, Stopped) and error.effects_unconfirmed:
+                raise
             stop_errors.append({"container_id": container_id,
                                 "code": error.code if isinstance(error, Stopped)
                                 else "stop_or_readback_failed"})
@@ -577,29 +631,46 @@ def _exact_stop(root, first, final, evidence):
 
 
 def _fail_closed(root, first, final, evidence, capacity_config, capacity_unit):
-    """Try A2's locked-ID stop, then verify/stop A1's exact project IDs."""
+    """Finish the unit's ExecStopPost writer before invoking a fallback writer."""
     state_dir = _read(capacity_config).get("state_dir")
-    guard_result = "unconfirmed"
-    if isinstance(state_dir, str) and Path(state_dir).is_absolute():
-        try:
-            _command(
-                "capacity_fail_close",
-                [sys.executable, "-B", "-m", "ops.resident_capacity.guard",
-                 "fail-close", "--state-dir", state_dir,
-                 "--reason", "startup_failure"],
-                evidence, timeout=60,
-            )
-            guard_result = "called"
-        except Stopped:
-            guard_result = "failed_or_unarmed"
+    if not isinstance(state_dir, str) or not Path(state_dir).is_absolute():
+        return {"guard_fail_close": "unconfirmed_invalid_state_dir",
+                "capacity_unit_stop": "not_attempted", "exact_stop": "not_attempted",
+                "manual_stop_required": True}
     try:
         _command(
             "capacity_unit_stop", ["/usr/bin/systemctl", "stop", capacity_unit],
-            evidence, timeout=30,
+            evidence, timeout=720,
         )
-        unit_result = "stopped"
-    except Stopped:
-        unit_result = "unconfirmed"
+        raw = _read_only([
+            "/usr/bin/systemctl", "show", capacity_unit,
+            "--property=ActiveState", "--property=Job",
+        ], seconds=15).decode("utf-8", "strict")
+        fields = dict(line.split("=", 1) for line in raw.splitlines() if "=" in line)
+        if fields.get("ActiveState") != "inactive" or fields.get("Job") not in {"", "0"}:
+            raise Stopped("capacity_unit_stop", "unit_stop_readback_unconfirmed")
+    except (Stopped, UnicodeError) as error:
+        return {"guard_fail_close": "not_attempted",
+                "capacity_unit_stop": "unconfirmed:" + (
+                    error.code if isinstance(error, Stopped) else "unit_state_invalid"),
+                "exact_stop": "not_attempted", "manual_stop_required": True}
+    try:
+        guarded = _json_command(
+            "capacity_fail_close",
+            [sys.executable, "-B", "-m", "ops.resident_capacity.guard",
+             "fail-close", "--state-dir", state_dir,
+             "--reason", "startup_failure"],
+            evidence, timeout=660,
+        )
+    except Stopped as error:
+        return {"guard_fail_close": "unconfirmed:" + error.code,
+                "capacity_unit_stop": "stopped", "exact_stop": "not_attempted",
+                "manual_stop_required": True}
+    guard_result = guarded.get("status")
+    if guard_result not in {"stopped", "unarmed"}:
+        return {"guard_fail_close": "unconfirmed_status",
+                "capacity_unit_stop": "stopped", "exact_stop": "not_attempted",
+                "manual_stop_required": True}
     try:
         stop = _exact_stop(root, first, final, evidence)
         stop_result = stop["status"]
@@ -608,10 +679,12 @@ def _fail_closed(root, first, final, evidence, capacity_config, capacity_unit):
             error.code if isinstance(error, Stopped) else "inspection_or_stop_failed"
         )
     return {"guard_fail_close": guard_result, "exact_stop": stop_result,
-            "capacity_unit": capacity_unit, "capacity_unit_stop": unit_result}
+            "capacity_unit": capacity_unit, "capacity_unit_stop": "stopped",
+            "manual_stop_required": stop_result != "exact_containers_stopped"}
 
 
 def run(args):
+    _local_docker_environment()
     plan = _read(args.plan)
     root = _check_paths(args, plan)
     if args.start_remaining:
@@ -673,7 +746,11 @@ def run(args):
             failure if isinstance(failure, Stopped)
             else Stopped("runtime", "unexpected_or_interrupted_stage_failure")
         )
-        if args.start_remaining and activated is not None:
+        if error.effects_unconfirmed:
+            cleanup = {"exact_stop": "not_attempted_after_uncertain_cli_effects",
+                       "capacity_unit_stop": "not_attempted",
+                       "manual_stop_required": True}
+        elif args.start_remaining and activated is not None:
             cleanup = _fail_closed(root, args.first_export, args.final_export,
                                    evidence, args.capacity_config, args.capacity_unit)
         elif activation_attempted:
@@ -682,7 +759,8 @@ def run(args):
                     root, args.first_export, args.final_export, evidence,
                 )["status"]}
             except (Stopped, OSError, ValueError, KeyError, TypeError) as stop_error:
-                cleanup = {"exact_stop": "unconfirmed", "code": (
+                cleanup = {"exact_stop": "unconfirmed", "manual_stop_required": True,
+                           "code": (
                     stop_error.code if isinstance(stop_error, Stopped)
                     else "inspection_or_stop_failed")}
         else:
@@ -691,6 +769,7 @@ def run(args):
             "state": "needs_diagnosis", "stage": error.stage,
             "code": error.code, "automatic_retry": False,
             "cleanup": cleanup,
+            "manual_stop_required": cleanup.get("manual_stop_required", False),
             "release_ready": False,
         })
         raise
