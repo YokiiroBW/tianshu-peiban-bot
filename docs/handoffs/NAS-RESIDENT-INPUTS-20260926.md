@@ -60,3 +60,14 @@ immediate exact-ID inspection/stop. No provider is configured, so model
 dialogue remains unavailable and `release_ready` remains false.
 
 See `ops/resident_install/REAL-DEPLOYMENT.md` for the copy layout and command.
+
+## Post-prepare NAS correction
+
+The first NAS run completed A1 `prepare` but the runner failed while parsing
+the captured receipt because `_command` returned the stdout stream object.
+The follow-up returns stdout bytes, parses complete JSON, and provides an
+explicit `--resume-after-prepare` path for the exact recorded evidence and
+bundle SHA. It uses a new evidence directory, checks the original receipt and
+bundle read-only, then skips `prepare`. Default fresh-root checks remain in
+force. The isolated real child JSON receipt regression test passes. NAS
+continuation and live acceptance remain with the coordinator.

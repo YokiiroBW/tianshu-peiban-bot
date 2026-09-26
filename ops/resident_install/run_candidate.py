@@ -1,6 +1,7 @@
 """Linux resident candidate sequence using only public product/deployment CLIs.
 
-This entry requires a new root and the real, complete inputs from real_inputs.
+The normal entry requires a new root and complete inputs from real_inputs.
+An explicit one-shot resume is confined to the recorded post-prepare failure.
 It never retries a failed stage or removes a partially created deployment.
 The optional remaining-service phase is explicit and stays in this process so
 the original 300-second Platform origin is checked at each step.
@@ -23,6 +24,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 DEPLOYMENT_ROOT = Path("/volume2/tianshu-v2-resident")
+PREPARE_RESUME_EVIDENCE = Path("/volume2/tianshu-v2-resident-tooling/evidence/first-install")
+PREPARE_RESUME_OUTPUT = Path("/volume2/tianshu-v2-resident-tooling/evidence/resume-after-prepare-20260926")
+PREPARED_BUNDLE_INTEGRITY_SHA256 = "0b8f2068b6f62512f526dcd225e4e38f9b8c315aa65bd71d27cc9a73d4011b55"
 CAPACITY_UNIT_SHA256 = "77620ca2c757484a09288bf52a427a94f316757219987bb3a4e8c914181d1f63"
 FIXED_INPUT_HASHES = {
     "plan": "1f2406873734c0deb7fa3108af3cd6df1efd0eea306401549810aa878b565412",
@@ -33,10 +37,11 @@ FIXED_INPUT_HASHES = {
 sys.path.insert(0, str(ROOT))
 
 from ops.resident_install.install import (  # noqa: E402
-    CORE_PROJECT, OBS_PROJECT, _docker_occupants,
+    CORE_PROJECT, OBS_PROJECT, _clean_install, _docker_occupants,
 )
 from ops.resident_install.real_inputs import _pins, _plan  # noqa: E402
-from manifest import Refused, check_contracts, load_manifest  # noqa: E402
+from bundle import verify_integrity  # noqa: E402
+from manifest import Refused, check_contracts, load_manifest, no_links  # noqa: E402
 
 
 class Stopped(Exception):
@@ -119,7 +124,7 @@ def _command(stage, command, evidence, *, cwd=ROOT, timeout=180):
             stream.write(raw)
     if process.returncode != 0:
         raise Stopped(stage, "command_failed")
-    return process.stdout
+    return stdout
 
 
 def _receipt(stage, command, evidence, expected, *, timeout=180):
@@ -132,8 +137,10 @@ def _receipt(stage, command, evidence, expected, *, timeout=180):
 def _json_command(stage, command, evidence, *, cwd=ROOT, timeout=180):
     raw = _command(stage, command, evidence, cwd=cwd, timeout=timeout)
     try:
-        result = json.loads(raw.splitlines()[-1])
-    except (UnicodeError, ValueError, IndexError):
+        result = json.loads(raw)
+        if not isinstance(result, dict):
+            raise ValueError()
+    except (UnicodeError, ValueError, TypeError):
         raise Stopped(stage, "receipt_invalid") from None
     return result
 
@@ -144,8 +151,20 @@ def _check_paths(args, plan):
     if _sha(args.plan) != FIXED_INPUT_HASHES["plan"]:
         raise Stopped("preflight", "reviewed_nas_plan_hash_required")
     if (os.name != "posix" or sys.version_info < (3, 12) or os.geteuid() != 0
-            or root != DEPLOYMENT_ROOT or root.exists() or not root.parent.is_dir()):
+            or root != DEPLOYMENT_ROOT or not root.parent.is_dir()):
         raise Stopped("preflight", "python312_fresh_linux_root_and_privileged_operator_required")
+    if args.resume_after_prepare:
+        if (not root.is_dir() or root.is_symlink()
+                or args.prior_evidence is None
+                or not args.prior_evidence.is_absolute()
+                or not args.prior_evidence.is_dir()
+                or args.prior_evidence.is_symlink()
+                or args.prior_evidence != PREPARE_RESUME_EVIDENCE
+                or args.evidence != PREPARE_RESUME_OUTPUT
+                or args.prior_evidence == args.evidence):
+            raise Stopped("preflight", "prepared_root_and_prior_evidence_required")
+    elif root.exists() or root.is_symlink() or args.prior_evidence is not None:
+        raise Stopped("preflight", "fresh_deployment_root_required")
     for output in (args.first_export, args.final_export, args.evidence):
         if (not output.is_absolute() or output.exists() or not output.parent.is_dir()
                 or output.is_relative_to(root) or root.is_relative_to(output)):
@@ -214,6 +233,65 @@ def _check_paths(args, plan):
                    for name in ("vector", "loki", "grafana", "prometheus", "guard"))):
         raise Stopped("preflight", "real_observability_repo_digest_required")
     return root
+
+
+def _resume_prepared(root, args):
+    """Read-only gate for this exact post-prepare/pre-OBS failure boundary."""
+    prior = no_links(args.prior_evidence)
+    root = no_links(root)
+    expected = {
+        "run-attempt.json", "prepare-attempt.json", "prepare.stdout",
+        "prepare.stderr", "run-stopped.json",
+    }
+    if not all((prior / name).is_file() and not (prior / name).is_symlink()
+               for name in expected):
+        raise Stopped("resume", "prior_prepare_evidence_incomplete")
+    stage_files = {
+        path.name for path in prior.iterdir()
+        if path.name.endswith(("-attempt.json", ".stdout", ".stderr"))
+    }
+    if stage_files != expected - {"run-stopped.json"}:
+        raise Stopped("resume", "later_stage_evidence_present")
+    attempt = _read(prior / "run-attempt.json")
+    stopped = _read(prior / "run-stopped.json")
+    prepared = json.loads((prior / "prepare.stdout").read_bytes())
+    if (not all(isinstance(value, dict) for value in (attempt, stopped, prepared))
+            or attempt.get("state") != "started"
+            or attempt.get("automatic_retry") is not False
+            or attempt.get("deployment_root") != str(root)
+            or attempt.get("plan_sha256") != FIXED_INPUT_HASHES["plan"]
+            or attempt.get("start_remaining_requested") is not args.start_remaining
+            or _read(prior / "prepare-attempt.json") != {
+                "stage": "prepare", "state": "started", "automatic_retry": False,
+            }
+            or (prior / "prepare.stderr").stat().st_size != 0
+            or prepared.get("status") != "resident_candidate_prepared"
+            or prepared.get("bundle_root") != str(root)
+            or prepared.get("release_ready") is not False
+            or prepared.get("provider") != "not_configured"
+            or prepared.get("next_stage") != "export_fixed_sources_and_resident_compose"
+            or stopped.get("state") != "needs_diagnosis"
+            or stopped.get("stage") != "runtime"
+            or stopped.get("code") != "unexpected_or_interrupted_stage_failure"
+            or stopped.get("automatic_retry") is not False
+            or stopped.get("manual_stop_required") is not False
+            or stopped.get("cleanup") != {"exact_stop": "no_activation_attempt"}
+            or stopped.get("release_ready") is not False):
+        raise Stopped("resume", "exact_post_prepare_failure_evidence_required")
+    if ((root / "reports/resident-install").exists()
+            or (root / "observability/binding.json").exists()
+            or (root / "observability-input").exists()
+            or _sha(root / "bundle-integrity.json")
+            != PREPARED_BUNDLE_INTEGRITY_SHA256
+            or _sha(root / "release-manifest.json")
+            != FIXED_INPUT_HASHES["release-manifest.json"]):
+        raise Stopped("resume", "prepared_bundle_stage_changed")
+    verify_integrity(root)
+    _clean_install(root)
+    check_contracts(load_manifest(root / "release-manifest.json"), root / "contracts")
+    return {"prior_run_stopped_sha256": _sha(prior / "run-stopped.json"),
+            "prepare_receipt_sha256": _sha(prior / "prepare.stdout"),
+            "bundle_integrity_sha256": _sha(root / "bundle-integrity.json")}
 
 
 def _read_only(command, *, seconds=30):
@@ -687,6 +765,7 @@ def run(args):
     _local_docker_environment()
     plan = _read(args.plan)
     root = _check_paths(args, plan)
+    resume = _resume_prepared(root, args) if args.resume_after_prepare else None
     if args.start_remaining:
         _capacity_unit_preflight(args)
     _live_preflight(root, plan)
@@ -697,20 +776,25 @@ def run(args):
         "state": "started", "automatic_retry": False,
         "deployment_root": str(root), "plan_sha256": _sha(args.plan),
         "start_remaining_requested": args.start_remaining,
+        "resume_after_prepare": args.resume_after_prepare,
+        "prior_evidence": str(args.prior_evidence) if args.resume_after_prepare else None,
     })
+    if args.resume_after_prepare:
+        _write(evidence / "resume-readback.json", resume)
     python = sys.executable
     activated = None
     activation_attempted = False
     try:
-        _receipt("prepare", [
-            python, "-B", "-m", "ops.resident_install.install", "prepare",
-            "--manifest", str(args.inputs / "release-manifest.json"),
-            "--site", str(args.inputs / "site/deployment-input.json"),
-            "--contracts", str(args.contracts),
-            "--credentials", str(args.inputs / "runtime-secrets/credentials.json"),
-            "--admin-password-file", str(args.inputs / "runtime-secrets/admin-password.txt"),
-            "--admin-username", "admin", "--bundle-root", str(root),
-        ], evidence, "resident_candidate_prepared", timeout=180)
+        if not args.resume_after_prepare:
+            _receipt("prepare", [
+                python, "-B", "-m", "ops.resident_install.install", "prepare",
+                "--manifest", str(args.inputs / "release-manifest.json"),
+                "--site", str(args.inputs / "site/deployment-input.json"),
+                "--contracts", str(args.contracts),
+                "--credentials", str(args.inputs / "runtime-secrets/credentials.json"),
+                "--admin-password-file", str(args.inputs / "runtime-secrets/admin-password.txt"),
+                "--admin-username", "admin", "--bundle-root", str(root),
+            ], evidence, "resident_candidate_prepared", timeout=180)
         _set_runtime_permissions(root)
         _receipt("configure_observability", [
             python, "-B", "deploy/tianshu/release.py", "configure-observability",
@@ -781,6 +865,8 @@ def main(argv=None):
                  "root-repository", "first-export", "final-export", "evidence"):
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--start-remaining", action="store_true")
+    parser.add_argument("--resume-after-prepare", action="store_true")
+    parser.add_argument("--prior-evidence", type=Path)
     parser.add_argument("--capacity-config", type=Path)
     parser.add_argument("--capacity-unit-file", type=Path)
     parser.add_argument("--capacity-unit", default="tianshu-resident-capacity.service")

@@ -127,6 +127,33 @@ Omitting `--start-remaining` runs only through A1's final export and leaves
 Platform as the sole running candidate service for a staffed, bounded review.
 The short-lived origin still expires on its original 300-second schedule.
 
+## Exact post-prepare continuation
+
+The first NAS invocation stopped after the public `prepare` child succeeded:
+the runner had returned its stdout stream instead of the captured bytes. No
+OBS stage, export, activation, resident container or Platform origin was
+started. The correction returns bytes and parses the complete JSON receipt.
+The normal command above still requires a fresh, absent deployment root.
+
+For this one recorded state, use the same command and options above, changing
+only `--evidence` to the new, absent
+`/volume2/tianshu-v2-resident-tooling/evidence/resume-after-prepare-20260926`
+and adding:
+
+```text
+  --resume-after-prepare \
+  --prior-evidence /volume2/tianshu-v2-resident-tooling/evidence/first-install
+```
+
+The continuation requires the exact original prepare receipt, run-stopped
+classification, fixed bundle-integrity SHA, unchanged manifest, empty mutable
+state, absent OBS binding/input, absent first/final exports and a fresh new
+evidence directory. It rechecks the live host and requires no Docker occupants
+before continuing at runtime permissions. It never calls `prepare` again or
+edits the original evidence. The coordinator also verifies no old CLI or
+supervisor process remains before starting this command. A mismatch stops
+without creating the new evidence directory.
+
 ## Local evidence and remaining live work
 
 The local Python 3.12 generator created distinct credentials and the private
