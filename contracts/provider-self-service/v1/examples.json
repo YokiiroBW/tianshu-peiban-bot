@@ -1,0 +1,14 @@
+[
+  {"name":"empty_catalog","schema":"view_response","document":{"providers":[],"default":{"provider_id":null,"revision":0,"provider_revision":null,"configured":false}}},
+  {"name":"create_provider","schema":"save_request","document":{"client_id":"11111111-2222-3333-4444-555555555555","name":"Synthetic compatible service","protocol":"openai-chat-completions","base_url":"https://synthetic.example.invalid/v1","model_id":"","enabled":true,"api_key":"synthetic-test-only"}},
+  {"name":"saved_provider","schema":"provider","document":{"provider_id":"provider-fixture","name":"Synthetic compatible service","protocol":"openai-chat-completions","base_url":"https://synthetic.example.invalid/v1","model_id":"fixture-text-model","enabled":true,"revision":2,"has_key":true,"test":null}},
+  {"name":"manual_models","schema":"models_response","document":{"provider_id":"provider-fixture","revision":2,"models":["fixture-text-model"]}},
+  {"name":"tested_provider","schema":"test_response","document":{"provider_id":"provider-fixture","revision":2,"outcome":"succeeded","tested_at":1800000000}},
+  {"name":"selected_default","schema":"default_response","document":{"provider_id":"provider-fixture","provider_revision":2,"revision":1}},
+  {"name":"test_timeout","schema":"error","document":{"schema_version":1,"request_id":"request:synthetic","code":"timed_out","execution_state":"unknown","retryable":false}},
+  {"name":"select_turn","schema":"select_request","document":{"turn_id":"turn-fixture","actor_id":"actor-fixture","person_id":"person-fixture","audience":"self_private","conversation_id":"conversation-fixture","caller_service":"companion","workload":"companion.text"}},
+  {"name":"selected_turn","schema":"select_response","document":{"config_version":1000000001,"expires_at":1800003600,"revoked":false,"caller_service":"companion","workload":"companion.text"}},
+  {"name":"runtime_lookup","schema":"runtime_request","document":{"config_version":1000000001,"turn_id":"turn-fixture","caller_service":"companion","workload":"companion.text"}},
+  {"name":"private_runtime","schema":"runtime_response","document":{"config_version":1000000001,"provider_id":"provider-fixture","provider_revision":2,"protocol":"openai-chat-completions","base_url":"https://synthetic.example.invalid/v1","model_id":"fixture-text-model","api_key":"synthetic-test-only","usable_until":1800003600}},
+  {"name":"trusted_test","schema":"gateway_test_response","document":{"outcome":"succeeded"}}
+]

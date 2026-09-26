@@ -82,9 +82,9 @@ Deployment must isolate that network or add TLS without imposing HTTPS on the br
   workload:"companion.text"}`. `expires_at` is epoch seconds. The companion persists
   this version before Memory/generation; later default changes do not repin it.
 * Gateway `POST /internal/v1/provider-self-service/runtime` on platform:
-  `{config_version, provider_id, caller_service, workload, turn_id}`. The platform
+  `{config_version, caller_service, workload, turn_id}`. The platform
   authenticates the gateway, checks the exact published version, bound provider revision,
-  service/workload grant, live lease and revocation, then returns the private
+  turn ID and service/workload grant, live lease and revocation, then returns the private
   `{config_version, provider_id, provider_revision, protocol, base_url, model_id,
   api_key, usable_until}`. This response is never logged or cached beyond the request.
   The gateway reauthorizes after queue wait and immediately before upstream submission.
@@ -96,12 +96,14 @@ Deployment must isolate that network or add TLS without imposing HTTPS on the br
   valid nonempty completion, otherwise a fixed error code. The platform alone writes
   `record_test` with CAS after receiving this trusted result.
 
-The platform records immutable `(config_version, provider_id, provider_revision,
-credential_revision)` bindings. Replacing a key or URL never silently substitutes
+The platform records immutable `(config_version, provider_id, provider_revision)`
+publications and `(turn_id, scope_digest, config_version, caller_service, workload)`
+grants. Repeating a turn selection returns its original live grant or fails if that
+grant expired; it never repins the turn to a changed default. Replacing a key or URL never silently substitutes
 new credentials into a pinned old turn. Old versions may finish only while the bound
-credential revision and grant remain live; edit/disable/delete explicitly revokes
-affected versions. New defaults get bounded leases renewed automatically on demand
-before expiry (maximum 86400 seconds); users do not republish daily. A renewal makes
+credential revision and grant remain live; edit/disable/delete makes affected versions
+unusable through the revision check. New defaults get bounded one-hour leases renewed on
+demand before expiry; users do not republish daily. A renewal makes
 a new immutable version for future turns. Revocation is checked again after queueing.
 An expired or revoked pinned turn fails rather than selecting the new default.
 
