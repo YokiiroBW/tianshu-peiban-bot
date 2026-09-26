@@ -67,4 +67,23 @@ C1 交接记录提到 `600 passed / 8 skipped / 101 subtests`；本次独立复�
 
 ## 合并结论
 
-P1 两项、C1 admission pin 和 G1 已修复的代码问题在固定提交上通过了本次定向复核与隔离测试；U1 有限 diff 通过，但前端测试仅采信交接记录。当前后端不建议合并：C1 selector 预选使动态 source-sync 的已存在 duplicate 和同 collection append 依赖外部 selector 可用性，作者修复并补上串行及受控并发回归后，应只针对这些场景和真正新 turn 重新复核。企业 NAT64 前缀配置、内部服务 TLS/网络隔离及生产运行时装配是部署验收条件，和当前代码 blocker 分开跟踪。
+首次复核结论针对当时固定的 C1 `74dfda...`：后端暂不建议合并，等待本报告所述 C1 blocker 修复。后续复核结果见下节。
+
+## C1 blocker 跟进复核
+
+固定修复提交：`31677983798ba27b24d57925feab4774c2eec30f`（基于 `74dfdaefbd8c38a77d52ebbfb69a942d5c2b2963`）。只读核对了干净作者工作树，并从该 SHA 导出到独立 scratch 目录执行定向验证；没有改作者工作树。
+
+代码复核确认 `needs_model_reservation()` 在事务外按 actor 检查既有 inbox 与未到期的 collecting collection；selection 网络调用也在事务外。accepting 事务仍会重查 actor/collection 状态。selector 失败后会读取最新本地状态：若另一请求已提交 duplicate 或开放 collection，则有界重试并走本地复用；若竞争导致 collection 封口或首次 conversation 创建，则事务回滚后重新规划。`ingest()` 最多尝试三次，即初次加两次重试；持续冲突时新请求以 `dependency_unavailable` 结束，不会把未提交的 fanout 留在库中。
+
+独立验证结果：
+
+| 验证 | 结果 |
+| --- | --- |
+| 原先的隔离复现脚本 | 首条 accepted；新幂等键重放为 duplicate；新物理消息 append accepted；collection 有 2 条消息；selector 仅调用 1 次 |
+| `python -m unittest discover -s tests -p test_source_sync.py -v` | 22 passed；包含 6 个新增动态 selector 用例 |
+| `python -m unittest discover -s tests -p test_model_selection.py -v` | 11 passed |
+| `git diff --check 74dfda... 3167798...` | 通过 |
+
+新增用例分别覆盖：selector 故障期间的同物理新命令 duplicate、同 collection 追加和版本复用、物理消息重放时只为新 actor 选择、封口后的新默认版本、并发首次输入收敛到获胜 collection、迟到 selector 故障在 duplicate 已提交后仍返回 receipt，以及另一 actor 选择等待期间 collection 封口后重新按新默认选择。selector fixture 断言调用时数据库不在事务内；并发 duplicate 用例断言只有一份 inbox/collection 和同一 receipt，首输入竞争用例断言两条消息共用一个 collection。原隔离脚本的结果是独立复跑，不依赖作者交接中的测试摘要。
+
+基于固定 `3167798...` 和上述定向独立复核，本报告中的 C1 selector 预选 blocker **关闭**。之前 P1、G1 发现也已按固定提交关闭；本次限定范围内未发现剩余后端代码 blocker。作者报告的完整 C1 606 passed/8 skipped/101 subtests 与根联合 6 passed 未在本次 follow-up 再跑；部署 NAT64 前缀、内部服务 TLS/网络隔离及生产运行时装配仍是分开的部署验收条件。
