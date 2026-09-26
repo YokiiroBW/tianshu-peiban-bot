@@ -37,11 +37,11 @@ FIXED_INPUT_HASHES = {
 sys.path.insert(0, str(ROOT))
 
 from ops.resident_install.install import (  # noqa: E402
-    CORE_PROJECT, OBS_PROJECT, _clean_install, _docker_occupants,
+    CORE_PROJECT, OBS_PROJECT, _docker_occupants,
 )
 from ops.resident_install.real_inputs import _pins, _plan  # noqa: E402
 from bundle import verify_integrity  # noqa: E402
-from manifest import Refused, check_contracts, load_manifest, no_links  # noqa: E402
+from manifest import PRODUCTS, Refused, check_contracts, load_manifest, no_links  # noqa: E402
 
 
 class Stopped(Exception):
@@ -278,16 +278,24 @@ def _resume_prepared(root, args):
             or stopped.get("cleanup") != {"exact_stop": "no_activation_attempt"}
             or stopped.get("release_ready") is not False):
         raise Stopped("resume", "exact_post_prepare_failure_evidence_required")
-    if ((root / "reports/resident-install").exists()
-            or (root / "observability/binding.json").exists()
-            or (root / "observability-input").exists()
-            or _sha(root / "bundle-integrity.json")
+    if (any(path.exists() or path.is_symlink() for path in (
+            root / "reports", root / "INCOMPLETE", root / "observability",
+            root / "observability-input",
+        )) or _sha(root / "bundle-integrity.json")
             != PREPARED_BUNDLE_INTEGRITY_SHA256
             or _sha(root / "release-manifest.json")
             != FIXED_INPUT_HASHES["release-manifest.json"]):
         raise Stopped("resume", "prepared_bundle_stage_changed")
     verify_integrity(root)
-    _clean_install(root)
+    for category in ("data", "logs"):
+        base = no_links(root / category)
+        if (not base.is_dir()
+                or {member.name for member in base.iterdir()} != set(PRODUCTS)):
+            raise Stopped("resume", "prepared_mutable_layout_changed")
+        for product in PRODUCTS:
+            directory = no_links(base / product)
+            if not directory.is_dir() or any(directory.iterdir()):
+                raise Stopped("resume", "prepared_mutable_layout_changed")
     check_contracts(load_manifest(root / "release-manifest.json"), root / "contracts")
     return {"prior_run_stopped_sha256": _sha(prior / "run-stopped.json"),
             "prepare_receipt_sha256": _sha(prior / "prepare.stdout"),

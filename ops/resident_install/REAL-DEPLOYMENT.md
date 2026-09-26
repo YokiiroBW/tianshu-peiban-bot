@@ -147,7 +147,9 @@ and adding:
 
 The continuation requires the exact original prepare receipt, run-stopped
 classification, fixed bundle-integrity SHA, unchanged manifest, empty mutable
-state, absent OBS binding/input, absent first/final exports and a fresh new
+state in the four product `data/` and `logs/` directories, absent OBS,
+`observability-input`, `INCOMPLETE` and `reports` directories, absent first/final
+exports and a fresh new
 evidence directory. It rechecks the live host and requires no Docker occupants
 before continuing at runtime permissions. It never calls `prepare` again or
 edits the original evidence. The coordinator also verifies no old CLI or

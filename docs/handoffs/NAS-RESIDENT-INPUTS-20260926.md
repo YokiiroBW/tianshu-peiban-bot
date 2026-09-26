@@ -71,3 +71,8 @@ bundle SHA. It uses a new evidence directory, checks the original receipt and
 bundle read-only, then skips `prepare`. Default fresh-root checks remain in
 force. The isolated real child JSON receipt regression test passes. NAS
 continuation and live acceptance remain with the coordinator.
+
+The initial resume gate used A1's later activation check, which expects OBS
+data directories that are only created during OBS configuration. The narrow
+correction checks the actual post-prepare layout: exactly four empty product
+directories under each of `data/` and `logs/`, with no OBS or reports tree.
