@@ -1,0 +1,20 @@
+[Unit]
+Description=TianShu resident capacity fail-close guard
+After=local-fs.target pkg-ContainerManager-dockerd.service
+
+[Service]
+Type=notify
+NotifyAccess=main
+User=root
+WorkingDirectory=@CODE_ROOT@
+ExecStart=@PYTHON@ -B -m ops.resident_capacity.guard run --config @CONFIG@
+ExecStopPost=@PYTHON@ -B -m ops.resident_capacity.guard fail-close --state-dir @STATE_DIR@ --reason=service_exit
+WatchdogSec=30s
+Restart=on-failure
+RestartSec=5s
+StartLimitInterval=0
+TimeoutStartSec=60s
+TimeoutStopSec=180s
+
+[Install]
+WantedBy=multi-user.target
