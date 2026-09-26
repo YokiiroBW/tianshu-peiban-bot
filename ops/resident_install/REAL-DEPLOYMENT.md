@@ -189,6 +189,16 @@ hashes are retained in `reports/resident-install/`. A timeout is classified as
 unconfirmed effects and requires manual exact-state inspection before any stop
 or retry. This continuation remains a candidate with `release_ready=false`.
 
+The recorded schema-2 continuation subsequently completed both Memory
+migrations and started a healthy Platform, then failed at `platform_preflight`:
+Compose `run` tried to create a second container on Platform's static IP.
+The coordinator stopped the exact container. **Do not repeat the schema-2
+continuation or either migration.** The corrected Platform preflight and
+public CLI use `compose exec -T` on the verified running container. An internal
+`_platform_activation_tail` allows the coordinator's supervised, fixed-state
+recovery to restart that exact stopped Platform ID and continue at preflight;
+the coordinator owns the evidence and live command for this new boundary.
+
 ## Local evidence and remaining live work
 
 The local Python 3.12 generator created distinct credentials and the private

@@ -79,6 +79,7 @@ LOCAL_CLI = (
     "'--credential-env','TS_ADMIN_TOKEN',sys.argv[1],'--input',f.name],"
     "capture_output=True,timeout=30)\n"
     " if p.returncode==0:sys.stdout.buffer.write(p.stdout)\n"
+    " else:sys.stderr.buffer.write(p.stderr)\n"
     " sys.exit(p.returncode)\n"
 )
 
@@ -685,16 +686,16 @@ def _step(work, name, command, *, cwd, input_bytes=None, seconds=90):
                 failure_evidence=(work, name))
 
 
-def _local(base, work, action, document, root, *, marker=None):
+def _local(base, work, action, document, root, *, marker=None, expected_id=None):
     frame = (json.dumps(document, ensure_ascii=False, separators=(",", ":")) + "\n").encode()
     require(len(frame) <= 1048576, "publication_too_large")
+    _platform_only(root, {CORE_PROJECT: Path(base[-1])}, expected_id=expected_id)
     _local_images_present({
         "platform": read_json(Path(base[-1]))["services"]["platform"]["image"],
     }, root)
     raw = _step(
         work, marker or action,
-        [*base, "run", "--rm", "--no-deps", "-T", "--entrypoint",
-         "python", "platform", "-c", LOCAL_CLI, action],
+        [*base, "exec", "-T", "platform", "python", "-c", LOCAL_CLI, action],
         cwd=root, input_bytes=frame, seconds=60,
     )
     try:
@@ -786,9 +787,63 @@ def _current_ref(root, expected_hash):
     return ref, (path, lines, matches[0], name)
 
 
+def _platform_activation_tail(root, work, images, stacks, publication, origin,
+                              repository, final_output, *,
+                              preflight_marker="platform_preflight", expected_id=None):
+    """Finish activation on one verified running Platform container."""
+    compose = stacks[CORE_PROJECT]
+    base = ["docker", "compose", "--project-directory", str(root), "-f", str(compose)]
+    _local_images_present({"platform": images["platform"]}, root)
+    platform_id = _platform_only(root, stacks, expected_id=expected_id)
+    _step(
+        work, preflight_marker,
+        [*base, "exec", "-T", "platform", "python", "-B", "-m",
+         "services.platform", "--settings",
+         "/etc/tianshu/settings.json", "preflight"],
+        cwd=root,
+    )
+    _platform_only(root, stacks, expected_id=platform_id)
+    if publication is not None:
+        _local(base, work, "publish", publication, root, expected_id=platform_id)
+    receipt = _local(base, work, "issue", {"entry_id": "config-entry"},
+                     root, expected_id=platform_id)
+    _platform_only(root, stacks, expected_id=platform_id)
+    expiry = _install_ref(root, receipt, origin)
+    _write_private(work / "result.json", {
+        "state": "authority_initialized_pending_final_export",
+        "issuer": "fixed_product_public_cli",
+        "gateway_ref": "private_file_only",
+        "gateway_ref_sha256": digest(receipt["assertion_ref"].encode()),
+        "expires_at": expiry,
+        "provider": "configured" if publication else "not_configured",
+        "functional_limit": None if publication else "model_dialogue_unavailable",
+        "running_services": ["platform"],
+        "platform_container_id": platform_id,
+        "automatic_retry": False,
+        "new_export_lock_required": True,
+        "release_ready": False,
+    })
+    _write_private(work / "final_export-attempt.json", {
+        "stage": "final_export", "state": "started", "automatic_retry": False,
+    })
+    _trusted_export(root, repository, final_output)
+    final = finalize(root, export_lock_path=final_output / "resident-export.lock.json")
+    return {
+        "status": "resident_first_install_export_verified",
+        "provider": "configured" if publication else "not_configured",
+        "gateway_ref": "private_file_only",
+        "expires_at": expiry,
+        "running_services": ["platform"],
+        "platform_container_id": platform_id,
+        "final_export": str(final_output),
+        "remaining_seconds_at_check": final["remaining_seconds_at_check"],
+        "release_ready": False,
+    }
+
+
 def _activation_steps(root, work, images, stacks, publication, origin,
                       repository, final_output, *, resuming=False):
-    """Shared single-pass activation tail; a resumed schema-2 uses new markers."""
+    """Shared single-pass activation; a resumed schema-2 uses new markers."""
     compose = stacks[CORE_PROJECT]
     base = ["docker", "compose", "--project-directory", str(root), "-f", str(compose)]
     _step(work, "compose_config_resume" if resuming else "compose_config",
@@ -812,54 +867,14 @@ def _activation_steps(root, work, images, stacks, publication, origin,
          "--wait", "--wait-timeout", "120", "platform"],
         cwd=root, seconds=180,
     )
-    _local_images_present({"platform": images["platform"]}, root)
-    _step(
-        work, "platform_preflight",
-        [*base, "run", "--rm", "--no-deps", "--entrypoint", "python",
-         "platform", "-B", "-m", "services.platform", "--settings",
-         "/etc/tianshu/settings.json", "preflight"],
-        cwd=root,
-    )
-    platform_id = _platform_only(root, stacks)
-    if publication is not None:
-        _local(base, work, "publish", publication, root)
-    receipt = _local(base, work, "issue", {"entry_id": "config-entry"}, root)
-    expiry = _install_ref(root, receipt, origin)
-    _write_private(work / "result.json", {
-        "state": "authority_initialized_pending_final_export",
-        "issuer": "fixed_product_public_cli",
-        "gateway_ref": "private_file_only",
-        "gateway_ref_sha256": digest(receipt["assertion_ref"].encode()),
-        "expires_at": expiry,
-        "provider": "configured" if publication else "not_configured",
-        "functional_limit": None if publication else "model_dialogue_unavailable",
-        "running_services": ["platform"],
-        "platform_container_id": platform_id,
-        "automatic_retry": False,
-        "new_export_lock_required": True,
-        "release_ready": False,
-    })
-    _write_private(work / "final_export-attempt.json", {
-        "stage": "final_export", "state": "started", "automatic_retry": False,
-    })
-    _trusted_export(root, repository, final_output)
-    final = finalize(root, export_lock_path=final_output / "resident-export.lock.json")
+    result = _platform_activation_tail(root, work, images, stacks, publication,
+                                       origin, repository, final_output)
     if resuming:
         _write_private(work / "schema2-resume-result.json", {
             "state": "resumed_and_final_export_verified",
             "original_failure": "failure.json", "release_ready": False,
         })
-    return {
-        "status": "resident_first_install_export_verified",
-        "provider": "configured" if publication else "not_configured",
-        "gateway_ref": "private_file_only",
-        "expires_at": expiry,
-        "running_services": ["platform"],
-        "platform_container_id": platform_id,
-        "final_export": str(final_output),
-        "remaining_seconds_at_check": final["remaining_seconds_at_check"],
-        "release_ready": False,
-    }
+    return result
 
 
 def activate(bundle_root, *, export_lock_path, export_repository,
@@ -1064,6 +1079,7 @@ def reauthorize(bundle_root, *, first_export_lock_path, export_repository,
         receipt = _local(
             base, work, "issue", {"entry_id": "config-entry"}, root,
             marker="reauthorization-issue",
+            expected_id=initial.get("platform_container_id"),
         )
         require(
             receipt.get("assertion_ref") != old_ref,
