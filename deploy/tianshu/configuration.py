@@ -30,6 +30,7 @@ DATABASE = {
 CA = "/etc/tianshu/tls/ca.pem"
 ENV_NAME = re.compile(r"[A-Z][A-Z0-9_]{2,95}\Z")
 ENV_KEYS = {
+    "setup_token_env",
     "token_env",
     "credential_env",
     "admin_token_env",
@@ -404,12 +405,7 @@ def validate_configs(configs, site, manifest):
         )
     else:
         require("web_access" not in p, "unexpected_public_web")
-    require(
-        set(p["web"]["password_hash"]) == {"$password_env"}
-        if isinstance(p["web"]["password_hash"], dict)
-        else False,
-        "password_env_required",
-    )
+    web_password_reference(p)
     admin = p["principals"][p["web"]["principal"]]
     require(
         admin["kind"] == "operator"
@@ -603,6 +599,35 @@ def validate_configs(configs, site, manifest):
         )
 
 
+def web_password_reference(platform):
+    """Bind either explicit first-run creation or an existing administrator."""
+    account = platform.get("web_account")
+    web = platform["web"]
+    if account is not None:
+        require(isinstance(account, dict), "web_account_invalid")
+        mode = account.get("mode")
+        if mode == "create":
+            require(
+                set(account) == {"mode", "setup_token_env"}
+                and isinstance(account["setup_token_env"], str)
+                and ENV_NAME.fullmatch(account["setup_token_env"])
+                and "username" not in web
+                and "password_hash" not in web,
+                "web_account_create_invalid",
+            )
+            others = {key: value for key, value in platform.items() if key != "web_account"}
+            require(account["setup_token_env"] not in references(others),
+                    "web_setup_credential_reused")
+            return None
+        require(mode == "claim" and set(account) == {"mode"}, "web_account_invalid")
+    password = web.get("password_hash")
+    require(isinstance(password, dict) and set(password) == {"$password_env"},
+            "password_env_required")
+    require(isinstance(web.get("username"), str) and bool(web["username"]),
+            "web_admin_invalid")
+    return password["$password_env"]
+
+
 def prepare_inputs(manifest, inputs_path, environ=None):
     environ = os.environ if environ is None else environ
     site = load_inputs(inputs_path)
@@ -611,7 +636,8 @@ def prepare_inputs(manifest, inputs_path, environ=None):
     validate_configs(configs, site, manifest)
     resolved, environments, materials = {}, {}, {}
     business_values, diagnostic_values, credential_names = set(), [], {}
-    password_reference = configs["platform"]["web"]["password_hash"]["$password_env"]
+    password_reference = web_password_reference(configs["platform"])
+    setup_reference = configs["platform"].get("web_account", {}).get("setup_token_env")
     for product in PRODUCTS:
         tls = site["tls"][product]
         shape(tls, {"certificate", "key", "ca", "provenance"}, "tls_input_invalid")
@@ -645,7 +671,7 @@ def prepare_inputs(manifest, inputs_path, environ=None):
                 )
             else:
                 require(
-                    16 <= len(value) <= 4096
+                    (24 if name == setup_reference else 16) <= len(value) <= 4096
                     and all(33 <= ord(ch) <= 126 for ch in value)
                     and "'" not in value
                     and "\\" not in value,

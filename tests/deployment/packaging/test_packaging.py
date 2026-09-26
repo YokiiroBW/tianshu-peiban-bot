@@ -259,6 +259,63 @@ class PackagingTests(unittest.TestCase):
             self.init()
         self.assertFalse(self.output.exists())
 
+    def first_run_account(self):
+        platform = self.configs["platform"]
+        platform["web_account"] = {"mode": "create", "setup_token_env": "TS_WEB_SETUP_TOKEN"}
+        del platform["web"]["username"]
+        del platform["web"]["password_hash"]
+        self.env["TS_WEB_SETUP_TOKEN"] = "SYNTHETIC_SETUP_ONLY_0123456789abcdef"
+        self.save_configs()
+
+    def test_first_run_bundle_has_setup_credential_but_no_precreated_login(self):
+        self.first_run_account()
+        result = self.init()
+        settings = json.loads((self.output / "config/platform/settings.json").read_text())
+        self.assertNotIn("username", settings["web"])
+        self.assertNotIn("password_hash", settings["web"])
+        self.assertEqual(settings["web_account"]["mode"], "create")
+        private = (self.output / "private/platform.env").read_text()
+        self.assertIn("TS_WEB_SETUP_TOKEN=", private)
+        self.assertNotIn("TS_ADMIN_PASSWORD", private)
+        public = json.dumps(result) + (self.output / "compose.json").read_text()
+        self.assertNotIn(self.env["TS_WEB_SETUP_TOKEN"], public)
+        self.assertNotIn(self.env["TS_WEB_SETUP_TOKEN"], json.dumps(settings))
+        self.assertEqual(list((self.output / "data").rglob("*.sqlite")), [])
+        self.assertEqual(preflight(self.output)["status"], "package_valid")
+
+    def test_first_run_missing_or_short_setup_credential_is_rejected_before_writes(self):
+        self.first_run_account()
+        del self.env["TS_WEB_SETUP_TOKEN"]
+        with self.assertRaisesRegex(Refused, "required_environment_missing"):
+            self.init()
+        self.assertFalse(self.output.exists())
+        self.env["TS_WEB_SETUP_TOKEN"] = "x" * 23
+        with self.assertRaisesRegex(Refused, "unsafe_environment_value"):
+            self.init()
+        self.assertFalse(self.output.exists())
+
+    def test_first_run_refuses_existing_login_and_reused_credential(self):
+        self.first_run_account()
+        self.configs["platform"]["web"]["username"] = "admin"
+        self.save_configs()
+        with self.assertRaisesRegex(Refused, "web_account_create_invalid"):
+            self.init()
+        del self.configs["platform"]["web"]["username"]
+        self.configs["platform"]["web_account"]["setup_token_env"] = "TS_ADMIN_TOKEN"
+        self.save_configs()
+        with self.assertRaisesRegex(Refused, "web_setup_credential_reused"):
+            self.init()
+        self.assertFalse(self.output.exists())
+
+    def test_claim_bundle_keeps_existing_password_for_authenticated_handover(self):
+        self.configs["platform"]["web_account"] = {"mode": "claim"}
+        self.save_configs()
+        self.init()
+        settings = json.loads((self.output / "config/platform/settings.json").read_text())
+        self.assertEqual(settings["web_account"], {"mode": "claim"})
+        self.assertTrue(settings["web"]["password_hash"].startswith("scrypt-v1$"))
+        self.assertNotIn("TS_WEB_SETUP_TOKEN", (self.output / "private/platform.env").read_text())
+
     def test_disabled_memory_and_internal_model_grant_are_explicit(self):
         from configuration import validate_configs
 
