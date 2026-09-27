@@ -3,6 +3,7 @@
   "spec": "docs/development/existing-capabilities-integration-2026-09-27.md",
   "coordinator": "01a0ddde-9e0f-7f40-a5c2-073b27a645ee",
   "nas_changed_this_wave": false,
+  "backend_review_candidate": {"commit":"347a15d87189f0269861d1e0d209b4748380926b","status":"independent_review_pending_not_integrated","reported_checks":"synthetic TLS 9 and existing web_console 8 passed; real Memory peer and persona release pending","api":"worktrees/CONNECT-B/tianshu-platform/docs/handoffs/CONNECT-B-API.md"},
   "threads": [
     {"role":"CONNECT-M","title":"已有功能贯通：记忆浏览与用户操作接口","threadId":"01a0e32c-4484-7753-9765-69c21a9e28c1","model":"gpt-6-sol","effort":"xhigh","worktree":"worktrees/CONNECT-M/tianshu-memory"},
     {"role":"CONNECT-B","title":"已有功能贯通：后端与内置服务连接","threadId":"01a0e324-f536-72a2-acaa-6764efd2360e","model":"gpt-6-sol","effort":"xhigh","worktree":"worktrees/CONNECT-B/tianshu-platform"},
