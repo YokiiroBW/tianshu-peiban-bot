@@ -11,3 +11,9 @@
 要求实际应用端口与 HTTP 验证：正确授权、跨actor拒绝、凭据撤销、来源失效、空态、分页一致性/游标、预算、运行入口；夹具隔离且说明不是 NAS 验收。保持已有核心链兼容。新增跨产品 JSON schema/示例先在本产品交接提出，经协调审核后根 contracts 单独发布，禁止修改旧冻结合同。
 
 协调：B 01a0e324-f536-72a2-acaa-6764efd2360e；U 01a0e324-f531-7842-abfc-b55e0472504e；A 01a0e324-fa67-73e2-8f50-133c9e7372bc；总控 01a0ddde-9e0f-7f40-a5c2-073b27a645ee。主动将 API 精确路径发 B/U，完成后发总控与 A 固定提交供验收。
+
+## 经验与交接补缺
+
+总控批准 M 对既有 lesson_query、experience_query、continuation_recover/continuation_check 及必要只读 check 做受限知识 HTTP 适配，B/U同步接项目经验交接页。先固定记忆浏览候选，再独立追加提交。禁止通用操作代理或直接扩大整份领域操作白名单。
+
+保持 KnowledgeApplication 的唯一业务规则，尤其经验审阅与一般 read 的权限差别；新增端点须明确操作授权，旧通用 read 不自动获得更多权限。Continuation 仅服务器登记的 checkout 别名，网页不能提交原始路径、Git命令或任意库，不触发 scan/apply/import/promotion。核实既有恢复/检查是否持久化密封记录，若有需明确说明并以用户主动读取触发，禁止自动轮询冒充无副作用。输出保留版本/指纹/来源新鲜度，不称过期交接代表当前工作树。提供有界响应、非空实际领域/HTTP测试、拒权与变化反例以及精确接口交接，供A审查。
