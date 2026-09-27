@@ -8,6 +8,10 @@ B 确认现有 Platform Origins.issue/resolve 可以复用，不新增伪造身�
 
 Memory 另设仅有 browse 权限的专用 caller 与 browser_reader，绑定实际账号、actor 和完整精确 scopes。模型选择、Companion、来源同步及浏览身份不得混用。浏览仅是既有身份系统中的独立受限调用；复用 purpose 名不授予写入或用户确认权限。签发前和异步响应返回前重校来源、账号/范围与会话。完整字段以 B/M 固定提交交接为准，必须有跨服务联合正反例后才发放现场权限。
 
+### 来源合同兼容审查中
+
+冻结 source-sync/v1 current_access 及 Platform Sources 的 viewer 解析明确只接受 companion；不能将 platform context 传入即假定可用。M 提出复用 owner-only snapshot/grant 屏障后独立核验 platform origin，方案仍待独立审查。仅在事务内 `_authorize` 初次 resolve 的旧 context 不足以发现同步期间撤权：须在来源屏障后、返回数据前重新真实 resolve 并重读 caller/browser_reader，验证账号、完整范围、令牌和本地绑定；不在长 SQLite 写事务内等待网络，必须解释 revision guard 和授权快照的一致性。联合反例必须覆盖初次 resolve 后在来源同步中发生 origin 撤销/范围缩小/凭据轮换，以及来源负面状态持久化不因后续拒绝而回滚。若无法满足，另发布新版 viewer 合同；不得改旧冻结规则或伪造 companion 身份。
+
 ## 其他待接线
 
 - Knowledge：当前产品知识 CLI 已支持受控 TLS/Host 的非 loopback 绑定。需要独立服务进程、固定 client/逐操作权限、项目白名单、私有证书/配置及显式 schema 准备。未核完整部署资源/日志/容量归属前，不添加临时裸进程；不让平台读取对端数据库。
