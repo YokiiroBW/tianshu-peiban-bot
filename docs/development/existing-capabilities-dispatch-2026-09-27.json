@@ -3,6 +3,7 @@
   "spec": "docs/development/existing-capabilities-integration-2026-09-27.md",
   "coordinator": "01a0ddde-9e0f-7f40-a5c2-073b27a645ee",
   "nas_changed_this_wave": false,
+  "backend_knowledge_handoff": {"commit":"8699f1880f6e94920bb6a442f1c25bc20845fbd3","implementation":"3b0dc2473d60b3b359c4f31f1e14d3bde59fb1a9","path":"worktrees/CONNECT-B/tianshu-platform/docs/handoffs/CONNECT-B-KNOWLEDGE.md","status":"fixed_for_independent_replay"},
   "backend_knowledge_candidate": {"commit":"3b0dc2473d60b3b359c4f31f1e14d3bde59fb1a9","status":"independent_review_pending_not_integrated","reported_checks":"real Platform HTTP login to Memory02df5ba8 knowledge HTTPS 4 joint tests passed; 5 synthetic reader tests passed","scope":"existing knowledge four reads, lessons/experiences, bounded session continuation handles"},
   "frontend_race_fix_candidate": {"commit":"2d002e3aba0e34c0a321bb9465fa6c9dc33aa2de","status":"independent_recheck_pending","reported_checks":"10 affected desktop/mobile cases passed; typecheck/build/diff check passed","scope":"connector stale success and synchronous Knowledge/Life selection invalidation"},
   "frontend_pending_reproduction": [{"candidate":"957b08a58317059f445cbf9b68bdcebea653e447 / 3a0648f93224280f4aef40f4e85be69d947f9392","code":"knowledge_life_selection_stale_response","status":"controlled_request_order_reproduction_required","detail":"Reviewer notes delayed passive-effect invalidation on project/actor switch; not yet confirmed by reproduction"}],
