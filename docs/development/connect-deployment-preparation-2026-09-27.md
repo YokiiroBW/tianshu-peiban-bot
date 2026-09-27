@@ -10,6 +10,8 @@ Memory 另设仅有 browse 权限的专用 caller 与 browser_reader，绑定实
 
 ### 来源合同兼容审查中
 
+协调决策为继续验证“合法 owner-only 来源屏障 + 独立 Platform 用户授权”的组合，并非提前批准发布。SourceAuthority 所有者事实来自 Core，current grants 与 viewer resolve 来自 Platform。独立审查须比较原 viewer 联合核验中每项安全属性，证明新组合覆盖；共享画像不能仅因 owner grant 有效就对无权 viewer 可见，必须复用既有 audience/subject/actor 过滤与完整 profile coverage。测试使用非空记录和可动态撤销的真实 issuer，不能用空库或静态 context 替代。若无法闭合任何属性，浏览功能保持关闭并改走新版本合同。
+
 冻结 source-sync/v1 current_access 及 Platform Sources 的 viewer 解析明确只接受 companion；不能将 platform context 传入即假定可用。M 提出复用 owner-only snapshot/grant 屏障后独立核验 platform origin，方案仍待独立审查。仅在事务内 `_authorize` 初次 resolve 的旧 context 不足以发现同步期间撤权：须在来源屏障后、返回数据前重新真实 resolve 并重读 caller/browser_reader，验证账号、完整范围、令牌和本地绑定；不在长 SQLite 写事务内等待网络，必须解释 revision guard 和授权快照的一致性。联合反例必须覆盖初次 resolve 后在来源同步中发生 origin 撤销/范围缩小/凭据轮换，以及来源负面状态持久化不因后续拒绝而回滚。若无法满足，另发布新版 viewer 合同；不得改旧冻结规则或伪造 companion 身份。
 
 ## 其他待接线
