@@ -73,18 +73,23 @@ databases under this task's `.runtime`; no NAS, live account, real message, or
 production data was used. The Memory process test is a real Memory HTTP process,
 but its Platform issuer is synthetic.
 
-## Remaining integration blocker
+## Consumer compatibility and remaining boundary
 
-The fixed Platform consumer commit `347a15d87189f0269861d1e0d209b4748380926b`
-requires `subject_count` in `services/platform/web_memory.py::_read` for `overview`.
-Memory `0dd542a` returns `memory_group_count` and `counts_truncated`; its handoff
-explicitly directs the client to obtain subjects through the `subjects` page and
-does not return `subject_count`. Thus the fixed B/M pair rejects a valid overview
-as `invalid_upstream` (502). B's synthetic Memory peer included `subject_count`,
-so its test did not expose this mismatch. A later uncommitted B edit reportedly
-removes the mismatch; it remains open until a fixed B commit and a real Platform
-to Memory-process test prove it.
+The earlier B consumer `347a15d87189f0269861d1e0d209b4748380926b` did require
+`subject_count` for `overview`, which the fixed Memory response does not publish.
+That mismatch is closed in B's fixed `bc45342babac2c7597987d0edb4f8a9f27763023`
+and final `9551871796f57d3369396023caf2b013a239c3a0` snapshots:
+`services/platform/web_memory.py::_read` now validates `memory_group_count` and
+`counts_truncated`, matching the producer's bounded-count contract.
 
-The complete Platform → Memory process → owner HTTPS flow, including a Chromium
-browser against fixed consumer/producer revisions, remains pending. Do not describe
-the web Memory chain as integrated, published, or deployable based on this review.
+On the final B archive paired with M `02df5ba8c041a7a6eb8b705c5f264e10543032ec`,
+`tests/backend/test_memory_joint.py` passed (**1 passed**). It started the real
+Platform HTTP application and real Memory HTTPS process, used a real Platform
+login/session and a synthetic issuer, and checked a nonempty overview plus scoped
+subject and record reads. The database and source/admission facts were synthetic;
+this test did not launch Chromium or contact the NAS.
+
+The `subject_count` defect is therefore no longer an open code or API-pair blocker.
+The exact test is a backend process integration, not evidence of a browser run or
+production deployment. The final report for the overall CONNECT-A integration
+review records the separate U browser evidence and its mocked-API limit.
