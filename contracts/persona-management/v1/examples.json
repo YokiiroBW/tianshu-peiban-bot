@@ -1,0 +1,1244 @@
+{
+  "status": "candidate_not_published",
+  "producer_commit": "0a775631366f1b7c4bab94ac5b16e67aa15ee1ab",
+  "capture": "actual Core.manage_persona through synthetic Harness; Fault.wire is the Host mapping; not HTTP/browser joint acceptance",
+  "examples": [
+    {
+      "name": "get-published",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "get",
+        "request_id": "sample:get-published",
+        "subject": "actor:a"
+      },
+      "status": 200,
+      "response": {
+        "schema_version": 1,
+        "operation": "get",
+        "persona": {
+          "subject": "actor:a",
+          "version": 2,
+          "state": "published",
+          "published_revision": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+          "draft_revision": null,
+          "published": {
+            "revision_id": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+            "fingerprint": "32070ca3f80bafc0030f7c6e15b8a4254a518d780e453f64a68c6a5004662569",
+            "content": {
+              "persona": "Role A"
+            },
+            "parent": null,
+            "source": "initial_config",
+            "operator": "deployment",
+            "note": null,
+            "created_at": 1789976090.2150044,
+            "approved_by": null,
+            "approved_at": null,
+            "approval_reason": null
+          },
+          "published_at": 1789976090.2150044,
+          "publisher": "deployment",
+          "draft": null,
+          "pending_approval": false,
+          "retired": false,
+          "retired_at": null,
+          "imported": 1,
+          "updated_at": 1789976090.2150044
+        }
+      }
+    },
+    {
+      "name": "empty-rollbacks",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "history_page",
+        "request_id": "sample:empty-rollbacks",
+        "subject": "actor:a",
+        "kind": "rollbacks",
+        "limit": 20
+      },
+      "status": 200,
+      "response": {
+        "schema_version": 1,
+        "operation": "history_page",
+        "subject": "actor:a",
+        "kind": "rollbacks",
+        "persona_version": 2,
+        "consistency": "version_bound",
+        "limit": 20,
+        "count": 0,
+        "entries": [],
+        "has_more": false,
+        "next_cursor": null
+      }
+    },
+    {
+      "name": "get-draft",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "get",
+        "request_id": "sample:get-draft",
+        "subject": "actor:a"
+      },
+      "status": 200,
+      "response": {
+        "schema_version": 1,
+        "operation": "get",
+        "persona": {
+          "subject": "actor:a",
+          "version": 3,
+          "state": "draft",
+          "published_revision": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+          "draft_revision": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb",
+          "published": {
+            "revision_id": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+            "fingerprint": "32070ca3f80bafc0030f7c6e15b8a4254a518d780e453f64a68c6a5004662569",
+            "content": {
+              "persona": "Role A"
+            },
+            "parent": null,
+            "source": "initial_config",
+            "operator": "deployment",
+            "note": null,
+            "created_at": 1789976090.2150044,
+            "approved_by": null,
+            "approved_at": null,
+            "approval_reason": null
+          },
+          "published_at": 1789976090.2150044,
+          "publisher": "deployment",
+          "draft": {
+            "revision_id": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb",
+            "fingerprint": "9e5ec9a019b1e4f08597239f8b937ae1009fb0626b61a5bd13e9ff0b963ab74b",
+            "content": {
+              "address": "朋友",
+              "extension_flag": true,
+              "persona": "合成人格\n新版",
+              "style": "简洁",
+              "tone": null
+            },
+            "parent": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+            "source": "editor",
+            "operator": "operator:fixture",
+            "note": "合成备注",
+            "created_at": 1800000000.0,
+            "approved_by": null,
+            "approved_at": null,
+            "approval_reason": null
+          },
+          "pending_approval": false,
+          "retired": false,
+          "retired_at": null,
+          "imported": 1,
+          "updated_at": 1789976090.2150044
+        }
+      }
+    },
+    {
+      "name": "revision-draft",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "revision",
+        "request_id": "sample:revision-draft",
+        "subject": "actor:a",
+        "revision_id": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb"
+      },
+      "status": 200,
+      "response": {
+        "schema_version": 1,
+        "operation": "revision",
+        "subject": "actor:a",
+        "revision": {
+          "revision_id": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb",
+          "fingerprint": "9e5ec9a019b1e4f08597239f8b937ae1009fb0626b61a5bd13e9ff0b963ab74b",
+          "content": {
+            "address": "朋友",
+            "extension_flag": true,
+            "persona": "合成人格\n新版",
+            "style": "简洁",
+            "tone": null
+          },
+          "parent": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+          "source": "editor",
+          "operator": "operator:fixture",
+          "note": "合成备注",
+          "created_at": 1800000000.0,
+          "approved_by": null,
+          "approved_at": null,
+          "approval_reason": null
+        },
+        "is_published": false,
+        "is_draft": true,
+        "persona_version": 3,
+        "state": "draft",
+        "published_revision": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+        "draft_revision": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb"
+      }
+    },
+    {
+      "name": "compare-changed",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "compare",
+        "request_id": "sample:compare-changed",
+        "subject": "actor:a",
+        "left": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+        "right": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb"
+      },
+      "status": 200,
+      "response": {
+        "schema_version": 1,
+        "operation": "compare",
+        "subject": "actor:a",
+        "left": {
+          "revision_id": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+          "fingerprint": "32070ca3f80bafc0030f7c6e15b8a4254a518d780e453f64a68c6a5004662569",
+          "parent": null,
+          "source": "initial_config",
+          "operator": "deployment",
+          "note": null,
+          "created_at": 1789976090.2150044,
+          "approved_by": null,
+          "approved_at": null,
+          "approval_reason": null
+        },
+        "right": {
+          "revision_id": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb",
+          "fingerprint": "9e5ec9a019b1e4f08597239f8b937ae1009fb0626b61a5bd13e9ff0b963ab74b",
+          "parent": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+          "source": "editor",
+          "operator": "operator:fixture",
+          "note": "合成备注",
+          "created_at": 1800000000.0,
+          "approved_by": null,
+          "approved_at": null,
+          "approval_reason": null
+        },
+        "comparison_scope": [
+          "persona",
+          "tone",
+          "style",
+          "address"
+        ],
+        "fields": {
+          "persona": {
+            "presence": {
+              "left": true,
+              "right": true
+            },
+            "change": "modified",
+            "left": "Role A",
+            "right": "合成人格\n新版"
+          },
+          "tone": {
+            "presence": {
+              "left": false,
+              "right": true
+            },
+            "change": "added",
+            "left": null,
+            "right": null
+          },
+          "style": {
+            "presence": {
+              "left": false,
+              "right": true
+            },
+            "change": "added",
+            "left": null,
+            "right": "简洁"
+          },
+          "address": {
+            "presence": {
+              "left": false,
+              "right": true
+            },
+            "change": "added",
+            "left": null,
+            "right": "朋友"
+          }
+        },
+        "additional_fields_present": true,
+        "additional_fields_changed": true,
+        "additional_field_names": [
+          "extension_flag"
+        ],
+        "identical_revision": false,
+        "content_identical": false,
+        "persona_version": 3,
+        "state": "draft",
+        "published_revision": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+        "draft_revision": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb"
+      }
+    },
+    {
+      "name": "compare-same",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "compare",
+        "request_id": "sample:compare-same",
+        "subject": "actor:a",
+        "left": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb",
+        "right": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb"
+      },
+      "status": 200,
+      "response": {
+        "schema_version": 1,
+        "operation": "compare",
+        "subject": "actor:a",
+        "left": {
+          "revision_id": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb",
+          "fingerprint": "9e5ec9a019b1e4f08597239f8b937ae1009fb0626b61a5bd13e9ff0b963ab74b",
+          "parent": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+          "source": "editor",
+          "operator": "operator:fixture",
+          "note": "合成备注",
+          "created_at": 1800000000.0,
+          "approved_by": null,
+          "approved_at": null,
+          "approval_reason": null
+        },
+        "right": {
+          "revision_id": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb",
+          "fingerprint": "9e5ec9a019b1e4f08597239f8b937ae1009fb0626b61a5bd13e9ff0b963ab74b",
+          "parent": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+          "source": "editor",
+          "operator": "operator:fixture",
+          "note": "合成备注",
+          "created_at": 1800000000.0,
+          "approved_by": null,
+          "approved_at": null,
+          "approval_reason": null
+        },
+        "comparison_scope": [
+          "persona",
+          "tone",
+          "style",
+          "address"
+        ],
+        "fields": {
+          "persona": {
+            "presence": {
+              "left": true,
+              "right": true
+            },
+            "change": "unchanged",
+            "left": "合成人格\n新版",
+            "right": "合成人格\n新版"
+          },
+          "tone": {
+            "presence": {
+              "left": true,
+              "right": true
+            },
+            "change": "unchanged",
+            "left": null,
+            "right": null
+          },
+          "style": {
+            "presence": {
+              "left": true,
+              "right": true
+            },
+            "change": "unchanged",
+            "left": "简洁",
+            "right": "简洁"
+          },
+          "address": {
+            "presence": {
+              "left": true,
+              "right": true
+            },
+            "change": "unchanged",
+            "left": "朋友",
+            "right": "朋友"
+          }
+        },
+        "additional_fields_present": true,
+        "additional_fields_changed": false,
+        "additional_field_names": [
+          "extension_flag"
+        ],
+        "identical_revision": true,
+        "content_identical": true,
+        "persona_version": 3,
+        "state": "draft",
+        "published_revision": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+        "draft_revision": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb"
+      }
+    },
+    {
+      "name": "get-approved",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "get",
+        "request_id": "sample:get-approved",
+        "subject": "actor:a"
+      },
+      "status": 200,
+      "response": {
+        "schema_version": 1,
+        "operation": "get",
+        "persona": {
+          "subject": "actor:a",
+          "version": 4,
+          "state": "approved",
+          "published_revision": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+          "draft_revision": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb",
+          "published": {
+            "revision_id": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+            "fingerprint": "32070ca3f80bafc0030f7c6e15b8a4254a518d780e453f64a68c6a5004662569",
+            "content": {
+              "persona": "Role A"
+            },
+            "parent": null,
+            "source": "initial_config",
+            "operator": "deployment",
+            "note": null,
+            "created_at": 1789976090.2150044,
+            "approved_by": null,
+            "approved_at": null,
+            "approval_reason": null
+          },
+          "published_at": 1789976090.2150044,
+          "publisher": "deployment",
+          "draft": {
+            "revision_id": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb",
+            "fingerprint": "9e5ec9a019b1e4f08597239f8b937ae1009fb0626b61a5bd13e9ff0b963ab74b",
+            "content": {
+              "address": "朋友",
+              "extension_flag": true,
+              "persona": "合成人格\n新版",
+              "style": "简洁",
+              "tone": null
+            },
+            "parent": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+            "source": "editor",
+            "operator": "operator:fixture",
+            "note": "合成备注",
+            "created_at": 1800000000.0,
+            "approved_by": "operator:fixture",
+            "approved_at": 1800000000.0,
+            "approval_reason": "合成批准"
+          },
+          "pending_approval": true,
+          "retired": false,
+          "retired_at": null,
+          "imported": 1,
+          "updated_at": 1800000000.0
+        }
+      }
+    },
+    {
+      "name": "revision-approved",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "revision",
+        "request_id": "sample:revision-approved",
+        "subject": "actor:a",
+        "revision_id": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb"
+      },
+      "status": 200,
+      "response": {
+        "schema_version": 1,
+        "operation": "revision",
+        "subject": "actor:a",
+        "revision": {
+          "revision_id": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb",
+          "fingerprint": "9e5ec9a019b1e4f08597239f8b937ae1009fb0626b61a5bd13e9ff0b963ab74b",
+          "content": {
+            "address": "朋友",
+            "extension_flag": true,
+            "persona": "合成人格\n新版",
+            "style": "简洁",
+            "tone": null
+          },
+          "parent": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+          "source": "editor",
+          "operator": "operator:fixture",
+          "note": "合成备注",
+          "created_at": 1800000000.0,
+          "approved_by": "operator:fixture",
+          "approved_at": 1800000000.0,
+          "approval_reason": "合成批准"
+        },
+        "is_published": false,
+        "is_draft": true,
+        "persona_version": 4,
+        "state": "approved",
+        "published_revision": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+        "draft_revision": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb"
+      }
+    },
+    {
+      "name": "history-revisions",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "history_page",
+        "request_id": "sample:history-revisions",
+        "subject": "actor:a",
+        "kind": "revisions",
+        "limit": 1
+      },
+      "status": 200,
+      "response": {
+        "schema_version": 1,
+        "operation": "history_page",
+        "subject": "actor:a",
+        "kind": "revisions",
+        "persona_version": 7,
+        "consistency": "version_bound",
+        "limit": 1,
+        "count": 1,
+        "entries": [
+          {
+            "revision_id": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+            "fingerprint": "32070ca3f80bafc0030f7c6e15b8a4254a518d780e453f64a68c6a5004662569",
+            "parent": null,
+            "source": "initial_config",
+            "operator": "deployment",
+            "note": null,
+            "created_at": 1789976090.2150044,
+            "decision": null,
+            "decided_by": null,
+            "decided_at": null
+          }
+        ],
+        "has_more": true,
+        "next_cursor": "eyJraW5kIjoicmV2aXNpb25zIiwibGFzdF9rZXkiOlsxLCIxNzc4NjdlYzk1ZDA5YWJlMzVlYzY5M2ExMGM1MjFmNWM2ZGFjOTBlMzhkZWQ3M2ZkMjg2ODgxMGE3ODRhZDllIl0sImxpbWl0IjoxLCJvcGVyYXRpb24iOiJoaXN0b3J5X3BhZ2UiLCJzdWJqZWN0IjoiYWN0b3I6YSIsInZlcnNpb24iOjd9.T9qgW_1DhS2YLY6L5jijhbspO1rgKn_eC90W64uE270"
+      }
+    },
+    {
+      "name": "history-revisions-next",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "history_page",
+        "request_id": "sample:history-revisions-next",
+        "subject": "actor:a",
+        "kind": "revisions",
+        "limit": 1,
+        "cursor": "eyJraW5kIjoicmV2aXNpb25zIiwibGFzdF9rZXkiOlsxLCIxNzc4NjdlYzk1ZDA5YWJlMzVlYzY5M2ExMGM1MjFmNWM2ZGFjOTBlMzhkZWQ3M2ZkMjg2ODgxMGE3ODRhZDllIl0sImxpbWl0IjoxLCJvcGVyYXRpb24iOiJoaXN0b3J5X3BhZ2UiLCJzdWJqZWN0IjoiYWN0b3I6YSIsInZlcnNpb24iOjd9.T9qgW_1DhS2YLY6L5jijhbspO1rgKn_eC90W64uE270"
+      },
+      "status": 200,
+      "response": {
+        "schema_version": 1,
+        "operation": "history_page",
+        "subject": "actor:a",
+        "kind": "revisions",
+        "persona_version": 7,
+        "consistency": "version_bound",
+        "limit": 1,
+        "count": 1,
+        "entries": [
+          {
+            "revision_id": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb",
+            "fingerprint": "9e5ec9a019b1e4f08597239f8b937ae1009fb0626b61a5bd13e9ff0b963ab74b",
+            "parent": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+            "source": "editor",
+            "operator": "operator:fixture",
+            "note": "合成备注",
+            "created_at": 1800000000.0,
+            "decision": "approved",
+            "decided_by": "operator:fixture",
+            "decided_at": 1800000000.0
+          }
+        ],
+        "has_more": true,
+        "next_cursor": "eyJraW5kIjoicmV2aXNpb25zIiwibGFzdF9rZXkiOlsyLCI5OTM5YjBmM2I5OTU1MDk3YjA5NjY0ZDc5ZTBkNDcxNWMxOTBkMjA1MTE1OGM1YWJiZWYwNjllZTExNDY5Y2JiIl0sImxpbWl0IjoxLCJvcGVyYXRpb24iOiJoaXN0b3J5X3BhZ2UiLCJzdWJqZWN0IjoiYWN0b3I6YSIsInZlcnNpb24iOjd9.wqE5o5zasCtbj4XGgwVWCNDAz3iTVIy2_uEhG7FoKyA"
+      }
+    },
+    {
+      "name": "history-revisions-full",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "history_page",
+        "request_id": "sample:history-revisions-full",
+        "subject": "actor:a",
+        "kind": "revisions",
+        "limit": 20
+      },
+      "status": 200,
+      "response": {
+        "schema_version": 1,
+        "operation": "history_page",
+        "subject": "actor:a",
+        "kind": "revisions",
+        "persona_version": 7,
+        "consistency": "version_bound",
+        "limit": 20,
+        "count": 3,
+        "entries": [
+          {
+            "revision_id": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+            "fingerprint": "32070ca3f80bafc0030f7c6e15b8a4254a518d780e453f64a68c6a5004662569",
+            "parent": null,
+            "source": "initial_config",
+            "operator": "deployment",
+            "note": null,
+            "created_at": 1789976090.2150044,
+            "decision": null,
+            "decided_by": null,
+            "decided_at": null
+          },
+          {
+            "revision_id": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb",
+            "fingerprint": "9e5ec9a019b1e4f08597239f8b937ae1009fb0626b61a5bd13e9ff0b963ab74b",
+            "parent": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+            "source": "editor",
+            "operator": "operator:fixture",
+            "note": "合成备注",
+            "created_at": 1800000000.0,
+            "decision": "approved",
+            "decided_by": "operator:fixture",
+            "decided_at": 1800000000.0
+          },
+          {
+            "revision_id": "3d434092cdfaa7d7a6db5ddbe929f03035d5fa123ace798466943c5f16f10333",
+            "fingerprint": "32070ca3f80bafc0030f7c6e15b8a4254a518d780e453f64a68c6a5004662569",
+            "parent": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb",
+            "source": "rollback",
+            "operator": "operator:fixture",
+            "note": "合成回退",
+            "created_at": 1800000000.0,
+            "decision": "approved",
+            "decided_by": "operator:fixture",
+            "decided_at": 1800000000.0
+          }
+        ],
+        "has_more": false,
+        "next_cursor": null
+      }
+    },
+    {
+      "name": "history-publications",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "history_page",
+        "request_id": "sample:history-publications",
+        "subject": "actor:a",
+        "kind": "publications",
+        "limit": 1
+      },
+      "status": 200,
+      "response": {
+        "schema_version": 1,
+        "operation": "history_page",
+        "subject": "actor:a",
+        "kind": "publications",
+        "persona_version": 7,
+        "consistency": "version_bound",
+        "limit": 1,
+        "count": 1,
+        "entries": [
+          {
+            "publication_id": "9833c403060c8624c0947a00cfe65aa59e42219c494c0f55b1ee5c0147cc50aa",
+            "revision_id": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+            "supersedes": null,
+            "generation": 1,
+            "kind": "seed",
+            "state": "published",
+            "operator": "deployment",
+            "reason": "initial_config import",
+            "created_at": 1789976090.2150044
+          }
+        ],
+        "has_more": true,
+        "next_cursor": "eyJraW5kIjoicHVibGljYXRpb25zIiwibGFzdF9rZXkiOlsxLCI5ODMzYzQwMzA2MGM4NjI0YzA5NDdhMDBjZmU2NWFhNTllNDIyMTljNDk0YzBmNTViMWVlNWMwMTQ3Y2M1MGFhIl0sImxpbWl0IjoxLCJvcGVyYXRpb24iOiJoaXN0b3J5X3BhZ2UiLCJzdWJqZWN0IjoiYWN0b3I6YSIsInZlcnNpb24iOjd9.BHMW5aiw7Qua0U92E4-CGkawrxW4h3IEOi_ZLJiot0k"
+      }
+    },
+    {
+      "name": "history-publications-next",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "history_page",
+        "request_id": "sample:history-publications-next",
+        "subject": "actor:a",
+        "kind": "publications",
+        "limit": 1,
+        "cursor": "eyJraW5kIjoicHVibGljYXRpb25zIiwibGFzdF9rZXkiOlsxLCI5ODMzYzQwMzA2MGM4NjI0YzA5NDdhMDBjZmU2NWFhNTllNDIyMTljNDk0YzBmNTViMWVlNWMwMTQ3Y2M1MGFhIl0sImxpbWl0IjoxLCJvcGVyYXRpb24iOiJoaXN0b3J5X3BhZ2UiLCJzdWJqZWN0IjoiYWN0b3I6YSIsInZlcnNpb24iOjd9.BHMW5aiw7Qua0U92E4-CGkawrxW4h3IEOi_ZLJiot0k"
+      },
+      "status": 200,
+      "response": {
+        "schema_version": 1,
+        "operation": "history_page",
+        "subject": "actor:a",
+        "kind": "publications",
+        "persona_version": 7,
+        "consistency": "version_bound",
+        "limit": 1,
+        "count": 1,
+        "entries": [
+          {
+            "publication_id": "5f4fbfca3aff158ad11b5969bacdec7d1e9a73905273fd49ab749dd30e5cf36b",
+            "revision_id": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb",
+            "supersedes": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+            "generation": 2,
+            "kind": "publish",
+            "state": "published",
+            "operator": "operator:fixture",
+            "reason": "合成发布",
+            "created_at": 1800000000.0
+          }
+        ],
+        "has_more": true,
+        "next_cursor": "eyJraW5kIjoicHVibGljYXRpb25zIiwibGFzdF9rZXkiOlsyLCI1ZjRmYmZjYTNhZmYxNThhZDExYjU5NjliYWNkZWM3ZDFlOWE3MzkwNTI3M2ZkNDlhYjc0OWRkMzBlNWNmMzZiIl0sImxpbWl0IjoxLCJvcGVyYXRpb24iOiJoaXN0b3J5X3BhZ2UiLCJzdWJqZWN0IjoiYWN0b3I6YSIsInZlcnNpb24iOjd9.iTyNxMN0jsKpfAasQZu3ukUeQzAqp6NIfizm_tLgZ-M"
+      }
+    },
+    {
+      "name": "history-publications-full",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "history_page",
+        "request_id": "sample:history-publications-full",
+        "subject": "actor:a",
+        "kind": "publications",
+        "limit": 20
+      },
+      "status": 200,
+      "response": {
+        "schema_version": 1,
+        "operation": "history_page",
+        "subject": "actor:a",
+        "kind": "publications",
+        "persona_version": 7,
+        "consistency": "version_bound",
+        "limit": 20,
+        "count": 3,
+        "entries": [
+          {
+            "publication_id": "9833c403060c8624c0947a00cfe65aa59e42219c494c0f55b1ee5c0147cc50aa",
+            "revision_id": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+            "supersedes": null,
+            "generation": 1,
+            "kind": "seed",
+            "state": "published",
+            "operator": "deployment",
+            "reason": "initial_config import",
+            "created_at": 1789976090.2150044
+          },
+          {
+            "publication_id": "5f4fbfca3aff158ad11b5969bacdec7d1e9a73905273fd49ab749dd30e5cf36b",
+            "revision_id": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb",
+            "supersedes": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+            "generation": 2,
+            "kind": "publish",
+            "state": "published",
+            "operator": "operator:fixture",
+            "reason": "合成发布",
+            "created_at": 1800000000.0
+          },
+          {
+            "publication_id": "084eb79f85c1234b17f4ea988137f97c833b7138af89cb183ee3debc3338009d",
+            "revision_id": "3d434092cdfaa7d7a6db5ddbe929f03035d5fa123ace798466943c5f16f10333",
+            "supersedes": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb",
+            "generation": 3,
+            "kind": "rollback",
+            "state": "published",
+            "operator": "operator:fixture",
+            "reason": "合成回退",
+            "created_at": 1800000000.0
+          }
+        ],
+        "has_more": false,
+        "next_cursor": null
+      }
+    },
+    {
+      "name": "history-approvals",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "history_page",
+        "request_id": "sample:history-approvals",
+        "subject": "actor:a",
+        "kind": "approvals",
+        "limit": 1
+      },
+      "status": 200,
+      "response": {
+        "schema_version": 1,
+        "operation": "history_page",
+        "subject": "actor:a",
+        "kind": "approvals",
+        "persona_version": 7,
+        "consistency": "version_bound",
+        "limit": 1,
+        "count": 1,
+        "entries": [
+          {
+            "approval_id": "4b4bd793bf57d5500fcf8a2ee08282c4ff2e4577fdb68cef5ee2eb35e714e4c6",
+            "revision_id": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb",
+            "fingerprint": "9e5ec9a019b1e4f08597239f8b937ae1009fb0626b61a5bd13e9ff0b963ab74b",
+            "decision": "approved",
+            "state": "approved",
+            "operator": "operator:fixture",
+            "reason": "合成批准",
+            "created_at": 1800000000.0
+          }
+        ],
+        "has_more": true,
+        "next_cursor": "eyJraW5kIjoiYXBwcm92YWxzIiwibGFzdF9rZXkiOlsxLCI0YjRiZDc5M2JmNTdkNTUwMGZjZjhhMmVlMDgyODJjNGZmMmU0NTc3ZmRiNjhjZWY1ZWUyZWIzNWU3MTRlNGM2Il0sImxpbWl0IjoxLCJvcGVyYXRpb24iOiJoaXN0b3J5X3BhZ2UiLCJzdWJqZWN0IjoiYWN0b3I6YSIsInZlcnNpb24iOjd9.ZOvwjLiuUh16jR1Q0qHKqKVf7PRb_BZVuzJ-NN5E9EI"
+      }
+    },
+    {
+      "name": "history-approvals-next",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "history_page",
+        "request_id": "sample:history-approvals-next",
+        "subject": "actor:a",
+        "kind": "approvals",
+        "limit": 1,
+        "cursor": "eyJraW5kIjoiYXBwcm92YWxzIiwibGFzdF9rZXkiOlsxLCI0YjRiZDc5M2JmNTdkNTUwMGZjZjhhMmVlMDgyODJjNGZmMmU0NTc3ZmRiNjhjZWY1ZWUyZWIzNWU3MTRlNGM2Il0sImxpbWl0IjoxLCJvcGVyYXRpb24iOiJoaXN0b3J5X3BhZ2UiLCJzdWJqZWN0IjoiYWN0b3I6YSIsInZlcnNpb24iOjd9.ZOvwjLiuUh16jR1Q0qHKqKVf7PRb_BZVuzJ-NN5E9EI"
+      },
+      "status": 200,
+      "response": {
+        "schema_version": 1,
+        "operation": "history_page",
+        "subject": "actor:a",
+        "kind": "approvals",
+        "persona_version": 7,
+        "consistency": "version_bound",
+        "limit": 1,
+        "count": 1,
+        "entries": [
+          {
+            "approval_id": "d00e756ea0cba593aa893c60a6556effb300d50344480496fab3fb6f9e63f992",
+            "revision_id": "3d434092cdfaa7d7a6db5ddbe929f03035d5fa123ace798466943c5f16f10333",
+            "fingerprint": "32070ca3f80bafc0030f7c6e15b8a4254a518d780e453f64a68c6a5004662569",
+            "decision": "approved",
+            "state": "approved",
+            "operator": "operator:fixture",
+            "reason": "rollback to 177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+            "created_at": 1800000000.0
+          }
+        ],
+        "has_more": false,
+        "next_cursor": null
+      }
+    },
+    {
+      "name": "history-approvals-full",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "history_page",
+        "request_id": "sample:history-approvals-full",
+        "subject": "actor:a",
+        "kind": "approvals",
+        "limit": 20
+      },
+      "status": 200,
+      "response": {
+        "schema_version": 1,
+        "operation": "history_page",
+        "subject": "actor:a",
+        "kind": "approvals",
+        "persona_version": 7,
+        "consistency": "version_bound",
+        "limit": 20,
+        "count": 2,
+        "entries": [
+          {
+            "approval_id": "4b4bd793bf57d5500fcf8a2ee08282c4ff2e4577fdb68cef5ee2eb35e714e4c6",
+            "revision_id": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb",
+            "fingerprint": "9e5ec9a019b1e4f08597239f8b937ae1009fb0626b61a5bd13e9ff0b963ab74b",
+            "decision": "approved",
+            "state": "approved",
+            "operator": "operator:fixture",
+            "reason": "合成批准",
+            "created_at": 1800000000.0
+          },
+          {
+            "approval_id": "d00e756ea0cba593aa893c60a6556effb300d50344480496fab3fb6f9e63f992",
+            "revision_id": "3d434092cdfaa7d7a6db5ddbe929f03035d5fa123ace798466943c5f16f10333",
+            "fingerprint": "32070ca3f80bafc0030f7c6e15b8a4254a518d780e453f64a68c6a5004662569",
+            "decision": "approved",
+            "state": "approved",
+            "operator": "operator:fixture",
+            "reason": "rollback to 177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+            "created_at": 1800000000.0
+          }
+        ],
+        "has_more": false,
+        "next_cursor": null
+      }
+    },
+    {
+      "name": "history-rollbacks",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "history_page",
+        "request_id": "sample:history-rollbacks",
+        "subject": "actor:a",
+        "kind": "rollbacks",
+        "limit": 1
+      },
+      "status": 200,
+      "response": {
+        "schema_version": 1,
+        "operation": "history_page",
+        "subject": "actor:a",
+        "kind": "rollbacks",
+        "persona_version": 7,
+        "consistency": "version_bound",
+        "limit": 1,
+        "count": 1,
+        "entries": [
+          {
+            "rollback_id": "92afaa9c86d685979b441b88ad17c26b4ce638e56b0b94d94679aa4caded2db9",
+            "restored_revision": "3d434092cdfaa7d7a6db5ddbe929f03035d5fa123ace798466943c5f16f10333",
+            "target_revision": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+            "superseded_revision": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb",
+            "state": "applied",
+            "operator": "operator:fixture",
+            "reason": "合成回退",
+            "created_at": 1800000000.0
+          }
+        ],
+        "has_more": false,
+        "next_cursor": null
+      }
+    },
+    {
+      "name": "history-rollbacks-full",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "history_page",
+        "request_id": "sample:history-rollbacks-full",
+        "subject": "actor:a",
+        "kind": "rollbacks",
+        "limit": 20
+      },
+      "status": 200,
+      "response": {
+        "schema_version": 1,
+        "operation": "history_page",
+        "subject": "actor:a",
+        "kind": "rollbacks",
+        "persona_version": 7,
+        "consistency": "version_bound",
+        "limit": 20,
+        "count": 1,
+        "entries": [
+          {
+            "rollback_id": "92afaa9c86d685979b441b88ad17c26b4ce638e56b0b94d94679aa4caded2db9",
+            "restored_revision": "3d434092cdfaa7d7a6db5ddbe929f03035d5fa123ace798466943c5f16f10333",
+            "target_revision": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+            "superseded_revision": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb",
+            "state": "applied",
+            "operator": "operator:fixture",
+            "reason": "合成回退",
+            "created_at": 1800000000.0
+          }
+        ],
+        "has_more": false,
+        "next_cursor": null
+      }
+    },
+    {
+      "name": "history-before-change",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "history_page",
+        "request_id": "sample:history-before-change",
+        "subject": "actor:a",
+        "kind": "revisions",
+        "limit": 1
+      },
+      "status": 200,
+      "response": {
+        "schema_version": 1,
+        "operation": "history_page",
+        "subject": "actor:a",
+        "kind": "revisions",
+        "persona_version": 7,
+        "consistency": "version_bound",
+        "limit": 1,
+        "count": 1,
+        "entries": [
+          {
+            "revision_id": "177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e",
+            "fingerprint": "32070ca3f80bafc0030f7c6e15b8a4254a518d780e453f64a68c6a5004662569",
+            "parent": null,
+            "source": "initial_config",
+            "operator": "deployment",
+            "note": null,
+            "created_at": 1789976090.2150044,
+            "decision": null,
+            "decided_by": null,
+            "decided_at": null
+          }
+        ],
+        "has_more": true,
+        "next_cursor": "eyJraW5kIjoicmV2aXNpb25zIiwibGFzdF9rZXkiOlsxLCIxNzc4NjdlYzk1ZDA5YWJlMzVlYzY5M2ExMGM1MjFmNWM2ZGFjOTBlMzhkZWQ3M2ZkMjg2ODgxMGE3ODRhZDllIl0sImxpbWl0IjoxLCJvcGVyYXRpb24iOiJoaXN0b3J5X3BhZ2UiLCJzdWJqZWN0IjoiYWN0b3I6YSIsInZlcnNpb24iOjd9.T9qgW_1DhS2YLY6L5jijhbspO1rgKn_eC90W64uE270"
+      }
+    },
+    {
+      "name": "get-retired",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "get",
+        "request_id": "sample:get-retired",
+        "subject": "actor:a"
+      },
+      "status": 200,
+      "response": {
+        "schema_version": 1,
+        "operation": "get",
+        "persona": {
+          "subject": "actor:a",
+          "version": 8,
+          "state": "retired",
+          "published_revision": "3d434092cdfaa7d7a6db5ddbe929f03035d5fa123ace798466943c5f16f10333",
+          "draft_revision": null,
+          "published": {
+            "revision_id": "3d434092cdfaa7d7a6db5ddbe929f03035d5fa123ace798466943c5f16f10333",
+            "fingerprint": "32070ca3f80bafc0030f7c6e15b8a4254a518d780e453f64a68c6a5004662569",
+            "content": {
+              "persona": "Role A"
+            },
+            "parent": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb",
+            "source": "rollback",
+            "operator": "operator:fixture",
+            "note": "合成回退",
+            "created_at": 1800000000.0,
+            "approved_by": "operator:fixture",
+            "approved_at": 1800000000.0,
+            "approval_reason": "rollback to 177867ec95d09abe35ec693a10c521f5c6dac90e38ded73fd2868810a784ad9e"
+          },
+          "published_at": 1800000000.0,
+          "publisher": "operator:fixture",
+          "draft": null,
+          "pending_approval": false,
+          "retired": true,
+          "retired_at": 1800000000.0,
+          "imported": 1,
+          "updated_at": 1800000000.0
+        }
+      }
+    },
+    {
+      "name": "stale-history",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "history_page",
+        "request_id": "sample:stale-history",
+        "subject": "actor:a",
+        "kind": "revisions",
+        "limit": 1,
+        "cursor": "eyJraW5kIjoicmV2aXNpb25zIiwibGFzdF9rZXkiOlsxLCIxNzc4NjdlYzk1ZDA5YWJlMzVlYzY5M2ExMGM1MjFmNWM2ZGFjOTBlMzhkZWQ3M2ZkMjg2ODgxMGE3ODRhZDllIl0sImxpbWl0IjoxLCJvcGVyYXRpb24iOiJoaXN0b3J5X3BhZ2UiLCJzdWJqZWN0IjoiYWN0b3I6YSIsInZlcnNpb24iOjd9.T9qgW_1DhS2YLY6L5jijhbspO1rgKn_eC90W64uE270"
+      },
+      "status": 409,
+      "response": {
+        "schema_version": 1,
+        "request_id": "sample:stale-history",
+        "code": "version_conflict",
+        "execution_state": "not_started",
+        "retryable": false
+      }
+    },
+    {
+      "name": "forbidden-caller",
+      "authenticated_service": "platform",
+      "request": {
+        "operation": "get",
+        "request_id": "sample:forbidden-caller",
+        "subject": "actor:a"
+      },
+      "status": 403,
+      "response": {
+        "schema_version": 1,
+        "request_id": "sample:forbidden-caller",
+        "code": "forbidden",
+        "execution_state": "not_started",
+        "retryable": false
+      }
+    },
+    {
+      "name": "cross-subject-revision",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "revision",
+        "request_id": "sample:cross-subject-revision",
+        "subject": "actor:b",
+        "revision_id": "9939b0f3b9955097b09664d79e0d4715c190d2051158c5abbef069ee11469cbb"
+      },
+      "status": 400,
+      "response": {
+        "schema_version": 1,
+        "request_id": "sample:cross-subject-revision",
+        "code": "invalid_input",
+        "execution_state": "not_started",
+        "retryable": false
+      }
+    },
+    {
+      "name": "unknown-revision",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "revision",
+        "request_id": "sample:unknown-revision",
+        "subject": "actor:a",
+        "revision_id": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "status": 404,
+      "response": {
+        "schema_version": 1,
+        "request_id": "sample:unknown-revision",
+        "code": "not_found",
+        "execution_state": "not_started",
+        "retryable": false
+      }
+    },
+    {
+      "name": "invalid-cursor",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "history_page",
+        "request_id": "sample:invalid-cursor",
+        "subject": "actor:a",
+        "kind": "revisions",
+        "cursor": "损坏.游标"
+      },
+      "status": 400,
+      "response": {
+        "schema_version": 1,
+        "request_id": "sample:invalid-cursor",
+        "code": "invalid_input",
+        "execution_state": "not_started",
+        "retryable": false
+      }
+    },
+    {
+      "name": "get-undeclared-version",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "get",
+        "subject": "actor:a",
+        "request_id": "sample:get-undeclared-version"
+      },
+      "status": 200,
+      "response": {
+        "schema_version": 1,
+        "operation": "get",
+        "persona": {
+          "subject": "actor:a",
+          "version": 2,
+          "state": "published",
+          "published_revision": "7086ed590d0d26ef8c55c1830e9ba792e07f8bce39c742968b8665a8e6f8f114",
+          "draft_revision": null,
+          "published": {
+            "revision_id": "7086ed590d0d26ef8c55c1830e9ba792e07f8bce39c742968b8665a8e6f8f114",
+            "fingerprint": "70631d24787c34dadadb4bdcc2220fd94b79bcda3a79fcadebaec7019a582bd7",
+            "content": {
+              "persona": "Synthetic unversioned"
+            },
+            "parent": null,
+            "source": "initial_config",
+            "operator": "deployment",
+            "note": null,
+            "created_at": 1789982410.0645802,
+            "approved_by": null,
+            "approved_at": null,
+            "approval_reason": null
+          },
+          "published_at": 1789982410.0645802,
+          "publisher": "deployment",
+          "draft": null,
+          "pending_approval": false,
+          "retired": false,
+          "retired_at": null,
+          "imported": null,
+          "updated_at": 1789982410.0645802
+        }
+      }
+    },
+    {
+      "name": "get-string-role",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "get",
+        "subject": "actor:a",
+        "request_id": "sample:get-string-role"
+      },
+      "status": 200,
+      "response": {
+        "schema_version": 1,
+        "operation": "get",
+        "persona": {
+          "subject": "actor:a",
+          "version": 2,
+          "state": "published",
+          "published_revision": "d20c2789a5af63cd20dff7f61411d26d53f7138ae014b5b51927653fcff4810c",
+          "draft_revision": null,
+          "published": {
+            "revision_id": "d20c2789a5af63cd20dff7f61411d26d53f7138ae014b5b51927653fcff4810c",
+            "fingerprint": "f0635c1462bbbd80ec8fd41e042328a5a4ec72d061cb1412e4479e9984b956a5",
+            "content": {
+              "persona": "Synthetic string role"
+            },
+            "parent": null,
+            "source": "initial_config",
+            "operator": "deployment",
+            "note": null,
+            "created_at": 1789982410.065778,
+            "approved_by": null,
+            "approved_at": null,
+            "approval_reason": null
+          },
+          "published_at": 1789982410.065778,
+          "publisher": "deployment",
+          "draft": null,
+          "pending_approval": false,
+          "retired": false,
+          "retired_at": null,
+          "imported": null,
+          "updated_at": 1789982410.065778
+        }
+      }
+    },
+    {
+      "name": "get-explicit-null-version",
+      "authenticated_service": "persona_admin",
+      "request": {
+        "operation": "get",
+        "subject": "actor:a",
+        "request_id": "sample:get-explicit-null-version"
+      },
+      "status": 200,
+      "response": {
+        "schema_version": 1,
+        "operation": "get",
+        "persona": {
+          "subject": "actor:a",
+          "version": 2,
+          "state": "published",
+          "published_revision": "6c3f849c64c1ed3dc2dc90b5bd4cb5b84a9e4d4ad21d46789bec2e3444622acb",
+          "draft_revision": null,
+          "published": {
+            "revision_id": "6c3f849c64c1ed3dc2dc90b5bd4cb5b84a9e4d4ad21d46789bec2e3444622acb",
+            "fingerprint": "6ba95bc840505509c9322458a08531d2e3e3828c1be849a9c892eaf9a9cd0808",
+            "content": {
+              "persona": "Synthetic explicit null"
+            },
+            "parent": null,
+            "source": "initial_config",
+            "operator": "deployment",
+            "note": null,
+            "created_at": 1789982410.09165,
+            "approved_by": null,
+            "approved_at": null,
+            "approval_reason": null
+          },
+          "published_at": 1789982410.09165,
+          "publisher": "deployment",
+          "draft": null,
+          "pending_approval": false,
+          "retired": false,
+          "retired_at": null,
+          "imported": null,
+          "updated_at": 1789982410.09165
+        }
+      }
+    }
+  ]
+}

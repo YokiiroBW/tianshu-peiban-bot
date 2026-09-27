@@ -1,0 +1,23 @@
+{
+  "package": "persona-management/v1",
+  "version": "1.0.0",
+  "status": "release_candidate",
+  "producer_commit": "31677983798ba27b24d57925feab4774c2eec30f",
+  "operations": [
+    "get",
+    "history_page",
+    "revision",
+    "compare"
+  ],
+  "production_publish_authorized": false,
+  "joint_runtime_acceptance": "pending",
+  "sample_count": 29,
+  "sample_producer_commit": "0a775631366f1b7c4bab94ac5b16e67aa15ee1ab",
+  "hash_basis": "exact UTF-8 LF file bytes; manifest excluded",
+  "sha256": {
+    "examples.json": "c8ee6abff62d0e3982d9302f6cb03ea2633c0a76c3d8c7ed6e208a2fc2e0c770",
+    "README.md": "9833e919a9319adf04d6784eef3231e5ea4392a249cc0f34a700ad2780d7aac6",
+    "request.schema.json": "89178e72f3537bf18a9540b4eb158dd15baa8dd1d75e6e524d9b7ef71c3bd907",
+    "response.schema.json": "665841c9ac9fe43c26dd8f3c4a4cf1bf3fe52616fb25e5999fd6c5f098054a51"
+  }
+}

@@ -1,0 +1,1658 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:tianshu:persona-management:v1:response",
+  "title": "Persona readonly response v1",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "operation": {
+          "const": "get"
+        },
+        "persona": {
+          "type": "object",
+          "properties": {
+            "draft": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "approval_reason": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 20000
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "approved_at": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "approved_by": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 20000
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "content": {
+                      "type": "object",
+                      "minProperties": 1,
+                      "maxProperties": 16,
+                      "required": [
+                        "persona"
+                      ],
+                      "properties": {
+                        "persona": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 20000
+                        },
+                        "tone": {
+                          "type": [
+                            "string",
+                            "number",
+                            "boolean",
+                            "null"
+                          ],
+                          "maxLength": 20000
+                        },
+                        "style": {
+                          "type": [
+                            "string",
+                            "number",
+                            "boolean",
+                            "null"
+                          ],
+                          "maxLength": 20000
+                        },
+                        "address": {
+                          "type": [
+                            "string",
+                            "number",
+                            "boolean",
+                            "null"
+                          ],
+                          "maxLength": 4000
+                        }
+                      },
+                      "propertyNames": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      },
+                      "additionalProperties": {
+                        "type": [
+                          "string",
+                          "number",
+                          "boolean",
+                          "null"
+                        ],
+                        "maxLength": 4000
+                      }
+                    },
+                    "created_at": {
+                      "type": "number"
+                    },
+                    "fingerprint": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "note": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 20000
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "operator": {
+                      "type": "string",
+                      "maxLength": 20000
+                    },
+                    "parent": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{64}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "revision_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "source": {
+                      "type": "string",
+                      "maxLength": 20000
+                    }
+                  },
+                  "required": [
+                    "approval_reason",
+                    "approved_at",
+                    "approved_by",
+                    "content",
+                    "created_at",
+                    "fingerprint",
+                    "note",
+                    "operator",
+                    "parent",
+                    "revision_id",
+                    "source"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "draft_revision": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "imported": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "pending_approval": {
+              "type": "boolean"
+            },
+            "published": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "approval_reason": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 20000
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "approved_at": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "approved_by": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 20000
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "content": {
+                      "type": "object",
+                      "minProperties": 1,
+                      "maxProperties": 16,
+                      "required": [
+                        "persona"
+                      ],
+                      "properties": {
+                        "persona": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 20000
+                        },
+                        "tone": {
+                          "type": [
+                            "string",
+                            "number",
+                            "boolean",
+                            "null"
+                          ],
+                          "maxLength": 20000
+                        },
+                        "style": {
+                          "type": [
+                            "string",
+                            "number",
+                            "boolean",
+                            "null"
+                          ],
+                          "maxLength": 20000
+                        },
+                        "address": {
+                          "type": [
+                            "string",
+                            "number",
+                            "boolean",
+                            "null"
+                          ],
+                          "maxLength": 4000
+                        }
+                      },
+                      "propertyNames": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64
+                      },
+                      "additionalProperties": {
+                        "type": [
+                          "string",
+                          "number",
+                          "boolean",
+                          "null"
+                        ],
+                        "maxLength": 4000
+                      }
+                    },
+                    "created_at": {
+                      "type": "number"
+                    },
+                    "fingerprint": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "note": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "maxLength": 20000
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "operator": {
+                      "type": "string",
+                      "maxLength": 20000
+                    },
+                    "parent": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{64}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "revision_id": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$"
+                    },
+                    "source": {
+                      "type": "string",
+                      "maxLength": 20000
+                    }
+                  },
+                  "required": [
+                    "approval_reason",
+                    "approved_at",
+                    "approved_by",
+                    "content",
+                    "created_at",
+                    "fingerprint",
+                    "note",
+                    "operator",
+                    "parent",
+                    "revision_id",
+                    "source"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "published_at": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "published_revision": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "publisher": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 20000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "retired": {
+              "type": "boolean"
+            },
+            "retired_at": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "state": {
+              "type": "string",
+              "maxLength": 20000
+            },
+            "subject": {
+              "type": "string",
+              "maxLength": 20000
+            },
+            "updated_at": {
+              "type": "number"
+            },
+            "version": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "draft",
+            "draft_revision",
+            "imported",
+            "pending_approval",
+            "published",
+            "published_at",
+            "published_revision",
+            "publisher",
+            "retired",
+            "retired_at",
+            "state",
+            "subject",
+            "updated_at",
+            "version"
+          ],
+          "additionalProperties": false
+        },
+        "schema_version": {
+          "const": 1
+        }
+      },
+      "required": [
+        "operation",
+        "persona",
+        "schema_version"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "draft_revision": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "is_draft": {
+          "type": "boolean"
+        },
+        "is_published": {
+          "type": "boolean"
+        },
+        "operation": {
+          "const": "revision"
+        },
+        "persona_version": {
+          "type": "integer"
+        },
+        "published_revision": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "revision": {
+          "type": "object",
+          "properties": {
+            "approval_reason": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 20000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "approved_at": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "approved_by": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 20000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "content": {
+              "type": "object",
+              "minProperties": 1,
+              "maxProperties": 16,
+              "required": [
+                "persona"
+              ],
+              "properties": {
+                "persona": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 20000
+                },
+                "tone": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "null"
+                  ],
+                  "maxLength": 20000
+                },
+                "style": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "null"
+                  ],
+                  "maxLength": 20000
+                },
+                "address": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "null"
+                  ],
+                  "maxLength": 4000
+                }
+              },
+              "propertyNames": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "additionalProperties": {
+                "type": [
+                  "string",
+                  "number",
+                  "boolean",
+                  "null"
+                ],
+                "maxLength": 4000
+              }
+            },
+            "created_at": {
+              "type": "number"
+            },
+            "fingerprint": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "note": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 20000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "operator": {
+              "type": "string",
+              "maxLength": 20000
+            },
+            "parent": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "revision_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "source": {
+              "type": "string",
+              "maxLength": 20000
+            }
+          },
+          "required": [
+            "approval_reason",
+            "approved_at",
+            "approved_by",
+            "content",
+            "created_at",
+            "fingerprint",
+            "note",
+            "operator",
+            "parent",
+            "revision_id",
+            "source"
+          ],
+          "additionalProperties": false
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "state": {
+          "type": "string",
+          "maxLength": 20000
+        },
+        "subject": {
+          "type": "string",
+          "maxLength": 20000
+        }
+      },
+      "required": [
+        "draft_revision",
+        "is_draft",
+        "is_published",
+        "operation",
+        "persona_version",
+        "published_revision",
+        "revision",
+        "schema_version",
+        "state",
+        "subject"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "additional_field_names": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "maxItems": 100
+        },
+        "additional_fields_changed": {
+          "type": "boolean"
+        },
+        "additional_fields_present": {
+          "type": "boolean"
+        },
+        "comparison_scope": {
+          "const": [
+            "persona",
+            "tone",
+            "style",
+            "address"
+          ]
+        },
+        "content_identical": {
+          "type": "boolean"
+        },
+        "draft_revision": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fields": {
+          "type": "object",
+          "properties": {
+            "address": {
+              "type": "object",
+              "properties": {
+                "change": {
+                  "enum": [
+                    "added",
+                    "removed",
+                    "modified",
+                    "unchanged"
+                  ]
+                },
+                "left": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "null"
+                  ],
+                  "maxLength": 20000
+                },
+                "presence": {
+                  "type": "object",
+                  "properties": {
+                    "left": {
+                      "type": "boolean"
+                    },
+                    "right": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "left",
+                    "right"
+                  ],
+                  "additionalProperties": false
+                },
+                "right": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "null"
+                  ],
+                  "maxLength": 20000
+                }
+              },
+              "required": [
+                "change",
+                "left",
+                "presence",
+                "right"
+              ],
+              "additionalProperties": false
+            },
+            "persona": {
+              "type": "object",
+              "properties": {
+                "change": {
+                  "enum": [
+                    "added",
+                    "removed",
+                    "modified",
+                    "unchanged"
+                  ]
+                },
+                "left": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "null"
+                  ],
+                  "maxLength": 20000
+                },
+                "presence": {
+                  "type": "object",
+                  "properties": {
+                    "left": {
+                      "type": "boolean"
+                    },
+                    "right": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "left",
+                    "right"
+                  ],
+                  "additionalProperties": false
+                },
+                "right": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "null"
+                  ],
+                  "maxLength": 20000
+                }
+              },
+              "required": [
+                "change",
+                "left",
+                "presence",
+                "right"
+              ],
+              "additionalProperties": false
+            },
+            "style": {
+              "type": "object",
+              "properties": {
+                "change": {
+                  "enum": [
+                    "added",
+                    "removed",
+                    "modified",
+                    "unchanged"
+                  ]
+                },
+                "left": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "null"
+                  ],
+                  "maxLength": 20000
+                },
+                "presence": {
+                  "type": "object",
+                  "properties": {
+                    "left": {
+                      "type": "boolean"
+                    },
+                    "right": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "left",
+                    "right"
+                  ],
+                  "additionalProperties": false
+                },
+                "right": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "null"
+                  ],
+                  "maxLength": 20000
+                }
+              },
+              "required": [
+                "change",
+                "left",
+                "presence",
+                "right"
+              ],
+              "additionalProperties": false
+            },
+            "tone": {
+              "type": "object",
+              "properties": {
+                "change": {
+                  "enum": [
+                    "added",
+                    "removed",
+                    "modified",
+                    "unchanged"
+                  ]
+                },
+                "left": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "null"
+                  ],
+                  "maxLength": 20000
+                },
+                "presence": {
+                  "type": "object",
+                  "properties": {
+                    "left": {
+                      "type": "boolean"
+                    },
+                    "right": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "left",
+                    "right"
+                  ],
+                  "additionalProperties": false
+                },
+                "right": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "null"
+                  ],
+                  "maxLength": 20000
+                }
+              },
+              "required": [
+                "change",
+                "left",
+                "presence",
+                "right"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "address",
+            "persona",
+            "style",
+            "tone"
+          ],
+          "additionalProperties": false
+        },
+        "identical_revision": {
+          "type": "boolean"
+        },
+        "left": {
+          "type": "object",
+          "properties": {
+            "approval_reason": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 20000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "approved_at": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "approved_by": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 20000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "created_at": {
+              "type": "number"
+            },
+            "fingerprint": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "note": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 20000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "operator": {
+              "type": "string",
+              "maxLength": 20000
+            },
+            "parent": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "revision_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "source": {
+              "type": "string",
+              "maxLength": 20000
+            }
+          },
+          "required": [
+            "approval_reason",
+            "approved_at",
+            "approved_by",
+            "created_at",
+            "fingerprint",
+            "note",
+            "operator",
+            "parent",
+            "revision_id",
+            "source"
+          ],
+          "additionalProperties": false
+        },
+        "operation": {
+          "const": "compare"
+        },
+        "persona_version": {
+          "type": "integer"
+        },
+        "published_revision": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "right": {
+          "type": "object",
+          "properties": {
+            "approval_reason": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 20000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "approved_at": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "approved_by": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 20000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "created_at": {
+              "type": "number"
+            },
+            "fingerprint": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "note": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 20000
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "operator": {
+              "type": "string",
+              "maxLength": 20000
+            },
+            "parent": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "revision_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "source": {
+              "type": "string",
+              "maxLength": 20000
+            }
+          },
+          "required": [
+            "approval_reason",
+            "approved_at",
+            "approved_by",
+            "created_at",
+            "fingerprint",
+            "note",
+            "operator",
+            "parent",
+            "revision_id",
+            "source"
+          ],
+          "additionalProperties": false
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "state": {
+          "type": "string",
+          "maxLength": 20000
+        },
+        "subject": {
+          "type": "string",
+          "maxLength": 20000
+        }
+      },
+      "required": [
+        "additional_field_names",
+        "additional_fields_changed",
+        "additional_fields_present",
+        "comparison_scope",
+        "content_identical",
+        "draft_revision",
+        "fields",
+        "identical_revision",
+        "left",
+        "operation",
+        "persona_version",
+        "published_revision",
+        "right",
+        "schema_version",
+        "state",
+        "subject"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "consistency": {
+          "const": "version_bound"
+        },
+        "count": {
+          "type": "integer"
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "created_at": {
+                "type": "number"
+              },
+              "decided_at": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "decided_by": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 20000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "decision": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 20000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "fingerprint": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "note": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 20000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "operator": {
+                "type": "string",
+                "maxLength": 20000
+              },
+              "parent": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "revision_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "source": {
+                "type": "string",
+                "maxLength": 20000
+              }
+            },
+            "required": [
+              "created_at",
+              "decided_at",
+              "decided_by",
+              "decision",
+              "fingerprint",
+              "note",
+              "operator",
+              "parent",
+              "revision_id",
+              "source"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 100
+        },
+        "has_more": {
+          "type": "boolean"
+        },
+        "kind": {
+          "const": "revisions"
+        },
+        "limit": {
+          "type": "integer"
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2048
+        },
+        "operation": {
+          "const": "history_page"
+        },
+        "persona_version": {
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "subject": {
+          "type": "string",
+          "maxLength": 20000
+        }
+      },
+      "required": [
+        "consistency",
+        "count",
+        "entries",
+        "has_more",
+        "kind",
+        "limit",
+        "next_cursor",
+        "operation",
+        "persona_version",
+        "schema_version",
+        "subject"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "consistency": {
+          "const": "version_bound"
+        },
+        "count": {
+          "type": "integer"
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "created_at": {
+                "type": "number"
+              },
+              "generation": {
+                "type": "integer"
+              },
+              "kind": {
+                "type": "string",
+                "maxLength": 20000
+              },
+              "operator": {
+                "type": "string",
+                "maxLength": 20000
+              },
+              "publication_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "reason": {
+                "type": "string",
+                "maxLength": 20000
+              },
+              "revision_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "state": {
+                "type": "string",
+                "maxLength": 20000
+              },
+              "supersedes": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "created_at",
+              "generation",
+              "kind",
+              "operator",
+              "publication_id",
+              "reason",
+              "revision_id",
+              "state",
+              "supersedes"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 100
+        },
+        "has_more": {
+          "type": "boolean"
+        },
+        "kind": {
+          "const": "publications"
+        },
+        "limit": {
+          "type": "integer"
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2048
+        },
+        "operation": {
+          "const": "history_page"
+        },
+        "persona_version": {
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "subject": {
+          "type": "string",
+          "maxLength": 20000
+        }
+      },
+      "required": [
+        "consistency",
+        "count",
+        "entries",
+        "has_more",
+        "kind",
+        "limit",
+        "next_cursor",
+        "operation",
+        "persona_version",
+        "schema_version",
+        "subject"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "consistency": {
+          "const": "version_bound"
+        },
+        "count": {
+          "type": "integer"
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "approval_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "created_at": {
+                "type": "number"
+              },
+              "decision": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 20000
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "fingerprint": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "operator": {
+                "type": "string",
+                "maxLength": 20000
+              },
+              "reason": {
+                "type": "string",
+                "maxLength": 20000
+              },
+              "revision_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "state": {
+                "type": "string",
+                "maxLength": 20000
+              }
+            },
+            "required": [
+              "approval_id",
+              "created_at",
+              "decision",
+              "fingerprint",
+              "operator",
+              "reason",
+              "revision_id",
+              "state"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 100
+        },
+        "has_more": {
+          "type": "boolean"
+        },
+        "kind": {
+          "const": "approvals"
+        },
+        "limit": {
+          "type": "integer"
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2048
+        },
+        "operation": {
+          "const": "history_page"
+        },
+        "persona_version": {
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "subject": {
+          "type": "string",
+          "maxLength": 20000
+        }
+      },
+      "required": [
+        "consistency",
+        "count",
+        "entries",
+        "has_more",
+        "kind",
+        "limit",
+        "next_cursor",
+        "operation",
+        "persona_version",
+        "schema_version",
+        "subject"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "consistency": {
+          "const": "version_bound"
+        },
+        "count": {
+          "type": "integer"
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "created_at": {
+                "type": "number"
+              },
+              "operator": {
+                "type": "string",
+                "maxLength": 20000
+              },
+              "reason": {
+                "type": "string",
+                "maxLength": 20000
+              },
+              "restored_revision": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "rollback_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "state": {
+                "type": "string",
+                "maxLength": 20000
+              },
+              "superseded_revision": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "target_revision": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            },
+            "required": [
+              "created_at",
+              "operator",
+              "reason",
+              "restored_revision",
+              "rollback_id",
+              "state",
+              "superseded_revision",
+              "target_revision"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 100
+        },
+        "has_more": {
+          "type": "boolean"
+        },
+        "kind": {
+          "const": "rollbacks"
+        },
+        "limit": {
+          "type": "integer"
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2048
+        },
+        "operation": {
+          "const": "history_page"
+        },
+        "persona_version": {
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "subject": {
+          "type": "string",
+          "maxLength": 20000
+        }
+      },
+      "required": [
+        "consistency",
+        "count",
+        "entries",
+        "has_more",
+        "kind",
+        "limit",
+        "next_cursor",
+        "operation",
+        "persona_version",
+        "schema_version",
+        "subject"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "code": {
+          "enum": [
+            "unauthorized",
+            "forbidden",
+            "not_found",
+            "timeout",
+            "version_conflict",
+            "scope_changed",
+            "idempotency_conflict",
+            "result_unknown",
+            "queue_full",
+            "budget_exceeded",
+            "dependency_unavailable",
+            "invalid_input"
+          ]
+        },
+        "execution_state": {
+          "enum": [
+            "not_started",
+            "unknown"
+          ]
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "current_version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "code",
+        "execution_state",
+        "retryable"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}
