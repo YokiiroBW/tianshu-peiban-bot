@@ -1,0 +1,12 @@
+{
+  "status": "three_visible_threads_running",
+  "spec": "docs/development/existing-capabilities-integration-2026-09-27.md",
+  "coordinator": "01a0ddde-9e0f-7f40-a5c2-073b27a645ee",
+  "nas_changed_this_wave": false,
+  "threads": [
+    {"role":"CONNECT-B","title":"已有功能贯通：后端与内置服务连接","threadId":"01a0e324-f536-72a2-acaa-6764efd2360e","model":"gpt-6-sol","effort":"xhigh","worktree":"worktrees/CONNECT-B/tianshu-platform"},
+    {"role":"CONNECT-U","title":"已有功能贯通：网页流程与连接设置","threadId":"01a0e324-f531-7842-abfc-b55e0472504e","model":"gpt-6-sol","effort":"xhigh","worktree":"worktrees/CONNECT-U/tianshu-platform"},
+    {"role":"CONNECT-A","title":"已有功能贯通：全量覆盖与独立验收","threadId":"01a0e324-fa67-73e2-8f50-133c9e7372bc","model":"gpt-6-luna","effort":"max","worktree":"C:/Users/Administrator/.codex/worktrees/7208/tianshu-peiban-bot"}
+  ],
+  "next": "coverage matrix, agreed browser API, parallel implementation, independent review, serial integration, controlled NAS update and real feature acceptance"
+}
