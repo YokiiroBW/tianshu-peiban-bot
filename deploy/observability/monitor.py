@@ -80,11 +80,12 @@ class Ledger:
                                 break
                             try:
                                 event = self.policy.line(raw)
-                                allowed = (
-                                    {"memory", "memory-knowledge"}
-                                    if service == "memory"
-                                    else {service}
-                                )
+                                if service == "memory":
+                                    allowed = {"memory", "memory-knowledge"}
+                                elif service == "knowledge":
+                                    allowed = {"memory-knowledge"}
+                                else:
+                                    allowed = {service}
                                 if event["service"] not in allowed:
                                     raise ValueError()
                                 old = self.db.execute(

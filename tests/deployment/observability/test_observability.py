@@ -190,6 +190,36 @@ class ReconciliationTests(WorkspaceTest):
 
 
 class LedgerTests(WorkspaceTest):
+    def test_dedicated_knowledge_root_accepts_only_memory_knowledge_events(self):
+        knowledge = self.root / "knowledge"
+        memory = self.root / "memory"
+        knowledge.mkdir()
+        memory.mkdir()
+        accepted = event(1, service="memory-knowledge")
+        rejected = event(2, service="memory")
+        emit(knowledge / "knowledge.jsonl", [accepted, rejected])
+        emit(
+            memory / "memory.jsonl",
+            [event(3, service="memory-knowledge"), event(4, service="memory")],
+        )
+        ledger = Ledger(self.root / "ledger.sqlite", self.policy)
+        self.addCleanup(ledger.close)
+        ledger.scan({"knowledge": knowledge, "memory": memory})
+        metrics = ledger.metrics()
+        self.assertEqual(metrics["landed_events"], 3)
+        self.assertEqual(metrics["invalid_source_lines_total"], 1)
+        self.assertEqual(
+            ledger.db.execute(
+                "SELECT service FROM events WHERE id=?", (accepted["event_id"],)
+            ).fetchone()[0],
+            "memory-knowledge",
+        )
+        self.assertIsNone(
+            ledger.db.execute(
+                "SELECT 1 FROM events WHERE id=?", (rejected["event_id"],)
+            ).fetchone()
+        )
+
     def test_regular_rename_rotation_does_not_raise_mutation_alarm(self):
         path = self.root / "active.jsonl"
         emit(path, [event(1)])
