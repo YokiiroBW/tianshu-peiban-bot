@@ -1,5 +1,5 @@
 {
-  "status": "fixed_candidates_under_independent_review",
+  "status": "platform_rework_required",
   "user_choice": "both; live test recipients to be specified",
   "models": "gpt-6-sol/xhigh",
   "tasks": [
@@ -9,7 +9,7 @@
       "worktree": "worktrees/BOT-P/tianshu-platform",
       "baseline": "88c07ae",
       "candidate_commit": "0a2e6d9242308eb3cb785815aae8ca37b190ec62",
-      "status": "delivered_pending_review"
+      "status": "rework_in_progress"
     },
     {
       "task": "BOT-N",
@@ -17,7 +17,7 @@
       "worktree": "worktrees/BOT-N/tianshu-companion",
       "baseline": "3167798",
       "candidate_commit": "361585c952a45e825cdc4a438fba372f294a82bb",
-      "status": "fixed_platform_joint_passed_pending_review"
+      "status": "local_candidate_accepted_pending_repaired_platform_joint"
     },
     {
       "task": "BOT-A",
@@ -25,7 +25,7 @@
       "worktree": "worktrees/BOT-A/tianshu-companion",
       "baseline": "3167798",
       "candidate_commit": "910ce8c63756b03463db63bd8e0c0de156da2e7b",
-      "status": "12_tests_passed_against_fixed_platform_pending_review"
+      "status": "local_candidate_accepted_pending_repaired_platform_joint"
     }
   ],
   "nas_inventory": {
@@ -44,8 +44,18 @@
     "thread_id": "01a0e638-e9b3-7373-aded-561aef7fe95b",
     "model": "gpt-6-luna",
     "thinking": "max",
-    "status": "in_progress"
+    "status": "two_platform_blockers_reproduced",
+    "report_commit": "f5b4307",
+    "findings": [
+      "duplicate_owner_across_internal_bindings",
+      "synchronous_sqlite_blocks_event_loop"
+    ]
   },
   "integration_worktree": "worktrees/BOT-INTEGRATION/tianshu-companion",
-  "production_changed": false
+  "production_changed": false,
+  "coordinator_validation": {
+    "readiness_and_probe_tests": "19 passed with TS013_TLS_PYTHON configured",
+    "unchanged_health_scope_only": true,
+    "production_changed": false
+  }
 }
