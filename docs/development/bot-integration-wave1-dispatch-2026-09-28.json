@@ -15,7 +15,9 @@
       "task": "BOT-N",
       "thread_id": "01a0e61d-a5c1-7f93-bfae-26d6ea3db601",
       "worktree": "worktrees/BOT-N/tianshu-companion",
-      "baseline": "3167798"
+      "baseline": "3167798",
+      "candidate_commit": "361585c952a45e825cdc4a438fba372f294a82bb",
+      "status": "fixed_platform_joint_passed_pending_review"
     },
     {
       "task": "BOT-A",
@@ -43,5 +45,7 @@
     "model": "gpt-6-luna",
     "thinking": "max",
     "status": "in_progress"
-  }
+  },
+  "integration_worktree": "worktrees/BOT-INTEGRATION/tianshu-companion",
+  "production_changed": false
 }
