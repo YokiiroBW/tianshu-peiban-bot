@@ -1,0 +1,41 @@
+{
+  "status": "dispatched_active_not_implemented_not_deployed",
+  "plan": "bot-adapter-self-service-2026-09-28.md",
+  "model": "gpt-6-sol",
+  "thinking": "xhigh",
+  "user_goal": "Select adapter and plugin address in the web UI; built-in protocol and automatic registration; no manual config-file editing",
+  "tasks": [
+    {
+      "id": "ADAPTER-P",
+      "thread_id": "01a0e701-a7b3-7a12-9ba2-70d6e1ac854e",
+      "title": "机器人自助接入：平台管理与核心自动绑定",
+      "status": "active",
+      "worktrees": ["worktrees/ADAPTER-P/tianshu-platform", "worktrees/ADAPTER-P/tianshu-companion"],
+      "owns": ["platform backend", "companion src", "scoped backend tests and handoffs"]
+    },
+    {
+      "id": "ADAPTER-H",
+      "thread_id": "01a0e701-a82d-73f3-99aa-94edcb218e70",
+      "title": "机器人自助接入：AstrBot 与 NoneBot 插件适配器",
+      "status": "active",
+      "worktrees": ["worktrees/ADAPTER-H/tianshu-companion"],
+      "owns": ["companion integrations", "scoped plugin tests", "plugin package scripts and handoff"]
+    },
+    {
+      "id": "ADAPTER-U",
+      "thread_id": "01a0e701-adbe-7683-9e47-847ccbcd2338",
+      "title": "机器人自助接入：网页添加适配器向导",
+      "status": "active",
+      "worktrees": ["worktrees/ADAPTER-U/tianshu-platform"],
+      "owns": ["platform bot settings frontend", "scoped browser tests and handoff"]
+    }
+  ],
+  "platform_baseline": "88fb778974f7050f3b4aa3c84a47b847d997e349",
+  "companion_baseline": "ad180ca34c36c657f4a8acccb1e731cd434c3e03",
+  "root_contract_commit": "79abf0c",
+  "nas_changes_this_wave": false,
+  "real_robot_messages_authorized": false,
+  "real_targets": "user_to_specify",
+  "integration_owner": "root coordinator",
+  "acceptance": "Empty installation -> browser probe/create/enable/disable without editing configuration files; persistent restart recovery and no duplicate send after unknown outcomes; preserve existing web dialogue"
+}
