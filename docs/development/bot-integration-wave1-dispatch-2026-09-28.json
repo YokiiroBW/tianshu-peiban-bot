@@ -1,5 +1,5 @@
 {
-  "status": "local_fixed_candidate_accepted_not_merged_not_deployed",
+  "status": "integrated_deployed_capabilities_pending_robot_binding",
   "user_choice": "both; live test recipients to be specified",
   "models": "gpt-6-sol/xhigh",
   "tasks": [
@@ -9,7 +9,7 @@
       "worktree": "worktrees/BOT-P/tianshu-platform",
       "baseline": "88c07ae",
       "candidate_commit": "c5f4d3acc3a906376c5dfe36279ef26b91769b25",
-      "status": "accepted_local_candidate"
+      "status": "integrated_backend_deployed_adapter_host_pending"
     },
     {
       "task": "BOT-N",
@@ -17,7 +17,7 @@
       "worktree": "worktrees/BOT-N/tianshu-companion",
       "baseline": "3167798",
       "candidate_commit": "361585c952a45e825cdc4a438fba372f294a82bb",
-      "status": "accepted_local_candidate"
+      "status": "integrated_backend_deployed_adapter_host_pending"
     },
     {
       "task": "BOT-A",
@@ -25,7 +25,7 @@
       "worktree": "worktrees/BOT-A/tianshu-companion",
       "baseline": "3167798",
       "candidate_commit": "910ce8c63756b03463db63bd8e0c0de156da2e7b",
-      "status": "accepted_local_candidate"
+      "status": "integrated_backend_deployed_adapter_host_pending"
     }
   ],
   "nas_inventory": {
@@ -53,7 +53,7 @@
     "followup_commit": "d77a31a"
   },
   "integration_worktree": "worktrees/BOT-INTEGRATION/tianshu-companion",
-  "production_changed": false,
+  "production_changed": true,
   "coordinator_validation": {
     "readiness_and_probe_tests": "19 passed with TS013_TLS_PYTHON configured",
     "unchanged_health_scope_only": true,
@@ -61,5 +61,20 @@
     "combined_adapters_against_repaired_platform": "21 passed, no skips",
     "platform_bots_and_legacy_web_sender": "20 passed",
     "companion_candidate": "484240a9244dcd62dec22c174d5281a715aaae10"
-  }
+  },
+  "deployment_report": "bot-wave1-deployment-2026-09-28.md",
+  "deployed_commits": {
+    "platform": "c5f4d3acc3a906376c5dfe36279ef26b91769b25",
+    "companion": "484240a9244dcd62dec22c174d5281a715aaae10"
+  },
+  "astrbot_fixed_package": {
+    "artifact": "astrbot_plugin_tianshu-r2.zip",
+    "sha256": "c57463ca0ba80ce1aeae53bb8f71c41b46b35d46593f89d13ce6271ba98851de",
+    "source_commit": "589c99c087ee884e87639e6ee26ea94d7e1c6224",
+    "default_enabled": false,
+    "staged_only": true,
+    "supersedes": "astrbot_plugin_tianshu.zip"
+  },
+  "companion_main_after_plugin_only_fix": "ad180ca34c36c657f4a8acccb1e731cd434c3e03",
+  "contract_package": "published_qq_implementation_profile_generic_not_frozen"
 }

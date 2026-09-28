@@ -1,0 +1,336 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.tianshu.invalid/bot-connection/v1/bot-connection.json",
+  "$defs": {
+    "id": {
+      "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+    },
+    "short_text": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "slot_text": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "thread_id": {
+      "anyOf": [{ "type": "string", "minLength": 1 }, { "type": "null" }]
+    },
+    "outcome": {
+      "type": "object",
+      "properties": {
+        "actor_id": { "$ref": "#/$defs/id" },
+        "state": { "enum": ["accepted", "duplicate", "forbidden"] }
+      },
+      "required": ["actor_id", "state"],
+      "additionalProperties": false
+    },
+    "event_request": {
+      "type": "object",
+      "properties": {
+        "schema_version": { "const": 1 },
+        "connection_id": { "$ref": "#/$defs/id" },
+        "platform_id": { "$ref": "#/$defs/slot_text" },
+        "self_id": { "$ref": "#/$defs/slot_text" },
+        "event_id": { "$ref": "#/$defs/short_text" },
+        "revision": { "const": 1 },
+        "namespace": { "enum": ["qq", "tg"] },
+        "conversation_id": { "$ref": "#/$defs/short_text" },
+        "thread_id": { "$ref": "#/$defs/thread_id" },
+        "account_id": { "$ref": "#/$defs/short_text" },
+        "sent_at": { "type": "string", "format": "date-time" },
+        "text": { "type": "string", "minLength": 1, "maxLength": 8000, "pattern": "\\S" }
+      },
+      "required": ["schema_version", "connection_id", "platform_id", "self_id", "event_id", "revision", "namespace", "conversation_id", "thread_id", "account_id", "sent_at", "text"],
+      "additionalProperties": false
+    },
+    "event_response": {
+      "type": "object",
+      "properties": {
+        "event_id": { "$ref": "#/$defs/short_text" },
+        "message_id": { "$ref": "#/$defs/id" },
+        "state": { "enum": ["accepted", "not_started", "unknown"] },
+        "outcomes": { "type": "array", "items": { "$ref": "#/$defs/outcome" } }
+      },
+      "required": ["event_id", "message_id", "state", "outcomes"],
+      "additionalProperties": false
+    },
+    "event_status_request": {
+      "type": "object",
+      "properties": {
+        "connection_id": { "$ref": "#/$defs/id" },
+        "event_id": { "$ref": "#/$defs/short_text" },
+        "account_id": { "$ref": "#/$defs/short_text" }
+      },
+      "required": ["connection_id", "event_id", "account_id"],
+      "additionalProperties": false
+    },
+    "event_status_response": {
+      "type": "object",
+      "properties": {
+        "found": { "type": "boolean" },
+        "state": { "enum": ["accepted", "not_started", "unknown", null] },
+        "message_id": { "anyOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }] },
+        "outcomes": { "type": "array", "items": { "$ref": "#/$defs/outcome" } }
+      },
+      "required": ["found", "state", "message_id", "outcomes"],
+      "additionalProperties": false,
+      "if": { "properties": { "found": { "const": false } }, "required": ["found"] },
+      "then": { "properties": { "state": { "type": "null" }, "message_id": { "type": "null" }, "outcomes": { "maxItems": 0 } } },
+      "else": { "properties": { "state": { "enum": ["accepted", "not_started", "unknown"] }, "message_id": { "$ref": "#/$defs/id" } } }
+    },
+    "heartbeat_request": {
+      "type": "object",
+      "properties": {
+        "connection_id": { "$ref": "#/$defs/id" },
+        "instance_id": { "type": "string", "minLength": 1, "maxLength": 128 }
+      },
+      "required": ["connection_id", "instance_id"],
+      "additionalProperties": false
+    },
+    "heartbeat_response": {
+      "type": "object",
+      "properties": {
+        "state": { "const": "online" },
+        "observed_at": { "type": "string", "format": "date-time", "pattern": "Z$" }
+      },
+      "required": ["state", "observed_at"],
+      "additionalProperties": false
+    },
+    "claim_request": {
+      "type": "object",
+      "properties": {
+        "connection_id": { "$ref": "#/$defs/id" },
+        "instance_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 20 }
+      },
+      "required": ["connection_id", "instance_id", "limit"],
+      "additionalProperties": false
+    },
+    "delivery": {
+      "type": "object",
+      "properties": {
+        "reply_id": { "$ref": "#/$defs/id" },
+        "attempt_id": { "$ref": "#/$defs/id" },
+        "namespace": { "enum": ["qq", "tg"] },
+        "conversation_id": { "type": "string", "minLength": 1 },
+        "thread_id": { "$ref": "#/$defs/thread_id" },
+        "text": { "type": "string", "minLength": 1 },
+        "turn_id": { "$ref": "#/$defs/id" },
+        "segment_sequence": { "type": "integer", "minimum": 1 }
+      },
+      "required": ["reply_id", "attempt_id", "namespace", "conversation_id", "thread_id", "text", "turn_id", "segment_sequence"],
+      "additionalProperties": false
+    },
+    "claim_response": {
+      "type": "object",
+      "properties": {
+        "deliveries": { "type": "array", "items": { "$ref": "#/$defs/delivery" }, "maxItems": 20 }
+      },
+      "required": ["deliveries"],
+      "additionalProperties": false
+    },
+    "claim_status_request": {
+      "type": "object",
+      "properties": {
+        "connection_id": { "$ref": "#/$defs/id" },
+        "reply_id": { "$ref": "#/$defs/id" },
+        "attempt_id": { "$ref": "#/$defs/id" }
+      },
+      "required": ["connection_id", "reply_id", "attempt_id"],
+      "additionalProperties": false
+    },
+    "claim_status_response": {
+      "type": "object",
+      "properties": { "state": { "enum": ["pending", "claimed", "sent", "failed", "unknown"] } },
+      "required": ["state"],
+      "additionalProperties": false
+    },
+    "ack_request": {
+      "type": "object",
+      "properties": {
+        "connection_id": { "$ref": "#/$defs/id" },
+        "reply_id": { "$ref": "#/$defs/id" },
+        "attempt_id": { "$ref": "#/$defs/id" },
+        "state": { "enum": ["sent", "failed", "unknown"] },
+        "channel_message_ids": { "type": "array", "items": { "type": "string", "minLength": 1, "maxLength": 256 }, "maxItems": 20 }
+      },
+      "required": ["connection_id", "reply_id", "attempt_id", "state", "channel_message_ids"],
+      "additionalProperties": false,
+      "if": { "properties": { "state": { "const": "sent" } }, "required": ["state"] },
+      "then": { "properties": { "channel_message_ids": { "minItems": 1 } } },
+      "else": { "properties": { "channel_message_ids": { "maxItems": 0 } } }
+    },
+    "ack_response": {
+      "type": "object",
+      "properties": {
+        "reply_id": { "$ref": "#/$defs/id" },
+        "state": { "enum": ["sent", "failed", "unknown"] }
+      },
+      "required": ["reply_id", "state"],
+      "additionalProperties": false
+    },
+    "send_request": {
+      "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/conversation.json#/$defs/send_request"
+    },
+    "send_receipt": {
+      "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/conversation.json#/$defs/send_receipt"
+    },
+    "reply_status_request": {
+      "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/conversation.json#/$defs/send_request"
+    },
+    "reply_status_response": {
+      "type": "object",
+      "properties": {
+        "receipt": {
+          "anyOf": [
+            { "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/conversation.json#/$defs/send_receipt" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "required": ["receipt"],
+      "additionalProperties": false
+    },
+    "internal_error": {
+      "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/error"
+    },
+    "web_view_request": { "type": "object", "maxProperties": 0 },
+    "web_unlock_request": {
+      "type": "object",
+      "properties": { "password": { "type": "string", "minLength": 12, "maxLength": 256 } },
+      "required": ["password"],
+      "additionalProperties": false
+    },
+    "web_unlock_response": {
+      "type": "object",
+      "properties": { "unlocked": { "const": true }, "expires_in": { "const": 900 } },
+      "required": ["unlocked", "expires_in"],
+      "additionalProperties": false
+    },
+    "web_create_request": {
+      "type": "object",
+      "properties": {
+        "slot_id": { "$ref": "#/$defs/id" },
+        "actor_ids": { "type": "array", "items": { "$ref": "#/$defs/id" }, "minItems": 1, "maxItems": 32, "uniqueItems": true }
+      },
+      "required": ["slot_id", "actor_ids"],
+      "additionalProperties": false
+    },
+    "web_create_response": {
+      "type": "object",
+      "properties": {
+        "connection_id": { "$ref": "#/$defs/id" },
+        "token": { "type": "string", "minLength": 32 },
+        "enabled": { "const": false }
+      },
+      "required": ["connection_id", "token", "enabled"],
+      "additionalProperties": false
+    },
+    "web_change_request": {
+      "type": "object",
+      "properties": { "connection_id": { "$ref": "#/$defs/id" } },
+      "required": ["connection_id"],
+      "additionalProperties": false
+    },
+    "web_change_response": {
+      "type": "object",
+      "properties": {
+        "connection_id": { "$ref": "#/$defs/id" },
+        "enabled": { "type": "boolean" },
+        "token": { "type": "string", "minLength": 32 }
+      },
+      "required": ["connection_id", "enabled"],
+      "additionalProperties": false
+    },
+    "web_enable_response": {
+      "allOf": [
+        { "$ref": "#/$defs/web_change_response" },
+        { "properties": { "enabled": { "const": true } }, "not": { "required": ["token"] } }
+      ]
+    },
+    "web_disable_response": {
+      "allOf": [
+        { "$ref": "#/$defs/web_change_response" },
+        { "properties": { "enabled": { "const": false } }, "not": { "required": ["token"] } }
+      ]
+    },
+    "web_rotate_response": {
+      "allOf": [
+        { "$ref": "#/$defs/web_change_response" },
+        { "required": ["token"] }
+      ]
+    },
+    "web_slot": {
+      "type": "object",
+      "properties": {
+        "slot_id": { "$ref": "#/$defs/id" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "adapter": { "enum": ["nonebot", "astrbot"] },
+        "platform_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "self_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "namespace": { "enum": ["qq", "tg"] },
+        "conversation_id": { "type": "string", "minLength": 1 },
+        "actor_ids": { "type": "array", "items": { "$ref": "#/$defs/id" } },
+        "registered_authors": { "type": "integer", "minimum": 1 },
+        "created": { "type": "boolean" }
+      },
+      "required": ["slot_id", "label", "adapter", "platform_id", "self_id", "namespace", "conversation_id", "actor_ids", "registered_authors", "created"],
+      "additionalProperties": false
+    },
+    "web_connection": {
+      "type": "object",
+      "properties": {
+        "connection_id": { "$ref": "#/$defs/id" },
+        "slot_id": { "$ref": "#/$defs/id" },
+        "adapter": { "enum": ["nonebot", "astrbot"] },
+        "actor_ids": { "type": "array", "items": { "$ref": "#/$defs/id" } },
+        "enabled": { "type": "boolean" },
+        "state": { "enum": ["online", "pending", "disabled", "failed"] },
+        "last_seen_at": { "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] },
+        "last_event_at": { "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }] },
+        "last_error": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+        "credential": { "enum": ["configured", "missing"] },
+        "delivery": {
+          "type": "object",
+          "properties": {
+            "pending": { "type": "integer", "minimum": 0 },
+            "claimed": { "type": "integer", "minimum": 0 },
+            "sent": { "type": "integer", "minimum": 0 },
+            "failed": { "type": "integer", "minimum": 0 },
+            "unknown": { "type": "integer", "minimum": 0 }
+          },
+          "required": ["pending", "claimed", "sent", "failed", "unknown"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["connection_id", "slot_id", "adapter", "actor_ids", "enabled", "state", "last_seen_at", "last_event_at", "last_error", "credential", "delivery"],
+      "additionalProperties": false
+    },
+    "web_view_response": {
+      "type": "object",
+      "properties": {
+        "available": { "type": "boolean" },
+        "slots": { "type": "array", "items": { "$ref": "#/$defs/web_slot" } },
+        "connections": { "type": "array", "items": { "$ref": "#/$defs/web_connection" } },
+        "management": {
+          "type": "object",
+          "properties": {
+            "code": { "enum": ["ready", "management_required", "management_disabled", "operator_not_authorized"] },
+            "unlocked": { "type": "boolean" }
+          },
+          "required": ["code", "unlocked"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["available", "slots", "connections", "management"],
+      "additionalProperties": false
+    },
+    "web_error": {
+      "type": "object",
+      "properties": {
+        "schema_version": { "const": 1 },
+        "request_id": { "$ref": "#/$defs/id" },
+        "code": { "type": "string", "minLength": 1 },
+        "execution_state": { "enum": ["not_started", "unknown"] },
+        "retryable": { "type": "boolean" }
+      },
+      "required": ["schema_version", "request_id", "code", "execution_state", "retryable"],
+      "additionalProperties": false
+    }
+  }
+}

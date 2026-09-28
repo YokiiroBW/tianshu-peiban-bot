@@ -1,0 +1,360 @@
+{
+  "synthetic_only": true,
+  "documents": [
+    {
+      "name": "event_request",
+      "schema": "event_request",
+      "value": {
+        "schema_version": 1,
+        "connection_id": "bot:synthetic-001",
+        "platform_id": "onebot11-synthetic",
+        "self_id": "bot:42",
+        "event_id": "sdk:event-101",
+        "revision": 1,
+        "namespace": "qq",
+        "conversation_id": "group:123",
+        "thread_id": null,
+        "account_id": "user:1",
+        "sent_at": "2026-09-28T02:00:00Z",
+        "text": "合成问候"
+      }
+    },
+    {
+      "name": "event_accepted",
+      "schema": "event_response",
+      "value": {
+        "event_id": "sdk:event-101",
+        "message_id": "message:synthetic-101",
+        "state": "accepted",
+        "outcomes": [{ "actor_id": "actor:a", "state": "accepted" }]
+      }
+    },
+    {
+      "name": "event_unknown",
+      "schema": "event_response",
+      "value": {
+        "event_id": "sdk:event-102",
+        "message_id": "message:synthetic-102",
+        "state": "unknown",
+        "outcomes": []
+      }
+    },
+    {
+      "name": "event_status_request",
+      "schema": "event_status_request",
+      "value": { "connection_id": "bot:synthetic-001", "event_id": "sdk:event-101", "account_id": "user:1" }
+    },
+    {
+      "name": "event_status_found",
+      "schema": "event_status_response",
+      "value": {
+        "found": true,
+        "state": "accepted",
+        "message_id": "message:synthetic-101",
+        "outcomes": [{ "actor_id": "actor:a", "state": "accepted" }]
+      }
+    },
+    {
+      "name": "event_status_missing",
+      "schema": "event_status_response",
+      "value": { "found": false, "state": null, "message_id": null, "outcomes": [] }
+    },
+    {
+      "name": "heartbeat_request",
+      "schema": "heartbeat_request",
+      "value": { "connection_id": "bot:synthetic-001", "instance_id": "synthetic-process-1" }
+    },
+    {
+      "name": "heartbeat_response",
+      "schema": "heartbeat_response",
+      "value": { "state": "online", "observed_at": "2026-09-28T02:00:01Z" }
+    },
+    {
+      "name": "claim_request",
+      "schema": "claim_request",
+      "value": { "connection_id": "bot:synthetic-001", "instance_id": "synthetic-process-1", "limit": 5 }
+    },
+    {
+      "name": "claim_response",
+      "schema": "claim_response",
+      "value": {
+        "deliveries": [{
+          "reply_id": "reply:synthetic-001",
+          "attempt_id": "attempt:synthetic-001",
+          "namespace": "qq",
+          "conversation_id": "group:123",
+          "thread_id": null,
+          "text": "合成回复",
+          "turn_id": "turn:synthetic-001",
+          "segment_sequence": 1
+        }]
+      }
+    },
+    {
+      "name": "claim_empty",
+      "schema": "claim_response",
+      "value": { "deliveries": [] }
+    },
+    {
+      "name": "claim_status_request",
+      "schema": "claim_status_request",
+      "value": { "connection_id": "bot:synthetic-001", "reply_id": "reply:synthetic-001", "attempt_id": "attempt:synthetic-001" }
+    },
+    {
+      "name": "claim_status_claimed",
+      "schema": "claim_status_response",
+      "value": { "state": "claimed" }
+    },
+    {
+      "name": "claim_status_unknown",
+      "schema": "claim_status_response",
+      "value": { "state": "unknown" }
+    },
+    {
+      "name": "ack_sent_request",
+      "schema": "ack_request",
+      "value": {
+        "connection_id": "bot:synthetic-001",
+        "reply_id": "reply:synthetic-001",
+        "attempt_id": "attempt:synthetic-001",
+        "state": "sent",
+        "channel_message_ids": ["sdk:synthetic-message-501"]
+      }
+    },
+    {
+      "name": "ack_unknown_request",
+      "schema": "ack_request",
+      "value": {
+        "connection_id": "bot:synthetic-001",
+        "reply_id": "reply:synthetic-001",
+        "attempt_id": "attempt:synthetic-001",
+        "state": "unknown",
+        "channel_message_ids": []
+      }
+    },
+    {
+      "name": "ack_response",
+      "schema": "ack_response",
+      "value": { "reply_id": "reply:synthetic-001", "state": "sent" }
+    },
+    {
+      "name": "send_request",
+      "schema": "send_request",
+      "value": {
+        "command": {
+          "schema_version": 1,
+          "request_id": "request:synthetic-send-001",
+          "origin": { "assertion_ref": "assertion:synthetic-001" },
+          "idempotency_key": "command:synthetic-send-001",
+          "deadline_at": "2099-01-01T00:00:00Z"
+        },
+        "conversation_id": "conversation:core-001",
+        "turn_id": "turn:synthetic-001",
+        "turn_sequence": 1,
+        "reply_id": "reply:synthetic-001",
+        "actor_id": "actor:a",
+        "destination": {
+          "namespace": "qq",
+          "binding_id": "binding:bot-qq",
+          "channel_conversation_id": "group:123",
+          "thread_id": null
+        },
+        "segment_sequence": 1,
+        "segment_count": 1,
+        "text": "合成回复"
+      }
+    },
+    {
+      "name": "send_initial_unknown",
+      "schema": "send_receipt",
+      "value": {
+        "schema_version": 1,
+        "request_id": "request:synthetic-send-001",
+        "reply_id": "reply:synthetic-001",
+        "segment_sequence": 1,
+        "attempt_id": "attempt:synthetic-001",
+        "state": "unknown",
+        "channel_message_ids": [],
+        "observed_at": "2026-09-28T02:00:02Z",
+        "retry_safe": false
+      }
+    },
+    {
+      "name": "reply_status_request",
+      "schema": "reply_status_request",
+      "value": {
+        "command": {
+          "schema_version": 1,
+          "request_id": "request:synthetic-send-001",
+          "origin": { "assertion_ref": "assertion:synthetic-001" },
+          "idempotency_key": "command:synthetic-send-001",
+          "deadline_at": "2099-01-01T00:00:00Z"
+        },
+        "conversation_id": "conversation:core-001",
+        "turn_id": "turn:synthetic-001",
+        "turn_sequence": 1,
+        "reply_id": "reply:synthetic-001",
+        "actor_id": "actor:a",
+        "destination": {
+          "namespace": "qq",
+          "binding_id": "binding:bot-qq",
+          "channel_conversation_id": "group:123",
+          "thread_id": null
+        },
+        "segment_sequence": 1,
+        "segment_count": 1,
+        "text": "合成回复"
+      }
+    },
+    {
+      "name": "reply_status_pending",
+      "schema": "reply_status_response",
+      "value": { "receipt": null }
+    },
+    {
+      "name": "reply_status_sent",
+      "schema": "reply_status_response",
+      "value": {
+        "receipt": {
+          "schema_version": 1,
+          "request_id": "request:synthetic-send-001",
+          "reply_id": "reply:synthetic-001",
+          "segment_sequence": 1,
+          "attempt_id": "attempt:synthetic-001",
+          "state": "sent",
+          "channel_message_ids": ["sdk:synthetic-message-501"],
+          "observed_at": "2026-09-28T02:00:04Z",
+          "retry_safe": false
+        }
+      }
+    },
+    {
+      "name": "internal_error",
+      "schema": "internal_error",
+      "value": {
+        "schema_version": 1,
+        "request_id": "request:synthetic-error-001",
+        "code": "idempotency_conflict",
+        "execution_state": "not_started",
+        "retryable": false
+      }
+    },
+    {
+      "name": "web_view_request",
+      "schema": "web_view_request",
+      "value": {}
+    },
+    {
+      "name": "web_view_empty_slots",
+      "schema": "web_view_response",
+      "value": {
+        "available": true,
+        "slots": [],
+        "connections": [],
+        "management": { "code": "management_required", "unlocked": false }
+      }
+    },
+    {
+      "name": "web_view_no_bot_config",
+      "schema": "web_view_response",
+      "value": {
+        "available": false,
+        "slots": [],
+        "connections": [],
+        "management": { "code": "management_disabled", "unlocked": false }
+      }
+    },
+    {
+      "name": "web_view_one_disabled_connection",
+      "schema": "web_view_response",
+      "value": {
+        "available": true,
+        "slots": [{
+          "slot_id": "qq-onebot-synthetic",
+          "label": "合成群 · NoneBot",
+          "adapter": "nonebot",
+          "platform_id": "onebot11-synthetic",
+          "self_id": "bot:42",
+          "namespace": "qq",
+          "conversation_id": "group:123",
+          "actor_ids": ["actor:a"],
+          "registered_authors": 1,
+          "created": true
+        }],
+        "connections": [{
+          "connection_id": "bot:synthetic-001",
+          "slot_id": "qq-onebot-synthetic",
+          "adapter": "nonebot",
+          "actor_ids": ["actor:a"],
+          "enabled": false,
+          "state": "disabled",
+          "last_seen_at": null,
+          "last_event_at": null,
+          "last_error": null,
+          "credential": "configured",
+          "delivery": { "pending": 0, "claimed": 0, "sent": 0, "failed": 0, "unknown": 0 }
+        }],
+        "management": { "code": "ready", "unlocked": true }
+      }
+    },
+    {
+      "name": "web_unlock_request",
+      "schema": "web_unlock_request",
+      "value": { "password": "synthetic-local-password-014" }
+    },
+    {
+      "name": "web_unlock_response",
+      "schema": "web_unlock_response",
+      "value": { "unlocked": true, "expires_in": 900 }
+    },
+    {
+      "name": "web_create_request",
+      "schema": "web_create_request",
+      "value": { "slot_id": "qq-onebot-synthetic", "actor_ids": ["actor:a"] }
+    },
+    {
+      "name": "web_create_response",
+      "schema": "web_create_response",
+      "value": {
+        "connection_id": "bot:synthetic-001",
+        "token": "synthetic-only-placeholder-token-never-configure",
+        "enabled": false
+      }
+    },
+    {
+      "name": "web_change_request",
+      "schema": "web_change_request",
+      "value": { "connection_id": "bot:synthetic-001" }
+    },
+    {
+      "name": "web_disable_response",
+      "schema": "web_disable_response",
+      "value": { "connection_id": "bot:synthetic-001", "enabled": false }
+    },
+    {
+      "name": "web_enable_response",
+      "schema": "web_enable_response",
+      "value": { "connection_id": "bot:synthetic-001", "enabled": true }
+    },
+    {
+      "name": "web_rotate_response",
+      "schema": "web_rotate_response",
+      "value": {
+        "connection_id": "bot:synthetic-001",
+        "enabled": false,
+        "token": "synthetic-only-new-placeholder-token-never-configure"
+      }
+    },
+    {
+      "name": "web_error",
+      "schema": "web_error",
+      "value": {
+        "schema_version": 1,
+        "request_id": "request:synthetic-web-error-001",
+        "code": "management_required",
+        "execution_state": "not_started",
+        "retryable": false
+      }
+    }
+  ]
+}

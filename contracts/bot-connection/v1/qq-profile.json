@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "namespace": "qq",
+  "thread_id": null,
+  "adapters": [
+    "nonebot",
+    "astrbot"
+  ],
+  "inbound_max_characters": 8000,
+  "outbound_max_utf8_bytes": 32768,
+  "astrbot_commit": "589c99c087ee884e87639e6ee26ea94d7e1c6224",
+  "nonebot_commit": "361585c952a45e825cdc4a438fba372f294a82bb",
+  "real_host_validation": "pending",
+  "generic_schema_alone_is_not_profile_validation": true
+}

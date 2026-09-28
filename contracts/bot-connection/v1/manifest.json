@@ -1,0 +1,28 @@
+{
+  "version": "1.0.0-qq-profile",
+  "schema_version": 1,
+  "status": "published_qq_implementation_profile_generic_not_frozen",
+  "platform_implementation_commit": "c5f4d3acc3a906376c5dfe36279ef26b91769b25",
+  "producer_confirmation": "platform_shape_and_synthetic_examples_checked",
+  "consumer_confirmation": "qq_profile_reviewed_with_astrbot_589c99c_length_fix",
+  "integration_l0": "21_prior_joint_tests_plus_13_affected_astrbot_tests_with_new_length_boundaries",
+  "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
+  "dependency": {
+    "name": "text-dialogue/v1",
+    "version": "1.0.0",
+    "manifest_sha256": "81e6cc4ddef7c6f82e055d4cb04b090db036dd5c52763473ce697aa02db478a1",
+    "schema_sha256": {
+      "common.json": "b296a79d7eb0218d9b444c4ddbba837ad576f46a7a4e50fbcebec7618d8ef9af",
+      "conversation.json": "e640040fa816100b258999087f8784d1e7d1d55df007992632e202e02b64b6cb"
+    }
+  },
+  "documents_validated": 36,
+  "sha256": {
+    "README.md": "ac04b0b1c8392c1cc847a0788440585df29870adbf474aab1038367060067d0d",
+    "schemas/bot-connection.json": "8c1c6f7c72f1abde90fa8ef1a08a7d2a9a49eefcd4dc07be29c6dac92407fbc6",
+    "examples/documents.json": "37b349abc8dbf6c69f080261adff71121a3924aecb08779d48ba4ec8992fdbf5",
+    "qq-profile.json": "3f6c8091dbb68f283121f2e95741c87fa630b3e19f6e3ecde8892bbd70367445"
+  },
+  "real_channel_l1": "not_run_targets_not_specified",
+  "source_package_commit": "f79280b125027f89981bc9079fd699d4b2d2a8e1"
+}
