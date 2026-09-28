@@ -1,6 +1,6 @@
 # Persona readonly v1 release preparation
 
-Status: release_candidate; production is not enabled until coordinator records actual joint acceptance and publishes the final manifest. This is a separate package; both historical candidates remain unchanged.
+Status: published. Coordinator approved the fixed readonly contract on 2026-09-28 after independent real Companion/Platform HTTPS and Chromium joint acceptance (report docs/reviews/connect-a-fixed-integrations-review-2026-09-27.md, evidence commit 3d2f46fb57ba35712cc93459f3ce418067b869f9). This publication authorizes only the validated read contract, not a claim of NAS deployment. This is a separate package; both historical candidates remain unchanged.
 
 Wire operations are get, history_page, revision and compare at POST /internal/v1/persona/manage. Existing Companion is the authority. Platform must authenticate its browser Cookie/CSRF session, require persona.read, bind the fixed subject allowlist before and after awaits, validate request/response association, scope, version and limits, and project redacted results. Credentials remain server-side. No writes, global directory enumeration or browser-supplied authority are granted by this read contract.
 
