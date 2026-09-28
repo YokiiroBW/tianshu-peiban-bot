@@ -1,0 +1,149 @@
+{
+  "status": "deployed_business_acceptance_passed",
+  "checked_at": "2026-09-28T02:21:32.089515+00:00",
+  "capacity": {
+    "deployment_bytes": 136403838,
+    "heartbeat_age_seconds": 1.794,
+    "minimum_free_bytes": 460210003968,
+    "services": 10,
+    "status": "ready"
+  },
+  "dockge": [
+    {
+      "stack": "tianshu-v2-resident",
+      "sha256": "7321ffb24acd64e23a8f2824d6ab6dcf3c969341ea7665f4aa62523ab27b2f92",
+      "matches": true
+    },
+    {
+      "stack": "tianshu-v2-resident-obs",
+      "sha256": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530",
+      "matches": true
+    }
+  ],
+  "business": {
+    "checks": [
+      {
+        "name": "knowledge.document_list",
+        "http": 200,
+        "status": "passed",
+        "documents": 1
+      },
+      {
+        "name": "knowledge.document_read",
+        "http": 200,
+        "status": "passed",
+        "blocks": 1
+      },
+      {
+        "name": "knowledge.query",
+        "http": 200,
+        "status": "passed",
+        "items": 0
+      },
+      {
+        "name": "knowledge.note_query",
+        "http": 200,
+        "status": "passed",
+        "items": 0
+      },
+      {
+        "name": "knowledge.lesson_query",
+        "http": 200,
+        "status": "passed",
+        "items": 0
+      },
+      {
+        "name": "knowledge.experience_query",
+        "http": 200,
+        "status": "passed",
+        "items": 0
+      },
+      {
+        "name": "life.actors",
+        "http": 200,
+        "status": "passed",
+        "actors": 1
+      },
+      {
+        "name": "life.snapshot",
+        "http": 200,
+        "status": "passed",
+        "fictional": true,
+        "state_basis": "last_persisted"
+      },
+      {
+        "name": "life.diaries",
+        "http": 200,
+        "status": "passed",
+        "published_diaries": 0
+      },
+      {
+        "name": "persona.get",
+        "http": 200,
+        "status": "passed",
+        "state": "published",
+        "published": true
+      },
+      {
+        "name": "memory.overview",
+        "http": 200,
+        "status": "passed",
+        "memory_group_count": 0,
+        "counts_truncated": false
+      },
+      {
+        "name": "memory.subjects",
+        "http": 200,
+        "status": "passed",
+        "items": 0
+      },
+      {
+        "name": "memory.records",
+        "http": 200,
+        "status": "passed",
+        "items": 0
+      }
+    ],
+    "all_passed": true
+  },
+  "observability": {
+    "ledger_knowledge_events": 51,
+    "ledger_knowledge_verified": 51,
+    "invalid_source_lines": 0,
+    "loki_knowledge_events_returned": 20,
+    "loki_success": true,
+    "all_event_services_correct": true
+  },
+  "dialogue": {
+    "state": "current",
+    "acceptance_turns": [
+      {
+        "phase": "sent",
+        "reply_count": 1,
+        "turn_fields": [
+          "turn_id",
+          "turn_sequence",
+          "version",
+          "phase",
+          "result_version",
+          "delivery_state",
+          "released_slot",
+          "unresolved_delivery"
+        ]
+      }
+    ],
+    "model_configured": true
+  },
+  "limits": [
+    "authenticated NAS browser flow not rerun after restart",
+    "external AssetLibrary/Home Assistant not configured",
+    "new ten-service backup restore drill not performed"
+  ],
+  "code": {
+    "platform_deployed": "c848ce77d4974693f3e86d995c6a8d9c26330976",
+    "platform_main_with_handoff": "60d17f28c3cef96274c054b05532fa2d21234a1c",
+    "memory": "02df5ba8c041a7a6eb8b705c5f264e10543032ec",
+    "companion": "31677983798ba27b24d57925feab4774c2eec30f",
+    "gateway": "e4f112f02d28a1ded134126feed33f15e003ec20"
+  }
+}
