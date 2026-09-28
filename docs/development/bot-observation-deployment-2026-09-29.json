@@ -1,0 +1,242 @@
+{
+  "updated.json": {
+    "images": {
+      "platform": {
+        "image": "127.0.0.1:19550/tianshu/platform@sha256:92db80dec5c98b88733ba08715b998112094942b155206e64f855c30b132a269",
+        "id": "sha256:7df6f89c10e83033367632995dd7efdc172cec1977a9d1aa9d701491c66f71ab",
+        "commit": "04cbe8a6c0652c4d1ddec572afce1b895416f145",
+        "archive_sha256": "8a44785c030fb94ef26884a4838e4aa207226bcec7369e3c18c885bae830253e"
+      },
+      "companion": {
+        "image": "127.0.0.1:19550/tianshu/companion@sha256:44c200a814e88262d1b7e60da4b208e2f8a6704ec42c6016b6d2ac5f30f3293f",
+        "id": "sha256:304d7c7315b8b9df84498bf55589d78518f2457ddedbd685c25f6735fb89eb70",
+        "commit": "6adf480f292c49fa48950ef863cf80b6e31c1794",
+        "archive_sha256": "8d76a285367a0f1f17f6ccdc10f2b5012941361d0ad357e821a7e0eec241bef6"
+      },
+      "memory": {
+        "image": "127.0.0.1:19550/tianshu/memory@sha256:2f2f947da5488b225d2b096b3f30554db6d4b10dd23f0a8c8745851199a7fff6",
+        "id": "sha256:fc6aa4258ae98c3872b3420b4dbf1b9739da66d34f11fba93d8433b01a37930e",
+        "commit": "10214b2f7dbfb6990e986f38f92c8103e07d6b9e",
+        "archive_sha256": "630301f661be320698d2e7a29297e240ea56e0885df78ef268fd0c0bf20eedf1"
+      }
+    },
+    "account_preserved": true,
+    "capacity_state": "/volume2/tianshu-v2-resident-updates/observation-20260929/capacity-state",
+    "nonebot_image": {
+      "image": "local/nonebot2:2.5.0-tianshu-0.3.0-6adf480f292c",
+      "id": "sha256:437c8bb96505c139a609fac277f6a45d411b0d70af854359b1528b512f76999a",
+      "base_id": "sha256:9ffd802a6526ba1b0eb7558313eee39a0d196323a48acdefbab518a5c6a2d234",
+      "plugin_version": "0.3.0",
+      "source_commit": "6adf480f292c49fa48950ef863cf80b6e31c1794",
+      "wheel_sha256": "189e7ef87183ffc6fade3426b4201406e8861b2ef96c71556f8cdee1a3f15cc7"
+    },
+    "other_six_ids_preserved": true,
+    "dockge_synced": true
+  },
+  "acceptance.json": {
+    "time": 1790620388.9911664,
+    "health": {
+      "platform": {
+        "status": "ready",
+        "service": "platform",
+        "checks": {
+          "config": "ok",
+          "contract": "ok",
+          "store": "ok",
+          "sidecars": "ok",
+          "web_static": "ok",
+          "tls": "ok",
+          "credentials": "ok",
+          "logging": "ok",
+          "runtime": "ok"
+        }
+      },
+      "companion": {
+        "status": "ready",
+        "service": "companion",
+        "checks": {
+          "configuration": "ok",
+          "logs": "ok",
+          "runtime": "ok",
+          "dependencies": "not_verified"
+        }
+      },
+      "memory": {
+        "status": "ready",
+        "service": "memory",
+        "checks": {
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "guard": "ok",
+          "mode": "ok",
+          "log": "ok",
+          "assembled": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        }
+      },
+      "gateway": {
+        "status": "ready",
+        "service": "gateway",
+        "checks": {
+          "configuration": "ok",
+          "contracts": "ok",
+          "runtime": "ok",
+          "ledger": "ok",
+          "logging": "ok",
+          "platform": "not_verified",
+          "model": "not_verified",
+          "native": "not_configured"
+        }
+      },
+      "knowledge": {
+        "status": "ready",
+        "service": "memory-knowledge",
+        "checks": {
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "client": "ok",
+          "extensions": "ok",
+          "log": "ok",
+          "assembled": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        }
+      }
+    },
+    "guard": {
+      "deployment_bytes": 157151250,
+      "heartbeat_age_seconds": 3.047,
+      "minimum_free_bytes": 456915197952,
+      "services": 10,
+      "status": "ready"
+    },
+    "observation": {
+      "id": "obs:f4a2534c1a9840629f6d2e5aec7cc306",
+      "state": "ready",
+      "enabled": true,
+      "last_error": null,
+      "group_policy": {
+        "actor_id": null,
+        "list": [],
+        "mode": "observe_only",
+        "observe": true
+      },
+      "private_policy": {
+        "actor_id": null,
+        "list": [],
+        "mode": "observe_only",
+        "observe": true
+      }
+    },
+    "plugin_counts": {
+      "observed": 0,
+      "pending": 0,
+      "claimed_replies": 0,
+      "deliveries": 0
+    },
+    "memory_counts": {
+      "messages": 0,
+      "conversations": 0,
+      "group_messages": 0,
+      "private_messages": 0
+    },
+    "inbox_counts": {},
+    "account_preserved": true,
+    "real_test_messages_sent": false,
+    "real_reply_tested": false,
+    "passive_live_archive_observed": false,
+    "acceptance_scope": "deployment_default_observe_only_and_passive_counts"
+  },
+  "query-acceptance.json": {
+    "authenticated_archive_query": "passed",
+    "memory_state": "available",
+    "synthetic_conversation": true,
+    "item_count": 0,
+    "archive_item_count": 0,
+    "messages_sent": 0
+  },
+  "observability-acceptance.json": {
+    "ledger": [
+      {
+        "service": "companion",
+        "events": 341,
+        "verified": 341
+      },
+      {
+        "service": "gateway",
+        "events": 130,
+        "verified": 130
+      },
+      {
+        "service": "memory",
+        "events": 291,
+        "verified": 291
+      },
+      {
+        "service": "memory-knowledge",
+        "events": 176,
+        "verified": 176
+      },
+      {
+        "service": "platform",
+        "events": 19803,
+        "verified": 19797
+      }
+    ],
+    "invalid_source_lines": 0,
+    "recent_loki_events": 94,
+    "loki_success": true,
+    "recent_services": [
+      "companion",
+      "gateway",
+      "memory",
+      "memory-knowledge",
+      "platform"
+    ]
+  },
+  "release-approved.json": {
+    "status": "reviewed_for_deployment",
+    "commits": {
+      "platform": "04cbe8a6c0652c4d1ddec572afce1b895416f145",
+      "companion": "6adf480f292c49fa48950ef863cf80b6e31c1794",
+      "memory": "10214b2f7dbfb6990e986f38f92c8103e07d6b9e"
+    },
+    "contract_release": "346fa40",
+    "coordinator_joint_tests": "Python 3.12.14, 2 passed",
+    "fixed_diff_review": "no blocking findings",
+    "update_script_sha256": "e37b2ff1cb16b0ea7a623bfb9b6e3775b8550f18de1232c4dbca04eabf2c74d0"
+  },
+  "nonebot-plugin-after.json": {
+    "instance_id": "6d36a4029c7a4a8dbbd1658e65e94c31",
+    "accounts": [
+      "1365939091"
+    ],
+    "version": "0.3.0",
+    "observation_protocol": "tianshu.bot-observation/v2"
+  },
+  "backups": {
+    "deployment-before.tar": {
+      "sha256": "5595f511f2fcd3dff84118bcdea873b6ca44ec30b7b5b854e4561854681eb00c",
+      "bytes": 154644480
+    },
+    "nonebot-before.tar": {
+      "sha256": "3dd760cc40c7606570fc351366568c6c5bf27f808cca8d6cf032ea880cf5c5e6",
+      "bytes": 71680
+    }
+  },
+  "memory_migration": "{\n  \"schema\": 3,\n  \"observation_schema\": 1,\n  \"backup\": \"/srv/tianshu/pre-observation-20260929.sqlite\"\n}",
+  "browser": {
+    "url": "http://192.168.31.210:18446/#/settings/3",
+    "result": "redirected to existing administrator login; authenticated production UI not exercised"
+  },
+  "scope": {
+    "nonebot_deployed": true,
+    "astrbot_package_built": true,
+    "astrbot_host_upgraded": false,
+    "outbound_test_messages_sent": false,
+    "real_model_reply_tested": false
+  }
+}
