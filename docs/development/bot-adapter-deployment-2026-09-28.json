@@ -1,0 +1,243 @@
+{
+  "acceptance": {
+    "time": 1790605488.4998877,
+    "health": {
+      "platform": {
+        "status": "ready",
+        "service": "platform",
+        "checks": {
+          "config": "ok",
+          "contract": "ok",
+          "store": "ok",
+          "sidecars": "ok",
+          "web_static": "ok",
+          "tls": "ok",
+          "credentials": "ok",
+          "logging": "ok",
+          "runtime": "ok"
+        }
+      },
+      "companion": {
+        "status": "ready",
+        "service": "companion",
+        "checks": {
+          "configuration": "ok",
+          "logs": "ok",
+          "runtime": "ok",
+          "dependencies": "not_verified"
+        }
+      },
+      "memory": {
+        "status": "ready",
+        "service": "memory",
+        "checks": {
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "guard": "ok",
+          "mode": "ok",
+          "log": "ok",
+          "assembled": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        }
+      },
+      "gateway": {
+        "status": "ready",
+        "service": "gateway",
+        "checks": {
+          "configuration": "ok",
+          "contracts": "ok",
+          "runtime": "ok",
+          "ledger": "ok",
+          "logging": "ok",
+          "platform": "not_verified",
+          "model": "not_verified",
+          "native": "not_configured"
+        }
+      },
+      "knowledge": {
+        "status": "ready",
+        "service": "memory-knowledge",
+        "checks": {
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "client": "ok",
+          "extensions": "ok",
+          "log": "ok",
+          "assembled": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        }
+      }
+    },
+    "guard": {
+      "deployment_bytes": 145338261,
+      "heartbeat_age_seconds": 4.382,
+      "minimum_free_bytes": 458551427072,
+      "services": 10,
+      "status": "ready"
+    },
+    "account_preserved": true,
+    "features": {
+      "model_configured": true,
+      "bot_slots": 0,
+      "bot_connections": 0,
+      "settings_labels_built": true,
+      "adapter_management_configured": true,
+      "adapter_connections": 0,
+      "actors": 1
+    },
+    "running_services": 10,
+    "restart_policies": [
+      "unless-stopped"
+    ],
+    "updated": {
+      "image": {
+        "image": "127.0.0.1:19550/tianshu/platform@sha256:561f5975b651cff3ad10997ab40e134af03d3234c6a662b574da10e30ee88ca6",
+        "id": "sha256:ac7dc9e47d18848a9641401f1a401ed1235247cb3fdc2c1ef8c145700707d91d",
+        "commit": "186da00f84eb37653247c2bda05407ff89558540",
+        "archive_sha256": "453d077f40852c3a206ebf193e2f1e450fbf5614e5406bfc6ca21e5d0aae4832"
+      },
+      "other_seven_ids_preserved": true,
+      "companion_image": {
+        "image": "127.0.0.1:19550/tianshu/companion@sha256:e86b8d10ca916d8b05a1f2b1dbce5dfe8e58abee7ce0e049f6d478d1988e0ba1",
+        "id": "sha256:0e2e4c69798cb4b9a8a39763a3c5718b9c79bdfef219087b5555d69a8169bc3c",
+        "commit": "e85987147b1109c8a41b3782e6fc3ccc33e0e249",
+        "archive_sha256": "925e7eb9f599894406b10b03e3a483d442d182e5d5b16420cdbac94d3e8d563a"
+      },
+      "account_preserved": true,
+      "config_path_preserved": "/volume2/tianshu-v2-resident-updates/bots-20260928/core.compose.json",
+      "capacity_state": "/volume2/tianshu-v2-resident-updates/adapters-20260928/capacity-state",
+      "dockge_synced": true
+    },
+    "business": {
+      "checks": [
+        {
+          "name": "knowledge.document_list",
+          "http": 200,
+          "status": "passed",
+          "documents": 1
+        },
+        {
+          "name": "knowledge.document_read",
+          "http": 200,
+          "status": "passed",
+          "blocks": 1
+        },
+        {
+          "name": "knowledge.query",
+          "http": 200,
+          "status": "passed",
+          "items": 0
+        },
+        {
+          "name": "knowledge.note_query",
+          "http": 200,
+          "status": "passed",
+          "items": 0
+        },
+        {
+          "name": "knowledge.lesson_query",
+          "http": 200,
+          "status": "passed",
+          "items": 0
+        },
+        {
+          "name": "knowledge.experience_query",
+          "http": 200,
+          "status": "passed",
+          "items": 0
+        },
+        {
+          "name": "life.actors",
+          "http": 200,
+          "status": "passed",
+          "actors": 1
+        },
+        {
+          "name": "life.snapshot",
+          "http": 200,
+          "status": "passed",
+          "fictional": true,
+          "state_basis": "last_persisted"
+        },
+        {
+          "name": "life.diaries",
+          "http": 200,
+          "status": "passed",
+          "published_diaries": 0
+        },
+        {
+          "name": "persona.get",
+          "http": 200,
+          "status": "passed",
+          "state": "published",
+          "published": true
+        },
+        {
+          "name": "memory.overview",
+          "http": 200,
+          "status": "passed",
+          "memory_group_count": 0,
+          "counts_truncated": false
+        },
+        {
+          "name": "memory.subjects",
+          "http": 200,
+          "status": "passed",
+          "items": 0
+        },
+        {
+          "name": "memory.records",
+          "http": 200,
+          "status": "passed",
+          "items": 0
+        }
+      ],
+      "all_passed": true
+    }
+  },
+  "backup": {
+    "sha256": "a569b5f2dc37274a6336b9002d9a95ab33436fd85371470d83716e97c7e5c881",
+    "bytes": 144445440
+  },
+  "core-management-acceptance": {
+    "http": 200,
+    "management_reachable": true,
+    "test_binding_created": false
+  },
+  "observability-acceptance": {
+    "ledger_knowledge_events": 171,
+    "ledger_knowledge_verified": 171,
+    "invalid_source_lines": 0,
+    "loki_knowledge_events_returned": 20,
+    "loki_success": true,
+    "all_event_services_correct": true
+  },
+  "plugin_artifacts": [
+    {
+      "name": "astrbot_plugin_tianshu-0.2.0.zip",
+      "nas_path": "/volume2/tianshu-v2-resident-updates/adapters-20260928/companion/.runtime/adapter-artifacts/astrbot_plugin_tianshu-0.2.0.zip",
+      "sha256": "c718300b9bbba2a0116a51bf3e4971dc360937026b4b167559a3dc614c50d4c7"
+    },
+    {
+      "name": "tianshu_nonebot_adapter-0.2.0-py3-none-any.whl",
+      "nas_path": "/volume2/tianshu-v2-resident-updates/adapters-20260928/companion/.runtime/adapter-artifacts/tianshu_nonebot_adapter-0.2.0-py3-none-any.whl",
+      "sha256": "f3022efaf561df53d61a4d30f43d3c2021e063aa027b1fe60f89c419d3cf0c91"
+    }
+  ],
+  "browser": {
+    "nas_entry_reachable": true,
+    "settings_redirect_preserved": true,
+    "session_after_restart": "login_required",
+    "authenticated_nas_settings_form": "not_verified",
+    "isolated_live_backend_desktop_mobile": "passed"
+  },
+  "hosts": {
+    "astrbot_plugin_installed": false,
+    "nonebot_plugin_installed": false,
+    "real_qq_messages_sent": false
+  }
+}
