@@ -1,0 +1,24 @@
+{
+  "status": "dispatched_not_deployed",
+  "task": "机器人观察建档与群私独立回复策略",
+  "thread_id": "01a0e8f3-188b-7143-8a30-4261bc1765d2",
+  "client_thread_id": "client-new-thread:d091c5b4-a113-4361-aae5-1c14d5f736a5",
+  "model": "gpt-6-sol",
+  "reasoning_effort": "xhigh",
+  "spec": "docs/development/bot-observation-policy-2026-09-29.md",
+  "reference_commit": "2313fd12e1bd9b72f6db9aca17cde4359102341e",
+  "baselines": {
+    "platform": "186da00f84eb37653247c2bda05407ff89558540",
+    "companion": "e85987147b1109c8a41b3782e6fc3ccc33e0e249",
+    "memory": "02df5ba8c041a7a6eb8b705c5f264e10543032ec"
+  },
+  "product_worktrees": {
+    "platform": "C:/YOKI/Codex/bot-observation-worktrees/platform",
+    "companion": "C:/YOKI/Codex/bot-observation-worktrees/companion",
+    "memory": "C:/YOKI/Codex/bot-observation-worktrees/memory"
+  },
+  "product_branch": "codex/bot-observation-policy-20260929",
+  "assumption_pending_user_steering": "Lists control replies; observation covers received group/private events independently.",
+  "production_changed": false,
+  "real_messages_sent": false
+}

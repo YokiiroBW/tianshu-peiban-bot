@@ -1,0 +1,236 @@
+{
+  "event": {
+    "schema_version": 2,
+    "platform_id": "sdk-instance-a",
+    "self_id": "10001",
+    "namespace": "qq",
+    "conversation_id": "group:20002",
+    "account_id": "30003",
+    "event_id": "44",
+    "revision": 1,
+    "sent_at": "2026-09-29T01:00:00Z",
+    "text": "早上好",
+    "content_state": "text",
+    "mentioned": false,
+    "scope_revision": 1
+  },
+  "default_policy": {
+    "observe": true,
+    "mode": "observe_only",
+    "list": [],
+    "actor_id": null
+  },
+  "source": {
+    "source_ref": "obs:1234567890abcdef",
+    "source_digest": "bf18d4e6007ca289da617ada4b62778eb5c2dd43f160a73c4d08850eea324299",
+    "scope_version": 1,
+    "event": {
+      "schema_version": 2,
+      "platform_id": "sdk-instance-a",
+      "self_id": "10001",
+      "namespace": "qq",
+      "conversation_id": "group:20002",
+      "account_id": "30003",
+      "event_id": "44",
+      "revision": 1,
+      "sent_at": "2026-09-29T01:00:00Z",
+      "text": "早上好",
+      "content_state": "text",
+      "mentioned": false,
+      "scope_revision": 1
+    }
+  },
+  "receipt": {
+    "source_ref": "obs:1234567890abcdef",
+    "state": "accepted",
+    "archive_state": "pending_memory"
+  },
+  "host_apply_request": {
+    "request_id": "apply:1",
+    "account_id": "10001",
+    "revision": 1,
+    "enabled": true,
+    "group_policy": {
+      "observe": true,
+      "mode": "observe_only",
+      "list": []
+    },
+    "private_policy": {
+      "observe": true,
+      "mode": "observe_only",
+      "list": []
+    }
+  },
+  "host_status_request": {
+    "account_id": "10001"
+  },
+  "host_poll_request": {
+    "account_id": "10001",
+    "limit": 20
+  },
+  "host_ack_request": {
+    "account_id": "10001",
+    "event_ids": [
+      "event:1"
+    ]
+  },
+  "verify_source_request": {
+    "operation": "ingest",
+    "source_ref": "obs:1234567890abcdef",
+    "source_digest": "bf18d4e6007ca289da617ada4b62778eb5c2dd43f160a73c4d08850eea324299",
+    "scope_version": 1
+  },
+  "verify_scope_request": {
+    "operation": "scope",
+    "instance_id": "sdk-instance-a",
+    "self_id": "10001",
+    "conversation_id": "group:20002"
+  },
+  "verify_source_response": {
+    "valid": true,
+    "source_ref": "obs:1234567890abcdef",
+    "instance_id": "sdk-instance-a",
+    "self_id": "10001",
+    "conversation_id": "group:20002",
+    "account_id": "30003",
+    "event_id": "44",
+    "source_digest": "bf18d4e6007ca289da617ada4b62778eb5c2dd43f160a73c4d08850eea324299",
+    "scope_version": 1,
+    "archive_epoch": 1
+  },
+  "verify_scope_response": {
+    "valid": true,
+    "archive_epoch": 1
+  },
+  "query_request": {
+    "instance_id": "sdk-instance-a",
+    "self_id": "10001",
+    "conversation_id": "group:20002",
+    "limit": 50,
+    "cursor": null
+  },
+  "query_response": {
+    "items": [
+      {
+        "source_ref": "obs:1234567890abcdef",
+        "conversation": "group:20002",
+        "author": "30003",
+        "event_id": "44",
+        "sent_at": "2026-09-29T01:00:00Z",
+        "content_state": "text",
+        "text": "早上好",
+        "mentioned": 0,
+        "received_at": 1790643600.0
+      }
+    ],
+    "next_cursor": null
+  },
+  "source_envelope": {
+    "source_ref": "obs:1234567890abcdef",
+    "source_digest": "bf18d4e6007ca289da617ada4b62778eb5c2dd43f160a73c4d08850eea324299",
+    "scope_version": 1,
+    "event": {
+      "schema_version": 2,
+      "platform_id": "sdk-instance-a",
+      "self_id": "10001",
+      "namespace": "qq",
+      "conversation_id": "group:20002",
+      "account_id": "30003",
+      "event_id": "44",
+      "revision": 1,
+      "sent_at": "2026-09-29T01:00:00Z",
+      "text": "早上好",
+      "content_state": "text",
+      "mentioned": false,
+      "scope_revision": 1
+    },
+    "archive_epoch": 1
+  },
+  "companion_query_request": {
+    "instance_id": "sdk-instance-a",
+    "self_id": "10001",
+    "conversation_id": "group:20002",
+    "limit": 50,
+    "cursor": null,
+    "archive_epoch": 1
+  },
+  "host_apply_response": {
+    "account_id": "10001",
+    "revision": 1,
+    "enabled": true,
+    "group_policy": {
+      "observe": true,
+      "mode": "observe_only",
+      "list": []
+    },
+    "private_policy": {
+      "observe": true,
+      "mode": "observe_only",
+      "list": []
+    }
+  },
+  "host_status_response": {
+    "found": true,
+    "account": {
+      "account_id": "10001",
+      "revision": 1,
+      "enabled": true,
+      "lease_active": true,
+      "pending": 1,
+      "dropped": 0,
+      "last_error": null,
+      "last_error_at": null
+    }
+  },
+  "host_poll_response": {
+    "events": [
+      {
+        "id": "host:1",
+        "event": {
+          "schema_version": 2,
+          "platform_id": "sdk-instance-a",
+          "self_id": "10001",
+          "namespace": "qq",
+          "conversation_id": "group:20002",
+          "account_id": "30003",
+          "event_id": "44",
+          "revision": 1,
+          "sent_at": "2026-09-29T01:00:00Z",
+          "text": "早上好",
+          "content_state": "text",
+          "mentioned": false,
+          "scope_revision": 1
+        },
+        "reply_claimed": false
+      }
+    ]
+  },
+  "host_ack_response": {
+    "acknowledged": [
+      "host:1"
+    ]
+  },
+  "host_send_request": {
+    "connection_id": "bot:1",
+    "account_id": "10001",
+    "policy_revision": 1,
+    "delivery": {
+      "reply_id": "reply:1",
+      "attempt_id": "attempt:1",
+      "namespace": "qq",
+      "conversation_id": "group:20002",
+      "thread_id": null,
+      "text": "reply",
+      "turn_id": "turn:1",
+      "segment_sequence": 1
+    }
+  },
+  "host_send_receipt": {
+    "reply_id": "reply:1",
+    "attempt_id": "attempt:1",
+    "state": "sent",
+    "channel_message_ids": [
+      "native:1"
+    ]
+  }
+}

@@ -1,0 +1,202 @@
+{
+  "cases": [
+    {
+      "name": "missing_sdk_self_id",
+      "document": "source",
+      "payload": {
+        "source_ref": "obs:1234567890abcdef",
+        "source_digest": "bf18d4e6007ca289da617ada4b62778eb5c2dd43f160a73c4d08850eea324299",
+        "scope_version": 1,
+        "event": {
+          "schema_version": 2,
+          "platform_id": "sdk-instance-a",
+          "namespace": "qq",
+          "conversation_id": "group:20002",
+          "account_id": "30003",
+          "event_id": "44",
+          "revision": 1,
+          "sent_at": "2026-09-29T01:00:00Z",
+          "text": "早上好",
+          "content_state": "text",
+          "mentioned": false,
+          "scope_revision": 1
+        }
+      },
+      "reject": "required self_id"
+    },
+    {
+      "name": "wrong_digest",
+      "document": "source",
+      "payload": {
+        "source_ref": "obs:1234567890abcdef",
+        "source_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "scope_version": 1,
+        "event": {
+          "schema_version": 2,
+          "platform_id": "sdk-instance-a",
+          "self_id": "10001",
+          "namespace": "qq",
+          "conversation_id": "group:20002",
+          "account_id": "30003",
+          "event_id": "44",
+          "revision": 1,
+          "sent_at": "2026-09-29T01:00:00Z",
+          "text": "早上好",
+          "content_state": "text",
+          "mentioned": false,
+          "scope_revision": 1
+        }
+      },
+      "reject": "digest mismatch"
+    },
+    {
+      "name": "unsupported_media_body",
+      "document": "source",
+      "payload": {
+        "source_ref": "obs:1234567890abcdef",
+        "source_digest": "bf18d4e6007ca289da617ada4b62778eb5c2dd43f160a73c4d08850eea324299",
+        "scope_version": 1,
+        "event": {
+          "schema_version": 2,
+          "platform_id": "sdk-instance-a",
+          "self_id": "10001",
+          "namespace": "qq",
+          "conversation_id": "group:20002",
+          "account_id": "30003",
+          "event_id": "44",
+          "revision": 1,
+          "sent_at": "2026-09-29T01:00:00Z",
+          "text": "早上好",
+          "content_state": "unsupported",
+          "mentioned": false,
+          "scope_revision": 1
+        }
+      },
+      "reject": "unsupported has text"
+    },
+    {
+      "name": "private_author_mismatch",
+      "document": "source",
+      "payload": {
+        "source_ref": "obs:1234567890abcdef",
+        "source_digest": "bf18d4e6007ca289da617ada4b62778eb5c2dd43f160a73c4d08850eea324299",
+        "scope_version": 1,
+        "event": {
+          "schema_version": 2,
+          "platform_id": "sdk-instance-a",
+          "self_id": "10001",
+          "namespace": "qq",
+          "conversation_id": "private:40004",
+          "account_id": "30003",
+          "event_id": "44",
+          "revision": 1,
+          "sent_at": "2026-09-29T01:00:00Z",
+          "text": "早上好",
+          "content_state": "text",
+          "mentioned": false,
+          "scope_revision": 1
+        }
+      },
+      "reject": "private target differs from author"
+    },
+    {
+      "name": "scope_version_mismatch",
+      "document": "source",
+      "payload": {
+        "source_ref": "obs:1234567890abcdef",
+        "source_digest": "bf18d4e6007ca289da617ada4b62778eb5c2dd43f160a73c4d08850eea324299",
+        "scope_version": 2,
+        "event": {
+          "schema_version": 2,
+          "platform_id": "sdk-instance-a",
+          "self_id": "10001",
+          "namespace": "qq",
+          "conversation_id": "group:20002",
+          "account_id": "30003",
+          "event_id": "44",
+          "revision": 1,
+          "sent_at": "2026-09-29T01:00:00Z",
+          "text": "早上好",
+          "content_state": "text",
+          "mentioned": false,
+          "scope_revision": 1
+        }
+      },
+      "reject": "scope_version differs from event scope_revision"
+    },
+    {
+      "name": "naive_timestamp",
+      "document": "source",
+      "payload": {
+        "source_ref": "obs:1234567890abcdef",
+        "source_digest": "bf18d4e6007ca289da617ada4b62778eb5c2dd43f160a73c4d08850eea324299",
+        "scope_version": 1,
+        "event": {
+          "schema_version": 2,
+          "platform_id": "sdk-instance-a",
+          "self_id": "10001",
+          "namespace": "qq",
+          "conversation_id": "group:20002",
+          "account_id": "30003",
+          "event_id": "44",
+          "revision": 1,
+          "sent_at": "2026-09-29T01:00:00",
+          "text": "早上好",
+          "content_state": "text",
+          "mentioned": false,
+          "scope_revision": 1
+        }
+      },
+      "reject": "timezone missing"
+    },
+    {
+      "name": "invalid_qq_id",
+      "document": "host_apply_request",
+      "payload": {
+        "request_id": "apply:1",
+        "account_id": "10001",
+        "revision": 1,
+        "enabled": true,
+        "group_policy": {
+          "observe": true,
+          "mode": "whitelist",
+          "list": [
+            "0"
+          ]
+        },
+        "private_policy": {
+          "observe": true,
+          "mode": "observe_only",
+          "list": []
+        }
+      },
+      "reject": "QQ number invalid"
+    },
+    {
+      "name": "invalid_archive_epoch",
+      "document": "source_envelope",
+      "payload": {
+        "source_ref": "obs:1234567890abcdef",
+        "source_digest": "bf18d4e6007ca289da617ada4b62778eb5c2dd43f160a73c4d08850eea324299",
+        "scope_version": 1,
+        "event": {
+          "schema_version": 2,
+          "platform_id": "sdk-instance-a",
+          "self_id": "10001",
+          "namespace": "qq",
+          "conversation_id": "group:20002",
+          "account_id": "30003",
+          "event_id": "44",
+          "revision": 1,
+          "sent_at": "2026-09-29T01:00:00Z",
+          "text": "早上好",
+          "content_state": "text",
+          "mentioned": false,
+          "scope_revision": 1
+        },
+        "archive_epoch": 0
+      },
+      "reject": "epoch must be positive"
+    }
+  ]
+}
