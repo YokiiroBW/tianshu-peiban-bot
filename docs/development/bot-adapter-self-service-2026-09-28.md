@@ -40,6 +40,13 @@
 - `/create {draft_id,name,account_id,conversation:{kind,id},allowed_authors:[string],actor_id,client_id}` → `{connection:<view的连接项>}`。内部槽位/绑定/身份由服务端创建并核对，默认 disabled。私聊可用选定目标作为显式作者；群必须明确作者白名单。
 - `/enable` 与 `/disable {id,expected_revision,client_id}` → `{connection:<view连接项>}`。结果不明显示 unknown/待恢复，不谎报成功，不自动重发写入。
 
+### 联合审查补充：未决阶段的显式恢复
+
+- `/reconcile {id,expected_revision,client_id}` → `{connection:<view连接项>}`，仅用于 `state=unknown` 且有服务端持久 pending 的连接。网页提供“核对并恢复”，不让浏览器选择或提交恢复目标。
+- pending 固定保存原 `desired`、`request_id`，连接保留原 `revision`。先只读查询 Core/插件状态；两端已与原修订和目标一致则提交本地确认，否则仅以原 request_id/revision/语义幂等补齐配置阶段，不新建阶段、不发送消息。恢复原启用操作可能恢复后续正常消息处理，网页须明确说明。
+- 恢复失败仍返回 unknown 和 last_error；旧修订或无 pending 返回 409 version_conflict。同 client_id 重放只读当前结果。create/enable/disable 不接续未决阶段，返回 409 result_unknown；view 只做远端状态查询与本地确认，不重放远端 apply。
+- UI 对未知阶段保留普通启停禁用，单独提供恢复按钮；请求不自动重试，返回后核对 view。按钮仅对服务端 unknown 显示；仅前端读回不一致标记先要求刷新核对，不猜后台存在 pending。
+
 ## 并行写入责任
 
 - ADAPTER-P（Sol/xhigh）：平台后台/API/worker/凭据目录、Core 动态 bot binding，两个专属产品 worktree，独占 services/platform、companion src、后端测试与交接。不得改插件/frontend。P需先把少量必要接口差异反馈总控。
