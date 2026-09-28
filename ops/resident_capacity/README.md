@@ -21,11 +21,15 @@ Because the installer uses `--project-directory`, all three `workdir` values
 are the deployment root while their `file` values point to separate first/final
 export files. `platform_first_compose` contains the **different, exact**
 first-export file of the already-running Platform container. Those values are
-never wildcards or prefixes. `images` lists the nine digest-pinned
+never wildcards or prefixes. Without `service_profile`, the original nine
+services remain the exact required set. The only expanded profile is
+`"service_profile": "knowledge-ten"`; it also requires the
+`tianshu-v2-resident/knowledge` image and all its binds. The legacy profile
+rejects those entries. `images` lists the nine or ten digest-pinned
 `.Config.Image` values from the locked resident export. `binds` lists **all**
-`type=bind` mounts of each of the nine services as objects with `source`,
+`type=bind` mounts of every service as objects with `source`,
 `target`, and boolean `read_only`; use the first export for Platform and the
-final export for the other eight. The guard matches Docker's selected mount
+final export for the other eight or nine. The guard matches Docker's selected mount
 metadata, including target and RW bit. `free_paths` must name all host filesystems
 whose free space the operator wants protected, including the Docker data root
 if it is outside the deployment tree. The guard also checks the deployment
@@ -58,10 +62,10 @@ not group/world writable. Thresholds are explicit bytes; 20 GiB is
    python3 -B -m ops.resident_capacity.guard arm --config /ABSOLUTE/resident-capacity.json
    ```
 
-   `arm` requires nine running, digest-pinned services with exact project,
+   `arm` requires all nine or ten running, digest-pinned services with exact project,
    service, Compose workdir/file, root bind, and `unless-stopped` restart
    identity. It checks both capacity thresholds before atomically locking all
-   nine 64-character IDs in `armed.json`. It refuses if the state is already
+   their 64-character IDs in `armed.json`. It refuses if the state is already
    armed or latched. If `arm` refuses, the installer must stop its just-started
    exact IDs through its already-reviewed lifecycle path; there is no armed
    marker for this guard to use.
@@ -72,7 +76,7 @@ not group/world writable. Thresholds are explicit bytes; 20 GiB is
    ```
 
    `status` returns `ready` only when the systemd loop produced a fresh
-   heartbeat and a new read-only check still sees the same nine IDs and safe
+   heartbeat and a new read-only check still sees the same locked IDs and safe
    capacity. If it refuses, run `fail-close` below and read back that every
    exact resident container exited before leaving the first-install process.
    A manual boolean is not a status readback.
@@ -91,7 +95,7 @@ python3 -B -m ops.resident_capacity.guard fail-close --state-dir /ABSOLUTE/capac
 Thus a crashed or watchdog-killed main process is stopped by an independent
 systemd control process; it does not rely on a Python signal handler. The
 fail-close command writes `failure.json` before effects, disables restart on
-the nine locked resident IDs only, reads policy back, sends SIGTERM only,
+the nine or ten locked resident IDs only, reads policy back, sends SIGTERM only,
 and confirms they exited. It never SIGKILLs or deletes logs. `stop-*.json`
 retains each attempt and its fixed-code errors. A partial stop returns
 `unconfirmed`. The installer/operator must keep the stack stopped and review
@@ -103,14 +107,15 @@ review and a new state generation.
 
 The configured TERM wait is at most 120 seconds. Docker commands time out at
 10 seconds each and the batch inspect at 15 seconds. The calculated upper
-bound for external Docker waits plus TERM polling is 530 seconds; the unit's
-`TimeoutStopSec=600s` leaves 70 seconds for state writes and scheduling.
+bound for external Docker waits plus TERM polling is 570 seconds with ten
+services; the unit's `TimeoutStopSec=700s` leaves 70 seconds after the
+additional 60-second state-write/scheduling allowance.
 A hung kernel filesystem operation has no guaranteed Python timeout, so the
 systemd stop result and receipt still need live readback. The unit never
 claims a stop solely because its deadline elapsed.
 
-For one explicit recovery with the **same nine IDs**, first verify the old
-`failure.json` and every `stop-*.json`, read back that all nine are exited with
+For one explicit recovery with the **same locked IDs**, first verify the old
+`failure.json` and every `stop-*.json`, read back that all are exited with
 restart disabled, and confirm the cause is removed, free/budget thresholds are
 safe, the fixed images/mounts/Compose labels are unchanged, and no replacement
 container exists. Stop the old unit and wait for its `ExecStopPost` to finish
@@ -118,13 +123,22 @@ before changing any restart policy. Preserve the old state directory byte for
 byte. Under a recorded operator decision, point a newly rendered unit and
 root-owned config at a **new empty state directory** for the same deployment;
 reload the unit while it is stopped. Use the already-reviewed maintenance
-procedure to restore `unless-stopped` on exactly the same nine IDs, read back
+procedure to restore `unless-stopped` on exactly the same locked IDs, read back
 the policies, then start those IDs in the approved order. In that supervised
 window run `arm`, start the unit, require `is-active` and `status=ready`, and
 compare the new `armed.json` IDs with the old receipt. Preserve the old and
 new generation receipts. A changed ID, incomplete stop, stale source, or
 missing capacity evidence requires a new review, not a silent rearm. This
 does not change the deployment scope or delete any source log.
+
+Changing a running nine-service deployment to `knowledge-ten` is a new
+installation generation, not a config edit in place. Stop and read back the
+old exact IDs under the reviewed lifecycle, preserve its state and receipts,
+prepare the new locked ten-service export and root-owned config, then arm all
+ten into a fresh empty state directory before accepting `status=ready`.
+The guard refuses a config digest change; it never silently adds an ID to
+an existing marker. The new service also needs separate log, readiness, and
+backup acceptance before use.
 
 The guard cannot stop containers while the local Docker API itself is
 unavailable, and it does not control an independently restarted Dockge

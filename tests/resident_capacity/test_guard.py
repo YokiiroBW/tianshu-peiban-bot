@@ -92,6 +92,26 @@ class ResidentCapacityTests(unittest.TestCase):
     def _write_marker(self):
         (self.config.state_dir / "armed.json").write_text(json.dumps(self._marker()), encoding="utf-8")
 
+    def _enable_knowledge(self):
+        root = self.config.root
+        (root / "knowledge").mkdir()
+        images = {**self.config.images, "knowledge": "memory@sha256:" + "a" * 64}
+        binds = {**self.config.binds, "knowledge": [
+            {"source": str(root / "knowledge"), "target": "/mnt/knowledge", "read_only": False},
+        ]}
+        self.config = replace(
+            self.config, images=images, binds=binds, service_profile=guard.KNOWLEDGE_PROFILE,
+        )
+        signature = self.config.signatures()[f"{guard.CORE}/knowledge"]
+        knowledge = guard.Container(
+            f"{10:064x}", signature["project"], signature["service"],
+            signature["workdir"], signature["compose_file"], signature["image"],
+            "running", "unless-stopped", (("bind", str(root / "knowledge"), "/mnt/knowledge", True),),
+        )
+        self.containers.append(knowledge)
+        self.docker.containers[knowledge.id] = knowledge
+        return knowledge
+
     def test_arm_locks_exact_nine_ids_after_full_start(self):
         with patch.object(guard, "_state_dir", side_effect=lambda path, create=False: Path(path)), patch.object(
             guard, "capacity", return_value=(100, 30 * guard.GIB)
@@ -113,6 +133,56 @@ class ResidentCapacityTests(unittest.TestCase):
             with self.assertRaisesRegex(guard.Unsafe, "resident_nine_services_required"):
                 guard.arm(self.config, "a" * 64, self.docker)
         self.assertFalse((self.config.state_dir / "armed.json").exists())
+
+    def test_explicit_knowledge_profile_arms_ten_and_rejects_missing_service(self):
+        knowledge = self._enable_knowledge()
+        self.docker.containers.pop(knowledge.id)
+        with patch.object(guard, "_state_dir", side_effect=lambda path, create=False: Path(path)):
+            with self.assertRaisesRegex(guard.Unsafe, "resident_ten_services_required"):
+                guard.arm(self.config, "a" * 64, self.docker)
+        self.assertFalse((self.config.state_dir / "armed.json").exists())
+        self.docker.containers[knowledge.id] = knowledge
+        with patch.object(guard, "_state_dir", side_effect=lambda path, create=False: Path(path)), patch.object(
+            guard, "capacity", return_value=(100, 30 * guard.GIB)
+        ):
+            self.assertEqual(guard.arm(self.config, "a" * 64, self.docker)["services"], 10)
+            self.assertEqual(guard.sample(self.config, self._marker(), self.docker)["services"], 10)
+            (self.config.state_dir / "heartbeat.json").write_text(
+                json.dumps({"status": "healthy", "time": guard.time.time()}), encoding="utf-8"
+            )
+            self.assertEqual(guard.status(self.config, "a" * 64, self.docker)["services"], 10)
+            self.docker.containers.pop(knowledge.id)
+            with self.assertRaisesRegex(guard.Unsafe, "resident_ten_services_required"):
+                guard.status(self.config, "a" * 64, self.docker)
+            self.docker.containers[knowledge.id] = knowledge
+        self.assertEqual(len(guard._armed(self.config.state_dir)["ids"]), 10)
+
+    def test_knowledge_profile_identity_and_fail_close_include_tenth_id(self):
+        knowledge = self._enable_knowledge()
+        with patch.object(guard, "capacity", return_value=(100, 30 * guard.GIB)):
+            for changed in (
+                replace(knowledge, image="wrong@sha256:" + "b" * 64),
+                replace(knowledge, mounts=(("bind", str(self.config.root / "knowledge"), "/other", True),)),
+            ):
+                self.docker.containers[knowledge.id] = changed
+                with self.assertRaisesRegex(guard.Unsafe, "resident_identity_conflict"):
+                    guard.sample(self.config, self._marker(), self.docker)
+            self.docker.containers[knowledge.id] = knowledge
+        self._write_marker()
+        with patch.object(guard, "_state_dir", side_effect=lambda path, create=False: Path(path)):
+            result = guard.fail_close(self.config.state_dir, "service_exit", self.docker)
+        self.assertEqual(result["status"], "stopped")
+        self.assertEqual(len(result["target_ids"]), 10)
+        self.assertIn(knowledge.id, result["restart_disabled_ids"])
+        self.assertIn(knowledge.id, result["term_sent_ids"])
+        self.assertEqual(len(result["exited_or_absent_ids"]), 10)
+
+    def test_legacy_profile_refuses_extra_knowledge_container(self):
+        knowledge = replace(self.containers[0], id=f"{10:064x}", service="knowledge")
+        with self.assertRaisesRegex(guard.Unsafe, "resident_identity_conflict"):
+            guard.assess([*self.containers, knowledge], self.config.signatures(), str(self.config.root))
+        with self.assertRaisesRegex(guard.Unsafe, "capacity_config_invalid"):
+            guard._service_map("arbitrary")
 
     def test_project_workdir_may_differ_from_export_file_directory(self):
         entry = {"workdir": str(self.config.root), "file": self.config.compose[guard.CORE]["file"]}
@@ -278,13 +348,14 @@ class ResidentCapacityTests(unittest.TestCase):
         self.assertIn("Type=notify", unit)
         self.assertIn("WatchdogSec=30s", unit)
         self.assertIn("ExecStopPost=", unit)
-        self.assertIn("TimeoutStopSec=600s", unit)
-        self.assertLess(guard.MAX_FAIL_CLOSE_SECONDS, 600)
+        self.assertIn("TimeoutStopSec=700s", unit)
+        self.assertLess(guard.MAX_FAIL_CLOSE_SECONDS, 700)
         schema = json.loads((Path(__file__).parents[2] / "ops/resident_capacity/config.schema.json").read_text(encoding="utf-8"))
         self.assertEqual(schema["properties"]["deployment_root"]["const"], guard.DEPLOYMENT_ROOT)
         self.assertGreaterEqual(schema["properties"]["min_free_bytes"]["minimum"], 20 * guard.GIB)
         self.assertLessEqual(schema["properties"]["max_deployment_bytes"]["maximum"], 20 * guard.GIB)
         self.assertLessEqual(schema["properties"]["term_timeout_seconds"]["maximum"], guard.MAX_TERM_SECONDS)
+        self.assertEqual(schema["properties"]["service_profile"]["enum"], ["resident-nine", "knowledge-ten"])
 
 
 if __name__ == "__main__":

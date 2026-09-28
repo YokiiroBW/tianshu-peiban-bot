@@ -10,6 +10,7 @@
   ],
   "properties": {
     "deployment_root": {"type": "string", "const": "/volume2/tianshu-v2-resident"},
+    "service_profile": {"type": "string", "enum": ["resident-nine", "knowledge-ten"]},
     "state_dir": {"type": "string", "pattern": "^/"},
     "docker_binary": {"type": "string", "pattern": "^/"},
     "compose": {
@@ -33,6 +34,7 @@
         "platform": {"$ref": "#/$defs/image"},
         "companion": {"$ref": "#/$defs/image"},
         "memory": {"$ref": "#/$defs/image"},
+        "knowledge": {"$ref": "#/$defs/image"},
         "gateway": {"$ref": "#/$defs/image"},
         "obs-vector": {"$ref": "#/$defs/image"},
         "obs-loki": {"$ref": "#/$defs/image"},
@@ -52,6 +54,7 @@
         "platform": {"$ref": "#/$defs/bind_list"},
         "companion": {"$ref": "#/$defs/bind_list"},
         "memory": {"$ref": "#/$defs/bind_list"},
+        "knowledge": {"$ref": "#/$defs/bind_list"},
         "gateway": {"$ref": "#/$defs/bind_list"},
         "obs-vector": {"$ref": "#/$defs/bind_list"},
         "obs-loki": {"$ref": "#/$defs/bind_list"},
@@ -66,6 +69,23 @@
     "poll_seconds": {"type": "integer", "minimum": 1, "maximum": 10},
     "term_timeout_seconds": {"type": "integer", "minimum": 10, "maximum": 120}
   },
+  "allOf": [
+    {
+      "if": {"properties": {"service_profile": {"const": "knowledge-ten"}}, "required": ["service_profile"]},
+      "then": {
+        "properties": {
+          "images": {"required": ["knowledge"]},
+          "binds": {"required": ["knowledge"]}
+        }
+      },
+      "else": {
+        "properties": {
+          "images": {"not": {"required": ["knowledge"]}},
+          "binds": {"not": {"required": ["knowledge"]}}
+        }
+      }
+    }
+  ],
   "$defs": {
     "compose_origin": {
       "type": "object",

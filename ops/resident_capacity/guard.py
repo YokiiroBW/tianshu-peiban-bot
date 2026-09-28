@@ -32,17 +32,22 @@ SERVICES = {
     OBS: frozenset({"obs-vector", "obs-loki", "obs-grafana", "obs-prometheus", "obs-guard"}),
 }
 ALL_KEYS = frozenset(f"{project}/{service}" for project, names in SERVICES.items() for service in names)
+KNOWLEDGE_PROFILE = "knowledge-ten"
+KNOWLEDGE_SERVICES = {**SERVICES, CORE: SERVICES[CORE] | {"knowledge"}}
+KNOWLEDGE_KEYS = frozenset(
+    f"{project}/{service}" for project, names in KNOWLEDGE_SERVICES.items() for service in names
+)
 GIB = 1024**3
 DEFAULT_LIMIT = 20 * GIB
 DOCKER_CALL_SECONDS = 10
 DOCKER_BATCH_INSPECT_SECONDS = 15
 MAX_TERM_SECONDS = 120
-# Initial inventory; nine update/readbacks; nine readback/TERMs; the terminal
+# Initial inventory; ten update/readbacks; ten readback/TERMs; the terminal
 # wait plus one final inventory; and a 60 s allowance for state fsync/scheduling.
 MAX_FAIL_CLOSE_SECONDS = (
     DOCKER_CALL_SECONDS + DOCKER_BATCH_INSPECT_SECONDS
-    + 9 * 2 * DOCKER_CALL_SECONDS
-    + 9 * 2 * DOCKER_CALL_SECONDS
+    + 10 * 2 * DOCKER_CALL_SECONDS
+    + 10 * 2 * DOCKER_CALL_SECONDS
     + MAX_TERM_SECONDS + DOCKER_CALL_SECONDS + DOCKER_BATCH_INSPECT_SECONDS
     + 60
 )
@@ -81,8 +86,10 @@ class Config:
     max_deployment_bytes: int = DEFAULT_LIMIT
     poll_seconds: int = 5
     term_timeout_seconds: int = 120
+    service_profile: str = "resident-nine"
 
     def signatures(self):
+        services = _service_map(self.service_profile)
         return {
             f"{project}/{service}": {
                 "project": project,
@@ -92,9 +99,26 @@ class Config:
                 "image": self.images[service],
                 "binds": self.binds[service],
             }
-            for project, names in SERVICES.items()
+            for project, names in services.items()
             for service in names
         }
+
+
+def _service_map(profile: str):
+    if profile == "resident-nine":
+        return SERVICES
+    if profile == KNOWLEDGE_PROFILE:
+        return KNOWLEDGE_SERVICES
+    raise Unsafe("capacity_config_invalid")
+
+
+def _expected_keys(signatures: dict):
+    if not isinstance(signatures, dict):
+        raise Unsafe("resident_service_profile_invalid")
+    keys = set(signatures)
+    if keys == ALL_KEYS or keys == KNOWLEDGE_KEYS:
+        return keys
+    raise Unsafe("resident_service_profile_invalid")
 
 
 @dataclass(frozen=True)
@@ -180,11 +204,12 @@ def classify(containers: list[Container], signatures: dict, root: str):
 
 
 def assess(containers: list[Container], signatures: dict, root: str, locked: dict | None = None):
+    expected = _expected_keys(signatures)
     owned, conflicts = classify(containers, signatures, root)
     if conflicts:
         raise Unsafe(conflicts[0])
-    if set(owned) != ALL_KEYS:
-        raise Unsafe("resident_nine_services_required")
+    if set(owned) != expected:
+        raise Unsafe("resident_ten_services_required" if expected == KNOWLEDGE_KEYS else "resident_nine_services_required")
     if locked is not None and {key: item.id for key, item in owned.items()} != locked:
         raise Unsafe("resident_container_identity_changed")
     if any(item.status != "running" for item in owned.values()):
@@ -293,12 +318,19 @@ def load_config(path: Path):
     raw = path.read_bytes()
     try:
         value = json.loads(raw)
-        if not isinstance(value, dict) or set(value) != {
+        if not isinstance(value, dict) or set(value) not in ({
             "deployment_root", "state_dir", "docker_binary", "compose",
             "platform_first_compose", "images", "binds", "free_paths",
             "min_free_bytes", "max_deployment_bytes", "poll_seconds", "term_timeout_seconds",
-        }:
+        }, {
+            "deployment_root", "state_dir", "docker_binary", "compose",
+            "platform_first_compose", "images", "binds", "free_paths",
+            "min_free_bytes", "max_deployment_bytes", "poll_seconds", "term_timeout_seconds",
+            "service_profile",
+        }):
             raise ValueError()
+        profile = value.get("service_profile", "resident-nine")
+        services = _service_map(profile)
         root = _safe_path(value["deployment_root"])
         state_dir = _safe_path(value["state_dir"], must_exist=False)
         docker = _safe_path(value["docker_binary"])
@@ -307,7 +339,7 @@ def load_config(path: Path):
             or state_dir == root or _within(str(state_dir), str(root))
         ):
             raise ValueError()
-        if set(value["compose"]) != set(SERVICES):
+        if not isinstance(value["compose"], dict) or set(value["compose"]) != set(SERVICES):
             raise ValueError()
         compose = {}
         for project in SERVICES:
@@ -320,11 +352,13 @@ def load_config(path: Path):
         free_paths = tuple(_safe_path(item) for item in value["free_paths"])
         if any(not item.is_dir() for item in free_paths):
             raise ValueError()
-        if set(value["images"]) != {service for services in SERVICES.values() for service in services}:
+        if not isinstance(value["images"], dict) or set(value["images"]) != {
+            service for names in services.values() for service in names
+        }:
             raise ValueError()
         if any(not isinstance(image, str) or not IMAGE.fullmatch(image) for image in value["images"].values()):
             raise ValueError()
-        if set(value["binds"]) != set(value["images"]):
+        if not isinstance(value["binds"], dict) or set(value["binds"]) != set(value["images"]):
             raise ValueError()
         binds = {}
         for service, entries in value["binds"].items():
@@ -353,6 +387,7 @@ def load_config(path: Path):
              Path(platform_first["workdir"]), *free_paths),
             value["min_free_bytes"], value["max_deployment_bytes"],
             value["poll_seconds"], value["term_timeout_seconds"],
+            profile,
         )
     except (KeyError, TypeError, ValueError, OSError) as error:
         raise Unsafe("capacity_config_invalid") from error
@@ -448,12 +483,12 @@ def _read_json(path: Path):
 def _armed(state_dir: Path):
     try:
         value = _read_json(state_dir / "armed.json")
+        expected = _expected_keys(value["signatures"])
         if (
             not isinstance(value, dict) or set(value) != {"config_sha256", "root", "docker", "ids", "signatures", "term_timeout_seconds"}
-            or set(value["ids"]) != ALL_KEYS
-            or len(set(value["ids"].values())) != 9
+            or set(value["ids"]) != expected
+            or len(set(value["ids"].values())) != len(expected)
             or any(not ID.fullmatch(item) for item in value["ids"].values())
-            or set(value["signatures"]) != ALL_KEYS
         ):
             raise ValueError()
         return value
@@ -478,7 +513,7 @@ def arm(config: Config, config_sha256: str, docker: Docker):
         "term_timeout_seconds": config.term_timeout_seconds,
     }
     _write(state / "armed.json", marker, exclusive=True)
-    return {"status": "armed", "services": 9, "deployment_bytes": used, "minimum_free_bytes": free}
+    return {"status": "armed", "services": len(owned), "deployment_bytes": used, "minimum_free_bytes": free}
 
 
 def sample(config: Config, marker: dict, docker: Docker):
