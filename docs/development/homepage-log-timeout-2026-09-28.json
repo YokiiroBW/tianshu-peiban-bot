@@ -1,0 +1,25 @@
+{
+  "at": "2026-09-28T02:35:07.764668+00:00",
+  "capacity": {
+    "deployment_bytes": 138215260,
+    "heartbeat_age_seconds": 5.065,
+    "minimum_free_bytes": 459384832000,
+    "services": 10,
+    "status": "ready"
+  },
+  "durability_timeout_ms": 5000,
+  "account_preserved": true,
+  "progress": {
+    "phase": "recovered_pending_sustained_validation",
+    "time": 1790562489.856395
+  },
+  "http_sustained": {
+    "samples": 121,
+    "duration_seconds": 364,
+    "all_passed": true,
+    "max_response_seconds": 0.078
+  },
+  "independent_review_commit": "88c07ae",
+  "browser": "same user tab reloaded to workbench",
+  "assets_http200": 2
+}
