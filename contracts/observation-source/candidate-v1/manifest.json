@@ -1,0 +1,16 @@
+{
+  "version": "1.0.0-candidate",
+  "status": "candidate_not_published",
+  "schema_version": 2,
+  "hash_basis": "UTF-8 bytes with CRLF normalized to LF",
+  "digest_algorithm": "SHA-256 of RFC 8259 JSON event with Unicode preserved, keys sorted, compact separators and UTF-8 bytes",
+  "documents_validated": 30,
+  "sha256": {
+    "README.md": "4bf0bf24f795b20cc04f957407a87f1cbc19f41ada33064b79f2f68d91f36ca5",
+    "capabilities.md": "f36cee9fcc551af2980e9c1e310fd56ccfcf82eadfea9ddea17196830663997e",
+    "schema.json": "adff00d178c6b7f5c0a2a7d73b9290b137836eda69378c207ea52f2b534c6f8a",
+    "examples.json": "2594e8fd7aa85bfe88c4ef50657f2e107dff387720c088d8114a7f51f1c5172a",
+    "negative-examples.json": "1ff79e2d71fc30de3a4f976fde4b8a163a6ca640b8fe801323aa943de27c736e",
+    "validate.py": "5e8b550186fbecf36bcddc754e762e1795881ead4e17de5624e2cf2d56fc5237"
+  }
+}
