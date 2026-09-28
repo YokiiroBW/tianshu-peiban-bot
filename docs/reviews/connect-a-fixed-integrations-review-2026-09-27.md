@@ -4,20 +4,23 @@
 
 The reviewed code and isolated process tests support conditional acceptance of the
 fixed Platform, Memory, Companion, and web-client changes as local integration
-candidates. I found no additional blocking code defect in the reviewed paths. This
-does not establish a production deployment: the formal persona package is still a
-release candidate, and the non-persona U browser specs in this snapshot use mocked
-same-origin APIs.
+candidates. I found no additional blocking code defect in the reviewed paths. U's
+latest Knowledge/Life success-state correction, `565ad93`, is mergeable. Existing
+selected U UI specs still use mocked same-origin APIs, while a separate Chromium
+integration run now provides real-browser evidence for Memory, Knowledge, and Life
+against local integrated services. This does not establish a production deployment:
+the formal persona package is now published, but the integration data and
+credentials remain synthetic.
 
 The principal fixed snapshots reviewed were:
 
 | Product | Commit |
 | --- | --- |
-| Platform B | `9551871796f57d3369396023caf2b013a239c3a0` |
+| Platform B | `c0f828a1fdf3015727997fb2fefbf165d9a3e6a3` (published Persona pin; includes `9551871` integration baseline) |
 | Memory M browser/API base | `02df5ba8c041a7a6eb8b705c5f264e10543032ec` |
 | Memory M knowledge HTTP additions | `bd0123bc7e242dc5a767347602f23957af9b2c33` |
 | Companion persona producer | `31677983798ba27b24d57925feab4774c2eec30f` |
-| Web client U | `faa5c6ba530b8a529e4c1e6e3e3d3ed42e414a8a` |
+| Web client U | `565ad93b4e868b2b10a3bd441eec9de52e006da1` (latest; includes `faa5c6` baseline) |
 
 All process fixtures used synthetic records, credentials, and isolated local stores.
 No NAS, production token, live account, real diary, asset service, or HA device was
@@ -33,9 +36,11 @@ the producer response.
 
 The final B/M `tests/backend/test_memory_joint.py` passed (**1 passed**). It ran the
 real Platform HTTP application with login/session, a real Memory HTTPS process, and
-a synthetic Platform issuer; it read a nonempty overview and scoped subjects and
-records. This closes the API mismatch. It is not a Chromium or NAS test. The earlier
-review details and post-barrier source-authority checks are recorded in
+the real Platform HTTPS `/internal/v1/origins/resolve` endpoint served by the same
+Platform instance. The issuer credentials, identity/source facts, database, and
+records were synthetic. It read a nonempty overview and scoped subjects and records.
+This closes the API mismatch. It is not a Chromium or NAS test. The earlier review
+details and post-barrier source-authority checks are recorded in
 [`connect-a-memory-browser-review-2026-09-27.md`](connect-a-memory-browser-review-2026-09-27.md).
 
 ## Project knowledge
@@ -129,25 +134,66 @@ The reproduction command was:
 & .runtime/connect-a-b-env/venv/Scripts/python.exe -m unittest discover -s tests/persona_acceptance -p test_published_chromium.py -v
 ```
 
-For this test only, the harness copied the formal v1 package to `.runtime`, changed
-the copy's publication metadata, recomputed that copy's manifest digest, and patched
-the pinned digest only in the isolated Python process. The formal manifest was not
-edited; its current SHA-256 remains
-`4bb6038fc5a6fb43ebb08aa9664171dc2ae81db3893f3afe53de597b9a7f212b` and its fields
-remain `status=release_candidate`, `production_publish_authorized=false`, and
-`joint_runtime_acceptance=pending`. Therefore this proves the B published-mode
-loader and real page path against candidate file bytes under test-only published
-metadata. It is not formal publication evidence and must not be recorded as a
-production approval.
+For the Chromium run above, the harness copied the then-candidate v1 package to
+`.runtime`, changed only that copy's publication metadata, recomputed its manifest
+digest, and patched the pinned digest in the isolated Python process. That browser
+run proves the real page path against candidate file bytes under test-only published
+metadata; it was not a browser run against the subsequently published package.
+
+The coordinator later published the formal package in root commit
+`f705475d9ee26df29ea634349d8c18398418b40f`. I recomputed the committed manifest
+SHA-256 as
+`72ae9ee2fd5e0140e122877c35d90eb747f1d56804c33d8f01c9eb38413c0e2d`, matching its
+declared `published` status, production authorization, and joint acceptance fields.
+B commit `c0f828a1fdf3015727997fb2fefbf165d9a3e6a3` pins that exact digest. Its
+`load_published` path checks the raw manifest digest, fixed publication fields,
+producer commits, operation allowlist, and every package file hash. B records **3/3
+passed** for the actual published-package loader tests, including exact-package load,
+file-tamper rejection, pending-release rejection, and refusal when the pin is absent.
+
+**B pin acceptance: accepted and mergeable.** This verifies the local published
+package and consumer pin; it does not prove that a deployed Platform instance has
+the publication directory, Companion connection, or production credentials.
+
+## U Knowledge/Life read-state correction and Chromium evidence
+
+I reviewed U commit `565ad93b4e868b2b10a3bd441eec9de52e006da1` against
+`faa5c6ba530b8a529e4c1e6e3e3d3ed42e414a8a`. The code change is limited to the
+Knowledge and Life page status, its focused assertions, and the handoff. The pages
+show “本页本次读取成功” only after a successful API response passes the active
+scope/stale-request guards; refresh and project/actor scope changes reset the hint.
+It changes no API, authentication, storage, or cross-product contract.
+
+The existing Chromium artifacts are under
+`C:\YOKI\Codex\tianshu-peiban-bot\worktrees\CONNECT-INTEGRATION\tianshu-platform\.runtime\connect-u-browser\output-fixed`.
+The five Knowledge/Life runs have matching JSON request summaries and PNG
+screenshots: catalogue, lessons, notes, continuation, and Life. The harness uses
+Playwright Chromium against the loopback Platform app and does not intercept
+same-origin `/api/web` calls. The captured scenes show successful live reads from
+the local Knowledge and Companion HTTPS services. In the notes scene, the initial
+documents request returns the expected `403 upstream_forbidden`, while the notes
+query and notes reads succeed; the page also retains its explicit error surface.
+The separate earlier browser run covers Memory against a real local Memory HTTPS
+process. All test identities and data are synthetic.
+
+One non-blocking wording caveat: the success hint records that a read succeeded in
+the current project/actor scope; a later failed subrequest in the same scope does
+not clear it, though its error remains visible. If the intended meaning is “the
+latest request succeeded,” the label should be narrowed. This does not block the
+commit because the current label can describe a successful read during this page
+scope.
+
+**Mergeability: mergeable.** The source diff is narrow, `git diff --check` passes,
+and the existing real Chromium evidence confirms the corrected hint appears only
+alongside actual successful reads. I did not rerun the existing mocked UI suite.
 
 ## Remaining work
 
-- The coordinator still owns any change to the root v1 manifest and must decide
-  whether to publish it using the test evidence above.
-- B's fixed production manifest pin is intentionally `None`; after formal publication,
-  B needs to pin the approved manifest digest and repeat its published-mode check.
+- The root v1 manifest is formally published and B has pinned its digest. This
+  review checked B's pin commit and its focused published-loader evidence; it does
+  not establish a deployed Platform connection to the publication directory.
 - Production reader registrations, credentials, CA files, service ACLs, real project
   data, and real external endpoints remain unverified.
-- The U browser evidence for Memory, Knowledge, Life, and external settings is not a
-  real-browser backend integration. Use the coordinator's combined integration run
-  for that scope; do not infer it from mocked UI specs.
+- Real Chromium integration evidence now covers Memory, Knowledge, and Life against
+  local integrated services with synthetic data. The external AssetLink/HA settings
+  browser specs still use mocked APIs, and no real external service was contacted.

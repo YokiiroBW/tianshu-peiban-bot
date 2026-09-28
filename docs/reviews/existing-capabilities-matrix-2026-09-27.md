@@ -53,17 +53,17 @@ Platform `apps/web/src/app/App.tsx` 只把工作台、Companion 对话、人设�
 
 这份初审记录的是 CONNECT-B / CONNECT-U / CONNECT-M 固定提交前的源码与部署基线。以下补记反映固定实现和隔离验证；不改变生产部署状态。
 
-## 固定提交补记（以本节为准，2026-09-27）
+## 固定提交补记（以本节为准，2026-09-27 至 28）
 
-固定复核的主要版本：Platform B `9551871796f57d3369396023caf2b013a239c3a0`、Memory M 浏览器/API `02df5ba8c041a7a6eb8b705c5f264e10543032ec`、Memory Knowledge HTTP 扩展 `bd0123bc7e242dc5a767347602f23957af9b2c33`、Companion 人格生产者 `31677983798ba27b24d57925feab4774c2eec30f`、Web U `faa5c6ba530b8a529e4c1e6e3e3d3ed42e414a8a`。
+固定复核的主要版本：Platform B `c0f828a1fdf3015727997fb2fefbf165d9a3e6a3`（Persona SHA pin；业务联测基线 `9551871796f57d3369396023caf2b013a239c3a0`）、Memory M 浏览器/API `02df5ba8c041a7a6eb8b705c5f264e10543032ec`、Memory Knowledge HTTP 扩展 `bd0123bc7e242dc5a767347602f23957af9b2c33`、Companion 人格生产者 `31677983798ba27b24d57925feab4774c2eec30f`、Web U `565ad93b4e868b2b10a3bd441eec9de52e006da1`。
 
 | 能力 | 固定实现与隔离验证 | 仍未证明 |
 | --- | --- | --- |
-| 人格目录、历史、修订和比较 | B `/api/web/personas/{catalog,history,revision,compare}` 绑定登记 HTTPS reader、固定主体名单和经过字节校验的 contract。CONNECT-A 用当前 Companion producer、B 955、U faa5c6 dist 做了 real Companion HTTPS + real Platform HTTPS + Chromium 联测：1/1 通过；浏览器读到允许的两个人格并呈现修订、四字段比较，未见名单外主体或上游凭据泄露。细节见 `docs/reviews/connect-a-fixed-integrations-review-2026-09-27.md`。 | 根合同正式 manifest 仍是 `release_candidate`、`production_publish_authorized=false`、`joint_runtime_acceptance=pending`。此联测只在 `.runtime` 的副本上改发布元数据并在进程内替换 digest；B 的正式 SHA pin 仍关闭。不得将其写成正式发布或生产验收。 |
-| Memory 本人记忆浏览 | B 的 overview 与 M `memory_group_count` / `counts_truncated` 形状已一致；真实 Memory HTTPS 进程和 Platform 登录/同源读路径测试 1/1 通过，覆盖非空 overview、subjects、records。B 当前网页入口只读；无用户端网页命令/写入入口。 | 测试用合成 issuer、授权、数据库与记录；不代表 NAS reader 配置或真实账号读取。该套件没有启动 Chromium。 |
-| Memory 项目知识 | M Knowledge HTTP 服务新增四项逐操作 HTTP allowlist；B 固定项目与 checkout 闭集，`experience_query` 仍独立需要 review 授权，接续包只作为会话内有界句柄保存。真实 Memory Knowledge HTTPS CLI + Platform 路由测试 4/4 通过。 | 独立 Knowledge 进程、私有 TLS/Host、正式项目/checkout 白名单和资料库迁移尚未部署验证。U 本快照相关页面测试使用 Playwright API mock。 |
-| Companion 生活与日记 | B 固定 Companion HTTPS reader 的 actors、snapshot、diaries、revision 只读路由。B 记录的 `test_life_joint` 1/1 通过：真实 Companion HTTPS、Platform HTTP 登录、合成行；覆盖授权/版本冲突且读前后 SQLite 行相同。 | 真实浏览器到后端的链未由 U 这组 mock 页面测试证明；生产 `life_readers`、剧情授权、证书和日记未验。 |
+| 人格目录、历史、修订和比较 | B `/api/web/personas/{catalog,history,revision,compare}` 绑定登记 HTTPS reader、固定主体名单和经过字节校验的 contract。CONNECT-A 用当前 Companion producer、B 955、U faa5c6 dist 做了 real Companion HTTPS + real Platform HTTPS + Chromium 联测：1/1 通过；浏览器读到允许的两个人格并呈现修订、四字段比较，未见名单外主体或上游凭据泄露。根 manifest 后由 `f705475` 正式发布，SHA-256 `72ae9ee2…13c0e2d`；B `c0f828a` 固定同一 SHA，正式包 `load_published` 定向测试 3/3 通过。细节见 `docs/reviews/connect-a-fixed-integrations-review-2026-09-27.md`。 | 之前 Chromium 联测用 test-only published package 副本；B 新测试证明正式包加载与篡改拒绝，不等于已对正式包做 Chromium 或部署端到端验收。 |
+| Memory 本人记忆浏览 | B 的 overview 与 M `memory_group_count` / `counts_truncated` 形状已一致；真实 Memory HTTPS 进程和 Platform 登录/同源读路径测试 1/1 通过，覆盖非空 overview、subjects、records。后续真实 Chromium 页面也读取了本机集成服务。B 当前网页入口只读；无用户端网页命令/写入入口。 | `test_memory_joint` 使用真实 Platform HTTPS `/internal/v1/origins/resolve` endpoint（由同一 Platform 实例提供），但 issuer 凭据、身份/来源事实、授权数据、数据库与记录均为合成；不代表 NAS reader 配置或真实账号读取。该后端套件没有启动 Chromium。 |
+| Memory 项目知识 | M Knowledge HTTP 服务新增四项逐操作 HTTP allowlist；B 固定项目与 checkout 闭集，`experience_query` 仍独立需要 review 授权，接续包只作为会话内有界句柄保存。真实 Memory Knowledge HTTPS CLI + Platform 路由测试 4/4 通过；U `565ad93` 的 Chromium 场景对真实本地 Platform/Knowledge HTTPS 服务读取 catalogue、lessons、notes 与 continuation。 | 这些 Chromium fixture 使用合成数据；独立 Knowledge 进程、私有 TLS/Host、正式项目/checkout 白名单和资料库迁移尚未部署验证。 |
+| Companion 生活与日记 | B 固定 Companion HTTPS reader 的 actors、snapshot、diaries、revision 只读路由。B 记录的 `test_life_joint` 1/1 通过：真实 Companion HTTPS、Platform HTTP 登录、合成行；U `565ad93` 的真实 Chromium Life 场景也读取本机集成服务。 | 真实 `life_readers`、剧情授权、证书和日记未验；浏览器和后端联合数据仍为合成。 |
 | AssetLink 与 Home Assistant 外部连接设置 | B 增加固定两类 peer 的管理员编辑/测试流程，外发限制到登记类型、固定路径和受限地址策略；secret/CA 加密，测试回执绑定配置版本。`test_web_external` 4/4 通过，对端是合成 TLS/HTTP 服务。 | 没有真实 AssetLink 或 HA 读取。Windows ACL 需要运维单独配置；代码里的 `chmod` 不构成 ACL 证据。U 连接修订竞争浏览器测试用 mock API。 |
-| U 网页接口页面 | U 固定包 typecheck/build 通过；`integration-pages`、`scope-transitions`、`external-connections` 的桌面和移动 Chromium 项目合计 22 项通过。 | 这些规格拦截同源 API，证明 UI 状态、旧请求隔离和页面交互，不证明 B/M/Companion 的真实后端端到端链。只有人格路径由 CONNECT-A 另外对实时 HTTPS 进程做了真实 API Chromium 验证，且使用 test-only published package 副本。 |
+| U 网页接口页面 | U 固定包 typecheck/build 通过；`integration-pages`、`scope-transitions`、`external-connections` 的桌面和移动 Chromium 项目合计 22 项通过。U `565ad93` 的独立浏览器运行对 Knowledge/Life 不拦截同源 API，读取本机真实集成服务。 | 原 22 项规格仍是 mock UI 证据；Knowledge/Life 与 Memory live Chromium fixture 均为合成数据。外部 AssetLink/HA 页面仍只有 mock API 规格；Persona live Chromium 使用 test-only published package 副本。 |
 
 B 的更严格交接引用：`.runtime/connect-a-b-9551871/checkout/docs/handoffs/CONNECT-B.md` 及 `CONNECT-B-{API,KNOWLEDGE,LIFE,EXTERNAL}.md`。上述测试均为本机隔离 fixture，不会升级为 NAS 业务状态。独立 AssetLibrary 与 Chat Audit 仍须按各自服务/授权单独审查；此次没有检查真实服务。

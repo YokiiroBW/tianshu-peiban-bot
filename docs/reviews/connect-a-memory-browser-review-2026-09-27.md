@@ -68,10 +68,10 @@ $env:CONNECT_M_SNAPSHOT = 'C:/Users/Administrator/.codex/worktrees/7208/tianshu-
 & 'C:/YOKI/Codex/tianshu-peiban-bot/worktrees/CONNECT-M/tianshu-memory/.venv/Scripts/python.exe' -B -m pytest -p no:cacheprovider -c "$env:CONNECT_M_SNAPSHOT/pyproject.toml" --basetemp "$env:CONNECT_M_SNAPSHOT/.runtime/connect-a-reviewer-extra" 'C:/Users/Administrator/.codex/worktrees/7208/tianshu-peiban-bot/tests/persona_acceptance/test_memory_postbarrier.py' -q
 ```
 
-Tests used synthetic accounts, a synthetic HTTPS owner/issuer, and isolated SQLite
-databases under this task's `.runtime`; no NAS, live account, real message, or
-production data was used. The Memory process test is a real Memory HTTP process,
-but its Platform issuer is synthetic.
+The candidate and post-barrier tests above used synthetic accounts, a synthetic
+HTTPS owner/issuer, and isolated SQLite databases under this task's `.runtime`; no
+NAS, live account, real message, or production data was used. The Memory process
+test is a real Memory HTTP process, but its Platform issuer is synthetic.
 
 ## Consumer compatibility and remaining boundary
 
@@ -85,9 +85,11 @@ and final `9551871796f57d3369396023caf2b013a239c3a0` snapshots:
 On the final B archive paired with M `02df5ba8c041a7a6eb8b705c5f264e10543032ec`,
 `tests/backend/test_memory_joint.py` passed (**1 passed**). It started the real
 Platform HTTP application and real Memory HTTPS process, used a real Platform
-login/session and a synthetic issuer, and checked a nonempty overview plus scoped
-subject and record reads. The database and source/admission facts were synthetic;
-this test did not launch Chromium or contact the NAS.
+login/session, and configured Memory to resolve origins through the real Platform
+HTTPS `/internal/v1/origins/resolve` endpoint attached to that same Platform
+instance. The credentials, identity/source facts, database, and records were
+synthetic. It checked a nonempty overview plus scoped subject and record reads; it
+did not launch Chromium or contact the NAS.
 
 The `subject_count` defect is therefore no longer an open code or API-pair blocker.
 The exact test is a backend process integration, not evidence of a browser run or
