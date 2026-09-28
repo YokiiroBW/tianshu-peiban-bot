@@ -1,5 +1,5 @@
 {
-  "status": "platform_rework_required",
+  "status": "local_fixed_candidate_accepted_not_merged_not_deployed",
   "user_choice": "both; live test recipients to be specified",
   "models": "gpt-6-sol/xhigh",
   "tasks": [
@@ -8,8 +8,8 @@
       "thread_id": "01a0e61d-41cb-7d32-8aca-32674bfced17",
       "worktree": "worktrees/BOT-P/tianshu-platform",
       "baseline": "88c07ae",
-      "candidate_commit": "0a2e6d9242308eb3cb785815aae8ca37b190ec62",
-      "status": "rework_in_progress"
+      "candidate_commit": "c5f4d3acc3a906376c5dfe36279ef26b91769b25",
+      "status": "accepted_local_candidate"
     },
     {
       "task": "BOT-N",
@@ -17,7 +17,7 @@
       "worktree": "worktrees/BOT-N/tianshu-companion",
       "baseline": "3167798",
       "candidate_commit": "361585c952a45e825cdc4a438fba372f294a82bb",
-      "status": "local_candidate_accepted_pending_repaired_platform_joint"
+      "status": "accepted_local_candidate"
     },
     {
       "task": "BOT-A",
@@ -25,7 +25,7 @@
       "worktree": "worktrees/BOT-A/tianshu-companion",
       "baseline": "3167798",
       "candidate_commit": "910ce8c63756b03463db63bd8e0c0de156da2e7b",
-      "status": "local_candidate_accepted_pending_repaired_platform_joint"
+      "status": "accepted_local_candidate"
     }
   ],
   "nas_inventory": {
@@ -44,18 +44,22 @@
     "thread_id": "01a0e638-e9b3-7373-aded-561aef7fe95b",
     "model": "gpt-6-luna",
     "thinking": "max",
-    "status": "two_platform_blockers_reproduced",
+    "status": "repair_recheck_passed",
     "report_commit": "f5b4307",
     "findings": [
       "duplicate_owner_across_internal_bindings",
       "synchronous_sqlite_blocks_event_loop"
-    ]
+    ],
+    "followup_commit": "d77a31a"
   },
   "integration_worktree": "worktrees/BOT-INTEGRATION/tianshu-companion",
   "production_changed": false,
   "coordinator_validation": {
     "readiness_and_probe_tests": "19 passed with TS013_TLS_PYTHON configured",
     "unchanged_health_scope_only": true,
-    "production_changed": false
+    "production_changed": false,
+    "combined_adapters_against_repaired_platform": "21 passed, no skips",
+    "platform_bots_and_legacy_web_sender": "20 passed",
+    "companion_candidate": "484240a9244dcd62dec22c174d5281a715aaae10"
   }
 }
