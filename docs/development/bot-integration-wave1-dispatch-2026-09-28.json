@@ -29,7 +29,9 @@
       26385
     ],
     "astrbot_image_id": "3b34d34020a1",
-    "nonebot_napcat": "no obvious named running container; not conclusive"
+    "nonebot_napcat": "no obvious named running container; not conclusive",
+    "astrbot_version": "4.27.3",
+    "inventory_method": "read-only docker CLI; previous Python wrapper timed out"
   },
   "live_message_send_authorized": false
 }
