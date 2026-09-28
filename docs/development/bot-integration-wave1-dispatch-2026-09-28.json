@@ -1,5 +1,5 @@
 {
-  "status": "development_running_not_deployed",
+  "status": "fixed_candidates_under_independent_review",
   "user_choice": "both; live test recipients to be specified",
   "models": "gpt-6-sol/xhigh",
   "tasks": [
@@ -7,7 +7,9 @@
       "task": "BOT-P",
       "thread_id": "01a0e61d-41cb-7d32-8aca-32674bfced17",
       "worktree": "worktrees/BOT-P/tianshu-platform",
-      "baseline": "88c07ae"
+      "baseline": "88c07ae",
+      "candidate_commit": "0a2e6d9242308eb3cb785815aae8ca37b190ec62",
+      "status": "delivered_pending_review"
     },
     {
       "task": "BOT-N",
@@ -19,7 +21,9 @@
       "task": "BOT-A",
       "thread_id": "01a0e61d-a626-7492-be1a-0c178dbee4f8",
       "worktree": "worktrees/BOT-A/tianshu-companion",
-      "baseline": "3167798"
+      "baseline": "3167798",
+      "candidate_commit": "910ce8c63756b03463db63bd8e0c0de156da2e7b",
+      "status": "12_tests_passed_against_fixed_platform_pending_review"
     }
   ],
   "nas_inventory": {
@@ -33,5 +37,11 @@
     "astrbot_version": "4.27.3",
     "inventory_method": "read-only docker CLI; previous Python wrapper timed out"
   },
-  "live_message_send_authorized": false
+  "live_message_send_authorized": false,
+  "review": {
+    "thread_id": "01a0e638-e9b3-7373-aded-561aef7fe95b",
+    "model": "gpt-6-luna",
+    "thinking": "max",
+    "status": "in_progress"
+  }
 }
