@@ -30,6 +30,8 @@
 
 错误使用稳定 `{code,retryable}`，HTTP 400 invalid_input / 401 unauthorized / 403 forbidden / 404 not_found / 409 version_conflict或idempotency_conflict / 429 busy / 503 dependency_unavailable；不回显地址中凭据、token、异常栈和聊天正文。实际宿主挂载路径差异由对应插件处理，平台不能猜通用管理接口能收此协议。
 
+联合实证后的字段澄清：网页与 binding 管理的 `conversation` 使用 `{kind,id}`，其中 id 为裸 QQ 数字；原 Bots 事件 `conversation_id`、来源 `channel_conversation_id` 与插件发送目标统一为 `private:<id>` 或 `group:<id>`。事件 `revision` 固定为原消息合同的 1，不能填 binding 修订号。插件 poll 还须按完整 JSON 的 UTF-8 字节限制到 64 KiB 内，只返回可容纳的有序前缀，剩余事件保留到后续轮询，不能因最多 20 条大消息而永久无法读取。
+
 ## 网页 API（P/U 共同基线）
 
 前缀 `/api/web/bot-adapters`，沿用真实 Cookie/CSRF/Origin 与现有 bot.manage 管理解锁，不新建浏览器认证体系。API 路径和字段如需更改必须总控同步双方，不各自猜。
