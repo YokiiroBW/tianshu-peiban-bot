@@ -1,0 +1,35 @@
+{
+  "status": "development_running_not_deployed",
+  "user_choice": "both; live test recipients to be specified",
+  "models": "gpt-6-sol/xhigh",
+  "tasks": [
+    {
+      "task": "BOT-P",
+      "thread_id": "01a0e61d-41cb-7d32-8aca-32674bfced17",
+      "worktree": "worktrees/BOT-P/tianshu-platform",
+      "baseline": "88c07ae"
+    },
+    {
+      "task": "BOT-N",
+      "thread_id": "01a0e61d-a5c1-7f93-bfae-26d6ea3db601",
+      "worktree": "worktrees/BOT-N/tianshu-companion",
+      "baseline": "3167798"
+    },
+    {
+      "task": "BOT-A",
+      "thread_id": "01a0e61d-a626-7492-be1a-0c178dbee4f8",
+      "worktree": "worktrees/BOT-A/tianshu-companion",
+      "baseline": "3167798"
+    }
+  ],
+  "nas_inventory": {
+    "astrbot_ports": [
+      26185,
+      26285,
+      26385
+    ],
+    "astrbot_image_id": "3b34d34020a1",
+    "nonebot_napcat": "no obvious named running container; not conclusive"
+  },
+  "live_message_send_authorized": false
+}
