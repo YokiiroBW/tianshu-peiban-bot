@@ -24,4 +24,16 @@
 
 检查七页隔离、原数字深链、桌面/手机导航、未登录和空配置状态、资产/家庭保存范围、取消与切页行为；执行类型/构建及受影响浏览器用例。任何本地 mock 通过不称 NAS 网页认证实测。部署保留原账号、模型、全量日志和十服务容量监督；操作前保存当前运行配置与数据备份。
 
-当前状态：已派发，实现与验收进行中；尚未改 NAS。
+当前状态：已实现、合并并部署，固定 Platform SHA `88fb778974f7050f3b4aa3c84a47b847d997e349`。
+
+
+## 最终验收与部署
+
+- 前端 TypeScript/生产构建通过。桌面/手机 settings、外部连接、访问设置与 shell 共 29 passed / 1 既有桌面专属 skipped；补充双向保存断言后的受影响子页面 6 passed；HA 保存/检测 2 passed；隔离真实后端机器人创建/启停/轮换 1 passed。停用测试原有异步竞态已改为等待“已停用”页面状态后检查凭据拒绝，未改后端。
+- 总控审查完整产品 diff，仅网页、相关测试及交接变更；桌面连接总览与手机机器人空态截图已实际复核。旧设置 0–2 路由保留，资产/家庭以不同 key 挂载，提交固定当前 kind。
+- NAS 按固定 Git archive 构建（Docker 内 npm ci/build），平台镜像 digest `dfb7fce35d182952ca9d687a263962b195d393e9be3fda670db35503c950e1f7`。受控停止十服务后完整冷备，仅替换平台和更新授权后的网关；其他八个容器 ID、全部数据挂载保留，管理员文件校验一致。未配置或启用真实机器人。
+- 更新目录 `/volume2/tianshu-v2-resident-updates/settings-20260928` 保存原 core/platform compose、capacity 配置与 state、unit、完整 `deployment-before.tar` 及 hash、容器元数据和 Dockge 备份。容量新 state 在该更新目录；**运行 core/platform compose 路径仍为 bots-20260928 下原文件**，内容更新镜像，以保持其他服务身份标签，不得根据目录名字判运行代码版本。Dockge 已同步。
+- 实机十服务 running/unless-stopped、五核心 ready、容量 guard ready。13 项真实业务读取通过；默认模型保留，机器人 slots/connections 均为 0。公共入口 HTTP 200 / HTML，新 index 哈希已改变，镜像静态资源含新设置分类。
+- 真实浏览器刷新与 `#/settings/3` 深链均正常进入登录页并保留返回地址。当前会话失效；没有代填密码或伪造会话。生产认证后的七页点击与写配置未实测，本地隔离认证页面检查与实机公开入口证据分开记录。
+
+完整脱敏现场收据见 `settings-subpages-deployment-2026-09-28.json`。本轮只完成设置分区和准确的首次接入说明；网页直接添加机器人账号仍需后续后台登记能力，不得把新子页面当作该功能已实现。先前 guard Docker 非零停机根因未因本次前端发布而被宣称解决。

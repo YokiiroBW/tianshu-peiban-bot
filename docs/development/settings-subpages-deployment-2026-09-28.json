@@ -1,0 +1,198 @@
+{
+  "time": 1790580643.3693895,
+  "health": {
+    "platform": {
+      "status": "ready",
+      "service": "platform",
+      "checks": {
+        "config": "ok",
+        "contract": "ok",
+        "store": "ok",
+        "sidecars": "ok",
+        "web_static": "ok",
+        "tls": "ok",
+        "credentials": "ok",
+        "logging": "ok",
+        "runtime": "ok"
+      }
+    },
+    "companion": {
+      "status": "ready",
+      "service": "companion",
+      "checks": {
+        "configuration": "ok",
+        "logs": "ok",
+        "runtime": "ok",
+        "dependencies": "not_verified"
+      }
+    },
+    "memory": {
+      "status": "ready",
+      "service": "memory",
+      "checks": {
+        "configuration": "ok",
+        "contract": "ok",
+        "database": "ok",
+        "guard": "ok",
+        "mode": "ok",
+        "log": "ok",
+        "assembled": "ok",
+        "owner": "ok",
+        "remote": "not_verified"
+      }
+    },
+    "gateway": {
+      "status": "ready",
+      "service": "gateway",
+      "checks": {
+        "configuration": "ok",
+        "contracts": "ok",
+        "runtime": "ok",
+        "ledger": "ok",
+        "logging": "ok",
+        "platform": "not_verified",
+        "model": "not_verified",
+        "native": "not_configured"
+      }
+    },
+    "knowledge": {
+      "status": "ready",
+      "service": "memory-knowledge",
+      "checks": {
+        "configuration": "ok",
+        "contract": "ok",
+        "database": "ok",
+        "client": "ok",
+        "extensions": "ok",
+        "log": "ok",
+        "assembled": "ok",
+        "owner": "ok",
+        "remote": "not_verified"
+      }
+    }
+  },
+  "guard": {
+    "deployment_bytes": 107856470,
+    "heartbeat_age_seconds": 0.769,
+    "minimum_free_bytes": 460221788160,
+    "services": 10,
+    "status": "ready"
+  },
+  "account_preserved": true,
+  "features": {
+    "model_configured": true,
+    "bot_slots": 0,
+    "bot_connections": 0,
+    "settings_labels_built": true
+  },
+  "running_services": 10,
+  "restart_policies": [
+    "unless-stopped"
+  ],
+  "updated": {
+    "image": {
+      "image": "127.0.0.1:19550/tianshu/platform@sha256:dfb7fce35d182952ca9d687a263962b195d393e9be3fda670db35503c950e1f7",
+      "id": "sha256:eadb648ef5e4fab3711ffec40ad8e4fc4932a5fd566c37a6caca38823d3ea282",
+      "commit": "88fb778974f7050f3b4aa3c84a47b847d997e349",
+      "archive_sha256": "f075acf8ec7299ca1f6e719ff8c7e8b23d7d28aaa78274b4d4ab2612c729f355"
+    },
+    "other_eight_ids_preserved": true,
+    "account_preserved": true,
+    "config_path_preserved": "/volume2/tianshu-v2-resident-updates/bots-20260928/core.compose.json",
+    "capacity_state": "/volume2/tianshu-v2-resident-updates/settings-20260928/capacity-state",
+    "dockge_synced": true
+  },
+  "business": {
+    "checks": [
+      {
+        "name": "knowledge.document_list",
+        "http": 200,
+        "status": "passed",
+        "documents": 1
+      },
+      {
+        "name": "knowledge.document_read",
+        "http": 200,
+        "status": "passed",
+        "blocks": 1
+      },
+      {
+        "name": "knowledge.query",
+        "http": 200,
+        "status": "passed",
+        "items": 0
+      },
+      {
+        "name": "knowledge.note_query",
+        "http": 200,
+        "status": "passed",
+        "items": 0
+      },
+      {
+        "name": "knowledge.lesson_query",
+        "http": 200,
+        "status": "passed",
+        "items": 0
+      },
+      {
+        "name": "knowledge.experience_query",
+        "http": 200,
+        "status": "passed",
+        "items": 0
+      },
+      {
+        "name": "life.actors",
+        "http": 200,
+        "status": "passed",
+        "actors": 1
+      },
+      {
+        "name": "life.snapshot",
+        "http": 200,
+        "status": "passed",
+        "fictional": true,
+        "state_basis": "last_persisted"
+      },
+      {
+        "name": "life.diaries",
+        "http": 200,
+        "status": "passed",
+        "published_diaries": 0
+      },
+      {
+        "name": "persona.get",
+        "http": 200,
+        "status": "passed",
+        "state": "published",
+        "published": true
+      },
+      {
+        "name": "memory.overview",
+        "http": 200,
+        "status": "passed",
+        "memory_group_count": 0,
+        "counts_truncated": false
+      },
+      {
+        "name": "memory.subjects",
+        "http": 200,
+        "status": "passed",
+        "items": 0
+      },
+      {
+        "name": "memory.records",
+        "http": 200,
+        "status": "passed",
+        "items": 0
+      }
+    ],
+    "all_passed": true
+  },
+  "public_http": {
+    "status": 200,
+    "html": true,
+    "index_changed": true
+  },
+  "browser": "Fresh live page and settings/3 deep link return login next=settings/3; authenticated UI validated locally only",
+  "thread_id": "01a0e6de-581d-7f81-aa72-f3f8fd13fb79"
+}
