@@ -1,4 +1,4 @@
-# 多角色部署记录（准备中）
+# 多角色部署与验收记录
 
 本记录仅针对多角色运行时，不包含并行 QQ 身份功能。最终是否完成以文末验收与同名 JSON 为准。
 
@@ -24,4 +24,12 @@ NAS验收计划：十服务容量guard、五核心就绪；专用服务凭据读
 
 发生异常先保持错误记录，不盲目重复一次性更新脚本。基于新目录的capacity-before、core-before、platform-before、unit-before与deployment-before.tar受控恢复完整集合。已接管/新增角色之后不可单独回退一个服务或sidecar；必须同时恢复Platform主库与roles账本/模型目录、Companion主库和Memory主库与角色grant。原始账号、备份密钥不打印或提交。
 
-当前：镜像构建、最终门禁进行中，尚未切换运行服务。
+## 实际完成
+
+已合入三产品main并完成NAS更新，十服务容量guard ready、五核心ready，Dockge同步，新state为 `/volume2/tianshu-v2-resident-updates/role-runtime-20260930/capacity-state`。运行Compose路径保持原bots-20260928路径。
+
+账号文件和原Persona逐表哈希保留。旧角色仍未接管；NoneBot镜像不变，群私均observe_only，原观察数据2条（群/私各1）已归档，发送计数0。Core目录/Memorygrant/Persona读取、归档查询、LAN新JS/CSS哈希、匿名角色四端点401与五服务Loki日志验证通过，invalid_source_lines为0。
+
+浏览器刷新正确跳转到登录并保留角色页返回地址，需用户用原管理员重新登录；未代用用户账号执行生产表单写入或创建测试人格/角色。入口：http://192.168.31.210:18446/#/companion/3 。双BOT及不同模型/人格路由在本地真实HTTPS隔离联合通过，不能称真实QQ双BOT回复已实测。
+
+初次静态资源验收脚本错误地查找拼接前不存在的完整API字符串；按前端真实roles/cancel标识修正后哈希通过，产品无需修改。最终证据见同名JSON和reviews/role-runtime-final-joint-2026-09-30.json。

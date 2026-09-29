@@ -1,0 +1,248 @@
+{
+  "updated.json": {
+    "image": {
+      "image": "127.0.0.1:19550/tianshu/platform@sha256:51dd03d804122ef05688e69dbf9cbd4dc1a191b442b2d330059c5d34dc81f8bb",
+      "id": "sha256:ef79af2564792e0433745f73be73fa55a2b1ef255f74222644fd8523ec53a8af",
+      "commit": "17af1b43b432f4bd6e250192fcfad35f8b04a8c1",
+      "archive_sha256": "23cffde58a1848aea041234eefe526a1351d2cac983d89a7b06ed0c8e4265071"
+    },
+    "other_six_ids_preserved": true,
+    "role_runtime_enabled": true,
+    "existing_actor_adopted": false,
+    "account_preserved": true,
+    "config_path_preserved": "/volume2/tianshu-v2-resident-updates/bots-20260928/core.compose.json",
+    "capacity_state": "/volume2/tianshu-v2-resident-updates/role-runtime-20260930/capacity-state",
+    "dockge_synced": true
+  },
+  "backup.json": {
+    "sha256": "89d12279612f55759419efd65999325c77fbbeb1aaf0f795326ff58e7b0f34ac",
+    "bytes": 194252800
+  },
+  "acceptance.json": {
+    "time": 1790701224.1132066,
+    "health": {
+      "platform": {
+        "status": "ready",
+        "service": "platform",
+        "checks": {
+          "config": "ok",
+          "contract": "ok",
+          "store": "ok",
+          "sidecars": "ok",
+          "web_static": "ok",
+          "tls": "ok",
+          "credentials": "ok",
+          "logging": "ok",
+          "runtime": "ok"
+        }
+      },
+      "companion": {
+        "status": "ready",
+        "service": "companion",
+        "checks": {
+          "configuration": "ok",
+          "logs": "ok",
+          "runtime": "ok",
+          "dependencies": "not_verified"
+        }
+      },
+      "memory": {
+        "status": "ready",
+        "service": "memory",
+        "checks": {
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "guard": "ok",
+          "mode": "ok",
+          "log": "ok",
+          "assembled": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        }
+      },
+      "gateway": {
+        "status": "ready",
+        "service": "gateway",
+        "checks": {
+          "configuration": "ok",
+          "contracts": "ok",
+          "runtime": "ok",
+          "ledger": "ok",
+          "logging": "ok",
+          "platform": "not_verified",
+          "model": "not_verified",
+          "native": "not_configured"
+        }
+      },
+      "knowledge": {
+        "status": "ready",
+        "service": "memory-knowledge",
+        "checks": {
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "client": "ok",
+          "extensions": "ok",
+          "log": "ok",
+          "assembled": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        }
+      }
+    },
+    "guard": {
+      "deployment_bytes": 183719228,
+      "heartbeat_age_seconds": 4.384,
+      "minimum_free_bytes": 451274702848,
+      "services": 10,
+      "status": "ready"
+    },
+    "observation": {
+      "id": "obs:f4a2534c1a9840629f6d2e5aec7cc306",
+      "state": "ready",
+      "enabled": true,
+      "last_error": null,
+      "group_policy": {
+        "actor_id": null,
+        "list": [],
+        "mode": "observe_only",
+        "observe": true
+      },
+      "private_policy": {
+        "actor_id": null,
+        "list": [],
+        "mode": "observe_only",
+        "observe": true
+      }
+    },
+    "plugin_counts": {
+      "observed": 2,
+      "pending": 0,
+      "claimed_replies": 0,
+      "deliveries": 0
+    },
+    "memory_counts": {
+      "messages": 2,
+      "conversations": 2,
+      "group_messages": 1,
+      "private_messages": 1
+    },
+    "inbox_counts": {
+      "archived": 2
+    },
+    "account_preserved": true,
+    "real_test_messages_sent": false,
+    "real_reply_tested": false,
+    "passive_live_archive_observed": true,
+    "acceptance_scope": "deployment_default_observe_only_and_passive_counts"
+  },
+  "role-acceptance.json": {
+    "role_runtime_enabled": true,
+    "authenticated_core_roles_read": "passed",
+    "authenticated_memory_grant_read": "passed",
+    "legacy_role_preserved_not_adopted": true,
+    "authoring_enabled": true,
+    "write_actions_enabled": true,
+    "authenticated_companion_catalog": "passed",
+    "authenticated_existing_role_view": "passed",
+    "profile_count": 0,
+    "role_count": 1,
+    "production_persona_writes_performed": false,
+    "served_assets_match_image": true,
+    "assets": [
+      {
+        "name": "RoleManager-loHxzqtH.css",
+        "sha256": "38f9ef7ef3b16e18df8441d56aac7fa88853c5746ac2e26e61c8394bc6bbe705"
+      },
+      {
+        "name": "RoleManager-D3wptepC.js",
+        "sha256": "9e9220e1046e23a82c4c87ac3e6f3c1cd9ebd53ec3ecaad59c17e48cde24d96a"
+      }
+    ],
+    "anonymous_role_routes_denied": {
+      "view": 401,
+      "apply": 401,
+      "retry": 401,
+      "cancel": 401
+    },
+    "original_personas_preserved": true,
+    "authenticated_production_browser_write_tested": false,
+    "nonebot_unchanged": true
+  },
+  "query-acceptance.json": {
+    "authenticated_archive_query": "passed",
+    "memory_state": "available",
+    "synthetic_conversation": true,
+    "item_count": 0,
+    "archive_item_count": 0,
+    "messages_sent": 0
+  },
+  "observability-acceptance.json": {
+    "ledger": [
+      {
+        "service": "companion",
+        "events": 687,
+        "verified": 687
+      },
+      {
+        "service": "gateway",
+        "events": 150,
+        "verified": 150
+      },
+      {
+        "service": "memory",
+        "events": 600,
+        "verified": 600
+      },
+      {
+        "service": "memory-knowledge",
+        "events": 196,
+        "verified": 196
+      },
+      {
+        "service": "platform",
+        "events": 28716,
+        "verified": 28716
+      }
+    ],
+    "invalid_source_lines": 0,
+    "recent_loki_events": 100,
+    "loki_success": true,
+    "recent_services": [
+      "companion",
+      "gateway",
+      "memory",
+      "memory-knowledge",
+      "platform"
+    ]
+  },
+  "platform-image.json": {
+    "image": "127.0.0.1:19550/tianshu/platform@sha256:51dd03d804122ef05688e69dbf9cbd4dc1a191b442b2d330059c5d34dc81f8bb",
+    "id": "sha256:ef79af2564792e0433745f73be73fa55a2b1ef255f74222644fd8523ec53a8af",
+    "commit": "17af1b43b432f4bd6e250192fcfad35f8b04a8c1",
+    "archive_sha256": "23cffde58a1848aea041234eefe526a1351d2cac983d89a7b06ed0c8e4265071"
+  },
+  "companion-image.json": {
+    "image": "127.0.0.1:19550/tianshu/companion@sha256:1ee9708ee8da3ced7d5efaaffae0d2c3ce634499040d910e9adfdf9c6fe4b6b1",
+    "id": "sha256:dd57888dda2c9d925029ef002ffd37a06ddce072600ede729f302bbe13860ec7",
+    "commit": "9863800f0fcca67f59aa285ae14802d391f77e50",
+    "archive_sha256": "7bdae89379a729e677ac40269b11cee1360305f18ada2c3061d79f623ba3b990"
+  },
+  "memory-image.json": {
+    "image": "127.0.0.1:19550/tianshu/memory@sha256:f77297b2a0a1ec499614c73aa32f7c7c172d97cc7d3d774c30b7cf8db33d47ab",
+    "id": "sha256:181f03c452351cd5b0c2343817877ffbc988e59424521aacd9c7d180e109a10e",
+    "commit": "870d9269d33b88ed34c6445eb7d95f791b43a914",
+    "archive_sha256": "f6a3bbb80901512ac4b4e974bd37354a4837249a4cbdcb8e73bb81a27016849b"
+  },
+  "status": "deployed_and_read_only_acceptance_passed",
+  "production_browser": {
+    "observed": "New role route redirects to login after deployment restart",
+    "authenticated_write_tested": false
+  },
+  "scope_limits": [
+    "No production role/persona changes",
+    "No real QQ or paid model test messages",
+    "Multiple BOT integration verified with synthetic connections and recorded model upstream in isolated HTTPS tests"
+  ]
+}

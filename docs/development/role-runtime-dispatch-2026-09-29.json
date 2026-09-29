@@ -1,5 +1,5 @@
 {
-  "status": "accepted_integrated_nas_image_builds",
+  "status": "integrated_deployed_nas_read_only_acceptance_passed",
   "plan": "docs/development/role-runtime-plan-2026-09-29.md",
   "implementation": {
     "thread_id": "01a0ed76-f8cd-7a41-9413-15d5ac15eac8",
@@ -33,7 +33,7 @@
     "scope": "fixed three-product implementation diff review; baseline review completed"
   },
   "architecture_acknowledged": true,
-  "nas_changed": "staged_sources_and_built_images_only",
-  "deployed_baseline": "persona-clean-20260929",
+  "nas_changed": true,
+  "deployed_baseline": "role-runtime-20260930",
   "production_messages_authorized": false
 }
