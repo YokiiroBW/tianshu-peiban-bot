@@ -27,3 +27,5 @@
 Luna 进一步固定 SHA 最小复现确认：既有角色含 `custom=keep-me`，经 RoleRuntime 换 profile 后扩展字段消失。已要求 Sol 恢复 Personas.apply_profile 的语义：四个编辑字段显式替换/空值清除，其余目标扩展保留，补相应回归。同时新角色应用被写为 deployment/initial_config、旧角色应用缺既有 approval/operation ledger/source-profile backlink，须统一可追溯发布链。
 
 校准：管理员显式 role.manage 应用源 profile 的草稿是已授权行为，不应报告成草稿自动生效或未授权发布，也不要求增加用户审批步骤；问题是扩展字段丢失与已有后台原子发布/审计语义不一致。复现脚本在 reviewer 根 `.runtime/role-runtime-review-repro-2026-09-29.py`，已改为从 Git archive 读取旧固定 SHA，输出同名 `.out.txt`，不涉及生产。
+
+2026-09-30：Luna 独立确认 active 角色停用仍依赖 provider/profile：provider 撤销产生 failed/start/provider_unavailable，profile 升版而停用携旧版本产生 failed/start/version_conflict；两例 Core enabled 与 Memory grant enabled 都仍 true，只有 Platform active=false。已要求 Sol 同时修 active→停用与 pending→取消，使用独立 owner CAS 停用路径，不解析/发布人格、不要求模型可用；两端确认前不得显示已停用，旧请求和恢复不得复活角色。该项不能仅以新增 pending cancel 关闭。
