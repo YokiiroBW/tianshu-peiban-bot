@@ -17,3 +17,9 @@
 `platform/docs/handoffs/ROLE-RUNTIME-FAILURE-MATRIX.md` 如实列出剩余覆盖不足。总控要求交付前补齐五个关键最小回归：同人同会话跨角色 Memory 拒绝与短上下文隔离；关闭写记忆/停用后 pending/blocked outbox 及重启不提交；静态角色接管停用后全服务重启不恢复权限且 B 不受影响；远端成功回执丢失的分阶段幂等恢复；新建/启用角色不改变既有观察策略或隐式发言。可以 owner 组件层故障注入加已有真实联合证据，不要求未变 Gateway 的组合穷举。
 
 仍等待三个产品固定提交。此记录不是最终验收或部署授权回执，不能按阶段进度推断已上线。
+
+## 固定候选最终审查阻断
+
+候选 Platform c897e8b、Companion 644929c、Memory 0ff79ed 已交付，总控独立 HTTPS 联合 1/1 通过。Luna 对固定版确认另一真实故障：Core 暂停成功→Memory 首次失败→profile 升版→重试在 provider_checked 阶段重新解析旧 profile_version，持续 version_conflict；Platform pending 又拒绝新意图 role_configuring，无法恢复/纠正。
+
+已交原 Sol 窄返修：启用先前固定配置，不重新解析可变档案；阶段故障须有安全恢复/停用/纠正路径，涵盖中途 provider 不可用，保留精确授权与幂等。Luna 继续读固定旧 SHA 的其余审查，禁止因工作树进入返修而混用最新代码。仍未合并或部署。身份协调任务 01a0edae-c11d-79e1-9999-1b3087870860 已通知等待最终修复基线；其独立 qq-identity-worktrees 不与本任务并写。
