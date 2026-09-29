@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Companion persona authoring management request (candidate)",
+  "oneOf": [
+    {"$ref": "#/$defs/catalog"},
+    {"$ref": "#/$defs/view"},
+    {"$ref": "#/$defs/create"},
+    {"$ref": "#/$defs/saveProfile"},
+    {"$ref": "#/$defs/applyProfile"},
+    {"$ref": "#/$defs/saveRole"},
+    {"$ref": "#/$defs/applyRole"}
+  ],
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "version": {"type": "integer", "minimum": 1},
+    "content": {
+      "type": "object",
+      "required": ["persona"],
+      "additionalProperties": false,
+      "properties": {
+        "persona": {"type": "string", "minLength": 1, "maxLength": 20000},
+        "tone": {"type": "string", "maxLength": 20000},
+        "style": {"type": "string", "maxLength": 20000},
+        "address": {"type": "string", "maxLength": 4000}
+      }
+    },
+    "common": {
+      "type": "object",
+      "required": ["operation", "request_id", "operator", "reason"],
+      "properties": {
+        "operation": {"type": "string"},
+        "request_id": {"$ref": "#/$defs/id"},
+        "scope": {"$ref": "#/$defs/id"},
+        "operator": {"$ref": "#/$defs/id"},
+        "reason": {"type": "string", "minLength": 1, "maxLength": 2000}
+      }
+    },
+    "editor": {
+      "type": "object",
+      "required": ["name", "description", "content"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1, "maxLength": 80},
+        "description": {"type": "string", "maxLength": 400},
+        "content": {"$ref": "#/$defs/content"}
+      }
+    },
+    "catalog": {
+      "type": "object", "required": ["operation", "request_id"],
+      "properties": {
+        "operation": {"const": "author_catalog"},
+        "request_id": {"$ref": "#/$defs/id"},
+        "scope": {"$ref": "#/$defs/id"}
+      }, "additionalProperties": false
+    },
+    "view": {
+      "type": "object", "required": ["operation", "request_id", "subject"],
+      "properties": {
+        "operation": {"const": "author_view"},
+        "request_id": {"$ref": "#/$defs/id"},
+        "scope": {"$ref": "#/$defs/id"},
+        "subject": {"$ref": "#/$defs/id"}
+      }, "additionalProperties": false
+    },
+    "create": {
+      "allOf": [{"$ref": "#/$defs/common"}, {"$ref": "#/$defs/editor"}],
+      "properties": {
+        "operation": {"const": "create_profile"},
+        "source": {"$ref": "#/$defs/id"},
+        "source_expected": {"$ref": "#/$defs/version"}
+      },
+      "dependentRequired": {"source": ["source_expected"], "source_expected": ["source"]}
+    },
+    "saveProfile": {
+      "allOf": [{"$ref": "#/$defs/common"}, {"$ref": "#/$defs/editor"}],
+      "required": ["subject", "expected"],
+      "properties": {
+        "operation": {"const": "save_profile"},
+        "subject": {"$ref": "#/$defs/id"},
+        "expected": {"$ref": "#/$defs/version"}
+      }
+    },
+    "applyProfile": {
+      "allOf": [{"$ref": "#/$defs/common"}, {"$ref": "#/$defs/editor"}],
+      "required": ["subject", "expected", "target", "target_expected"],
+      "properties": {
+        "operation": {"const": "apply_profile"},
+        "subject": {"$ref": "#/$defs/id"},
+        "expected": {"$ref": "#/$defs/version"},
+        "target": {"$ref": "#/$defs/id"},
+        "target_expected": {"$ref": "#/$defs/version"}
+      }
+    },
+    "saveRole": {
+      "allOf": [{"$ref": "#/$defs/common"}, {"$ref": "#/$defs/editor"}],
+      "required": ["subject", "expected"],
+      "properties": {
+        "operation": {"const": "save_role"},
+        "subject": {"$ref": "#/$defs/id"},
+        "expected": {"$ref": "#/$defs/version"}
+      }
+    },
+    "applyRole": {
+      "allOf": [{"$ref": "#/$defs/common"}, {"$ref": "#/$defs/editor"}],
+      "required": ["subject", "expected"],
+      "properties": {
+        "operation": {"const": "apply_role"},
+        "subject": {"$ref": "#/$defs/id"},
+        "expected": {"$ref": "#/$defs/version"}
+      }
+    }
+  }
+}

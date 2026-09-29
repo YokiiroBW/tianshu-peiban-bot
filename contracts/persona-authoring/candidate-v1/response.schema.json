@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Companion persona authoring management response (candidate)",
+  "type": "object",
+  "required": ["schema_version", "operation"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "operation": {
+      "enum": ["author_catalog", "author_view", "create_profile", "save_profile", "apply_profile", "save_role", "apply_role"]
+    },
+    "profiles": {"type": "array", "maxItems": 256, "items": {"$ref": "#/$defs/summary"}},
+    "roles": {"type": "array", "maxItems": 256, "items": {"$ref": "#/$defs/summary"}},
+    "item": {
+      "anyOf": [
+        {"$ref": "#/$defs/summary"},
+        {"$ref": "#/$defs/view"},
+        {"type": "object", "required": ["profile", "target"],
+         "properties": {"profile": {"$ref": "#/$defs/summary"}, "target": {"$ref": "#/$defs/summary"}}}
+      ]
+    }
+  },
+  "$defs": {
+    "summary": {
+      "type": "object",
+      "required": ["id", "kind", "name", "description", "version", "state", "published_revision", "draft_revision", "last_applied_target_revision"],
+      "properties": {
+        "id": {"type": "string"},
+        "kind": {"enum": ["profile", "role"]},
+        "name": {"type": "string"},
+        "description": {"type": "string"},
+        "version": {"type": "integer", "minimum": 1},
+        "state": {"type": "string"},
+        "published_revision": {"type": ["string", "null"]},
+        "draft_revision": {"type": ["string", "null"]},
+        "updated_at": {"type": "number"},
+        "last_applied_target": {"type": ["string", "null"]},
+        "last_applied_profile_revision": {"type": ["string", "null"]},
+        "last_applied_target_revision": {"type": ["string", "null"]}
+      }
+    },
+    "view": {
+      "allOf": [{"$ref": "#/$defs/summary"}],
+      "required": ["content"],
+      "properties": {"content": {"type": "object"}}
+    }
+  }
+}

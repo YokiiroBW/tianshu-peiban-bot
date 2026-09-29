@@ -1,0 +1,13 @@
+{
+  "package": "persona-authoring/candidate-v1",
+  "version": "0.1.0",
+  "status": "candidate",
+  "producer": "Companion Personas",
+  "consumer": "Platform web persona authoring",
+  "sha256": {
+    "README.md": "ed6d49f4ce27c9703b96b06cb12378a327d47c2d33e9a9dd195cd7e33182c55c",
+    "request.schema.json": "e32a864c037f117bfb7bc3ffb4393aaba34c425bba72ba9de60e6f0985b55415",
+    "response.schema.json": "850b6f628759e7a74d78438a2e35951a3c78a7475dd85b1bfa61025cb8a77de0",
+    "examples.json": "1d85d756d1bd45617f3b8bfbc89606e66083d258c7b5041f8dcce507dfbfb8d8"
+  }
+}

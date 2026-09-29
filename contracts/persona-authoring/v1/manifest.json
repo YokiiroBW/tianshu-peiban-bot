@@ -1,0 +1,18 @@
+{
+  "package": "persona-authoring/v1",
+  "version": "1.0.0",
+  "status": "published",
+  "producer": "Companion Personas",
+  "consumer": "Platform web persona authoring",
+  "sha256": {
+    "README.md": "1a0055585a52130c42aec84158d7c890299a73e9a25efde08c2c04c27134871f",
+    "request.schema.json": "a72a89b752dc0289e9d6ed7fe7c02a6e7fd3cb126dde14e47d1fa56440f5a942",
+    "response.schema.json": "9d192fcfb47a9e808094da21713d78ed1994580886851ebc638b155339660beb",
+    "examples.json": "1d85d756d1bd45617f3b8bfbc89606e66083d258c7b5041f8dcce507dfbfb8d8"
+  },
+  "published_on": "2026-09-29",
+  "implementation_commits": {
+    "platform": "fd1eb9538bb78252859cb1128bf33be24670a5e9",
+    "companion": "da3907288d816bef1c7d25df6cd0f74de012fc3a"
+  }
+}

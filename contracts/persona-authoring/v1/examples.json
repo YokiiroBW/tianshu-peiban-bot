@@ -1,0 +1,36 @@
+{
+  "create": {
+    "operation": "create_profile", "request_id": "sample-create-1",
+    "operator": "local-admin", "reason": "Web console save draft",
+    "name": "温和伙伴", "description": "虚构演练档案",
+    "content": {"persona": "你是温和的伙伴。", "tone": "亲切", "style": "简短", "address": "朋友"}
+  },
+  "apply": {
+    "operation": "apply_profile", "request_id": "sample-apply-1",
+    "operator": "local-admin", "reason": "Web console save and apply",
+    "subject": "persona-profile:0123456789abcdef0123456789abcdef", "expected": 2,
+    "target": "actor:companion", "target_expected": 4,
+    "name": "温和伙伴", "description": "虚构演练档案",
+    "content": {"persona": "你是温和的伙伴。", "tone": "亲切", "style": "简短", "address": "朋友"}
+  },
+  "catalog_response": {
+    "schema_version": 1,
+    "operation": "author_catalog",
+    "profiles": [{
+      "id": "persona-profile:0123456789abcdef0123456789abcdef",
+      "kind": "profile", "name": "温和伙伴", "description": "虚构演练档案",
+      "version": 3, "state": "draft", "published_revision": null,
+      "draft_revision": "profile-revision-3", "updated_at": 1790664000,
+      "last_applied_target": "actor:companion",
+      "last_applied_profile_revision": "profile-revision-3",
+      "last_applied_target_revision": "role-revision-7"
+    }],
+    "roles": [{
+      "id": "actor:companion", "kind": "role", "name": "陪伴者", "description": "",
+      "version": 8, "state": "published", "published_revision": "role-revision-7",
+      "draft_revision": null, "updated_at": 1790664000,
+      "last_applied_target": null, "last_applied_profile_revision": null,
+      "last_applied_target_revision": null
+    }]
+  }
+}
