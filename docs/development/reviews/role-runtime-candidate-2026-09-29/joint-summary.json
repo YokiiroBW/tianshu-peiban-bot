@@ -1,0 +1,136 @@
+{
+  "models": [
+    "role-model-A",
+    "role-model-A",
+    "role-model-B",
+    "role-model-B",
+    "role-model-B"
+  ],
+  "personas": [
+    "Role A",
+    "Role A",
+    "Role B",
+    "Role B",
+    "actor:a"
+  ],
+  "browser": {
+    "browser": "Chromium",
+    "roles": [
+      {
+        "actor": "actor:role-595690c1a7334482a0dafcfb3dcda82a",
+        "conversation": "role-69c6f34993f5544336687298c4e5077d"
+      },
+      {
+        "actor": "actor:role-10740d609b2f48edad83d53816e3090e",
+        "conversation": "role-b80b922110a806f83f4bbee1310b8e16"
+      }
+    ],
+    "screenshots": [
+      "roles-desktop.png",
+      "roles-mobile.png",
+      "roles-existing.png"
+    ],
+    "flow": "create-configure-apply-edit-chat-disable-adopt-existing-chat",
+    "forged_source": 403,
+    "disabled_role": 503,
+    "disabled_adopted": 503
+  },
+  "provider_calls": [
+    [
+      "/internal/v1/provider-self-service/select",
+      200
+    ],
+    [
+      "/internal/v1/provider-self-service/select",
+      200
+    ],
+    [
+      "/internal/v1/provider-self-service/select",
+      200
+    ],
+    [
+      "/internal/v1/provider-self-service/runtime",
+      200
+    ],
+    [
+      "/internal/v1/provider-self-service/runtime",
+      200
+    ],
+    [
+      "/internal/v1/provider-self-service/runtime",
+      200
+    ],
+    [
+      "/internal/v1/provider-self-service/runtime",
+      200
+    ],
+    [
+      "/internal/v1/provider-self-service/runtime",
+      200
+    ],
+    [
+      "/internal/v1/provider-self-service/runtime",
+      200
+    ],
+    [
+      "/internal/v1/provider-self-service/select",
+      200
+    ],
+    [
+      "/internal/v1/provider-self-service/runtime",
+      200
+    ],
+    [
+      "/internal/v1/provider-self-service/runtime",
+      200
+    ],
+    [
+      "/internal/v1/provider-self-service/runtime",
+      200
+    ],
+    [
+      "/internal/v1/provider-self-service/select",
+      200
+    ],
+    [
+      "/internal/v1/provider-self-service/select",
+      200
+    ],
+    [
+      "/internal/v1/provider-self-service/runtime",
+      200
+    ],
+    [
+      "/internal/v1/provider-self-service/runtime",
+      200
+    ],
+    [
+      "/internal/v1/provider-self-service/runtime",
+      200
+    ],
+    [
+      "/internal/v1/provider-self-service/runtime",
+      200
+    ],
+    [
+      "/internal/v1/provider-self-service/runtime",
+      200
+    ],
+    [
+      "/internal/v1/provider-self-service/runtime",
+      200
+    ]
+  ],
+  "bot_deliveries": [
+    {
+      "connection_id": "bot:1161e3f0c6d8419b869aa3ae6e3e4868",
+      "actor_id": "actor:role-595690c1a7334482a0dafcfb3dcda82a",
+      "text": "Role A recorded reply 4"
+    },
+    {
+      "connection_id": "bot:ed7ef5f7049343fdb96268cbf8ed6a65",
+      "actor_id": "actor:role-10740d609b2f48edad83d53816e3090e",
+      "text": "Role B recorded reply 5"
+    }
+  ]
+}

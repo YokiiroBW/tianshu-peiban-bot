@@ -1,5 +1,5 @@
 {
-  "status": "implementation_and_baseline_review_active",
+  "status": "fixed_commits_joint_reproduced_final_review_active",
   "plan": "docs/development/role-runtime-plan-2026-09-29.md",
   "implementation": {
     "thread_id": "01a0ed76-f8cd-7a41-9413-15d5ac15eac8",
@@ -16,6 +16,12 @@
       "companion": "c24230216c41818c425d0b0a61f2f23ba0dfe578",
       "memory": "10214b2f7dbfb6990e986f38f92c8103e07d6b9e",
       "gateway_read_only": "e4f112f02d28a1ded134126feed33f15e003ec20"
+    },
+    "delivered_commits": {
+      "platform": "c897e8b2351694808a1231f2ce1245425235c8e1",
+      "companion": "644929cd404b106a90abbf0ebe01a049f30a0521",
+      "memory": "0ff79ed315a4d707fd1dd42152e41f28bf7ad2b4",
+      "gateway_unchanged": "e4f112f02d28a1ded134126feed33f15e003ec20"
     }
   },
   "review": {
@@ -24,7 +30,7 @@
     "model": "gpt-6-luna",
     "reasoning": "max",
     "root": "C:/Users/Administrator/.codex/worktrees/5615/tianshu-peiban-bot",
-    "scope": "read-only fixed integrated baselines and failure-case matrix"
+    "scope": "fixed three-product implementation diff review; baseline review completed"
   },
   "architecture_acknowledged": true,
   "nas_changed": false,

@@ -1,0 +1,20 @@
+{
+  "status": "joint_reproduced_final_review_pending",
+  "commits": {
+    "platform": "c897e8b2351694808a1231f2ce1245425235c8e1",
+    "companion": "644929cd404b106a90abbf0ebe01a049f30a0521",
+    "memory": "0ff79ed315a4d707fd1dd42152e41f28bf7ad2b4",
+    "gateway_unchanged": "e4f112f02d28a1ded134126feed33f15e003ec20"
+  },
+  "test": "tests/backend/test_role_joint.py::RoleJoint::test_real_role_apply_and_model_routing",
+  "result": "1 passed in 28.34s",
+  "python": "C:/YOKI/Codex/persona-authoring-worktrees/platform/.runtime/venv/Scripts/python.exe",
+  "scope": "isolated real HTTPS applications, recorded synthetic model, Chromium, synthetic BOT connections",
+  "nas_updated": false,
+  "sha256": {
+    "joint-summary.json": "e805f24b72df0d7ace0949bdbc5a01ad2e2aba3b30670487dd76b518c4a44a15",
+    "roles-desktop.png": "09621a4596db4588eb844eb49355415757e1756f3db9035b74d0f9856b15a6d3",
+    "roles-mobile.png": "ad0a25ff672952ac837fe4ecc284cada10a78b185dc6c054cbf98fe1e36fc8cb",
+    "roles-existing.png": "c8d94c7b7e8cb22528101b205b952bceb5abc4c2302ee4ae8cfdf414d66def66"
+  }
+}
