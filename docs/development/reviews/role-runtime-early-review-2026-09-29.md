@@ -23,3 +23,7 @@
 候选 Platform c897e8b、Companion 644929c、Memory 0ff79ed 已交付，总控独立 HTTPS 联合 1/1 通过。Luna 对固定版确认另一真实故障：Core 暂停成功→Memory 首次失败→profile 升版→重试在 provider_checked 阶段重新解析旧 profile_version，持续 version_conflict；Platform pending 又拒绝新意图 role_configuring，无法恢复/纠正。
 
 已交原 Sol 窄返修：启用先前固定配置，不重新解析可变档案；阶段故障须有安全恢复/停用/纠正路径，涵盖中途 provider 不可用，保留精确授权与幂等。Luna 继续读固定旧 SHA 的其余审查，禁止因工作树进入返修而混用最新代码。仍未合并或部署。身份协调任务 01a0edae-c11d-79e1-9999-1b3087870860 已通知等待最终修复基线；其独立 qq-identity-worktrees 不与本任务并写。
+
+Luna 进一步固定 SHA 最小复现确认：既有角色含 `custom=keep-me`，经 RoleRuntime 换 profile 后扩展字段消失。已要求 Sol 恢复 Personas.apply_profile 的语义：四个编辑字段显式替换/空值清除，其余目标扩展保留，补相应回归。同时新角色应用被写为 deployment/initial_config、旧角色应用缺既有 approval/operation ledger/source-profile backlink，须统一可追溯发布链。
+
+校准：管理员显式 role.manage 应用源 profile 的草稿是已授权行为，不应报告成草稿自动生效或未授权发布，也不要求增加用户审批步骤；问题是扩展字段丢失与已有后台原子发布/审计语义不一致。复现脚本在 reviewer 根 `.runtime/role-runtime-review-repro-2026-09-29.py`，已改为从 Git archive 读取旧固定 SHA，输出同名 `.out.txt`，不涉及生产。
