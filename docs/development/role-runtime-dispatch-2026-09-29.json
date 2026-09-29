@@ -1,5 +1,5 @@
 {
-  "status": "fixed_commits_joint_reproduced_final_review_active",
+  "status": "accepted_integrated_nas_image_builds",
   "plan": "docs/development/role-runtime-plan-2026-09-29.md",
   "implementation": {
     "thread_id": "01a0ed76-f8cd-7a41-9413-15d5ac15eac8",
@@ -18,9 +18,9 @@
       "gateway_read_only": "e4f112f02d28a1ded134126feed33f15e003ec20"
     },
     "delivered_commits": {
-      "platform": "c897e8b2351694808a1231f2ce1245425235c8e1",
-      "companion": "644929cd404b106a90abbf0ebe01a049f30a0521",
-      "memory": "0ff79ed315a4d707fd1dd42152e41f28bf7ad2b4",
+      "platform": "17af1b43b432f4bd6e250192fcfad35f8b04a8c1",
+      "companion": "9863800f0fcca67f59aa285ae14802d391f77e50",
+      "memory": "870d9269d33b88ed34c6445eb7d95f791b43a914",
       "gateway_unchanged": "e4f112f02d28a1ded134126feed33f15e003ec20"
     }
   },
@@ -33,7 +33,7 @@
     "scope": "fixed three-product implementation diff review; baseline review completed"
   },
   "architecture_acknowledged": true,
-  "nas_changed": false,
+  "nas_changed": "staged_sources_and_built_images_only",
   "deployed_baseline": "persona-clean-20260929",
   "production_messages_authorized": false
 }
