@@ -1,0 +1,194 @@
+{
+  "updated.json": {
+    "image": {
+      "image": "127.0.0.1:19550/tianshu/platform@sha256:dfc5fea4f0dd724bf642ef1738cfafaf4cca55c60d9eee6d51e236965d07df00",
+      "id": "sha256:423f2d59ec8358f2d118ba4b3c6e598eff2c1dd7d77d97780bf8282a1f645d34",
+      "commit": "e7b9ce063eb7731bba673da303d3835dfc84c96d",
+      "archive_sha256": "db42533d57d5c4e504b6fec904bab819a6b62424b5275af2075569161aa840ad"
+    },
+    "other_eight_ids_preserved": true,
+    "account_preserved": true,
+    "config_path_preserved": "/volume2/tianshu-v2-resident-updates/bots-20260928/core.compose.json",
+    "capacity_state": "/volume2/tianshu-v2-resident-updates/observation-visual-20260929/capacity-state",
+    "dockge_synced": true
+  },
+  "acceptance.json": {
+    "time": 1790650025.031495,
+    "health": {
+      "platform": {
+        "status": "ready",
+        "service": "platform",
+        "checks": {
+          "config": "ok",
+          "contract": "ok",
+          "store": "ok",
+          "sidecars": "ok",
+          "web_static": "ok",
+          "tls": "ok",
+          "credentials": "ok",
+          "logging": "ok",
+          "runtime": "ok"
+        }
+      },
+      "companion": {
+        "status": "ready",
+        "service": "companion",
+        "checks": {
+          "configuration": "ok",
+          "logs": "ok",
+          "runtime": "ok",
+          "dependencies": "not_verified"
+        }
+      },
+      "memory": {
+        "status": "ready",
+        "service": "memory",
+        "checks": {
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "guard": "ok",
+          "mode": "ok",
+          "log": "ok",
+          "assembled": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        }
+      },
+      "gateway": {
+        "status": "ready",
+        "service": "gateway",
+        "checks": {
+          "configuration": "ok",
+          "contracts": "ok",
+          "runtime": "ok",
+          "ledger": "ok",
+          "logging": "ok",
+          "platform": "not_verified",
+          "model": "not_verified",
+          "native": "not_configured"
+        }
+      },
+      "knowledge": {
+        "status": "ready",
+        "service": "memory-knowledge",
+        "checks": {
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "client": "ok",
+          "extensions": "ok",
+          "log": "ok",
+          "assembled": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        }
+      }
+    },
+    "guard": {
+      "deployment_bytes": 183486847,
+      "heartbeat_age_seconds": 1.577,
+      "minimum_free_bytes": 456500211712,
+      "services": 10,
+      "status": "ready"
+    },
+    "observation": {
+      "id": "obs:f4a2534c1a9840629f6d2e5aec7cc306",
+      "state": "ready",
+      "enabled": true,
+      "last_error": null,
+      "group_policy": {
+        "actor_id": null,
+        "list": [],
+        "mode": "observe_only",
+        "observe": true
+      },
+      "private_policy": {
+        "actor_id": null,
+        "list": [],
+        "mode": "observe_only",
+        "observe": true
+      }
+    },
+    "plugin_counts": {
+      "observed": 0,
+      "pending": 0,
+      "claimed_replies": 0,
+      "deliveries": 0
+    },
+    "memory_counts": {
+      "messages": 0,
+      "conversations": 0,
+      "group_messages": 0,
+      "private_messages": 0
+    },
+    "inbox_counts": {},
+    "account_preserved": true,
+    "real_test_messages_sent": false,
+    "real_reply_tested": false,
+    "passive_live_archive_observed": false,
+    "acceptance_scope": "deployment_default_observe_only_and_passive_counts"
+  },
+  "visual-acceptance.json": {
+    "served_visual_styles_match_image": true,
+    "assets": [
+      {
+        "name": "SettingsPage-CAbH43gZ.css",
+        "sha256": "8c6724af04750dc86eb5758470d9717a355fbd878d79174a15fff205ffc0203a"
+      }
+    ],
+    "authenticated_production_ui_checked": false,
+    "nonebot_plugin_unchanged": true
+  },
+  "query-acceptance.json": {
+    "authenticated_archive_query": "passed",
+    "memory_state": "available",
+    "synthetic_conversation": true,
+    "item_count": 0,
+    "archive_item_count": 0,
+    "messages_sent": 0
+  },
+  "observability-acceptance.json": {
+    "ledger": [
+      {
+        "service": "companion",
+        "events": 348,
+        "verified": 348
+      },
+      {
+        "service": "gateway",
+        "events": 135,
+        "verified": 135
+      },
+      {
+        "service": "memory",
+        "events": 299,
+        "verified": 299
+      },
+      {
+        "service": "memory-knowledge",
+        "events": 181,
+        "verified": 181
+      },
+      {
+        "service": "platform",
+        "events": 22849,
+        "verified": 22849
+      }
+    ],
+    "invalid_source_lines": 0,
+    "recent_loki_events": 86,
+    "loki_success": true,
+    "recent_services": [
+      "companion",
+      "gateway",
+      "memory",
+      "memory-knowledge",
+      "platform"
+    ]
+  },
+  "backup.json": {
+    "sha256": "519a0f83814d2fd25c0b5f0cb8f1cd179f239825d544f40927c0dac9c26de4e0",
+    "bytes": 183275520
+  }
+}
