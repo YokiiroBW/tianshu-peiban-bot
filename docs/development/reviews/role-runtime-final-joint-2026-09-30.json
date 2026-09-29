@@ -1,0 +1,27 @@
+{
+  "status": "accepted_and_integrated",
+  "commits": {
+    "platform": "17af1b43b432f4bd6e250192fcfad35f8b04a8c1",
+    "companion": "9863800f0fcca67f59aa285ae14802d391f77e50",
+    "memory": "870d9269d33b88ed34c6445eb7d95f791b43a914"
+  },
+  "coordinator_validation": [
+    {
+      "platform_commit": "4ce64212693c5bb075846b43b26f7a75ce9e4c39",
+      "scope": "real HTTPS four-owner integration and Chromium desktop/mobile",
+      "result": "4 passed in 42.34s",
+      "evidence_directory": ".runtime/role-runtime-final-acceptance-20260930/results"
+    },
+    {
+      "platform_commit": "17af1b43b432f4bd6e250192fcfad35f8b04a8c1",
+      "scope": "test_cancel_static_adoption_with_unapplied_selected_profile",
+      "result": "1 passed, 4 deselected in 3.11s",
+      "evidence_directory": ".runtime/role-runtime-final-narrow-20260930/results"
+    }
+  ],
+  "contract_validation": "Three product schema/examples byte-identical; five examples validate against JSON Schema 2020-12",
+  "production_messages_sent": false,
+  "nas_deployed": false,
+  "final_review": "role-runtime-final-gate-2026-09-30.md",
+  "review_report_commit": "5eebfe2de38ba821de9d02363a5aa34afd4e358f"
+}
