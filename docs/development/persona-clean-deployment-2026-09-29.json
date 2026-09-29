@@ -1,0 +1,217 @@
+{
+  "updated.json": {
+    "image": {
+      "image": "127.0.0.1:19550/tianshu/platform@sha256:2b8605bb64b5db5f670f999f726f8f4dd1d67d1683d2e629d6785eb834cd835a",
+      "id": "sha256:f0d7d008d5dd1377dd04a66f038e5ec9ec3f4543e40e8dd1ead292eee45520d9",
+      "commit": "9bed67e2de8a101f55f9a95e9a8b1288719ce8c2",
+      "archive_sha256": "27225eb51d4a2d347515dc84b91bcefd13f056d1c2b5ec62e02a3efbc809aadc"
+    },
+    "other_eight_ids_preserved": true,
+    "account_preserved": true,
+    "config_path_preserved": "/volume2/tianshu-v2-resident-updates/bots-20260928/core.compose.json",
+    "capacity_state": "/volume2/tianshu-v2-resident-updates/persona-clean-20260929/capacity-state",
+    "dockge_synced": true
+  },
+  "acceptance.json": {
+    "time": 1790687062.0533326,
+    "health": {
+      "platform": {
+        "status": "ready",
+        "service": "platform",
+        "checks": {
+          "config": "ok",
+          "contract": "ok",
+          "store": "ok",
+          "sidecars": "ok",
+          "web_static": "ok",
+          "tls": "ok",
+          "credentials": "ok",
+          "logging": "ok",
+          "runtime": "ok"
+        }
+      },
+      "companion": {
+        "status": "ready",
+        "service": "companion",
+        "checks": {
+          "configuration": "ok",
+          "logs": "ok",
+          "runtime": "ok",
+          "dependencies": "not_verified"
+        }
+      },
+      "memory": {
+        "status": "ready",
+        "service": "memory",
+        "checks": {
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "guard": "ok",
+          "mode": "ok",
+          "log": "ok",
+          "assembled": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        }
+      },
+      "gateway": {
+        "status": "ready",
+        "service": "gateway",
+        "checks": {
+          "configuration": "ok",
+          "contracts": "ok",
+          "runtime": "ok",
+          "ledger": "ok",
+          "logging": "ok",
+          "platform": "not_verified",
+          "model": "not_verified",
+          "native": "not_configured"
+        }
+      },
+      "knowledge": {
+        "status": "ready",
+        "service": "memory-knowledge",
+        "checks": {
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "client": "ok",
+          "extensions": "ok",
+          "log": "ok",
+          "assembled": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        }
+      }
+    },
+    "guard": {
+      "deployment_bytes": 186636440,
+      "heartbeat_age_seconds": 0.36,
+      "minimum_free_bytes": 454339268608,
+      "services": 10,
+      "status": "ready"
+    },
+    "observation": {
+      "id": "obs:f4a2534c1a9840629f6d2e5aec7cc306",
+      "state": "ready",
+      "enabled": true,
+      "last_error": null,
+      "group_policy": {
+        "actor_id": null,
+        "list": [],
+        "mode": "observe_only",
+        "observe": true
+      },
+      "private_policy": {
+        "actor_id": null,
+        "list": [],
+        "mode": "observe_only",
+        "observe": true
+      }
+    },
+    "plugin_counts": {
+      "observed": 0,
+      "pending": 0,
+      "claimed_replies": 0,
+      "deliveries": 0
+    },
+    "memory_counts": {
+      "messages": 0,
+      "conversations": 0,
+      "group_messages": 0,
+      "private_messages": 0
+    },
+    "inbox_counts": {},
+    "account_preserved": true,
+    "real_test_messages_sent": false,
+    "real_reply_tested": false,
+    "passive_live_archive_observed": false,
+    "acceptance_scope": "deployment_default_observe_only_and_passive_counts"
+  },
+  "persona-acceptance.json": {
+    "authoring_enabled": true,
+    "write_actions_enabled": true,
+    "authenticated_companion_catalog": "passed",
+    "authenticated_existing_role_view": "passed",
+    "profile_count": 0,
+    "role_count": 1,
+    "production_persona_writes_performed": false,
+    "served_assets_match_image": true,
+    "assets": [
+      {
+        "name": "PersonaPanel-BfG7xj_h.css",
+        "sha256": "238ce24f508f398eba8fb57ba6a993c781e593c092f4658bcaeaed9457fe2235"
+      },
+      {
+        "name": "PersonaPanel-B2pnrKij.js",
+        "sha256": "0c7fb95cff9658e260fcef5159672bbf60ce86d521c1ba17149466aa48ee54ab"
+      },
+      {
+        "name": "index-fX_dYTi9.js",
+        "sha256": "00ecf06b59b3f8117b8e5506e3c106b5b1212b8d00e751e5bd64f2e6beafb4ef"
+      }
+    ],
+    "anonymous_author_routes_denied": {
+      "profiles": 401,
+      "view": 401,
+      "create": 401,
+      "save": 401,
+      "apply": 401
+    },
+    "original_personas_preserved": true,
+    "authenticated_production_browser_write_tested": false,
+    "nonebot_unchanged": true
+  },
+  "query-acceptance.json": {
+    "authenticated_archive_query": "passed",
+    "memory_state": "available",
+    "synthetic_conversation": true,
+    "item_count": 0,
+    "archive_item_count": 0,
+    "messages_sent": 0
+  },
+  "observability-acceptance.json": {
+    "ledger": [
+      {
+        "service": "companion",
+        "events": 408,
+        "verified": 408
+      },
+      {
+        "service": "gateway",
+        "events": 145,
+        "verified": 145
+      },
+      {
+        "service": "memory",
+        "events": 345,
+        "verified": 345
+      },
+      {
+        "service": "memory-knowledge",
+        "events": 191,
+        "verified": 191
+      },
+      {
+        "service": "platform",
+        "events": 26758,
+        "verified": 26755
+      }
+    ],
+    "invalid_source_lines": 0,
+    "recent_loki_events": 89,
+    "loki_success": true,
+    "recent_services": [
+      "companion",
+      "gateway",
+      "memory",
+      "memory-knowledge",
+      "platform"
+    ]
+  },
+  "backup.json": {
+    "sha256": "6aad6e793493898d0fab993d9a42643b57f4b856b19e790b837308e454169842",
+    "bytes": 186705920
+  }
+}
