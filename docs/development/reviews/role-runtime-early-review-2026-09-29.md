@@ -29,3 +29,5 @@ Luna 进一步固定 SHA 最小复现确认：既有角色含 `custom=keep-me`�
 校准：管理员显式 role.manage 应用源 profile 的草稿是已授权行为，不应报告成草稿自动生效或未授权发布，也不要求增加用户审批步骤；问题是扩展字段丢失与已有后台原子发布/审计语义不一致。复现脚本在 reviewer 根 `.runtime/role-runtime-review-repro-2026-09-29.py`，已改为从 Git archive 读取旧固定 SHA，输出同名 `.out.txt`，不涉及生产。
 
 2026-09-30：Luna 独立确认 active 角色停用仍依赖 provider/profile：provider 撤销产生 failed/start/provider_unavailable，profile 升版而停用携旧版本产生 failed/start/version_conflict；两例 Core enabled 与 Memory grant enabled 都仍 true，只有 Platform active=false。已要求 Sol 同时修 active→停用与 pending→取消，使用独立 owner CAS 停用路径，不解析/发布人格、不要求模型可用；两端确认前不得显示已停用，旧请求和恢复不得复活角色。该项不能仅以新增 pending cancel 关闭。
+
+2026-09-30 总控校正上一段 provider 子结论：固定 c897e8b `_provider` 已有 `if not row['enabled']: return`。Reviewer 复现把整个 `_provider` 替换成无条件 raise，破坏真实停用短路，不能证明“provider 撤销阻断 active 停用”。已要求改真实 catalog 层撤销复现并更正报告；此子项暂撤回，不据此要求额外改动。profile 升版导致停用失败与阶段恢复卡死、扩展字段丢失仍有效。另固定报告确认 RoleManager retry 成功不清 pendingId，后续编辑复用旧 client_id 导致冲突，已交 Sol 修复并补浏览器重试后再编辑用例。
