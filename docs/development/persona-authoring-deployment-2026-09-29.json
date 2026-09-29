@@ -1,0 +1,223 @@
+{
+  "updated.json": {
+    "image": {
+      "image": "127.0.0.1:19550/tianshu/platform@sha256:1391cb6ebeff3954b8d7cf752d32f76b9384b24dec2308bbe68e8f1f5a24c5cb",
+      "id": "sha256:8ed36eb10f78a135d7ca9fece6e155143362e02faf9afc0ea48db0d5b1eba94f",
+      "commit": "fd1eb9538bb78252859cb1128bf33be24670a5e9",
+      "archive_sha256": "50387a0cf2cc285a2eb9e4c13fe63ceee71ada8af64f558eb6892e9e3f176173"
+    },
+    "companion_image": {
+      "image": "127.0.0.1:19550/tianshu/companion@sha256:a54bffafb37650b17926e8fbb69724c3eb326f6e51e3c9ef95a9c7ab68204431",
+      "id": "sha256:91c25d115f82d0c306dda3c258e33c5d88afa141a1b2d503649ad24d98088699",
+      "commit": "da3907288d816bef1c7d25df6cd0f74de012fc3a",
+      "archive_sha256": "abeb0ca0d835843ed82dd2337e9cf1d6f4f795516519312390cc52c41ff0ae4e"
+    },
+    "other_seven_ids_preserved": true,
+    "account_preserved": true,
+    "config_path_preserved": "/volume2/tianshu-v2-resident-updates/bots-20260928/core.compose.json",
+    "capacity_state": "/volume2/tianshu-v2-resident-updates/persona-authoring-20260929/capacity-state",
+    "dockge_synced": true
+  },
+  "acceptance.json": {
+    "time": 1790666532.2883244,
+    "health": {
+      "platform": {
+        "status": "ready",
+        "service": "platform",
+        "checks": {
+          "config": "ok",
+          "contract": "ok",
+          "store": "ok",
+          "sidecars": "ok",
+          "web_static": "ok",
+          "tls": "ok",
+          "credentials": "ok",
+          "logging": "ok",
+          "runtime": "ok"
+        }
+      },
+      "companion": {
+        "status": "ready",
+        "service": "companion",
+        "checks": {
+          "configuration": "ok",
+          "logs": "ok",
+          "runtime": "ok",
+          "dependencies": "not_verified"
+        }
+      },
+      "memory": {
+        "status": "ready",
+        "service": "memory",
+        "checks": {
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "guard": "ok",
+          "mode": "ok",
+          "log": "ok",
+          "assembled": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        }
+      },
+      "gateway": {
+        "status": "ready",
+        "service": "gateway",
+        "checks": {
+          "configuration": "ok",
+          "contracts": "ok",
+          "runtime": "ok",
+          "ledger": "ok",
+          "logging": "ok",
+          "platform": "not_verified",
+          "model": "not_verified",
+          "native": "not_configured"
+        }
+      },
+      "knowledge": {
+        "status": "ready",
+        "service": "memory-knowledge",
+        "checks": {
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "client": "ok",
+          "extensions": "ok",
+          "log": "ok",
+          "assembled": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        }
+      }
+    },
+    "guard": {
+      "deployment_bytes": 175290640,
+      "heartbeat_age_seconds": 0.315,
+      "minimum_free_bytes": 454712885248,
+      "services": 10,
+      "status": "ready"
+    },
+    "observation": {
+      "id": "obs:f4a2534c1a9840629f6d2e5aec7cc306",
+      "state": "ready",
+      "enabled": true,
+      "last_error": null,
+      "group_policy": {
+        "actor_id": null,
+        "list": [],
+        "mode": "observe_only",
+        "observe": true
+      },
+      "private_policy": {
+        "actor_id": null,
+        "list": [],
+        "mode": "observe_only",
+        "observe": true
+      }
+    },
+    "plugin_counts": {
+      "observed": 0,
+      "pending": 0,
+      "claimed_replies": 0,
+      "deliveries": 0
+    },
+    "memory_counts": {
+      "messages": 0,
+      "conversations": 0,
+      "group_messages": 0,
+      "private_messages": 0
+    },
+    "inbox_counts": {},
+    "account_preserved": true,
+    "real_test_messages_sent": false,
+    "real_reply_tested": false,
+    "passive_live_archive_observed": false,
+    "acceptance_scope": "deployment_default_observe_only_and_passive_counts"
+  },
+  "persona-acceptance.json": {
+    "authoring_enabled": true,
+    "write_actions_enabled": true,
+    "authenticated_companion_catalog": "passed",
+    "authenticated_existing_role_view": "passed",
+    "profile_count": 0,
+    "role_count": 1,
+    "production_persona_writes_performed": false,
+    "served_assets_match_image": true,
+    "assets": [
+      {
+        "name": "PersonaPanel-Dd-u2qFy.css",
+        "sha256": "149f297ba2865ee2b563c98ed25fc2a728bee98aec47c01c8ccad657bd17378f"
+      },
+      {
+        "name": "PersonaPanel-ByGK6xdA.js",
+        "sha256": "cfb196e8ea549bf95948dad27cc2895d8e38d3090943a2e728a603993cbb11ec"
+      },
+      {
+        "name": "index-BkWh-ksz.js",
+        "sha256": "39e5747ce00a237e17b92d9f0c8a66acad85f6366b39addbc32d297b1262a400"
+      }
+    ],
+    "anonymous_author_routes_denied": {
+      "profiles": 401,
+      "view": 401,
+      "create": 401,
+      "save": 401,
+      "apply": 401
+    },
+    "original_personas_preserved": true,
+    "authenticated_production_browser_write_tested": false,
+    "nonebot_unchanged": true
+  },
+  "query-acceptance.json": {
+    "authenticated_archive_query": "passed",
+    "memory_state": "available",
+    "synthetic_conversation": true,
+    "item_count": 0,
+    "archive_item_count": 0,
+    "messages_sent": 0
+  },
+  "observability-acceptance.json": {
+    "ledger": [
+      {
+        "service": "companion",
+        "events": 389,
+        "verified": 389
+      },
+      {
+        "service": "gateway",
+        "events": 140,
+        "verified": 140
+      },
+      {
+        "service": "memory",
+        "events": 337,
+        "verified": 337
+      },
+      {
+        "service": "memory-knowledge",
+        "events": 186,
+        "verified": 186
+      },
+      {
+        "service": "platform",
+        "events": 24645,
+        "verified": 24639
+      }
+    ],
+    "invalid_source_lines": 0,
+    "recent_loki_events": 86,
+    "loki_success": true,
+    "recent_services": [
+      "companion",
+      "gateway",
+      "memory",
+      "memory-knowledge",
+      "platform"
+    ]
+  },
+  "backup.json": {
+    "sha256": "ea1235c3c0831d543d5edebb5ade80bc03cea9bef189c289981dcbf23ece35fc",
+    "bytes": 175237120
+  }
+}
