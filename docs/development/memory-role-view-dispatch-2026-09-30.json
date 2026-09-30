@@ -1,0 +1,31 @@
+{
+  "status": "implementation_active_scheme_acknowledged",
+  "plan": "docs/development/memory-role-view-plan-2026-09-30.md",
+  "implementation": {
+    "thread_id": "01a0f05d-2884-7050-af86-061cbb87b933",
+    "model": "gpt-6-sol",
+    "reasoning": "xhigh",
+    "paths": {
+      "platform": "C:/YOKI/Codex/memory-role-worktrees/platform",
+      "memory": "C:/YOKI/Codex/memory-role-worktrees/memory"
+    },
+    "baselines": {
+      "platform": "17af1b43b432f4bd6e250192fcfad35f8b04a8c1",
+      "memory": "870d9269d33b88ed34c6445eb7d95f791b43a914",
+      "companion_readonly": "9863800f0fcca67f59aa285ae14802d391f77e50"
+    }
+  },
+  "review": {
+    "thread_id": "01a0f05d-9c8a-7f40-a85d-3534fa6fbe62",
+    "model": "gpt-6-luna",
+    "reasoning": "max"
+  },
+  "nas_preflight": {
+    "browser_reader_actor": "actor:household",
+    "scope_count": 1,
+    "managed_roles": 0,
+    "semantic_groups": 0
+  },
+  "nas_updated": false,
+  "qq_identity_included": false
+}
