@@ -1,25 +1,25 @@
 # 记忆页面角色选择增量审查
 
 日期：2026-09-30  
-结论：**changes requested**。发现 1 项 P2 缓存可见性阻断；其余已审查的角色隔离与读取授权路径未见可确认的越权缺陷。
+结论：**代码审查通过**。此前发现的 P2 缓存可见性问题已在最终 Platform 候选修复；复核未发现可确认的角色越权缺陷。
 
 ## 固定审查范围
 
-- Platform：已部署基线 `17af1b43b432f4bd6e250192fcfad35f8b04a8c1` → 原固定候选 `c369861e072bbdce6d88bbadc7bd0b48483f52ff`，并复核后续最小增量至 `5ff7b11105f109940d4cf014d2a280202273910f`。
-- Memory：已部署基线 `870d9269d33b88ed34c6445eb7d95f791b43a914` → 原固定候选 `da14cfd91675b2a0d400227b916e3f3a299904b6`，并复核后续 `087f9c956848887b3a86d50cadbabe8ba14e2625`。后续只增加交接文档，运行代码仍为 `da14cfd`。
+- Platform：已部署基线 `17af1b43b432f4bd6e250192fcfad35f8b04a8c1` → 最终固定候选 `95ca75c3a441847c015e391f0fbaf3a179d98539`；缓存修复代码提交为 `d65bd68c10e8d9fa7c367050ee2aa4f6240f0e68`，最终候选另含交接文档提交。
+- Memory：已部署基线 `870d9269d33b88ed34c6445eb7d95f791b43a914` → 最终固定候选 `087f9c956848887b3a86d50cadbabe8ba14e2625`。运行代码仍是 `da14cfd91675b2a0d400227b916e3f3a299904b6`；后续只增加交接文档。
 - 审查只覆盖上述固定差异及其必要的 HTTP 分发、来源解析与页面呈现支撑路径；未运行正式全仓安全扫描。
 
-## 阻断
+## 已修复观察项
 
 ### [P2] 标签页恢复时，旧记忆仍显示在重新授权请求返回之前
 
-位置：Platform `apps/web/src/features/memory/MemoryPage.tsx`，`verify` 与 `visibilitychange` 处理，约第 314–335 行。
+位置：Platform `apps/web/src/features/memory/MemoryPage.tsx`，`verify` 与 `visibilitychange` 处理，约第 313–379 行。
 
-`verify()` 在文档隐藏时跳过轮询；页面重新可见时，`visible()` 立即发起新的 `overview` 授权读取，但没有先清空或遮住已有的概览、人物/群列表和记录。旧数据仍留在 React 状态并继续渲染，直到授权读取失败后 `failRead()` 才清除。
+原实现中 `verify()` 在文档隐藏时跳过轮询；页面重新可见时立即发起 `overview` 授权读取，但旧概览、人物/群列表和记录仍留在状态并继续渲染，直到授权读取失败才清除。
 
-可复现路径：登录并读取角色 B 的记忆 → 将标签页放到后台 → 撤销 B 的 Memory 精确 grant → 恢复标签页，并通过网络限速或暂停测试 Memory 响应让新的 `overview` 保持 pending。此时此前已撤权的记录仍可从页面看到，直到上游响应返回。服务端会拒绝新的读取；问题限定在客户端缓存视图继续显示。隐藏时长不受 15 秒轮询约束，因为隐藏页面会跳过检查。审查者未在真实浏览器中单独复现撤权时序；阻断依据是固定代码中可直接确认的状态与渲染路径。
+修复提交 `d65bd68c10e8d9fa7c367050ee2aa4f6240f0e68` 在恢复可见时先中止旧校验、同步清空缓存并进入重新核验面板；授权成功后重读当前支持的页面（概览、人物/群列表或本人记录），拒绝时通过 `failRead()` 保持内容清空并标记角色不可读。活动标签页仍每 15 秒核验一次；没有服务端撤权推送，因此不是实时撤权，15 秒轮询间隔及请求返回前是明确的可见页检查边界。
 
-修复方向：恢复可见时同步进入检查态并隐藏旧结果，只有当前授权检查通过后再显示页面数据；同时明确可见页面缓存的失效边界。当前代码没有该门控，因此与任务卡“后台撤销/角色版本变化重新核验，禁止保留旧数据”的要求不符。
+新增页面测试在角色 B 本人记录已显示后暂停恢复时的 overview 请求，断言 pending 阶段旧记录数为零；成功后断言本人记录重新读取并出现；模拟精确 grant 403 后断言旧记录仍隐藏且角色不可读。该用例使用 API route 替身，只验证页面状态和门控，不代替真实后端撤权联验。
 
 ## 其他检查结论
 
@@ -33,11 +33,12 @@
 ## 验证与证据边界
 
 - 总控报告最初的后端联合 `test_memory_joint.py` 通过 `1/1`、用时 `4.51s`；本审查者未重复运行该测试。该联验覆盖真实 Platform 应用与 Memory TLS 进程、合成来源数据、两角色投影/分页、跨角色 cursor、grant 撤销与重启。
-- 后续 `tests/backend/memory_role_joint_browser.mjs` 使用真实 Chromium 页面，不拦截 `/api/web/*`，覆盖本地登录、双角色切换、人物投影、本人记录和刷新后选择保持。总控报告设置 `TS_MEMORY_ROLE_BROWSER_NODE` 后复跑 `test_memory_joint.py` 得到 `1 test in 12.917s OK`；桌面与手机截图位于 Platform 忽略目录 `.runtime/memory-role-browser/`，本审查者已目视检查。该 fixture 未覆盖撤权后标签页恢复时缓存仍可见的路径。
+- 修复后总控归档的 [`acceptance.json`](memory-role-browser-2026-09-30/acceptance.json) 记录固定 Platform `95ca75c` / Memory `087f9c9`（Memory 运行代码 `da14cfd`）：`real_http_web_to_platform_https_memory_chromium` 为 1 项通过、10.037 秒、未拦截 API，视口 1440×1000 与 390×844。此真实 Chromium 联验覆盖本地登录、双角色切换、人物投影、本人记录和刷新后选择保持，但不覆盖精确 grant 撤权后恢复标签页的时序。
 - 该 browser fixture 的页面入口由 `start_http` 提供 loopback HTTP；Platform↔Memory 的读取与来源解析连接使用 HTTPS。若验收要求浏览器到 Platform 页面本身也必须覆盖 HTTPS/Secure Cookie，该夹具尚不能证明这一点。
-- 原 `apps/web/tests/memory-role.spec.ts` 全部拦截 API，只证明页面状态逻辑，不作为真实后台端到端证据。它的慢响应用例也不验证真实网络延迟。
+- 原及新增 `apps/web/tests/memory-role.spec.ts` 全部拦截 API，只证明页面状态逻辑，不作为真实后台端到端证据。修复后归档结果记录 `role_switch_and_visibility_pending_revoke_ui` 2 项通过、6 秒，覆盖 pending 隐藏、成功重读和 403 保持隐藏；慢响应用例也不验证真实网络延迟。合成 schema 样例另记录有效 6 项、无效 5 项通过。
+- [`acceptance.json`](memory-role-browser-2026-09-30/acceptance.json) 列出的 4 张桌面/手机实时页面与 pending 状态截图已由本审查者目视检查；本地重新计算的 SHA-256 均与清单一致。记录明确 `production_browser_session_tested=false`，这些结果不代表生产账号会话。
 - Memory 手工交接记录的套件结果是工作者报告，未由本审查重复执行；没有 NAS 操作、真实账号/数据或部署验证。
 
 ## 最终 gate
 
-本地代码审查目前 **不接受**：先修复前台恢复后的旧记忆可见窗口，再由总控复跑真实 Chromium fixture 并确认截图与结果。当前 12.917 秒的 fixture 复跑已通过，但发生在缓存修复之前。除此项外，本轮固定差异未发现需要阻止集成的已证实角色越权问题。NAS 更新仍由总控另行执行。
+最终固定候选的**本地代码审查与所要求的本地验收证据通过**：P2 已修复；归档记录显示真实 Chromium 联验 `1 test in 10.037s OK`，缓存恢复 UI 状态用例 `2/2` 通过。真实联验中的浏览器入口由 loopback HTTP 提供，Platform↔Memory 使用 HTTPS；它没有证明浏览器到 Platform 页面本身的 HTTPS 或 Secure Cookie 行为。候选合同定义同源端点及 WebConsole 会话/CSRF 门禁，没有定义浏览器入口 TLS 传输验收；若部署 gate 另要求浏览器入口 HTTPS/Secure Cookie，应补独立 TLS 浏览器证据。没有执行 NAS 更新、生产部署或真实账号/数据验收。
