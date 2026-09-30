@@ -1,0 +1,26 @@
+{
+  "synthetic": true,
+  "valid": [
+    {"route": "state", "body": {}},
+    {"route": "overview", "body": {}},
+    {"route": "overview", "body": {"role_id": "actor:synthetic-b", "role_version": 3}},
+    {"route": "subjects", "body": {"role_id": "actor:synthetic-b", "role_version": 3, "limit": 20, "cursor": null}},
+    {"route": "records", "body": {"role_id": "actor:synthetic-b", "role_version": 3, "subject": null, "limit": 20, "cursor": null}},
+    {"route": "records", "body": {"role_id": "actor:synthetic-b", "role_version": 3, "subject": {"kind": "person", "person_id": "person:synthetic"}, "limit": 20, "cursor": null}}
+  ],
+  "invalid_shape": [
+    {"route": "overview", "body": {"role_id": "actor:synthetic-b"}},
+    {"route": "overview", "body": {"role_id": null, "role_version": 3}},
+    {"route": "overview", "body": {"role_id": "actor:synthetic-b", "role_version": -1}},
+    {"route": "overview", "body": {"role_id": "actor:synthetic-b", "role_version": 3, "scope": {"actor_id": "actor:synthetic-b"}}},
+    {"route": "records", "body": {"role_id": "actor:synthetic-b", "role_version": 3, "subject": {"kind": "person", "person_id": "person:synthetic", "account": "forged"}, "limit": 20, "cursor": null}}
+  ],
+  "authority_rejections": [
+    {"case": "unknown_role", "status": 403, "code": "forbidden"},
+    {"case": "changed_role_version", "status": 409, "code": "scope_changed"},
+    {"case": "disabled_role", "status": 403, "code": "role_disabled"},
+    {"case": "role_configuring", "status": 403, "code": "role_configuring"},
+    {"case": "memory_read_disabled", "status": 403, "code": "memory_read_disabled"},
+    {"case": "cursor_from_another_actor", "status": 400, "code": "invalid_input"}
+  ]
+}

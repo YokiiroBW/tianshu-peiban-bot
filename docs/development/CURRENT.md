@@ -1,5 +1,7 @@
 # 当前交接
 
+2026-09-30 记忆角色选择已集成部署NAS：Platform95ca75c、Memoryda14cfd（087f9c9仅handoff），线上Companion9863800保持；入口 /#/memory/0。顶端角色选择，概览/投影/记录/游标按actor隔离，切换清空，后台恢复先核验；Luna返修通过。真实Chromium联合1/10.037s、缓存UI2/2、合入后HTTPS1/4.318s、NAS十服务guard/五核心ready/授权Memory只读/LAN资源/匿名门禁/归档日志均通过，原账号人格保留。capacity-state为memory-role-20260930，Dockge同步。产品mainPdffedb2/M9e0c39f保留独立未部署QQ身份，禁止main直接作线上版本。完整证据memory-role-deployment-2026-09-30.md/json；无生产网页登录/角色写入/真实QQ模型消息。
+
 验证节奏：用户要求完整功能块稳定后集中验证，必要共享边界/故障定位及时检查；不逐小改动测试，不重复未变化的成功检查。
 
 执行设置：用户最新要求全部产品实现交DSH；Codex只架构/分派/验收/排错，不再创建Codex实现任务。保留DSH配置模型，旧Astra偏好仅为历史Codex任务。

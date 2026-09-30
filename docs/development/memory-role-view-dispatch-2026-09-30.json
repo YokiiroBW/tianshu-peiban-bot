@@ -1,5 +1,5 @@
 {
-  "status": "implementation_active_scheme_acknowledged",
+  "status": "deployed_and_scoped_live_read_verified",
   "plan": "docs/development/memory-role-view-plan-2026-09-30.md",
   "implementation": {
     "thread_id": "01a0f05d-2884-7050-af86-061cbb87b933",
@@ -13,12 +13,19 @@
       "platform": "17af1b43b432f4bd6e250192fcfad35f8b04a8c1",
       "memory": "870d9269d33b88ed34c6445eb7d95f791b43a914",
       "companion_readonly": "9863800f0fcca67f59aa285ae14802d391f77e50"
+    },
+    "delivered_commits": {
+      "platform": "95ca75c3a441847c015e391f0fbaf3a179d98539",
+      "memory": "087f9c956848887b3a86d50cadbabe8ba14e2625"
     }
   },
   "review": {
     "thread_id": "01a0f05d-9c8a-7f40-a85d-3534fa6fbe62",
     "model": "gpt-6-luna",
-    "reasoning": "max"
+    "reasoning": "max",
+    "status": "accepted",
+    "commit": "d7c1fb6636544444e156a403df5c6cb7e046dbe1",
+    "report": "docs/development/reviews/memory-role-browser-review-2026-09-30.md"
   },
   "nas_preflight": {
     "browser_reader_actor": "actor:household",
@@ -26,6 +33,17 @@
     "managed_roles": 0,
     "semantic_groups": 0
   },
-  "nas_updated": false,
-  "qq_identity_included": false
+  "nas_updated": true,
+  "qq_identity_included": false,
+  "local_main": {
+    "platform": "dffedb231ae884c97661056e2c5bcb90d9ea950b",
+    "memory": "9e0c39fecf7d9ebbba6ce8a37077d9b6da14dcd4",
+    "companion": "fc4d04caf4b0a376316f9acc2de55ea7030348b1"
+  },
+  "nas_release": {
+    "platform": "95ca75c3a441847c015e391f0fbaf3a179d98539",
+    "memory": "da14cfd91675b2a0d400227b916e3f3a299904b6",
+    "capacity_state": "/volume2/tianshu-v2-resident-updates/memory-role-20260930/capacity-state",
+    "report": "docs/development/memory-role-deployment-2026-09-30.json"
+  }
 }

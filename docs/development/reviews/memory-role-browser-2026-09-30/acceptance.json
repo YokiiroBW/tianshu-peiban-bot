@@ -1,0 +1,61 @@
+{
+  "platform": "95ca75c3a441847c015e391f0fbaf3a179d98539",
+  "memory": "087f9c956848887b3a86d50cadbabe8ba14e2625",
+  "memory_runtime_code": "da14cfd91675b2a0d400227b916e3f3a299904b6",
+  "independent_parent_checks": [
+    {
+      "name": "real_http_web_to_platform_https_memory_chromium",
+      "tests": 1,
+      "seconds": 10.037,
+      "result": "passed",
+      "api_interception": false,
+      "viewports": [
+        "1440x1000",
+        "390x844"
+      ]
+    },
+    {
+      "name": "role_switch_and_visibility_pending_revoke_ui",
+      "tests": 2,
+      "seconds": 6.0,
+      "result": "passed",
+      "api_interception": true
+    },
+    {
+      "name": "request_schema_examples",
+      "valid_examples": 6,
+      "invalid_examples": 5,
+      "result": "passed"
+    }
+  ],
+  "screenshots": [
+    {
+      "path": "docs\\development\\reviews\\memory-role-browser-2026-09-30\\memory-role-live-desktop.png",
+      "sha256": "3edfa72061f2247c510771122904b0358bcbbb30e24059ff535deef36554d536"
+    },
+    {
+      "path": "docs\\development\\reviews\\memory-role-browser-2026-09-30\\memory-role-resume-pending-desktop.png",
+      "sha256": "ef4bc3e1e4e3b306c10fa107652fa2af69e226e03f4f2e5e5dd196a6bbf8d22b"
+    },
+    {
+      "path": "docs\\development\\reviews\\memory-role-browser-2026-09-30\\memory-role-live-mobile.png",
+      "sha256": "c71135605b7daa7333ee2f91004fac59523e968a36f08449d36d281ad5b0d804"
+    },
+    {
+      "path": "docs\\development\\reviews\\memory-role-browser-2026-09-30\\memory-role-resume-pending-mobile.png",
+      "sha256": "728780252126307fca3ee0b3d43076d1bde036b9a9bc658a3ee20f2dcfbe0eb5"
+    }
+  ],
+  "production_browser_session_tested": false,
+  "qq_identity_included_in_release": false,
+  "integration_check": {
+    "platform": "dffedb231ae884c97661056e2c5bcb90d9ea950b",
+    "memory": "9e0c39fecf7d9ebbba6ce8a37077d9b6da14dcd4",
+    "name": "real_https_memory_joint_after_merge",
+    "tests": 1,
+    "seconds": 4.318,
+    "result": "passed",
+    "api_interception": false,
+    "chromium": false
+  }
+}

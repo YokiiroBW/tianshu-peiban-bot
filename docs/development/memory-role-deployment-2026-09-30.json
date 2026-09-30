@@ -1,0 +1,237 @@
+{
+  "platform-image.json": {
+    "image": "127.0.0.1:19550/tianshu/platform@sha256:cd1ddccd05b595fc858160dff4dc31e1c092060453af7c7c154ac59db53944e7",
+    "id": "sha256:768bdd95b907ae327e5152eae7309055e279c1c021155cfb5992e9ff4520e6e4",
+    "commit": "95ca75c3a441847c015e391f0fbaf3a179d98539",
+    "archive_sha256": "f527f67edef5ca390470cd4b58cf976f6c62bf49086457683be637a16f330226"
+  },
+  "memory-image.json": {
+    "image": "127.0.0.1:19550/tianshu/memory@sha256:0628ac682cfc6ccdcb237b886655947739438f430bf89dbd72fbcd2038b8513d",
+    "id": "sha256:2db3432297388640263a32d7faec0b6ac653aa7290fb4848378da5c83d38c9d2",
+    "commit": "da14cfd91675b2a0d400227b916e3f3a299904b6",
+    "archive_sha256": "7c41871cabfcb5fbd9e41cb023525cbe9b6aba39df251eb5e42e997cd3fe60ac"
+  },
+  "backup.json": {
+    "sha256": "01e8ab64498b5ccd7150a938b64cc6d5548b62c803059dab3a781f021becd4f1",
+    "bytes": 241756160
+  },
+  "updated.json": {
+    "image": {
+      "image": "127.0.0.1:19550/tianshu/platform@sha256:cd1ddccd05b595fc858160dff4dc31e1c092060453af7c7c154ac59db53944e7",
+      "id": "sha256:768bdd95b907ae327e5152eae7309055e279c1c021155cfb5992e9ff4520e6e4",
+      "commit": "95ca75c3a441847c015e391f0fbaf3a179d98539",
+      "archive_sha256": "f527f67edef5ca390470cd4b58cf976f6c62bf49086457683be637a16f330226"
+    },
+    "other_seven_ids_preserved": true,
+    "scoped_memory_role_browser_enabled": true,
+    "existing_actor_adopted": false,
+    "account_preserved": true,
+    "config_path_preserved": "/volume2/tianshu-v2-resident-updates/bots-20260928/core.compose.json",
+    "capacity_state": "/volume2/tianshu-v2-resident-updates/memory-role-20260930/capacity-state",
+    "dockge_synced": true
+  },
+  "acceptance.json": {
+    "time": 1790742971.9116807,
+    "health": {
+      "platform": {
+        "status": "ready",
+        "service": "platform",
+        "checks": {
+          "config": "ok",
+          "contract": "ok",
+          "store": "ok",
+          "sidecars": "ok",
+          "web_static": "ok",
+          "tls": "ok",
+          "credentials": "ok",
+          "logging": "ok",
+          "runtime": "ok"
+        }
+      },
+      "companion": {
+        "status": "ready",
+        "service": "companion",
+        "checks": {
+          "configuration": "ok",
+          "logs": "ok",
+          "runtime": "ok",
+          "dependencies": "not_verified"
+        }
+      },
+      "memory": {
+        "status": "ready",
+        "service": "memory",
+        "checks": {
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "guard": "ok",
+          "mode": "ok",
+          "log": "ok",
+          "assembled": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        }
+      },
+      "gateway": {
+        "status": "ready",
+        "service": "gateway",
+        "checks": {
+          "configuration": "ok",
+          "contracts": "ok",
+          "runtime": "ok",
+          "ledger": "ok",
+          "logging": "ok",
+          "platform": "not_verified",
+          "model": "not_verified",
+          "native": "not_configured"
+        }
+      },
+      "knowledge": {
+        "status": "ready",
+        "service": "memory-knowledge",
+        "checks": {
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "client": "ok",
+          "extensions": "ok",
+          "log": "ok",
+          "assembled": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        }
+      }
+    },
+    "guard": {
+      "deployment_bytes": 243057304,
+      "heartbeat_age_seconds": 3.464,
+      "minimum_free_bytes": 445950799872,
+      "services": 10,
+      "status": "ready"
+    },
+    "observation": {
+      "id": "obs:f4a2534c1a9840629f6d2e5aec7cc306",
+      "state": "ready",
+      "enabled": true,
+      "last_error": null,
+      "group_policy": {
+        "actor_id": null,
+        "list": [],
+        "mode": "observe_only",
+        "observe": true
+      },
+      "private_policy": {
+        "actor_id": null,
+        "list": [],
+        "mode": "observe_only",
+        "observe": true
+      }
+    },
+    "plugin_counts": {
+      "observed": 2,
+      "pending": 0,
+      "claimed_replies": 0,
+      "deliveries": 0
+    },
+    "memory_counts": {
+      "messages": 2,
+      "conversations": 2,
+      "group_messages": 1,
+      "private_messages": 1
+    },
+    "inbox_counts": {
+      "archived": 2
+    },
+    "account_preserved": true,
+    "real_test_messages_sent": false,
+    "real_reply_tested": false,
+    "passive_live_archive_observed": true,
+    "acceptance_scope": "deployment_default_observe_only_and_passive_counts"
+  },
+  "query-acceptance.json": {
+    "authenticated_archive_query": "passed",
+    "memory_state": "available",
+    "synthetic_conversation": true,
+    "item_count": 0,
+    "archive_item_count": 0,
+    "messages_sent": 0
+  },
+  "observability-acceptance.json": {
+    "ledger": [
+      {
+        "service": "companion",
+        "events": 716,
+        "verified": 710
+      },
+      {
+        "service": "gateway",
+        "events": 155,
+        "verified": 155
+      },
+      {
+        "service": "memory",
+        "events": 630,
+        "verified": 623
+      },
+      {
+        "service": "memory-knowledge",
+        "events": 201,
+        "verified": 201
+      },
+      {
+        "service": "platform",
+        "events": 33009,
+        "verified": 32975
+      }
+    ],
+    "invalid_source_lines": 0,
+    "recent_loki_events": 100,
+    "loki_success": true,
+    "recent_services": [
+      "companion",
+      "gateway",
+      "memory",
+      "memory-knowledge",
+      "platform"
+    ]
+  },
+  "memory-role-live-acceptance.json": {
+    "default_actor": "actor:household",
+    "live_scoped_overview": "passed",
+    "runtime_roles": true,
+    "groups": 0,
+    "synthetic_roles_created": 0,
+    "model_or_bot_messages_sent": 0,
+    "browser_session_tested": false,
+    "memory_runtime_reader_flags": true,
+    "served_assets_match_image": true,
+    "assets": [
+      {
+        "name": "MemoryPage-Ce-4y8v4.css",
+        "sha256": "382114f8c06eb5d05a55f3e701a9d2ec96bd5c017029131baacf1f320d25a7a2"
+      },
+      {
+        "name": "MemoryPage-BVK9zZDE.js",
+        "sha256": "b743e115e82a5cc4eb17224c6244fb3532ed59e149065988e50a801e5f5876d4"
+      }
+    ],
+    "anonymous_memory_routes_denied": {
+      "state": 401,
+      "overview": 401,
+      "subjects": 401,
+      "records": 401
+    },
+    "nonebot_unchanged": true
+  },
+  "status": "deployed_and_scoped_live_read_verified",
+  "local_main": {
+    "platform": "dffedb231ae884c97661056e2c5bcb90d9ea950b",
+    "memory": "9e0c39fecf7d9ebbba6ce8a37077d9b6da14dcd4",
+    "companion": "fc4d04caf4b0a376316f9acc2de55ea7030348b1"
+  },
+  "review_commit": "d7c1fb6636544444e156a403df5c6cb7e046dbe1",
+  "candidate_memory_documentation_commit": "087f9c956848887b3a86d50cadbabe8ba14e2625",
+  "qq_identity_included_in_nas_release": false,
+  "production_logged_in_browser_tested": false
+}

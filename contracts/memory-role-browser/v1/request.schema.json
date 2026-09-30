@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianshu.local/contracts/memory-role-browser/v1/request.schema.json",
+  "title": "Same-origin Memory browser request bodies",
+  "description": "Use the definition corresponding to the route. Cookie session and CSRF are required outside the body. Role version is a current server authority check, not a memory data version.",
+  "$defs": {
+    "role_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "role_version": {"type": "integer", "minimum": 0},
+    "limit": {"type": "integer", "minimum": 1, "maximum": 50},
+    "cursor": {"type": ["string", "null"], "minLength": 1, "maxLength": 2048},
+    "subject": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "object", "required": ["kind", "person_id"], "additionalProperties": false, "properties": {"kind": {"const": "person"}, "person_id": {"type": "string", "minLength": 1, "maxLength": 128}}},
+        {"type": "object", "required": ["kind", "conversation_id"], "additionalProperties": false, "properties": {"kind": {"const": "group"}, "conversation_id": {"type": "string", "minLength": 1, "maxLength": 128}}}
+      ]
+    },
+    "state": {"type": "object", "additionalProperties": false},
+    "overview": {
+      "type": "object", "additionalProperties": false,
+      "dependentRequired": {"role_id": ["role_version"], "role_version": ["role_id"]},
+      "properties": {"role_id": {"$ref": "#/$defs/role_id"}, "role_version": {"$ref": "#/$defs/role_version"}}
+    },
+    "subjects": {
+      "type": "object", "additionalProperties": false, "required": ["limit", "cursor"],
+      "dependentRequired": {"role_id": ["role_version"], "role_version": ["role_id"]},
+      "properties": {"role_id": {"$ref": "#/$defs/role_id"}, "role_version": {"$ref": "#/$defs/role_version"}, "limit": {"$ref": "#/$defs/limit"}, "cursor": {"$ref": "#/$defs/cursor"}}
+    },
+    "records": {
+      "type": "object", "additionalProperties": false, "required": ["subject", "limit", "cursor"],
+      "dependentRequired": {"role_id": ["role_version"], "role_version": ["role_id"]},
+      "properties": {"role_id": {"$ref": "#/$defs/role_id"}, "role_version": {"$ref": "#/$defs/role_version"}, "limit": {"$ref": "#/$defs/limit"}, "cursor": {"$ref": "#/$defs/cursor"}, "subject": {"$ref": "#/$defs/subject"}}
+    }
+  }
+}
