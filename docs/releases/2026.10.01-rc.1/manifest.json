@@ -1,0 +1,103 @@
+{
+  "bundle_version": "2026.10.01-rc.1",
+  "date": "2026-10-01",
+  "status": "local_release_prepared_remote_and_deployment_not_verified",
+  "publication_visibility": "public_user_decision_2026-10-01",
+  "coordinator_contract_commit": "37b086f66ca8521ec065578b9126111d97d0f112",
+  "contract": {
+    "domain": "role-relationship/v1",
+    "version": "1.0.0",
+    "schema_lf_sha256": "e96397bac2b6ad8ff9d23c023d7d3c5ba0701734b27053a05b9d0f65a7ff8ee6"
+  },
+  "products": [
+    {
+      "name": "tianshu-platform",
+      "source_sha": "4cce24fe32e8267504aae7fc0215c850f6d0478c",
+      "repository": "https://github.com/YokiiroBW/tianshu-platform",
+      "remote_sha_verified": false,
+      "candidate_image_id": null,
+      "candidate_image_digest": null
+    },
+    {
+      "name": "tianshu-memory",
+      "source_sha": "1f3121c9758faeb31fc9d0fe2a54974c72505d55",
+      "repository": "https://github.com/YokiiroBW/tianshu-memory",
+      "remote_sha_verified": false,
+      "candidate_image_id": null,
+      "candidate_image_digest": null
+    },
+    {
+      "name": "tianshu-companion",
+      "source_sha": "21e4ff37f1d4f4e3e9db94f8c965031a8dcb9cd6",
+      "repository": "https://github.com/YokiiroBW/tianshu-companion",
+      "remote_sha_verified": false,
+      "candidate_image_id": null,
+      "candidate_image_digest": null
+    },
+    {
+      "name": "tianshu-model-gateway",
+      "source_sha": "e4f112f02d28a1ded134126feed33f15e003ec20",
+      "repository": "https://github.com/YokiiroBW/tianshu-model-gateway",
+      "remote_sha_verified": false,
+      "candidate_image_id": null,
+      "candidate_image_digest": null
+    },
+    {
+      "name": "assetlibrary",
+      "source_sha": "d7b43eca94136e90303cce585f2b96c80223f3af",
+      "repository": "https://github.com/YokiiroBW/assetlibrary",
+      "remote_sha_verified": false,
+      "candidate_image_id": null,
+      "candidate_image_digest": null
+    },
+    {
+      "name": "chat-audit-core",
+      "source_sha": "93fb30cdc46c86c9b498fb14c49ccc94c8646ddb",
+      "repository": "https://github.com/YokiiroBW/chat-audit-core",
+      "remote_sha_verified": false,
+      "candidate_image_id": null,
+      "candidate_image_digest": null
+    }
+  ],
+  "actual_this_run": {
+    "contract_examples_passed": 38,
+    "memory_tests_passed": 77,
+    "companion_tests_passed": 40,
+    "platform_boundary_tests_passed": 18,
+    "platform_boundary_subtests_passed": 3,
+    "fixed_three_product_https_tests_passed": 5,
+    "new_browser_run": false,
+    "new_full_regression_run": false,
+    "production_backup_restore_run": false
+  },
+  "retained_prior_evidence": {
+    "memory_full": {
+      "passed": 1080,
+      "baseline_failed": 1,
+      "skipped": 6
+    },
+    "platform_full": {
+      "passed": 889,
+      "baseline_failed": 53,
+      "skipped": 14,
+      "deselected": 2,
+      "subtests": 742
+    },
+    "platform_browser": {
+      "passed": 12,
+      "screenshots": 14
+    }
+  },
+  "gates": {
+    "git_https_authentication": "blocked_no_existing_credential",
+    "reachable_history_review": "scanned_findings_require_explicit_fixture_classification",
+    "ffmpeg_binary_redistribution": "blocked_corresponding_source_not_verified",
+    "remote_source_verification": "not_run",
+    "required_ci": "not_run",
+    "ten_owner_backup_restore": "not_run",
+    "production_migrations": "not_run",
+    "production_permissions": "not_verified",
+    "production_deployment": "not_run",
+    "real_qq_model_acceptance": "not_run"
+  }
+}
