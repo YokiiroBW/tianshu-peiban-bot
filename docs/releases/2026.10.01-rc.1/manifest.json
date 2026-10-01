@@ -56,7 +56,11 @@
       "repository": "https://github.com/YokiiroBW/chat-audit-core",
       "remote_sha_verified": false,
       "candidate_image_id": null,
-      "candidate_image_digest": null
+      "candidate_image_digest": null,
+      "publication_sha": "bb8937a7a712538d55af3c2af0b3cc47a917038b",
+      "publication_branch": "release/2026.10.01-rc.1",
+      "publication_kind": "source_snapshot_excludes_vendored_ffmpeg_wheel",
+      "existing_remote_main_preserved": "e07f2fa1c6a2250a6f8eb6cf98440b3b0b311e05"
     }
   ],
   "actual_this_run": {
@@ -90,8 +94,8 @@
   },
   "gates": {
     "git_https_authentication": "blocked_no_existing_credential",
-    "reachable_history_review": "scanned_findings_require_explicit_fixture_classification",
-    "ffmpeg_binary_redistribution": "blocked_corresponding_source_not_verified",
+    "reachable_history_review": "completed_pattern_scan_and_explicit_fixture_classification_no_identified_production_secret",
+    "ffmpeg_binary_redistribution": "excluded_from_new_chat_source_snapshot_and_release_artifacts",
     "remote_source_verification": "not_run",
     "required_ci": "not_run",
     "ten_owner_backup_restore": "not_run",

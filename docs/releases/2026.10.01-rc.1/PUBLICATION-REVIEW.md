@@ -20,6 +20,6 @@ AssetLibrary 的官方控件/示例材料保留 Microsoft MIT 许可；扫描可
 
 Chat Audit 的 vendor/wheels/imageio_ffmpeg-0.6.0-py3-none-manylinux2014_x86_64.whl：SHA256 c7e46fcec401dd990405049d2e2f475e2b397779df2519b544b8aab515195282，与 [PyPI 0.6.0 官方文件记录](https://pypi.org/pypi/imageio-ffmpeg/0.6.0/json) 完全相同；现有 GitHub 远端也已包含相同 blob。Python 包保留 BSD-2-Clause 许可，但内含 ffmpeg-linux-x86_64-v7.0.2 的二进制，检测到 --enable-gpl，不能只按 BSD 批准整个 wheel。[FFmpeg 官方许可说明](https://ffmpeg.org/legal.html) 明确 GPL 组件改变 FFmpeg 整体许可；相关 [7.0.2 静态构建说明](https://johnvansickle.com/ffmpeg/release-readme.txt) 标明 GPLv3。构建来源一致性尚未逐字节确认；当前上游 release-source 索引仍列 4.1 及旧依赖，不能把它当作已验证的 7.0.2 完整对应源码。
 
-因此“远端已有相同文件”只证明来源/对象相同，不证明许可合规。本轮禁止新发布包含该 wheel 的分发包或 Chat Audit FFmpeg 镜像；不自动改许可证、重写或销毁既有公开/本地历史。可继续的安全处理是从已整合两个远端 README 提交的固定树制作独立源码快照，排除 wheel 并记录源 SHA/排除清单，作为新的版本分支或源码发布；保留现有远端 main 和本地完整合并历史，不 force push。该快照尚未制作/推送，不把建议记作已完成。
+因此“远端已有相同文件”只证明来源/对象相同，不证明许可合规。本轮禁止新发布包含该 wheel 的分发包或 Chat Audit FFmpeg 镜像；不自动改许可证、重写或销毁既有公开/本地历史。可继续的安全处理是从已整合两个远端 README 提交的固定树制作独立源码快照，排除 wheel 并记录源 SHA/排除清单，作为新的版本分支或源码发布；保留现有远端 main 和本地完整合并历史，不 force push。本轮已创建独立源码版本快照 bb8937a7a712538d55af3c2af0b3cc47a917038b，分支 release/2026.10.01-rc.1：排除 wheel，新增出处清单和说明；除 README 发布说明外，全部原有文件字节逐一与固定归档相同。快照重新扫描没有第三方二进制路径；测试常量命中与已核原代码相同。原树继承的空白格式告警保留不扩修，新文件检查通过。现有远端 main 和本地完整合并历史均保留；尚未推送，不把本地快照当作远端发布。
 
 NAS resident 十服务没有 Chat Audit 或其 FFmpeg 镜像，许可缺口不能被健康探针代替，也不应引入无关媒体服务更新。
