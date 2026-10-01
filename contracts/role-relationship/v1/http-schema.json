@@ -1,0 +1,472 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:tianshu:role-relationship:http:v1",
+  "title": "Role relationship 1.0.0 internal HTTPS envelopes",
+  "$defs": {
+    "ReadRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "type": "integer"
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "origin": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "assertion_ref": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "assertion_ref"
+          ]
+        },
+        "pair": {
+          "$ref": "urn:tianshu:role-relationship:v1#/$defs/Pair"
+        },
+        "managed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "origin",
+        "pair"
+      ]
+    },
+    "CheckRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "type": "integer"
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "origin": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "assertion_ref": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "assertion_ref"
+          ]
+        },
+        "pair": {
+          "$ref": "urn:tianshu:role-relationship:v1#/$defs/Pair"
+        },
+        "managed": {
+          "type": "boolean"
+        },
+        "expected_version": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "origin",
+        "pair",
+        "expected_version"
+      ]
+    },
+    "HistoryRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "type": "integer"
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "origin": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "assertion_ref": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "assertion_ref"
+          ]
+        },
+        "pair": {
+          "$ref": "urn:tianshu:role-relationship:v1#/$defs/Pair"
+        },
+        "managed": {
+          "const": true
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "origin",
+        "pair",
+        "managed"
+      ]
+    },
+    "ManageRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "type": "integer"
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "origin": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "assertion_ref": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "assertion_ref"
+          ]
+        },
+        "command": {
+          "$ref": "urn:tianshu:role-relationship:v1#/$defs/RelationshipCommand"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "origin",
+        "command"
+      ]
+    },
+    "SettleRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "type": "integer"
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "origin": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "assertion_ref": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "required": [
+            "assertion_ref"
+          ]
+        },
+        "candidate": {
+          "$ref": "urn:tianshu:role-relationship:v1#/$defs/AffinityEventCandidate"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "origin",
+        "candidate"
+      ]
+    },
+    "ProjectionResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "type": "integer"
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "projection": {
+          "oneOf": [
+            {
+              "$ref": "urn:tianshu:role-relationship:v1#/$defs/PrivateProjection"
+            },
+            {
+              "$ref": "urn:tianshu:role-relationship:v1#/$defs/PublicProjection"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "projection"
+      ]
+    },
+    "CheckResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "type": "integer"
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "check": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "version": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "current": {
+              "const": true
+            }
+          },
+          "required": [
+            "version",
+            "current"
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "check"
+      ]
+    },
+    "SettleResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "type": "integer"
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "settlement": {
+          "$ref": "urn:tianshu:role-relationship:v1#/$defs/SettlementResult"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "settlement"
+      ]
+    },
+    "HistoryItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "kind": {
+          "enum": [
+            "automatic",
+            "management",
+            "manual_adjustment",
+            "natural_decay",
+            "source_correction",
+            "legacy_import"
+          ]
+        },
+        "delta": {
+          "type": "integer",
+          "minimum": -2000000,
+          "maximum": 2000000
+        },
+        "outcome": {
+          "enum": [
+            "accepted",
+            "no_change",
+            "rejected_frozen",
+            "rejected_budget",
+            "rejected_source",
+            "rejected_authorization",
+            "conflict"
+          ]
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "valid": {
+          "type": "boolean"
+        },
+        "operation": {
+          "enum": [
+            null,
+            "set_binding",
+            "set_freeze",
+            "adjust_affinity"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 200
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "delta",
+        "outcome",
+        "at",
+        "valid",
+        "operation",
+        "reason"
+      ]
+    },
+    "HistoryResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "type": "integer"
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "history": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "projection": {
+              "$ref": "urn:tianshu:role-relationship:v1#/$defs/PrivateProjection"
+            },
+            "items": {
+              "type": "array",
+              "maxItems": 20,
+              "items": {
+                "$ref": "#/$defs/HistoryItem"
+              }
+            },
+            "has_more": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "projection",
+            "items",
+            "has_more"
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "history"
+      ]
+    },
+    "FaultResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "type": "integer"
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "code": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,127}$"
+        },
+        "execution_state": {
+          "const": "not_started"
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "current_version": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "code",
+        "execution_state",
+        "retryable"
+      ]
+    }
+  },
+  "anyOf": [
+    {
+      "$ref": "#/$defs/ReadRequest"
+    },
+    {
+      "$ref": "#/$defs/CheckRequest"
+    },
+    {
+      "$ref": "#/$defs/HistoryRequest"
+    },
+    {
+      "$ref": "#/$defs/ManageRequest"
+    },
+    {
+      "$ref": "#/$defs/SettleRequest"
+    },
+    {
+      "$ref": "#/$defs/ProjectionResponse"
+    },
+    {
+      "$ref": "#/$defs/CheckResponse"
+    },
+    {
+      "$ref": "#/$defs/SettleResponse"
+    },
+    {
+      "$ref": "#/$defs/HistoryResponse"
+    },
+    {
+      "$ref": "#/$defs/FaultResponse"
+    }
+  ]
+}

@@ -1,5 +1,7 @@
 # 当前交接
 
+2026-10-01 发布准备：用户已授权先推送本人 GitHub、核验远端版本，再更新既有 NAS。隔离发布分支为 `release/2026.10.01-rc.1`；保留原产品 main 与协调目录既有未提交修改，不直接以 main 替换生产。角色关系正式合同为 `contracts/role-relationship/v1` 1.0.0，schema LF SHA256 `e96397bac2b6ad8ff9d23c023d7d3c5ba0701734b27053a05b9d0f65a7ff8ee6`。按 Memory → Companion → Platform 串行绑定、验证与提交，发布清单记录最终 SHA、实际检查、既有失败/跳过及部署门禁。以下是历史交接，不表示本轮发布已完成。
+
 2026-09-30 记忆角色选择已集成部署NAS：Platform95ca75c、Memoryda14cfd（087f9c9仅handoff），线上Companion9863800保持；入口 /#/memory/0。顶端角色选择，概览/投影/记录/游标按actor隔离，切换清空，后台恢复先核验；Luna返修通过。真实Chromium联合1/10.037s、缓存UI2/2、合入后HTTPS1/4.318s、NAS十服务guard/五核心ready/授权Memory只读/LAN资源/匿名门禁/归档日志均通过，原账号人格保留。capacity-state为memory-role-20260930，Dockge同步。产品mainPdffedb2/M9e0c39f保留独立未部署QQ身份，禁止main直接作线上版本。完整证据memory-role-deployment-2026-09-30.md/json；无生产网页登录/角色写入/真实QQ模型消息。
 
 验证节奏：用户要求完整功能块稳定后集中验证，必要共享边界/故障定位及时检查；不逐小改动测试，不重复未变化的成功检查。
