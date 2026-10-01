@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-01",
+  "batch": "role-relationship-affinity-2026-10-01",
+  "status": "local_delivered_not_integrated",
+  "maximum_implementation_writers": 3,
+  "executor": {
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "xhigh",
+    "project_name": "BOT",
+    "project_id_reference": "01a0818a-a46a-7592-88c2-b222bd0af3a4",
+    "window_creation_owner": "parent_coordinator"
+  },
+  "project_membership": {
+    "state": "not_verified",
+    "supported_control_tools_available": false,
+    "current_thread_id": "01a0f2c4-4f04-746a-a674-e69a6080f009",
+    "current_thread_present_in_readable_snapshot": false,
+    "cwd_is_not_membership_proof": true,
+    "internal_database_modification_allowed": false,
+    "required_evidence": [
+      "supported UI/tool project selection",
+      "actual model and reasoning setting",
+      "window/task receipt"
+    ],
+    "minimum_external_action": "Use supported Codex UI to move the existing task to BOT and confirm, or use an existing task whose BOT membership is already verified."
+  },
+  "baselines": {
+    "workspace": "323c14c5b207628241bcf55cfc63324cce7d5e2f",
+    "memory": "9e0c39fecf7d9ebbba6ce8a37077d9b6da14dcd4",
+    "companion": "fc4d04caf4b0a376316f9acc2de55ea7030348b1",
+    "platform": "dffedb231ae884c97661056e2c5bcb90d9ea950b"
+  },
+  "existing_changes": {
+    "root_tracked": 7,
+    "memory_porcelain_empty": true,
+    "companion_porcelain_empty": true,
+    "platform_untracked": [
+      "build/"
+    ],
+    "destructive_cleanup_allowed": false
+  },
+  "contract": {
+    "path": "contracts/role-relationship/candidate-v1",
+    "status": "candidate_only_explicit_isolated_input",
+    "runtime_loading_allowed": false,
+    "explicit_isolated_candidate_loading_allowed": true
+  },
+  "development_dependencies": "Local candidate use and sequential development explicitly authorized; formal publication and serial integration are next gates.",
+  "integration_order": [
+    "TS-114",
+    "TS-115",
+    "TS-116"
+  ],
+  "tasks": [
+    {
+      "id": "TS-114",
+      "project": "memory",
+      "status": "done",
+      "task_card": "docs/development/role-relationship-affinity/TS-114-memory.md",
+      "proposed_worktree": "worktrees/TS-114/tianshu-memory",
+      "proposed_branch": "work/ts-114",
+      "baseline_commit": "9e0c39fecf7d9ebbba6ce8a37077d9b6da14dcd4",
+      "integration_dependencies": [],
+      "window_id": null,
+      "execution_receipt": "Existing local branch commits, product handoffs, fixed three-product HTTPS joint and TS116 12-case HTTP browser artifacts; see delivery manifest.",
+      "execution_state": "local_verified_not_integrated",
+      "worktree": "worktrees/TS-114/tianshu-memory",
+      "branch": "work/ts-114",
+      "delivery_commit": "ba03202c44648a3820f7552629edd9eb5797d424",
+      "integrated": false,
+      "deployed": false
+    },
+    {
+      "id": "TS-115",
+      "project": "companion",
+      "status": "done",
+      "task_card": "docs/development/role-relationship-affinity/TS-115-companion.md",
+      "proposed_worktree": "worktrees/TS-115/tianshu-companion",
+      "proposed_branch": "work/ts-115",
+      "baseline_commit": "fc4d04caf4b0a376316f9acc2de55ea7030348b1",
+      "integration_dependencies": [
+        "TS-114"
+      ],
+      "window_id": null,
+      "execution_receipt": "Existing local branch commits, product handoffs, fixed three-product HTTPS joint and TS116 12-case HTTP browser artifacts; see delivery manifest.",
+      "execution_state": "local_verified_not_integrated",
+      "worktree": "worktrees/TS-115/tianshu-companion",
+      "branch": "work/ts-115",
+      "delivery_commit": "ea5c044719bfa76de384b0b69bbfd7ed1439996b",
+      "integrated": false,
+      "deployed": false
+    },
+    {
+      "id": "TS-116",
+      "project": "platform",
+      "status": "done",
+      "task_card": "docs/development/role-relationship-affinity/TS-116-platform.md",
+      "proposed_worktree": "worktrees/TS-116/tianshu-platform",
+      "proposed_branch": "work/ts-116",
+      "baseline_commit": "dffedb231ae884c97661056e2c5bcb90d9ea950b",
+      "integration_dependencies": [
+        "TS-114",
+        "TS-115"
+      ],
+      "window_id": null,
+      "execution_receipt": "Existing local branch commits, product handoffs, fixed three-product HTTPS joint and TS116 12-case HTTP browser artifacts; see delivery manifest.",
+      "execution_state": "local_verified_not_integrated",
+      "worktree": "worktrees/TS-116/tianshu-platform",
+      "branch": "work/ts-116",
+      "delivery_commit": "e3257a2cafab24c473502ecb2c55f302deffb86d",
+      "integrated": false,
+      "deployed": false
+    }
+  ],
+  "not_executed": [
+    "new windows",
+    "product main integration",
+    "formal contract publication",
+    "deployment",
+    "production migration",
+    "real QQ/model or original account acceptance",
+    "certificate trust/security changes",
+    "remote push"
+  ],
+  "execution_mode": "Sequential TS-114 -> TS-115 -> TS-116 in the same existing task, explicitly released by parent; no new window."
+}

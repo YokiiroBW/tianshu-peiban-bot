@@ -1,0 +1,221 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-01",
+  "batch": "role-relationship-affinity",
+  "status": "local_delivered_not_integrated",
+  "authority": "本轮明确授权本地开发、验证和提交；没有产品main合并、远程推送、生产迁移、部署或真实QQ/模型授权。",
+  "products": {
+    "memory": {
+      "task": "TS-114",
+      "branch": "work/ts-114",
+      "worktree": "worktrees/TS-114/tianshu-memory",
+      "baseline_sha": "9e0c39fecf7d9ebbba6ce8a37077d9b6da14dcd4",
+      "delivery_sha": "ba03202c44648a3820f7552629edd9eb5797d424",
+      "handoff": "docs/handoffs/TS-114.md",
+      "integrated": false,
+      "deployed": false
+    },
+    "companion": {
+      "task": "TS-115",
+      "branch": "work/ts-115",
+      "worktree": "worktrees/TS-115/tianshu-companion",
+      "baseline_sha": "fc4d04caf4b0a376316f9acc2de55ea7030348b1",
+      "delivery_sha": "ea5c044719bfa76de384b0b69bbfd7ed1439996b",
+      "handoff": "docs/handoffs/TS-115.md",
+      "integrated": false,
+      "deployed": false
+    },
+    "platform": {
+      "task": "TS-116",
+      "branch": "work/ts-116",
+      "worktree": "worktrees/TS-116/tianshu-platform",
+      "baseline_sha": "dffedb231ae884c97661056e2c5bcb90d9ea950b",
+      "delivery_sha": "e3257a2cafab24c473502ecb2c55f302deffb86d",
+      "handoff": "docs/handoffs/TS-116.md",
+      "interface_document": "docs/platform/relationships.md",
+      "integrated": false,
+      "deployed": false
+    }
+  },
+  "contract": {
+    "path": "contracts/role-relationship/candidate-v1",
+    "status": "candidate_only_explicit_isolated_input",
+    "formal_publication": false,
+    "schema_lf_sha256": "f3b588591411f1ed4b8aa7c9003d201530644d4dfc02294bdd9e9d7f847214a3",
+    "schema_working_crlf_sha256": "481a610729539005c42553c20336580acc9068b3729e43bdf575340698627bb1",
+    "examples_lf_sha256": "9a43e8502bfacfb0c9b4984ee4eaf476a1585a875b7aa2adb0a5d35909de920a",
+    "schema_and_examples_changed": false,
+    "offline_structure_check": {
+      "valid_examples": 8,
+      "invalid_examples": 8,
+      "passed": true
+    },
+    "publication_gaps": [
+      "outer HTTP envelopes",
+      "managed read/check semantics",
+      "history DTO and authority",
+      "migration and deployment configuration"
+    ]
+  },
+  "verification": {
+    "memory": {
+      "relationship_passed": 76,
+      "full_passed": 1080,
+      "full_failed": 1,
+      "full_skipped": 6,
+      "baseline_failure": "test_confirmation_rejects_mismatched_authority[account-403]: existing 400 vs 403 expectation, reproduced on clean baseline",
+      "skips": "MCP SDK unavailable",
+      "evidence": "Memory docs/handoffs/TS-114.md; .runtime/tests-ts114-history-full"
+    },
+    "companion": {
+      "final_targeted_passed": 41,
+      "full_passed": 704,
+      "full_failed": 5,
+      "full_skipped": 1,
+      "full_subtests_passed": 101,
+      "full_seconds": 147.2,
+      "baseline_failures_reproduced": 4,
+      "round_fixture_failure_fixed": "AstrBot joint now respects explicitly supplied contract path; targeted same-file and final 41 passed",
+      "full_rerun_after_fixture_fix": false,
+      "real_memory_joint_count": 10,
+      "real_memory_joint_pinned_sha": "0b82242590c35c5299721ad165bd5f5e9aa0f77e",
+      "evidence": "Companion docs/handoffs/TS-115.md; .runtime/tests-ts115-delivery-pinned"
+    },
+    "platform": {
+      "full_passed": 889,
+      "full_failed": 53,
+      "full_skipped": 14,
+      "full_deselected": 2,
+      "full_subtests_passed": 742,
+      "full_seconds": 491.22,
+      "full_evidence": ".runtime/ts116-full-regression-r3.xml",
+      "relationship_passed": 23,
+      "tls_subtests_passed": 3,
+      "joint_passed": 5,
+      "joint_seconds": 55.63,
+      "joint_uses_fixed_delivery_memory_companion": true,
+      "browser_passed": 12,
+      "browser_failed": 0,
+      "browser_skipped": 0,
+      "browser_seconds": 43.98,
+      "screenshots": 14,
+      "browser_evidence": ".runtime/browser-r6/report/index.html; .runtime/browser-r6/junit.xml",
+      "browser_http_origin": "http://127.0.0.1:4844",
+      "internal_rpc": "HTTPS with explicitly verified temporary CA; no trust-store or security changes",
+      "full_ruff_passed": true,
+      "changed_python_format_passed": 13,
+      "full_format_existing_unmodified_failures": 14,
+      "full_format_already_formatted": 133,
+      "typescript_prettier_vite_passed": true,
+      "full_green": false,
+      "baseline_failure_groups": [
+        {
+          "category": "media regex worker startup/bounds/lifecycle",
+          "count": 47
+        },
+        {
+          "category": "AstrBot SDK absent",
+          "count": 1
+        },
+        {
+          "category": "runtime.lock/development closure assertion",
+          "count": 1
+        },
+        {
+          "category": "persona credential withdrawal cleanup WinError32",
+          "count": 1
+        },
+        {
+          "category": "old role joint fixture missing Platform QQ administrator reader",
+          "count": 3
+        }
+      ],
+      "baseline_comparison": {
+        "platform_baseline": "dffedb231ae884c97661056e2c5bcb90d9ea950b",
+        "first_50": {
+          "failed": 50,
+          "seconds": 5.07,
+          "evidence": ".runtime/ts116-baseline-failures.xml"
+        },
+        "last_3": {
+          "failed": 3,
+          "seconds": 7.07,
+          "evidence": ".runtime/ts116-baseline-role-r2.xml",
+          "all_three_failure_messages_match_current": true
+        },
+        "all_53_testcase_ids_match_baseline_sets": true,
+        "initial_role_baseline_not_comparable": "First export lacked static index.html and stopped earlier; not used as same-cause evidence."
+      },
+      "skips": [
+        {
+          "category": "old Core joint switch unset",
+          "count": 1
+        },
+        {
+          "category": "Knowledge/Memory/Life/Observation explicit peer paths absent",
+          "count": 9
+        },
+        {
+          "category": "Docker unavailable",
+          "count": 4
+        }
+      ],
+      "deselected_tests": [
+        "tests/backend/test_role_joint.py::RoleJoint::test_real_role_apply_and_model_routing",
+        "tests/backend/test_role_joint.py::RoleJoint::test_browser_failed_retry_then_edit_uses_new_intent"
+      ],
+      "deselection_reason": "Existing browser mjs disables certificate checks; user forbids certificate bypass. Own 12 browser cases do not bypass checks."
+    }
+  },
+  "review": {
+    "complete_delivery_diff_reviewed": true,
+    "single_memory_authority": true,
+    "thin_shared_entrypoints": true,
+    "cookie_csrf_origin_and_actual_principal": true,
+    "current_role_person_source_rechecks": true,
+    "cas_idempotency_and_unknown_no_auto_replay": true,
+    "cancellation_late_response_and_temporary_entry_cleanup": true,
+    "group_private_relationship_exclusion": true,
+    "owned_artifact_and_secret_guards_passed": true,
+    "startup_assembly_fix_verified": true
+  },
+  "root_change_preservation": {
+    "protected_original_tracked_files": [
+      "AGENTS.md",
+      "workspace.json",
+      "contracts/README.md",
+      "docs/development/CURRENT.md",
+      "docs/development/dsh-dispatch-2026-09-14.json",
+      "docs/development/tasks.json",
+      "docs/development/dsh/EXECUTOR.md"
+    ],
+    "strategy": "Only exact batch-owned previously untracked documents/contracts are committed. Mixed AGENTS/contract README/CURRENT/tasks retain original user changes and this round additions unstaged. No reset/clean/stash.",
+    "mixed_files_left_uncommitted": [
+      "AGENTS.md",
+      "contracts/README.md",
+      "docs/development/CURRENT.md",
+      "docs/development/tasks.json"
+    ],
+    "original_other_tasks_and_top_level_fields_unchanged": true,
+    "original_snapshots_sha256": {
+      "AGENTS.md": "7146c9e3fc655381970d071815c9c91adfa9565442fb3dd914070916bb7becd9",
+      "workspace.json": "1f51e5d90de23ee80dd32ff60b339db67b341821446597a1b62eb59e7ce84073",
+      "contracts/README.md": "ee998cb60355b335da3440b06b072366f1eb8c116c5199526e09ab1a6aabfe00",
+      "docs/development/CURRENT.md": "ce253a8a94b718bc66498ebb203d971c89896ece1617172c3f09192f8fbc0f04",
+      "docs/development/dsh-dispatch-2026-09-14.json": "5e2d2af9f0e01383099063967d979fef51279845a453089838cfb75d92d029ec",
+      "docs/development/tasks.json": "88d551fb2b7addad4657b0ac22882b529338aff257c112d79c008df6caa60499",
+      "docs/development/dsh/EXECUTOR.md": "47dcf5a24129ff9dc07e36cf430ec574786e5ad17bd674a55d78f6504eca083d"
+    }
+  },
+  "not_completed": [
+    "formal contract publication",
+    "serial product-main integration",
+    "production alias/role sidecar and relationship DB/checkpoint migration or consistent restore rehearsal",
+    "NAS/container deployment and rollback rehearsal",
+    "real QQ/model and original user-account acceptance",
+    "long-term ledger capacity/performance",
+    "BOT UI membership verification"
+  ],
+  "chengxi_binding_blocker": "Original login/personal QQ binding remains blocked; not solved or bypassed.",
+  "next_step": "Coordinator reviews fixed SHA and formal envelope/authority/migration boundary, then serially integrates TS-114 -> TS-115 -> TS-116. Recheck affected integration gates only if behavior changes. No direct whole-main NAS update."
+}
