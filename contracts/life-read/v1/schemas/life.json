@@ -385,6 +385,80 @@
         "next_after"
       ],
       "additionalProperties": false
+    },
+    "retry_request": {
+      "type": "object",
+      "properties": {
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "plan_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "phase_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expected_version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "actor_id",
+        "plan_id",
+        "phase_id",
+        "expected_version"
+      ],
+      "additionalProperties": false
+    },
+    "retry_response": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "plan_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "plan_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "state": {
+          "enum": [
+            "queued",
+            "unavailable"
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "actor_id",
+        "plan_id",
+        "plan_version",
+        "state"
+      ],
+      "additionalProperties": false
     }
   }
 }

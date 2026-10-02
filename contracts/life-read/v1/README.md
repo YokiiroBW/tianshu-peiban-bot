@@ -1,6 +1,6 @@
-# 角色生活计划与经历只读协议
+# 角色生活投影与生成重试协议
 
-本包补充 Companion 既有 life-read 的 actors、snapshot、diaries、revision 读取链，新增 `POST /internal/v1/life-read/today` 与 `/timeline`。不改变旧端点返回结构，不新增写操作。生命周期与时间节点驱动生活，任何读请求都不能触发 tick、模型、初始化或事实修改。
+本包补充 Companion 既有 life-read 的 actors、snapshot、diaries、revision 读取链，新增 `POST /internal/v1/life-read/today` 与 `/timeline`，并定义使用既有管理身份的独立生成重试端口。不改变旧端点返回结构。生命周期与时间节点驱动生活，任何读请求都不能触发 tick、模型、初始化或事实修改。
 
 ## 来源与授权
 
@@ -25,3 +25,9 @@ timeline 按 actor_id 和当地 day 查询，limit 默认 20、范围 1 到 50�
 Platform 沿现有 WebReader 与 LifePage 消费本投影。切换角色或日期时清空旧游标，忽略迟到的旧请求；前端不创建第二份权威日程。既有错误语义与已发布日记的访问范围保留。
 
 schema 与实例的本地验证、Companion 生产者和 Platform 消费者的实际回环验收分别记录。未进行实机无人对话时间跨度验收之前，不把本地时钟/模型替身验证称为线上完成。
+
+## 生成重试
+
+`POST /internal/v1/life-generation/retry` 是独立管理端口，只接受既有 Platform 管理服务身份，生活只读凭据不能调用。请求为 actor_id、plan_id、phase_id 和 expected_version；phase_id 为 null 表示重试当日计划，否则只能指向当前阶段。expected_version 为最近 today 返回的 plan.version。当前角色须启用，目标须仍对应当前计划与内容版本，任务状态须可重试；过期选择不重放，客户端刷新后再操作。请求不能选择模型、修改时间或传入经历正文。
+
+成功响应为 schema_version=1、actor_id、plan_id、plan_version 和 state（queued 或 unavailable）。这表示持久重试意图已经受理，不表示模型已成功。后台仍沿同一任务生成、版本和过期回包检查落库。Platform 沿现有同源会话、CSRF、role.manage 与 life.read 权限处理 `/api/web/life/retry`，管理调用后使用原独立读凭据重新查询 today；不把管理令牌授予浏览器，也不绕过生活读取授权。

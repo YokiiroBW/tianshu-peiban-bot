@@ -53,5 +53,18 @@
     "state_basis": "last_persisted",
     "items": [],
     "next_after": null
+  },
+  "retry_request": {
+    "actor_id": "actor:synthetic",
+    "plan_id": "life-plan:synthetic",
+    "phase_id": null,
+    "expected_version": 7
+  },
+  "retry_response": {
+    "schema_version": 1,
+    "actor_id": "actor:synthetic",
+    "plan_id": "life-plan:synthetic",
+    "plan_version": 8,
+    "state": "queued"
   }
 }
