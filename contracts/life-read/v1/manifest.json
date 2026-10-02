@@ -1,0 +1,11 @@
+{
+  "package": "life-read/v1",
+  "version": "1.0.0",
+  "schema_version": 1,
+  "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
+  "sha256": {
+    "examples.json": "da8865a00955d8f8b69d29319adf594ecfff93148dd6b5458a2d85ef7468b267",
+    "README.md": "5575738a1e85eea297c21b49690b7a4479024d95b653124b6324cdcdfc3df981",
+    "schemas/life.json": "d4850f586b12c26ef584307afcad9659821e90e63aa15a96fb39fad33af549fd"
+  }
+}

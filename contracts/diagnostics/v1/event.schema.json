@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TianShu safe runtime event v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "timestamp",
+    "service",
+    "instance_id",
+    "sequence",
+    "event_id",
+    "level",
+    "event",
+    "outcome",
+    "correlation_id",
+    "duration_ms",
+    "error_code"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "service": {
+      "enum": [
+        "platform",
+        "companion",
+        "memory",
+        "memory-knowledge",
+        "gateway"
+      ]
+    },
+    "instance_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "event_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "level": {
+      "enum": [
+        "DEBUG",
+        "INFO",
+        "WARNING",
+        "ERROR",
+        "CRITICAL"
+      ]
+    },
+    "event": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.]{0,63}$"
+    },
+    "outcome": {
+      "enum": [
+        "started",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "unknown",
+        "rejected",
+        "degraded"
+      ]
+    },
+    "correlation_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "duration_ms": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "error_code": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-z][a-z0-9_]{0,63}$"
+    }
+  }
+}

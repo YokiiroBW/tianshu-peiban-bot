@@ -1,0 +1,59 @@
+[
+  {
+    "schema_version": "1.0.0",
+    "timestamp": "2026-09-21T00:00:00Z",
+    "service": "companion",
+    "instance_id": "00000000-0000-4000-8000-000000000001",
+    "sequence": 1,
+    "event_id": "00000000-0000-4000-8000-000000000002",
+    "level": "INFO",
+    "event": "runtime.started",
+    "outcome": "succeeded",
+    "correlation_id": null,
+    "duration_ms": null,
+    "error_code": null,
+    "message": "secret"
+  },
+  {
+    "schema_version": "1.0.0",
+    "timestamp": "2026-09-21T00:00:00Z",
+    "service": "companion",
+    "instance_id": "00000000-0000-4000-8000-000000000001",
+    "sequence": 0,
+    "event_id": "00000000-0000-4000-8000-000000000002",
+    "level": "INFO",
+    "event": "runtime.started",
+    "outcome": "succeeded",
+    "correlation_id": null,
+    "duration_ms": null,
+    "error_code": null
+  },
+  {
+    "schema_version": 1,
+    "timestamp": "2026-09-21T00:00:00Z",
+    "service": "companion",
+    "instance_id": "00000000-0000-4000-8000-000000000001",
+    "sequence": 1,
+    "event_id": "00000000-0000-4000-8000-000000000002",
+    "level": "INFO",
+    "event": "runtime.started",
+    "outcome": "succeeded",
+    "correlation_id": null,
+    "duration_ms": null,
+    "error_code": null
+  },
+  {
+    "schema_version": "1.0.0",
+    "timestamp": "2026-09-21T00:00:00Z",
+    "service": "companion",
+    "instance_id": "00000000-0000-4000-8000-000000000001",
+    "sequence": 1,
+    "event_id": "00000000-0000-4000-8000-000000000002",
+    "level": "INFO",
+    "event": "runtime.started",
+    "outcome": "succeeded",
+    "correlation_id": "user-secret",
+    "duration_ms": null,
+    "error_code": null
+  }
+]

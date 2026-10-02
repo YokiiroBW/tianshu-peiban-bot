@@ -1,0 +1,57 @@
+{
+  "today_request": {
+    "schema_version": 1,
+    "actor_id": "actor:sample"
+  },
+  "today_response": {
+    "schema_version": 1,
+    "fictional": true,
+    "actor_id": "actor:sample",
+    "day": "2026-10-03",
+    "state_basis": "last_persisted",
+    "timezone": "Asia/Shanghai",
+    "enabled": true,
+    "observed_at": 1790985600,
+    "plan": {
+      "plan_id": "life-plan:sample",
+      "version": 1,
+      "state": "active",
+      "generation_state": "unavailable",
+      "generated_by": "baseline",
+      "entries": [
+        {
+          "phase_id": "phase:sleep",
+          "minute": 0,
+          "activity": "休息",
+          "detail": null,
+          "state": "current",
+          "generation_state": "unavailable"
+        },
+        {
+          "phase_id": "phase:read",
+          "minute": 480,
+          "activity": "阅读",
+          "detail": null,
+          "state": "planned",
+          "generation_state": "queued"
+        }
+      ],
+      "current_phase_id": "phase:sleep"
+    }
+  },
+  "timeline_request": {
+    "schema_version": 1,
+    "actor_id": "actor:sample",
+    "day": "2026-10-03",
+    "limit": 20
+  },
+  "timeline_response": {
+    "schema_version": 1,
+    "fictional": true,
+    "actor_id": "actor:sample",
+    "day": "2026-10-03",
+    "state_basis": "last_persisted",
+    "items": [],
+    "next_after": null
+  }
+}

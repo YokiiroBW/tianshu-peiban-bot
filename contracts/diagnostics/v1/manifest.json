@@ -1,0 +1,10 @@
+{
+  "version": "1.0.0",
+  "status": "development_frozen_pending_joint_acceptance",
+  "files": {
+    "README.md": "c7a52353d75db9a7a36c8a966b62ced55d55edc22fb77d25d6033024f91d487b",
+    "event.schema.json": "c91ccc13f2a975f234934eb6e7d9ef03d9ad0a650e4c2acbdeb87761b3bf0a53",
+    "examples.json": "a1139afd483d146f120df4e31c950ae81e7922dcbc57afcd92ac63a996675d0d",
+    "negative-examples.json": "a8a8453646ef2f4cf2ee870758316fe08f3f9522748d19730aba7338670b3632"
+  }
+}

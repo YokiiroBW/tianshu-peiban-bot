@@ -1,0 +1,53 @@
+[
+  {
+    "kind": "request",
+    "document": {
+      "schema_version": true,
+      "request_id": "11111111-2222-4333-8444-555555555555",
+      "assertion_ref": "origin:11111111111111111111111111111111"
+    }
+  },
+  {
+    "kind": "request",
+    "document": {
+      "schema_version": 1,
+      "request_id": "not-uuid",
+      "assertion_ref": "origin:11111111111111111111111111111111"
+    }
+  },
+  {
+    "kind": "request",
+    "document": {
+      "schema_version": 1,
+      "request_id": "11111111-2222-4333-8444-555555555555",
+      "assertion_ref": "origin:BAD"
+    }
+  },
+  {
+    "kind": "request",
+    "document": {
+      "schema_version": 1,
+      "request_id": "11111111-2222-4333-8444-555555555555",
+      "assertion_ref": "origin:11111111111111111111111111111111",
+      "ttl_seconds": 99999
+    }
+  },
+  {
+    "kind": "response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "11111111-2222-4333-8444-555555555555",
+      "assertion_ref": "origin:11111111111111111111111111111111",
+      "expires_at": "2030-02-30T00:00:00Z"
+    }
+  },
+  {
+    "kind": "response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "11111111-2222-4333-8444-555555555555",
+      "assertion_ref": "origin:11111111111111111111111111111111",
+      "expires_at": "2030-01-01T00:00:00"
+    }
+  }
+]

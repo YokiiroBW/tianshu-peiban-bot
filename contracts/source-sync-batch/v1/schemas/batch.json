@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.tianshu.invalid/source-sync-batch/v1/batch.json",
+  "$defs": {
+    "barrier": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "observations": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "https://contracts.tianshu.invalid/source-sync/v1/workflow.json#/$defs/sync_input"
+          }
+        },
+        "final_access_request": {
+          "$ref": "https://contracts.tianshu.invalid/source-sync/v1/sources.json#/$defs/current_access_request"
+        },
+        "final_access": {
+          "$ref": "https://contracts.tianshu.invalid/source-sync/v1/sources.json#/$defs/current_access_response"
+        },
+        "final_core_head": {
+          "$ref": "https://contracts.tianshu.invalid/source-sync/v1/shared.json#/$defs/head"
+        }
+      },
+      "required": [
+        "schema_version",
+        "observations",
+        "final_access_request",
+        "final_access",
+        "final_core_head"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

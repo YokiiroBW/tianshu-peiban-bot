@@ -1,0 +1,390 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.tianshu.invalid/life-read/v1/life.json",
+  "$defs": {
+    "today_request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        }
+      },
+      "required": [
+        "schema_version",
+        "actor_id"
+      ],
+      "additionalProperties": false
+    },
+    "today_response": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "fictional": {
+          "const": true
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "day": {
+          "type": "string",
+          "format": "date"
+        },
+        "state_basis": {
+          "const": "last_persisted"
+        },
+        "timezone": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "observed_at": {
+          "type": "number",
+          "minimum": 0
+        },
+        "plan": {
+          "type": "object",
+          "properties": {
+            "plan_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "version": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "state": {
+              "enum": [
+                "active",
+                "paused",
+                "completed",
+                "superseded"
+              ]
+            },
+            "generation_state": {
+              "enum": [
+                "queued",
+                "generating",
+                "completed",
+                "unavailable",
+                "failed",
+                "interrupted",
+                "superseded",
+                "skipped"
+              ]
+            },
+            "generated_by": {
+              "enum": [
+                "baseline",
+                "gateway"
+              ]
+            },
+            "entries": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 24,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "phase_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  "minute": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1439
+                  },
+                  "activity": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 8000
+                  },
+                  "detail": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 8000
+                  },
+                  "state": {
+                    "enum": [
+                      "planned",
+                      "current",
+                      "elapsed",
+                      "skipped"
+                    ]
+                  },
+                  "generation_state": {
+                    "enum": [
+                      "queued",
+                      "generating",
+                      "completed",
+                      "unavailable",
+                      "failed",
+                      "interrupted",
+                      "superseded",
+                      "skipped"
+                    ]
+                  }
+                },
+                "required": [
+                  "phase_id",
+                  "minute",
+                  "activity",
+                  "detail",
+                  "state",
+                  "generation_state"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "current_phase_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "plan_id",
+            "version",
+            "state",
+            "generation_state",
+            "generated_by",
+            "entries",
+            "current_phase_id"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "schema_version",
+        "fictional",
+        "actor_id",
+        "day",
+        "state_basis",
+        "timezone",
+        "enabled",
+        "observed_at",
+        "plan"
+      ],
+      "additionalProperties": false
+    },
+    "timeline_request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "day": {
+          "type": "string",
+          "format": "date"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        },
+        "after": {
+          "type": "object",
+          "properties": {
+            "position": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "known_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          },
+          "required": [
+            "position",
+            "known_id"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "schema_version",
+        "actor_id",
+        "day"
+      ],
+      "additionalProperties": false
+    },
+    "timeline_response": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "fictional": {
+          "const": true
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "day": {
+          "type": "string",
+          "format": "date"
+        },
+        "state_basis": {
+          "const": "last_persisted"
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 50,
+          "items": {
+            "type": "object",
+            "properties": {
+              "event_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "known_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "position": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "kind": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "summary": {
+                "type": "string",
+                "maxLength": 8000
+              },
+              "occurred_at": {
+                "type": "number",
+                "minimum": 0
+              },
+              "learned_at": {
+                "type": "number",
+                "minimum": 0
+              },
+              "via": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256
+              },
+              "phase_id": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "plan_id": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "generated_by": {
+                "enum": [
+                  "baseline",
+                  "gateway",
+                  "simulation"
+                ]
+              }
+            },
+            "required": [
+              "event_id",
+              "known_id",
+              "position",
+              "kind",
+              "summary",
+              "occurred_at",
+              "learned_at",
+              "via",
+              "phase_id",
+              "plan_id",
+              "generated_by"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "next_after": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "position": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "known_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                }
+              },
+              "required": [
+                "position",
+                "known_id"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "fictional",
+        "actor_id",
+        "day",
+        "state_basis",
+        "items",
+        "next_after"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
