@@ -1,5 +1,7 @@
 # 跨产品契约入口
 
+2026-10-03 本轮本地实现使用 [life-read/v1](life-read/v1/README.md)（角色计划、经历投影与独立管理重试）和 [source-sync-batch/v1](source-sync-batch/v1/README.md)（完整来源分批的一致性屏障）。产品绑定固定 manifest，原 source-sync/v1 不变；验证和代码版本见 [本轮交付](../docs/development/quality-life-delivery-2026-10-03.json)。另补回发布协调检出漏收的 diagnostics/v1 与 model-origin-renewal/v1 原始字节，以原有状态和指纹保存，不重新定义它们的发布状态。本条记录本地开发输入，不表示已推送或部署。
+
 2026-10-01：[role-relationship/v1 1.0.0](role-relationship/v1/README.md) 已发布为角色关系与好感度的实现基线，包含业务 DTO、内部 HTTPS 信封、正反实例、兼容与恢复边界。Memory 是唯一关系账本权威，Companion 与 Platform 只绑定正式版本。候选包保留历史原字节；离线合同验证不代表生产迁移或真实 QQ/模型验收。发布集成验证和部署状态另见 `docs/releases/`。
 
 已有 [TS-001 文字对话合同 1.0.0](text-dialogue/v1/README.md)：JSON Schema、正反实例、离线可执行检查与兼容决定。**已发布为实现基线，生产者/消费者设计确认通过，L0/L1尚未运行**。[I01–I18](../docs/architecture/v2/interface-catalog.json) 仍是能力目录，合同路径不代表已运行端点。

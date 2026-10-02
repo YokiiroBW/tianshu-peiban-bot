@@ -1,0 +1,331 @@
+{
+  "version": "2026.10.03-quality-life",
+  "status": "local_development_complete_joint_verified",
+  "deployment_status": "not_deployed",
+  "source_basis": "audited rc.5 and explicitly recorded independent product bases",
+  "products": {
+    "platform": {
+      "base_sha": "8b9949aeceb58691cb9e660b78d007f36a0b0b9d",
+      "source_sha": "3f715b6e94c6552b30e03c17497f4dd56f32292e",
+      "path": "C:/YOKI/Codex/tianshu-peiban-bot/worktrees/quality-life-20261003/platform",
+      "branch": "codex/quality-life-20261003",
+      "pushed": false,
+      "merged_to_main": false
+    },
+    "companion": {
+      "base_sha": "25778436a5e36895c60f0d7beb35fa5ba060fc30",
+      "source_sha": "11e6cc37057d60e389c8837926fe61352065a605",
+      "path": "C:/YOKI/Codex/tianshu-peiban-bot/worktrees/quality-life-20261003/companion",
+      "branch": "codex/quality-life-20261003",
+      "pushed": false,
+      "merged_to_main": false
+    },
+    "memory": {
+      "base_sha": "1f3121c9758faeb31fc9d0fe2a54974c72505d55",
+      "source_sha": "8415bc85bcad089a9e24461d5f3e88039754103c",
+      "path": "C:/YOKI/Codex/tianshu-peiban-bot/worktrees/quality-life-20261003/memory",
+      "branch": "codex/quality-life-20261003",
+      "pushed": false,
+      "merged_to_main": false
+    },
+    "chat-audit": {
+      "base_sha": "bb8937a7a712538d55af3c2af0b3cc47a917038b",
+      "source_sha": "66097a98e8613437f96a76ddae4e23bb7e1fd609",
+      "path": "C:/YOKI/Codex/tianshu-peiban-bot/worktrees/quality-life-20261003/chat-audit",
+      "branch": "codex/quality-life-20261003",
+      "pushed": false,
+      "merged_to_main": false
+    },
+    "assetlibrary": {
+      "base_sha": "d7b43eca94136e90303cce585f2b96c80223f3af",
+      "source_sha": "54b2beb39568d8ccf954688e24dd18ab868d014c",
+      "path": "C:/YOKI/Codex/tianshu-peiban-bot/worktrees/quality-life-20261003/assetlibrary",
+      "branch": "codex/quality-life-20261003",
+      "pushed": false,
+      "merged_to_main": false
+    },
+    "coordination": {
+      "base_sha": "bcdd8c4177c832c899466b6fa7fd4b68f1e9e08a",
+      "source_sha": "8089ce0b48ec7a48475c26035dc3e4cca992fcae",
+      "path": "C:/YOKI/Codex/tianshu-peiban-bot/worktrees/quality-life-20261003/coordination",
+      "branch": "codex/quality-life-20261003",
+      "pushed": false,
+      "merged_to_main": false,
+      "source_sha_note": "Immutable implementation/contracts commit; the later delivery-document commit contains this record and is intentionally not self-referenced."
+    }
+  },
+  "contracts": [
+    {
+      "id": "life-read/v1",
+      "path": "contracts/life-read/v1",
+      "manifest_sha256": "7be7507d58f897a739b269de3c096ba948c92b25266888a91fa50130d342c551",
+      "files": [
+        {
+          "path": "examples.json",
+          "sha256": "fa842fa7e91bb056cc865780b501de3ace2b59a37a59a7f80c7159226cf6e6b5"
+        },
+        {
+          "path": "manifest.json",
+          "sha256": "7be7507d58f897a739b269de3c096ba948c92b25266888a91fa50130d342c551"
+        },
+        {
+          "path": "README.md",
+          "sha256": "08efebe487256ece9f2deadcf807f946a88ce93b3986b21c04ae00a1bd8b134e"
+        },
+        {
+          "path": "schemas/life.json",
+          "sha256": "dd26c88db4d703957653f2876339b61a1a1d86dc8471d4129dcf0899a6641d1a"
+        }
+      ]
+    },
+    {
+      "id": "source-sync-batch/v1",
+      "path": "contracts/source-sync-batch/v1",
+      "manifest_sha256": "82e8d9043eb2f9a87f0efcb56a16e8f8bb6b119c6cf1683af48e3049024b380b",
+      "files": [
+        {
+          "path": "manifest.json",
+          "sha256": "82e8d9043eb2f9a87f0efcb56a16e8f8bb6b119c6cf1683af48e3049024b380b"
+        },
+        {
+          "path": "README.md",
+          "sha256": "4e53b20628da7a9739016402aac63a0386f58daf1f86ac0fe28e6f1ca0091714"
+        },
+        {
+          "path": "rules.py",
+          "sha256": "bd237a723094561cd82fca14f108b582a6262e791a6b69156a3c6d875f477107"
+        },
+        {
+          "path": "schemas/batch.json",
+          "sha256": "148debf3221964695f51b6c2bbd632e8b4aecb3bf8eea7e3b2de588ed20b920f"
+        }
+      ]
+    },
+    {
+      "id": "diagnostics/v1",
+      "path": "contracts/diagnostics/v1",
+      "manifest_sha256": "5d89f7a21637fd57cea4a236e17f8d8c4917799497ff44f87ee68ea614d4805f",
+      "files": [
+        {
+          "path": "event.schema.json",
+          "sha256": "c91ccc13f2a975f234934eb6e7d9ef03d9ad0a650e4c2acbdeb87761b3bf0a53"
+        },
+        {
+          "path": "examples.json",
+          "sha256": "a1139afd483d146f120df4e31c950ae81e7922dcbc57afcd92ac63a996675d0d"
+        },
+        {
+          "path": "manifest.json",
+          "sha256": "5d89f7a21637fd57cea4a236e17f8d8c4917799497ff44f87ee68ea614d4805f"
+        },
+        {
+          "path": "negative-examples.json",
+          "sha256": "a8a8453646ef2f4cf2ee870758316fe08f3f9522748d19730aba7338670b3632"
+        },
+        {
+          "path": "README.md",
+          "sha256": "c7a52353d75db9a7a36c8a966b62ced55d55edc22fb77d25d6033024f91d487b"
+        }
+      ]
+    },
+    {
+      "id": "model-origin-renewal/v1",
+      "path": "contracts/model-origin-renewal/v1",
+      "manifest_sha256": "c5017724187c1386b647fcc5b41ab3cb1702f27d6192f3a87fcefb23e7a5a61c",
+      "files": [
+        {
+          "path": "examples.json",
+          "sha256": "6540bfbb1703d02726a808f2ca998fd85683d6f21d182bea76985cee62e34f94"
+        },
+        {
+          "path": "manifest.json",
+          "sha256": "c5017724187c1386b647fcc5b41ab3cb1702f27d6192f3a87fcefb23e7a5a61c"
+        },
+        {
+          "path": "negative-examples.json",
+          "sha256": "c1f00a33a8aaeee86441cdca3d7dd01715ca79b2884a89def1e24f3f3357b28a"
+        },
+        {
+          "path": "README.md",
+          "sha256": "549904168e8b71b8382734dbec5a3bbb0048b703fad082bcb42569b07bd60ef9"
+        },
+        {
+          "path": "request.schema.json",
+          "sha256": "93bdfc5a1c248da4f227c51f0e62b43c513a2a769a687ce8ee9ffaaca0fbe228"
+        },
+        {
+          "path": "response.schema.json",
+          "sha256": "9520c729fa5fea8501cebaf1581ceb4d5c58dc90533f3dcf6e0575b641882677"
+        }
+      ]
+    }
+  ],
+  "checks": {
+    "coordination_contracts": {
+      "passed": 4,
+      "additional_actual_memory_batch_evidence": [
+        "self_private:257 selectors / 2 batches",
+        "group:257 selectors / 2 batches"
+      ],
+      "existing_deployment_inventory_hash_check": "passed_for_four_listed_packages"
+    },
+    "memory": {
+      "effective_passed": 1132,
+      "baseline_failures": 1,
+      "skipped": 0,
+      "first_full_run": {
+        "passed": 1090,
+        "failed": 4,
+        "errors": 33,
+        "skipped": 6
+      },
+      "followup_passes": [
+        38,
+        6
+      ],
+      "note": "Followups repair workspace-context fixture setup; two of 38 are corrected 301-row invalidation fixture checks. No claim that full run was green."
+    },
+    "chat_audit": {
+      "targeted_passed": 10
+    },
+    "adapter": {
+      "targeted_passed": 12,
+      "release_build": "passed",
+      "real_host_installed": false
+    },
+    "assetlibrary": {
+      "verify_repository": "passed",
+      "repository_passed": 94,
+      "baseline_failures": 1,
+      "remote_actions_run": false
+    },
+    "companion": {
+      "first_full_run": {
+        "passed": 701,
+        "failed": 14,
+        "skipped": 25,
+        "subtests": 101
+      },
+      "deduplicated_node_evidence": {
+        "passed": 721,
+        "baseline_failures": 4,
+        "remaining_skips": 15
+      },
+      "final_withdrawal_patch_related_passed": 114,
+      "new_life_tests_passed": 28,
+      "note": "Full run plus scoped compatibility/environment repairs and final withdrawal checks; no second full run. Baseline failures were independently reproduced at the immutable base."
+    },
+    "platform": {
+      "affected_backend_passed": 57,
+      "affected_backend_subtests": 40,
+      "shared_https_and_management_passed": 26,
+      "retry_read_revocation_passed": 1,
+      "targeted_browser_passed": 24,
+      "after_retry_change_browser_passed": 22,
+      "provider_manager_passed": 2,
+      "task_center_unique_passed_after_scoped_repair": 8,
+      "life_https_and_desktop_mobile_joint_passed": 1,
+      "new_role_four_service_autonomous_life_joint_passed": 1,
+      "relationship_https_joint_passed": 5,
+      "typecheck": "passed",
+      "frontend_build": "passed_with_existing_RoomPage_size_warning",
+      "full_suite_run": false,
+      "note": "Overlapping scoped sets must not be summed. Relationships used immutable peer snapshots; new-role life used the actual new services and a synthetic model. Final Companion withdrawal-only patch has its separate 114-test evidence."
+    }
+  },
+  "not_executed": [
+    "NAS update",
+    "production database migration",
+    "real QQ delivery",
+    "paid model calls",
+    "production historical data repair",
+    "remote push",
+    "merge to product main",
+    "NAS zero-dialogue elapsed-time acceptance",
+    "full Platform test suite",
+    "real Chat Audit PostgreSQL integration",
+    "remote AssetLibrary Actions"
+  ],
+  "upgrade_notes": [
+    "Include the new contract packages in the existing deployment manifest and mounted contract tree. Inventory entries use the existing deploy/tianshu contract shape; this file is a source delivery record, not a complete deployment manifest.",
+    "Existing Memory schema 3 needs the explicit migrate-source-lookup command and a fresh backup with original source guard preserved.",
+    "Use the final Companion handoff for life_readers runtime_roles and autonomous model selection settings."
+  ],
+  "integration_status": "fixed_local_candidates_not_merged_to_product_main",
+  "unchanged_services": {
+    "gateway": {
+      "source_sha": "e4f112f02d28a1ded134126feed33f15e003ec20",
+      "changed": false
+    }
+  },
+  "queue": [
+    {
+      "id": "DQ01",
+      "status": "implemented_local_verified"
+    },
+    {
+      "id": "DQ02",
+      "status": "implemented_local_verified"
+    },
+    {
+      "id": "DQ03",
+      "status": "implemented_local_verified"
+    },
+    {
+      "id": "DQ04",
+      "status": "implemented_local_verified"
+    },
+    {
+      "id": "DQ05",
+      "status": "implemented_local_verified"
+    },
+    {
+      "id": "DQ06",
+      "status": "implemented_local_verified"
+    },
+    {
+      "id": "DQ07",
+      "status": "implemented_local_verified"
+    },
+    {
+      "id": "DQ08",
+      "status": "implemented_local_verified"
+    },
+    {
+      "id": "DQ09",
+      "status": "implemented_local_verified"
+    },
+    {
+      "id": "DQ10",
+      "status": "implemented_local_verified"
+    },
+    {
+      "id": "DQ11",
+      "status": "implemented_local_verified"
+    },
+    {
+      "id": "DQ12",
+      "status": "implemented_local_verified"
+    },
+    {
+      "id": "DQ13",
+      "status": "implemented_local_verified"
+    },
+    {
+      "id": "DQ14",
+      "status": "implemented_local_verified"
+    },
+    {
+      "id": "DQ15",
+      "status": "implemented_local_verified"
+    }
+  ],
+  "handoffs": {
+    "companion": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\quality-life-20261003\\companion\\docs\\handoffs\\DQ-companion-life.md",
+    "adapter": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\quality-life-20261003\\companion\\docs\\handoffs\\DQ-adapter.md",
+    "platform": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\quality-life-20261003\\platform\\docs\\handoffs\\DQ-platform.md",
+    "memory": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\quality-life-20261003\\memory\\docs\\handoffs\\DQ-data.md",
+    "chat_audit": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\quality-life-20261003\\chat-audit\\docs\\handoffs\\DQ-data.md",
+    "assetlibrary": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\quality-life-20261003\\assetlibrary\\.codex\\handoffs\\DQ15\\tests.md"
+  }
+}
