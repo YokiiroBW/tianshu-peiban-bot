@@ -1,0 +1,36 @@
+{
+  "version": "2026.10.02-rc.3",
+  "base_coordination": "c5c44620604acf75c16e171df71622b124ae25b8",
+  "change": "Optional persona profiles for new runtime roles; disabled by default; no inherited character, memory or relationship content",
+  "products": {
+    "platform": {
+      "repository": "YokiiroBW/tianshu-platform",
+      "source_sha": "0d88f9a5eecdbbfb5bc5671a4d8f27a832ad0fbb",
+      "base_sha": "4cce24fe32e8267504aae7fc0215c850f6d0478c"
+    },
+    "companion": {
+      "repository": "YokiiroBW/tianshu-companion",
+      "source_sha": "25778436a5e36895c60f0d7beb35fa5ba060fc30",
+      "base_sha": "21e4ff37f1d4f4e3e9db94f8c965031a8dcb9cd6"
+    },
+    "memory": {
+      "source_sha": "1f3121c9758faeb31fc9d0fe2a54974c72505d55",
+      "unchanged": true
+    }
+  },
+  "validation": {
+    "platform_focused": 11,
+    "companion_persona_role": 50,
+    "real_tls_browser_optional_flow": 1,
+    "real_tls_recovery_regressions": 2,
+    "typecheck": "passed",
+    "vite_build": "passed"
+  },
+  "deployment": {
+    "status": "pending",
+    "permissions": "unchanged",
+    "credentials": "unchanged",
+    "schema_migrations": false,
+    "real_qq_or_model_calls": false
+  }
+}
