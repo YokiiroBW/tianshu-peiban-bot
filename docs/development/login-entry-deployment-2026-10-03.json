@@ -1,0 +1,148 @@
+{
+  "status": "deployed_to_nas",
+  "recorded_at": "2026-10-03T12:43:16.538127+00:00",
+  "platform_commit": "5cd034be690a96456a28a06aac4fb9d9c55898b7",
+  "runtime": {
+    "status": "login_entry_nas_deployed_verified",
+    "platform_commit": "5cd034be690a96456a28a06aac4fb9d9c55898b7",
+    "images": {
+      "platform": {
+        "arch": "amd64",
+        "digest_ref": "127.0.0.1:19556/tianshu/login-entry-platform@sha256:fb63f81215c7ce9b0111f4b24aa7fa7b6071f8cbc58a63de06decac2c8da9bb3",
+        "id": "sha256:1b0d73c51228ada9b30af78e442474d96530457aeb3fea836119de96cf7ae064",
+        "revision": "5cd034be690a96456a28a06aac4fb9d9c55898b7"
+      }
+    },
+    "owners": 10,
+    "checks": [
+      {
+        "service": "gateway",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true
+      },
+      {
+        "service": "platform",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true,
+        "web_assets_and_anonymous_gate_verified": true
+      },
+      {
+        "service": "knowledge",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true
+      },
+      {
+        "service": "companion",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true,
+        "restored_memory_policy_verified": true
+      },
+      {
+        "service": "memory",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true
+      }
+    ],
+    "guard": {
+      "deployment_bytes": 406422223,
+      "heartbeat_age_seconds": 1.041,
+      "minimum_free_bytes": 421320859648,
+      "services": 10,
+      "status": "ready"
+    },
+    "weather_and_life": {
+      "status": "login_entry_life_weather_http_verified",
+      "roles": 1,
+      "profiles": 1,
+      "life_actors": 2,
+      "plan_entries": 1,
+      "weather_code": "weather_not_configured",
+      "weather_can_manage": true,
+      "real_qweather_account_called": false,
+      "read_only": true,
+      "test_role_created": false
+    },
+    "backup": "/volume2/tianshu-v2-resident-updates/login-entry-20261003-core/production-generation-b0f1ba6c10a24423ba36fe9900d1dbef/cold-snapshot",
+    "configuration_unchanged": true,
+    "user_state_preserved": true,
+    "real_qweather_account_called": false,
+    "other_product_images_unchanged": true,
+    "all_clones_stopped": true
+  },
+  "http_assets": {
+    "status": "nas_http_assets_match_installed_candidate",
+    "count": 41,
+    "origin": "http://192.168.31.210:18446",
+    "production_business_data_read": false
+  },
+  "browser": {
+    "status": "actual_nas_browser_entry_verified",
+    "http_status": 200,
+    "title": "登录 · 天枢",
+    "page_error_count": 0,
+    "body_nonempty": true,
+    "login_gate_visible": true,
+    "session": {
+      "status": 200,
+      "authenticated": false
+    },
+    "original_account_login_performed": false,
+    "origin": "http://192.168.31.210:18446",
+    "browser_mode": "fresh_headless_no_existing_user_profile"
+  },
+  "dockge": [
+    {
+      "applied": true,
+      "project_directory": "/volume2/tianshu-v2-resident",
+      "source_hashes": {
+        "/volume2/tianshu-v2-resident-updates/bots-20260928/core.compose.json": "d76c798aaa6761e9ff48b4a0152ed4dd3168b3e8ebec5e1de137cf10109df692",
+        "/volume2/tianshu-v2-resident-updates/bots-20260928/platform.compose.json": "e6cc1e1fd9116b6192958d2dd4d21141f4167304e714e052a9d4b25cc5a4e497",
+        "/volume2/tianshu-v2-resident-updates/connections-20260928/obs.compose.json": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530"
+      },
+      "snapshots": [
+        {
+          "project": "tianshu-v2-resident",
+          "target": "/volume1/Download/dockge/stacks/tianshu-v2-resident/compose.yaml",
+          "old_sha256": "f47b1accd76d7b058e5154fd0f387d51e760482bf46de437dd35958f6f8edb02",
+          "new_sha256": "d76c798aaa6761e9ff48b4a0152ed4dd3168b3e8ebec5e1de137cf10109df692",
+          "images": {
+            "companion": "127.0.0.1:19554/tianshu/quality-life-companion@sha256:2466d343d9a6f54427026c10fcbda1aa0b2e82c9026da2f9c84e1a6007f2ee9a",
+            "gateway": "127.0.0.1:19550/tianshu/gateway@sha256:b336e15bb7cf6b017aa871a3ab181ab62f4ec6b07bac3fca0592ef70f32af9db",
+            "knowledge": "127.0.0.1:19554/tianshu/quality-life-memory@sha256:e001b1c208015a850c4cedd1d44bc28e3b3c5caf3797d2bac714f5929ef4a5ca",
+            "memory": "127.0.0.1:19554/tianshu/quality-life-memory@sha256:e001b1c208015a850c4cedd1d44bc28e3b3c5caf3797d2bac714f5929ef4a5ca",
+            "platform": "127.0.0.1:19556/tianshu/login-entry-platform@sha256:fb63f81215c7ce9b0111f4b24aa7fa7b6071f8cbc58a63de06decac2c8da9bb3"
+          }
+        },
+        {
+          "project": "tianshu-v2-resident-obs",
+          "target": "/volume1/Download/dockge/stacks/tianshu-v2-resident-obs/compose.yaml",
+          "old_sha256": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530",
+          "new_sha256": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530",
+          "images": {
+            "obs-grafana": "grafana/grafana:13.2.2@sha256:ac461fb352abc50da10a51c7d02462e9c05488f11f53f14b3ad79a8145f638a0",
+            "obs-guard": "python:3.12.14-slim-bookworm@sha256:392307d22300de8b5986851a12d9176dfc0fc073e65bf6523ebd7dcbeb23564e",
+            "obs-loki": "grafana/loki:3.7.8@sha256:1107dd5274e0ada47e42472b7a7e71f3b2a2fe878878108f3e2f9e51528f0193",
+            "obs-prometheus": "prom/prometheus:v3.13.3@sha256:6976aa8a60fec930796ce5772b8d12da7a318a5daa8d40d69c5c7819a05eeed7",
+            "obs-vector": "timberio/vector:0.58.0-debian@sha256:1c1ea358c617ea0b23003d5af87f7a678b30f8f7096437e680380c47fc13d2d9"
+          }
+        }
+      ],
+      "containers_recreated": false,
+      "credential_files_read": false,
+      "backup_directory": "/volume2/tianshu-v2-resident-updates/quality-life-20261003/dockge-backups/20261003T124300Z-d551a103"
+    }
+  ],
+  "verification": {
+    "frontend_passed": 37,
+    "frontend_skipped": 1,
+    "typescript": "passed",
+    "build": "passed",
+    "real_account_login": "not_performed"
+  },
+  "scope": "Platform image only; no configuration or data migration"
+}
