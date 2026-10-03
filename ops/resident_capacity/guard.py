@@ -235,13 +235,34 @@ class Docker:
         return result.stdout.decode("utf-8", "strict").strip()
 
     def snapshot(self):
-        raw = self._run("ps", "-aq", "--no-trunc")
+        # Temporary build/run containers can disappear between enumeration and
+        # inspect. Retry the complete inventory once, within the original call
+        # budget so the retry cannot extend past the systemd watchdog deadline.
+        deadline = time.monotonic() + DOCKER_CALL_SECONDS + DOCKER_BATCH_INSPECT_SECONDS
+        for attempt in range(2):
+            try:
+                return self._snapshot(deadline)
+            except Unsafe as error:
+                if (
+                    attempt or error.args[0] not in {"docker_command_failed", "docker_inventory_changed"}
+                    or time.monotonic() >= deadline
+                ):
+                    raise
+
+    def _snapshot(self, deadline):
+        def remaining(limit):
+            timeout = min(limit, deadline - time.monotonic())
+            if timeout <= 0:
+                raise Unsafe("docker_unavailable")
+            return timeout
+
+        raw = self._run("ps", "-aq", "--no-trunc", timeout=remaining(DOCKER_CALL_SECONDS))
         ids = raw.splitlines() if raw else []
         if len(ids) > 4096 or any(not ID.fullmatch(item) for item in ids):
             raise Unsafe("docker_inventory_invalid")
         if not ids:
             return []
-        lines = self._run("inspect", "--format", INSPECT_FORMAT, *ids, timeout=DOCKER_BATCH_INSPECT_SECONDS).splitlines()
+        lines = self._run("inspect", "--format", INSPECT_FORMAT, *ids, timeout=remaining(DOCKER_BATCH_INSPECT_SECONDS)).splitlines()
         if len(lines) != len(ids):
             raise Unsafe("docker_inventory_changed")
         try:
