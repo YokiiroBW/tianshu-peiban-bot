@@ -1,0 +1,578 @@
+{
+  "release": "2026.10.03-quality-life",
+  "status": "github_integrated_pushed_nas_deployed_verified",
+  "verified_at": "2026-10-03T09:50:20.316294+08:00",
+  "entry": "http://192.168.31.210:18446",
+  "github": {
+    "schema_version": 1,
+    "created_at": "2026-10-03 01:33:55 UTC",
+    "actor": "/root/implement_platform",
+    "scope": "GitHub integration only; NAS deployment is coordinated by /root",
+    "candidate_branch": "codex/quality-life-20261003",
+    "source_mirrors_pinned_to_candidate_sha": true,
+    "permissions": "User authorized merge/push/deploy; parent assigned this agent Git integration and explicitly authorized isolated main worktrees.",
+    "fetch": {
+      "command_template": "git fetch --no-tags --no-write-fetch-head <verified GitHub URL> +refs/heads/*:refs/remotes/quality-integration/*",
+      "candidate_remote_config_modified": false,
+      "original_dirty_worktrees_fetched": false
+    },
+    "repositories": [
+      {
+        "product": "platform",
+        "github_url": "https://github.com/YokiiroBW/tianshu-platform.git",
+        "default_branch": "main",
+        "candidate_source_sha": "3f715b6e94c6552b30e03c17497f4dd56f32292e",
+        "candidate_worktree": "C:/YOKI/Codex/tianshu-peiban-bot/worktrees/quality-life-20261003/platform",
+        "candidate_clean_at_readback": true,
+        "production_base_source_sha": "8b9949aeceb58691cb9e660b78d007f36a0b0b9d",
+        "main_before": "4cce24fe32e8267504aae7fc0215c850f6d0478c",
+        "main_after": "3f715b6e94c6552b30e03c17497f4dd56f32292e",
+        "comparison_before_integration": {
+          "main_only_commits": 0,
+          "candidate_only_commits": 4,
+          "main_was_candidate_ancestor": true
+        },
+        "integration": "fast_forward",
+        "push": {
+          "atomic": true,
+          "force": false
+        },
+        "remote_readback": {
+          "HEAD": "3f715b6e94c6552b30e03c17497f4dd56f32292e",
+          "refs/heads/codex/quality-life-20261003": "3f715b6e94c6552b30e03c17497f4dd56f32292e",
+          "refs/heads/main": "3f715b6e94c6552b30e03c17497f4dd56f32292e"
+        }
+      },
+      {
+        "product": "companion",
+        "github_url": "https://github.com/YokiiroBW/tianshu-companion.git",
+        "default_branch": "main",
+        "candidate_source_sha": "11e6cc37057d60e389c8837926fe61352065a605",
+        "candidate_worktree": "C:/YOKI/Codex/tianshu-peiban-bot/worktrees/quality-life-20261003/companion",
+        "candidate_clean_at_readback": true,
+        "production_base_source_sha": "25778436a5e36895c60f0d7beb35fa5ba060fc30",
+        "main_before": "21e4ff37f1d4f4e3e9db94f8c965031a8dcb9cd6",
+        "main_after": "11e6cc37057d60e389c8837926fe61352065a605",
+        "comparison_before_integration": {
+          "main_only_commits": 0,
+          "candidate_only_commits": 4,
+          "main_was_candidate_ancestor": true
+        },
+        "integration": "fast_forward",
+        "push": {
+          "atomic": true,
+          "force": false
+        },
+        "remote_readback": {
+          "HEAD": "11e6cc37057d60e389c8837926fe61352065a605",
+          "refs/heads/codex/quality-life-20261003": "11e6cc37057d60e389c8837926fe61352065a605",
+          "refs/heads/main": "11e6cc37057d60e389c8837926fe61352065a605"
+        }
+      },
+      {
+        "product": "memory",
+        "github_url": "https://github.com/YokiiroBW/tianshu-memory.git",
+        "default_branch": "main",
+        "candidate_source_sha": "8415bc85bcad089a9e24461d5f3e88039754103c",
+        "candidate_worktree": "C:/YOKI/Codex/tianshu-peiban-bot/worktrees/quality-life-20261003/memory",
+        "candidate_clean_at_readback": true,
+        "production_base_source_sha": "1f3121c9758faeb31fc9d0fe2a54974c72505d55",
+        "main_before": "1f3121c9758faeb31fc9d0fe2a54974c72505d55",
+        "main_after": "8415bc85bcad089a9e24461d5f3e88039754103c",
+        "comparison_before_integration": {
+          "main_only_commits": 0,
+          "candidate_only_commits": 1,
+          "main_was_candidate_ancestor": true
+        },
+        "integration": "fast_forward",
+        "push": {
+          "atomic": true,
+          "force": false
+        },
+        "remote_readback": {
+          "HEAD": "8415bc85bcad089a9e24461d5f3e88039754103c",
+          "refs/heads/codex/quality-life-20261003": "8415bc85bcad089a9e24461d5f3e88039754103c",
+          "refs/heads/main": "8415bc85bcad089a9e24461d5f3e88039754103c"
+        }
+      },
+      {
+        "product": "chat-audit",
+        "github_url": "https://github.com/YokiiroBW/chat-audit-core.git",
+        "default_branch": "main",
+        "candidate_source_sha": "66097a98e8613437f96a76ddae4e23bb7e1fd609",
+        "candidate_worktree": "C:/YOKI/Codex/tianshu-peiban-bot/worktrees/quality-life-20261003/chat-audit",
+        "candidate_clean_at_readback": true,
+        "production_base_source_sha": "bb8937a7a712538d55af3c2af0b3cc47a917038b",
+        "main_before": "e07f2fa1c6a2250a6f8eb6cf98440b3b0b311e05",
+        "main_after": "21e09fe6f3824b2f75b62baedccd0baabed00a2e",
+        "comparison_before_integration": {
+          "main_only_commits": 161,
+          "candidate_only_commits": 2,
+          "main_was_candidate_ancestor": false
+        },
+        "integration": "precise_legacy_main_adaptation_and_unchanged_production_release",
+        "push": {
+          "atomic": true,
+          "force": false
+        },
+        "remote_readback": {
+          "HEAD": "21e09fe6f3824b2f75b62baedccd0baabed00a2e",
+          "refs/heads/codex/quality-life-20261003": "66097a98e8613437f96a76ddae4e23bb7e1fd609",
+          "refs/heads/codex/quality-life-main-integration-20261003": "21e09fe6f3824b2f75b62baedccd0baabed00a2e",
+          "refs/heads/main": "21e09fe6f3824b2f75b62baedccd0baabed00a2e",
+          "refs/heads/release/2026.10.03-quality-life": "66097a98e8613437f96a76ddae4e23bb7e1fd609"
+        }
+      },
+      {
+        "product": "assetlibrary",
+        "github_url": "https://github.com/YokiiroBW/assetlibrary.git",
+        "default_branch": "main",
+        "candidate_source_sha": "54b2beb39568d8ccf954688e24dd18ab868d014c",
+        "candidate_worktree": "C:/YOKI/Codex/tianshu-peiban-bot/worktrees/quality-life-20261003/assetlibrary",
+        "candidate_clean_at_readback": true,
+        "production_base_source_sha": "d7b43eca94136e90303cce585f2b96c80223f3af",
+        "main_before": "9ada28c3b8910f29ec1ff6291b3a331f242e411b",
+        "main_after": "def57a8492c13d582c7be85e978a64895b353b6f",
+        "comparison_before_integration": {
+          "main_only_commits": 5,
+          "candidate_only_commits": 1,
+          "main_was_candidate_ancestor": false
+        },
+        "integration": "merge_preserving_five_main_only_fixes",
+        "push": {
+          "atomic": true,
+          "force": false
+        },
+        "remote_readback": {
+          "HEAD": "def57a8492c13d582c7be85e978a64895b353b6f",
+          "refs/heads/codex/quality-life-20261003": "54b2beb39568d8ccf954688e24dd18ab868d014c",
+          "refs/heads/codex/quality-life-main-integration-20261003": "def57a8492c13d582c7be85e978a64895b353b6f",
+          "refs/heads/main": "def57a8492c13d582c7be85e978a64895b353b6f"
+        }
+      },
+      {
+        "product": "coordination",
+        "github_url": "https://github.com/YokiiroBW/tianshu-peiban-bot.git",
+        "default_branch": "main",
+        "candidate_source_sha": "e2747339658e8568ebd51e10e7ddd462710479ce",
+        "candidate_worktree": "C:/YOKI/Codex/tianshu-peiban-bot/worktrees/quality-life-20261003/coordination",
+        "candidate_clean_at_readback": true,
+        "production_base_source_sha": "bcdd8c4177c832c899466b6fa7fd4b68f1e9e08a",
+        "main_before": "d549c086b607dd0b862016b509abf659bb237575",
+        "main_after": "e2747339658e8568ebd51e10e7ddd462710479ce",
+        "comparison_before_integration": {
+          "main_only_commits": 0,
+          "candidate_only_commits": 7,
+          "main_was_candidate_ancestor": true
+        },
+        "integration": "fast_forward",
+        "push": {
+          "atomic": true,
+          "force": false
+        },
+        "remote_readback": {
+          "HEAD": "e2747339658e8568ebd51e10e7ddd462710479ce",
+          "refs/heads/codex/quality-life-20261003": "e2747339658e8568ebd51e10e7ddd462710479ce",
+          "refs/heads/main": "e2747339658e8568ebd51e10e7ddd462710479ce"
+        }
+      }
+    ],
+    "assetlibrary": {
+      "integration_sha": "def57a8492c13d582c7be85e978a64895b353b6f",
+      "merge_parents": [
+        "9ada28c3b8910f29ec1ff6291b3a331f242e411b",
+        "54b2beb39568d8ccf954688e24dd18ab868d014c"
+      ],
+      "integration_worktree": "C:/YOKI/Codex/tianshu-peiban-bot/worktrees/quality-life-20261003/platform/.runtime/github-main-integration/assetlibrary",
+      "conflicts": 0,
+      "preserved_main_only_commits": [
+        "cb2695856a24c298811b2d761c9448a788e3d5b9",
+        "e08e06f94201066db09bec1ad63f184acd27a0cd",
+        "629472d2e6447ba73ce7fdf6d2ccdc8be5cef08e",
+        "f40a63297ea2ee8febaa1191cfbb9923c0e01e25",
+        "9ada28c3b8910f29ec1ff6291b3a331f242e411b"
+      ],
+      "validation": [
+        {
+          "command": "python -I -B scripts/verify_repository.py",
+          "result": "passed; includes existing 14 architecture checks and repository manifest/source checks"
+        },
+        {
+          "command": "python -I -B -m unittest discover -s tests/repository -p test_v0_1_alpha_foundation.py -v",
+          "passed": 5
+        },
+        {
+          "command": "python -I -B -m unittest discover -s tests/repository -p test_dotnet_test_results.py -v",
+          "passed": 10
+        }
+      ]
+    },
+    "chat_audit": {
+      "production_candidate_sha": "66097a98e8613437f96a76ddae4e23bb7e1fd609",
+      "production_release_branch": "release/2026.10.03-quality-life",
+      "legacy_main_integration_sha": "21e09fe6f3824b2f75b62baedccd0baabed00a2e",
+      "integration_worktree": "C:/YOKI/Codex/tianshu-peiban-bot/worktrees/quality-life-20261003/platform/.runtime/github-main-integration/chat-audit",
+      "histories_have_merge_base": false,
+      "retained_legacy_main_commits": 161,
+      "adapted_rules": [
+        "No source ID: preserve each delivery instead of inferring replay from equal text and second-resolution timestamp.",
+        "Known source ID reused between private/group conversation types: separate hash; replay still converges across robots. Original type's legacy hash retained."
+      ],
+      "production_only_architecture": "Candidate ImportService/source-record/QQNT archive pipeline is absent on legacy main. Full archive/source-alias fix remains on fixed production release candidate; absent pipeline not imported into legacy main.",
+      "baseline_validation": {
+        "command": "pytest tests/test_message_service.py -q",
+        "passed": 4
+      },
+      "validation": {
+        "python": "C:/YOKI/Codex/tianshu-peiban-bot/worktrees/quality-life-20261003/chat-audit/.runtime/dq-tests/Scripts/python.exe",
+        "command": "python -m pytest tests/test_message_service.py tests/test_message_ingest_api.py tests/test_onebot11.py tests/test_capture_policy_service.py -q --tb=short",
+        "passed": 31,
+        "warnings": 2,
+        "warning_scope": "Existing Starlette/httpx/AnyIO deprecations",
+        "elapsed_seconds": 1.64
+      },
+      "handoff": "docs/handoffs/DQ-main-integration.md"
+    },
+    "parallel_room": {
+      "worktree": "C:/YOKI/Codex/tianshu-peiban-bot/worktrees/ROOM-STYLE/tianshu-platform",
+      "head": "e2f03c552629f6931693b862ce0b6abd070ead19",
+      "branch": "codex/room-window-style-study-20260926",
+      "status": "Uncommitted independent 2.5D illustration study, not included in DQ candidate or GitHub integration",
+      "untracked_paths": [
+        "apps/web/room-illustration-assets/",
+        "apps/web/room-illustration.html",
+        "apps/web/src/features/room/illustration/",
+        "docs/handoffs/ROOM-ILLUSTRATION.md",
+        "docs/room/illustration-study/",
+        "tooling/room-assets/capture_illustration_study.mjs"
+      ],
+      "dq_platform_rc5_diff_overlaps": [],
+      "reference": "C:/YOKI/Codex/tianshu-peiban-bot/docs/development/room-illustration-study-2026-10-03.md"
+    },
+    "boundaries": {
+      "new_windows_created": 0,
+      "original_dirty_tracked_files_modified": false,
+      "authorized_runtime_evidence_written": "C:/YOKI/Codex/tianshu-peiban-bot/.runtime/quality-life-release-20261003/github-integration.json",
+      "reset_clean_stash_used": false,
+      "credential_values_read_or_printed": false,
+      "production_operations_by_this_agent": false,
+      "force_push_used": false
+    },
+    "verification_note": "All six GitHub main/default refs and candidate branches were read back with git ls-remote --symref; candidate HEADs remained fixed. Main differs from deployment candidate only for AssetLibrary merge and ChatAudit legacy adaptation."
+  },
+  "additional_guard_commit": {
+    "source_sha": "205ea1808e09f5791ff210cca16a73065492ef79",
+    "sha256": "12d7753495bfc716d629d9c87fb837d1b55e5de06d057bc2baf612a1957f4248",
+    "previous_sha256": "f4f6560e6314bc85001229c3b2d1ed003bde72af5bb0be65b94d06a27ca86bfc"
+  },
+  "core": {
+    "status": "quality_life_nas_deployed_verified",
+    "images": {
+      "companion": {
+        "arch": "amd64",
+        "digest_ref": "127.0.0.1:19554/tianshu/quality-life-companion@sha256:2466d343d9a6f54427026c10fcbda1aa0b2e82c9026da2f9c84e1a6007f2ee9a",
+        "id": "sha256:e4cc79ff67247ce3dc84b51c9dd54296efb0c21dab59b192a6b36495e32af10b",
+        "revision": "11e6cc37057d60e389c8837926fe61352065a605"
+      },
+      "memory": {
+        "arch": "amd64",
+        "digest_ref": "127.0.0.1:19554/tianshu/quality-life-memory@sha256:e001b1c208015a850c4cedd1d44bc28e3b3c5caf3797d2bac714f5929ef4a5ca",
+        "id": "sha256:d7fc5c38fadd00632bf377a8ec3e0005963e217f4b53fa5e1d22a2ff17ceabf6",
+        "revision": "8415bc85bcad089a9e24461d5f3e88039754103c"
+      },
+      "platform": {
+        "arch": "amd64",
+        "digest_ref": "127.0.0.1:19554/tianshu/quality-life-platform@sha256:6ce5766e849b7b89c1edf5ec31fef4b304dd035349fc79138d7b32c99eedfdbe",
+        "id": "sha256:a8399dfcbcbcfb96cb220187c4f41fe14fbafa049a78c0a472e4fa497e3a10b9",
+        "revision": "3f715b6e94c6552b30e03c17497f4dd56f32292e"
+      },
+      "knowledge": {
+        "arch": "amd64",
+        "digest_ref": "127.0.0.1:19554/tianshu/quality-life-memory@sha256:e001b1c208015a850c4cedd1d44bc28e3b3c5caf3797d2bac714f5929ef4a5ca",
+        "id": "sha256:d7fc5c38fadd00632bf377a8ec3e0005963e217f4b53fa5e1d22a2ff17ceabf6",
+        "revision": "8415bc85bcad089a9e24461d5f3e88039754103c"
+      }
+    },
+    "owners": 10,
+    "checks": [
+      {
+        "service": "knowledge",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true
+      },
+      {
+        "service": "gateway",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true
+      },
+      {
+        "service": "companion",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true,
+        "restored_memory_policy_verified": true
+      },
+      {
+        "service": "memory",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true
+      },
+      {
+        "service": "platform",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true,
+        "web_assets_and_anonymous_gate_verified": true
+      }
+    ],
+    "guard": {
+      "deployment_bytes": 382747658,
+      "heartbeat_age_seconds": 1.389,
+      "minimum_free_bytes": 423607640064,
+      "services": 10,
+      "status": "ready"
+    },
+    "life": {
+      "status": "actual_platform_companion_life_read_verified",
+      "actor_count": 2,
+      "plans": [
+        {
+          "enabled": true,
+          "generation_state": "unavailable",
+          "generated_by": "baseline",
+          "phase_count": 1,
+          "timeline_count": 2
+        },
+        {
+          "enabled": true,
+          "generation_state": "generating",
+          "generated_by": "baseline",
+          "phase_count": 8,
+          "timeline_count": 1
+        }
+      ],
+      "test_rows_written": false,
+      "conversation_sent": false
+    },
+    "migration": {
+      "already_installed": false,
+      "indexes": 2,
+      "source_lookup_schema": 1,
+      "status": "source_lookup_verified"
+    },
+    "backup": "/volume2/tianshu-v2-resident-updates/quality-life-20261003-core-attempt2/production-generation-d3eab7cef0154a81848bc9f9f1435be9/cold-snapshot",
+    "role_persona_model_settings_preserved": true,
+    "test_conversation_sent": false,
+    "only_configuration_delta": "life_readers.web-life.runtime_roles=true",
+    "guard_source": {
+      "source_sha": "205ea1808e09f5791ff210cca16a73065492ef79",
+      "sha256": "12d7753495bfc716d629d9c87fb837d1b55e5de06d057bc2baf612a1957f4248",
+      "previous_sha256": "f4f6560e6314bc85001229c3b2d1ed003bde72af5bb0be65b94d06a27ca86bfc"
+    },
+    "all_clones_stopped": true,
+    "web_assets": {
+      "index.html": "9321d5884bcc0510d753a29cefb1aa4b5335545f85aa44fe7b1052bc0020b7cf",
+      "assets/CompanionPage-Bj7Z1NjY.js": "09fd6fd8dec80dda5350cb3197cead7cab0099748db38a92e3ec3e52b16014e1",
+      "assets/CompanionPage-VN5NXbVC.css": "7e500c83155ab4f20119f7dda99cbd03d57937196ae92e87ba52d67333340fe7",
+      "assets/ExperiencePage-BFLdrDVJ.css": "ab586684f808d61cff419799a9bfed30f19fe9e6d8b580de1a9f0843a86fa81e",
+      "assets/ExperiencePage-DqugY6O5.js": "b07234e43ee1f5b8c9ba33c3f331d04b00ca5b1ed8b4abb3dfac0505cb1a605f",
+      "assets/HomePage-5KT6Ago_.css": "9b8957c97e20b3cbf946fdccaceed1a5b6d891041ef9c64d49a9d103efe6829a",
+      "assets/HomePage-6nVb_t1w.js": "3eb7ef8161ff9abafce491e80b0bbe0af4f7e9db7d4a82c62e7ee40349c0b3d8",
+      "assets/KnowledgePage-BxLw2y6n.js": "b3da959a07911d3e703f54cd45553aa9a03107c1801fc18b8ce3bcac4aac28ef",
+      "assets/KnowledgePage-p0KAPexs.css": "a3881a6cf84b9f081e373a689e24801567b67c2773ac9614f3e7dbce73f649d7",
+      "assets/LifePage-BkiSl_0M.js": "653f002987ccdbd63f6e508267d80e8e8acb8a19a7f153d3abed0536ab932d51",
+      "assets/LifePage-DpSlU8mA.css": "47607385280f238840a8cdbf23158b8abdf40d1ece09ea39986804452592e9c5",
+      "assets/MemoryPage-C0bqCgsX.js": "fa1874e1644d15518fbc8defeb8d089e107f7aa4bf25a7112b179f3c56f75e10",
+      "assets/MemoryPage-Ce-4y8v4.css": "382114f8c06eb5d05a55f3e701a9d2ec96bd5c017029131baacf1f320d25a7a2",
+      "assets/PersonaPanel-BfG7xj_h.css": "238ce24f508f398eba8fb57ba6a993c781e593c092f4658bcaeaed9457fe2235",
+      "assets/PersonaPanel-D3S7IFxh.js": "c57c064d4193ac5ea211ce2134790b2831c8ee2e1b90c47c7d9e62bf0c695430",
+      "assets/RelationshipPanel-CjwRUKy8.css": "fa9e5eb0aaf64ac825578477c614c26ec9096f05f36b52ee4a84c9e1a32b9e83",
+      "assets/RelationshipPanel-CyyLLqHJ.js": "035ce0f7bff4f8984a3a80e53b925d227d99164a77ba847e0047ab5b4786f62b",
+      "assets/ResourcesPage-XmoYBBc-.js": "973ac7d089313d60c1a433ad8119ea83a6731b1187d6d8674b0adf6e923244fb",
+      "assets/ResourcesPage-mzu4Wrtl.css": "c786205521932a5e90f7339f55a65ae1a42784cef745bcbe65a80051e043542d",
+      "assets/RoleManager-BpIKFgXS.js": "32fa956c29a4b55b28274fc10b39a96cbb1a4a6da9e8b07fcf9efe3c5d1ae7d6",
+      "assets/RoleManager-loHxzqtH.css": "38f9ef7ef3b16e18df8441d56aac7fa88853c5746ac2e26e61c8394bc6bbe705",
+      "assets/RoomPage-D0o8SyTX.css": "87dc0cbb297708063eb315651a1ed80bb894e4718b3141b0bd6374847be73d4f",
+      "assets/RoomPage-DeaIX2Md.js": "d2f94777a30eeee8beb9e156c75a268a5794b0c63574ddf3c02c20d61f99da09",
+      "assets/SettingsPage-ChVXknl8.js": "590de3976adcd4c73e120e86f1c9c58e086f4257507b02d98c63b315e91fbc98",
+      "assets/SettingsPage-ClqQrTdP.css": "a67907f1362333f50b91666056ef12a498b541f74e1d6f2efda681a6faed1555",
+      "assets/StatusRail-BQeliT59.js": "75d8d87c92d6f1a12d742efa9f193358a92a14e9a1782794f4f4a6d5fabbeeb2",
+      "assets/WorkbenchPage-C9MJGJTC.js": "b9c0392ad026cb820f1d5eb1f4142a636304db4951efeb30abe748a3f0be6dbf",
+      "assets/api-BRS3sn8w.js": "024c354ced22d7f9bce0bb17c49d700f506bb0e261d727fe14195af61fe82621",
+      "assets/index-C8vFhjJr.js": "2335a7e5ca67b3d13df4f04ec3404712015fedd01b36255303c2deb3cb77c225",
+      "assets/index-DDccbBcX.css": "79094679a3f3dec8eb26a460f66a138fe4e077a2fdfc5ad0ce1c306d3a88cb66",
+      "assets/integrationApi-gCz6SiDT.js": "21a34e104edde2649019c003bebf435873e232a555c778d2818f268a02f2951d",
+      "assets/jsx-runtime-DLNB9Qsn.js": "c04dd52ab403d600f6e1abcd98315dd38b864a3a8c060011c2757edd1a24e9b2",
+      "assets/plus-cV2cmrsh.js": "af7c6e5e2dfae7feb050ae9318c7dcb9e18accef075163999f549a9d048381dd",
+      "assets/refresh-cw-CNJyUhKf.js": "fae574bdc3f73e6e1238d7a8c7b6185049978542a0cf75386220d921a2016712",
+      "assets/requestId-Dew5tT4T.js": "4bd116110ff62a16230c1fcd2526425105eaa41fec1ca8fc0eaebc6528a3ffcd",
+      "assets/search-ZSO5eHTN.js": "9d0427c398eb9d4173ea76056f1c0f1efa7495a9649da11722437e6679c53f87",
+      "assets/sessionTransport-BN65-IOJ.js": "c85cde93ee08584a64e8a5f9676b92bd3e079a63bc7de7f30be0a516bc6b804a",
+      "assets/shield-check-C5mZIsEz.js": "10940c94fd61e5eb94c1857dfe8e06117701d8a0ea130daffd08d898885942d0"
+    }
+  },
+  "independent_services": {
+    "nonebot": {
+      "status": "deployed_verified",
+      "service": "nonebot",
+      "source_commit": "11e6cc37057d60e389c8837926fe61352065a605",
+      "image": "local/nonebot2:2.5.0-tianshu-0.4.0-11e6cc37057d",
+      "image_id": "sha256:9a376c27d0615a8f6939d686fac0fb3e1c933f8f73f715b301ea5a1dafbe7f60",
+      "backup_path": "/volume2/tianshu-v2-resident-updates/quality-life-20261003/independent-services/backup/nonebot",
+      "compose_path": "/volume1/Download/dockge/stacks/nonebot/compose.yaml",
+      "policy_preserved": true,
+      "credentials_and_instance_preserved": true,
+      "configuration_change": "image_only",
+      "adapter_http": "200",
+      "observation_http": "200",
+      "package_version": "0.4.0",
+      "source_hashes_verified": true,
+      "wheel_sha256": "da3f6c6564437915df3eb54a13de8dae29fa14b0a557566fa435b0356656373e",
+      "backup_manifest_path": "/volume2/tianshu-v2-resident-updates/quality-life-20261003/independent-services/backup/nonebot/sha256.json",
+      "elapsed_seconds": 6.494
+    },
+    "chat-audit": {
+      "status": "deployed_verified",
+      "service": "chat-audit",
+      "source_commit": "66097a98e8613437f96a76ddae4e23bb7e1fd609",
+      "image": "chat-audit-core:quality-life-20261003-66097a98e861",
+      "image_id": "sha256:bfdbe5b1b03b3dc44320b20c576e2f2dc767d0fa3c9bc3b3504cf46f8cc92786",
+      "backup_path": "/volume2/tianshu-v2-resident-updates/quality-life-20261003/independent-services/backup/chat-audit",
+      "compose_path": "/volume1/Download/dockge/stacks/chat-audit-core/compose.yaml",
+      "overlay_path": "/volume1/Download/dockge/stacks/chat-audit-core/docker-compose.ffmpeg.yml",
+      "postgresql_backup_path": "/volume2/tianshu-v2-resident-updates/quality-life-20261003/independent-services/backup/chat-audit/chat-audit-postgresql.dump",
+      "postgresql_backup_sha256": "7e49107e61338c208490cdf393791394cf6deffd0e808150f43e7a37908afee7",
+      "backup_manifest_path": "/volume2/tianshu-v2-resident-updates/quality-life-20261003/independent-services/backup/chat-audit/sha256.json",
+      "health_http": "200",
+      "health_checks": {
+        "app": "ok",
+        "database": "ok",
+        "storage": "ok",
+        "backup": "ok",
+        "ffmpeg": "ok"
+      },
+      "version_http": "200",
+      "backup_worker_healthcheck": "passed",
+      "schema_migration": false,
+      "media_storage_preserved": true,
+      "configuration_change": "image_and_build_revision_only",
+      "postgresql_service_modified": false,
+      "source_hashes_verified": true,
+      "elapsed_seconds": 61.034
+    },
+    "artifacts": {
+      "chat_commit": "66097a98e8613437f96a76ddae4e23bb7e1fd609",
+      "companion_commit": "11e6cc37057d60e389c8837926fe61352065a605",
+      "files": {
+        "chat-audit/app/services/message_service.py": "c3e5dfe8a3862d9c6fdf3dcb3fa2078e2e83bac2cffd0dba2ebe90192f4779ec",
+        "chat-audit/app/services/import_service.py": "40acd8e55f16acdea294c8f314c1255a1b07bf60a4aaf8575c1d138a19d38cb1",
+        "artifacts/astrbot_plugin_tianshu-0.4.0.zip": "e2ed6c2358a82e89fe86539f0219fd79014a3160c7077f52be87202b8206d05d",
+        "artifacts/tianshu_nonebot_adapter-0.4.0-py3-none-any.whl": "da3f6c6564437915df3eb54a13de8dae29fa14b0a557566fa435b0356656373e"
+      }
+    }
+  },
+  "dockge": {
+    "applied": true,
+    "project_directory": "/volume2/tianshu-v2-resident",
+    "source_hashes": {
+      "/volume2/tianshu-v2-resident-updates/bots-20260928/core.compose.json": "39f2cc09d511fd9b9d6076bab32e2a3c5b3374df4901da7ced4523ce4f17dd8d",
+      "/volume2/tianshu-v2-resident-updates/bots-20260928/platform.compose.json": "506012a30a6edc9c790bf744061a915ba8f9f0a0a190fa62510f33b325b18e6e",
+      "/volume2/tianshu-v2-resident-updates/connections-20260928/obs.compose.json": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530"
+    },
+    "snapshots": [
+      {
+        "project": "tianshu-v2-resident",
+        "target": "/volume1/Download/dockge/stacks/tianshu-v2-resident/compose.yaml",
+        "old_sha256": "02be0fe0e0024933ea48ab4d1c3fe390411c108dd3cd9e66a96bede9ac1730fd",
+        "new_sha256": "39f2cc09d511fd9b9d6076bab32e2a3c5b3374df4901da7ced4523ce4f17dd8d",
+        "images": {
+          "companion": "127.0.0.1:19554/tianshu/quality-life-companion@sha256:2466d343d9a6f54427026c10fcbda1aa0b2e82c9026da2f9c84e1a6007f2ee9a",
+          "gateway": "127.0.0.1:19550/tianshu/gateway@sha256:b336e15bb7cf6b017aa871a3ab181ab62f4ec6b07bac3fca0592ef70f32af9db",
+          "knowledge": "127.0.0.1:19554/tianshu/quality-life-memory@sha256:e001b1c208015a850c4cedd1d44bc28e3b3c5caf3797d2bac714f5929ef4a5ca",
+          "memory": "127.0.0.1:19554/tianshu/quality-life-memory@sha256:e001b1c208015a850c4cedd1d44bc28e3b3c5caf3797d2bac714f5929ef4a5ca",
+          "platform": "127.0.0.1:19554/tianshu/quality-life-platform@sha256:6ce5766e849b7b89c1edf5ec31fef4b304dd035349fc79138d7b32c99eedfdbe"
+        }
+      },
+      {
+        "project": "tianshu-v2-resident-obs",
+        "target": "/volume1/Download/dockge/stacks/tianshu-v2-resident-obs/compose.yaml",
+        "old_sha256": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530",
+        "new_sha256": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530",
+        "images": {
+          "obs-grafana": "grafana/grafana:13.2.2@sha256:ac461fb352abc50da10a51c7d02462e9c05488f11f53f14b3ad79a8145f638a0",
+          "obs-guard": "python:3.12.14-slim-bookworm@sha256:392307d22300de8b5986851a12d9176dfc0fc073e65bf6523ebd7dcbeb23564e",
+          "obs-loki": "grafana/loki:3.7.8@sha256:1107dd5274e0ada47e42472b7a7e71f3b2a2fe878878108f3e2f9e51528f0193",
+          "obs-prometheus": "prom/prometheus:v3.13.3@sha256:6976aa8a60fec930796ce5772b8d12da7a318a5daa8d40d69c5c7819a05eeed7",
+          "obs-vector": "timberio/vector:0.58.0-debian@sha256:1c1ea358c617ea0b23003d5af87f7a678b30f8f7096437e680380c47fc13d2d9"
+        }
+      }
+    ],
+    "containers_recreated": false,
+    "credential_files_read": false,
+    "backup_directory": "/volume2/tianshu-v2-resident-updates/quality-life-20261003/dockge-backups/20261003T014815Z-cdd3b692"
+  },
+  "browser": {
+    "status": "actual_nas_browser_entry_verified",
+    "http_status": 200,
+    "title": "登录 · 天枢",
+    "page_error_count": 0,
+    "body_nonempty": true,
+    "login_gate_visible": true,
+    "session": {
+      "status": 200,
+      "authenticated": false
+    },
+    "original_account_login_performed": false,
+    "origin": "http://192.168.31.210:18446",
+    "browser_mode": "fresh_headless_no_existing_user_profile"
+  },
+  "http_assets": {
+    "status": "nas_http_assets_match_installed_candidate",
+    "count": 38,
+    "origin": "http://192.168.31.210:18446",
+    "production_business_data_read": false
+  },
+  "later_life_observation": {
+    "life": {
+      "status": "actual_platform_companion_life_read_verified",
+      "actor_count": 2,
+      "plans": [
+        {
+          "enabled": true,
+          "generation_state": "unavailable",
+          "generated_by": "baseline",
+          "phase_count": 1,
+          "timeline_count": 2
+        },
+        {
+          "enabled": true,
+          "generation_state": "completed",
+          "generated_by": "gateway",
+          "phase_count": 8,
+          "timeline_count": 2
+        }
+      ],
+      "test_rows_written": false,
+      "conversation_sent": false
+    },
+    "dockge_compose_validation": "passed"
+  },
+  "deployment_events": [
+    "Before core cutover, the old guard latched docker_command_failed and stopped its exact ten owners during unrelated container churn. The bounded inventory retry was implemented, 29 targeted tests passed, and the fix was pushed before installation.",
+    "First cold backup and clone migration succeeded. The deployment probe omitted required actor-list pagination fields and got HTTP 400; original core was automatically restored and five TLS readiness checks passed. No product failure was inferred from that invalid request.",
+    "The corrected second attempt made a fresh cold backup, verified the cloned life read chain, migrated the production source index, installed four service images and the guard fix, and verified the running deployment."
+  ],
+  "boundaries": {
+    "assetlibrary_change_is_ci_only_no_runtime_restart": true,
+    "astrbot_plugin_was_not_installed_no_new_integration_created": true,
+    "parallel_room_illustration_prototype_not_part_of_this_release": true,
+    "real_qq_test_message_sent": false,
+    "production_synthetic_role_or_persona_created": false,
+    "original_user_password_login_performed": false,
+    "long_duration_cross_day_acceptance": "not_run",
+    "autonomous_generation_may_use_existing_role_model": true
+  }
+}
