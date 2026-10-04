@@ -61,6 +61,11 @@
           "suite": "new loopback HTTP",
           "passed": 13,
           "real_provider": false
+        },
+        {
+          "suite": "final Platform actual TLS origin renewal joint",
+          "passed": 11,
+          "handoff": "platform/docs/handoffs/C4.md"
         }
       ],
       "commit": "ea7f5924e80640d1289e66adb89541c52e037eaa",
@@ -103,7 +108,7 @@
     },
     {
       "id": "C4",
-      "status": "in_progress",
+      "status": "backend_fixed_pending_ui_integration",
       "verification": [],
       "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\platform",
       "baseline": "6a2ed3d0d6f6b3f0be6761c3b9cf61239ea5d2b4",
@@ -158,7 +163,15 @@
         "http_delivery": 6,
         "actual_sdk_adapter_scenarios": 2,
         "reused": true,
-        "joint": "All five actual services started; first no-chat Life read fails issuer assembly (401), dispatched C3; independent Knowledge entry repair in progress"
+        "joint": "Closed: five-owner first-no-chat content acquisition/restart/disable, existing active+disabled Knowledge enrollment, actual two-author association/revoke passed; see fixed C4 handoff."
+      },
+      "commit": "e2e4795f71729fdbfb03e48ae3a9247b3f382a6e",
+      "handoff": "platform/docs/handoffs/C4.md",
+      "integration": {
+        "worktree": "worktrees/companion-complete-20261004/platform-release",
+        "branch": "codex/companion-complete-platform-release-20261004",
+        "owner": "root",
+        "pending": "fixed UI commit"
       }
     },
     {
@@ -207,7 +220,7 @@
         "handoff": "memory/docs/handoffs/C5-knowledge-entry.md",
         "actual_cli_related_tests_passed": 52,
         "additional_entry_constraint_tests_passed": 2,
-        "joint": "C4 real Platform/Core/Memory/Knowledge/Gateway pending"
+        "joint": "Passed with independent Memory and Knowledge databases: first no-chat upload/read/restart/disable, existing active+disabled enrollment; C4 fixed handoff."
       }
     },
     {
@@ -420,6 +433,14 @@
         "source_files": 10
       },
       "production_changed": false
+    },
+    "migration_shape": {
+      "evidence": ".runtime/companion-complete-20261004/migration-shapes-readonly.json",
+      "companion_user_version": 9,
+      "memory_context_schema": null,
+      "knowledge_content_schema": null,
+      "read_only": true,
+      "required": "Three owner migrations plus Platform sidecar upgrade; cold paired backups, clone verification before production."
     }
   },
   "contracts": {
