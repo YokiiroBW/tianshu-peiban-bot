@@ -116,13 +116,29 @@
     },
     {
       "scenario": 3,
-      "status": "pending",
-      "evidence": []
+      "status": "partial_isolated_verified",
+      "evidence": [
+        {
+          "product": "memory",
+          "commit": "20bf790c629604ebf177bd1bb5eed06ffb07b420",
+          "source": "tests/test_memory_context.py; tests/test_memory_context_runtime.py",
+          "verified": "Natural bounded whole-group recall; atomic correction/rebuild; stale-revision and ACK recovery; reflection cannot restore corrected old evidence",
+          "not_verified": "Companion current-turn intent/expressions and real Platform proof issue/verify integration"
+        }
+      ]
     },
     {
       "scenario": 4,
-      "status": "pending",
-      "evidence": []
+      "status": "partial_isolated_verified",
+      "evidence": [
+        {
+          "product": "memory",
+          "commit": "20bf790c629604ebf177bd1bb5eed06ffb07b420",
+          "source": "tests/test_memory_context.py; tests/test_memory_context_runtime.py",
+          "verified": "Natural bounded whole-group recall; atomic correction/rebuild; stale-revision and ACK recovery; reflection cannot restore corrected old evidence",
+          "not_verified": "Companion current-turn intent/expressions and real Platform proof issue/verify integration"
+        }
+      ]
     },
     {
       "scenario": 5,
@@ -182,6 +198,13 @@
           "source": "tests/test_model_execution_http.py::test_restart_preserves_progress_and_usage_and_does_not_restart_request",
           "verified": "Gateway in-flight restart remains unknown and retains progress/usage, no provider replay",
           "not_verified": "Nonempty multi-product migrations, companion in-flight activities/images and final release rollback rehearsal"
+        },
+        {
+          "product": "memory",
+          "commit": "20bf790c629604ebf177bd1bb5eed06ffb07b420",
+          "source": "tests/test_memory_context.py::test_real_nonempty_upgrade_preserves_old_sources_accounts_records_and_checkpoint",
+          "verified": "Nonempty additive upgrade retains IDs and mapped applications; stale DB-only restore is rejected by guard",
+          "not_verified": "Successful multi-product restore rehearsal including post-upgrade writes"
         }
       ]
     }
@@ -205,8 +228,8 @@
     ],
     "pins_record": ".runtime/companion-complete-20261004/contract-pins.json",
     "validation": {
-      "memory_positive": 8,
-      "memory_negative": 6,
+      "memory_positive": 11,
+      "memory_negative": 11,
       "model_positive": 8,
       "model_negative": 7,
       "existing_chat": 62,

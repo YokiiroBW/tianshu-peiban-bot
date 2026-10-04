@@ -31,3 +31,17 @@ operation_digest：对请求去除query/command、proof_ref后使用canonical JS
 ## 原始时间有界读取
 
 time_range 仅按已验证 physical_input.sent_at（原始消息发送时间）筛选，半开 UTC 区间 [from,to)，不使用补传 accepted_at 或 turn.occurred_at。仅有时间要求时复用 source-facts/read include_content=true 临时读取，整轮最多 256 个 selector，沿 source_snapshot/current_access/sync_barrier 比对当前授权与 owner head，不保存正文、不新建源时间账本。范围无法核对的候选保留，coverage.complete=false、missing_source_times>0 且 omissions 包含 source_time_unavailable，调用者不得说这些候选发生于指定范围。普通自然回忆 time_range=null 不受受理时间过滤。候选 limit 截断本就使 complete=false，因此不能据此声称范围内无其他历史。
+
+# Memory 修订证明签发增量
+
+已由协调者发布为实现合同，运行与语义联合验收待完成。唯一新增 POST `/internal/v1/memory-context/proof/issue`；生产者 Platform，消费者 Companion。复用 Companion 既有 `source.input` 服务授权；验证端复用 Memory 既有 `source.current` 身份。不会把源正文、token 或证明回显到浏览器/日志。
+
+issue_request/issue_response 已并入本包 `$defs`。revision_draft 派生既有 proposal_request，只允许 correct/forget、proof_ref:null；签发后替换 proof_ref 提交原 proposal_request。其他业务字段、null、数组顺序和文字不变。schema ID 与本地自引用由协调者并入既有包，不能另外发布旁路包。
+
+operation_digest 唯一算法与 C1 一致：对完整 proposal_request 仅排除顶层 query、command、proof_ref，保留所有其他字段；json.dumps(ensure_ascii=False, sort_keys=True, separators=(',', ':'), allow_nan=False)，UTF-8 SHA256 小写十六进制。issue_response 仅返回 ref、digest、到期及请求编号。
+
+Platform 重读 actor origin、actor_origins.input_digest、input_observations/current revision、source_inputs 与当前源 entry。source 必须与本次已登记入站完整 physical_input 摘要一致，作者为该 origin 实际账号，精确 actor/person/audience/conversation 与 proposal.scope 一致；proposal 的 command.origin 同当前 origin。正文要来自真实用户输入，不能是模型生成/回忆/虚构日记；证据中的该 source revision 必须真实对应。proof 持久绑定此源、范围、完整修订、签发身份与到期；verify 再核当前权限/源版本/撤回与摘要。
+
+自然语言具体修订意图沿当前对话的可信用户操作解释，由 Companion 的当轮表达/工具流程判定，Platform 不重新运行记忆检索或模型裁决。`我今天忘记带钥匙` 不是遗忘长期记忆授权，`不是这个` 的目标不明确时应当轮澄清；不能因为文本含“忘记”或 payload 自称 authorized 就签发。Platform 的证明只把已明确的该用户操作绑定真实入站和具体 proposal，目标存在/归属/版本/合法修订仍由 Memory 同事务核验。C3 解释链须验证明确动作及歧义反例；来源证明不等于自然语言语义正确性证明。
+
+3 正/5 反 schema 样例在正式已发布依赖上通过。运行/语义负例尚待实现：无真实源、作者或 audience 不符、源修订/撤回、过期/撤权、同 key 改摘要、单纯提及/歧义源不得成为已同意修订。不会新增网页确认或第二份目标事实库。
