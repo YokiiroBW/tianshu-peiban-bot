@@ -94,6 +94,19 @@
         "exclusive_scope": "integrations/shared, integrations/nonebot, integrations/astrbot and direct adapter tests/handoff",
         "integration": "Coordinator merges committed adapter changes into final Companion candidate after C3 stable",
         "handoff_verified": "C3 confirmed no uncommitted changes and no ongoing writes in transferred paths"
+      },
+      "exclusive_scope": "services/** and allocated Companion integrations; all apps/web writes transferred to C4-UI",
+      "ui_allocation": {
+        "agent": "iteration_memory_plan",
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "xhigh",
+        "status": "in_progress",
+        "worktree": "C:/YOKI/Codex/tianshu-peiban-bot/worktrees/companion-complete-20261004/platform-ui",
+        "branch": "codex/companion-complete-ui-20261004",
+        "baseline": "6a2ed3d0d6f6b3f0be6761c3b9cf61239ea5d2b4",
+        "exclusive_scope": "apps/web/** including existing browser tests; docs/handoffs/C4-UI.md; no services or locks",
+        "handoff": "C4 explicitly stopped all apps/web writes; six untracked life components copied exactly, no modified original frontend files",
+        "integration": "Coordinator merges isolated UI candidate into final Platform backend candidate, preserving unique owner per path"
       }
     },
     {
@@ -135,7 +148,8 @@
         "Avoid bidirectional schema and manifest dependencies"
       ],
       "commit": "129ab8f651971fe5d50c01e05ecf605c0bb51e77",
-      "handoff": "memory/docs/handoffs/C5.md"
+      "handoff": "memory/docs/handoffs/C5.md",
+      "pin_update_commit": "2875e86df896ef0bab145d576929dd4794f277e4"
     },
     {
       "id": "C6",
@@ -303,8 +317,8 @@
       "model_negative": 7,
       "existing_chat": 62,
       "existing_native": 21,
-      "life_positive": 19,
-      "life_negative": 13,
+      "life_positive": 23,
+      "life_negative": 16,
       "bot_positive": 5,
       "bot_negative": 5,
       "existing_quality_extensions": 4,

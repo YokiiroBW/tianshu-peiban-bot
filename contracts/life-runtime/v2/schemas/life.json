@@ -2142,6 +2142,12 @@
               "type": "null"
             }
           ]
+        },
+        "chapter_view": {
+          "enum": [
+            "published",
+            "current"
+          ]
         }
       },
       "required": [
@@ -2155,7 +2161,23 @@
         "after",
         "scope"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "chapter_view"
+            ]
+          },
+          "then": {
+            "properties": {
+              "resource": {
+                "const": "chapter"
+              }
+            }
+          }
+        }
+      ]
     },
     "media_request": {
       "type": "object",
@@ -2340,6 +2362,9 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 128
+        },
+        "content_ref": {
+          "$ref": "#/$defs/content_ref"
         }
       },
       "required": [
@@ -2399,7 +2424,9 @@
             "reading.pause",
             "reading.resume",
             "reading.close",
-            "image.backend.configure"
+            "image.backend.configure",
+            "proactive.subscription.state",
+            "actor.image-reference.configure"
           ]
         },
         "result": {
@@ -2413,7 +2440,30 @@
         "operation",
         "result"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "content.acquire"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "result": {
+                "required": [
+                  "content_ref"
+                ]
+              }
+            }
+          }
+        }
+      ]
     },
     "state_record": {
       "type": "object",

@@ -33,3 +33,7 @@ Platform 本产品的服务、web、迁移、路由、锁与测试归本写者�
 领域完整后集中类型/构建与受影响后端、浏览器检查。包括桌面/手机/宽屏、角色切换不串数据、未配置与实际失败、真实 HTTP 正负样例、主动异步回执、原图打开、账号撤销和来源修订。至少检查真实渲染截图与产品操作流，不用纯 mock 页面通过代替后端接线。已通且未改检查不重复。
 
 交付提交 SHA、删除旧路径、迁移和配置差异、实际验证与剩余外部条件。只能标本地完成；推送和 NAS 由主协调处理。
+
+## Frontend ownership transfer
+
+C5 finished and released its writer slot. C4 explicitly stopped all apps/web writes; the coordinator transferred its six untracked life components into platform-ui at the same fixed baseline. iteration_memory_plan exclusively owns apps/web/** and docs/handoffs/C4-UI.md on codex/companion-complete-ui-20261004. provider_test_fix retains services/** and its separate adapter allocation. No simultaneous path writers; root merges final commits serially. Frontend scope remains the complete user/life/wardrobe/media/reading/works/room/dialogue experience in this card, with existing browser verification and no parallel backend or dependency changes.

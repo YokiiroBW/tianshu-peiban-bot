@@ -1,0 +1,148 @@
+{
+  "positive": [
+    {
+      "definition": "manage_response",
+      "document": {
+        "schema_version": 2,
+        "request_id": "operation:sample",
+        "actor_id": "actor:sample",
+        "operation": "content.acquire",
+        "result": {
+          "id": "object:sample",
+          "version": 1,
+          "state": "configured",
+          "operation_ref": "operation:sample",
+          "content_ref": {
+            "owner": "memory",
+            "object_id": "document:reference",
+            "version": 1,
+            "kind": "image",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "sources": [],
+            "coverage": {
+              "unit": "bytes",
+              "start": 0,
+              "end": 100,
+              "total": 100
+            }
+          }
+        }
+      }
+    },
+    {
+      "definition": "manage_response",
+      "document": {
+        "schema_version": 2,
+        "request_id": "operation:sample",
+        "actor_id": "actor:sample",
+        "operation": "actor.image-reference.configure",
+        "result": {
+          "id": "object:sample",
+          "version": 1,
+          "state": "configured",
+          "operation_ref": "operation:sample"
+        }
+      }
+    },
+    {
+      "definition": "manage_response",
+      "document": {
+        "schema_version": 2,
+        "request_id": "operation:sample",
+        "actor_id": "actor:sample",
+        "operation": "proactive.subscription.state",
+        "result": {
+          "id": "object:sample",
+          "version": 1,
+          "state": "configured",
+          "operation_ref": "operation:sample"
+        }
+      }
+    },
+    {
+      "definition": "read_request",
+      "document": {
+        "schema_version": 2,
+        "query": {
+          "schema_version": 1,
+          "request_id": "read:private",
+          "origin": {
+            "assertion_ref": "origin:sample"
+          }
+        },
+        "actor_id": "actor:sample",
+        "resource": "chapter",
+        "object_id": "chapter:sample",
+        "expected_version": null,
+        "limit": 20,
+        "after": null,
+        "scope": {
+          "actor_id": "actor:sample",
+          "person_id": "person:owner",
+          "audience": "self_private",
+          "conversation_id": "conversation:owner"
+        },
+        "chapter_view": "current"
+      }
+    }
+  ],
+  "negative": [
+    {
+      "definition": "manage_response",
+      "document": {
+        "schema_version": 2,
+        "request_id": "operation:sample",
+        "actor_id": "actor:sample",
+        "operation": "content.acquire",
+        "result": {
+          "id": "object:sample",
+          "version": 1,
+          "state": "configured",
+          "operation_ref": "operation:sample"
+        }
+      }
+    },
+    {
+      "definition": "manage_response",
+      "document": {
+        "schema_version": 2,
+        "request_id": "operation:sample",
+        "actor_id": "actor:sample",
+        "operation": "content.acquire",
+        "result": {
+          "id": "object:sample",
+          "version": 1,
+          "state": "configured",
+          "operation_ref": "operation:sample",
+          "content_ref": {}
+        }
+      }
+    },
+    {
+      "definition": "read_request",
+      "document": {
+        "schema_version": 2,
+        "query": {
+          "schema_version": 1,
+          "request_id": "read:private",
+          "origin": {
+            "assertion_ref": "origin:sample"
+          }
+        },
+        "actor_id": "actor:sample",
+        "resource": "state",
+        "object_id": "chapter:sample",
+        "expected_version": null,
+        "limit": 20,
+        "after": null,
+        "scope": {
+          "actor_id": "actor:sample",
+          "person_id": "person:owner",
+          "audience": "self_private",
+          "conversation_id": "conversation:owner"
+        },
+        "chapter_view": "current"
+      }
+    }
+  ]
+}
