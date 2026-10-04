@@ -320,6 +320,14 @@
         "validation": "Exact git diff contains only contracts.py; installed bytes verified in network-disabled readonly Linux container. Reuse unchanged codec/dependency checks.",
         "production_changed": false
       }
+    },
+    "configuration_shape": {
+      "evidence": ".runtime/companion-complete-20261004/config-shape-readonly.json",
+      "read_only": true,
+      "secrets_exported": false,
+      "finding": "Production Knowledge runs separately with only legacy knowledge clients/projects; no new content callers/issuer/RoleGrants configured. Platform role_runtime currently targets Memory only.",
+      "required": "C4 real joint must separate Memory and Knowledge; configure existing role grant synchronization for both owners and verify new/disabled actor content access. No shared DB assumption.",
+      "status": "dispatched_to_C4_pending_joint_and_deployment_delta"
     }
   },
   "contracts": {
