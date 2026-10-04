@@ -334,6 +334,15 @@
         "platform_owner": "provider_test_fix",
         "prior_memory_image": "candidate requires source overlay or rebuild after entrypoint fix; unchanged codecs reused"
       }
+    },
+    "native_configuration": {
+      "evidence": ".runtime/companion-complete-20261004/native-config-readonly.json",
+      "read_only": true,
+      "native_enabled": false,
+      "native_clients": [],
+      "max_request_bytes": 1048576,
+      "required": "Configure native client using actual Companion identity and existing provider auth, enable native execution and align bounded visual request payload; actual joint must exercise tools/streaming/visual path.",
+      "status": "config_delta_dispatched_C2_C4_and_C3"
     }
   },
   "contracts": {
