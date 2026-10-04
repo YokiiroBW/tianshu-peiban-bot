@@ -111,14 +111,20 @@
       "agent": "provider_test_fix",
       "adapter_allocation": {
         "agent": "provider_test_fix",
-        "status": "fixed_candidate_review_requires_media_only_fix",
+        "status": "reviewed_fixed_candidate_pending_runtime_merge",
         "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\companion-adapters",
         "branch": "codex/companion-complete-adapters-20261004",
         "baseline": "a5725d04aba00762d66306ae4821a40b70f7e2ed",
         "exclusive_scope": "integrations/shared, integrations/nonebot, integrations/astrbot and direct adapter tests/handoff",
-        "integration": "Coordinator merges committed adapter changes into final Companion candidate after C3 stable",
+        "integration": {
+          "worktree": "worktrees/companion-complete-20261004/companion-release",
+          "branch": "codex/companion-complete-release-20261004",
+          "head": "f308c9af234573bf3bd342c89e8664afb9900f92",
+          "owner": "root",
+          "pending": "merge C3 fixed runtime commit; then fixed joint, push and deployment"
+        },
         "handoff_verified": "C3 confirmed no uncommitted changes and no ongoing writes in transferred paths",
-        "commit": "2232130c048e1d40633d8c38942e6a9aafcd33e0",
+        "commit": "f308c9af234573bf3bd342c89e8664afb9900f92",
         "handoff": "companion-adapters/docs/handoffs/C4-adapters.md",
         "verification": {
           "pytest_passed": 29,
@@ -126,7 +132,12 @@
           "real_sdk_host_scenarios_passed": 2,
           "real_qq_sent": false
         },
-        "review_finding": "bot v2 allows text-empty materialized media segments; RPC regular/observation send and NoneBot SDK still require nonempty text. Requested focused correction and pure-image ACK/replay test before integration."
+        "review_finding": "Closed: pure media accepted in RPC regular/observation and SDK; both empty rejected. Real SDK PNG ACK/replay followup2 and affected pytest15 passed.",
+        "version": "0.5.0",
+        "artifacts": {
+          "astrbot_zip_sha256": "03f5e9d02091797b256c961ebbbd9f0c9858e83940992a02801f15c51470990b",
+          "nonebot_wheel_sha256": "b378de529d6da022e6e3c9c14b72bd84aa2951c2a153860e0649b97c9e450978"
+        }
       },
       "exclusive_scope": "services/** and allocated Companion integrations; all apps/web writes transferred to C4-UI",
       "ui_allocation": {
