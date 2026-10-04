@@ -52,8 +52,11 @@
     },
     {
       "id": "C5",
-      "status": "pending",
-      "verification": []
+      "status": "required_waiting_memory_writer",
+      "verification": [],
+      "product": "memory_knowledge",
+      "task_card": "companion-complete-content-task-2026-10-04.md",
+      "reason": "Existing owner only reads controlled UTF8/HTML; actual upload/image/video content path missing"
     },
     {
       "id": "C6",
@@ -156,8 +159,17 @@
       "life_positive": 3,
       "life_negative": 1,
       "bot_positive": 2,
-      "bot_negative": 2
+      "bot_negative": 2,
+      "existing_quality_extensions": 4
     },
     "semantic_acceptance": "pending"
+  },
+  "external_dependencies": {
+    "image_backend": {
+      "status": "awaiting_user_backend_location_or_service",
+      "question_sent": true,
+      "blocks": "real image generation verification only; implementation continues",
+      "evidence": ".runtime/companion-complete-20261004/external-capability-baseline.json"
+    }
   }
 }
