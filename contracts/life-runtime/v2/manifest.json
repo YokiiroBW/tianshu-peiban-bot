@@ -13,16 +13,17 @@
     "examples/content-projection.json": "ac3d7ced7ff904fe74553d7ee1e0ecb37acc2b07272aee5d8a3c51e25d631f74",
     "examples/conversation-image-jobs.json": "6f56420cc4bb054cc3e97835412cba48b6f6815d94f6f1c28e1f215ff7dd77d5",
     "examples/extensions.json": "99909929d186a0dda1c977bd9f55abc571d366e106b316dedf5472290a18a19a",
+    "examples/image-references.json": "a424b75ec05d1290adb9f4ab53f92c09e6c7d79d1c05e4561956afc099debc34",
     "examples/proactive-control.json": "a85f9f2d150d1c676c845a2b581abca0dca79d98961b5c143b0ba51f42178a67",
     "examples/reads.json": "a3bf5c0f8f8f5593b9150f077a28eabf2b3171f7c3848d9c16d0ade2742b89d3",
     "examples/requests.json": "e58526436aa6c86a9ae9c0af2bead5b252e8a1e9f812fb8bf77ce14f24f73302",
     "examples/semantic-cases.json": "1b3e179731289c6e8ef142333dab9d146a4b353741270b19f32ffad5a5757981",
-    "README.md": "1b654999a18d3f1f4558612fd514b3dbff83686e04989145e52541b702432ec2",
-    "schemas/life.json": "56491b9203316d901244da43f9c029040bd88e4b2a92932c4a690f398bdf72e4"
+    "README.md": "17690b377c21eae796c03acb223c604be39358cbd1d9932117c6f2c79cbde404",
+    "schemas/life.json": "6ceccbf9a9de05640a3e5e56ef14b860448140021f488c492bed8c9b9b0fcd2c"
   },
   "schema_examples_checked": {
-    "positive": 14,
-    "negative": 9
+    "positive": 19,
+    "negative": 13
   },
   "semantic_cases": "specified_not_run"
 }

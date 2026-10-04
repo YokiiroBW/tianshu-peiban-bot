@@ -580,11 +580,29 @@
           "maxLength": 4000
         },
         "reference": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "pattern": "^[A-Za-z0-9_-]+\\.(png|jpg|webp)$"
+          "anyOf": [
+            {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[A-Za-z0-9_-]+\\.(png|jpg|webp)$"
+            },
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/content_ref"
+                },
+                {
+                  "properties": {
+                    "kind": {
+                      "const": "image"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
         },
         "activities": {
           "type": "array",
@@ -594,6 +612,26 @@
             "maxLength": 128
           },
           "maxItems": 32
+        },
+        "source_scope": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "query": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/query"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -603,7 +641,27 @@
         "reference",
         "activities"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "reference": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "reference"
+            ]
+          },
+          "then": {
+            "required": [
+              "source_scope",
+              "query"
+            ]
+          }
+        }
+      ]
     },
     "outfit_select_value": {
       "type": "object",
@@ -691,6 +749,37 @@
           },
           "required": [],
           "additionalProperties": false
+        },
+        "edit_source_ref": {
+          "anyOf": [
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/content_ref"
+                },
+                {
+                  "properties": {
+                    "kind": {
+                      "const": "image"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "query": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/query"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -702,7 +791,25 @@
         "scope",
         "parameters"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "not": {
+            "properties": {
+              "edit_source_id": {
+                "type": "string"
+              },
+              "edit_source_ref": {
+                "$ref": "#/$defs/content_ref"
+              }
+            },
+            "required": [
+              "edit_source_id",
+              "edit_source_ref"
+            ]
+          }
+        }
+      ]
     },
     "image_cancel_value": {
       "type": "object",
@@ -1465,7 +1572,8 @@
             "reading.resume",
             "reading.close",
             "image.backend.configure",
-            "proactive.subscription.state"
+            "proactive.subscription.state",
+            "actor.image-reference.configure"
           ]
         },
         "expected_version": {
@@ -1950,6 +2058,20 @@
                 "operation",
                 "value"
               ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "actor.image-reference.configure"
+                },
+                "value": {
+                  "$ref": "#/$defs/actor_image_reference_configure_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
             }
           ]
         }
@@ -1983,7 +2105,8 @@
             "proactive",
             "reading",
             "image_backend",
-            "image_jobs"
+            "image_jobs",
+            "image_reference"
           ]
         },
         "object_id": {
@@ -2763,11 +2886,29 @@
           "maxLength": 4000
         },
         "reference": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "pattern": "^[A-Za-z0-9_-]+\\.(png|jpg|webp)$"
+          "anyOf": [
+            {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[A-Za-z0-9_-]+\\.(png|jpg|webp)$"
+            },
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/content_ref"
+                },
+                {
+                  "properties": {
+                    "kind": {
+                      "const": "image"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
         },
         "activities": {
           "type": "array",
@@ -2777,6 +2918,16 @@
             "maxLength": 128
           },
           "maxItems": 32
+        },
+        "source_scope": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -3345,7 +3496,8 @@
             "proactive",
             "reading",
             "image_backend",
-            "image_jobs"
+            "image_jobs",
+            "image_reference"
           ]
         },
         "items": {
@@ -3596,6 +3748,24 @@
                   "type": "array",
                   "items": {
                     "$ref": "#/$defs/image_jobs_record"
+                  },
+                  "maxItems": 50
+                }
+              },
+              "required": [
+                "resource",
+                "items"
+              ]
+            },
+            {
+              "properties": {
+                "resource": {
+                  "const": "image_reference"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/image_reference_record"
                   },
                   "maxItems": 50
                 }
@@ -4019,6 +4189,123 @@
         "created_at",
         "completed_at",
         "artifacts"
+      ],
+      "additionalProperties": false
+    },
+    "actor_image_reference_configure_value": {
+      "type": "object",
+      "properties": {
+        "content_ref": {
+          "anyOf": [
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/content_ref"
+                },
+                {
+                  "properties": {
+                    "kind": {
+                      "const": "image"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scope": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "query": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/query"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "content_ref",
+        "scope",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "image_reference_record": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "content_ref": {
+          "anyOf": [
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/content_ref"
+                },
+                {
+                  "properties": {
+                    "kind": {
+                      "const": "image"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scope": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "enum": [
+            "configured",
+            "not_configured"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "actor_id",
+        "content_ref",
+        "scope",
+        "state"
       ],
       "additionalProperties": false
     }
