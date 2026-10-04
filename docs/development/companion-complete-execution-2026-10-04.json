@@ -357,8 +357,9 @@
       "native_enabled": false,
       "native_clients": [],
       "max_request_bytes": 1048576,
-      "required": "Configure native client using actual Companion identity and existing provider auth, enable native execution and align bounded visual request payload; actual joint must exercise tools/streaming/visual path.",
-      "status": "config_delta_dispatched_C2_C4_and_C3"
+      "required": "C3 consumes /v1/chat/completions with native messages/tools/image_url and SSE via existing ClientGrant/provider-self-service. Align bounded max_request_bytes to 4MiB and verify actual features. native_enabled controls separate /v1/responses and need not be enabled for this consumer.",
+      "status": "corrected_after_C2_owner_path_verification",
+      "correction": "Prior inference that disabled native_enabled blocks Companion streaming/tools/vision was incorrect. Do not invent Responses provider/version grants or enable unused entry. Production unchanged."
     }
   },
   "contracts": {
