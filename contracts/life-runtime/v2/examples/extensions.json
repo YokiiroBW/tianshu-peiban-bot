@@ -1,0 +1,111 @@
+{
+  "valid": [
+    {
+      "schema_version": 2,
+      "request_id": "operation:example",
+      "actor_id": "actor:sample",
+      "expected_version": 0,
+      "operation": "image.backend.configure",
+      "value": {
+        "base_url": "http://192.168.31.210:8188",
+        "credential_ref": null,
+        "profile": "standard_sd",
+        "checkpoint": "configured-model.safetensors",
+        "enabled": true
+      }
+    },
+    {
+      "schema_version": 2,
+      "request_id": "operation:example",
+      "actor_id": "actor:sample",
+      "expected_version": 0,
+      "operation": "content.acquire",
+      "value": {
+        "query": {
+          "schema_version": 1,
+          "request_id": "read:private",
+          "origin": {
+            "assertion_ref": "origin:sample"
+          }
+        },
+        "scope": {
+          "actor_id": "actor:sample",
+          "person_id": "person:owner",
+          "audience": "self_private",
+          "conversation_id": "conversation:owner"
+        },
+        "source": {
+          "kind": "url",
+          "url": "https://example.org/original"
+        },
+        "purpose": "read"
+      }
+    },
+    {
+      "schema_version": 2,
+      "request_id": "operation:example",
+      "actor_id": "actor:sample",
+      "expected_version": 0,
+      "operation": "image.request",
+      "value": {
+        "id": "image:edit",
+        "activity_id": null,
+        "outfit_id": "outfit:spring",
+        "scene": "窗边",
+        "edit_source_id": "media:existing",
+        "scope": {
+          "actor_id": "actor:sample",
+          "person_id": "person:owner",
+          "audience": "self_private",
+          "conversation_id": "conversation:owner"
+        },
+        "parameters": {}
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "schema_version": 2,
+      "request_id": "operation:example",
+      "actor_id": "actor:sample",
+      "expected_version": 0,
+      "operation": "image.backend.configure",
+      "value": {
+        "base_url": "http://192.168.31.210:8188",
+        "credential_ref": null,
+        "profile": "standard_sd",
+        "checkpoint": "configured-model.safetensors",
+        "enabled": true,
+        "api_key": "never-send-to-companion-browser"
+      }
+    },
+    {
+      "schema_version": 2,
+      "request_id": "operation:example",
+      "actor_id": "actor:sample",
+      "expected_version": 0,
+      "operation": "content.acquire",
+      "value": {
+        "query": {
+          "schema_version": 1,
+          "request_id": "read:private",
+          "origin": {
+            "assertion_ref": "origin:sample"
+          }
+        },
+        "scope": {
+          "actor_id": "actor:sample",
+          "person_id": "person:owner",
+          "audience": "self_private",
+          "conversation_id": "conversation:owner"
+        },
+        "source": {
+          "kind": "url",
+          "url": "https://example.org/original",
+          "upload_id": "upload:also"
+        },
+        "purpose": "read"
+      }
+    }
+  ]
+}

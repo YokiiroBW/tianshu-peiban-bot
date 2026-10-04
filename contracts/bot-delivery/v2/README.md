@@ -1,6 +1,11 @@
-# bot-delivery v2 实现合同
+# bot-delivery/v2 实现合同
 
 主协调审核发布；生产者/消费者联合与实机验收待完成。
 
+POST Platform /internal/v2/bot-delivery/send、/query、/cancel、/finalize。Companion Delivery实际调用者为普通Core增量回复、Direct已授权主动指令、Proactive有据动机；全部进入Platform现有bot_send_jobs队列和真实QQ adapter，不另建发送账本。主动不借turn_sequence；response引用真实turn_id和origin，direct引用真实direct_request_id和origin；Platform用既有resolver/绑定校验Actor、接收者、渠道和实际操作授权，自填actor_id不构成权限。
 
-POST Platform /internal/v2/bot-delivery/send、/query、/cancel。主动不借turn_sequence；expression_id和各reply_id稳定。Platform由真实绑定验证Actor/接收者/渠道；同一队列发放实际出站序号。分段文字及原件分别结算，partial/unknown不等于完整送达。query仅查原request，cancel不等于远端已撤销；无可靠未产生效果证明不得重发。普通/Direct保持既有v1身份，同一内部Delivery/平台发送队列处理。
+同expression_id固定origin/scope/channel。每段segment_id、reply_id、sequence稳定：首次从1连续增长；已存在segment完全同内容重放回既有回执，ID/顺序/内容冲突409。request_id是一次append操作ID；重放同摘要，冲突409。send至少一段非空text或refs；final=True在接纳本次段后关闭；没有新段时调用finalize（仅关闭，不发送空text），已final后仅接受完全相同重放，不再接纳新段。最多64段。平台实际出站序号由现有队列发放，不由Companion构造。
+
+send_receipt汇总该expression已接纳全部段。final=False且已接纳段送达时仍为sending，不称整个表达sent；final=True且所有段真实sent才整体sent。queued/sending是非终态；一部分sent另有failed/cancelled为partial；无法确认某段为unknown，retry_safe=false。流中断保留已发片段，Companion调用finalize或cancel其尚未执行部分并保留partial/unknown；不得重发整个表达。query返回receipt:null是尚无记录，与failed不同。cancel不等于撤销已远端发出段，无可靠未产生效果证明不得重发。媒体引用由Platform向owner按授权读原件并实际QQ上传/引用，无法读取或发送须真实失败，不返回queued冒称完成。
+
+兼容迁移：保留既有/v1/conversation/send和reply-status及其真实inbound turn_sequence，旧非Platform bridge继续走其原v1协议；Platform绑定的普通/Direct/主动改由v2封套进入同一现有队列实现，v1也调用同一发送/回执归属，不建平行ledger。现有发送记录不重写、不推导假sequence；旧未结算记录按旧ID查回执；v2新表达使用独立ID。
