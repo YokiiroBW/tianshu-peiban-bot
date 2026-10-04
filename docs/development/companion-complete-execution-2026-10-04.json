@@ -239,7 +239,16 @@
   "nas": {
     "status": "pending",
     "baseline_readonly_verified": true,
-    "baseline_record": ".runtime/companion-complete-20261004/nas-baseline.json"
+    "baseline_record": ".runtime/companion-complete-20261004/nas-baseline.json",
+    "memory_build": {
+      "recipe": "infra/container/Dockerfile",
+      "installer": "infra/container/build_install.py",
+      "platform": "linux/amd64",
+      "source": "C5 final immutable commit pending",
+      "local_install_evidence": "worktrees/companion-complete-20261004/memory/.runtime/c5-clean-install/installation-evidence.json",
+      "linux_image_build": "pending",
+      "reuse": "existing locked binary-wheel installer; no new build framework"
+    }
   },
   "contracts": {
     "status": "implementation_baselines_published_joint_pending",
