@@ -91,7 +91,15 @@
       "baseline": "a5725d04aba00762d66306ae4821a40b70f7e2ed",
       "exclusive_scope": "Companion product source/tests/docs/own migrations and entrypoints; integrations shared/nonebot/astrbot explicitly transferred to C4 adapter worktree",
       "public_interface_status": "published_implementation_baseline",
-      "verification": []
+      "verification": [],
+      "working_tree_verification_report": {
+        "source": "Implementer report; final retest pending",
+        "first_concentrated_passed": 82,
+        "first_concentrated_failed": 4,
+        "followup": "Three test adaptations corrected, profile verify argument defect corrected; original restore and stream/owner tests next",
+        "new_tests": "tests/test_runtime_v2.py",
+        "not_complete": true
+      }
     },
     {
       "id": "C4",
@@ -123,6 +131,14 @@
         "exclusive_scope": "apps/web/** including existing browser tests; docs/handoffs/C4-UI.md; no services or locks",
         "handoff": "C4 explicitly stopped all apps/web writes; six untracked life components copied exactly, no modified original frontend files",
         "integration": "Coordinator merges isolated UI candidate into final Platform backend candidate, preserving unique owner per path"
+      },
+      "working_tree_verification_report": {
+        "source": "Implementer report; fixed commit and coordinator final verification pending",
+        "http_proofs_credentials": 3,
+        "http_delivery": 6,
+        "actual_sdk_adapter_scenarios": 2,
+        "reused": true,
+        "joint": "All five actual services started; first no-chat Life read fails issuer assembly (401), dispatched C3; independent Knowledge entry repair in progress"
       }
     },
     {
@@ -387,19 +403,31 @@
       "owner": "C3",
       "file": "src/tianshu_companion/runtime_execution.py:offer_event",
       "finding": "Fixed first 16 active subscriptions without pagination can permanently starve later subscribers",
-      "status": "dispatched_pending_fix_and_boundary_test"
+      "status": "implementation_updated_pending_runtime_verification"
     },
     {
       "owner": "C3",
       "file": "src/tianshu_companion/life_affect.py:snapshot",
       "finding": "Actor-wide LIMIT before scope filtering can evict current private-scope feelings due to other users feedback",
-      "status": "dispatched_pending_fix_and_scope_test"
+      "status": "implementation_updated_pending_runtime_verification"
     },
     {
       "owner": "C3",
       "scenario": 6,
       "finding": "Need prove sent-contact / response-timeout feedback reaches short affect and next proactive context; only explicit affect tool and unanswered counter observed so far",
-      "status": "integration_question_dispatched_not_yet_verified"
+      "status": "implementation_updated_pending_runtime_verification"
+    },
+    {
+      "owner": "C4-UI",
+      "file": "apps/web/src/features/life/LifecyclePanel.tsx:ActivityPanel.edit",
+      "finding": "Editing another record does not replace due input, risking previous draft time applied to next activity",
+      "status": "dispatched_after_Knowledge_fix"
+    },
+    {
+      "owner": "C4-UI",
+      "file": "apps/web/src/features/life/useLifeRuntime.ts:more",
+      "finding": "Pagination auth/scope invalidation should clear items/cursor using same logic as initial read",
+      "status": "dispatched_after_Knowledge_fix"
     }
   ]
 }
