@@ -1,6 +1,6 @@
 {
   "date": "2026-10-04",
-  "status": "implementation_in_progress",
+  "status": "github_integrated_nas_deployed_verified",
   "objective": "Complete the full companion iteration, integrate and push GitHub, deploy and verify NAS",
   "plan": "companion-complete-iteration-2026-10-04.md",
   "model": "gpt-6.1-sol",
@@ -13,7 +13,7 @@
       "id": "C1",
       "product": "memory",
       "agent": "iteration_memory_plan",
-      "status": "local_committed_pending_joint",
+      "status": "integrated_and_deployed_verified_with_recorded_limits",
       "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\memory",
       "baseline": "8415bc85bcad089a9e24461d5f3e88039754103c",
       "exclusive_scope": "product source/tests/docs/own migrations and entrypoints; no other product or root contracts",
@@ -42,7 +42,7 @@
       "id": "C2",
       "product": "gateway",
       "agent": "provider_test_fix",
-      "status": "local_committed_pending_joint",
+      "status": "integrated_and_deployed_verified_with_recorded_limits",
       "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\gateway",
       "baseline": "d1865da927bee8e266ac34bdc674dc36c1a513a8",
       "exclusive_scope": "product source/tests/docs/own migrations and entrypoints; no other product or root contracts",
@@ -91,7 +91,7 @@
       "id": "C3",
       "product": "companion",
       "agent": "iteration_runtime_plan",
-      "status": "merged_joint_verified_pending_deployment",
+      "status": "integrated_and_deployed_verified_with_recorded_limits",
       "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\companion",
       "baseline": "a5725d04aba00762d66306ae4821a40b70f7e2ed",
       "exclusive_scope": "Companion product source/tests/docs/own migrations and entrypoints; integrations shared/nonebot/astrbot explicitly transferred to C4 adapter worktree",
@@ -131,7 +131,7 @@
     },
     {
       "id": "C4",
-      "status": "merged_local_verified_pending_deployment",
+      "status": "integrated_and_deployed_verified_with_recorded_limits",
       "verification": [],
       "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\platform",
       "baseline": "6a2ed3d0d6f6b3f0be6761c3b9cf61239ea5d2b4",
@@ -204,11 +204,13 @@
         "owner": "root",
         "pending": "fixed image build, GitHub push and NAS migration/deployment",
         "head": "b313a49aa83fe4697eb74a8b5e4a8a924643ce28"
-      }
+      },
+      "final_deployed_revision": "c87c53bcb7604d93f392cf1613049ac8567baa88",
+      "readiness_followup": "bots schema 2 accepted; other sidecar schema 2 still rejected; two actual TLS HTTP tests passed."
     },
     {
       "id": "C5",
-      "status": "local_committed_pending_joint",
+      "status": "integrated_and_deployed_verified_with_recorded_limits",
       "verification": [
         {
           "suite": "affected Knowledge/C1/HTTP/HTTPS/concurrency",
@@ -257,24 +259,46 @@
     },
     {
       "id": "C6",
-      "status": "pending",
+      "status": "integrated_and_deployed_verified_with_recorded_limits",
       "verification": []
     }
   ],
   "coverage": [
     {
       "scenario": 1,
-      "status": "pending",
-      "evidence": []
+      "status": "isolated_runtime_verified",
+      "evidence": [],
+      "current_assessment": {
+        "evidence": "C3 test_runtime_v2: first no-chat ensure, cross-day checkpoint, restart and disabled role rejection.",
+        "supersedes_earlier_pending_notes": true,
+        "sources": [
+          "companion/docs/handoffs/C3.md",
+          "platform/docs/handoffs/C4.md",
+          "platform-ui/docs/handoffs/C4-UI.md",
+          ".runtime/companion-complete-20261004/merged-c3-joint.txt"
+        ]
+      },
+      "implementation_deployed_to_nas": true
     },
     {
       "scenario": 2,
-      "status": "pending",
-      "evidence": []
+      "status": "isolated_runtime_and_joint_verified",
+      "evidence": [],
+      "current_assessment": {
+        "evidence": "C3 runtime v2 activity checkpoints; final merged five-owner TLS joint actual current reading/draft context.",
+        "supersedes_earlier_pending_notes": true,
+        "sources": [
+          "companion/docs/handoffs/C3.md",
+          "platform/docs/handoffs/C4.md",
+          "platform-ui/docs/handoffs/C4-UI.md",
+          ".runtime/companion-complete-20261004/merged-c3-joint.txt"
+        ]
+      },
+      "implementation_deployed_to_nas": true
     },
     {
       "scenario": 3,
-      "status": "partial_isolated_verified",
+      "status": "isolated_runtime_and_joint_verified",
       "evidence": [
         {
           "product": "memory",
@@ -283,11 +307,22 @@
           "verified": "Natural bounded whole-group recall; atomic correction/rebuild; stale-revision and ACK recovery; reflection cannot restore corrected old evidence",
           "not_verified": "Companion current-turn intent/expressions and real Platform proof issue/verify integration"
         }
-      ]
+      ],
+      "current_assessment": {
+        "evidence": "Final merged five-owner TLS native SSE natural context/correction path; exact old-origin source lookup and independent intent preservation.",
+        "supersedes_earlier_pending_notes": true,
+        "sources": [
+          "companion/docs/handoffs/C3.md",
+          "platform/docs/handoffs/C4.md",
+          "platform-ui/docs/handoffs/C4-UI.md",
+          ".runtime/companion-complete-20261004/merged-c3-joint.txt"
+        ]
+      },
+      "implementation_deployed_to_nas": true
     },
     {
       "scenario": 4,
-      "status": "partial_isolated_verified",
+      "status": "isolated_runtime_and_joint_verified",
       "evidence": [
         {
           "product": "memory",
@@ -296,11 +331,22 @@
           "verified": "Natural bounded whole-group recall; atomic correction/rebuild; stale-revision and ACK recovery; reflection cannot restore corrected old evidence",
           "not_verified": "Companion current-turn intent/expressions and real Platform proof issue/verify integration"
         }
-      ]
+      ],
+      "current_assessment": {
+        "evidence": "Final merged five-owner TLS natural correction with Memory receipt plus negative cases; withdrawn source checks in runtime v2.",
+        "supersedes_earlier_pending_notes": true,
+        "sources": [
+          "companion/docs/handoffs/C3.md",
+          "platform/docs/handoffs/C4.md",
+          "platform-ui/docs/handoffs/C4-UI.md",
+          ".runtime/companion-complete-20261004/merged-c3-joint.txt"
+        ]
+      },
+      "implementation_deployed_to_nas": true
     },
     {
       "scenario": 5,
-      "status": "partial_isolated_verified",
+      "status": "isolated_runtime_and_joint_verified",
       "evidence": [
         {
           "product": "platform",
@@ -310,26 +356,70 @@
           "not_verified": "Final merged Core expression path and production adapter delivery.",
           "handoff": "platform/docs/handoffs/C4.md"
         }
-      ]
+      ],
+      "current_assessment": {
+        "evidence": "C4 shared normal/direct/proactive queue and C3 actual HTTP synthetic SDK ACK; partial/unknown/cancel/late ACK and restart no replay. Real QQ not probed this iteration.",
+        "supersedes_earlier_pending_notes": true,
+        "sources": [
+          "companion/docs/handoffs/C3.md",
+          "platform/docs/handoffs/C4.md",
+          "platform-ui/docs/handoffs/C4-UI.md",
+          ".runtime/companion-complete-20261004/merged-c3-joint.txt"
+        ]
+      },
+      "implementation_deployed_to_nas": true
     },
     {
       "scenario": 6,
-      "status": "pending",
-      "evidence": []
+      "status": "isolated_runtime_verified",
+      "evidence": [],
+      "current_assessment": {
+        "evidence": "C3 confirmed contact to unanswered timeout once, private scoped affect, response recovery and durable restart; no relationship score loss.",
+        "supersedes_earlier_pending_notes": true,
+        "sources": [
+          "companion/docs/handoffs/C3.md",
+          "platform/docs/handoffs/C4.md",
+          "platform-ui/docs/handoffs/C4-UI.md",
+          ".runtime/companion-complete-20261004/merged-c3-joint.txt"
+        ]
+      },
+      "implementation_deployed_to_nas": true
     },
     {
       "scenario": 7,
-      "status": "pending",
-      "evidence": []
+      "status": "isolated_runtime_and_browser_verified",
+      "evidence": [],
+      "current_assessment": {
+        "evidence": "C3 outfit/reference lifecycle and first-save CAS; C4 browser identity references. External image backend remains unconfigured.",
+        "supersedes_earlier_pending_notes": true,
+        "sources": [
+          "companion/docs/handoffs/C3.md",
+          "platform/docs/handoffs/C4.md",
+          "platform-ui/docs/handoffs/C4-UI.md",
+          ".runtime/companion-complete-20261004/merged-c3-joint.txt"
+        ]
+      },
+      "implementation_deployed_to_nas": true
     },
     {
       "scenario": 8,
-      "status": "pending",
-      "evidence": []
+      "status": "isolated_runtime_and_browser_verified_external_pending",
+      "evidence": [],
+      "current_assessment": {
+        "evidence": "C3 image jobs/unknown reconciliation and existing album original hash adoption/restart; C4 album UI. Real ComfyUI generation not verified.",
+        "supersedes_earlier_pending_notes": true,
+        "sources": [
+          "companion/docs/handoffs/C3.md",
+          "platform/docs/handoffs/C4.md",
+          "platform-ui/docs/handoffs/C4-UI.md",
+          ".runtime/companion-complete-20261004/merged-c3-joint.txt"
+        ]
+      },
+      "implementation_deployed_to_nas": true
     },
     {
       "scenario": 9,
-      "status": "partial_isolated_verified",
+      "status": "isolated_runtime_joint_and_browser_verified",
       "evidence": [
         {
           "product": "platform",
@@ -339,16 +429,38 @@
           "not_verified": "Final Core media/reading coverage and UI fixed commit.",
           "handoff": "platform/docs/handoffs/C4.md"
         }
-      ]
+      ],
+      "current_assessment": {
+        "evidence": "C5 actual Linux codecs, C4 independent Knowledge first no-chat upload/read/restart/disable; final C3 actual image bytes vision and reading joint; final UI image presentation 4 focused checks.",
+        "supersedes_earlier_pending_notes": true,
+        "sources": [
+          "companion/docs/handoffs/C3.md",
+          "platform/docs/handoffs/C4.md",
+          "platform-ui/docs/handoffs/C4-UI.md",
+          ".runtime/companion-complete-20261004/merged-c3-joint.txt"
+        ]
+      },
+      "implementation_deployed_to_nas": true
     },
     {
       "scenario": 10,
-      "status": "pending",
-      "evidence": []
+      "status": "isolated_runtime_and_joint_verified",
+      "evidence": [],
+      "current_assessment": {
+        "evidence": "C3 versioned original writing and diary/reflection paths; final merged actual five-owner current draft/reading joint; C4 writing lifecycle UI.",
+        "supersedes_earlier_pending_notes": true,
+        "sources": [
+          "companion/docs/handoffs/C3.md",
+          "platform/docs/handoffs/C4.md",
+          "platform-ui/docs/handoffs/C4-UI.md",
+          ".runtime/companion-complete-20261004/merged-c3-joint.txt"
+        ]
+      },
+      "implementation_deployed_to_nas": true
     },
     {
       "scenario": 11,
-      "status": "partial_isolated_verified",
+      "status": "isolated_runtime_and_joint_verified",
       "evidence": [
         {
           "product": "gateway",
@@ -365,16 +477,39 @@
           "not_verified": "Final Core streaming cancellation and production channel verification.",
           "handoff": "platform/docs/handoffs/C4.md"
         }
-      ]
+      ],
+      "current_assessment": {
+        "evidence": "Final held SSE first segment before end; Web cancel to Core/Gateway with unknown upstream outcome, ACK retained/restart no replay; actual two-author synthetic association/revoke. Real QQ/model external probe not performed.",
+        "supersedes_earlier_pending_notes": true,
+        "sources": [
+          "companion/docs/handoffs/C3.md",
+          "platform/docs/handoffs/C4.md",
+          "platform-ui/docs/handoffs/C4-UI.md",
+          ".runtime/companion-complete-20261004/merged-c3-joint.txt"
+        ]
+      },
+      "implementation_deployed_to_nas": true
     },
     {
       "scenario": 12,
-      "status": "pending",
-      "evidence": []
+      "status": "isolated_browser_verified_nas_static_and_health_verified",
+      "evidence": [],
+      "current_assessment": {
+        "evidence": "C4 fixed desktop/mobile and identity browser checks; room viewport no overflow. Room has limited state projection, not full walking/sleep/outfit animation.",
+        "supersedes_earlier_pending_notes": true,
+        "sources": [
+          "companion/docs/handoffs/C3.md",
+          "platform/docs/handoffs/C4.md",
+          "platform-ui/docs/handoffs/C4-UI.md",
+          ".runtime/companion-complete-20261004/merged-c3-joint.txt"
+        ],
+        "nas": "56 static assets and no-store verified; no new authenticated production browser session."
+      },
+      "implementation_deployed_to_nas": true
     },
     {
       "scenario": 13,
-      "status": "partial_isolated_verified",
+      "status": "nas_backup_migration_restore_and_deployment_verified",
       "evidence": [
         {
           "product": "gateway",
@@ -398,7 +533,19 @@
           "not_verified": "Whole-product cold backup, migration and restore on NAS clone.",
           "handoff": "platform/docs/handoffs/C4.md"
         }
-      ]
+      ],
+      "current_assessment": {
+        "evidence": "C1/C5 additive nonempty migrations; C3 v9 WAL backup, source retention and post-upgrade checkpoint restart; C4 nonempty queue migration. NAS cold migration/restore pending.",
+        "supersedes_earlier_pending_notes": true,
+        "sources": [
+          "companion/docs/handoffs/C3.md",
+          "platform/docs/handoffs/C4.md",
+          "platform-ui/docs/handoffs/C4-UI.md",
+          ".runtime/companion-complete-20261004/merged-c3-joint.txt"
+        ],
+        "nas": "27 cold DBs / 2 guard pairs; 32 offline migrated DBs with paired owner restore; 33 runtime clone DBs / 2 guards; clone stopped; production data/user configuration preserved; current new ledger retained across failed starts."
+      },
+      "implementation_deployed_to_nas": true
     }
   ],
   "github": {
@@ -407,12 +554,12 @@
       "tianshu-memory": "097ccfa55dfb5af541d24cfcb48ba6ccf02f1a3a",
       "tianshu-model-gateway": "ea7f5924e80640d1289e66adb89541c52e037eaa",
       "tianshu-companion": "91d82ddad9bb1f2eb140d0dc6615ee84dd6b4eb9",
-      "tianshu-platform": "b313a49aa83fe4697eb74a8b5e4a8a924643ce28"
+      "tianshu-platform": "c87c53bcb7604d93f392cf1613049ac8567baa88"
     },
-    "coordination": "This record is prepared for immediate normal main push; final deployment record will confirm root revision."
+    "coordination": "edc254b includes deployed capacity guard fix; final deployment documentation committed afterward."
   },
   "nas": {
-    "status": "pending",
+    "status": "deployed_verified",
     "baseline_readonly_verified": true,
     "baseline_record": ".runtime/companion-complete-20261004/nas-baseline.json",
     "memory_build": {
@@ -585,10 +732,283 @@
       },
       "production_changed": false,
       "production_data_mounted": false
+    },
+    "platform_final_candidate": {
+      "status": "built",
+      "image_id": "sha256:537e829e5da6408c04251acb940387e840afc13097a57d115dcb456773714718",
+      "tag": "tianshu/companion-complete-platform:b313a49aa83f",
+      "stage": "/volume2/tianshu-v2-resident-updates/companion-complete-20261004-platform-b313a49aa83f",
+      "revision": "b313a49aa83fe4697eb74a8b5e4a8a924643ce28",
+      "base_image_id": "sha256:71dedc1618f8a6333fcb50fc71be708621636e0d0daaf468c0dd0e769b3d63e0",
+      "base_revision": "6a2ed3d0d6f6b3f0be6761c3b9cf61239ea5d2b4",
+      "contracts_revision": "11441e749cffd9422cd5731faf263fa9822fd774",
+      "source_archive_sha256": "13933b4a0f2c88ae66dd85c70ab988fb8140aa29d23479500b3aaead0c96055e",
+      "source": "git archive fixed commits; no working-tree files or local dist",
+      "dependency_inputs": {
+        "unchanged": true,
+        "files": [
+          "Dockerfile",
+          "package.json",
+          "package-lock.json",
+          "pyproject.toml",
+          ".dockerignore",
+          "scripts/build/runtime.lock",
+          "scripts/build/tools.lock",
+          "scripts/build/base-images.json"
+        ],
+        "sha256": {
+          "Dockerfile": "17144cfb6f8b53af3f5e4ef5e23533b4a21ec3bb7dbcb78f5a6cbc687c6b84f6",
+          "package.json": "98f081e5d9395d23c1f8da4328d400fe6cd368047827530e3608555e23689e21",
+          "package-lock.json": "c0fdf8e0a61841aa9b8290f42983042b93c3d7492c6d1fc653f27fd3400a92e2",
+          "pyproject.toml": "c567471c43ad58c773d3051c16cb036456cae78ba9445c9c53bf16b1548ec801",
+          ".dockerignore": "739e6828ac63065d1a88292b69a00a071d76ac3993495c1fcafa18421905e7f6",
+          "scripts/build/runtime.lock": "2177bffa661fcf91087d5efecca533c37cc107e8a831d5cf25a80de75a9009cd",
+          "scripts/build/tools.lock": "12d95d3f58681aa8e07423fd2bf2c164f8d41af73508cbc5bf093c3b6e790f4e",
+          "scripts/build/base-images.json": "99138bd3c0a27d416cae66d3e5e1029311b3bd37862d8d07de564108515b6e42"
+        }
+      },
+      "build": {
+        "platform": "linux/amd64",
+        "node": "24.19.0",
+        "npm": "11.6.2",
+        "network": "none",
+        "builder": "existing classic Docker",
+        "web": "original console stage npm ci + npm run build"
+      },
+      "linux_checks": {
+        "network": "none",
+        "read_only": true,
+        "python": "3.12.11",
+        "uid": 10001,
+        "installed_source_files": 74,
+        "contract_files": 165,
+        "contract_manifests": 18,
+        "runtime_packages": [
+          "bot-delivery/v2",
+          "knowledge-content/v1",
+          "life-runtime/v2",
+          "memory-context/v1"
+        ],
+        "runtime_modules_imported": 74,
+        "web_files": 56,
+        "html_assets": 3,
+        "final_image_ui": true,
+        "cli_help": true,
+        "pip_check": true
+      },
+      "inherited_runtime": {
+        "user": "10001:10001",
+        "entrypoint": [
+          "python",
+          "-I",
+          "-m",
+          "services.platform"
+        ],
+        "working_dir": "/srv/tianshu",
+        "cmd": [
+          "--settings",
+          "/etc/tianshu/settings.json",
+          "serve",
+          "--host",
+          "0.0.0.0",
+          "--port",
+          "8443"
+        ],
+        "healthcheck_preserved": true,
+        "env_preserved": true,
+        "volumes_preserved": true
+      },
+      "production_changed": false,
+      "production_data_mounted": false,
+      "production_service_started": false
+    },
+    "final_release": {
+      "date": "2026-10-05",
+      "status": "github_integrated_nas_deployed_verified",
+      "origin": "http://192.168.31.210:18446",
+      "release_sha256": "5e0558c12feadfb17890e7b69989d79855413cf37c299b0ef4c7128c3455e676",
+      "images": {
+        "platform": {
+          "image_id": "sha256:a1c8105bd7d8e22747970067d73d8c240e76d588923e2d29077db925088e9969",
+          "source_verified": true,
+          "revision": "c87c53bcb7604d93f392cf1613049ac8567baa88"
+        },
+        "memory": {
+          "image_id": "sha256:7e3e94e13b095bdbd99801471bfc7b8ce1bd18bbcff2ee14d57b91d36acc7c44",
+          "source_verified": true,
+          "revision": "097ccfa55dfb5af541d24cfcb48ba6ccf02f1a3a"
+        },
+        "gateway": {
+          "image_id": "sha256:51c745d77e58640a2e3694dc710cd49eecfd3caed2f71c4a67ebb6fad50dc20a",
+          "source_verified": true,
+          "revision": "ea7f5924e80640d1289e66adb89541c52e037eaa"
+        },
+        "knowledge": {
+          "image_id": "sha256:7e3e94e13b095bdbd99801471bfc7b8ce1bd18bbcff2ee14d57b91d36acc7c44",
+          "source_verified": true,
+          "revision": "097ccfa55dfb5af541d24cfcb48ba6ccf02f1a3a"
+        },
+        "companion": {
+          "image_id": "sha256:1611e6f439b036bda1a7186ae6323143f200371a1dbe2d916d47a8a2ce85bfb3",
+          "source_verified": true,
+          "revision": "91d82ddad9bb1f2eb140d0dc6615ee84dd6b4eb9"
+        }
+      },
+      "nonebot": {
+        "adapter_http": 200,
+        "automatic_ledger_restore": false,
+        "credentials_and_instance_preserved": true,
+        "image_id": "sha256:99af60082719ac582bd0db144fbce72c11c4d7c421c8266b596ec31453dc562d",
+        "no_model_or_qq_probe": true,
+        "observation_http": 200,
+        "policy_preserved": true,
+        "revision": "f308c9af234573bf3bd342c89e8664afb9900f92",
+        "source_files": 10,
+        "status": "deployed_verified",
+        "versions": {
+          "nonebot-adapter-onebot": "2.4.6",
+          "nonebot2": "2.5.0",
+          "tianshu-nonebot-adapter": "0.5.0"
+        },
+        "wheel_sha256": "b378de529d6da022e6e3c9c14b72bd84aa2951c2a153860e0649b97c9e450978"
+      },
+      "guard_fix_commit": "edc254b6a7904b6441454e1278c7745844c11375",
+      "cold_backup": {
+        "all_ten_stopped": true,
+        "executed_in_this_revision": false,
+        "guard_pairs": 2,
+        "inherited_from": "/volume2/tianshu-v2-resident-updates/companion-complete-20261004-release/cold_backup-receipt.json",
+        "parent_release_sha256": "1b15ad75137fb87165b8ee18c43c6ab16ef15da9f435fa3a1011fef64059143d",
+        "release_sha256": "5e0558c12feadfb17890e7b69989d79855413cf37c299b0ef4c7128c3455e676",
+        "source_receipt_sha256": "ffff6fd7637cf0baf2e2c90a3d670566e5c1ed3431b59b55bebe2ce76a37f47b",
+        "sqlite_databases": 27,
+        "status": "consistent_cold_backup_and_disabled_restore_verified"
+      },
+      "migration": {
+        "databases": {
+          "databases": 32,
+          "guard_pairs": 2
+        },
+        "executed_in_this_revision": false,
+        "inherited_from": "/volume2/tianshu-v2-resident-updates/companion-complete-20261004-release/migrate_clone-receipt.json",
+        "migrations": {
+          "companion": {
+            "version": 10
+          },
+          "knowledge": {
+            "guard_pair_verified": true
+          },
+          "memory": {
+            "guard_pair_verified": true
+          },
+          "platform": {
+            "delivery_version": 2,
+            "http_or_background_started": false,
+            "proof_challenge_tables": true
+          }
+        },
+        "parent_release_sha256": "1b15ad75137fb87165b8ee18c43c6ab16ef15da9f435fa3a1011fef64059143d",
+        "release_sha256": "5e0558c12feadfb17890e7b69989d79855413cf37c299b0ef4c7128c3455e676",
+        "runtime_ledger_copied_to_production": false,
+        "source_receipt_sha256": "b1cee103e86e2e985a7a38d16bef3b2be96c13023c1bf24282583b06051415ce",
+        "status": "offline_migration_and_owner_pair_restore_verified"
+      },
+      "clone": {
+        "databases": {
+          "databases": 33,
+          "guard_pairs": 2
+        },
+        "role_peers": {
+          "disabled_kept_disabled": true,
+          "independent_memory_and_knowledge": true,
+          "roles_verified": 1
+        },
+        "stopped": true,
+        "internal_network_only": true
+      },
+      "production": {
+        "five_core_tls_live_ready": 200,
+        "managed_owners": 10,
+        "guard_ready": true,
+        "user_state_preserved": true,
+        "runtime_clone_data_copied": false,
+        "old_ledger_restored": false
+      },
+      "web": {
+        "status": "nas_public_static_verified",
+        "origin": "http://192.168.31.210:18446",
+        "candidate_image_id": "sha256:a1c8105bd7d8e22747970067d73d8c240e76d588923e2d29077db925088e9969",
+        "revision": "c87c53bcb7604d93f392cf1613049ac8567baa88",
+        "expected_source": "immutable candidate /srv/tianshu/web-hashes.json",
+        "expected_manifest_sha256": "27003af289ac934f3f0b887e8f432def6caf1139e70c1deef19e740083164b5e",
+        "static_assets": 56,
+        "entry_index_sha256": "c4be871849ac43717d7448e216fe45fe17e6a7ff9ce5e57bde0b7322f762a59c",
+        "public_health_checked": false,
+        "public_health_route": "not_exposed_by_public_listener",
+        "health_evidence": {
+          "reference": "release-revision-poll-receipt.json",
+          "checked_this_run": false,
+          "status": "reused_internal_tls_readback",
+          "sha256": "44d6e5d43d1bdd31ac25287a064f334bdfe3f938d1b02cb0541532218c210cb0",
+          "live": 200,
+          "ready": 200,
+          "verified_tls": true
+        },
+        "cache_no_store": true,
+        "login_session_requested": false,
+        "credentials_used_for_http": false,
+        "production_business_data_read": false,
+        "real_qq_or_model_called": false
+      },
+      "dockge": {
+        "applied": true,
+        "backup_directory": "/volume2/tianshu-v2-resident-updates/companion-complete-20261004-release-platform-health/dockge-backups/20261004T162417Z-abad03a1",
+        "containers_recreated": false,
+        "credential_files_read": false,
+        "snapshots": [
+          {
+            "new_sha256": "188209560412455259401f6b0f576efe0037b7b42033972de15e26f77f6e32ed",
+            "old_sha256": "01811faef09be860c5f468d4e0ea0ba4dd2f8a1955f483c2e5ed8b36ac2ab0d4",
+            "project": "tianshu-v2-resident"
+          },
+          {
+            "new_sha256": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530",
+            "old_sha256": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530",
+            "project": "tianshu-v2-resident-obs"
+          }
+        ]
+      },
+      "parent_provenance": {
+        "cold_manifest_sha256": "a3bb9fde0e09f656b922b4d32df0cd0d5fbe5dc63e26750b5ee338676769891b",
+        "new_migrations_run": false,
+        "offline_inventory_sha256": "9570652cc9b58213898b9c6f28a87f3ecfdc2a7ac57ba6589f045b774d03cda8",
+        "original_failed_jobs_preserved": true,
+        "parent_release_sha256": "1b15ad75137fb87165b8ee18c43c6ab16ef15da9f435fa3a1011fef64059143d",
+        "parent_stage": "/volume2/tianshu-v2-resident-updates/companion-complete-20261004-release",
+        "production_authority_written": false,
+        "source_receipt_sha256": {
+          "cold_backup": "ffff6fd7637cf0baf2e2c90a3d670566e5c1ed3431b59b55bebe2ce76a37f47b",
+          "migrate_clone": "b1cee103e86e2e985a7a38d16bef3b2be96c13023c1bf24282583b06051415ce"
+        }
+      },
+      "receipt_sha256": {
+        "cold_backup": "702c3f336ad16efcaad7aad299a5409589e15047e9f9fce7a8fe1f92d6f0f74b",
+        "migrate_clone": "64e36dde0ccf828092ce63b8dd1484ae4ad8e6e4282b7b8106a4c53e628f1993",
+        "nonebot": "20882aad80c92278d204393551869c9b1cb5c2b2678ef05e1198ad182f99b181",
+        "readback": "5f9202fbef6fdea1bb4fdcf17c9d5de12d6632aa5644ef6831f15a92d8235245",
+        "switch": "92f4a993237d928654c279e52a402f1d76baa4f5b3dcf146da51be28768ec5ae",
+        "verify_clone": "e3bb67e9f2d056881a00ee6766a3faed18f86c326d8ab745402544bfa73423e1"
+      },
+      "limitations": [
+        "真实生图后端尚未配置，未进行真实 ComfyUI/GPU 生图验收。",
+        "本轮发布未主动发送真实 QQ 消息或调用真实付费模型；SDK/模型联调使用隔离替身。",
+        "生产网页验证覆盖公开静态资源及内部 TLS 健康；未新建生产登录会话验证受保护页面。桌面/手机交互证据来自隔离浏览器联调。",
+        "小屋保留原画与有限活动状态投影，不声称实现完整走动、睡眠和换装动画。"
+      ]
     }
   },
   "contracts": {
-    "status": "implementation_baselines_published_joint_pending",
+    "status": "fixed_baselines_verified_in_merged_five_owner_joint",
     "packages": [
       "memory-context/v1",
       "life-runtime/v2",
@@ -614,7 +1034,7 @@
       "knowledge_positive": 9,
       "knowledge_negative": 6
     },
-    "semantic_acceptance": "pending",
+    "semantic_acceptance": "isolated_actual_http_joint_verified_external_provider_not_verified",
     "release_artifact": {
       "revision": "97c335d6eff4a16a3fd178debfa9e5c2e11157b0",
       "artifact": ".runtime\\companion-complete-20261004\\contracts-97c335d6eff4.tar.gz",
@@ -665,5 +1085,13 @@
       "finding": "Pagination auth/scope invalidation should clear items/cursor using same logic as initial read",
       "status": "closed_in_fixed_UI_targeted_browser_checks"
     }
+  ],
+  "deployment_record": "companion-complete-deployment-2026-10-05.json",
+  "current_status_note": "本条与各 current_assessment 为最终状态；前序阶段中的 pending/not_verified 记录保留为历史，不覆盖最终证据及外部限制。",
+  "final_limits": [
+    "真实生图后端尚未配置，未进行真实 ComfyUI/GPU 生图验收。",
+    "本轮发布未主动发送真实 QQ 消息或调用真实付费模型；SDK/模型联调使用隔离替身。",
+    "生产网页验证覆盖公开静态资源及内部 TLS 健康；未新建生产登录会话验证受保护页面。桌面/手机交互证据来自隔离浏览器联调。",
+    "小屋保留原画与有限活动状态投影，不声称实现完整走动、睡眠和换装动画。"
   ]
 }

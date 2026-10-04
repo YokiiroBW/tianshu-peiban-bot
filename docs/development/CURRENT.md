@@ -1,12 +1,10 @@
-## 2026-10-04 陪伴完整迭代已集成并推送产品仓库，NAS 待升级
-
-Memory/Knowledge `097ccfa`、Gateway `ea7f592`、Companion `91d82dd`、Platform `b313a49` 已正常推送 GitHub main 并读回核实。完整模块本地集成、实际五服务 TLS 联合5项通过；独立用户界面与实际内容链验收见各产品 C1–C5/C4-UI 交接。候选镜像及真实配置无写入预演已推进，生产数据迁移、正式镜像切换及最终实机验收尚未完成，不能称本轮已部署。精确证据见 [执行记录](companion-complete-execution-2026-10-04.json)。旧 root/projects 未提交改动继续保留。
-
 # 当前交接
 
-2026-10-04 **陪伴全面迭代正在实现**：用户已授权完成全范围并最终推送 GitHub、部署 NAS。C1 Memory 已提交 `20bf790`、C2 Gateway 已提交 `ea7f592`，均仅本地验证、待联合验收；C3 Companion、C4 Platform、C5 Knowledge 内容接入在 worktrees/companion-complete-20261004 并行实现，全部 GPT-6.1-sol/xhigh。C5 沿 C1 提交同产品串行演进，主协调只维护合同、规划和验收集成。实际状态及13项覆盖见 [执行记录](companion-complete-execution-2026-10-04.json)。本轮尚未整体集成、推送或部署，不把下方历史记录作为本轮完成证据。
+## 2026-10-05 陪伴完整迭代已合入 GitHub 并部署 NAS
 
-2026-10-04 **陪伴全面迭代进入整体规划**：用户允许大规模结构调整，产品实现统一交 GPT-6.1-sol / xhigh 子智能体；主协调负责架构、合同、分发、合入与验收，无新窗口。本轮唯一入口为[全面迭代计划](companion-complete-iteration-2026-10-04.md)，已明确最终归属、保留/替换/删除、完整功能包、迁移与联合验收。当前完成两项只读领域规划，产品编码尚未派发，合同变更尚未发布，无生产代码修改或 NAS 更新；不恢复历史任务，不把规划称开发完成。此执行偏好覆盖下方旧 DSH-only 记录。
+最终 Memory/Knowledge `097ccfa`、Gateway `ea7f592`、Companion `91d82dd`、Platform `c87c53b`、NoneBot 0.5.0；容量守护修复 `edc254b`。五核心 TLS 就绪、原用户配置保留、完整冷备/迁移/恢复、56 网页资源和 Dockge 同步已核验。主协调规划/集成/验收，产品由 GPT-6.1-sol/xhigh 子智能体实现，无新窗口。原工作区修改保留。
+
+入口 http://192.168.31.210:18446 。[部署记录](companion-complete-deployment-2026-10-05.md)与[13 项覆盖](companion-complete-execution-2026-10-04.json)为本轮最终状态。真实生图后端尚待配置；本轮未主动发送真实 QQ/模型测试请求，受保护网页的交互证据来自隔离浏览器联调。以下保留历史交接，不覆盖本条。
 
 2026-10-04 **OpenCode 会话修复已部署 NAS**：platform `6a2ed3d` / gateway `d1865da` / companion `a5725d0`。修复 HTTP 400 MissingSessionID，加入 Zen / Go 预设及可选测试错误码。NAS 五核心就绪、53 网页资源匹配、Dockge 同步；部署后一次真实短测试 HTTP 200、回复验真通过。详见 [部署记录](opencode-session-deployment-2026-10-04.md)。
 
