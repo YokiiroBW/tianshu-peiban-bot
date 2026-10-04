@@ -135,8 +135,16 @@
     },
     {
       "scenario": 11,
-      "status": "pending",
-      "evidence": []
+      "status": "partial_isolated_verified",
+      "evidence": [
+        {
+          "product": "gateway",
+          "commit": "ea7f5924e80640d1289e66adb89541c52e037eaa",
+          "source": "tests/test_model_execution_http.py",
+          "verified": "13 loopback HTTP tests cover native/chat streaming, owned cancellation, timeout/drop, partial progress, tool/image passthrough and restart without retry",
+          "not_verified": "Companion consumer, Platform Web/QQ output, trusted cross-channel context and real providers"
+        }
+      ]
     },
     {
       "scenario": 12,
@@ -145,8 +153,16 @@
     },
     {
       "scenario": 13,
-      "status": "pending",
-      "evidence": []
+      "status": "partial_isolated_verified",
+      "evidence": [
+        {
+          "product": "gateway",
+          "commit": "ea7f5924e80640d1289e66adb89541c52e037eaa",
+          "source": "tests/test_model_execution_http.py::test_restart_preserves_progress_and_usage_and_does_not_restart_request",
+          "verified": "Gateway in-flight restart remains unknown and retains progress/usage, no provider replay",
+          "not_verified": "Nonempty multi-product migrations, companion in-flight activities/images and final release rollback rehearsal"
+        }
+      ]
     }
   ],
   "github": {
