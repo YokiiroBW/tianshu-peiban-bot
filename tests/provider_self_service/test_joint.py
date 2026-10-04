@@ -20,13 +20,13 @@ from jsonschema import Draft202012Validator
 
 WORKSPACE = Path(os.environ["TIANSHU_WORKSPACE"])
 PRODUCTS = WORKSPACE / "worktrees"
+PLATFORM = Path(os.environ.get("TIANSHU_PROVIDER_PLATFORM", PRODUCTS / "PROVIDER-P1/tianshu-platform"))
+GATEWAY_ROOT = Path(os.environ.get("TIANSHU_PROVIDER_GATEWAY", PRODUCTS / "PROVIDER-G1/tianshu-model-gateway"))
+COMPANION = Path(os.environ.get("TIANSHU_PROVIDER_COMPANION", PRODUCTS / "PROVIDER-C1/tianshu-companion"))
 sys.path[:0] = [
-    str(PRODUCTS / "PROVIDER-P1/tianshu-platform"),
-    str(PRODUCTS / "PROVIDER-P1/tianshu-platform/tests/backend"),
-    str(PRODUCTS / "PROVIDER-G1/tianshu-model-gateway/src"),
-    str(PRODUCTS / "PROVIDER-G1/tianshu-model-gateway/tests"),
-    str(PRODUCTS / "PROVIDER-C1/tianshu-companion/src"),
-    str(PRODUCTS / "PROVIDER-C1/tianshu-companion/tests"),
+    str(PLATFORM), str(PLATFORM / "tests/backend"),
+    str(GATEWAY_ROOT / "src"), str(GATEWAY_ROOT / "tests"),
+    str(COMPANION / "src"), str(COMPANION / "tests"),
 ]
 os.environ["TS012_CONTRACT_DIR"] = str(WORKSPACE / "contracts/text-dialogue/v1")
 os.environ["TIANSHU_CONTRACTS"] = str(WORKSPACE / "contracts/text-dialogue/v1")
@@ -168,6 +168,8 @@ class JointTest(unittest.IsolatedAsyncioTestCase):
             return web.json_response({"error": {"message": "synthetic-secret-reflected"}}, status=401)
         if self.mode == "missing-model":
             return web.json_response({"error": {"code": "model_not_found"}}, status=404)
+        if self.mode == "missing-session":
+            return web.json_response({"error": {"type": "MissingSessionID", "message": "synthetic-secret-reflected"}}, status=400)
         return web.json_response(self.services.response)
 
     async def web(self, path, body, csrf=None):
@@ -377,6 +379,20 @@ class JointTest(unittest.IsolatedAsyncioTestCase):
         })
         self.assertEqual(status, 200, provider)
         pid = provider["provider_id"]
+        self.mode = "missing-session"
+        refused_id = str(uuid.uuid4())
+        status, refusal = await self.web("providers/test", {"client_id": refused_id,
+            "provider_id": pid, "expected_revision": 1})
+        self.assertEqual((status, refusal["code"]), (502, "upstream_rejected"))
+        self.assert_provider_error(refusal)
+        self.assertNotIn("synthetic-secret-reflected", json.dumps(refusal))
+        status, state = await self.web("providers/view", {})
+        self.assertEqual(state["providers"][0]["test"]["error_code"], "upstream_rejected")
+        with self.platform.provider_catalog._transaction() as db:
+            receipt = json.loads(db.execute("SELECT result FROM test_attempts WHERE id=?", (refused_id,)).fetchone()[0])
+        self.assertEqual(receipt["diagnostic"], {"http_status": 400, "reason": "missing_session_id"})
+        await self.restart_platform()
+        self.assertEqual((await self.web("providers/view", {}))[1]["providers"][0]["test"]["error_code"], "upstream_rejected")
         self.mode = "unsupported"
         status, refusal = await self.web("providers/models", {
             "provider_id": pid, "expected_revision": 1})
