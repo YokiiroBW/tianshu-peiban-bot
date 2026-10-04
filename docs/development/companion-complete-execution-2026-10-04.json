@@ -270,12 +270,19 @@
       "platform": "linux/amd64",
       "source": "129ab8f651971fe5d50c01e05ecf605c0bb51e77",
       "local_install_evidence": "worktrees/companion-complete-20261004/memory/.runtime/c5-clean-install/installation-evidence.json",
-      "linux_image_build": "running",
+      "linux_image_build": "passed",
       "reuse": "existing locked binary-wheel installer; no new build framework",
       "stage": "/volume2/tianshu-v2-resident-updates/companion-complete-20261004-memory-129ab8f65197",
-      "pid": 22743,
       "first_attempt": "BuildKit stopped before compile: buildx missing; preserved logs, reuse existing classic Docker builder",
-      "receipt": ".runtime/companion-complete-20261004/memory-build-start.json"
+      "receipt": ".runtime/companion-complete-20261004/memory-build-start.json",
+      "image_id": "sha256:9b5025858cab324e87a2199d8ebe9a1bad5c19dfe27f391ccb08bff414f5244a",
+      "linux_smoke": {
+        "status": "passed",
+        "evidence": ".runtime/companion-complete-20261004/memory-linux-smoke.json",
+        "runtime": "Python3.12.11 UID10001 read-only network-none container without production mounts",
+        "coverage": "real PNG decode, MP4 encode/decode four frames, PDF write/read, DOCX write/read",
+        "not_covered": "product HTTP integration and production migration"
+      }
     }
   },
   "contracts": {
