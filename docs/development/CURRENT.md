@@ -1,5 +1,8 @@
 # 当前交接
 
+2026-10-04 **OpenCode 会话修复已部署 NAS**：platform `6a2ed3d` / gateway `d1865da` / companion `a5725d0`。修复 HTTP 400 MissingSessionID，加入 Zen / Go 预设及可选测试错误码。NAS 五核心就绪、53 网页资源匹配、Dockge 同步；部署后一次真实短测试 HTTP 200、回复验真通过。详见 [部署记录](opencode-session-deployment-2026-10-04.md)。
+
+
 2026-10-04 **工作区全宽布局已部署 NAS**：Platform `a9e466f`。共享页面和 QQ 管理身份页移除居中宽度上限，保留既有边距与手机布局。1920/3840 三页检查无横向溢出；NAS 五核心就绪、53 个网页资源匹配，Dockge 同步。详见 [部署记录](fluid-layout-deployment-2026-10-04.md)。
 
 

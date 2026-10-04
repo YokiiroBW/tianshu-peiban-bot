@@ -1,0 +1,182 @@
+{
+  "status": "nas_deployed_real_probe_passed",
+  "recorded_at": "2026-10-04T09:31:42.923921+00:00",
+  "product_commits": {
+    "platform": "6a2ed3d0d6f6b3f0be6761c3b9cf61239ea5d2b4",
+    "gateway": "d1865da927bee8e266ac34bdc674dc36c1a513a8",
+    "companion": "a5725d04aba00762d66306ae4821a40b70f7e2ed"
+  },
+  "contracts_commit": "19bf9f0bf226a0b2029f32a93833144ee54a2be3",
+  "root_cause": "OpenCode returned HTTP 400 MissingSessionID when the request omitted its required session context.",
+  "changes": [
+    "OpenCode session context fix across Gateway/Platform/Companion",
+    "OpenCode Zen and Go presets",
+    "Backward-compatible optional provider-self-service test.error_code"
+  ],
+  "runtime": {
+    "images": {
+      "companion": {
+        "arch": "amd64",
+        "digest_ref": "127.0.0.1:19560/tianshu/opencode-session-companion@sha256:dca34e819ec9c6338e7dcb4887e9827515065a8d82c46f05b17798a5d0ed2412",
+        "id": "sha256:e175b25c05ff39746f878eea5784dc943faa7601c9131ce4a2a1bd70693ecf86",
+        "revision": "a5725d04aba00762d66306ae4821a40b70f7e2ed"
+      },
+      "gateway": {
+        "arch": "amd64",
+        "digest_ref": "127.0.0.1:19560/tianshu/opencode-session-gateway@sha256:80f457f4f4b26acd7a2343da87043de0201d90d24357454a8aa2308012034dfe",
+        "id": "sha256:83c98217bac8a9b11d8d2f327a78077179a7e411ae9513951365974cde655475",
+        "revision": "d1865da927bee8e266ac34bdc674dc36c1a513a8"
+      },
+      "platform": {
+        "arch": "amd64",
+        "digest_ref": "127.0.0.1:19560/tianshu/opencode-session-platform@sha256:7392e011f4f3029aee775ca39b992557542c8141420d4d7303ec5214808e75e5",
+        "id": "sha256:71dedc1618f8a6333fcb50fc71be708621636e0d0daaf468c0dd0e769b3d63e0",
+        "revision": "6a2ed3d0d6f6b3f0be6761c3b9cf61239ea5d2b4"
+      }
+    },
+    "owners": 10,
+    "checks": [
+      {
+        "service": "gateway",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true
+      },
+      {
+        "service": "companion",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true,
+        "restored_memory_policy_verified": true
+      },
+      {
+        "service": "platform",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true,
+        "web_assets_and_anonymous_gate_verified": true
+      },
+      {
+        "service": "knowledge",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true
+      },
+      {
+        "service": "memory",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true
+      }
+    ],
+    "guard": {
+      "deployment_bytes": 449855065,
+      "heartbeat_age_seconds": 2.266,
+      "minimum_free_bytes": 408599584768,
+      "services": 10,
+      "status": "ready"
+    },
+    "backup": "/volume2/tianshu-v2-resident-updates/opencode-session-20261004-core/production-generation-b24f4f7c5ad1478b8baca58cd960e0fd/cold-snapshot",
+    "configuration_unchanged": true,
+    "user_state_preserved": true,
+    "other_product_images_unchanged": true,
+    "all_clones_stopped": true,
+    "real_qq_or_model_called": false,
+    "real_model_call_scope": "release_lifecycle_only"
+  },
+  "http_assets": {
+    "status": "nas_http_assets_match_installed_candidate",
+    "count": 53,
+    "origin": "http://192.168.31.210:18446",
+    "production_business_data_read": false
+  },
+  "dockge": {
+    "applied": true,
+    "project_directory": "/volume2/tianshu-v2-resident",
+    "source_hashes": {
+      "/volume2/tianshu-v2-resident-updates/bots-20260928/core.compose.json": "01811faef09be860c5f468d4e0ea0ba4dd2f8a1955f483c2e5ed8b36ac2ab0d4",
+      "/volume2/tianshu-v2-resident-updates/bots-20260928/platform.compose.json": "35ebe34b67b9a8a0da03aecefe52b7487f9d14f29a371751ecfa9fcfd4d9c3d3",
+      "/volume2/tianshu-v2-resident-updates/connections-20260928/obs.compose.json": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530"
+    },
+    "snapshots": [
+      {
+        "project": "tianshu-v2-resident",
+        "target": "/volume1/Download/dockge/stacks/tianshu-v2-resident/compose.yaml",
+        "old_sha256": "9015fe6e6cff094a2dc633c3cb41261c3be74fa36ae9e0359db17c2cb25bab58",
+        "new_sha256": "01811faef09be860c5f468d4e0ea0ba4dd2f8a1955f483c2e5ed8b36ac2ab0d4",
+        "images": {
+          "companion": "127.0.0.1:19560/tianshu/opencode-session-companion@sha256:dca34e819ec9c6338e7dcb4887e9827515065a8d82c46f05b17798a5d0ed2412",
+          "gateway": "127.0.0.1:19560/tianshu/opencode-session-gateway@sha256:80f457f4f4b26acd7a2343da87043de0201d90d24357454a8aa2308012034dfe",
+          "knowledge": "127.0.0.1:19554/tianshu/quality-life-memory@sha256:e001b1c208015a850c4cedd1d44bc28e3b3c5caf3797d2bac714f5929ef4a5ca",
+          "memory": "127.0.0.1:19554/tianshu/quality-life-memory@sha256:e001b1c208015a850c4cedd1d44bc28e3b3c5caf3797d2bac714f5929ef4a5ca",
+          "platform": "127.0.0.1:19560/tianshu/opencode-session-platform@sha256:7392e011f4f3029aee775ca39b992557542c8141420d4d7303ec5214808e75e5"
+        }
+      },
+      {
+        "project": "tianshu-v2-resident-obs",
+        "target": "/volume1/Download/dockge/stacks/tianshu-v2-resident-obs/compose.yaml",
+        "old_sha256": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530",
+        "new_sha256": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530",
+        "images": {
+          "obs-grafana": "grafana/grafana:13.2.2@sha256:ac461fb352abc50da10a51c7d02462e9c05488f11f53f14b3ad79a8145f638a0",
+          "obs-guard": "python:3.12.14-slim-bookworm@sha256:392307d22300de8b5986851a12d9176dfc0fc073e65bf6523ebd7dcbeb23564e",
+          "obs-loki": "grafana/loki:3.7.8@sha256:1107dd5274e0ada47e42472b7a7e71f3b2a2fe878878108f3e2f9e51528f0193",
+          "obs-prometheus": "prom/prometheus:v3.13.3@sha256:6976aa8a60fec930796ce5772b8d12da7a318a5daa8d40d69c5c7819a05eeed7",
+          "obs-vector": "timberio/vector:0.58.0-debian@sha256:1c1ea358c617ea0b23003d5af87f7a678b30f8f7096437e680380c47fc13d2d9"
+        }
+      }
+    ],
+    "containers_recreated": false,
+    "credential_files_read": false,
+    "backup_directory": "/volume2/tianshu-v2-resident-updates/opencode-session-20261004-core/dockge-backups/20261004T093108Z-c7d4d391"
+  },
+  "local_validation": {
+    "status": "passed",
+    "reported_by": "provider_test_fix",
+    "gateway": 53,
+    "platform_catalog": 21,
+    "companion": 88,
+    "joint": 4,
+    "contract_examples": 1,
+    "browser": 5,
+    "typescript": "passed",
+    "production_build": "passed",
+    "real_upstream_called": false,
+    "limitations": [
+      "Existing frontend chunk-size advisory",
+      "Companion initial collection failed due absent source import path; rerun with explicit existing src/tests PYTHONPATH passed"
+    ],
+    "summary": "172 targeted checks passed (Gateway 53, Companion 88, Platform catalog 21, joint 4, contract 1, browser 5); lint, TypeScript and production build passed.",
+    "candidate_commits": {
+      "gateway": "d1865da927bee8e266ac34bdc674dc36c1a513a8",
+      "platform": "6a2ed3d0d6f6b3f0be6761c3b9cf61239ea5d2b4",
+      "companion": "a5725d04aba00762d66306ae4821a40b70f7e2ed",
+      "coordination": "19bf9f0bf226a0b2029f32a93833144ee54a2be3"
+    }
+  },
+  "real_adapter_probe": {
+    "status": "passed",
+    "real_model_called": true,
+    "receipt": {
+      "attempts": 1,
+      "original_test_reply": true,
+      "http_status": 200,
+      "reply_verified": true
+    }
+  },
+  "validation_boundary": {
+    "real_probe_is_direct_adapter_test": true,
+    "original_account_browser_login_performed": false,
+    "authenticated_web_provider_management_verified": false,
+    "full_companion_memory_dialogue_verified": false,
+    "release_migrations_or_settings_changes": false,
+    "real_probe_success_claimed": true
+  },
+  "receipt_sha256": {
+    "readback-receipt.json": "a5b7fd70b9454d6fd70a64682269dfd02e29954c442b11d4d10e5b2ca3225c26",
+    "http-assets.json": "df0490fc538d3b2171afdacd1ab4d474d1b81b8321d0d5de33c7927f2db0f0a1",
+    "dockge-receipt.json": "913696db258defc1e52c047557c83b599ba8a63850cad3df524fcf18f1cba08f",
+    "real-probe-receipt.json": "36afda7a5cbaad3fb6055dcb50134ed496f45bf94d5a4144283425ca42f6e296",
+    "local-validation.json": "1658767176253c7a48ec111e5b60f671dbeeb16c8fd3b55447c3b4e367d07f59"
+  }
+}
