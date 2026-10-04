@@ -13,12 +13,30 @@
       "id": "C1",
       "product": "memory",
       "agent": "iteration_memory_plan",
-      "status": "in_progress",
+      "status": "local_committed_pending_joint",
       "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\memory",
       "baseline": "8415bc85bcad089a9e24461d5f3e88039754103c",
       "exclusive_scope": "product source/tests/docs/own migrations and entrypoints; no other product or root contracts",
       "public_interface_status": "published_implementation_baseline",
-      "verification": []
+      "verification": [
+        {
+          "suite": "C1 HTTP/TLS/migration/receipt",
+          "passed": 20
+        },
+        {
+          "suite": "affected contract-context runtime/probe/TLS",
+          "passed": 109
+        },
+        {
+          "suite": "initial broader regression",
+          "passed": 1118,
+          "reused": true,
+          "remaining_baseline_failure": "invalid QQ account schema returns 400 before expected 403; baseline reproduced",
+          "existing_format_failures": 4
+        }
+      ],
+      "commit": "20bf790c629604ebf177bd1bb5eed06ffb07b420",
+      "handoff": "memory/docs/handoffs/C1.md"
     },
     {
       "id": "C2",
@@ -70,11 +88,14 @@
     },
     {
       "id": "C5",
-      "status": "required_waiting_memory_writer",
+      "status": "in_progress",
       "verification": [],
       "product": "memory_knowledge",
       "task_card": "companion-complete-content-task-2026-10-04.md",
-      "reason": "Existing owner only reads controlled UTF8/HTML; actual upload/image/video content path missing"
+      "reason": "Existing owner only reads controlled UTF8/HTML; actual upload/image/video content path missing",
+      "agent": "iteration_memory_plan",
+      "worktree": "C:/YOKI/Codex/tianshu-peiban-bot/worktrees/companion-complete-20261004/memory",
+      "baseline": "20bf790c629604ebf177bd1bb5eed06ffb07b420"
     },
     {
       "id": "C6",
