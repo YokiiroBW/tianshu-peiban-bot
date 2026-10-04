@@ -1,0 +1,134 @@
+{
+  "date": "2026-10-04",
+  "status": "implementation_in_progress",
+  "objective": "Complete the full companion iteration, integrate and push GitHub, deploy and verify NAS",
+  "plan": "companion-complete-iteration-2026-10-04.md",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "xhigh",
+  "max_parallel_implementers": 3,
+  "coordinator": "architecture_contracts_dispatch_review_integration_acceptance",
+  "allocation_note": "Existing allocator targets dirty/stale projects HEAD. Exact reviewed release SHAs allocated with native git worktree; no original checkout/reset/stash. This record owns current batch allocations.",
+  "tasks": [
+    {
+      "id": "C1",
+      "product": "memory",
+      "agent": "iteration_memory_plan",
+      "status": "in_progress",
+      "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\memory",
+      "baseline": "8415bc85bcad089a9e24461d5f3e88039754103c",
+      "exclusive_scope": "product source/tests/docs/own migrations and entrypoints; no other product or root contracts",
+      "public_interface_status": "proposal_pending",
+      "verification": []
+    },
+    {
+      "id": "C2",
+      "product": "gateway",
+      "agent": "provider_test_fix",
+      "status": "in_progress",
+      "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\gateway",
+      "baseline": "d1865da927bee8e266ac34bdc674dc36c1a513a8",
+      "exclusive_scope": "product source/tests/docs/own migrations and entrypoints; no other product or root contracts",
+      "public_interface_status": "proposal_pending",
+      "verification": []
+    },
+    {
+      "id": "C3",
+      "product": "companion",
+      "agent": "iteration_runtime_plan",
+      "status": "in_progress",
+      "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\companion",
+      "baseline": "a5725d04aba00762d66306ae4821a40b70f7e2ed",
+      "exclusive_scope": "product source/tests/docs/own migrations and entrypoints; no other product or root contracts",
+      "public_interface_status": "proposal_pending",
+      "verification": []
+    },
+    {
+      "id": "C4",
+      "status": "pending",
+      "verification": []
+    },
+    {
+      "id": "C5",
+      "status": "pending",
+      "verification": []
+    },
+    {
+      "id": "C6",
+      "status": "pending",
+      "verification": []
+    }
+  ],
+  "coverage": [
+    {
+      "scenario": 1,
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "scenario": 2,
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "scenario": 3,
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "scenario": 4,
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "scenario": 5,
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "scenario": 6,
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "scenario": 7,
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "scenario": 8,
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "scenario": 9,
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "scenario": 10,
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "scenario": 11,
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "scenario": 12,
+      "status": "pending",
+      "evidence": []
+    },
+    {
+      "scenario": 13,
+      "status": "pending",
+      "evidence": []
+    }
+  ],
+  "github": {
+    "status": "pending"
+  },
+  "nas": {
+    "status": "pending"
+  }
+}
