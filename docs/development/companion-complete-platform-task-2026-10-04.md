@@ -1,6 +1,6 @@
 # 统一陪伴产品体验实施任务
 
-状态：待 Gateway 工作槽位释放后派发。产品实现者 GPT-6.1-sol / xhigh。独占 worktrees/companion-complete-20261004/platform，基线 6a2ed3d0d6f6b3f0be6761c3b9cf61239ea5d2b4。遵循同目录全面迭代计划与执行记录；这里只补 Platform 的具体入口与依赖，不另建目标范围。
+状态：Gateway 已提交并释放写入，C4 已派发实施。产品实现者 GPT-6.1-sol / xhigh。独占 worktrees/companion-complete-20261004/platform，基线 6a2ed3d0d6f6b3f0be6761c3b9cf61239ea5d2b4。遵循同目录全面迭代计划与执行记录；这里只补 Platform 的具体入口与依赖，不另建目标范围。
 
 ## 必须交付的完整体验
 

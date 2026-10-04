@@ -1,6 +1,6 @@
 # 当前交接
 
-2026-10-04 **陪伴全面迭代已开始实现**：用户已授权完成全范围并最终推送 GitHub、部署 NAS。C1 Memory、C2 Gateway、C3 Companion 已在 worktrees/companion-complete-20261004 独立检出并派发 GPT-6.1-sol/xhigh；主协调只维护合同、规划和验收集成。实际状态及13项覆盖见 [执行记录](companion-complete-execution-2026-10-04.json)。尚未集成、推送或部署，不把下一条规划状态作为当前执行状态。
+2026-10-04 **陪伴全面迭代正在实现**：用户已授权完成全范围并最终推送 GitHub、部署 NAS。C1 Memory 已提交 `20bf790`、C2 Gateway 已提交 `ea7f592`，均仅本地验证、待联合验收；C3 Companion、C4 Platform、C5 Knowledge 内容接入在 worktrees/companion-complete-20261004 并行实现，全部 GPT-6.1-sol/xhigh。C5 沿 C1 提交同产品串行演进，主协调只维护合同、规划和验收集成。实际状态及13项覆盖见 [执行记录](companion-complete-execution-2026-10-04.json)。本轮尚未整体集成、推送或部署，不把下方历史记录作为本轮完成证据。
 
 2026-10-04 **陪伴全面迭代进入整体规划**：用户允许大规模结构调整，产品实现统一交 GPT-6.1-sol / xhigh 子智能体；主协调负责架构、合同、分发、合入与验收，无新窗口。本轮唯一入口为[全面迭代计划](companion-complete-iteration-2026-10-04.md)，已明确最终归属、保留/替换/删除、完整功能包、迁移与联合验收。当前完成两项只读领域规划，产品编码尚未派发，合同变更尚未发布，无生产代码修改或 NAS 更新；不恢复历史任务，不把规划称开发完成。此执行偏好覆盖下方旧 DSH-only 记录。
 
