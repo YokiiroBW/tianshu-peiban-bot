@@ -2149,6 +2149,20 @@
         },
         "complete": {
           "type": "boolean"
+        },
+        "representations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/content_representation"
+          },
+          "maxItems": 8
+        },
+        "gaps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/content_gap"
+          },
+          "uniqueItems": true
         }
       },
       "required": [
@@ -2160,7 +2174,9 @@
         "text",
         "media_url",
         "coverage",
-        "complete"
+        "complete",
+        "representations",
+        "gaps"
       ],
       "additionalProperties": false
     },
@@ -3556,6 +3572,64 @@
             }
           ]
         }
+      ]
+    },
+    "content_representation": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "image",
+            "video_frame",
+            "audio_clip"
+          ]
+        },
+        "media_type": {
+          "type": "string",
+          "maxLength": 4096
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "source_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "data_base64": {
+          "type": "string",
+          "maxLength": 2796208
+        },
+        "at_seconds": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "media_type",
+        "sha256",
+        "source_sha256",
+        "data_base64",
+        "at_seconds"
+      ],
+      "additionalProperties": false
+    },
+    "content_gap": {
+      "enum": [
+        "frames_sampled",
+        "audio_not_transcribed",
+        "image_resized",
+        "page_images_not_extracted",
+        "no_text_layer",
+        "range_truncated"
       ]
     }
   }

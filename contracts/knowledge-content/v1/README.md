@@ -1,0 +1,21 @@
+# Knowledge Content v1 实现合同
+
+正文、上传原件和版本均由 Memory/Knowledge 所有。复用 knowledge_versions.raw/hash/text、knowledge_blocks 与原件版本写入，不为角色创建假的工程项目；并列精确 Memory scope。引用和范围直接复用 life-runtime/v2，query/command/scope直接复用 text-dialogue/v1。主协调已发布实现合同，联合运行与真实外部验收待完成。
+
+POST `/internal/v1/knowledge/content/acquire`、`read`、`original`、`uploads`、`upload-status`、`access`。权限为 `content_<operation>`；original单独需content_original，不由query隐含。每请求验证 bearer；user 分支再验证真实 origin issuer、当前稳定 account 与 scope，actor 分支按下文现有角色授权验证，非浏览器直连。Companion caller只acquire/read/original与必要status；Platform用户操作caller负责uploads及access，不向模型开放grant。
+
+PUT `/internal/v1/knowledge/content/uploads/{upload_id}` 为真实binary，Authorization与X-Tianshu-Assertion-Ref当前用户origin必需；Content-Type application/octet-stream。descriptor事先包含正确size/sha；服务在读体前核scope/account和准入，完整字节校验后才complete，失败不产生假原件。POST upload-status可查询并以原id重传；完成的上传只能重复同bytes，不能以同id换源。pending有TTL、最多32MiB。acquire成功后原件转入knowledge_versions并清 staging raw，重启仍可由upload_id恢复引用。filename是显示名，不做磁盘路径。
+
+acquire 只有实际取得URL/上传bytes、计算sha及解析成功才返回ref；相同scope+URL对应稳定对象，新bytes产生版本，旧ref明确stale。URL读取沿既有安全获取实现：无隐含扩站，全部重定向逐跳授权；user 分支 public_url 读取由当前人提交 URL；actor 分支由已授权运行中的角色活动自主获取，内部网URL仅私有配置exact trusted_urls，测试实际loopback HTTP有显式登记，不绕过地址规则。每次acquire新request_id可刷新URL；同request_id语义不同409，同请求ACK丢失恢复原结果而不重复抓取。
+
+read返回实际文字/整页文本/原图片或真实有界视频帧/音频片段的representation（base64+原件与表示分别sha），media_url=null，不生成公开URL。scope/current版本/sha与reader grant每次核验；原件POST original同核权，octet-stream binary响应带Content-Type原媒体、X-Content-SHA256、X-Content-Version、X-Content-Coverage、Cache-Control:no-store；range仅允许bytes，null取整个原件。C3可把实际image/audio bytes用于模型、C4可受用户会话保护代理；不得把私有原件永久公开。
+
+read characters为实际可读文本区间，pages为PDF页文字区间，image bytes只能完整原图；video seconds实际采样帧，提供每帧at_seconds，complete=false/gaps frames_sampled与audio_not_transcribed，不能把样本解释成理解整个视频。audio seconds为实际解码截取，未转录音轨明确audio_not_transcribed。图片缩小明确image_resized；PDF扫描无文字层不可声称全文，no_text_layer/page_images_not_extracted。range_truncated或budget不足不推进未读范围。coverage 0<=start<=end，end不超过真实total；ref.coverage是可取得形式的总范围，读response.coverage只是本次实际片段。实际source_time未知为null，acquired_at只标取得时间。
+
+access为Platform已登录原件owner的明确用户操作专用caller，核实际owner account/scope、对象CAS与access_version；grant授予精确reader_scope的当前ref version/sha，更新版本需新授权；revoke即时失效，withdraw使当前原件不可读，保留历史/sha。角色关系不授予原件权限。授予读取不等于向QQ发送，发送仍由Companion用户动作处理；Companion无access权限，不接受服务token本身作owner。
+
+错误：400形状/非法范围，401服务身份，403origin/scope/权限，404不在授权集合，409版本/sha/CAS/幂等变化，413原件或预算上限，415真实不支持格式，408超时，503依赖不可用。所有已开始且结果不确定的写返回unknown/retryable=false，先以upload-status/同id请求查恢复，不换key重复。当前源撤回或读者授权撤销不可用，不降为目录摘要成功。
+
+## Actor autonomy and shared definitions (supersedes person-only request shape)
+All requests use principal oneOf. user={kind:user,query:<exact common query>,scope:<exact common scope>}; actor={kind:actor,request_id,actor_id,operation_ref:<real persisted activity/reading ID>}. Actor means scope=null in Life, never public. No fabricated origin/person/account. Memory authenticates the deployment runtime caller, operation permission, runtime_content=true, and actor in configured allowed_actors or allow_runtime_roles=true with current RoleGrants.decision(actor)==true; disabled RoleGrants always denies. Actor is therefore admitted by the existing Platform role registration, not by payload. Companion checks current runtime/life epoch on every action. Default actor operations are only actor-owned acquire/read/original; uploader/user-content/access require separately configured permissions. Actor contents are readable by people only after explicit object-version/sha-bound sharing. User branch retains actual Platform origin resolve, account binding and precise reader scope on every call. Platform page uses its existing Life reader grant proxy through Companion, never caller token alone or a fake actor principal to expose bytes.
+Life 已发布共享 defs content_representation 与 content_gap；Knowledge 直接引用，不另存重复定义。 One-direction dependency Knowledge -> Life -> Common; no Life -> Knowledge refs. The request principal's request_id is the idempotency/ACK key. Changing principal origin ref does not change semantic identity, but live origin/account/actor checks still run before ACK. Access operations require dedicated content_access or content_actor_access deployment permission; normal reading runtime cannot grant.

@@ -95,7 +95,13 @@
       "reason": "Existing owner only reads controlled UTF8/HTML; actual upload/image/video content path missing",
       "agent": "iteration_memory_plan",
       "worktree": "C:/YOKI/Codex/tianshu-peiban-bot/worktrees/companion-complete-20261004/memory",
-      "baseline": "20bf790c629604ebf177bd1bb5eed06ffb07b420"
+      "baseline": "20bf790c629604ebf177bd1bb5eed06ffb07b420",
+      "public_interface_status": "published_implementation_baseline",
+      "interface_review": [
+        "Add independent actor-owned reading without fabricated person or inbound message",
+        "Keep content ownership in Knowledge; life projection receives actual representations and gaps",
+        "Avoid bidirectional schema and manifest dependencies"
+      ]
     },
     {
       "id": "C6",
@@ -224,7 +230,8 @@
       "life-runtime/v2",
       "bot-delivery/v2",
       "text-dialogue/v1 model-execution extension",
-      "model-protocol/v1 execution extension"
+      "model-protocol/v1 execution extension",
+      "knowledge-content/v1"
     ],
     "pins_record": ".runtime/companion-complete-20261004/contract-pins.json",
     "validation": {
@@ -234,12 +241,14 @@
       "model_negative": 7,
       "existing_chat": 62,
       "existing_native": 21,
-      "life_positive": 6,
-      "life_negative": 3,
+      "life_positive": 7,
+      "life_negative": 4,
       "bot_positive": 4,
       "bot_negative": 3,
       "existing_quality_extensions": 4,
-      "model_protocol_portable_validator": 9
+      "model_protocol_portable_validator": 9,
+      "knowledge_positive": 9,
+      "knowledge_negative": 6
     },
     "semantic_acceptance": "pending"
   },

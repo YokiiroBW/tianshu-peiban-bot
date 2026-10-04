@@ -10,16 +10,17 @@
   },
   "sha256": {
     "dependencies/platform-credential.json": "e4c5c0c3c0f35d03458277f12e59dcc2a2b2c87f7a115456a8ee456e0e3f2354",
+    "examples/content-projection.json": "ac3d7ced7ff904fe74553d7ee1e0ecb37acc2b07272aee5d8a3c51e25d631f74",
     "examples/extensions.json": "99909929d186a0dda1c977bd9f55abc571d366e106b316dedf5472290a18a19a",
     "examples/reads.json": "a3bf5c0f8f8f5593b9150f077a28eabf2b3171f7c3848d9c16d0ade2742b89d3",
     "examples/requests.json": "e58526436aa6c86a9ae9c0af2bead5b252e8a1e9f812fb8bf77ce14f24f73302",
     "examples/semantic-cases.json": "1b3e179731289c6e8ef142333dab9d146a4b353741270b19f32ffad5a5757981",
-    "README.md": "ef44712800c1c34c25d103b81ae60adc439663b0aa9d73ab3b1c3fa6a4bba419",
-    "schemas/life.json": "f3bd57ff6ad9e0d10037451020544f863c87016eef9a401e5455cc3e24b57068"
+    "README.md": "cab978ef6f091689fc212a9f4bb07b526b226be403061dc8ae291049741c3ff8",
+    "schemas/life.json": "84a8626794d08cb4b7a739d2ebde990df56fe7086d9f83ea6cc35ca14e8840a5"
   },
   "schema_examples_checked": {
-    "positive": 6,
-    "negative": 3
+    "positive": 7,
+    "negative": 4
   },
   "semantic_cases": "specified_not_run"
 }
