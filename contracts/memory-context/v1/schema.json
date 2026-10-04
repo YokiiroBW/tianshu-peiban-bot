@@ -205,7 +205,8 @@
               "budget",
               "no_match",
               "scope_filtered",
-              "stale_source"
+              "stale_source",
+              "source_time_unavailable"
             ]
           },
           "minItems": 0
@@ -244,6 +245,10 @@
             },
             "history_complete": {
               "const": false
+            },
+            "missing_source_times": {
+              "type": "integer",
+              "minimum": 0
             }
           },
           "required": [
@@ -251,7 +256,8 @@
             "returned_groups",
             "complete",
             "time_basis",
-            "history_complete"
+            "history_complete",
+            "missing_source_times"
           ],
           "additionalProperties": false
         }

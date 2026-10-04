@@ -1,6 +1,6 @@
-# Memory context v1 实现合同
+# memory-context/v1 提案（未发布）
 
-主协调已审阅 C1 提案并发布为本轮实现基线。复用text-dialogue/v1精确query/command/scope/source/account/budget与unit、dependency_group，以及source-sync/v1 draft_unit；不更改已发布包。schema闭合且所有外部$ref仅指向上述本地固定依赖。本包用于本轮生产者和消费者实现；联合和生产验证仍待完成。本文没有授予生产权限或宣布验收。
+Memory C1提供此包供协调者审阅。复用text-dialogue/v1精确query/command/scope/source/account/budget与unit、dependency_group，以及source-sync/v1 draft_unit；不更改已发布包。schema闭合且所有外部$ref仅指向上述本地固定依赖。协调者发布并回传清单hash后才能正式装配。本文没有授予生产权限或宣布验收。
 
 ## 服务接口
 
@@ -27,3 +27,7 @@ revision证明来自可信聊天入站/用户操作：签发绑定真实作者�
 operation_digest：对请求去除query/command、proof_ref后使用canonical JSON(sorted keys, separators comma/colon, UTF8, ensure_ascii=False) SHA256；请求关联号、deadline和proof引用不改变业务语义，同item payload修改必须新operation。proof返回request_id/ref/purpose/digest均须回显，valid=true且未过期。
 
 关联query只展开当前请求精确scope直接连接的活跃关联，不传递式合人、不扩展到其它受众。association_version为当前(actor,person)单调epoch，scope_checks同时绑定各scope版本；已接受的Memory事实仍保留各自原person及来源。
+
+## 原始时间有界读取
+
+time_range 仅按已验证 physical_input.sent_at（原始消息发送时间）筛选，半开 UTC 区间 [from,to)，不使用补传 accepted_at 或 turn.occurred_at。仅有时间要求时复用 source-facts/read include_content=true 临时读取，整轮最多 256 个 selector，沿 source_snapshot/current_access/sync_barrier 比对当前授权与 owner head，不保存正文、不新建源时间账本。范围无法核对的候选保留，coverage.complete=false、missing_source_times>0 且 omissions 包含 source_time_unavailable，调用者不得说这些候选发生于指定范围。普通自然回忆 time_range=null 不受受理时间过滤。候选 limit 截断本就使 complete=false，因此不能据此声称范围内无其他历史。

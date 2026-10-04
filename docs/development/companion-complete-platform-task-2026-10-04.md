@@ -17,12 +17,14 @@
 ## 后端与跨产品依赖
 
 1. life-runtime/v2：按闭合读投影显示状态；管理转发到 Companion，不在 Platform 计算情绪、生活或主动动机。
-2. bot-delivery/v2：在原 bots 发送队列接正式主动封套，可信绑定核对 actor、收件人、渠道，保留 queued/sending/partial/unknown 真实状态；不伪造入站消息。
+2. bot-delivery/v2：在原 bots 发送队列接正式主动、普通回复及 Direct 来源封套，可信绑定核对 actor、收件人、渠道，保留 queued/sending/partial/unknown 真实状态；不伪造入站消息。以最终发布 schema 为准，沿同一 expression_id 追加完整输出段，稳定序号与内容幂等、final 后封闭；中断不得重发已受理段。现有 v1 纯文调用仅保留实际兼容需求，共用内部队列。
 3. memory-context/v1：源账号和目标账号对本次绑定挑战的同意证明；入站明确纠正的可追溯意图证明。复用 origin/source 验证，不接受 payload 自称授权；自然纠正无需额外网页弹窗。
 4. model-execution 扩展：按选中 provider/model 展示能力和取消结果，未验证与不支持不同；沿原配置服务发布。
 5. content/read 所需端口：现有 assets.py 只有目录/搜索，不是实际媒体正文接口。先确认实际 owner；若需 AssetLibrary/Knowledge 修改，提出精确端口交 C5，不在前端随意抓取 URL、也不以不可用占位作为完成。
 
 公共接口只消费主协调发布的合同。当前提案不足时回传具体缺口，内部 UI 和领域适配可继续；不自行改根 schema。
+
+生图后端的设置、密钥保存、Companion 实际解析和后端调用必须接通，不能只传一个无法解析的 credential_ref。当前 NAS 未配置图像后端，已有用户问题等待答复；不自行安装 GPU 服务。天气、媒体原件和生成图像的实际来源及失败状态可查，成本只累计已知用量，未知不得算作零。
 
 ## 写入与验证
 

@@ -12,13 +12,13 @@
     "source-sync": "6d5c417c2e407aaf055151c1a3639d3b4e2ce4ad7da999f95273b6fcbf487370"
   },
   "sha256": {
-    "examples.json": "f9390669e6500c82c0d6e3a31369d066616ec658d05758285830dbd242639fad",
-    "negative-examples.json": "8da4f3de1ef72714c1fb5bb97b453de39b1bf3944d6ab6f6dfedf5c4fd608b4f",
-    "README.md": "5b0d2d6ada84437aa4aa49b4ed2e70cdc594ec65cbc47bce124629c7601d8ba8",
-    "schema.json": "871b702ab639dc965162fba246661011b9c3c2db65106fb5a10915fac45de70b"
+    "examples.json": "9fde0f39bf110bd17c4414a8dfcf09c5d436567a5879c576fec28576ad428e57",
+    "negative-examples.json": "4a949de40697db24987e70e421f0707074f659e05305f7e4f81e84bc19879006",
+    "README.md": "29a900511cf6d608a37604cebf12c539e93b5f53d8c1209166c4539fb664f32e",
+    "schema.json": "43978a96070e575778be18c14f46478f29e251691bfa8389e82150a06071374f"
   },
   "examples_checked": {
-    "examples.json": 7,
-    "negative-examples.json": 5
+    "examples.json": 8,
+    "negative-examples.json": 6
   }
 }

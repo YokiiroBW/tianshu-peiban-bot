@@ -150,8 +150,8 @@
     ],
     "pins_record": ".runtime/companion-complete-20261004/contract-pins.json",
     "validation": {
-      "memory_positive": 7,
-      "memory_negative": 5,
+      "memory_positive": 8,
+      "memory_negative": 6,
       "model_positive": 8,
       "model_negative": 7,
       "existing_chat": 62,
@@ -160,7 +160,8 @@
       "life_negative": 1,
       "bot_positive": 2,
       "bot_negative": 2,
-      "existing_quality_extensions": 4
+      "existing_quality_extensions": 4,
+      "model_protocol_portable_validator": 9
     },
     "semantic_acceptance": "pending"
   },

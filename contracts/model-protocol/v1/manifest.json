@@ -43,7 +43,7 @@
     "schemas/model.json": "4c9ec322a30117701236170fd196d3471b98d51758ef3325ac7b10e0acfb8c82",
     "semantics.md": "df9f6e5286ef77b66a8c4aab76b9ff805dc7804dd0a91143f619e465b8620568",
     "test_validator.py": "1cbefa0b3c096caff4708826a442c50eca3004f4fdd206b7782356a3177a3dea",
-    "validate.py": "11b40869ff390e5c62774f065cc897ea75be43cad45808720c2b904e1806f740"
+    "validate.py": "d39d2efa07834a2a6e62250c4319660831e54e90f99f2799f7c0d5bba85c24b0"
   },
   "source_candidate_manifest_sha256": "3daa010f94f0abbda2f9e3134c037785581001d3761e7f41bd392105c885692a",
   "execution_extension": {

@@ -281,5 +281,53 @@
       ],
       "proof_ref": null
     }
+  },
+  {
+    "definition": "query_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request:time-gap",
+      "effective_scope": {
+        "actor_id": "actor:1",
+        "person_id": "person:1",
+        "audience": "self_private",
+        "conversation_id": "conversation:1"
+      },
+      "scope_version": 1,
+      "verified_at": "2026-10-04T00:00:00Z",
+      "valid_until": "2026-10-04T00:00:30Z",
+      "selected_units": [],
+      "dependency_groups": [],
+      "budget_used": {
+        "tokens": 0,
+        "bytes": 0
+      },
+      "omissions": [
+        "source_time_unavailable"
+      ],
+      "version_domain": "memory-context/v1",
+      "association_version": 1,
+      "scope_checks": [
+        {
+          "scope": {
+            "actor_id": "actor:1",
+            "person_id": "person:1",
+            "audience": "self_private",
+            "conversation_id": "conversation:1"
+          },
+          "scope_version": 1,
+          "association_id": null,
+          "association_version": 1
+        }
+      ],
+      "coverage": {
+        "matched_groups": 0,
+        "returned_groups": 0,
+        "complete": false,
+        "time_basis": "source_sent_at",
+        "history_complete": false,
+        "missing_source_times": -1
+      }
+    }
   }
 ]
