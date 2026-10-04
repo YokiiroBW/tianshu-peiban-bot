@@ -387,7 +387,7 @@
       "evidence": ".runtime/companion-complete-20261004/config-shape-readonly.json",
       "read_only": true,
       "secrets_exported": false,
-      "finding": "Production knowledge_cli serve-http uses knowledge_http.create_app exposing legacy execute but not new C5 content/role-runtime endpoints. Platform synchronizes only Memory.",
+      "finding": "Production knowledge_cli serve uses knowledge_http.create_app exposing legacy execute but not new C5 content/role-runtime endpoints. Platform synchronizes only Memory.",
       "required": "C4 real joint must separate Memory and Knowledge; configure existing role grant synchronization for both owners and verify new/disabled actor content access. No shared DB assumption.",
       "status": "Knowledge_entry_fixed_C4_role_sync_joint_pending",
       "repair": {
@@ -406,6 +406,20 @@
       "required": "C3 consumes /v1/chat/completions with native messages/tools/image_url and SSE via existing ClientGrant/provider-self-service. Align bounded max_request_bytes to 4MiB and verify actual features. native_enabled controls separate /v1/responses and need not be enabled for this consumer.",
       "status": "corrected_after_C2_owner_path_verification",
       "correction": "Prior inference that disabled native_enabled blocks Companion streaming/tools/vision was incorrect. Do not invent Responses provider/version grants or enable unused entry. Production unchanged."
+    },
+    "nonebot_candidate": {
+      "image_id": "sha256:99af60082719ac582bd0db144fbce72c11c4d7c421c8266b596ec31453dc562d",
+      "revision": "f308c9af234573bf3bd342c89e8664afb9900f92",
+      "base_image_id": "sha256:9a376c27d0615a8f6939d686fac0fb3e1c933f8f73f715b301ea5a1dafbe7f60",
+      "wheel_sha256": "b378de529d6da022e6e3c9c14b72bd84aa2951c2a153860e0649b97c9e450978",
+      "stage": "/volume2/tianshu-v2-resident-updates/companion-complete-20261004-nonebot-f308c9af2345",
+      "verification": {
+        "adapter": "0.5.0",
+        "nonebot": "2.5.0",
+        "onebot": "2.4.6",
+        "source_files": 10
+      },
+      "production_changed": false
     }
   },
   "contracts": {
