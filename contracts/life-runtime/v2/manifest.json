@@ -1,0 +1,23 @@
+{
+  "package": "life-runtime/v2",
+  "version": "2.0.0",
+  "status": "published_implementation_baseline",
+  "runtime_joint": "not_run",
+  "real_external": "not_run",
+  "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
+  "dependencies": {
+    "text-dialogue/v1": "90697e6ecbb587d3db8c8e4682f7f8f43a8b1a98f70d8835c8282b03828d2d3a"
+  },
+  "sha256": {
+    "examples/reads.json": "a3bf5c0f8f8f5593b9150f077a28eabf2b3171f7c3848d9c16d0ade2742b89d3",
+    "examples/requests.json": "e58526436aa6c86a9ae9c0af2bead5b252e8a1e9f812fb8bf77ce14f24f73302",
+    "examples/semantic-cases.json": "1b3e179731289c6e8ef142333dab9d146a4b353741270b19f32ffad5a5757981",
+    "README.md": "ab72086e5271eff648bfffa07dbf51c8d1bbafe495b894ac1a9a8bcff2ea5673",
+    "schemas/life.json": "d3035ad2236b521a307d08afb28ef56458598e777d0f0ea7c035b0bc197a9da9"
+  },
+  "schema_examples_checked": {
+    "positive": 3,
+    "negative": 1
+  },
+  "semantic_cases": "specified_not_run"
+}

@@ -14,7 +14,7 @@
       "package": "text-dialogue/v1",
       "version": "1.0.0",
       "path": "schemas/common.json",
-      "sha256": "b296a79d7eb0218d9b444c4ddbba837ad576f46a7a4e50fbcebec7618d8ef9af"
+      "sha256": "938b7c8b9fb69419dd6afc94d29c4b341697403f34af11d743d2cd8d684ab687"
     }
   ],
   "wire_types": [
@@ -40,10 +40,22 @@
     "interfaces.json": "312d0610f24b19407c205d293e4f282de5e4f497c17aa383692cd408250372d0",
     "README.md": "963b6c561fddb5796f3eb3e2a7311565630cf63d3740379607fa43843e16773f",
     "requirements.txt": "9cba6d4508d006391ab899893990d5ac5d03b4811a0f71f152c5883897ee8120",
-    "schemas/model.json": "de715187a3e99a8dffd2afb55c35d610328031c1cceae5d471088a74c143dd0f",
+    "schemas/model.json": "4c9ec322a30117701236170fd196d3471b98d51758ef3325ac7b10e0acfb8c82",
     "semantics.md": "df9f6e5286ef77b66a8c4aab76b9ff805dc7804dd0a91143f619e465b8620568",
     "test_validator.py": "1cbefa0b3c096caff4708826a442c50eca3004f4fdd206b7782356a3177a3dea",
     "validate.py": "11b40869ff390e5c62774f065cc897ea75be43cad45808720c2b904e1806f740"
   },
-  "source_candidate_manifest_sha256": "3daa010f94f0abbda2f9e3134c037785581001d3761e7f41bd392105c885692a"
+  "source_candidate_manifest_sha256": "3daa010f94f0abbda2f9e3134c037785581001d3761e7f41bd392105c885692a",
+  "execution_extension": {
+    "date": "2026-10-04",
+    "status": "published_implementation_baseline",
+    "optional_receipts": true,
+    "joint": "not_run",
+    "validation": {
+      "positive.json": 8,
+      "negative.json": 7,
+      "text-dialogue_existing": 62,
+      "model-protocol_existing": 21
+    }
+  }
 }

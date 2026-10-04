@@ -1,0 +1,24 @@
+{
+  "package": "memory-context/v1",
+  "version": "1.0.0",
+  "status": "published_implementation_baseline",
+  "producer_confirmation": "C1 proposal reviewed",
+  "consumer_confirmation": "C3 and C4 binding pending; coordinator semantic review complete",
+  "runtime_joint": "not_run",
+  "real_external": "not_run",
+  "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
+  "dependencies": {
+    "text-dialogue": "90697e6ecbb587d3db8c8e4682f7f8f43a8b1a98f70d8835c8282b03828d2d3a",
+    "source-sync": "6d5c417c2e407aaf055151c1a3639d3b4e2ce4ad7da999f95273b6fcbf487370"
+  },
+  "sha256": {
+    "examples.json": "f9390669e6500c82c0d6e3a31369d066616ec658d05758285830dbd242639fad",
+    "negative-examples.json": "8da4f3de1ef72714c1fb5bb97b453de39b1bf3944d6ab6f6dfedf5c4fd608b4f",
+    "README.md": "5b0d2d6ada84437aa4aa49b4ed2e70cdc594ec65cbc47bce124629c7601d8ba8",
+    "schema.json": "871b702ab639dc965162fba246661011b9c3c2db65106fb5a10915fac45de70b"
+  },
+  "examples_checked": {
+    "examples.json": 7,
+    "negative-examples.json": 5
+  }
+}

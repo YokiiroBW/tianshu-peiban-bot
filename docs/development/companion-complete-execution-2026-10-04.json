@@ -17,7 +17,7 @@
       "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\memory",
       "baseline": "8415bc85bcad089a9e24461d5f3e88039754103c",
       "exclusive_scope": "product source/tests/docs/own migrations and entrypoints; no other product or root contracts",
-      "public_interface_status": "proposal_pending",
+      "public_interface_status": "published_implementation_baseline",
       "verification": []
     },
     {
@@ -28,7 +28,7 @@
       "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\gateway",
       "baseline": "d1865da927bee8e266ac34bdc674dc36c1a513a8",
       "exclusive_scope": "product source/tests/docs/own migrations and entrypoints; no other product or root contracts",
-      "public_interface_status": "proposal_pending",
+      "public_interface_status": "published_implementation_baseline",
       "verification": []
     },
     {
@@ -39,13 +39,16 @@
       "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\companion",
       "baseline": "a5725d04aba00762d66306ae4821a40b70f7e2ed",
       "exclusive_scope": "product source/tests/docs/own migrations and entrypoints; no other product or root contracts",
-      "public_interface_status": "proposal_pending",
+      "public_interface_status": "published_implementation_baseline",
       "verification": []
     },
     {
       "id": "C4",
-      "status": "pending",
-      "verification": []
+      "status": "allocated_not_running",
+      "verification": [],
+      "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\platform",
+      "baseline": "6a2ed3d0d6f6b3f0be6761c3b9cf61239ea5d2b4",
+      "task_card": "companion-complete-platform-task-2026-10-04.md"
     },
     {
       "id": "C5",
@@ -129,6 +132,32 @@
     "status": "pending"
   },
   "nas": {
-    "status": "pending"
+    "status": "pending",
+    "baseline_readonly_verified": true,
+    "baseline_record": ".runtime/companion-complete-20261004/nas-baseline.json"
+  },
+  "contracts": {
+    "status": "implementation_baselines_published_joint_pending",
+    "packages": [
+      "memory-context/v1",
+      "life-runtime/v2",
+      "bot-delivery/v2",
+      "text-dialogue/v1 model-execution extension",
+      "model-protocol/v1 execution extension"
+    ],
+    "pins_record": ".runtime/companion-complete-20261004/contract-pins.json",
+    "validation": {
+      "memory_positive": 7,
+      "memory_negative": 5,
+      "model_positive": 8,
+      "model_negative": 7,
+      "existing_chat": 62,
+      "existing_native": 21,
+      "life_positive": 3,
+      "life_negative": 1,
+      "bot_positive": 2,
+      "bot_negative": 2
+    },
+    "semantic_acceptance": "pending"
   }
 }

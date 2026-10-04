@@ -1,0 +1,21 @@
+{
+  "package": "bot-delivery/v2",
+  "version": "2.0.0",
+  "status": "published_implementation_baseline",
+  "runtime_joint": "not_run",
+  "real_external": "not_run",
+  "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
+  "dependencies": {
+    "text-dialogue/v1": "90697e6ecbb587d3db8c8e4682f7f8f43a8b1a98f70d8835c8282b03828d2d3a"
+  },
+  "sha256": {
+    "examples/requests.json": "ff45eb2798ade51564a8bf05cca1a3fe60cb60f0635e1e787504d5b0c173f06c",
+    "README.md": "648291baa0642be63bb0295977daf88f212581e50470763dfcb82a0c55045ed7",
+    "schemas/delivery.json": "d219c4f7f11804032197befef1861f5c8879738319fbe9a1931fcc7722d64a85"
+  },
+  "schema_examples_checked": {
+    "positive": 2,
+    "negative": 2
+  },
+  "semantic_cases": "specified_not_run"
+}

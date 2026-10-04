@@ -1,0 +1,134 @@
+[
+  {
+    "definition": "execution",
+    "document": {
+      "state": "running",
+      "received_bytes": 120,
+      "forwarded_bytes": 98,
+      "event_count": 1,
+      "output_observed": true,
+      "finish_reasons": [],
+      "cancel_requested": false,
+      "error_code": null,
+      "upstream_started": true
+    }
+  },
+  {
+    "definition": "execution",
+    "document": {
+      "state": "cancelled",
+      "received_bytes": 120,
+      "forwarded_bytes": 98,
+      "event_count": 1,
+      "output_observed": true,
+      "finish_reasons": [],
+      "cancel_requested": true,
+      "error_code": "cancelled",
+      "upstream_started": true
+    }
+  },
+  {
+    "definition": "execution",
+    "document": {
+      "state": "unknown",
+      "received_bytes": 120,
+      "forwarded_bytes": 98,
+      "event_count": 1,
+      "output_observed": true,
+      "finish_reasons": [],
+      "cancel_requested": false,
+      "error_code": "interrupted",
+      "upstream_started": true
+    }
+  },
+  {
+    "definition": "capability_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "config_version": 7,
+      "provider_id": "provider-fixture",
+      "model_id": "fixture-model",
+      "protocol": "openai-chat-completions",
+      "verification_source": "provider_test",
+      "capabilities": {
+        "text": {
+          "native": true,
+          "verification": "verified"
+        },
+        "stream": {
+          "native": true,
+          "verification": "unverified"
+        },
+        "tools": {
+          "native": true,
+          "verification": "unverified"
+        },
+        "vision": {
+          "native": true,
+          "verification": "unverified"
+        },
+        "reasoning": {
+          "native": true,
+          "verification": "unverified"
+        }
+      }
+    }
+  },
+  {
+    "definition": "capability_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "config_version": 7,
+      "provider_id": "provider-fixture",
+      "model_id": "fixture-model",
+      "protocol": "openai-responses",
+      "verification_source": "provider_test",
+      "capabilities": {
+        "text": {
+          "native": true,
+          "verification": "verified"
+        },
+        "stream": {
+          "native": true,
+          "verification": "unverified"
+        },
+        "tools": {
+          "native": true,
+          "verification": "unverified"
+        },
+        "vision": {
+          "native": true,
+          "verification": "unverified"
+        },
+        "reasoning": {
+          "native": true,
+          "verification": "unverified"
+        }
+      }
+    }
+  },
+  {
+    "definition": "cancel_request",
+    "document": {}
+  },
+  {
+    "definition": "cancel_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "state": "requested",
+      "upstream_outcome": "unknown"
+    }
+  },
+  {
+    "definition": "cancel_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "state": "not_active",
+      "upstream_outcome": "unknown"
+    }
+  }
+]

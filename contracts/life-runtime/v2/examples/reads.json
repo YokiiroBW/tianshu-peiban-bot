@@ -1,0 +1,42 @@
+{
+  "valid_read": {
+    "schema_version": 2,
+    "query": {
+      "schema_version": 1,
+      "request_id": "read:private",
+      "origin": {
+        "assertion_ref": "origin:sample"
+      }
+    },
+    "actor_id": "actor:sample",
+    "resource": "state",
+    "object_id": null,
+    "expected_version": null,
+    "limit": 20,
+    "after": null,
+    "scope": {
+      "actor_id": "actor:sample",
+      "person_id": "person:owner",
+      "audience": "self_private",
+      "conversation_id": "conversation:owner"
+    }
+  },
+  "valid_media_read": {
+    "schema_version": 2,
+    "query": {
+      "schema_version": 1,
+      "request_id": "read:private",
+      "origin": {
+        "assertion_ref": "origin:sample"
+      }
+    },
+    "actor_id": "actor:sample",
+    "media_id": "media:sample",
+    "scope": {
+      "actor_id": "actor:sample",
+      "person_id": "person:owner",
+      "audience": "self_private",
+      "conversation_id": "conversation:owner"
+    }
+  }
+}

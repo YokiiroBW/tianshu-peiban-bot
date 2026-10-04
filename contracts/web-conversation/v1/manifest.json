@@ -4,7 +4,7 @@
   "dependency": {
     "package": "text-dialogue/v1",
     "version": "1.0.0",
-    "manifest_sha256": "81e6cc4ddef7c6f82e055d4cb04b090db036dd5c52763473ce697aa02db478a1"
+    "manifest_sha256": "90697e6ecbb587d3db8c8e4682f7f8f43a8b1a98f70d8835c8282b03828d2d3a"
   },
   "candidate_manifest_raw_sha256": "080be3c371ef4fde8016c39bc58f3162998bac600914031687b76c91b33ba7fb",
   "hash_basis": "UTF-8 LF-normalized",

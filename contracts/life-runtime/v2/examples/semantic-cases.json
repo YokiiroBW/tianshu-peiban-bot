@@ -1,0 +1,34 @@
+{
+  "cross_person_denied": {
+    "request": {
+      "schema_version": 2,
+      "query": {
+        "schema_version": 1,
+        "request_id": "read:private",
+        "origin": {
+          "assertion_ref": "origin:sample"
+        }
+      },
+      "actor_id": "actor:sample",
+      "resource": "open_work",
+      "object_id": "concern:private",
+      "expected_version": 1,
+      "limit": 20,
+      "after": null,
+      "scope": {
+        "actor_id": "actor:sample",
+        "person_id": "person:other",
+        "audience": "self_private",
+        "conversation_id": "conversation:other"
+      }
+    },
+    "stored_scope": {
+      "actor_id": "actor:sample",
+      "person_id": "person:owner",
+      "audience": "self_private",
+      "conversation_id": "conversation:owner"
+    },
+    "response_code": "not_found"
+  },
+  "public_requires_grant": "scope=null only reads explicitly public fictional life after life_access/reader grant; never disables authentication or publishes private records"
+}

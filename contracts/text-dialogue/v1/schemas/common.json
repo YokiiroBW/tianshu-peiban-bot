@@ -328,7 +328,9 @@
             "result_unknown",
             "idempotency_conflict",
             "cursor_expired",
-            "unsupported_version"
+            "unsupported_version",
+            "capability_unsupported",
+            "request_cancelled"
           ]
         },
         "execution_state": {

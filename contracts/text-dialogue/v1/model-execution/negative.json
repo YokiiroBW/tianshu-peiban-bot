@@ -1,0 +1,111 @@
+[
+  {
+    "definition": "execution",
+    "document": {
+      "state": "running",
+      "received_bytes": 120,
+      "forwarded_bytes": 98,
+      "event_count": 1,
+      "output_observed": true,
+      "finish_reasons": [],
+      "cancel_requested": false,
+      "error_code": null,
+      "reply": "do not persist content",
+      "upstream_started": true
+    }
+  },
+  {
+    "definition": "execution",
+    "document": {
+      "state": "running",
+      "received_bytes": -1,
+      "forwarded_bytes": 98,
+      "event_count": 1,
+      "output_observed": true,
+      "finish_reasons": [],
+      "cancel_requested": false,
+      "error_code": null,
+      "upstream_started": true
+    }
+  },
+  {
+    "definition": "execution",
+    "document": {
+      "state": "running",
+      "received_bytes": 120,
+      "forwarded_bytes": 98,
+      "event_count": 1,
+      "output_observed": true,
+      "finish_reasons": [],
+      "cancel_requested": false,
+      "error_code": "arbitrary upstream error",
+      "upstream_started": true
+    }
+  },
+  {
+    "definition": "execution",
+    "document": {
+      "state": "running",
+      "received_bytes": 120,
+      "forwarded_bytes": 98,
+      "event_count": 1,
+      "output_observed": true,
+      "finish_reasons": [
+        "provider key"
+      ],
+      "cancel_requested": false,
+      "error_code": null,
+      "upstream_started": true
+    }
+  },
+  {
+    "definition": "capability_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "config_version": 7,
+      "provider_id": "provider-fixture",
+      "model_id": "fixture-model",
+      "protocol": "openai-chat-completions",
+      "verification_source": "provider_test",
+      "capabilities": {
+        "text": {
+          "native": true,
+          "verification": "verified"
+        },
+        "stream": {
+          "native": true,
+          "verification": "unverified"
+        },
+        "tools": {
+          "native": true,
+          "verification": "unverified"
+        },
+        "vision": {
+          "native": true,
+          "verification": "unverified"
+        },
+        "reasoning": {
+          "native": true,
+          "verification": "unverified"
+        }
+      },
+      "base_url": "https://secret.invalid"
+    }
+  },
+  {
+    "definition": "cancel_request",
+    "document": {
+      "force": true
+    }
+  },
+  {
+    "definition": "cancel_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request-fixture",
+      "state": "not_active",
+      "upstream_outcome": "cancelled"
+    }
+  }
+]
