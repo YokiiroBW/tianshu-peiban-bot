@@ -98,8 +98,30 @@
     },
     {
       "id": "C5",
-      "status": "in_progress",
-      "verification": [],
+      "status": "local_committed_pending_joint",
+      "verification": [
+        {
+          "suite": "affected Knowledge/C1/HTTP/HTTPS/concurrency",
+          "passed": 201
+        },
+        {
+          "suite": "whole product",
+          "passed": 1153,
+          "loader_failures_during_contract_publication": 12,
+          "known_baseline_deselected": 1
+        },
+        {
+          "suite": "final content after pin update",
+          "passed": 13,
+          "covers": "loader failures, paired nonempty restore, low-budget decoded frames, disabled RoleGrants"
+        },
+        {
+          "suite": "isolated locked CPython3.12.14 wheel install",
+          "passed": true,
+          "platform": "Windows",
+          "linux_verified": false
+        }
+      ],
       "product": "memory_knowledge",
       "task_card": "companion-complete-content-task-2026-10-04.md",
       "reason": "Existing owner only reads controlled UTF8/HTML; actual upload/image/video content path missing",
@@ -111,7 +133,9 @@
         "Add independent actor-owned reading without fabricated person or inbound message",
         "Keep content ownership in Knowledge; life projection receives actual representations and gaps",
         "Avoid bidirectional schema and manifest dependencies"
-      ]
+      ],
+      "commit": "129ab8f651971fe5d50c01e05ecf605c0bb51e77",
+      "handoff": "memory/docs/handoffs/C5.md"
     },
     {
       "id": "C6",
@@ -244,10 +268,14 @@
       "recipe": "infra/container/Dockerfile",
       "installer": "infra/container/build_install.py",
       "platform": "linux/amd64",
-      "source": "C5 final immutable commit pending",
+      "source": "129ab8f651971fe5d50c01e05ecf605c0bb51e77",
       "local_install_evidence": "worktrees/companion-complete-20261004/memory/.runtime/c5-clean-install/installation-evidence.json",
-      "linux_image_build": "pending",
-      "reuse": "existing locked binary-wheel installer; no new build framework"
+      "linux_image_build": "running",
+      "reuse": "existing locked binary-wheel installer; no new build framework",
+      "stage": "/volume2/tianshu-v2-resident-updates/companion-complete-20261004-memory-129ab8f65197",
+      "pid": 22743,
+      "first_attempt": "BuildKit stopped before compile: buildx missing; preserved logs, reuse existing classic Docker builder",
+      "receipt": ".runtime/companion-complete-20261004/memory-build-start.json"
     }
   },
   "contracts": {
