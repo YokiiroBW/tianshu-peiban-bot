@@ -143,7 +143,7 @@
     },
     {
       "id": "C5",
-      "status": "entrypoint_integration_repair_in_progress",
+      "status": "local_committed_pending_joint",
       "verification": [
         {
           "suite": "affected Knowledge/C1/HTTP/HTTPS/concurrency",
@@ -181,7 +181,14 @@
       ],
       "commit": "129ab8f651971fe5d50c01e05ecf605c0bb51e77",
       "handoff": "memory/docs/handoffs/C5.md",
-      "pin_update_commit": "fe767774a580e8f3f17c6ceaf229770d5fc6b48d"
+      "pin_update_commit": "fe767774a580e8f3f17c6ceaf229770d5fc6b48d",
+      "entrypoint_fix": {
+        "commit": "097ccfa55dfb5af541d24cfcb48ba6ccf02f1a3a",
+        "handoff": "memory/docs/handoffs/C5-knowledge-entry.md",
+        "actual_cli_related_tests_passed": 52,
+        "additional_entry_constraint_tests_passed": 2,
+        "joint": "C4 real Platform/Core/Memory/Knowledge/Gateway pending"
+      }
     },
     {
       "id": "C6",
@@ -335,6 +342,25 @@
         "evidence": ".runtime/companion-complete-20261004/memory-final-pin-image.json",
         "validation": "Exact git diff contains only contracts.py; installed bytes verified in network-disabled readonly Linux container. Reuse unchanged codec/dependency checks.",
         "production_changed": false
+      },
+      "current_candidate": {
+        "status": "built",
+        "revision": "097ccfa55dfb5af541d24cfcb48ba6ccf02f1a3a",
+        "image_id": "sha256:7e3e94e13b095bdbd99801471bfc7b8ce1bd18bbcff2ee14d57b91d36acc7c44",
+        "base_image_id": "sha256:110c64935fce0a6125503bf89a4d0b666a0423b24ca34c86cf3426ff6eff8fcf",
+        "stage": "/volume2/tianshu-v2-resident-updates/companion-complete-20261004-memory-097ccfa55dfb",
+        "dependency_inputs_unchanged": true,
+        "linux_cli_help": [
+          "memory",
+          "knowledge"
+        ],
+        "production_changed": false,
+        "installed_source_verification": {
+          "python_files": 74,
+          "method": "LF-normalized SHA256 exact tree comparison",
+          "result": "passed"
+        },
+        "codecs": "Reused unchanged locked dependencies and prior actual Linux codec verification"
       }
     },
     "configuration_shape": {
@@ -343,7 +369,7 @@
       "secrets_exported": false,
       "finding": "Production knowledge_cli serve-http uses knowledge_http.create_app exposing legacy execute but not new C5 content/role-runtime endpoints. Platform synchronizes only Memory.",
       "required": "C4 real joint must separate Memory and Knowledge; configure existing role grant synchronization for both owners and verify new/disabled actor content access. No shared DB assumption.",
-      "status": "confirmed_entrypoint_gap_repair_dispatched",
+      "status": "Knowledge_entry_fixed_C4_role_sync_joint_pending",
       "repair": {
         "memory_owner": "iteration_memory_plan",
         "scope": "Existing durable RoleRuntime stages synchronize independent configured Knowledge peer; two-service HTTP joint",
