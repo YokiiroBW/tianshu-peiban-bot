@@ -268,8 +268,17 @@
     },
     {
       "scenario": 5,
-      "status": "pending",
-      "evidence": []
+      "status": "partial_isolated_verified",
+      "evidence": [
+        {
+          "product": "platform",
+          "commit": "e2e4795f71729fdbfb03e48ae3a9247b3f382a6e",
+          "source": "tests/backend/test_c4_delivery.py",
+          "verified": "Fixed Platform tests cover three origins in one queue, ACK, cancel claimed/unknown/late ACK, media materialization and accumulated limit.",
+          "not_verified": "Final merged Core expression path and production adapter delivery.",
+          "handoff": "platform/docs/handoffs/C4.md"
+        }
+      ]
     },
     {
       "scenario": 6,
@@ -288,8 +297,17 @@
     },
     {
       "scenario": 9,
-      "status": "pending",
-      "evidence": []
+      "status": "partial_isolated_verified",
+      "evidence": [
+        {
+          "product": "platform",
+          "commit": "e2e4795f71729fdbfb03e48ae3a9247b3f382a6e",
+          "source": "tests/backend/test_c4_joint.py::test_first_no_chat_upload_independent_knowledge_restart_disable",
+          "verified": "Actual five-owner HTTP first no-chat acquisition, original bytes/SHA, restart read and disabled Knowledge rejection.",
+          "not_verified": "Final Core media/reading coverage and UI fixed commit.",
+          "handoff": "platform/docs/handoffs/C4.md"
+        }
+      ]
     },
     {
       "scenario": 10,
@@ -306,6 +324,14 @@
           "source": "tests/test_model_execution_http.py",
           "verified": "13 loopback HTTP tests cover native/chat streaming, owned cancellation, timeout/drop, partial progress, tool/image passthrough and restart without retry",
           "not_verified": "Companion consumer, Platform Web/QQ output, trusted cross-channel context and real providers"
+        },
+        {
+          "product": "platform",
+          "commit": "e2e4795f71729fdbfb03e48ae3a9247b3f382a6e",
+          "source": "tests/backend/test_c4_joint.py::test_association_requires_actual_second_author_and_memory_receipt",
+          "verified": "Two actual synthetic authors, exact-source association proof, Memory linked receipt, pending recovery, replay and CAS revoke.",
+          "not_verified": "Final Core streaming cancellation and production channel verification.",
+          "handoff": "platform/docs/handoffs/C4.md"
         }
       ]
     },
@@ -331,6 +357,14 @@
           "source": "tests/test_memory_context.py::test_real_nonempty_upgrade_preserves_old_sources_accounts_records_and_checkpoint",
           "verified": "Nonempty additive upgrade retains IDs and mapped applications; stale DB-only restore is rejected by guard",
           "not_verified": "Successful multi-product restore rehearsal including post-upgrade writes"
+        },
+        {
+          "product": "platform",
+          "commit": "e2e4795f71729fdbfb03e48ae3a9247b3f382a6e",
+          "source": "tests/backend/test_c4_delivery.py::test_migrate_existing_queue_preserves_nonempty_receipts_once; test_c4_joint.py::test_upgrade_existing_active_and_disabled_knowledge_enrolment",
+          "verified": "Nonempty Platform queue receipts survive additive upgrade once; old active/disabled roles enroll in independent Knowledge on restart without enabling disabled roles.",
+          "not_verified": "Whole-product cold backup, migration and restore on NAS clone.",
+          "handoff": "platform/docs/handoffs/C4.md"
         }
       ]
     }
@@ -470,7 +504,17 @@
       "knowledge_positive": 9,
       "knowledge_negative": 6
     },
-    "semantic_acceptance": "pending"
+    "semantic_acceptance": "pending",
+    "release_artifact": {
+      "revision": "97c335d6eff4a16a3fd178debfa9e5c2e11157b0",
+      "artifact": ".runtime\\companion-complete-20261004\\contracts-97c335d6eff4.tar.gz",
+      "sha256": "8b17a81ddff1c3a0d982670c4e6bc7c0a82527ddaa143ffc3cb0ceef8f4ae00c",
+      "files": 165,
+      "pinned_manifests_verified": 18,
+      "manifest_members_verified": 106,
+      "production_changed": false,
+      "semantic_evidence": "Separate execution/handoff reports; fixed package status not rewritten"
+    }
   },
   "external_dependencies": {
     "image_backend": {
