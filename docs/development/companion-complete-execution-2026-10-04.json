@@ -91,20 +91,43 @@
       "id": "C3",
       "product": "companion",
       "agent": "iteration_runtime_plan",
-      "status": "in_progress",
+      "status": "merged_joint_verified_pending_deployment",
       "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\companion",
       "baseline": "a5725d04aba00762d66306ae4821a40b70f7e2ed",
       "exclusive_scope": "Companion product source/tests/docs/own migrations and entrypoints; integrations shared/nonebot/astrbot explicitly transferred to C4 adapter worktree",
       "public_interface_status": "published_implementation_baseline",
-      "verification": [],
+      "verification": [
+        {
+          "suite": "final component",
+          "passed": 731,
+          "skipped": 24,
+          "warnings": 2,
+          "subtests_passed": 101,
+          "evidence": "companion/.runtime/c3-full-final.txt"
+        },
+        {
+          "suite": "root final merged five-owner TLS HTTP",
+          "passed": 5,
+          "seconds": 78.946,
+          "evidence": ".runtime/companion-complete-20261004/merged-c3-joint.txt",
+          "companion": "91d82ddad9bb1f2eb140d0dc6615ee84dd6b4eb9",
+          "platform": "e2e4795f71729fdbfb03e48ae3a9247b3f382a6e",
+          "memory": "097ccfa55dfb5af541d24cfcb48ba6ccf02f1a3a",
+          "gateway": "ea7f5924e80640d1289e66adb89541c52e037eaa",
+          "real_external_provider_or_QQ": false
+        }
+      ],
       "working_tree_verification_report": {
         "source": "Implementer report; final retest pending",
         "first_concentrated_passed": 82,
         "first_concentrated_failed": 4,
-        "followup": "Three test adaptations corrected, profile verify argument defect corrected; original restore and stream/owner tests next",
+        "followup": "Superseded by fixed final regression and merged actual HTTP joint; deployment remains pending.",
         "new_tests": "tests/test_runtime_v2.py",
-        "not_complete": true
-      }
+        "not_complete": false
+      },
+      "commit": "a22acfa6890072794d40442222bb2f4704b01292",
+      "handoff": "companion/docs/handoffs/C3.md",
+      "integration_commit": "91d82ddad9bb1f2eb140d0dc6615ee84dd6b4eb9"
     },
     {
       "id": "C4",
@@ -124,9 +147,9 @@
         "integration": {
           "worktree": "worktrees/companion-complete-20261004/companion-release",
           "branch": "codex/companion-complete-release-20261004",
-          "head": "f308c9af234573bf3bd342c89e8664afb9900f92",
+          "head": "91d82ddad9bb1f2eb140d0dc6615ee84dd6b4eb9",
           "owner": "root",
-          "pending": "merge C3 fixed runtime commit; then fixed joint, push and deployment"
+          "pending": "image build, push and deployment"
         },
         "handoff_verified": "C3 confirmed no uncommitted changes and no ongoing writes in transferred paths",
         "commit": "f308c9af234573bf3bd342c89e8664afb9900f92",
@@ -556,19 +579,19 @@
       "owner": "C3",
       "file": "src/tianshu_companion/runtime_execution.py:offer_event",
       "finding": "Fixed first 16 active subscriptions without pagination can permanently starve later subscribers",
-      "status": "implementation_updated_pending_runtime_verification"
+      "status": "closed_in_fixed_commit_runtime_v2_tests"
     },
     {
       "owner": "C3",
       "file": "src/tianshu_companion/life_affect.py:snapshot",
       "finding": "Actor-wide LIMIT before scope filtering can evict current private-scope feelings due to other users feedback",
-      "status": "implementation_updated_pending_runtime_verification"
+      "status": "closed_in_fixed_commit_runtime_v2_tests"
     },
     {
       "owner": "C3",
       "scenario": 6,
       "finding": "Need prove sent-contact / response-timeout feedback reaches short affect and next proactive context; only explicit affect tool and unanswered counter observed so far",
-      "status": "implementation_updated_pending_runtime_verification"
+      "status": "closed_in_fixed_commit_runtime_v2_tests"
     },
     {
       "owner": "C4-UI",
