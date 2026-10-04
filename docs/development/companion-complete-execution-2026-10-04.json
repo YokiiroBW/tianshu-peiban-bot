@@ -475,6 +475,33 @@
       "knowledge_content_schema": null,
       "read_only": true,
       "required": "Three owner migrations plus Platform sidecar upgrade; cold paired backups, clone verification before production."
+    },
+    "configuration_upgrade": {
+      "helper": ".runtime/companion-complete-20261004/config_upgrade.py",
+      "dry_run": {
+        "status": "in_memory_dry_run_passed",
+        "changed_paths": [
+          "companion.life_readers.platform",
+          "companion.services.knowledge",
+          "gateway.max_request_bytes",
+          "knowledge.callers",
+          "knowledge.role_grants_database_path",
+          "memory.callers.companion.operations",
+          "memory.callers.platform.operations",
+          "memory.memory_context_proofs",
+          "platform.role_runtime.knowledge"
+        ],
+        "mount_isolation_verified": true,
+        "production_changed": false
+      },
+      "required": "Apply candidate only inside release cycle after cold paired backup and clone migration verification"
+    },
+    "contracts_staged": {
+      "stage": "/volume2/tianshu-v2-resident-updates/companion-complete-20261004-contracts-97c335d6eff4",
+      "revision": "97c335d6eff4a16a3fd178debfa9e5c2e11157b0",
+      "archive_sha256": "8b17a81ddff1c3a0d982670c4e6bc7c0a82527ddaa143ffc3cb0ceef8f4ae00c",
+      "pinned_manifests_verified": 18,
+      "production_changed": false
     }
   },
   "contracts": {
