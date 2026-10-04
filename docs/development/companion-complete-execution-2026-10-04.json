@@ -358,5 +358,25 @@
       "blocks": "real image generation verification only; implementation continues",
       "evidence": ".runtime/companion-complete-20261004/external-capability-baseline.json"
     }
-  }
+  },
+  "coordinator_review_open_items": [
+    {
+      "owner": "C3",
+      "file": "src/tianshu_companion/runtime_execution.py:offer_event",
+      "finding": "Fixed first 16 active subscriptions without pagination can permanently starve later subscribers",
+      "status": "dispatched_pending_fix_and_boundary_test"
+    },
+    {
+      "owner": "C3",
+      "file": "src/tianshu_companion/life_affect.py:snapshot",
+      "finding": "Actor-wide LIMIT before scope filtering can evict current private-scope feelings due to other users feedback",
+      "status": "dispatched_pending_fix_and_scope_test"
+    },
+    {
+      "owner": "C3",
+      "scenario": 6,
+      "finding": "Need prove sent-contact / response-timeout feedback reaches short affect and next proactive context; only explicit affect tool and unanswered counter observed so far",
+      "status": "integration_question_dispatched_not_yet_verified"
+    }
+  ]
 }
