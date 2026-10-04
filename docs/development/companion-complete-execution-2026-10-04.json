@@ -24,12 +24,29 @@
       "id": "C2",
       "product": "gateway",
       "agent": "provider_test_fix",
-      "status": "in_progress",
+      "status": "local_committed_pending_joint",
       "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\gateway",
       "baseline": "d1865da927bee8e266ac34bdc674dc36c1a513a8",
       "exclusive_scope": "product source/tests/docs/own migrations and entrypoints; no other product or root contracts",
       "public_interface_status": "published_implementation_baseline",
-      "verification": []
+      "verification": [
+        {
+          "suite": "concentrated regression",
+          "total": 382,
+          "passed_before_fix": 369,
+          "failures_before_fix": 2,
+          "skipped": 11,
+          "affected_retest_passed": 2,
+          "unresolved_failures": 0
+        },
+        {
+          "suite": "new loopback HTTP",
+          "passed": 13,
+          "real_provider": false
+        }
+      ],
+      "commit": "ea7f5924e80640d1289e66adb89541c52e037eaa",
+      "handoff": "gateway/docs/handoffs/C2-model-execution-2026-10-04.md"
     },
     {
       "id": "C3",
@@ -44,11 +61,12 @@
     },
     {
       "id": "C4",
-      "status": "allocated_not_running",
+      "status": "in_progress",
       "verification": [],
       "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\platform",
       "baseline": "6a2ed3d0d6f6b3f0be6761c3b9cf61239ea5d2b4",
-      "task_card": "companion-complete-platform-task-2026-10-04.md"
+      "task_card": "companion-complete-platform-task-2026-10-04.md",
+      "agent": "provider_test_fix"
     },
     {
       "id": "C5",
