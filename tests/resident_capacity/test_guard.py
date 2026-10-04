@@ -45,6 +45,32 @@ class FakeDocker:
 
 
 class ResidentCapacityTests(unittest.TestCase):
+    def test_image_references_require_a_complete_immutable_digest(self):
+        for reference in ("sha256:" + "a" * 64, "registry/product@sha256:" + "b" * 64):
+            with self.subTest(reference=reference):
+                self.assertIsNotNone(guard.IMAGE.fullmatch(reference))
+        for reference in ("product:latest", "product:release", "sha256:abc", "a" * 64,
+                          "sha256:" + "a" * 63, "sha256:" + "a" * 65,
+                          "sha256:" + "A" * 64, "sha256:" + "a" * 64 + "\n"):
+            with self.subTest(reference=reference):
+                self.assertIsNone(guard.IMAGE.fullmatch(reference))
+
+    def test_full_local_image_ids_keep_exact_ten_owner_arm_and_binding(self):
+        self._enable_knowledge()
+        images = {name: "sha256:" + f"{index:064x}" for index, name in enumerate(self.config.images, 1)}
+        self.config = replace(self.config, images=images)
+        self.containers = [replace(item, image=images[item.service]) for item in self.containers]
+        self.docker = FakeDocker(self.containers)
+        with patch.object(guard, "_state_dir", side_effect=lambda path, create=False: Path(path)), patch.object(
+            guard, "capacity", return_value=(100, 30 * guard.GIB)
+        ):
+            self.assertEqual(guard.arm(self.config, "a" * 64, self.docker)["services"], 10)
+            self.assertEqual(guard.sample(self.config, self._marker(), self.docker)["services"], 10)
+            changed = self.containers[0]
+            self.docker.containers[changed.id] = replace(changed, image="sha256:" + "f" * 64)
+            with self.assertRaises(guard.Unsafe):
+                guard.sample(self.config, self._marker(), self.docker)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

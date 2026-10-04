@@ -52,7 +52,7 @@ MAX_FAIL_CLOSE_SECONDS = (
     + 60
 )
 ID = re.compile(r"[0-9a-f]{64}\Z")
-IMAGE = re.compile(r".+@sha256:[0-9a-f]{64}\Z")
+IMAGE = re.compile(r"(?:.+@)?sha256:[0-9a-f]{64}\Z")
 INSPECT_FORMAT = "[" + ",".join(
     "{{json " + field + "}}" for field in (
         ".Id",
