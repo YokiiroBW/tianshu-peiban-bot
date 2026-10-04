@@ -127,7 +127,7 @@
     },
     {
       "id": "C5",
-      "status": "local_committed_pending_joint",
+      "status": "entrypoint_integration_repair_in_progress",
       "verification": [
         {
           "suite": "affected Knowledge/C1/HTTP/HTTPS/concurrency",
@@ -325,9 +325,15 @@
       "evidence": ".runtime/companion-complete-20261004/config-shape-readonly.json",
       "read_only": true,
       "secrets_exported": false,
-      "finding": "Production Knowledge runs separately with only legacy knowledge clients/projects; no new content callers/issuer/RoleGrants configured. Platform role_runtime currently targets Memory only.",
+      "finding": "Production knowledge_cli serve-http uses knowledge_http.create_app exposing legacy execute but not new C5 content/role-runtime endpoints. Platform synchronizes only Memory.",
       "required": "C4 real joint must separate Memory and Knowledge; configure existing role grant synchronization for both owners and verify new/disabled actor content access. No shared DB assumption.",
-      "status": "dispatched_to_C4_pending_joint_and_deployment_delta"
+      "status": "confirmed_entrypoint_gap_repair_dispatched",
+      "repair": {
+        "memory_owner": "iteration_memory_plan",
+        "scope": "Existing durable RoleRuntime stages synchronize independent configured Knowledge peer; two-service HTTP joint",
+        "platform_owner": "provider_test_fix",
+        "prior_memory_image": "candidate requires source overlay or rebuild after entrypoint fix; unchanged codecs reused"
+      }
     }
   },
   "contracts": {
