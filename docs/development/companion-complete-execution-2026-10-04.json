@@ -149,7 +149,7 @@
       ],
       "commit": "129ab8f651971fe5d50c01e05ecf605c0bb51e77",
       "handoff": "memory/docs/handoffs/C5.md",
-      "pin_update_commit": "2875e86df896ef0bab145d576929dd4794f277e4"
+      "pin_update_commit": "fe767774a580e8f3f17c6ceaf229770d5fc6b48d"
     },
     {
       "id": "C6",
@@ -296,6 +296,13 @@
         "runtime": "Python3.12.11 UID10001 read-only network-none container without production mounts",
         "coverage": "real PNG decode, MP4 encode/decode four frames, PDF write/read, DOCX write/read",
         "not_covered": "product HTTP integration and production migration"
+      },
+      "final_pin_candidate": {
+        "commit": "fe767774a580e8f3f17c6ceaf229770d5fc6b48d",
+        "image_id": "sha256:110c64935fce0a6125503bf89a4d0b666a0423b24ca34c86cf3426ff6eff8fcf",
+        "evidence": ".runtime/companion-complete-20261004/memory-final-pin-image.json",
+        "validation": "Exact git diff contains only contracts.py; installed bytes verified in network-disabled readonly Linux container. Reuse unchanged codec/dependency checks.",
+        "production_changed": false
       }
     }
   },
