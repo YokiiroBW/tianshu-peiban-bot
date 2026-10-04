@@ -64,7 +64,23 @@
         }
       ],
       "commit": "ea7f5924e80640d1289e66adb89541c52e037eaa",
-      "handoff": "gateway/docs/handoffs/C2-model-execution-2026-10-04.md"
+      "handoff": "gateway/docs/handoffs/C2-model-execution-2026-10-04.md",
+      "nas_candidate_image": {
+        "status": "built",
+        "image_id": "sha256:51c745d77e58640a2e3694dc710cd49eecfd3caed2f71c4a67ebb6fad50dc20a",
+        "revision": "ea7f5924e80640d1289e66adb89541c52e037eaa",
+        "base_image_id": "sha256:83c98217bac8a9b11d8d2f327a78077179a7e411ae9513951365974cde655475",
+        "dependency_inputs": "pyproject/uv.lock/tools.lock/Dockerfile byte-identical to deployed baseline",
+        "linux_cli_help": true,
+        "production_changed": false,
+        "stage": "/volume2/tianshu-v2-resident-updates/companion-complete-20261004-gateway-ea7f5924e806",
+        "installed_source_verification": {
+          "python_files": 20,
+          "method": "SHA256 after CRLF to LF normalization; names exactly match git tree",
+          "result": "passed",
+          "note": "Raw hash mismatch was archive line endings on all 20 files; normalized content identical."
+        }
+      }
     },
     {
       "id": "C3",
