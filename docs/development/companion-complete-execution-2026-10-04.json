@@ -131,7 +131,7 @@
     },
     {
       "id": "C4",
-      "status": "backend_fixed_pending_ui_integration",
+      "status": "merged_local_verified_pending_deployment",
       "verification": [],
       "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\platform",
       "baseline": "6a2ed3d0d6f6b3f0be6761c3b9cf61239ea5d2b4",
@@ -172,13 +172,21 @@
         "agent": "iteration_memory_plan",
         "model": "gpt-6.1-sol",
         "reasoning_effort": "xhigh",
-        "status": "in_progress",
+        "status": "merged_local_verified",
         "worktree": "C:/YOKI/Codex/tianshu-peiban-bot/worktrees/companion-complete-20261004/platform-ui",
         "branch": "codex/companion-complete-ui-20261004",
         "baseline": "6a2ed3d0d6f6b3f0be6761c3b9cf61239ea5d2b4",
         "exclusive_scope": "apps/web/** including existing browser tests; docs/handoffs/C4-UI.md; no services or locks",
-        "handoff": "C4 explicitly stopped all apps/web writes; six untracked life components copied exactly, no modified original frontend files",
-        "integration": "Coordinator merges isolated UI candidate into final Platform backend candidate, preserving unique owner per path"
+        "handoff": "platform-ui/docs/handoffs/C4-UI.md",
+        "integration": "Coordinator merges isolated UI candidate into final Platform backend candidate, preserving unique owner per path",
+        "commit": "72522a5298fb998e833f40c9a95287b29c1950ea",
+        "verification": {
+          "typecheck": true,
+          "build": true,
+          "actual_five_owner_browser": 6,
+          "image_presentation_followup": 4,
+          "coordinator_visual_review": "desktop room and mobile identity workspace; picture byte controls corrected afterward; prior owner-chain checks reused"
+        }
       },
       "working_tree_verification_report": {
         "source": "Implementer report; fixed commit and coordinator final verification pending",
@@ -194,7 +202,8 @@
         "worktree": "worktrees/companion-complete-20261004/platform-release",
         "branch": "codex/companion-complete-platform-release-20261004",
         "owner": "root",
-        "pending": "fixed UI commit"
+        "pending": "fixed image build, GitHub push and NAS migration/deployment",
+        "head": "b313a49aa83fe4697eb74a8b5e4a8a924643ce28"
       }
     },
     {
@@ -525,6 +534,58 @@
       "archive_sha256": "8b17a81ddff1c3a0d982670c4e6bc7c0a82527ddaa143ffc3cb0ceef8f4ae00c",
       "pinned_manifests_verified": 18,
       "production_changed": false
+    },
+    "companion_candidate": {
+      "status": "built",
+      "image_id": "sha256:1611e6f439b036bda1a7186ae6323143f200371a1dbe2d916d47a8a2ce85bfb3",
+      "tag": "tianshu/companion-complete-companion:91d82ddad9bb",
+      "revision": "91d82ddad9bb1f2eb140d0dc6615ee84dd6b4eb9",
+      "base_image_id": "sha256:e175b25c05ff39746f878eea5784dc943faa7601c9131ce4a2a1bd70693ecf86",
+      "base_revision": "a5725d04aba00762d66306ae4821a40b70f7e2ed",
+      "stage": "/volume2/tianshu-v2-resident-updates/companion-complete-20261004-companion-91d82ddad9bb",
+      "dependency_inputs": {
+        "unchanged": true,
+        "files": [
+          "Dockerfile",
+          "pyproject.toml",
+          "requirements-dev.txt",
+          "requirements-nonebot.txt",
+          ".dockerignore"
+        ]
+      },
+      "source_archive_sha256": "b1cf8b651864eadbc703e44c00234952430a5a512665d24e985ba21ec1f08ff2",
+      "source": "git archive fixed commit; no working-tree files",
+      "installed_package_root": "/usr/local/lib/python3.12/site-packages",
+      "source_file_count": 79,
+      "installed_source_verification": {
+        "method": "exact file set + SHA256 after CRLF to LF normalization",
+        "result": "passed",
+        "packages": {
+          "src/tianshu_companion": 52,
+          "integrations/nonebot/tianshu_nonebot": 10
+        }
+      },
+      "linux_checks": {
+        "network": "none",
+        "read_only": true,
+        "python": "3.12.14",
+        "runtime_modules_imported": 52,
+        "cli_help": true,
+        "pip_check": true
+      },
+      "inherited_runtime": {
+        "user": "10001:10001",
+        "entrypoint": [
+          "python",
+          "-m",
+          "tianshu_companion.runtime_cli"
+        ],
+        "working_dir": "/app",
+        "healthcheck_preserved": true,
+        "env_preserved": true
+      },
+      "production_changed": false,
+      "production_data_mounted": false
     }
   },
   "contracts": {
@@ -597,13 +658,13 @@
       "owner": "C4-UI",
       "file": "apps/web/src/features/life/LifecyclePanel.tsx:ActivityPanel.edit",
       "finding": "Editing another record does not replace due input, risking previous draft time applied to next activity",
-      "status": "dispatched_after_Knowledge_fix"
+      "status": "closed_in_fixed_UI_targeted_browser_checks"
     },
     {
       "owner": "C4-UI",
       "file": "apps/web/src/features/life/useLifeRuntime.ts:more",
       "finding": "Pagination auth/scope invalidation should clear items/cursor using same logic as initial read",
-      "status": "dispatched_after_Knowledge_fix"
+      "status": "closed_in_fixed_UI_targeted_browser_checks"
     }
   ]
 }
