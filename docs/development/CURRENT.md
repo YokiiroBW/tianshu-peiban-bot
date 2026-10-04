@@ -1,3 +1,7 @@
+## 2026-10-04 陪伴完整迭代已集成并推送产品仓库，NAS 待升级
+
+Memory/Knowledge `097ccfa`、Gateway `ea7f592`、Companion `91d82dd`、Platform `b313a49` 已正常推送 GitHub main 并读回核实。完整模块本地集成、实际五服务 TLS 联合5项通过；独立用户界面与实际内容链验收见各产品 C1–C5/C4-UI 交接。候选镜像及真实配置无写入预演已推进，生产数据迁移、正式镜像切换及最终实机验收尚未完成，不能称本轮已部署。精确证据见 [执行记录](companion-complete-execution-2026-10-04.json)。旧 root/projects 未提交改动继续保留。
+
 # 当前交接
 
 2026-10-04 **陪伴全面迭代正在实现**：用户已授权完成全范围并最终推送 GitHub、部署 NAS。C1 Memory 已提交 `20bf790`、C2 Gateway 已提交 `ea7f592`，均仅本地验证、待联合验收；C3 Companion、C4 Platform、C5 Knowledge 内容接入在 worktrees/companion-complete-20261004 并行实现，全部 GPT-6.1-sol/xhigh。C5 沿 C1 提交同产品串行演进，主协调只维护合同、规划和验收集成。实际状态及13项覆盖见 [执行记录](companion-complete-execution-2026-10-04.json)。本轮尚未整体集成、推送或部署，不把下方历史记录作为本轮完成证据。
