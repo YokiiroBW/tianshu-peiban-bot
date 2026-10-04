@@ -11,3 +11,13 @@ send_receipt汇总该expression已接纳全部段。final=False且已接纳段�
 兼容迁移：保留既有/v1/conversation/send和reply-status及其真实inbound turn_sequence，旧非Platform bridge继续走其原v1协议；Platform绑定的普通/Direct/主动改由v2封套进入同一现有队列实现，v1也调用同一发送/回执归属，不建平行ledger。现有发送记录不重写、不推导假sequence；旧未结算记录按旧ID查回执；v2新表达使用独立ID。
 
 segment 可选 media 由 Companion 按原 scope/actor 权威实读物化，Platform 同队列持久化并校验 base64 解码、sha/type 和同段 content_refs。最多 4 个媒体、decoded 合计 32MiB 均按 expression 累计，幂等重放不重计；单 POST JSON 至多 45MiB。不得把原图暗中缩小以绕限制；插件只读物化 bytes、不自行联网读取私有 URL，真实 SDK 回执后才 sent。内容正文不得进入普通日志或状态回执。
+
+# Existing proactive recipient's current read context
+
+POST `/internal/v2/bot-delivery/context`, existing authenticated Companion `dialogue.send` caller only. No input, collection, turn, expression, or recipient registry is created. Only `kind=proactive` is accepted: this is current recipient scope authorization, not new user intent.
+
+Platform reuses Delivery._entry/_connection under the existing managed-actor guard. The exact account/actor/audience/conversation/channel registration, live connection, current QQ policy, principal and entry revocations must still hold. Companion→Memory/dialogue must be an existing route. Origins.issue_registered shares the issuer's normal durable origin record, entry digest, TTL, and revocation semantics. A response or Direct origin cannot be renewed into a new user's source.
+
+Companion is the sole subscription/candidate owner; its runtime must check active subscription, enabled role/life epoch, and still-valid candidate before asking for this context and again before any send. No model-facing context or permission tool is exposed. A paused/revoked subscription stops this production consumer; Platform does not mirror the subscription database.
+
+The response origin is used only for the candidate's actual scope-bound Memory queries and live source checks. Historical source identifiers remain unchanged and do not turn into a newly admitted message.

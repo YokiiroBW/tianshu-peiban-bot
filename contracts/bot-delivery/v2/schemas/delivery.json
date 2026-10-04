@@ -514,6 +514,78 @@
         "sha256"
       ],
       "additionalProperties": false
+    },
+    "context_request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "request_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "origin": {
+          "allOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/bot-delivery/v2/delivery.json#/$defs/origin"
+            },
+            {
+              "properties": {
+                "kind": {
+                  "const": "proactive"
+                }
+              }
+            }
+          ]
+        },
+        "scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "channel": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/channel_key"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "origin",
+        "scope",
+        "channel"
+      ],
+      "additionalProperties": false
+    },
+    "context_response": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "request_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "origin": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/origin"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "channel": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/channel_key"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "origin",
+        "expires_at",
+        "scope",
+        "channel"
+      ],
+      "additionalProperties": false
     }
   }
 }

@@ -11,13 +11,14 @@
   },
   "sha256": {
     "examples/media.json": "99a508b38083402b774e29754ee9c98f9d6472744cac1d936f66a8ac32d2629f",
+    "examples/proactive-context.json": "0f6b68427e6cee9c789683f5c25cbda1ec4725c644224a2daadb38242e8eb65c",
     "examples/requests.json": "3ffc117b25eec5be46d0b68c88c1402b23b9daf6d123ae017aee6c3a5c8b9fc9",
-    "README.md": "9024c5da8eec2366c05d6fc06cd48c5ec90fc7c8dd1dec55146f88ed62cef2fc",
-    "schemas/delivery.json": "78210557b22578327f3bced85d4addb65e5ec0d9e325375a8dea614412b00697"
+    "README.md": "6ea50c53e7af532d7f1af5c660bccacae9b252f821b286e5e625b5c87e3b19d9",
+    "schemas/delivery.json": "2817f1a9f266447c8fbacba7801105321f9dc80e73b6626055dd4897777c19bb"
   },
   "schema_examples_checked": {
-    "positive": 5,
-    "negative": 5
+    "positive": 7,
+    "negative": 7
   },
   "semantic_cases": "specified_not_run"
 }
