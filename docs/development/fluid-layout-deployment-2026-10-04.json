@@ -1,0 +1,165 @@
+{
+  "status": "deployed_to_nas",
+  "recorded_at": "2026-10-04T01:17:41.727660+00:00",
+  "platform_commit": "a9e466f800fe4e61b0db082e4f0a4a9b4b164e69",
+  "previous_platform_commit": "c1d717cc96e6a3afa605c89a1a125782066be134",
+  "changes": [
+    "Shared app shell fills available width with existing desktop/mobile padding.",
+    "Removed unused layout-max token and QQ administrator page width cap.",
+    "Kept existing form/dialog reading widths and mobile layout."
+  ],
+  "runtime": {
+    "platform_image": {
+      "arch": "amd64",
+      "digest_ref": "127.0.0.1:19559/tianshu/fluid-layout-platform@sha256:bafc686bf314b38ac5adc883a0f2c1e297f9101518241e9ea9c6ce80946fd347",
+      "id": "sha256:b2b10d400f7856932bb2d0267993e53ab6877eb0da2ef27518adb0097f062b88",
+      "revision": "a9e466f800fe4e61b0db082e4f0a4a9b4b164e69"
+    },
+    "owners": 10,
+    "checks": [
+      {
+        "service": "gateway",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true
+      },
+      {
+        "service": "platform",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true
+      },
+      {
+        "service": "knowledge",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true
+      },
+      {
+        "service": "companion",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true
+      },
+      {
+        "service": "memory",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true
+      }
+    ],
+    "guard": {
+      "deployment_bytes": 421489030,
+      "heartbeat_age_seconds": 3.017,
+      "minimum_free_bytes": 410824261632,
+      "services": 10,
+      "status": "ready"
+    },
+    "backup": "/volume2/tianshu-v2-resident-updates/fluid-layout-20261004-core/production-generation-14f0fc3b003a435489ceec007c1c8e49/cold-snapshot",
+    "configuration_unchanged": true,
+    "user_state_preserved": true,
+    "other_product_images_unchanged": true,
+    "all_clones_stopped": true
+  },
+  "http_assets": {
+    "status": "nas_http_assets_match_installed_candidate",
+    "count": 53,
+    "origin": "http://192.168.31.210:18446",
+    "production_business_data_read": false
+  },
+  "dockge": {
+    "applied": true,
+    "project_directory": "/volume2/tianshu-v2-resident",
+    "source_hashes": {
+      "/volume2/tianshu-v2-resident-updates/bots-20260928/core.compose.json": "9015fe6e6cff094a2dc633c3cb41261c3be74fa36ae9e0359db17c2cb25bab58",
+      "/volume2/tianshu-v2-resident-updates/bots-20260928/platform.compose.json": "d6e1b817ea515929d8a3d83f5f953623b71939654ce902861713b71434f2a62a",
+      "/volume2/tianshu-v2-resident-updates/connections-20260928/obs.compose.json": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530"
+    },
+    "snapshots": [
+      {
+        "project": "tianshu-v2-resident",
+        "target": "/volume1/Download/dockge/stacks/tianshu-v2-resident/compose.yaml",
+        "old_sha256": "a2090ba000896aa8ffb7ce428d6b546b3983f8f957c50e97aa4bff9f48f47b09",
+        "new_sha256": "9015fe6e6cff094a2dc633c3cb41261c3be74fa36ae9e0359db17c2cb25bab58",
+        "images": {
+          "companion": "127.0.0.1:19554/tianshu/quality-life-companion@sha256:2466d343d9a6f54427026c10fcbda1aa0b2e82c9026da2f9c84e1a6007f2ee9a",
+          "gateway": "127.0.0.1:19550/tianshu/gateway@sha256:b336e15bb7cf6b017aa871a3ab181ab62f4ec6b07bac3fca0592ef70f32af9db",
+          "knowledge": "127.0.0.1:19554/tianshu/quality-life-memory@sha256:e001b1c208015a850c4cedd1d44bc28e3b3c5caf3797d2bac714f5929ef4a5ca",
+          "memory": "127.0.0.1:19554/tianshu/quality-life-memory@sha256:e001b1c208015a850c4cedd1d44bc28e3b3c5caf3797d2bac714f5929ef4a5ca",
+          "platform": "127.0.0.1:19559/tianshu/fluid-layout-platform@sha256:bafc686bf314b38ac5adc883a0f2c1e297f9101518241e9ea9c6ce80946fd347"
+        }
+      },
+      {
+        "project": "tianshu-v2-resident-obs",
+        "target": "/volume1/Download/dockge/stacks/tianshu-v2-resident-obs/compose.yaml",
+        "old_sha256": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530",
+        "new_sha256": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530",
+        "images": {
+          "obs-grafana": "grafana/grafana:13.2.2@sha256:ac461fb352abc50da10a51c7d02462e9c05488f11f53f14b3ad79a8145f638a0",
+          "obs-guard": "python:3.12.14-slim-bookworm@sha256:392307d22300de8b5986851a12d9176dfc0fc073e65bf6523ebd7dcbeb23564e",
+          "obs-loki": "grafana/loki:3.7.8@sha256:1107dd5274e0ada47e42472b7a7e71f3b2a2fe878878108f3e2f9e51528f0193",
+          "obs-prometheus": "prom/prometheus:v3.13.3@sha256:6976aa8a60fec930796ce5772b8d12da7a318a5daa8d40d69c5c7819a05eeed7",
+          "obs-vector": "timberio/vector:0.58.0-debian@sha256:1c1ea358c617ea0b23003d5af87f7a678b30f8f7096437e680380c47fc13d2d9"
+        }
+      }
+    ],
+    "containers_recreated": false,
+    "credential_files_read": false,
+    "backup_directory": "/volume2/tianshu-v2-resident-updates/fluid-layout-20261004-core/dockge-backups/20261004T011732Z-54908fef"
+  },
+  "validation": {
+    "typescript": "passed",
+    "vite_build": "passed",
+    "affected_css_prettier": "passed",
+    "large_screen_browser": {
+      "passed": 2,
+      "fixture": "synthetic_session_and_existing_people_fixture",
+      "pages_per_viewport": [
+        "people",
+        "room",
+        "qq-admin"
+      ],
+      "viewports": [
+        [
+          1920,
+          1080
+        ],
+        [
+          3840,
+          2088
+        ]
+      ],
+      "content_widths": [
+        1616,
+        3536
+      ],
+      "outer_padding_px": 24,
+      "horizontal_overflow": false,
+      "screenshots_visually_checked": [
+        "3840 room",
+        "3840 people",
+        "1920 qq-admin"
+      ]
+    },
+    "existing_anonymous_mobile_navigation_people_checks": {
+      "passed": 5,
+      "skipped": 1,
+      "skip": "existing_conditional_skip",
+      "performed_by": "parent_coordinator"
+    },
+    "existing_renderer_large_chunk_warning": true,
+    "full_suite_run": false,
+    "new_permanent_tests": false,
+    "nas_browser_layout_verified": false,
+    "original_account_browser_login_performed": false,
+    "new_identity_projection_verification": false,
+    "real_qq_or_model_called": false
+  },
+  "handoff": "../platform/docs/handoffs/FLUID-LAYOUT.md",
+  "local_browser_evidence": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\quality-life-20261003\\platform\\.runtime\\fluid-layout-evidence",
+  "receipt_sha256": {
+    "readback-receipt.json": "49eccd286c9f275ec152ad27e22ad3bfb9a4e33f0e39a660aff3b65030aeb017",
+    "http-assets.json": "df0490fc538d3b2171afdacd1ab4d474d1b81b8321d0d5de33c7927f2db0f0a1",
+    "dockge-receipt.json": "19373ade18e4f12757b28971b81f62c3c752b536a1c187cd28d3e71931203f0d"
+  }
+}
