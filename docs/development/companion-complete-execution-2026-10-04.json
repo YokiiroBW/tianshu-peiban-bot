@@ -73,7 +73,7 @@
       "status": "in_progress",
       "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\companion",
       "baseline": "a5725d04aba00762d66306ae4821a40b70f7e2ed",
-      "exclusive_scope": "product source/tests/docs/own migrations and entrypoints; no other product or root contracts",
+      "exclusive_scope": "Companion product source/tests/docs/own migrations and entrypoints; integrations shared/nonebot/astrbot explicitly transferred to C4 adapter worktree",
       "public_interface_status": "published_implementation_baseline",
       "verification": []
     },
@@ -84,7 +84,17 @@
       "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\platform",
       "baseline": "6a2ed3d0d6f6b3f0be6761c3b9cf61239ea5d2b4",
       "task_card": "companion-complete-platform-task-2026-10-04.md",
-      "agent": "provider_test_fix"
+      "agent": "provider_test_fix",
+      "adapter_allocation": {
+        "agent": "provider_test_fix",
+        "status": "in_progress",
+        "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\companion-adapters",
+        "branch": "codex/companion-complete-adapters-20261004",
+        "baseline": "a5725d04aba00762d66306ae4821a40b70f7e2ed",
+        "exclusive_scope": "integrations/shared, integrations/nonebot, integrations/astrbot and direct adapter tests/handoff",
+        "integration": "Coordinator merges committed adapter changes into final Companion candidate after C3 stable",
+        "handoff_verified": "C3 confirmed no uncommitted changes and no ongoing writes in transferred paths"
+      }
     },
     {
       "id": "C5",
@@ -216,7 +226,15 @@
     }
   ],
   "github": {
-    "status": "pending"
+    "status": "pending",
+    "baseline_remote_main_verified": {
+      "memory": "8415bc85bcad089a9e24461d5f3e88039754103c",
+      "gateway": "d1865da927bee8e266ac34bdc674dc36c1a513a8",
+      "companion": "a5725d04aba00762d66306ae4821a40b70f7e2ed",
+      "platform": "6a2ed3d0d6f6b3f0be6761c3b9cf61239ea5d2b4",
+      "coordination": "7f0219979b46509be1e0b8cb3c480096039a102d"
+    },
+    "verification": "git ls-remote direct actual GitHub URLs; local origin aliases are not authoritative GitHub remotes"
   },
   "nas": {
     "status": "pending",

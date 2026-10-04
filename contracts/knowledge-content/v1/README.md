@@ -4,7 +4,7 @@
 
 POST `/internal/v1/knowledge/content/acquire`、`read`、`original`、`uploads`、`upload-status`、`access`。权限为 `content_<operation>`；original单独需content_original，不由query隐含。每请求验证 bearer；user 分支再验证真实 origin issuer、当前稳定 account 与 scope，actor 分支按下文现有角色授权验证，非浏览器直连。Companion caller只acquire/read/original与必要status；Platform用户操作caller负责uploads及access，不向模型开放grant。
 
-PUT `/internal/v1/knowledge/content/uploads/{upload_id}` 为真实binary，Authorization与X-Tianshu-Assertion-Ref当前用户origin必需；Content-Type application/octet-stream。descriptor事先包含正确size/sha；服务在读体前核scope/account和准入，完整字节校验后才complete，失败不产生假原件。POST upload-status可查询并以原id重传；完成的上传只能重复同bytes，不能以同id换源。pending有TTL、最多32MiB。acquire成功后原件转入knowledge_versions并清 staging raw，重启仍可由upload_id恢复引用。filename是显示名，不做磁盘路径。
+PUT `/internal/v1/knowledge/content/uploads/{upload_id}` 为真实binary，Authorization 与 X-Tianshu-Request-Id 必需；user 上传使用 X-Tianshu-Assertion-Ref 当前用户 origin，actor 上传使用 X-Tianshu-Actor-Id 与 X-Tianshu-Operation-Ref 当前真实活动标识。两分支均按已保存 descriptor 的 owner、scope 和既有部署权限实时验证，不能以 header 改换拥有者。Content-Type application/octet-stream。descriptor事先包含正确size/sha；服务在读体前核scope/account和准入，完整字节校验后才complete，失败不产生假原件。POST upload-status可查询并以原id重传；完成的上传只能重复同bytes，不能以同id换源。pending有TTL、最多32MiB。acquire成功后原件转入knowledge_versions并清 staging raw，重启仍可由upload_id恢复引用。filename是显示名，不做磁盘路径。
 
 acquire 只有实际取得URL/上传bytes、计算sha及解析成功才返回ref；相同scope+URL对应稳定对象，新bytes产生版本，旧ref明确stale。URL读取沿既有安全获取实现：无隐含扩站，全部重定向逐跳授权；user 分支 public_url 读取由当前人提交 URL；actor 分支由已授权运行中的角色活动自主获取，内部网URL仅私有配置exact trusted_urls，测试实际loopback HTTP有显式登记，不绕过地址规则。每次acquire新request_id可刷新URL；同request_id语义不同409，同请求ACK丢失恢复原结果而不重复抓取。
 
