@@ -7,13 +7,13 @@
   "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
   "dependencies": {
     "text-dialogue/v1": "90697e6ecbb587d3db8c8e4682f7f8f43a8b1a98f70d8835c8282b03828d2d3a",
-    "life-runtime/v2": "b931326109fba80feba45280f8923af5c835ede059ef84afac39fe65e1ce4795"
+    "life-runtime/v2": "e2ab03ec163b15c350795fbe5f75a279cdc5f86a3c5475db44982eddbe3ff0e1"
   },
   "sha256": {
-    "schema.json": "fe11d0f64cc0e7e7beb8bdf640069fae279a5391edeb5e656dc762ce0b7b95d9",
     "examples.json": "54a09444b77bae56ae3d2b602bd3fd01b6aa8a90b52174ae6b7dea33baa0eaca",
     "negative-examples.json": "6ab1ffd7c7352a4a0f3b32d8dbab0fa889ff433a85e9836f3001d5576dabb851",
-    "README.md": "a24f6a9ce5d9b588b199fb1e1fb88bc22e971487cd6ac90a63f5480ac67d3897"
+    "README.md": "a24f6a9ce5d9b588b199fb1e1fb88bc22e971487cd6ac90a63f5480ac67d3897",
+    "schema.json": "fe11d0f64cc0e7e7beb8bdf640069fae279a5391edeb5e656dc762ce0b7b95d9"
   },
   "schema_examples_checked": {
     "examples.json": 9,

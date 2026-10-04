@@ -1,0 +1,146 @@
+{
+  "positive": [
+    {
+      "definition": "conversation_ensure_request",
+      "document": {
+        "schema_version": 2,
+        "query": {
+          "schema_version": 1,
+          "request_id": "read:private",
+          "origin": {
+            "assertion_ref": "origin:sample"
+          }
+        },
+        "actor_id": "actor:sample"
+      }
+    },
+    {
+      "definition": "conversation_ensure_response",
+      "document": {
+        "schema_version": 2,
+        "request_id": "read:private",
+        "actor_id": "actor:sample",
+        "scope": {
+          "actor_id": "actor:sample",
+          "person_id": "person:owner",
+          "audience": "self_private",
+          "conversation_id": "conversation:owner"
+        },
+        "channel": {
+          "namespace": "qq",
+          "binding_id": "binding:sample",
+          "channel_conversation_id": "10001",
+          "thread_id": null
+        },
+        "binding_version": 1
+      }
+    },
+    {
+      "definition": "read_request",
+      "document": {
+        "schema_version": 2,
+        "query": {
+          "schema_version": 1,
+          "request_id": "read:private",
+          "origin": {
+            "assertion_ref": "origin:sample"
+          }
+        },
+        "actor_id": "actor:sample",
+        "resource": "image_jobs",
+        "object_id": null,
+        "expected_version": null,
+        "limit": 20,
+        "after": null,
+        "scope": {
+          "actor_id": "actor:sample",
+          "person_id": "person:owner",
+          "audience": "self_private",
+          "conversation_id": "conversation:owner"
+        }
+      }
+    },
+    {
+      "definition": "read_response",
+      "document": {
+        "schema_version": 2,
+        "request_id": "read:private",
+        "actor_id": "actor:sample",
+        "resource": "image_jobs",
+        "items": [
+          {
+            "id": "image:sample",
+            "version": 1,
+            "actor_id": "actor:sample",
+            "state": "unknown",
+            "error_code": "interrupted",
+            "created_at": 1791100000,
+            "completed_at": null,
+            "artifacts": []
+          }
+        ],
+        "next_cursor": null
+      }
+    }
+  ],
+  "negative": [
+    {
+      "definition": "conversation_ensure_request",
+      "document": {
+        "schema_version": 2,
+        "query": {
+          "schema_version": 1,
+          "request_id": "read:private",
+          "origin": {
+            "assertion_ref": "origin:sample"
+          }
+        },
+        "actor_id": "actor:sample",
+        "input_id": "fake"
+      }
+    },
+    {
+      "definition": "conversation_ensure_response",
+      "document": {
+        "schema_version": 2,
+        "request_id": "read:private",
+        "actor_id": "actor:sample",
+        "scope": {
+          "actor_id": "actor:sample",
+          "person_id": "person:owner",
+          "audience": "self_private",
+          "conversation_id": "conversation:owner"
+        },
+        "channel": {
+          "namespace": "qq",
+          "binding_id": "binding:sample",
+          "channel_conversation_id": "10001",
+          "thread_id": null
+        },
+        "binding_version": 0
+      }
+    },
+    {
+      "definition": "read_response",
+      "document": {
+        "schema_version": 2,
+        "request_id": "read:private",
+        "actor_id": "actor:sample",
+        "resource": "image_jobs",
+        "items": [
+          {
+            "id": "image:sample",
+            "version": 1,
+            "actor_id": "actor:sample",
+            "state": "invented",
+            "error_code": "interrupted",
+            "created_at": 1791100000,
+            "completed_at": null,
+            "artifacts": []
+          }
+        ],
+        "next_cursor": null
+      }
+    }
+  ]
+}

@@ -9,3 +9,9 @@ content.acquire的URL/upload由现有正文owner纳管，owner为Memory knowledg
 image.backend.configure只配置ComfyUI现有服务，不安装GPU。base_url为固定origin，无userinfo/query/fragment/额外路径、无重定向；部署可信私有HTTP或HTTPS可用。profile standard_sd由Companion内建t2i/img2img工作流，checkpoint来自真实object_info模型清单；staging固定部署目录，不由网页选择。credential_ref=null代表确无认证的后端；非空通过下面可信服务resolve取值，不是把ref当token。读投影永不含token/API graph/本机路径。config保存与backend连通状态分别表达；不可用不能报告ready或生成完成。edit_source_id须同Actor现有相册原件及scope授权，不是任意路径/URL；缺工作流/原件拒绝。
 
 content_read_response 必须保留真实 representations、帧时刻及 gaps；Knowledge 复用本包通用表示定义，依赖单向 Knowledge → Life → Common，不反向引用 Knowledge。表示中的 sha256 对应表示 bytes，source_sha256 对应原件，截取/缩放不冒称完整阅读。
+
+POST /internal/v2/life/proactive/control 仅既有 Platform 管理身份调用；平台先核真实 QQ slot/person/channel 与 qq.admin.view/manage。闭合 control_read_request/response 仅订阅配置和投递状态，无私人正文、动机、输入或内容引用。proactive.subscription.state 复用 manage CAS，active/paused/revoked 不通过 quota=0 伪装。
+
+POST /internal/v2/life/conversation/ensure resolves the actual registered actor, authorized origin, Memory person and channel into the existing Core conversation. It creates no input or turn and invokes no model. The persisted scope/channel/binding_version receipt is idempotent across restart; Platform applies it to existing identity/channel mappings and rejects conflicts before signing scope. First-use uploads and account association must not require a preceding chat. Life reader authorization does not enable dialogue capability.
+
+read resource image_jobs exposes the existing image execution receipt, with scoped artifacts and actual state. unknown after interrupted work is not automatic replay; completed means original artifacts exist. No backend token, workflow graph or local path is exposed.

@@ -6,16 +6,18 @@
   "real_external": "not_run",
   "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
   "dependencies": {
-    "text-dialogue/v1": "90697e6ecbb587d3db8c8e4682f7f8f43a8b1a98f70d8835c8282b03828d2d3a"
+    "text-dialogue/v1": "90697e6ecbb587d3db8c8e4682f7f8f43a8b1a98f70d8835c8282b03828d2d3a",
+    "life-runtime/v2": "e2ab03ec163b15c350795fbe5f75a279cdc5f86a3c5475db44982eddbe3ff0e1"
   },
   "sha256": {
+    "examples/media.json": "99a508b38083402b774e29754ee9c98f9d6472744cac1d936f66a8ac32d2629f",
     "examples/requests.json": "3ffc117b25eec5be46d0b68c88c1402b23b9daf6d123ae017aee6c3a5c8b9fc9",
-    "README.md": "0e43cdcb4e32aefe4cd0448e392e42c103dfdb47a620d6bccdcd526ffcb611e2",
-    "schemas/delivery.json": "8fbb828013aa4bffa77bc3a7a9b9749c13d70d84d7ad011d66d11c4df5b8dd84"
+    "README.md": "9024c5da8eec2366c05d6fc06cd48c5ec90fc7c8dd1dec55146f88ed62cef2fc",
+    "schemas/delivery.json": "78210557b22578327f3bced85d4addb65e5ec0d9e325375a8dea614412b00697"
   },
   "schema_examples_checked": {
-    "positive": 4,
-    "negative": 3
+    "positive": 5,
+    "negative": 5
   },
   "semantic_cases": "specified_not_run"
 }

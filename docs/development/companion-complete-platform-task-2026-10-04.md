@@ -28,7 +28,7 @@
 
 ## 写入与验证
 
-Platform 本产品的服务、web、迁移、路由、锁与测试归本写者；Companion integrations 暂归 C3，禁止同时编辑。拆模块按职责，不继续把全部管理动作堆进 web_console.py。
+Platform 本产品的服务、web、迁移、路由、锁与测试归本写者。C3 已确认释放 integrations/shared、nonebot、astrbot，这些路径及直接相关适配器测试由本写者在独立 worktrees/companion-complete-20261004/companion-adapters 检出维护，基线 a5725d0；不得写 C3 检出或 core/app/delivery。适配器单独提交，协调者随后串行合入 Companion 最终候选。拆模块按职责，不继续把全部管理动作堆进 web_console.py。
 
 领域完整后集中类型/构建与受影响后端、浏览器检查。包括桌面/手机/宽屏、角色切换不串数据、未配置与实际失败、真实 HTTP 正负样例、主动异步回执、原图打开、账号撤销和来源修订。至少检查真实渲染截图与产品操作流，不用纯 mock 页面通过代替后端接线。已通且未改检查不重复。
 

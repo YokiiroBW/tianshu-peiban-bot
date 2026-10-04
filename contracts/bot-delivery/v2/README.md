@@ -9,3 +9,5 @@ POST Platform /internal/v2/bot-delivery/send、/query、/cancel、/finalize。Co
 send_receipt汇总该expression已接纳全部段。final=False且已接纳段送达时仍为sending，不称整个表达sent；final=True且所有段真实sent才整体sent。queued/sending是非终态；一部分sent另有failed/cancelled为partial；无法确认某段为unknown，retry_safe=false。流中断保留已发片段，Companion调用finalize或cancel其尚未执行部分并保留partial/unknown；不得重发整个表达。query返回receipt:null是尚无记录，与failed不同。cancel不等于撤销已远端发出段，无可靠未产生效果证明不得重发。媒体引用由Platform向owner按授权读原件并实际QQ上传/引用，无法读取或发送须真实失败，不返回queued冒称完成。
 
 兼容迁移：保留既有/v1/conversation/send和reply-status及其真实inbound turn_sequence，旧非Platform bridge继续走其原v1协议；Platform绑定的普通/Direct/主动改由v2封套进入同一现有队列实现，v1也调用同一发送/回执归属，不建平行ledger。现有发送记录不重写、不推导假sequence；旧未结算记录按旧ID查回执；v2新表达使用独立ID。
+
+segment 可选 media 由 Companion 按原 scope/actor 权威实读物化，Platform 同队列持久化并校验 base64 解码、sha/type 和同段 content_refs。最多 4 个媒体、decoded 合计 32MiB 均按 expression 累计，幂等重放不重计；单 POST JSON 至多 45MiB。不得把原图暗中缩小以绕限制；插件只读物化 bytes、不自行联网读取私有 URL，真实 SDK 回执后才 sent。内容正文不得进入普通日志或状态回执。

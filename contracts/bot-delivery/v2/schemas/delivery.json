@@ -31,90 +31,7 @@
       "additionalProperties": false
     },
     "content_ref": {
-      "type": "object",
-      "properties": {
-        "owner": {
-          "enum": [
-            "companion",
-            "memory",
-            "assetlibrary"
-          ]
-        },
-        "object_id": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 128
-        },
-        "version": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "kind": {
-          "enum": [
-            "image",
-            "text",
-            "article",
-            "video",
-            "audio"
-          ]
-        },
-        "sha256": {
-          "type": "string",
-          "pattern": "^[0-9a-f]{64}$"
-        },
-        "sources": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/source_ref"
-          },
-          "maxItems": 64
-        },
-        "coverage": {
-          "type": "object",
-          "properties": {
-            "unit": {
-              "enum": [
-                "bytes",
-                "characters",
-                "seconds",
-                "pages"
-              ]
-            },
-            "start": {
-              "type": "number",
-              "minimum": 0
-            },
-            "end": {
-              "type": "number",
-              "minimum": 0
-            },
-            "total": {
-              "type": [
-                "number",
-                "null"
-              ],
-              "minimum": 0
-            }
-          },
-          "required": [
-            "unit",
-            "start",
-            "end",
-            "total"
-          ],
-          "additionalProperties": false
-        }
-      },
-      "required": [
-        "owner",
-        "object_id",
-        "version",
-        "kind",
-        "sha256",
-        "sources",
-        "coverage"
-      ],
-      "additionalProperties": false
+      "$ref": "https://contracts.tianshu.invalid/life-runtime/v2/life.json#/$defs/content_ref"
     },
     "origin": {
       "oneOf": [
@@ -255,6 +172,13 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/content_ref"
+          },
+          "maxItems": 4
+        },
+        "media": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/media_record"
           },
           "maxItems": 4
         }
@@ -548,6 +472,46 @@
         "request_id",
         "expression_id",
         "origin"
+      ],
+      "additionalProperties": false
+    },
+    "media_record": {
+      "type": "object",
+      "properties": {
+        "content_ref": {
+          "$ref": "https://contracts.tianshu.invalid/life-runtime/v2/life.json#/$defs/content_ref"
+        },
+        "media_type": {
+          "enum": [
+            "image/png",
+            "image/jpeg",
+            "image/webp",
+            "audio/wav",
+            "audio/mpeg",
+            "audio/ogg",
+            "video/mp4"
+          ]
+        },
+        "encoding": {
+          "const": "base64"
+        },
+        "data": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 44739244,
+          "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "content_ref",
+        "media_type",
+        "encoding",
+        "data",
+        "sha256"
       ],
       "additionalProperties": false
     }

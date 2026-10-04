@@ -1464,7 +1464,8 @@
             "reading.pause",
             "reading.resume",
             "reading.close",
-            "image.backend.configure"
+            "image.backend.configure",
+            "proactive.subscription.state"
           ]
         },
         "expected_version": {
@@ -1935,6 +1936,20 @@
                 "operation",
                 "value"
               ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "proactive.subscription.state"
+                },
+                "value": {
+                  "$ref": "#/$defs/proactive_subscription_state_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
             }
           ]
         }
@@ -1967,7 +1982,8 @@
             "chapter",
             "proactive",
             "reading",
-            "image_backend"
+            "image_backend",
+            "image_jobs"
           ]
         },
         "object_id": {
@@ -3328,7 +3344,8 @@
             "chapter",
             "proactive",
             "reading",
-            "image_backend"
+            "image_backend",
+            "image_jobs"
           ]
         },
         "items": {
@@ -3569,6 +3586,24 @@
                 "resource",
                 "items"
               ]
+            },
+            {
+              "properties": {
+                "resource": {
+                  "const": "image_jobs"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/image_jobs_record"
+                  },
+                  "maxItems": 50
+                }
+              },
+              "required": [
+                "resource",
+                "items"
+              ]
             }
           ]
         }
@@ -3631,6 +3666,361 @@
         "no_text_layer",
         "range_truncated"
       ]
+    },
+    "control_read_request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "person_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "channel": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/channel_key"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "person_id",
+        "channel"
+      ],
+      "additionalProperties": false
+    },
+    "control_read_response": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "person_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "channel": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/channel_key"
+        },
+        "subscriptions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "timezone_name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "quiet_start": {
+                "type": "string",
+                "pattern": "^\\d{2}:\\d{2}$"
+              },
+              "quiet_end": {
+                "type": "string",
+                "pattern": "^\\d{2}:\\d{2}$"
+              },
+              "cooldown_seconds": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "daily_quota": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "unanswered_limit": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "expiry_seconds": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "consent_basis": {
+                "enum": [
+                  "explicit_user_request",
+                  "explicit_admin_registration"
+                ]
+              },
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "version": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "state": {
+                "enum": [
+                  "active",
+                  "paused",
+                  "revoked"
+                ]
+              }
+            },
+            "required": [
+              "timezone_name",
+              "quiet_start",
+              "quiet_end",
+              "cooldown_seconds",
+              "daily_quota",
+              "unanswered_limit",
+              "expiry_seconds",
+              "consent_basis",
+              "id",
+              "version",
+              "state"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 50
+        },
+        "deliveries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "subscription_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "state": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "created_at": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "updated_at": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              }
+            },
+            "required": [
+              "id",
+              "subscription_id",
+              "state",
+              "created_at",
+              "updated_at"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 50
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "person_id",
+        "channel",
+        "subscriptions",
+        "deliveries"
+      ],
+      "additionalProperties": false
+    },
+    "proactive_subscription_state_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "state": {
+          "enum": [
+            "active",
+            "paused",
+            "revoked"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "state"
+      ],
+      "additionalProperties": false
+    },
+    "conversation_ensure_request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "query": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/query"
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "schema_version",
+        "query",
+        "actor_id"
+      ],
+      "additionalProperties": false
+    },
+    "conversation_ensure_response": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "channel": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/channel_key"
+        },
+        "binding_version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "scope",
+        "channel",
+        "binding_version"
+      ],
+      "additionalProperties": false
+    },
+    "image_jobs_record": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "state": {
+          "enum": [
+            "queued",
+            "running",
+            "completed",
+            "failed",
+            "unknown",
+            "cancelled",
+            "unavailable"
+          ]
+        },
+        "error_code": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        },
+        "created_at": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "completed_at": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "media_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "content_ref": {
+                "$ref": "#/$defs/content_ref"
+              }
+            },
+            "required": [
+              "media_id",
+              "content_ref"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 16
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "actor_id",
+        "state",
+        "error_code",
+        "created_at",
+        "completed_at",
+        "artifacts"
+      ],
+      "additionalProperties": false
     }
   }
 }
