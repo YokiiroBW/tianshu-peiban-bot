@@ -111,13 +111,22 @@
       "agent": "provider_test_fix",
       "adapter_allocation": {
         "agent": "provider_test_fix",
-        "status": "in_progress",
+        "status": "fixed_candidate_review_requires_media_only_fix",
         "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\companion-adapters",
         "branch": "codex/companion-complete-adapters-20261004",
         "baseline": "a5725d04aba00762d66306ae4821a40b70f7e2ed",
         "exclusive_scope": "integrations/shared, integrations/nonebot, integrations/astrbot and direct adapter tests/handoff",
         "integration": "Coordinator merges committed adapter changes into final Companion candidate after C3 stable",
-        "handoff_verified": "C3 confirmed no uncommitted changes and no ongoing writes in transferred paths"
+        "handoff_verified": "C3 confirmed no uncommitted changes and no ongoing writes in transferred paths",
+        "commit": "2232130c048e1d40633d8c38942e6a9aafcd33e0",
+        "handoff": "companion-adapters/docs/handoffs/C4-adapters.md",
+        "verification": {
+          "pytest_passed": 29,
+          "ca_followup_passed": 1,
+          "real_sdk_host_scenarios_passed": 2,
+          "real_qq_sent": false
+        },
+        "review_finding": "bot v2 allows text-empty materialized media segments; RPC regular/observation send and NoneBot SDK still require nonempty text. Requested focused correction and pure-image ACK/replay test before integration."
       },
       "exclusive_scope": "services/** and allocated Companion integrations; all apps/web writes transferred to C4-UI",
       "ui_allocation": {
