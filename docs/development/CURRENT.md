@@ -1,5 +1,13 @@
 # 当前交接
 
+## 2026-10-06 可更新角色技能已本地完成，部署暂停
+
+Companion 最终候选 `e0e7f98`、Platform `870e6fa`；统一技能注册、逐角色启停与目录更新、生图重归属、GSCore 白名单 HTTP 适配和网页技能管理已完成定向验收。合同 `skills/v1` 已冻结，实际生产者三种响应通过 Platform 消费校验。GSCore 28765 已只读检查，现役接口关闭且 HTTP 实现有消费者/终态缺口，**尚未真实联通**；媒体聚合只留注册接口。用户要求暂停部署，本批未合入产品 main、未推送、未部署、未调用真实模型/GPU/QQ。精确版本、验证与限制见 [本地交付](skills-v1-delivery-2026-10-06.md)。本条不改变下方已部署版本。
+
+## 2026-10-05 ComfyUI 深度接入已部署 NAS
+
+Companion `41393d9`、Platform `e385df7` 已部署。Companion 已接入现有 frontend 出站网络，澄汐已绑定真实 8188 工作流，默认 `1024 × 1536`；真实 Gateway 中文辅助编译、隔离 GPU 成图、五核心 TLS 就绪、capacity guard 和 56 个 HTTP 网页资产均已核验。精确版本、证据及使用限制见 [部署交付](comfy-deep-deployment-delivery-2026-10-05.md)。本条覆盖下方“真实生图后端尚待配置”的历史状态；自然语言对话调用生图的后续修复仍单独验收。
+
 ## 2026-10-05 陪伴完整迭代已合入 GitHub 并部署 NAS
 
 最终 Memory/Knowledge `097ccfa`、Gateway `ea7f592`、Companion `91d82dd`、Platform `c87c53b`、NoneBot 0.5.0；容量守护修复 `edc254b`。五核心 TLS 就绪、原用户配置保留、完整冷备/迁移/恢复、56 网页资源和 Dockge 同步已核验。主协调规划/集成/验收，产品由 GPT-6.1-sol/xhigh 子智能体实现，无新窗口。原工作区修改保留。
