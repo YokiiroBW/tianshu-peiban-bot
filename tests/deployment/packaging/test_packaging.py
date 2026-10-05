@@ -222,6 +222,16 @@ class PackagingTests(unittest.TestCase):
         self.assertEqual(
             [p for p, s in compose["services"].items() if "ports" in s], ["platform"]
         )
+        self.assertTrue(compose["networks"]["core"]["internal"])
+        self.assertFalse(compose["networks"]["frontend"]["internal"])
+        companion_networks = compose["services"]["companion"]["networks"]
+        self.assertEqual(set(companion_networks), {"core", "frontend"})
+        self.assertEqual(
+            companion_networks["core"],
+            {"ipv4_address": self.site["service_ips"]["companion"], "aliases": ["companion.internal"]},
+        )
+        self.assertEqual(set(compose["services"]["memory"]["networks"]), {"core"})
+        self.assertEqual(set(compose["services"]["gateway"]["networks"]), {"core", "egress"})
         for p, service in compose["services"].items():
             self.assertEqual(service["user"], "10001:10001")
             self.assertTrue(service["read_only"])

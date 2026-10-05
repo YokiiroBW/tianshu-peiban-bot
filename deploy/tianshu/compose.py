@@ -183,6 +183,8 @@ def compose_document(manifest, site):
     }
     services["gateway"]["networks"]["egress"] = {}
     services["platform"]["networks"]["frontend"] = {}
+    # Companion owns image adapters that call local ComfyUI and external APIs.
+    services["companion"]["networks"]["frontend"] = {}
     from network_plan import validate as validate_networks
 
     auxiliary = validate_networks(site.get("auxiliary_subnets"), site["subnet"])
