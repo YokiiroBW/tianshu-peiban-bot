@@ -1,5 +1,9 @@
 # 当前交接
 
+## 2026-10-06 可更新角色技能已推送 GitHub 并部署 NAS
+
+Companion `e0e7f98`、Platform `870e6fa` 与合同 `3c38a69` 已推送 main 并部署。五核心 TLS live/ready 200、十容器运行、capacity guard ready；澄汐技能目录读取成功，生图 available，GSCore not_configured，媒体扩展 unsupported；56 个网页资源匹配，Dockge 配置已同步。用户、角色、模型与 ComfyUI 设置保留，33 个 SQLite 冷备验证通过。部署前旧守护停机导致 Gateway 五分钟 origin 到期，已通过同条目受支持流程重新签发恢复，未改权限或恢复旧账本。未主动调用真实 QQ/模型/GPU/GSCore。入口「任务与设置 → 角色技能」，精确版本与限制见[部署交付](skills-v1-deployment-2026-10-06.md)。本条覆盖下方暂停部署状态。
+
 ## 2026-10-06 可更新角色技能已本地完成，部署暂停
 
 Companion 最终候选 `e0e7f98`、Platform `870e6fa`；统一技能注册、逐角色启停与目录更新、生图重归属、GSCore 白名单 HTTP 适配和网页技能管理已完成定向验收。合同 `skills/v1` 已冻结，实际生产者三种响应通过 Platform 消费校验。GSCore 28765 已只读检查，现役接口关闭且 HTTP 实现有消费者/终态缺口，**尚未真实联通**；媒体聚合只留注册接口。用户要求暂停部署，本批未合入产品 main、未推送、未部署、未调用真实模型/GPU/QQ。精确版本、验证与限制见 [本地交付](skills-v1-delivery-2026-10-06.md)。本条不改变下方已部署版本。
