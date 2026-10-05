@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "request_id": "example:read",
+  "actor_id": "actor:example",
+  "result": {
+    "actor_version": 1,
+    "catalog_version": "0000000000000000000000000000000000000000000000000000000000000000",
+    "skills": [],
+    "sources": []
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "package": "skills/v1",
+  "version": "1.0.0",
+  "status": "published_implementation_baseline",
+  "runtime_joint": "not_run",
+  "real_external": "readonly_discovery_only",
+  "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
+  "dependencies": {},
+  "sha256": {
+    "dependencies/platform-credential.json": "c636fe09b05f443aed67752226c3305a9828ef81332a29087f3f172c815f891f",
+    "examples/disable.json": "485c22b3de8b2423c62beee5a6fc0d88eefdf70028032fd0b1255191c3c6a68e",
+    "examples/read.json": "1fa7cdd00c1a42575dcf989a035088ab1cba6f8d3a3e52e9a28fe5f138efda6f",
+    "examples/response.json": "3771d3a50d7a225f867de2f788f48b9564dffa3de216357efa1d0ec52a0f83ed",
+    "examples/source.json": "9fbafeb83b413ffc9a666272a74f608a504cd110119592c5b24ae6b61c64f5df",
+    "README.md": "7fbb62ec2dc63d6c6b831c35c08ad23367d5f470f6760e7c66a9cd89dabeafa3",
+    "schemas/skills.json": "857ef74afb7dd8d597f8f8b613f7bb3188ae9d15bb53bc078bc421a5a146042f"
+  }
+}

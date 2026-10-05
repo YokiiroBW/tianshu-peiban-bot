@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "request_id": "example:source",
+  "actor_id": "actor:example",
+  "expected_version": 1,
+  "operation": "source.configure",
+  "value": {
+    "source_id": "example",
+    "name": "Example source",
+    "manifest_url": "https://skills.example.invalid/manifest.json",
+    "credential_ref": null,
+    "enabled": true,
+    "expected_sha256": null
+  }
+}
