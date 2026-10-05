@@ -780,6 +780,44 @@
               "type": "null"
             }
           ]
+        },
+        "intent": {
+          "type": "object",
+          "properties": {
+            "character": {
+              "type": "string",
+              "maxLength": 8000
+            },
+            "outfit": {
+              "type": "string",
+              "maxLength": 8000
+            },
+            "pose": {
+              "type": "string",
+              "maxLength": 8000
+            },
+            "background": {
+              "type": "string",
+              "maxLength": 8000
+            },
+            "camera": {
+              "type": "string",
+              "maxLength": 8000
+            },
+            "positive": {
+              "type": "string",
+              "maxLength": 8000
+            },
+            "negative": {
+              "type": "string",
+              "maxLength": 8000
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        },
+        "assist_model": {
+          "type": "boolean"
         }
       },
       "required": [

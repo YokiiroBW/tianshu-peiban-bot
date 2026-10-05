@@ -20,7 +20,7 @@
     "examples/requests.json": "e58526436aa6c86a9ae9c0af2bead5b252e8a1e9f812fb8bf77ce14f24f73302",
     "examples/semantic-cases.json": "1b3e179731289c6e8ef142333dab9d146a4b353741270b19f32ffad5a5757981",
     "README.md": "0fa5e54db353836345deed1417e8a59ac95e330ad05f50dc2f570bf4eaa07db0",
-    "schemas/life.json": "beaf103289885d03cbcee44a1e03535f10fe90781f3c2dbe5058a6d87b566142"
+    "schemas/life.json": "16fda5aa360b9cf7c78143ef6e0a8fab22d0e2c0ab781f2c7625710571aebcc8"
   },
   "schema_examples_checked": {
     "positive": 23,

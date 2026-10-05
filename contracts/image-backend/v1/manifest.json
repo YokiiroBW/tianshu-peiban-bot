@@ -1,0 +1,14 @@
+{
+  "package": "image-backend/v1",
+  "version": "1.0.0",
+  "status": "published_implementation_baseline",
+  "runtime_joint": "not_run",
+  "real_external": "readonly_discovery_only",
+  "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
+  "dependencies": {},
+  "sha256": {
+    "examples/read.json": "71e8188230f3af0930bb1483701efa3c5ba2af81354bee373613ea6165d5ebe9",
+    "README.md": "5902170ecc6b0e8e28f5e7d9a009176754c4e55653f837f12a06235804ce4a46",
+    "schemas/image-backend.json": "eb8354e647389b7d46c0377eea8ac6f2f1d52ead1b41c8790246ef73e696007e"
+  }
+}

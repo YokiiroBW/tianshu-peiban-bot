@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "request_id": "example:inspect",
+  "actor_id": "actor:example",
+  "resource": "workflow",
+  "workflow_id": "characters/example.json"
+}
