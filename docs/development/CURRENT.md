@@ -1,5 +1,11 @@
 # 当前交接
 
+## 2026-10-06 网页角色占位选项已统一移除并部署
+
+Platform `099cbf573399562c816e337904915915408842b2` 已推送 GitHub main，NAS 镜像 `sha256:91b80701d70ab5375326e21be2b6fac0018230dd3f83b1c1af162f734e2a05c6`。统一在角色目录归属过滤未被用户采用的 `actor:household`，覆盖对话、生活/图片、小屋、人物/记忆、技能及 BOT 目录；无角色选择保持空白，不发送占位业务请求。真实角色、权限、历史账本不变；技能角色列表请求量修为契约允许的 50。
+
+21 项定向后端、6 项桌面/小屏交互、类型/构建/格式检查通过。NAS 五核心 TLS live/ready 200、guard ready，56 网页资产匹配且 no-store，Dockge 已同步；除 Platform 外其余九个容器 ID 保留，Gateway 沿用原 origin，无重新签发。本次 33 个 SQLite 新冷备在 `/volume2/tianshu-v2-resident-updates/actor-directory-ui-release-20261006-release/cold-snapshot`。实际配置生活读者 TLS 读取加部署版目录规则/只读角色元数据核验，生活及记忆各保留澄汐一项，占位消失；这不是已登录生产浏览器交互验收。无模型/GPU/QQ 测试调用。回执 `.runtime/actor-directory-ui-release-20261006/`，产品交接 `docs/handoffs/ROLE-CHOICES-2026-10-06.md`。
+
 ## 2026-10-06 可更新角色技能已推送 GitHub 并部署 NAS
 
 Companion `e0e7f98`、Platform `870e6fa` 与合同 `3c38a69` 已推送 main 并部署。五核心 TLS live/ready 200、十容器运行、capacity guard ready；澄汐技能目录读取成功，生图 available，GSCore not_configured，媒体扩展 unsupported；56 个网页资源匹配，Dockge 配置已同步。用户、角色、模型与 ComfyUI 设置保留，33 个 SQLite 冷备验证通过。部署前旧守护停机导致 Gateway 五分钟 origin 到期，已通过同条目受支持流程重新签发恢复，未改权限或恢复旧账本。未主动调用真实 QQ/模型/GPU/GSCore。入口「任务与设置 → 角色技能」，精确版本与限制见[部署交付](skills-v1-deployment-2026-10-06.md)。本条覆盖下方暂停部署状态。
