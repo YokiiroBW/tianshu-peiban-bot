@@ -1,5 +1,11 @@
 # 当前交接
 
+## 2026-10-07 天气与时段视觉更新已部署
+
+Platform `0a3e50c97a9403611e79995b1c74a9b31d06c490` 已推送 main 并部署，镜像 `sha256:c9b922ab68aab9d4fe098ebe4dbd63c5f0aee04208d8e80f3a58c7b45f139e6e`。生活页移除天气归因网址和设置/服务商链接，原配置表单与归因集中移到「任务与设置 → 位置与天气」`#/settings/9`。天气图标按条件及显示当地昼夜变化；时钟旁增加深夜、清晨、早晨、中午、下午、傍晚、夜晚七态 SVG，保留数字时间/日期/时区，日程推进时区不变。未添加依赖或重复配置路径。
+
+14 项定向桌面/小屏交互、类型/构建/格式检查通过，协调者已查看夜间桌面/小屏及设置截图。NAS 五核心 TLS live/ready 200、十容器运行、guard ready；57 网页资源逐哈希匹配且 no-store，设置第9页资源与 Dockge 同步验证通过。原天气密文配置、角色和用户状态与本次新冷备一致，未解密凭据、未改真实天气设置；其他九容器 ID 保留、Gateway 未重新签发。33 SQLite 冷备验证通过，路径 `/volume2/tianshu-v2-resident-updates/weather-period-ui-release-20261006-release/cold-snapshot`。回执 `.runtime/weather-period-ui-release-20261006/deployment-result.json`；产品交接 `docs/handoffs/WEATHER-CLOCK-2026-10-06.md`。生产验证未创建网页登录会话或主动调用天气、模型、GPU、QQ；交互验证为隔离合成数据。
+
 ## 2026-10-06 网页角色占位选项已统一移除并部署
 
 Platform `099cbf573399562c816e337904915915408842b2` 已推送 GitHub main，NAS 镜像 `sha256:91b80701d70ab5375326e21be2b6fac0018230dd3f83b1c1af162f734e2a05c6`。统一在角色目录归属过滤未被用户采用的 `actor:household`，覆盖对话、生活/图片、小屋、人物/记忆、技能及 BOT 目录；无角色选择保持空白，不发送占位业务请求。真实角色、权限、历史账本不变；技能角色列表请求量修为契约允许的 50。
