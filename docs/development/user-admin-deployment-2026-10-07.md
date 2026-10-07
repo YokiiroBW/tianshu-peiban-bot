@@ -18,3 +18,11 @@
 根工作区 `.runtime/user-admin-release-20261007/deployment-result.json` 汇总固定镜像、服务就绪、用户状态及静态资源回执。浏览器交互证据来自隔离真实 HTTPS 服务；生产未创建网页登录会话或进行管理员写入。部署验收为生产健康、固定镜像/静态资源和既有授权保留验证。
 
 产品实现交接 `worktrees/USER-ADMIN/tianshu-platform/docs/handoffs/USER-ADMIN.md` 中未部署与联调阻断属于部署前状态，由本记录覆盖。Git 提交使用与历史一致的命令级 Codex 作者标识，未更改全局 Git 配置。
+
+## 同日生产权限修复
+
+用户报告开关返回 403，经只读核验，生产 web principal 有 qq.admin.view 但缺少 qq.admin.manage。用户明确授权修复后，仅向该现有 operator 的 actions 增加 qq.admin.manage；没有修改 QQ 管理员 grant。原产品镜像/提交保持不变，Platform 强制重建以重新读取绑定配置。
+
+沿既有发布流程完成 33 SQLite 冷备、恢复及五核心 TLS live/ready 200，guard ready、十容器运行、其他九容器 ID 保留，Gateway origin 未重新签发。核验新运行容器挂载配置同时包含 view/manage；与冷备配置逐结构比较确认只有授权动作这一项变化，管理员 grants 表摘要与冷备一致，用户/角色/天气状态保持。Dockge 同步完成。
+
+回执 `.runtime/user-admin-permission-20261007/final-readback.json`；冷备 `/volume2/tianshu-v2-resident-updates/user-admin-permission-20261007-release/cold-snapshot`。未借用用户网页登录会话或执行真实用户授权写入；用户刷新/重新登录后可自行操作。
