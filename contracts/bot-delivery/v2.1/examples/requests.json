@@ -1,0 +1,226 @@
+{
+  "valid": [
+    {
+      "schema_version": 2,
+      "request_id": "proactive:sample",
+      "expression_id": "expression:sample",
+      "origin": {
+        "kind": "proactive",
+        "actor_id": "actor:sample",
+        "motive_id": "motive:sample",
+        "motive_version": 1,
+        "sources": []
+      },
+      "scope": {
+        "actor_id": "actor:sample",
+        "person_id": "person:sample",
+        "audience": "self_private",
+        "conversation_id": "conversation:sample"
+      },
+      "channel": {
+        "namespace": "qq",
+        "binding_id": "binding:sample",
+        "channel_conversation_id": "10001",
+        "thread_id": null
+      },
+      "final": true,
+      "segments": [
+        {
+          "segment_id": "segment:sample:1",
+          "reply_id": "reply:sample",
+          "segment_sequence": 1,
+          "text": "下午读到一句想和你聊聊的话。",
+          "content_refs": []
+        }
+      ]
+    },
+    {
+      "schema_version": 2,
+      "request_id": "response:sample",
+      "expression_id": "response:turn:sample",
+      "origin": {
+        "kind": "response",
+        "actor_id": "actor:sample",
+        "turn_id": "turn:sample",
+        "origin": {
+          "assertion_ref": "origin:sample"
+        },
+        "sources": []
+      },
+      "scope": {
+        "actor_id": "actor:sample",
+        "person_id": "person:sample",
+        "audience": "self_private",
+        "conversation_id": "conversation:sample"
+      },
+      "channel": {
+        "namespace": "qq",
+        "binding_id": "binding:sample",
+        "channel_conversation_id": "10001",
+        "thread_id": null
+      },
+      "final": false,
+      "segments": [
+        {
+          "segment_id": "segment:sample:1",
+          "reply_id": "reply:sample",
+          "segment_sequence": 1,
+          "text": "下午读到一句想和你聊聊的话。",
+          "content_refs": []
+        }
+      ]
+    },
+    {
+      "schema_version": 2,
+      "request_id": "direct:sample",
+      "expression_id": "direct:request:sample",
+      "origin": {
+        "kind": "direct",
+        "actor_id": "actor:sample",
+        "direct_request_id": "request:sample",
+        "origin": {
+          "assertion_ref": "origin:sample"
+        },
+        "sources": []
+      },
+      "scope": {
+        "actor_id": "actor:sample",
+        "person_id": "person:sample",
+        "audience": "self_private",
+        "conversation_id": "conversation:sample"
+      },
+      "channel": {
+        "namespace": "qq",
+        "binding_id": "binding:sample",
+        "channel_conversation_id": "10001",
+        "thread_id": null
+      },
+      "final": true,
+      "segments": [
+        {
+          "segment_id": "segment:sample:1",
+          "reply_id": "reply:sample",
+          "segment_sequence": 1,
+          "text": "下午读到一句想和你聊聊的话。",
+          "content_refs": []
+        }
+      ]
+    }
+  ],
+  "invalid": [
+    {
+      "schema_version": 2,
+      "request_id": "proactive:sample",
+      "expression_id": "expression:sample",
+      "origin": {
+        "kind": "proactive",
+        "actor_id": "actor:sample",
+        "motive_id": "motive:sample",
+        "motive_version": 1,
+        "sources": []
+      },
+      "scope": {
+        "actor_id": "actor:sample",
+        "person_id": "person:sample",
+        "audience": "self_private",
+        "conversation_id": "conversation:sample"
+      },
+      "channel": {
+        "namespace": "qq",
+        "binding_id": "binding:sample",
+        "channel_conversation_id": "10001",
+        "thread_id": null
+      },
+      "final": true,
+      "segments": [
+        {
+          "segment_id": "segment:sample:1",
+          "reply_id": "reply:sample",
+          "segment_sequence": 1,
+          "text": "下午读到一句想和你聊聊的话。",
+          "content_refs": []
+        }
+      ],
+      "turn_sequence": 1
+    },
+    {
+      "schema_version": 2,
+      "request_id": "proactive:sample",
+      "expression_id": "expression:sample",
+      "origin": {
+        "kind": "proactive",
+        "actor_id": "actor:sample",
+        "motive_id": "motive:sample",
+        "motive_version": 1,
+        "sources": []
+      },
+      "scope": {
+        "actor_id": "actor:sample",
+        "person_id": "person:sample",
+        "audience": "self_private",
+        "conversation_id": "conversation:sample"
+      },
+      "channel": {
+        "namespace": "qq",
+        "binding_id": "binding:sample",
+        "channel_conversation_id": "10001",
+        "thread_id": null
+      },
+      "final": true,
+      "segments": []
+    },
+    {
+      "schema_version": 2,
+      "request_id": "proactive:sample",
+      "expression_id": "expression:sample",
+      "origin": {
+        "kind": "proactive",
+        "actor_id": "actor:sample",
+        "motive_id": "motive:sample",
+        "motive_version": 1,
+        "sources": []
+      },
+      "scope": {
+        "actor_id": "actor:sample",
+        "person_id": "person:sample",
+        "audience": "self_private",
+        "conversation_id": "conversation:sample"
+      },
+      "channel": {
+        "namespace": "qq",
+        "binding_id": "binding:sample",
+        "channel_conversation_id": "10001",
+        "thread_id": null
+      },
+      "final": true,
+      "segments": [
+        {
+          "segment_id": "segment:sample:1",
+          "reply_id": "reply:sample",
+          "segment_sequence": 1,
+          "text": "",
+          "content_refs": []
+        }
+      ]
+    }
+  ],
+  "queued_receipt": {
+    "schema_version": 2,
+    "request_id": "proactive:sample",
+    "expression_id": "expression:sample",
+    "final": true,
+    "state": "queued",
+    "segments": [
+      {
+        "segment_id": "segment:sample:1",
+        "reply_id": "reply:sample",
+        "segment_sequence": 1,
+        "state": "queued",
+        "receipt_id": null,
+        "retry_safe": false,
+        "channel_message_ids": []
+      }
+    ],
+    "observed_at": "2026-10-04T12:00:00Z"
+  }
+}

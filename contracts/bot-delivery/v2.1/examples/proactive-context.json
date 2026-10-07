@@ -1,0 +1,160 @@
+{
+  "positive": [
+    {
+      "definition": "context_request",
+      "document": {
+        "schema_version": 2,
+        "request_id": "context:sample",
+        "origin": {
+          "kind": "proactive",
+          "actor_id": "actor:sample",
+          "motive_id": "motive:sample",
+          "motive_version": 1,
+          "sources": []
+        },
+        "scope": {
+          "actor_id": "actor:sample",
+          "person_id": "person:sample",
+          "audience": "self_private",
+          "conversation_id": "conversation:sample"
+        },
+        "channel": {
+          "namespace": "qq",
+          "binding_id": "binding:sample",
+          "channel_conversation_id": "private:10001",
+          "thread_id": null
+        }
+      }
+    },
+    {
+      "definition": "context_response",
+      "document": {
+        "schema_version": 2,
+        "request_id": "context:sample",
+        "origin": {
+          "assertion_ref": "origin:current"
+        },
+        "expires_at": "2026-10-04T18:00:00Z",
+        "scope": {
+          "actor_id": "actor:sample",
+          "person_id": "person:sample",
+          "audience": "self_private",
+          "conversation_id": "conversation:sample"
+        },
+        "channel": {
+          "namespace": "qq",
+          "binding_id": "binding:sample",
+          "channel_conversation_id": "private:10001",
+          "thread_id": null
+        }
+      }
+    },
+    {
+      "definition": "context_request",
+      "document": {
+        "schema_version": 2,
+        "request_id": "context:sample",
+        "origin": {
+          "kind": "response",
+          "actor_id": "actor:sample",
+          "turn_id": "turn:sample",
+          "origin": {
+            "assertion_ref": "origin:expired"
+          },
+          "sources": []
+        },
+        "scope": {
+          "actor_id": "actor:sample",
+          "person_id": "person:sample",
+          "audience": "self_private",
+          "conversation_id": "conversation:sample"
+        },
+        "channel": {
+          "namespace": "qq",
+          "binding_id": "binding:sample",
+          "channel_conversation_id": "private:10001",
+          "thread_id": null
+        }
+      }
+    },
+    {
+      "definition": "context_request",
+      "document": {
+        "schema_version": 2,
+        "request_id": "context:sample",
+        "origin": {
+          "kind": "direct",
+          "actor_id": "actor:sample",
+          "origin": {
+            "assertion_ref": "origin:expired"
+          },
+          "sources": [],
+          "direct_request_id": "turn:sample"
+        },
+        "scope": {
+          "actor_id": "actor:sample",
+          "person_id": "person:sample",
+          "audience": "self_private",
+          "conversation_id": "conversation:sample"
+        },
+        "channel": {
+          "namespace": "qq",
+          "binding_id": "binding:sample",
+          "channel_conversation_id": "private:10001",
+          "thread_id": null
+        }
+      }
+    }
+  ],
+  "negative": [
+    {
+      "definition": "context_response",
+      "document": {
+        "schema_version": 2,
+        "request_id": "context:sample",
+        "origin": {
+          "assertion_ref": "origin:current",
+          "user_text": "not permitted"
+        },
+        "expires_at": "2026-10-04T18:00:00Z",
+        "scope": {
+          "actor_id": "actor:sample",
+          "person_id": "person:sample",
+          "audience": "self_private",
+          "conversation_id": "conversation:sample"
+        },
+        "channel": {
+          "namespace": "qq",
+          "binding_id": "binding:sample",
+          "channel_conversation_id": "private:10001",
+          "thread_id": null
+        }
+      }
+    },
+    {
+      "definition": "context_request",
+      "document": {
+        "schema_version": 2,
+        "request_id": "context:sample",
+        "origin": {
+          "kind": "direct",
+          "actor_id": "actor:sample",
+          "sources": [],
+          "direct_request_id": "turn:sample"
+        },
+        "scope": {
+          "actor_id": "actor:sample",
+          "person_id": "person:sample",
+          "audience": "self_private",
+          "conversation_id": "conversation:sample"
+        },
+        "channel": {
+          "namespace": "qq",
+          "binding_id": "binding:sample",
+          "channel_conversation_id": "private:10001",
+          "thread_id": null
+        }
+      }
+    }
+  ]
+}
