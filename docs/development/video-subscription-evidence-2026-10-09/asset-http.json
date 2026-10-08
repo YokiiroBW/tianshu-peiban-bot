@@ -1,0 +1,165 @@
+{
+  "cases": [
+    "dedicated_auth",
+    "strict_shape",
+    "duplicate_fields",
+    "confirmation",
+    "idempotency",
+    "multipart_1p",
+    "metadata_only",
+    "explicit_quality_replace",
+    "new_p",
+    "stale_base",
+    "indexed_cancel"
+  ],
+  "first": {
+    "operation_id": "b2b73724-76a4-4a61-ad52-10c32d018c25",
+    "package_id": "c3137242-db9a-4d73-8b89-349baaf8605b",
+    "library_id": "11bb7187-6f13-4f20-858b-48a03741302b",
+    "status": "indexed",
+    "version": 4,
+    "manifest_digest": "88a26907da4abebf6b2efd9c442de49ad796a0436842886660b7b175ce3d8895",
+    "confirmation_digest": "d831a815f7d54d04cff9b3a1fad87300b270fe681e0b2e0fd876945fa8214ff4",
+    "scope_revision": "717311a567dba35111df7c5558bca2e9acb2c3d646a76a40950f0da2d69a6ddf",
+    "target_relative_path": "bilibili-BV7777777777",
+    "expires_at": "2026-10-08T18:11:46.0886489+00:00",
+    "issues": [],
+    "receipt": {
+      "operation_id": "b2b73724-76a4-4a61-ad52-10c32d018c25",
+      "package_id": "c3137242-db9a-4d73-8b89-349baaf8605b",
+      "library_id": "11bb7187-6f13-4f20-858b-48a03741302b",
+      "target_relative_path": "bilibili-BV7777777777",
+      "published_at": "2026-10-08T18:01:49.2620912+00:00",
+      "indexed_at": "2026-10-08T18:01:49.3225529+00:00",
+      "files": [
+        {
+          "path": "Season 01/S01E01-cid-101.mp4",
+          "kind": "video",
+          "cid": "101",
+          "size_bytes": 56,
+          "sha256": "8656968e1bd2caee92d1de588aaee712564279b0f4b00e10f5459021f967beba",
+          "entry_id": "4e0d5381-cb90-4323-8b98-661abd780bec"
+        },
+        {
+          "path": "Season 01/S01E01-cid-101.nfo",
+          "kind": "nfo",
+          "cid": "101",
+          "size_bytes": 656,
+          "sha256": "964fe5f37d7402c62f94481aca62ef6b4b1af358b08188b5c183279a9f564fe3",
+          "entry_id": "7bfca49a-cda4-4392-911a-e59b69418d6d"
+        },
+        {
+          "path": "poster.png",
+          "kind": "poster",
+          "cid": null,
+          "size_bytes": 39,
+          "sha256": "e431e99b41ee429184d1a53d07b3a4955a1893def6506a78cc2adc7d2b38e1ea",
+          "entry_id": "124852e6-91cf-4f38-897c-f825b1eaed3c"
+        },
+        {
+          "path": "source.json",
+          "kind": "source",
+          "cid": null,
+          "size_bytes": 2026,
+          "sha256": "7f174822b7005629b5a4a5d92508b490cb5f32f64743c1005e1ca8e07927dd07",
+          "entry_id": "3e97e6c0-d605-417a-9cf3-dfdc3f01f02a"
+        },
+        {
+          "path": "tvshow.nfo",
+          "kind": "nfo",
+          "cid": null,
+          "size_bytes": 576,
+          "sha256": "291d31ae4ea68c46d96275b0f81117ae2d696eb59aa215351d6e181a9b95a930",
+          "entry_id": "ab4107c6-39e8-4b99-96d4-cf6f4dce1624"
+        }
+      ]
+    }
+  },
+  "latest": {
+    "operation_id": "3f09659f-8ecc-44ef-ac15-b5d92677a17c",
+    "package_id": "1a984d08-a0d4-45d2-8f10-02a78b85e813",
+    "library_id": "11bb7187-6f13-4f20-858b-48a03741302b",
+    "status": "indexed",
+    "version": 4,
+    "manifest_digest": "60b10551b8e7083e3b7f218f79b00c7269c7c5300d0ce1f90bbf8f5aba097e94",
+    "confirmation_digest": "2b7cff4bb34c933352c8a3ca0d425f1f68276da2cbfbdf5830baa6e94433a145",
+    "scope_revision": "717311a567dba35111df7c5558bca2e9acb2c3d646a76a40950f0da2d69a6ddf",
+    "target_relative_path": "bilibili-BV7777777777",
+    "expires_at": "2026-10-08T18:11:59.5998042+00:00",
+    "issues": [],
+    "receipt": {
+      "operation_id": "3f09659f-8ecc-44ef-ac15-b5d92677a17c",
+      "package_id": "1a984d08-a0d4-45d2-8f10-02a78b85e813",
+      "library_id": "11bb7187-6f13-4f20-858b-48a03741302b",
+      "target_relative_path": "bilibili-BV7777777777",
+      "published_at": "2026-10-08T18:02:04.5178147+00:00",
+      "indexed_at": "2026-10-08T18:02:04.5504397+00:00",
+      "files": [
+        {
+          "path": "Season 01/S01E01-cid-101.mp4",
+          "kind": "video",
+          "cid": "101",
+          "size_bytes": 72,
+          "sha256": "ea2e7c9204a86626c98f8d5f5b18871bddef693bbbdfd58644648453f72e065b",
+          "entry_id": "4e0d5381-cb90-4323-8b98-661abd780bec"
+        },
+        {
+          "path": "Season 01/S01E01-cid-101.nfo",
+          "kind": "nfo",
+          "cid": "101",
+          "size_bytes": 656,
+          "sha256": "964fe5f37d7402c62f94481aca62ef6b4b1af358b08188b5c183279a9f564fe3",
+          "entry_id": "7bfca49a-cda4-4392-911a-e59b69418d6d"
+        },
+        {
+          "path": "poster.png",
+          "kind": "poster",
+          "cid": null,
+          "size_bytes": 39,
+          "sha256": "e431e99b41ee429184d1a53d07b3a4955a1893def6506a78cc2adc7d2b38e1ea",
+          "entry_id": "124852e6-91cf-4f38-897c-f825b1eaed3c"
+        },
+        {
+          "path": "source.json",
+          "kind": "source",
+          "cid": null,
+          "size_bytes": 2027,
+          "sha256": "1b5d14a2dd4686337151f2fb58c0e42a1692aebcf872d6fff8bb3e49a54a8e3c",
+          "entry_id": "3e97e6c0-d605-417a-9cf3-dfdc3f01f02a"
+        },
+        {
+          "path": "tvshow.nfo",
+          "kind": "nfo",
+          "cid": null,
+          "size_bytes": 576,
+          "sha256": "291d31ae4ea68c46d96275b0f81117ae2d696eb59aa215351d6e181a9b95a930",
+          "entry_id": "ab4107c6-39e8-4b99-96d4-cf6f4dce1624"
+        },
+        {
+          "path": "Season 01/S01E02-cid-202-thumb.png",
+          "kind": "episode_thumb",
+          "cid": "202",
+          "size_bytes": 63,
+          "sha256": "c668c989808ff2ca1b051e408d80d1393a136f500cc9a69e365e305756aeb399",
+          "entry_id": "81124154-2a62-4785-b111-c3f67363a3e5"
+        },
+        {
+          "path": "Season 01/S01E02-cid-202.mp4",
+          "kind": "video",
+          "cid": "202",
+          "size_bytes": 56,
+          "sha256": "8827fa0c989801f11f39faaeecf7b2f9b1045c77322af28f1ece16ab579f67a2",
+          "entry_id": "34ea5c10-a0e8-4f0c-87f5-e650bde77a7f"
+        },
+        {
+          "path": "Season 01/S01E02-cid-202.nfo",
+          "kind": "nfo",
+          "cid": "202",
+          "size_bytes": 698,
+          "sha256": "c8bdc6d98243641fddc08b66218bb8d3710d1b0f9e70855d9e7c2289b6cdc7db",
+          "entry_id": "f56cb586-98ed-4327-a3f9-5a4bf5264e74"
+        }
+      ]
+    }
+  }
+}

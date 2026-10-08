@@ -1,0 +1,140 @@
+{
+  "synthetic_upstream": true,
+  "real_services": [
+    "Platform HTTP/SQLite",
+    "AssetLibrary HTTP/PostgreSQL/filesystem",
+    "Emby",
+    "Jellyfin"
+  ],
+  "run_directory": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\video-subscription-20261009\\joint-d6428221",
+  "job": {
+    "job_id": "87498835-3aad-44cf-b96b-cc77406272d0",
+    "subscription_id": null,
+    "media_key": "bilibili:video:BV1Zx411c7mD:cid:111111111",
+    "bvid": "BV1Zx411c7mD",
+    "cid": "111111111",
+    "selected_cids": [
+      "111111111",
+      "222222222"
+    ],
+    "layout": "multipart",
+    "revision": 15,
+    "title": "合成投稿 BV1Zx411c7mD",
+    "creator": "测试UP主",
+    "state": "completed",
+    "stage": "completed",
+    "code": "completed",
+    "progress": 1,
+    "created_at": 1791482890.317069,
+    "updated_at": 1791482927.2185802,
+    "target_id": "synthetic-network-video",
+    "quality": {
+      "mode": "best",
+      "quality_id": null,
+      "allow_fallback": false
+    },
+    "actual_quality": "80",
+    "cancel_requested": false,
+    "asset_receipt": {
+      "operation_id": "6fe529c8-8f28-4cb2-a1f9-47db8bcdb400",
+      "package_id": "abdd6b49-9ba6-4d90-87d4-6c4b27591853",
+      "library_id": "11bb7187-6f13-4f20-858b-48a03741302b",
+      "target_relative_path": "bilibili-BV1Zx411c7mD",
+      "published_at": "2026-10-08T18:08:15.2549879+00:00",
+      "indexed_at": "2026-10-08T18:08:15.3090652+00:00",
+      "files": [
+        {
+          "path": "Season 01/S01E01-cid-111111111.mp4",
+          "kind": "video",
+          "cid": "111111111",
+          "size_bytes": 23008,
+          "sha256": "1895a588d723be1f83c0a11822266fc2cbd05db10fd1c637192ab5c1ede412b5",
+          "entry_id": "ba5f7afa-f031-4f1d-8d15-8f93ae0c4f32"
+        },
+        {
+          "path": "Season 01/S01E02-cid-222222222.mp4",
+          "kind": "video",
+          "cid": "222222222",
+          "size_bytes": 23008,
+          "sha256": "1895a588d723be1f83c0a11822266fc2cbd05db10fd1c637192ab5c1ede412b5",
+          "entry_id": "75183ca4-0197-41bf-85bf-a52400d142cd"
+        },
+        {
+          "path": "tvshow.nfo",
+          "kind": "nfo",
+          "cid": null,
+          "size_bytes": 561,
+          "sha256": "2111f887648d0809fa38618621dcdcab1f1b1126ef0315a3c16523dcc533b2b4",
+          "entry_id": "0a8ec26a-b2ae-44ab-960c-bab446fdd739"
+        },
+        {
+          "path": "Season 01/S01E01-cid-111111111.nfo",
+          "kind": "nfo",
+          "cid": "111111111",
+          "size_bytes": 691,
+          "sha256": "50ff1bcf33a16983093ddbb032d15e43b106a9a66c2d933b33916a5bbfc93bec",
+          "entry_id": "c1c5a08e-4bc9-4e7b-890f-dacd6c5c1928"
+        },
+        {
+          "path": "Season 01/S01E02-cid-222222222.nfo",
+          "kind": "nfo",
+          "cid": "222222222",
+          "size_bytes": 691,
+          "sha256": "646708712a51cba8e1e861742f3681bd91a465f303f11321896857b13b647ae4",
+          "entry_id": "acca9e23-f550-43f8-9b58-64f2320074b2"
+        },
+        {
+          "path": "source.json",
+          "kind": "source",
+          "cid": null,
+          "size_bytes": 2195,
+          "sha256": "00a4482eda55da1511b50db37a1ca6a53cf46c3912b9729db77b671f14d0a82c",
+          "entry_id": "560de0be-b985-47dc-b4ad-ef829b796015"
+        },
+        {
+          "path": "poster.png",
+          "kind": "poster",
+          "cid": null,
+          "size_bytes": 609,
+          "sha256": "99471334811424a0590edecac3a5fedcd35cd562d49aeea0b29cecb3553d3ce5",
+          "entry_id": "d4d8e745-028b-4cef-a1b9-22b30bd32d6e"
+        },
+        {
+          "path": "Season 01/S01E01-cid-111111111-thumb.png",
+          "kind": "episode_thumb",
+          "cid": "111111111",
+          "size_bytes": 609,
+          "sha256": "99471334811424a0590edecac3a5fedcd35cd562d49aeea0b29cecb3553d3ce5",
+          "entry_id": "9abd2561-886b-4518-a34b-302b22a4ed9e"
+        },
+        {
+          "path": "Season 01/S01E02-cid-222222222-thumb.png",
+          "kind": "episode_thumb",
+          "cid": "222222222",
+          "size_bytes": 609,
+          "sha256": "99471334811424a0590edecac3a5fedcd35cd562d49aeea0b29cecb3553d3ce5",
+          "entry_id": "e6a9c64a-ea0e-4369-84b6-535ce705fb8b"
+        }
+      ]
+    },
+    "library_results": [
+      {
+        "server_id": "jellyfin",
+        "kind": "jellyfin",
+        "state": "verified",
+        "code": "verified",
+        "item_id": "1c6d64bff7f1ebf3c3f7b2dbf5c2d2ee"
+      },
+      {
+        "server_id": "emby",
+        "kind": "emby",
+        "state": "verified",
+        "code": "verified",
+        "item_id": "26"
+      }
+    ],
+    "can_retry": false,
+    "can_cancel": false
+  },
+  "result": "passed"
+}
