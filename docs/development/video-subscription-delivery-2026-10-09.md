@@ -16,7 +16,7 @@
 
 - Platform 集成：`worktrees/video-subscription-20261009/integration`，分支 `codex/video-integration-20261009`，提交 `44de324`。基线 `6a2ed3d` 包含已部署 `c1d717c` 及后续本地改动，不能把整个基线称已部署。
 - 后端来源 `327f568`；前端来源 `519c880`、`a4d68b0`；集成依赖/锁 `50681f8`，实际资产联合脚本与配置示例 `6cc42b2`。
-- AssetLibrary：`worktrees/video-subscription-20261009/assetlibrary`，分支 `codex/video-publish-20261009`，代码提交 `4e3067e55021acfaac7b66a2b3ff6303287f799e`，基线 `54b2beb`。保留独立产品迁移版本24–54，新增55–58，没有空迁移填号；旧SQL哈希未改。迁移工具和Host使用一致的保留版本规则，只在本轮全新隔离库应用27条实际迁移。
+- AssetLibrary：`worktrees/video-subscription-20261009/assetlibrary`，分支 `codex/video-publish-20261009`，最终含交接提交 `7742d1edb368a84d1032bc58e750439ec9deb7ab`，代码提交 `4e3067e55021acfaac7b66a2b3ff6303287f799e`，基线 `54b2beb`。保留独立产品迁移版本24–54，新增55–58，没有空迁移填号；旧SQL哈希未改。迁移工具和Host使用一致的保留版本规则，只在本轮全新隔离库应用27条实际迁移。该独立产品交接见 `assetlibrary/docs/handoffs/MEDIA-PUBLISH-20261009.md`。
 - 工作区合同 `contracts/media-package/v1` 已通过本地运行联合验收，旧 candidate-v1 保留，生产发布授权仍为 false。
 - 平台运行说明：`integration/docs/platform/media-runtime.md`；API：`integration/docs/platform/media-api.md`；配置片段：`integration/deploy/platform/media.settings.example.json`（以上路径均相对本批 worktrees/video-subscription-20261009）。需要替换可信服务地址、媒体库映射和专用凭据，保留 SQLite/key/staging 同步备份。
 
@@ -31,7 +31,7 @@
 | B站实际公开接口/固定引擎 | 匿名公开样本解析和 metadata-only质量80/64/32/16通过；没有登录真实账号或下载该公开视频 |
 | 后端专项 | 14项分轮有效通过；纯媒体164项；既有任务中心19项分轮通过；WebConsole8项；Ruff通过 |
 | 前端专项 | 三尺寸45项首轮44通过，测试定位修正后相关3/3；二维码修复相关6/6，StrictMode1/1；既有任务中心8/8 |
-| 资产专项 | Release Packaging64/64；Transfer136通过、2个既有Windows符号链接跳过；独立PG实际用例通过；迁移工具23/23和verify_repository通过。实际HTTPS11类场景及4个indexed owned版本；合法2MiB请求/1MiB manifest通过，超限拒绝；rename后撤ACL的恢复实际通过 |
+| 资产专项 | Release Packaging64/64；Transfer136通过、3跳过（2个既有Windows符号链接限制、1个缺少PG环境），其中PG用例随后独立实际通过；迁移工具23/23和verify_repository通过。实际HTTPS11类场景及4个indexed owned版本；合法2MiB请求/1MiB manifest通过，超限拒绝；rename后撤ACL的恢复实际通过 |
 | 独立媒体库验证 | single/multipart × Emby/Jellyfin四种组合全部通过；实际取图并允许服务端转码差异 |
 
 已复现的既有测试问题：资产页1项退出断言和应用壳4项旧标题断言在固定基线同样失败，未扩大本任务修改；应用壳另1项条件跳过。后端 runtime_health 的6项unit分轮通过，81项TLS测试因未配置 TS013_TLS_PYTHON 跳过，不宣称该套完整通过。上述分轮结果不改写成未经执行的新全量结果。
@@ -41,6 +41,8 @@
 ## 尚未执行与运行限制
 
 未构建或运行 Linux 容器，未验证 NAS 文件系统断电行为，未做生产部署、真实 B站账号扫码/个人Cookie或实际上游下载。Windows 本地进程、合成媒体和公开只读探测不能替代这些验收。所有本次自启测试媒体服务在取证后关闭，不影响 NAS 服务。
+
+独立 AssetLibrary 源主线已发展到 schema54，与本轮稳定天枢基线分叉；后续合入其主线时需对齐迁移账本和已有 OperationTrash persistence，不能直接覆盖源主线manifest。本轮隔离PG使用fsync=off，验证的是逻辑恢复而非断电耐久性；Linux原生目录句柄路径尚未实机执行。
 
 旧版本更新采用受控旧树备份再新树归位，两次 rename 之间可能短暂没有最终目录，不宣称原子交换。旧版本和下载暂存保留以支持恢复及增量，无自动历史清理。账号恢复后需在网页恢复订阅或重试任务。五平台扩展未实现，不标为可用。
 
