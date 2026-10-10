@@ -1,0 +1,143 @@
+{
+  "status": "deployed",
+  "date": "2026-10-11",
+  "platform": {
+    "image_id": "sha256:83c319cc6ebec44f36d2be8d9769a799cb7272ca43ba4883f0ff10a57e5ebc0e",
+    "revision": "7d2403c1f4aae5472c658fd9631b334daf7debe9"
+  },
+  "companion": {
+    "image_id": "sha256:f42f5da3e5395ee75ab54ea4847ccea71ba6cde3fb3c4f8fa929a66eaaa526b8",
+    "revision": "fbb378b65d941201d9e65a52235b087f1b86d752"
+  },
+  "contracts_revision": "cc4e0e79011be16d0ab5facfd619a0bd41dacaf9",
+  "entry": "http://192.168.31.210:18446/#/subscriptions",
+  "checks": {
+    "backend_passed": 117,
+    "subscriptions_browser_passed": 45,
+    "model_functions_real_http_browser_passed": 2,
+    "corrected_shell_boundary_passed": 2,
+    "known_shell_room_failures": 4,
+    "shell_conditional_skip": 1,
+    "schema_examples_passed": 3
+  },
+  "production": {
+    "health": [
+      {
+        "checks": {
+          "configuration": "ok",
+          "dependencies": "not_verified",
+          "logs": "ok",
+          "runtime": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "companion",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "config": "ok",
+          "contract": "ok",
+          "credentials": "ok",
+          "logging": "ok",
+          "runtime": "ok",
+          "sidecars": "ok",
+          "store": "ok",
+          "tls": "ok",
+          "web_static": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "platform",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "configuration": "ok",
+          "contracts": "ok",
+          "ledger": "ok",
+          "logging": "ok",
+          "model": "not_verified",
+          "native": "not_configured",
+          "platform": "not_verified",
+          "runtime": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "gateway",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "assembled": "ok",
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "guard": "ok",
+          "log": "ok",
+          "mode": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "memory",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "assembled": "ok",
+          "client": "ok",
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "extensions": "ok",
+          "log": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "knowledge",
+        "verified_tls": true
+      }
+    ],
+    "owner_count": 10,
+    "guard": "ready",
+    "static_assets": 59,
+    "sqlite_backups": 34,
+    "backup": "/volume2/tianshu-v2-resident-updates/subscriptions-models-release-20261011-release/cold-snapshot",
+    "backup_status": "offline_restore_verified",
+    "other_eight_original_ids_preserved": true,
+    "all_settings_unchanged": true,
+    "provider_configuration_and_key_preserved": true,
+    "role_configuration_preserved": true,
+    "administrator_grants_preserved": true,
+    "weather_configuration_preserved": true,
+    "dockge_actual_bytes_match": true,
+    "function_binding_table_present": true,
+    "pre_function_backup_present": true
+  },
+  "limits": {
+    "media_target_count": 0,
+    "automatic_auxiliary_dispatch": false,
+    "two_stage_reply": false,
+    "real_model_or_qq_test": false,
+    "real_video_download": false
+  }
+}
