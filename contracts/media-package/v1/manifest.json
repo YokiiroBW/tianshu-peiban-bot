@@ -1,0 +1,15 @@
+{
+  "package": "media-package/v1",
+  "version": "1.0.0",
+  "status": "local_runtime_joint_accepted",
+  "runtime_routes_enabled": true,
+  "production_publish_authorized": false,
+  "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
+  "sha256": {
+    "examples.json": "dd3ebd718b7e161be5029476c290371007c59a1612348633e18c91c15e0f1b47",
+    "inspector-semantics.md": "973359362a38a75170aa8ff153b557a4bad8cad2b4c1085d516e16225302ce9f",
+    "negative-examples.json": "00d3cba85719d30b92f48f18123ed2bf11d349008e8b46d406978a3fbc1b0956",
+    "README.md": "d0c5c7cac7a42ef43faa07c7f236a2dfb0150b255d2860761befc9c1916b0f2b",
+    "schema.json": "5268d305290353f574a1b30f4f31b9a13492d82021e19b998bd8ffccbb0c79e4"
+  }
+}
