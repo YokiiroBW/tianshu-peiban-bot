@@ -1,0 +1,131 @@
+{
+  "status": "platform_deployed_media_target_pending",
+  "platform": {
+    "image_id": "sha256:bee9d5cffd496924e37c63097b47f59f77d3b781b004014a7fd62d162cf490cb",
+    "revision": "619c944924f582e9fe472f89d666d2da03c6f966"
+  },
+  "contracts_revision": "43a388847d077d367a9ba257a807cb6338e5ea48",
+  "assetlibrary_candidate": "7742d1edb368a84d1032bc58e750439ec9deb7ab",
+  "entry": "http://192.168.31.210:18446/#/subscriptions",
+  "media_target_count": 0,
+  "local_checks": {
+    "browser_passed": 69,
+    "backend_passed": 69,
+    "backend_skipped": 2,
+    "initial_errors": "contract raw-byte mismatch; one incorrect test module name"
+  },
+  "production": {
+    "core_health": [
+      {
+        "checks": {
+          "config": "ok",
+          "contract": "ok",
+          "credentials": "ok",
+          "logging": "ok",
+          "runtime": "ok",
+          "sidecars": "ok",
+          "store": "ok",
+          "tls": "ok",
+          "web_static": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "platform",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "configuration": "ok",
+          "dependencies": "not_verified",
+          "logs": "ok",
+          "runtime": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "companion",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "configuration": "ok",
+          "contracts": "ok",
+          "ledger": "ok",
+          "logging": "ok",
+          "model": "not_verified",
+          "native": "not_configured",
+          "platform": "not_verified",
+          "runtime": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "gateway",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "assembled": "ok",
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "guard": "ok",
+          "log": "ok",
+          "mode": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "memory",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "assembled": "ok",
+          "client": "ok",
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "extensions": "ok",
+          "log": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "knowledge",
+        "verified_tls": true
+      }
+    ],
+    "guard": "ready",
+    "owner_count": 10,
+    "other_nine_container_ids_preserved": true,
+    "static_assets": 60,
+    "backup": "/volume2/tianshu-v2-resident-updates/features-release-20261010-release-v2/cold-snapshot",
+    "sqlite_backups": 33,
+    "dockge_actual_bytes_match": true,
+    "administrator_grants_preserved": true,
+    "existing_platform_settings_preserved": true,
+    "real_qq_or_model_test": false
+  },
+  "pending": [
+    "Choose actual AssetLibrary library and optional Emby/Jellyfin target",
+    "Integrate independent asset product migration lineage",
+    "Provision dedicated publishing connection",
+    "Validate actual user video download"
+  ]
+}

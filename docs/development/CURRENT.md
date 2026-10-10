@@ -1,3 +1,7 @@
+## 2026-10-10 视频订阅入口与运行基础已部署
+
+Platform `619c944` 已合并视频订阅候选与当前线上 `cbd592b`，推送 GitHub main 并部署 NAS。入口 `/#/subscriptions`；账号/解析与媒体运行基础启用，**targets=0，完整下载发布尚未配置**。AssetLibrary `7742d1ed` 仍为独立本地候选，未覆盖其生产主线。69 项界面及69项实际后端/投递检查通过，另2条件跳过；初次合同换行与模块名错误保留记录。NAS五核心TLS就绪、十容器/guard、60静态资源、33库冷备、Dockge及原用户配置保留通过。[交付详情](features-release-2026-10-10.md)。根历史修改及旧小屋样片保留。
+
 ## 2026-10-08 延迟图片与发送授权修复已部署
 
 Platform `cbd592b`、Companion `537ea03`、bot-delivery/v2.1合同`f3c4789`已推送main并部署NAS。修复短租期origin续接、关系缓存年龄误拦截及两种机器人发送入口64KiB限制。原图片任务已由真实QQ消息ID确认sent，未重新生图。十容器/五核心/guard、33库冷备、57静态资源、Dockge与既有用户配置保持均核验；全量历史失败边界及一次发布目录恢复见[交付记录](delivery-origin-deployment-2026-10-08.md)。
