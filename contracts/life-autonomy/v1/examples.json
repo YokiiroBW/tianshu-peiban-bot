@@ -1,0 +1,217 @@
+{
+  "valid": [
+    {
+      "definition": "read_request",
+      "value": {
+        "schema_version": 1,
+        "query": {
+          "schema_version": 1,
+          "request_id": "autonomy:read",
+          "origin": {
+            "assertion_ref": "origin:manager"
+          }
+        },
+        "actor_id": "actor:sample",
+        "resource": "routine",
+        "limit": 20,
+        "after": null,
+        "object_id": null
+      }
+    },
+    {
+      "definition": "read_request",
+      "value": {
+        "schema_version": 1,
+        "query": {
+          "schema_version": 1,
+          "request_id": "autonomy:read",
+          "origin": {
+            "assertion_ref": "origin:manager"
+          }
+        },
+        "actor_id": "actor:sample",
+        "resource": "diaries",
+        "limit": 20,
+        "after": null,
+        "object_id": null
+      }
+    },
+    {
+      "definition": "read_request",
+      "value": {
+        "schema_version": 1,
+        "query": {
+          "schema_version": 1,
+          "request_id": "autonomy:read",
+          "origin": {
+            "assertion_ref": "origin:manager"
+          }
+        },
+        "actor_id": "actor:sample",
+        "resource": "diary_revision",
+        "limit": 20,
+        "after": null,
+        "object_id": "revision:sample"
+      }
+    },
+    {
+      "definition": "manage_request",
+      "value": {
+        "schema_version": 1,
+        "request_id": "autonomy:configure",
+        "actor_id": "actor:sample",
+        "operation": "routine.configure",
+        "expected_version": 3,
+        "value": {
+          "autonomous": true,
+          "diary_enabled": null,
+          "schedule": [
+            {
+              "minute": 0,
+              "activity": "休息",
+              "controls": {
+                "desk_light": 0
+              }
+            },
+            {
+              "minute": 540,
+              "activity": "阅读与学习",
+              "controls": {
+                "desk_light": 1
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "definition": "manage_request",
+      "value": {
+        "schema_version": 1,
+        "request_id": "autonomy:configure",
+        "actor_id": "actor:sample",
+        "operation": "diary.retry",
+        "expected_version": 3,
+        "value": {
+          "id": "diary:sample"
+        }
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "definition": "read_request",
+      "value": {
+        "schema_version": 1,
+        "query": {
+          "schema_version": 1,
+          "request_id": "autonomy:read",
+          "origin": {
+            "assertion_ref": "origin:manager"
+          }
+        },
+        "actor_id": "actor:sample",
+        "resource": "routine",
+        "limit": 0,
+        "after": null,
+        "object_id": null
+      }
+    },
+    {
+      "definition": "read_request",
+      "value": {
+        "schema_version": 1,
+        "query": {
+          "schema_version": 1,
+          "request_id": "autonomy:read",
+          "origin": {
+            "assertion_ref": "origin:manager"
+          }
+        },
+        "actor_id": "actor:sample",
+        "resource": "routine",
+        "limit": 20,
+        "after": null,
+        "object_id": "unexpected"
+      }
+    },
+    {
+      "definition": "read_request",
+      "value": {
+        "schema_version": 1,
+        "query": {
+          "schema_version": 1,
+          "request_id": "autonomy:read",
+          "origin": {
+            "assertion_ref": "origin:manager"
+          }
+        },
+        "actor_id": "actor:sample",
+        "resource": "routine",
+        "limit": 20,
+        "after": "unexpected",
+        "object_id": null
+      }
+    },
+    {
+      "definition": "manage_request",
+      "value": {
+        "schema_version": 1,
+        "request_id": "autonomy:configure",
+        "actor_id": "actor:sample",
+        "operation": "routine.configure",
+        "expected_version": 0,
+        "value": {
+          "autonomous": true,
+          "diary_enabled": null,
+          "schedule": [
+            {
+              "minute": 0,
+              "activity": "休息",
+              "controls": {
+                "desk_light": 0
+              }
+            },
+            {
+              "minute": 540,
+              "activity": "阅读与学习",
+              "controls": {
+                "desk_light": 1
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "definition": "manage_request",
+      "value": {
+        "schema_version": 1,
+        "request_id": "autonomy:configure",
+        "actor_id": "actor:sample",
+        "operation": "diary.publish",
+        "expected_version": 3,
+        "value": {
+          "autonomous": true,
+          "diary_enabled": null,
+          "schedule": [
+            {
+              "minute": 0,
+              "activity": "休息",
+              "controls": {
+                "desk_light": 0
+              }
+            },
+            {
+              "minute": 540,
+              "activity": "阅读与学习",
+              "controls": {
+                "desk_light": 1
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
