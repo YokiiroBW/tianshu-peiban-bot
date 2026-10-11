@@ -299,30 +299,51 @@
           "type": "integer",
           "minimum": 0
         },
-        "total_events": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "excluded_private_events": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "omitted_events": {
-          "type": "integer",
-          "minimum": 0
-        },
         "bytes": {
           "type": "integer",
           "minimum": 0
+        },
+        "total_events": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "excluded_private_events": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "omitted_events": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
         "selection",
         "selected_events",
+        "bytes",
         "total_events",
         "excluded_private_events",
-        "omitted_events",
-        "bytes"
+        "omitted_events"
       ],
       "additionalProperties": false
     },
@@ -361,8 +382,15 @@
           ]
         },
         "config_version": {
-          "type": "integer",
-          "minimum": 1
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "current_revision": {
           "anyOf": [

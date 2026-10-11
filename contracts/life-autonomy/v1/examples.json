@@ -96,6 +96,143 @@
           "id": "diary:sample"
         }
       }
+    },
+    {
+      "definition": "read_response",
+      "value": {
+        "schema_version": 1,
+        "request_id": "autonomy:read",
+        "actor_id": "actor:sample",
+        "resource": "routine",
+        "items": [
+          {
+            "id": "actor:sample",
+            "version": 3,
+            "role_enabled": true,
+            "autonomous": true,
+            "diary_enabled": true,
+            "diary_setting": null,
+            "timezone": "Asia/Shanghai",
+            "schedule_version": 2,
+            "schedule": [
+              {
+                "minute": 0,
+                "activity": "休息",
+                "controls": {
+                  "desk_light": 0
+                }
+              },
+              {
+                "minute": 540,
+                "activity": "阅读与学习",
+                "controls": {
+                  "desk_light": 1
+                }
+              }
+            ],
+            "generation": {
+              "enabled": true,
+              "available": true,
+              "reason_code": null
+            },
+            "diary_generation": {
+              "enabled": true,
+              "available": true,
+              "reason_code": null
+            },
+            "current": {
+              "plan_id": null,
+              "phase_id": null,
+              "phase_state": null,
+              "generation_state": null,
+              "activity_id": null,
+              "activity_state": null,
+              "reason_code": null
+            },
+            "recipe": {
+              "id": "daily",
+              "version": 1,
+              "min_events": 1,
+              "max_chars": 1200
+            }
+          }
+        ],
+        "next_cursor": null,
+        "observed_at": 1791676801
+      }
+    },
+    {
+      "definition": "read_response",
+      "value": {
+        "schema_version": 1,
+        "request_id": "autonomy:read",
+        "actor_id": "actor:sample",
+        "resource": "diaries",
+        "items": [
+          {
+            "id": "diary:sample",
+            "version": 1,
+            "actor_id": "actor:sample",
+            "day": "2026-10-10",
+            "state": "unavailable",
+            "config_version": null,
+            "current_revision": null,
+            "published_revision": null,
+            "created_at": 1791676800,
+            "failure_code": "model_unavailable",
+            "attempt_count": 0,
+            "next_retry_at": null,
+            "material_capture": {
+              "selection": "bounded",
+              "selected_events": 64,
+              "total_events": 80,
+              "excluded_private_events": 10,
+              "omitted_events": 6,
+              "bytes": 11000
+            }
+          }
+        ],
+        "next_cursor": null,
+        "observed_at": 1791676801
+      }
+    },
+    {
+      "definition": "read_response",
+      "value": {
+        "schema_version": 1,
+        "request_id": "autonomy:read",
+        "actor_id": "actor:sample",
+        "resource": "diary_revision",
+        "items": [
+          {
+            "id": "revision:sample",
+            "diary_id": "diary:sample",
+            "diary_version": 3,
+            "content": "今天阅读后留下了一个待继续思考的问题。",
+            "created_at": 1791676800,
+            "fictional": true,
+            "material_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "published": false
+          }
+        ],
+        "next_cursor": null,
+        "observed_at": 1791676801
+      }
+    },
+    {
+      "definition": "manage_response",
+      "value": {
+        "schema_version": 1,
+        "request_id": "autonomy:configure",
+        "actor_id": "actor:sample",
+        "operation": "routine.configure",
+        "result": {
+          "id": "actor:sample",
+          "version": 4,
+          "state": "configured",
+          "operation_ref": "operation:configure"
+        }
+      }
     }
   ],
   "invalid": [

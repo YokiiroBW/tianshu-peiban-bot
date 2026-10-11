@@ -7,8 +7,8 @@
     "text-dialogue/v1": "90697e6ecbb587d3db8c8e4682f7f8f43a8b1a98f70d8835c8282b03828d2d3a"
   },
   "sha256": {
-    "README.md": "6b3847328f754e933c3a1e41793362c36b809de2b2cb657ade26904d476f028f",
-    "schemas/autonomy.json": "17852974c2cb0528978e4ff9f1385647b17a6dfe90fdcc4d21101881b144313a",
-    "examples.json": "e3bbf24340507d1fa5bbb10ba559bf2ca65c574150910fe8b53a0e24350e9f38"
+    "README.md": "dea491f44f976a2a255da8a042c5d6a3c213d1044ebdbcd08f08b898d9d6316b",
+    "schemas/autonomy.json": "02adee5147606bd4c097b2e5bd3a23cd3a571c0c104d9a7ad1cf7e70bfe1cb08",
+    "examples.json": "d9f2c17ca230153e581f262719da7bd169da5d7269e6b0354d9a41e59e15c046"
   }
 }

@@ -53,6 +53,8 @@ changed payloads under the same request identity conflict.
 `material_capture` reports eligible selection, private exclusions and budget omissions.
 `selection: bounded` does not claim a complete day's record. `material_version` binds
 the immutable captured material; generated prose does not prove real-world execution.
+Legacy captures without selection evidence report unknown counts as null. Unselected
+model configuration is also null; neither projection invents a zero count or a version.
 Published readers continue to use the existing publication pointer and access rules.
 
 ## Schema and validation
