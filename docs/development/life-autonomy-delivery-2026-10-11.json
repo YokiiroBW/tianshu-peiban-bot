@@ -1,0 +1,91 @@
+{
+  "status": "local_verified_not_deployed",
+  "date": "2026-10-11",
+  "companion": "95894dadbb4c53188523c11d684d4b7235c01b06",
+  "platform": "be98a630636ff610fb86de665967c467bf9f921a",
+  "autonomy_manifest_sha256": "cebcf5e3b909b882fe3b19f33c176f485ed85a5a89028299df50a24fbf524d3a",
+  "component": {
+    "subtests": 101,
+    "final_specialized_passed": 14,
+    "passed": 793,
+    "known_baseline_fixture_failures": 1,
+    "final_material_focused_passed": 172,
+    "skipped": 16
+  },
+  "platform_checks": {
+    "new_proxy": 11,
+    "build": "passed",
+    "existing_image": 11,
+    "existing_ui": 20,
+    "typecheck": "passed",
+    "final_affected_ui": 22,
+    "new_ui": 14,
+    "reader_tls": 7
+  },
+  "joint": {
+    "real_24_hour_observation": false,
+    "run": "run-8-final",
+    "seconds": 14.829,
+    "real_product_tls": true,
+    "passed": 2,
+    "synthetic_model_upstream": true
+  },
+  "scenarios": [
+    {
+      "scenario": "test_eight_phases_next_day_two_actor_fairness_and_restart",
+      "slice": "actual_life_autonomy_five_TLS_owners",
+      "checks": [
+        {
+          "name": "eight_stages_then_next_day",
+          "completed_stages": 8,
+          "actors": 2,
+          "good_actor_not_blocked": true,
+          "restarted": true,
+          "next_day": "2026-10-13"
+        }
+      ],
+      "calendar_basis": "injected product clock; real network and Gateway process",
+      "contract_inputs": {
+        "platform_companion": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\life-autonomy-20261011\\contracts-input\\contracts\\text-dialogue\\v1",
+        "memory_knowledge": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\life-autonomy-20261011\\memory-contracts\\contracts\\text-dialogue\\v1"
+      },
+      "wire": [],
+      "external_model_requests": 20,
+      "no_cross_product_SQL": true,
+      "cleanup": {
+        "listeners_checked": 7,
+        "failures": [],
+        "gateway_process_stopped": true
+      }
+    },
+    {
+      "scenario": "test_native_original_checkpoint_diary_publish_authorized_read",
+      "slice": "actual_life_autonomy_five_TLS_owners",
+      "checks": [
+        {
+          "name": "native_original_to_published_diary",
+          "original_sha256": "4a14aaa4ee0a3f41daa0b924d22c4b2a128337049ea42c6a2f181dd302b350af",
+          "actual_native_tool_query": true,
+          "checkpoint_step": 1,
+          "actual_diary_draft": true,
+          "published_pointer": true,
+          "reader_authorized": true,
+          "restarted": true
+        }
+      ],
+      "calendar_basis": "injected product clock; real network and Gateway process",
+      "contract_inputs": {
+        "platform_companion": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\life-autonomy-20261011\\contracts-input\\contracts\\text-dialogue\\v1",
+        "memory_knowledge": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\life-autonomy-20261011\\memory-contracts\\contracts\\text-dialogue\\v1"
+      },
+      "wire": [],
+      "external_model_requests": 11,
+      "no_cross_product_SQL": true,
+      "cleanup": {
+        "listeners_checked": 7,
+        "failures": [],
+        "gateway_process_stopped": true
+      }
+    }
+  ]
+}
