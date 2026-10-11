@@ -1,3 +1,7 @@
+## 2026-10-12 记忆更新已部署，自动整理保留关闭
+
+Memory `165307f`、Companion `4e4fc83` 已推送 GitHub main 并部署 NAS；视频订阅 Platform `7d2403c` 已上线并复核59个资源。五核心TLS就绪、35库冷备/恢复校验、十容器/guard及Dockge同步通过，所有原settings保持。自动记忆整理原开关仍为false，开启及日程/日记候选的发布范围等待用户选择；未冒称真实模型/QQ验收。[部署记录](memory-subscriptions-deployment-2026-10-12.md)。
+
 ## 2026-10-11 订阅概览与模型功能分工已部署
 
 Platform `7d2403c`、Companion `fbb378b` 已推送 GitHub main 并部署NAS；订阅概览/竖向导航/去掉冗余标题，以及六类功能模型选择上线。聊天与日常日记已接通；自动辅助委派/两阶段回复仍未实现，媒体目标仍为0。五核心TLS就绪、十容器/guard、59网页资源、34库冷备、Dockge同步通过；原模型/角色/管理员/天气和所有settings保持。[部署详情](subscriptions-models-release-2026-10-11.md)。
