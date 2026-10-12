@@ -98,7 +98,7 @@ def relative(value):
     return value
 
 
-def safe_path(value, *, exists=True):
+def safe_path(value, *, exists=True, hardlink_roots=()):
     path = Path(value)
     require(
         path.is_absolute() and not str(path).startswith(("\\\\", "//")),
@@ -117,7 +117,8 @@ def safe_path(value, *, exists=True):
             stat.S_ISDIR(info.st_mode) or stat.S_ISREG(info.st_mode), "special_file"
         )
         if stat.S_ISREG(info.st_mode):
-            require(info.st_nlink == 1, "hardlinked_file")
+            require(info.st_nlink == 1 or any(item.is_relative_to(root) for root in hardlink_roots),
+                    "hardlinked_file")
     require(not exists or path.exists(), "path_missing")
     return path.resolve(strict=exists)
 
@@ -148,8 +149,8 @@ def read_bytes(path, *, limit):
     return value
 
 
-def file_hash(path):
-    path = safe_path(path)
+def file_hash(path, *, hardlink_roots=()):
+    path = safe_path(path, hardlink_roots=hardlink_roots)
     result = hashlib.sha256()
     with path.open("rb") as stream:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
@@ -167,7 +168,7 @@ def sync_dir(path):
             os.close(descriptor)
 
 
-def walk_tree(root, *, topdown=True):
+def walk_tree(root, *, topdown=True, hardlink_roots=()):
     """Never interpret failed readdir or entry classification as an empty subtree.
 
     os.walk also suppresses DirEntry.is_dir errors even when onerror is supplied,
@@ -184,7 +185,7 @@ def walk_tree(root, *, topdown=True):
         try:
             with os.scandir(safe_path(directory)) as entries:
                 for entry in entries:
-                    safe_path(directory / entry.name)
+                    safe_path(directory / entry.name, hardlink_roots=hardlink_roots)
                     collection = dirs if entry.is_dir(follow_symlinks=False) else names
                     collection.append(entry.name)
         except OSError:
@@ -215,15 +216,24 @@ def write_new(path, data):
     sync_dir(path.parent)
 
 
-def copy_new(source, target, *, limit, check_cancel):
-    source = safe_path(source)
+def copy_new(source, target, *, limit, check_cancel, hardlink_roots=()):
+    source = safe_path(source, hardlink_roots=hardlink_roots)
     target = safe_path(target, exists=False)
-    require(source.stat().st_size <= limit, "file_size_limit")
+    before = source.stat()
+    require(before.st_size <= limit, "file_size_limit")
     require(not target.exists(), "destination_exists")
     target.parent.mkdir(parents=True, exist_ok=True)
     safe_path(target.parent)
     total = 0
     with source.open("rb") as incoming, target.open("xb") as outgoing:
+        if hardlink_roots:
+            fields = ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns", "st_nlink")
+            opened = os.fstat(incoming.fileno())
+            # Windows exposes different ctime meanings via stat and fstat.
+            # Compare each ctime with its own pre-read value; inode identity
+            # and the other metadata still match across the path and handle.
+            require(all(getattr(before, name) == getattr(opened, name)
+                        for name in fields if name != "st_ctime_ns"), "source_changed_during_copy")
         while True:
             check_cancel()
             chunk = incoming.read(1024 * 1024)
@@ -234,6 +244,16 @@ def copy_new(source, target, *, limit, check_cancel):
             outgoing.write(chunk)
         outgoing.flush()
         os.fsync(outgoing.fileno())
+        if hardlink_roots:
+            # Scoped media hardlinks are copied into independent files. Verify
+            # both the open inode and the source path after reading its bytes.
+            identity = tuple(getattr(before, name) for name in fields)
+            after = safe_path(source, hardlink_roots=hardlink_roots).stat()
+            closed = os.fstat(incoming.fileno())
+            require(identity == tuple(getattr(after, name) for name in fields) and
+                    tuple(getattr(opened, name) for name in fields) ==
+                    tuple(getattr(closed, name) for name in fields),
+                    "source_changed_during_copy")
     sync_dir(target.parent)
 
 
