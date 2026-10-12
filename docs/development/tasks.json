@@ -1260,6 +1260,75 @@
         "758e72eed8530e06cb76c324cee28eb972a676e1",
         "7be24d1f6c7f38a54f4d6739755d3cdc7c242d4f"
       ]
+    },
+    {
+      "id": "TS-129",
+      "title": "媒体卷订阅与Emby四类占用统计后端",
+      "project": "platform",
+      "depends_on": [],
+      "status": "done",
+      "allowed_paths": [
+        "services/platform/media/storage*.py",
+        "services/platform/media/config.py",
+        "services/platform/media/runtime.py",
+        "tests/backend/test_media*.py",
+        "tests/backend/run_media_fixture.py",
+        "docs/platform/media*",
+        "docs/handoffs/TS-129.md"
+      ],
+      "done_when": "订阅/Emby/其他/未使用四类真实目录统计、硬链接排重、四色UI与NAS验证",
+      "authorization": "2026-10-12 用户要求四类占用和不同颜色线段；沿用Sol/xhigh并行开发与推送部署授权",
+      "assignee": "gpt-6.1-sol/xhigh",
+      "execution_state": "pushed_deployed_real_storage_breakdown_verified",
+      "plan": "docs/development/media-storage-breakdown-plan-2026-10-12.md",
+      "worktree": "worktrees/TS-129/tianshu-platform",
+      "branch": "codex/media-storage-breakdown-backend-20261012",
+      "baseline_commit": "5cc7876be03c98c461b0690441f2aefbfba9bce6",
+      "allocation_note": "workspace start rejected dirty historical coordinator; unchanged TS-016 ownership check limitation retained. Allocated from clean deployed integration without modifying old checkouts.",
+      "integrated": true,
+      "pushed": true,
+      "deployed": true,
+      "integrated_commit": "9a32650cdc0bfbd0350ddf22a17b41e909206d7c",
+      "delivery_record": "docs/development/media-storage-breakdown-deployment-2026-10-13.json",
+      "real_nas_media_verified": true,
+      "delivery_commits": [
+        "a0175ac24e8f29271399ea276eb5f85adf8271ce",
+        "66690de7b3861096036a9859cafbfbd6c1944300"
+      ]
+    },
+    {
+      "id": "TS-130",
+      "title": "存储磁盘四类彩色分段界面",
+      "project": "platform",
+      "depends_on": [],
+      "status": "done",
+      "allowed_paths": [
+        "apps/web/src/features/media/StoragePanel.tsx",
+        "apps/web/src/features/media/overview.css",
+        "apps/web/src/features/media/types.ts",
+        "apps/web/src/features/media/wording.ts",
+        "apps/web/tests/media*",
+        "apps/web/tests/subscriptions*",
+        "docs/handoffs/TS-130.md"
+      ],
+      "done_when": "订阅/Emby/其他/未使用四类真实目录统计、硬链接排重、四色UI与NAS验证",
+      "authorization": "2026-10-12 用户要求四类占用和不同颜色线段；沿用Sol/xhigh并行开发与推送部署授权",
+      "assignee": "gpt-6.1-sol/xhigh",
+      "execution_state": "pushed_deployed_real_storage_breakdown_verified",
+      "plan": "docs/development/media-storage-breakdown-plan-2026-10-12.md",
+      "worktree": "worktrees/TS-130/tianshu-platform",
+      "branch": "codex/media-storage-breakdown-frontend-20261012",
+      "baseline_commit": "5cc7876be03c98c461b0690441f2aefbfba9bce6",
+      "allocation_note": "workspace start rejected dirty historical coordinator; unchanged TS-016 ownership check limitation retained. Allocated from clean deployed integration without modifying old checkouts.",
+      "integrated": true,
+      "pushed": true,
+      "deployed": true,
+      "integrated_commit": "9a32650cdc0bfbd0350ddf22a17b41e909206d7c",
+      "delivery_record": "docs/development/media-storage-breakdown-deployment-2026-10-13.json",
+      "real_nas_media_verified": true,
+      "delivery_commits": [
+        "a0a4b837c5413781fe68ce97f194e6325f81fb94"
+      ]
     }
   ],
   "dispatch_defaults": {

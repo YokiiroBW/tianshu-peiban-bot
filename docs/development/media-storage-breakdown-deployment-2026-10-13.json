@@ -1,0 +1,301 @@
+{
+  "date": "2026-10-13",
+  "started_on": "2026-10-12",
+  "recorded_at_utc": "2026-10-12T16:32:16.957555+00:00",
+  "status": "pushed_deployed_real_storage_breakdown_verified",
+  "tasks": [
+    "TS-129",
+    "TS-130"
+  ],
+  "product": {
+    "repository": "https://github.com/YokiiroBW/tianshu-platform",
+    "revision": "9a32650cdc0bfbd0350ddf22a17b41e909206d7c",
+    "image_id": "sha256:acfef25805a230cd2dabdc2c8f5f89a7b261d5d597c5c586bf01b6fa54bacaae",
+    "base_revision": "5cc7876be03c98c461b0690441f2aefbfba9bce6",
+    "followup_base_revision": "ca30a2b554ed0bace8b562fff1272f32b3c14767",
+    "backend_source_commits": [
+      "a0175ac24e8f29271399ea276eb5f85adf8271ce",
+      "66690de7b3861096036a9859cafbfbd6c1944300"
+    ],
+    "frontend_source_commit": "a0a4b837c5413781fe68ce97f194e6325f81fb94"
+  },
+  "implementation": {
+    "classification": [
+      "subscription",
+      "emby_excluding_subscription",
+      "other_including_filesystem_overhead_and_reservation",
+      "unused"
+    ],
+    "file_accounting": "regular files reported st_blocks*512; global device/inode identity; subscription precedence; no content reads; no symlink or cross-device descent",
+    "discovery": "existing MediaServers.libraries with explicit full-component longest-prefix mapping",
+    "capacity_grouping": "Linux Btrfs uses exact longest mountpoint mountinfo filesystem device and source; subvolume stat devices remain distinct for inode identity. Other filesystems use stat device.",
+    "cache_seconds": 300,
+    "first_view_nonblocking": true,
+    "single_flight": true,
+    "configuration_change_invalidates_snapshot": true,
+    "new_dependencies": false,
+    "database_migration": false,
+    "unknown_is_null_not_zero": true,
+    "frontend": "existing visual tokens, four colored segments and numeric legend, total capacity, measurement time, tiny marker and explicit partial/logical states"
+  },
+  "actual_validation": {
+    "status": "verified",
+    "uid": 10001,
+    "storage": {
+      "state": "available",
+      "volumes": [
+        {
+          "storage_id": "6b57c6920332273a648d2316200fe271b248372cc9174fb967ec14fcb188de20",
+          "label": "emby",
+          "target_ids": [
+            "f95ba599-3b54-42b2-9cd0-b33d6dc5f0fb"
+          ],
+          "directories": [
+            "/media/Bilibili"
+          ],
+          "state": "available",
+          "total_bytes": 67148860882944,
+          "used_bytes": 15754519678976,
+          "free_bytes": 51394341203968,
+          "breakdown": {
+            "state": "ready",
+            "subscription_bytes": 3751936,
+            "emby_bytes": 7028009209856,
+            "other_bytes": 8726506717184,
+            "unused_bytes": 51394341203968,
+            "measured_at": 1791822698.8160725,
+            "basis": "allocated",
+            "code": null,
+            "refreshing": false
+          }
+        }
+      ]
+    },
+    "first_view_seconds": 0.0084,
+    "first_view_states": [
+      "scanning"
+    ],
+    "scan_and_projection_seconds": 0.9728,
+    "independent_subscription": {
+      "directory_entries": 23,
+      "unique_inodes": 20,
+      "entry_allocated_bytes": 8802304,
+      "unique_allocated_bytes": 3751936,
+      "duplicate_allocated_bytes_excluded": 5050368,
+      "device": 6291518
+    },
+    "independent_emby": {
+      "subscription_bytes": 3751936,
+      "emby_bytes": 7028009209856,
+      "music_bytes": 59228647424,
+      "stat_devices": [
+        6291518,
+        7340078
+      ],
+      "unique_inode_count": 19669
+    },
+    "emby_mapped_roots": 14,
+    "all_roots_same_filesystem": true,
+    "different_btrfs_subvolumes_included": true,
+    "mounts": [
+      {
+        "device": "0:39",
+        "filesystem": "btrfs",
+        "source": "/dev/mapper/cachedev_1",
+        "read_only": false
+      },
+      {
+        "device": "0:39",
+        "filesystem": "btrfs",
+        "source": "/dev/mapper/cachedev_1",
+        "read_only": true
+      },
+      {
+        "device": "0:39",
+        "filesystem": "btrfs",
+        "source": "/dev/mapper/cachedev_1",
+        "read_only": true
+      }
+    ],
+    "cache_snapshot_reused": true,
+    "file_content_read": false,
+    "download_workers_started": false
+  },
+  "directory_access": {
+    "status": "applied",
+    "stage": "/volume2/tianshu-v2-resident-updates/media-storage-breakdown-20261012-acl-r2",
+    "root": "/volume1/Music/音乐存档",
+    "uid": 10001,
+    "added_entry": "user:10001:allow:r-x---a------:-d--",
+    "original_rules_preserved": true,
+    "directory_acl_entries_added": 1,
+    "file_acl_changes": 0,
+    "owner_unchanged": true,
+    "mode_before": 448,
+    "mode_after": 448,
+    "existing_subdirectory_inherits": true,
+    "root_and_existing_child_uid_checks": [
+      {
+        "uid": 10001,
+        "can_list_and_stat": true
+      },
+      {
+        "uid": 10001,
+        "can_list_and_stat": true
+      }
+    ],
+    "future_inheritance_verified_in_isolation": true
+  },
+  "verification": {
+    "linux_immutable_image": {
+      "passed": 40,
+      "failed": 0,
+      "skipped": 0,
+      "seconds": 0.226,
+      "production_mounted": false
+    },
+    "first_release_linux": {
+      "passed": 49,
+      "failed": 0,
+      "skipped": 0,
+      "unchanged_runtime_results_reused": true
+    },
+    "windows_backend": {
+      "passed": 32,
+      "skipped": 2,
+      "total": 34,
+      "skips": "Windows symbolic-link privilege and real Linux cross-device; both passed in final Linux image"
+    },
+    "frontend": {
+      "four_category_cases": 18,
+      "affected_overview_regressions": 8,
+      "fixed_candidate_real_local_http_cases": 2,
+      "failed": 0,
+      "typecheck": true,
+      "build": true,
+      "screenshots_inspected": true,
+      "local_http_emby_locations": "synthetic; filesystem allocation and HTTP application real"
+    },
+    "btrfs_fix_windows": {
+      "affected_windows": {
+        "total": 40,
+        "passed": 38,
+        "skipped": 2,
+        "seconds": 0.624
+      },
+      "final_backslash_increment": {
+        "total": 6,
+        "passed": 6,
+        "seconds": 0.021
+      },
+      "ruff": true,
+      "diff_check": true
+    },
+    "review": "fixed backend, Btrfs capacity identity follow-up and narrow release recipe reviewed; no blocking finding; applicable prior tests reused"
+  },
+  "deployment": {
+    "backup": "/volume2/tianshu-v2-resident-updates/media-storage-subvolumes-20261013-release-r1/cold-snapshot",
+    "sqlite_databases_verified": 37,
+    "cold_backup_status": "offline_restore_verified",
+    "guard": "ready",
+    "owner_count": 10,
+    "other_nine_original_ids_preserved": true,
+    "other_four_settings_unchanged": true,
+    "existing_platform_settings_preserved": true,
+    "only_added_platform_setting": "media.storage_mappings",
+    "providers_and_keys_preserved": true,
+    "external_media_binds": [
+      {
+        "read_only": false,
+        "source": "/volume1/Video/存储库/短视频/bilibili",
+        "target": "/media/Bilibili"
+      },
+      {
+        "read_only": true,
+        "source": "/volume1/Video/存储库",
+        "target": "/media/observe/emby-video"
+      },
+      {
+        "read_only": true,
+        "source": "/volume1/Music/音乐存档",
+        "target": "/media/observe/emby-music"
+      }
+    ],
+    "new_observation_binds_readonly": true,
+    "first_backup": "/volume2/tianshu-v2-resident-updates/media-storage-breakdown-20261012-release-r1/cold-snapshot",
+    "first_excluded_external_media": [
+      {
+        "read_only": false,
+        "source": "/volume1/Video/存储库/短视频/bilibili",
+        "target": "/media/Bilibili"
+      }
+    ],
+    "final_excluded_external_media": [
+      {
+        "read_only": false,
+        "source": "/volume1/Video/存储库/短视频/bilibili",
+        "target": "/media/Bilibili"
+      },
+      {
+        "read_only": true,
+        "source": "/volume1/Video/存储库",
+        "target": "/media/observe/emby-video"
+      },
+      {
+        "read_only": true,
+        "source": "/volume1/Music/音乐存档",
+        "target": "/media/observe/emby-music"
+      }
+    ],
+    "followup_settings_and_mounts_unchanged": true,
+    "web_assets_verified": 59,
+    "dockge_synced": true,
+    "guard_code_sha256": "9a2aa40e7ed4072abb57a3b1e7148feadd2bb26b6da7164cca83a9097c4ed7a4"
+  },
+  "limits": [
+    "File allocation uses filesystem st_blocks, not a physical extent census; hardlinks are deduplicated, reflink/shared extents are not independently identified. An over-capacity sum is explicitly partial.",
+    "External media is excluded from application cold snapshots. Music directory ACL before/after and exact root ACE rollback are recorded separately in the private NAS stage.",
+    "Real installed Platform storage view, media metadata, read-only mounts and public static hashes were checked on NAS; browser interactions used local actual HTTP with synthetic Emby Locations. No new Bilibili download or Emby refresh was required."
+  ],
+  "evidence": {
+    ".runtime/media-storage-subvolumes-20261013/platform-build-result.json": {
+      "sha256": "d7fbe674c770bf39871538f0906f59f578286efaf7988f3b8f281eff615de588"
+    },
+    ".runtime/media-storage-subvolumes-20261013/linux-validation-exec.json": {
+      "sha256": "21bb4de9c6853860ebee404836912bcdb63137958d818f048c8d320fee8f8c5b"
+    },
+    ".runtime/media-storage-subvolumes-20261013/resident-poll-result.json": {
+      "sha256": "a8fa63c534fdb226c9cee98b534a6335ab19270f6ed06e3ef4ad2d7635eeafd2"
+    },
+    ".runtime/media-storage-subvolumes-20261013/actual-storage.json": {
+      "sha256": "4316e7523250676b15e9e55d9ce3fb496d8deee2afaa09a5e486ec675a6ca6d5"
+    },
+    ".runtime/media-storage-subvolumes-20261013/final-readback.json": {
+      "sha256": "638121029446ebc57025629288934c616a082f7b0a157c734c5c2e5dad3f599e"
+    },
+    ".runtime/media-storage-subvolumes-20261013/http-assets.json": {
+      "sha256": "4d8f83228e099d96fc7d025a43a45892c26ffbc68f63c4a7e1edf9be9e0ae63d"
+    },
+    ".runtime/media-storage-subvolumes-20261013/dockge-sync.json": {
+      "sha256": "3c9a4c99d5fcfa3a4208d3cc37b4be949c2265196a9211be73523f49cea8c30b"
+    },
+    ".runtime/media-storage-breakdown-20261012/music-directory-acl.json": {
+      "sha256": "a755394b40a82b2fff8fee57ad2e38879b757c6356f61afe6f653535d1ff3841"
+    },
+    ".runtime/media-storage-breakdown-20261012/acl-inheritance-report.json": {
+      "sha256": "65c97e2bd8bdb29e2936c8c38045e25125a358971883b136be9b6f4f2fc60bcc"
+    },
+    ".runtime/media-storage-breakdown-20261012/media-mountinfo.json": {
+      "sha256": "8a86eb180c1b154e050286456c587d8d32cf5f605267cd6bc998756d8ca3ce97"
+    },
+    ".runtime/media-storage-breakdown-20261012/storage-devices.json": {
+      "sha256": "17577729766bd5cc2a6b1969532087f095c73cb43eff7d3bd284491a6895288f"
+    },
+    ".runtime/media-storage-breakdown-20261012/subvolume-source.json": {
+      "sha256": "550229a71b61d98c2377d3b6f5565654f086a37c02bf60be5e299acea76e4b76"
+    },
+    ".runtime/media-storage-breakdown-20261012/linux-validation-exec.json": {
+      "sha256": "bc068fbbf0a132b07b60717e6025bd2aa2d4153aca0b69925e12fe7bf9b58b3a"
+    }
+  }
+}

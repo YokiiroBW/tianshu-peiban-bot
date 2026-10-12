@@ -1,3 +1,7 @@
+## 2026-10-13 存储磁盘四类占用已部署
+
+TS-129/130 Platform `9a32650` 已推送并部署。订阅、Emby（排除订阅）、其他、未使用以四色及数值显示；五分钟后台缓存、扫描时间和真实未知状态接通。新增两个只读观察映射，正式UID10001实读14个Emby媒体根；Btrfs子卷归同容量池、allocated/ready且四项之和等于总容量，订阅与Emby独立inode复核一致。音乐根仅新增一条目录metadata ACL，原规则和文件ACL保持。Linux首轮49/补修40、网页18+8、真实本地HTTP2通过；37库冷备恢复、五核心TLS、十服务/guard、59资源及Dockge通过。见[验收记录](media-storage-breakdown-deployment-2026-10-13.md)。
+
 ## 2026-10-12 入库后缓存回收与媒体文件复用已部署
 
 TS-127/128 Platform `5cc7876` 已推送并部署。入库核验成功后自动回收成功下载/输入/pkg，先持久登记媒体来源；新收藏夹目录真实复用BV1ibdVBKEMe/CID37584830724/64，source=library、generation1未增，三目录同inode/nlink4，18文件哈希与三条Emby HTTP206读取通过。旧两任务与新任务缓存均自动清理；三条旧失败信息已删除，去重/成品保留。网页“存储磁盘”显示实际约61.1TiB媒体卷，支持逐卷展示与删除记录。Linux98、网页114+12、实际本地HTTP8项通过；37库冷备恢复、五核心TLS、十服务/guard、Dockge和59资源通过。失败片段/未知文件与历史备份保留。[验收记录](media-retention-deployment-2026-10-12.md)。
