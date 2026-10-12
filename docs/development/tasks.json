@@ -1195,6 +1195,71 @@
       "deployed": true,
       "real_user_acceptance": false,
       "real_nas_storage_emby_verified": true
+    },
+    {
+      "id": "TS-127",
+      "title": "入库后缓存清理、媒体成品复用及任务记录删除后端",
+      "project": "platform",
+      "depends_on": [],
+      "status": "done",
+      "allowed_paths": [
+        "services/platform/media/",
+        "tests/backend/test_media*",
+        "tests/backend/run_media_fixture.py",
+        "tests/backend/media_runtime_fixtures.py",
+        "docs/platform/media*",
+        "docs/handoffs/TS-127.md"
+      ],
+      "done_when": "缓存清理后真实媒体文件复用不重下载、目标盘读数和任务删除前后端联合验收",
+      "authorization": "2026-10-12 用户要求入库成功自动清缓存、后续媒体文件复用、存储磁盘UI及失败信息删除；沿用已授权Sol/xhigh并行开发与部署",
+      "assignee": "gpt-6.1-sol/xhigh",
+      "execution_state": "pushed_deployed_real_retention_reuse_delete_emby_verified",
+      "plan": "docs/development/media-retention-plan-2026-10-12.md",
+      "worktree": "worktrees/TS-127/tianshu-platform",
+      "branch": "codex/media-retention-backend-20261012",
+      "baseline_commit": "79ee0fd966d31bb67c0a4f4693a0836659132c5e",
+      "allocation_note": "workspace check failed on historical TS-016 ownership; start rejected dirty projects checkout. Preserved both and allocated from clean deployed integration source.",
+      "integrated": true,
+      "pushed": true,
+      "deployed": true,
+      "integrated_commit": "5cc7876be03c98c461b0690441f2aefbfba9bce6",
+      "delivery_record": "docs/development/media-retention-deployment-2026-10-12.json",
+      "real_nas_media_verified": true,
+      "delivery_commits": [
+        "8f735df77e571de98f4eb164610f9550cafdada0"
+      ]
+    },
+    {
+      "id": "TS-128",
+      "title": "订阅存储磁盘与失败任务删除网页",
+      "project": "platform",
+      "depends_on": [],
+      "status": "done",
+      "allowed_paths": [
+        "apps/web/src/features/media/",
+        "apps/web/tests/media*",
+        "apps/web/tests/subscriptions*",
+        "docs/handoffs/TS-128.md"
+      ],
+      "done_when": "缓存清理后真实媒体文件复用不重下载、目标盘读数和任务删除前后端联合验收",
+      "authorization": "2026-10-12 用户要求入库成功自动清缓存、后续媒体文件复用、存储磁盘UI及失败信息删除；沿用已授权Sol/xhigh并行开发与部署",
+      "assignee": "gpt-6.1-sol/xhigh",
+      "execution_state": "pushed_deployed_real_retention_reuse_delete_emby_verified",
+      "plan": "docs/development/media-retention-plan-2026-10-12.md",
+      "worktree": "worktrees/TS-128/tianshu-platform",
+      "branch": "codex/media-retention-frontend-20261012",
+      "baseline_commit": "79ee0fd966d31bb67c0a4f4693a0836659132c5e",
+      "allocation_note": "workspace check failed on historical TS-016 ownership; start rejected dirty projects checkout. Preserved both and allocated from clean deployed integration source.",
+      "integrated": true,
+      "pushed": true,
+      "deployed": true,
+      "integrated_commit": "5cc7876be03c98c461b0690441f2aefbfba9bce6",
+      "delivery_record": "docs/development/media-retention-deployment-2026-10-12.json",
+      "real_nas_media_verified": true,
+      "delivery_commits": [
+        "758e72eed8530e06cb76c324cee28eb972a676e1",
+        "7be24d1f6c7f38a54f4d6739755d3cdc7c242d4f"
+      ]
     }
   ],
   "dispatch_defaults": {
