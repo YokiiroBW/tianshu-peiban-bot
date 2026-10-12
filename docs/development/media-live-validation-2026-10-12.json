@@ -1,0 +1,401 @@
+{
+  "date": "2026-10-12",
+  "status": "pushed_deployed_real_bilibili_emby_verified",
+  "request": "Existing Bilibili account and Emby configuration; one BV/CID/quality from uploader and favorite into separate directories; download once and recognize both.",
+  "product": {
+    "repository": "https://github.com/YokiiroBW/tianshu-platform",
+    "revision": "169effaf5332c45b3437961e3801779d8c985f8c",
+    "image_id": "sha256:ee6289294e5794c5ab26696fe748cc15b211c2b183eabb60c77900fafa3ec47c",
+    "commits": [
+      "7ddc016",
+      "67b7b1b",
+      "174e50c",
+      "169effa"
+    ]
+  },
+  "method": {
+    "subscription_creation": "authorized NAS owner commands via existing receipt and Subscriptions.save; same domain operation as web",
+    "execution": "production scheduler and workers, authenticated Bilibili APIs, actual yt-dlp and ffmpeg, real NAS mounted directories and existing Emby library",
+    "browser_click_test": false,
+    "account_favorites_modified": false,
+    "manually_injected_cache_or_completed_states": false,
+    "scope": "one exact title and uploader whitelist; no bulk subscription download"
+  },
+  "test": {
+    "bvid": "BV1ibdVBKEMe",
+    "cid": "37584830724",
+    "quality": "64",
+    "fallback": false,
+    "uploader_id": "110730295",
+    "favorite_id": "4061483034",
+    "uploader_visible_members": 27,
+    "favorite_reported_members": 24,
+    "favorite_visible_members": 23,
+    "download_producers": 1,
+    "reused_jobs": 1,
+    "cache_generation": 1,
+    "cache_state": "ready",
+    "video_size_bytes": 1680237,
+    "video_sha256": "bfe5ef446fbc8030ad8aaa30f590026163f3da6eda7695275e846610ccdda962",
+    "observed_at_utc": "2026-10-12T13:32:16.200114+00:00",
+    "jobs": [
+      {
+        "job_id": "7316df9b-0df6-4f15-9a7c-420232ee505a",
+        "subscription_id": "c6976039-04ee-4585-b9d7-01121363f954",
+        "state": "completed",
+        "actual_quality": "64",
+        "destination_subdirectory": "链路实测-20261012/UP主",
+        "download_reused_cids": [
+          "37584830724"
+        ],
+        "library_results": [
+          {
+            "server_id": "f95ba599-3b54-42b2-9cd0-b33d6dc5f0fb",
+            "kind": "emby",
+            "state": "verified",
+            "code": "verified",
+            "item_id": "27643"
+          }
+        ]
+      },
+      {
+        "job_id": "5d94f4ad-1051-47bb-8cf8-ed7c33808fcf",
+        "subscription_id": "b2e8e036-419c-497e-913e-be10cc117ffe",
+        "state": "completed",
+        "actual_quality": "64",
+        "destination_subdirectory": "链路实测-20261012/收藏夹",
+        "download_reused_cids": [],
+        "library_results": [
+          {
+            "server_id": "f95ba599-3b54-42b2-9cd0-b33d6dc5f0fb",
+            "kind": "emby",
+            "state": "verified",
+            "code": "verified",
+            "item_id": "27640"
+          }
+        ]
+      }
+    ],
+    "published_files_count": 12,
+    "all_published_hashes_match_manifest": true,
+    "destination_videos": [
+      {
+        "path": "/media/Bilibili/链路实测-20261012/UP主/bilibili-BV1ibdVBKEMe/Season 01/S01E01-cid-37584830724.mp4",
+        "size": 1680237,
+        "sha256": "bfe5ef446fbc8030ad8aaa30f590026163f3da6eda7695275e846610ccdda962",
+        "device": 6291518,
+        "inode": 856646,
+        "nlink": 1
+      },
+      {
+        "path": "/media/Bilibili/链路实测-20261012/收藏夹/bilibili-BV1ibdVBKEMe/Season 01/S01E01-cid-37584830724.mp4",
+        "size": 1680237,
+        "sha256": "bfe5ef446fbc8030ad8aaa30f590026163f3da6eda7695275e846610ccdda962",
+        "device": 6291518,
+        "inode": 856635,
+        "nlink": 1
+      }
+    ],
+    "filesystem_note": "Staging on volume2 and publication on volume1 use copy fallback. Distinct destination inodes/nlink=1 observed; no claim of disk-space deduplication.",
+    "emby_items": [
+      {
+        "Id": "27640",
+        "Type": "Series",
+        "Path": "/video/存储库/短视频/bilibili/链路实测-20261012/收藏夹/bilibili-BV1ibdVBKEMe",
+        "ProviderIds": {
+          "bilibili": "bilibili:video:BV1ibdVBKEMe"
+        },
+        "ImageTags": {
+          "Primary": "da3f1d7a89392a095f71292051f1fc77"
+        }
+      },
+      {
+        "Id": "27643",
+        "Type": "Series",
+        "Path": "/video/存储库/短视频/bilibili/链路实测-20261012/UP主/bilibili-BV1ibdVBKEMe",
+        "ProviderIds": {
+          "bilibili": "bilibili:video:BV1ibdVBKEMe"
+        },
+        "ImageTags": {
+          "Primary": "40c5e1ef52d066afcbc26e1f1965fd62"
+        }
+      },
+      {
+        "Id": "27642",
+        "Type": "Episode",
+        "Path": "/video/存储库/短视频/bilibili/链路实测-20261012/收藏夹/bilibili-BV1ibdVBKEMe/Season 01/S01E01-cid-37584830724.mp4",
+        "ProviderIds": {
+          "bilibili": "bilibili:video:BV1ibdVBKEMe:cid:37584830724"
+        },
+        "ImageTags": {
+          "Primary": "3b910dbab43009739e17fd535d1c0d1f"
+        },
+        "stream_check": {
+          "status": 206,
+          "sample_bytes": 1024,
+          "content_type": "video/mp4",
+          "content_range": "bytes 0-1023/1680237",
+          "mp4_ftyp": true
+        },
+        "runtime_seconds": 16.278,
+        "stream_types": [
+          "Video",
+          "Audio"
+        ]
+      },
+      {
+        "Id": "27645",
+        "Type": "Episode",
+        "Path": "/video/存储库/短视频/bilibili/链路实测-20261012/UP主/bilibili-BV1ibdVBKEMe/Season 01/S01E01-cid-37584830724.mp4",
+        "ProviderIds": {
+          "bilibili": "bilibili:video:BV1ibdVBKEMe:cid:37584830724"
+        },
+        "ImageTags": {
+          "Primary": "b71f6f49762b8f180d0f4c761242cb48"
+        },
+        "stream_check": {
+          "status": 206,
+          "sample_bytes": 1024,
+          "content_type": "video/mp4",
+          "content_range": "bytes 0-1023/1680237",
+          "mp4_ftyp": true
+        },
+        "runtime_seconds": 16.278,
+        "stream_types": [
+          "Video",
+          "Audio"
+        ]
+      }
+    ],
+    "metadata_verified": [
+      "series_title",
+      "episode_title",
+      "description",
+      "uploader_actor",
+      "bilibili_BV_CID_provider_ids",
+      "poster_image",
+      "episode_image",
+      "exact_destination_path"
+    ],
+    "stream_evidence": "Both Emby static playback endpoints returned HTTP 206, bytes 0-1023/1680237, video/mp4 and MP4 ftyp; video and audio streams present. Full client playback was not watched.",
+    "test_subscriptions_paused": true,
+    "all_test_subscriptions_count": 5,
+    "test_media_retained": true,
+    "earlier_failed_jobs_retained": 3
+  },
+  "repairs": [
+    {
+      "commit": "7ddc016",
+      "area": "media/servers.py",
+      "change": "Match provider identity together with expected destination path; two copies in one library verify independently."
+    },
+    {
+      "commit": "67b7b1b",
+      "area": "media/bilibili.py and repository scan completion",
+      "change": "Favorite pagination ends on explicit has_more=false despite inaccessible entries counted in media_count; preserve historical membership deduplication."
+    },
+    {
+      "commit": "174e50c",
+      "area": "media/engine.py",
+      "change": "Preserve yt-dlp selected-format fields with --no-clean-info-json and verify actual quality/source part."
+    },
+    {
+      "commit": "169effa",
+      "area": "media/engine.py",
+      "change": "Resolve ffmpeg through PATH to an absolute executable location; reject unmerged video fragments."
+    }
+  ],
+  "verification": {
+    "installed_linux_image_tests": {
+      "passed": 56,
+      "failed": 0,
+      "skipped": 0,
+      "seconds": 20.814,
+      "production_mounted": false,
+      "external_network": false
+    },
+    "real_ffmpeg_merge_test": true,
+    "initial_linux_run": "Executable script fixtures failed under a noexec /tmp. Confirmed mount behavior and reran unchanged image with executable isolated /tmp; all 56 passed.",
+    "early_production_failures": [
+      {
+        "quality": "80",
+        "jobs": [
+          "2458e2a9-6842-4df6-9eee-cf4dcfc1a0ac"
+        ],
+        "code": "quality_unverified",
+        "published": false
+      },
+      {
+        "quality": "112",
+        "jobs": [
+          "b1882cf7-be13-4707-9870-b51d1504c90c",
+          "140d63e0-30a4-442c-abd8-67f7eaa5fe59"
+        ],
+        "code": "media_audio_missing",
+        "published": false
+      }
+    ],
+    "download_count_scope": "The once-only assertion applies to the clean quality-64 pair on revision 169effa, not the earlier failed quality-80/112 diagnostics."
+  },
+  "deployment": {
+    "all_existing_settings_preserved": true,
+    "backup": "/volume2/tianshu-v2-resident-updates/media-live-validation-20261012-release-r2/cold-snapshot",
+    "contract_directory": "/volume2/tianshu-v2-resident/contracts-delivery-f3c478962f3a",
+    "database_migration": "none_media_v2_preserved",
+    "excluded_external_media": [
+      {
+        "read_only": false,
+        "source": "/volume1/Video/存储库/短视频/bilibili",
+        "target": "/media/Bilibili"
+      }
+    ],
+    "gateway_origin_reissued": false,
+    "guard": "ready",
+    "health": [
+      {
+        "checks": {
+          "config": "ok",
+          "contract": "ok",
+          "credentials": "ok",
+          "logging": "ok",
+          "runtime": "ok",
+          "sidecars": "ok",
+          "store": "ok",
+          "tls": "ok",
+          "web_static": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "platform",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "assembled": "ok",
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "guard": "ok",
+          "log": "ok",
+          "mode": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "memory",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "configuration": "ok",
+          "contracts": "ok",
+          "ledger": "ok",
+          "logging": "ok",
+          "model": "not_verified",
+          "native": "not_configured",
+          "platform": "not_verified",
+          "runtime": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "gateway",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "configuration": "ok",
+          "dependencies": "not_verified",
+          "logs": "ok",
+          "runtime": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "companion",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "assembled": "ok",
+          "client": "ok",
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "extensions": "ok",
+          "log": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "knowledge",
+        "verified_tls": true
+      }
+    ],
+    "images": {
+      "platform": {
+        "image_id": "sha256:ee6289294e5794c5ab26696fe748cc15b211c2b183eabb60c77900fafa3ec47c",
+        "revision": "169effaf5332c45b3437961e3801779d8c985f8c"
+      }
+    },
+    "media_configuration_preserved": true,
+    "media_schema_version": 2,
+    "media_target_count": 1,
+    "original_ids_preserved_excluding_released_services_and_optional_gateway": true,
+    "real_qq_test_sent": false,
+    "sqlite_backups": 36,
+    "status": "deployed",
+    "subscriptions_and_other_features_preserved": true,
+    "untargeted_owner_ids_preserved": true,
+    "user_state_preserved": true
+  },
+  "dockge": {
+    "applied": true,
+    "containers_recreated": false,
+    "backup_directory": "/volume2/tianshu-v2-resident-updates/media-live-validation-20261012-release-r2/dockge-backups/20261012T133117Z-0140fcd5",
+    "comparison": "semantic compose document, not raw escaped JSON bytes"
+  },
+  "evidence": {
+    ".runtime/media-live-validation-20261012/acceptance-subscriptions-64.json": {
+      "sha256": "8cf069b8d883ab40a01af2cf93801f3456614f2fb1226a0abac7da6ad1cd4e62"
+    },
+    ".runtime/media-live-validation-20261012/acceptance-evidence-64.json": {
+      "sha256": "bbb4a4b244521197af374a184e14c7c947748e76bcae1a85542b7c46fe52e60a"
+    },
+    ".runtime/media-live-validation-20261012/acceptance-paused.json": {
+      "sha256": "c87f168b8669da49f7921a2ff2067d90eee568a2cc72470a3344eeea1e8657f6"
+    },
+    ".runtime/media-live-validation-20261012/emby-acceptance-initial.json": {
+      "sha256": "bb6cebc2bd6106d000339b4484ee18e17178dd7f5d70f7edc560d7e379974935"
+    },
+    ".runtime/media-live-validation-20261012-r2/resident-poll-result.json": {
+      "sha256": "908b25884c68d294f5083d64674b3af35ff47cfd3d69fa474750f351896cf30d"
+    },
+    ".runtime/media-live-validation-20261012-r2/linux-validation-exec.json": {
+      "sha256": "adf8783702232d51f1ed38ee00292aae18d813dfeeb8031470b8485cd5c3fd37"
+    },
+    ".runtime/media-live-validation-20261012-r2/dockge-sync.json": {
+      "sha256": "cafec14e9b0a8f51495bae7d16fb99575e17425989ae115796e307fab65b4da6"
+    }
+  },
+  "limits": [
+    "Single real BV with one part at fixed quality 64; general multipart, quality switching and concurrency failure cases covered by existing automated tests.",
+    "Real jobs used domain commands and production workers; browser interaction not repeated in this run.",
+    "Earlier diagnostics remain as failed records; all five scoped test subscriptions are paused and published test media are retained."
+  ]
+}

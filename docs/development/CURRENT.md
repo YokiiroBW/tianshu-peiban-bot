@@ -1,3 +1,7 @@
+## 2026-10-12 B站双来源与 Emby 真实链路已验收
+
+Platform `169effa` 已推送并部署。使用现有B站账号和Emby连接，同一BV/P1/画质64经UP主和收藏夹两个真实订阅进入独立中文目录：一项下载、另一项复用，缓存generation1，两任务completed且Emby verified。12个文件实读哈希匹配；两套标题/作者/封面/分P识别、两条播放接口HTTP206读取通过。修复收藏夹可见分页、yt-dlp实际画质证据、ffmpeg定位/未合并片段和Emby同ID不同路径匹配；最终Linux56项通过。36库冷备恢复、五核心TLS、guard与Dockge通过，原配置及其余九容器保留。5个临时测试订阅均暂停，成品与3项早期失败记录保留。详见 [真实验收记录](media-live-validation-2026-10-12.md)。
+
 ## 2026-10-12 订阅独立目录与全局下载复用已部署
 
 Platform `a339df6` 已快进推送 GitHub main 并部署 NAS。订阅/收藏夹各自设置整理子目录，按 BV/CID/实际画质全局复用有效下载，独立目录分别生成 NFO 和发布回执；并发只下载一次。媒体 schema 2 和共享媒体冷备适配已接通，原 Emby 连接、账号与 `/media/Bilibili` 挂载保留。Linux 镜像43项、恢复工具Linux17项、网页桌面/手机72项及补充10项通过；35库冷备恢复、五核心TLS就绪、十容器/guard及59网页资源核验通过，Dockge同步。未执行真实B站视频下载或Emby扫库。[部署记录](media-global-reuse-deployment-2026-10-12.md)。
