@@ -1,3 +1,7 @@
+## 2026-10-12 媒体硬链接存储去重已部署
+
+TS-126 Platform `79ee0fd` 已推送并部署，保留供应商多模型a53993c。订阅/收藏夹独立目录的视频通过同卷内容池硬链接共享，NFO和封面独立；两份现有真实成品转换后同inode/nlink3，分配块由3.21MiB降至1.61MiB，12文件哈希及非视频inode保持。Emby双目录识别与两条HTTP206播放读取通过，无额外控制区条目；下载缓存generation1和任务不变。最终Linux55项全通过，37库冷备恢复、五核心TLS、十服务/guard、Dockge及59网页资源通过。volume2下载缓存仍独立保留，未清理历史成品。详见 [验收记录](media-hardlink-deployment-2026-10-12.md)。
+
 ## 2026-10-12 B站双来源与 Emby 真实链路已验收
 
 Platform `169effa` 已推送并部署。使用现有B站账号和Emby连接，同一BV/P1/画质64经UP主和收藏夹两个真实订阅进入独立中文目录：一项下载、另一项复用，缓存generation1，两任务completed且Emby verified。12个文件实读哈希匹配；两套标题/作者/封面/分P识别、两条播放接口HTTP206读取通过。修复收藏夹可见分页、yt-dlp实际画质证据、ffmpeg定位/未合并片段和Emby同ID不同路径匹配；最终Linux56项通过。36库冷备恢复、五核心TLS、guard与Dockge通过，原配置及其余九容器保留。5个临时测试订阅均暂停，成品与3项早期失败记录保留。详见 [真实验收记录](media-live-validation-2026-10-12.md)。

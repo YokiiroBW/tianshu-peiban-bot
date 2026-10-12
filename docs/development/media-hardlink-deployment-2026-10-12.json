@@ -1,0 +1,631 @@
+{
+  "date": "2026-10-12",
+  "recorded_at_utc": "2026-10-12T14:26:39.379022+00:00",
+  "status": "pushed_deployed_real_storage_emby_verified",
+  "task": "TS-126",
+  "product": {
+    "repository": "https://github.com/YokiiroBW/tianshu-platform",
+    "revision": "79ee0fd966d31bb67c0a4f4693a0836659132c5e",
+    "image_id": "sha256:138834266bea6c15110b72905748d49facb404c1204a5a2cd04494749591f963",
+    "base_revision": "a53993c92612f61ca637552edb1709a1b434f038",
+    "source_commits": [
+      "07452f89685d29aba0694a231b6f3342d680a306",
+      "a1d7bb8d8db255e468abb2ebb7e2cb5d6f314377"
+    ],
+    "integrated_commits": [
+      "7e5c8f8",
+      "79ee0fd966d31bb67c0a4f4693a0836659132c5e"
+    ]
+  },
+  "implementation": {
+    "owner": "existing FileOrganizer plus media/video_storage.py",
+    "shared_root": "/media/Bilibili/.tianshu-transfer/videos",
+    "key": "verified SHA256 and byte length",
+    "source_cross_volume": "copy once to destination volume, then hardlink visible directories",
+    "metadata_independent": true,
+    "existing_root_lock_and_atomic_publish_reused": true,
+    "unsupported_link_fallback": "copy with actual structured receipt mode",
+    "process_interruption": "recover/clean deterministic temporary paths for the exact entry and destination",
+    "database_schema_change": false,
+    "new_dependencies": false,
+    "frontend_change": false
+  },
+  "storage_test": {
+    "bvid": "BV1ibdVBKEMe",
+    "cid": "37584830724",
+    "quality": "64",
+    "target_root": "/media/Bilibili",
+    "nas_root": "/volume1/Video/存储库/短视频/bilibili",
+    "before": [
+      {
+        "path": "/media/Bilibili/链路实测-20261012/UP主/bilibili-BV1ibdVBKEMe/Season 01/S01E01-cid-37584830724.mp4",
+        "kind": "video",
+        "sha256": "bfe5ef446fbc8030ad8aaa30f590026163f3da6eda7695275e846610ccdda962",
+        "size": 1680237,
+        "device": 6291518,
+        "inode": 856646,
+        "nlink": 1,
+        "allocated_bytes": 1683456
+      },
+      {
+        "path": "/media/Bilibili/链路实测-20261012/收藏夹/bilibili-BV1ibdVBKEMe/Season 01/S01E01-cid-37584830724.mp4",
+        "kind": "video",
+        "sha256": "bfe5ef446fbc8030ad8aaa30f590026163f3da6eda7695275e846610ccdda962",
+        "size": 1680237,
+        "device": 6291518,
+        "inode": 856635,
+        "nlink": 1,
+        "allocated_bytes": 1683456
+      }
+    ],
+    "after": [
+      {
+        "path": "/media/Bilibili/链路实测-20261012/UP主/bilibili-BV1ibdVBKEMe/Season 01/S01E01-cid-37584830724.mp4",
+        "kind": "video",
+        "sha256": "bfe5ef446fbc8030ad8aaa30f590026163f3da6eda7695275e846610ccdda962",
+        "size": 1680237,
+        "device": 6291518,
+        "inode": 856646,
+        "nlink": 3,
+        "allocated_bytes": 1683456
+      },
+      {
+        "path": "/media/Bilibili/链路实测-20261012/收藏夹/bilibili-BV1ibdVBKEMe/Season 01/S01E01-cid-37584830724.mp4",
+        "kind": "video",
+        "sha256": "bfe5ef446fbc8030ad8aaa30f590026163f3da6eda7695275e846610ccdda962",
+        "size": 1680237,
+        "device": 6291518,
+        "inode": 856646,
+        "nlink": 3,
+        "allocated_bytes": 1683456
+      }
+    ],
+    "shared_files": [
+      {
+        "path": "/media/Bilibili/.tianshu-transfer/videos/bfe5ef446fbc8030ad8aaa30f590026163f3da6eda7695275e846610ccdda962-1680237",
+        "device": 6291518,
+        "inode": 856646,
+        "nlink": 3,
+        "size": 1680237,
+        "allocated_bytes": 1683456,
+        "sha256": "bfe5ef446fbc8030ad8aaa30f590026163f3da6eda7695275e846610ccdda962"
+      }
+    ],
+    "unique_video_inodes": 1,
+    "allocated_bytes_before": 3366912,
+    "allocated_bytes_after": 1683456,
+    "saved_bytes": 1683456,
+    "published_files_verified": 12,
+    "non_video_inodes_preserved": true,
+    "jobs_unchanged": true,
+    "download_cache": {
+      "state": "ready",
+      "generation": 1
+    },
+    "unlink_alias_preserved_publications": true,
+    "operations": [
+      {
+        "operation_id": "0c75a0db-d875-5f1a-9821-f3ad40804d9b",
+        "video_storage": {
+          "mode": "hardlink",
+          "files": [
+            {
+              "path": "Season 01/S01E01-cid-37584830724.mp4",
+              "mode": "hardlink"
+            }
+          ]
+        }
+      },
+      {
+        "operation_id": "d2e3bcef-3b93-53d0-a9fd-a52e394bcd22",
+        "video_storage": {
+          "mode": "hardlink",
+          "files": [
+            {
+              "path": "Season 01/S01E01-cid-37584830724.mp4",
+              "mode": "hardlink"
+            }
+          ]
+        }
+      }
+    ],
+    "emby_library_results": {
+      "7316df9b-0df6-4f15-9a7c-420232ee505a": [
+        {
+          "server_id": "f95ba599-3b54-42b2-9cd0-b33d6dc5f0fb",
+          "kind": "emby",
+          "state": "verified",
+          "code": "verified",
+          "item_id": "27643"
+        }
+      ],
+      "5d94f4ad-1051-47bb-8cf8-ed7c33808fcf": [
+        {
+          "server_id": "f95ba599-3b54-42b2-9cd0-b33d6dc5f0fb",
+          "kind": "emby",
+          "state": "verified",
+          "code": "verified",
+          "item_id": "27640"
+        }
+      ]
+    },
+    "emby_items": [
+      {
+        "Id": "27640",
+        "Type": "Series",
+        "Name": "还得是白丝配jk！",
+        "Path": "/video/存储库/短视频/bilibili/链路实测-20261012/收藏夹/bilibili-BV1ibdVBKEMe",
+        "ProviderIds": {
+          "bilibili": "bilibili:video:BV1ibdVBKEMe"
+        },
+        "ImageTags": {
+          "Primary": "da3f1d7a89392a095f71292051f1fc77"
+        },
+        "People": [
+          {
+            "Name": "暖暖要发science",
+            "Id": "27646",
+            "Role": "UP主",
+            "Type": "Actor"
+          }
+        ]
+      },
+      {
+        "Id": "27642",
+        "Type": "Episode",
+        "Name": "还得是白丝配jk！",
+        "Path": "/video/存储库/短视频/bilibili/链路实测-20261012/收藏夹/bilibili-BV1ibdVBKEMe/Season 01/S01E01-cid-37584830724.mp4",
+        "ProviderIds": {
+          "bilibili": "bilibili:video:BV1ibdVBKEMe:cid:37584830724"
+        },
+        "ImageTags": {
+          "Primary": "3b910dbab43009739e17fd535d1c0d1f"
+        },
+        "People": [
+          {
+            "Name": "暖暖要发science",
+            "Id": "27646",
+            "Role": "UP主",
+            "Type": "Actor"
+          }
+        ],
+        "stream_check": {
+          "status": 206,
+          "sample_bytes": 1024,
+          "content_type": "video/mp4",
+          "content_range": "bytes 0-1023/1680237",
+          "mp4_ftyp": true
+        }
+      },
+      {
+        "Id": "27643",
+        "Type": "Series",
+        "Name": "还得是白丝配jk！",
+        "Path": "/video/存储库/短视频/bilibili/链路实测-20261012/UP主/bilibili-BV1ibdVBKEMe",
+        "ProviderIds": {
+          "bilibili": "bilibili:video:BV1ibdVBKEMe"
+        },
+        "ImageTags": {
+          "Primary": "40c5e1ef52d066afcbc26e1f1965fd62"
+        },
+        "People": [
+          {
+            "Name": "暖暖要发science",
+            "Id": "27646",
+            "Role": "UP主",
+            "Type": "Actor"
+          }
+        ]
+      },
+      {
+        "Id": "27645",
+        "Type": "Episode",
+        "Name": "还得是白丝配jk！",
+        "Path": "/video/存储库/短视频/bilibili/链路实测-20261012/UP主/bilibili-BV1ibdVBKEMe/Season 01/S01E01-cid-37584830724.mp4",
+        "ProviderIds": {
+          "bilibili": "bilibili:video:BV1ibdVBKEMe:cid:37584830724"
+        },
+        "ImageTags": {
+          "Primary": "b71f6f49762b8f180d0f4c761242cb48"
+        },
+        "People": [
+          {
+            "Name": "暖暖要发science",
+            "Id": "27646",
+            "Role": "UP主",
+            "Type": "Actor"
+          }
+        ],
+        "stream_check": {
+          "status": 206,
+          "sample_bytes": 1024,
+          "content_type": "video/mp4",
+          "content_range": "bytes 0-1023/1680237",
+          "mp4_ftyp": true
+        }
+      }
+    ],
+    "emby_control_items": [],
+    "emby_library_total": 10,
+    "test_subscriptions_remain_paused": true
+  },
+  "verification": {
+    "installed_linux_image": {
+      "passed": 55,
+      "failed": 0,
+      "skipped": 0,
+      "seconds": 31.061,
+      "production_mounted": false,
+      "external_network": false
+    },
+    "windows_initial": {
+      "total": 54,
+      "passed": 52,
+      "skipped": 2,
+      "failed": 0
+    },
+    "windows_final_focused": {
+      "total": 18,
+      "passed": 17,
+      "skipped": 1,
+      "failed": 0
+    },
+    "windows_skips": "Linux real /tmp-to-/dev/shm cross-device and Windows symlink privilege; both covered by final Linux image",
+    "review": "complete scoped product diff reviewed; no remaining blocking finding",
+    "allocation_limit": "workspace check failed on historical TS-016 ownership; start rejected dirty projects checkout. Preserved both and allocated from clean exact deployed source.",
+    "web": {
+      "status": "nas_public_static_verified",
+      "origin": "http://192.168.31.210:18446",
+      "candidate_image_id": "sha256:138834266bea6c15110b72905748d49facb404c1204a5a2cd04494749591f963",
+      "revision": "79ee0fd966d31bb67c0a4f4693a0836659132c5e",
+      "expected_source": "immutable candidate /srv/tianshu/web-hashes.json",
+      "expected_manifest_sha256": "009873b178a1d1c79055708508c785b15c48f0253217b566082d8a1b675c8399",
+      "static_assets": 59,
+      "entry_index_sha256": "003ce07631aa8ea4803b926adf1b7cfca08788a9a28dbb781f4723e7fe2f91fc",
+      "public_health_checked": false,
+      "public_health_route": "not_exposed_by_public_listener",
+      "health_evidence": {
+        "reference": "resident-poll-result.json",
+        "checked_this_run": false,
+        "status": "reused_internal_tls_readback",
+        "sha256": "d4b3878e7737567125ced8e012c69298620796400a2f2a63f193ac5a4a2688c7",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true
+      },
+      "cache_no_store": true,
+      "login_session_requested": false,
+      "credentials_used_for_http": false,
+      "production_business_data_read": false,
+      "real_qq_or_model_called": false
+    }
+  },
+  "deployment": {
+    "all_existing_settings_preserved": true,
+    "backup": "/volume2/tianshu-v2-resident-updates/media-hardlink-20261012-release-r1/cold-snapshot",
+    "contract_directory": "/volume2/tianshu-v2-resident/contracts-delivery-f3c478962f3a",
+    "database_migration": "none_media_v2_preserved",
+    "excluded_external_media": [
+      {
+        "read_only": false,
+        "source": "/volume1/Video/存储库/短视频/bilibili",
+        "target": "/media/Bilibili"
+      }
+    ],
+    "gateway_origin_reissued": false,
+    "guard": "ready",
+    "health": [
+      {
+        "checks": {
+          "config": "ok",
+          "contract": "ok",
+          "credentials": "ok",
+          "logging": "ok",
+          "runtime": "ok",
+          "sidecars": "ok",
+          "store": "ok",
+          "tls": "ok",
+          "web_static": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "platform",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "configuration": "ok",
+          "contracts": "ok",
+          "ledger": "ok",
+          "logging": "ok",
+          "model": "not_verified",
+          "native": "not_configured",
+          "platform": "not_verified",
+          "runtime": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "gateway",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "assembled": "ok",
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "guard": "ok",
+          "log": "ok",
+          "mode": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "memory",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "configuration": "ok",
+          "dependencies": "not_verified",
+          "logs": "ok",
+          "runtime": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "companion",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "assembled": "ok",
+          "client": "ok",
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "extensions": "ok",
+          "log": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "knowledge",
+        "verified_tls": true
+      }
+    ],
+    "images": {
+      "platform": {
+        "image_id": "sha256:138834266bea6c15110b72905748d49facb404c1204a5a2cd04494749591f963",
+        "revision": "79ee0fd966d31bb67c0a4f4693a0836659132c5e"
+      }
+    },
+    "media_configuration_preserved": true,
+    "media_schema_version": 2,
+    "media_target_count": 1,
+    "original_ids_preserved_excluding_released_services_and_optional_gateway": true,
+    "real_qq_test_sent": false,
+    "sqlite_backups": 37,
+    "status": "deployed",
+    "subscriptions_and_other_features_preserved": true,
+    "untargeted_owner_ids_preserved": true,
+    "user_state_preserved": true
+  },
+  "final_readback": {
+    "status": "verified",
+    "administrator_grants_preserved": true,
+    "owners": [
+      {
+        "service": "platform",
+        "id": "8a5e5e50d1ca55a17f26baec7770af52c160c91b2a7076f1145515331fe20e87",
+        "image_id": "sha256:138834266bea6c15110b72905748d49facb404c1204a5a2cd04494749591f963",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "gateway",
+        "id": "1923829af0ded8e10eec69283c13ec06baaf0e55a72f80d0348835a6832c1903",
+        "image_id": "sha256:161d8fb0de1e3208e8c3134fef1cc5e18b67e488d5a9c7dc2033554de6781068",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "memory",
+        "id": "b01a14b73f109bdfd6d070cf8ba93d0d7e3ba0043dac431e9e7c6280a9e7ee85",
+        "image_id": "sha256:f5cd67560bc39c022885fe21e442a374625ee2d8f099993841ad27bba7af19b5",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "companion",
+        "id": "27991b4f36e2302748b65e8002439db408aba0a95e58812a767e3da6b795241e",
+        "image_id": "sha256:10b6e5f0981aeef538f4ad9045423cf874ebf4c20b05794074efc4aaaf055bce",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "knowledge",
+        "id": "0ec9ec0b3f5122e80ffdbdc7ed8a456d07c03b8abc618df5a71f29520fba1ebb",
+        "image_id": "sha256:7e3e94e13b095bdbd99801471bfc7b8ce1bd18bbcff2ee14d57b91d36acc7c44",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "obs-grafana",
+        "id": "15485f0886be8c33ccccdbf7828ad66f8e8ccbe2758d95a068e2956df9a83099",
+        "image_id": "sha256:747aaf291145d9a84a547f1fa4edf48697371db6ab386b81c95ad3a725c20f17",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "obs-vector",
+        "id": "07998dc157eb38ecfecc2daf4bd02c3f7fabad3f7087799bd6723bb26672e664",
+        "image_id": "sha256:92c275b73d880922a265918a7c3c4f2cc0dd87338447ff357809f2d18a64a48e",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "obs-guard",
+        "id": "ce6bb77866a9e1cb282e7557b1dadceb9847d15678afc3538ba1a42e1dd4a254",
+        "image_id": "sha256:febd0be41adb897a0ab8f1f1c693d8912669ea60c4940e076e9946b60e210ef0",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "obs-prometheus",
+        "id": "3a641b651b75adf7da6307b1e424de3fc93df9cb6fd0f0b580626c1d1cc6fe17",
+        "image_id": "sha256:7d467fbb6bbbd6a96d87a0e4b2ef53840ce11521af0a8c27b995daa82896a241",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "obs-loki",
+        "id": "48a4eac7a827e9c269f39b4664f9e59cb600ffa3398464023154d697ec50fcd9",
+        "image_id": "sha256:ceccdbc45e274f08eb23d6ca6e0b648921d580c592ab47b4304225c0f17a406a",
+        "running": true,
+        "restart": "unless-stopped"
+      }
+    ],
+    "owner_count": 10,
+    "guard": "ready",
+    "state_dir": "/volume2/tianshu-v2-resident-updates/media-hardlink-20261012-release-r1/capacity-state-25903ff2e413462ca4228dbf2d206456",
+    "capacity_sha256": "b88195253a8e4d52d144cf5bd98236e17e5f172c574decc3b070216dcf0cac45",
+    "guard_code_sha256": "9a2aa40e7ed4072abb57a3b1e7148feadd2bb26b6da7164cca83a9097c4ed7a4",
+    "cold_backup": "/volume2/tianshu-v2-resident-updates/media-hardlink-20261012-release-r1/cold-snapshot",
+    "sqlite_databases_verified": 37,
+    "cold_manifest_sha256": "e3c67bbf1e13959623efd223c1fec3c902b03e6267bc8ce14c4e20d2a31bb805",
+    "cold_backup_status": "offline_restore_verified",
+    "other_nine_original_ids_preserved": true,
+    "gateway_origin": {
+      "gateway_id_after": "1923829af0ded8e10eec69283c13ec06baaf0e55a72f80d0348835a6832c1903",
+      "gateway_id_before": "1923829af0ded8e10eec69283c13ec06baaf0e55a72f80d0348835a6832c1903",
+      "gateway_image_expected": true,
+      "new_permissions": 0,
+      "new_service_credentials": 0,
+      "origin_reissued": false,
+      "original_origin_preserved": true,
+      "same_existing_entry_owner_and_route": true
+    },
+    "user_state_preserved": true,
+    "role_configuration_preserved": true,
+    "role_configuration_count": 1,
+    "role_configuration_sha256": "721680088a71d750d6a5e5e0d14f8188f05284241fec36d95fd3a1d8b3caf100",
+    "weather_configuration_preserved": true,
+    "weather_record_present": true,
+    "weather_credential_decrypted": false,
+    "all_settings_unchanged": true,
+    "contract_mount_unchanged": true,
+    "dockge_actual_semantic_match": true,
+    "dockge_hashes": {
+      "core": "3a3474198462265c37be1d9530117a4ba94a6fa4a8478b307c5b1f30c8cc4fdc",
+      "obs": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530"
+    },
+    "database_migration": "none",
+    "media_target_count": 1,
+    "credential_values_output": false,
+    "weather_provider_called": false,
+    "model_called": false,
+    "gpu_submitted": false,
+    "qq_sent": false,
+    "existing_platform_settings_preserved": true,
+    "provider_configuration_and_key_preserved": true,
+    "supplier_multi_model_schema_preserved": true,
+    "function_binding_table_present": true,
+    "pre_function_backup_present": true
+  },
+  "dockge": {
+    "applied": true,
+    "project_directory": "/volume2/tianshu-v2-resident",
+    "source_hashes": {
+      "/volume2/tianshu-v2-resident-updates/bots-20260928/core.compose.json": "71e1dac48e806717d8187b2e123e69799b80a27fcf814b646e0a7eab757619bf",
+      "/volume2/tianshu-v2-resident-updates/bots-20260928/platform.compose.json": "a69a83c4066c4946cfb3da770d256b5c315a73535700dce14a8772a0dff4c409",
+      "/volume2/tianshu-v2-resident-updates/connections-20260928/obs.compose.json": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530"
+    },
+    "snapshots": [
+      {
+        "project": "tianshu-v2-resident",
+        "target": "/volume1/Download/dockge/stacks/tianshu-v2-resident/compose.yaml",
+        "old_sha256": "9a2efb6fc9bc875cd6e97ea5fe898eccc92f25e2147238e5715883748ebe130a",
+        "new_sha256": "3a3474198462265c37be1d9530117a4ba94a6fa4a8478b307c5b1f30c8cc4fdc",
+        "images": {
+          "companion": "sha256:10b6e5f0981aeef538f4ad9045423cf874ebf4c20b05794074efc4aaaf055bce",
+          "gateway": "sha256:161d8fb0de1e3208e8c3134fef1cc5e18b67e488d5a9c7dc2033554de6781068",
+          "knowledge": "sha256:7e3e94e13b095bdbd99801471bfc7b8ce1bd18bbcff2ee14d57b91d36acc7c44",
+          "memory": "sha256:f5cd67560bc39c022885fe21e442a374625ee2d8f099993841ad27bba7af19b5",
+          "platform": "sha256:138834266bea6c15110b72905748d49facb404c1204a5a2cd04494749591f963"
+        }
+      },
+      {
+        "project": "tianshu-v2-resident-obs",
+        "target": "/volume1/Download/dockge/stacks/tianshu-v2-resident-obs/compose.yaml",
+        "old_sha256": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530",
+        "new_sha256": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530",
+        "images": {
+          "obs-grafana": "grafana/grafana:13.2.2@sha256:ac461fb352abc50da10a51c7d02462e9c05488f11f53f14b3ad79a8145f638a0",
+          "obs-guard": "python:3.12.14-slim-bookworm@sha256:392307d22300de8b5986851a12d9176dfc0fc073e65bf6523ebd7dcbeb23564e",
+          "obs-loki": "grafana/loki:3.7.8@sha256:1107dd5274e0ada47e42472b7a7e71f3b2a2fe878878108f3e2f9e51528f0193",
+          "obs-prometheus": "prom/prometheus:v3.13.3@sha256:6976aa8a60fec930796ce5772b8d12da7a318a5daa8d40d69c5c7819a05eeed7",
+          "obs-vector": "timberio/vector:0.58.0-debian@sha256:1c1ea358c617ea0b23003d5af87f7a678b30f8f7096437e680380c47fc13d2d9"
+        }
+      }
+    ],
+    "containers_recreated": false,
+    "credential_files_read": false,
+    "backup_directory": "/volume2/tianshu-v2-resident-updates/media-hardlink-20261012-release-r1/dockge-backups/20261012T142539Z-b8d847f2"
+  },
+  "evidence": {
+    ".runtime/media-hardlink-20261012/storage-before.json": {
+      "sha256": "87454c415083978f3cf05b74e72573a9bcbd46dda821ea711b6de728f37885fe"
+    },
+    ".runtime/media-hardlink-20261012/platform-build-result.json": {
+      "sha256": "6f7e2351911c30b279bb92f9d18dd7a5ec6398b376e2bdf5256136c757ca66b0"
+    },
+    ".runtime/media-hardlink-20261012/linux-validation-exec.json": {
+      "sha256": "81d8dea35c87b65d3d0ff69aac29418a84ccd8ef32b74ace2821a43eee03a457"
+    },
+    ".runtime/media-hardlink-20261012/nas-baseline.json": {
+      "sha256": "cfe3817b5471ab5b4649755a1a6c6fc9294401cca33ad8d9c555610eccffaf1c"
+    },
+    ".runtime/media-hardlink-20261012/resident-poll-result.json": {
+      "sha256": "d4b3878e7737567125ced8e012c69298620796400a2f2a63f193ac5a4a2688c7"
+    },
+    ".runtime/media-hardlink-20261012/deduplicate-result.json": {
+      "sha256": "f0007b8f3719d288137dc10f243239ba76a0bc399f37322404d9ac9af207a654"
+    },
+    ".runtime/media-hardlink-20261012/hardlink-emby-evidence.json": {
+      "sha256": "d090e863f218c72a5d080eaa4a87e8e015b987a51ee5b8d59e8ae053a9b7a14a"
+    },
+    ".runtime/media-hardlink-20261012/final-readback.json": {
+      "sha256": "d217ee4ba36e9203cf2725f31785b03894a0f597197d78a88e414337a0ca1696"
+    },
+    ".runtime/media-hardlink-20261012/http-assets.json": {
+      "sha256": "2b6f1a848d9295cb1eb5483ccea588ac9d36d458dd5b1df19b8711d52cdfb8c0"
+    },
+    ".runtime/media-hardlink-20261012/dockge-sync.json": {
+      "sha256": "edf63f69303e95ce25aaeb1c4d43bd2d05a9a2a55e77876022fd47c1287c78a9"
+    }
+  },
+  "limits": [
+    "Sharing is per destination root on the same filesystem; unrelated target roots are not pooled together.",
+    "Volume2 download cache/staging remains independently retained; no claim of one physical copy across volumes.",
+    "Allocated block savings count distinct inodes in the media root, not instantaneous NAS/snapshot free-space recovery.",
+    "Only the two receipted current test publications were converted; no unmanaged, historical previous, or cache sweep.",
+    "Both Emby streams returned HTTP 206 with valid MP4 bytes; full client playback was not watched."
+  ]
+}

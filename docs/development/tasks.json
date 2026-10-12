@@ -1158,6 +1158,43 @@
       "allocation_note": "workspace.py start rejected dirty historical projects checkout (untracked build/); preserved it and allocated from clean deployed TS-122 source with git worktree.",
       "integrated_commit": "a339df6a44a16ea86999b1ff6dbdc0fee99bff01",
       "delivery_record": "docs/development/media-global-reuse-deployment-2026-10-12.json"
+    },
+    {
+      "id": "TS-126",
+      "title": "媒体目录共享视频硬链接与既有成品存储去重",
+      "project": "platform",
+      "depends_on": [],
+      "status": "done",
+      "allowed_paths": [
+        "services/platform/media/organizer.py",
+        "services/platform/media/destination.py",
+        "services/platform/media/video_storage.py",
+        "tests/backend/test_media_organizer.py",
+        "tests/backend/test_media_hardlinks.py",
+        "tests/backend/test_media_standalone.py",
+        "docs/platform/",
+        "docs/handoffs/TS-126.md"
+      ],
+      "done_when": "独立目录同卷视频硬链接、独立元数据、既有成品无损去重、回归和NAS真实inode/Emby验收",
+      "authorization": "2026-10-12 用户要求存储也去重，订阅和收藏夹目录分别保留，同视频硬链接；沿用本对话Sol/xhigh开发与推送部署授权",
+      "assignee": "gpt-6.1-sol/xhigh",
+      "execution_state": "pushed_deployed_real_storage_emby_verified",
+      "plan": "docs/development/media-hardlink-plan-2026-10-12.md",
+      "worktree": "worktrees/TS-126/tianshu-platform",
+      "branch": "codex/media-hardlink-storage-20261012",
+      "baseline_commit": "169effaf5332c45b3437961e3801779d8c985f8c",
+      "allocation_note": "workspace check failed on historical TS-016 ownership; start rejected dirty projects checkout. Preserved both and allocated from clean exact deployed source.",
+      "integrated_commit": "79ee0fd966d31bb67c0a4f4693a0836659132c5e",
+      "delivery_commits": [
+        "07452f89685d29aba0694a231b6f3342d680a306",
+        "a1d7bb8d8db255e468abb2ebb7e2cb5d6f314377"
+      ],
+      "delivery_record": "docs/development/media-hardlink-deployment-2026-10-12.json",
+      "integrated": true,
+      "pushed": true,
+      "deployed": true,
+      "real_user_acceptance": false,
+      "real_nas_storage_emby_verified": true
     }
   ],
   "dispatch_defaults": {
