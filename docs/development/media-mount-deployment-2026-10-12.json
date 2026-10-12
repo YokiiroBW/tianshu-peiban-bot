@@ -1,0 +1,136 @@
+{
+  "status": "mounted",
+  "host_path": "/volume1/Video/存储库/短视频/bilibili",
+  "platform_path": "/media/Bilibili",
+  "emby_path": "/video/存储库/短视频/bilibili",
+  "platform_image": "sha256:3754c9d7cade06301a7557ac5f4f14d3175da47eed5d5bee82f47411b3dcdb44",
+  "platform_id": "30780b7f7cb1bcc07b40c85c2b515d2d9cfca9cf823e1f206e5633306829d6da",
+  "guard": {
+    "deployment_bytes": 1674623553,
+    "heartbeat_age_seconds": 0.131,
+    "minimum_free_bytes": 318278713344,
+    "services": 10,
+    "status": "ready"
+  },
+  "media_probe": {
+    "platform_user": "10001:10001",
+    "platform_write": true,
+    "nas_same_file": true,
+    "emby_read_same_file": true
+  },
+  "health": [
+    {
+      "service": "platform",
+      "live": 200,
+      "ready": 200,
+      "ready_state": "ready",
+      "checks": {
+        "config": "ok",
+        "contract": "ok",
+        "store": "ok",
+        "sidecars": "ok",
+        "web_static": "ok",
+        "tls": "ok",
+        "credentials": "ok",
+        "logging": "ok",
+        "runtime": "ok"
+      },
+      "verified_tls": true,
+      "endpoint": "/health/ready",
+      "http_status": 200
+    },
+    {
+      "service": "gateway",
+      "live": 200,
+      "ready": 200,
+      "ready_state": "ready",
+      "checks": {
+        "configuration": "ok",
+        "contracts": "ok",
+        "runtime": "ok",
+        "ledger": "ok",
+        "logging": "ok",
+        "platform": "not_verified",
+        "model": "not_verified",
+        "native": "not_configured"
+      },
+      "verified_tls": true,
+      "endpoint": "/health/ready",
+      "http_status": 200
+    },
+    {
+      "service": "knowledge",
+      "live": 200,
+      "ready": 200,
+      "ready_state": "ready",
+      "checks": {
+        "configuration": "ok",
+        "contract": "ok",
+        "database": "ok",
+        "client": "ok",
+        "extensions": "ok",
+        "log": "ok",
+        "assembled": "ok",
+        "owner": "ok",
+        "remote": "not_verified"
+      },
+      "verified_tls": true,
+      "endpoint": "/health/ready",
+      "http_status": 200
+    },
+    {
+      "service": "memory",
+      "live": 200,
+      "ready": 200,
+      "ready_state": "ready",
+      "checks": {
+        "configuration": "ok",
+        "contract": "ok",
+        "database": "ok",
+        "guard": "ok",
+        "mode": "ok",
+        "log": "ok",
+        "assembled": "ok",
+        "owner": "ok",
+        "remote": "not_verified"
+      },
+      "verified_tls": true,
+      "endpoint": "/health/ready",
+      "http_status": 200
+    },
+    {
+      "service": "companion",
+      "live": 200,
+      "ready": 200,
+      "ready_state": "ready",
+      "checks": {
+        "configuration": "ok",
+        "logs": "ok",
+        "runtime": "ok",
+        "dependencies": "not_verified"
+      },
+      "verified_tls": true,
+      "endpoint": "/health/ready",
+      "http_status": 200
+    }
+  ],
+  "settings_unchanged": true,
+  "other_nine_container_ids_unchanged": true,
+  "emby_container_unchanged": true,
+  "dockge_synchronized": true,
+  "guard_source_sha256": "9a2aa40e7ed4072abb57a3b1e7148feadd2bb26b6da7164cca83a9097c4ed7a4",
+  "backup": "/volume2/tianshu-v2-resident-updates/media-mount-20261012-r1/backup",
+  "created_directory": true,
+  "date": "2026-10-12",
+  "guard_commit": "d556257727de6f30f0e63bc30cbd080826a25c4f",
+  "frontend_http": 200,
+  "frontend_html": true,
+  "local_guard_tests": {
+    "passed": 40,
+    "skipped": 0,
+    "linux_identity_and_symlink": "explicit metadata fixtures"
+  },
+  "real_video_download_tested": false,
+  "emby_library_scan_tested": false,
+  "rollback_triggered": false
+}
