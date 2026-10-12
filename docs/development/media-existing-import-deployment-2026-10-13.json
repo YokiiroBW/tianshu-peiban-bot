@@ -1,0 +1,147 @@
+{
+  "task": "TS-131",
+  "status": "deployed_and_registered_with_legacy_file_anomaly",
+  "baseline": "9a32650cdc0bfbd0350ddf22a17b41e909206d7c",
+  "platform_commit": "33f0ce09b43361862e644d162a34f2716d2c8286",
+  "image_id": "sha256:aefe17ee99aa971b71fc85718eae9da62763ee2a2eb0784ed2cc5a3ce90fe289",
+  "remote_main_verified": true,
+  "import": {
+    "status": "partial",
+    "root_id": "legacy-bilibili",
+    "files": 644,
+    "bytes": 165829410238,
+    "first_run": {
+      "root_id": "legacy-bilibili",
+      "state": "partial",
+      "discovered": 644,
+      "registered": 644,
+      "cid_confirmed": 643,
+      "verified": 0,
+      "unknown": 643,
+      "invalid": 1,
+      "conflicts": 0
+    },
+    "second_run": {
+      "root_id": "legacy-bilibili",
+      "state": "partial",
+      "discovered": 644,
+      "registered": 644,
+      "cid_confirmed": 643,
+      "verified": 0,
+      "unknown": 643,
+      "invalid": 1,
+      "conflicts": 0
+    },
+    "first_seconds": 122.278,
+    "second_seconds": 13.9,
+    "cid_confirmed": 643,
+    "states": {
+      "unknown": 643,
+      "invalid": 1
+    },
+    "codes": {
+      "import_quality_unknown": 643,
+      "media_duration_mismatch": 1
+    },
+    "video_codecs": {
+      "h264": 643,
+      "hevc": 1
+    },
+    "audio_codecs": {
+      "aac": 495,
+      "eac3": 69,
+      "flac": 80
+    },
+    "existing_source_count": 3,
+    "idempotent": true,
+    "media_file_identity_unchanged": true,
+    "existing_documents_and_jobs_unchanged": true,
+    "worker_started": false,
+    "downloads_created": 0,
+    "media_moved_or_copied": false
+  },
+  "identity_evidence": {
+    "exact_legacy_path": 446,
+    "unique_bv_part_and_duration": 198,
+    "files": 644,
+    "unique_bvid": 171,
+    "actual_quality_known": 0,
+    "passed_identity_and_duration": 643
+  },
+  "legacy_file_anomaly": {
+    "count": 1,
+    "code": "media_duration_mismatch",
+    "expected_seconds_from_old_and_current_bilibili_metadata": 5820,
+    "actual_seconds": 386.878,
+    "original_preserved": true,
+    "automatically_redownloaded": false
+  },
+  "configuration": {
+    "added": "media.import_roots",
+    "root_id": "legacy-bilibili",
+    "read_only_directory": "/media/observe/emby-video/短视频/manual/bilibili",
+    "existing_settings_preserved": true,
+    "mounts_unchanged": true,
+    "provider_and_key_preserved": true
+  },
+  "validation": {
+    "windows_passed": 56,
+    "windows_skipped": 1,
+    "linux_passed": 57,
+    "linux_skipped": 0,
+    "full_fixed_diff_review": "no_blocking_findings",
+    "media_schema": 2,
+    "database_migration": "none",
+    "cold_backup": "/volume2/tianshu-v2-resident-updates/media-adopt-20261013-release-r1/cold-snapshot",
+    "sqlite_backups_verified": 37,
+    "owners": 10,
+    "guard": "ready",
+    "dockge_match": true,
+    "http": {
+      "status": "nas_public_static_verified",
+      "origin": "http://192.168.31.210:18446",
+      "candidate_image_id": "sha256:aefe17ee99aa971b71fc85718eae9da62763ee2a2eb0784ed2cc5a3ce90fe289",
+      "revision": "33f0ce09b43361862e644d162a34f2716d2c8286",
+      "expected_source": "immutable candidate /srv/tianshu/web-hashes.json",
+      "expected_manifest_sha256": "87479470904aabf05df749cb86f7e9b21dd3e59a5b14d818d553dcbd0c92dfbf",
+      "static_assets": 59,
+      "entry_index_sha256": "4f9cfdc4f78a6d97e7c34fc21ac43259629c8d76201539259ac2dd441c0c244d",
+      "public_health_checked": false,
+      "public_health_route": "not_exposed_by_public_listener",
+      "health_evidence": {
+        "reference": "resident-poll-result.json",
+        "checked_this_run": false,
+        "status": "reused_internal_tls_readback",
+        "sha256": "e1a1629368cf4d0ffd86f3bc969f917bb4c88e7c6ae61bfc16d5a9c316983178",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true
+      },
+      "cache_no_store": true,
+      "login_session_requested": false,
+      "credentials_used_for_http": false,
+      "production_business_data_read": false,
+      "real_qq_or_model_called": false
+    }
+  },
+  "advanced_formats_audit": {
+    "yt_dlp": "2026.08.19",
+    "ffmpeg": "5.1.9-0+deb12u1",
+    "existing_account_metadata_observed": [
+      "4K QN120",
+      "Dolby Vision QN126"
+    ],
+    "real_high_format_video_downloaded": false,
+    "hdr10_specific_sample_verified": false,
+    "audio_selection": "one bestaudio; no DTS/Atmos-specific preference or preservation check",
+    "flac_mp4_mux_synthetic": "fails with current FFmpeg/default arguments",
+    "flac_mkv_mux_synthetic": "passes",
+    "advanced_download_behavior_changed": false
+  },
+  "limitations": [
+    "All 644 legacy files lack reliable actual QN, so they are registered inventory, not exact-quality reuse sources.",
+    "Files, NFO, subtitles and artwork remain in place; no new job, membership, episode or publication claim is fabricated.",
+    "High-format probing is not full download or Emby playback validation; FLAC-to-MP4 compatibility remains unresolved in this task."
+  ],
+  "private_evidence": ".runtime/media-adopt-20261013 (ignored, not committed)"
+}

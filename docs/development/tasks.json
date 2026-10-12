@@ -1329,6 +1329,35 @@
       "delivery_commits": [
         "a0a4b837c5413781fe68ce97f194e6325f81fb94"
       ]
+    },
+    {
+      "id": "TS-131",
+      "title": "已有B站媒体原位库存登记与已验证成品源复用",
+      "project": "platform",
+      "depends_on": [],
+      "status": "done",
+      "allowed_paths": [
+        "services/platform/media/import*.py",
+        "services/platform/media/config.py",
+        "services/platform/media/runtime.py",
+        "services/platform/media/retention.py",
+        "services/platform/media/repository.py",
+        "services/platform/media/engine.py",
+        "tests/backend/test_media*.py",
+        "docs/platform/media*",
+        "docs/handoffs/TS-131.md"
+      ],
+      "done_when": "真实旧文件登记、证据完整项全局精确复用、未知QN如实保留、原目录不改、相关验证和NAS交付",
+      "authorization": "2026-10-13 用户要求把已有Bilibili视频补入数据库；沿用Sol/xhigh与部署授权",
+      "assignee": "gpt-6.1-sol/xhigh",
+      "plan": "docs/development/media-existing-import-plan-2026-10-13.md",
+      "worktree": "worktrees/TS-131/tianshu-platform",
+      "branch": "codex/media-existing-import-20261013",
+      "baseline_commit": "9a32650cdc0bfbd0350ddf22a17b41e909206d7c",
+      "execution_state": "deployed_and_registered_with_legacy_file_anomaly",
+      "allocation_note": "workspace start refused the dirty historical projects checkout; isolated from clean deployed integration baseline; original checkout preserved.",
+      "integration_commit": "33f0ce09b43361862e644d162a34f2716d2c8286",
+      "completion_record": "docs/development/media-existing-import-deployment-2026-10-13.json"
     }
   ],
   "dispatch_defaults": {

@@ -1,3 +1,7 @@
+## 2026-10-13 已有B站媒体原位登记已部署
+
+TS-131 Platform `33f0ce0` 已推送并部署；旧目录644视频/171BV原位登记并保存实际编码/音轨，643项通过身份/时长核验，1项本地386.878秒与B站5820秒不符，保留异常。重复执行幂等，原文件、既有任务和三个源不变，未新增下载。旧台账无实际QN，不冒称已全部可精确复用。复用原documents/schema2和Retention/DownloadCache，仅增import_roots配置。Linux57、37库冷备、十服务/guard、网页及Dockge通过。现有账号可读取4K/DV，FLAC→MP4存在已复现兼容问题，高级音轨未做完整下载保真验证。[交付记录](media-existing-import-deployment-2026-10-13.md)。
+
 ## 2026-10-13 存储磁盘四类占用已部署
 
 TS-129/130 Platform `9a32650` 已推送并部署。订阅、Emby（排除订阅）、其他、未使用以四色及数值显示；五分钟后台缓存、扫描时间和真实未知状态接通。新增两个只读观察映射，正式UID10001实读14个Emby媒体根；Btrfs子卷归同容量池、allocated/ready且四项之和等于总容量，订阅与Emby独立inode复核一致。音乐根仅新增一条目录metadata ACL，原规则和文件ACL保持。Linux首轮49/补修40、网页18+8、真实本地HTTP2通过；37库冷备恢复、五核心TLS、十服务/guard、59资源及Dockge通过。见[验收记录](media-storage-breakdown-deployment-2026-10-13.md)。
