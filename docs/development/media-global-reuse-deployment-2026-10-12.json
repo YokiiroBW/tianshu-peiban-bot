@@ -1,0 +1,353 @@
+{
+  "status": "pushed_deployed_and_verified",
+  "date": "2026-10-12",
+  "platform": {
+    "baseline": "fdd4be0b3b4139eaf87889d2178bc13de607804a",
+    "revision": "a339df6a44a16ea86999b1ff6dbdc0fee99bff01",
+    "image_id": "sha256:d66c704f926557db8767468eda84f2cce22252adbb4e661fde7a66dddea3fa0e",
+    "github_main": "a339df6a44a16ea86999b1ff6dbdc0fee99bff01"
+  },
+  "backend_commits": [
+    "9ecc444cfc5e1166a9b2e9aadca048165557dd11",
+    "1bc14de2fedc54e90d724ad11de027ee45430b25"
+  ],
+  "frontend_commits": [
+    "9b6af379972a2105a4f5bf6584f47655695fd402",
+    "51da7a99cec645708d4b2190da496c4a6dfe4c11"
+  ],
+  "recovery_commit": "7643ae5864aca4830b3cecc325b50c4eda6eebf7",
+  "validation": {
+    "windows_media": {
+      "passed": 48,
+      "skipped": 1,
+      "skip_reason": "Windows directory symlink creation permission"
+    },
+    "frontend": {
+      "related_passed": 72,
+      "followup_targeted_passed": 10,
+      "skipped": 0
+    },
+    "integrated_windows_readiness": {
+      "passed": 3,
+      "initial_fixture_handle_cleanup_error_fixed": true
+    },
+    "linux_installed_image": {
+      "passed": 43,
+      "skipped": 0,
+      "external_network": false,
+      "production_mounted": false
+    },
+    "recovery_windows": {
+      "targeted_passed": 17,
+      "default_regression_passed": 39
+    },
+    "recovery_linux": {
+      "passed": 17,
+      "skipped": 0
+    }
+  },
+  "deployment": {
+    "all_existing_settings_preserved": true,
+    "backup": "/volume2/tianshu-v2-resident-updates/media-reuse-release-20261012-release-r1/cold-snapshot",
+    "contract_directory": "/volume2/tianshu-v2-resident/contracts-delivery-f3c478962f3a",
+    "database_migration": "media_v1_to_v2",
+    "excluded_external_media": [
+      {
+        "read_only": false,
+        "source": "/volume1/Video/存储库/短视频/bilibili",
+        "target": "/media/Bilibili"
+      }
+    ],
+    "gateway_origin_reissued": false,
+    "guard": "ready",
+    "health": [
+      {
+        "checks": {
+          "config": "ok",
+          "contract": "ok",
+          "credentials": "ok",
+          "logging": "ok",
+          "runtime": "ok",
+          "sidecars": "ok",
+          "store": "ok",
+          "tls": "ok",
+          "web_static": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "platform",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "assembled": "ok",
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "guard": "ok",
+          "log": "ok",
+          "mode": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "memory",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "configuration": "ok",
+          "contracts": "ok",
+          "ledger": "ok",
+          "logging": "ok",
+          "model": "not_verified",
+          "native": "not_configured",
+          "platform": "not_verified",
+          "runtime": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "gateway",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "configuration": "ok",
+          "dependencies": "not_verified",
+          "logs": "ok",
+          "runtime": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "companion",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "assembled": "ok",
+          "client": "ok",
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "extensions": "ok",
+          "log": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "knowledge",
+        "verified_tls": true
+      }
+    ],
+    "images": {
+      "platform": {
+        "image_id": "sha256:d66c704f926557db8767468eda84f2cce22252adbb4e661fde7a66dddea3fa0e",
+        "revision": "a339df6a44a16ea86999b1ff6dbdc0fee99bff01"
+      }
+    },
+    "media_configuration_preserved": true,
+    "media_schema_version": 2,
+    "media_target_count": 1,
+    "original_ids_preserved_excluding_released_services_and_optional_gateway": true,
+    "real_qq_test_sent": false,
+    "sqlite_backups": 35,
+    "status": "deployed",
+    "subscriptions_and_other_features_preserved": true,
+    "untargeted_owner_ids_preserved": true,
+    "user_state_preserved": true
+  },
+  "final_readback": {
+    "status": "verified",
+    "administrator_grants_preserved": true,
+    "owners": [
+      {
+        "service": "platform",
+        "id": "70de496e7aca33fc576985a93aba9bbafbbdcceec4b2c17b8b377f6f874daa0f",
+        "image_id": "sha256:d66c704f926557db8767468eda84f2cce22252adbb4e661fde7a66dddea3fa0e",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "memory",
+        "id": "b01a14b73f109bdfd6d070cf8ba93d0d7e3ba0043dac431e9e7c6280a9e7ee85",
+        "image_id": "sha256:f5cd67560bc39c022885fe21e442a374625ee2d8f099993841ad27bba7af19b5",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "gateway",
+        "id": "1d4d8e90accdb41211d9db37516e1d3c8150727dd4eddae175b397bca0cab33c",
+        "image_id": "sha256:161d8fb0de1e3208e8c3134fef1cc5e18b67e488d5a9c7dc2033554de6781068",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "companion",
+        "id": "27991b4f36e2302748b65e8002439db408aba0a95e58812a767e3da6b795241e",
+        "image_id": "sha256:10b6e5f0981aeef538f4ad9045423cf874ebf4c20b05794074efc4aaaf055bce",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "knowledge",
+        "id": "0ec9ec0b3f5122e80ffdbdc7ed8a456d07c03b8abc618df5a71f29520fba1ebb",
+        "image_id": "sha256:7e3e94e13b095bdbd99801471bfc7b8ce1bd18bbcff2ee14d57b91d36acc7c44",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "obs-grafana",
+        "id": "15485f0886be8c33ccccdbf7828ad66f8e8ccbe2758d95a068e2956df9a83099",
+        "image_id": "sha256:747aaf291145d9a84a547f1fa4edf48697371db6ab386b81c95ad3a725c20f17",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "obs-vector",
+        "id": "07998dc157eb38ecfecc2daf4bd02c3f7fabad3f7087799bd6723bb26672e664",
+        "image_id": "sha256:92c275b73d880922a265918a7c3c4f2cc0dd87338447ff357809f2d18a64a48e",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "obs-guard",
+        "id": "ce6bb77866a9e1cb282e7557b1dadceb9847d15678afc3538ba1a42e1dd4a254",
+        "image_id": "sha256:febd0be41adb897a0ab8f1f1c693d8912669ea60c4940e076e9946b60e210ef0",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "obs-prometheus",
+        "id": "3a641b651b75adf7da6307b1e424de3fc93df9cb6fd0f0b580626c1d1cc6fe17",
+        "image_id": "sha256:7d467fbb6bbbd6a96d87a0e4b2ef53840ce11521af0a8c27b995daa82896a241",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "obs-loki",
+        "id": "48a4eac7a827e9c269f39b4664f9e59cb600ffa3398464023154d697ec50fcd9",
+        "image_id": "sha256:ceccdbc45e274f08eb23d6ca6e0b648921d580c592ab47b4304225c0f17a406a",
+        "running": true,
+        "restart": "unless-stopped"
+      }
+    ],
+    "owner_count": 10,
+    "guard": "ready",
+    "state_dir": "/volume2/tianshu-v2-resident-updates/media-reuse-release-20261012-release-r1/capacity-state-9479b7a17f6e41d5b42ef3e42c955c2b",
+    "capacity_sha256": "c56150d1ee8f77cd79de16e4188184f869edb06723126e55f1972df3e6df9995",
+    "guard_code_sha256": "9a2aa40e7ed4072abb57a3b1e7148feadd2bb26b6da7164cca83a9097c4ed7a4",
+    "cold_backup": "/volume2/tianshu-v2-resident-updates/media-reuse-release-20261012-release-r1/cold-snapshot",
+    "sqlite_databases_verified": 35,
+    "cold_manifest_sha256": "2d5eaad22c5ab4295c2aad33bf78ca979998748606a5225a8e7dbbe3e9828c0c",
+    "cold_backup_status": "offline_restore_verified",
+    "other_nine_original_ids_preserved": true,
+    "gateway_origin": {
+      "gateway_id_after": "1d4d8e90accdb41211d9db37516e1d3c8150727dd4eddae175b397bca0cab33c",
+      "gateway_id_before": "1d4d8e90accdb41211d9db37516e1d3c8150727dd4eddae175b397bca0cab33c",
+      "gateway_image_expected": true,
+      "new_permissions": 0,
+      "new_service_credentials": 0,
+      "origin_reissued": false,
+      "original_origin_preserved": true,
+      "same_existing_entry_owner_and_route": true
+    },
+    "user_state_preserved": true,
+    "role_configuration_preserved": true,
+    "role_configuration_count": 1,
+    "role_configuration_sha256": "721680088a71d750d6a5e5e0d14f8188f05284241fec36d95fd3a1d8b3caf100",
+    "weather_configuration_preserved": true,
+    "weather_record_present": true,
+    "weather_credential_decrypted": false,
+    "all_settings_unchanged": true,
+    "contract_mount_unchanged": true,
+    "dockge_actual_bytes_match": false,
+    "dockge_hashes": {
+      "core": "11133c468b28939b1a86ceada3febd4ad77c5627e82f18b8846a920681f5e15a",
+      "obs": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530"
+    },
+    "database_migration": "media_v1_to_v2",
+    "media_target_count": 1,
+    "credential_values_output": false,
+    "weather_provider_called": false,
+    "model_called": false,
+    "gpu_submitted": false,
+    "qq_sent": false,
+    "existing_platform_settings_preserved": true,
+    "dockge_compose_equal": true,
+    "media_schema_version": 2,
+    "media_configuration_preserved": true,
+    "external_media_binds": [
+      {
+        "read_only": false,
+        "source": "/volume1/Video/存储库/短视频/bilibili",
+        "target": "/media/Bilibili"
+      }
+    ],
+    "excluded_external_media": [
+      {
+        "read_only": false,
+        "source": "/volume1/Video/存储库/短视频/bilibili",
+        "target": "/media/Bilibili"
+      }
+    ],
+    "provider_configuration_and_key_preserved": true,
+    "function_binding_table_present": true,
+    "pre_function_backup_present": true
+  },
+  "public_assets": {
+    "status": "nas_public_static_verified",
+    "origin": "http://192.168.31.210:18446",
+    "candidate_image_id": "sha256:d66c704f926557db8767468eda84f2cce22252adbb4e661fde7a66dddea3fa0e",
+    "revision": "a339df6a44a16ea86999b1ff6dbdc0fee99bff01",
+    "expected_source": "immutable candidate /srv/tianshu/web-hashes.json",
+    "expected_manifest_sha256": "db4f6b80435a5e91e5127ea5ec25817a5b16f5c9439d01a5f300640661c106bf",
+    "static_assets": 59,
+    "entry_index_sha256": "fd357c2565dff8420ce354b560f985e329daf3619b2e5634e9fdbf8eacb00bd8",
+    "public_health_checked": false,
+    "public_health_route": "not_exposed_by_public_listener",
+    "health_evidence": {
+      "reference": "resident-poll-result.json",
+      "checked_this_run": false,
+      "status": "reused_internal_tls_readback",
+      "sha256": "71591ac5078887849cd3695e8bcca6d97339c766b99b5303ff6ca3b0274891b6",
+      "live": 200,
+      "ready": 200,
+      "verified_tls": true
+    },
+    "cache_no_store": true,
+    "login_session_requested": false,
+    "credentials_used_for_http": false,
+    "production_business_data_read": false,
+    "real_qq_or_model_called": false
+  },
+  "bounds": {
+    "real_bilibili_download_tested": false,
+    "real_emby_scan_triggered": false,
+    "external_library_backed_up": false,
+    "unmanaged_existing_files_imported": false,
+    "cache_auto_cleanup_added": false
+  },
+  "operator_validation_notes": [
+    "The first new readiness fixture left a SQLite read handle open on Windows; closing it fixed fixture cleanup.",
+    "Dockge and runtime Compose differ in Unicode JSON escaping; parsed documents are equal and both raw hashes are retained. The first byte-only verifier failed and was corrected to check full document equality.",
+    "A local Windows default-encoding read failed before Dockge synchronization; the UTF-8 retry completed and final readback passed."
+  ],
+  "evidence_directory": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\media-reuse-release-20261012"
+}

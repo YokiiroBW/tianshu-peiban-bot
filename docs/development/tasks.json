@@ -1111,6 +1111,53 @@
       "dsh_session_id": null,
       "delivery_directory": "worktrees/TS-015/tianshu-platform/.runtime/dsh-delivery",
       "blocked_reason": "DSH model selection routable; persistent session file/presets unavailable, not a missing project workspace"
+    },
+    {
+      "id": "TS-123",
+      "title": "订阅独立目录和全局BV/CID画质下载复用后端",
+      "project": "platform",
+      "depends_on": [],
+      "status": "done",
+      "allowed_paths": [
+        "services/platform/media/",
+        "tests/backend/",
+        "docs/platform/",
+        "docs/handoffs/TS-123.md"
+      ],
+      "done_when": "独立目录、全局复用、恢复与联合验证，父级集成",
+      "authorization": "2026-10-12 用户要求独立目录与全局去重；沿用同一订阅任务的Sol/xhigh并行实现授权",
+      "assignee": "gpt-6.1-sol/xhigh",
+      "plan": "docs/development/media-global-reuse-plan-2026-10-12.md",
+      "worktree": "worktrees/TS-123/tianshu-platform",
+      "branch": "codex/media-global-reuse-backend-20261012",
+      "baseline_commit": "fdd4be0b3b4139eaf87889d2178bc13de607804a",
+      "execution_state": "pushed_deployed_verified",
+      "allocation_note": "workspace.py start rejected dirty historical projects checkout (untracked build/); preserved it and allocated from clean deployed TS-122 source with git worktree.",
+      "integrated_commit": "a339df6a44a16ea86999b1ff6dbdc0fee99bff01",
+      "delivery_record": "docs/development/media-global-reuse-deployment-2026-10-12.json"
+    },
+    {
+      "id": "TS-124",
+      "title": "订阅和收藏夹子目录设置网页",
+      "project": "platform",
+      "depends_on": [],
+      "status": "done",
+      "allowed_paths": [
+        "apps/web/src/features/media/",
+        "apps/web/tests/",
+        "docs/handoffs/TS-124.md"
+      ],
+      "done_when": "独立目录、全局复用、恢复与联合验证，父级集成",
+      "authorization": "2026-10-12 用户要求独立目录与全局去重；沿用同一订阅任务的Sol/xhigh并行实现授权",
+      "assignee": "gpt-6.1-sol/xhigh",
+      "plan": "docs/development/media-global-reuse-plan-2026-10-12.md",
+      "worktree": "worktrees/TS-124/tianshu-platform",
+      "branch": "codex/media-global-reuse-frontend-20261012",
+      "baseline_commit": "fdd4be0b3b4139eaf87889d2178bc13de607804a",
+      "execution_state": "pushed_deployed_verified",
+      "allocation_note": "workspace.py start rejected dirty historical projects checkout (untracked build/); preserved it and allocated from clean deployed TS-122 source with git worktree.",
+      "integrated_commit": "a339df6a44a16ea86999b1ff6dbdc0fee99bff01",
+      "delivery_record": "docs/development/media-global-reuse-deployment-2026-10-12.json"
     }
   ],
   "dispatch_defaults": {
