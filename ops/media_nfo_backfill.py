@@ -75,6 +75,17 @@ def sync_directory(path):
             os.close(descriptor)
 
 
+def durable_mkdir(path):
+    missing = []
+    cursor = path
+    while not cursor.exists():
+        missing.append(cursor)
+        cursor = cursor.parent
+    for directory in reversed(missing):
+        directory.mkdir(mode=0o700)
+        sync_directory(directory.parent)
+
+
 def atomic_bytes(path, raw, source=None):
     descriptor, temporary = tempfile.mkstemp(prefix=".tianshu-nfo-", dir=path.parent)
     temporary = Path(temporary)
@@ -165,13 +176,13 @@ def execute(plan, *, root, backup, action):
     video_count = verify_videos(root, plan["videos"])
     changed = 0
     if action == "apply":
-        backup.mkdir(parents=True, exist_ok=True)
+        durable_mkdir(backup)
         # Back up every original before publishing even the first changed NFO.
         for row, original, saved, _ in candidates:
             if not saved.exists():
                 if sha(original.read_bytes()) != row["before_sha256"]:
                     raise ValueError("original_changed_before_backup")
-                saved.parent.mkdir(parents=True, exist_ok=True)
+                durable_mkdir(saved.parent)
                 backup_original(original, saved, row["before_sha256"])
         atomic_bytes(
             intent,
