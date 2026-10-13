@@ -98,6 +98,25 @@ def atomic_bytes(path, raw, source=None):
             temporary.unlink()
 
 
+def backup_original(original, saved, expected_sha):
+    descriptor, temporary = tempfile.mkstemp(
+        prefix=".tianshu-backup-", dir=saved.parent
+    )
+    os.close(descriptor)
+    temporary = Path(temporary)
+    try:
+        shutil.copy2(original, temporary, follow_symlinks=False)
+        with temporary.open("r+b" if os.name == "nt" else "rb") as stream:
+            os.fsync(stream.fileno())
+        if sha(temporary.read_bytes()) != expected_sha:
+            raise ValueError("backup_verification_failed")
+        os.replace(temporary, saved)
+        sync_directory(saved.parent)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
+
 def execute(plan, *, root, backup, action):
     if plan.get("schema_version") != 1 or action not in {"inspect", "apply", "verify"}:
         raise ValueError("invalid_plan")
@@ -153,12 +172,7 @@ def execute(plan, *, root, backup, action):
                 if sha(original.read_bytes()) != row["before_sha256"]:
                     raise ValueError("original_changed_before_backup")
                 saved.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(original, saved, follow_symlinks=False)
-                with saved.open("r+b" if os.name == "nt" else "rb") as stream:
-                    os.fsync(stream.fileno())
-                if sha(saved.read_bytes()) != row["before_sha256"]:
-                    raise ValueError("backup_verification_failed")
-                sync_directory(saved.parent)
+                backup_original(original, saved, row["before_sha256"])
         atomic_bytes(
             intent,
             (

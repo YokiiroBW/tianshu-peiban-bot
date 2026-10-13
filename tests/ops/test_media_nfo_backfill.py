@@ -3,6 +3,7 @@ import hashlib
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from ops.media_nfo_backfill import execute, observation
 
@@ -86,6 +87,21 @@ class NfoBackfillTests(unittest.TestCase):
         restored = self.backup / "original/tvshow.nfo"
         (self.root / "tvshow.nfo").write_bytes(restored.read_bytes())
         self.assertEqual(1, self.run_action("apply")["changed"])
+        self.assertEqual("verified", self.run_action("verify")["status"])
+
+    def test_interrupted_backup_does_not_publish_partial_saved_file(self):
+        before = (self.root / "movie.nfo").read_bytes()
+
+        def interrupted_copy(source, target, **kwargs):
+            Path(target).write_bytes(b"partial-backup")
+            raise OSError("simulated disk full")
+
+        with patch("ops.media_nfo_backfill.shutil.copy2", side_effect=interrupted_copy):
+            with self.assertRaisesRegex(OSError, "simulated disk full"):
+                self.run_action("apply")
+        self.assertFalse((self.backup / "original/movie.nfo").exists())
+        self.assertEqual(before, (self.root / "movie.nfo").read_bytes())
+        self.assertEqual(2, self.run_action("apply")["changed"])
         self.assertEqual("verified", self.run_action("verify")["status"])
 
 
