@@ -1383,6 +1383,31 @@
       "allocation_note": "Allocator targets a known dirty historical projects checkout; reused verified isolated allocation from clean deployed integration, preserving original checkout.",
       "integration_commit": "9a2dde37527ac313593ec5d06b2a82e93e324c58",
       "completion_record": "docs/development/media-nfo-creators-deployment-2026-10-13.json"
+    },
+    {
+      "id": "TS-135",
+      "title": "历史B站视频NFO原位补全与Emby导演头像",
+      "project": "platform",
+      "depends_on": [],
+      "status": "done",
+      "allowed_paths": [
+        "services/platform/media/*.py",
+        "tests/backend/test_media*.py",
+        "tests/backend/media/*.py",
+        "docs/platform/media*",
+        "docs/handoffs/TS-135.md"
+      ],
+      "done_when": "644历史视频对应NFO及父级简介/UP/实际质量补全，视频不重下，Emby逐项核验并部署",
+      "authorization": "2026-10-13 用户明确授权644历史视频NFO和头像补全、实机Emby确认、全部更新推送部署",
+      "assignee": "gpt-6.1-sol/xhigh",
+      "plan": "docs/development/media-legacy-nfo-plan-2026-10-13.md",
+      "worktree": "worktrees/TS-135/tianshu-platform",
+      "branch": "codex/media-legacy-nfo-20261013",
+      "baseline_commit": "9a2dde37527ac313593ec5d06b2a82e93e324c58",
+      "execution_state": "deployed_and_live_verified",
+      "allocation_note": "Allocator points at dirty historical coordination checkout; reuse established isolated allocation from clean deployed integration, preserving original checkout.",
+      "integration_commit": "fcac74594c7e013af88f2e5e66376b71af73174b",
+      "completion_record": "docs/development/media-legacy-nfo-deployment-2026-10-14.json"
     }
   ],
   "dispatch_defaults": {

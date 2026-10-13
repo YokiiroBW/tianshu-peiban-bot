@@ -1,0 +1,134 @@
+{
+  "task": "TS-135",
+  "status": "deployed_and_live_verified",
+  "completed_date_local": "2026-10-14",
+  "timezone": "Asia/Shanghai",
+  "platform_commit": "fcac74594c7e013af88f2e5e66376b71af73174b",
+  "image_id": "sha256:d54c08b2bfbfa0825ee876db644c87c79f726ee41bc417f25ad2b6fa4c241537",
+  "baseline": "9a2dde37527ac313593ec5d06b2a82e93e324c58",
+  "implementation": {
+    "reused": [
+      "Imports/Repository schema2",
+      "Bilibili.resolve",
+      "NFO streamdetails",
+      "CreatorCache",
+      "Remote/Emby person images"
+    ],
+    "new_public_api": false,
+    "new_dependencies": false,
+    "settings_or_mounts_changed": false,
+    "video_downloads_created": 0,
+    "unknown_qn_inferred": false,
+    "nfo_profile": "bilibili-import-metadata-v1"
+  },
+  "metadata_sources": {
+    "bvids": 171,
+    "current_bilibili": 168,
+    "verified_historical_bili_sync": 3,
+    "historical_affected_videos": 7,
+    "current_unavailable_bvids": 1,
+    "current_changed_cids": 4,
+    "unique_uploaders": 32
+  },
+  "nfo_application": {
+    "existing_updated": 778,
+    "new_files_created": 2,
+    "orphan_original_preserved": 1,
+    "application_and_readback": {
+      "status": "applied_and_verified",
+      "applied": {
+        "status": "applied",
+        "plan_sha256": "65fe2342c6066194ffacafe90321c29824252a3afa3808335732a7a5faa5df32",
+        "nfos": 780,
+        "videos_unchanged": 644,
+        "changed": 780,
+        "already_applied": 0,
+        "backup": "/volume2/tianshu-v2-resident-updates/media-legacy-nfo-20261013-release-r1/nfo-update/original-nfos"
+      },
+      "verified": {
+        "status": "verified",
+        "plan_sha256": "65fe2342c6066194ffacafe90321c29824252a3afa3808335732a7a5faa5df32",
+        "nfos": 780,
+        "videos_unchanged": 644,
+        "changed": 0,
+        "already_applied": 780,
+        "backup": "/volume2/tianshu-v2-resident-updates/media-legacy-nfo-20261013-release-r1/nfo-update/original-nfos"
+      }
+    },
+    "executor_commit": "981509c463d7b0b0aa73dda0e4a405ecf7252b2d",
+    "executor_branch": "codex/media-reuse-delivery-20261012"
+  },
+  "independent_verification": {
+    "status": "verified",
+    "videos": 644,
+    "nfos_verified": 780,
+    "updated_existing_nfos": 778,
+    "created_nfos": 2,
+    "orphan_original_nfo_preserved": 1,
+    "nfo_types": {
+      "episodedetails": 608,
+      "tvshow": 136,
+      "movie": 36
+    },
+    "unique_uploaders": 32,
+    "metadata_source_nfos": {
+      "bilibili": 771,
+      "bili_sync_history": 9
+    },
+    "unknown_qn_preserved": 644,
+    "duration_anomaly_preserved": 1,
+    "video_stat_identity_unchanged": true,
+    "non_nfo_files_unchanged": 2241,
+    "image_and_subtitle_hashes_unchanged": 1597,
+    "original_import_and_download_ledger_unchanged": true,
+    "original_managed_emby_items_preserved": 6,
+    "browser_ui_checked": false
+  },
+  "emby": {
+    "version": "4.9.5.0",
+    "library_id": "25136",
+    "library_path_change": {
+      "status": "path_added_and_scan_accepted",
+      "library_id": "25136",
+      "original_locations_preserved": true,
+      "added_path": "/video/存储库/短视频/manual/bilibili",
+      "library_options_preserved": true,
+      "original_path_options_preserved": true,
+      "scan_complete": false
+    },
+    "verified_video_items": 644,
+    "verified_series_items": 136,
+    "verified_total": 780,
+    "unique_verified_directors": 32,
+    "portrait_readback_matches": true,
+    "original_managed_items_preserved": 6,
+    "browser_ui_checked": false
+  },
+  "validation": {
+    "windows_first_passed": 57,
+    "windows_final_new_module_passed": 18,
+    "linux_first_passed": 60,
+    "linux_final_targeted_passed": 3,
+    "linux_unique_applicable_tests": 61,
+    "nas_executor_tests": 6,
+    "posix_mode_uid_gid_and_xattrs_preserved": true,
+    "concentrated_review": "missing_director_false_success_fixed; executor_backup_recovery_and_directory_durability_fixed; final_increments_no_blockers",
+    "static_assets_verified": 59,
+    "cold_backup": "/volume2/tianshu-v2-resident-updates/media-legacy-nfo-20261013-release-r1/cold-snapshot",
+    "sqlite_databases_verified": 37,
+    "guard": "ready",
+    "owners": 10,
+    "settings_preserved": true,
+    "provider_models_and_keys_preserved": true,
+    "dockge_synced": true
+  },
+  "boundaries": [
+    "No video bytes were downloaded, moved or rewritten; 644 dev/ino/size/mtime/ctime observations unchanged. Full 154 GiB video rehash was not performed.",
+    "All 1597 existing image/subtitle files were hashed and preserved.",
+    "Legacy QN values remain unknown; actual resolution, codec, frame rate, dynamic-range evidence and audio facts are exported.",
+    "One prior duration anomaly remains invalid in the import ledger; enrichment does not certify video completeness.",
+    "Three source snapshots use explicit historical provenance rather than claiming current upstream metadata.",
+    "No browser UI or full playback/transcoding test was performed; recognition and portraits were verified via Emby item/People/image APIs."
+  ],
+  "private_evidence": ".runtime/media-legacy-nfo-20261013 (ignored; private manifests, titles, credentials and images excluded from Git)"
+}

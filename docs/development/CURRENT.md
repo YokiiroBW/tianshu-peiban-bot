@@ -1,3 +1,7 @@
+## 2026-10-14 历史644视频NFO与Emby导演头像已补全
+
+TS-135 Platform `fcac745` 已推送部署；644视频关联780份NFO（778更新+2补建），简介、UP/导演和实际流信息补全。Emby逐路径核验全部780项及32位导演头像通过，原6受管条目保持；644视频身份和1597图片/字幕哈希、原下载台账均不变，未重下载。168BV用当前来源、3用明确历史来源；未知QN及原1条时长异常保留。Linux60+窄修3、执行器6、37库冷备、十服务/guard、59资源及Dockge通过。[交付记录](media-legacy-nfo-deployment-2026-10-14.md)。
+
 ## 2026-10-13 B站NFO与UP主导演头像已部署
 
 TS-134 Platform `9a2dde3` 已推送部署；新下载/元数据刷新写简介、UP导演与UID/主页、每P实际流/QN/文件摘要，MID头像持久缓存并通过Emby人物API同步。旧任务冷缓存补源与三个任务、六NFO/六Emby条目实测通过；头像复用，视频hash/inode与原下载generation不变。Linux首轮141/补修16、37库冷备、十服务/guard、59资源及Dockge通过，settings/模型Key保持。旧644只读文件未改；高级下载格式策略保持。[交付记录](media-nfo-creators-deployment-2026-10-13.md)。
