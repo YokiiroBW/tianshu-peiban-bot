@@ -104,6 +104,20 @@ class NfoBackfillTests(unittest.TestCase):
         self.assertEqual(2, self.run_action("apply")["changed"])
         self.assertEqual("verified", self.run_action("verify")["status"])
 
+    def test_explicitly_missing_nfo_created_and_resumed_without_overwrite(self):
+        self.files[1]["relative_path"] = "new-episode.nfo"
+        self.files[1]["before_sha256"] = None
+        new = self.root / "new-episode.nfo"
+        new.write_bytes(b"<episodedetails>User-created</episodedetails>")
+        with self.assertRaisesRegex(ValueError, "original_nfo_changed"):
+            self.run_action("apply")
+        self.assertFalse(self.backup.exists())
+        new.unlink()
+        self.assertEqual(2, self.run_action("apply")["changed"])
+        self.assertFalse((self.backup / "original/new-episode.nfo").exists())
+        self.assertEqual(0, self.run_action("apply")["changed"])
+        self.assertEqual("verified", self.run_action("verify")["status"])
+
 
 if __name__ == "__main__":
     unittest.main()

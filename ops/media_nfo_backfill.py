@@ -86,7 +86,7 @@ def durable_mkdir(path):
         sync_directory(directory.parent)
 
 
-def atomic_bytes(path, raw, source=None):
+def atomic_bytes(path, raw, source=None, create_nfo=False):
     descriptor, temporary = tempfile.mkstemp(prefix=".tianshu-nfo-", dir=path.parent)
     temporary = Path(temporary)
     try:
@@ -100,9 +100,20 @@ def atomic_bytes(path, raw, source=None):
             if hasattr(os, "chown"):
                 os.chown(temporary, info.st_uid, info.st_gid)
             os.utime(temporary, ns=(info.st_atime_ns, time.time_ns()))
+        elif create_nfo:
+            info = path.parent.stat()
+            temporary.chmod(0o644)
+            if hasattr(os, "chown"):
+                os.chown(temporary, info.st_uid, info.st_gid)
+        if source is not None or create_nfo:
             with temporary.open("r+b" if os.name == "nt" else "rb") as stream:
                 os.fsync(stream.fileno())
-        os.replace(temporary, path)
+        if create_nfo:
+            # Publish an absent file without replacing one created concurrently.
+            os.link(temporary, path)
+            temporary.unlink()
+        else:
+            os.replace(temporary, path)
         sync_directory(path.parent)
     finally:
         if temporary.exists():
@@ -155,19 +166,27 @@ def execute(plan, *, root, backup, action):
         if Path(relative).suffix.lower() != ".nfo":
             raise ValueError("only_nfo_allowed")
         original = checked_path(root, relative)
-        observation(original)
+        if original.exists():
+            observation(original)
+        elif not original.parent.is_dir():
+            raise ValueError("nfo_parent_missing")
         raw = base64.b64decode(row["content_base64"], validate=True)
         if len(raw) > 2 * 1024 * 1024 or sha(raw) != row["after_sha256"]:
             raise ValueError("candidate_digest_mismatch")
-        current = original.read_bytes()
-        current_sha = sha(current)
+        current_sha = sha(original.read_bytes()) if original.exists() else None
         if current_sha not in {row["before_sha256"], row["after_sha256"]}:
             raise ValueError("original_nfo_changed")
         saved = checked_path(backup / "original", relative)
         if saved.exists() and sha(saved.read_bytes()) != row["before_sha256"]:
             raise ValueError("backup_digest_mismatch")
         if current_sha == row["after_sha256"]:
-            if row["before_sha256"] != row["after_sha256"] and not saved.exists():
+            if row["before_sha256"] is None and not intent.exists():
+                raise ValueError("created_file_without_intent")
+            if (
+                row["before_sha256"] is not None
+                and row["before_sha256"] != row["after_sha256"]
+                and not saved.exists()
+            ):
                 raise ValueError("applied_file_without_backup")
             already_applied += 1
         elif action == "verify":
@@ -179,6 +198,8 @@ def execute(plan, *, root, backup, action):
         durable_mkdir(backup)
         # Back up every original before publishing even the first changed NFO.
         for row, original, saved, _ in candidates:
+            if row["before_sha256"] is None:
+                continue
             if not saved.exists():
                 if sha(original.read_bytes()) != row["before_sha256"]:
                     raise ValueError("original_changed_before_backup")
@@ -193,6 +214,11 @@ def execute(plan, *, root, backup, action):
                         "root": str(root),
                         "files": len(files),
                         "videos": video_count,
+                        "created_paths": [
+                            row["relative_path"]
+                            for row in files
+                            if row["before_sha256"] is None
+                        ],
                     },
                     indent=2,
                 )
@@ -200,12 +226,18 @@ def execute(plan, *, root, backup, action):
             ).encode(),
         )
         for row, original, saved, raw in candidates:
-            current_sha = sha(original.read_bytes())
+            current_sha = sha(original.read_bytes()) if original.exists() else None
             if current_sha == row["after_sha256"]:
                 continue
             if current_sha != row["before_sha256"]:
                 raise ValueError("original_changed_before_write")
-            atomic_bytes(original, raw, source=original)
+            creating = row["before_sha256"] is None
+            atomic_bytes(
+                original,
+                raw,
+                source=None if creating else original,
+                create_nfo=creating,
+            )
             if sha(original.read_bytes()) != row["after_sha256"]:
                 raise ValueError("nfo_readback_failed")
             changed += 1
