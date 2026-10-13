@@ -1408,6 +1408,54 @@
       "allocation_note": "Allocator points at dirty historical coordination checkout; reuse established isolated allocation from clean deployed integration, preserving original checkout.",
       "integration_commit": "fcac74594c7e013af88f2e5e66376b71af73174b",
       "completion_record": "docs/development/media-legacy-nfo-deployment-2026-10-14.json"
+    },
+    {
+      "id": "TS-136",
+      "title": "网页503：持久日志瞬时失败后的有界自动恢复",
+      "project": "platform",
+      "depends_on": [],
+      "status": "done",
+      "allowed_paths": [
+        "services/platform/diagnostics.py",
+        "services/platform/diagnostics_recovery.py",
+        "services/platform/__main__.py",
+        "tests/backend/test_runtime_*.py",
+        "docs/platform/diagnostics.md",
+        "docs/handoffs/TS-136.md"
+      ],
+      "done_when": "保留日志落盘接单条件；瞬时日志故障以有界退避尝试既有恢复，真实落盘后才恢复接单，停止不遗留线程；部署并验证真实网页与就绪",
+      "authorization": "2026-10-14 用户反馈网页仍503，延续既有实现、推送部署授权修复实际故障；开发使用gpt-6.1-sol/xhigh",
+      "assignee": "gpt-6.1-sol/xhigh",
+      "worktree": "worktrees/TS-136/tianshu-platform",
+      "branch": "codex/platform-log-recovery-20261014",
+      "baseline_commit": "fcac74594c7e013af88f2e5e66376b71af73174b",
+      "execution_state": "deployed_and_live_verified",
+      "allocation_note": "workspace.py start refused the pre-existing dirty historical coordinator; use the clean deployed integration baseline, preserving it and all original changes.",
+      "integration_commit": "9219d31359829ed130da4062e23c38ab2f949769",
+      "completion_record": "docs/development/web-runtime-recovery-deployment-2026-10-14.json"
+    },
+    {
+      "id": "TS-137",
+      "title": "模型网关同来源授权瞬时续期失败恢复",
+      "project": "model-gateway",
+      "depends_on": [],
+      "status": "done",
+      "allowed_paths": [
+        "src/tianshu_gateway/origin_renewal.py",
+        "tests/test_origin_renewal.py",
+        "docs/handoffs/TS-137.md",
+        "tests/test_origin_renewal_joint.py"
+      ],
+      "done_when": "原有效授权期限内对瞬时续期传输失败有界退避恢复；失效/撤销/越权仍拒绝；与平台日志恢复一并实机部署验证",
+      "authorization": "2026-10-14 网页恢复完整链路关联故障修复；沿用用户开发并行gpt-6.1-sol/xhigh及推送部署授权",
+      "assignee": "gpt-6.1-sol/xhigh",
+      "worktree": "worktrees/TS-137/tianshu-model-gateway",
+      "branch": "codex/gateway-origin-recovery-20261014",
+      "baseline_commit": "f57d38e19416b7fa1a956e9557024fe1e1b75c4b",
+      "execution_state": "deployed_and_live_verified",
+      "allocation_note": "workspace.py start created the isolated checkout; switch the clean new task to the verified deployed f57d38e baseline, preserving the historical coordinator checkout.",
+      "integration_commit": "0a6b0099149b4b7dcad4c165f9b1972d091eed08",
+      "completion_record": "docs/development/web-runtime-recovery-deployment-2026-10-14.json"
     }
   ],
   "dispatch_defaults": {

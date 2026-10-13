@@ -1,0 +1,101 @@
+{
+  "date": "2026-10-14",
+  "status": "deployed_and_live_verified",
+  "tasks": [
+    "TS-136",
+    "TS-137"
+  ],
+  "platform_revision": "9219d31359829ed130da4062e23c38ab2f949769",
+  "gateway_revision": "0a6b0099149b4b7dcad4c165f9b1972d091eed08",
+  "cause": {
+    "initial_outage": "capacity guard latched docker_unavailable and stopped ten services; exact Docker probe underlying error unavailable",
+    "followup_web_503": "Platform durable logging confirmation timed out; no runtime recovery caller, so admission stayed unavailable after storage resumed",
+    "gateway_unavailable": "one transient three-second origin-renewal round failure permanently stopped the worker; last confirmed 300-second origin then expired"
+  },
+  "changes": {
+    "platform": "one bounded recovery worker, stable recovery event and flush barrier, real fsync before admission, bounded shutdown",
+    "gateway": "transient transport/service failures retry within the same unexpired authority; no new ref, cache fallback, authority widening or business replay"
+  },
+  "verification": {
+    "platform_installed_linux_tests": 198,
+    "gateway_and_joint_linux_tests": 68,
+    "linux_failures": 0,
+    "linux_skips": 0,
+    "joint_environment": "installed Platform candidate with exact Gateway Git source matching the built Gateway image; synthetic upstream, verified local TLS, no external network or production mounts",
+    "local_platform_unique_tests": 223,
+    "local_platform_passed": 221,
+    "local_platform_existing_failure": "unchanged Dockerfile ffmpeg apt-get conflicts with prior static assertion",
+    "local_platform_skipped": "GatewaySubchain absent TS012_GATEWAY_SRC; unrelated to final origin-renewal joint proof",
+    "local_gateway_origin_tests": 34,
+    "local_gateway_failures": 0,
+    "fixed_diff_reviews": "both candidates reviewed; no material blockers",
+    "readiness": {
+      "platform": 200,
+      "gateway": 200,
+      "companion": 200,
+      "memory": 200,
+      "knowledge": 200
+    },
+    "public_web": {
+      "status": 200,
+      "content_type": "text/html",
+      "html_bytes": 709,
+      "assets": [
+        {
+          "path": "/assets/index-B8vHmmCR.css",
+          "status": 200,
+          "bytes": 15475
+        },
+        {
+          "path": "/assets/index-u1OZmuca.js",
+          "status": 200,
+          "bytes": 249923
+        },
+        {
+          "path": "/assets/jsx-runtime-jO97T933.js",
+          "status": 200,
+          "bytes": 8422
+        }
+      ]
+    },
+    "web_observation_seconds": 360.043,
+    "web_observation_samples": 13,
+    "web_observation_all_html_200": true,
+    "same_origin_observation_seconds": 375.15,
+    "original_origin_ttl_seconds": 300,
+    "successful_renewals_observed": 12,
+    "same_origin_passed_original_expiry": true,
+    "chrome_login_page_verified": true
+  },
+  "deployment": {
+    "images": {
+      "gateway": {
+        "image_id": "sha256:1826e2a52060d6c4545bf5ed5eaa616d3cce48fd63b49a0b1b01ee92dd835188",
+        "revision": "0a6b0099149b4b7dcad4c165f9b1972d091eed08"
+      },
+      "platform": {
+        "image_id": "sha256:3fed84a04a5fb66d0fd8688c2466372bc89a037eaff22523184a8ccdf373979d",
+        "revision": "9219d31359829ed130da4062e23c38ab2f949769"
+      }
+    },
+    "cold_backup": "/volume2/tianshu-v2-resident-updates/platform-log-recovery-20261014-release-r1/cold-snapshot",
+    "sqlite_databases_verified": 37,
+    "settings_preserved": true,
+    "other_eight_owner_ids_preserved": true,
+    "provider_keys_and_configuration_preserved": true,
+    "media_configuration_preserved": true,
+    "administrator_grants_preserved": true,
+    "roles_preserved": true,
+    "guard": "ready",
+    "dockge_synchronized": true,
+    "no_database_migration": true
+  },
+  "preserved_limits": [
+    "No production disk fault was injected.",
+    "No real model call or QQ message was sent.",
+    "The original capacity guard stop policy is unchanged.",
+    "Already expired/revoked origins still require explicit bootstrap; no authority is revived."
+  ],
+  "private_evidence_directory": ".runtime/platform-log-recovery-20261014",
+  "incident_evidence_directory": ".runtime/web-outage-20261014"
+}
