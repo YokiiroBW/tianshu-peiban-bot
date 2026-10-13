@@ -1,3 +1,7 @@
+## 2026-10-13 B站NFO与UP主导演头像已部署
+
+TS-134 Platform `9a2dde3` 已推送部署；新下载/元数据刷新写简介、UP导演与UID/主页、每P实际流/QN/文件摘要，MID头像持久缓存并通过Emby人物API同步。旧任务冷缓存补源与三个任务、六NFO/六Emby条目实测通过；头像复用，视频hash/inode与原下载generation不变。Linux首轮141/补修16、37库冷备、十服务/guard、59资源及Dockge通过，settings/模型Key保持。旧644只读文件未改；高级下载格式策略保持。[交付记录](media-nfo-creators-deployment-2026-10-13.md)。
+
 ## 2026-10-13 已有B站媒体原位登记已部署
 
 TS-131 Platform `33f0ce0` 已推送并部署；旧目录644视频/171BV原位登记并保存实际编码/音轨，643项通过身份/时长核验，1项本地386.878秒与B站5820秒不符，保留异常。重复执行幂等，原文件、既有任务和三个源不变，未新增下载。旧台账无实际QN，不冒称已全部可精确复用。复用原documents/schema2和Retention/DownloadCache，仅增import_roots配置。Linux57、37库冷备、十服务/guard、网页及Dockge通过。现有账号可读取4K/DV，FLAC→MP4存在已复现兼容问题，高级音轨未做完整下载保真验证。[交付记录](media-existing-import-deployment-2026-10-13.md)。

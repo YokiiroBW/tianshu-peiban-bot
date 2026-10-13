@@ -1358,6 +1358,31 @@
       "allocation_note": "workspace start refused the dirty historical projects checkout; isolated from clean deployed integration baseline; original checkout preserved.",
       "integration_commit": "33f0ce09b43361862e644d162a34f2716d2c8286",
       "completion_record": "docs/development/media-existing-import-deployment-2026-10-13.json"
+    },
+    {
+      "id": "TS-134",
+      "title": "B站NFO实际质量、UP主导演信息与头像缓存",
+      "project": "platform",
+      "depends_on": [],
+      "status": "done",
+      "allowed_paths": [
+        "services/platform/media/*.py",
+        "tests/backend/test_media*.py",
+        "tests/backend/media/*.py",
+        "docs/platform/media*",
+        "docs/handoffs/TS-134.md"
+      ],
+      "done_when": "NFO真实简介/创作者/质量、持久头像复用、现有受管成品刷新、真实Emby导演图片核验与NAS交付",
+      "authorization": "2026-10-13 用户要求完善NFO和缓存UP主头像；沿用Sol/xhigh并行及推送部署授权",
+      "assignee": "gpt-6.1-sol/xhigh",
+      "plan": "docs/development/media-nfo-creators-plan-2026-10-13.md",
+      "worktree": "worktrees/TS-134/tianshu-platform",
+      "branch": "codex/media-nfo-creators-20261013",
+      "baseline_commit": "33f0ce09b43361862e644d162a34f2716d2c8286",
+      "execution_state": "deployed_and_live_verified",
+      "allocation_note": "Allocator targets a known dirty historical projects checkout; reused verified isolated allocation from clean deployed integration, preserving original checkout.",
+      "integration_commit": "9a2dde37527ac313593ec5d06b2a82e93e324c58",
+      "completion_record": "docs/development/media-nfo-creators-deployment-2026-10-13.json"
     }
   ],
   "dispatch_defaults": {

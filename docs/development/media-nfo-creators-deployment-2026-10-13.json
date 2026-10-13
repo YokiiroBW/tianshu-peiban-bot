@@ -1,0 +1,157 @@
+{
+  "task": "TS-134",
+  "status": "deployed_and_live_verified",
+  "platform_commit": "9a2dde37527ac313593ec5d06b2a82e93e324c58",
+  "image_id": "sha256:73faa5c9e7ac9d22fbb7b4193c8ac2e90d7d57924c9adc62ca50521c6fa4b23e",
+  "baseline": "33f0ce09b43361862e644d162a34f2716d2c8286",
+  "implementation": {
+    "nfo_profile": "bilibili-creators-v1",
+    "uploader_role": "Director with name and Bilibili MID",
+    "per_part_evidence": [
+      "BV",
+      "CID",
+      "actual_quality",
+      "sha256",
+      "size_bytes",
+      "ffprobe streams"
+    ],
+    "existing_reused": [
+      "Bilibili.resolve",
+      "metadata/sidecars",
+      "DownloadCache/Retention",
+      "Repository receipts",
+      "Remote and MediaServers"
+    ],
+    "avatar_storage": "MID-keyed persistent Platform data; independent of download staging cleanup",
+    "avatar_update": "source URL change or 24h cache age",
+    "new_http_routes": false,
+    "media_package_contract_changed": false,
+    "media_schema_changed": false,
+    "advanced_download_selection_changed": false
+  },
+  "live_validation": {
+    "status": "verified",
+    "jobs": [
+      {
+        "job_id": "b00d1dfb-1219-422d-8e61-c48ce688a789",
+        "edition": 1,
+        "nfo_roots": [
+          "tvshow",
+          "episodedetails"
+        ],
+        "actual_quality": "64",
+        "video_identity_and_hash_preserved": true,
+        "all_parts_reused": true,
+        "emby_items": [
+          {
+            "item_id": "27659",
+            "director_id": "27662",
+            "director_type": "Director",
+            "avatar_matches_cache": true
+          },
+          {
+            "item_id": "27661",
+            "director_id": "27662",
+            "director_type": "Director",
+            "avatar_matches_cache": true
+          }
+        ]
+      },
+      {
+        "job_id": "7316df9b-0df6-4f15-9a7c-420232ee505a",
+        "edition": 1,
+        "nfo_roots": [
+          "tvshow",
+          "episodedetails"
+        ],
+        "actual_quality": "64",
+        "video_identity_and_hash_preserved": true,
+        "all_parts_reused": true,
+        "emby_items": [
+          {
+            "item_id": "27643",
+            "director_id": "27662",
+            "director_type": "Director",
+            "avatar_matches_cache": true
+          },
+          {
+            "item_id": "27645",
+            "director_id": "27662",
+            "director_type": "Director",
+            "avatar_matches_cache": true
+          }
+        ]
+      },
+      {
+        "job_id": "5d94f4ad-1051-47bb-8cf8-ed7c33808fcf",
+        "edition": 1,
+        "nfo_roots": [
+          "tvshow",
+          "episodedetails"
+        ],
+        "actual_quality": "64",
+        "video_identity_and_hash_preserved": true,
+        "all_parts_reused": true,
+        "emby_items": [
+          {
+            "item_id": "27640",
+            "director_id": "27662",
+            "director_type": "Director",
+            "avatar_matches_cache": true
+          },
+          {
+            "item_id": "27642",
+            "director_id": "27662",
+            "director_type": "Director",
+            "avatar_matches_cache": true
+          }
+        ]
+      }
+    ],
+    "nfo_count": 6,
+    "emby_items_verified": 6,
+    "one_shared_director": true,
+    "one_shared_video_inode": true,
+    "avatar_format": "jpg",
+    "avatar_bytes": 264188,
+    "avatar_persistent_and_reused": true,
+    "avatar_cache_directory": "/var/lib/tianshu/platform.media-avatars",
+    "download_source_generations_unchanged": true,
+    "legacy_import_inventory_unchanged": true,
+    "browser_ui_checked": false
+  },
+  "cold_old_job_avatar_validation": {
+    "status": "verified",
+    "old_job_without_avatar_source": true,
+    "cache_initially_absent": true,
+    "source_resolved_by_existing_worker_domain": true,
+    "avatar_ready": true,
+    "job_unchanged": true,
+    "video_downloaded": false
+  },
+  "validation": {
+    "windows_initial_passed": 140,
+    "windows_initial_skipped": 1,
+    "windows_patch_passed": 16,
+    "linux_initial_passed": 141,
+    "linux_patch_passed": 16,
+    "linux_skipped": 0,
+    "fixed_diff_review": "three_findings_fixed_and_increment_reviewed_no_blockers",
+    "cold_backup": "/volume2/tianshu-v2-resident-updates/media-nfo-20261013-release-r1/cold-snapshot",
+    "sqlite_databases_verified": 37,
+    "guard": "ready",
+    "owner_count": 10,
+    "settings_unchanged": true,
+    "providers_preserved": true,
+    "dockge_match": true,
+    "static_assets": 59
+  },
+  "boundaries": [
+    "Emby 4.9.5.0 verified through item/People/image APIs; browser UI not inspected.",
+    "NFO technical fields are exported facts. Emby derives playback media details from actual media probing.",
+    "Legacy 644 read-only imported files and their NFOs were not rewritten. Their inventory remains 643 quality-unknown and one duration mismatch.",
+    "HDR/Dolby/multi-audio rendering is synthetic-tested; the live reused sample remains its existing actual quality 64.",
+    "No new video download, no video byte or inode changes, no new permissions or messages."
+  ],
+  "private_evidence": ".runtime/media-nfo-20261013 (ignored, not committed)"
+}
