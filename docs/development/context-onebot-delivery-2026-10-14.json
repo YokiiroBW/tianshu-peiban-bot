@@ -1,0 +1,200 @@
+{
+  "date": "2026-10-14",
+  "status": "local_verified_not_integrated",
+  "authorization": "用户明确要求修复天枢上下文、保留消息结构并提供直接 OneBot 接入，且明确授权本轮由 Codex 直接修复并验证。",
+  "scope": [
+    "普通记忆写入不应清空仍有效的最近对话；遗忘、撤权、来源编辑和撤回仍失效。",
+    "保留群／私聊、作者、原始消息身份、@ 与引用信息，背景观察和回复责任分离。",
+    "复用现有 NoneBot OneBot 适配器及共享 RPC 队列，提供天枢可管理的独立运行入口。",
+    "天枢平台提供明确的 OneBot 接入选项，继续复用账号探测、会话授权、观察、投递与回执。"
+  ],
+  "worktrees": {
+    "memory": {
+      "path": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\TS-138\\tianshu-memory",
+      "baseline": "95e557ca52732604a5ecb4c254d2750172c44f68",
+      "task": "TS-138",
+      "commit": "2bcdae52dc7b013a77b4221fb1b6a57b893ec2fd"
+    },
+    "companion": {
+      "path": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\TS-139\\tianshu-companion",
+      "baseline": "6ea390a01e5f4d5a55934b4182d8cd772ac588d2",
+      "task": "TS-139",
+      "commit": "8faa31a2b82b900458ae175acdfb9af5eb276432"
+    },
+    "platform": {
+      "path": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\TS-140\\tianshu-platform",
+      "baseline": "9219d31359829ed130da4062e23c38ab2f949769",
+      "task": "TS-140",
+      "commit": "337caf1c6f76204dde749dfeb264bde0a25219ae"
+    },
+    "contracts": {
+      "path": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\TS-141\\workspace",
+      "baseline": "6fa26626a4b80d4e2d162310ba2a1527c1cdf30f",
+      "task": "TS-141",
+      "commit": "bcbadbfe0388c0e53556fa36f1e9859430c0c983"
+    }
+  },
+  "tests": {
+    "memory": {
+      "passed": 1305,
+      "skipped": 7,
+      "baseline_failures": 1,
+      "logs": [
+        "memory-full-r2.log",
+        "memory-failed-cases-r3.log",
+        "memory-baseline-failure.log"
+      ],
+      "note": "1271 full-run passes plus 34 previously failed cases after correcting only the ignored workspace contract pointer. Basetemp must be under this checkout's .runtime. Old Memory Life contract pin is retained."
+    },
+    "companion": {
+      "passed": 801,
+      "skipped": 16,
+      "baseline_failures": 2,
+      "subtests_passed": 109,
+      "logs": [
+        "companion-full-r2.log",
+        "companion-baseline-failures.log"
+      ]
+    },
+    "platform": {
+      "full_run_passed": 1070,
+      "skipped": 77,
+      "full_run_failures": 96,
+      "subtests_passed": 855,
+      "reproduced_baseline_test_failures": 93,
+      "reproduced_baseline_subtest_failures": 1,
+      "intermittent_cases_passed_on_both_recheck": [
+        "tests/backend/test_home.py::HomeTests::test_an_expired_claim_can_be_taken_over_but_never_transmits_on_its_own",
+        "tests/backend/test_runtime_health.py::ReadinessTests::test_global_media_download_ledger_is_ready_without_probe_writes"
+      ],
+      "logs": [
+        "platform-full-r2.log",
+        "platform-baseline-failures.log",
+        "platform-baseline-native-subtest.log",
+        "platform-intermittent-recheck.log"
+      ],
+      "note": "Full suite is not green. Ninety-three original cases and the capabilities subtest fail on the exact unmodified deployed Platform export. Two unchanged home/readiness cases passed on baseline and candidate rerun. No unrelated media/fixture repair was undertaken."
+    },
+    "native_four_owner": {
+      "passed": 2,
+      "log": "native-regression.log",
+      "model": "deterministic local HTTP/SSE fixture",
+      "channel": "synthetic local recorder",
+      "external_calls": 0
+    },
+    "installed_onebot_wheel": {
+      "passed": 1,
+      "log": "installed-wheel-protocol.log",
+      "method": "Real NoneBot/OneBot SDK, local reverse WebSocket peer; startup, metadata, send receipts, reconnect, dedup, shutdown."
+    },
+    "frontend": {
+      "build": true,
+      "browser_cases": 48,
+      "final_onebot_cases": 2,
+      "desktop_mobile_visually_checked": true,
+      "logs": [
+        "frontend-browser.log",
+        "frontend-build-final.log",
+        "frontend-onebot-final.log"
+      ]
+    },
+    "contracts": {
+      "examples": 8,
+      "result": "passed",
+      "artifact_report": "artifact-verification.json"
+    },
+    "static": {
+      "lint": "all three products passed",
+      "compile": "all three products passed",
+      "diff": "passed",
+      "changed_files_format": "passed",
+      "unchanged_format_failures": {
+        "memory": [
+          "src/tianshu_memory/auth.py",
+          "src/tianshu_memory/role_grants.py",
+          "tests/test_role_grants.py"
+        ],
+        "companion": [
+          "integrations/nonebot/tianshu_nonebot/__init__.py",
+          "tests/test_adapter_rpc.py",
+          "tests/test_optional_persona.py",
+          "tests/test_role_runtime.py"
+        ],
+        "platform": [
+          "services/platform/assets.py",
+          "services/platform/home.py",
+          "services/platform/origins.py",
+          "services/platform/web_external_net.py",
+          "tests/backend/test_knowledge_joint.py",
+          "tests/backend/test_optional_persona.py",
+          "tests/backend/test_persona_published.py",
+          "tests/backend/test_relationship_joint.py",
+          "tests/backend/test_role_joint.py",
+          "tests/backend/test_role_runtime.py",
+          "tests/backend/test_web_external.py"
+        ]
+      }
+    }
+  },
+  "regression": {
+    "before": "Ordinary automatic learning changed scope version 1 to 2 and recent_dialogue became empty.",
+    "after": "The same native four-owner probe retains the prior source; committed product regression also retains it after Core restart.",
+    "invalidation": "Explicit correction/forget, automatic current-fact replacement, source changes and authority checks remain invalidating.",
+    "prior_100_person_benchmark_rerun": false,
+    "new_reproducible_product_failures": 0
+  },
+  "publication": {
+    "pushed": false,
+    "deployed": false,
+    "production_modified": false,
+    "real_qq": false,
+    "real_notifications": false,
+    "daily_gemini_changed": false,
+    "real_user_memory_modified": false
+  },
+  "model_budget": {
+    "used": 1134,
+    "hard_cap": 1140,
+    "remaining": 6,
+    "calls_this_repair": 0
+  },
+  "contract_pins": {
+    "context-history/v1": "3b535e58c34eedba5589e45cc11ce44468f312251eb719cedd66368fdda02a2d",
+    "bot-connection/v2": "b3037eb21444b754c729dfbdab97fbd4ec8da9e0353f500c486c9263cfc7ad17"
+  },
+  "adapter_artifacts": [
+    {
+      "path": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\TS-139\\tianshu-companion\\.runtime\\adapter-artifacts\\astrbot_plugin_tianshu-0.6.0.zip",
+      "sha256": "cfa7e1cff6ea8feb46e041410e9cd0226d2ae199e208d77b834fe31eda2ac01f"
+    },
+    {
+      "path": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\TS-139\\tianshu-companion\\.runtime\\adapter-artifacts\\tianshu_nonebot_adapter-0.6.0-py3-none-any.whl",
+      "sha256": "5cc79cf6aff443b6c0f6854a0f80ee47facd7778abf9c602b018565a59e212c8"
+    }
+  ],
+  "unresolved": [
+    "Existing full-suite failures and conditional skips are retained and listed; this is not an all-green full-system acceptance.",
+    "Real AstrBot host extras are unavailable in this runtime. Its changed normalization is source-reviewed and uses the shared tested RPC normalization; real PluginManager acceptance was not rerun.",
+    "Docker is not available locally. The new Dockerfile, NAS installation and real NapCat/QQ channel were not exercised.",
+    "Passive observations remain a durable archive governed by existing read/reply policies. They are not automatically injected into model context. Current recent dialogue comes from admitted Core turns.",
+    "Incoming media and @all remain unsupported. Unknown reply IDs do not fetch other rooms' history.",
+    "The 100-person OpenCode benchmark was not rerun; previously observed negative-preference and natural-question recall gaps are not claimed fixed here."
+  ],
+  "next_release_order": [
+    "Publish the additive contract beside each owner's existing immutable bundle; preserve differing existing Life pins.",
+    "Deploy Memory with context-history, then Companion; deploy Platform before enabling 0.6.0 adapters.",
+    "Back up stores/configuration and retain prior artifacts before actual deployment. Roll adapters back before an older Platform; roll Companion back before an older Memory."
+  ],
+  "evidence_directory": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-13\\task\\upgrade-20261013\\context-onebot-20261014",
+  "preserved_root_tracked_files": [
+    "AGENTS.md",
+    "contracts/README.md",
+    "docs/design/room-reference-v1/review.html",
+    "docs/development/CURRENT.md",
+    "docs/development/dsh-dispatch-2026-09-14.json",
+    "docs/development/dsh/EXECUTOR.md",
+    "workspace.json"
+  ],
+  "root_task_board_note": "Original task objects preserved. Mixed historical root tasks.json is not staged or committed by this delivery.",
+  "completed_at": "2026-10-14T14:40:45.430371+00:00"
+}

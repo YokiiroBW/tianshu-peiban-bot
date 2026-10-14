@@ -1,0 +1,78 @@
+{
+  "date": "2026-10-14",
+  "status": "local_verified_not_integrated",
+  "authorization": "用户明确要求修复天枢上下文、保留消息结构并提供直接 OneBot 接入，且明确授权本轮由 Codex 直接修复并验证。",
+  "scope": [
+    "普通记忆写入不应清空仍有效的最近对话；遗忘、撤权、来源编辑和撤回仍失效。",
+    "保留群／私聊、作者、原始消息身份、@ 与引用信息，背景观察和回复责任分离。",
+    "复用现有 NoneBot OneBot 适配器及共享 RPC 队列，提供天枢可管理的独立运行入口。",
+    "天枢平台提供明确的 OneBot 接入选项，继续复用账号探测、会话授权、观察、投递与回执。"
+  ],
+  "existing_implementation": {
+    "companion": [
+      "short_context.py",
+      "context.py",
+      "core.py",
+      "integrations/shared/tianshu_adapter_rpc.py",
+      "integrations/nonebot/tianshu_nonebot/adapter_plugin.py"
+    ],
+    "memory": [
+      "service.py",
+      "memory_context/query.py",
+      "source_authority.py"
+    ],
+    "platform": [
+      "bot_adapters.py",
+      "bots.py",
+      "bot_observation.py"
+    ]
+  },
+  "validation": [
+    "固定部署基线复现自动学习落库后丢上下文，使用合成模型及临时数据库。",
+    "验证普通新增后上下文保留，以及遗忘、撤权、消息撤回／编辑、角色／房间／人物隔离。",
+    "验证引用、@他人、群内跨作者接话经真实适配器及平台贯通到Core输入。",
+    "独立OneBot宿主用本地协议对端验证启动、账号发现、接收、回复、断连和去重；不向QQ发送。",
+    "共享来源、上下文、入口变动按产品约定执行完整套件，区分已复现基线失败。"
+  ],
+  "boundaries": {
+    "production_changes": false,
+    "real_qq_or_notifications": false,
+    "daily_gemini_changes": false,
+    "model_calls_planned_during_preparation": 0,
+    "remaining_existing_model_allowance": 6,
+    "prior_benchmark_immutable": true,
+    "contracts": "协调者负责必要合同扩展；不覆写已冻结包或在产品中复制schema。"
+  },
+  "tasks": [
+    {
+      "id": "TS-138",
+      "project": "memory",
+      "baseline": "95e557ca52732604a5ecb4c254d2750172c44f68",
+      "title": "区分记忆内容更新与对话历史失效"
+    },
+    {
+      "id": "TS-139",
+      "project": "companion",
+      "baseline": "6ea390a01e5f4d5a55934b4182d8cd772ac588d2",
+      "title": "连续上下文、结构化消息与独立OneBot接入服务"
+    },
+    {
+      "id": "TS-140",
+      "project": "platform",
+      "baseline": "9219d31359829ed130da4062e23c38ab2f949769",
+      "title": "OneBot直接接入管理与消息结构贯通"
+    },
+    {
+      "id": "TS-141",
+      "project": "workspace",
+      "baseline": "6fa26626a4b80d4e2d162310ba2a1527c1cdf30f",
+      "title": "对话历史有效性与结构化机器人消息合同"
+    }
+  ],
+  "evidence_directory": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-13\\task\\upgrade-20261013\\context-onebot-20261014",
+  "preparation": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-13\\task\\upgrade-20261013\\context-onebot-20261014\\PREPARATION.json",
+  "baseline_reproduced": true,
+  "executor": "Codex",
+  "executor_authorization": "用户明确选择：本轮由你直接修复并验证（推荐）",
+  "completion_record": "docs/development/context-onebot-delivery-2026-10-14.json"
+}
