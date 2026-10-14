@@ -1,0 +1,122 @@
+{
+  "date": "2026-10-15",
+  "status": "deployed_and_verified",
+  "authorization": "用户要求参考 bili-sync 吸收来源分类设计，并确认旧644视频一起整理，来源缺失时按UP主归类；本对话既有gpt-6.1-sol/xhigh并行开发授权继续适用。",
+  "baseline": "337caf1c6f76204dde749dfeb264bde0a25219ae",
+  "reuse": [
+    "media/destination.py",
+    "Subscriptions",
+    "Bilibili.scan",
+    "Repository schema2",
+    "Imports",
+    "DownloadCache/Retention",
+    "Organizer",
+    "Emby verification"
+  ],
+  "directories": {
+    "uploader": "UP主/{订阅名称} [UID{mid}]",
+    "favorite": "收藏夹/{订阅名称} [FID{fid}]",
+    "collection": "合集/{订阅名称} [合集{mid}-{sid}]",
+    "series": "合集/{订阅名称} [系列{mid}-{sid}]",
+    "watch_later": "稍后再看"
+  },
+  "contract": {
+    "destination_mode": "source|custom; 新网页订阅默认source，缺少字段的旧请求/旧订阅按custom处理，保留原路径",
+    "source_directory": "source模式生成并持久化目录；订阅名称编辑不隐式移动已有目录；自定义模式复用destination_subdirectory",
+    "preview": "后端统一规则；POST media/subscriptions/destination-preview 返回 destination_mode, destination_subdirectory, destination_directory；输入source,label,account_id,target_id及可选subscription_id",
+    "watch_later": "Source.kind=watch_later, id=self；必需有效账号；使用/x/v2/history/toview完整列表；账号改变不得沿用另一账号的成员基线",
+    "layout": "视频内部已有BV/CID和NFO布局保持；独立来源发布记录、全局下载复用和同卷硬链接保持"
+  },
+  "tasks": [
+    {
+      "id": "TS-142",
+      "title": "B站按来源自动归档与稍后再看扫描",
+      "allowed_paths": [
+        "services/platform/media/",
+        "tests/backend/test_media*",
+        "docs/platform/media-source-layout.md",
+        "docs/handoffs/TS-142.md"
+      ],
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "xhigh"
+    },
+    {
+      "id": "TS-143",
+      "title": "订阅来源目录选择和路径预览",
+      "allowed_paths": [
+        "apps/web/src/features/media/",
+        "apps/web/tests/media*",
+        "apps/web/tests/subscriptions*",
+        "docs/handoffs/TS-143.md"
+      ],
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "xhigh"
+    },
+    {
+      "id": "TS-144",
+      "title": "已登记B站视频迁移路径与原有身份保留",
+      "allowed_paths": [
+        "services/platform/media/import_relocation.py",
+        "services/platform/media/repository.py",
+        "tests/backend/test_media_import_relocation.py",
+        "docs/handoffs/TS-144.md"
+      ],
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "xhigh"
+    }
+  ],
+  "coordinator": {
+    "owns": [
+      "工作区计划/任务板",
+      "隔离集成",
+      "历史644视频整理执行器",
+      "线上盘点和实际验收"
+    ],
+    "migration": "优先可信来源，否则NFO/既有导入记录中的UP主；先生成精确计划，再同卷硬链接到新目录并保留独立附属文件，更新路径登记并验证Emby后移除旧位置。未知来源/重名/异常证据明确保留，不猜CID或QN，不下载视频。",
+    "preserve": [
+      "所有原视频内容",
+      "NFO/图片/字幕",
+      "现有账号与配置",
+      "已部署OneBot与记忆功能",
+      "现有已验证冷备和NFO原件备份"
+    ]
+  },
+  "verification": [
+    "来源归类、非法目录字符及重名",
+    "旧订阅/旧API兼容、编辑后的任务路径快照",
+    "稍后再看认证/空列表/异常列表及未来新增",
+    "跨来源不同目录同一BV/CID画质复用",
+    "网页桌面/手机路径预览和自定义",
+    "旧644视频内容与记录核验及Emby真实识别"
+  ],
+  "scope_reservation": "TS-144独占import_relocation.py和repository.py的导入重定位事务；TS-142不写这两文件。父级独占NAS操作与ops执行器。",
+  "target_root": {
+    "unc": "\\\\YokiiroNAS\\Video\\存储库\\bilibili",
+    "host": "/volume1/Video/存储库/bilibili",
+    "platform": "/media/Bilibili",
+    "emby": "/video/存储库/bilibili"
+  },
+  "historical_inventory": {
+    "videos": 644,
+    "packages": 172,
+    "by_kind": {
+      "uploader": 514,
+      "favorite": 121,
+      "collection": 9
+    },
+    "bvid_packages_by_kind": {
+      "uploader": 134,
+      "favorite": 29,
+      "collection": 9
+    },
+    "historical_source_videos": 641,
+    "uploader_fallback_videos": 3,
+    "mapped_files": 3022,
+    "all_files": 3022,
+    "overlapping_files": 0,
+    "unmapped_files": [],
+    "issues": 0
+  },
+  "integration_commit": "c886c22d5949bbcb51d5cd0173b68909d5aa61f8",
+  "delivery": "docs/development/media-source-layout-deployment-2026-10-15.json"
+}

@@ -1,0 +1,380 @@
+{
+  "date": "2026-10-15",
+  "status": "deployed_and_verified",
+  "platform_revision": "c886c22d5949bbcb51d5cd0173b68909d5aa61f8",
+  "platform_image": "sha256:416e893490c6859f9d5bf46d6d3d6c774fd9a50fc062d24e412a818e6257e626",
+  "executor_revision": "8b25d3761a18422f05e04c2ece5704f2cecd65e8",
+  "target_root": {
+    "unc": "\\\\YokiiroNAS\\Video\\存储库\\bilibili",
+    "host": "/volume1/Video/存储库/bilibili",
+    "platform": "/media/Bilibili",
+    "emby": "/video/存储库/bilibili"
+  },
+  "features": [
+    "source/custom destination modes",
+    "four source categories and backend preview",
+    "account-bound watch-later scan",
+    "stable source directory after label edits",
+    "legacy exact import relocation"
+  ],
+  "historical": {
+    "video_count": 644,
+    "sidecars": 2378,
+    "source_restored_videos": 641,
+    "uploader_fallback_videos": 3,
+    "source_counts": {
+      "uploader": 514,
+      "favorite": 121,
+      "collection": 9
+    },
+    "registration_states": {
+      "unknown": 643,
+      "invalid": 1
+    },
+    "hardlink_proofs": 644,
+    "retired_old_files": 3022,
+    "original_state_and_quality_preserved": true
+  },
+  "managed": {
+    "published_from_existing_media": 3,
+    "paused_subscriptions": 6,
+    "old_test_files_removed_from_new_root": 21,
+    "shared_video_inodes": 1,
+    "cache_cleaned": true,
+    "library_reuse_after_relocation": true,
+    "download_ledger_unchanged": true,
+    "download_generations": [
+      2,
+      1,
+      1
+    ],
+    "new_video_downloads": 0,
+    "old_job_receipts_preserved": true,
+    "old_visible_jobs_replaced_by_verified_new_jobs": true
+  },
+  "final_directories": {
+    "UP主": 515,
+    "合集": 9,
+    "收藏夹": 123,
+    "稍后再看": 0
+  },
+  "old_root_regular_files": {
+    "legacy": 0,
+    "managed": 0
+  },
+  "retired_managed_host": {
+    "status": "retired",
+    "stage_plan_digest": "722d0027f60162f8517f25b76040ed4add9254096e5fb0dc78c8167b46a56f7b",
+    "migration_plan_digest": "3218c9a2a5c0171530a212d69da2b11b8d7b9a4ca5f48930587573bf14b5dd70",
+    "archived_sidecars": 37,
+    "removed": 44,
+    "already_absent": 0,
+    "source_root_retained": true,
+    "archive_root": "/volume2/tianshu-v2-resident-updates/media-source-layout-20261015-release-r1/retired-managed-originals"
+  },
+  "retired_synology_index": {
+    "status": "retired",
+    "synology_generated_index_files": 420,
+    "archive": "/volume2/tianshu-v2-resident-updates/media-source-layout-20261015-release-r1/retired-synology-index.tar.gz",
+    "archive_sha256": "f5958b7d84dc217693d38d6d90bd4037aae49e4555a3982d478ac908746af38d",
+    "old_root_regular_files": 0,
+    "only_index_records_for_retired_mapped_files": true
+  },
+  "emby": {
+    "library_id": "25136",
+    "library_id_preserved": true,
+    "videos": 647,
+    "series": 139,
+    "director_avatars": [
+      {
+        "old_person_id": "28638",
+        "name": "鸣潮（B站 UID 1955897084）",
+        "new_person_ids": [
+          "28638"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28689",
+        "name": "温竣岩（B站 UID 2026173074）",
+        "new_person_ids": [
+          "28689"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28671",
+        "name": "幻灵丨HL-Flame（B站 UID 3546883796503085）",
+        "new_person_ids": [
+          "28671"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28653",
+        "name": "AI林湛星（B站 UID 395922059）",
+        "new_person_ids": [
+          "28653"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28644",
+        "name": "叫我仙仙就好了（B站 UID 3546902022850669）",
+        "new_person_ids": [
+          "28644"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28656",
+        "name": "零零天然呆（B站 UID 650624701）",
+        "new_person_ids": [
+          "28656"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28640",
+        "name": "汐汐不想睡大街（B站 UID 30898527）",
+        "new_person_ids": [
+          "28640"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28664",
+        "name": "4K杜比修复计划-PX（B站 UID 536111971）",
+        "new_person_ids": [
+          "28664"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28634",
+        "name": "逍遥散人（B站 UID 168598）",
+        "new_person_ids": [
+          "28634"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28673",
+        "name": "-蹦蹦团子-（B站 UID 3546874814400939）",
+        "new_person_ids": [
+          "28673"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28658",
+        "name": "丿繁华唱遍（B站 UID 23659993）",
+        "new_person_ids": [
+          "28658"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28636",
+        "name": "煌咩（B站 UID 10047204）",
+        "new_person_ids": [
+          "28636"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28651",
+        "name": "插画家斋藤直葵（B站 UID 1688563568）",
+        "new_person_ids": [
+          "28651"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28648",
+        "name": "baka爱（B站 UID 1711589）",
+        "new_person_ids": [
+          "28648"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28646",
+        "name": "不乐得（B站 UID 3546693242981060）",
+        "new_person_ids": [
+          "28646"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28642",
+        "name": "收到谢谢辅导员（B站 UID 175402430）",
+        "new_person_ids": [
+          "28642"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28666",
+        "name": "WuSa-（B站 UID 2007173488）",
+        "new_person_ids": [
+          "28666"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28662",
+        "name": "希咲樱（B站 UID 3706925730499142）",
+        "new_person_ids": [
+          "28662"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28668",
+        "name": "刻刻欣（B站 UID 312979806）",
+        "new_person_ids": [
+          "28668"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "27662",
+        "name": "暖暖要发science（B站 UID 110730295）",
+        "new_person_ids": [
+          "27662"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28660",
+        "name": "不如薄荷奶酪（B站 UID 3546970916391341）",
+        "new_person_ids": [
+          "28660"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28632",
+        "name": "忧郁的泉泉（B站 UID 1141813665）",
+        "new_person_ids": [
+          "28632"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28687",
+        "name": "妄图改变世界（B站 UID 25875501）",
+        "new_person_ids": [
+          "28687"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28681",
+        "name": "千莺afterglow（B站 UID 101232515）",
+        "new_person_ids": [
+          "28681"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28679",
+        "name": "东扯扯一只（B站 UID 364766570）",
+        "new_person_ids": [
+          "28679"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28677",
+        "name": "Simon助眠频道（B站 UID 142813024）",
+        "new_person_ids": [
+          "28677"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28685",
+        "name": "白水Jimmy（B站 UID 3546635395139954）",
+        "new_person_ids": [
+          "28685"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28675",
+        "name": "YouTube助眠频道（B站 UID 314387912）",
+        "new_person_ids": [
+          "28675"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28683",
+        "name": "半只月牙儿（B站 UID 74994502）",
+        "new_person_ids": [
+          "28683"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28628",
+        "name": "纳兰折竹（B站 UID 43731298）",
+        "new_person_ids": [
+          "28628"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28630",
+        "name": "__Merlin（B站 UID 103049147）",
+        "new_person_ids": [
+          "28630"
+        ],
+        "primary": true
+      },
+      {
+        "old_person_id": "28626",
+        "name": "账号已注销（B站 UID 3494376630127057）",
+        "new_person_ids": [
+          "28626"
+        ],
+        "primary": true
+      }
+    ],
+    "user_state_records_preserved": 3,
+    "other_libraries_preserved": 14,
+    "items_after": 976,
+    "metadata_path_failures": 0
+  },
+  "validation": {
+    "installed_linux_media_tests": 105,
+    "linux_skips": 0,
+    "browser_desktop_mobile_tests": 108,
+    "real_local_platform_http_tests": 4,
+    "linux_file_executor_tests": 9,
+    "web_asset_hashes": 59,
+    "managed_temporary_files_and_repository_tests": 4
+  },
+  "deployment": {
+    "release_stage": "/volume2/tianshu-v2-resident-updates/media-source-layout-20261015-release-r1",
+    "cold_databases_verified": 37,
+    "cold_backup": "/volume2/tianshu-v2-resident-updates/media-source-layout-20261015-release-r1/cold-snapshot",
+    "cold_backup_status": "offline_restore_verified",
+    "core_tls_ready": 5,
+    "resident_owners_running": 10,
+    "guard": "ready",
+    "other_nine_ids_preserved": true,
+    "dockge_matches_runtime": true,
+    "provider_models_and_keys_preserved": true,
+    "role_configuration_preserved": true,
+    "other_conversation_memory_settings_preserved": true
+  },
+  "limits": [
+    "历史643条unknown及1条时长异常原样保留，不推断历史QN。",
+    "真实稍后再看账号已读取40项；本轮未触发批量下载。",
+    "迁移录像文件全为硬链接复用，NFO/图像/字幕为独立副本。"
+  ],
+  "private_evidence": ".runtime/media-source-layout-20261015（不入库：账号、用户状态、逐文件计划与生产数据）"
+}
