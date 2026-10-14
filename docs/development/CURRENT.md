@@ -1,3 +1,7 @@
+## 2026-10-14 上下文连续性与独立 OneBot 已推送部署
+
+Memory `2bcdae5`、Companion `8faa31a`、Platform `337caf1` 与增量合同已推送 main 并部署 NAS。普通新增记忆保留仍有效的最近对话，更正/遗忘/撤权继续失效；结构化引用与 @ 信息贯通。37 库冷备及离线恢复校验、五核心 TLS、guard、Dockge 与配置保留通过。独立 OneBot 服务已启动，尚无真实 QQ 连接；原 AstrBot/NoneBot 宿主未升级。部署代码的隔离管理员/普通用户 OpenCode DeepSeek 自然记忆及重启接话复测通过，6 次调用后累计 1140/1140。未重跑百人基准；全量历史失败仍保留。[部署与验证记录](context-onebot-deployment-2026-10-14.json)。
+
 ## 2026-10-12 记忆更新已部署，自动整理保留关闭
 
 Memory `165307f`、Companion `4e4fc83` 已推送 GitHub main 并部署 NAS；视频订阅 Platform `7d2403c` 已上线并复核59个资源。五核心TLS就绪、35库冷备/恢复校验、十容器/guard及Dockge同步通过，所有原settings保持。自动记忆整理原开关仍为false，开启及日程/日记候选的发布范围等待用户选择；未冒称真实模型/QQ验收。[部署记录](memory-subscriptions-deployment-2026-10-12.md)。
