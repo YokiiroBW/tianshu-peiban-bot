@@ -1111,6 +1111,60 @@
       "dsh_session_id": null,
       "delivery_directory": "worktrees/TS-015/tianshu-platform/.runtime/dsh-delivery",
       "blocked_reason": "DSH model selection routable; persistent session file/presets unavailable, not a missing project workspace"
+    },
+    {
+      "id": "TS-117",
+      "title": "来源核验与候选记忆处理接口",
+      "project": "memory",
+      "depends_on": [],
+      "status": "done",
+      "allowed_paths": [
+        "src/",
+        "tests/",
+        "docs/"
+      ],
+      "done_when": "隔离实现、实际链路验证与交接；未授权生产部署",
+      "assignee": "current_task_coordinator",
+      "authorization": "2026-10-11 用户要求完成记忆完整闭环",
+      "worktree": "worktrees/TS-117/tianshu-memory",
+      "branch": "work/ts-117",
+      "baseline_commit": "097ccfa55dfb5af541d24cfcb48ba6ccf02f1a3a",
+      "execution_state": "deployed_auto_memory_paused",
+      "delivery_commit": "165307f78664fe60ccad1c70b76ba26ad19d05f3",
+      "integrated": true,
+      "deployed": true,
+      "real_user_acceptance": false,
+      "handoff": "docs/handoffs/TS-117.md",
+      "delivery_manifest": "docs/development/memory-loop-2026-10-11.json",
+      "pushed": true,
+      "deployment_record": "docs/development/memory-subscriptions-deployment-2026-10-12.json"
+    },
+    {
+      "id": "TS-118",
+      "title": "后台自动记忆提炼、回执恢复与自然召回闭环",
+      "project": "companion",
+      "depends_on": [],
+      "status": "done",
+      "allowed_paths": [
+        "src/",
+        "tests/",
+        "docs/"
+      ],
+      "done_when": "隔离实现、实际链路验证与交接；未授权生产部署",
+      "assignee": "current_task_coordinator",
+      "authorization": "2026-10-11 用户要求完成记忆完整闭环",
+      "worktree": "worktrees/TS-118/tianshu-companion",
+      "branch": "work/ts-118",
+      "baseline_commit": "fbb378b65d941201d9e65a52235b087f1b86d752",
+      "execution_state": "deployed_auto_memory_paused",
+      "delivery_commit": "4e4fc8322661e0afaf91b3c67c139442c8d257eb",
+      "integrated": true,
+      "deployed": true,
+      "real_user_acceptance": false,
+      "handoff": "docs/handoffs/TS-118.md",
+      "delivery_manifest": "docs/development/memory-loop-2026-10-11.json",
+      "pushed": true,
+      "deployment_record": "docs/development/memory-subscriptions-deployment-2026-10-12.json"
     }
   ],
   "dispatch_defaults": {
