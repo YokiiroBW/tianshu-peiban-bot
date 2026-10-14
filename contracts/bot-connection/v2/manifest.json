@@ -1,0 +1,12 @@
+{
+  "package": "bot-connection/v2",
+  "version": "2.0.0",
+  "status": "published_local_extension",
+  "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
+  "sha256": {
+    "README.md": "f75ef6bc02b8992df30035b11298eba140273c14aefb9df62f3623fb4fa1193a",
+    "schema.json": "96b41dd2088887c8b4c8f9df78c7989d4fd6c170e6cfabf566130e7bd6ea7097",
+    "examples.json": "d4cdfde682e336df15aabdc076861c8b43fdf3d22bc24a2ebb88e12e685a142e",
+    "negative-examples.json": "3342846a0681af331422717190fbe9b170c7d6e56451eca3cf6f1de563e9637f"
+  }
+}
