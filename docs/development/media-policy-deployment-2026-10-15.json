@@ -1,0 +1,147 @@
+{
+  "date": "2026-10-15",
+  "status": "pushed_deployed_verified",
+  "platform_revision": "5305cd549b1758d63cc8b07bc964b30dd025e569",
+  "image_id": "sha256:9b418d5bc24c50367f4f009b1e0a8f122be90d026eea375347eedd1501922a66",
+  "scope": [
+    "五类高级规则及NOT/未知事实解释，真实收藏夹时间、统一扫描和试算上下文",
+    "音视频上下限、编码集合与顺序，HDR/DV/Dolby Audio/Hi-Res独立选项",
+    "全局同BV/CID/QN锁、按实际流证据复用和不同流变体",
+    "FLAC保真MKV，多分P私有换容器、内嵌字幕兼容及有证据的原缓存清理",
+    "统一天枢订阅/链接下载高级设置，桌面/平板/手机"
+  ],
+  "implementation_commits": {
+    "TS-148": [
+      "158fe141aaa9a20b0e15642f4320588d5b238a44"
+    ],
+    "TS-149": [
+      "9552467c846964ef1a9b2e62ac6fec777d524c2a",
+      "0509b574cdd7d4a09faa3bef2efa7d1beb5ffcf2"
+    ],
+    "TS-150": [
+      "440837de9a3417301a018daa4e30bc011b4033b6"
+    ]
+  },
+  "verification": {
+    "linux": {
+      "tests": 324,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "source": "installed immutable candidate; no production mounts or network"
+    },
+    "browser": {
+      "unique_scenarios": 156,
+      "projects": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ],
+      "method": "首轮153成功；三个更新文案断言修正后通过；日期布局受影响27和最终文案3定向复验，其余适用结果复用。"
+    },
+    "actual_platform_http": {
+      "tests": 4,
+      "projects": [
+        "desktop",
+        "mobile"
+      ],
+      "upstreams": "synthetic Bilibili and media-server observations; real SQLite, HTTP, FFmpeg and files"
+    },
+    "actual_bilibili": {
+      "favorite_members_with_real_time": 19,
+      "format_selection_cases": 3,
+      "full_download": {
+        "video_codec": "hevc",
+        "video_quality": "16",
+        "audio_quality": "30251",
+        "audio_codec": "flac",
+        "container": "mkv",
+        "bytes": 97000145,
+        "temporary_cleaned": true,
+        "production_jobs_added": 0,
+        "production_library_files_changed": 0
+      }
+    },
+    "linux_build_checks": {
+      "network": "none",
+      "read_only": true,
+      "python": "3.12.11",
+      "uid": 10001,
+      "installed_source_files": 121,
+      "contract_files": 204,
+      "contract_manifests": 26,
+      "runtime_packages": [
+        "bot-delivery/v2.1",
+        "image-backend/v1",
+        "knowledge-content/v1",
+        "life-runtime/v2",
+        "memory-context/v1",
+        "skills/v1"
+      ],
+      "runtime_modules_imported": 121,
+      "web_files": 59,
+      "html_assets": 3,
+      "final_image_ui": true,
+      "subscriptions_ui": true,
+      "cli_help": true,
+      "pip_check": true
+    },
+    "public_static_assets": 59
+  },
+  "deployment": {
+    "cold_databases_verified": 37,
+    "core_tls_ready": 5,
+    "owners": 10,
+    "guard": "ready",
+    "all_settings_unchanged": true,
+    "provider_configuration_and_key_preserved": true,
+    "user_state_preserved": true,
+    "contract_mount_unchanged": true,
+    "dockge_actual_semantic_match": true,
+    "database_migration": "none; schema2 reused"
+  },
+  "existing_media": {
+    "subscriptions": 6,
+    "all_paused": true,
+    "all_source_mode": true,
+    "preview_matches_saved": true,
+    "import_records": 644,
+    "import_states": {
+      "unknown": 643,
+      "invalid": 1
+    },
+    "visible_jobs": 3,
+    "managed_completed": 3,
+    "managed_shared_video_inodes": 1,
+    "managed_cache_cleaned": true,
+    "library_reuse_after_relocation": true,
+    "directory_videos": {
+      "UP主": 515,
+      "合集": 9,
+      "收藏夹": 123,
+      "稍后再看": 0
+    },
+    "download_ledger_unchanged": true
+  },
+  "emby": {
+    "status": "verified",
+    "library_roots": [
+      "/video/存储库/bilibili"
+    ],
+    "videos": 647,
+    "series": 139,
+    "total_items": 976,
+    "director_people": 32,
+    "director_avatars": 32,
+    "videos_with_media_streams": 647,
+    "videos_with_overview": 647,
+    "media_service_writes": 0
+  },
+  "limits": [
+    "真实账号确认4K/DV和高级音轨的格式列表及选择；本次完整下载样本为低分辨率HEVC+FLAC，未以此宣称已完整下载每种HDR/DV/Dolby Audio组合。",
+    "旧来源缺少所需实际音频档位/编码证据时，不猜测符合高级限制；旧无约束策略沿用原复用方式。",
+    "mov_text内嵌字幕为兼容MKV转ASS；音视频逐包不变，测试字幕文本保持、时间偏差不超过11ms。",
+    "本机一次性合成浏览器夹具目录清理被自动审批策略拦截，未返回具体原因；夹具进程已停止。真实下载临时文件已清理。"
+  ],
+  "private_evidence": "Ignored .runtime/media-policy-20261015; no cookies, signed URLs, BV lists, director inventory or per-user records committed."
+}

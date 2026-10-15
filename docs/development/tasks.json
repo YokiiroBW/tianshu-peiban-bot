@@ -1456,6 +1456,112 @@
       "allocation_note": "workspace.py start created the isolated checkout; switch the clean new task to the verified deployed f57d38e baseline, preserving the historical coordinator checkout.",
       "integration_commit": "0a6b0099149b4b7dcad4c165f9b1972d091eed08",
       "completion_record": "docs/development/web-runtime-recovery-deployment-2026-10-14.json"
+    },
+    {
+      "id": "TS-148",
+      "title": "B站时间、时长、分P和联合投稿高级过滤",
+      "project": "platform",
+      "depends_on": [],
+      "status": "done",
+      "allowed_paths": [
+        "services/platform/media/rules/",
+        "services/platform/media/bilibili.py",
+        "services/platform/media/subscriptions.py",
+        "services/platform/media/web.py",
+        "services/platform/media/rule_context.py",
+        "tests/backend/media_rules/",
+        "tests/backend/test_media_advanced_rules.py",
+        "tests/backend/test_media_bilibili_scan.py",
+        "docs/platform/media-advanced-rules.md",
+        "docs/handoffs/TS-148.md",
+        "tests/backend/test_media_runtime.py"
+      ],
+      "done_when": "完整功能块隔离实现、相关验证与提交；父级串行集成和实际部署验收。",
+      "assignee": "gpt-6.1-sol/xhigh",
+      "plan": "docs/development/media-policy-plan-2026-10-15.json",
+      "desired_baseline_commit": "c886c22d5949bbcb51d5cd0173b68909d5aa61f8",
+      "worktree": "worktrees/TS-148/tianshu-platform",
+      "branch": "codex/ts-148-media-policy",
+      "baseline_commit": "c886c22d5949bbcb51d5cd0173b68909d5aa61f8",
+      "allocation_note": "Allocator refused historical coordinator checkout existing modifications. Isolated exact clean deployed source-layout baseline, preserving original changes.",
+      "completion_state": "pushed_deployed_verified",
+      "delivery_commit": "158fe141aaa9a20b0e15642f4320588d5b238a44",
+      "delivery_commits": [
+        "158fe141aaa9a20b0e15642f4320588d5b238a44"
+      ],
+      "integrated_commit": "5305cd549b1758d63cc8b07bc964b30dd025e569",
+      "deployed_commit": "5305cd549b1758d63cc8b07bc964b30dd025e569",
+      "delivery": "docs/development/media-policy-deployment-2026-10-15.json"
+    },
+    {
+      "id": "TS-149",
+      "title": "音视频质量范围、编码与特殊流选择及兼容复用",
+      "project": "platform",
+      "depends_on": [],
+      "status": "done",
+      "allowed_paths": [
+        "services/platform/media/config.py",
+        "services/platform/media/engine.py",
+        "services/platform/media/stream_policy.py",
+        "services/platform/media/download_cache.py",
+        "services/platform/media/retention.py",
+        "services/platform/media/worker.py",
+        "services/platform/media/repository.py",
+        "tests/backend/test_media_stream_policy.py",
+        "tests/backend/test_media_engine.py",
+        "tests/backend/test_media_download_cache.py",
+        "tests/backend/test_media_hardlinks.py",
+        "docs/platform/media-stream-policy.md",
+        "docs/handoffs/TS-149.md"
+      ],
+      "done_when": "完整功能块隔离实现、相关验证与提交；父级串行集成和实际部署验收。",
+      "assignee": "gpt-6.1-sol/xhigh",
+      "plan": "docs/development/media-policy-plan-2026-10-15.json",
+      "desired_baseline_commit": "c886c22d5949bbcb51d5cd0173b68909d5aa61f8",
+      "worktree": "worktrees/TS-149/tianshu-platform",
+      "branch": "codex/ts-149-media-policy",
+      "baseline_commit": "c886c22d5949bbcb51d5cd0173b68909d5aa61f8",
+      "allocation_note": "Allocator refused historical coordinator checkout existing modifications. Isolated exact clean deployed source-layout baseline, preserving original changes.",
+      "completion_state": "pushed_deployed_verified",
+      "delivery_commits": [
+        "9552467c846964ef1a9b2e62ac6fec777d524c2a",
+        "0509b574cdd7d4a09faa3bef2efa7d1beb5ffcf2"
+      ],
+      "integrated_commit": "5305cd549b1758d63cc8b07bc964b30dd025e569",
+      "deployed_commit": "5305cd549b1758d63cc8b07bc964b30dd025e569",
+      "delivery": "docs/development/media-policy-deployment-2026-10-15.json"
+    },
+    {
+      "id": "TS-150",
+      "title": "订阅高级规则和下载策略的统一网页设置",
+      "project": "platform",
+      "depends_on": [],
+      "status": "done",
+      "allowed_paths": [
+        "apps/web/src/features/media/",
+        "apps/web/tests/media-policy.spec.ts",
+        "apps/web/tests/media.fixtures.ts",
+        "apps/web/tests/media-joint.spec.ts",
+        "apps/web/tests/media.spec.ts",
+        "apps/web/tests/subscriptions-destination.spec.ts",
+        "docs/handoffs/TS-150.md",
+        "apps/web/playwright.media.config.ts"
+      ],
+      "done_when": "完整功能块隔离实现、相关验证与提交；父级串行集成和实际部署验收。",
+      "assignee": "gpt-6.1-sol/xhigh",
+      "plan": "docs/development/media-policy-plan-2026-10-15.json",
+      "desired_baseline_commit": "c886c22d5949bbcb51d5cd0173b68909d5aa61f8",
+      "worktree": "worktrees/TS-150/tianshu-platform",
+      "branch": "codex/ts-150-media-policy",
+      "baseline_commit": "c886c22d5949bbcb51d5cd0173b68909d5aa61f8",
+      "allocation_note": "Writer slot released by verified TS-148. Allocator refused dirty historical coordinator checkout; isolated fixed deployed baseline without changing original modifications.",
+      "completion_state": "pushed_deployed_verified",
+      "delivery_commits": [
+        "440837de9a3417301a018daa4e30bc011b4033b6"
+      ],
+      "integrated_commit": "5305cd549b1758d63cc8b07bc964b30dd025e569",
+      "deployed_commit": "5305cd549b1758d63cc8b07bc964b30dd025e569",
+      "delivery": "docs/development/media-policy-deployment-2026-10-15.json"
     }
   ],
   "dispatch_defaults": {

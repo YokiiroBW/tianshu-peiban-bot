@@ -1,0 +1,174 @@
+{
+  "date": "2026-10-15",
+  "status": "pushed_deployed_verified",
+  "baseline": "c886c22d5949bbcb51d5cd0173b68909d5aa61f8",
+  "authorization": "用户确认继续开发吸收bili-sync高级过滤、音视频选择与设置界面；本对话gpt-6.1-sol/xhigh并行及更新部署授权继续适用。",
+  "tasks": [
+    {
+      "title": "B站时间、时长、分P和联合投稿高级过滤",
+      "scope": [
+        "services/platform/media/rules/",
+        "services/platform/media/bilibili.py",
+        "services/platform/media/subscriptions.py",
+        "services/platform/media/web.py",
+        "services/platform/media/rule_context.py",
+        "tests/backend/media_rules/",
+        "tests/backend/test_media_advanced_rules.py",
+        "tests/backend/test_media_bilibili_scan.py",
+        "docs/platform/media-advanced-rules.md",
+        "docs/handoffs/TS-148.md",
+        "tests/backend/test_media_runtime.py"
+      ],
+      "id": "TS-148",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "xhigh",
+      "delivery_commits": [
+        "158fe141aaa9a20b0e15642f4320588d5b238a44"
+      ],
+      "status": "pushed_deployed_verified"
+    },
+    {
+      "title": "音视频质量范围、编码与特殊流选择及兼容复用",
+      "scope": [
+        "services/platform/media/config.py",
+        "services/platform/media/engine.py",
+        "services/platform/media/stream_policy.py",
+        "services/platform/media/download_cache.py",
+        "services/platform/media/retention.py",
+        "services/platform/media/worker.py",
+        "services/platform/media/repository.py",
+        "tests/backend/test_media_stream_policy.py",
+        "tests/backend/test_media_engine.py",
+        "tests/backend/test_media_download_cache.py",
+        "tests/backend/test_media_hardlinks.py",
+        "docs/platform/media-stream-policy.md",
+        "docs/handoffs/TS-149.md"
+      ],
+      "id": "TS-149",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "xhigh",
+      "delivery_commits": [
+        "9552467c846964ef1a9b2e62ac6fec777d524c2a",
+        "0509b574cdd7d4a09faa3bef2efa7d1beb5ffcf2"
+      ],
+      "status": "pushed_deployed_verified"
+    },
+    {
+      "title": "订阅高级规则和下载策略的统一网页设置",
+      "scope": [
+        "apps/web/src/features/media/",
+        "apps/web/tests/media-policy.spec.ts",
+        "apps/web/tests/media.fixtures.ts",
+        "apps/web/tests/media-joint.spec.ts",
+        "apps/web/tests/media.spec.ts",
+        "apps/web/tests/subscriptions-destination.spec.ts",
+        "docs/handoffs/TS-150.md",
+        "apps/web/playwright.media.config.ts"
+      ],
+      "id": "TS-150",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "xhigh",
+      "delivery_commits": [
+        "440837de9a3417301a018daa4e30bc011b4033b6"
+      ],
+      "status": "pushed_deployed_verified"
+    }
+  ],
+  "scope": [
+    "发布时间/收藏时间/分P数量/总时长/联合投稿规则及真实来源上下文",
+    "视频与音频质量范围、编码偏好、HDR/DV/Dolby Audio/Hi-Res条件",
+    "高级条件下只复用实际满足约束的已下载媒体",
+    "统一订阅和链接下载设置，保留天枢主题，配套预览和解释"
+  ],
+  "draft_contract": {
+    "rules": {
+      "new_fields": [
+        "published_at",
+        "favorited_at",
+        "part_count",
+        "duration_seconds",
+        "is_collaboration"
+      ],
+      "ops": [
+        "equals",
+        "not_equals",
+        "gt",
+        "gte",
+        "lt",
+        "lte",
+        "between"
+      ],
+      "value": "文本沿用string；数值number或两元素范围；时间ISO8601带时区string或范围；联合投稿boolean；可选negate boolean，缺省false。case_sensitive沿用，仅文本有意义。",
+      "missing": "缺失明确解释，不用0/当前时间猜测，不将未知值的否定视为匹配。",
+      "context": "rules/preview保留preview_id,rules；互斥可选source或subscription_id。服务端确认账号、成员与收藏时间；返回顶层context:{source,member,fields}。scan改Mapping[bvid,RuleSourceContext]。"
+    },
+    "quality": {
+      "legacy": [
+        "mode",
+        "quality_id",
+        "allow_fallback"
+      ],
+      "optional": "stream_options",
+      "fields": {
+        "video_min_quality": "string|null",
+        "video_max_quality": "string|null",
+        "audio_min_quality": "string|null",
+        "audio_max_quality": "string|null",
+        "codecs": "ordered av1/hevc/avc array; empty=automatic",
+        "allow_hdr": "boolean",
+        "allow_dolby_vision": "boolean",
+        "allow_dolby_audio": "boolean",
+        "allow_hires": "boolean"
+      },
+      "defaults": "空范围/空codec序列、特殊流全允许；无有效限制时保持旧quality字典语义。TS-149先确认精确合同再同步TS-150。",
+      "reuse": "同BV/CID/QN继续全局互斥；缓存/媒体来源需满足编码音轨和特殊流限制，不满足则找其他来源/受控重新下载，不修改旧成品或把不同流说成相同。",
+      "container": "无损保留合法音轨/视频；MP4不支持的流选择合适容器，实际探针与NFO须一致。",
+      "video_order": [
+        "16",
+        "32",
+        "64",
+        "74",
+        "80",
+        "112",
+        "116",
+        "120",
+        "125",
+        "126",
+        "127"
+      ],
+      "audio_order": [
+        "30216",
+        "30232",
+        "30280",
+        "30250",
+        "30251"
+      ],
+      "reuse_semantics": "符合允许集合/范围的已有文件优先复用；编码顺序用于新下载，不以排序变化隐式转码旧成品。"
+    }
+  },
+  "coordination": "TS-148独占Bilibili/subscriptions/web；TS-149独占config/engine/cache/retention/repository；TS-150独占前端。共享manifest/runtime装配/联合夹具/部署由父级串行维护；不得并写其他路径。API合同需两后端向父级与前端明确后同步。 TS147音乐在独立任务改装配，最终从最新远端main串行集成并保留。root5写者名额已满，TS150先只读规划，TS148/149一项交付后分配实现。",
+  "verification": [
+    "旧规则/旧quality及既有订阅兼容",
+    "扫描来源时间真实与未知状态",
+    "日期时区/边界/数值/NOT与试算解释",
+    "流排名、上下限、禁止格式、非静默降级与文件实际格式",
+    "同策略并发一次下载、不同策略缓存兼容检验、入库回收后复用",
+    "桌面手机表单及真实Platform HTTP",
+    "固定Linux候选与实际B站只读格式/媒体及Emby回归"
+  ],
+  "preserve": [
+    "已迁移647视频和四分类根",
+    "6暂停订阅与去重台账",
+    "用户账号/目标/模型和自动记忆设置",
+    "另一对话TS145/146/147不接管"
+  ],
+  "contract_status": "local_implementation_frozen_2026-10-15",
+  "integrated_commit": "5305cd549b1758d63cc8b07bc964b30dd025e569",
+  "integration_notes": [
+    "TS148完成后经allocator释放名额并分配TS150，保留全局5写者限制。",
+    "共用真实HTTP夹具由父级扩展；有实际FFmpeg编码和来源收藏时间，不把合成QN称为真实B站画质。",
+    "混合容器时仅复制音视频流，mov_text字幕定向转ASS；受控前后SHA证据允许成品核验后精准回收原MP4缓存。"
+  ],
+  "deployed_commit": "5305cd549b1758d63cc8b07bc964b30dd025e569",
+  "delivery": "docs/development/media-policy-deployment-2026-10-15.json"
+}
