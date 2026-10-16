@@ -1,0 +1,33 @@
+{
+  "version": "infrastructure-node.v1",
+  "request_id": "fixture-001",
+  "node_id": "fixture-nas",
+  "operation": "docker.logs",
+  "status": "ok",
+  "reason_codes": [],
+  "observed_at": "2026-10-16T08:00:00Z",
+  "capabilities": [
+    "node.snapshot",
+    "docker.inventory",
+    "docker.stats",
+    "docker.logs",
+    "compose.inventory"
+  ],
+  "completeness": {
+    "state": "complete",
+    "returned": 1,
+    "total": 1,
+    "next_cursor": null
+  },
+  "data": {
+    "container_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "stdout": "2026-10-16T08:00:00Z synthetic log\n",
+    "stderr": "",
+    "truncated": false,
+    "returned_bytes": 35,
+    "tail": 200,
+    "since_seconds": 3600,
+    "max_bytes": 65536,
+    "source": "docker_cli_logs"
+  }
+}

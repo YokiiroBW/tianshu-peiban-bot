@@ -1,0 +1,70 @@
+{
+  "version": "infrastructure-node.v1",
+  "request_id": "fixture-001",
+  "node_id": "fixture-nas",
+  "operation": "compose.inventory",
+  "status": "ok",
+  "reason_codes": [],
+  "observed_at": "2026-10-16T08:00:00Z",
+  "capabilities": [
+    "node.snapshot",
+    "docker.inventory",
+    "docker.stats",
+    "docker.logs",
+    "compose.inventory"
+  ],
+  "completeness": {
+    "state": "complete",
+    "returned": 1,
+    "total": 1,
+    "next_cursor": null
+  },
+  "data": {
+    "stacks": [
+      {
+        "id": "stack_eeeeeeeeeeeeeeeeeeeeeeee",
+        "name": "synthetic",
+        "project_name": "synthetic",
+        "desired_revision": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "state": "ok",
+        "reason_codes": [],
+        "services": [
+          {
+            "name": "web",
+            "image": {
+              "state": "resolved",
+              "reference": "nginx:alpine"
+            },
+            "desired_instances": 1,
+            "ports": [
+              {
+                "target": 80,
+                "published": "18080",
+                "protocol": "tcp",
+                "host_ip": "127.0.0.1",
+                "state": "resolved"
+              }
+            ],
+            "mounts": [
+              {
+                "kind": "bind",
+                "source": "/srv/synthetic-stacks/synthetic/data",
+                "target": "/data",
+                "read_only": true,
+                "state": "resolved"
+              }
+            ],
+            "observed_container_ids": [
+              "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            ],
+            "drift_status": "in_sync",
+            "findings": [],
+            "reason_codes": []
+          }
+        ],
+        "runtime_only_services": [],
+        "drift_status": "in_sync"
+      }
+    ]
+  }
+}

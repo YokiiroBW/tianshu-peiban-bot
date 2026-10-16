@@ -1,0 +1,102 @@
+[
+  {
+    "path": "examples/catalog.request.json",
+    "schema": "request",
+    "valid": true
+  },
+  {
+    "path": "examples/catalog.response.json",
+    "schema": "response",
+    "valid": true
+  },
+  {
+    "path": "examples/snapshot.request.json",
+    "schema": "request",
+    "valid": true
+  },
+  {
+    "path": "examples/snapshot.response.json",
+    "schema": "response",
+    "valid": true
+  },
+  {
+    "path": "examples/inventory.request.json",
+    "schema": "request",
+    "valid": true
+  },
+  {
+    "path": "examples/inventory.response.json",
+    "schema": "response",
+    "valid": true
+  },
+  {
+    "path": "examples/stats.request.json",
+    "schema": "request",
+    "valid": true
+  },
+  {
+    "path": "examples/stats.response.json",
+    "schema": "response",
+    "valid": true
+  },
+  {
+    "path": "examples/logs.request.json",
+    "schema": "request",
+    "valid": true
+  },
+  {
+    "path": "examples/logs.response.json",
+    "schema": "response",
+    "valid": true
+  },
+  {
+    "path": "examples/compose.request.json",
+    "schema": "request",
+    "valid": true
+  },
+  {
+    "path": "examples/compose.response.json",
+    "schema": "response",
+    "valid": true
+  },
+  {
+    "path": "examples/unavailable.response.json",
+    "schema": "response",
+    "valid": true
+  },
+  {
+    "path": "examples/config.example.json",
+    "schema": "config",
+    "valid": true
+  },
+  {
+    "path": "examples/invalid/short-id.request.json",
+    "schema": "request",
+    "valid": false
+  },
+  {
+    "path": "examples/invalid/command.request.json",
+    "schema": "request",
+    "valid": false
+  },
+  {
+    "path": "examples/invalid/deadline.request.json",
+    "schema": "request",
+    "valid": false
+  },
+  {
+    "path": "examples/invalid/catalog-host.response.json",
+    "schema": "response",
+    "valid": false
+  },
+  {
+    "path": "examples/invalid/false-health.response.json",
+    "schema": "response",
+    "valid": false
+  },
+  {
+    "path": "examples/invalid/zero-unknown.response.json",
+    "schema": "response",
+    "valid": false
+  }
+]
