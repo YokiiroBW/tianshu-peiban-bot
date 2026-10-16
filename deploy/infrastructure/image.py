@@ -34,8 +34,8 @@ IMAGE_FIELDS = (
     "User", "Entrypoint", "Cmd", "WorkingDir", "Healthcheck", "Env",
     "Volumes", "ExposedPorts", "StopSignal",
 )
-NODE_COMMIT = "172d20d37b12f88a15ec214bd6ee2ba8ea880339"
-NODE_SHA256 = "6e674a3bd70a674a2d732982cba99da3162e388fa4a89ebb48d1b874149dd63f"
+NODE_COMMIT = "47564d07257a43ad99dde63d6ea96cf8c169be5a"
+NODE_SHA256 = "9aac3dc090a0317804b5787dd5136b4916ee686b718a11b18b74e976806cebf5"
 
 
 def snapshot_files(repository, commit, prefixes):

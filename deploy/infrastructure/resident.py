@@ -145,7 +145,6 @@ def prepare(*, baseline, metadata, build_result, mechanism_directory, recovery,
         for name in ("identity", "known_hosts")
     ]
     settings = json.loads((HERE / "templates/platform-settings.fragment.json").read_bytes())["infrastructure"]
-    settings["timeout_ms"] = 30000
     guard_files = git_files(guard_repo, guard_commit, GUARD_FILES)
     mechanism = Path(mechanism_directory)
     source_bytes = {name: (mechanism / name).read_bytes() for name in (
