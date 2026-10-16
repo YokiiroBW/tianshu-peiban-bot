@@ -316,8 +316,8 @@ class SSHTransport:
             argv.extend(["-o", option])
         return [*argv, "--", node.host, command]
 
-    def command(self, argv, payload=b"", *, max_output=2 * 1024 * 1024, stderr_limit=32768, keep_stdin_open=False):
-        return run_bounded(self._argv("LC_ALL=C " + shlex.join(argv)), payload, self.deadline,
+    def command(self, argv, payload=b"", *, max_output=2 * 1024 * 1024, stderr_limit=32768, keep_stdin_open=False, deadline=None):
+        return run_bounded(self._argv("LC_ALL=C " + shlex.join(argv)), payload, deadline or self.deadline,
                            max_output=max_output, stderr_limit=stderr_limit, keep_stdin_open=keep_stdin_open)
 
     def script(self, script, *, max_output=2 * 1024 * 1024):

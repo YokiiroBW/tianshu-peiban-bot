@@ -6,11 +6,16 @@ import http.client
 import io
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 from .linux import counter, text
 from .paging import page
 from .protocol import CONTAINER_ID, Failure, MAX_INVENTORY, decode_json
 from .sampling import sample_condition, save_sample
+from .transport import Deadline
+
+STATS_WORKERS = 8
+STATS_OUTPUT_BYTES = 3 * 1024 * 1024
 
 # Selected metadata only: Config.Env, arbitrary labels, health output and command
 # strings never enter the process response or the inspect transport payload.
@@ -188,12 +193,12 @@ class _MemorySocket:
         self.stream = stream
 
     def makefile(self, _):
-        # HTTPResponse closes each message's file. Keep the in-memory stream's
-        # offset for the next pipelined response without reading ahead.
         return _MessageReader(self.stream)
 
 
 class _MessageReader:
+    """Let HTTPResponse close one message without closing the shared bytes."""
+
     def __init__(self, stream):
         self.stream = stream
 
@@ -306,54 +311,88 @@ class DockerCollector:
 
     def stats(self, identities, store, stale_after):
         metadata = self.inspect(identities)
-        version = self.engine_version()
         selected = [item for item in metadata if item["availability"] == "ok" and item["running"]]
-        requests = []
-        for index, item in enumerate(selected):
+        version = self.engine_version() if selected else None
+        previous = dict(store.state.setdefault("docker", {}))
+        group_count = min(STATS_WORKERS, len(selected))
+        # Keep response/cleanup time inside the same request budget. Running
+        # counters take about one second per Engine request on Docker24 DSM;
+        # serial HTTP pipelining cannot cover a real NAS's running containers.
+        stats_deadline = Deadline(max(0, self.transport.deadline.remaining - .5))
+
+        def missing(identity, reason):
+            return {"id": identity, "availability": "unavailable", "reason_codes": [reason], "sampled_at": None,
+                    "cpu": None, "memory": None, "block_io": None, "network": None}
+
+        def fetch(batch):
             query = "stream=false" + ("&one-shot=true" if tuple(map(int, version.split("."))) >= (1, 41) else "")
-            connection = "close" if index == len(selected) - 1 else "keep-alive"
-            requests.append(f"GET /v{version}/containers/{item['id']}/stats?{query} HTTP/1.1\r\nHost: docker\r\nConnection: {connection}\r\n\r\n")
-        result = self.transport.command([*self.command, "system", "dial-stdio"], "".join(requests).encode("ascii"),
-                                        max_output=3 * 1024 * 1024, keep_stdin_open=True) if requests else None
-        stream = io.BytesIO(result.stdout) if result else None
-        responses = {}
-        for item in selected:
+            requests = []
+            for index, item in enumerate(batch):
+                connection = "close" if index == len(batch) - 1 else "keep-alive"
+                requests.append(f"GET /v{version}/containers/{item['id']}/stats?{query} HTTP/1.1\r\nHost: docker\r\nConnection: {connection}\r\n\r\n")
             try:
-                responses[item["id"]] = _parse_http_stream(stream)
-            except Failure:
-                break
-        previous = store.state.setdefault("docker", {})
-        items = []
+                stats_deadline.check()
+                # Eight fixed shares keep aggregate captured raw output <=3MiB,
+                # including stderr. Project inside this worker and release raw
+                # bodies before retaining results in the request's sample map.
+                result = self.transport.command([*self.command, "system", "dial-stdio"], "".join(requests).encode("ascii"),
+                                                max_output=STATS_OUTPUT_BYTES // group_count,
+                                                keep_stdin_open=True, deadline=stats_deadline)
+            except Failure as failure:
+                return [missing(item["id"], failure.code) for item in batch], {}, [failure.code]
+            stream = io.BytesIO(result.stdout)
+            items, samples = [], {}
+            parsed = True
+            for item in batch:
+                identity = item["id"]
+                reason = None
+                try:
+                    if not parsed:
+                        raise Failure(result.reason or "docker_stats_invalid")
+                    try:
+                        status, raw = _parse_http_stream(stream)
+                    except Failure:
+                        parsed = False
+                        raise Failure(result.reason or "docker_stats_invalid") from None
+                    if status == 404:
+                        reason = "container_disappeared"
+                    elif status != 200:
+                        reason = "docker_engine_unavailable"
+                    else:
+                        projected, sample = project_stats(raw, item, previous.get(identity), time.monotonic(), stale_after)
+                        if sample:
+                            samples[identity] = sample
+                except Failure as failure:
+                    reason = failure.code
+                except (ValueError, TypeError, AttributeError):
+                    reason = "docker_stats_invalid"
+                items.append(missing(identity, reason) if reason else projected)
+            return items, samples, [result.reason] if result.reason else []
+
+        responses = {}
         reasons = list(store.reasons)
-        if result and result.reason:
-            reasons.append(result.reason)
+        if selected:
+            groups = [selected[index::group_count] for index in range(group_count)]
+            pool = ThreadPoolExecutor(max_workers=group_count, thread_name_prefix="infrastructure-stats")
+            try:
+                for items, samples, group_reasons in pool.map(fetch, groups):
+                    responses.update((item["id"], item) for item in items)
+                    store.state["docker"].update(samples)
+                    reasons.extend(group_reasons)
+            finally:
+                # Each active task owns run_bounded with the same finite
+                # deadline and raw-output share. Join these at-most-eight reaped
+                # tasks before releasing the sampling lock; no queued RPCs.
+                pool.shutdown(wait=True, cancel_futures=True)
+        items = []
         for metadata_item in metadata:
             identity = metadata_item["id"]
-            reason = None
-            projected = None
             if metadata_item["availability"] != "ok":
-                reason = metadata_item["reason_codes"][0]
+                projected = missing(identity, metadata_item["reason_codes"][0])
             elif metadata_item["running"] is not True:
-                reason = "container_not_running"
+                projected = missing(identity, "container_not_running")
             else:
-                if identity not in responses:
-                    reason = result.reason if result and result.reason else "docker_stats_invalid"
-                else:
-                    try:
-                        status, raw = responses[identity]
-                        if status == 404:
-                            reason = "container_disappeared"
-                        elif status != 200:
-                            reason = "docker_engine_unavailable"
-                        else:
-                            projected, sample = project_stats(raw, metadata_item, previous.get(identity), time.monotonic(), stale_after)
-                            if sample:
-                                previous[identity] = sample
-                    except (Failure, ValueError, TypeError, AttributeError):
-                        reason = "docker_stats_invalid"
-            if reason:
-                projected = {"id": identity, "availability": "unavailable", "reason_codes": [reason], "sampled_at": None,
-                             "cpu": None, "memory": None, "block_io": None, "network": None}
+                projected = responses.get(identity) or missing(identity, "deadline_exceeded")
             reasons.extend(projected["reason_codes"])
             items.append(projected)
         return {"containers": items}, list(dict.fromkeys(reasons))
