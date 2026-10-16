@@ -1,0 +1,583 @@
+{
+  "date": "2026-10-17",
+  "status": "deployed_backend_verified_browser_login_pending",
+  "authorization": {
+    "push_and_nas_deploy": true,
+    "preserve_configuration_data_and_other_services": true,
+    "implementation_model": "gpt-6.1-sol/max",
+    "production_writer": "coordinator_only",
+    "browser_login": "user_after_deployment",
+    "openwrt": "deferred_user_confirmed_key_not_fixed"
+  },
+  "music_coordination": {
+    "thread_id": "01a13b88-8906-7b11-9271-00f281003fda",
+    "candidate": "1488ceb8c6491ae9d0f88f60973748e44614fbbb",
+    "state": "completed_push_deploy_and_player_acceptance",
+    "messages_sent": false,
+    "runtime": "1488ceb8c6491ae9d0f88f60973748e44614fbbb",
+    "final_history": "32ce50ea4033d5e2dfb28eaff768bfee88045d1a",
+    "image": "sha256:211af1db5d51127106cdca57f8164fc64cd9b552252b87410cc67d8681c103de"
+  },
+  "local_integration": {
+    "root": "a75c35da72fc3b6f9e0e35f8df05828e17bb162e",
+    "published_root_baseline": "152d147e93170a2895a8dfdfe684ae47302f9354",
+    "guard": "4fc363096bd34b36b89c7c44d242ac4136550216",
+    "guard_parent_checks": {
+      "passed": 4,
+      "scope": "production_contract_exact_mounts_images_and_unrelated_service_preservation"
+    },
+    "platform_candidate": "425e2b7581a5681915972694ce3c9db30e9f8232",
+    "release_tool": "95c9377d0321e744a8ae975d63a32848a3d95341",
+    "release_tool_parent_checks": {
+      "passed": 3,
+      "scope": "fixed image source, no-stop preflight rejection, rendered deployment/rollback compilation"
+    },
+    "platform_task": "98508cfc1e79cafff512feb87b9801ddeabd5eb1",
+    "node_task": "c622b792396721226eb88479e00b20b226caf675",
+    "image_reverification_parent_checks": {
+      "passed": 7,
+      "scope": "semantic music archive, exact image and shared complete checks, separate immutable evidence"
+    },
+    "image_staging_parent_checks": {
+      "passed": 2,
+      "scope": "private stage root, traversable source directories, Git modes, refuse existing stage"
+    },
+    "metadata_parent_checks": 5,
+    "readback_parent_checks_at_06c57dc": 3,
+    "sampling_mountpoint_parent_checks": 3,
+    "readback_parent_checks_at_95c9377": 5
+  },
+  "nas_read_only_preflight": {
+    "host": "192.168.31.210",
+    "ssh_port": 77,
+    "docker_version": "24.0.2",
+    "docker_unprivileged_read_verified": true,
+    "dockge_stacks_root": "/volume1/Download/dockge/stacks",
+    "dockge_port": 10006,
+    "node_id": "nas-main",
+    "initial_failures": [
+      "optional_Health_field_template_error",
+      "stats_input_EOF_returned_empty_HTTP_body",
+      "Compose_partial_discovery_discarded"
+    ],
+    "repair_candidate": "42c8fef397c7125136585331c7e67da36f7513e2",
+    "repair_results": {
+      "inventory_total": 378,
+      "inventory_available": 378,
+      "running": 78,
+      "created": 190,
+      "exited": 110,
+      "pages": 2,
+      "stats_78_timeout_seconds": 30.188,
+      "stats_one_seconds": 0.875,
+      "stats_eight_seconds": 7.953,
+      "stats_small_batch_memory_raw_and_adjusted": true,
+      "block_io": "unavailable_on_observed_DSM_engine",
+      "compose_inaccessible_child_directories": 2
+    },
+    "next": "new image complete UID10001 checks; controlled release then production NAS sampling",
+    "final_runtime_source": "47564d07257a43ad99dde63d6ea96cf8c169be5a",
+    "source_validation": {
+      "passed": true,
+      "inventory": 377,
+      "running": 71,
+      "second_cpu_ok": 71,
+      "stats_elapsed_ms": [
+        10719,
+        10797
+      ],
+      "compose_observed": 69,
+      "partial_causes_retained": true
+    },
+    "package_validation": {
+      "passed": true,
+      "sha256": "9aac3dc090a0317804b5787dd5136b4916ee686b718a11b18b74e976806cebf5",
+      "members": 27,
+      "inventory": 377,
+      "running": 81,
+      "second_cpu_ok": 81,
+      "stats_elapsed_ms": [
+        12890,
+        14266
+      ],
+      "actual_first_cycle_counter_reset": 3,
+      "actual_first_sample": 7,
+      "compose_observed": 69,
+      "partial_causes_retained": true,
+      "scope": "Windows isolated package launcher through real NAS SSH; not deployed image"
+    }
+  },
+  "isolated_linux": {
+    "production_mounts": false,
+    "network": "none",
+    "platform": "01a498d544c7e2287afaaa4686218bc1f99aa7b0",
+    "node": "172d20d37b12f88a15ec214bd6ee2ba8ea880339",
+    "outer_cancel_separate_session": "failed_descendant_alive",
+    "cancel_seconds": 2.014,
+    "fixture_cleanup": "known_synthetic_processes_and_ephemeral_container_only",
+    "cpu_quota": "unsupported_by_DSM_kernel",
+    "pids_limit": "unsupported_by_DSM_kernel",
+    "next": "run installed candidate image node and backend checks",
+    "candidate_9ea5e67": {
+      "passed": false,
+      "checks": 5,
+      "failures": 4,
+      "errors": 1,
+      "cause": "DSM kernel lacks /proc/self/task/<pid>/children",
+      "next": "subreaper direct-child discovery using available proc stat fields; same fixture retest"
+    },
+    "final_d3f23ee": {
+      "passed": true,
+      "checks": 5,
+      "skipped": 0,
+      "elapsed_seconds": 3.796,
+      "executor_parent_exit_reap_seconds": 0.028,
+      "cancel_reap_seconds": 0.029,
+      "platform_parent_death_reap_seconds": 1.49,
+      "all_children_reaped": true,
+      "original_protocol_bytes_and_exit17_preserved": true,
+      "mismatched_parent_prevents_start": true
+    }
+  },
+  "deployment": {
+    "pushed": true,
+    "production_changed": true,
+    "backup": "/volume2/tianshu-v2-resident-updates/infrastructure-20261017-425e2b7-release/cold-snapshot",
+    "image": "sha256:263c6e2795d78084da427240ae8434b9d8f2f466a3ec8fa7c4aca8f26663ebbe",
+    "real_browser_accepted": false,
+    "platform_push": {
+      "remote": "https://github.com/YokiiroBW/tianshu-platform.git",
+      "branch": "main",
+      "commit": "425e2b7581a5681915972694ce3c9db30e9f8232",
+      "force": false,
+      "remote_readback": true
+    },
+    "root_push": {
+      "remote": "https://github.com/YokiiroBW/tianshu-peiban-bot.git",
+      "branch": "main",
+      "commit": "a75c35da72fc3b6f9e0e35f8df05828e17bb162e",
+      "force": false,
+      "remote_readback": true
+    },
+    "state": "deployed_after_verified_resume",
+    "stage": "/volume2/tianshu-v2-resident-updates/infrastructure-20261017-425e2b7-release",
+    "script_sha256": "f7a149232d393b5079a6a86dbf8b268a75907541a2ac61d6e89365d0d3d3121f",
+    "rollback_sha256": "0d4d3d3cf3ce019e12f621909ad02f50d2854a5f1c4aebc5bb8a410bd2938d54",
+    "sqlite_backups": 37,
+    "backup_validation": "offline_restore_verified; no functional restore activation",
+    "database_restore": false,
+    "guard": "ready",
+    "platform_id": "6be1a64e60ba5bd6cb22fb96ca6c9b6c8107e77d7434dd45eb4ba1e5ae040861",
+    "gateway_id": "012efdab58b61c13557be79892e2c5fdeb50767099bb111819f13fbfebb0e78d",
+    "gateway_existing_scope_renewed_original_and_resume": true,
+    "guard_state": "/volume2/tianshu-v2-resident-updates/infrastructure-20261017-425e2b7-release/capacity-state-123281a167e045d58a12d01ccb72caf9",
+    "browser": "login_page_opened_waiting_for_user",
+    "new_permissions": false,
+    "full_readback_verified": true,
+    "backend_real_machine_accepted": true,
+    "rollback_prepared": "/volume2/tianshu-v2-resident-updates/infrastructure-20261017-425e2b7-release/rollback-canonical-metadata-resume2.py",
+    "rollback_executed": false,
+    "initial_root_push": {
+      "remote": "https://github.com/YokiiroBW/tianshu-peiban-bot.git",
+      "branch": "main",
+      "commit": "816808292ac89c2f4458b17f145fce80e211b3b7",
+      "force": false,
+      "remote_readback": true
+    },
+    "original_rollback_sha256": "0ce022071c5f983d9362192e43c5aba1bb8f63133294cb2748b244288c850137",
+    "readback_sha256": "ac724d61d37bfe931a7a42862f032611388de1c0471fb92ce442beee027047ce"
+  },
+  "candidate_build": {
+    "source": "425e2b7581a5681915972694ce3c9db30e9f8232",
+    "contracts": "02304a0b669310005731baf1f6ff7b3d596cd55e",
+    "status": "built",
+    "stage": "/volume2/tianshu-v2-resident-updates/infrastructure-20261017-425e2b7-permissions-r1-build",
+    "source_archive_sha256": "5f4df804d07e71fac0ffc68973c8a3c507fe2160d8d4a55ae56bf997d640da8d",
+    "source_content_unchanged": true,
+    "source_modes_preserved": true,
+    "production_changed": false,
+    "base_image_id": "sha256:211af1db5d51127106cdca57f8164fc64cd9b552252b87410cc67d8681c103de",
+    "base_revision": "1488ceb8c6491ae9d0f88f60973748e44614fbbb",
+    "build_inputs_sha256": "01eb9592004071d05ca26734da8f35a0bb261fb45f361124271c3fe6bdc0f65a",
+    "contracts_revision": "02304a0b669310005731baf1f6ff7b3d596cd55e",
+    "controller_sha256": "46ad60e6f557b30a075c25d6822d9959831068faab8d8b7f05b70e38fea6b42f",
+    "image_id": "sha256:263c6e2795d78084da427240ae8434b9d8f2f466a3ec8fa7c4aca8f26663ebbe",
+    "image_rebuilt": true,
+    "linux_checks": {
+      "independent_node_venv": true,
+      "installed_web_files": 62,
+      "main_venv_preserved": true,
+      "node_source": "47564d07257a43ad99dde63d6ea96cf8c169be5a",
+      "openssh": "OpenSSH_9.2p1 Debian-2+deb12u10, OpenSSL 3.0.22 25 Aug 2026",
+      "openssh_package": "1:9.2p1-2+deb12u10",
+      "source_hashes_verified": true,
+      "uid": 10001,
+      "yaml": "6.0.3"
+    },
+    "music_runtime": {
+      "binaries": {
+        "/usr/local/bin/tianshu-musicbridge": "3a4ff61644a5e9be93bc6969e9048f6b65ba1eb9322720ea1c60323410a479e9",
+        "/usr/local/bin/tianshu-musicdecode": "6d71732f14665207103aca5ff2334c7d869c0aea4b7fc05fc4b54e734825b749"
+      },
+      "ffmpeg": "ffmpeg version 5.1.9-0+deb12u1 Copyright (c) 2000-2026 the FFmpeg developers",
+      "ffmpeg_sha256": "0dafc1360bb07743f76abeb1e4ae16b0aaa1331e9041a0e8d6a8524111dc0cbb",
+      "source_archive": {
+        "content_sha256": "70e11229e2f037d7a7491be4e22ea19d26a3a6d2abf6abf1f409809f515496b8",
+        "members": 2135
+      }
+    },
+    "music_runtime_preserved": true,
+    "node_commit": "47564d07257a43ad99dde63d6ea96cf8c169be5a",
+    "node_package_sha256": "9aac3dc090a0317804b5787dd5136b4916ee686b718a11b18b74e976806cebf5",
+    "production_data_mounted": false,
+    "production_service_started": false,
+    "revision": "425e2b7581a5681915972694ce3c9db30e9f8232",
+    "tag": "tianshu/platform:infrastructure-425e2b7-permissions-r1-20261017",
+    "verification_only": false,
+    "final_linux_validation": {
+      "node_processes_host_compose_fixture": "passed",
+      "installed_wheel_and_public_http": {
+        "passed": 2,
+        "skipped": 0,
+        "elapsed_seconds": 19.843
+      },
+      "actual_uid": 10001,
+      "network": "none",
+      "production_mounts": false
+    }
+  },
+  "rejected_candidate": {
+    "source": "425e2b7581a5681915972694ce3c9db30e9f8232",
+    "contracts": "02304a0b669310005731baf1f6ff7b3d596cd55e",
+    "status": "rejected_before_production",
+    "source_archive_sha256": "69bd45bc541a27c028618a584065a636436f07f0ef7f94b4a958bc103e19a863",
+    "stage": "/volume2/tianshu-v2-resident-updates/infrastructure-20261017-425e2b7-build",
+    "production_changed": false,
+    "image": "sha256:8011d33da4a1815b8ab8017d68d46b84b3ebdc660847314672fb58e75f23d69f",
+    "initial_receipt": "failed_music_archive_byte_comparison",
+    "reverification": "failed_installed_contract_readability",
+    "failure_reason": "private build stage inherited 0700 on contracts subdirectories; root sees232, product UID10001 sees4",
+    "repair_owner": "TS-180",
+    "repair": "keep stage root0700 and explicitly normalize verified source subdirectories0755; new stage and image required",
+    "unchanged_successes": {
+      "installed_platform_source_files": 168,
+      "platform_source_hashes_match": true,
+      "music_executable_and_corresponding_source_semantics_preserved": true,
+      "node_linux_fixture": "passed",
+      "installed_platform_public_http": "2 passed /0 skipped",
+      "real_nas_candidate": {
+        "passed": true,
+        "inventory": 378,
+        "running": 82,
+        "second_cpu_ok": 82,
+        "stats_elapsed_ms": [
+          12367,
+          12288
+        ],
+        "compose_observed": 69
+      }
+    }
+  },
+  "release_incidents": [
+    {
+      "code": "non_target_container_changed",
+      "cause": "Docker mount order changed; preserved 367 original non-target identities and complete normalized fields",
+      "effect": "controlled cleanup temporarily stopped 10 managed Tianshu services; no database restore",
+      "recovery": "same accepted candidate resumed with existing gateway origin renewal and new guard generation; all10 running and guard ready",
+      "concurrent_work": "independent AssetLibrary test additions preserved and separately reported"
+    },
+    {
+      "code": "sampling_mount_mode_after_restart",
+      "observed": {
+        "owner": "10001:10001",
+        "mode": "0755",
+        "bytes": 134217728,
+        "declared_mode": "0700"
+      },
+      "isolated_reproduction": "created0700 then stop/start0755 when host mountpoint0755",
+      "validated_fix": "pre-create empty host mountpoint0700, UID/GID10001; isolated create and restart both0700",
+      "production_metadata_fix": {
+        "status": "sampling_mountpoint_metadata_repaired",
+        "underlay_mode": "0700",
+        "live_mode": "0700",
+        "files_changed": 0,
+        "services_restarted": false,
+        "same_source_and_image": true
+      },
+      "service_restart_for_fix": false
+    }
+  ],
+  "production_nas_acceptance": {
+    "verification": "passed",
+    "inventory_count": 379,
+    "inventory_availability": {
+      "ok": 379
+    },
+    "inventory_states": {
+      "created": 190,
+      "exited": 108,
+      "running": 81
+    },
+    "inventory_pages": 2,
+    "second_stats": {
+      "count": 81,
+      "availability_counts": {
+        "ok": 81
+      },
+      "cpu_state_counts": {
+        "ok": 81
+      },
+      "cpu_basis_counts": {
+        "one_core": 81
+      },
+      "memory_raw_count": 81,
+      "memory_adjusted_count": 80,
+      "network_attribution_counts": {
+        "container": 78,
+        "not_attributable": 2,
+        "unknown": 1
+      },
+      "reason_counts": {
+        "block_io_unavailable": 81,
+        "memory_cache_invalid": 1,
+        "network_counters_unavailable": 1
+      }
+    },
+    "stats_elapsed_ms": [
+      12485,
+      12542
+    ],
+    "compose_count": 69,
+    "compose_states": {
+      "ok": 8,
+      "partial": 53,
+      "unavailable": 8
+    },
+    "compose_drift": {
+      "drifted": 21,
+      "in_sync": 2,
+      "unavailable": 46
+    },
+    "remote_write_operations": 0
+  },
+  "production_platform_log_preview": {
+    "format": "infrastructure-acceptance.v1",
+    "mode": "logs",
+    "node_ref": "4eaef4cc48ab0be31b7c3122c5c53ef9",
+    "verified_at": "2026-10-16T18:45:56.523Z",
+    "remote_write_operations": 0,
+    "log_body_recorded": false,
+    "logs": {
+      "target_ref": "60a7096c3a2e45879a1a12adf859e861",
+      "status": "ok",
+      "reason_codes": [],
+      "returned_bytes": 0,
+      "line_count": 0,
+      "truncated": false,
+      "tail": 200,
+      "since_seconds": 3600,
+      "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "body_recorded": false
+    },
+    "verification": "passed",
+    "calls": [
+      {
+        "operation": "docker.logs",
+        "status": "ok",
+        "reason_codes": [],
+        "observed_at": "2026-10-16T18:45:57.562Z",
+        "elapsed_ms": 700
+      }
+    ]
+  },
+  "music_preservation": {
+    "status": "preserved",
+    "differences": {},
+    "incomplete": [],
+    "after": {
+      "active_playlists": 43,
+      "auto_download_playlists": 43,
+      "counts": {
+        "music_account": 3,
+        "music_maintenance": 1,
+        "music_navidrome": 1,
+        "music_navidrome_playlist": 43,
+        "music_playlist": 43,
+        "music_settings": 1
+      },
+      "maintenance": [
+        {
+          "enabled": 1,
+          "interval_seconds": 604800,
+          "playlist_interval_seconds": 43200
+        }
+      ],
+      "navidrome_auto_sync_links": 43,
+      "navidrome_remote_ids_present": 43,
+      "playlist_intervals_seconds": [
+        43200
+      ],
+      "sha256": {
+        "music_account": "649c7cd363f28bc802644b023561e8cd0baa58c7d226a8159f5b1e85cb1cbe14",
+        "music_maintenance": "fbc772c6b397da3e0146713fcaf9ab16c8e94901201293c724ccce40292bab09",
+        "music_navidrome": "880b7210de54468cb2b2ce0a5acf1b2bcbf98b62f69e1bc44528f9752a667314",
+        "music_navidrome_playlist": "5bf5e430d4a0064133bde353c9e6eb26d1c63eca6780315a710900500474efa9",
+        "music_playlist": "61fcac4144f0ca1492a892bb0651981ad73001cdf0ed040b37115d2ac0c62473",
+        "music_settings": "8fe4fe5465e73f8c3db2048d12e1eaa0b2bb996f8777c55932403d5277938931"
+      }
+    },
+    "key_files_read": false
+  },
+  "dockge": {
+    "synchronized_snapshots": 2,
+    "readback_matches": true,
+    "containers_recreated": false,
+    "scope": "existing tianshu-v2-resident and tianshu-v2-resident-obs only",
+    "backup": "/volume2/tianshu-v2-resident-updates/infrastructure-20261017-425e2b7-release/dockge-backups/20261016T184012Z-0194fd11",
+    "web_ui_verified": false,
+    "control_actions": false
+  },
+  "public_static_assets": {
+    "count": 62,
+    "verification": "nas_public_static_verified",
+    "origin": "http://192.168.31.210:18446",
+    "credentials_used_for_http": false
+  },
+  "final_readback": {
+    "status": "deployed_after_verified_resume",
+    "guard": "ready",
+    "health": [
+      {
+        "checks": {
+          "configuration": "ok",
+          "contracts": "ok",
+          "ledger": "ok",
+          "logging": "ok",
+          "model": "not_verified",
+          "native": "not_configured",
+          "platform": "not_verified",
+          "runtime": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "gateway",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "config": "ok",
+          "contract": "ok",
+          "credentials": "ok",
+          "logging": "ok",
+          "runtime": "ok",
+          "sidecars": "ok",
+          "store": "ok",
+          "tls": "ok",
+          "web_static": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "platform",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "configuration": "ok",
+          "dependencies": "not_verified",
+          "logs": "ok",
+          "runtime": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "companion",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "assembled": "ok",
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "guard": "ok",
+          "log": "ok",
+          "mode": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "memory",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "assembled": "ok",
+          "client": "ok",
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "extensions": "ok",
+          "log": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "knowledge",
+        "verified_tls": true
+      }
+    ],
+    "user_state_preserved": true,
+    "music_media_configuration_preserved": true,
+    "non_target_containers_preserved": true,
+    "concurrent_non_target_additions": 2,
+    "platform_memory_limit_preserved": true,
+    "existing_settings_preserved_except_infrastructure_addition": true,
+    "database_restore": false,
+    "original_failure_sha256": "54947914e21ad38a7880236cf86912c07d1b7e0f7a5d9938c46f8944784270de",
+    "original_worker_sha256": "f7a149232d393b5079a6a86dbf8b268a75907541a2ac61d6e89365d0d3d3121f"
+  },
+  "sampling_storage": {
+    "bytes": 134217728,
+    "type": "tmpfs",
+    "uid": 10001,
+    "gid": 10001,
+    "mode": "0700",
+    "host_mountpoint_empty": true,
+    "host_mountpoint_mode": "0700",
+    "restart_mode_validation": "independent same-image same-parent-bind Docker container create and stop/start both0700; production not restarted for this metadata repair"
+  },
+  "uncovered": [
+    "User-admin browser login and real UI registration/continuous sampling still pending; no account/session fabricated.",
+    "OpenWrt key authorization unresolved by user; router deferred and not registered.",
+    "DSM block I/O unavailable; one raw-memory cache correction unavailable and some network attribution unknown; displayed as unknown.",
+    "Compose partial and denied paths remain observable, no unrelated stacks changed.",
+    "Restart/background auth behavior verified using installed image with isolated fixture; no separate live production restart solely for browser sampling.",
+    "No real QQ message or model call was used for this release acceptance."
+  ],
+  "task_completion": {
+    "TS-180": "done_nas_deployed_real_machine_verified",
+    "TS-181": "done_nas_deployed_real_machine_verified",
+    "TS-182": "in_progress_waiting_user_browser_login"
+  },
+  "coordination_board": {
+    "local_coordinator_updated": true,
+    "historical_remote_board_preserved": true,
+    "reason": "Published historical task board lacks TS-172 and19 transitive music cards; this release records its status here instead of publishing unrelated mixed coordinator history."
+  }
+}
