@@ -1,0 +1,9 @@
+# Test-only loopback SSH server environment actually used for TS-178.
+# These packages are never included in or imported by the runtime ZIP.
+paramiko==4.0.0
+bcrypt==5.0.0
+cryptography==50.0.2
+invoke==3.0.3
+PyNaCl==1.6.2
+cffi==2.1.1
+pycparser==3.11

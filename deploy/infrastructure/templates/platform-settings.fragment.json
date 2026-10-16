@@ -1,0 +1,19 @@
+{
+  "infrastructure": {
+    "directory": "/var/lib/tianshu/external",
+    "contract_directory": "/opt/tianshu-infrastructure-node/contracts/infrastructure-node/candidate-v1",
+    "executor": {
+      "command": [
+        "/opt/tianshu-infrastructure-venv/bin/python",
+        "-I",
+        "/opt/tianshu-infrastructure-node/run_node.py",
+        "--config",
+        "/etc/tianshu/infrastructure/executor.json"
+      ],
+      "directory": "/opt/tianshu-infrastructure-node"
+    },
+    "poll_interval_seconds": 30,
+    "stale_after_seconds": 120,
+    "timeout_ms": 10000
+  }
+}

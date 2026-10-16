@@ -1,0 +1,8 @@
+{
+  "version": "infrastructure-node.v1",
+  "state_dir": "/var/lib/tianshu/infrastructure-sampling",
+  "ssh_command": ["/usr/bin/ssh"],
+  "max_concurrency": 4,
+  "stale_after_seconds": 120,
+  "nodes": {}
+}
