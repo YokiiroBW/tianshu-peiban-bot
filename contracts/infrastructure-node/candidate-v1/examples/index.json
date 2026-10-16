@@ -98,5 +98,15 @@
     "path": "examples/invalid/zero-unknown.response.json",
     "schema": "response",
     "valid": false
+  },
+  {
+    "path": "examples/openwrt.request.json",
+    "schema": "request",
+    "valid": true
+  },
+  {
+    "path": "examples/openwrt.response.json",
+    "schema": "response",
+    "valid": true
   }
 ]
