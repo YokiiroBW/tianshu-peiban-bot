@@ -34,6 +34,11 @@ coordinator reviews them, then runs `remote-build-stage.py`,
 `nas_access.run` transport. The first two create a new private stage and start a
 detached build worker; polling reads its existing receipt. An unknown launch
 outcome requires inspection, never a blind repeat. Do not print entire payloads.
+The private stage root remains 0700 under umask 077. Extraction explicitly sets
+every internal build-source directory to 0755 and preserves each committed
+file's 0644/0755 mode. This applies to all COPY trees, including contracts, tools,
+services, frontend, build scripts and the node package, so host staging privacy
+does not make image contents unreadable to the product's UID 10001.
 
 The controller never mounts production data or starts a production service. It
 checks installed source/contracts/web/node hashes, original image configuration,
@@ -67,6 +72,10 @@ A successful result retains `status=built` for the existing resident preparer,
 with `verification_only=true`, `image_rebuilt=false`, the new controller/input
 hashes and original build evidence hashes. Use this new JSON as `--build-result`;
 retain the earlier failed receipt and logs unchanged.
+An actual source-directory permission failure requires a new stage/tag and a
+normal build with corrected staging, retaining the failed image. Re-verifying
+the same image cannot repair its directory modes; keep the full expected file
+set and the original product UID. Normal builds retain Docker cache reuse.
 
 ## 2. Prepare the controlled resident update locally
 
