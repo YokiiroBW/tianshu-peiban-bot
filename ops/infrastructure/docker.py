@@ -5,14 +5,12 @@ from __future__ import annotations
 import http.client
 import io
 import re
-import shlex
 import time
 
 from .linux import counter, text
 from .paging import page
 from .protocol import CONTAINER_ID, Failure, MAX_INVENTORY, decode_json
 from .sampling import sample_condition, save_sample
-from .transport import parse_sections, section_script
 
 # Selected metadata only: Config.Env, arbitrary labels, health output and command
 # strings never enter the process response or the inspect transport payload.
@@ -26,7 +24,7 @@ INSPECT_FIELDS = (
     '(index .Config.Labels "com.docker.compose.oneoff")',
     ".NetworkSettings.Ports", ".Mounts",
 )
-INSPECT_FORMAT = "[" + ",".join("{{json " + field + "}}" for field in INSPECT_FIELDS) + ',{{if .State.Health}}{{json .State.Health.Status}}{{else}}"none"{{end}}]'
+INSPECT_FORMAT = "[" + ",".join("{{json " + field + "}}" for field in INSPECT_FIELDS) + ',{{if eq (index .State "Health") nil}}"none"{{else}}{{json (index (index .State "Health") "Status")}}{{end}}]'
 
 
 def unavailable_container(identity, reason):
@@ -186,16 +184,36 @@ def project_stats(raw, item, previous, now, stale_after):
 
 
 class _MemorySocket:
-    def __init__(self, raw):
-        self.raw = raw
+    def __init__(self, stream):
+        self.stream = stream
 
     def makefile(self, _):
-        return io.BytesIO(self.raw)
+        # HTTPResponse closes each message's file. Keep the in-memory stream's
+        # offset for the next pipelined response without reading ahead.
+        return _MessageReader(self.stream)
+
+
+class _MessageReader:
+    def __init__(self, stream):
+        self.stream = stream
+
+    def read(self, *args):
+        return self.stream.read(*args)
+
+    def readline(self, *args):
+        return self.stream.readline(*args)
+
+    def close(self):
+        pass
 
 
 def parse_http(raw):
+    return _parse_http_stream(io.BytesIO(raw))
+
+
+def _parse_http_stream(stream):
     try:
-        response = http.client.HTTPResponse(_MemorySocket(raw))
+        response = http.client.HTTPResponse(_MemorySocket(stream))
         response.begin()
         body = response.read(512 * 1024 + 1)
         if len(body) > 512 * 1024:
@@ -274,7 +292,7 @@ class DockerCollector:
         return {"containers": items}, list(dict.fromkeys(reasons)), len(identities), cursor
 
     def engine_version(self):
-        result = self.transport.command([*self.command, "system", "dial-stdio"], b"GET /version HTTP/1.1\r\nHost: docker\r\nConnection: close\r\n\r\n", max_output=65536)
+        result = self.transport.command([*self.command, "system", "dial-stdio"], b"GET /version HTTP/1.1\r\nHost: docker\r\nConnection: close\r\n\r\n", max_output=65536, keep_stdin_open=True)
         if result.reason:
             raise Failure(result.reason)
         status, value = parse_http(result.stdout)
@@ -289,14 +307,21 @@ class DockerCollector:
     def stats(self, identities, store, stale_after):
         metadata = self.inspect(identities)
         version = self.engine_version()
-        commands = {}
-        for item in metadata:
-            if item["availability"] == "ok" and item["running"]:
-                query = "stream=false" + ("&one-shot=true" if tuple(map(int, version.split("."))) >= (1, 41) else "")
-                http = f"GET /v{version}/containers/{item['id']}/stats?{query} HTTP/1.1\r\nHost: docker\r\nConnection: close\r\n\r\n"
-                commands[item["id"]] = "printf %s " + shlex.quote(http) + " | " + shlex.join([*self.command, "system", "dial-stdio"])
-        result = self.transport.script(section_script(commands), max_output=3 * 1024 * 1024) if commands else None
-        sections = parse_sections(result.stdout) if result else {}
+        selected = [item for item in metadata if item["availability"] == "ok" and item["running"]]
+        requests = []
+        for index, item in enumerate(selected):
+            query = "stream=false" + ("&one-shot=true" if tuple(map(int, version.split("."))) >= (1, 41) else "")
+            connection = "close" if index == len(selected) - 1 else "keep-alive"
+            requests.append(f"GET /v{version}/containers/{item['id']}/stats?{query} HTTP/1.1\r\nHost: docker\r\nConnection: {connection}\r\n\r\n")
+        result = self.transport.command([*self.command, "system", "dial-stdio"], "".join(requests).encode("ascii"),
+                                        max_output=3 * 1024 * 1024, keep_stdin_open=True) if requests else None
+        stream = io.BytesIO(result.stdout) if result else None
+        responses = {}
+        for item in selected:
+            try:
+                responses[item["id"]] = _parse_http_stream(stream)
+            except Failure:
+                break
         previous = store.state.setdefault("docker", {})
         items = []
         reasons = list(store.reasons)
@@ -311,12 +336,11 @@ class DockerCollector:
             elif metadata_item["running"] is not True:
                 reason = "container_not_running"
             else:
-                code, body = sections.get(identity, (1, b""))
-                if code != 0:
-                    reason = result.reason if result and result.reason else "docker_stats_unavailable"
+                if identity not in responses:
+                    reason = result.reason if result and result.reason else "docker_stats_invalid"
                 else:
                     try:
-                        status, raw = parse_http(body)
+                        status, raw = responses[identity]
                         if status == 404:
                             reason = "container_disappeared"
                         elif status != 200:

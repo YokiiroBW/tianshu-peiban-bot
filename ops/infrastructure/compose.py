@@ -424,7 +424,7 @@ def collect_compose(transport, node, params):
     patterns = " -o ".join("-name " + quote(name) for name in FILENAMES)
     discovery = f'[ -d {quote(root)} ] && [ ! -L {quote(root)} ] && [ "$(cd -P {quote(root)} && pwd -P)" = {quote(root)} ] && find {quote(root)} -mindepth 2 -maxdepth 2 \\( -type f -o -type l \\) \\( {patterns} \\) -print'
     result = transport.script(discovery)
-    if result.reason:
+    if result.reason and result.reason != "permission_denied":
         raise Failure(result.reason)
     discovered = {}
     reasons = []
@@ -435,6 +435,19 @@ def collect_compose(transport, node, params):
             reasons.append("stack_path_unsupported")
             continue
         discovered.setdefault(parts[0], set()).add(parts[1])
+    denied = set()
+    if result.reason == "permission_denied":
+        # LC_ALL=C find diagnostics identify immediate inaccessible children.
+        # Publish only validated registered-root stack names, never stderr.
+        pattern = re.compile(re.escape(root.rstrip("/") + "/") + r"([^/'\"`:\s]+)")
+        for line in result.stderr.decode("utf-8", "replace").splitlines():
+            match = pattern.search(line) if "Permission denied" in line else None
+            if match and NAME.fullmatch(match[1]):
+                denied.add(match[1])
+                discovered.setdefault(match[1], set())
+        if not discovered:
+            raise Failure("permission_denied")
+        reasons.extend(("permission_denied", "compose_discovery_partial"))
     names = sorted(discovered)
     if len(names) > MAX_INVENTORY:
         raise Failure("inventory_limit_exceeded")
@@ -442,6 +455,8 @@ def collect_compose(transport, node, params):
     commands = {}
     filenames = {}
     for index, name in enumerate(selected):
+        if not discovered[name]:
+            continue
         filename = next(filename for filename in FILENAMES if filename in discovered[name])
         filenames[name] = filename
         directory = posixpath.join(root, name)
@@ -463,9 +478,16 @@ def collect_compose(transport, node, params):
     stacks = []
     for index, name in enumerate(selected):
         transport.deadline.check()
+        if not discovered[name]:
+            stacks.append(unavailable_stack(node.id, name, "permission_denied"))
+            continue
         code, raw = sections.get(f"stack_{index}", (1, b""))
         directory = posixpath.join(root, name)
         stack = parse_compose(raw, node.id, name, directory, deadline=transport.deadline) if code == 0 else unavailable_stack(node.id, name, "compose_file_unavailable")
+        if name in denied:
+            stack["reason_codes"].append("permission_denied")
+            if stack["state"] == "ok":
+                stack["state"] = "partial"
         if len(discovered[name]) > 1:
             stack["reason_codes"].append("compose_multiple_files")
             if stack["state"] == "ok":

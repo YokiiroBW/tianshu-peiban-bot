@@ -192,13 +192,16 @@ def compare_receipts(before, current):
             "restarted_same_identity_count": sum(old[key]["started_at_ref"] != new[key]["started_at_ref"] for key in old.keys() & new.keys())}
 
 
-def observe(peer, interval):
+def observe(peer, interval, *, result=None):
+    if result is None:
+        result = {}
     catalog = data_of(peer.invoke("node.catalog"))["nodes"]
     registered = next((item for item in catalog if item["id"] == peer.node_id), None)
     if registered is None:
         raise Failure("acceptance_node_not_registered")
     capabilities = registered["capabilities"]
-    result = {"capabilities": capabilities, "snapshot_first": snapshot_summary(peer.invoke("node.snapshot"))}
+    result["capabilities"] = capabilities
+    result["snapshot_first"] = snapshot_summary(peer.invoke("node.snapshot"))
     time.sleep(min(interval, peer.deadline.remaining))
     result["snapshot_second"] = snapshot_summary(peer.invoke("node.snapshot"))
     if "docker.inventory" in capabilities:
@@ -207,9 +210,10 @@ def observe(peer, interval):
         running = [item["id"] for item in containers if item["availability"] == "ok" and item["running"]]
         if running and "docker.stats" in capabilities:
             first = metric_samples(peer, running)
+            result["stats_first"] = metric_summary(first)
             time.sleep(min(interval, peer.deadline.remaining))
             second = metric_samples(peer, running)
-            result["stats_first"], result["stats_second"] = metric_summary(first), metric_summary(second)
+            result["stats_second"] = metric_summary(second)
             result["counter_differences"] = metric_differences(first, second)
     if "compose.inventory" in capabilities:
         stacks = inventory(peer, "compose.inventory", "stacks")
@@ -269,7 +273,7 @@ def main():
             if response["status"] not in ("unavailable", "unsupported") or not expected.intersection(response["reason_codes"]):
                 raise Failure("acceptance_expected_denial_not_observed")
         else:
-            receipt.update(observe(peer, args.interval))
+            observe(peer, args.interval, result=receipt)
         if args.before:
             before = decode_json(args.before.read_bytes())
             if not isinstance(before, dict) or before.get("format") != receipt["format"] or before.get("node_ref") != receipt["node_ref"]:

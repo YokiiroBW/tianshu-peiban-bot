@@ -119,6 +119,25 @@ class ProcessBoundsTest(unittest.TestCase):
         self.assertLessEqual(len(result.stdout) + len(result.stderr), 32768)
         self.assertLess(time.monotonic() - started, 2)
 
+    def test_held_stdin_ends_with_response_without_fixed_sleep(self):
+        program = "import os,sys,threading,time; expected=sys.argv[1].encode(); assert sys.stdin.buffer.read(len(expected))==expected; ended=threading.Event(); threading.Thread(target=lambda:(os.read(0,1),ended.set()),daemon=True).start(); time.sleep(.12); sys.stdout.buffer.write(b'cancelled' if ended.is_set() else b'complete'); sys.stdout.buffer.flush()"
+        for keep, expected in ((False, b"cancelled"), (True, b"complete")):
+            with self.subTest(keep_stdin_open=keep):
+                started = time.monotonic()
+                result = run_bounded([sys.executable, "-c", program, "request"], b"request", Deadline(2), keep_stdin_open=keep)
+                self.assertIsNone(result.reason)
+                self.assertEqual(result.stdout, expected)
+                self.assertLess(time.monotonic() - started, 1)
+
+    def test_held_stdin_remains_deadline_and_output_bounded(self):
+        waiting = "import sys,time; sys.stdin.buffer.read(1); time.sleep(30)"
+        result = run_bounded([sys.executable, "-c", waiting], b"x", Deadline(.4), keep_stdin_open=True)
+        self.assertTrue(result.timed_out)
+        flooding = "import os;\nwhile True: os.write(1,b'x'*8192)"
+        result = run_bounded([sys.executable, "-c", flooding], b"x", Deadline(2), max_output=4096, keep_stdin_open=True)
+        self.assertTrue(result.truncated)
+        self.assertLessEqual(len(result.stdout) + len(result.stderr), 4096)
+
     def test_timeout_reaps_descendant_with_inherited_pipes(self):
         with tempfile.TemporaryDirectory(dir=OUTPUT) as directory:
             pid_file = Path(directory) / "synthetic_child.pid"

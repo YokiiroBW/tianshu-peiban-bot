@@ -32,7 +32,11 @@ class AdvancingFixture(FixtureTransport):
                                       cpu=f"{100 + tick * 30} 0 {50 + tick * 40} {850 + tick * 30} 0 0 0 0",
                                       received=1000 + tick * 1000, sent=2000 + tick * 2000)
         result = super().script(script, **kwargs)
-        if "GET /v" in script:
+        return result
+
+    def command(self, argv, payload=b"", **kwargs):
+        result = super().command(argv, payload, **kwargs)
+        if b"/stats?" in payload:
             self.cpu += 100
             self.system += 400
         return result
