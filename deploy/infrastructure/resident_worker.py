@@ -101,6 +101,9 @@ def check_private_inputs():
 
 def install_private_inputs():
     check_private_inputs()
+    # runc can inherit the existing mountpoint mode on later container starts.
+    # This host directory remains empty; all sampling content lives in tmpfs.
+    prepare_sampling_mountpoint(host_path(RELEASE["baseline"]["owners"], "platform", SAMPLE_STATE))
     for bind in RELEASE["infrastructure"]["credential_binds"]:
         source = S / "credentials" / Path(bind["source"]).name
         target = Path(bind["source"])
