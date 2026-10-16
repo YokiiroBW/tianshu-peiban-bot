@@ -38,9 +38,35 @@ outcome requires inspection, never a blind repeat. Do not print entire payloads.
 The controller never mounts production data or starts a production service. It
 checks installed source/contracts/web/node hashes, original image configuration,
 both Python environments, exact PyYAML, resolved OpenSSH version, and unchanged
-music binary/source-archive/ffmpeg identities. Linux validation and the TS-181/182
+music binary/source-archive/ffmpeg identities. Music bridge/decode and ffmpeg use
+exact executable SHA256, plus the ffmpeg version line. The source archive compares
+member paths, types, file bytes, link targets and whether regular files/directories
+have any execution/traversal bit. Compression headers, mtime, ownership and other
+permission bits are ignored; private staging can legitimately change 0755 to 0700.
+Linux validation and the TS-181/182
 installed-package checks must finish before the resident update is prepared.
 Copy the resulting `build-result.json` into the local private evidence directory.
+
+If an already built immutable candidate needs the corrected acceptance, copy the
+reviewed `image_controller.py` under a **new filename** in its original build
+stage, preserving the original `build-inputs.json`, controller, logs and failed
+receipt. Do not rerun the original build launcher or change the candidate tag.
+The coordinator invokes the new standalone file with both explicit arguments:
+
+```text
+ABS_CONFIRMED_NAS_TOOL_PYTHON -B ABS_ORIGINAL_BUILD_STAGE/image-reverify.py --verify-image sha256:FULL_BUILT_IMAGE_ID --receipt-name build-reverified.json
+```
+
+This mode performs the same input/base checks and complete candidate acceptance
+as the normal build path, including installed source/web/contracts/node hashes,
+image labels/configuration, dependencies and music. It never builds or tags an
+image, and it always runs container probes against the inspected full image ID.
+It requires a new stage-local JSON name and publishes without replacing existing
+evidence. A failure gets its own corresponding `*-controller-error.log`.
+A successful result retains `status=built` for the existing resident preparer,
+with `verification_only=true`, `image_rebuilt=false`, the new controller/input
+hashes and original build evidence hashes. Use this new JSON as `--build-result`;
+retain the earlier failed receipt and logs unchanged.
 
 ## 2. Prepare the controlled resident update locally
 
