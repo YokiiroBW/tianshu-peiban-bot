@@ -83,8 +83,9 @@ not group/world writable. Thresholds are explicit bytes; 20 GiB is
 
 ## Latch and failure behavior
 
-The loop checks capacity and exact container identity at most every ten
-seconds and sends `READY=1` only after the first healthy sample. It then
+After each healthy cycle the loop waits the configured 1–10 seconds before
+checking capacity and exact container identity again. It sends `READY=1` only
+after the first healthy sample. It then
 sends `WATCHDOG=1`. The systemd 219 unit uses `Type=notify`,
 `WatchdogSec=30s`, unlimited start retries, and `ExecStopPost` invoking:
 
@@ -106,7 +107,7 @@ Once latched, the loop cannot return to ready or rearm without an explicit
 review and a new state generation.
 
 The configured TERM wait is at most 120 seconds. Docker commands time out at
-10 seconds each and the batch inspect at 15 seconds. Each complete Docker
+10 seconds each and the batch inspect at 15 seconds. A standalone Docker
 snapshot has one monotonic 25-second deadline, shared by any resample.
 The calculated upper
 bound for external Docker waits plus TERM polling is 570 seconds with ten
@@ -130,6 +131,28 @@ No individual ID is skipped, and a partial first result is never reused.
 invalid metadata fail immediately. A second incomplete/failed attempt also
 fails. A complete resample still goes through the original exact-service,
 locked-ID, running-state, restart-policy, mount and capacity checks.
+
+The running loop uses a stricter **whole-cycle** deadline: the start of its
+previous successful `WATCHDOG=1` send plus 25 seconds. That send's own elapsed
+time, the configured poll wait, both Docker attempts, capacity measurement and
+state persistence all consume this one budget. The first loop cycle starts
+with 25 seconds. Snapshot calls take the earlier of their own 25-second limit
+and this cycle deadline. For example, a 10-second poll and an instantaneous
+previous notify leave at most 15 seconds for measurement and persistence; a
+previous notify taking two seconds leaves at most 13 seconds. Neither a retry
+nor the end of the poll wait resets that deadline.
+
+This reserves the original five-second margin before the unchanged 30-second
+unit watchdog. A late Docker call fails with its existing Docker reason.
+Capacity or persistence exceeding the cycle deadline raises the fixed
+`capacity_sample_timeout`, latches the deployment and uses the original stop
+path. Atomic healthy-state writes check the deadline after temporary-file
+fsync and before publishing; the loop also checks after persistence and before
+notifying. It never sends a new watchdog notification to extend time for an
+unfinished or overdue check. Standalone `arm`, `status`, and `fail-close`
+retain their original snapshot budgets. As with the existing guard, a blocked
+kernel filesystem operation cannot be preempted by a Python deadline; the
+independent systemd watchdog and `ExecStopPost` remain its fallback.
 
 A first nonzero inspect is only evidence that the CLI failed. Successful
 resampling establishes a complete current sample; it does not establish that

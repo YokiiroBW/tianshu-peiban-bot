@@ -20,7 +20,7 @@ class FakeDocker:
         self.events = []
         self.fail = False
 
-    def snapshot(self, *, diagnostics=None):
+    def snapshot(self, *, diagnostics=None, deadline=None):
         if self.fail:
             raise guard.Unsafe("docker_unavailable")
         return list(self.containers.values())
@@ -144,6 +144,73 @@ class ResidentCapacityTests(unittest.TestCase):
     @staticmethod
     def _cli_events(state):
         return json.loads(state.read_text(encoding="utf-8"))["events"]
+
+    def _run_with_clock(
+        self, commands, capacity_seconds, *, notify_seconds=2,
+        heartbeat_seconds=(), recovery_seconds=0, stop_after_notifications=None,
+    ):
+        self.config = replace(self.config, poll_seconds=10)
+        self._write_marker()
+        clock, command_limits, sample_deadlines, notifications, stops = [0], [], [], [], []
+        capacity_calls, heartbeat_calls = [0], [0]
+        original_sample, original_write, original_stop = guard.sample, guard._write, guard.fail_close
+        docker = guard.Docker("synthetic-docker")
+        ids = "\n".join(item.id for item in self.containers).encode()
+        inspected = "\n".join(json.dumps(self._raw(item)) for item in self.containers).encode()
+
+        def invoke(args, *, capture_output, timeout, check):
+            seconds, returncode = commands[len(command_limits)]
+            command_limits.append(timeout)
+            if seconds > timeout:
+                clock[0] += timeout
+                raise subprocess.TimeoutExpired(args, timeout)
+            clock[0] += seconds
+            output = ids if args[len(docker.prefix)] == "ps" else inspected
+            return subprocess.CompletedProcess(args, returncode, stdout=output, stderr=b"")
+
+        def measure(*args):
+            clock[0] += capacity_seconds[capacity_calls[0]]
+            capacity_calls[0] += 1
+            return 100, 30 * guard.GIB
+
+        def sample(config, marker, actual_docker, *, deadline=None):
+            sample_deadlines.append(deadline)
+            if stop_after_notifications is not None and len(notifications) >= stop_after_notifications:
+                raise guard.Unsafe("fixture_loop_end")
+            return original_sample(config, marker, actual_docker, deadline=deadline)
+
+        def write(path, value, *, exclusive=False, deadline=None):
+            if path.name == "heartbeat.json":
+                index = heartbeat_calls[0]
+                heartbeat_calls[0] += 1
+                if index < len(heartbeat_seconds):
+                    clock[0] += heartbeat_seconds[index]
+            elif path.name == "docker-resample.json":
+                clock[0] += recovery_seconds
+            return original_write(path, value, exclusive=exclusive, deadline=deadline)
+
+        def notify(message):
+            notifications.append((clock[0], message, (self.config.state_dir / "heartbeat.json").read_bytes()))
+            clock[0] += notify_seconds
+
+        def stop(state, reason, actual_docker, *, diagnostics=()):
+            stops.append(clock[0])
+            return original_stop(state, reason, self.docker, diagnostics=diagnostics)
+
+        def sleep(seconds):
+            clock[0] += seconds
+
+        with patch.object(guard, "_state_dir", side_effect=lambda path, create=False: Path(path)), patch.object(
+            guard.time, "monotonic", side_effect=lambda: clock[0]
+        ), patch.object(guard.time, "sleep", side_effect=sleep), patch.object(
+            guard.subprocess, "run", side_effect=invoke
+        ), patch.object(guard, "capacity", side_effect=measure), patch.object(
+            guard, "sample", side_effect=sample
+        ), patch.object(guard, "_write", side_effect=write), patch.object(
+            guard, "notify", side_effect=notify
+        ), patch.object(guard, "fail_close", side_effect=stop):
+            exit_code = guard.run(self.config, "a" * 64, docker)
+        return exit_code, command_limits, sample_deadlines, notifications, stops
 
     def test_arm_locks_exact_nine_ids_after_full_start(self):
         with patch.object(guard, "_state_dir", side_effect=lambda path, create=False: Path(path)), patch.object(
@@ -619,6 +686,66 @@ class ResidentCapacityTests(unittest.TestCase):
                 self.assertEqual(clock[0], guard.DOCKER_SNAPSHOT_SECONDS)
                 self.assertEqual(refused.exception.docker_diagnostics[1]["returncode"], 13)
                 self.assertEqual(refused.exception.docker_diagnostics[-1]["outcome"], final_outcome)
+
+    def test_run_cycle_allows_slow_resample_with_poll_and_previous_notify_time(self):
+        result, limits, deadlines, notifications, stops = self._run_with_clock(
+            [(0.2, 0), (0.3, 0), (2, 0), (2, 13), (2, 0), (5, 0)],
+            [0.5, 0.5], heartbeat_seconds=[0.25, 0.25], recovery_seconds=0.25,
+            stop_after_notifications=2,
+        )
+        self.assertEqual(result, 2)  # controlled end after two healthy cycles
+        self.assertEqual(limits, [10, 15, 10, 11, 9, 7])
+        self.assertEqual([item[0] for item in notifications], [1.25, 25.25])
+        self.assertEqual(deadlines, [25, 26.25, 50.25])
+        self.assertLess(notifications[1][0] - notifications[0][0], 30)
+        self.assertIn("READY=1", notifications[0][1])
+        self.assertNotIn("READY=1", notifications[1][1])
+        recovered = json.loads((self.config.state_dir / "docker-resample.json").read_text())
+        self.assertEqual([item["returncode"] for item in recovered["docker_diagnostics"]], [0, 13, 0, 0])
+        self.assertEqual(len(stops), 1)
+
+    def test_run_cycle_docker_timeout_latches_before_watchdog_without_new_heartbeat(self):
+        result, limits, deadlines, notifications, stops = self._run_with_clock(
+            [(0.2, 0), (0.3, 0), (2, 0), (2, 13), (2, 0), (9, 0)], [0, 0],
+        )
+        self.assertEqual(result, 2)
+        self.assertEqual(limits, [10, 15, 10, 11, 9, 7])
+        self.assertEqual(deadlines, [25, 25.5])
+        self.assertEqual(len(notifications), 1)
+        self.assertEqual(stops, [25.5])
+        self.assertLess(stops[0] - notifications[0][0], 30)
+        self.assertEqual((self.config.state_dir / "heartbeat.json").read_bytes(), notifications[0][2])
+        failure = json.loads((self.config.state_dir / "failure.json").read_text())
+        self.assertEqual(failure["reason"], "docker_unavailable")
+        self.assertEqual(failure["docker_diagnostics"][-1]["outcome"], "timeout")
+        self.assertEqual(len(self.docker.termed), 9)
+
+    def test_run_cycle_capacity_timeout_does_not_publish_health_or_notify(self):
+        result, _, deadlines, notifications, stops = self._run_with_clock(
+            [(0.2, 0), (0.3, 0), (1, 0), (1, 0)], [0, 12],
+        )
+        self.assertEqual(result, 2)
+        self.assertEqual(deadlines, [25, 25.5])
+        self.assertEqual(len(notifications), 1)
+        self.assertEqual(stops, [26.5])
+        self.assertLess(stops[0] - notifications[0][0], 30)
+        self.assertEqual((self.config.state_dir / "heartbeat.json").read_bytes(), notifications[0][2])
+        failure = json.loads((self.config.state_dir / "failure.json").read_text())
+        self.assertEqual(failure["reason"], "capacity_sample_timeout")
+        self.assertEqual(failure["docker_diagnostics"][-1]["outcome"], "ok")
+
+    def test_run_cycle_state_write_timeout_does_not_publish_health_or_notify(self):
+        result, _, _, notifications, stops = self._run_with_clock(
+            [(0.2, 0), (0.3, 0), (1, 0), (1, 0)], [0, 0], heartbeat_seconds=[0, 12],
+        )
+        self.assertEqual(result, 2)
+        self.assertEqual(len(notifications), 1)
+        self.assertEqual(stops, [26.5])
+        self.assertLess(stops[0] - notifications[0][0], 30)
+        self.assertEqual((self.config.state_dir / "heartbeat.json").read_bytes(), notifications[0][2])
+        self.assertFalse(list(self.config.state_dir.glob("*.tmp")))
+        failure = json.loads((self.config.state_dir / "failure.json").read_text())
+        self.assertEqual(failure["reason"], "capacity_sample_timeout")
 
 
 if __name__ == "__main__":

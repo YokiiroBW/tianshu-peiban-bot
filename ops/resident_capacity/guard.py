@@ -280,11 +280,12 @@ class Docker:
         record("ok")
         return output
 
-    def snapshot(self, *, diagnostics=None):
+    def snapshot(self, *, diagnostics=None, deadline=None):
         diagnostics = [] if diagnostics is None else diagnostics
         # A retry shares the original ps + inspect allowance, including the
         # failed attempt. Never retry an individual ID or accept partial output.
-        deadline = time.monotonic() + DOCKER_SNAPSHOT_SECONDS
+        snapshot_deadline = time.monotonic() + DOCKER_SNAPSHOT_SECONDS
+        deadline = snapshot_deadline if deadline is None else min(deadline, snapshot_deadline)
         for attempt in range(1, MAX_SNAPSHOT_ATTEMPTS + 1):
             try:
                 raw = self._run(
@@ -526,7 +527,7 @@ def _state_dir(path: Path, *, create=False):
     return path
 
 
-def _write(path: Path, value: dict, *, exclusive=False):
+def _write(path: Path, value: dict, *, exclusive=False, deadline=None):
     raw = (json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n").encode()
     temporary = path.with_name(path.name + "." + uuid.uuid4().hex + ".tmp")
     descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -535,6 +536,8 @@ def _write(path: Path, value: dict, *, exclusive=False):
             stream.write(raw)
             stream.flush()
             os.fsync(stream.fileno())
+        if deadline is not None and time.monotonic() > deadline:
+            raise Unsafe("capacity_sample_timeout")
         if exclusive:
             os.link(temporary, path)
             temporary.unlink()
@@ -609,15 +612,20 @@ def arm(config: Config, config_sha256: str, docker: Docker):
     }
 
 
-def sample(config: Config, marker: dict, docker: Docker):
+def sample(config: Config, marker: dict, docker: Docker, *, deadline=None):
     diagnostics = []
     try:
-        owned = assess(docker.snapshot(diagnostics=diagnostics), marker["signatures"], marker["root"], marker["ids"])
+        owned = assess(
+            docker.snapshot(diagnostics=diagnostics, deadline=deadline),
+            marker["signatures"], marker["root"], marker["ids"],
+        )
         used, free = capacity(config.root, config.free_paths)
         if used >= config.max_deployment_bytes:
             raise Unsafe("deployment_budget_reached")
         if free <= config.min_free_bytes:
             raise Unsafe("host_free_floor_reached")
+        if deadline is not None and time.monotonic() > deadline:
+            raise Unsafe("capacity_sample_timeout")
     except Unsafe as error:
         error.docker_diagnostics = tuple(diagnostics)
         raise
@@ -745,10 +753,14 @@ def run(config: Config, config_sha256: str, docker: Docker):
         result = fail_close(config.state_dir, "latched_failure", docker)
         return 0 if result["status"] == "stopped" else 3
     ready = False
+    # The existing 25-second allowance leaves five seconds before the unit's
+    # 30-second watchdog. Polling, the previous notify call, measurement and
+    # persistence all spend this one cycle budget; a retry cannot reset it.
+    sample_deadline = time.monotonic() + DOCKER_SNAPSHOT_SECONDS
     while True:
         diagnostics = []
         try:
-            result = sample(config, marker, docker)
+            result = sample(config, marker, docker, deadline=sample_deadline)
             diagnostics = result["docker_diagnostics"]
             if any(item["attempt"] > 1 for item in diagnostics):
                 # Keep the last completed resample after normal heartbeats
@@ -756,9 +768,16 @@ def run(config: Config, config_sha256: str, docker: Docker):
                 _write(config.state_dir / "docker-resample.json", {
                     "status": result["status"], "time": time.time(),
                     "docker_diagnostics": diagnostics,
-                })
-            _write(config.state_dir / "heartbeat.json", {**result, "time": time.time()})
+                }, deadline=sample_deadline)
+            _write(
+                config.state_dir / "heartbeat.json", {**result, "time": time.time()},
+                deadline=sample_deadline,
+            )
+            notify_started = time.monotonic()
+            if notify_started > sample_deadline:
+                raise Unsafe("capacity_sample_timeout")
             notify("WATCHDOG=1" + ("\nREADY=1" if not ready else ""))
+            sample_deadline = notify_started + DOCKER_SNAPSHOT_SECONDS
             ready = True
         except (Unsafe, OSError) as error:
             reason = error.args[0] if isinstance(error, Unsafe) else "capacity_guard_io_failure"
