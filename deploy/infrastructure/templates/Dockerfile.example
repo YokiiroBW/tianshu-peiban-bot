@@ -1,0 +1,18 @@
+# Review input only. No current product Dockerfile or service is modified.
+# Build context: unpacked, verified node package at ./node-package/.
+# PLATFORM_IMAGE must be the exact accepted platform image@sha256:... .
+ARG PLATFORM_IMAGE
+FROM ${PLATFORM_IMAGE}
+USER 0:0
+COPY node-package/ /opt/tianshu-infrastructure-node/
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends openssh-client \
+    && rm -rf /var/lib/apt/lists/* \
+    && /usr/local/bin/python -m venv /opt/tianshu-infrastructure-venv \
+    && /opt/tianshu-infrastructure-venv/bin/python -m pip install --no-cache-dir --only-binary=:all: --no-deps --require-hashes -r /opt/tianshu-infrastructure-node/requirements.lock \
+    && /opt/tianshu-infrastructure-venv/bin/python -m pip check \
+    && find /opt/tianshu-infrastructure-node -type d -exec chmod 0755 {} + \
+    && find /opt/tianshu-infrastructure-node -type f -exec chmod 0644 {} +
+# Inherits the platform's ENTRYPOINT/CMD and its original venv/PATH.
+# The registered executor uses the separate explicit Python above.
+USER 10001:10001
