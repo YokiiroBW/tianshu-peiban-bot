@@ -1,0 +1,61 @@
+{
+  "version": "infrastructure-node.v1",
+  "request_id": "fixture-001",
+  "node_id": "fixture-nas",
+  "operation": "docker.stats",
+  "status": "ok",
+  "reason_codes": [],
+  "observed_at": "2026-10-16T08:00:00Z",
+  "capabilities": [
+    "node.snapshot",
+    "docker.inventory",
+    "docker.stats",
+    "docker.logs",
+    "compose.inventory"
+  ],
+  "completeness": {
+    "state": "complete",
+    "returned": 1,
+    "total": 1,
+    "next_cursor": null
+  },
+  "data": {
+    "containers": [
+      {
+        "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "availability": "ok",
+        "reason_codes": [],
+        "sampled_at": "2026-10-16T08:00:00Z",
+        "cpu": {
+          "usage_ratio": 1.5,
+          "basis": "one_core",
+          "total_usage_nanoseconds": 300000,
+          "system_usage_nanoseconds": 1000000,
+          "online_cpus": 8,
+          "state": "ok",
+          "reason_codes": [],
+          "source": "docker_engine_stats"
+        },
+        "memory": {
+          "raw_usage_bytes": 10485760,
+          "limit_bytes": 33554432,
+          "cache_bytes": 2097152,
+          "cache_source": "inactive_file",
+          "cache_adjusted_usage_bytes": 8388608,
+          "source": "docker_engine_stats"
+        },
+        "block_io": {
+          "read_bytes": 1024,
+          "write_bytes": 2048,
+          "source": "docker_engine_stats"
+        },
+        "network": {
+          "receive_bytes": 4096,
+          "transmit_bytes": 8192,
+          "attribution": "container",
+          "source": "docker_engine_stats"
+        }
+      }
+    ]
+  }
+}

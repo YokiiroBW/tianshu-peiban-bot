@@ -1,0 +1,2318 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:tianshu:infrastructure-node:candidate-v1:response",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": "infrastructure-node.v1"
+    },
+    "request_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "node_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "operation": {
+      "anyOf": [
+        {
+          "enum": [
+            "node.catalog",
+            "node.snapshot",
+            "docker.inventory",
+            "docker.stats",
+            "docker.logs",
+            "compose.inventory"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "unsupported",
+        "invalid"
+      ]
+    },
+    "reason_codes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]{0,79}$"
+      },
+      "maxItems": 64
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "capabilities": {
+      "$ref": "#/$defs/capabilities"
+    },
+    "completeness": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "enum": [
+            "complete",
+            "partial",
+            "unavailable"
+          ]
+        },
+        "returned": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 1024
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "state",
+        "returned",
+        "total",
+        "next_cursor"
+      ]
+    },
+    "data": {
+      "type": [
+        "object",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "version",
+    "request_id",
+    "node_id",
+    "operation",
+    "status",
+    "reason_codes",
+    "observed_at",
+    "capabilities",
+    "completeness",
+    "data"
+  ],
+  "$defs": {
+    "reasons": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]{0,79}$"
+      },
+      "maxItems": 64
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "node.catalog",
+          "node.snapshot",
+          "docker.inventory",
+          "docker.stats",
+          "docker.logs",
+          "compose.inventory"
+        ]
+      },
+      "maxItems": 6
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "node_id": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$"
+        },
+        "kind": {
+          "enum": [
+            "linux",
+            "synology",
+            "openwrt"
+          ]
+        },
+        "hostname": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 512
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kernel": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 512
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "boot_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 512
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "node_id",
+        "kind",
+        "hostname",
+        "kernel",
+        "boot_id"
+      ]
+    },
+    "system": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "uptime_seconds": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "load_average": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0
+              },
+              "maxItems": 3,
+              "minItems": 3
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source": {
+          "const": "proc"
+        }
+      },
+      "required": [
+        "uptime_seconds",
+        "load_average",
+        "source"
+      ]
+    },
+    "hostCpu": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "usage_ratio": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "basis": {
+          "const": "host_total"
+        },
+        "total_ticks": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "idle_ticks": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "enum": [
+            "ok",
+            "first_sample",
+            "counter_reset",
+            "stale",
+            "unavailable",
+            "unsupported"
+          ]
+        },
+        "reason_codes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,79}$"
+          },
+          "maxItems": 64
+        },
+        "source": {
+          "const": "proc_stat"
+        }
+      },
+      "required": [
+        "usage_ratio",
+        "basis",
+        "total_ticks",
+        "idle_ticks",
+        "state",
+        "reason_codes",
+        "source"
+      ]
+    },
+    "hostMemory": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "total_bytes": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "available_bytes": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "used_bytes": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "enum": [
+            "ok",
+            "first_sample",
+            "counter_reset",
+            "stale",
+            "unavailable",
+            "unsupported"
+          ]
+        },
+        "reason_codes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,79}$"
+          },
+          "maxItems": 64
+        },
+        "source": {
+          "type": "string",
+          "maxLength": 512
+        }
+      },
+      "required": [
+        "total_bytes",
+        "available_bytes",
+        "used_bytes",
+        "state",
+        "reason_codes",
+        "source"
+      ]
+    },
+    "filesystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^fs_[a-f0-9]{24}$"
+        },
+        "device": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "mountpoint": {
+          "type": "string",
+          "maxLength": 4096
+        },
+        "total_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "used_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "available_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source": {
+          "const": "df_posix_1k"
+        }
+      },
+      "required": [
+        "id",
+        "device",
+        "mountpoint",
+        "total_bytes",
+        "used_bytes",
+        "available_bytes",
+        "source"
+      ]
+    },
+    "networkInterface": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^if_[a-f0-9]{24}$"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "ifindex": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "receive_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "transmit_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "receive_errors": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "transmit_errors": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "receive_drops": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "transmit_drops": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "receive_bytes_per_second": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "transmit_bytes_per_second": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "enum": [
+            "ok",
+            "first_sample",
+            "counter_reset",
+            "stale",
+            "unavailable",
+            "unsupported"
+          ]
+        },
+        "reason_codes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,79}$"
+          },
+          "maxItems": 64
+        },
+        "source": {
+          "const": "proc_net_dev"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "ifindex",
+        "receive_bytes",
+        "transmit_bytes",
+        "receive_errors",
+        "transmit_errors",
+        "receive_drops",
+        "transmit_drops",
+        "receive_bytes_per_second",
+        "transmit_bytes_per_second",
+        "state",
+        "reason_codes",
+        "source"
+      ]
+    },
+    "openwrt": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "board": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "model": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 512
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "board_name": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 512
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "system": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 512
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "release": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "distribution": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 512
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "version": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 512
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "revision": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 512
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "target": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 512
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "description": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 512
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "distribution",
+                        "version",
+                        "revision",
+                        "target",
+                        "description"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "model",
+                "board_name",
+                "system",
+                "release"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "info": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "uptime_seconds": {
+                  "anyOf": [
+                    {
+                      "type": "number",
+                      "minimum": 0
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "load_average": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "maxItems": 3,
+                      "minItems": 3
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "memory": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "total_bytes": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "free_bytes": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "shared_bytes": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "buffered_bytes": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "available_bytes": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "total_bytes",
+                        "free_bytes",
+                        "shared_bytes",
+                        "buffered_bytes",
+                        "available_bytes"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "uptime_seconds",
+                "load_average",
+                "memory"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "interfaces": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "maxLength": 512
+              },
+              "up": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "pending": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "available": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "autostart": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "device": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 512
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "l3_device": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 512
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "protocol": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 512
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "uptime_seconds": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "ipv4_addresses": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "address": {
+                      "type": "string",
+                      "maxLength": 512
+                    },
+                    "mask": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "address",
+                    "mask"
+                  ]
+                },
+                "maxItems": 128
+              },
+              "ipv6_addresses": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "address": {
+                      "type": "string",
+                      "maxLength": 512
+                    },
+                    "mask": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "address",
+                    "mask"
+                  ]
+                },
+                "maxItems": 128
+              },
+              "source": {
+                "const": "ubus_network_interface_dump"
+              }
+            },
+            "required": [
+              "name",
+              "up",
+              "pending",
+              "available",
+              "autostart",
+              "device",
+              "l3_device",
+              "protocol",
+              "uptime_seconds",
+              "ipv4_addresses",
+              "ipv6_addresses",
+              "source"
+            ]
+          },
+          "maxItems": 1024
+        },
+        "per_device_traffic": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "state": {
+              "const": "unsupported"
+            },
+            "reason_code": {
+              "const": "per_device_source_not_configured"
+            },
+            "items": {
+              "type": "array",
+              "maxItems": 0
+            }
+          },
+          "required": [
+            "state",
+            "reason_code",
+            "items"
+          ]
+        },
+        "reason_codes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,79}$"
+          },
+          "maxItems": 64
+        }
+      },
+      "required": [
+        "board",
+        "info",
+        "interfaces",
+        "per_device_traffic",
+        "reason_codes"
+      ]
+    },
+    "port": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "container_port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "protocol": {
+          "enum": [
+            "tcp",
+            "udp",
+            "sctp",
+            "unknown"
+          ]
+        },
+        "host_ip": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 512
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "host_port": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "container_port",
+        "protocol",
+        "host_ip",
+        "host_port"
+      ]
+    },
+    "mount": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 4096
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "target": {
+          "type": "string",
+          "maxLength": 4096
+        },
+        "read_only": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "source",
+        "target",
+        "read_only"
+      ]
+    },
+    "container": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 512
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "image_reference": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 512
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "image_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 512
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "created_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 512
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 512
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "enum": [
+            "created",
+            "restarting",
+            "running",
+            "removing",
+            "paused",
+            "exited",
+            "dead",
+            "unknown"
+          ]
+        },
+        "running": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "health": {
+          "enum": [
+            "none",
+            "unknown",
+            "healthy",
+            "unhealthy",
+            "starting"
+          ]
+        },
+        "network_mode": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 512
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "compose": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "project": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 512
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "service": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 512
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "working_dir": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 4096
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "config_files": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 4096
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "oneoff": {
+                  "anyOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "project",
+                "service",
+                "working_dir",
+                "config_files",
+                "oneoff"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/port"
+          },
+          "maxItems": 1024
+        },
+        "mounts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/mount"
+          },
+          "maxItems": 1024
+        },
+        "availability": {
+          "enum": [
+            "ok",
+            "unavailable"
+          ]
+        },
+        "reason_codes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,79}$"
+          },
+          "maxItems": 64
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "image_reference",
+        "image_id",
+        "created_at",
+        "started_at",
+        "state",
+        "running",
+        "health",
+        "network_mode",
+        "compose",
+        "ports",
+        "mounts",
+        "availability",
+        "reason_codes"
+      ]
+    },
+    "containerCpu": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "usage_ratio": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "basis": {
+          "const": "one_core"
+        },
+        "total_usage_nanoseconds": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "system_usage_nanoseconds": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "online_cpus": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65536
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "enum": [
+            "ok",
+            "first_sample",
+            "counter_reset",
+            "stale",
+            "unavailable",
+            "unsupported"
+          ]
+        },
+        "reason_codes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,79}$"
+          },
+          "maxItems": 64
+        },
+        "source": {
+          "const": "docker_engine_stats"
+        }
+      },
+      "required": [
+        "usage_ratio",
+        "basis",
+        "total_usage_nanoseconds",
+        "system_usage_nanoseconds",
+        "online_cpus",
+        "state",
+        "reason_codes",
+        "source"
+      ]
+    },
+    "containerMemory": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "raw_usage_bytes": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "limit_bytes": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cache_bytes": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cache_source": {
+          "anyOf": [
+            {
+              "enum": [
+                "total_inactive_file",
+                "inactive_file",
+                "cache"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cache_adjusted_usage_bytes": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source": {
+          "const": "docker_engine_stats"
+        }
+      },
+      "required": [
+        "raw_usage_bytes",
+        "limit_bytes",
+        "cache_bytes",
+        "cache_source",
+        "cache_adjusted_usage_bytes",
+        "source"
+      ]
+    },
+    "containerIo": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "read_bytes": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "write_bytes": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source": {
+          "const": "docker_engine_stats"
+        }
+      },
+      "required": [
+        "read_bytes",
+        "write_bytes",
+        "source"
+      ]
+    },
+    "containerNetwork": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "receive_bytes": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "transmit_bytes": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attribution": {
+          "enum": [
+            "container",
+            "not_attributable",
+            "unknown"
+          ]
+        },
+        "source": {
+          "const": "docker_engine_stats"
+        }
+      },
+      "required": [
+        "receive_bytes",
+        "transmit_bytes",
+        "attribution",
+        "source"
+      ]
+    },
+    "containerStats": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "availability": {
+          "enum": [
+            "ok",
+            "unavailable"
+          ]
+        },
+        "reason_codes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,79}$"
+          },
+          "maxItems": 64
+        },
+        "sampled_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 64
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cpu": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/containerCpu"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "memory": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/containerMemory"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "block_io": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/containerIo"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "network": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/containerNetwork"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "availability",
+        "reason_codes",
+        "sampled_at",
+        "cpu",
+        "memory",
+        "block_io",
+        "network"
+      ]
+    },
+    "desiredPort": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "published": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 512
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "protocol": {
+          "enum": [
+            "tcp",
+            "udp",
+            "sctp",
+            "unknown"
+          ]
+        },
+        "host_ip": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 512
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "enum": [
+            "resolved",
+            "unresolved"
+          ]
+        }
+      },
+      "required": [
+        "target",
+        "published",
+        "protocol",
+        "host_ip",
+        "state"
+      ]
+    },
+    "desiredMount": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "source": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 4096
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "target": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 4096
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "read_only": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "enum": [
+            "resolved",
+            "unresolved"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "source",
+        "target",
+        "read_only",
+        "state"
+      ]
+    },
+    "composeService": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "image": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "state": {
+              "enum": [
+                "resolved",
+                "unresolved",
+                "unspecified"
+              ]
+            },
+            "reference": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 512
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "state",
+            "reference"
+          ]
+        },
+        "desired_instances": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/desiredPort"
+          },
+          "maxItems": 1024
+        },
+        "mounts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/desiredMount"
+          },
+          "maxItems": 1024
+        },
+        "observed_container_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "maxItems": 10000
+        },
+        "drift_status": {
+          "enum": [
+            "in_sync",
+            "drifted",
+            "unavailable"
+          ]
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,79}$"
+          },
+          "maxItems": 64
+        },
+        "reason_codes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,79}$"
+          },
+          "maxItems": 64
+        }
+      },
+      "required": [
+        "name",
+        "image",
+        "desired_instances",
+        "ports",
+        "mounts",
+        "observed_container_ids",
+        "drift_status",
+        "findings",
+        "reason_codes"
+      ]
+    },
+    "stack": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^stack_[a-f0-9]{24}$"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "project_name": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 512
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "desired_revision": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "enum": [
+            "ok",
+            "partial",
+            "unavailable"
+          ]
+        },
+        "reason_codes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,79}$"
+          },
+          "maxItems": 64
+        },
+        "services": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/composeService"
+          },
+          "maxItems": 2000
+        },
+        "runtime_only_services": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "maxItems": 2000
+        },
+        "drift_status": {
+          "enum": [
+            "in_sync",
+            "drifted",
+            "unavailable"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "project_name",
+        "desired_revision",
+        "state",
+        "reason_codes",
+        "services",
+        "runtime_only_services",
+        "drift_status"
+      ]
+    },
+    "catalogData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$"
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "kind": {
+                "enum": [
+                  "linux",
+                  "synology",
+                  "openwrt"
+                ]
+              },
+              "capabilities": {
+                "$ref": "#/$defs/capabilities"
+              }
+            },
+            "required": [
+              "id",
+              "label",
+              "kind",
+              "capabilities"
+            ]
+          },
+          "maxItems": 1000
+        }
+      },
+      "required": [
+        "nodes"
+      ]
+    },
+    "snapshotData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "identity": {
+          "$ref": "#/$defs/identity"
+        },
+        "system": {
+          "$ref": "#/$defs/system"
+        },
+        "cpu": {
+          "$ref": "#/$defs/hostCpu"
+        },
+        "memory": {
+          "$ref": "#/$defs/hostMemory"
+        },
+        "filesystems": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/filesystem"
+          },
+          "maxItems": 1024
+        },
+        "interfaces": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/networkInterface"
+          },
+          "maxItems": 1024
+        },
+        "openwrt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/openwrt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "identity",
+        "system",
+        "cpu",
+        "memory",
+        "filesystems",
+        "interfaces",
+        "openwrt"
+      ]
+    },
+    "inventoryData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "containers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/container"
+          },
+          "maxItems": 200
+        }
+      },
+      "required": [
+        "containers"
+      ]
+    },
+    "statsData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "containers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/containerStats"
+          },
+          "maxItems": 200
+        }
+      },
+      "required": [
+        "containers"
+      ]
+    },
+    "logsData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "container_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "stdout": {
+          "type": "string",
+          "maxLength": 262144
+        },
+        "stderr": {
+          "type": "string",
+          "maxLength": 262144
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "returned_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 262144
+        },
+        "tail": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        },
+        "since_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 262144
+        },
+        "source": {
+          "const": "docker_cli_logs"
+        }
+      },
+      "required": [
+        "container_id",
+        "stdout",
+        "stderr",
+        "truncated",
+        "returned_bytes",
+        "tail",
+        "since_seconds",
+        "max_bytes",
+        "source"
+      ]
+    },
+    "composeData": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "stacks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stack"
+          },
+          "maxItems": 200
+        }
+      },
+      "required": [
+        "stacks"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "unavailable",
+              "unsupported",
+              "invalid"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "type": "null"
+          },
+          "completeness": {
+            "properties": {
+              "state": {
+                "const": "unavailable"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "ok",
+              "partial"
+            ]
+          },
+          "operation": {
+            "const": "node.catalog"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/catalogData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "ok",
+              "partial"
+            ]
+          },
+          "operation": {
+            "const": "node.snapshot"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/snapshotData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "ok",
+              "partial"
+            ]
+          },
+          "operation": {
+            "const": "docker.inventory"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/inventoryData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "ok",
+              "partial"
+            ]
+          },
+          "operation": {
+            "const": "docker.stats"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/statsData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "ok",
+              "partial"
+            ]
+          },
+          "operation": {
+            "const": "docker.logs"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/logsData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "ok",
+              "partial"
+            ]
+          },
+          "operation": {
+            "const": "compose.inventory"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/composeData"
+          }
+        }
+      }
+    }
+  ]
+}

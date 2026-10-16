@@ -1,0 +1,12 @@
+{
+  "version": "infrastructure-node.v1",
+  "request_id": "fixture-001",
+  "node_id": "fixture-nas",
+  "operation": "docker.stats",
+  "params": {
+    "container_ids": [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ]
+  },
+  "timeout_ms": 10000
+}

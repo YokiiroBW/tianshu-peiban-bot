@@ -1,0 +1,2 @@
+# Test server only; the deployed executor does not import Paramiko.
+paramiko==4.0.0

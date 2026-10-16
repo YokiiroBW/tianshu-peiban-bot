@@ -1,0 +1,25 @@
+{
+  "version": "infrastructure-node.v1",
+  "request_id": "fixture-001",
+  "node_id": "fixture-nas",
+  "operation": "node.snapshot",
+  "status": "unavailable",
+  "reason_codes": [
+    "ssh_unavailable"
+  ],
+  "observed_at": "2026-10-16T08:00:00Z",
+  "capabilities": [
+    "node.snapshot",
+    "docker.inventory",
+    "docker.stats",
+    "docker.logs",
+    "compose.inventory"
+  ],
+  "completeness": {
+    "state": "unavailable",
+    "returned": 0,
+    "total": null,
+    "next_cursor": null
+  },
+  "data": null
+}
