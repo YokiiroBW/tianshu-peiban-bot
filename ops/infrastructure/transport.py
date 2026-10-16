@@ -30,7 +30,7 @@ class Deadline:
 
 
 class _WindowsJob:
-    """Kill-on-close includes descendants even if the root process exits first."""
+    """Contain a suspended root before any wrapper can create descendants."""
 
     def __init__(self, process):
         self.handle = None
@@ -62,14 +62,67 @@ class _WindowsJob:
         kernel.AssignProcessToJobObject.argtypes = [wintypes.HANDLE, wintypes.HANDLE]
         kernel.CloseHandle.argtypes = [wintypes.HANDLE]
         handle = kernel.CreateJobObjectW(None, None)
-        if handle:
+        if not handle:
+            raise ctypes.WinError(ctypes.get_last_error())
+        try:
             info = Extended()
             info.basic.flags = 0x2000  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
-            if kernel.SetInformationJobObject(handle, 9, ctypes.byref(info), ctypes.sizeof(info)) and kernel.AssignProcessToJobObject(handle, int(process._handle)):
-                self.handle = handle
-                self.kernel = kernel
-            else:
+            if not kernel.SetInformationJobObject(handle, 9, ctypes.byref(info), ctypes.sizeof(info)):
+                raise ctypes.WinError(ctypes.get_last_error())
+            if not kernel.AssignProcessToJobObject(handle, int(process._handle)):
+                raise ctypes.WinError(ctypes.get_last_error())
+            self.handle = handle
+            self.kernel = kernel
+        finally:
+            if not self.handle:
                 kernel.CloseHandle(handle)
+
+    def resume(self, pid):
+        """Popen closes hThread; reopen this suspended root's sole main thread."""
+        from ctypes import wintypes
+
+        class ThreadEntry(ctypes.Structure):
+            _fields_ = [("size", wintypes.DWORD), ("usage", wintypes.DWORD),
+                        ("thread_id", wintypes.DWORD), ("owner_pid", wintypes.DWORD),
+                        ("base_priority", wintypes.LONG), ("delta_priority", wintypes.LONG),
+                        ("flags", wintypes.DWORD)]
+
+        kernel = self.kernel
+        kernel.CreateToolhelp32Snapshot.argtypes = [wintypes.DWORD, wintypes.DWORD]
+        kernel.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+        kernel.Thread32First.argtypes = [wintypes.HANDLE, ctypes.POINTER(ThreadEntry)]
+        kernel.Thread32Next.argtypes = [wintypes.HANDLE, ctypes.POINTER(ThreadEntry)]
+        kernel.OpenThread.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        kernel.OpenThread.restype = wintypes.HANDLE
+        kernel.ResumeThread.argtypes = [wintypes.HANDLE]
+        kernel.ResumeThread.restype = wintypes.DWORD
+        snapshot = kernel.CreateToolhelp32Snapshot(4, 0)  # TH32CS_SNAPTHREAD
+        if not snapshot or snapshot == ctypes.c_void_p(-1).value:
+            raise ctypes.WinError(ctypes.get_last_error())
+        try:
+            entry = ThreadEntry()
+            entry.size = ctypes.sizeof(entry)
+            found = []
+            more = kernel.Thread32First(snapshot, ctypes.byref(entry))
+            while more:
+                if entry.owner_pid == pid:
+                    found.append(entry.thread_id)
+                more = kernel.Thread32Next(snapshot, ctypes.byref(entry))
+            if ctypes.get_last_error() != 18:  # ERROR_NO_MORE_FILES
+                raise ctypes.WinError(ctypes.get_last_error())
+            if len(found) != 1:
+                raise OSError("Suspended process main thread unavailable")
+        finally:
+            kernel.CloseHandle(snapshot)
+        thread = kernel.OpenThread(2, False, found[0])  # THREAD_SUSPEND_RESUME
+        if not thread:
+            raise ctypes.WinError(ctypes.get_last_error())
+        try:
+            previous = kernel.ResumeThread(thread)
+            if previous != 1:
+                raise OSError("Suspended process main thread did not resume")
+        finally:
+            kernel.CloseHandle(thread)
 
     def close(self):
         if self.handle:
@@ -87,9 +140,12 @@ class CommandResult:
     timed_out: bool = False
     truncated: bool = False
     unavailable: bool = False
+    setup_failed: bool = False
 
     @property
     def reason(self):
+        if self.setup_failed:
+            return "process_setup_failed"
         if self.unavailable:
             return "executable_unavailable"
         if self.timed_out:
@@ -116,7 +172,9 @@ def run_bounded(argv, payload: bytes, deadline: Deadline, *, max_output=2 * 1024
     deadline.check()
     options = {"stdin": subprocess.PIPE, "stdout": subprocess.PIPE, "stderr": subprocess.PIPE}
     if os.name == "nt":
-        options["creationflags"] = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP
+        # Attaching after an already running venv/wrapper starts is too late:
+        # existing descendants are not retroactively added to the job.
+        options["creationflags"] = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP | 0x00000004
     else:
         options["start_new_session"] = True
     environment = dict(os.environ)
@@ -125,7 +183,27 @@ def run_bounded(argv, payload: bytes, deadline: Deadline, *, max_output=2 * 1024
         process = subprocess.Popen(argv, env=environment, **options)
     except OSError:
         return CommandResult(unavailable=True)
-    job = _WindowsJob(process)
+    job = None
+    try:
+        job = _WindowsJob(process)
+        deadline.check()
+        if os.name == "nt":
+            job.resume(process.pid)
+    except (OSError, Failure) as error:
+        if job:
+            job.close()
+        if os.name != "nt":
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        if process.poll() is None:
+            process.kill()
+        process.wait(timeout=1)
+        process.stdin.close()
+        process.stdout.close()
+        process.stderr.close()
+        return CommandResult(exit_code=process.returncode, timed_out=isinstance(error, Failure), setup_failed=isinstance(error, OSError))
     chunks = [bytearray(), bytearray()]
     lock = threading.Lock()
     overflow = threading.Event()
