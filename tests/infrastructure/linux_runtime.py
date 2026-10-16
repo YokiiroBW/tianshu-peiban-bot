@@ -53,6 +53,15 @@ def process_checks(directory):
     captured = run_bounded([sys.executable, "-c", flood], b"", Deadline(2), max_output=32768, stderr_limit=32768)
     assert captured.truncated and len(captured.stdout) + len(captured.stderr) <= 32768
     result["stdout_stderr_bounded"] = True
+    held = "import os,sys,threading,time; assert sys.stdin.buffer.read(1)==b'x'; ended=threading.Event(); threading.Thread(target=lambda:(os.read(0,1),ended.set()),daemon=True).start(); time.sleep(.12); sys.stdout.buffer.write(b'cancelled' if ended.is_set() else b'complete'); sys.stdout.buffer.flush(); os.close(1); sys.stdin.buffer.read(); os._exit(0)"
+    started = time.monotonic()
+    captured = run_bounded([sys.executable, "-c", held], b"x", Deadline(2), keep_stdin_open=True)
+    assert captured.reason is None and captured.stdout == b"complete" and time.monotonic() - started < 1
+    result["held_input_closes_after_response_eof"] = True
+    waiting = "import sys,time; sys.stdin.buffer.read(1); time.sleep(30)"
+    captured = run_bounded([sys.executable, "-c", waiting], b"x", Deadline(.4), keep_stdin_open=True)
+    assert captured.timed_out
+    result["held_input_deadline_bounded"] = True
     for behavior in ("alive", "exit"):
         pid_file = directory / (behavior + ".pid")
         script = "import os,subprocess,sys,time; from pathlib import Path; p=subprocess.Popen([sys.executable,'-c','import time;time.sleep(30)']); Path(sys.argv[1]).write_text(str(p.pid)); os._exit(0) if sys.argv[2]=='exit' else time.sleep(30)"
