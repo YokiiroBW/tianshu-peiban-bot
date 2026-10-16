@@ -24,8 +24,7 @@ def current_settings_hashes():
 
 
 def metadata_inventory(guard_module, owner_ids):
-    return sorted((asdict(row) for row in guard_module.Docker(D).snapshot() if row.id not in owner_ids),
-                  key=lambda row: row["id"])
+    return normalize_inventory([asdict(row) for row in guard_module.Docker(D).snapshot() if row.id not in owner_ids])
 
 
 def load_candidate_guard():
@@ -232,7 +231,9 @@ def release():
     save(S / "start-intent.json", {"state": "candidate_start", "database_restore": False})
     current = start_and_verify(rows, paths, rows, RELEASE["infrastructure"]["credential_binds"])
     verify_networks(current, before_networks, definitions, declared)
-    require(metadata_inventory(candidate_guard, {row["id"] for row in current}) == non_targets, "non_target_container_changed")
+    non_target_report = compare_inventory(non_targets, metadata_inventory(candidate_guard, {row["id"] for row in current}))
+    save(S / "non-targets-after.json", non_target_report)
+    require(non_target_report["preserved"], "non_target_container_changed")
     require(user_state_hashes(R) == read(S / "user-state-before.json"), "user_state_changed")
     require(read(settings_path) == new_settings, "platform_settings_changed")
     require(all(value == settings_hashes[name] for name, value in current_settings_hashes().items() if name != "platform"), "other_settings_changed")
@@ -328,7 +329,9 @@ def rollback_release(parent):
     configure_guard_generation(cap, unit, S)
     current = start_and_verify(rows, paths, expected, [], expect_sampling=False)
     verify_networks(current, before, definitions, declared)
-    require(metadata_inventory(candidate_guard, {row["id"] for row in current}) == non_targets, "non_target_container_changed")
+    non_target_report = compare_inventory(non_targets, metadata_inventory(candidate_guard, {row["id"] for row in current}))
+    save(S / "non-targets-after.json", non_target_report)
+    require(non_target_report["preserved"], "non_target_container_changed")
     require(read(settings_path) == settings and user_state_hashes(R) == user_state, "rollback_settings_or_user_state_changed")
     require(media_state()["configuration_sha256"] == media_before["configuration_sha256"], "music_media_configuration_changed")
     save(S / "result.json", {"status": "rolled_back", "images": RELEASE["images"], "database_restore": False, "later_ledgers_preserved": True, "backup": str(S / "cold-snapshot"), "sqlite_backups": backup["sqlite_databases_verified"], "guard": "ready", "health": health_checks(current), "dedicated_credentials_retained_unmounted": True, "dockge_sync_required": True})

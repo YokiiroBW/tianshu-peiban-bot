@@ -151,6 +151,26 @@ generation, and preserves later database ledgers and music work. It never restor
 an old database automatically. Dedicated credentials remain private and unmounted.
 Read back guard, Docker/Dockge and health after either update or rollback.
 
+Existing non-target container identities and every normalized metadata field
+must remain unchanged. Mount array order and tuple/JSON-list representation are
+canonicalized. Concurrent non-target additions are recorded in
+`non-targets-after.json`; they do not require unrelated NAS work to stop.
+
+For the explicitly inspected TS-180 verification failure, the coordinator owns
+the manual recovery. `resident_readback` only prepares a standalone completion
+and a new `rollback-canonical-metadata.py`; it starts no owner or remote action.
+All stage, original-worker hash, image/container/gateway/state/guard/memory pins
+and the same-scope resume-origin evidence directory are required arguments.
+Run the generated readback only after manual recovery. It loads the pinned
+original definitions without their release entry, verifies the 37-database
+snapshot and the original 367 non-targets, and completes the original settings,
+user, media, network, runtime and health checks. Outputs use independent
+`resume-*` names, including `resume-result.json`; original failure/result files
+are not replaced. The separate rollback wrapper is for an explicit future
+rollback only: it retains the original controlled rollback/cleanup, injects the
+same canonical comparison, and reads the latest same-scope gateway renewal
+record. Staging it does not perform a rollback.
+
 ## Narrow final music configuration comparison
 
 The reused `media_state()` compares only `account` and `media_target`. The music
