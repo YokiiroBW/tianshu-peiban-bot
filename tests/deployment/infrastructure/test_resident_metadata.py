@@ -4,7 +4,7 @@ import copy
 import json
 import unittest
 
-from deploy.infrastructure.resident_metadata import normalize_inventory
+from deploy.infrastructure.resident_metadata import compare_inventory, normalize_inventory
 
 
 class ResidentMetadataTests(unittest.TestCase):
@@ -38,6 +38,25 @@ class ResidentMetadataTests(unittest.TestCase):
             with self.subTest(field=field):
                 self.assertNotEqual(normalize_inventory(self.before), normalize_inventory(after))
         self.assertNotEqual(normalize_inventory(self.before), normalize_inventory([]))
+
+    def test_concurrent_non_target_addition_is_preserved_and_fully_recorded(self):
+        added = copy.deepcopy(self.before[0])
+        added.update(id="b" * 64, project=None, status="exited", image="assetlibrary-test")
+        report = compare_inventory(self.before, [added, *self.before])
+        self.assertTrue(report["preserved"])
+        self.assertEqual((report["before"], report["after"]), (1, 2))
+        self.assertEqual(report["added"], normalize_inventory([added]))
+
+    def test_additions_cannot_hide_removal_or_change_of_existing_non_target(self):
+        after = copy.deepcopy(self.before)
+        after[0]["id"] = "b" * 64
+        self.assertFalse(compare_inventory(self.before, after)["preserved"])
+        self.assertEqual(compare_inventory(self.before, after)["removed"], ["a" * 64])
+        after.extend(copy.deepcopy(self.before))
+        after[-1]["status"] = "exited"
+        report = compare_inventory(self.before, after)
+        self.assertFalse(report["preserved"])
+        self.assertEqual(report["changed"], ["a" * 64])
 
 
 if __name__ == "__main__":
