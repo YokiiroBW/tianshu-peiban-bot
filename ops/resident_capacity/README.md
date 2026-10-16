@@ -106,13 +106,83 @@ Once latched, the loop cannot return to ready or rearm without an explicit
 review and a new state generation.
 
 The configured TERM wait is at most 120 seconds. Docker commands time out at
-10 seconds each and the batch inspect at 15 seconds. The calculated upper
+10 seconds each and the batch inspect at 15 seconds. Each complete Docker
+snapshot has one monotonic 25-second deadline, shared by any resample.
+The calculated upper
 bound for external Docker waits plus TERM polling is 570 seconds with ten
 services; the unit's `TimeoutStopSec=700s` leaves 70 seconds after the
 additional 60-second state-write/scheduling allowance.
 A hung kernel filesystem operation has no guaranteed Python timeout, so the
 systemd stop result and receipt still need live readback. The unit never
 claims a stop solely because its deadline elapsed.
+
+## Docker sampling and private diagnostics
+
+Each snapshot still enumerates **all host containers**, up to the existing
+4096-container bound, and inspects every returned ID. It does not restrict the
+inventory to the resident IDs, because unrelated containers can conflict with
+the deployment mounts. A nonzero batch inspect or a mismatch between the
+enumerated and inspected IDs permits **one** new complete `ps` and batch
+inspect. Both attempts share the original 25-second budget; each command is
+also limited by its original 10/15-second ceiling and the remaining budget.
+No individual ID is skipped, and a partial first result is never reused.
+`ps` failures, command timeouts, process creation failures, invalid IDs and
+invalid metadata fail immediately. A second incomplete/failed attempt also
+fails. A complete resample still goes through the original exact-service,
+locked-ID, running-state, restart-policy, mount and capacity checks.
+
+A first nonzero inspect is only evidence that the CLI failed. Successful
+resampling establishes a complete current sample; it does not establish that
+a container disappeared or diagnose the original production incident.
+Repeated permission or Docker API failures still latch the guard. The fixed
+reason remains `docker_command_failed` for a nonzero exit and
+`docker_unavailable` for a timeout, an exhausted snapshot deadline or a process
+creation failure. The diagnostics distinguish those cases without interpreting
+or saving stderr.
+
+`docker_diagnostics` records contain only these fields:
+
+| Field | Meaning |
+| --- | --- |
+| `stage` | `ps`, `batch_inspect`, `inspect_one`, `update`, or `term` |
+| `attempt` | Snapshot attempt 1 or 2; individual stop calls use 1 |
+| `batch_size` | Number of requested inspect IDs; 1 for individual calls, 0 for enumeration |
+| `returncode` | Actual numeric exit code, or null if the process did not return |
+| `timed_out` | Command timeout or exhausted snapshot deadline |
+| `outcome` | `ok`, `nonzero_exit`, `timeout`, `deadline_exhausted`, `spawn_failed`, or `invalid_output` |
+| `elapsed_seconds` | Nonnegative duration measured with the monotonic clock |
+| `os_error_number` | Numeric OS error, present only for process creation failure |
+
+The loop writes current sampling diagnostics to the existing `heartbeat.json`.
+Its first `failure.json` preserves the triggering sample, including the first
+failed attempt and final result; subsequent stop attempts do not rewrite it.
+Each existing `stop-*.json` has `trigger_docker_diagnostics` and the separate
+`docker_diagnostics` for that stop attempt, alongside its original status,
+fixed errors and exact-ID readback. A successfully resampled healthy loop
+sample also updates **one bounded file**, `docker-resample.json`, so the next
+normal heartbeat does not erase the latest recovery evidence. It records the
+sample time, healthy result and both attempts. All files use the existing
+private state directory and atomic mode-0600 writer. No raw stdout/stderr,
+command arguments, new container IDs, paths or credentials enter diagnostic
+records; the pre-existing armed/stop identity fields are unchanged.
+
+`arm` and `status` return the same limited diagnostics in their JSON results
+or fixed-code refusals. They do not write a diagnostic file into an unarmed
+state directory, so a failed first `arm` does not acquire a new latch or
+prevent the original installation procedure from retrying. A recovered
+snapshot does not bypass any installation or readiness requirement.
+
+## Maintenance and container controllers
+
+An ordinary stop, restart or recreate of a protected resident container can
+violate the guard's running-state or locked-ID checks. A future generic
+container/Compose controller must recognize these exact registered resident
+stacks and route the **whole maintenance operation** through the existing
+reviewed maintenance/update lifecycle. Stopping the unit runs `ExecStopPost`;
+it is not a way to leave containers running without protection. The controller
+must await that stop attempt and read back the exact old IDs, disabled restart
+policies and confirmed exits before continuing. An unconfirmed receipt does
+not authorize a replacement or an automatic retry of an uncertain action.
 
 For one explicit recovery with the **same locked IDs**, first verify the old
 `failure.json` and every `stop-*.json`, read back that all are exited with
@@ -130,6 +200,21 @@ compare the new `armed.json` IDs with the old receipt. Preserve the old and
 new generation receipts. A changed ID, incomplete stop, stale source, or
 missing capacity evidence requires a new review, not a silent rearm. This
 does not change the deployment scope or delete any source log.
+
+A planned image update or recreate is a **new deployment generation**. Preserve
+the old failure/stop evidence, finish the existing controlled stop, and use
+the reviewed deployment plan to validate the intended replacements, digest
+images, exact Compose labels, all binds, restart policies and capacity.
+Start in the approved order and arm the complete expected service set using
+the matching root-owned config and a fresh empty state directory. Require
+unit active, `status=ready` and continuing heartbeats; compare replaced IDs
+with the approved replacement plan and unchanged IDs with the old marker.
+Do not silently edit a running marker/config or apply the same-ID recovery
+rule to intended replacements. The controller should retain the original
+stop and new arm/readiness receipts as its operation result. External stacks
+continue to use their own lifecycle; they still must not mount the protected
+deployment root. No online maintenance switch or new privilege is provided
+by this guard change.
 
 Changing a running nine-service deployment to `knowledge-ten` is a new
 installation generation, not a config edit in place. Stop and read back the

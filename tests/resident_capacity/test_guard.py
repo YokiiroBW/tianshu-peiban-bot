@@ -1,6 +1,8 @@
 """Isolated metadata/Docker fixtures; no Docker daemon or NAS access."""
 
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from dataclasses import replace
@@ -18,24 +20,24 @@ class FakeDocker:
         self.events = []
         self.fail = False
 
-    def snapshot(self):
+    def snapshot(self, *, diagnostics=None):
         if self.fail:
             raise guard.Unsafe("docker_unavailable")
         return list(self.containers.values())
 
-    def disable_restart(self, container_id):
+    def disable_restart(self, container_id, *, diagnostics=None):
         if self.fail:
             raise guard.Unsafe("docker_unavailable")
         self.updated.append(container_id)
         self.events.append(("update", container_id))
         self.containers[container_id] = replace(self.containers[container_id], restart="no")
 
-    def inspect_one(self, container_id):
+    def inspect_one(self, container_id, *, diagnostics=None):
         if self.fail:
             raise guard.Unsafe("docker_unavailable")
         return self.containers[container_id]
 
-    def terminate(self, container_id):
+    def terminate(self, container_id, *, diagnostics=None):
         if self.fail:
             raise guard.Unsafe("docker_unavailable")
         self.termed.append(container_id)
@@ -111,6 +113,37 @@ class ResidentCapacityTests(unittest.TestCase):
         self.containers.append(knowledge)
         self.docker.containers[knowledge.id] = knowledge
         return knowledge
+
+    @staticmethod
+    def _raw(container):
+        return [
+            container.id, container.project, container.service, container.workdir,
+            container.compose_file, container.image, container.status, container.restart,
+            [
+                {"Type": kind, "Source": source, "Destination": target, "RW": writable}
+                for kind, source, target, writable in container.mounts
+            ],
+        ]
+
+    def _cli(self, *, containers=None, faults=None):
+        index = getattr(self, "cli_index", 0)
+        self.cli_index = index + 1
+        state = Path(self.temp.name) / f"docker-{index}.json"
+        selected = self.containers if containers is None else containers
+        state.write_text(json.dumps({
+            "containers": [self._raw(item) for item in selected],
+            "faults": faults or {},
+        }), encoding="utf-8")
+        docker = guard.Docker(sys.executable)
+        docker.prefix = [
+            sys.executable, "-B", str(Path(__file__).with_name("fake_docker.py")),
+            str(state), *docker.prefix[1:],
+        ]
+        return docker, state
+
+    @staticmethod
+    def _cli_events(state):
+        return json.loads(state.read_text(encoding="utf-8"))["events"]
 
     def test_arm_locks_exact_nine_ids_after_full_start(self):
         with patch.object(guard, "_state_dir", side_effect=lambda path, create=False: Path(path)), patch.object(
@@ -356,6 +389,236 @@ class ResidentCapacityTests(unittest.TestCase):
         self.assertLessEqual(schema["properties"]["max_deployment_bytes"]["maximum"], 20 * guard.GIB)
         self.assertLessEqual(schema["properties"]["term_timeout_seconds"]["maximum"], guard.MAX_TERM_SECONDS)
         self.assertEqual(schema["properties"]["service_profile"]["enum"], ["resident-nine", "knowledge-ten"])
+
+    def test_subprocess_disappearing_foreign_container_reenumerates_every_id(self):
+        temporary = replace(self.containers[0], id="f" * 64, project="external", mounts=())
+        docker, state = self._cli(
+            containers=[*self.containers, temporary],
+            faults={"ps": [{"remove_after": [temporary.id]}]},
+        )
+        with patch.object(guard, "capacity", return_value=(100, 30 * guard.GIB)):
+            result = guard.sample(self.config, self._marker(), docker)
+        self.assertEqual(result["status"], "healthy")
+        events = self._cli_events(state)
+        self.assertEqual([item["stage"] for item in events], ["ps", "batch_inspect"] * 2)
+        self.assertEqual(set(events[1]["ids"]), {item.id for item in [*self.containers, temporary]})
+        self.assertEqual(set(events[3]["ids"]), {item.id for item in self.containers})
+        diagnostics = result["docker_diagnostics"]
+        self.assertEqual([item["attempt"] for item in diagnostics], [1, 1, 2, 2])
+        self.assertEqual(diagnostics[1]["outcome"], "nonzero_exit")
+        self.assertEqual(diagnostics[1]["returncode"], 1)
+        self.assertEqual(diagnostics[1]["batch_size"], 10)
+        self.assertEqual(diagnostics[-1]["batch_size"], 9)
+        self.assertEqual(diagnostics[-1]["outcome"], "ok")
+
+    def test_subprocess_resample_still_applies_every_existing_protection(self):
+        original = self.containers[0]
+        temporary = replace(original, id="f" * 64, project="external", mounts=())
+        replacement = replace(original, id="e" * 64)
+        foreign = replace(
+            temporary, id="d" * 64,
+            mounts=(("bind", str(self.config.root / "unapproved"), "/data", True),),
+        )
+        cases = [
+            ("resident_nine_services_required", [original.id], [], (100, 30 * guard.GIB)),
+            ("resident_container_identity_changed", [original.id], [replacement], (100, 30 * guard.GIB)),
+            ("foreign_deployment_mount", [], [foreign], (100, 30 * guard.GIB)),
+            ("deployment_budget_reached", [], [], (20 * guard.GIB, 30 * guard.GIB)),
+            ("host_free_floor_reached", [], [], (100, 20 * guard.GIB)),
+        ]
+        for reason, remove, add, capacity in cases:
+            with self.subTest(reason=reason):
+                docker, state = self._cli(
+                    containers=[*self.containers, temporary],
+                    faults={"ps": [{
+                        "remove_after": [temporary.id, *remove],
+                        "add_after": [self._raw(item) for item in add],
+                    }]},
+                )
+                with patch.object(guard, "capacity", return_value=capacity):
+                    with self.assertRaisesRegex(guard.Unsafe, reason) as refused:
+                        guard.sample(self.config, self._marker(), docker)
+                self.assertEqual(len(self._cli_events(state)), 4)
+                self.assertEqual(refused.exception.docker_diagnostics[1]["returncode"], 1)
+                self.assertEqual(refused.exception.docker_diagnostics[-1]["outcome"], "ok")
+
+    def test_subprocess_host_inventory_above_sixty_four_is_complete(self):
+        external = [
+            replace(self.containers[0], id=f"{index:064x}", project="external", mounts=())
+            for index in range(100, 498)
+        ]
+        docker, state = self._cli(containers=[*self.containers, *external])
+        with patch.object(guard, "capacity", return_value=(100, 30 * guard.GIB)):
+            result = guard.sample(self.config, self._marker(), docker)
+        self.assertEqual(result["services"], 9)
+        self.assertEqual(result["docker_diagnostics"][-1]["batch_size"], 407)
+        events = self._cli_events(state)
+        self.assertEqual(set(events[1]["ids"]), {item.id for item in [*self.containers, *external]})
+
+    def test_subprocess_nonzero_is_bounded_and_preserved_in_failure_and_stop_receipts(self):
+        self._write_marker()
+        secret_stdout = "RAW_STDOUT_MUST_NOT_BE_SAVED credential=value command=/private/docker"
+        secret_stderr = "RAW_STDERR_MUST_NOT_BE_SAVED /private/mount token=value"
+        fault = {"returncode": 13, "stdout": secret_stdout, "stderr": secret_stderr}
+        docker, state = self._cli(faults={"batch_inspect": [dict(fault), dict(fault)]})
+        with patch.object(guard, "_state_dir", side_effect=lambda path, create=False: Path(path)):
+            result = guard.run(self.config, "a" * 64, docker)
+        self.assertEqual(result, 2)
+        failure = json.loads((self.config.state_dir / "failure.json").read_text())
+        self.assertEqual(failure["reason"], "docker_command_failed")
+        diagnostics = failure["docker_diagnostics"]
+        self.assertEqual(len(diagnostics), 4)
+        self.assertEqual([item["returncode"] for item in diagnostics], [0, 13, 0, 13])
+        self.assertEqual([item["attempt"] for item in diagnostics], [1, 1, 2, 2])
+        stop_path = next(self.config.state_dir.glob("stop-*.json"))
+        stopped = json.loads(stop_path.read_text())
+        self.assertEqual(stopped["status"], "stopped")
+        self.assertEqual(stopped["trigger_docker_diagnostics"], diagnostics)
+        self.assertEqual(set(stopped["term_sent_ids"]), set(self._marker()["ids"].values()))
+        self.assertEqual(
+            set(item["stage"] for item in stopped["docker_diagnostics"]),
+            {"ps", "batch_inspect", "update", "inspect_one", "term"},
+        )
+        for path in self.config.state_dir.glob("*.json"):
+            text = path.read_text()
+            self.assertNotIn(secret_stdout, text)
+            self.assertNotIn(secret_stderr, text)
+            self.assertNotIn(str(state), text)
+        old_failure = (self.config.state_dir / "failure.json").read_bytes()
+        with patch.object(guard, "_state_dir", side_effect=lambda path, create=False: Path(path)):
+            self.assertEqual(guard.run(self.config, "a" * 64, docker), 0)
+        self.assertEqual((self.config.state_dir / "failure.json").read_bytes(), old_failure)
+        self.assertEqual(len(list(self.config.state_dir.glob("stop-*.json"))), 2)
+
+    def test_subprocess_successful_resample_receipt_survives_next_normal_heartbeat(self):
+        self._write_marker()
+        temporary = replace(self.containers[0], id="f" * 64, project="external", mounts=())
+        docker, _ = self._cli(
+            containers=[*self.containers, temporary],
+            faults={"ps": [{"remove_after": [temporary.id]}]},
+        )
+        with patch.object(guard, "_state_dir", side_effect=lambda path, create=False: Path(path)), patch.object(
+            guard, "capacity", return_value=(100, 30 * guard.GIB)
+        ), patch.object(guard, "notify", side_effect=[None, guard.Unsafe("fixture_loop_end")]), patch.object(
+            guard.time, "sleep"
+        ):
+            self.assertEqual(guard.run(self.config, "a" * 64, docker), 2)
+        recovered = json.loads((self.config.state_dir / "docker-resample.json").read_text())
+        heartbeat = json.loads((self.config.state_dir / "heartbeat.json").read_text())
+        self.assertEqual(recovered["status"], "healthy")
+        self.assertEqual(len(recovered["docker_diagnostics"]), 4)
+        self.assertEqual(recovered["docker_diagnostics"][1]["returncode"], 1)
+        self.assertEqual(recovered["docker_diagnostics"][-1]["outcome"], "ok")
+        self.assertEqual(len(heartbeat["docker_diagnostics"]), 2)
+
+    def test_subprocess_stop_errors_preserve_unconfirmed_receipt(self):
+        self._write_marker()
+        docker, _ = self._cli(faults={
+            "update": [{"returncode": 13, "stderr": "private update error"}],
+            "ps": [{}, {"returncode": 17, "stderr": "private final inventory error"}],
+        })
+        with patch.object(guard, "_state_dir", side_effect=lambda path, create=False: Path(path)):
+            result = guard.fail_close(self.config.state_dir, "fixture_failure", docker)
+        self.assertEqual(result["status"], "unconfirmed")
+        self.assertIn("docker_command_failed", result["errors"])
+        self.assertEqual(len(result["term_sent_ids"]), 8)
+        self.assertNotIn(sorted(self._marker()["ids"].values())[0], result["term_sent_ids"])
+        failures = [item for item in result["docker_diagnostics"] if item["outcome"] == "nonzero_exit"]
+        self.assertEqual([(item["stage"], item["returncode"]) for item in failures], [("update", 13), ("ps", 17)])
+        self.assertEqual(json.loads(next(self.config.state_dir.glob("stop-*.json")).read_text()), result)
+
+    def test_subprocess_ps_and_single_id_command_errors_do_not_retry(self):
+        original = self.containers[0]
+        for stage, action in (
+            ("ps", lambda docker: docker.snapshot()),
+            ("inspect_one", lambda docker: docker.inspect_one(original.id)),
+            ("update", lambda docker: docker.disable_restart(original.id)),
+            ("term", lambda docker: docker.terminate(original.id)),
+        ):
+            with self.subTest(stage=stage):
+                docker, state = self._cli(faults={stage: [{"returncode": 7, "stderr": "private text"}]})
+                with self.assertRaisesRegex(guard.Unsafe, "docker_command_failed") as refused:
+                    action(docker)
+                self.assertEqual(len(self._cli_events(state)), 1)
+                diagnostics = refused.exception.docker_diagnostics
+                self.assertEqual(len(diagnostics), 1)
+                self.assertEqual(diagnostics[0]["stage"], stage)
+                self.assertEqual(diagnostics[0]["returncode"], 7)
+                self.assertFalse(diagnostics[0]["timed_out"])
+
+    def test_subprocess_batch_timeout_is_distinct_and_never_resampled(self):
+        docker, state = self._cli(faults={"batch_inspect": [{"sleep_seconds": 3}]})
+        started = guard.time.monotonic()
+        with patch.object(guard, "DOCKER_SNAPSHOT_SECONDS", 0.75):
+            with self.assertRaisesRegex(guard.Unsafe, "docker_unavailable") as refused:
+                docker.snapshot()
+        self.assertLess(guard.time.monotonic() - started, 2.5)
+        self.assertEqual(len(self._cli_events(state)), 2)
+        diagnostics = refused.exception.docker_diagnostics
+        self.assertEqual(len(diagnostics), 2)
+        self.assertEqual(diagnostics[-1]["stage"], "batch_inspect")
+        self.assertEqual(diagnostics[-1]["outcome"], "timeout")
+        self.assertTrue(diagnostics[-1]["timed_out"])
+        self.assertIsNone(diagnostics[-1]["returncode"])
+        self.assertGreater(diagnostics[-1]["elapsed_seconds"], 0)
+
+    def test_subprocess_missing_binary_records_spawn_failure(self):
+        docker = guard.Docker(str(Path(self.temp.name) / "missing-docker"))
+        with self.assertRaisesRegex(guard.Unsafe, "docker_unavailable") as refused:
+            docker.snapshot()
+        diagnostic, = refused.exception.docker_diagnostics
+        self.assertEqual(diagnostic["stage"], "ps")
+        self.assertEqual(diagnostic["outcome"], "spawn_failed")
+        self.assertFalse(diagnostic["timed_out"])
+        self.assertIsNone(diagnostic["returncode"])
+        self.assertIsInstance(diagnostic["os_error_number"], int)
+
+    def test_subprocess_incomplete_inventory_retries_but_invalid_metadata_does_not(self):
+        cases = [
+            ({"batch_inspect": [{"stdout": json.dumps(self._raw(self.containers[0]))}]}, None, 4),
+            ({"batch_inspect": [{"stdout": "invalid-json\n" * len(self.containers)}]}, "docker_metadata_invalid", 2),
+            ({"ps": [{"stdout": "invalid-id"}]}, "docker_inventory_invalid", 1),
+            ({"ps": [{"stdout": "\n".join([self.containers[0].id] * 2)}]}, "docker_inventory_invalid", 1),
+        ]
+        for faults, reason, expected_calls in cases:
+            with self.subTest(reason=reason, expected_calls=expected_calls):
+                docker, state = self._cli(faults=faults)
+                if reason:
+                    with self.assertRaisesRegex(guard.Unsafe, reason):
+                        docker.snapshot()
+                else:
+                    self.assertEqual(len(docker.snapshot()), len(self.containers))
+                self.assertEqual(len(self._cli_events(state)), expected_calls)
+
+    def test_snapshot_retry_shares_original_monotonic_budget(self):
+        for durations, expected_limits, expected_calls, final_outcome in (
+            ([6, 8, 8], [10, 15, 10, 3], 4, "timeout"),
+            ([10, 15], [10, 15], 2, "deadline_exhausted"),
+        ):
+            with self.subTest(durations=durations):
+                clock, limits = [0], []
+                ids = "\n".join(item.id for item in self.containers).encode()
+
+                def invoke(args, *, capture_output, timeout, check):
+                    limits.append(timeout)
+                    index = len(limits) - 1
+                    if index >= len(durations):
+                        clock[0] += timeout
+                        raise subprocess.TimeoutExpired(args, timeout, output=b"private output", stderr=b"private error")
+                    clock[0] += durations[index]
+                    return subprocess.CompletedProcess(args, 13 if index == 1 else 0, stdout=ids, stderr=b"private error")
+
+                docker = guard.Docker("synthetic-docker")
+                with patch.object(guard.time, "monotonic", side_effect=lambda: clock[0]), patch.object(
+                    guard.subprocess, "run", side_effect=invoke
+                ) as run:
+                    with self.assertRaisesRegex(guard.Unsafe, "docker_unavailable") as refused:
+                        docker.snapshot()
+                self.assertEqual(limits, expected_limits)
+                self.assertEqual(run.call_count, expected_calls)
+                self.assertEqual(clock[0], guard.DOCKER_SNAPSHOT_SECONDS)
+                self.assertEqual(refused.exception.docker_diagnostics[1]["returncode"], 13)
+                self.assertEqual(refused.exception.docker_diagnostics[-1]["outcome"], final_outcome)
 
 
 if __name__ == "__main__":
