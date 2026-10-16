@@ -18,7 +18,7 @@ from ops.infrastructure.executor import execute
 from ops.infrastructure.linux import parse_cpu, parse_memory
 from ops.infrastructure.protocol import Failure, VERSION, decode_json, parse_request
 from ops.infrastructure.sampling import SampleStore, _Lock
-from ops.infrastructure.transport import CommandResult, parse_sections
+from ops.infrastructure.transport import CommandResult, Deadline, parse_sections
 
 
 class ObservationTest(unittest.TestCase):
@@ -286,6 +286,11 @@ volumes:
         response = self.run_request("node.snapshot")
         self.assertEqual(response["status"], "partial")
         self.assertIn("sample_state_invalid", response["reason_codes"])
+
+    def test_compose_parsing_uses_the_request_deadline(self):
+        with self.assertRaises(Failure) as raised:
+            parse_compose(COMPOSE, "fixture", "synthetic", "/srv/stacks/synthetic", deadline=Deadline(0))
+        self.assertEqual(raised.exception.code, "deadline_exceeded")
 
     def test_incomplete_runtime_cannot_claim_compose_in_sync(self):
         stack = parse_compose(COMPOSE, "fixture", "synthetic", "/srv/stacks/synthetic")

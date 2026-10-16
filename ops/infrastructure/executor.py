@@ -45,11 +45,13 @@ def execute(request, config, *, transport_factory=SSHTransport):
                 else:
                     data, reasons = docker.logs(request.params)
                     returned = total = 1
+            deadline.check()
             if store:
                 try:
                     store.save()
                 except Failure as failure:
                     reasons.append(failure.code)
+            deadline.check()
             return envelope(request, status="partial" if reasons else "ok", reasons=reasons, data=data,
                             capabilities=capabilities, returned=returned, total=total, next_cursor=cursor)
     except Failure as failure:

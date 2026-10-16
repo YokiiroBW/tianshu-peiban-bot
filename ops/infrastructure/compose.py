@@ -25,17 +25,22 @@ MAX_FILE = 262144
 
 
 class _YAML:
-    def __init__(self, raw):
+    def __init__(self, raw, deadline=None):
         try:
             import yaml
         except ImportError:
             raise Failure("compose_parser_unavailable", "unsupported") from None
         self.yaml = yaml
         self.steps = 0
+        self.deadline = deadline
+        if deadline:
+            deadline.check()
         depth = aliases = events = 0
         try:
             for event in yaml.parse(raw, Loader=yaml.SafeLoader):
                 events += 1
+                if deadline and events % 128 == 0:
+                    deadline.check()
                 if isinstance(event, (yaml.MappingStartEvent, yaml.SequenceStartEvent)):
                     depth += 1
                 elif isinstance(event, (yaml.MappingEndEvent, yaml.SequenceEndEvent)):
@@ -45,6 +50,8 @@ class _YAML:
                 if depth > 32 or aliases > 64 or events > 20000:
                     raise ValueError("YAML structure limit")
             documents = list(yaml.compose_all(raw, Loader=yaml.SafeLoader))
+            if deadline:
+                deadline.check()
             if len(documents) != 1 or documents[0] is None:
                 raise ValueError("exactly one YAML document required")
             self.root = documents[0]
@@ -54,6 +61,8 @@ class _YAML:
 
     def _step(self):
         self.steps += 1
+        if self.deadline and self.steps % 128 == 0:
+            self.deadline.check()
         if self.steps > 40000:
             raise ValueError("YAML expansion limit")
 
@@ -264,12 +273,12 @@ def unavailable_stack(node_id, name, reason):
             "services": [], "runtime_only_services": [], "drift_status": "unavailable"}
 
 
-def parse_compose(raw, node_id, name, directory):
+def parse_compose(raw, node_id, name, directory, *, deadline=None):
     if len(raw) > MAX_FILE:
         return unavailable_stack(node_id, name, "compose_file_too_large")
     stack = unavailable_stack(node_id, name, "compose_invalid")
     try:
-        parser = _YAML(raw)
+        parser = _YAML(raw, deadline)
         top = parser.mapping(parser.root)
         project_node = top.get("name")
         project = parser.scalar(project_node) if project_node is not None else re.sub(r"[^a-z0-9_-]", "", name.lower()).lstrip("-_")
@@ -453,9 +462,10 @@ def collect_compose(transport, node, params):
         reasons.append(failure.code)
     stacks = []
     for index, name in enumerate(selected):
+        transport.deadline.check()
         code, raw = sections.get(f"stack_{index}", (1, b""))
         directory = posixpath.join(root, name)
-        stack = parse_compose(raw, node.id, name, directory) if code == 0 else unavailable_stack(node.id, name, "compose_file_unavailable")
+        stack = parse_compose(raw, node.id, name, directory, deadline=transport.deadline) if code == 0 else unavailable_stack(node.id, name, "compose_file_unavailable")
         if len(discovered[name]) > 1:
             stack["reason_codes"].append("compose_multiple_files")
             if stack["state"] == "ok":
