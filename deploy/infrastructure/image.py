@@ -181,7 +181,11 @@ with tarfile.open(fileobj=io.BytesIO(raw),mode='r:gz') as archive:
   assert member.isfile() and not relative.is_absolute() and '..' not in relative.parts
   assert member.mode in {0o644,0o755}
   target=stage/relative
-  target.parent.mkdir(parents=True,exist_ok=True)
+  directory=stage
+  for part in relative.parts[:-1]:
+   directory=directory/part
+   directory.mkdir(mode=0o755,exist_ok=True)
+   directory.chmod(0o755)
   with target.open('xb') as stream:stream.write(archive.extractfile(member).read())
   target.chmod(member.mode)
 assert json.loads((stage/'build-inputs.json').read_bytes())==CONFIG
