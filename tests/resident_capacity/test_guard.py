@@ -748,5 +748,173 @@ class ResidentCapacityTests(unittest.TestCase):
         self.assertEqual(failure["reason"], "capacity_sample_timeout")
 
 
+    def test_image_references_require_a_complete_immutable_digest(self):
+        for reference in ("sha256:" + "a" * 64, "registry/product@sha256:" + "b" * 64):
+            with self.subTest(reference=reference):
+                self.assertIsNotNone(guard.IMAGE.fullmatch(reference))
+        for reference in ("product:latest", "product:release", "sha256:abc", "a" * 64,
+                          "sha256:" + "a" * 63, "sha256:" + "a" * 65,
+                          "sha256:" + "A" * 64, "sha256:" + "a" * 64 + "\n"):
+            with self.subTest(reference=reference):
+                self.assertIsNone(guard.IMAGE.fullmatch(reference))
+
+
+    def test_full_local_image_ids_keep_exact_ten_owner_arm_and_binding(self):
+        self._enable_knowledge()
+        images = {name: "sha256:" + f"{index:064x}" for index, name in enumerate(self.config.images, 1)}
+        self.config = replace(self.config, images=images)
+        self.containers = [replace(item, image=images[item.service]) for item in self.containers]
+        self.docker = FakeDocker(self.containers)
+        with patch.object(guard, "_state_dir", side_effect=lambda path, create=False: Path(path)), patch.object(
+            guard, "capacity", return_value=(100, 30 * guard.GIB)
+        ):
+            self.assertEqual(guard.arm(self.config, "a" * 64, self.docker)["services"], 10)
+            self.assertEqual(guard.sample(self.config, self._marker(), self.docker)["services"], 10)
+            changed = self.containers[0]
+            self.docker.containers[changed.id] = replace(changed, image="sha256:" + "f" * 64)
+            with self.assertRaises(guard.Unsafe):
+                guard.sample(self.config, self._marker(), self.docker)
+
+
+    @staticmethod
+    def _inspect_output(containers):
+        return "\n".join(json.dumps(ResidentCapacityTests._raw(item)) for item in containers).encode()
+
+
+    @staticmethod
+    def _docker_result(output=b"", returncode=0):
+        return subprocess.CompletedProcess([], returncode, output, b"fixture stderr")
+
+
+    def _churn_results(self, final, first_failure=None):
+        temporary = replace(self.containers[0], id="f" * 64, project="temporary-build")
+        first = [*self.containers, temporary]
+        return [
+            self._docker_result("\n".join(item.id for item in first).encode()),
+            first_failure or self._docker_result(returncode=1),
+            self._docker_result("\n".join(item.id for item in final).encode()),
+            self._docker_result(self._inspect_output(final)),
+        ]
+
+
+    def test_snapshot_reenumerates_after_temporary_container_disappears(self):
+        self._enable_knowledge()
+        with patch.object(guard.subprocess, "run", side_effect=self._churn_results(self.containers)) as run:
+            inventory = guard.Docker("docker").snapshot()
+        owned = guard.assess(inventory, self.config.signatures(), str(self.config.root), self._marker()["ids"])
+        self.assertEqual(len(owned), 10)
+        self.assertEqual([call.args[0][3] for call in run.call_args_list], ["ps", "inspect", "ps", "inspect"])
+        self.assertNotIn("f" * 64, run.call_args_list[-1].args[0])
+
+
+    def test_snapshot_reenumerates_for_partial_or_different_inspect_inventory(self):
+        for first in (
+            self._inspect_output(self.containers),
+            self._inspect_output([*self.containers, replace(self.containers[0], id="e" * 64)]),
+        ):
+            with self.subTest(first=first), patch.object(
+                guard.subprocess, "run", side_effect=self._churn_results(self.containers, self._docker_result(first))
+            ) as run:
+                self.assertEqual(guard.Docker("docker").snapshot(), self.containers)
+                self.assertEqual(run.call_count, 4)
+
+
+    def test_snapshot_retry_is_limited_to_one_complete_attempt(self):
+        for failure, reason in (
+            (self._docker_result(returncode=1), "docker_command_failed"),
+            (self._docker_result(b""), "docker_inventory_changed"),
+        ):
+            results = self._churn_results(self.containers, failure)
+            results[-1] = failure
+            with self.subTest(reason=reason), patch.object(guard.subprocess, "run", side_effect=results) as run:
+                with self.assertRaisesRegex(guard.Unsafe, reason):
+                    guard.Docker("docker").snapshot()
+                self.assertEqual(run.call_count, 4)
+
+
+    def test_snapshot_retry_failure_still_latches_and_stops_all_ten_owners(self):
+        self._enable_knowledge()
+        self._write_marker()
+        results = self._churn_results(self.containers)
+        results[-1] = self._docker_result(returncode=1)
+        original = guard.fail_close
+        with patch.object(guard.subprocess, "run", side_effect=results) as run, patch.object(
+            guard, "_state_dir", side_effect=lambda path, create=False: Path(path)
+        ), patch.object(
+            guard, "fail_close", side_effect=lambda state, reason, docker, **kwargs: original(state, reason, self.docker, **kwargs)
+        ):
+            exit_code = guard.run(self.config, "a" * 64, guard.Docker("docker"))
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(run.call_count, 4)
+        self.assertEqual(len(self.docker.updated), 10)
+        self.assertEqual(len(self.docker.termed), 10)
+        failure = json.loads((self.config.state_dir / "failure.json").read_text())
+        self.assertEqual(failure["reason"], "docker_command_failed")
+
+
+    def test_snapshot_retry_never_accepts_missing_owner_changed_mount_or_new_id(self):
+        self._enable_knowledge()
+        original = self.containers[0]
+        for final, reason in (
+            (self.containers[1:], "resident_ten_services_required"),
+            ([replace(original, mounts=()), *self.containers[1:]], "resident_identity_conflict"),
+            ([replace(original, id="e" * 64), *self.containers[1:]], "resident_container_identity_changed"),
+        ):
+            with self.subTest(reason=reason), patch.object(
+                guard.subprocess, "run", side_effect=self._churn_results(final)
+            ) as run:
+                inventory = guard.Docker("docker").snapshot()
+                with self.assertRaisesRegex(guard.Unsafe, reason):
+                    guard.assess(inventory, self.config.signatures(), str(self.config.root), self._marker()["ids"])
+                self.assertEqual(run.call_count, 4)
+
+
+    def test_snapshot_does_not_retry_malformed_metadata_or_unavailable_docker(self):
+        for results, reason in (
+            ([self._docker_result(b"not-an-id")], "docker_inventory_invalid"),
+            ([self._docker_result(self.containers[0].id.encode()), self._docker_result(b"invalid-json")], "docker_metadata_invalid"),
+            ([subprocess.TimeoutExpired(["docker"], 10)], "docker_unavailable"),
+        ):
+            with self.subTest(reason=reason), patch.object(guard.subprocess, "run", side_effect=results) as run:
+                with self.assertRaisesRegex(guard.Unsafe, reason):
+                    guard.Docker("docker").snapshot()
+                self.assertEqual(run.call_count, len(results))
+
+
+    def test_snapshot_retry_shares_original_budget_under_watchdog(self):
+        elapsed = [0.0]
+        responses = iter(self._churn_results(self.containers))
+        durations = iter((9, 5, 9, 1))
+
+        def execute(*args, **kwargs):
+            elapsed[0] += next(durations)
+            return next(responses)
+
+        with patch.object(guard.time, "monotonic", side_effect=lambda: elapsed[0]), patch.object(
+            guard.subprocess, "run", side_effect=execute
+        ) as run:
+            self.assertEqual(guard.Docker("docker").snapshot(), self.containers)
+        self.assertEqual([call.kwargs["timeout"] for call in run.call_args_list], [10, 15, 10, 2])
+
+
+    def test_snapshot_exhausted_budget_fails_without_another_docker_call(self):
+        elapsed = [0.0]
+        responses = iter(self._churn_results(self.containers))
+        durations = iter((10, 15))
+
+        def execute(*args, **kwargs):
+            elapsed[0] += next(durations)
+            return next(responses)
+
+        with patch.object(guard.time, "monotonic", side_effect=lambda: elapsed[0]), patch.object(
+            guard.subprocess, "run", side_effect=execute
+        ) as run:
+            with self.assertRaisesRegex(guard.Unsafe, "docker_unavailable") as refused:
+                guard.Docker("docker").snapshot()
+        self.assertEqual(run.call_count, 2)
+
+        self.assertEqual(refused.exception.docker_diagnostics[-1]["outcome"], "deadline_exhausted")
+
+
 if __name__ == "__main__":
     unittest.main()

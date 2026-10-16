@@ -1,0 +1,580 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.tianshu.invalid/bot-delivery/v2.1/delivery.json",
+  "$defs": {
+    "source_ref": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "enum": [
+            "companion",
+            "memory",
+            "platform",
+            "assetlibrary"
+          ]
+        },
+        "object_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "owner",
+        "object_id",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "content_ref": {
+      "$ref": "https://contracts.tianshu.invalid/life-runtime/v2/life.json#/$defs/content_ref"
+    },
+    "origin": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "proactive"
+            },
+            "actor_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "motive_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "motive_version": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "sources": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/source_ref"
+              },
+              "maxItems": 64
+            }
+          },
+          "required": [
+            "kind",
+            "actor_id",
+            "motive_id",
+            "motive_version",
+            "sources"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "response"
+            },
+            "actor_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "turn_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "origin": {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/origin"
+            },
+            "sources": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/source_ref"
+              },
+              "maxItems": 64
+            }
+          },
+          "required": [
+            "kind",
+            "actor_id",
+            "turn_id",
+            "origin",
+            "sources"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "direct"
+            },
+            "actor_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "direct_request_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "origin": {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/origin"
+            },
+            "sources": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/source_ref"
+              },
+              "maxItems": 64
+            }
+          },
+          "required": [
+            "kind",
+            "actor_id",
+            "direct_request_id",
+            "origin",
+            "sources"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "segment": {
+      "type": "object",
+      "properties": {
+        "segment_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "reply_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "segment_sequence": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 32768
+        },
+        "content_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/content_ref"
+          },
+          "maxItems": 4
+        },
+        "media": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/media_record"
+          },
+          "maxItems": 4
+        }
+      },
+      "required": [
+        "segment_id",
+        "reply_id",
+        "segment_sequence",
+        "text",
+        "content_refs"
+      ],
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "properties": {
+            "text": {
+              "minLength": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "content_refs": {
+              "minItems": 1
+            }
+          }
+        }
+      ]
+    },
+    "send_request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expression_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "origin": {
+          "$ref": "#/$defs/origin"
+        },
+        "final": {
+          "type": "boolean"
+        },
+        "scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "channel": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/channel_key"
+        },
+        "segments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/segment"
+          },
+          "maxItems": 64,
+          "minItems": 1
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "expression_id",
+        "origin",
+        "final",
+        "scope",
+        "channel",
+        "segments"
+      ],
+      "additionalProperties": false
+    },
+    "send_receipt": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expression_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "final": {
+          "type": "boolean"
+        },
+        "state": {
+          "enum": [
+            "queued",
+            "sending",
+            "sent",
+            "partial",
+            "failed",
+            "unknown",
+            "cancelled"
+          ]
+        },
+        "segments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "segment_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "reply_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "segment_sequence": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "state": {
+                "enum": [
+                  "queued",
+                  "sending",
+                  "sent",
+                  "failed",
+                  "unknown",
+                  "cancelled"
+                ]
+              },
+              "receipt_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "retry_safe": {
+                "type": "boolean"
+              },
+              "channel_message_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "maxItems": 16
+              }
+            },
+            "required": [
+              "segment_id",
+              "reply_id",
+              "segment_sequence",
+              "state",
+              "receipt_id",
+              "retry_safe",
+              "channel_message_ids"
+            ],
+            "additionalProperties": false,
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "state": {
+                      "enum": [
+                        "queued",
+                        "sending",
+                        "unknown",
+                        "sent"
+                      ]
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "retry_safe": {
+                      "const": false
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "maxItems": 64
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "expression_id",
+        "final",
+        "state",
+        "segments",
+        "observed_at"
+      ],
+      "additionalProperties": false
+    },
+    "lookup_request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expression_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "expression_id"
+      ],
+      "additionalProperties": false
+    },
+    "lookup_response": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expression_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/send_receipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "expression_id",
+        "receipt"
+      ],
+      "additionalProperties": false
+    },
+    "finalize_request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expression_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "origin": {
+          "$ref": "#/$defs/origin"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "expression_id",
+        "origin"
+      ],
+      "additionalProperties": false
+    },
+    "media_record": {
+      "type": "object",
+      "properties": {
+        "content_ref": {
+          "$ref": "https://contracts.tianshu.invalid/life-runtime/v2/life.json#/$defs/content_ref"
+        },
+        "media_type": {
+          "enum": [
+            "image/png",
+            "image/jpeg",
+            "image/webp",
+            "audio/wav",
+            "audio/mpeg",
+            "audio/ogg",
+            "video/mp4"
+          ]
+        },
+        "encoding": {
+          "const": "base64"
+        },
+        "data": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 44739244,
+          "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "content_ref",
+        "media_type",
+        "encoding",
+        "data",
+        "sha256"
+      ],
+      "additionalProperties": false
+    },
+    "context_request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "request_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "origin": {
+          "$ref": "https://contracts.tianshu.invalid/bot-delivery/v2.1/delivery.json#/$defs/origin"
+        },
+        "scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "channel": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/channel_key"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "origin",
+        "scope",
+        "channel"
+      ],
+      "additionalProperties": false
+    },
+    "context_response": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "request_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "origin": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/origin"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "channel": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/channel_key"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "origin",
+        "expires_at",
+        "scope",
+        "channel"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

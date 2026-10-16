@@ -48,17 +48,32 @@
     "text-dialogue/v1/examples/negative-documents.json": "2feae6a24bf9e0cd09510386c110b929e44912e1a46dfb7c49d727046d7b940a",
     "text-dialogue/v1/examples/relations.json": "62fa37ec1e06abe010ada938f8f9a0e574e988fe331f4c5c62aa5fea3820c74e",
     "text-dialogue/v1/README.md": "85b9b011501600aa65e1cc072fa8e7a26d4b2ce947633766db52c9a70e3754ac",
-    "text-dialogue/v1/schemas/common.json": "b296a79d7eb0218d9b444c4ddbba837ad576f46a7a4e50fbcebec7618d8ef9af",
+    "text-dialogue/v1/schemas/common.json": "938b7c8b9fb69419dd6afc94d29c4b341697403f34af11d743d2cd8d684ab687",
     "text-dialogue/v1/schemas/conversation.json": "e640040fa816100b258999087f8784d1e7d1d55df007992632e202e02b64b6cb",
     "text-dialogue/v1/schemas/identity-memory.json": "7e32e26aea89cc88fb48f9d0af43f32ea68de8561404ff495d3a8044985ef848",
-    "text-dialogue/v1/schemas/model.json": "9ffa9055aca897ff57292555f37674d79df687d1d6c062df48267527a8ff3a7c",
+    "text-dialogue/v1/schemas/model.json": "d8bb87e94221bb0cf65d050bb898fe5988b0df2e34c8bc62776e59a77c793c1f",
     "text-dialogue/v1/schemas/web.json": "6d1be804b1ff3e0fd63d776cea6c1615455923c4b1fe7782fd52202713cc333c",
-    "text-dialogue/v1/semantics.md": "07f0e23c1858ac769194f681d12abe7eb652fe167e45ce40174e645cf9477dfc"
+    "text-dialogue/v1/semantics.md": "07f0e23c1858ac769194f681d12abe7eb652fe167e45ce40174e645cf9477dfc",
+    "text-dialogue/v1/model-execution/negative.json": "81d678c958e7ef056d75a6545e35471b3ba547bc915f425a0dbd3b54fdce977b",
+    "text-dialogue/v1/model-execution/positive.json": "c433f0c2cb2ee1666f9bf98850f159dd1b77844dbe88bff8e43bfefcb8ba2f30",
+    "text-dialogue/v1/model-execution/README.md": "e583c357e87b7440db438683feaa276ce7ea79324e7fbc435d0e68a97ea018f9"
   },
   "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
   "design_review": {
     "companion_memory": "identity_candidate2 read-only review of 4ad649f",
     "gateway_platform_config": "TS-040 read-only confirmation of 4ad649f",
     "messages_web_and_publication": "coordinator review; explicit missing-model force clarification covered by added cases"
+  },
+  "execution_extension": {
+    "date": "2026-10-04",
+    "status": "published_implementation_baseline",
+    "optional_receipts": true,
+    "joint": "not_run",
+    "validation": {
+      "positive.json": 8,
+      "negative.json": 7,
+      "text-dialogue_existing": 62,
+      "model-protocol_existing": 21
+    }
   }
 }

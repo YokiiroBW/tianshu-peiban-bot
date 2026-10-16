@@ -1,0 +1,238 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.tianshu.invalid/bot-connection/v2/schema.json",
+  "$defs": {
+    "adapter_kind": {
+      "enum": [
+        "astrbot",
+        "nonebot",
+        "onebot"
+      ]
+    },
+    "message_context": {
+      "type": "object",
+      "properties": {
+        "reply_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+          },
+          "uniqueItems": true,
+          "maxItems": 16
+        },
+        "mentioned_accounts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*$"
+          },
+          "uniqueItems": true,
+          "maxItems": 64
+        }
+      },
+      "required": [
+        "reply_ids",
+        "mentioned_accounts"
+      ],
+      "additionalProperties": false
+    },
+    "event_request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 3
+        },
+        "connection_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+        },
+        "thread_id": {
+          "type": "null"
+        },
+        "platform_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+        },
+        "self_id": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "namespace": {
+          "const": "qq"
+        },
+        "conversation_id": {
+          "type": "string",
+          "pattern": "^(group|private):[1-9][0-9]*$"
+        },
+        "account_id": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "event_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+        },
+        "revision": {
+          "const": 1
+        },
+        "sent_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 8000
+        },
+        "nickname": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "group_card": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "message_context": {
+          "$ref": "#/$defs/message_context"
+        }
+      },
+      "required": [
+        "schema_version",
+        "connection_id",
+        "thread_id",
+        "platform_id",
+        "self_id",
+        "namespace",
+        "conversation_id",
+        "account_id",
+        "event_id",
+        "revision",
+        "sent_at",
+        "text",
+        "nickname",
+        "group_card",
+        "message_context"
+      ],
+      "additionalProperties": false
+    },
+    "observation_event": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 4
+        },
+        "platform_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+        },
+        "self_id": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "namespace": {
+          "const": "qq"
+        },
+        "conversation_id": {
+          "type": "string",
+          "pattern": "^(group|private):[1-9][0-9]*$"
+        },
+        "account_id": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "event_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.:-]{1,128}$"
+        },
+        "revision": {
+          "const": 1
+        },
+        "sent_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 8000
+        },
+        "nickname": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "group_card": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "message_context": {
+          "$ref": "#/$defs/message_context"
+        },
+        "content_state": {
+          "enum": [
+            "text",
+            "unsupported"
+          ]
+        },
+        "mentioned": {
+          "type": "boolean"
+        },
+        "scope_revision": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "schema_version",
+        "platform_id",
+        "self_id",
+        "namespace",
+        "conversation_id",
+        "account_id",
+        "event_id",
+        "revision",
+        "sent_at",
+        "text",
+        "nickname",
+        "group_card",
+        "message_context",
+        "content_state",
+        "mentioned",
+        "scope_revision"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

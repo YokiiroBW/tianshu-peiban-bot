@@ -20,7 +20,7 @@ from referencing import Registry, Resource
 
 PACKAGE = "model-protocol/v1"
 COMMON_ID = "https://contracts.tianshu.invalid/text-dialogue/v1/common.json"
-COMMON_SHA256 = "b296a79d7eb0218d9b444c4ddbba837ad576f46a7a4e50fbcebec7618d8ef9af"
+COMMON_SHA256 = "938b7c8b9fb69419dd6afc94d29c4b341697403f34af11d743d2cd8d684ab687"
 
 
 class Invalid(ValueError):

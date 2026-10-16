@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "source_version": "1",
+  "skills": [
+    {
+      "id": "example.video",
+      "version": "1",
+      "title": "Video aggregation",
+      "description": "Reserved adapter; unavailable until an implementation is installed.",
+      "domain": "media.video",
+      "handler_id": "example.video",
+      "operations": [
+        "video.search"
+      ]
+    }
+  ]
+}

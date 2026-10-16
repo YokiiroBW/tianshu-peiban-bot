@@ -1,0 +1,214 @@
+[
+  {
+    "definition": "acquire_request",
+    "document": {
+      "source": {
+        "kind": "url",
+        "url": "https://example.com/article"
+      },
+      "purpose": "read",
+      "principal": {
+        "kind": "user",
+        "query": {
+          "schema_version": 1,
+          "request_id": "request:content",
+          "origin": {
+            "assertion_ref": "origin:content"
+          }
+        },
+        "scope": null
+      }
+    }
+  },
+  {
+    "definition": "upload_request",
+    "document": {
+      "filename": "image.png",
+      "media_type": "image/png",
+      "size": 33554433,
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "principal": {
+        "kind": "user",
+        "query": {
+          "schema_version": 1,
+          "request_id": "request:content",
+          "origin": {
+            "assertion_ref": "origin:content"
+          }
+        },
+        "scope": {
+          "actor_id": "actor:1",
+          "person_id": "person:1",
+          "audience": "self_private",
+          "conversation_id": "conversation:1"
+        }
+      }
+    }
+  },
+  {
+    "definition": "read_request",
+    "document": {
+      "content_ref": {
+        "owner": "memory",
+        "object_id": "document:1",
+        "version": 1,
+        "kind": "image",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sources": [
+          {
+            "owner": "memory",
+            "object_id": "source:1",
+            "version": 1
+          }
+        ],
+        "coverage": {
+          "unit": "bytes",
+          "start": 0,
+          "end": 64,
+          "total": 64
+        }
+      },
+      "range": {
+        "unit": "bytes",
+        "start": 0,
+        "end": 64
+      },
+      "budget_bytes": 0,
+      "principal": {
+        "kind": "user",
+        "query": {
+          "schema_version": 1,
+          "request_id": "request:content",
+          "origin": {
+            "assertion_ref": "origin:content"
+          }
+        },
+        "scope": {
+          "actor_id": "actor:1",
+          "person_id": "person:1",
+          "audience": "self_private",
+          "conversation_id": "conversation:1"
+        }
+      }
+    }
+  },
+  {
+    "definition": "access_request",
+    "document": {
+      "content_ref": {
+        "owner": "memory",
+        "object_id": "document:1",
+        "version": 1,
+        "kind": "image",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sources": [
+          {
+            "owner": "memory",
+            "object_id": "source:1",
+            "version": 1
+          }
+        ],
+        "coverage": {
+          "unit": "bytes",
+          "start": 0,
+          "end": 64,
+          "total": 64
+        }
+      },
+      "action": "grant",
+      "reader_scope": null,
+      "expected_access_version": 1,
+      "principal": {
+        "kind": "user",
+        "query": {
+          "schema_version": 1,
+          "request_id": "request:content",
+          "origin": {
+            "assertion_ref": "origin:content"
+          }
+        },
+        "scope": {
+          "actor_id": "actor:1",
+          "person_id": "person:1",
+          "audience": "self_private",
+          "conversation_id": "conversation:1"
+        }
+      }
+    }
+  },
+  {
+    "definition": "read_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request:content",
+      "content_ref": {
+        "owner": "memory",
+        "object_id": "document:1",
+        "version": 1,
+        "kind": "image",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sources": [
+          {
+            "owner": "memory",
+            "object_id": "source:1",
+            "version": 1
+          }
+        ],
+        "coverage": {
+          "unit": "bytes",
+          "start": 0,
+          "end": 64,
+          "total": 64
+        }
+      },
+      "text": null,
+      "media_url": null,
+      "coverage": {
+        "unit": "bytes",
+        "start": 0,
+        "end": 64
+      },
+      "complete": true,
+      "representations": [
+        {
+          "kind": "image",
+          "media_type": "image/png",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "data_base64": false,
+          "at_seconds": null
+        }
+      ],
+      "gaps": [],
+      "source": {
+        "kind": "upload",
+        "locator": "upload:1",
+        "resolved_url": null,
+        "filename": "image.png",
+        "acquired_at": "2026-10-04T00:00:00Z",
+        "source_time": null,
+        "media_type": "image/png",
+        "size": 64
+      },
+      "available_until": "2026-10-04T00:00:30Z",
+      "current": true,
+      "access_version": 1
+    }
+  },
+  {
+    "definition": "acquire_request",
+    "document": {
+      "principal": {
+        "kind": "actor",
+        "request_id": "request:bad",
+        "actor_id": "person:1",
+        "operation_ref": "activity:1"
+      },
+      "source": {
+        "kind": "url",
+        "url": "https://example.com"
+      },
+      "purpose": "read"
+    }
+  }
+]

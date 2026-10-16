@@ -1,0 +1,91 @@
+{
+  "valid": {
+    "schema_version": 2,
+    "request_id": "request:content",
+    "content_ref": {
+      "owner": "memory",
+      "object_id": "document:1",
+      "version": 1,
+      "kind": "image",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sources": [
+        {
+          "owner": "memory",
+          "object_id": "source:1",
+          "version": 1
+        }
+      ],
+      "coverage": {
+        "unit": "bytes",
+        "start": 0,
+        "end": 64,
+        "total": 64
+      }
+    },
+    "text": null,
+    "media_url": null,
+    "coverage": {
+      "unit": "bytes",
+      "start": 0,
+      "end": 64
+    },
+    "complete": true,
+    "representations": [
+      {
+        "kind": "image",
+        "media_type": "image/png",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "data_base64": "c3ludGhldGljLWV4YW1wbGUtZm9yLXNjaGVtYS1vbmx5",
+        "at_seconds": null
+      }
+    ],
+    "gaps": [],
+    "actor_id": "actor:sample",
+    "reading_id": null
+  },
+  "invalid_missing_gaps": {
+    "schema_version": 2,
+    "request_id": "request:content",
+    "content_ref": {
+      "owner": "memory",
+      "object_id": "document:1",
+      "version": 1,
+      "kind": "image",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sources": [
+        {
+          "owner": "memory",
+          "object_id": "source:1",
+          "version": 1
+        }
+      ],
+      "coverage": {
+        "unit": "bytes",
+        "start": 0,
+        "end": 64,
+        "total": 64
+      }
+    },
+    "text": null,
+    "media_url": null,
+    "coverage": {
+      "unit": "bytes",
+      "start": 0,
+      "end": 64
+    },
+    "complete": true,
+    "representations": [
+      {
+        "kind": "image",
+        "media_type": "image/png",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "source_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "data_base64": "c3ludGhldGljLWV4YW1wbGUtZm9yLXNjaGVtYS1vbmx5",
+        "at_seconds": null
+      }
+    ],
+    "actor_id": "actor:sample",
+    "reading_id": null
+  }
+}

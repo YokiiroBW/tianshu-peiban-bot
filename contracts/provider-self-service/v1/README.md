@@ -29,6 +29,10 @@ endpoints regardless of whether the static template feature is configured.
 
 `Provider` is exactly `{ provider_id, name, protocol, base_url, model_id, enabled,
 revision, has_key, test }`. `test` is `null` or `{ revision, outcome, tested_at }`.
+Failed-test views may also include `test.error_code`, a fixed error from the settled
+receipt for the same provider revision. It distinguishes an explicit service refusal
+from transport loss while `outcome` retains the execution semantics. Upstream text,
+HTTP details, and provider-specific reasons stay in the private receipt.
 `Default` is exactly `{ provider_id: string|null, revision, provider_revision:
 integer|null, configured: boolean }`. `configured` is a catalog state and does not by
 itself claim that gateway/companion is ready. No response contains `api_key`, ciphertext,

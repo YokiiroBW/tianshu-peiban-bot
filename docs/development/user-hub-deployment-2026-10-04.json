@@ -1,0 +1,172 @@
+{
+  "status": "deployed_to_nas",
+  "recorded_at": "2026-10-03T16:05:30.779240+00:00",
+  "platform_commit": "c1d717cc96e6a3afa605c89a1a125782066be134",
+  "github_main_and_feature_branch_verified": "c1d717cc96e6a3afa605c89a1a125782066be134",
+  "runtime": {
+    "status": "user_hub_nas_deployed_verified",
+    "platform_commit": "c1d717cc96e6a3afa605c89a1a125782066be134",
+    "images": {
+      "platform": {
+        "arch": "amd64",
+        "digest_ref": "127.0.0.1:19559/tianshu/user-hub-reply-platform@sha256:edc40c74fb202991dd15ebf6e07fbd0958b1e7398a7432e5e7eacd53834e9d2f",
+        "id": "sha256:569c975b1791d543c7710ff4ed6370fb484035a53f3c8c9a877a5530abb1e32a",
+        "revision": "c1d717cc96e6a3afa605c89a1a125782066be134"
+      }
+    },
+    "owners": 10,
+    "checks": [
+      {
+        "service": "gateway",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true
+      },
+      {
+        "service": "platform",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true,
+        "web_assets_and_anonymous_gate_verified": true
+      },
+      {
+        "service": "knowledge",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true
+      },
+      {
+        "service": "companion",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true,
+        "restored_memory_policy_verified": true
+      },
+      {
+        "service": "memory",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true
+      }
+    ],
+    "guard": {
+      "deployment_bytes": 394928578,
+      "heartbeat_age_seconds": 4.16,
+      "minimum_free_bytes": 413446361088,
+      "services": 10,
+      "status": "ready"
+    },
+    "user_hub_read_probe": {
+      "status": "user_hub_read_only_state_and_static_verified",
+      "role_count": 1,
+      "enabled_roles": 1,
+      "role_states": {
+        "active": 1
+      },
+      "qq_observation_sources": 3,
+      "qq_private_sources": 2,
+      "qq_discovered_people": 1,
+      "installed_web_assets": 53,
+      "read_only": true,
+      "application_instantiated": false,
+      "business_http_called": false,
+      "real_qq_or_model_called": false,
+      "message_contents_output": false
+    },
+    "backup": "/volume2/tianshu-v2-resident-updates/user-hub-reply-20261003-core/production-generation-c0ac2f6044364538949999ede4fc1cba/cold-snapshot",
+    "configuration_unchanged": true,
+    "user_state_preserved": true,
+    "real_qq_or_model_called": false,
+    "other_product_images_unchanged": true,
+    "all_clones_stopped": true
+  },
+  "http_assets": {
+    "status": "nas_http_assets_match_installed_candidate",
+    "count": 53,
+    "origin": "http://192.168.31.210:18446",
+    "production_business_data_read": false
+  },
+  "identity_projection": {
+    "status": "nas_real_identity_projection_verified",
+    "http_status": 200,
+    "qq_suffix": "5005",
+    "known_private_contact_present": true,
+    "person_identity_present": true,
+    "display_name_present": true,
+    "tls_verified": true,
+    "business_mutation": false,
+    "real_qq_or_model_called": false,
+    "browser_session_verified": false
+  },
+  "dockge": [
+    {
+      "applied": true,
+      "project_directory": "/volume2/tianshu-v2-resident",
+      "source_hashes": {
+        "/volume2/tianshu-v2-resident-updates/bots-20260928/core.compose.json": "a2090ba000896aa8ffb7ce428d6b546b3983f8f957c50e97aa4bff9f48f47b09",
+        "/volume2/tianshu-v2-resident-updates/bots-20260928/platform.compose.json": "44a164d647badfb477310c6192ac9b613b28d78bdbe98cb46ed042bc45ac0019",
+        "/volume2/tianshu-v2-resident-updates/connections-20260928/obs.compose.json": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530"
+      },
+      "snapshots": [
+        {
+          "project": "tianshu-v2-resident",
+          "target": "/volume1/Download/dockge/stacks/tianshu-v2-resident/compose.yaml",
+          "old_sha256": "22ffb19ff6a60a94f111adad6ae5a7cc348beecea57f80de456eca3453b09a06",
+          "new_sha256": "a2090ba000896aa8ffb7ce428d6b546b3983f8f957c50e97aa4bff9f48f47b09",
+          "images": {
+            "companion": "127.0.0.1:19554/tianshu/quality-life-companion@sha256:2466d343d9a6f54427026c10fcbda1aa0b2e82c9026da2f9c84e1a6007f2ee9a",
+            "gateway": "127.0.0.1:19550/tianshu/gateway@sha256:b336e15bb7cf6b017aa871a3ab181ab62f4ec6b07bac3fca0592ef70f32af9db",
+            "knowledge": "127.0.0.1:19554/tianshu/quality-life-memory@sha256:e001b1c208015a850c4cedd1d44bc28e3b3c5caf3797d2bac714f5929ef4a5ca",
+            "memory": "127.0.0.1:19554/tianshu/quality-life-memory@sha256:e001b1c208015a850c4cedd1d44bc28e3b3c5caf3797d2bac714f5929ef4a5ca",
+            "platform": "127.0.0.1:19559/tianshu/user-hub-reply-platform@sha256:edc40c74fb202991dd15ebf6e07fbd0958b1e7398a7432e5e7eacd53834e9d2f"
+          }
+        },
+        {
+          "project": "tianshu-v2-resident-obs",
+          "target": "/volume1/Download/dockge/stacks/tianshu-v2-resident-obs/compose.yaml",
+          "old_sha256": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530",
+          "new_sha256": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530",
+          "images": {
+            "obs-grafana": "grafana/grafana:13.2.2@sha256:ac461fb352abc50da10a51c7d02462e9c05488f11f53f14b3ad79a8145f638a0",
+            "obs-guard": "python:3.12.14-slim-bookworm@sha256:392307d22300de8b5986851a12d9176dfc0fc073e65bf6523ebd7dcbeb23564e",
+            "obs-loki": "grafana/loki:3.7.8@sha256:1107dd5274e0ada47e42472b7a7e71f3b2a2fe878878108f3e2f9e51528f0193",
+            "obs-prometheus": "prom/prometheus:v3.13.3@sha256:6976aa8a60fec930796ce5772b8d12da7a318a5daa8d40d69c5c7819a05eeed7",
+            "obs-vector": "timberio/vector:0.58.0-debian@sha256:1c1ea358c617ea0b23003d5af87f7a678b30f8f7096437e680380c47fc13d2d9"
+          }
+        }
+      ],
+      "containers_recreated": false,
+      "credential_files_read": false,
+      "backup_directory": "/volume2/tianshu-v2-resident-updates/user-hub-reply-20261003-core/dockge-backups/20261003T160308Z-4c785f34"
+    }
+  ],
+  "validation": {
+    "build_typescript_vite": "passed",
+    "affected_prettier_ruff_diff": "passed",
+    "backend_observation": {
+      "passed": 13
+    },
+    "new_people_desktop_mobile": {
+      "passed": 8
+    },
+    "theme_directory_recheck": {
+      "passed": 2
+    },
+    "real_platform_memory_synthetic_identity_browser": {
+      "passed": 2
+    },
+    "real_three_service_synthetic_relationship_browser": {
+      "passed": 12
+    },
+    "affected_previous_browser_regressions": {
+      "passed": 15,
+      "skipped_desktop_mobile_only": 1
+    },
+    "full_suite_run": false,
+    "original_account_browser_login_performed": false,
+    "real_reply_permissions_modified": false,
+    "real_qq_reply_sent": false,
+    "real_model_called": false
+  },
+  "handoff": "tianshu-platform/docs/handoffs/USER-HUB-2026-10-03.md"
+}

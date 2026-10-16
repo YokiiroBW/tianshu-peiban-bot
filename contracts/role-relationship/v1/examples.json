@@ -1,0 +1,260 @@
+{
+  "status": "published_implementation_baseline",
+  "synthetic_only": true,
+  "valid": [
+    {
+      "name": "set_binding",
+      "type": "RelationshipCommand",
+      "value": {
+        "request_id": "request_demo_1",
+        "pair": {
+          "actor_id": "actor_demo_a",
+          "person_id": "person_demo_a"
+        },
+        "expected_version": 0,
+        "operation": "set_binding",
+        "relationship_type": "friend"
+      }
+    },
+    {
+      "name": "set_freeze",
+      "type": "RelationshipCommand",
+      "value": {
+        "request_id": "request_demo_2",
+        "pair": {
+          "actor_id": "actor_demo_a",
+          "person_id": "person_demo_a"
+        },
+        "expected_version": 1,
+        "operation": "set_freeze",
+        "frozen": true
+      }
+    },
+    {
+      "name": "unfreeze",
+      "type": "RelationshipCommand",
+      "value": {
+        "request_id": "request_demo_3",
+        "pair": {
+          "actor_id": "actor_demo_a",
+          "person_id": "person_demo_a"
+        },
+        "expected_version": 2,
+        "operation": "set_freeze",
+        "frozen": false
+      }
+    },
+    {
+      "name": "manual_adjustment",
+      "type": "RelationshipCommand",
+      "value": {
+        "request_id": "request_demo_4",
+        "pair": {
+          "actor_id": "actor_demo_a",
+          "person_id": "person_demo_a"
+        },
+        "expected_version": 3,
+        "operation": "adjust_affinity",
+        "delta": 1,
+        "reason": "合成显式纠正"
+      }
+    },
+    {
+      "name": "automatic_candidate",
+      "type": "AffinityEventCandidate",
+      "value": {
+        "event_id": "event_demo_1",
+        "pair": {
+          "actor_id": "actor_demo_a",
+          "person_id": "person_demo_a"
+        },
+        "kind": "conversation_completed",
+        "turn_id": "turn_demo_1",
+        "source_ref": "source_demo_1",
+        "source_revision": 1,
+        "occurred_at": "2026-10-01T00:00:00Z"
+      }
+    },
+    {
+      "name": "private_projection",
+      "type": "PrivateProjection",
+      "value": {
+        "view": "private",
+        "pair": {
+          "actor_id": "actor_demo_a",
+          "person_id": "person_demo_a"
+        },
+        "version": 2,
+        "policy_version": "policy_draft_1",
+        "relationship_type": "friend",
+        "display_label": "朋友",
+        "score": 200,
+        "stage": "familiar",
+        "frozen": true,
+        "frozen_since": "2026-10-01T00:00:00Z",
+        "decay_cursor": "2026-10-01T00:00:00Z",
+        "checked_at": "2026-10-01T00:00:00Z"
+      }
+    },
+    {
+      "name": "public_projection",
+      "type": "PublicProjection",
+      "value": {
+        "view": "public",
+        "pair": {
+          "actor_id": "actor_demo_a",
+          "person_id": "person_demo_a"
+        },
+        "version": 2,
+        "policy_version": "policy_draft_1",
+        "expression_hint": "自然友好，不谈私聊关系细节。",
+        "checked_at": "2026-10-01T00:00:00Z"
+      }
+    },
+    {
+      "name": "frozen_result",
+      "type": "SettlementResult",
+      "value": {
+        "event_id": "event_demo_1",
+        "pair": {
+          "actor_id": "actor_demo_a",
+          "person_id": "person_demo_a"
+        },
+        "outcome": "rejected_frozen",
+        "version": 2,
+        "applied_delta": 0,
+        "settled_at": "2026-10-01T00:00:01Z"
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "binding_claims_admin",
+      "type": "RelationshipCommand",
+      "value": {
+        "request_id": "request_demo_1",
+        "pair": {
+          "actor_id": "actor_demo_a",
+          "person_id": "person_demo_a"
+        },
+        "expected_version": 0,
+        "operation": "set_binding",
+        "relationship_type": "friend",
+        "administrator": true
+      }
+    },
+    {
+      "name": "candidate_sets_score",
+      "type": "AffinityEventCandidate",
+      "value": {
+        "event_id": "event_demo_1",
+        "pair": {
+          "actor_id": "actor_demo_a",
+          "person_id": "person_demo_a"
+        },
+        "kind": "conversation_completed",
+        "turn_id": "turn_demo_1",
+        "source_ref": "source_demo_1",
+        "source_revision": 1,
+        "occurred_at": "2026-10-01T00:00:00Z",
+        "delta": 999
+      }
+    },
+    {
+      "name": "freeze_is_string",
+      "type": "RelationshipCommand",
+      "value": {
+        "request_id": "request_demo_2",
+        "pair": {
+          "actor_id": "actor_demo_a",
+          "person_id": "person_demo_a"
+        },
+        "expected_version": 1,
+        "operation": "set_freeze",
+        "frozen": "true"
+      }
+    },
+    {
+      "name": "negative_CAS",
+      "type": "RelationshipCommand",
+      "value": {
+        "request_id": "request_demo_2",
+        "pair": {
+          "actor_id": "actor_demo_a",
+          "person_id": "person_demo_a"
+        },
+        "expected_version": -1,
+        "operation": "set_freeze",
+        "frozen": true
+      }
+    },
+    {
+      "name": "public_leaks_score",
+      "type": "PublicProjection",
+      "value": {
+        "view": "public",
+        "pair": {
+          "actor_id": "actor_demo_a",
+          "person_id": "person_demo_a"
+        },
+        "version": 2,
+        "policy_version": "policy_draft_1",
+        "expression_hint": "自然友好，不谈私聊关系细节。",
+        "checked_at": "2026-10-01T00:00:00Z",
+        "score": 200
+      }
+    },
+    {
+      "name": "private_score_overflow",
+      "type": "PrivateProjection",
+      "value": {
+        "view": "private",
+        "pair": {
+          "actor_id": "actor_demo_a",
+          "person_id": "person_demo_a"
+        },
+        "version": 2,
+        "policy_version": "policy_draft_1",
+        "relationship_type": "friend",
+        "display_label": "朋友",
+        "score": 1000001,
+        "stage": "familiar",
+        "frozen": true,
+        "frozen_since": "2026-10-01T00:00:00Z",
+        "decay_cursor": "2026-10-01T00:00:00Z",
+        "checked_at": "2026-10-01T00:00:00Z"
+      }
+    },
+    {
+      "name": "candidate_no_source",
+      "type": "AffinityEventCandidate",
+      "value": {
+        "event_id": "event_demo_1",
+        "pair": {
+          "actor_id": "actor_demo_a",
+          "person_id": "person_demo_a"
+        },
+        "kind": "conversation_completed",
+        "turn_id": "turn_demo_1",
+        "source_revision": 1,
+        "occurred_at": "2026-10-01T00:00:00Z"
+      }
+    },
+    {
+      "name": "manual_delta_overflow",
+      "type": "RelationshipCommand",
+      "value": {
+        "request_id": "request_demo_4",
+        "pair": {
+          "actor_id": "actor_demo_a",
+          "person_id": "person_demo_a"
+        },
+        "expected_version": 3,
+        "operation": "adjust_affinity",
+        "delta": 101,
+        "reason": "合成显式纠正"
+      }
+    }
+  ],
+  "semantic_examples_note": "冻结结果delta=0、版本与时间、一致阶段、当前授权等业务条件见acceptance.md；schema结构验证不证明业务实现。"
+}

@@ -1,0 +1,11 @@
+{
+  "version": "2026.10.02-rc.5",
+  "change": "Show persona names only in role profile selector; preserve exact binding and history",
+  "products": {
+    "platform": {"source_sha": "8b9949aeceb58691cb9e660b78d007f36a0b0b9d", "base_sha": "076ae1a11379945b881fbc069d930b335049a40c"},
+    "companion": {"source_sha": "25778436a5e36895c60f0d7beb35fa5ba060fc30", "unchanged": true},
+    "memory": {"source_sha": "1f3121c9758faeb31fc9d0fe2a54974c72505d55", "unchanged": true}
+  },
+  "validation": {"typecheck": "passed", "vite_build": "passed", "real_tls_browser": "name-only label, save/reopen/repeat/clear/no-profile and content revision counts passed", "companion_role_runtime": "9 passed; no runtime code change"},
+  "deployment": {"status": "pending", "permissions": "unchanged", "credentials": "unchanged", "schema_migrations": false}
+}

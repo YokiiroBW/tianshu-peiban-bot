@@ -1,0 +1,24 @@
+{
+  "package": "bot-delivery/v2",
+  "version": "2.0.0",
+  "status": "published_implementation_baseline",
+  "runtime_joint": "not_run",
+  "real_external": "not_run",
+  "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
+  "dependencies": {
+    "text-dialogue/v1": "90697e6ecbb587d3db8c8e4682f7f8f43a8b1a98f70d8835c8282b03828d2d3a",
+    "life-runtime/v2": "85aff438f91cb96876e259204b5a198e2fedaead56db64a2265aa520a59ea7e3"
+  },
+  "sha256": {
+    "examples/media.json": "99a508b38083402b774e29754ee9c98f9d6472744cac1d936f66a8ac32d2629f",
+    "examples/proactive-context.json": "0f6b68427e6cee9c789683f5c25cbda1ec4725c644224a2daadb38242e8eb65c",
+    "examples/requests.json": "3ffc117b25eec5be46d0b68c88c1402b23b9daf6d123ae017aee6c3a5c8b9fc9",
+    "README.md": "6ea50c53e7af532d7f1af5c660bccacae9b252f821b286e5e625b5c87e3b19d9",
+    "schemas/delivery.json": "2817f1a9f266447c8fbacba7801105321f9dc80e73b6626055dd4897777c19bb"
+  },
+  "schema_examples_checked": {
+    "positive": 7,
+    "negative": 7
+  },
+  "semantic_cases": "specified_not_run"
+}

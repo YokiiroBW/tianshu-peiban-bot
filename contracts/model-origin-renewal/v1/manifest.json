@@ -1,0 +1,11 @@
+{
+  "version": "1.0.0",
+  "status": "frozen",
+  "files": {
+    "examples.json": "6540bfbb1703d02726a808f2ca998fd85683d6f21d182bea76985cee62e34f94",
+    "negative-examples.json": "c1f00a33a8aaeee86441cdca3d7dd01715ca79b2884a89def1e24f3f3357b28a",
+    "README.md": "549904168e8b71b8382734dbec5a3bbb0048b703fad082bcb42569b07bd60ef9",
+    "request.schema.json": "93bdfc5a1c248da4f227c51f0e62b43c513a2a769a687ce8ee9ffaaca0fbe228",
+    "response.schema.json": "9520c729fa5fea8501cebaf1581ceb4d5c58dc90533f3dcf6e0575b641882677"
+  }
+}

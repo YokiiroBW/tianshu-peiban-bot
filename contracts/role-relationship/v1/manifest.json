@@ -1,0 +1,33 @@
+{
+  "version": "1.0.0",
+  "version_domain": "role-relationship/v1",
+  "schema_version": 1,
+  "status": "published_implementation_baseline",
+  "date": "2026-10-01",
+  "producer": {
+    "product": "tianshu-memory",
+    "reviewed_delivery_sha": "ba03202c44648a3820f7552629edd9eb5797d424"
+  },
+  "consumers": [
+    {
+      "product": "tianshu-companion",
+      "reviewed_delivery_sha": "ea5c044719bfa76de384b0b69bbfd7ed1439996b"
+    },
+    {
+      "product": "tianshu-platform",
+      "reviewed_delivery_sha": "e3257a2cafab24c473502ecb2c55f302deffb86d"
+    }
+  ],
+  "hash_basis": "UTF-8 bytes normalized CRLF to LF",
+  "sha256": {
+    "compatibility.md": "94ff3991476ccc34865b33cd07e02dba5b6fe7468b017a9cbe3e17240693047a",
+    "examples.json": "716965c65bf7d17d8045173495dd21dc50063c450cdfbef5ebb8bcbabd3f7d0e",
+    "http-examples.json": "121d25deb4ff89f344228900eb599aae78506ed755aa0c19a6d2a3026f277732",
+    "http-schema.json": "de091a4ffa0581aa85d63c962dddacfd93b62b04814dc08afe70e223381e60bf",
+    "README.md": "087c9a522458d01ddc8b2e89c1b5343eac98b87624fb4f3d1a30df56024b7408",
+    "schema.json": "e96397bac2b6ad8ff9d23c023d7d3c5ba0701734b27053a05b9d0f65a7ff8ee6",
+    "validate.py": "f82d43c0336b3dd5f100f6541a1f38c624892fabdca91d91b6c4ac1057fc75ad"
+  },
+  "validation_boundary": "offline structure + fixed candidate local HTTPS evidence; formal-pin revalidation recorded in bundle release",
+  "production_deployed": false
+}

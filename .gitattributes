@@ -4,3 +4,7 @@ tests/deployment/recovery/fixtures/nas-a1-network-allocation-r2i.json -text whit
 tests/deployment/recovery/fixtures/nas-a1-network-allocation-r2j.json -text whitespace=cr-at-eol
 tests/deployment/recovery/fixtures/nas-a1-network-allocation-r2k-v2.json -text whitespace=cr-at-eol
 *.md text eol=lf
+
+# These existing packages fingerprint exact bytes, including their original line endings.
+contracts/diagnostics/v1/** -text whitespace=cr-at-eol
+contracts/model-origin-renewal/v1/** -text whitespace=cr-at-eol

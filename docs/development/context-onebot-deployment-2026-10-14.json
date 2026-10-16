@@ -1,0 +1,514 @@
+{
+  "date": "2026-10-14",
+  "completed_at": "2026-10-14T15:52:26.661882+00:00",
+  "status": "pushed_and_deployed",
+  "authorization": "用户明确要求“推送并且部署”；延续本轮 Codex 直接修复、隔离 DeepSeek 验证及追加额度授权。",
+  "tasks": [
+    "TS-138",
+    "TS-139",
+    "TS-140",
+    "TS-141"
+  ],
+  "changes": [
+    "普通记忆写入不应清空仍有效的最近对话；遗忘、撤权、来源编辑和撤回仍失效。",
+    "保留群／私聊、作者、原始消息身份、@ 与引用信息，背景观察和回复责任分离。",
+    "复用现有 NoneBot OneBot 适配器及共享 RPC 队列，提供天枢可管理的独立运行入口。",
+    "天枢平台提供明确的 OneBot 接入选项，继续复用账号探测、会话授权、观察、投递与回执。"
+  ],
+  "publication": {
+    "contracts": {
+      "remote": "https://github.com/YokiiroBW/tianshu-peiban-bot.git",
+      "before": "095ab55bcc6a4adcbb118d20a49aaaa7f4d47258",
+      "revision": "7e9d667a87b0ade256e40ab83701510291b63e43",
+      "force": false,
+      "pushed": true,
+      "verified_remote_revision": "7e9d667a87b0ade256e40ab83701510291b63e43"
+    },
+    "memory": {
+      "remote": "https://github.com/YokiiroBW/tianshu-memory.git",
+      "before": "95e557ca52732604a5ecb4c254d2750172c44f68",
+      "revision": "2bcdae52dc7b013a77b4221fb1b6a57b893ec2fd",
+      "force": false,
+      "pushed": true,
+      "verified_remote_revision": "2bcdae52dc7b013a77b4221fb1b6a57b893ec2fd"
+    },
+    "platform": {
+      "remote": "https://github.com/YokiiroBW/tianshu-platform.git",
+      "before": "9219d31359829ed130da4062e23c38ab2f949769",
+      "revision": "337caf1c6f76204dde749dfeb264bde0a25219ae",
+      "force": false,
+      "pushed": true,
+      "verified_remote_revision": "337caf1c6f76204dde749dfeb264bde0a25219ae"
+    },
+    "companion": {
+      "remote": "https://github.com/YokiiroBW/tianshu-companion.git",
+      "before": "6ea390a01e5f4d5a55934b4182d8cd772ac588d2",
+      "revision": "8faa31a2b82b900458ae175acdfb9af5eb276432",
+      "force": false,
+      "pushed": true,
+      "verified_remote_revision": "8faa31a2b82b900458ae175acdfb9af5eb276432"
+    }
+  },
+  "remote_update_preserved": {
+    "repository": "tianshu-peiban-bot",
+    "remote_documentation_commit": "095ab55bcc6a4adcbb118d20a49aaaa7f4d47258",
+    "merged_revision": "7e9d667a87b0ade256e40ab83701510291b63e43",
+    "contract_source_revision": "bcbadbfe0388c0e53556fa36f1e9859430c0c983",
+    "contract_bytes_changed_by_merge": false,
+    "force_push": false
+  },
+  "deployed_images": {
+    "companion": {
+      "image_id": "sha256:6a2dc48a4f451355d790b6bd0a319a0a54e8831cdae07ff837bb3e39850d46c7",
+      "revision": "8faa31a2b82b900458ae175acdfb9af5eb276432"
+    },
+    "memory": {
+      "image_id": "sha256:ffbdb54fca9b16ffaf4f513fde6352413ba415ab22db9c57d15bf7dde6db4690",
+      "revision": "2bcdae52dc7b013a77b4221fb1b6a57b893ec2fd"
+    },
+    "platform": {
+      "image_id": "sha256:0f52efa8ac5c33b6b853ef9ef0946f5548b68d2ce37f87445a8d9acf1705d6f8",
+      "revision": "337caf1c6f76204dde749dfeb264bde0a25219ae"
+    }
+  },
+  "unchanged_gateway_revision": "0a6b0099149b4b7dcad4c165f9b1972d091eed08",
+  "unchanged_knowledge_revision": "097ccfa55dfb5af541d24cfcb48ba6ccf02f1a3a",
+  "contracts": {
+    "pins": {
+      "context-history/v1": "3b535e58c34eedba5589e45cc11ce44468f312251eb719cedd66368fdda02a2d",
+      "bot-connection/v2": "b3037eb21444b754c729dfbdab97fbd4ec8da9e0353f500c486c9263cfc7ad17"
+    },
+    "mounts": {
+      "memory": "/volume2/tianshu-v2-resident/contracts-context-onebot-bcbadbfe0388/memory",
+      "companion": "/volume2/tianshu-v2-resident/contracts-context-onebot-bcbadbfe0388/companion",
+      "platform": "/volume2/tianshu-v2-resident/contracts-context-onebot-bcbadbfe0388/platform"
+    },
+    "existing_owner_files_preserved": true,
+    "differing_life_pins_preserved": true,
+    "existing_file_counts": {
+      "memory": 165,
+      "companion": 184,
+      "platform": 184
+    },
+    "added_files_per_owner": 10,
+    "candidate_loaders_verified": true
+  },
+  "backup_and_rollback": {
+    "cold_backup": "/volume2/tianshu-v2-resident-updates/context-onebot-20261014-release-r1/cold-snapshot",
+    "sqlite_databases": 37,
+    "verification": "offline_restore_verified",
+    "manifest_sha256": "ddbb2f695ae36c1f70357b8398d5f45d01f692179d77a6294e26dfe865a294a0",
+    "schema_migration": false,
+    "rollback": {
+      "prepared": true,
+      "path": "/volume2/tianshu-v2-resident-updates/context-onebot-20261014-release-r1/rollback.py",
+      "sha256": "460edc0c982b7d062e533179b41e9f5c4c3b2ae01675dd3476e0a28ba57070cf",
+      "executed": false,
+      "database_restore": false
+    },
+    "rollback_behavior": "校验当前版本，先做新冷备，恢复此前三服务镜像与合同挂载；保留此后数据库写入，不以旧备份覆盖新数据。",
+    "previous_images_retained": true
+  },
+  "nas_validation": {
+    "core_health": [
+      {
+        "checks": {
+          "configuration": "ok",
+          "dependencies": "not_verified",
+          "logs": "ok",
+          "runtime": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "companion",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "assembled": "ok",
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "guard": "ok",
+          "log": "ok",
+          "mode": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "memory",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "config": "ok",
+          "contract": "ok",
+          "credentials": "ok",
+          "logging": "ok",
+          "runtime": "ok",
+          "sidecars": "ok",
+          "store": "ok",
+          "tls": "ok",
+          "web_static": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "platform",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "configuration": "ok",
+          "contracts": "ok",
+          "ledger": "ok",
+          "logging": "ok",
+          "model": "not_verified",
+          "native": "not_configured",
+          "platform": "not_verified",
+          "runtime": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "gateway",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "assembled": "ok",
+          "client": "ok",
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "extensions": "ok",
+          "log": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "knowledge",
+        "verified_tls": true
+      }
+    ],
+    "managed_containers_running": 10,
+    "guard": "ready",
+    "guard_code_unchanged": true,
+    "guard_code_sha256": "9a2aa40e7ed4072abb57a3b1e7148feadd2bb26b6da7164cca83a9097c4ed7a4",
+    "other_seven_container_ids_preserved": true,
+    "gateway_origin_reissued": false,
+    "dockge_matches_runtime": true,
+    "installed_source_proof": {
+      "status": "verified",
+      "owners": {
+        "memory": {
+          "revision": "2bcdae52dc7b013a77b4221fb1b6a57b893ec2fd",
+          "image_id": "sha256:ffbdb54fca9b16ffaf4f513fde6352413ba415ab22db9c57d15bf7dde6db4690",
+          "files": 86,
+          "installed_path": "/opt/tianshu/venv/lib/python3.12/site-packages/tianshu_memory",
+          "matched": true
+        },
+        "companion": {
+          "revision": "8faa31a2b82b900458ae175acdfb9af5eb276432",
+          "image_id": "sha256:6a2dc48a4f451355d790b6bd0a319a0a54e8831cdae07ff837bb3e39850d46c7",
+          "files": 68,
+          "installed_path": "/usr/local/lib/python3.12/site-packages/tianshu_companion",
+          "matched": true
+        },
+        "platform": {
+          "revision": "337caf1c6f76204dde749dfeb264bde0a25219ae",
+          "image_id": "sha256:0f52efa8ac5c33b6b853ef9ef0946f5548b68d2ce37f87445a8d9acf1705d6f8",
+          "files": 117,
+          "installed_path": "/opt/tianshu-venv/lib/python3.12/site-packages/services/platform",
+          "matched": true
+        },
+        "gateway": {
+          "revision": "0a6b0099149b4b7dcad4c165f9b1972d091eed08",
+          "image_id": "sha256:1826e2a52060d6c4545bf5ed5eaa616d3cce48fd63b49a0b1b01ee92dd835188",
+          "files": 22,
+          "installed_path": "/opt/tianshu-venv/lib/python3.12/site-packages/tianshu_gateway",
+          "matched": true
+        }
+      },
+      "production_data_read": false,
+      "model_called": false
+    },
+    "web_observation_seconds": 360.023,
+    "web_observation_samples": 13,
+    "web_observation_all_html_200": true,
+    "health_boundary": "服务 live/ready 通过；健康端点中未验证的外部依赖仍标为 not_verified。"
+  },
+  "onebot": {
+    "service": "tianshu-onebot",
+    "image_id": "sha256:cbfcddf8142a262a54977efbe61c70589c3ea1f01d7ad3d9b7ef2a6f4d393b5d",
+    "revision": "8faa31a2b82b900458ae175acdfb9af5eb276432",
+    "compose": "/volume1/Download/dockge/stacks/tianshu-onebot/compose.yaml",
+    "data": "/volume2/tianshu-onebot/data",
+    "previous_service": null,
+    "previous_stack": null,
+    "previous_data": null,
+    "rollback": "Stop and remove only this named service; retain /volume2/tianshu-onebot data and token. Core rollback is separate.",
+    "live": 200,
+    "ready": 503,
+    "account_count": 0,
+    "adapter": "onebot",
+    "real_qq_connected": false,
+    "authenticated_rpc": true,
+    "status": "deployed_offline",
+    "compose_sha256": "8467a23ab7a68248b7dbed41929514f89dbde923f1cbb4f931856756ba48bc35",
+    "new_separate_token_created": true,
+    "existing_bot_hosts_changed": false,
+    "container_id": "ec854d180baab4315b4b51e4ef84865a86c9e3651b60a1f343bf7aecdaa228c4",
+    "http": "http://192.168.31.210:18765",
+    "reverse_websocket": "ws://192.168.31.210:18765/onebot/v11/ws",
+    "adapter_version": "0.6.0",
+    "connectivity": {
+      "platform_to_onebot_http": 200,
+      "incorrect_key_http": 401,
+      "online_accounts": 0,
+      "qq_connected": false,
+      "probe_sent_messages": false,
+      "image_id": "sha256:cbfcddf8142a262a54977efbe61c70589c3ea1f01d7ad3d9b7ef2a6f4d393b5d",
+      "container_healthy": true,
+      "existing_qq_hosts_unchanged": true
+    },
+    "ready_503_reason": "尚未连接任何真实 QQ 账号；live 200、Docker healthy、认证 RPC 200。",
+    "existing_hosts": {
+      "status": "verified",
+      "existing_channel_containers_preserved": [
+        "nonebot",
+        "astrbot-yue",
+        "astrbot-ops-pro",
+        "astrbot",
+        "astrbot-ops-ssh-runner"
+      ],
+      "dockge_stack_readable": true,
+      "chat_content_read": false
+    },
+    "existing_astrbot_nonebot_plugins_upgraded": false,
+    "secrets_output": false
+  },
+  "local_product_validation": {
+    "memory": {
+      "passed": 1305,
+      "skipped": 7,
+      "baseline_failures": 1,
+      "logs": [
+        "memory-full-r2.log",
+        "memory-failed-cases-r3.log",
+        "memory-baseline-failure.log"
+      ],
+      "note": "1271 full-run passes plus 34 previously failed cases after correcting only the ignored workspace contract pointer. Basetemp must be under this checkout's .runtime. Old Memory Life contract pin is retained."
+    },
+    "companion": {
+      "passed": 801,
+      "skipped": 16,
+      "baseline_failures": 2,
+      "subtests_passed": 109,
+      "logs": [
+        "companion-full-r2.log",
+        "companion-baseline-failures.log"
+      ]
+    },
+    "platform": {
+      "full_run_passed": 1070,
+      "skipped": 77,
+      "full_run_failures": 96,
+      "subtests_passed": 855,
+      "reproduced_baseline_test_failures": 93,
+      "reproduced_baseline_subtest_failures": 1,
+      "intermittent_cases_passed_on_both_recheck": [
+        "tests/backend/test_home.py::HomeTests::test_an_expired_claim_can_be_taken_over_but_never_transmits_on_its_own",
+        "tests/backend/test_runtime_health.py::ReadinessTests::test_global_media_download_ledger_is_ready_without_probe_writes"
+      ],
+      "logs": [
+        "platform-full-r2.log",
+        "platform-baseline-failures.log",
+        "platform-baseline-native-subtest.log",
+        "platform-intermittent-recheck.log"
+      ],
+      "note": "Full suite is not green. Ninety-three original cases and the capabilities subtest fail on the exact unmodified deployed Platform export. Two unchanged home/readiness cases passed on baseline and candidate rerun. No unrelated media/fixture repair was undertaken."
+    },
+    "native_four_owner": {
+      "passed": 2,
+      "log": "native-regression.log",
+      "model": "deterministic local HTTP/SSE fixture",
+      "channel": "synthetic local recorder",
+      "external_calls": 0
+    },
+    "installed_onebot_wheel": {
+      "passed": 1,
+      "log": "installed-wheel-protocol.log",
+      "method": "Real NoneBot/OneBot SDK, local reverse WebSocket peer; startup, metadata, send receipts, reconnect, dedup, shutdown."
+    },
+    "frontend": {
+      "build": true,
+      "browser_cases": 48,
+      "final_onebot_cases": 2,
+      "desktop_mobile_visually_checked": true,
+      "logs": [
+        "frontend-browser.log",
+        "frontend-build-final.log",
+        "frontend-onebot-final.log"
+      ]
+    },
+    "contracts": {
+      "examples": 8,
+      "result": "passed",
+      "artifact_report": "artifact-verification.json"
+    },
+    "static": {
+      "lint": "all three products passed",
+      "compile": "all three products passed",
+      "diff": "passed",
+      "changed_files_format": "passed",
+      "unchanged_format_failures": {
+        "memory": [
+          "src/tianshu_memory/auth.py",
+          "src/tianshu_memory/role_grants.py",
+          "tests/test_role_grants.py"
+        ],
+        "companion": [
+          "integrations/nonebot/tianshu_nonebot/__init__.py",
+          "tests/test_adapter_rpc.py",
+          "tests/test_optional_persona.py",
+          "tests/test_role_runtime.py"
+        ],
+        "platform": [
+          "services/platform/assets.py",
+          "services/platform/home.py",
+          "services/platform/origins.py",
+          "services/platform/web_external_net.py",
+          "tests/backend/test_knowledge_joint.py",
+          "tests/backend/test_optional_persona.py",
+          "tests/backend/test_persona_published.py",
+          "tests/backend/test_relationship_joint.py",
+          "tests/backend/test_role_joint.py",
+          "tests/backend/test_role_runtime.py",
+          "tests/backend/test_web_external.py"
+        ]
+      }
+    }
+  },
+  "linux_candidate_validation": {
+    "platform": {
+      "run": 76,
+      "passed": 75,
+      "skipped": 1,
+      "failures": 0,
+      "errors": 0
+    },
+    "onebot_real_sdk_reverse_websocket": {
+      "passed": 1
+    },
+    "installed_module_hashes_and_imports": "passed",
+    "production_data_mounted": false,
+    "launcher_issues_resolved": [
+      "NAS lacks CPU CFS quota support; used supported cpuset",
+      "The child fixture changes cwd; explicitly retain the image runtime module root /app"
+    ]
+  },
+  "behavior_before_after": {
+    "before": "Ordinary automatic learning changed scope version 1 to 2 and recent_dialogue became empty.",
+    "after": "普通自动提取产生 scope version 2 后，管理员和普通用户均能在 Core 重启后保留最近对话，冷召回正确命中各自事实，跨用户私有单元为 0。",
+    "invalidation_preserved": "Explicit correction/forget, automatic current-fact replacement, source changes and authority checks remain invalidating.",
+    "real_model_smoke": {
+      "status": "passed",
+      "checks": [
+        {
+          "user": "admin",
+          "recent_context_after_restart": true,
+          "native_cold_recall": true,
+          "answer_contains_expected": true,
+          "foreign_private_units": 0,
+          "scope_version": 2
+        },
+        {
+          "user": "member",
+          "recent_context_after_restart": true,
+          "native_cold_recall": true,
+          "answer_contains_expected": true,
+          "foreign_private_units": 0,
+          "scope_version": 2
+        }
+      ],
+      "cases_completed": 4,
+      "model_budget": {
+        "used": 1140,
+        "remaining": 0,
+        "calls_this_release": 6
+      },
+      "error": null,
+      "boundary": "Local native four-owner HTTPS using byte-verified deployed Python sources, real OpenCode DeepSeek, isolated administrator/member and saved Chengxi persona, synthetic QQ recorder.",
+      "real_qq": false,
+      "production_memory_writes": false,
+      "daily_gemini_changed": false,
+      "prior_100_person_benchmark_rerun": false
+    },
+    "cases": [
+      "管理员自然聊钢笔的蓝黑墨水；自动提取后重启，追问颜色。",
+      "普通用户自然聊薄荷换陶盆；自动提取后重启，追问花盆。"
+    ],
+    "model_call_ids": [
+      "M1135",
+      "M1136",
+      "M1137",
+      "M1138",
+      "M1139",
+      "M1140"
+    ],
+    "all_six_calls_http_200": true
+  },
+  "model_budget": {
+    "model": "existing OpenCode deepseek-v4.1-flash",
+    "used": 1140,
+    "hard_cap": 1140,
+    "remaining": 0,
+    "calls_this_release": 6,
+    "unknown_calls_still_counted": [
+      "M008",
+      "M324",
+      "M421"
+    ],
+    "additional_calls_require_new_quota": true
+  },
+  "preservation": {
+    "all_existing_settings": true,
+    "provider_configuration_and_keys": true,
+    "role_configuration": true,
+    "administrator_grants": true,
+    "weather_configuration": true,
+    "media_configuration": true,
+    "daily_gemini_changed": false,
+    "test_writes_to_real_user_memory": false,
+    "real_qq_or_notifications_sent": false,
+    "root_preexisting_tracked_files_hashes_match": true,
+    "mixed_root_task_board_committed": false
+  },
+  "unresolved": [
+    "现有全量测试失败和条件跳过仍保留，已与未修改基线区分；不能称全系统测试全部通过。",
+    "本轮真实 DeepSeek 验证使用逐文件匹配部署版本的隔离原生四服务和合成身份/渠道，不向生产记忆库写测试数据。",
+    "真实 NapCat/QQ 登录、消息发送和现有 AstrBot PluginManager 验收未执行；旧宿主插件未升级。",
+    "被动群聊观察仍为持久档案，不自动把全部群聊注入模型上下文；当前最近对话来自获准进入 Core 的轮次。",
+    "输入媒体和 @all 尚不支持；未知引用不会跨房间抓取历史。",
+    "未重跑百人基准；此前负面偏好、日常问法召回缺口不据此宣称已修复。",
+    "原容量守护的一次性 Docker 故障策略没有在本次修改。"
+  ],
+  "evidence_directory": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-13\\task\\upgrade-20261013\\context-onebot-20261014\\publication",
+  "historical_local_delivery": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\docs\\development\\context-onebot-delivery-2026-10-14.json"
+}

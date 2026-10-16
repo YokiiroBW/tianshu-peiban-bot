@@ -1,0 +1,39 @@
+# 统一陪伴产品体验实施任务
+
+状态：Gateway 已提交并释放写入，C4 已派发实施。产品实现者 GPT-6.1-sol / xhigh。独占 worktrees/companion-complete-20261004/platform，基线 6a2ed3d0d6f6b3f0be6761c3b9cf61239ea5d2b4。遵循同目录全面迭代计划与执行记录；这里只补 Platform 的具体入口与依赖，不另建目标范围。
+
+## 必须交付的完整体验
+
+沿现有浅色渐变、圆角、宽屏自适应和独立登录，不另换导航架构或新建一套陪伴后台。
+
+- 陪伴生活页：真实状态条、计划/经历时间轴、活动检查点与暂停恢复、心情、近期关注、日记。未来与已发生明确区分，读页面不启动任务。
+- 衣柜与相册：角色形象参考、服装记录、当前穿搭、此次创作服装分别编辑；真正提交生成/改图、查询原任务、浏览持久原图、按原图续作。图片加载/失败/未知不能用装饰图伪装成功。
+- 作品和媒体：继续现有作品/章节/版本；链接或上传材料先实际纳管，按来源范围读正文/字幕/片段，收藏、进度、共同阅读及追问指向同一对象。资料库原件不复制成另一个可写权威。
+- 用户档案：在原选中人物内展开记忆/画像/关系/回复权限、近期话题与约定、主动偏好与投递历史；不要把内容再拆成无关联页面。支持有证明的账号关联和可撤销读取范围，群私边界不变。
+- 小屋：读取同一角色、活动、时区、当前穿搭和资源投影；有限实际姿态和衣着呈现，不以“日程驱动”文案冒称已联动。保留低动态、手机和等价列表入口。
+- 能力配置：复用现有模型目录与加密秘密存储，支持选择实际图像后端/工作流、参考图、必要媒体源；给出可用/未配置/失败的真实状态。不可把未验证一律禁用，也不可把一次文字测试当所有能力通过。
+- 对话：消费现有 Gateway/Companion 增量结果；支持取消、部分输出、内容引用与原件打开。保留登录恢复、OpenCode 预设与现有真实 QQ 规则。
+
+## 后端与跨产品依赖
+
+1. life-runtime/v2：按闭合读投影显示状态；管理转发到 Companion，不在 Platform 计算情绪、生活或主动动机。
+2. bot-delivery/v2：在原 bots 发送队列接正式主动、普通回复及 Direct 来源封套，可信绑定核对 actor、收件人、渠道，保留 queued/sending/partial/unknown 真实状态；不伪造入站消息。以最终发布 schema 为准，沿同一 expression_id 追加完整输出段，稳定序号与内容幂等、final 后封闭；中断不得重发已受理段。现有 v1 纯文调用仅保留实际兼容需求，共用内部队列。
+3. memory-context/v1：源账号和目标账号对本次绑定挑战的同意证明；入站明确纠正的可追溯意图证明。复用 origin/source 验证，不接受 payload 自称授权；自然纠正无需额外网页弹窗。
+4. model-execution 扩展：按选中 provider/model 展示能力和取消结果，未验证与不支持不同；沿原配置服务发布。
+5. content/read 所需端口：现有 assets.py 只有目录/搜索，不是实际媒体正文接口。先确认实际 owner；若需 AssetLibrary/Knowledge 修改，提出精确端口交 C5，不在前端随意抓取 URL、也不以不可用占位作为完成。
+
+公共接口只消费主协调发布的合同。当前提案不足时回传具体缺口，内部 UI 和领域适配可继续；不自行改根 schema。
+
+生图后端的设置、密钥保存、Companion 实际解析和后端调用必须接通，不能只传一个无法解析的 credential_ref。当前 NAS 未配置图像后端，已有用户问题等待答复；不自行安装 GPU 服务。天气、媒体原件和生成图像的实际来源及失败状态可查，成本只累计已知用量，未知不得算作零。
+
+## 写入与验证
+
+Platform 本产品的服务、web、迁移、路由、锁与测试归本写者。C3 已确认释放 integrations/shared、nonebot、astrbot，这些路径及直接相关适配器测试由本写者在独立 worktrees/companion-complete-20261004/companion-adapters 检出维护，基线 a5725d0；不得写 C3 检出或 core/app/delivery。适配器单独提交，协调者随后串行合入 Companion 最终候选。拆模块按职责，不继续把全部管理动作堆进 web_console.py。
+
+领域完整后集中类型/构建与受影响后端、浏览器检查。包括桌面/手机/宽屏、角色切换不串数据、未配置与实际失败、真实 HTTP 正负样例、主动异步回执、原图打开、账号撤销和来源修订。至少检查真实渲染截图与产品操作流，不用纯 mock 页面通过代替后端接线。已通且未改检查不重复。
+
+交付提交 SHA、删除旧路径、迁移和配置差异、实际验证与剩余外部条件。只能标本地完成；推送和 NAS 由主协调处理。
+
+## Frontend ownership transfer
+
+C5 finished and released its writer slot. C4 explicitly stopped all apps/web writes; the coordinator transferred its six untracked life components into platform-ui at the same fixed baseline. iteration_memory_plan exclusively owns apps/web/** and docs/handoffs/C4-UI.md on codex/companion-complete-ui-20261004. provider_test_fix retains services/** and its separate adapter allocation. No simultaneous path writers; root merges final commits serially. Frontend scope remains the complete user/life/wardrobe/media/reading/works/room/dialogue experience in this card, with existing browser verification and no parallel backend or dependency changes.

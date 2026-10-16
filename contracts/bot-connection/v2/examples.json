@@ -1,0 +1,59 @@
+[
+  {
+    "definition": "event_request",
+    "value": {
+      "schema_version": 3,
+      "connection_id": "connection:a",
+      "thread_id": null,
+      "platform_id": "host:a",
+      "self_id": "42",
+      "namespace": "qq",
+      "conversation_id": "group:9",
+      "account_id": "123",
+      "event_id": "12",
+      "revision": 1,
+      "sent_at": "2026-10-14T00:00:00Z",
+      "text": "那本呢？",
+      "nickname": null,
+      "group_card": null,
+      "message_context": {
+        "reply_ids": [
+          "7"
+        ],
+        "mentioned_accounts": [
+          "456",
+          "42"
+        ]
+      }
+    }
+  },
+  {
+    "definition": "observation_event",
+    "value": {
+      "schema_version": 4,
+      "platform_id": "host:a",
+      "self_id": "42",
+      "namespace": "qq",
+      "conversation_id": "group:9",
+      "account_id": "123",
+      "event_id": "12",
+      "revision": 1,
+      "sent_at": "2026-10-14T00:00:00Z",
+      "text": "那本呢？",
+      "nickname": null,
+      "group_card": null,
+      "message_context": {
+        "reply_ids": [
+          "7"
+        ],
+        "mentioned_accounts": [
+          "456",
+          "42"
+        ]
+      },
+      "content_state": "text",
+      "mentioned": true,
+      "scope_revision": 1
+    }
+  }
+]

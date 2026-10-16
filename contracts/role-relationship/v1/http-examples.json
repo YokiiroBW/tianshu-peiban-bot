@@ -1,0 +1,689 @@
+{
+  "synthetic_only": true,
+  "valid": [
+    {
+      "name": "ReadRequest",
+      "type": "ReadRequest",
+      "value": {
+        "schema_version": 1,
+        "request_id": "synthetic-request:1",
+        "origin": {
+          "assertion_ref": "synthetic-platform-origin"
+        },
+        "pair": {
+          "actor_id": "actor_demo_a",
+          "person_id": "person_demo_a"
+        }
+      }
+    },
+    {
+      "name": "CheckRequest",
+      "type": "CheckRequest",
+      "value": {
+        "schema_version": 1,
+        "request_id": "synthetic-request:1",
+        "origin": {
+          "assertion_ref": "synthetic-platform-origin"
+        },
+        "pair": {
+          "actor_id": "actor_demo_a",
+          "person_id": "person_demo_a"
+        },
+        "expected_version": 2
+      }
+    },
+    {
+      "name": "HistoryRequest",
+      "type": "HistoryRequest",
+      "value": {
+        "schema_version": 1,
+        "request_id": "synthetic-request:1",
+        "origin": {
+          "assertion_ref": "synthetic-platform-origin"
+        },
+        "pair": {
+          "actor_id": "actor_demo_a",
+          "person_id": "person_demo_a"
+        },
+        "managed": true
+      }
+    },
+    {
+      "name": "ManageRequest",
+      "type": "ManageRequest",
+      "value": {
+        "schema_version": 1,
+        "request_id": "request_demo_2",
+        "origin": {
+          "assertion_ref": "synthetic-platform-origin"
+        },
+        "command": {
+          "request_id": "request_demo_2",
+          "pair": {
+            "actor_id": "actor_demo_a",
+            "person_id": "person_demo_a"
+          },
+          "expected_version": 1,
+          "operation": "set_freeze",
+          "frozen": true
+        }
+      }
+    },
+    {
+      "name": "SettleRequest",
+      "type": "SettleRequest",
+      "value": {
+        "schema_version": 1,
+        "request_id": "synthetic-request:1",
+        "origin": {
+          "assertion_ref": "synthetic-platform-origin"
+        },
+        "candidate": {
+          "event_id": "event_demo_1",
+          "pair": {
+            "actor_id": "actor_demo_a",
+            "person_id": "person_demo_a"
+          },
+          "kind": "conversation_completed",
+          "turn_id": "turn_demo_1",
+          "source_ref": "source_demo_1",
+          "source_revision": 1,
+          "occurred_at": "2026-10-01T00:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "ProjectionResponse",
+      "type": "ProjectionResponse",
+      "value": {
+        "schema_version": 1,
+        "request_id": "synthetic-request:1",
+        "projection": {
+          "view": "private",
+          "pair": {
+            "actor_id": "actor_demo_a",
+            "person_id": "person_demo_a"
+          },
+          "version": 2,
+          "policy_version": "policy_draft_1",
+          "relationship_type": "friend",
+          "display_label": "朋友",
+          "score": 200,
+          "stage": "familiar",
+          "frozen": true,
+          "frozen_since": "2026-10-01T00:00:00Z",
+          "decay_cursor": "2026-10-01T00:00:00Z",
+          "checked_at": "2026-10-01T00:00:00Z"
+        }
+      }
+    },
+    {
+      "name": "CheckResponse",
+      "type": "CheckResponse",
+      "value": {
+        "schema_version": 1,
+        "request_id": "synthetic-request:1",
+        "check": {
+          "version": 2,
+          "current": true
+        }
+      }
+    },
+    {
+      "name": "SettleResponse",
+      "type": "SettleResponse",
+      "value": {
+        "schema_version": 1,
+        "request_id": "synthetic-request:1",
+        "settlement": {
+          "event_id": "event_demo_1",
+          "pair": {
+            "actor_id": "actor_demo_a",
+            "person_id": "person_demo_a"
+          },
+          "outcome": "rejected_frozen",
+          "version": 2,
+          "applied_delta": 0,
+          "settled_at": "2026-10-01T00:00:01Z"
+        }
+      }
+    },
+    {
+      "name": "HistoryResponse",
+      "type": "HistoryResponse",
+      "value": {
+        "schema_version": 1,
+        "request_id": "synthetic-request:1",
+        "history": {
+          "projection": {
+            "view": "private",
+            "pair": {
+              "actor_id": "actor_demo_a",
+              "person_id": "person_demo_a"
+            },
+            "version": 2,
+            "policy_version": "policy_draft_1",
+            "relationship_type": "friend",
+            "display_label": "朋友",
+            "score": 200,
+            "stage": "familiar",
+            "frozen": true,
+            "frozen_since": "2026-10-01T00:00:00Z",
+            "decay_cursor": "2026-10-01T00:00:00Z",
+            "checked_at": "2026-10-01T00:00:00Z"
+          },
+          "items": [
+            {
+              "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "manual_adjustment",
+              "delta": 1,
+              "outcome": "accepted",
+              "at": "2026-10-01T00:00:00Z",
+              "valid": true,
+              "operation": "adjust_affinity",
+              "reason": "合成人工纠正"
+            }
+          ],
+          "has_more": false
+        }
+      }
+    },
+    {
+      "name": "FaultResponse",
+      "type": "FaultResponse",
+      "value": {
+        "schema_version": 1,
+        "request_id": "synthetic-request:1",
+        "code": "version_conflict",
+        "execution_state": "not_started",
+        "retryable": false,
+        "current_version": 2
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "browser_operator",
+      "type": "ManageRequest",
+      "value": {
+        "schema_version": 1,
+        "request_id": "request_demo_2",
+        "origin": {
+          "assertion_ref": "synthetic-platform-origin"
+        },
+        "command": {
+          "request_id": "request_demo_2",
+          "pair": {
+            "actor_id": "actor_demo_a",
+            "person_id": "person_demo_a"
+          },
+          "expected_version": 1,
+          "operation": "set_freeze",
+          "frozen": true
+        },
+        "operator": "untrusted-browser"
+      }
+    },
+    {
+      "name": "request_id_mismatch",
+      "type": "ManageRequest",
+      "value": {
+        "schema_version": 1,
+        "request_id": "different-intent",
+        "origin": {
+          "assertion_ref": "synthetic-platform-origin"
+        },
+        "command": {
+          "request_id": "request_demo_2",
+          "pair": {
+            "actor_id": "actor_demo_a",
+            "person_id": "person_demo_a"
+          },
+          "expected_version": 1,
+          "operation": "set_freeze",
+          "frozen": true
+        }
+      }
+    },
+    {
+      "name": "managed_history_required",
+      "type": "HistoryRequest",
+      "value": {
+        "schema_version": 1,
+        "request_id": "synthetic-request:1",
+        "origin": {
+          "assertion_ref": "synthetic-platform-origin"
+        },
+        "pair": {
+          "actor_id": "actor_demo_a",
+          "person_id": "person_demo_a"
+        },
+        "managed": false
+      }
+    },
+    {
+      "name": "boolean_expected_version",
+      "type": "CheckRequest",
+      "value": {
+        "schema_version": 1,
+        "request_id": "synthetic-request:1",
+        "origin": {
+          "assertion_ref": "synthetic-platform-origin"
+        },
+        "pair": {
+          "actor_id": "actor_demo_a",
+          "person_id": "person_demo_a"
+        },
+        "expected_version": true
+      }
+    },
+    {
+      "name": "missing_origin",
+      "type": "ReadRequest",
+      "value": {
+        "schema_version": 1,
+        "request_id": "synthetic-request:1",
+        "pair": {
+          "actor_id": "actor_demo_a",
+          "person_id": "person_demo_a"
+        }
+      }
+    },
+    {
+      "name": "origin_unknown_field",
+      "type": "ReadRequest",
+      "value": {
+        "schema_version": 1,
+        "request_id": "synthetic-request:1",
+        "origin": {
+          "assertion_ref": "synthetic-platform-origin",
+          "administrator": true
+        },
+        "pair": {
+          "actor_id": "actor_demo_a",
+          "person_id": "person_demo_a"
+        }
+      }
+    },
+    {
+      "name": "history_source_leak",
+      "type": "HistoryResponse",
+      "value": {
+        "schema_version": 1,
+        "request_id": "synthetic-request:1",
+        "history": {
+          "projection": {
+            "view": "private",
+            "pair": {
+              "actor_id": "actor_demo_a",
+              "person_id": "person_demo_a"
+            },
+            "version": 2,
+            "policy_version": "policy_draft_1",
+            "relationship_type": "friend",
+            "display_label": "朋友",
+            "score": 200,
+            "stage": "familiar",
+            "frozen": true,
+            "frozen_since": "2026-10-01T00:00:00Z",
+            "decay_cursor": "2026-10-01T00:00:00Z",
+            "checked_at": "2026-10-01T00:00:00Z"
+          },
+          "items": [
+            {
+              "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "manual_adjustment",
+              "delta": 1,
+              "outcome": "accepted",
+              "at": "2026-10-01T00:00:00Z",
+              "valid": true,
+              "operation": "adjust_affinity",
+              "reason": "合成人工纠正",
+              "source_ref": "untrusted-source"
+            }
+          ],
+          "has_more": false
+        }
+      }
+    },
+    {
+      "name": "history_over_budget",
+      "type": "HistoryResponse",
+      "value": {
+        "schema_version": 1,
+        "request_id": "synthetic-request:1",
+        "history": {
+          "projection": {
+            "view": "private",
+            "pair": {
+              "actor_id": "actor_demo_a",
+              "person_id": "person_demo_a"
+            },
+            "version": 2,
+            "policy_version": "policy_draft_1",
+            "relationship_type": "friend",
+            "display_label": "朋友",
+            "score": 200,
+            "stage": "familiar",
+            "frozen": true,
+            "frozen_since": "2026-10-01T00:00:00Z",
+            "decay_cursor": "2026-10-01T00:00:00Z",
+            "checked_at": "2026-10-01T00:00:00Z"
+          },
+          "items": [
+            {
+              "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "manual_adjustment",
+              "delta": 1,
+              "outcome": "accepted",
+              "at": "2026-10-01T00:00:00Z",
+              "valid": true,
+              "operation": "adjust_affinity",
+              "reason": "合成人工纠正"
+            },
+            {
+              "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "manual_adjustment",
+              "delta": 1,
+              "outcome": "accepted",
+              "at": "2026-10-01T00:00:00Z",
+              "valid": true,
+              "operation": "adjust_affinity",
+              "reason": "合成人工纠正"
+            },
+            {
+              "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "manual_adjustment",
+              "delta": 1,
+              "outcome": "accepted",
+              "at": "2026-10-01T00:00:00Z",
+              "valid": true,
+              "operation": "adjust_affinity",
+              "reason": "合成人工纠正"
+            },
+            {
+              "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "manual_adjustment",
+              "delta": 1,
+              "outcome": "accepted",
+              "at": "2026-10-01T00:00:00Z",
+              "valid": true,
+              "operation": "adjust_affinity",
+              "reason": "合成人工纠正"
+            },
+            {
+              "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "manual_adjustment",
+              "delta": 1,
+              "outcome": "accepted",
+              "at": "2026-10-01T00:00:00Z",
+              "valid": true,
+              "operation": "adjust_affinity",
+              "reason": "合成人工纠正"
+            },
+            {
+              "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "manual_adjustment",
+              "delta": 1,
+              "outcome": "accepted",
+              "at": "2026-10-01T00:00:00Z",
+              "valid": true,
+              "operation": "adjust_affinity",
+              "reason": "合成人工纠正"
+            },
+            {
+              "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "manual_adjustment",
+              "delta": 1,
+              "outcome": "accepted",
+              "at": "2026-10-01T00:00:00Z",
+              "valid": true,
+              "operation": "adjust_affinity",
+              "reason": "合成人工纠正"
+            },
+            {
+              "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "manual_adjustment",
+              "delta": 1,
+              "outcome": "accepted",
+              "at": "2026-10-01T00:00:00Z",
+              "valid": true,
+              "operation": "adjust_affinity",
+              "reason": "合成人工纠正"
+            },
+            {
+              "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "manual_adjustment",
+              "delta": 1,
+              "outcome": "accepted",
+              "at": "2026-10-01T00:00:00Z",
+              "valid": true,
+              "operation": "adjust_affinity",
+              "reason": "合成人工纠正"
+            },
+            {
+              "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "manual_adjustment",
+              "delta": 1,
+              "outcome": "accepted",
+              "at": "2026-10-01T00:00:00Z",
+              "valid": true,
+              "operation": "adjust_affinity",
+              "reason": "合成人工纠正"
+            },
+            {
+              "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "manual_adjustment",
+              "delta": 1,
+              "outcome": "accepted",
+              "at": "2026-10-01T00:00:00Z",
+              "valid": true,
+              "operation": "adjust_affinity",
+              "reason": "合成人工纠正"
+            },
+            {
+              "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "manual_adjustment",
+              "delta": 1,
+              "outcome": "accepted",
+              "at": "2026-10-01T00:00:00Z",
+              "valid": true,
+              "operation": "adjust_affinity",
+              "reason": "合成人工纠正"
+            },
+            {
+              "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "manual_adjustment",
+              "delta": 1,
+              "outcome": "accepted",
+              "at": "2026-10-01T00:00:00Z",
+              "valid": true,
+              "operation": "adjust_affinity",
+              "reason": "合成人工纠正"
+            },
+            {
+              "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "manual_adjustment",
+              "delta": 1,
+              "outcome": "accepted",
+              "at": "2026-10-01T00:00:00Z",
+              "valid": true,
+              "operation": "adjust_affinity",
+              "reason": "合成人工纠正"
+            },
+            {
+              "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "manual_adjustment",
+              "delta": 1,
+              "outcome": "accepted",
+              "at": "2026-10-01T00:00:00Z",
+              "valid": true,
+              "operation": "adjust_affinity",
+              "reason": "合成人工纠正"
+            },
+            {
+              "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "manual_adjustment",
+              "delta": 1,
+              "outcome": "accepted",
+              "at": "2026-10-01T00:00:00Z",
+              "valid": true,
+              "operation": "adjust_affinity",
+              "reason": "合成人工纠正"
+            },
+            {
+              "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "manual_adjustment",
+              "delta": 1,
+              "outcome": "accepted",
+              "at": "2026-10-01T00:00:00Z",
+              "valid": true,
+              "operation": "adjust_affinity",
+              "reason": "合成人工纠正"
+            },
+            {
+              "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "manual_adjustment",
+              "delta": 1,
+              "outcome": "accepted",
+              "at": "2026-10-01T00:00:00Z",
+              "valid": true,
+              "operation": "adjust_affinity",
+              "reason": "合成人工纠正"
+            },
+            {
+              "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "manual_adjustment",
+              "delta": 1,
+              "outcome": "accepted",
+              "at": "2026-10-01T00:00:00Z",
+              "valid": true,
+              "operation": "adjust_affinity",
+              "reason": "合成人工纠正"
+            },
+            {
+              "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "manual_adjustment",
+              "delta": 1,
+              "outcome": "accepted",
+              "at": "2026-10-01T00:00:00Z",
+              "valid": true,
+              "operation": "adjust_affinity",
+              "reason": "合成人工纠正"
+            },
+            {
+              "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "manual_adjustment",
+              "delta": 1,
+              "outcome": "accepted",
+              "at": "2026-10-01T00:00:00Z",
+              "valid": true,
+              "operation": "adjust_affinity",
+              "reason": "合成人工纠正"
+            }
+          ],
+          "has_more": false
+        }
+      }
+    },
+    {
+      "name": "history_private_operator",
+      "type": "HistoryResponse",
+      "value": {
+        "schema_version": 1,
+        "request_id": "synthetic-request:1",
+        "history": {
+          "projection": {
+            "view": "private",
+            "pair": {
+              "actor_id": "actor_demo_a",
+              "person_id": "person_demo_a"
+            },
+            "version": 2,
+            "policy_version": "policy_draft_1",
+            "relationship_type": "friend",
+            "display_label": "朋友",
+            "score": 200,
+            "stage": "familiar",
+            "frozen": true,
+            "frozen_since": "2026-10-01T00:00:00Z",
+            "decay_cursor": "2026-10-01T00:00:00Z",
+            "checked_at": "2026-10-01T00:00:00Z"
+          },
+          "items": [
+            {
+              "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "kind": "manual_adjustment",
+              "delta": 1,
+              "outcome": "accepted",
+              "at": "2026-10-01T00:00:00Z",
+              "valid": true,
+              "operation": "adjust_affinity",
+              "reason": "合成人工纠正",
+              "operator": "private-person"
+            }
+          ],
+          "has_more": false
+        }
+      }
+    },
+    {
+      "name": "response_unknown_field",
+      "type": "ProjectionResponse",
+      "value": {
+        "schema_version": 1,
+        "request_id": "synthetic-request:1",
+        "projection": {
+          "view": "private",
+          "pair": {
+            "actor_id": "actor_demo_a",
+            "person_id": "person_demo_a"
+          },
+          "version": 2,
+          "policy_version": "policy_draft_1",
+          "relationship_type": "friend",
+          "display_label": "朋友",
+          "score": 200,
+          "stage": "familiar",
+          "frozen": true,
+          "frozen_since": "2026-10-01T00:00:00Z",
+          "decay_cursor": "2026-10-01T00:00:00Z",
+          "checked_at": "2026-10-01T00:00:00Z"
+        },
+        "principal_id": "untrusted"
+      }
+    },
+    {
+      "name": "check_not_current",
+      "type": "CheckResponse",
+      "value": {
+        "schema_version": 1,
+        "request_id": "synthetic-request:1",
+        "check": {
+          "version": 2,
+          "current": false
+        }
+      }
+    },
+    {
+      "name": "public_score_leak",
+      "type": "ProjectionResponse",
+      "value": {
+        "schema_version": 1,
+        "request_id": "synthetic-request:1",
+        "projection": {
+          "view": "public",
+          "pair": {
+            "actor_id": "actor_demo_a",
+            "person_id": "person_demo_a"
+          },
+          "version": 2,
+          "policy_version": "policy_draft_1",
+          "expression_hint": "自然友好，不谈私聊关系细节。",
+          "checked_at": "2026-10-01T00:00:00Z",
+          "score": 200
+        }
+      }
+    }
+  ]
+}

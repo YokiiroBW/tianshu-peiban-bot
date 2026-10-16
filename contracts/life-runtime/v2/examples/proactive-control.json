@@ -1,0 +1,84 @@
+{
+  "positive": [
+    {
+      "definition": "control_read_request",
+      "document": {
+        "schema_version": 2,
+        "request_id": "proactive:sample",
+        "channel": {
+          "namespace": "qq",
+          "binding_id": "binding:sample",
+          "channel_conversation_id": "10001",
+          "thread_id": null
+        },
+        "actor_id": "actor:sample",
+        "person_id": "person:sample"
+      }
+    },
+    {
+      "definition": "control_read_response",
+      "document": {
+        "schema_version": 2,
+        "request_id": "proactive:sample",
+        "channel": {
+          "namespace": "qq",
+          "binding_id": "binding:sample",
+          "channel_conversation_id": "10001",
+          "thread_id": null
+        },
+        "actor_id": "actor:sample",
+        "person_id": "person:sample",
+        "subscriptions": [],
+        "deliveries": []
+      }
+    },
+    {
+      "definition": "manage_request",
+      "document": {
+        "schema_version": 2,
+        "request_id": "control:pause",
+        "actor_id": "actor:sample",
+        "expected_version": 1,
+        "operation": "proactive.subscription.state",
+        "value": {
+          "id": "subscription:sample",
+          "state": "paused"
+        }
+      }
+    }
+  ],
+  "negative": [
+    {
+      "definition": "control_read_response",
+      "document": {
+        "schema_version": 2,
+        "request_id": "proactive:sample",
+        "channel": {
+          "namespace": "qq",
+          "binding_id": "binding:sample",
+          "channel_conversation_id": "10001",
+          "thread_id": null
+        },
+        "actor_id": "actor:sample",
+        "person_id": "person:sample",
+        "subscriptions": [],
+        "deliveries": [],
+        "private_text": "not permitted"
+      }
+    },
+    {
+      "definition": "manage_request",
+      "document": {
+        "schema_version": 2,
+        "request_id": "control:pause",
+        "actor_id": "actor:sample",
+        "expected_version": 1,
+        "operation": "proactive.subscription.state",
+        "value": {
+          "id": "subscription:sample",
+          "state": "invented"
+        }
+      }
+    }
+  ]
+}

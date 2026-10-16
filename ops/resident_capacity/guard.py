@@ -54,7 +54,9 @@ MAX_FAIL_CLOSE_SECONDS = (
     + 60
 )
 ID = re.compile(r"[0-9a-f]{64}\Z")
-IMAGE = re.compile(r".+@sha256:[0-9a-f]{64}\Z")
+# Keep the deployed resident image-ID and external-media contract. These
+# adaptations predate TS-175 and are used by the accepted music deployment.
+IMAGE = re.compile(r"(?:.+@)?sha256:[0-9a-f]{64}\Z")
 INSPECT_FORMAT = "[" + ",".join(
     "{{json " + field + "}}" for field in (
         ".Id",
@@ -93,6 +95,7 @@ class Config:
     poll_seconds: int = 5
     term_timeout_seconds: int = 120
     service_profile: str = "resident-nine"
+    external_media_binds: tuple[dict, ...] = ()
 
     def signatures(self):
         services = _service_map(self.service_profile)
@@ -104,6 +107,8 @@ class Config:
                 "compose_file": (self.platform_first_compose if service == "platform" else self.compose[project])["file"],
                 "image": self.images[service],
                 "binds": self.binds[service],
+                **({"external_media_binds": self.external_media_binds}
+                   if service == "platform" and self.external_media_binds else {}),
             }
             for project, names in services.items()
             for service in names
@@ -187,9 +192,16 @@ def _owned(container: Container, signatures: dict, root: str) -> bool:
         for kind, source, target, writable in container.mounts if kind == "bind"
     )
     expected = sorted((item["source"], item["target"], item["read_only"]) for item in signature["binds"])
+    media_binds = {
+        (item["source"], item["target"], item["read_only"])
+        for item in signature.get("external_media_binds", ())
+        if container.project == CORE and container.service == "platform"
+        and item["target"].startswith("/media/")
+    }
     return (
         bool(actual) and actual == expected
-        and all(_within(source, root) for source, _, _ in actual)
+        and all(_within(source, root) or (source, target, read_only) in media_binds
+                for source, target, read_only in actual)
         and all(kind in {"bind", "tmpfs"} for kind, _, _, _ in container.mounts)
     )
 
@@ -394,6 +406,19 @@ def _compose_entry(entry, root: Path):
     return {"workdir": str(workdir), "file": str(file)}
 
 
+def _bind_entry(entry):
+    if not isinstance(entry, dict) or set(entry) != {"source", "target", "read_only"}:
+        raise ValueError()
+    source = _safe_path(entry["source"])
+    target = entry["target"]
+    if (
+        not isinstance(target, str) or not target.startswith("/")
+        or posixpath.normpath(target) != target or type(entry["read_only"]) is not bool
+    ):
+        raise ValueError()
+    return {"source": str(source), "target": target, "read_only": entry["read_only"]}
+
+
 def load_config(path: Path):
     path = _safe_path(path)
     if os.name != "posix" or os.geteuid() != 0:
@@ -404,16 +429,15 @@ def load_config(path: Path):
     raw = path.read_bytes()
     try:
         value = json.loads(raw)
-        if not isinstance(value, dict) or set(value) not in ({
+        required = {
             "deployment_root", "state_dir", "docker_binary", "compose",
             "platform_first_compose", "images", "binds", "free_paths",
             "min_free_bytes", "max_deployment_bytes", "poll_seconds", "term_timeout_seconds",
-        }, {
-            "deployment_root", "state_dir", "docker_binary", "compose",
-            "platform_first_compose", "images", "binds", "free_paths",
-            "min_free_bytes", "max_deployment_bytes", "poll_seconds", "term_timeout_seconds",
-            "service_profile",
-        }):
+        }
+        if (
+            not isinstance(value, dict) or not required <= set(value)
+            or set(value) - required - {"service_profile", "external_media_binds"}
+        ):
             raise ValueError()
         profile = value.get("service_profile", "resident-nine")
         services = _service_map(profile)
@@ -446,34 +470,44 @@ def load_config(path: Path):
             raise ValueError()
         if not isinstance(value["binds"], dict) or set(value["binds"]) != set(value["images"]):
             raise ValueError()
+        media_entries = value.get("external_media_binds", [])
+        if not isinstance(media_entries, list):
+            raise ValueError()
+        external_media_binds = tuple(_bind_entry(entry) for entry in media_entries)
+        if any(
+            _within(entry["source"], str(root)) or not Path(entry["source"]).is_dir()
+            or entry["source"] != raw_entry["source"] or not entry["target"].startswith("/media/")
+            for entry, raw_entry in zip(external_media_binds, media_entries)
+        ) or len({entry["target"] for entry in external_media_binds}) != len(external_media_binds):
+            raise ValueError()
         binds = {}
         for service, entries in value["binds"].items():
             if not isinstance(entries, list) or not entries:
                 raise ValueError()
             normalized = []
             for entry in entries:
-                if not isinstance(entry, dict) or set(entry) != {"source", "target", "read_only"}:
-                    raise ValueError()
-                source = _safe_path(entry["source"])
-                target = entry["target"]
+                item = _bind_entry(entry)
                 if (
-                    not _within(str(source), str(root)) or not isinstance(target, str)
-                    or not target.startswith("/") or posixpath.normpath(target) != target
-                    or type(entry["read_only"]) is not bool
+                    not _within(item["source"], str(root))
+                    and (service != "platform" or item not in external_media_binds)
                 ):
                     raise ValueError()
-                normalized.append({"source": str(source), "target": target, "read_only": entry["read_only"]})
+                normalized.append(item)
             if len({entry["target"] for entry in normalized}) != len(normalized):
                 raise ValueError()
             binds[service] = normalized
+        if any(entry not in binds["platform"] for entry in external_media_binds):
+            raise ValueError()
         _validate_limits(value)
         config = Config(
             root, state_dir, docker, compose, platform_first, value["images"], binds,
             (root, Path(compose[CORE]["workdir"]), Path(compose[OBS]["workdir"]),
-             Path(platform_first["workdir"]), *free_paths),
+             Path(platform_first["workdir"]), *free_paths,
+             *(Path(entry["source"]) for entry in external_media_binds)),
             value["min_free_bytes"], value["max_deployment_bytes"],
             value["poll_seconds"], value["term_timeout_seconds"],
             profile,
+            external_media_binds,
         )
     except (KeyError, TypeError, ValueError, OSError) as error:
         raise Unsafe("capacity_config_invalid") from error

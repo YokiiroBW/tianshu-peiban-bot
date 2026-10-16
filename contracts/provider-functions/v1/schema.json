@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.tianshu.invalid/provider-functions/v1/schema.json",
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+    },
+    "uuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "select_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "turn_id",
+        "actor_id",
+        "person_id",
+        "audience",
+        "conversation_id",
+        "caller_service",
+        "workload"
+      ],
+      "properties": {
+        "turn_id": {
+          "$ref": "#/$defs/id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/id"
+        },
+        "person_id": {
+          "$ref": "#/$defs/id"
+        },
+        "audience": {
+          "enum": [
+            "group",
+            "self_private"
+          ]
+        },
+        "conversation_id": {
+          "$ref": "#/$defs/id"
+        },
+        "caller_service": {
+          "const": "companion"
+        },
+        "workload": {
+          "const": "companion.text"
+        },
+        "function_id": {
+          "enum": [
+            "chat",
+            "tools",
+            "code",
+            "search",
+            "writing",
+            "memory"
+          ]
+        }
+      }
+    },
+    "select_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "config_version",
+        "expires_at",
+        "revoked",
+        "caller_service",
+        "workload"
+      ],
+      "properties": {
+        "config_version": {
+          "$ref": "#/$defs/revision"
+        },
+        "expires_at": {
+          "type": "number"
+        },
+        "revoked": {
+          "const": false
+        },
+        "caller_service": {
+          "const": "companion"
+        },
+        "workload": {
+          "const": "companion.text"
+        }
+      }
+    },
+    "function_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "client_id",
+        "function_id",
+        "provider_id",
+        "expected_revision",
+        "expected_binding_revision"
+      ],
+      "properties": {
+        "client_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "function_id": {
+          "enum": [
+            "chat",
+            "tools",
+            "code",
+            "search",
+            "writing",
+            "memory"
+          ]
+        },
+        "provider_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expected_revision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/revision"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expected_binding_revision": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "function_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "function_id",
+        "revision"
+      ],
+      "properties": {
+        "function_id": {
+          "enum": [
+            "chat",
+            "tools",
+            "code",
+            "search",
+            "writing",
+            "memory"
+          ]
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        }
+      }
+    }
+  }
+}

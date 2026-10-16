@@ -1,0 +1,228 @@
+{
+  "positive": [
+    {
+      "definition": "send_request",
+      "document": {
+        "schema_version": 2,
+        "request_id": "proactive:sample",
+        "expression_id": "expression:sample",
+        "origin": {
+          "kind": "proactive",
+          "actor_id": "actor:sample",
+          "motive_id": "motive:sample",
+          "motive_version": 1,
+          "sources": []
+        },
+        "scope": {
+          "actor_id": "actor:sample",
+          "person_id": "person:sample",
+          "audience": "self_private",
+          "conversation_id": "conversation:sample"
+        },
+        "channel": {
+          "namespace": "qq",
+          "binding_id": "binding:sample",
+          "channel_conversation_id": "10001",
+          "thread_id": null
+        },
+        "final": true,
+        "segments": [
+          {
+            "segment_id": "segment:sample:1",
+            "reply_id": "reply:sample",
+            "segment_sequence": 1,
+            "text": "下午读到一句想和你聊聊的话。",
+            "content_refs": [
+              {
+                "owner": "companion",
+                "object_id": "image:sample",
+                "version": 1,
+                "kind": "image",
+                "sha256": "461997b0750ee52b80433e247b14470f91669b93e7eb299678f21c704bf9883b",
+                "sources": [],
+                "coverage": {
+                  "unit": "bytes",
+                  "start": 0,
+                  "end": 68,
+                  "total": 68
+                }
+              }
+            ],
+            "media": [
+              {
+                "content_ref": {
+                  "owner": "companion",
+                  "object_id": "image:sample",
+                  "version": 1,
+                  "kind": "image",
+                  "sha256": "461997b0750ee52b80433e247b14470f91669b93e7eb299678f21c704bf9883b",
+                  "sources": [],
+                  "coverage": {
+                    "unit": "bytes",
+                    "start": 0,
+                    "end": 68,
+                    "total": 68
+                  }
+                },
+                "media_type": "image/png",
+                "encoding": "base64",
+                "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a9WQAAAAASUVORK5CYII=",
+                "sha256": "461997b0750ee52b80433e247b14470f91669b93e7eb299678f21c704bf9883b"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "negative": [
+    {
+      "definition": "send_request",
+      "document": {
+        "schema_version": 2,
+        "request_id": "proactive:sample",
+        "expression_id": "expression:sample",
+        "origin": {
+          "kind": "proactive",
+          "actor_id": "actor:sample",
+          "motive_id": "motive:sample",
+          "motive_version": 1,
+          "sources": []
+        },
+        "scope": {
+          "actor_id": "actor:sample",
+          "person_id": "person:sample",
+          "audience": "self_private",
+          "conversation_id": "conversation:sample"
+        },
+        "channel": {
+          "namespace": "qq",
+          "binding_id": "binding:sample",
+          "channel_conversation_id": "10001",
+          "thread_id": null
+        },
+        "final": true,
+        "segments": [
+          {
+            "segment_id": "segment:sample:1",
+            "reply_id": "reply:sample",
+            "segment_sequence": 1,
+            "text": "下午读到一句想和你聊聊的话。",
+            "content_refs": [
+              {
+                "owner": "companion",
+                "object_id": "image:sample",
+                "version": 1,
+                "kind": "image",
+                "sha256": "461997b0750ee52b80433e247b14470f91669b93e7eb299678f21c704bf9883b",
+                "sources": [],
+                "coverage": {
+                  "unit": "bytes",
+                  "start": 0,
+                  "end": 68,
+                  "total": 68
+                }
+              }
+            ],
+            "media": [
+              {
+                "content_ref": {
+                  "owner": "companion",
+                  "object_id": "image:sample",
+                  "version": 1,
+                  "kind": "image",
+                  "sha256": "461997b0750ee52b80433e247b14470f91669b93e7eb299678f21c704bf9883b",
+                  "sources": [],
+                  "coverage": {
+                    "unit": "bytes",
+                    "start": 0,
+                    "end": 68,
+                    "total": 68
+                  }
+                },
+                "media_type": "text/plain",
+                "encoding": "base64",
+                "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a9WQAAAAASUVORK5CYII=",
+                "sha256": "461997b0750ee52b80433e247b14470f91669b93e7eb299678f21c704bf9883b"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "definition": "send_request",
+      "document": {
+        "schema_version": 2,
+        "request_id": "proactive:sample",
+        "expression_id": "expression:sample",
+        "origin": {
+          "kind": "proactive",
+          "actor_id": "actor:sample",
+          "motive_id": "motive:sample",
+          "motive_version": 1,
+          "sources": []
+        },
+        "scope": {
+          "actor_id": "actor:sample",
+          "person_id": "person:sample",
+          "audience": "self_private",
+          "conversation_id": "conversation:sample"
+        },
+        "channel": {
+          "namespace": "qq",
+          "binding_id": "binding:sample",
+          "channel_conversation_id": "10001",
+          "thread_id": null
+        },
+        "final": true,
+        "segments": [
+          {
+            "segment_id": "segment:sample:1",
+            "reply_id": "reply:sample",
+            "segment_sequence": 1,
+            "text": "下午读到一句想和你聊聊的话。",
+            "content_refs": [
+              {
+                "owner": "companion",
+                "object_id": "image:sample",
+                "version": 1,
+                "kind": "image",
+                "sha256": "461997b0750ee52b80433e247b14470f91669b93e7eb299678f21c704bf9883b",
+                "sources": [],
+                "coverage": {
+                  "unit": "bytes",
+                  "start": 0,
+                  "end": 68,
+                  "total": 68
+                }
+              }
+            ],
+            "media": [
+              {
+                "content_ref": {
+                  "owner": "companion",
+                  "object_id": "image:sample",
+                  "version": 1,
+                  "kind": "image",
+                  "sha256": "461997b0750ee52b80433e247b14470f91669b93e7eb299678f21c704bf9883b",
+                  "sources": [],
+                  "coverage": {
+                    "unit": "bytes",
+                    "start": 0,
+                    "end": 68,
+                    "total": 68
+                  }
+                },
+                "media_type": "image/png",
+                "encoding": "base64",
+                "data": "",
+                "sha256": "461997b0750ee52b80433e247b14470f91669b93e7eb299678f21c704bf9883b"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

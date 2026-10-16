@@ -1,0 +1,162 @@
+{
+  "date": "2026-10-12",
+  "status": "deployed_auto_memory_paused",
+  "products": {
+    "companion": {
+      "image_id": "sha256:10b6e5f0981aeef538f4ad9045423cf874ebf4c20b05794074efc4aaaf055bce",
+      "revision": "4e4fc8322661e0afaf91b3c67c139442c8d257eb"
+    },
+    "memory": {
+      "image_id": "sha256:92b4f8a16f4882cfe5c453849d51e595dac3088ca3f5b3a321abfa3c0b98edb7",
+      "revision": "165307f78664fe60ccad1c70b76ba26ad19d05f3"
+    }
+  },
+  "platform_existing_revision": "7d2403c1f4aae5472c658fd9631b334daf7debe9",
+  "platform_updated_this_release": false,
+  "github_main_pushed": true,
+  "health": [
+    {
+      "checks": {
+        "configuration": "ok",
+        "dependencies": "not_verified",
+        "logs": "ok",
+        "runtime": "ok"
+      },
+      "endpoint": "/health/ready",
+      "http_status": 200,
+      "live": 200,
+      "ready": 200,
+      "ready_state": "ready",
+      "service": "companion",
+      "verified_tls": true
+    },
+    {
+      "checks": {
+        "assembled": "ok",
+        "configuration": "ok",
+        "contract": "ok",
+        "database": "ok",
+        "guard": "ok",
+        "log": "ok",
+        "mode": "ok",
+        "owner": "ok",
+        "remote": "not_verified"
+      },
+      "endpoint": "/health/ready",
+      "http_status": 200,
+      "live": 200,
+      "ready": 200,
+      "ready_state": "ready",
+      "service": "memory",
+      "verified_tls": true
+    },
+    {
+      "checks": {
+        "config": "ok",
+        "contract": "ok",
+        "credentials": "ok",
+        "logging": "ok",
+        "runtime": "ok",
+        "sidecars": "ok",
+        "store": "ok",
+        "tls": "ok",
+        "web_static": "ok"
+      },
+      "endpoint": "/health/ready",
+      "http_status": 200,
+      "live": 200,
+      "ready": 200,
+      "ready_state": "ready",
+      "service": "platform",
+      "verified_tls": true
+    },
+    {
+      "checks": {
+        "configuration": "ok",
+        "contracts": "ok",
+        "ledger": "ok",
+        "logging": "ok",
+        "model": "not_verified",
+        "native": "not_configured",
+        "platform": "not_verified",
+        "runtime": "ok"
+      },
+      "endpoint": "/health/ready",
+      "http_status": 200,
+      "live": 200,
+      "ready": 200,
+      "ready_state": "ready",
+      "service": "gateway",
+      "verified_tls": true
+    },
+    {
+      "checks": {
+        "assembled": "ok",
+        "client": "ok",
+        "configuration": "ok",
+        "contract": "ok",
+        "database": "ok",
+        "extensions": "ok",
+        "log": "ok",
+        "owner": "ok",
+        "remote": "not_verified"
+      },
+      "endpoint": "/health/ready",
+      "http_status": 200,
+      "live": 200,
+      "ready": 200,
+      "ready_state": "ready",
+      "service": "knowledge",
+      "verified_tls": true
+    }
+  ],
+  "sqlite_backups": 35,
+  "cold_backup": "/volume2/tianshu-v2-resident-updates/memory-subscriptions-release-20261012-release/cold-snapshot",
+  "cold_backup_status": "offline_restore_verified",
+  "guard": "ready",
+  "owner_count": 10,
+  "other_eight_container_ids_preserved": true,
+  "dockge_synced": true,
+  "settings_preserved": true,
+  "role_and_admin_preserved": true,
+  "provider_bindings_and_key_preserved": true,
+  "static_assets": 59,
+  "memory_runtime": {
+    "capabilities": {
+      "schema_version": 1,
+      "service": "companion",
+      "automatic_memory_candidates": {
+        "enabled": false,
+        "generation": "disabled",
+        "submission": "paused",
+        "backlog_policy": "preserve",
+        "retained_outbox": {
+          "pending": false,
+          "blocked_scope": false,
+          "submitting": false,
+          "unknown": false
+        },
+        "extraction": "paused",
+        "retained_learning": {
+          "pending": false,
+          "completed": false,
+          "invalidated": false
+        },
+        "memory_write_verification": "not_verified"
+      },
+      "chat_audit": {
+        "enabled": false,
+        "state": "not_integrated"
+      }
+    },
+    "authenticated_candidate_endpoint": true,
+    "nonexistent_job_status": 404,
+    "synthetic_candidate_created": false,
+    "model_requested": false,
+    "qq_sent": false
+  },
+  "life_autonomy_candidate_included": false,
+  "automatic_memory_enable_confirmation": "pending",
+  "real_model_or_qq_acceptance": false,
+  "database_migration": "none"
+}

@@ -1,0 +1,366 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:tianshu:role-relationship:v1",
+  "title": "Role relationship 1.0.0: shared business DTOs; authorization is external",
+  "$defs": {
+    "Pair": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "actor_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "person_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+        }
+      },
+      "required": [
+        "actor_id",
+        "person_id"
+      ]
+    },
+    "RelationshipCommand": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "request_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+            },
+            "pair": {
+              "$ref": "#/$defs/Pair"
+            },
+            "expected_version": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "operation": {
+              "const": "set_binding"
+            },
+            "relationship_type": {
+              "enum": [
+                "unspecified",
+                "friend",
+                "partner",
+                "family",
+                "custom"
+              ]
+            },
+            "display_label": {
+              "type": "string",
+              "maxLength": 40
+            }
+          },
+          "required": [
+            "request_id",
+            "pair",
+            "expected_version",
+            "operation",
+            "relationship_type"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "request_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+            },
+            "pair": {
+              "$ref": "#/$defs/Pair"
+            },
+            "expected_version": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "operation": {
+              "const": "set_freeze"
+            },
+            "frozen": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "request_id",
+            "pair",
+            "expected_version",
+            "operation",
+            "frozen"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "request_id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+            },
+            "pair": {
+              "$ref": "#/$defs/Pair"
+            },
+            "expected_version": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "operation": {
+              "const": "adjust_affinity"
+            },
+            "delta": {
+              "type": "integer",
+              "minimum": -100,
+              "maximum": 100
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          },
+          "required": [
+            "request_id",
+            "pair",
+            "expected_version",
+            "operation",
+            "delta",
+            "reason"
+          ]
+        }
+      ]
+    },
+    "AffinityEventCandidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "pair": {
+          "$ref": "#/$defs/Pair"
+        },
+        "kind": {
+          "enum": [
+            "conversation_completed",
+            "boundary_violation",
+            "repair_acknowledged"
+          ]
+        },
+        "turn_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "source_ref": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "source_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "occurred_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "event_id",
+        "pair",
+        "kind",
+        "turn_id",
+        "source_ref",
+        "source_revision",
+        "occurred_at"
+      ]
+    },
+    "PrivateProjection": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "view": {
+          "const": "private"
+        },
+        "pair": {
+          "$ref": "#/$defs/Pair"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "policy_version": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "relationship_type": {
+          "enum": [
+            "unspecified",
+            "friend",
+            "partner",
+            "family",
+            "custom"
+          ]
+        },
+        "display_label": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "score": {
+          "type": "integer",
+          "minimum": -1000000,
+          "maximum": 1000000
+        },
+        "stage": {
+          "enum": [
+            "deeply_distant",
+            "strongly_distant",
+            "distant",
+            "acquaintance",
+            "familiar",
+            "close",
+            "intimate",
+            "deeply_intimate"
+          ]
+        },
+        "frozen": {
+          "type": "boolean"
+        },
+        "frozen_since": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "decay_cursor": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "checked_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "view",
+        "pair",
+        "version",
+        "policy_version",
+        "relationship_type",
+        "display_label",
+        "score",
+        "stage",
+        "frozen",
+        "frozen_since",
+        "decay_cursor",
+        "checked_at"
+      ]
+    },
+    "PublicProjection": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "view": {
+          "const": "public"
+        },
+        "pair": {
+          "$ref": "#/$defs/Pair"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "policy_version": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "expression_hint": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "checked_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "view",
+        "pair",
+        "version",
+        "policy_version",
+        "expression_hint",
+        "checked_at"
+      ]
+    },
+    "SettlementResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+        },
+        "pair": {
+          "$ref": "#/$defs/Pair"
+        },
+        "outcome": {
+          "enum": [
+            "accepted",
+            "no_change",
+            "rejected_frozen",
+            "rejected_budget",
+            "rejected_source",
+            "rejected_authorization",
+            "conflict"
+          ]
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "applied_delta": {
+          "type": "integer",
+          "minimum": -2000000,
+          "maximum": 2000000
+        },
+        "settled_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "event_id",
+        "pair",
+        "outcome",
+        "version",
+        "applied_delta",
+        "settled_at"
+      ]
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/RelationshipCommand"
+    },
+    {
+      "$ref": "#/$defs/AffinityEventCandidate"
+    },
+    {
+      "$ref": "#/$defs/PrivateProjection"
+    },
+    {
+      "$ref": "#/$defs/PublicProjection"
+    },
+    {
+      "$ref": "#/$defs/SettlementResult"
+    }
+  ]
+}

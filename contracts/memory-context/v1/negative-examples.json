@@ -1,0 +1,873 @@
+[
+  {
+    "definition": "proposal_request",
+    "document": {
+      "command": {
+        "schema_version": 1,
+        "request_id": "request:1",
+        "origin": {
+          "assertion_ref": "origin:1"
+        },
+        "idempotency_key": "operation:1",
+        "deadline_at": "2030-01-01T00:00:00Z"
+      },
+      "scope": {
+        "actor_id": "actor:1",
+        "person_id": "person:1",
+        "audience": "self_private",
+        "conversation_id": "conversation:1"
+      },
+      "batch_ref": "batch:1",
+      "item_id": "item:1",
+      "kind": "upsert",
+      "target": {
+        "category": "evidence",
+        "field_key": "coffee",
+        "item_key": null,
+        "record_id": null,
+        "expected_version": null
+      },
+      "units": [],
+      "evidence_refs": [
+        {
+          "message_key": {
+            "channel": {
+              "namespace": "qq",
+              "binding_id": "fixture-bot",
+              "channel_conversation_id": "fixture-group",
+              "thread_id": null
+            },
+            "message_id": "fixture-m1",
+            "revision": 1
+          },
+          "receipt_id": "receipt-fixture",
+          "archive_state": "pending",
+          "locator": null
+        }
+      ],
+      "proof_ref": null
+    }
+  },
+  {
+    "definition": "proposal_request",
+    "document": {
+      "command": {
+        "schema_version": 1,
+        "request_id": "request:1",
+        "origin": {
+          "assertion_ref": "origin:1"
+        },
+        "idempotency_key": "operation:1",
+        "deadline_at": "2030-01-01T00:00:00Z"
+      },
+      "scope": {
+        "actor_id": "actor:1",
+        "person_id": "person:1",
+        "audience": "self_private",
+        "conversation_id": "conversation:1"
+      },
+      "batch_ref": "batch:1",
+      "item_id": "item:1",
+      "kind": "correct",
+      "target": {
+        "category": "evidence",
+        "field_key": "coffee",
+        "item_key": null,
+        "record_id": null,
+        "expected_version": null
+      },
+      "units": [
+        {
+          "statement": "白天偶尔喝咖啡",
+          "conditions": [
+            "仅白天"
+          ],
+          "negations": [
+            "晚上不喝"
+          ],
+          "valid_time": "current",
+          "uncertainty": "confirmed",
+          "reality": "real",
+          "sources": [
+            {
+              "message_key": {
+                "channel": {
+                  "namespace": "qq",
+                  "binding_id": "fixture-bot",
+                  "channel_conversation_id": "fixture-group",
+                  "thread_id": null
+                },
+                "message_id": "fixture-m1",
+                "revision": 1
+              },
+              "receipt_id": "receipt-fixture",
+              "archive_state": "pending",
+              "locator": null
+            }
+          ]
+        }
+      ],
+      "evidence_refs": [
+        {
+          "message_key": {
+            "channel": {
+              "namespace": "qq",
+              "binding_id": "fixture-bot",
+              "channel_conversation_id": "fixture-group",
+              "thread_id": null
+            },
+            "message_id": "fixture-m1",
+            "revision": 1
+          },
+          "receipt_id": "receipt-fixture",
+          "archive_state": "pending",
+          "locator": null
+        }
+      ],
+      "proof_ref": null
+    }
+  },
+  {
+    "definition": "proposal_request",
+    "document": {
+      "command": {
+        "schema_version": 1,
+        "request_id": "request:1",
+        "origin": {
+          "assertion_ref": "origin:1"
+        },
+        "idempotency_key": "operation:1",
+        "deadline_at": "2030-01-01T00:00:00Z"
+      },
+      "scope": {
+        "actor_id": "actor:1",
+        "person_id": "person:1",
+        "audience": "self_private",
+        "conversation_id": "conversation:1"
+      },
+      "batch_ref": "batch:1",
+      "item_id": "item:1",
+      "kind": "no_op",
+      "target": {
+        "category": "evidence",
+        "field_key": "coffee",
+        "item_key": null,
+        "record_id": null,
+        "expected_version": null
+      },
+      "units": [
+        {
+          "statement": "白天偶尔喝咖啡",
+          "conditions": [
+            "仅白天"
+          ],
+          "negations": [
+            "晚上不喝"
+          ],
+          "valid_time": "current",
+          "uncertainty": "confirmed",
+          "reality": "real",
+          "sources": [
+            {
+              "message_key": {
+                "channel": {
+                  "namespace": "qq",
+                  "binding_id": "fixture-bot",
+                  "channel_conversation_id": "fixture-group",
+                  "thread_id": null
+                },
+                "message_id": "fixture-m1",
+                "revision": 1
+              },
+              "receipt_id": "receipt-fixture",
+              "archive_state": "pending",
+              "locator": null
+            }
+          ]
+        }
+      ],
+      "evidence_refs": [
+        {
+          "message_key": {
+            "channel": {
+              "namespace": "qq",
+              "binding_id": "fixture-bot",
+              "channel_conversation_id": "fixture-group",
+              "thread_id": null
+            },
+            "message_id": "fixture-m1",
+            "revision": 1
+          },
+          "receipt_id": "receipt-fixture",
+          "archive_state": "pending",
+          "locator": null
+        }
+      ],
+      "proof_ref": null
+    }
+  },
+  {
+    "definition": "query_request",
+    "document": {
+      "query": {
+        "schema_version": 1,
+        "request_id": "request:1",
+        "origin": {
+          "assertion_ref": "origin:1"
+        }
+      },
+      "requested_scope": {
+        "actor_id": "actor:1",
+        "person_id": "person:1",
+        "audience": "self_private",
+        "conversation_id": "conversation:1"
+      },
+      "query_text": "喝咖啡",
+      "selection": [
+        "identity",
+        "style",
+        "relationship",
+        "current_items",
+        "evidence"
+      ],
+      "known_scope_version": null,
+      "budget": {
+        "tokens": 4096,
+        "bytes": 8192
+      },
+      "include_associated": false,
+      "time_range": null,
+      "limit": 0,
+      "known_association_version": null,
+      "known_scope_checks": null
+    }
+  },
+  {
+    "definition": "association_request",
+    "document": {
+      "command": {
+        "schema_version": 1,
+        "request_id": "request:1",
+        "origin": {
+          "assertion_ref": "origin:1"
+        },
+        "idempotency_key": "operation:1",
+        "deadline_at": "2030-01-01T00:00:00Z"
+      },
+      "action": "link",
+      "source_account": {
+        "namespace": "qq",
+        "immutable_account_id": "10001"
+      },
+      "target_account": {
+        "namespace": "web",
+        "immutable_account_id": "user:1"
+      },
+      "association_id": null,
+      "expected_version": 0,
+      "scopes": [
+        {
+          "actor_id": "actor:1",
+          "person_id": "person:1",
+          "audience": "self_private",
+          "conversation_id": "conversation:1"
+        },
+        {
+          "actor_id": "actor:1",
+          "person_id": "person:2",
+          "audience": "self_private",
+          "conversation_id": "conversation:2"
+        }
+      ],
+      "proof_ref": null
+    }
+  },
+  {
+    "definition": "query_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request:time-gap",
+      "effective_scope": {
+        "actor_id": "actor:1",
+        "person_id": "person:1",
+        "audience": "self_private",
+        "conversation_id": "conversation:1"
+      },
+      "scope_version": 1,
+      "verified_at": "2026-10-04T00:00:00Z",
+      "valid_until": "2026-10-04T00:00:30Z",
+      "selected_units": [],
+      "dependency_groups": [],
+      "budget_used": {
+        "tokens": 0,
+        "bytes": 0
+      },
+      "omissions": [
+        "source_time_unavailable"
+      ],
+      "version_domain": "memory-context/v1",
+      "association_version": 1,
+      "scope_checks": [
+        {
+          "scope": {
+            "actor_id": "actor:1",
+            "person_id": "person:1",
+            "audience": "self_private",
+            "conversation_id": "conversation:1"
+          },
+          "scope_version": 1,
+          "association_id": null,
+          "association_version": 1
+        }
+      ],
+      "coverage": {
+        "matched_groups": 0,
+        "returned_groups": 0,
+        "complete": false,
+        "time_basis": "source_sent_at",
+        "history_complete": false,
+        "missing_source_times": -1
+      }
+    }
+  },
+  {
+    "case": "claimed_authorization",
+    "definition": "issue_request",
+    "document": {
+      "schema_version": 1,
+      "request_id": "issue:correct",
+      "origin": {
+        "assertion_ref": "origin:1"
+      },
+      "source": {
+        "message_key": {
+          "channel": {
+            "namespace": "qq",
+            "binding_id": "fixture-bot",
+            "channel_conversation_id": "fixture-group",
+            "thread_id": null
+          },
+          "message_id": "fixture-m1",
+          "revision": 1
+        },
+        "author": {
+          "namespace": "qq",
+          "immutable_account_id": "fixture-author"
+        },
+        "sent_at": "2026-10-04T12:00:00Z",
+        "kind": "message",
+        "parts": [
+          {
+            "kind": "text",
+            "text": "请更正：我只在工作日白天偶尔喝咖啡，晚上不喝。"
+          }
+        ],
+        "reply_refs": [],
+        "mentioned_accounts": []
+      },
+      "proposal": {
+        "command": {
+          "schema_version": 1,
+          "request_id": "request:1",
+          "origin": {
+            "assertion_ref": "origin:1"
+          },
+          "idempotency_key": "operation:1",
+          "deadline_at": "2030-01-01T00:00:00Z"
+        },
+        "scope": {
+          "actor_id": "actor:1",
+          "person_id": "person:1",
+          "audience": "self_private",
+          "conversation_id": "conversation:1"
+        },
+        "batch_ref": "batch:1",
+        "item_id": "item:1",
+        "kind": "correct",
+        "target": {
+          "category": "evidence",
+          "field_key": "coffee",
+          "item_key": null,
+          "record_id": "record:1",
+          "expected_version": 1
+        },
+        "units": [
+          {
+            "statement": "我偶尔喝咖啡",
+            "conditions": [
+              "工作日白天"
+            ],
+            "negations": [
+              "晚上不喝"
+            ],
+            "valid_time": "current",
+            "uncertainty": "confirmed",
+            "reality": "real",
+            "sources": [
+              {
+                "message_key": {
+                  "channel": {
+                    "namespace": "qq",
+                    "binding_id": "fixture-bot",
+                    "channel_conversation_id": "fixture-group",
+                    "thread_id": null
+                  },
+                  "message_id": "fixture-m1",
+                  "revision": 1
+                },
+                "receipt_id": "receipt-fixture",
+                "archive_state": "pending",
+                "locator": null
+              }
+            ]
+          }
+        ],
+        "evidence_refs": [
+          {
+            "message_key": {
+              "channel": {
+                "namespace": "qq",
+                "binding_id": "fixture-bot",
+                "channel_conversation_id": "fixture-group",
+                "thread_id": null
+              },
+              "message_id": "fixture-m1",
+              "revision": 1
+            },
+            "receipt_id": "receipt-fixture",
+            "archive_state": "pending",
+            "locator": null
+          }
+        ],
+        "proof_ref": null
+      },
+      "authorized": true
+    }
+  },
+  {
+    "case": "no_real_source",
+    "definition": "issue_request",
+    "document": {
+      "schema_version": 1,
+      "request_id": "issue:correct",
+      "origin": {
+        "assertion_ref": "origin:1"
+      },
+      "proposal": {
+        "command": {
+          "schema_version": 1,
+          "request_id": "request:1",
+          "origin": {
+            "assertion_ref": "origin:1"
+          },
+          "idempotency_key": "operation:1",
+          "deadline_at": "2030-01-01T00:00:00Z"
+        },
+        "scope": {
+          "actor_id": "actor:1",
+          "person_id": "person:1",
+          "audience": "self_private",
+          "conversation_id": "conversation:1"
+        },
+        "batch_ref": "batch:1",
+        "item_id": "item:1",
+        "kind": "correct",
+        "target": {
+          "category": "evidence",
+          "field_key": "coffee",
+          "item_key": null,
+          "record_id": "record:1",
+          "expected_version": 1
+        },
+        "units": [
+          {
+            "statement": "我偶尔喝咖啡",
+            "conditions": [
+              "工作日白天"
+            ],
+            "negations": [
+              "晚上不喝"
+            ],
+            "valid_time": "current",
+            "uncertainty": "confirmed",
+            "reality": "real",
+            "sources": [
+              {
+                "message_key": {
+                  "channel": {
+                    "namespace": "qq",
+                    "binding_id": "fixture-bot",
+                    "channel_conversation_id": "fixture-group",
+                    "thread_id": null
+                  },
+                  "message_id": "fixture-m1",
+                  "revision": 1
+                },
+                "receipt_id": "receipt-fixture",
+                "archive_state": "pending",
+                "locator": null
+              }
+            ]
+          }
+        ],
+        "evidence_refs": [
+          {
+            "message_key": {
+              "channel": {
+                "namespace": "qq",
+                "binding_id": "fixture-bot",
+                "channel_conversation_id": "fixture-group",
+                "thread_id": null
+              },
+              "message_id": "fixture-m1",
+              "revision": 1
+            },
+            "receipt_id": "receipt-fixture",
+            "archive_state": "pending",
+            "locator": null
+          }
+        ],
+        "proof_ref": null
+      }
+    }
+  },
+  {
+    "case": "arbitrary_upsert",
+    "definition": "issue_request",
+    "document": {
+      "schema_version": 1,
+      "request_id": "issue:correct",
+      "origin": {
+        "assertion_ref": "origin:1"
+      },
+      "source": {
+        "message_key": {
+          "channel": {
+            "namespace": "qq",
+            "binding_id": "fixture-bot",
+            "channel_conversation_id": "fixture-group",
+            "thread_id": null
+          },
+          "message_id": "fixture-m1",
+          "revision": 1
+        },
+        "author": {
+          "namespace": "qq",
+          "immutable_account_id": "fixture-author"
+        },
+        "sent_at": "2026-10-04T12:00:00Z",
+        "kind": "message",
+        "parts": [
+          {
+            "kind": "text",
+            "text": "请更正：我只在工作日白天偶尔喝咖啡，晚上不喝。"
+          }
+        ],
+        "reply_refs": [],
+        "mentioned_accounts": []
+      },
+      "proposal": {
+        "command": {
+          "schema_version": 1,
+          "request_id": "request:1",
+          "origin": {
+            "assertion_ref": "origin:1"
+          },
+          "idempotency_key": "operation:1",
+          "deadline_at": "2030-01-01T00:00:00Z"
+        },
+        "scope": {
+          "actor_id": "actor:1",
+          "person_id": "person:1",
+          "audience": "self_private",
+          "conversation_id": "conversation:1"
+        },
+        "batch_ref": "batch:1",
+        "item_id": "item:1",
+        "kind": "upsert",
+        "target": {
+          "category": "evidence",
+          "field_key": "coffee",
+          "item_key": null,
+          "record_id": "record:1",
+          "expected_version": 1
+        },
+        "units": [
+          {
+            "statement": "我偶尔喝咖啡",
+            "conditions": [
+              "工作日白天"
+            ],
+            "negations": [
+              "晚上不喝"
+            ],
+            "valid_time": "current",
+            "uncertainty": "confirmed",
+            "reality": "real",
+            "sources": [
+              {
+                "message_key": {
+                  "channel": {
+                    "namespace": "qq",
+                    "binding_id": "fixture-bot",
+                    "channel_conversation_id": "fixture-group",
+                    "thread_id": null
+                  },
+                  "message_id": "fixture-m1",
+                  "revision": 1
+                },
+                "receipt_id": "receipt-fixture",
+                "archive_state": "pending",
+                "locator": null
+              }
+            ]
+          }
+        ],
+        "evidence_refs": [
+          {
+            "message_key": {
+              "channel": {
+                "namespace": "qq",
+                "binding_id": "fixture-bot",
+                "channel_conversation_id": "fixture-group",
+                "thread_id": null
+              },
+              "message_id": "fixture-m1",
+              "revision": 1
+            },
+            "receipt_id": "receipt-fixture",
+            "archive_state": "pending",
+            "locator": null
+          }
+        ],
+        "proof_ref": null
+      }
+    }
+  },
+  {
+    "case": "already_signed_draft",
+    "definition": "issue_request",
+    "document": {
+      "schema_version": 1,
+      "request_id": "issue:correct",
+      "origin": {
+        "assertion_ref": "origin:1"
+      },
+      "source": {
+        "message_key": {
+          "channel": {
+            "namespace": "qq",
+            "binding_id": "fixture-bot",
+            "channel_conversation_id": "fixture-group",
+            "thread_id": null
+          },
+          "message_id": "fixture-m1",
+          "revision": 1
+        },
+        "author": {
+          "namespace": "qq",
+          "immutable_account_id": "fixture-author"
+        },
+        "sent_at": "2026-10-04T12:00:00Z",
+        "kind": "message",
+        "parts": [
+          {
+            "kind": "text",
+            "text": "请更正：我只在工作日白天偶尔喝咖啡，晚上不喝。"
+          }
+        ],
+        "reply_refs": [],
+        "mentioned_accounts": []
+      },
+      "proposal": {
+        "command": {
+          "schema_version": 1,
+          "request_id": "request:1",
+          "origin": {
+            "assertion_ref": "origin:1"
+          },
+          "idempotency_key": "operation:1",
+          "deadline_at": "2030-01-01T00:00:00Z"
+        },
+        "scope": {
+          "actor_id": "actor:1",
+          "person_id": "person:1",
+          "audience": "self_private",
+          "conversation_id": "conversation:1"
+        },
+        "batch_ref": "batch:1",
+        "item_id": "item:1",
+        "kind": "correct",
+        "target": {
+          "category": "evidence",
+          "field_key": "coffee",
+          "item_key": null,
+          "record_id": "record:1",
+          "expected_version": 1
+        },
+        "units": [
+          {
+            "statement": "我偶尔喝咖啡",
+            "conditions": [
+              "工作日白天"
+            ],
+            "negations": [
+              "晚上不喝"
+            ],
+            "valid_time": "current",
+            "uncertainty": "confirmed",
+            "reality": "real",
+            "sources": [
+              {
+                "message_key": {
+                  "channel": {
+                    "namespace": "qq",
+                    "binding_id": "fixture-bot",
+                    "channel_conversation_id": "fixture-group",
+                    "thread_id": null
+                  },
+                  "message_id": "fixture-m1",
+                  "revision": 1
+                },
+                "receipt_id": "receipt-fixture",
+                "archive_state": "pending",
+                "locator": null
+              }
+            ]
+          }
+        ],
+        "evidence_refs": [
+          {
+            "message_key": {
+              "channel": {
+                "namespace": "qq",
+                "binding_id": "fixture-bot",
+                "channel_conversation_id": "fixture-group",
+                "thread_id": null
+              },
+              "message_id": "fixture-m1",
+              "revision": 1
+            },
+            "receipt_id": "receipt-fixture",
+            "archive_state": "pending",
+            "locator": null
+          }
+        ],
+        "proof_ref": "model:claimed"
+      }
+    }
+  },
+  {
+    "case": "missing_target",
+    "definition": "issue_request",
+    "document": {
+      "schema_version": 1,
+      "request_id": "issue:correct",
+      "origin": {
+        "assertion_ref": "origin:1"
+      },
+      "source": {
+        "message_key": {
+          "channel": {
+            "namespace": "qq",
+            "binding_id": "fixture-bot",
+            "channel_conversation_id": "fixture-group",
+            "thread_id": null
+          },
+          "message_id": "fixture-m1",
+          "revision": 1
+        },
+        "author": {
+          "namespace": "qq",
+          "immutable_account_id": "fixture-author"
+        },
+        "sent_at": "2026-10-04T12:00:00Z",
+        "kind": "message",
+        "parts": [
+          {
+            "kind": "text",
+            "text": "请更正：我只在工作日白天偶尔喝咖啡，晚上不喝。"
+          }
+        ],
+        "reply_refs": [],
+        "mentioned_accounts": []
+      },
+      "proposal": {
+        "command": {
+          "schema_version": 1,
+          "request_id": "request:1",
+          "origin": {
+            "assertion_ref": "origin:1"
+          },
+          "idempotency_key": "operation:1",
+          "deadline_at": "2030-01-01T00:00:00Z"
+        },
+        "scope": {
+          "actor_id": "actor:1",
+          "person_id": "person:1",
+          "audience": "self_private",
+          "conversation_id": "conversation:1"
+        },
+        "batch_ref": "batch:1",
+        "item_id": "item:1",
+        "kind": "correct",
+        "target": {
+          "category": "evidence",
+          "field_key": "coffee",
+          "item_key": null,
+          "record_id": null,
+          "expected_version": 1
+        },
+        "units": [
+          {
+            "statement": "我偶尔喝咖啡",
+            "conditions": [
+              "工作日白天"
+            ],
+            "negations": [
+              "晚上不喝"
+            ],
+            "valid_time": "current",
+            "uncertainty": "confirmed",
+            "reality": "real",
+            "sources": [
+              {
+                "message_key": {
+                  "channel": {
+                    "namespace": "qq",
+                    "binding_id": "fixture-bot",
+                    "channel_conversation_id": "fixture-group",
+                    "thread_id": null
+                  },
+                  "message_id": "fixture-m1",
+                  "revision": 1
+                },
+                "receipt_id": "receipt-fixture",
+                "archive_state": "pending",
+                "locator": null
+              }
+            ]
+          }
+        ],
+        "evidence_refs": [
+          {
+            "message_key": {
+              "channel": {
+                "namespace": "qq",
+                "binding_id": "fixture-bot",
+                "channel_conversation_id": "fixture-group",
+                "thread_id": null
+              },
+              "message_id": "fixture-m1",
+              "revision": 1
+            },
+            "receipt_id": "receipt-fixture",
+            "archive_state": "pending",
+            "locator": null
+          }
+        ],
+        "proof_ref": null
+      }
+    }
+  }
+]

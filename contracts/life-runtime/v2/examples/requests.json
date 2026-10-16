@@ -1,0 +1,53 @@
+{
+  "valid": [
+    {
+      "schema_version": 2,
+      "request_id": "op:life:1",
+      "actor_id": "actor:sample",
+      "operation": "activity.save",
+      "expected_version": 0,
+      "value": {
+        "id": "activity:reading",
+        "title": "继续读原文章",
+        "state": "running",
+        "checkpoint": {
+          "step": 0,
+          "position": 0,
+          "unit": "characters",
+          "note": "待读原文"
+        },
+        "next_due_at": 1791104400,
+        "resume_condition": null,
+        "sources": [],
+        "result_refs": [],
+        "scope": null
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "schema_version": 2,
+      "request_id": "op:life:1",
+      "actor_id": "actor:sample",
+      "operation": "activity.save",
+      "expected_version": 0,
+      "value": {
+        "id": "activity:reading",
+        "title": "继续读原文章",
+        "state": "running",
+        "checkpoint": {
+          "step": 0,
+          "position": 0,
+          "unit": "characters",
+          "note": "待读原文"
+        },
+        "next_due_at": 1791104400,
+        "resume_condition": null,
+        "sources": [],
+        "result_refs": [],
+        "scope": null,
+        "grant_permission": true
+      }
+    }
+  ]
+}

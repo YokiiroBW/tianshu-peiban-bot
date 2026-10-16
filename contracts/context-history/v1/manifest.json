@@ -1,0 +1,15 @@
+{
+  "package": "context-history/v1",
+  "version": "1.0.0",
+  "status": "published_local_extension",
+  "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
+  "dependencies": {
+    "memory-context/v1": "d44a23ac674d5fd3f8e9325c80884dc1426305055b873be1da239f126056e570"
+  },
+  "sha256": {
+    "README.md": "a90203f24b1f8f5425771b4eff5ee6423f0f6998ec42f6583855fe8f60397114",
+    "schema.json": "a905275297b9eaf6388fca5dd8191fcbe351bae0257e9a75222b43bb4047a113",
+    "examples.json": "b5d0203862d38a879385b6dade83f569e621e3a6fc305494381a45de83c8be56",
+    "negative-examples.json": "3ae20c0ec08c0c06a82de3bcead9ef615dd57ad1e8ba9ad3fbb600456d58da39"
+  }
+}

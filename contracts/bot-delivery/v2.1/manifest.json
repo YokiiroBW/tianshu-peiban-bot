@@ -1,0 +1,24 @@
+{
+  "package": "bot-delivery/v2.1",
+  "version": "2.1.0",
+  "status": "published_implementation_baseline",
+  "runtime_joint": "passed_platform_companion_http",
+  "real_external": "not_run",
+  "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
+  "dependencies": {
+    "text-dialogue/v1": "90697e6ecbb587d3db8c8e4682f7f8f43a8b1a98f70d8835c8282b03828d2d3a",
+    "life-runtime/v2": "85aff438f91cb96876e259204b5a198e2fedaead56db64a2265aa520a59ea7e3"
+  },
+  "sha256": {
+    "examples/media.json": "99a508b38083402b774e29754ee9c98f9d6472744cac1d936f66a8ac32d2629f",
+    "examples/proactive-context.json": "093d77413e896da9b890a09f67469a65bca30f5048aa101206d808860491b312",
+    "examples/requests.json": "3ffc117b25eec5be46d0b68c88c1402b23b9daf6d123ae017aee6c3a5c8b9fc9",
+    "README.md": "09cebadbc0c6e6d6eecf6e343f81d4c6b8d7a9e13dfeea21110406d0d640bbfb",
+    "schemas/delivery.json": "6babb6db0a7f03485993963c5f7e5d8e83920607ecf5f3e9d3e628df9b78f2c2"
+  },
+  "schema_examples_checked": {
+    "positive": 5,
+    "negative": 4
+  },
+  "semantic_cases": "passed_expiry_revocation_scope_connection_idempotency"
+}
