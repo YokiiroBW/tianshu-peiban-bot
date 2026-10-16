@@ -115,3 +115,48 @@ another verified cold snapshot, restores the prior image/settings/binds/guard
 generation, and preserves later database ledgers and music work. It never restores
 an old database automatically. Dedicated credentials remain private and unmounted.
 Read back guard, Docker/Dockge and health after either update or rollback.
+
+## Narrow final music configuration comparison
+
+The reused `media_state()` compares only `account` and `media_target`. The music
+release's older final-readback helper adds `music_account`, `music_settings`,
+`music_navidrome` and `subscription`, but it still omits the actual music playlist,
+Navidrome link and weekly maintenance documents. Do not run its whole key/credential
+comparison for this narrow check.
+
+Copy this release's standalone `music_readback.py` into the private remote stage
+and invoke it with the existing tooling Python. Resolve both media database paths
+through the known resident bind using the existing `host_path` helper; the
+`--before` database is the already verified cold-snapshot backup, never an older
+music-release snapshot. The coordinator owns this read-only remote invocation:
+
+```text
+ABS_NAS_TOOL_PYTHON -B ABS_STAGE/music_readback.py --before ABS_THIS_RELEASE_COLD_BACKUP_MEDIA_SQLITE --after ABS_CURRENT_MEDIA_SQLITE --expect-playlists 43 --expect-links 43
+```
+
+The one JSON result can be included in the existing final readback. It reports
+counts, per-kind digests, interval/enabled summaries and changed field names;
+it outputs no playlist IDs, account/connection values, keys or credentials.
+Queries use SQLite `mode=ro`, one read transaction and explicit JSON scalar
+extraction, returning no complete document body. It selects only:
+
+| Kind | Stable fields |
+| --- | --- |
+| `music_account` | account_id, provider |
+| `music_playlist` | playlist_id, provider, account_id, source_id, state, interval_seconds, auto_download, quality.level, quality.allow_fallback |
+| `music_navidrome_playlist` | link_id, playlist_id, connection_id, remote_id, auto_sync, public |
+| `music_maintenance` | enabled, interval_seconds, playlist_interval_seconds |
+| `music_settings` | directory, layout, filename |
+| `music_navidrome` | connection_id, enabled, music_folder_id, music_directory, local_directory |
+
+Document IDs are compared in memory and only digests/counts are returned.
+Missing coverage, missing remote IDs, unexpected counts or stable-field changes
+exit 2. Members/order, job/lyric progress, transient link status, revisions and
+next-scan/sync timestamps can advance without becoming configuration differences.
+The current source has **no separate automatic-lyrics database setting**:
+`Media.start()` calls `Music.start_background()`, which registers `music_lyrics`
+unconditionally when Media is configured; the lyric weekly check is code constant
+604800 seconds. Preserve the already verified installed music source and the
+original `settings.media` plus music library directory. This SQL result does not
+claim that a background task ran; reuse the prior music runtime acceptance for
+that behavior and retain this release's installed-source/readiness checks.
