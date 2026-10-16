@@ -23,7 +23,8 @@ def load_original(readonly=True):
     def resume_save(path, value):
         path = Path(path)
         require(path.parent == parent, "resume_output_outside_stage")
-        target = path if path.name.startswith("resume-") else parent / ("resume-" + path.name)
+        prefix = EXPECTED["receipt_prefix"] + "-"
+        target = path if path.name.startswith(prefix) else parent / (prefix + path.name)
         original_save(target, value)
 
     def no_configuration_write(*args, **kwargs):
@@ -36,7 +37,7 @@ def load_original(readonly=True):
 
 def readback():
     global GATEWAY_REISSUED
-    require(not (S / "result.json").exists() and not (S / "resume-result.json").exists(), "release_result_already_exists")
+    require(not (S / "result.json").exists() and not (S / (EXPECTED["receipt_prefix"] + "-result.json")).exists(), "release_result_already_exists")
     require((S / "manual-resume-start.json").is_file(), "manual_resume_marker_missing")
     failure_raw = (S / "failure.json").read_bytes()
     failure = json.loads(failure_raw)
@@ -133,7 +134,7 @@ def main():
     try:
         print(json.dumps(readback(), sort_keys=True))
     except Exception as error:
-        if not (S / "resume-readback-failure.json").exists():
+        if not (S / (EXPECTED["receipt_prefix"] + "-readback-failure.json")).exists():
             save(S / "readback-failure.json", {"status": "requires_inspection", "code": str(error) if re.fullmatch("[a-z0-9_]+", str(error)) else "readback_failed",
                                               "starts_owners": False, "readback_configuration_rewritten": False, "database_restore": False})
         raise

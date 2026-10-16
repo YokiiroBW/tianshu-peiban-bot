@@ -114,6 +114,10 @@ The production changes are confined to:
   file binds to `/run/tianshu-infrastructure/`. No whole SSH directory is mounted.
 - Adding a 128 MiB local tmpfs, UID/GID 10001, mode 0700, at the sampling path.
   Existing memory limits, music mounts and every other service remain unchanged.
+- Preparing the empty host mountpoint beneath the existing Platform data bind
+  as 10001:10001/0700 after verified cold backup, before installing private inputs.
+  Existing nonempty paths or symlinks are refused; no recursive chmod or data
+  deletion is used. This preserves 0700 across the observed runc restart behavior.
 - Promoting the accepted complete guard files and a fresh capacity/state/unit
   generation, preserving WatchdogSec=30s, immutable image IDs and exact registered
   external-media source/target/read-only matching.
@@ -170,6 +174,14 @@ are not replaced. The separate rollback wrapper is for an explicit future
 rollback only: it retains the original controlled rollback/cleanup, injects the
 same canonical comparison, and reads the latest same-scope gateway renewal
 record. Staging it does not perform a rollback.
+The generator requires `--receipt-prefix` (for example `resume2`) and the exact
+`--sampling-underlay`. New attempts use new filenames and prefixes, retaining
+earlier partial readbacks. Its separate `repair-sampling-mountpoint-PREFIX.py`
+is the explicitly reviewed metadata repair for this deployment: it verifies the
+fixed running Platform/image, empty host mountpoint and bounded live tmpfs, then
+changes only the host directory owner/mode and live tmpfs root mode. It changes
+no file content, image, configuration, memory limit or service running state.
+The ordinary runtime acceptance continues to require 0700.
 
 ## Narrow final music configuration comparison
 

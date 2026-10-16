@@ -5,6 +5,8 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 from deploy.infrastructure.resident_readback import prepare
 
@@ -52,7 +54,8 @@ except Exception:
         self.receipt = prepare(stage=str(self.stage), worker_sha256=hashlib.sha256(raw).hexdigest(),
                                image_id="sha256:" + "c" * 64, platform_id="p" * 64, gateway_id="g" * 64,
                                state_dir=str(self.stage / "capacity-state-test"), guard_commit="d" * 40,
-                               memory_limit=1073741824, resume_origin_stage=str(self.origin), output=self.output)
+                               memory_limit=1073741824, resume_origin_stage=str(self.origin), receipt_prefix="resume",
+                               sampling_underlay=str(self.stage / "synthetic-underlay"), output=self.output)
 
     def load(self, path):
         scope = {"__name__": "synthetic_adapter"}
@@ -78,7 +81,7 @@ except Exception:
         self.assertFalse((self.stage / "resume-result.json").exists())
 
     def test_new_rollback_wrapper_injects_canonical_subset_comparison_and_records_addition(self):
-        path = self.base / "rollback-canonical-metadata.py"
+        path = Path(self.receipt["rollback_output"])
         scope = self.load(path)
         scope["main"]()
         report = json.loads((self.stage / "rollback-test/non-targets-after.json").read_bytes())
@@ -86,6 +89,41 @@ except Exception:
         self.assertEqual([row["id"] for row in report["added"]], ["b" * 64])
         self.assertEqual((self.stage / "failure.json").read_bytes(), self.failure)
         self.assertFalse((self.stage / "result.json").exists())
+
+    def test_new_receipt_prefix_preserves_all_existing_resume_evidence(self):
+        prior = self.stage / "resume-non-targets-after.json"
+        prior.write_bytes(b"original partial readback evidence\n")
+        receipt = prepare(stage=str(self.stage), worker_sha256=hashlib.sha256(self.worker.read_bytes()).hexdigest(),
+                          image_id="sha256:" + "c" * 64, platform_id="p" * 64, gateway_id="g" * 64,
+                          state_dir=str(self.stage / "capacity-state-test"), guard_commit="d" * 40,
+                          memory_limit=1073741824, resume_origin_stage=str(self.origin), receipt_prefix="resume2",
+                          sampling_underlay=str(self.stage / "synthetic-underlay"), output=self.base / "resume-readback2.py")
+        scope = self.load(Path(receipt["output"]))
+        scope["load_original"]()
+        scope["save"](self.stage / "non-targets-after.json", {"preserved": True})
+        self.assertEqual(prior.read_bytes(), b"original partial readback evidence\n")
+        self.assertEqual(json.loads((self.stage / "resume2-non-targets-after.json").read_bytes()), {"preserved": True})
+        compile(Path(receipt["sampling_repair_output"]).read_bytes(), "sampling-repair", "exec")
+
+    def test_sampling_repair_rejects_changed_platform_before_any_metadata_or_exec(self):
+        scope = self.load(Path(self.receipt["sampling_repair_output"]))
+        original_loader = scope["load_original"]
+        owners = {"platform", "gateway", "memory", "knowledge", "companion", "obs-vector", "obs-loki", "obs-grafana", "obs-prometheus", "obs-guard"}
+        rows = [{"service": name, "id": "unexpected", "image_id": "sha256:" + "c" * 64, "running": True} for name in owners]
+        prepare_mount, command = Mock(), Mock()
+
+        def loader(readonly=True):
+            value = original_loader(readonly=readonly)
+            scope.update(snapshot=SimpleNamespace(OWNERS=owners, inspect_owners=Mock(return_value=rows)), D="synthetic-docker",
+                         prepare_sampling_mountpoint=prepare_mount, command=command)
+            return value
+
+        scope["load_original"] = loader
+        with patch("os.geteuid", return_value=0, create=True):
+            with self.assertRaisesRegex(RuntimeError, "sampling_repair_platform_changed"):
+                scope["main"]()
+        prepare_mount.assert_not_called()
+        command.assert_not_called()
 
 
 if __name__ == "__main__":

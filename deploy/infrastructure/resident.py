@@ -176,12 +176,14 @@ def prepare(*, baseline, metadata, build_result, mechanism_directory, recovery,
     helpers = helpers_source(sources["resident_helpers.py.txt"])
     worker = (HERE / "resident_worker.py").read_text(encoding="utf-8")
     inventory_source = (HERE / "resident_metadata.py").read_text(encoding="utf-8")
+    mountpoint_source = (HERE / "sampling_mountpoint.py").read_text(encoding="utf-8")
     # The runtime gets the exact same tested patch rules; no second merge algorithm.
     merge_source = "\n\n".join(ast.get_source_segment(Path(__file__).read_text(encoding="utf-8"), node)
                                  for node in ast.parse(Path(__file__).read_text(encoding="utf-8")).body
                                  if isinstance(node, ast.FunctionDef) and node.name in {"patch_templates", "merge_settings"})
     script = ("RELEASE=" + repr(release) + "\n" + helpers + "\n" + functions
-              + "\nSAMPLE_STATE=" + repr(SAMPLE_STATE) + "\n" + merge_source + "\n" + inventory_source + "\n" + worker)
+              + "\nSAMPLE_STATE=" + repr(SAMPLE_STATE) + "\n" + merge_source + "\n" + inventory_source
+              + "\n" + mountpoint_source + "\n" + worker)
     compile(script, "resident-update.py", "exec")
     inputs = {"release": release, "script_sha256": digest(script.encode())}
     rollback = rollback_source(stage, inputs["script_sha256"])
