@@ -11,6 +11,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from helpers import OUTPUT, ROOT, RUNTIME, FixtureTransport, LoopbackSSH, host_sections, identity, private_file_permissions
 from jsonschema import Draft202012Validator, FormatChecker
@@ -20,6 +21,96 @@ from ops.infrastructure.transport import Deadline, run_bounded
 
 
 class ProcessBoundsTest(unittest.TestCase):
+    @staticmethod
+    def windows_running(pid):
+        from ctypes import wintypes
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel.OpenProcess.restype = wintypes.HANDLE
+        kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        kernel.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+        kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+        handle = kernel.OpenProcess(0x1000, False, pid)
+        if not handle:
+            return False
+        try:
+            code = wintypes.DWORD()
+            if not kernel.GetExitCodeProcess(handle, ctypes.byref(code)):
+                raise ctypes.WinError(ctypes.get_last_error())
+            return code.value == 259
+        finally:
+            kernel.CloseHandle(handle)
+
+    @unittest.skipUnless(os.name == "nt", "Windows suspended-launch lifecycle")
+    def test_venv_wrapper_parent_exits_during_assignment_gap(self):
+        import venv
+        from ops.infrastructure import transport
+
+        original = transport._WindowsJob
+
+        class DelayedJob(original):
+            def __init__(self, process):
+                # Deterministic scheduling gap: before the fix, the venv
+                # launcher can create its real Python child before assignment.
+                time.sleep(.02)
+                super().__init__(process)
+
+        with tempfile.TemporaryDirectory(dir=OUTPUT) as directory:
+            directory = Path(directory)
+            venv.EnvBuilder(with_pip=False).create(directory / "synthetic-venv")
+            python = directory / "synthetic-venv/Scripts/python.exe"
+            program = "import os,subprocess,sys; from pathlib import Path; sys.stdin.buffer.read(1); redirect=sys.argv[2]=='redirect'; p=subprocess.Popen([sys.executable,'-c','import time; time.sleep(3)'],stdout=subprocess.DEVNULL if redirect else None,stderr=subprocess.DEVNULL if redirect else None); Path(sys.argv[1]).write_text(str(p.pid)); os._exit(0)"
+            for mode in ("redirect", "inherit"):
+                with self.subTest(mode=mode):
+                    pid_file = directory / f"{mode}.pid"
+                    try:
+                        started = time.monotonic()
+                        with patch.object(transport, "_WindowsJob", DelayedJob):
+                            result = run_bounded([str(python), "-c", program, str(pid_file), mode], b"x", Deadline(.7))
+                        self.assertLess(time.monotonic() - started, 2)
+                        self.assertEqual(result.exit_code, 0)
+                        self.assertFalse(result.timed_out)
+                        self.assertTrue(pid_file.exists())
+                        self.assertFalse(self.windows_running(int(pid_file.read_text())))
+                    finally:
+                        if pid_file.exists() and self.windows_running(int(pid_file.read_text())):
+                            subprocess.run(["taskkill", "/PID", pid_file.read_text(), "/T", "/F"],
+                                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                           timeout=2, creationflags=subprocess.CREATE_NO_WINDOW)
+
+    @unittest.skipUnless(os.name == "nt", "Windows suspended-launch lifecycle")
+    def test_job_assignment_or_resume_failure_reaps_unstarted_root(self):
+        from ops.infrastructure import transport
+
+        original = transport._WindowsJob
+
+        class ResumeFailure(original):
+            def resume(self, pid):
+                raise OSError("synthetic resume failure")
+
+        def assignment_failure(process):
+            raise OSError("synthetic job setup failure")
+
+        with tempfile.TemporaryDirectory(dir=OUTPUT) as directory:
+            for name, factory in (("assignment", assignment_failure), ("resume", ResumeFailure)):
+                with self.subTest(stage=name):
+                    marker = Path(directory) / (name + ".started")
+                    program = "from pathlib import Path; import sys,time; Path(sys.argv[1]).write_text('executed'); time.sleep(3)"
+                    started_processes = []
+                    real_popen = subprocess.Popen
+
+                    def spawn(*args, **kwargs):
+                        process = real_popen(*args, **kwargs)
+                        started_processes.append(process)
+                        return process
+
+                    with patch.object(transport, "_WindowsJob", factory), patch.object(transport.subprocess, "Popen", side_effect=spawn):
+                        result = run_bounded([sys.executable, "-c", program, str(marker)], b"", Deadline(1))
+                    self.assertEqual(result.reason, "process_setup_failed")
+                    self.assertEqual(len(started_processes), 1)
+                    self.assertIsNotNone(started_processes[0].returncode)
+                    self.assertFalse(self.windows_running(started_processes[0].pid))
+                    self.assertFalse(marker.exists())
+
     def test_stdout_stderr_flood_is_bounded_without_deadlock(self):
         program = "import os;\nwhile True:\n os.write(1,b'x'*8192); os.write(2,b'y'*8192)"
         started = time.monotonic()
