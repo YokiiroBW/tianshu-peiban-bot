@@ -24,8 +24,7 @@ def current_settings_hashes():
 
 
 def metadata_inventory(guard_module, owner_ids):
-    return sorted((asdict(row) for row in guard_module.Docker(D).snapshot() if row.id not in owner_ids),
-                  key=lambda row: row["id"])
+    return normalize_inventory([asdict(row) for row in guard_module.Docker(D).snapshot() if row.id not in owner_ids])
 
 
 def load_candidate_guard():
