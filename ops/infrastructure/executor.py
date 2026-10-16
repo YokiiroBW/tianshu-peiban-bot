@@ -45,13 +45,26 @@ def execute(request, config, *, transport_factory=SSHTransport):
                 else:
                     data, reasons = docker.logs(request.params)
                     returned = total = 1
-            deadline.check()
+            # Stats can complete useful counters before another bounded worker
+            # exhausts the shared budget. Preserve those rows and every
+            # requested identity instead of replacing the whole result.
+            preserve_stats = request.operation == "docker.stats"
+            if not deadline.remaining and preserve_stats:
+                reasons.append("deadline_exceeded")
+            elif not preserve_stats:
+                deadline.check()
             if store:
-                try:
-                    store.save()
-                except Failure as failure:
-                    reasons.append(failure.code)
-            deadline.check()
+                if deadline.remaining:
+                    try:
+                        store.save()
+                    except Failure as failure:
+                        reasons.append(failure.code)
+                elif preserve_stats:
+                    reasons.append("sample_state_not_saved")
+            if preserve_stats and not deadline.remaining:
+                reasons.append("deadline_exceeded")
+            elif not preserve_stats:
+                deadline.check()
             return envelope(request, status="partial" if reasons else "ok", reasons=reasons, data=data,
                             capabilities=capabilities, returned=returned, total=total, next_cursor=cursor)
     except Failure as failure:

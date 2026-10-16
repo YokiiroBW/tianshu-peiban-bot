@@ -2,13 +2,17 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import re
+import subprocess
+import sys
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from helpers import COMPOSE, OUTPUT, ROOT, FixtureTransport, host_sections, identity, inspect_value, sections
+from helpers import COMPOSE, OUTPUT, ROOT, FixtureTransport, engine_stats, host_sections, http_response, identity, inspect_value, sections
 from jsonschema import Draft202012Validator, FormatChecker
 
 from ops.infrastructure.compose import compare_stack, parse_compose
@@ -18,7 +22,7 @@ from ops.infrastructure.executor import execute
 from ops.infrastructure.linux import parse_cpu, parse_memory
 from ops.infrastructure.protocol import Failure, VERSION, decode_json, parse_request
 from ops.infrastructure.sampling import SampleStore, _Lock
-from ops.infrastructure.transport import CommandResult, Deadline, parse_sections
+from ops.infrastructure.transport import CommandResult, Deadline, parse_sections, run_bounded
 
 
 class ObservationTest(unittest.TestCase):
@@ -43,8 +47,12 @@ class ObservationTest(unittest.TestCase):
                                         "operation": operation, "params": params or {}, "timeout_ms": 10000, **extra}).encode())
 
     def run_request(self, operation, params=None, **extra):
+        def transport_factory(_config, _node, deadline):
+            self.fixture.deadline = deadline
+            return self.fixture
+
         response = execute(self.request(operation, params, **extra), self.config,
-                           transport_factory=lambda *_: self.fixture)
+                           transport_factory=transport_factory)
         self.validator.validate(response)
         return response
 
@@ -209,6 +217,149 @@ class ObservationTest(unittest.TestCase):
         self.assertEqual([item["availability"] for item in items], ["unavailable", "unavailable"])
         self.assertEqual(items[0]["reason_codes"], ["container_not_running"])
 
+    def test_stats_pipeline_keeps_input_and_decodes_chunked_and_length_bodies(self):
+        self.fixture.metadata[identity(2)] = inspect_value(2)
+        original = self.fixture.command
+
+        def command(argv, payload=b"", **kwargs):
+            if b"/stats?" not in payload:
+                return original(argv, payload, **kwargs)
+            self.assertTrue(kwargs["keep_stdin_open"])
+            self.assertEqual(payload.count(b"Connection: keep-alive"), 1)
+            self.assertTrue(payload.endswith(b"Connection: close\r\n\r\n"))
+            body = json.dumps(engine_stats()).encode()
+            chunked = b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" + f"{len(body):x}\r\n".encode() + body + b"\r\n0\r\n\r\n"
+            return CommandResult(chunked + http_response(engine_stats(2)), exit_code=0)
+
+        self.fixture.command = command
+        with patch("ops.infrastructure.docker.STATS_WORKERS", 1):
+            response = self.run_request("docker.stats", {"container_ids": [identity(), identity(2)]})
+        self.assertEqual(response["status"], "ok")
+        self.assertEqual([item["id"] for item in response["data"]["containers"]], [identity(), identity(2)])
+        self.assertTrue(all(item["cpu"]["state"] == "first_sample" for item in response["data"]["containers"]))
+
+    def test_stats_empty_or_wrong_identity_body_never_becomes_zero_metrics(self):
+        self.fixture.metadata[identity(2)] = inspect_value(2)
+        original = self.fixture.command
+        for tail in (b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n", http_response(engine_stats(3))):
+            with self.subTest(tail=tail[:30]):
+                def command(argv, payload=b"", **kwargs):
+                    if b"/stats?" in payload:
+                        return CommandResult(http_response(engine_stats()) + tail, exit_code=0)
+                    return original(argv, payload, **kwargs)
+
+                self.fixture.command = command
+                with patch("ops.infrastructure.docker.STATS_WORKERS", 1):
+                    response = self.run_request("docker.stats", {"container_ids": [identity(), identity(2)]})
+                items = response["data"]["containers"]
+                self.assertEqual(response["status"], "partial")
+                self.assertEqual(items[0]["availability"], "ok")
+                self.assertEqual(items[1]["reason_codes"], ["docker_stats_invalid"])
+                self.assertIsNone(items[1]["cpu"])
+                self.assertIsNone(items[1]["memory"])
+
+    def test_stats_groups_share_budget_and_skip_all_stopped_objects(self):
+        self.fixture.metadata = {identity(index): inspect_value(index, state="running" if index <= 78 else "created") for index in range(1, 201)}
+        original = self.fixture.command
+        barrier = threading.Barrier(8)
+        lock = threading.Lock()
+        calls = []
+
+        def command(argv, payload=b"", **kwargs):
+            if b"/stats?" in payload:
+                with lock:
+                    calls.append((payload, kwargs["deadline"], kwargs["max_output"]))
+                barrier.wait(timeout=2)
+            return original(argv, payload, **kwargs)
+
+        self.fixture.command = command
+        response = self.run_request("docker.stats", {"container_ids": list(self.fixture.metadata)})
+        self.assertEqual(len(calls), 8)
+        self.assertEqual(sum(item[2] for item in calls), 3 * 1024 * 1024)
+        self.assertTrue(all(item[1] is calls[0][1] for item in calls))
+        fetched = [value.decode() for payload, _, _ in calls for value in re.findall(rb"/containers/([a-f0-9]{64})/stats", payload)]
+        self.assertEqual(set(fetched), {identity(index) for index in range(1, 79)})
+        self.assertEqual(len(fetched), 78)
+        rows = response["data"]["containers"]
+        self.assertEqual(len(rows), 200)
+        self.assertEqual(sum(item["availability"] == "ok" for item in rows), 78)
+        self.assertTrue(all(item["reason_codes"] == ["container_not_running"] for item in rows[78:]))
+        self.assertFalse(any(thread.name.startswith("infrastructure-stats") for thread in threading.enumerate()))
+
+    def test_stats_output_cap_retains_completed_prefix_and_all_identities(self):
+        self.fixture.metadata[identity(2)] = inspect_value(2)
+        original = self.fixture.command
+        oversized = engine_stats(2)
+        oversized["unused_padding"] = "x" * (4 * 1024 * 1024)
+        raw = http_response(engine_stats()) + http_response(oversized)
+
+        def command(argv, payload=b"", **kwargs):
+            if b"/stats?" in payload:
+                cap = kwargs["max_output"]
+                self.assertEqual(cap, 3 * 1024 * 1024)
+                return CommandResult(raw[:cap], exit_code=0, truncated=True)
+            return original(argv, payload, **kwargs)
+
+        self.fixture.command = command
+        with patch("ops.infrastructure.docker.STATS_WORKERS", 1):
+            response = self.run_request("docker.stats", {"container_ids": [identity(), identity(2)]})
+        rows = response["data"]["containers"]
+        self.assertEqual(response["status"], "partial")
+        self.assertEqual(rows[0]["availability"], "ok")
+        self.assertEqual(rows[1]["reason_codes"], ["output_limit_exceeded"])
+        self.assertIsNone(rows[1]["memory"])
+        self.assertNotIn("unused_padding", json.dumps(response))
+
+    def test_stats_shared_deadline_reaps_real_worker_processes_and_keeps_prefix(self):
+        self.fixture.metadata = {identity(index): inspect_value(index) for index in range(1, 17)}
+        original = self.fixture.command
+        processes = []
+        actual_popen = subprocess.Popen
+
+        def popen(*args, **kwargs):
+            process = actual_popen(*args, **kwargs)
+            processes.append(process)
+            return process
+
+        def command(argv, payload=b"", **kwargs):
+            selected = re.findall(rb"/containers/([a-f0-9]{64})/stats", payload)
+            if not selected:
+                return original(argv, payload, **kwargs)
+            prefix = http_response(engine_stats(int(selected[0], 16)))
+            program = "import sys,time; sys.stdin.buffer.read(int(sys.argv[1])); sys.stdout.buffer.write(bytes.fromhex(sys.argv[2])); sys.stdout.buffer.flush(); time.sleep(30)"
+            return run_bounded([sys.executable, "-c", program, str(len(payload)), prefix.hex()], payload, kwargs["deadline"],
+                               max_output=kwargs["max_output"], keep_stdin_open=kwargs["keep_stdin_open"])
+
+        self.fixture.command = command
+        started = time.monotonic()
+        with patch("ops.infrastructure.transport.subprocess.Popen", side_effect=popen):
+            response = self.run_request("docker.stats", {"container_ids": list(self.fixture.metadata)}, timeout_ms=2000)
+        self.assertLess(time.monotonic() - started, 3)
+        self.assertEqual(len(processes), 8)
+        self.assertTrue(all(process.returncode is not None for process in processes))
+        self.assertFalse(any(thread.name.startswith("infrastructure-stats") for thread in threading.enumerate()))
+        rows = response["data"]["containers"]
+        self.assertEqual(response["status"], "partial")
+        self.assertEqual(len(rows), 16)
+        self.assertEqual(sum(item["availability"] == "ok" for item in rows), 8)
+        self.assertTrue(all(item["reason_codes"] == ["deadline_exceeded"] for item in rows[8:]))
+
+    def test_stats_finished_rows_survive_deadline_at_dispatch_return(self):
+        original = self.fixture.command
+
+        def command(argv, payload=b"", **kwargs):
+            result = original(argv, payload, **kwargs)
+            if b"/stats?" in payload:
+                self.fixture.deadline.expires = time.monotonic() - 1
+            return result
+
+        self.fixture.command = command
+        response = self.run_request("docker.stats", {"container_ids": [identity()]})
+        self.assertEqual(response["status"], "partial")
+        self.assertEqual(response["data"]["containers"][0]["availability"], "ok")
+        self.assertIn("deadline_exceeded", response["reason_codes"])
+        self.assertIn("sample_state_not_saved", response["reason_codes"])
+
     def test_logs_are_utf8_byte_bounded_and_partial(self):
         self.fixture.log = ("网络日志\n" * 500).encode()
         response = self.run_request("docker.logs", {"container_id": identity(), "max_bytes": 1024})
@@ -230,6 +381,33 @@ class ObservationTest(unittest.TestCase):
         serialized = "\n".join(str(command) for command in self.fixture.commands)
         self.assertNotIn("compose config", serialized)
         self.assertNotIn(".env", serialized)
+
+    def test_compose_partial_find_retains_readable_and_marks_denied_stack(self):
+        original = self.fixture.script
+
+        def script(source, **kwargs):
+            if "find " in source:
+                return CommandResult(b"/srv/stacks/synthetic/compose.yaml\n", b"find: `/srv/stacks/zzz-denied': Permission denied\n", 1)
+            return original(source, **kwargs)
+
+        self.fixture.script = script
+        response = self.run_request("compose.inventory")
+        self.assertEqual(response["status"], "partial")
+        self.assertEqual(response["completeness"]["state"], "partial")
+        self.assertEqual(response["completeness"]["total"], 2)
+        self.assertIn("compose_discovery_partial", response["reason_codes"])
+        readable, denied = response["data"]["stacks"]
+        self.assertEqual(readable["drift_status"], "in_sync")
+        self.assertEqual(denied["state"], "unavailable")
+        self.assertEqual(denied["reason_codes"], ["permission_denied"])
+        self.assertNotIn("zzz-denied/compose.yaml", "\n".join(str(item) for item in self.fixture.commands))
+
+    def test_compose_root_denied_remains_unavailable(self):
+        self.fixture.script = lambda *_, **__: CommandResult(b"", b"find: `/srv/stacks': Permission denied\n", 1)
+        response = self.run_request("compose.inventory")
+        self.assertEqual(response["status"], "unavailable")
+        self.assertEqual(response["reason_codes"], ["permission_denied"])
+        self.assertIsNone(response["data"])
 
     def test_compose_anchors_unresolved_vars_and_unsupported_sources(self):
         raw = b"""name: synthetic

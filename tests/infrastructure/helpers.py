@@ -120,6 +120,9 @@ class FixtureTransport:
             cap = kwargs["max_output"]
             return CommandResult(self.log[:cap], exit_code=0, truncated=len(self.log) > cap)
         if "dial-stdio" in argv:
+            selected = re.findall(rb"GET /v[0-9.]+/containers/([a-f0-9]{64})/stats\?", payload)
+            if selected:
+                return CommandResult(b"".join(http_response(engine_stats(int(value, 16), cpu=self.cpu, system=self.system)) for value in selected), exit_code=0)
             return CommandResult(http_response({"ApiVersion": "1.43"}), exit_code=0)
         raise AssertionError(argv)
 
@@ -127,9 +130,6 @@ class FixtureTransport:
         self.commands.append((script, b""))
         if "cat /proc/stat" in script:
             return CommandResult(self.host, exit_code=0)
-        if "GET /v" in script:
-            names = re.findall(r"__TIANSHU_BEGIN_([a-f0-9]{64})__", script)
-            return CommandResult(sections({name: http_response(engine_stats(int(name, 16), cpu=self.cpu, system=self.system)) for name in names}), exit_code=0)
         if "find " in script:
             return CommandResult(b"/srv/stacks/synthetic/compose.yaml\n", exit_code=0)
         if "head -c" in script:
@@ -216,6 +216,8 @@ class LoopbackSSH:
                 payload.extend(raw)
                 if len(payload) > 1024 * 1024:
                     return
+                if "system dial-stdio" in server.command and payload.endswith(b"Connection: close\r\n\r\n"):
+                    break  # HTTP framing, rather than stdin EOF, ends a request.
             self.calls.append((server.command, bytes(payload)))
             if "sh -s" in server.command:
                 result = self.fixture.script(payload.decode("utf-8"))

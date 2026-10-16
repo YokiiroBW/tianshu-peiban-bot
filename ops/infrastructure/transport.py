@@ -168,7 +168,8 @@ class CommandResult:
         return "command_failed"
 
 
-def run_bounded(argv, payload: bytes, deadline: Deadline, *, max_output=2 * 1024 * 1024, stderr_limit=32768) -> CommandResult:
+def run_bounded(argv, payload: bytes, deadline: Deadline, *, max_output=2 * 1024 * 1024, stderr_limit=32768,
+                keep_stdin_open=False) -> CommandResult:
     deadline.check()
     options = {"stdin": subprocess.PIPE, "stdout": subprocess.PIPE, "stderr": subprocess.PIPE}
     if os.name == "nt":
@@ -208,6 +209,7 @@ def run_bounded(argv, payload: bytes, deadline: Deadline, *, max_output=2 * 1024
     lock = threading.Lock()
     overflow = threading.Event()
     done = [threading.Event(), threading.Event()]
+    release_input = threading.Event()
 
     def read_pipe(pipe, index):
         try:
@@ -226,11 +228,18 @@ def run_bounded(argv, payload: bytes, deadline: Deadline, *, max_output=2 * 1024
             pass
         finally:
             done[index].set()
+            if index == 0:
+                release_input.set()
 
     def write_pipe():
         try:
             process.stdin.write(payload)
             process.stdin.flush()
+            if keep_stdin_open:
+                # dial-stdio propagates an early input EOF to the Engine and
+                # cancels stats before it writes a body. HTTP Connection: close
+                # ends stdout when the response is complete; no fixed delay.
+                release_input.wait(timeout=deadline.remaining)
         except (OSError, BrokenPipeError):
             pass
         finally:
@@ -256,6 +265,7 @@ def run_bounded(argv, payload: bytes, deadline: Deadline, *, max_output=2 * 1024
             if time.monotonic() - exited_at > 0.05:
                 break  # A descendant inherited a pipe; reap its process group too.
         time.sleep(min(0.01, deadline.remaining))
+    release_input.set()
     if not job.close():
         try:
             if os.name == "nt":
@@ -306,8 +316,9 @@ class SSHTransport:
             argv.extend(["-o", option])
         return [*argv, "--", node.host, command]
 
-    def command(self, argv, payload=b"", *, max_output=2 * 1024 * 1024, stderr_limit=32768):
-        return run_bounded(self._argv("LC_ALL=C " + shlex.join(argv)), payload, self.deadline, max_output=max_output, stderr_limit=stderr_limit)
+    def command(self, argv, payload=b"", *, max_output=2 * 1024 * 1024, stderr_limit=32768, keep_stdin_open=False, deadline=None):
+        return run_bounded(self._argv("LC_ALL=C " + shlex.join(argv)), payload, deadline or self.deadline,
+                           max_output=max_output, stderr_limit=stderr_limit, keep_stdin_open=keep_stdin_open)
 
     def script(self, script, *, max_output=2 * 1024 * 1024):
         # GNU and BusyBox timeout bound the remote read process where available;
