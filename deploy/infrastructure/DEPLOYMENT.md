@@ -6,11 +6,13 @@ release mechanism; neither preparer imports the NAS connection helper or calls
 Docker/SSH. Keep outputs, actual executor config and all receipts in a private
 `.runtime` directory. No credential contents belong in Git or terminal output.
 
-The first TS-180 tooling candidate still names the **preceding** accepted node
-package `172d20d` / `6e674a3b…dd63f` in `image.py`. Actual NAS probes found node
-compatibility issues; the coordinator will provide the final replacement source
-and accepted package hash. Update that one pin pair before final image preparation.
-Do not deploy this preceding node package as the final release.
+The accepted node source input is `47564d07257a43ad99dde63d6ea96cf8c169be5a`,
+ZIP SHA256 `9aac3dc090a0317804b5787dd5136b4916ee686b718a11b18b74e976806cebf5`,
+with the deployment settings fragment set to timeout 30000 ms. `image.py` owns
+that one pin pair. This source replaces the preceding `172d20d` after actual NAS
+probes exposed Docker24 health, dial-stdio EOF and partial-find compatibility
+issues. The new ZIP passed the separate 12-request outside-package synthetic SSH
+chain; the coordinator independently checks the package and actual NAS launcher.
 
 ## 1. Prepare the fixed candidate image locally
 
