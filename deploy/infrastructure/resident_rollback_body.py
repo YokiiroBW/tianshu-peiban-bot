@@ -1,15 +1,8 @@
 """Renderer input: existing explicit rollback with canonical metadata comparison."""
 
 import ast
-import hashlib
 import json
 from pathlib import Path
-
-
-def record_non_target_preservation(before, after):
-    report = compare_inventory(before, after)
-    save(S / "non-targets-after.json", report)
-    return report["preserved"]
 
 
 def main():
@@ -31,18 +24,11 @@ def main():
 
     globals()["read"] = current_origin_read
     globals()["metadata_inventory"] = canonical_inventory
-    tree = ast.parse((parent / "resident-update.py").read_bytes())
-    function = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "rollback_release")
-    replaced = 0
-    for node in ast.walk(function):
-        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "require"
-                and len(node.args) == 2 and isinstance(node.args[1], ast.Constant) and node.args[1].value == "non_target_container_changed"):
-            comparison = node.args[0]
-            assert isinstance(comparison, ast.Compare) and len(comparison.ops) == 1 and isinstance(comparison.ops[0], ast.Eq)
-            node.args[0] = ast.Call(func=ast.Name(id="record_non_target_preservation", ctx=ast.Load()),
-                                    args=[comparison.comparators[0], comparison.left], keywords=[])
-            replaced += 1
-    require(replaced == 1, "rollback_metadata_check_changed")
+    _retention.install_snapshot_retention(snapshot, D)
+    # Use the same reviewed rollback function as newly rendered releases. It
+    # carries the old guard into the new snapshot before old data is pruned.
+    function = ast.parse(ROLLBACK_FUNCTION_SOURCE).body[0]
+    require(isinstance(function, ast.FunctionDef) and function.name == "rollback_release", "rollback_source_changed")
     module = ast.fix_missing_locations(ast.Module(body=[function], type_ignores=[]))
     exec(compile(module, str(parent / "rollback-canonical-metadata.py"), "exec"), globals())
     globals()["parent"] = parent

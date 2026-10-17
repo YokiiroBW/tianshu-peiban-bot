@@ -70,7 +70,6 @@ class ResidentRetentionTests(unittest.TestCase):
             self.assertEqual(original[path], (path / "manifest.json").read_bytes())
         self.assertFalse((old / "backup").exists())
         self.assertTrue(retention.verification_copies_available(new))
-        proof = next(new.glob("retention-*.json"))
         for proof in new.glob("retention-*.json"):
             proof.unlink()
         self.assertFalse(retention.verification_copies_available(new))
@@ -168,6 +167,65 @@ class ResidentRetentionTests(unittest.TestCase):
         self.assertTrue((old / "backup/state.sqlite").is_file())
         self.assertEqual(1, len(list(new.glob("retention-*.json"))))
         self.assertTrue(retention.verification_copies_available(new))
+        checkpoint = next(new.glob("retention-checkpoint-*.json"))
+        partial = new / "retention-interrupted-final.json"
+        partial.write_bytes(b'{"status":')
+        with patch.object(Path, "glob", return_value=[partial, checkpoint]):
+            self.assertTrue(retention.verification_copies_available(new))
+
+    def test_public_snapshot_retains_only_after_success_and_cleanup_failure_keeps_success(self):
+        old = self.cold("old")
+        failed = self.updates / "failed" / "cold-snapshot"
+        failed.parent.mkdir()
+        broken = self.root / "broken.sqlite"
+        broken.write_bytes(b"SQLite format 3\0" + b"synthetic corrupt data" * 20)
+        with patch.object(retention, "after_verified_snapshot") as hook:
+            with self.assertRaises(sqlite3.Error):
+                snapshot.snapshot(self.root, failed, self.rows, lambda: self.rows, controls=[self.control], docker="synthetic")
+            hook.assert_not_called()
+        self.assertTrue((old / "backup/state.sqlite").is_file())
+        broken.unlink()
+        fresh = self.updates / "fresh" / "cold-snapshot"
+        fresh.parent.mkdir()
+        with patch.object(retention, "docker_references", return_value=[]):
+            report = snapshot.snapshot(self.root, fresh, self.rows, lambda: self.rows, controls=[self.control], docker="synthetic")
+        self.assertEqual("offline_restore_verified", report["status"])
+        self.assertEqual("applied", report["retention"]["status"])
+        self.assertIn(failed.as_posix(), report["retention"]["skipped_unverified_snapshots"])
+        self.assertFalse((old / "backup").exists())
+        self.assertTrue(retention.verification_copies_available(fresh))
+        another = self.updates / "another" / "cold-snapshot"
+        another.parent.mkdir()
+        with patch.object(retention, "docker_references", return_value=[]), \
+                patch.object(retention, "verify_kept_copies", side_effect=snapshot.RecoveryError("synthetic_backup_check_failure")):
+            report = snapshot.snapshot(self.root, another, self.rows, lambda: self.rows, controls=[self.control], docker="synthetic")
+        self.assertEqual("offline_restore_verified", report["status"])
+        self.assertEqual("requires_inspection", report["retention"]["status"])
+        self.assertTrue((fresh / "backup/state.sqlite").is_file())
+
+    def test_deployed_media_registration_and_staging_hardlink_boundaries_are_preserved(self):
+        library = self.base / "external-library"
+        library.mkdir()
+        (library / "media.bin").write_bytes(b"synthetic external media remains authoritative")
+        rows = copy.deepcopy(self.rows)
+        platform = next(row for row in rows if row["service"] == "platform")
+        platform["mounts"].append({"Type": "bind", "Source": str(library), "Destination": "/media/Music", "RW": True})
+        media = [{"source": str(library), "target": "/media/Music", "read_only": False}]
+        with self.assertRaisesRegex(snapshot.RecoveryError, "writable_mount_outside_authority"):
+            snapshot.snapshot(self.root, self.base / "unregistered", rows, lambda: rows)
+        staging = self.root / "staging"
+        staging.mkdir()
+        (staging / "media.bin").hardlink_to(library / "media.bin")
+        with self.assertRaisesRegex(snapshot.RecoveryError, "hardlinked_file"):
+            snapshot.snapshot(self.root, self.base / "unregistered-hardlink", rows, lambda: rows, external_media_binds=media)
+        destination = self.base / "registered-media"
+        result = snapshot.snapshot(self.root, destination, rows, lambda: rows,
+                                   external_media_binds=media, media_staging_roots=[staging])
+        self.assertEqual(media, result["excluded_external_media"])
+        self.assertEqual((library / "media.bin").read_bytes(), (destination / "backup/staging/media.bin").read_bytes())
+        self.assertEqual(1, (destination / "backup/staging/media.bin").stat().st_nlink)
+        self.assertEqual(1, (destination / "restored-disabled/staging/media.bin").stat().st_nlink)
+        self.assertEqual(2, (library / "media.bin").stat().st_nlink)
 
 
 if __name__ == "__main__":

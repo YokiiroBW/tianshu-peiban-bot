@@ -216,7 +216,7 @@ def release():
     TRANSACTION_STARTED = True
     stop_managed()
     snapshot.require_stopped(rows, snapshot.inspect_owners(D))
-    backup = snapshot.snapshot(R, S / "cold-snapshot", rows, lambda: snapshot.inspect_owners(D), controls=controls, memory_guards=guards, external_media_binds=cap["external_media_binds"], media_staging_roots=staging_roots)
+    backup = snapshot.snapshot(R, S / "cold-snapshot", rows, lambda: snapshot.inspect_owners(D), controls=controls, memory_guards=guards, external_media_binds=cap["external_media_binds"], media_staging_roots=staging_roots, docker=D)
     require(backup["status"] == "offline_restore_verified" and backup["restored_disabled"] and backup["authority_unchanged"], "offline_restore_not_verified")
     save(S / "user-state-before.json", user_state_hashes(R))
     # No production input is written until the existing stopped-owner backup
@@ -305,6 +305,10 @@ def rollback_release(parent):
     guards = read(parent / "cold-expectation.json")["memory_guards"]
     staging_roots = [Path(path) for path in read(parent / "cold-expectation.json")["media_staging_roots"]]
     controls = [Path(path) for path in paths.values()] + [CAP, UNIT, Path(cap["state_dir"]), TOOLING / "ops/resident_capacity"]
+    # Carry the old guard into the fresh backup before its successful snapshot
+    # retention is allowed to remove the previous full backup's data trees.
+    guard_control_index = len(controls)
+    controls.append(guard_backup)
     S = parent / ("rollback-" + uuid.uuid4().hex)
     S.mkdir(mode=0o700)
     RELEASE = copy.deepcopy(original)
@@ -312,13 +316,15 @@ def rollback_release(parent):
     RELEASE["images"] = original["previous_images"]
     GATEWAY_REISSUED = False
     save(S / "original-templates.json", {name: read(path) for name, path in paths.items()})
-    save(S / "cold-expectation.json", {"containers": rows, "memory_guards": guards, "media_staging_roots": [str(path) for path in staging_roots]})
+    save(S / "cold-expectation.json", {"containers": rows, "root": str(R), "controls": [str(path) for path in controls], "memory_guards": guards, "media_staging_roots": [str(path) for path in staging_roots]})
     save(S / "started.json", {"state": "rollback_stop_intent", "database_restore": False})
     TRANSACTION_STARTED = True
     stop_managed()
     snapshot.require_stopped(rows, snapshot.inspect_owners(D))
-    backup = snapshot.snapshot(R, S / "cold-snapshot", rows, lambda: snapshot.inspect_owners(D), controls=controls, memory_guards=guards, external_media_binds=cap["external_media_binds"], media_staging_roots=staging_roots)
+    backup = snapshot.snapshot(R, S / "cold-snapshot", rows, lambda: snapshot.inspect_owners(D), controls=controls, memory_guards=guards, external_media_binds=cap["external_media_binds"], media_staging_roots=staging_roots, docker=D)
     require(backup["status"] == "offline_restore_verified" and backup["restored_disabled"] and backup["authority_unchanged"], "offline_restore_not_verified")
+    guard_backup = S / "cold-snapshot/controls-backup" / str(guard_control_index)
+    require(guard_backup.is_dir(), "guard_rollback_carry_missing")
     user_state = user_state_hashes(R)
     media_before = media_state()
     atomic_bytes(settings_path, (json.dumps(settings, ensure_ascii=False, indent=2) + "\n").encode())

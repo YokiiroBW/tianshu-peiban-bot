@@ -189,7 +189,12 @@ def verification_copies_available(path):
     manifest_hash = _sha((path / "manifest.json").read_bytes())
     receipt_hash = _sha((path / "receipt.json").read_bytes())
     for file in path.glob("retention-*.json"):
-        record = json.loads(file.read_bytes())
+        try:
+            record = json.loads(file.read_bytes())
+        except (OSError, ValueError):
+            continue  # An interrupted final receipt does not erase a durable checkpoint.
+        if not isinstance(record, dict):
+            continue
         if (record.get("status") in {"applied", "verified_before_pruning"} and record.get("snapshot") == path.as_posix()
                 and record.get("manifest_sha256") == manifest_hash and record.get("receipt_sha256") == receipt_hash
                 and record.get("kept_backup_and_controls_verified") is True and record.get("kept_data") is True
@@ -291,33 +296,35 @@ def after_verified_snapshot(root, operation, *, snapshot, docker):
     updates = root.with_name(root.name + "-updates")
     if operation.name != "cold-snapshot" or updates not in operation.parents:
         return {"status": "outside_resident_release_namespace"}
-    skipped = []
+    skipped, records = [], []
     try:
         _require(bool(docker), "retention_docker_required")
-        records = []
         for path in sorted([*updates.glob("*/cold-snapshot"), *updates.glob("*/*/cold-snapshot")]):
             try:
                 evidence = read_evidence(path, root)
-            except (OSError, ValueError, KeyError, RuntimeError):
+            except Exception:
                 # A failed or foreign historical attempt must not turn a good
                 # fresh cold backup into a production release failure.
                 if path == operation:
                     raise
                 skipped.append(path.as_posix())
                 continue
-            if path == operation or (path / "backup").is_dir():
+            if path == operation or any((path / name).is_dir() for name in DATA_DIRECTORIES):
                 records.append(evidence)
         plan = make_plan(updates_root=updates.as_posix(), authority_root=root.as_posix(), keep=operation.as_posix(),
                          snapshots=records, containers=docker_references(docker))
         result = apply_plan(plan, snapshot=snapshot, containers=lambda: docker_references(docker), execute=True)
         result["skipped_unverified_snapshots"] = skipped
         return result
-    except (OSError, ValueError, KeyError, RuntimeError, subprocess.SubprocessError) as error:
+    except Exception as error:
         # The original verified snapshot receipt remains authoritative. Cleanup
         # failure never asks its caller to stop owners or roll back live data.
         result = {"status": "requires_inspection", "keep": operation.as_posix(),
                   "code": str(error) if re.fullmatch("[a-z0-9_]+", str(error)) else "retention_failed",
                   "skipped_unverified_snapshots": skipped, "database_restore": False}
+        result["retained_snapshot_data"] = [
+            {"path": record["path"], "directories": [name for name in DATA_DIRECTORIES if (Path(record["path"]) / name).is_dir()]}
+            for record in records]
         try:
             with (operation / ("retention-deferred-" + uuid.uuid4().hex + ".json")).open("xb") as stream:
                 stream.write(_json(result) + b"\n"); stream.flush(); os.fsync(stream.fileno())
@@ -337,6 +344,8 @@ def install_snapshot_retention(snapshot, docker):
         # sources get the same post-verification policy through this adapter.
         import inspect
         current = "docker" in inspect.signature(original).parameters
+        selected_docker = kwargs.pop("docker", docker)
+        _require(selected_docker == docker, "retention_docker_changed")
         result = original(root, operation, expected, observe, **({**kwargs, "docker": docker} if current else kwargs))
         if not current:
             result["retention"] = after_verified_snapshot(root, operation, snapshot=snapshot, docker=docker)

@@ -7,6 +7,8 @@ import json
 import re
 from pathlib import Path
 
+from .resident import retention_runtime_source
+
 
 HERE = Path(__file__).resolve().parent
 
@@ -25,6 +27,7 @@ def prepare(*, stage, worker_sha256, image_id, platform_id, gateway_id, state_di
                 "receipt_prefix": receipt_prefix, "sampling_underlay": sampling_underlay,
                 "sqlite_databases": 37, "non_targets": 367}
     raw = ("EXPECTED=" + repr(expected) + "\n" + (HERE / "resident_metadata.py").read_text(encoding="utf-8")
+           + retention_runtime_source(install=False)
            + "\n" + (HERE / "resident_readback_body.py").read_text(encoding="utf-8")).replace("\r\n", "\n").encode()
     compile(raw, "resume-readback.py", "exec")
     rollback_path = output.with_name("rollback-canonical-metadata-" + receipt_prefix + ".py")
@@ -32,7 +35,11 @@ def prepare(*, stage, worker_sha256, image_id, platform_id, gateway_id, state_di
         raise ValueError("new_rollback_output_required")
     body = (HERE / "resident_readback_body.py").read_text(encoding="utf-8")
     loader = next(node for node in ast.parse(body).body if isinstance(node, ast.FunctionDef) and node.name == "load_original")
+    worker = (HERE / "resident_worker.py").read_text(encoding="utf-8")
+    rollback_function = next(node for node in ast.parse(worker).body if isinstance(node, ast.FunctionDef) and node.name == "rollback_release")
     rollback = ("EXPECTED=" + repr(expected) + "\n" + (HERE / "resident_metadata.py").read_text(encoding="utf-8")
+                + "\nROLLBACK_FUNCTION_SOURCE=" + repr(ast.get_source_segment(worker, rollback_function))
+                + retention_runtime_source(install=False)
                 + "\n" + ast.get_source_segment(body, loader) + "\n"
                 + (HERE / "resident_rollback_body.py").read_text(encoding="utf-8")).replace("\r\n", "\n").encode()
     compile(rollback, "rollback-canonical-metadata.py", "exec")

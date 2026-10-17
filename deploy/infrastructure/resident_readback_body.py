@@ -52,7 +52,8 @@ def readback():
             and manifest["sqlite_databases_verified"] == EXPECTED["sqlite_databases"]
             and manifest["restore_status"] == "restored_disabled" and manifest["authority_unchanged"], "backup_manifest_changed")
     require(signatures(manifest["owners"]) == signatures(RELEASE["baseline"]["owners"]), "backup_owner_identity_changed")
-    require((S / "cold-snapshot/backup").is_dir() and (S / "cold-snapshot/restored-disabled").is_dir(), "backup_tree_missing")
+    require((S / "cold-snapshot/backup").is_dir() and (S / "cold-snapshot/controls-backup").is_dir(), "backup_tree_missing")
+    require(_retention.verification_copies_available(S / "cold-snapshot"), "offline_verification_proof_missing")
     require(RELEASE["guard_commit"] == EXPECTED["guard_commit"]
             and RELEASE["images"]["platform"]["image_id"] == EXPECTED["image_id"], "release_pin_changed")
     origin = read(S / "gateway-origin-result.json")

@@ -15,6 +15,8 @@ from pathlib import Path, PurePosixPath
 
 from .bundle import digest, git_files, json_bytes, require
 from .image import NODE_COMMIT, NODE_SHA256
+from .recovery_input import current_recovery
+from ops.recovery import resident_retention
 
 
 HERE = Path(__file__).resolve().parent
@@ -27,6 +29,28 @@ BODY_FUNCTIONS = (
 )
 SAMPLE_STATE = "/var/lib/tianshu/infrastructure-sampling"
 CONTAINER_SSH = "/run/tianshu-infrastructure"
+
+
+def retention_runtime_source(*, install):
+    """Embed the public policy for immutable older recovery-code inputs too."""
+    raw = Path(resident_retention.__file__).read_bytes().replace(b"\r\n", b"\n")
+    source = ("\nimport base64,types,sys,hashlib\n"
+              + "from pathlib import Path\n"
+              + "_retention_raw=base64.b64decode(" + repr(base64.b64encode(raw).decode()) + ")\n"
+              + "assert hashlib.sha256(_retention_raw).hexdigest()==" + repr(digest(raw)) + "\n"
+              + "_retention=sys.modules.get('ops.recovery.resident_retention')\n"
+              + "_policy_sha=" + repr(digest(raw)) + "\n"
+              + "_loaded_sha=getattr(_retention,'_release_retention_sha256',None)\n"
+              + "if _loaded_sha is None and getattr(_retention,'__file__',None):\n"
+              + " _loaded_sha=hashlib.sha256(Path(_retention.__file__).read_bytes().replace(b'\\r\\n',b'\\n')).hexdigest()\n"
+              + "if _loaded_sha!=_policy_sha:\n"
+              + " _retention=types.ModuleType('ops.recovery.resident_retention')\n"
+              + " sys.modules[_retention.__name__]=_retention\n"
+              + " exec(compile(_retention_raw,'resident-retention-runtime.py','exec'),_retention.__dict__)\n"
+              + "_retention._release_retention_sha256=_policy_sha\n")
+    if install:
+        source += "_retention.install_snapshot_retention(snapshot,D)\n"
+    return source
 
 
 def patch_templates(templates, capacity, image, credential_binds):
@@ -124,7 +148,8 @@ def prepare(*, baseline, metadata, build_result, mechanism_directory, recovery,
     executor = json.loads(Path(executor_config).read_bytes())
     from ops.infrastructure.config import parse_config
     parse_config(executor)
-    recovery = json.loads(Path(recovery).read_bytes())
+    recovery_raw = Path(recovery).read_bytes()
+    recovery = current_recovery(json.loads(recovery_raw), base_sha256=digest(recovery_raw))
     require(all(row["running"] for row in baseline["owners"]) and baseline["guard_status"]["status"] == "ready", "final_ready_baseline_required")
     require(build["status"] == "built" and build["production_changed"] is False, "verified_candidate_required")
     require(build["node_commit"] == NODE_COMMIT and build["node_package_sha256"] == NODE_SHA256, "accepted_node_package_required")
@@ -152,7 +177,7 @@ def prepare(*, baseline, metadata, build_result, mechanism_directory, recovery,
     )}
     sources = {name: raw.decode("utf-8").replace("\r\n", "\n") for name, raw in source_bytes.items()}
     for name, item in recovery["files"].items():
-        require(name in {"ops/__init__.py", "ops/recovery/__init__.py", "ops/recovery/resident_snapshot.py", "ops/recovery/safety.py"}, "recovery_file_invalid")
+        require(name in {"ops/__init__.py", "ops/recovery/__init__.py", "ops/recovery/resident_snapshot.py", "ops/recovery/resident_retention.py", "ops/recovery/safety.py"}, "recovery_file_invalid")
         require(digest(base64.b64decode(item["base64"])) == item["sha256"], "recovery_source_changed")
     require("ops/recovery/resident_snapshot.py" in recovery["files"], "recovery_source_missing")
     contract_source = next(mount["Source"] for mount in platform["mounts"] if mount["Destination"] == "/contracts")
@@ -171,6 +196,7 @@ def prepare(*, baseline, metadata, build_result, mechanism_directory, recovery,
                            "executor_host": root + "/config/platform/infrastructure/executor.json",
                            "credential_binds": credential_binds},
         "mechanism_sha256": {name: digest(raw) for name, raw in source_bytes.items()},
+        "retention_sha256": digest(Path(resident_retention.__file__).read_bytes().replace(b"\r\n", b"\n")),
     }
     functions = existing_functions(sources["resident_update_body.py.txt"])
     helpers = helpers_source(sources["resident_helpers.py.txt"])
@@ -183,7 +209,7 @@ def prepare(*, baseline, metadata, build_result, mechanism_directory, recovery,
                                  if isinstance(node, ast.FunctionDef) and node.name in {"patch_templates", "merge_settings"})
     script = ("RELEASE=" + repr(release) + "\n" + helpers + "\n" + functions
               + "\nSAMPLE_STATE=" + repr(SAMPLE_STATE) + "\n" + merge_source + "\n" + inventory_source
-              + "\n" + mountpoint_source + "\n" + worker)
+              + "\n" + mountpoint_source + retention_runtime_source(install=True) + "\n" + worker)
     compile(script, "resident-update.py", "exec")
     inputs = {"release": release, "script_sha256": digest(script.encode())}
     rollback = rollback_source(stage, inputs["script_sha256"])

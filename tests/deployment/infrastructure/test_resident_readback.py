@@ -83,6 +83,25 @@ except Exception:
     def test_new_rollback_wrapper_injects_canonical_subset_comparison_and_records_addition(self):
         path = Path(self.receipt["rollback_output"])
         scope = self.load(path)
+        # Exercise the adapter with a small isolated rollback body. The real
+        # shared rollback's snapshot/control handoff is exercised separately.
+        original_loader = scope["load_original"]
+
+        def loader(readonly=True):
+            entry = original_loader(readonly=readonly)
+            scope.update(snapshot=SimpleNamespace(snapshot=Mock()), D="synthetic-docker")
+            return entry
+
+        scope["load_original"] = loader
+        scope["ROLLBACK_FUNCTION_SOURCE"] = '''
+def rollback_release(parent):
+ global S
+ S=parent/'rollback-test';S.mkdir()
+ report=compare_inventory(BEFORE,metadata_inventory(None,set()))
+ save(S/'non-targets-after.json',report)
+ require(report['preserved'],'non_target_container_changed')
+ save(S/'result.json',{'status':'rolled_back'})
+'''
         scope["main"]()
         report = json.loads((self.stage / "rollback-test/non-targets-after.json").read_bytes())
         self.assertTrue(report["preserved"])
