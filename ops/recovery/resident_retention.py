@@ -190,12 +190,23 @@ def verification_copies_available(path):
     receipt_hash = _sha((path / "receipt.json").read_bytes())
     for file in path.glob("retention-*.json"):
         record = json.loads(file.read_bytes())
-        if (record.get("status") == "applied" and record.get("snapshot") == path.as_posix()
+        if (record.get("status") in {"applied", "verified_before_pruning"} and record.get("snapshot") == path.as_posix()
                 and record.get("manifest_sha256") == manifest_hash and record.get("receipt_sha256") == receipt_hash
                 and record.get("kept_backup_and_controls_verified") is True and record.get("kept_data") is True
-                and set(missing) <= set(record.get("removed", []))):
+                and set(missing) <= set(record.get("verification_directories", record.get("removed", [])))):
             return True
     return False
+
+
+def _write_record(path, value):
+    with Path(path).open("xb") as stream:
+        stream.write(_json(value) + b"\n"); stream.flush(); os.fsync(stream.fileno())
+    if os.name == "posix":
+        descriptor = os.open(Path(path).parent, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
 
 
 def _free_bytes(path):
@@ -234,6 +245,17 @@ def apply_plan(plan, *, snapshot, containers, execute=False):
               "protected_images": plan["protected_images"], "images_or_containers_removed": False}
     if not execute:
         return report
+    # Persist proof before removing any validation copy. A process interruption
+    # may prevent an applied/partial receipt, but cannot erase the completed
+    # offline verification or the freshly rechecked sole backup's proof.
+    checkpoint = Path(keep["path"]) / ("retention-checkpoint-" + identity + ".json")
+    checkpoint_value = {"status": "verified_before_pruning", "plan_sha256": identity,
+                        "snapshot": keep["path"], "manifest_sha256": keep["manifest_sha256"],
+                        "receipt_sha256": keep["receipt_sha256"], "kept_data": True,
+                        "kept_backup_and_controls_verified": True,
+                        "verification_directories": list(VERIFICATION_DIRECTORIES)}
+    _write_record(checkpoint, checkpoint_value)
+    report["verified_checkpoint"] = checkpoint.as_posix()
     # Checkpoint the kept snapshot first; a later failure can never erase it.
     for row in sorted(plan["snapshots"], key=lambda row: (not row["keep_data"], row["path"])):
         check_bind_references(plan, containers() if callable(containers) else containers)
@@ -251,12 +273,12 @@ def apply_plan(plan, *, snapshot, containers, execute=False):
                 removed.append(name)
                 report["removed"].append(target.as_posix())
         finally:
+            removed = [name for name in row["remove"] if not (path / name).exists()]
             record = {"status": "applied" if removed == row["remove"] else "partially_applied",
                       "plan_sha256": identity, "snapshot": path.as_posix(), "manifest_sha256": row["manifest_sha256"],
                       "receipt_sha256": row["receipt_sha256"], "removed": removed, "kept_data": row["keep_data"],
                       "kept_backup_and_controls_verified": True, "keep": plan["keep"]}
-            with receipt.open("xb") as stream:
-                stream.write(_json(record) + b"\n"); stream.flush(); os.fsync(stream.fileno())
+            _write_record(receipt, record)
     report.update(status="applied", free_bytes_after=_free_bytes(plan["updates_root"]))
     report["observed_free_delta_bytes"] = report["free_bytes_after"] - before
     report["free_delta_includes_concurrent_workloads"] = True

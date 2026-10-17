@@ -71,7 +71,8 @@ class ResidentRetentionTests(unittest.TestCase):
         self.assertFalse((old / "backup").exists())
         self.assertTrue(retention.verification_copies_available(new))
         proof = next(new.glob("retention-*.json"))
-        proof.unlink()
+        for proof in new.glob("retention-*.json"):
+            proof.unlink()
         self.assertFalse(retention.verification_copies_available(new))
 
     def test_corrupt_unique_keep_or_unverified_new_snapshot_never_deletes_old(self):
@@ -138,6 +139,35 @@ class ResidentRetentionTests(unittest.TestCase):
         self.assertEqual("synthetic_read_failure", report["code"])
         self.assertTrue((new / "backup/state.sqlite").is_file())
         self.assertEqual("offline_restore_verified", json.loads((new / "receipt.json").read_bytes())["status"])
+
+    def test_checkpoint_failure_deletes_nothing_and_interruption_after_delete_keeps_proof(self):
+        old, new = self.cold("old"), self.cold("new")
+        plan = self.plan(old, new)
+        with patch.object(retention, "_write_record", side_effect=OSError("synthetic_checkpoint_io")):
+            with self.assertRaises(OSError):
+                retention.apply_plan(plan, snapshot=snapshot, containers=[], execute=True)
+        self.assertTrue(all((new / name).is_dir() for name in retention.DATA_DIRECTORIES))
+        self.assertTrue((old / "backup").is_dir())
+        actual_write, actual_delete = retention._write_record, retention.shutil.rmtree
+
+        def write_checkpoint_only(path, value):
+            if Path(path).name.startswith("retention-checkpoint-"):
+                return actual_write(path, value)
+            raise SystemExit("synthetic_power_loss_before_final_receipt")
+
+        def delete_then_interrupt(path):
+            actual_delete(path)
+            raise SystemExit("synthetic_interruption_after_first_delete")
+
+        with patch.object(retention, "_write_record", side_effect=write_checkpoint_only), \
+                patch.object(retention.shutil, "rmtree", side_effect=delete_then_interrupt):
+            with self.assertRaises(SystemExit):
+                retention.apply_plan(plan, snapshot=snapshot, containers=[], execute=True)
+        self.assertFalse((new / "restored-disabled").exists())
+        self.assertTrue((new / "backup/state.sqlite").is_file())
+        self.assertTrue((old / "backup/state.sqlite").is_file())
+        self.assertEqual(1, len(list(new.glob("retention-*.json"))))
+        self.assertTrue(retention.verification_copies_available(new))
 
 
 if __name__ == "__main__":
