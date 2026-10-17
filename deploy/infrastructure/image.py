@@ -93,8 +93,23 @@ COPY --from=console /build/web-hashes.json /srv/tianshu/web-hashes.json
     return recipe.replace("USER 10001:10001\n", addition + "USER 10001:10001\n")
 
 
+def dependency_delta(source, previous, *, base_revision, revision, manifest=None):
+    """Pin intentional lock/manifest changes while preserving the default unchanged build."""
+    changed = {
+        name: {"before": digest(previous[name]), "after": digest(source[name])}
+        for name in DEPENDENCY_FILES if source[name] != previous[name]
+    }
+    if manifest is None:
+        require(not changed, "music_dependency_input_changed")
+        return {}
+    expected = {"base_revision": base_revision, "revision": revision, "files": changed}
+    require(manifest == expected and bool(changed), "dependency_change_manifest_mismatch")
+    return changed
+
+
 def prepare(*, platform_repo, platform_commit, music_commit, music_image,
-            contracts_repo, contracts_commit, node_package, stage, docker, remote_python, tag, output):
+            contracts_repo, contracts_commit, node_package, stage, docker, remote_python, tag, output,
+            dependency_changes=None):
     output = Path(output)
     require(output.is_absolute() and output.parent.is_dir() and not output.exists(), "new_output_required")
     require(bool(re.fullmatch(r"sha256:[0-9a-f]{64}", music_image)), "immutable_music_image_required")
@@ -104,7 +119,10 @@ def prepare(*, platform_repo, platform_commit, music_commit, music_image,
     require(bool(re.fullmatch(r"[a-z0-9][a-z0-9./:_-]{1,200}", tag)), "image_tag_invalid")
     source, modes = snapshot_files(platform_repo, platform_commit, PLATFORM_PATHS)
     previous = git_files(platform_repo, music_commit, DEPENDENCY_FILES)
-    require(all(source[name] == previous[name] for name in DEPENDENCY_FILES), "music_dependency_input_changed")
+    changed_dependencies = dependency_delta(
+        source, previous, base_revision=music_commit, revision=platform_commit,
+        manifest=json.loads(Path(dependency_changes).read_bytes()) if dependency_changes else None,
+    )
     ancestry = subprocess.run(
         ["git", "--no-replace-objects", "-C", str(platform_repo), "merge-base", "--is-ancestor", music_commit, platform_commit],
         capture_output=True, check=False, timeout=30,
@@ -127,6 +145,7 @@ def prepare(*, platform_repo, platform_commit, music_commit, music_image,
         "source_hashes": {name: digest(raw) for name, raw in files.items()},
         "source_modes": {name: modes.get(name, 0o644) for name in files},
         "dependency_hashes": {name: digest(source[name]) for name in DEPENDENCY_FILES},
+        "dependency_changes": changed_dependencies,
         "inherited_image_fields": list(IMAGE_FIELDS),
     }
     files["build-inputs.json"] = json_bytes(config)
@@ -152,6 +171,7 @@ def prepare(*, platform_repo, platform_commit, music_commit, music_image,
         "node_package_sha256": NODE_SHA256, "archive_sha256": digest(packed),
         "controller_sha256": digest(files["build-controller.py"]), "stage": stage,
         "file_count": len(files), "output": str(output),
+        "dependency_changes": changed_dependencies,
     }
     (output / "prepared.json").write_bytes(json_bytes(receipt))
     prefix = ("CONFIG=" + repr(config) + "\nARCHIVE_SHA256=" + repr(receipt["archive_sha256"])
@@ -234,6 +254,7 @@ def main():
     for name in ("platform-repo", "platform-commit", "music-commit", "music-image",
                  "contracts-repo", "contracts-commit", "node-package", "stage", "docker", "remote-python", "tag", "output"):
         parser.add_argument("--" + name, required=True)
+    parser.add_argument("--dependency-changes", help="Exact base/candidate commits and before/after hashes for intentional dependency input changes")
     print(json.dumps(prepare(**vars(parser.parse_args())), sort_keys=True))
 
 
