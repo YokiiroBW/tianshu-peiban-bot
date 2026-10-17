@@ -1,0 +1,461 @@
+{
+  "task": "TS-189",
+  "date": "2026-10-18",
+  "state": "pushed_deployed_production_verified",
+  "authorization": "用户要求真实多源全链路及NAS分类存储，保留视频音乐；已授权既有基础设施/记忆任务协调串行发布。",
+  "platform": {
+    "base": "c843944ee0dcc00de4260890dcde6c0a68fea6d9",
+    "runtime_commit": "1c274e89801dc6af8e4a813aafff64684cbdf8b9",
+    "documentation_commit": "7706360e7b9ac4c85d6a037788a93581f74edd19",
+    "image_id": "sha256:2020ee9688321bf72759178d012f571ee23b528256c24eb73dc6614e5a4a30ff",
+    "entry": "/#/subscriptions/8"
+  },
+  "storage": {
+    "unc": "\\\\YokiiroNAS\\Documents\\电子书",
+    "host_root": "/volume1/Documents/电子书",
+    "container_root": "/media/Ebooks",
+    "previous_bind_preserved": "/media/Books",
+    "layout": "类别/作者/书名 [标识]/book.epub",
+    "existing_files_organized": 5,
+    "existing_files_hash_verified": true,
+    "existing_file_permissions_and_owner_preserved": true,
+    "existing_acl_preserved": true,
+    "root_owner_preserved": true,
+    "added_acl_subject": "user:10001",
+    "existing_books_automatically_indexed": false,
+    "prior_txt_example_reorganized_in_live_ui": true,
+    "old_generated_file_retained": true
+  },
+  "production_acceptance": {
+    "user_signed_in": true,
+    "credential_or_cookie_exported": false,
+    "search_query": "朱子治家格言",
+    "result_count": 29,
+    "sources_returned": 3,
+    "work_count": 1,
+    "source_versions": 3,
+    "metadata_candidates_observed": [
+      "本地书库",
+      "Open Library"
+    ],
+    "selected_metadata_saved": "本地书库作者字段",
+    "manual_category_saved": "维基文库版本 → 国学古籍",
+    "books": [
+      {
+        "book_id": "06df5e193753a300ad33b459",
+        "title": "朱子治家格言",
+        "source": "中华典藏",
+        "chapters": 3,
+        "downloaded": 3,
+        "artifact": {
+          "root": "/media/Ebooks",
+          "category": "国学古籍",
+          "relative_path": "国学古籍/朱柏庐/朱子治家格言 [06df5e19]/book.epub",
+          "bytes": 26978,
+          "sha256": "9921f456cd3f5ffece8f130de2e225c182490c049131f30e7161e6a5b05e4203",
+          "content_digest": "22dfa70212dd9d552f90c2b1d8103a74c6f3b1f98978e4385f3ad20feae81b8c",
+          "metadata_digest": "dcb7a2148c3846f765dcd3ec4c78fb2c6b85def2d8544de241f922b503d41fa0",
+          "chapters": 3,
+          "expected_chapters": 3,
+          "complete": true,
+          "published_at": 1792256858.2478673,
+          "version": 1,
+          "reused": false,
+          "mtime_ns": 1792256858163410950
+        },
+        "uid": 10001,
+        "zip_crc_valid": true,
+        "epub_valid": true,
+        "full_text_present": true,
+        "subscription_state": "active",
+        "jobs": [
+          {
+            "state": "completed",
+            "code": "book_completed",
+            "reused": false
+          }
+        ],
+        "host_path": "/volume1/Documents/电子书/国学古籍/朱柏庐/朱子治家格言 [06df5e19]/book.epub",
+        "host_matches_container": true
+      },
+      {
+        "book_id": "a1a78ac6b978fa845100d049",
+        "title": "朱子治家格言",
+        "source": "殆知阁（古籍全文）",
+        "chapters": 1,
+        "downloaded": 1,
+        "artifact": {
+          "root": "/media/Ebooks",
+          "category": "国学古籍",
+          "relative_path": "国学古籍/朱柏庐/朱子治家格言 [a1a78ac6]/book.epub",
+          "bytes": 18520,
+          "sha256": "f927cf8c7432131d115de2aaac2b32e8d6e7588827190d362efefe10b1d0a80d",
+          "content_digest": "d89cef9fe76e4e51171a50cd19a91170e0b82397704655cd7ec11411b22662e0",
+          "metadata_digest": "7d9053a7b14dffdf0793d9b0910266897c1b7c0445746424b2c272715ffecbc2",
+          "chapters": 1,
+          "expected_chapters": 1,
+          "complete": true,
+          "published_at": 1792256918.3377652,
+          "version": 1,
+          "reused": false,
+          "mtime_ns": 1792256918224397671
+        },
+        "uid": 10001,
+        "zip_crc_valid": true,
+        "epub_valid": true,
+        "full_text_present": true,
+        "subscription_state": "active",
+        "jobs": [
+          {
+            "state": "completed",
+            "code": "book_completed",
+            "reused": false
+          }
+        ],
+        "host_path": "/volume1/Documents/电子书/国学古籍/朱柏庐/朱子治家格言 [a1a78ac6]/book.epub",
+        "host_matches_container": true
+      },
+      {
+        "book_id": "bbae62c0d93d5efd6a886297",
+        "title": "朱子家訓",
+        "source": "维基文库（作品与分卷）",
+        "chapters": 1,
+        "downloaded": 1,
+        "artifact": {
+          "root": "/media/Ebooks",
+          "category": "国学古籍",
+          "relative_path": "国学古籍/朱用純/朱子家訓 [bbae62c0]/book.epub",
+          "bytes": 4741,
+          "sha256": "3f57f4a637b20be71efe333c9370dda2e3505489e4a6eb65a9e9763b4407900b",
+          "content_digest": "824e3b48140f38ae7d7439cda3c65b8e6abc86c190b2f85e5f8bebc4e7f39ec1",
+          "metadata_digest": "a97618571bf2bead7afae695b5946cac03eeae7c49625a91c6211bc012188b52",
+          "chapters": 1,
+          "expected_chapters": 1,
+          "complete": true,
+          "published_at": 1792256980.1013205,
+          "version": 1,
+          "reused": false,
+          "mtime_ns": 1792256980001412586
+        },
+        "uid": 10001,
+        "zip_crc_valid": true,
+        "epub_valid": true,
+        "full_text_present": true,
+        "subscription_state": "active",
+        "jobs": [
+          {
+            "state": "completed",
+            "code": "book_completed",
+            "reused": false
+          }
+        ],
+        "host_path": "/volume1/Documents/电子书/国学古籍/朱用純/朱子家訓 [bbae62c0]/book.epub",
+        "host_matches_container": true
+      }
+    ],
+    "settings": {
+      "directory": "/media/Ebooks",
+      "auto_metadata": 1,
+      "open_library": 1
+    },
+    "warehouse_feeds": [
+      {
+        "title": "中华典藏",
+        "state": "active",
+        "interval_seconds": 86400,
+        "code": "ready",
+        "last_scan_at": 1792256780.94857,
+        "next_scan_at": 1792343180.94857
+      }
+    ],
+    "sources": [
+      {
+        "name": "维基文库（作品与分卷）",
+        "enabled": 1,
+        "code": "ready"
+      },
+      {
+        "name": "殆知阁（古籍全文）",
+        "enabled": 1,
+        "code": "ready"
+      },
+      {
+        "name": "中华典藏",
+        "enabled": 1,
+        "code": "ready"
+      }
+    ],
+    "browser_export_event_verified": false,
+    "nas_artifacts_verified": true
+  },
+  "validation": {
+    "windows_book_tests": 24,
+    "ruff": "passed",
+    "typecheck": "passed",
+    "vite_build": "passed_with_existing_chunk_warning",
+    "browser_synthetic_upstream_real_http": {
+      "passed": 2,
+      "seconds": 45.7,
+      "first_run_failure": "规则频率更新后立即暂停产生version_conflict",
+      "fix": "书籍写入等待包含读回；后台读回避让写入",
+      "final_failures": 0
+    },
+    "nas_installed_image_suites": {
+      "status": "passed",
+      "suites": [
+        {
+          "pattern": "test_book*.py",
+          "run": 24,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "pattern": "test_media_standalone.py",
+          "run": 23,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "pattern": "test_music_library.py",
+          "run": 23,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "pattern": "test_media_background.py",
+          "run": 4,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "pattern": "test_music_foundation.py",
+          "run": 16,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      ],
+      "uid": 10001,
+      "production_data_mounted": false,
+      "external_network": false
+    },
+    "isolated_real_upstream_full_business": {
+      "status": "live_remote_business_passed",
+      "sources": [
+        {
+          "source_id": "ae86aa9ff63481a50e8955de",
+          "name": "中华典藏",
+          "code": "ready",
+          "count": 1
+        },
+        {
+          "source_id": "28f59c51ff89fb4a66d33f50",
+          "name": "维基文库（作品与分卷）",
+          "code": "ready",
+          "count": 20
+        },
+        {
+          "source_id": "a016b622a1bf53922c8fc0a8",
+          "name": "殆知阁（古籍全文）",
+          "code": "ready",
+          "count": 8
+        }
+      ],
+      "books": [
+        {
+          "source": "中华典藏",
+          "title": "朱子治家格言",
+          "source_url": "https://www.diancang.xyz/xueshuzaji/zhuzijiaxun/",
+          "chapters": 3,
+          "preview_chars": 1245,
+          "epub_bytes": 26989,
+          "sha256": "fc0a7f2f4bc645270435518cd6de0c7404fcbe921e53534e661e0134bfb4df65",
+          "complete": true,
+          "repeat_reused": true,
+          "relative_path": "国学古籍/中华典藏/朱子治家格言 [25a4fec2]/book.epub",
+          "subscription": "active"
+        },
+        {
+          "source": "殆知阁（古籍全文）",
+          "title": "朱子治家格言",
+          "source_url": "https://daizhige.org/儒藏/修身治家/朱子治家格言.html",
+          "chapters": 1,
+          "preview_chars": 648,
+          "epub_bytes": 3360,
+          "sha256": "a96da80ded0fabdafdbde63c60e58a3e2b821304d07c9a202d3240edb7cde452",
+          "complete": true,
+          "repeat_reused": true,
+          "relative_path": "国学古籍/未知作者/朱子治家格言 [a1a78ac6]/book.epub",
+          "subscription": "active"
+        },
+        {
+          "source": "维基文库（作品与分卷）",
+          "title": "朱子家訓",
+          "source_url": "https://zh.wikisource.org/w/api.php?action=parse&pageid=7236&prop=text%7Clinks&format=json&redirects=1",
+          "chapters": 1,
+          "preview_chars": 980,
+          "epub_bytes": 4721,
+          "sha256": "e3394e469f01232d4836b24fd92b445b52512ae944bb724863f0fabfeca4d7aa",
+          "complete": true,
+          "repeat_reused": true,
+          "relative_path": "未分类/未知作者/朱子家訓 [bbae62c0]/book.epub",
+          "subscription": "active"
+        }
+      ],
+      "production_data_mounted": false,
+      "real_upstreams": true,
+      "uid": 10001
+    }
+  },
+  "deployment": {
+    "status": "deployed",
+    "backup": "/volume2/tianshu-v2-resident-updates/books-20261018-1c274e8-release/cold-snapshot",
+    "sqlite_backups": 38,
+    "database_restore": false,
+    "guard": "ready",
+    "guard_commit": "055d5e1855be5a6978b91a21fad01b619b890bf8",
+    "existing_settings_preserved": true,
+    "user_state_preserved": true,
+    "non_target_containers_preserved": true,
+    "platform_memory_limit_preserved": true,
+    "verified_tls_services": 5,
+    "public_static_assets": 64,
+    "dockge_snapshots_synced": 2,
+    "full_cold_backups_retained": 1
+  },
+  "media_preservation": {
+    "stable_configuration_equal": true,
+    "configuration": {
+      "account": {
+        "count": 1,
+        "sha256": "f094acc0e85e8a516bb4eb40baa79566999e3b4bc39ef7336e049a753e0ba2c1"
+      },
+      "subscription": {
+        "count": 6,
+        "sha256": "18913b156c64f3fc591dcf4ae1ccc6274af41a8bb2168361505ba1e2964dde0c"
+      },
+      "media_target": {
+        "count": 1,
+        "sha256": "e330b40f8802c8c39cf22caa529a26ccabca89c071bdf29f56ff673901cfd035"
+      },
+      "music_account": {
+        "count": 3,
+        "sha256": "42c58f8cd9df00372198b05cca7265f9474ddfa6429d5020671aba56c036bab0"
+      },
+      "music_playlist": {
+        "count": 43,
+        "sha256": "1e6930a3042e7d23d63e7e471f33684a9b82d4055b92d0ac5221ed92e79cb8ea"
+      },
+      "music_navidrome_playlist": {
+        "count": 43,
+        "sha256": "9755fe81875785296999aa7f5b92c1d81a0c4a7023f24b4d94c6ef3a8c8b094f"
+      },
+      "music_maintenance": {
+        "count": 1,
+        "sha256": "7bfd59b409282e1af0f6707e83ffa4e34fe28e14f49414cfaed341f3f6ac0988"
+      },
+      "music_settings": {
+        "count": 1,
+        "sha256": "3fae80113a562e53a3b414f888eba4dd8ba67b9d5bf69bdcd02da49bf65ebd32"
+      },
+      "music_navidrome": {
+        "count": 1,
+        "sha256": "0678bd87dcf0e5a2bc8c6faa2fe90ff033aaf378d3f1fa89eff41d3aaea03687"
+      }
+    },
+    "jobs": {
+      "audio": {
+        "count": 1956,
+        "ids_sha256": "49dac85a010a5a08306da704f1fc3eb13abd2bb8e28a9d3cbed7f364ac361a46",
+        "states": {
+          "completed": 1434,
+          "failed": 89,
+          "retry_wait": 433
+        }
+      },
+      "video": {
+        "count": 9,
+        "ids_sha256": "b0c44e8388c8660ec5ddbd94c3ac61dd003426f9cb10ae413d282805f61fd93a",
+        "states": {
+          "completed": 6,
+          "failed": 3
+        }
+      }
+    },
+    "previous_job_identities_unchanged": true,
+    "previous_failures_not_cleared": true
+  },
+  "evidence": [
+    {
+      "local_ignored_path": ".runtime/books-compat-20261018/production-verification.json",
+      "sha256": "a0170de88749729e893710b65ddec13cb887c900a674a7d42667065ea128e946"
+    },
+    {
+      "local_ignored_path": ".runtime/books-compat-20261018/production-search.ax.txt",
+      "sha256": "c977161839b72e672777076a92fa40e23b8a0e419af0b3e02dac5cb850d7df1b"
+    },
+    {
+      "local_ignored_path": ".runtime/books-compat-20261018/production-library.ax.txt",
+      "sha256": "6440ddd3addc19a5513c7e586b990a851e02bdd2ff24eafbbecc54532b128528"
+    },
+    {
+      "local_ignored_path": ".runtime/books-compat-20261018/production-daizhige-preview.ax.txt",
+      "sha256": "7709ef96892eac75aaf85e65edcec63f6f135f829dd34f5ee9203b8c6ce1eeb7"
+    },
+    {
+      "local_ignored_path": ".runtime/books-compat-20261018/production-wikisource-preview.ax.txt",
+      "sha256": "4311c1f053940900a26dd48f139fc68126a59b843ca60647ce4f503eb4076916"
+    },
+    {
+      "local_ignored_path": ".runtime/books-compat-20261018/nas-books-library.png",
+      "sha256": "4e74b1248e57dac63e6cbea35a0dca70258a01e00888d563cf281b2c5eb3d716"
+    },
+    {
+      "local_ignored_path": ".runtime/books-compat-20261018/nas-books-preview.png",
+      "sha256": "0e02504a6829ee315f4e629245fb20f967e5771a8e2e8853b0e216b70a7268cd"
+    },
+    {
+      "local_ignored_path": ".runtime/books-compat-20261018/before-release-media.json",
+      "sha256": "03aec506d211ae9ab882d7995255e311cffafce71f625473d03622bdcc9eb8ba"
+    },
+    {
+      "local_ignored_path": ".runtime/books-compat-20261018/after-media.json",
+      "sha256": "03aec506d211ae9ab882d7995255e311cffafce71f625473d03622bdcc9eb8ba"
+    },
+    {
+      "local_ignored_path": ".runtime/books-compat-20261018/poll-checks.receipt.json",
+      "sha256": "95ab979fcf117429f9d29b509854558d81a7d2bd3fa82cd3f2f34690f82bbbc4"
+    },
+    {
+      "local_ignored_path": ".runtime/books-compat-20261018/release/remote-poll.receipt.json",
+      "sha256": "2dd72816ddf59857203717ed5990b5c32617184dae57db6c2890bff0fa3cb850"
+    },
+    {
+      "local_ignored_path": ".runtime/books-compat-20261018/release/http-assets.json",
+      "sha256": "f5cbafcd29244a1837694944651d070851a251b31eda010d4a36a825b25ccce0"
+    },
+    {
+      "local_ignored_path": ".runtime/books-compat-20261018/release/sync-dockge.receipt.json",
+      "sha256": "981888e0fcb5c319a0c4467b12732619830c0cc9b635fda6a935cc765fd3df61"
+    },
+    {
+      "local_ignored_path": ".runtime/books-compat-20261018/read-retention.receipt.json",
+      "sha256": "a89c13ac713c03255a0236d22bddecd1874ef6a9b6c23eaf400d5580ea62ff6a"
+    },
+    {
+      "local_ignored_path": ".runtime/books-compat-20261018/organize-ebooks.receipt.json",
+      "sha256": "25f429f85c9daf4096d863eb6186fc7b2fdebe15e146bd7a1d2971655d334bbe"
+    }
+  ],
+  "limits": [
+    "完整WebView/Android及交互登录未实现",
+    "三源成功不代表仓库全部规则兼容",
+    "维基文库复杂跨层目录未覆盖，原页署名与版权尾注保留",
+    "正式浏览器导出事件未另计通过；NAS成品独立验证",
+    "未接入AI听读或bot共读"
+  ]
+}
