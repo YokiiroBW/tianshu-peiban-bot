@@ -1,0 +1,282 @@
+{
+  "date": "2026-10-17",
+  "status": "pushed_deployed_real_machine_and_authenticated_browser_verified",
+  "authorization": "User requested removal of obsolete TianShu cold backups, retaining only one verified complete backup; existing NAS deployment/recovery authorization continues. Preserve current data/configuration and other services.",
+  "development": {
+    "model": "gpt-6.1-sol",
+    "effort": "max",
+    "coordinator_role": "plan, dispatch, independent review, production execution and acceptance",
+    "guard_commit": "b0acbb85724bd198db84d23e8a374c28f8929871",
+    "retention_commits": [
+      "4ee8a90f958b64967282e39569e301b4341559fe",
+      "76fe1a81228f4898b1677b8a0c67d1d1a31f4144",
+      "a91686a5658872827052a23eda586dbbf00c04a4"
+    ],
+    "integrated_code_commit": "8c6d7b8bf1b7a3332989111b4e47c440b977a5de",
+    "github_main_code_push_confirmed": true
+  },
+  "incident": {
+    "initial_reason": "docker_unavailable",
+    "trigger": "one batch inspect of 387 NAS containers timed out after 15.017968 seconds and was not retried",
+    "last_healthy_free_bytes": 79919276032,
+    "last_healthy_deployment_bytes": 2549553483,
+    "target_services_stopped": 10,
+    "initial_stop_local": "2026-10-17 04:21 CST",
+    "original_first_cause_preserved_in_pending_receipt": true,
+    "canonical_service_exit_did_not_preserve_first_cause": true,
+    "exact_process_interruption_mechanism": "not established; first systemd journal unavailable",
+    "disk_shortage_seen_later_was_separate": true
+  },
+  "cleanup": {
+    "snapshots_before": 48,
+    "obsolete_complete_backups_removed": 47,
+    "data_directories_removed": 238,
+    "complete_backups_after": 1,
+    "keep": "/volume2/tianshu-v2-resident-updates/infrastructure-20261017-425e2b7-release/cold-snapshot",
+    "kept_sqlite_databases": 37,
+    "kept_manifest_sha256": "d574a8f7287212d64dc8e1f08dde57345496d11f002096322f4423d9243068f3",
+    "plan_sha256": "e4661a433b2c5b554f8cbb62d1465c3a5c1147f57a03abcfa60aeb2cc41dc01a",
+    "script_sha256": "8123b94df3ce2eeadca53e334c87f28bc0b664efef7a31a0c8704741b55f3f61",
+    "allocated_kib_before": 168812124,
+    "allocated_kib_after": 2516068,
+    "allocated_gib_reclaimed": 158.59,
+    "free_bytes_before": 67153776640,
+    "free_bytes_after": 236289376256,
+    "free_space_changes_include_concurrent_workloads": true,
+    "historical_metadata_retained_but_not_restorable_backups": true,
+    "images_or_containers_removed": false,
+    "global_docker_prune": false,
+    "verified_checkpoint_before_deletion": true
+  },
+  "permanent_retention": {
+    "policy": "latest_verified_resident_cold_backup/1",
+    "new_snapshot_must_verify_before_old_data_deletion": true,
+    "latest_backup_and_controls_preserved": true,
+    "validation_copies_retired_with_hash_bound_durable_checkpoint": true,
+    "failed_new_backup_never_deletes_old_backup": true,
+    "cleanup_error_preserves_verified_backup_and_reports_remaining_data_without_stopping_release": true,
+    "entry_points": [
+      "ops.recovery.resident_snapshot snapshot/CLI",
+      "deploy.infrastructure.resident renderer/release/rollback",
+      "deploy.infrastructure.recovery_input fixed input generator"
+    ],
+    "future_release_command": "python -B -m deploy.infrastructure.recovery_input --output ABS_NEW_JSON",
+    "historical_private_release_inputs_modified": false,
+    "rollback_old_guard_carried_inside_new_backup_before_prune": true,
+    "installed_files": {
+      "ops/recovery/resident_snapshot.py": {
+        "before": {
+          "exists": false,
+          "sha256": null
+        },
+        "after_sha256": "9390caa4c8e03f7b097b76698866ae3ea4e48f0bac1ad3a1e308449d27c0c388"
+      },
+      "ops/recovery/resident_retention.py": {
+        "before": {
+          "exists": false,
+          "sha256": null
+        },
+        "after_sha256": "cde30e138cdc86dcbcb0fdaade0fa671429d92c50db4312f0a9354a617c2ebf5"
+      },
+      "ops/recovery/safety.py": {
+        "before": {
+          "exists": true,
+          "sha256": "87b17688ba76ab9a593fdba3462f0cfc51e6d182a980929244b2458b267b5113"
+        },
+        "after_sha256": "fe650e570f246a3b6120d5a06eaaa89cde2e7a803eb6daf6e24994b1dc40b65a"
+      }
+    },
+    "fixed_input": "/volume2/tianshu-v2-resident-updates/infrastructure-20261017-connection-recovery/recovery-code-retention-v2.json",
+    "fixed_input_sha256": "72457e72dcb6fc43b965f153a4962d1d89fac13a93a2c7d7e663b05d4bdd626e",
+    "service_restart_for_tool_install": false
+  },
+  "recovery": {
+    "platform_revision": "425e2b7581a5681915972694ce3c9db30e9f8232",
+    "platform_image": "sha256:263c6e2795d78084da427240ae8434b9d8f2f466a3ec8fa7c4aca8f26663ebbe",
+    "platform_id": "6be1a64e60ba5bd6cb22fb96ca6c9b6c8107e77d7434dd45eb4ba1e5ae040861",
+    "guard_sha256": "d9523e8fb5466f2336353d1258e7bdcf91b0e24a31d2ec455518cba945f1303c",
+    "guard_state_dir": "/volume2/tianshu-v2-resident-updates/infrastructure-20261017-connection-recovery/capacity-state-27af787cadc74ae9969f072e392a028e",
+    "prior_state_preserved": "/volume2/tianshu-v2-resident-updates/infrastructure-20261017-425e2b7-release/capacity-state-123281a167e045d58a12d01ccb72caf9",
+    "core_tls_ready": 5,
+    "running_services": 10,
+    "guard": "ready",
+    "steady_state_inspected_containers": 10,
+    "full_id_inventory_still_read": true,
+    "initial_inspect_batch_limit": 32,
+    "existing_cycle_seconds": 25,
+    "watchdog_seconds": 30,
+    "minimum_free_bytes": 21474836480,
+    "gateway_origin": {
+      "gateway_id_after": "498b8fe4797e18eaefdf53ac16f006b25ce1be311fe04f4be199366c92495315",
+      "gateway_id_before": "012efdab58b61c13557be79892e2c5fdeb50767099bb111819f13fbfebb0e78d",
+      "gateway_image_expected": true,
+      "new_permissions": 0,
+      "new_service_credentials": 0,
+      "origin_reissued": true,
+      "original_origin_preserved": true,
+      "same_existing_entry_owner_and_route": true
+    },
+    "non_targets_preserved": 387,
+    "non_target_changes": [],
+    "non_target_removals": [],
+    "database_restore": false,
+    "settings_and_users_preserved": true,
+    "new_permissions": 0,
+    "real_qq_test_sent": false,
+    "readback_attempts": {
+      "first_preflight": "Path argument error before mutation, corrected",
+      "first_started_recovery": "services and runtime restored; comparison helper was absent from historical worker, recorded KeyError",
+      "readback_retry": "existing successful runtime receipt reuse corrected exclusive filename collision",
+      "final_readback": "recovery-readback-r2.json passed; all failed attempt artifacts retained"
+    },
+    "historical_pinned_recovery_scripts": "Historical scripts still pin earlier container identities/state generation and are preserved as evidence; prepare a new current-state input for any later rollback, rather than replaying them."
+  },
+  "validation": {
+    "guard_windows": {
+      "passed": 67,
+      "failed": 0,
+      "skipped": 0
+    },
+    "guard_nas_isolated_linux": {
+      "passed": 67,
+      "failed": 0,
+      "skipped": 0
+    },
+    "final_snapshot_retention_nas_isolated_linux": {
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0
+    },
+    "shared_recovery_and_enumeration_windows": {
+      "passed": 46,
+      "failed": 0,
+      "skipped": 0
+    },
+    "retention_release_and_rollback_wiring": "8 initial plus affected targeted followups passed; source-equivalent checks reused",
+    "independent_reviews": [
+      "fixed deletion scope reviewed; checkpoint ordering issue repaired in r3 and re-reviewed",
+      "final public snapshot/safety/module closure/rollback/readback accepted read-only"
+    ],
+    "real_failure_injection_on_production": false
+  },
+  "preservation": {
+    "music": {
+      "status": "preserved",
+      "counts": {
+        "music_account": 3,
+        "music_maintenance": 1,
+        "music_navidrome": 1,
+        "music_navidrome_playlist": 43,
+        "music_playlist": 43,
+        "music_settings": 1
+      },
+      "active_playlists": 43,
+      "auto_download_playlists": 43,
+      "navidrome_remote_ids_present": 43,
+      "navidrome_auto_sync_links": 43,
+      "playlist_intervals_seconds": [
+        43200
+      ]
+    },
+    "dockge_snapshots": {
+      "count": 2,
+      "current_hashes_match": true,
+      "new_snapshot_write_needed": false,
+      "containers_recreated": false
+    },
+    "other_containers": 387
+  },
+  "browser": {
+    "status": "verified_with_user_signed_in_session",
+    "user_signed_in": true,
+    "credentials_or_cookies_read": false,
+    "entry": "http://192.168.31.210:18446",
+    "registered_node": "nas-main",
+    "background_collection_enabled": true,
+    "connection_test": "observed_at_2026-10-17T09:32:06+08:00",
+    "container_total": 397,
+    "container_pages_verified": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "last_page_next_disabled": true,
+    "core_group": {
+      "containers": 5,
+      "running": 5,
+      "healthy": 5,
+      "cpu_memory_visible": true
+    },
+    "platform_container_id": "6be1a64e60ba5bd6cb22fb96ca6c9b6c8107e77d7434dd45eb4ba1e5ae040861",
+    "platform_details": [
+      "image",
+      "ports",
+      "mounts",
+      "cpu",
+      "memory",
+      "network"
+    ],
+    "bounded_platform_logs": {
+      "since_hours": 1,
+      "max_lines": 200,
+      "max_bytes": 65536,
+      "read_at": "2026-10-17T09:37:18+08:00",
+      "lines": 0
+    },
+    "automatic_sample_times": [
+      "2026-10-17T09:33:10+08:00",
+      "2026-10-17T09:38:48+08:00",
+      "2026-10-17T09:40:36+08:00",
+      "2026-10-17T09:41:31+08:00"
+    ],
+    "host_metrics": [
+      "cpu_percent",
+      "used_and_available_memory",
+      "uptime",
+      "load_averages",
+      "filesystems",
+      "network_rates"
+    ],
+    "volume2_free_gib_observed": 220.6,
+    "compose_observations": 69,
+    "visual_check": "native_Codex_in_app_browser_screenshots",
+    "limits": [
+      "DSM block IO remains unavailable where unsupported",
+      "Some Compose records remain partial or unavailable with explicit reasons",
+      "No history trends or game-server control in this release",
+      "OpenWrt deferred per user; no new login attempt",
+      "Dockge remains its existing separate service; no new start/stop control feature claimed"
+    ]
+  },
+  "task_status": {
+    "TS-180": "done",
+    "TS-181": "done",
+    "TS-182": "done"
+  },
+  "evidence": {
+    "private_directory": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\infrastructure-deploy-20261017\\connection-refused",
+    "files": {
+      "guard-detailed-evidence.json": "450818a8e54e05006dce3d769d0f71983dec9c3e88e088801de2c7e50fd92d80",
+      "snapshot-full-inventory.json": "1b6aa7ba5232344521bac91db0bca9fcdf5b101ed165b202a6929a3b23bed59a",
+      "snapshot-sizes.json": "aaf6ba028a9e78100eeae16632aa6c4e6bd35ba9ac4468df1b0af672e2f1e886",
+      "recovery-preflight.json": "0de2162033d3dae682d7f36abd01bc82c1fe76fea520c0afcf8f26a9d3d7c40f",
+      "retention-dry-run.json": "5f2d6a8707baedcc2190b21cea2feb0dc02021503da2e44fcd5d7889abb6e35d",
+      "retention-applied.json": "9b2c5a49cfa95c477d67a09c71b02f77e69ab55946bc5431fe844696b38398ae",
+      "linux-verification.json": "007ebf24bd985dea2f9c9c41028bb86e0d402c9072e0a1454812be5757286ef0",
+      "recovery-readback-r2.json": "79f2b38ef3b3c89e8d13bbf6d36083772bdf29a8738133e2dc5abed9f9810719",
+      "public-recovery-linux-verification.json": "f59bf98afcf341d34c577ae3790e60d271d074b3aa55d3824f5560ca90f0d213",
+      "public-recovery-install-result.json": "5054da411994ceea98f7ad2e6ac65884f105c404bd8671d24c21d2063f10ab69",
+      "music-readback.json": "37f12f87d8cbf20fab135cfceaa125ab1f28743975fb64a4714c36fa7285cb14",
+      "dockge-readback.json": "0db6dd7a5c6a101cf6c1c24f88aa0f75728387c8e66725e8362029804472f7f1",
+      "browser-acceptance.json": "aa43bed9792d05fb6d43c0166b3b5422d35d4c42fbe78982625ef0edb942d378"
+    }
+  },
+  "known_limits": [
+    "DSM block IO remains unavailable where unsupported",
+    "Some Compose records remain partial or unavailable with explicit reasons",
+    "No history trends or game-server control in this release",
+    "OpenWrt deferred per user; no new login attempt",
+    "Dockge remains its existing separate service; no new start/stop control feature claimed"
+  ]
+}

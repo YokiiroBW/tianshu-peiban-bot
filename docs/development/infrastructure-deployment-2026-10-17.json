@@ -579,5 +579,10 @@
     "local_coordinator_updated": true,
     "historical_remote_board_preserved": true,
     "reason": "Published historical task board lacks TS-172 and19 transitive music cards; this release records its status here instead of publishing unrelated mixed coordinator history."
+  },
+  "followup": {
+    "record": "docs/development/infrastructure-recovery-retention-2026-10-17.json",
+    "status": "connection_restored_backup_retention_deployed_authenticated_browser_verified",
+    "TS-182": "done"
   }
 }
