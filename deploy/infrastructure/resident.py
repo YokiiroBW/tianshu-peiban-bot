@@ -15,7 +15,7 @@ from pathlib import Path, PurePosixPath
 
 from .bundle import digest, git_files, json_bytes, require
 from .image import NODE_COMMIT, NODE_SHA256
-from .recovery_input import current_recovery
+from .recovery_input import current_recovery, FILES as RECOVERY_FILES
 from ops.recovery import resident_retention
 
 
@@ -53,13 +53,19 @@ def retention_runtime_source(*, install):
     return source
 
 
-def patch_templates(templates, capacity, image, credential_binds):
+def patch_templates(templates, capacity, image, credential_binds, *, preserve_existing=False, media_binds=()):
     """Change only Platform's image, two exact credential binds and bounded state."""
     templates, capacity = copy.deepcopy(templates), copy.deepcopy(capacity)
     for name in ("core", "platform"):
         service = templates[name]["services"]["platform"]
         service["image"] = image
         targets = {volume["target"] for volume in service["volumes"]}
+        require(not targets.intersection(bind["target"] for bind in media_binds), "media_mount_already_present")
+        for bind in media_binds:
+            service["volumes"].append({"type": "bind", **bind, "bind": {"create_host_path": False}})
+        if preserve_existing:
+            require(not credential_binds, "update_cannot_replace_credentials")
+            continue
         require(not targets.intersection(bind["target"] for bind in credential_binds), "credential_mount_already_present")
         require(SAMPLE_STATE not in targets, "sampling_mount_already_present")
         for bind in credential_binds:
@@ -70,10 +76,15 @@ def patch_templates(templates, capacity, image, credential_binds):
         tmpfs.append(SAMPLE_STATE + ":rw,noexec,nosuid,nodev,size=128m,uid=10001,gid=10001,mode=0700")
     capacity["images"]["platform"] = image
     capacity["binds"]["platform"].extend(copy.deepcopy(credential_binds))
+    capacity["binds"]["platform"].extend(copy.deepcopy(list(media_binds)))
+    capacity.setdefault("external_media_binds", []).extend(copy.deepcopy(list(media_binds)))
     return templates, capacity
 
 
-def merge_settings(settings, infrastructure):
+def merge_settings(settings, infrastructure, *, preserve_existing=False):
+    if preserve_existing:
+        require(settings.get("infrastructure") == infrastructure, "existing_infrastructure_changed")
+        return copy.deepcopy(settings)
     require("infrastructure" not in settings, "infrastructure_settings_already_present")
     require(settings["web_external"]["directory"] == infrastructure["directory"], "external_directory_mismatch")
     return {**settings, "infrastructure": copy.deepcopy(infrastructure)}
@@ -116,6 +127,14 @@ def existing_actions(raw):
             if name in {"STAGE_BODY", "LAUNCH_BODY", "POLL_BODY"}:
                 result[name] = ast.literal_eval(node.value)
     require(set(result) == {"STAGE_BODY", "LAUNCH_BODY", "POLL_BODY"}, "resident_actions_missing")
+    tree = ast.parse(result["STAGE_BODY"])
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Compare) and isinstance(node.left, ast.Name)
+                and node.left.id == "name" and len(node.ops) == 1
+                and isinstance(node.ops[0], ast.In) and isinstance(node.comparators[0], ast.Set)
+                and ast.literal_eval(node.comparators[0]) == RECOVERY_FILES - {"ops/recovery/resident_retention.py"}):
+            node.comparators[0].elts.append(ast.Constant(value="ops/recovery/resident_retention.py"))
+    result["STAGE_BODY"] = ast.unparse(tree) + "\n"
     return result
 
 
@@ -138,7 +157,8 @@ print(json.dumps({'status':'rolled_back','stage':str(S),'database_restore':False
 
 
 def prepare(*, baseline, metadata, build_result, mechanism_directory, recovery,
-            executor_config, guard_repo, guard_commit, stage, output):
+            executor_config, guard_repo, guard_commit, stage, output,
+            preserve_infrastructure=False, additional_media_binds=None):
     output = Path(output)
     require(output.is_absolute() and output.parent.is_dir() and not output.exists(), "new_output_required")
     require(PurePosixPath(stage).parent == PurePosixPath("/volume2/tianshu-v2-resident-updates"), "resident_stage_invalid")
@@ -163,13 +183,27 @@ def prepare(*, baseline, metadata, build_result, mechanism_directory, recovery,
     require(node["identity_file"] == CONTAINER_SSH + "/identity" and node["known_hosts_file"] == CONTAINER_SSH + "/known_hosts", "executor_credential_paths_mismatch")
     root = metadata["resident_root"]
     require(root == "/volume2/tianshu-v2-resident" and metadata["external_directory"] == "/var/lib/tianshu/external", "resident_authority_mismatch")
-    require(not metadata["infrastructure_configured"], "infrastructure_already_configured")
+    require(metadata["infrastructure_configured"] is preserve_infrastructure, "infrastructure_installation_mode_mismatch")
     credential_binds = [
         {"source": root + "/config/infrastructure/ssh/" + name,
          "target": CONTAINER_SSH + "/" + name, "read_only": True}
         for name in ("identity", "known_hosts")
     ]
     settings = json.loads((HERE / "templates/platform-settings.fragment.json").read_bytes())["infrastructure"]
+    if preserve_infrastructure:
+        settings = metadata["infrastructure_settings"]
+        require(settings["directory"] == metadata["external_directory"], "external_directory_mismatch")
+        credential_binds = []
+    media_binds = json.loads(Path(additional_media_binds).read_bytes()) if additional_media_binds else []
+    require(isinstance(media_binds, list), "media_binds_invalid")
+    for bind in media_binds:
+        require(isinstance(bind, dict) and set(bind) == {"source", "target", "read_only"}, "media_bind_invalid")
+        require(type(bind["read_only"]) is bool, "media_bind_invalid")
+        for key in ("source", "target"):
+            require(isinstance(bind[key], str) and PurePosixPath(bind[key]).is_absolute()
+                    and ".." not in PurePosixPath(bind[key]).parts, "media_bind_invalid")
+        require(bind["target"].startswith("/media/") and not PurePosixPath(bind["source"]).is_relative_to(PurePosixPath(root)), "media_bind_invalid")
+    require(len({bind["target"] for bind in media_binds}) == len(media_binds), "media_bind_duplicate")
     guard_files = git_files(guard_repo, guard_commit, GUARD_FILES)
     mechanism = Path(mechanism_directory)
     source_bytes = {name: (mechanism / name).read_bytes() for name in (
@@ -183,6 +217,7 @@ def prepare(*, baseline, metadata, build_result, mechanism_directory, recovery,
     contract_source = next(mount["Source"] for mount in platform["mounts"] if mount["Destination"] == "/contracts")
     release = {
         "stage": stage, "recovery": recovery,
+        "preserve_infrastructure": preserve_infrastructure, "media_binds": media_binds,
         "paths": {"root": root, "docker": metadata["docker_path"], "capacity": metadata["capacity_path"],
                   "unit": "/etc/systemd/system/tianshu-resident-capacity.service", "tooling": str(PurePosixPath(metadata["guard_code_path"]).parents[2]),
                   "python": metadata["tool_python"]},
@@ -252,6 +287,8 @@ def main():
     for name in ("baseline", "metadata", "build-result", "mechanism-directory", "recovery",
                  "executor-config", "guard-repo", "guard-commit", "stage", "output"):
         parser.add_argument("--" + name, required=True)
+    parser.add_argument("--preserve-infrastructure", action="store_true")
+    parser.add_argument("--additional-media-binds")
     print(json.dumps(prepare(**vars(parser.parse_args())), sort_keys=True))
 
 

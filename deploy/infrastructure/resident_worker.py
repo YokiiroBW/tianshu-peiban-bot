@@ -14,7 +14,7 @@ GATEWAY_REISSUED = False
 TRANSACTION_STARTED = False
 FAILURE_BASELINE_ROWS = RELEASE["baseline"]["owners"]
 FAILURE_EXPECTED_ROWS = FAILURE_BASELINE_ROWS
-FAILURE_CREDENTIAL_BINDS = RELEASE["infrastructure"]["credential_binds"]
+FAILURE_CREDENTIAL_BINDS = RELEASE["infrastructure"]["credential_binds"] + RELEASE.get("media_binds", [])
 FAILURE_EXPECT_SAMPLING = True
 
 
@@ -88,6 +88,12 @@ def expect_owners(rows, originals, credential_binds, *, expect_sampling=True):
 
 
 def check_private_inputs():
+    for bind in RELEASE.get("media_binds", []):
+        path = Path(bind["source"])
+        require(path.parent.is_dir() and not any(p.is_symlink() for p in (path, *path.parents)), "media_directory_parent_invalid")
+        require(not path.exists() or path.is_dir(), "media_directory_invalid")
+    if RELEASE.get("preserve_infrastructure"):
+        return
     # The coordinator stages just these two dedicated files in the private
     # release directory. No SSH home or credential content enters this script.
     for bind in RELEASE["infrastructure"]["credential_binds"]:
@@ -101,6 +107,14 @@ def check_private_inputs():
 
 def install_private_inputs():
     check_private_inputs()
+    for bind in RELEASE.get("media_binds", []):
+        path = Path(bind["source"])
+        if not path.exists():
+            path.mkdir(mode=0o755)
+            os.chown(path, 10001, 10001)
+            path.chmod(0o755)
+    if RELEASE.get("preserve_infrastructure"):
+        return
     # runc can inherit the existing mountpoint mode on later container starts.
     # This host directory remains empty; all sampling content lives in tmpfs.
     prepare_sampling_mountpoint(host_path(RELEASE["baseline"]["owners"], "platform", SAMPLE_STATE))
@@ -194,7 +208,8 @@ def release():
     settings_path = R / "config/platform/settings.json"
     settings = read(settings_path)
     save(S / "original-platform-settings.json", settings)
-    new_settings = merge_settings(settings, RELEASE["infrastructure"]["settings"])
+    preserve_infrastructure = RELEASE.get("preserve_infrastructure", False)
+    new_settings = merge_settings(settings, RELEASE["infrastructure"]["settings"], preserve_existing=preserve_infrastructure)
     settings_hashes = current_settings_hashes()
     save(S / "settings-hashes.json", settings_hashes)
     platform = next(row for row in rows if row["service"] == "platform")
@@ -222,8 +237,10 @@ def release():
     # No production input is written until the existing stopped-owner backup
     # and independent disabled restore verification have succeeded.
     install_private_inputs()
-    atomic_bytes(settings_path, (json.dumps(new_settings, ensure_ascii=False, indent=2) + "\n").encode())
-    templates, cap = patch_templates(templates, cap, RELEASE["images"]["platform"]["image_id"], RELEASE["infrastructure"]["credential_binds"])
+    if not preserve_infrastructure:
+        atomic_bytes(settings_path, (json.dumps(new_settings, ensure_ascii=False, indent=2) + "\n").encode())
+    added_binds = RELEASE["infrastructure"]["credential_binds"] + RELEASE.get("media_binds", [])
+    templates, cap = patch_templates(templates, cap, RELEASE["images"]["platform"]["image_id"], RELEASE["infrastructure"]["credential_binds"], preserve_existing=preserve_infrastructure, media_binds=RELEASE.get("media_binds", []))
     for name in ("core", "platform"):
         atomic_bytes(paths[name], (json.dumps(templates[name], indent=2) + "\n").encode())
     for name, item in RELEASE["guard_files"].items():
@@ -232,20 +249,20 @@ def release():
         atomic_bytes(TOOLING / name, raw, mode=0o644, uid=0, gid=0)
     configure_guard_generation(cap, (S / "original-unit").read_text(), S)
     save(S / "start-intent.json", {"state": "candidate_start", "database_restore": False})
-    current = start_and_verify(rows, paths, rows, RELEASE["infrastructure"]["credential_binds"])
+    current = start_and_verify(rows, paths, rows, added_binds)
     verify_networks(current, before_networks, definitions, declared)
     non_target_report = compare_inventory(non_targets, metadata_inventory(candidate_guard, {row["id"] for row in current}))
     save(S / "non-targets-after.json", non_target_report)
     require(non_target_report["preserved"], "non_target_container_changed")
     require(user_state_hashes(R) == read(S / "user-state-before.json"), "user_state_changed")
     require(read(settings_path) == new_settings, "platform_settings_changed")
-    require(all(value == settings_hashes[name] for name, value in current_settings_hashes().items() if name != "platform"), "other_settings_changed")
+    require(all(value == settings_hashes[name] for name, value in current_settings_hashes().items() if name != "platform" or preserve_infrastructure), "other_settings_changed")
     media_after = media_state()
     require(media_after["configuration_sha256"] == media_before["configuration_sha256"], "music_media_configuration_changed")
     save(S / "media-after.json", media_after)
     actual_platform = next(row for row in current if row["service"] == "platform")
     verify_infrastructure_runtime(actual_platform["id"], memory_limit)
-    save(S / "result.json", {"status": "deployed", "images": RELEASE["images"], "guard_commit": RELEASE["guard_commit"], "guard": "ready", "node_ids": ["nas-main"], "backup": str(S / "cold-snapshot"), "sqlite_backups": backup["sqlite_databases_verified"], "health": health_checks(current), "user_state_preserved": True, "music_media_configuration_preserved": True, "non_target_containers_preserved": True, "platform_memory_limit_preserved": True, "existing_settings_preserved_except_infrastructure_addition": True, "gateway_origin_reissued": GATEWAY_REISSUED, "database_restore": False, "real_qq_test_sent": False, "real_node_sampling_accepted": False, "dockge_sync_required": True})
+    save(S / "result.json", {"status": "deployed", "images": RELEASE["images"], "guard_commit": RELEASE["guard_commit"], "guard": "ready", "node_ids": ["nas-main"], "backup": str(S / "cold-snapshot"), "sqlite_backups": backup["sqlite_databases_verified"], "health": health_checks(current), "user_state_preserved": True, "music_media_configuration_preserved": True, "non_target_containers_preserved": True, "platform_memory_limit_preserved": True, "existing_settings_preserved": preserve_infrastructure, "existing_settings_preserved_except_infrastructure_addition": not preserve_infrastructure, "added_media_binds": RELEASE.get("media_binds", []), "gateway_origin_reissued": GATEWAY_REISSUED, "database_restore": False, "real_qq_test_sent": False, "real_node_sampling_accepted": False, "dockge_sync_required": True})
 
 
 def rollback_release(parent):
@@ -261,6 +278,8 @@ def rollback_release(parent):
     rows = snapshot.inspect_owners(D)
     require(len(rows) == 10 and {row["service"] for row in rows} == snapshot.OWNERS, "rollback_owner_set_changed")
     cap = read(CAP)
+    cold_external_media_binds = copy.deepcopy(cap["external_media_binds"])
+    preserve_infrastructure = original.get("preserve_infrastructure", False)
     require(cap["state_dir"].startswith(str(parent) + "/capacity-state-") or hashlib.sha256(CAP.read_bytes()).hexdigest() == original["baseline"]["capacity_sha256"], "another_release_changed_capacity")
     if (parent / "gateway-origin-result.json").exists():
         gateway_record = read(parent / "gateway-origin-result.json")
@@ -268,32 +287,34 @@ def rollback_release(parent):
         require(gateway["id"] == gateway_record["gateway_id_after"], "gateway_changed_after_release")
         GATEWAY_REISSUED = gateway_record["origin_reissued"]
     try:
-        expect_owners(rows, original["baseline"]["owners"], original["infrastructure"]["credential_binds"])
+        expect_owners(rows, original["baseline"]["owners"], original["infrastructure"]["credential_binds"] + original.get("media_binds", []))
     except Exception:
         require(signatures(rows) == signatures(original["baseline"]["owners"]), "rollback_owner_identity_changed")
     paths = paths_from(cap)
     templates = {name: read(path) for name, path in paths.items()}
     settings_path = R / "config/platform/settings.json"
     settings = read(settings_path)
-    if "infrastructure" in settings:
+    if "infrastructure" in settings and not preserve_infrastructure:
         require(settings["infrastructure"] == original["infrastructure"]["settings"], "infrastructure_changed_after_release")
         settings.pop("infrastructure")
     # Preserve every other setting, including legitimate later user changes.
-    credential_binds = original["infrastructure"]["credential_binds"]
+    credential_binds = original["infrastructure"]["credential_binds"] + original.get("media_binds", [])
     sources = {(item["source"], item["target"]) for item in credential_binds}
     for name in ("core", "platform"):
         service = templates[name]["services"]["platform"]
         service["image"] = original["previous_images"]["platform"]["image_id"]
         service["volumes"] = [v for v in service["volumes"] if (v.get("source"), v.get("target")) not in sources]
-        service["tmpfs"] = [item for item in service.get("tmpfs", []) if item.split(":", 1)[0] != SAMPLE_STATE]
+        if not preserve_infrastructure:
+            service["tmpfs"] = [item for item in service.get("tmpfs", []) if item.split(":", 1)[0] != SAMPLE_STATE]
     cap["images"]["platform"] = original["previous_images"]["platform"]["image_id"]
     cap["binds"]["platform"] = [item for item in cap["binds"]["platform"] if (item["source"], item["target"]) not in sources]
+    cap["external_media_binds"] = [item for item in cap["external_media_binds"] if (item["source"], item["target"]) not in sources]
     expected = copy.deepcopy(rows)
     for row in expected:
         if row["service"] == "platform":
-            row["mounts"] = [m for m in row["mounts"] if (m.get("Source"), m["Destination"]) not in sources and m["Destination"] != SAMPLE_STATE]
+            row["mounts"] = [m for m in row["mounts"] if (m.get("Source"), m["Destination"]) not in sources and (preserve_infrastructure or m["Destination"] != SAMPLE_STATE)]
     FAILURE_BASELINE_ROWS, FAILURE_EXPECTED_ROWS = rows, expected
-    FAILURE_CREDENTIAL_BINDS, FAILURE_EXPECT_SAMPLING = [], False
+    FAILURE_CREDENTIAL_BINDS, FAILURE_EXPECT_SAMPLING = [], preserve_infrastructure
     before = network_inventory(rows)
     definitions = network_definitions(before)
     declared = declared_addresses(rows, templates)
@@ -321,13 +342,14 @@ def rollback_release(parent):
     TRANSACTION_STARTED = True
     stop_managed()
     snapshot.require_stopped(rows, snapshot.inspect_owners(D))
-    backup = snapshot.snapshot(R, S / "cold-snapshot", rows, lambda: snapshot.inspect_owners(D), controls=controls, memory_guards=guards, external_media_binds=cap["external_media_binds"], media_staging_roots=staging_roots, docker=D)
+    backup = snapshot.snapshot(R, S / "cold-snapshot", rows, lambda: snapshot.inspect_owners(D), controls=controls, memory_guards=guards, external_media_binds=cold_external_media_binds, media_staging_roots=staging_roots, docker=D)
     require(backup["status"] == "offline_restore_verified" and backup["restored_disabled"] and backup["authority_unchanged"], "offline_restore_not_verified")
     guard_backup = S / "cold-snapshot/controls-backup" / str(guard_control_index)
     require(guard_backup.is_dir(), "guard_rollback_carry_missing")
     user_state = user_state_hashes(R)
     media_before = media_state()
-    atomic_bytes(settings_path, (json.dumps(settings, ensure_ascii=False, indent=2) + "\n").encode())
+    if not preserve_infrastructure:
+        atomic_bytes(settings_path, (json.dumps(settings, ensure_ascii=False, indent=2) + "\n").encode())
     for name in ("core", "platform"):
         atomic_bytes(paths[name], (json.dumps(templates[name], indent=2) + "\n").encode())
     for name in RELEASE["guard_files"]:
@@ -336,7 +358,7 @@ def rollback_release(parent):
         atomic_bytes(TOOLING / name, source.read_bytes(), mode=0o644, uid=0, gid=0)
     unit = (parent / "original-unit").read_text().replace(original["baseline"]["state_dir"], cap["state_dir"])
     configure_guard_generation(cap, unit, S)
-    current = start_and_verify(rows, paths, expected, [], expect_sampling=False)
+    current = start_and_verify(rows, paths, expected, [], expect_sampling=preserve_infrastructure)
     verify_networks(current, before, definitions, declared)
     non_target_report = compare_inventory(non_targets, metadata_inventory(candidate_guard, {row["id"] for row in current}))
     save(S / "non-targets-after.json", non_target_report)

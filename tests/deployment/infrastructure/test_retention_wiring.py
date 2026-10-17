@@ -71,6 +71,7 @@ class RetentionWiringTests(unittest.TestCase):
         scope = {"parent": old.parent, "read": lambda path: json.loads(Path(path).read_bytes()), "save": save,
                  "TOOLING": tooling, "paths": paths, "CAP": capacity, "UNIT": unit,
                  "cap": {"state_dir": str(state), "external_media_binds": []},
+                 "cold_external_media_binds": [],
                  "copy": copy, "uuid": uuid, "Path": Path, "original": {"previous_images": {"platform": {}}},
                  "rows": self.rows, "R": self.root, "D": "synthetic", "stop_managed": stop,
                  "snapshot": snapshot, "require": snapshot.require}

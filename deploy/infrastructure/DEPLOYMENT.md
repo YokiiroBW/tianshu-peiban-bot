@@ -124,6 +124,32 @@ The production changes are confined to:
 
 ## 3. Coordinator execution and rollback
 
+For an already installed infrastructure deployment, use the same resident
+preparer with `--preserve-infrastructure`. Metadata must set
+`infrastructure_configured=true` and include the observed
+`infrastructure_settings`; all existing settings bytes, dedicated SSH files,
+sampling tmpfs and other mounts are preserved. No credentials need staging in
+this mode. The exact observed executor configuration is still validated, and
+the fixed candidate must match the fresh live base image/revision.
+
+Optional `--additional-media-binds ABS_JSON` contains explicit `{source, target,
+read_only}` objects for new external media directories. Targets must be under
+`/media/`; sources must be outside the resident data root. Existing mount targets
+cannot be overwritten. After the verified cold snapshot, missing leaf
+directories are created under existing parents as UID/GID 10001; existing
+directories are not chmod/chown'ed or cleared. Both Compose views and the guard's
+registered external-media binds are updated together. Rollback removes only the
+new bindings, keeps existing infrastructure and all media files, and snapshots
+the current external-media scope before switching back. The same latest verified
+backup retention policy remains active.
+
+Intentional candidate dependency changes can use the image preparer's
+`--dependency-changes ABS_JSON`: exact `base_revision`, `revision`, and `files`
+mapping changed dependency-input paths to `before`/`after` SHA256. Missing,
+additional or mismatched changes are refused; without this input the original
+unchanged-dependency behavior remains. This is a fixed-input record, and does not
+replace installed Linux, source and unchanged music-runtime verification.
+
 Run `remote-stage.py` through the existing transport. It stages both the fixed
 worker and reviewed `rollback.py`. Place only the dedicated NAS identity and the
 already-trusted `[192.168.31.210]:77` known-host line in the new remote stage's
