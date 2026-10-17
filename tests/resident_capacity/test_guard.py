@@ -20,7 +20,7 @@ class FakeDocker:
         self.events = []
         self.fail = False
 
-    def snapshot(self, *, diagnostics=None, deadline=None):
+    def snapshot(self, *, diagnostics=None, deadline=None, fresh_ids=()):
         if self.fail:
             raise guard.Unsafe("docker_unavailable")
         return list(self.containers.values())
@@ -147,9 +147,9 @@ class ResidentCapacityTests(unittest.TestCase):
 
     def _run_with_clock(
         self, commands, capacity_seconds, *, notify_seconds=2,
-        heartbeat_seconds=(), recovery_seconds=0, stop_after_notifications=None,
+        heartbeat_seconds=(), recovery_seconds=0, stop_after_notifications=None, poll_seconds=10,
     ):
-        self.config = replace(self.config, poll_seconds=10)
+        self.config = replace(self.config, poll_seconds=poll_seconds)
         self._write_marker()
         clock, command_limits, sample_deadlines, notifications, stops = [0], [], [], [], []
         capacity_calls, heartbeat_calls = [0], [0]
@@ -518,9 +518,11 @@ class ResidentCapacityTests(unittest.TestCase):
         with patch.object(guard, "capacity", return_value=(100, 30 * guard.GIB)):
             result = guard.sample(self.config, self._marker(), docker)
         self.assertEqual(result["services"], 9)
-        self.assertEqual(result["docker_diagnostics"][-1]["batch_size"], 407)
+        batches = [item["batch_size"] for item in result["docker_diagnostics"] if item["stage"] == "batch_inspect"]
+        self.assertEqual(sum(batches), 407)
+        self.assertLessEqual(max(batches), guard.DOCKER_INSPECT_BATCH_SIZE)
         events = self._cli_events(state)
-        self.assertEqual(set(events[1]["ids"]), {item.id for item in [*self.containers, *external]})
+        self.assertEqual({item for event in events[1:] for item in event["ids"]}, {item.id for item in [*self.containers, *external]})
 
     def test_subprocess_nonzero_is_bounded_and_preserved_in_failure_and_stop_receipts(self):
         self._write_marker()
@@ -613,7 +615,7 @@ class ResidentCapacityTests(unittest.TestCase):
                 self.assertEqual(diagnostics[0]["returncode"], 7)
                 self.assertFalse(diagnostics[0]["timed_out"])
 
-    def test_subprocess_batch_timeout_is_distinct_and_never_resampled(self):
+    def test_subprocess_batch_timeout_retry_cannot_reset_exhausted_budget(self):
         docker, state = self._cli(faults={"batch_inspect": [{"sleep_seconds": 3}]})
         started = guard.time.monotonic()
         with patch.object(guard, "DOCKER_SNAPSHOT_SECONDS", 0.75):
@@ -622,12 +624,14 @@ class ResidentCapacityTests(unittest.TestCase):
         self.assertLess(guard.time.monotonic() - started, 2.5)
         self.assertEqual(len(self._cli_events(state)), 2)
         diagnostics = refused.exception.docker_diagnostics
-        self.assertEqual(len(diagnostics), 2)
-        self.assertEqual(diagnostics[-1]["stage"], "batch_inspect")
-        self.assertEqual(diagnostics[-1]["outcome"], "timeout")
-        self.assertTrue(diagnostics[-1]["timed_out"])
-        self.assertIsNone(diagnostics[-1]["returncode"])
-        self.assertGreater(diagnostics[-1]["elapsed_seconds"], 0)
+        self.assertEqual(len(diagnostics), 3)
+        self.assertEqual(diagnostics[1]["stage"], "batch_inspect")
+        self.assertEqual(diagnostics[1]["outcome"], "timeout")
+        self.assertTrue(diagnostics[1]["timed_out"])
+        self.assertIsNone(diagnostics[1]["returncode"])
+        self.assertGreater(diagnostics[1]["elapsed_seconds"], 0)
+        self.assertEqual(diagnostics[-1]["outcome"], "deadline_exhausted")
+        self.assertEqual(diagnostics[-1]["attempt"], 2)
 
     def test_subprocess_missing_binary_records_spawn_failure(self):
         docker = guard.Docker(str(Path(self.temp.name) / "missing-docker"))

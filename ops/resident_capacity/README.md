@@ -94,8 +94,13 @@ python3 -B -m ops.resident_capacity.guard fail-close --state-dir /ABSOLUTE/capac
 ```
 
 Thus a crashed or watchdog-killed main process is stopped by an independent
-systemd control process; it does not rely on a Python signal handler. The
-fail-close command writes `failure.json` before effects, disables restart on
+systemd control process; it does not rely on a Python signal handler. When
+`run` detects an unsafe sample under this unit's notify/30-second watchdog
+environment, it latches the cause and exits for the same `ExecStopPost` path.
+It does not spend the remaining main-process watchdog interval performing the
+potentially long stop. A standalone `run` invocation keeps synchronous
+fail-close, including configuration-mismatch and already-latched exits.
+The fail-close command writes `failure.json` before effects, disables restart on
 the nine or ten locked resident IDs only, reads policy back, sends SIGTERM only,
 and confirms they exited. It never SIGKILLs or deletes logs. `stop-*.json`
 retains each attempt and its fixed-code errors. A partial stop returns
@@ -105,6 +110,15 @@ If another container replaces a locked ID, the guard reports it as unconfirmed
 and does not automatically stop that replacement under a reused project name.
 Once latched, the loop cannot return to ready or rearm without an explicit
 review and a new state generation.
+
+An interrupted atomic write can leave a complete `failure.json.<32hex>.tmp`
+before the canonical latch exists. Startup and `status` also recognize a
+valid pending latch in this state directory. Fail-close publishes its earliest
+valid cause before effects, and keeps that cause on later `service_exit` or
+`latched_failure` invocations. Only the exact temporary name, bounded expected
+JSON structure, regular file, matching private-state owner and private mode
+are accepted; incomplete, malformed or differently located files are not
+recovery evidence. The pending file remains available for incident review.
 
 The configured TERM wait is at most 120 seconds. Docker commands time out at
 10 seconds each and the batch inspect at 15 seconds. A standalone Docker
@@ -119,18 +133,27 @@ claims a stop solely because its deadline elapsed.
 
 ## Docker sampling and private diagnostics
 
-Each snapshot still enumerates **all host containers**, up to the existing
-4096-container bound, and inspects every returned ID. It does not restrict the
-inventory to the resident IDs, because unrelated containers can conflict with
-the deployment mounts. A nonzero batch inspect or a mismatch between the
-enumerated and inspected IDs permits **one** new complete `ps` and batch
-inspect. Both attempts share the original 25-second budget; each command is
-also limited by its original 10/15-second ceiling and the remaining budget.
-No individual ID is skipped, and a partial first result is never reused.
-`ps` failures, command timeouts, process creation failures, invalid IDs and
-invalid metadata fail immediately. A second incomplete/failed attempt also
-fails. A complete resample still goes through the original exact-service,
-locked-ID, running-state, restart-policy, mount and capacity checks.
+Each snapshot still enumerates **all host container IDs**, up to the existing
+4096-container bound. Cold and newly seen IDs are inspected in batches of at
+most 32. The Docker instance retains only unrelated containers' immutable
+creation metadata: selected Compose labels, configured image and mounts.
+It discards their status and restart-policy observations. Every resident
+project container and every locked ID is inspected afresh on every sample,
+including fail-close exit confirmation on a previously used Docker instance.
+This avoids repeatedly inspecting hundreds of unchanged unrelated containers
+while preserving the complete foreign-mount and exact-ownership checks.
+Removed IDs leave the cache after a complete valid snapshot; a failed attempt
+never publishes partial cache updates. No cache is persisted across processes.
+
+A nonzero batch inspect, a batch-inspect timeout or an enumerated/inspected ID
+mismatch permits **one** new complete enumeration and refresh. Both attempts,
+including every 32-ID batch, share the original 25-second budget; each command
+is also limited by its original 10/15-second ceiling and the remaining budget.
+Fresh observations from an incomplete attempt are discarded. `ps` failures,
+process creation failures, invalid IDs and invalid metadata fail immediately.
+A second incomplete/failed attempt also fails. A complete resample still goes
+through the original exact-service, locked-ID, running-state, restart-policy,
+mount and capacity checks. A retry cannot extend an already exhausted budget.
 
 The running loop uses a stricter **whole-cycle** deadline: the start of its
 previous successful `WATCHDOG=1` send plus 25 seconds. That send's own elapsed
@@ -179,9 +202,11 @@ or saving stderr.
 The loop writes current sampling diagnostics to the existing `heartbeat.json`.
 Its first `failure.json` preserves the triggering sample, including the first
 failed attempt and final result; subsequent stop attempts do not rewrite it.
-Each existing `stop-*.json` has `trigger_docker_diagnostics` and the separate
-`docker_diagnostics` for that stop attempt, alongside its original status,
-fixed errors and exact-ID readback. A successfully resampled healthy loop
+Each existing `stop-*.json` preserves the original failure `reason` and
+`trigger_docker_diagnostics`; `invoked_by` identifies this call and
+`pending_failure_recovered` records whether it published a pending latch.
+The separate `docker_diagnostics` describes that stop attempt, alongside its
+original status, fixed errors and exact-ID readback. A successfully resampled healthy loop
 sample also updates **one bounded file**, `docker-resample.json`, so the next
 normal heartbeat does not erase the latest recovery evidence. It records the
 sample time, healthy result and both attempts. All files use the existing

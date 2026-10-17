@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import posixpath
 import re
@@ -20,7 +21,7 @@ import subprocess
 import sys
 import time
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 
@@ -41,6 +42,7 @@ GIB = 1024**3
 DEFAULT_LIMIT = 20 * GIB
 DOCKER_CALL_SECONDS = 10
 DOCKER_BATCH_INSPECT_SECONDS = 15
+DOCKER_INSPECT_BATCH_SIZE = 32
 DOCKER_SNAPSHOT_SECONDS = DOCKER_CALL_SECONDS + DOCKER_BATCH_INSPECT_SECONDS
 MAX_SNAPSHOT_ATTEMPTS = 2
 MAX_TERM_SECONDS = 120
@@ -240,6 +242,10 @@ def assess(containers: list[Container], signatures: dict, root: str, locked: dic
 class Docker:
     def __init__(self, binary: str):
         self.prefix = [binary, "--host", "unix:///var/run/docker.sock"]
+        # Docker24 cannot update these creation fields in place. Do not retain
+        # status/restart observations for unrelated containers, or cache any
+        # resident project's metadata. Locked IDs are always inspected afresh.
+        self._foreign_creation = {}
 
     def _run(
         self, *args, stage, diagnostics, batch_size=1, attempt=1,
@@ -292,8 +298,9 @@ class Docker:
         record("ok")
         return output
 
-    def snapshot(self, *, diagnostics=None, deadline=None):
+    def snapshot(self, *, diagnostics=None, deadline=None, fresh_ids=()):
         diagnostics = [] if diagnostics is None else diagnostics
+        fresh_ids = set(fresh_ids)
         # A retry shares the original ps + inspect allowance, including the
         # failed attempt. Never retry an individual ID or accept partial output.
         snapshot_deadline = time.monotonic() + DOCKER_SNAPSHOT_SECONDS
@@ -311,20 +318,33 @@ class Docker:
                 ):
                     raise Unsafe("docker_inventory_invalid")
                 if not ids:
+                    self._foreign_creation = {}
                     return []
-                lines = self._run(
-                    "inspect", "--format", INSPECT_FORMAT, *ids,
-                    stage="batch_inspect", diagnostics=diagnostics, batch_size=len(ids),
-                    attempt=attempt, deadline=deadline, timeout=DOCKER_BATCH_INSPECT_SECONDS,
-                ).splitlines()
-                if len(lines) != len(ids):
-                    raise Unsafe("docker_inventory_changed")
-                try:
-                    containers = [Container.parse(json.loads(line)) for line in lines]
-                except (ValueError, TypeError) as error:
-                    raise Unsafe("docker_metadata_invalid") from error
-                if {item.id for item in containers} != set(ids):
-                    raise Unsafe("docker_inventory_changed")
+                collected = {item: self._foreign_creation[item] for item in ids
+                             if item in self._foreign_creation and item not in fresh_ids}
+                needed = [item for item in ids if item not in collected]
+                for offset in range(0, len(needed), DOCKER_INSPECT_BATCH_SIZE):
+                    batch = needed[offset:offset + DOCKER_INSPECT_BATCH_SIZE]
+                    lines = self._run(
+                        "inspect", "--format", INSPECT_FORMAT, *batch,
+                        stage="batch_inspect", diagnostics=diagnostics, batch_size=len(batch),
+                        attempt=attempt, deadline=deadline, timeout=DOCKER_BATCH_INSPECT_SECONDS,
+                    ).splitlines()
+                    if len(lines) != len(batch):
+                        raise Unsafe("docker_inventory_changed")
+                    try:
+                        current = [Container.parse(json.loads(line)) for line in lines]
+                    except (ValueError, TypeError) as error:
+                        raise Unsafe("docker_metadata_invalid") from error
+                    if {item.id for item in current} != set(batch):
+                        raise Unsafe("docker_inventory_changed")
+                    collected.update((item.id, item) for item in current)
+                containers = [collected[item] for item in ids]
+                # Publish a new cache only after a complete, valid enumeration.
+                self._foreign_creation = {
+                    item.id: replace(item, status=None, restart=None) for item in containers
+                    if item.project not in SERVICES and item.id not in fresh_ids
+                }
                 return containers
             except Unsafe as error:
                 error.docker_diagnostics = tuple(diagnostics)
@@ -333,6 +353,10 @@ class Docker:
                 retryable = error.args[0] == "docker_inventory_changed" or (
                     error.args[0] == "docker_command_failed"
                     and diagnostics[-1]["stage"] == "batch_inspect"
+                ) or (
+                    error.args[0] == "docker_unavailable" and diagnostics
+                    and diagnostics[-1]["stage"] == "batch_inspect"
+                    and diagnostics[-1]["outcome"] == "timeout"
                 )
                 if not retryable or attempt == MAX_SNAPSHOT_ATTEMPTS:
                     raise
@@ -618,6 +642,77 @@ def _armed(state_dir: Path):
         raise Unsafe("armed_marker_invalid") from error
 
 
+def _failure_value(value):
+    """Validate a bounded first-cause record, including its limited diagnostics."""
+    required = {"reason", "time", "docker_diagnostics"}
+    if (
+        not isinstance(value, dict) or set(value) != required
+        or not isinstance(value["reason"], str) or not re.fullmatch(r"[a-z_]{1,48}", value["reason"])
+        or type(value["time"]) not in (int, float) or not 0 < value["time"] < 2**64 or not math.isfinite(value["time"])
+        or not isinstance(value["docker_diagnostics"], list)
+    ):
+        raise Unsafe("failure_receipt_invalid")
+    fields = {"stage", "attempt", "batch_size", "returncode", "timed_out", "outcome", "elapsed_seconds"}
+    for event in value["docker_diagnostics"]:
+        if (
+            not isinstance(event, dict) or not fields <= set(event) or set(event) - fields - {"os_error_number"}
+            or not isinstance(event["stage"], str) or event["stage"] not in {"ps", "batch_inspect", "inspect_one", "update", "term"}
+            or type(event["attempt"]) is not int or not 1 <= event["attempt"] <= MAX_SNAPSHOT_ATTEMPTS
+            or type(event["batch_size"]) is not int or not 0 <= event["batch_size"] <= 4096
+            or (event["returncode"] is not None and type(event["returncode"]) is not int)
+            or type(event["timed_out"]) is not bool
+            or not isinstance(event["outcome"], str) or event["outcome"] not in {"ok", "nonzero_exit", "timeout", "deadline_exhausted", "spawn_failed", "invalid_output"}
+            or type(event["elapsed_seconds"]) not in (int, float)
+            or not 0 <= event["elapsed_seconds"] <= MAX_FAIL_CLOSE_SECONDS or not math.isfinite(event["elapsed_seconds"])
+            or (event.get("os_error_number") is not None and type(event["os_error_number"]) is not int)
+        ):
+            raise Unsafe("failure_receipt_invalid")
+    return value
+
+
+def _read_failure(path: Path):
+    info = path.lstat()
+    if not stat.S_ISREG(info.st_mode) or (
+        os.name == "posix" and (info.st_uid != path.parent.stat().st_uid or info.st_mode & 0o077)
+    ):
+        raise Unsafe("failure_receipt_owner_or_mode_invalid")
+    return _failure_value(_read_json(path))
+
+
+def _pending_failure(state: Path):
+    """Find a completed private latch write interrupted before publication."""
+    pending = []
+    for path in state.glob("failure.json.*.tmp"):
+        if not re.fullmatch(r"failure\.json\.[0-9a-f]{32}\.tmp", path.name):
+            continue
+        try:
+            pending.append(_read_failure(path))
+        except (Unsafe, OSError):
+            # A partial write, symlink or wrong owner/mode is not evidence.
+            continue
+    return min(pending, key=lambda item: item["time"]) if pending else None
+
+
+def _failure_present(state: Path):
+    return os.path.lexists(state / "failure.json") or _pending_failure(state) is not None
+
+
+def _latch_failure(state: Path, reason: str, diagnostics=()):
+    """Keep the first cause even if watchdog interrupted fsync before publish."""
+    destination = state / "failure.json"
+    if os.path.lexists(destination):
+        return _read_failure(destination), False
+    pending = _pending_failure(state)
+    value = pending if pending is not None else _failure_value({
+        "reason": reason, "time": time.time(), "docker_diagnostics": list(diagnostics),
+    })
+    try:
+        _write(destination, value, exclusive=True)
+    except FileExistsError:
+        return _read_failure(destination), False
+    return value, pending is not None
+
+
 def arm(config: Config, config_sha256: str, docker: Docker):
     state = _state_dir(config.state_dir, create=True)
     if any(state.iterdir()):
@@ -650,7 +745,7 @@ def sample(config: Config, marker: dict, docker: Docker, *, deadline=None):
     diagnostics = []
     try:
         owned = assess(
-            docker.snapshot(diagnostics=diagnostics, deadline=deadline),
+            docker.snapshot(diagnostics=diagnostics, deadline=deadline, fresh_ids=marker["ids"].values()),
             marker["signatures"], marker["root"], marker["ids"],
         )
         used, free = capacity(config.root, config.free_paths)
@@ -676,12 +771,12 @@ def fail_close(state_dir: Path, reason: str, docker: Docker | None = None, *, di
         return {"status": "unarmed", "stopped": 0}
     marker = _armed(state)
     latch_write_failed = False
+    recovered = False
+    invoked_by = reason
     try:
-        if not (state / "failure.json").exists():
-            _write(state / "failure.json", {
-                "reason": reason, "time": time.time(), "docker_diagnostics": list(diagnostics),
-            }, exclusive=True)
-    except OSError:
+        failure, recovered = _latch_failure(state, reason, diagnostics)
+        reason, diagnostics = failure["reason"], failure["docker_diagnostics"]
+    except (OSError, Unsafe):
         # Continue stopping even when the evidence filesystem is unavailable.
         latch_write_failed = True
     docker = docker or Docker(marker["docker"])
@@ -691,7 +786,7 @@ def fail_close(state_dir: Path, reason: str, docker: Docker | None = None, *, di
     targets = set(marker["ids"].values())
     stop_diagnostics = []
     try:
-        inventory = docker.snapshot(diagnostics=stop_diagnostics)
+        inventory = docker.snapshot(diagnostics=stop_diagnostics, fresh_ids=targets)
         owned, conflicts = classify(inventory, marker["signatures"], marker["root"])
         errors.extend(conflicts)
         if any(item.id not in targets for item in owned.values()):
@@ -727,7 +822,7 @@ def fail_close(state_dir: Path, reason: str, docker: Docker | None = None, *, di
     deadline = time.monotonic() + marker["term_timeout_seconds"]
     while time.monotonic() < deadline:
         try:
-            inventory = docker.snapshot(diagnostics=stop_diagnostics)
+            inventory = docker.snapshot(diagnostics=stop_diagnostics, fresh_ids=targets)
             owned, conflicts = classify(inventory, marker["signatures"], marker["root"])
             errors.extend(conflicts)
             present = {item.id: item for item in inventory}
@@ -751,6 +846,8 @@ def fail_close(state_dir: Path, reason: str, docker: Docker | None = None, *, di
     result = {
         "status": "stopped" if not errors and len(exited) == len(targets) else "unconfirmed",
         "reason": reason,
+        "invoked_by": invoked_by,
+        "pending_failure_recovered": recovered,
         "target_ids": sorted(targets),
         "restart_disabled_ids": sorted(disabled),
         "term_sent_ids": sorted(terminated),
@@ -778,12 +875,33 @@ def notify(message: str):
         client.sendto(message.encode(), address)
 
 
+def _systemd_stop_post():
+    # The shipped Type=notify / WatchdogSec=30s unit supplies both variables and
+    # already has ExecStopPost. A standalone CLI keeps synchronous fail-close.
+    return bool(os.environ.get("NOTIFY_SOCKET")) and os.environ.get("WATCHDOG_USEC") == "30000000"
+
+
+def _run_failure(config: Config, reason: str, docker: Docker, diagnostics=()):
+    if _systemd_stop_post():
+        # Do not consume the main process's remaining watchdog interval doing
+        # up to ten update/readbacks, TERMs and a 120-second terminal wait.
+        # ExecStopPost uses the armed Docker identity and the first-cause latch.
+        try:
+            _latch_failure(config.state_dir, reason, diagnostics)
+        except (Unsafe, OSError):
+            return 3  # ExecStopPost still stops, recovering any valid pending record.
+        return 2
+    stopped = fail_close(config.state_dir, reason, docker, diagnostics=diagnostics)
+    return 2 if stopped["status"] == "stopped" else 3
+
+
 def run(config: Config, config_sha256: str, docker: Docker):
     marker = _armed(_state_dir(config.state_dir))
     if marker["config_sha256"] != config_sha256:
-        stopped = fail_close(config.state_dir, "capacity_config_changed_after_arm", Docker(marker["docker"]))
-        return 2 if stopped["status"] == "stopped" else 3
-    if (config.state_dir / "failure.json").exists():
+        return _run_failure(config, "capacity_config_changed_after_arm", Docker(marker["docker"]))
+    if _failure_present(config.state_dir):
+        if _systemd_stop_post():
+            return 0  # ExecStopPost remains the single stop writer for this run.
         result = fail_close(config.state_dir, "latched_failure", docker)
         return 0 if result["status"] == "stopped" else 3
     ready = False
@@ -817,15 +935,14 @@ def run(config: Config, config_sha256: str, docker: Docker):
             reason = error.args[0] if isinstance(error, Unsafe) else "capacity_guard_io_failure"
             if isinstance(error, Unsafe):
                 diagnostics = error.docker_diagnostics or diagnostics
-            stopped = fail_close(config.state_dir, reason, docker, diagnostics=diagnostics)
-            return 2 if stopped["status"] == "stopped" else 3
+            return _run_failure(config, reason, docker, diagnostics)
         time.sleep(config.poll_seconds)
 
 
 def status(config: Config, config_sha256: str, docker: Docker):
     state = _state_dir(config.state_dir)
     marker = _armed(state)
-    if marker["config_sha256"] != config_sha256 or (state / "failure.json").exists():
+    if marker["config_sha256"] != config_sha256 or _failure_present(state):
         raise Unsafe("capacity_guard_not_ready")
     try:
         heartbeat = _read_json(state / "heartbeat.json")
