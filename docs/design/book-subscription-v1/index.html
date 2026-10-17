@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>天枢 · 书籍订阅设计</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">跳到主要内容</a>
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-icon">枢</span>
+        <div><b>天枢</b><small>自己的生活与收藏</small></div>
+      </div>
+      <div class="nav-label">媒体与收藏</div>
+      <div class="nav-context">订阅下载 <span>⌄</span></div>
+      <nav aria-label="书籍功能" id="navigation">
+        <button data-page="search" class="nav-item active" aria-current="page">
+          <span>⌕</span>聚合搜索
+        </button>
+        <button data-page="subscriptions" class="nav-item">
+          <span>◷</span>我的订阅 <em id="nav-count">1</em>
+        </button>
+        <button data-page="library" class="nav-item"><span>▤</span>本地书库</button>
+        <button data-page="sources" class="nav-item"><span>⊞</span>书源管理</button>
+        <button data-page="settings" class="nav-item"><span>⚙</span>整理设置</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <span class="dot"></span>书籍功能设计稿<br /><a
+          href="../../architecture/book-subscription-design-2026-10-17.md"
+          >查看完整功能设计 ↗</a
+        >
+      </div>
+    </aside>
+    <main id="main">
+      <header class="topbar">
+        <div>订阅下载 <span>/</span> 书籍</div>
+        <div class="row">
+          <span class="badge">交互原型</span
+          ><button class="icon" id="theme" aria-label="切换深浅主题">◐</button
+          ><button class="quiet" id="reset">重置示例</button>
+        </div>
+      </header>
+      <div class="demo-note">
+        本页数据与正文均为设计示例，操作只改变当前页面；未连接真实书源、NAS 或下载服务。
+      </div>
+      <section class="page-heading">
+        <div>
+          <p class="eyebrow">BOOK COLLECTION</p>
+          <h1 id="page-title">找到下一本想读的书</h1>
+          <p id="page-description">搜索多个书源，先读几页，再让天枢替你收好后续章节。</p>
+        </div>
+        <button class="primary" id="heading-action">＋ 导入书源</button>
+      </section>
+
+      <section class="page" id="page-search">
+        <form id="search-form" class="search-bar">
+          <label class="sr-only" for="query">书名、作者或 ISBN</label
+          ><input id="query" placeholder="搜索书名、作者或 ISBN" autocomplete="off" /><label
+            class="sr-only"
+            for="source-group"
+            >搜索范围</label
+          ><select id="source-group">
+            <option value="all">全部启用书源</option>
+            <option value="web">网络书源</option>
+            <option value="local">本地书库</option></select
+          ><button class="primary" type="submit">聚合搜索</button>
+        </form>
+        <div class="content-grid">
+          <section>
+            <div class="section-top">
+              <h2 id="results-title">探索书目</h2>
+              <span id="search-summary" class="muted">示例书目 · 同书多来源聚合展示</span>
+            </div>
+            <div id="results" class="book-list"></div>
+            <div id="empty" class="empty" hidden>
+              没有匹配的示例书目。试试“雾港”或“林见山”，也可调整搜索范围。
+            </div>
+          </section>
+          <aside class="side-panel">
+            <span class="eyebrow">从找到，到收好</span>
+            <h2>让阅读继续下去</h2>
+            <ol class="steps">
+              <li><b>先试读</b><span>看目录、正文和来源差异</span></li>
+              <li><b>订阅追更</b><span>首次取全，之后只补新章</span></li>
+              <li><b>补齐资料</b><span>从书库匹配，保留手动修改</span></li>
+              <li><b>整理成 EPUB</b><span>留在 NAS，继续原来的位置</span></li>
+            </ol>
+            <div class="divider"></div>
+            <div class="row spread">
+              <b>本页示例任务</b><span id="pending-count">0 个待完成</span>
+            </div>
+            <p class="muted small">订阅后可推进示例任务，查看书库中的成品状态。</p>
+            <button id="advance" class="secondary full">推进示例任务</button>
+          </aside>
+        </div>
+      </section>
+      <section class="page" id="page-subscriptions" hidden>
+        <div class="stats" id="subscription-stats"></div>
+        <div class="section-top">
+          <h2>正在追的书</h2>
+          <p class="muted">暂停追更会保留已下载的章节和成品</p>
+        </div>
+        <div id="subscriptions" class="stack"></div>
+      </section>
+      <section class="page" id="page-library" hidden>
+        <div class="panel library-intro">
+          <div>
+            <h2>一本书，一份持续更新的成品</h2>
+            <p class="muted">更新 EPUB 时保留章节定位，重复订阅复用已经取得的正文。</p>
+          </div>
+          <button class="secondary" id="local-import">导入本地文件</button
+          ><input id="local-file" type="file" accept=".txt,.md,.html,.epub" hidden />
+        </div>
+        <div id="library" class="book-list"></div>
+      </section>
+      <section class="page" id="page-sources" hidden>
+        <div class="panel source-feed">
+          <div>
+            <span class="label">规则集合</span>
+            <h2>书源仓库</h2>
+            <p class="muted">http://www.yckceo.com/ · 仅登记仓库首页，尚无可导入的 JSON 地址</p>
+          </div>
+          <span class="status warning">待提供规则直链</span>
+        </div>
+        <div class="section-top">
+          <h2>已导入的书源</h2>
+          <span class="muted">规则更新与书籍追更分别管理</span>
+        </div>
+        <div id="sources" class="stack"></div>
+        <p class="muted small">
+          此处为示例列表。来源失效时保留已有规则与下载内容，其他来源仍可继续搜索。
+        </p>
+      </section>
+      <section class="page" id="page-settings" hidden>
+        <form id="settings-form" class="panel settings">
+          <h2>下载与整理</h2>
+          <label>NAS 书籍目录<input id="nas-path" value="/media/Books" /></label
+          ><small class="muted">示例容器路径；实际目录沿用天枢部署中的目标库配置。</small
+          ><label
+            >默认追更周期<select id="default-frequency">
+              <option value="6">每 6 小时</option>
+              <option value="1">每小时</option>
+              <option value="24">每天</option>
+            </select></label
+          ><label>成品目录格式<input value="作者 / 书名 [短ID] / book.epub" readonly /></label>
+          <div class="check-row">
+            <input id="auto-metadata" type="checkbox" checked /><label for="auto-metadata"
+              >明确匹配时自动补齐缺失元数据</label
+            >
+          </div>
+          <p class="muted small">
+            保留人工编辑；匹配不明确不阻止下载。网文没有 ISBN 时使用内部书籍标识。
+          </p>
+          <h2>元数据来源</h2>
+          <div class="provider">
+            <b>书源详情与本地书库</b><span class="status good">优先使用</span>
+          </div>
+          <div class="provider">
+            <b>OPDS / Calibre 书库</b><span class="muted">连接后可搜索</span>
+          </div>
+          <div class="provider">
+            <b>Open Library / Google Books</b><span class="muted">可选在线候选</span>
+          </div>
+          <button class="primary" type="submit">保存本页设置</button>
+        </form>
+      </section>
+      <footer>设计草案 · 2026.10.17 <span>以天枢现有订阅下载为入口</span></footer>
+    </main>
+
+    <dialog id="book-dialog" class="book-dialog">
+      <div class="dialog-heading">
+        <div>
+          <span class="eyebrow">书籍详情</span>
+          <h2 id="detail-title"></h2>
+          <p id="detail-subtitle" class="muted"></p>
+        </div>
+        <button class="icon" data-close="book-dialog" aria-label="关闭书籍详情">×</button>
+      </div>
+      <div class="detail-toolbar">
+        <label for="detail-source">内容来源</label
+        ><select id="detail-source"></select
+        ><button class="secondary" id="metadata-open">搜索并补全元数据</button>
+      </div>
+      <div class="reader-layout">
+        <nav id="chapters" aria-label="章节目录"></nav>
+        <article id="chapter-content"></article>
+      </div>
+      <div class="dialog-footer">
+        <span id="detail-hint" class="muted">预览来源章节</span>
+        <div class="row">
+          <button class="secondary" id="download-once">仅下载一次</button
+          ><button class="primary" id="subscribe-book">订阅并下载</button>
+        </div>
+      </div>
+    </dialog>
+    <dialog id="metadata-dialog">
+      <div class="dialog-heading">
+        <div>
+          <span class="eyebrow">书目资料</span>
+          <h2>从书库匹配元数据</h2>
+        </div>
+        <button class="icon" data-close="metadata-dialog" aria-label="关闭元数据">×</button>
+      </div>
+      <div class="candidate">
+        <span class="status good">同名同作者 · 示例匹配</span>
+        <h3 id="candidate-title"></h3>
+        <p class="muted">来源：示例 OPDS 书库 · 仅演示候选与字段选择</p>
+      </div>
+      <form id="metadata-form">
+        <div class="field-grid">
+          <label>书名<input id="meta-title" required /></label
+          ><label>作者<input id="meta-author" required /></label
+          ><label>语言<input id="meta-language" /></label
+          ><label>标签<input id="meta-tags" /></label>
+        </div>
+        <label>简介<textarea id="meta-description" rows="3"></textarea></label>
+        <p class="muted small">应用后保留为人工选择，后续自动匹配不会覆盖这些字段。</p>
+        <div class="dialog-footer">
+          <button class="quiet" type="button" data-close="metadata-dialog">保留原资料</button
+          ><button class="primary" type="submit">应用选定资料</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="source-dialog">
+      <div class="dialog-heading">
+        <div>
+          <span class="eyebrow">规则导入</span>
+          <h2>添加书源</h2>
+        </div>
+        <button class="icon" data-close="source-dialog" aria-label="关闭书源导入">×</button>
+      </div>
+      <p class="muted">本页可解析 JSON 结构并加入示例列表，不执行规则或访问远程地址。</p>
+      <form id="source-form">
+        <label
+          >规则 JSON<textarea
+            id="source-json"
+            rows="8"
+            spellcheck="false"
+            placeholder="粘贴单个书源或书源数组"
+          ></textarea>
+        </label>
+        <div class="row">
+          <label class="file-button"
+            >选择 JSON 文件<input
+              id="source-file"
+              type="file"
+              accept=".json,application/json" /></label
+          ><button id="source-example" type="button" class="quiet">填入示例</button>
+        </div>
+        <label
+          >或填写规则集合直链<input id="source-url" type="url" placeholder="https://…/sources.json"
+        /></label>
+        <p id="import-result" class="small" role="status"></p>
+        <div class="dialog-footer">
+          <span class="muted small">坏条目单独报告，已有规则保留</span
+          ><button class="primary" type="submit">导入到本页</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="artifact-dialog">
+      <div class="dialog-heading">
+        <h2>EPUB 成品预览</h2>
+        <button class="icon" data-close="artifact-dialog" aria-label="关闭成品预览">×</button>
+      </div>
+      <div id="artifact-content"></div>
+      <p class="muted small">这是设计回执示例，没有生成或写入真实 EPUB 文件。</p>
+    </dialog>
+    <div id="toast" role="status" class="toast" hidden></div>
+  </body>
+</html>

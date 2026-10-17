@@ -1,0 +1,398 @@
+{
+  "schema_version": 1,
+  "task": "TS-188",
+  "state": "pushed_deployed_verified_with_documented_limits",
+  "recorded_at": "2026-10-17T16:08:17.920881+00:00",
+  "entry": "http://192.168.31.210:18446/#/subscriptions/8",
+  "product": {
+    "image_id": "sha256:68805c0d11e5c5a3809bbf35e84784595bfed2fc27db9cdf1a263230678ca55a",
+    "revision": "c843944ee0dcc00de4260890dcde6c0a68fea6d9"
+  },
+  "feature_commits": {
+    "TS-183": "657a42b0711c48e4860d7dd30d0cf44bf2adca5b",
+    "TS-184": "5fbf3fb9f2570e58e1dc0dbe2b087124d112111f"
+  },
+  "deployment_tools_commit": "f928031cdb0de21ba7b515ed575226da435c3578",
+  "root_baseline": "055d5e1855be5a6978b91a21fad01b619b890bf8",
+  "remote_push": {
+    "platform_main": "c843944ee0dcc00de4260890dcde6c0a68fea6d9",
+    "root_tools_main": "f928031cdb0de21ba7b515ed575226da435c3578",
+    "force": false
+  },
+  "coordination": {
+    "production_writer": "TS-188",
+    "combined_ui_tasks": [
+      "TS-185",
+      "TS-186",
+      "TS-187"
+    ],
+    "ui_thread": "01a1437a-f7e2-7ca2-b506-468785f66438",
+    "user_authorized_messages": true,
+    "ui_independent_real_browser_acceptance": true,
+    "parallel_production_writes": false
+  },
+  "deployment": {
+    "status": "deployed",
+    "guard": "ready",
+    "backup": "/volume2/tianshu-v2-resident-updates/books-20261017-c843944-release/cold-snapshot",
+    "sqlite_backups": 38,
+    "existing_settings_preserved": true,
+    "music_media_configuration_preserved": true,
+    "platform_memory_limit_preserved": true,
+    "non_target_containers_preserved": true,
+    "database_restore": false,
+    "gateway_origin_reissued": false,
+    "added_media_binds": [
+      {
+        "read_only": false,
+        "source": "/volume1/Documents/天枢书库",
+        "target": "/media/Books"
+      }
+    ]
+  },
+  "health": {
+    "managed_services": 10,
+    "guard": "ready",
+    "tls": [
+      {
+        "service": "platform",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true
+      },
+      {
+        "service": "gateway",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true
+      },
+      {
+        "service": "companion",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true
+      },
+      {
+        "service": "memory",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true
+      },
+      {
+        "service": "knowledge",
+        "live": 200,
+        "ready": 200,
+        "verified_tls": true
+      }
+    ],
+    "non_targets": {
+      "after": 387,
+      "before": 387,
+      "changed": [],
+      "preserved": true,
+      "removed": []
+    }
+  },
+  "backup_retention": {
+    "status": "retention_observed",
+    "current_backup": "/volume2/tianshu-v2-resident-updates/books-20261017-c843944-release/cold-snapshot",
+    "snapshot_status": "offline_restore_verified",
+    "sqlite_databases_verified": 38,
+    "full_backups": [
+      "/volume2/tianshu-v2-resident-updates/books-20261017-c843944-release/cold-snapshot"
+    ],
+    "checkpoint_count": 1,
+    "deferred_receipts": [],
+    "checkpoint_top_level_keys": [
+      [
+        "kept_backup_and_controls_verified",
+        "kept_data",
+        "manifest_sha256",
+        "plan_sha256",
+        "receipt_sha256",
+        "snapshot",
+        "status",
+        "verification_directories"
+      ]
+    ],
+    "writes": false
+  },
+  "media_preservation": {
+    "configuration_preserved": true,
+    "job_identity_preserved": {
+      "audio": true,
+      "video": true
+    },
+    "database_version_preserved": true,
+    "counts": {
+      "account": 1,
+      "subscription": 6,
+      "media_target": 1,
+      "music_account": 3,
+      "music_playlist": 43,
+      "music_navidrome_playlist": 43,
+      "music_maintenance": 1,
+      "music_settings": 1,
+      "music_navidrome": 1
+    }
+  },
+  "existing_job_observation": {
+    "audio": {
+      "count": 1956,
+      "ids_sha256": "49dac85a010a5a08306da704f1fc3eb13abd2bb8e28a9d3cbed7f364ac361a46",
+      "states": {
+        "completed": 1434,
+        "failed": 89,
+        "retry_wait": 433
+      }
+    },
+    "video": {
+      "count": 9,
+      "ids_sha256": "b0c44e8388c8660ec5ddbd94c3ac61dd003426f9cb10ae413d282805f61fd93a",
+      "states": {
+        "completed": 6,
+        "failed": 3
+      }
+    }
+  },
+  "database_user_version": 2,
+  "book_live_acceptance": {
+    "status": "book_epub_verified",
+    "uid": 10001,
+    "book_id": "27227af78b28c8941bb3032d",
+    "book_title": "唐诗二首·部署验收",
+    "settings": {
+      "directory": "/media/Books",
+      "auto_metadata": 1,
+      "open_library": 1
+    },
+    "artifact": {
+      "root": "/media/Books",
+      "relative_path": "未知作者/唐诗二首·部署验收 [27227af7]/book.epub",
+      "bytes": 2615,
+      "sha256": "a5a417489e238b2e834042fe0e1007356c5fec310706bb54d23cf3e3707b5aaa",
+      "content_digest": "a90758ad8a0de6a60c037aef1c17adca2ea3a33f9ba16c5ea4ad01f15371c760",
+      "metadata_digest": "d9eee8746c89a121d957a692cb8d1b30f87ff8bf63b9a7e51c637e0cbdc72c49",
+      "chapters": 2,
+      "expected_chapters": 2,
+      "complete": true,
+      "published_at": 1792252481.6753852,
+      "version": 1,
+      "reused": false,
+      "mtime_ns": 1792252481490071274
+    },
+    "file": {
+      "container_path": "/media/Books/未知作者/唐诗二首·部署验收 [27227af7]/book.epub",
+      "uid": 10001,
+      "gid": 10001,
+      "mode": "0o640",
+      "sha256": "a5a417489e238b2e834042fe0e1007356c5fec310706bb54d23cf3e3707b5aaa",
+      "bytes": 2615,
+      "zip_crc_valid": true,
+      "epub_valid": true,
+      "spine_chapters": 2,
+      "public_domain_texts_match": true,
+      "nas_path": "/volume1/Documents/天枢书库/未知作者/唐诗二首·部署验收 [27227af7]/book.epub",
+      "nas_hash_matches_container": true
+    },
+    "jobs": [
+      {
+        "state": "completed",
+        "stage": "book_published",
+        "code": "book_completed",
+        "done": 2,
+        "total": 2
+      }
+    ],
+    "warehouse_feeds": [
+      {
+        "title": "中华典藏",
+        "page_url": "https://www.yckceo.com/yuedu/shuyuan/content/id/6319.html",
+        "state": "active",
+        "interval_seconds": 86400,
+        "last_scan_at": 1792252462.0474,
+        "next_scan_at": 1792338862.0474,
+        "code": "ready",
+        "result": {
+          "imported": 1,
+          "invalid": 0,
+          "added": 0,
+          "updated": 0,
+          "unchanged": 1,
+          "reasons": {}
+        }
+      }
+    ],
+    "source_states": [
+      {
+        "name": "中华典藏",
+        "enabled": 0,
+        "code": "book_rule_capability_unsupported",
+        "upstream_removed": 0
+      }
+    ],
+    "writes": false,
+    "credentials_selected": false
+  },
+  "browser_acceptance": {
+    "user_logged_in": true,
+    "credentials_exported": false,
+    "warehouse_list_entries": 100,
+    "warehouse_search_matches": 3,
+    "warehouse_direct_subscribe": true,
+    "initial_background_import": true,
+    "immediate_update_unchanged": 1,
+    "local_enabled_choice_preserved_after_update": true,
+    "daily_schedule_registered": true,
+    "elapsed_daily_cycle_tested": false,
+    "txt_import": true,
+    "previewed_chapters": [
+      "第一章 静夜思",
+      "第二章 春晓"
+    ],
+    "epub_library_display": true,
+    "browser_download_verified": false,
+    "browser_download_limitation": "The click and downloadMedia attempt did not yield a downloadable artifact/event in the browser tool; NAS file and application UID reads verified independently."
+  },
+  "tests": {
+    "linux": {
+      "status": "passed",
+      "suites": [
+        {
+          "pattern": "test_book*.py",
+          "run": 20,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "pattern": "test_media_standalone.py",
+          "run": 23,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "pattern": "test_music_library.py",
+          "run": 23,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "pattern": "test_media_background.py",
+          "run": 4,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        {
+          "pattern": "test_music_foundation.py",
+          "run": 16,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0
+        }
+      ],
+      "uid": 10001,
+      "production_data_mounted": false,
+      "external_network": false
+    },
+    "combined_validation": {
+      "previous_test_image": "sha256:1f66ad62359c43dc7c01f8d452d505ce5c5e3d0f4ef9b65d2cbd14d00f301a87",
+      "validated_revision": "5fbf3fb9f2570e58e1dc0dbe2b087124d112111f",
+      "final_revision": "c843944ee0dcc00de4260890dcde6c0a68fea6d9",
+      "non_frontend_hashes_equal": true,
+      "file_count": 545,
+      "linux_checks_reused": 86,
+      "new_frontend_checks": 10
+    },
+    "deployment_tools_applicable_passed": 58,
+    "deployment_tools_initial_environment_failure": "1 case required existing interpreter with pinned PyYAML 6.0.3; only that case rerun and passed. Other 57 reused."
+  },
+  "static_assets": {
+    "status": "nas_public_static_verified",
+    "static_assets": 64,
+    "cache_no_store": true,
+    "revision": "c843944ee0dcc00de4260890dcde6c0a68fea6d9"
+  },
+  "dockge": {
+    "snapshots_synced": 2,
+    "containers_recreated": false
+  },
+  "limitations": [
+    "Reader3 rules are a supported subset; WebView and app-specific interaction are not supported.",
+    "The imported Zhonghua Diancang rule returned book_rule_capability_unsupported in a real search. Search participation disabled; daily rule feed remains active.",
+    "Real remote chapter search/download success, elapsed daily update, new-chapter pursuit and external metadata matches were not established by this live sample.",
+    "Browser file-download event was not observed; generated EPUB integrity and NAS/container bytes were verified.",
+    "Existing failed/retry media jobs were retained, not claimed resolved.",
+    "Fish Audio, AI narration and synchronized audio/text are outside this delivery."
+  ],
+  "evidence": [
+    {
+      "path": ".runtime/books-deploy-20261017/release-c843944/remote-poll.receipt.json",
+      "sha256": "5378b0a27059bd7529377a593e140011c7528eafc1a3eca971dc6e9bdb653135"
+    },
+    {
+      "path": ".runtime/books-deploy-20261017/media-preservation.json",
+      "sha256": "b49948e3b77ada7e3e2897beced9bd7784b88c8c9a58fcf23a7d650d3f217004"
+    },
+    {
+      "path": ".runtime/books-deploy-20261017/final-health-storage.json",
+      "sha256": "aefda533927a6ac4fc4db2dcd6df9a7b1f8867517993ae9fe7242cd317823677"
+    },
+    {
+      "path": ".runtime/books-deploy-20261017/read-retention.receipt.json",
+      "sha256": "1d1858f2edffee0f2412e14646ba66e1ddd6cd940dfdc2df2ec53b084735a784"
+    },
+    {
+      "path": ".runtime/books-deploy-20261017/verify-book.receipt.json",
+      "sha256": "68dcf9cb936a83f81c0e21cb04b73e234bf7ebe110c313cf2ce85ae4d8f60830"
+    },
+    {
+      "path": ".runtime/books-deploy-20261017/linux-checks-status.json",
+      "sha256": "ce3ab7d13b5eddbb35c1fbaa594f96e668810cfce9c9d6bb2260244fd23b5471"
+    },
+    {
+      "path": ".runtime/books-deploy-20261017/combined-validation.json",
+      "sha256": "b5c7d634e24ac332ea73ccaee1f96dbcad6ced0ab64d8dd96255e12d6527324f"
+    },
+    {
+      "path": ".runtime/books-deploy-20261017/release-c843944/http-assets.json",
+      "sha256": "36a825da70f9ba6594acaa43a4279afc21cb1550f9201fa06ff657c501f272ce"
+    },
+    {
+      "path": ".runtime/books-deploy-20261017/release-c843944/sync-dockge.receipt.json",
+      "sha256": "340888d20682cd5aba5d2f037fa35bd68551433db09dcc23621ff48cfe8ae3b4"
+    },
+    {
+      "path": ".runtime/books-deploy-20261017/nas-book-library.png",
+      "sha256": "2567ea7d3c04f5598335a63bbe7768f1b398fcdaded0a215a36982851524c175"
+    },
+    {
+      "path": ".runtime/books-deploy-20261017/nas-book-preview.png",
+      "sha256": "c2b42313a1cd3d8bb578b7769276ace98c09dd000a15de2286e84aef0131ebdc"
+    }
+  ],
+  "task_completion": {
+    "TS-183": {
+      "status": "done",
+      "delivery_state": "pushed_deployed_verified_with_documented_limits",
+      "deployment_reference": "docs/development/books-deployment-2026-10-17.json",
+      "deployed_platform_commit": "c843944ee0dcc00de4260890dcde6c0a68fea6d9"
+    },
+    "TS-184": {
+      "status": "done",
+      "delivery_state": "pushed_deployed_verified_with_documented_limits",
+      "deployment_reference": "docs/development/books-deployment-2026-10-17.json",
+      "deployed_platform_commit": "c843944ee0dcc00de4260890dcde6c0a68fea6d9"
+    },
+    "TS-188": {
+      "status": "done",
+      "delivery_state": "pushed_deployed_verified_with_documented_limits",
+      "deployment_reference": "docs/development/books-deployment-2026-10-17.json",
+      "deployed_platform_commit": "c843944ee0dcc00de4260890dcde6c0a68fea6d9"
+    }
+  },
+  "task_board_note": "Current coordinator task board updated only for TS183/184/188. Older published task board kept unchanged because its dependency history is not part of this scoped release."
+}
