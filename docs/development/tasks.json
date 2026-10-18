@@ -1176,7 +1176,7 @@
       "depends_on": [
         "TS-193"
       ],
-      "status": "in_progress",
+      "status": "done",
       "desired_baseline_commit": "a5399c3bf73e587c4a97767e76bfc67f5604b684",
       "allowed_paths": [
         "services/platform/media/books/",
@@ -1208,7 +1208,7 @@
       "branch": "codex/ts-194-book-audio",
       "baseline_commit": "a5399c3bf73e587c4a97767e76bfc67f5604b684",
       "allocation_note": "workspace start refused preserved coordinator build/; isolated exact committed baseline allocated without touching original changes.",
-      "delivery_state": "deployed_awaiting_authenticated_web_acceptance",
+      "delivery_state": "pushed_deployed_production_verified",
       "delivery_record": "docs/development/books-audio-reading-2026-10-18.json"
     },
     {
@@ -1221,7 +1221,7 @@
       "depends_on": [
         "TS-193"
       ],
-      "status": "in_progress",
+      "status": "done",
       "allowed_paths": [
         "src/tianshu_companion/reading.py",
         "src/tianshu_companion/clients.py",
@@ -1243,7 +1243,7 @@
       "worktree": "worktrees/TS-195/tianshu-companion",
       "branch": "codex/ts-195-book-reading",
       "baseline_commit": "0e11c3888348c25028b495608f32f817323398f7",
-      "delivery_state": "deployed_awaiting_authenticated_web_acceptance",
+      "delivery_state": "pushed_deployed_production_verified",
       "delivery_record": "docs/development/books-audio-reading-2026-10-18.json"
     },
     {
@@ -1257,7 +1257,7 @@
         "TS-194",
         "TS-195"
       ],
-      "status": "in_progress",
+      "status": "done",
       "allowed_paths": [
         "contracts/reading-state/",
         "docs/development/books-audio-reading-2026-10-18.md",
@@ -1270,7 +1270,7 @@
       "worktree": "worktrees/TS-196/workspace",
       "branch": "codex/ts-196-book-audio-delivery",
       "baseline_commit": "cf36ba33984cac04c86df884cf092b9bd062df26",
-      "delivery_state": "deployed_awaiting_authenticated_web_acceptance",
+      "delivery_state": "pushed_deployed_production_verified",
       "delivery_record": "docs/development/books-audio-reading-2026-10-18.json"
     }
   ],

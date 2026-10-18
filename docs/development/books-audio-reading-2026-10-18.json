@@ -1,5 +1,5 @@
 {
-  "status": "pushed_deployed_awaiting_authenticated_web_acceptance",
+  "status": "pushed_deployed_production_verified",
   "user_preferences": {
     "normal_context": "private library catalog",
     "reading_context": "explicit co-reading only",
@@ -569,15 +569,115 @@
     "credential_files_read": false,
     "backup_directory": "/volume2/tianshu-v2-resident-updates/books-audio-20261018-be28ba8-release/dockge-backups/20261018T123131Z-cea01c5e"
   },
-  "remaining": [
-    "Official authenticated UI: real chapter generation, playback, read-along, cache replay and co-reading toggles. User asked to log in after restart."
-  ],
+  "remaining": [],
   "limits": [
     "Fish/local provider protocols verified with real HTTP fixtures, not real Fish quota or local model.",
     "No live model or QQ message was sent.",
     "Auto-new tested with controlled new chapters; no natural author update claimed.",
     "Two existing Companion full-suite failures and old TS016 Git ownership check remain.",
-    "Earlier Linux harness failures corrected and evidence retained."
+    "Earlier Linux harness failures corrected and evidence retained.",
+    "An initial transient dependency_unavailable coincided with log_flush_timeout; subsequent acceptance passed without changing the shared logging policy."
   ],
-  "evidence_directory": ".runtime/books-audio-20261018"
+  "evidence_directory": ".runtime/books-audio-20261018",
+  "production_web_acceptance": {
+    "status": "production_web_and_nas_verified",
+    "book": "夜无疆",
+    "author": "辰东",
+    "chapter": "第1章 永夜",
+    "job_id": "910bfda13a0a1947292c4472912363fb",
+    "source": "previously downloaded real novel chapter, not local TXT fixture",
+    "provider": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "parts": 4,
+    "synthesis_characters": 2716,
+    "text_characters": 2722,
+    "generation_seconds": 29.047,
+    "audio": {
+      "status": "nas_audio_verified",
+      "host_path": "/volume1/Documents/电子书/玄幻奇幻/辰东/夜无疆 [e0557add]/audio/e8167039b51d3ab9650debeb/d8ed925311c466b1c0e03b43.mp3",
+      "manifest_path": "/volume1/Documents/电子书/玄幻奇幻/辰东/夜无疆 [e0557add]/audio/e8167039b51d3ab9650debeb/d8ed925311c466b1c0e03b43.json",
+      "duration": 533.016,
+      "bytes": 3198333,
+      "sha256": "cc44073a0bdf082f9bc28bba4fdcc9d08b6f9d525c683779f078e17f0f130443",
+      "sync": "sentence",
+      "cues": 75,
+      "full_ffmpeg_decode": true,
+      "decode_warnings": false,
+      "writes": false
+    },
+    "cache_replay": {
+      "status": "cache_replay_verified",
+      "jobs": 1,
+      "segments": 4,
+      "additional_provider_attempts": 0,
+      "additional_characters": 0,
+      "file_hash_and_mtime_unchanged": true,
+      "auto_new": true,
+      "historical_chapter_checkpoint": 848,
+      "sharing_after_toggle": false,
+      "fish_calls": 0
+    },
+    "playback": {
+      "official_authenticated_page": true,
+      "played": true,
+      "sentence_highlight": true,
+      "text_follow": true,
+      "paragraph_seek": true,
+      "paused": true,
+      "resume_seconds": 170.348169,
+      "resume_offset": 902
+    },
+    "co_reading": {
+      "selected_role": "澄汐",
+      "explicit_on_verified": true,
+      "explicit_off_verified": true,
+      "active_reader_close_stops_sharing": true,
+      "reopen_defaults_off": true,
+      "current_sharing": false,
+      "live_model_or_qq_called": false
+    },
+    "auto_new": {
+      "enabled": true,
+      "historical_checkpoint": 848,
+      "ready_audio_chapters": 1,
+      "remaining_historical_chapters_not_queued": 847,
+      "natural_author_update_observed": false
+    },
+    "screenshot": ".runtime/books-audio-20261018/nas-audio-reading.png",
+    "initial_transient": {
+      "ui": "dependency_unavailable on initial estimate and reading sync",
+      "evidence": {
+        "window_event_count": 380,
+        "warnings_errors": [
+          {
+            "timestamp": "2026-10-18T15:24:42.950Z",
+            "event": "logging.recovered",
+            "level": "WARNING",
+            "error_code": null,
+            "outcome": "succeeded",
+            "duration_ms": null
+          },
+          {
+            "timestamp": "2026-10-18T15:24:42.988Z",
+            "event": "logging.unavailable",
+            "level": "ERROR",
+            "error_code": "log_flush_timeout",
+            "outcome": "failed",
+            "duration_ms": null
+          }
+        ],
+        "bounded_tail_read": true,
+        "writes": false
+      },
+      "assessment": "Same-window log_flush_timeout matches the existing diagnostic admission protection; read-only domain checks and subsequent real flow passed. No shared logging policy change or service restart.",
+      "resolved_for_acceptance": true
+    },
+    "final_player_seconds": 0.1,
+    "fish_calls": 0
+  },
+  "acceptance_document_commits": {
+    "platform": "f6f58b6020dd6102fa371ae46ca20ccf7f937a93",
+    "companion": "6d906a4904682e0bf345c0e449dd5a0b0a2fd7a3"
+  },
+  "production_window": "Book acceptance complete; explicitly release Platform/Companion to coordinated subsequent tasks after this record is pushed. Subsequent AS changes need a fresh baseline."
 }
