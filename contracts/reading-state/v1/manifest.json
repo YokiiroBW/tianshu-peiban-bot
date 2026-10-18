@@ -1,0 +1,12 @@
+{
+  "name": "reading-state",
+  "version": "1.0.0",
+  "dependencies": {
+    "text-dialogue/v1": "90697e6ecbb587d3db8c8e4682f7f8f43a8b1a98f70d8835c8282b03828d2d3a"
+  },
+  "sha256": {
+    "examples.json": "4e00ab9ebc2948ac2477ea72c04f42fd55b14a2d84fe0ab7275d1a979812050e",
+    "README.md": "1b8497cf65cfba46948ee3244435aaf50776c2e3394a9d7a6dd06e381f8dc8cf",
+    "schema.json": "fdf9d8e912e0f6eba2468b73a3596ed019ed8feeb3affec8a7d19ccfc6b368b3"
+  }
+}
