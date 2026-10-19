@@ -1,5 +1,5 @@
 {
-  "status": "pushed_building_not_deployed",
+  "status": "pushed_deployed_backend_verified_pending_web",
   "date": "2026-10-19",
   "models": {
     "implementation": "gpt-6.1-sol",
@@ -19,9 +19,9 @@
       "integration": "44534fa3978217ead8f7df5e0ca6223c1fbd909b"
     },
     "TS-208": {
-      "candidate": "3508207cef26f516147f1f82ccfdeb68e6992f67",
+      "candidate": "a4af6db3ed85a666b63979e88c01cddf8f601eb6",
       "implementation": "4abe2c26409e8c7d5104fcf0f607794e836f597a",
-      "integration": "c5c1584e599bc4588bcea82506087a839e62f274"
+      "integration": "2010bca27a5354399c7f90b121b629aa0515e706"
     }
   },
   "preserved_platform_baseline": {
@@ -123,23 +123,71 @@
       "skipped": 0,
       "evidence": ".runtime/dockge-control-20261019/nas-node-process-proof.json",
       "docker_or_compose_mutation": false
+    },
+    {
+      "scope": "installed immutable NAS image Linux process lifecycle",
+      "run": 5,
+      "passed": 5,
+      "skipped": 0,
+      "installed_wheel_control_checked": true,
+      "evidence": ".runtime/dockge-control-20261019/nas-installed-process-tests.json"
+    },
+    {
+      "scope": "mount-order acceptance correction",
+      "run": 9,
+      "passed": 9,
+      "skipped": 0,
+      "commit": "ad2825c8617555a2bf1d34e64695911e3825cd51"
+    },
+    {
+      "scope": "later release preserves installed control before any production action",
+      "run": 15,
+      "passed": 15,
+      "skipped": 0,
+      "commit": "a4af6db3ed85a666b63979e88c01cddf8f601eb6",
+      "production_preparation": 11,
+      "resident_update": 4,
+      "evidence": ".runtime/dockge-control-20261019/future-release-preparation-tests.log"
+    },
+    {
+      "scope": "NAS isolated real Docker control through installed relay and SSH",
+      "run": 10,
+      "passed": 10,
+      "skipped": 0,
+      "evidence": ".runtime/dockge-control-20261019/acceptance-reverified.json",
+      "reverification": "original evidence and current full inventory read only; no repeated mutations",
+      "original_failure_retained": "mount list ordering false positive; all 45 differences proved order only"
     }
   ],
   "nas": {
     "read_only_inspected": true,
-    "production_mutations": false,
+    "production_mutations": true,
     "dockge_version": "1.5.0",
     "compose_version_in_dockge": "2.34.0",
     "node_version_in_dockge": "22.14.0",
     "guard_ready": true,
     "owners_running": 10,
     "last_readonly_state_dir": "/volume2/tianshu-v2-resident-updates/comic-chinese-search-20261019-ea45faa-release/capacity-state-bf65ae54d05644ac8b95812c090ff650",
-    "candidate_build_started": true
+    "candidate_build_started": true,
+    "platform_commit": "44534fa3978217ead8f7df5e0ca6223c1fbd909b",
+    "platform_image": "sha256:342143798f70dd1b872738f0d2883ce0b9797030043a221eeb708b2a52e33d47",
+    "platform_id": "373b0e271f43036f55723c5cbe16b476bd52d049a8ed42345c1867e75d7e3af8",
+    "current_state_dir": "/volume2/tianshu-v2-resident-updates/dockge-control-20261019-44534fa-release/capacity-state-75af1ea920114ec7840be586852fc340",
+    "platform_binds": 16,
+    "original_dockge_preserved": true,
+    "existing_settings_preserved_except_control": true,
+    "sqlite_backups_verified": 39,
+    "tls_health_services": 5,
+    "static_assets_verified": 64,
+    "cold_backup_count": 1,
+    "cold_backup": "/volume2/tianshu-v2-resident-updates/dockge-control-20261019-44534fa-release/cold-snapshot",
+    "database_restore": false,
+    "real_control_accepted": true,
+    "production_gui_accepted": false,
+    "production_write_window": "released"
   },
   "remaining": [
-    "candidate image and installed Linux process checks",
-    "fresh baseline and serial NAS deployment retaining latest media/configuration/data",
-    "isolated real Docker control and production authenticated browser acceptance"
+    "User login to existing NAS page, then authenticated production UI interaction and task-center acceptance on the stopped test stack"
   ],
   "packages": {
     "control_source": "fb9ee5c6aaf3f00f9706aaba812577d82053300a",
@@ -147,5 +195,71 @@
     "control_file_count": 48,
     "observation_sha256": "9aac3dc090a0317804b5787dd5136b4916ee686b718a11b18b74e976806cebf5",
     "observation_unchanged": true
-  }
+  },
+  "root_implementation_integration": "2010bca27a5354399c7f90b121b629aa0515e706",
+  "real_control": {
+    "status": "accepted_after_readonly_reverification",
+    "original_failure_retained": true,
+    "original_failure": "acceptance_non_target_changed",
+    "correction": "complete mount objects sorted; all identities, states, health, configuration hashes and mount fields retained",
+    "driver_commit": "ad2825c8617555a2bf1d34e64695911e3825cd51",
+    "driver_sha256": "163607061443a8fc666ecf7d44c8aa390331801d001eb42cf6db49b713abbd05",
+    "operations_replayed_for_reverification": false,
+    "operation_count": 10,
+    "all_original_operations_succeeded": true,
+    "all_original_idempotent_replays_preserved": true,
+    "non_targets": {
+      "preserved": true,
+      "original_count": 136,
+      "current_count": 136,
+      "removed": [],
+      "changed": [],
+      "added": []
+    },
+    "fresh_non_targets": {
+      "preserved": true,
+      "original_count": 136,
+      "current_count": 136,
+      "removed": [],
+      "changed": [],
+      "added": []
+    },
+    "project": "tianshu-control-acceptance-20261019-44534fa",
+    "target_id": "6ed7bcca8870c649fa089f981fd5df3081d6644b6c8222a585ad0b75b2a9b14e",
+    "configuration_image_switch": {
+      "from": "sha256:31ff19244746e3472cb1f177f200a3e7f8584884f9d4aad5185aed0d9033b5e1",
+      "deployed": "sha256:bf8527eb54c3680e728d5b4b383a8ba730d72dae7236fbc8dff97ed6b224a731",
+      "restored": "sha256:31ff19244746e3472cb1f177f200a3e7f8584884f9d4aad5185aed0d9033b5e1"
+    },
+    "image_update_observation": {
+      "after_image_id": "sha256:bf8527eb54c3680e728d5b4b383a8ba730d72dae7236fbc8dff97ed6b224a731",
+      "before_image_id": "sha256:bf8527eb54c3680e728d5b4b383a8ba730d72dae7236fbc8dff97ed6b224a731",
+      "image_id_changed": false
+    },
+    "marker_sha256": "e21fa22595fd2caf6aa78c03c2883e2989eea478f9634c97c152b1b877c7a976",
+    "data_rollback_claimed": false,
+    "production_services_mutated": false,
+    "test_stack_and_marker_retained": true,
+    "fixture_final_state": "test_stack_stopped_for_pending_web_acceptance",
+    "fixture_stop_operation_id": "acceptance:54fc40f0605f42baa377647840100e81:pending-web-stop"
+  },
+  "media_preservation": {
+    "music_media_configuration_preserved": true,
+    "book_chapters": 849,
+    "audio_files": 2,
+    "audio_and_reader_unchanged": true,
+    "comic_tasks": 8,
+    "comic_subscriptions": 2,
+    "comic_subscription_interval_seconds": 21600,
+    "configuration_and_reader_records": 11,
+    "comic_sources": 2432,
+    "extension_files": 1444,
+    "completed_cbz_full_hashes_preserved": 7,
+    "original_comic_files": 9887,
+    "original_comic_directories": 579,
+    "komga_books": 4711,
+    "original_read_progress_records": 6,
+    "original_comic_validation": "identity/size/mtime/ownership/mode, not a full 47 GB content rehash"
+  },
+  "release_preservation_requirement": "Future Platform images must retain the installed control package 898b6fcb5deb58f3b399cb19dae3d904806309ac89f14221181ff7fbb1789a2c (or explicitly validated successor) and preserve current infrastructure.control, complete mounts and current guard generation."
 }

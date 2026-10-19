@@ -46,8 +46,14 @@ Dockge基于磁盘Compose管理，复用既有SSH与节点执行器，使用显�
 
 NAS 只读盘点：Docker 24.0.2、Dockge 1.5.0、Dockge 内 Compose 2.34.0，主机 Compose 2.20.1。Dockge 已有 `/volume1/Download/dockge/stacks:/opt/stacks`、`/volume2/Dockers/dockge/data:/app/data` 和 Docker socket 挂载；本批保持这些挂载与 Dockge 容器身份。主机 `/opt/stacks` 不存在，68 个 Compose 文件分布于现有目录，不能直接按该标签路径从主机执行。既有 NAS Python 3.12.14 与现有 sudo 执行权限可用，不新增远程权限。138 个容器的盘点不是后续发布的永久基线；每次真实变更前重读。
 
-guard 新鲜只读查询为 `active/running`、`ExecMainStatus=0`；当前恢复目录仍为 `comic-source-health-20261019-a26f54f-release/capacity-state-a59970d0f4e742ce9c9c267a4d6bf50f`。第一次使用 DSM 不支持的 `systemctl --value` 查询失败，改用属性输出查询通过，没有修改服务。受保护项目、Dockge 本身和绑定受保护部署根目录的冲突需要在执行前明确识别，不能触发 guard 停机。
+初次盘点 guard 为 `active/running`、`ExecMainStatus=0`；当时恢复目录为 `comic-source-health-20261019-a26f54f-release/capacity-state-a59970d0f4e742ce9c9c267a4d6bf50f`，随后已由 TS204 换代，本批发布再次读取其新鲜基线，没有使用该旧目录执行。第一次使用 DSM 不支持的 `systemctl --value` 查询失败，改用属性输出查询通过，没有修改服务。受保护项目、Dockge 本身和绑定受保护部署根目录的冲突需要在执行前明确识别，不能触发 guard 停机。
 
 节点合同初稿固定提交 `6834fd5d0b43294b604b826fceca9587d24737c4`；HTTP 初稿 `7a05cff3d450ab30c6b11cb5ab2e02f0c7ef7e85`，后续修订以交接精确提交为准，尚不表示实现通过。协调者从已发布书籍/音频合同包冻结 236 文件至 `.runtime/dockge-control-20261019/contracts-baseline`，逐文件 SHA 保存在同层清单；text-dialogue manifest 为 `90697e6ecbb587d3db8c8e4682f7f8f43a8b1a98f70d8835c8282b03828d2d3a`。各工作者只读消费，不能用根历史可变合同替代生产固定输入。
 
 TS207 候选交付后释放实现槽，TS208 先依据冻结协议与已发布打包器开始并行准备；其开发依赖为既有 TS180/181，最终交付验收仍依赖 TS205/206/207 的固定实现与联合通过，准备阶段不能执行生产。分配器再次因根历史混合修改拒绝，采用同一明确 SHA worktree 例外；没有提交、清理或重置根混合内容。TS206 的授权细化为任务测试添加空来源夹具与 control/plan 专用有界 HTTP 体入口；TS207 验收补任务中心来源标签，均仅对应既有调用方，不改媒体行为。
+
+## 实际发布与交接
+
+Platform `44534fa3978217ead8f7df5e0ca6223c1fbd909b` 已推送并部署为镜像 `sha256:342143798f70dd1b872738f0d2883ce0b9797030043a221eeb708b2a52e33d47`。控制代码固定 `fb9ee5c6`，ZIP `898b6fcb5deb58f3b399cb19dae3d904806309ac89f14221181ff7fbb1789a2c`；旧只读 ZIP `9aac3dc0` 完整保持。后续媒体/其他模块发布须保留这份控制包、已有控制登记和两个持久日志目录，不覆盖原工具 Python 或 Dockge。
+
+39 库冷备/离线恢复、五 TLS、十服务、guard、64 网页资源及数据保留通过，冷备仅留本批一份。真实隔离栈十项控制与重放已通过；挂载数组顺序导致验收误报已在工具中修正，原失败与原始证据保留，仅只读复核，没有重跑修改。测试栈已停止并保留数据；正式登录网页与任务中心交互待用户登录。精确状态和未覆盖以同目录 `dockge-control-delivery-2026-10-19.json` 为准，不能把本地网页或真实 CLI 当作已完成正式网页验收。
