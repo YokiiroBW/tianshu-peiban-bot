@@ -250,10 +250,10 @@ class Engine:
         argv = self.compose_argv(directory, project, image_override=bool(services))
         if action == "stack.apply":
             argv += ["up", "--detach", "--no-build", "--pull", "never"]
-        elif action == "stack.pull":
-            argv += ["pull"]
-        else:
+        elif action in ("stack.start", "stack.stop", "stack.restart"):
             argv += [action.split(".")[1]]
+        else:
+            raise Failure("unsupported_stack_action", "invalid")
         return self.compose_run(directory, argv, override)
 
     def compose_run(self, directory, argv, payload):
