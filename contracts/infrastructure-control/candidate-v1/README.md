@@ -97,7 +97,7 @@ fixed remote runner argv. Remote runner:
 Its deployment-owned `infrastructure-control.remote.v1` file registers
 `node_id`, persistent `state_dir`, `stacks_root`, Docker argv/socket, complete
 Compose argv (including any explicit Docker host), `platform_stacks`, protected
-projects/container names and operation deadline. The remote package requires
+projects/container names, `protected_bind_roots` and operation deadline. Use
 an optional `compose_path_root` only when the registered Compose command runs
 inside the existing Dockge context with a different mounted path. It maps each
 registered stack directory to that context without changing Compose bind paths.

@@ -967,21 +967,161 @@
         "ports": {
           "type": "array",
           "items": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "service": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "target": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              },
+              "published": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "host_ip": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "protocol": {
+                "enum": [
+                  "tcp",
+                  "udp",
+                  "sctp"
+                ]
+              }
+            },
+            "required": [
+              "service",
+              "target",
+              "published",
+              "host_ip",
+              "protocol"
+            ]
           },
           "maxItems": 4096
         },
         "mounts": {
           "type": "array",
           "items": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "service": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "kind": {
+                "enum": [
+                  "bind",
+                  "volume",
+                  "tmpfs"
+                ]
+              },
+              "source": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 4096
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "target": {
+                "type": "string",
+                "maxLength": 4096
+              },
+              "read_only": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "service",
+              "kind",
+              "source",
+              "target",
+              "read_only"
+            ]
           },
           "maxItems": 4096
         },
         "images": {
           "type": "array",
           "items": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "service": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "from": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "to": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "pull": {
+                "type": "boolean"
+              },
+              "pull_policy": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              "current_image_id": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "target_image_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              }
+            },
+            "required": [
+              "service",
+              "from",
+              "to",
+              "pull"
+            ]
           },
           "maxItems": 2000
         },

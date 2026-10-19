@@ -30,5 +30,12 @@
       "maintenance_ref": null
     }
   },
-  "operation_timeout_seconds": 1800
+  "operation_timeout_seconds": 1800,
+  "protected_bind_roots": [
+    {
+      "path": "/synthetic/resident-root",
+      "owner": "resident-update",
+      "reason": "capacity_guard_mount_ownership"
+    }
+  ]
 }

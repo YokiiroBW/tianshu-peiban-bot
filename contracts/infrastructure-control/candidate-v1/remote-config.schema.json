@@ -136,6 +136,36 @@
       "type": "integer",
       "minimum": 5,
       "maximum": 3600
+    },
+    "protected_bind_roots": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "path",
+          "owner",
+          "reason"
+        ]
+      }
     }
   },
   "required": [
