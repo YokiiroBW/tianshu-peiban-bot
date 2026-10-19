@@ -1,0 +1,151 @@
+{
+  "status": "pushed_building_not_deployed",
+  "date": "2026-10-19",
+  "models": {
+    "implementation": "gpt-6.1-sol",
+    "reasoning_effort": "max"
+  },
+  "task_commits": {
+    "TS-205": {
+      "candidate": "fb9ee5c6aaf3f00f9706aaba812577d82053300a",
+      "integration": "c5c1584e599bc4588bcea82506087a839e62f274"
+    },
+    "TS-206": {
+      "candidate": "8a92bfde5e360212bbe9018c3a3a810d71e55875",
+      "integration": "44534fa3978217ead8f7df5e0ca6223c1fbd909b"
+    },
+    "TS-207": {
+      "candidate": "19e2fe30b35cb91f60cb43a9cc760519e20ef6ce",
+      "integration": "44534fa3978217ead8f7df5e0ca6223c1fbd909b"
+    },
+    "TS-208": {
+      "candidate": "3508207cef26f516147f1f82ccfdeb68e6992f67",
+      "implementation": "4abe2c26409e8c7d5104fcf0f607794e836f597a",
+      "integration": "c5c1584e599bc4588bcea82506087a839e62f274"
+    }
+  },
+  "preserved_platform_baseline": {
+    "main": "00d786c331a529dcbcd8678223bfc763d02a37c0",
+    "runtime": "ea45faa86bd977734780155ced48ade29fdcbed6",
+    "image": "sha256:c7c89142f418ca874009a2790088e19d0defaae4e60dd455005423d7bf3328ed"
+  },
+  "coordinator_checks": [
+    {
+      "scope": "node control final 0a61724",
+      "run": 26,
+      "passed": 23,
+      "skipped": 3,
+      "evidence": ".runtime/dockge-control-20261019/coordinator-control-tests.log",
+      "limitations": [
+        "Windows symlink privilege unavailable",
+        "Linux Node process-group checks pending"
+      ]
+    },
+    {
+      "scope": "platform infrastructure assembled 5ceb2b0 + c707be0",
+      "run": 45,
+      "passed": 38,
+      "skipped": 7,
+      "evidence": "worktrees/INFRA-INTEGRATION/tianshu-platform/.runtime/dockge-coordinator-backend.log",
+      "limitations": [
+        "installed-wheel check pending",
+        "original observation SSH joint environment not set",
+        "five Linux process lifecycle checks pending"
+      ]
+    },
+    {
+      "scope": "task center final shared source regression",
+      "run": 19,
+      "passed": 19,
+      "skipped": 0,
+      "evidence": "worktrees/INFRA-INTEGRATION/tianshu-platform/.runtime/dockge-coordinator-tasks.log"
+    },
+    {
+      "scope": "final contract and active-worker cross evidence",
+      "run": 3,
+      "passed": 3,
+      "skipped": 0
+    },
+    {
+      "scope": "actual Platform HTTP -> OpenSSH -> final relay/remote/worker -> synthetic Docker",
+      "run": 1,
+      "passed": 1,
+      "skipped": 0,
+      "seconds": 20.69,
+      "evidence": "worktrees/INFRA-INTEGRATION/tianshu-platform/.runtime/dockge-coordinator-ssh-joint.log",
+      "limitations": [
+        "control uses actual producer; Docker itself is synthetic",
+        "read-only observer remains synthetic"
+      ]
+    },
+    {
+      "scope": "integrated typecheck/build incl TS204 history",
+      "passed": true,
+      "evidence": "worktrees/INFRA-INTEGRATION/tianshu-platform/.runtime/dockge-coordinator-build-final.log",
+      "existing_warning": "renderer chunk exceeds 500KiB"
+    },
+    {
+      "scope": "Cua actual local HTTP visual/preview/execute/history",
+      "passed": true,
+      "evidence": ".runtime/dockge-control-20261019/coordinator-local-history.png",
+      "limitations": [
+        "synthetic node; not production control"
+      ],
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "detail_content": {
+        "viewport_height": 298,
+        "scroll_height": 1575,
+        "overflow_y": "auto"
+      }
+    },
+    {
+      "scope": "final node pull-policy increment fb9ee5c6",
+      "run": 2,
+      "passed": 2,
+      "skipped": 0,
+      "seconds": 13.31
+    },
+    {
+      "scope": "integrated delivery package, installation and preservation rules",
+      "run": 70,
+      "passed": 70,
+      "skipped": 0,
+      "seconds": 12.471,
+      "evidence": ".runtime/dockge-control-20261019/coordinator-delivery-tests.log"
+    },
+    {
+      "scope": "existing Dockge Linux Node synthetic process proof",
+      "run": 2,
+      "passed": 2,
+      "skipped": 0,
+      "evidence": ".runtime/dockge-control-20261019/nas-node-process-proof.json",
+      "docker_or_compose_mutation": false
+    }
+  ],
+  "nas": {
+    "read_only_inspected": true,
+    "production_mutations": false,
+    "dockge_version": "1.5.0",
+    "compose_version_in_dockge": "2.34.0",
+    "node_version_in_dockge": "22.14.0",
+    "guard_ready": true,
+    "owners_running": 10,
+    "last_readonly_state_dir": "/volume2/tianshu-v2-resident-updates/comic-chinese-search-20261019-ea45faa-release/capacity-state-bf65ae54d05644ac8b95812c090ff650",
+    "candidate_build_started": true
+  },
+  "remaining": [
+    "candidate image and installed Linux process checks",
+    "fresh baseline and serial NAS deployment retaining latest media/configuration/data",
+    "isolated real Docker control and production authenticated browser acceptance"
+  ],
+  "packages": {
+    "control_source": "fb9ee5c6aaf3f00f9706aaba812577d82053300a",
+    "control_sha256": "898b6fcb5deb58f3b399cb19dae3d904806309ac89f14221181ff7fbb1789a2c",
+    "control_file_count": 48,
+    "observation_sha256": "9aac3dc090a0317804b5787dd5136b4916ee686b718a11b18b74e976806cebf5",
+    "observation_unchanged": true
+  }
+}
