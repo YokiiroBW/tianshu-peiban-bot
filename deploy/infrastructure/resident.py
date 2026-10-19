@@ -211,7 +211,7 @@ def prepare(*, baseline, metadata, build_result, mechanism_directory, recovery,
             preserve_infrastructure=False, additional_media_binds=None, control_install=None):
     output = Path(output)
     require(output.is_absolute() and output.parent.is_dir() and not output.exists(), "new_output_required")
-    require(PurePosixPath(stage).parent == PurePosixPath("/volume2/tianshu-v2-resident-updates"), "resident_stage_invalid")
+    require(str(PurePosixPath(stage).parent) in {"/volume2/tianshu-v2-resident-updates", "/volume1/Download/Tianshu/updates"}, "resident_stage_invalid")
     baseline = json.loads(Path(baseline).read_bytes())
     metadata = json.loads(Path(metadata).read_bytes())
     build = json.loads(Path(build_result).read_bytes())
@@ -316,6 +316,7 @@ def prepare(*, baseline, metadata, build_result, mechanism_directory, recovery,
     (output / "resident-release.json").write_bytes(json_bytes(inputs))
     (output / "rollback.py").write_text(rollback, encoding="utf-8", newline="\n")
     for action, body in actions.items():
+        body = body.replace("Path('/volume2/tianshu-v2-resident-updates')", "Path(" + repr(str(PurePosixPath(stage).parent)) + ")")
         prefix = ("inputs=" + repr(inputs) + "\nREMOTE_STAGE=" + repr(stage)
                   + "\nREMOTE_PYTHON=" + repr(metadata["tool_python"]) + "\n")
         if action == "STAGE_BODY":

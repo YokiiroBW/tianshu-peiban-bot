@@ -294,6 +294,9 @@ def after_verified_snapshot(root, operation, *, snapshot, docker):
     """The resident cold CLI and rendered releases call this only after a good receipt."""
     root, operation = Path(root), Path(operation)
     updates = root.with_name(root.name + "-updates")
+    hdd_updates = Path("/volume1/Download/Tianshu/updates")
+    if hdd_updates in operation.parents:
+        updates = hdd_updates
     if operation.name != "cold-snapshot" or updates not in operation.parents:
         return {"status": "outside_resident_release_namespace"}
     skipped, records = [], []

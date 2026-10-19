@@ -52,6 +52,31 @@ class ResidentSnapshotTests(unittest.TestCase):
         with self.assertRaises(RecoveryError):
             require_stopped(self.rows, self.rows[:-1])
 
+    def test_external_data_preserves_shared_log_mounts_without_copying_bulk_files(self):
+        logs = self.base / "hdd-logs"
+        logs.mkdir()
+        (logs / "events.log").write_bytes(b"retained external log\n")
+        entries = {}
+        for service, target, readonly in (("platform", "/var/log/tianshu", False),
+                                           ("obs-vector", "/sources/platform", True)):
+            entry = {"source": str(logs), "target": target, "read_only": readonly}
+            entries[service] = [entry]
+            row = next(row for row in self.rows if row["service"] == service)
+            row["mounts"].append({"Type": "bind", "Source": str(logs),
+                                  "Destination": target, "RW": not readonly})
+        with self.assertRaises(RecoveryError):
+            snapshot(self.root, self.base / "unregistered", self.rows, lambda: self.rows)
+        result = snapshot(self.root, self.base / "data-operation", self.rows, lambda: self.rows,
+                          external_data_binds=entries)
+        self.assertEqual(result["excluded_external_data"], entries)
+        self.assertEqual(result["sqlite_databases_verified"], 1)
+        self.assertEqual((logs / "events.log").read_bytes(), b"retained external log\n")
+        bad = copy.deepcopy(entries)
+        bad["companion"] = bad.pop("platform")
+        with self.assertRaises(RecoveryError):
+            snapshot(self.root, self.base / "wrong-owner", self.rows, lambda: self.rows,
+                     external_data_binds=bad)
+
     def test_docker_mount_order_is_ignored_but_all_fields_and_duplicates_are_checked(self):
         expected = copy.deepcopy(self.rows)
         expected[0]["mounts"] = [{"Source": "/synthetic/a", "RW": True},

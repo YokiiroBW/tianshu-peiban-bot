@@ -21,7 +21,7 @@ import subprocess
 import sys
 import time
 import uuid
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 
@@ -98,6 +98,7 @@ class Config:
     term_timeout_seconds: int = 120
     service_profile: str = "resident-nine"
     external_media_binds: tuple[dict, ...] = ()
+    external_data_binds: dict[str, tuple[dict, ...]] = field(default_factory=dict)
 
     def signatures(self):
         services = _service_map(self.service_profile)
@@ -111,6 +112,8 @@ class Config:
                 "binds": self.binds[service],
                 **({"external_media_binds": self.external_media_binds}
                    if service == "platform" and self.external_media_binds else {}),
+                **({"external_data_binds": self.external_data_binds[service]}
+                   if service in self.external_data_binds else {}),
             }
             for project, names in services.items()
             for service in names
@@ -200,9 +203,13 @@ def _owned(container: Container, signatures: dict, root: str) -> bool:
         if container.project == CORE and container.service == "platform"
         and item["target"].startswith("/media/")
     }
+    data_binds = {
+        (item["source"], item["target"], item["read_only"])
+        for item in signature.get("external_data_binds", ())
+    }
     return (
         bool(actual) and actual == expected
-        and all(_within(source, root) or (source, target, read_only) in media_binds
+        and all(_within(source, root) or (source, target, read_only) in media_binds | data_binds
                 for source, target, read_only in actual)
         and all(kind in {"bind", "tmpfs"} for kind, _, _, _ in container.mounts)
     )
@@ -460,7 +467,7 @@ def load_config(path: Path):
         }
         if (
             not isinstance(value, dict) or not required <= set(value)
-            or set(value) - required - {"service_profile", "external_media_binds"}
+            or set(value) - required - {"service_profile", "external_media_binds", "external_data_binds"}
         ):
             raise ValueError()
         profile = value.get("service_profile", "resident-nine")
@@ -504,6 +511,21 @@ def load_config(path: Path):
             for entry, raw_entry in zip(external_media_binds, media_entries)
         ) or len({entry["target"] for entry in external_media_binds}) != len(external_media_binds):
             raise ValueError()
+        data_entries = value.get("external_data_binds", {})
+        if not isinstance(data_entries, dict) or set(data_entries) - set(value["images"]):
+            raise ValueError()
+        external_data_binds = {}
+        for service, entries in data_entries.items():
+            if not isinstance(entries, list) or not entries:
+                raise ValueError()
+            normalized = tuple(_bind_entry(entry) for entry in entries)
+            if any(
+                _within(entry["source"], str(root)) or _within(str(root), entry["source"])
+                or not Path(entry["source"]).is_dir() or entry["source"] != raw_entry["source"]
+                for entry, raw_entry in zip(normalized, entries)
+            ) or len({entry["target"] for entry in normalized}) != len(normalized):
+                raise ValueError()
+            external_data_binds[service] = normalized
         binds = {}
         for service, entries in value["binds"].items():
             if not isinstance(entries, list) or not entries:
@@ -514,6 +536,7 @@ def load_config(path: Path):
                 if (
                     not _within(item["source"], str(root))
                     and (service != "platform" or item not in external_media_binds)
+                    and item not in external_data_binds.get(service, ())
                 ):
                     raise ValueError()
                 normalized.append(item)
@@ -522,16 +545,20 @@ def load_config(path: Path):
             binds[service] = normalized
         if any(entry not in binds["platform"] for entry in external_media_binds):
             raise ValueError()
+        if any(entry not in binds[service] for service, entries in external_data_binds.items() for entry in entries):
+            raise ValueError()
         _validate_limits(value)
         config = Config(
             root, state_dir, docker, compose, platform_first, value["images"], binds,
             (root, Path(compose[CORE]["workdir"]), Path(compose[OBS]["workdir"]),
              Path(platform_first["workdir"]), *free_paths,
-             *(Path(entry["source"]) for entry in external_media_binds)),
+             *(Path(entry["source"]) for entry in external_media_binds),
+             *(Path(entry["source"]) for entries in external_data_binds.values() for entry in entries)),
             value["min_free_bytes"], value["max_deployment_bytes"],
             value["poll_seconds"], value["term_timeout_seconds"],
             profile,
             external_media_binds,
+            external_data_binds,
         )
     except (KeyError, TypeError, ValueError, OSError) as error:
         raise Unsafe("capacity_config_invalid") from error

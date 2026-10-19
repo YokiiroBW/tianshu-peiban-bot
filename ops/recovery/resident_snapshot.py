@@ -198,10 +198,15 @@ def _directory_identity(path: Path) -> tuple:
     return info.st_dev, info.st_ino, info.st_mode, info.st_uid, info.st_gid
 
 
-def _external_media(root: Path, operation: Path, expected: list[dict], entries) -> list[dict]:
+def _external_media(root: Path, operation: Path, expected: list[dict], entries, data_entries) -> tuple:
     require(isinstance(entries, (list, tuple)), "invalid_external_media_binds")
-    media = []
-    for entry in entries:
+    require(isinstance(data_entries, dict) and not set(data_entries) - OWNERS, "invalid_external_data_binds")
+    require(all(isinstance(items, (list, tuple)) and items for items in data_entries.values()),
+            "invalid_external_data_binds")
+    registrations = [("platform", entry, True) for entry in entries]
+    registrations.extend((service, entry, False) for service, items in data_entries.items() for entry in items)
+    media, data, normalized = [], {}, []
+    for service, entry, is_media in registrations:
         require(isinstance(entry, dict) and set(entry) == {"source", "target", "read_only"},
                 "invalid_external_media_binds")
         require(isinstance(entry["source"], str), "invalid_external_media_binds")
@@ -212,38 +217,46 @@ def _external_media(root: Path, operation: Path, expected: list[dict], entries) 
                 "external_media_directory_required")
         require(not source.is_relative_to(operation) and not operation.is_relative_to(source),
                 "external_media_operation_overlap")
-        require(isinstance(target, str) and target.startswith("/media/") and
+        require(isinstance(target, str) and target.startswith("/") and
+                (not is_media or target.startswith("/media/")) and
                 posixpath.normpath(target) == target and type(entry["read_only"]) is bool,
                 "invalid_external_media_binds")
-        media.append({"source": str(source), "target": target, "read_only": entry["read_only"]})
-    require(len({entry["target"] for entry in media}) == len(media), "duplicate_media_target")
-    counts = [0] * len(media)
+        item = {"source": str(source), "target": target, "read_only": entry["read_only"]}
+        (media if is_media else data.setdefault(service, [])).append(item)
+        normalized.append((service, item))
+    require(len({(service, entry["target"]) for service, entry in normalized}) == len(normalized),
+            "duplicate_media_target")
+    counts = [0] * len(normalized)
     for owner in expected:
         for mount in owner["mounts"]:
             source = Path(mount["Source"]) if mount.get("Source") else None
-            registered = source is not None and any(str(source) == entry["source"] for entry in media)
+            registered = source is not None and any(str(source) == entry["source"] for _, entry in normalized)
             if registered:
-                matches = [index for index, entry in enumerate(media)
+                matches = [index for index, (service, entry) in enumerate(normalized)
                            if mount.get("Type") == "bind" and mount.get("Source") == entry["source"]
                            and mount.get("Destination") == entry["target"]
                            and type(mount.get("RW")) is bool and mount["RW"] == (not entry["read_only"])
-                           and owner["service"] == "platform" and owner["project"] == "tianshu-v2-resident"]
+                           and owner["service"] == service
+                           and owner["project"] == ("tianshu-v2-resident-obs" if service.startswith("obs-") else "tianshu-v2-resident")]
                 require(len(matches) == 1, "external_media_mount_mismatch")
                 counts[matches[0]] += 1
             else:
                 require(not mount.get("RW") or source is not None and source.is_relative_to(root),
                         "writable_mount_outside_authority")
     require(all(count == 1 for count in counts), "external_media_mount_mismatch")
-    return media
+    return media, data
 
 
 def snapshot(root: Path, operation: Path, expected: list[dict], observe, *, seconds=600,
-             controls=(), memory_guards=(), external_media_binds=(), media_staging_roots=(), docker=None) -> dict:
+             controls=(), memory_guards=(), external_media_binds=(), external_data_binds=None,
+             media_staging_roots=(), docker=None) -> dict:
     root = safe_path(root); operation = safe_path(operation, exists=False)
     require(not operation.exists() and root not in operation.parents and operation not in root.parents,
             "independent_new_operation_required")
-    media = _external_media(root, operation, expected, external_media_binds)
-    media_identity = {entry["source"]: _directory_identity(Path(entry["source"])) for entry in media}
+    media, data = _external_media(root, operation, expected, external_media_binds,
+                                  {} if external_data_binds is None else external_data_binds)
+    media_identity = {entry["source"]: _directory_identity(Path(entry["source"]))
+                      for entry in [*media, *(entry for items in data.values() for entry in items)]}
     require(isinstance(media_staging_roots, (list, tuple)), "invalid_media_staging_roots")
     require(all(isinstance(path, (str, Path)) for path in media_staging_roots), "invalid_media_staging_roots")
     staging = tuple(safe_path(path) for path in media_staging_roots)
@@ -291,7 +304,8 @@ def snapshot(root: Path, operation: Path, expected: list[dict], observe, *, seco
     manifest = {"schema_version": "resident-cold-snapshot/1", "owners": expected,
                 "inventory": original, "restore_status": "restored_disabled",
                 "external_controls": external, "memory_guards": list(memory_guards),
-                "excluded_external_media": media, "media_staging_roots": [str(path) for path in staging],
+                "excluded_external_media": media, "excluded_external_data": data,
+                "media_staging_roots": [str(path) for path in staging],
                 "media_staging_restore": "independent_content_files",
                 "memory_guards_verified": guard_count,
                 "sqlite_databases_verified": database_count,
@@ -303,7 +317,8 @@ def snapshot(root: Path, operation: Path, expected: list[dict], observe, *, seco
               "bytes": original["bytes"], "entries": len(original["entries"]),
               "sqlite_databases_verified": database_count, "manifest_sha256": digest(raw + b"\n"),
               "external_controls_verified": len(controls), "memory_guards_verified": guard_count,
-              "excluded_external_media": media, "media_staging_roots": [str(path) for path in staging],
+              "excluded_external_media": media, "excluded_external_data": data,
+              "media_staging_roots": [str(path) for path in staging],
               "media_staging_restore": "independent_content_files",
               "authority_unchanged": True, "restored_disabled": True,
               "functional_restore_test": False, "original_restore_activation": False}
@@ -325,7 +340,7 @@ def main(argv=None):
         expectation = read_json(args.expectation)
         required = {"root", "containers", "controls", "memory_guards"}
         require(required <= set(expectation) and not set(expectation) - required -
-                {"external_media_binds", "media_staging_roots"}, "invalid_expectation")
+                {"external_media_binds", "external_data_binds", "media_staging_roots"}, "invalid_expectation")
         if not args.execute:
             print(json.dumps({"status": "plan", "owners_required": 10, "activation": False}))
             return 0
@@ -337,6 +352,7 @@ def main(argv=None):
                                   controls=[Path(path) for path in expectation["controls"]],
                                   memory_guards=expectation["memory_guards"],
                                   external_media_binds=expectation.get("external_media_binds", ()),
+                                  external_data_binds=expectation.get("external_data_binds", {}),
                                   media_staging_roots=expectation.get("media_staging_roots", ()), docker=args.docker), sort_keys=True))
         return 0
     except (RecoveryError, OSError, sqlite3.Error, subprocess.SubprocessError, KeyError, ValueError):

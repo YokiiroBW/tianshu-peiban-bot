@@ -249,15 +249,15 @@ def release():
         guards.append(str(paired.relative_to(R)))
     controls = [Path(path) for path in paths.values()] + [CAP, UNIT, Path(cap["state_dir"]), TOOLING / "ops/resident_capacity"]
     staging = Path(RELEASE["baseline"]["media_staging_host"])
-    staging_roots = [staging] if staging.exists() else []
-    save(S / "cold-expectation.json", {"containers": rows, "root": str(R), "controls": [str(path) for path in controls], "memory_guards": guards, "external_media_binds": cap["external_media_binds"], "media_staging_roots": [str(path) for path in staging_roots]})
+    staging_roots = [staging] if staging.exists() and staging.is_relative_to(R) else []
+    save(S / "cold-expectation.json", {"containers": rows, "root": str(R), "controls": [str(path) for path in controls], "memory_guards": guards, "external_media_binds": cap["external_media_binds"], "external_data_binds": cap.get("external_data_binds", {}), "media_staging_roots": [str(path) for path in staging_roots]})
     media_before = media_state()
     save(S / "media-before.json", media_before)
     save(S / "started.json", {"state": "stop_intent", "owners": 10})
     TRANSACTION_STARTED = True
     stop_managed()
     snapshot.require_stopped(rows, snapshot.inspect_owners(D))
-    backup = snapshot.snapshot(R, S / "cold-snapshot", rows, lambda: snapshot.inspect_owners(D), controls=controls, memory_guards=guards, external_media_binds=cap["external_media_binds"], media_staging_roots=staging_roots, docker=D)
+    backup = snapshot.snapshot(R, S / "cold-snapshot", rows, lambda: snapshot.inspect_owners(D), controls=controls, memory_guards=guards, external_media_binds=cap["external_media_binds"], external_data_binds=cap.get("external_data_binds", {}), media_staging_roots=staging_roots, docker=D)
     require(backup["status"] == "offline_restore_verified" and backup["restored_disabled"] and backup["authority_unchanged"], "offline_restore_not_verified")
     save(S / "user-state-before.json", user_state_hashes(R))
     # No production input is written until the existing stopped-owner backup
@@ -383,7 +383,7 @@ def rollback_release(parent):
     TRANSACTION_STARTED = True
     stop_managed()
     snapshot.require_stopped(rows, snapshot.inspect_owners(D))
-    backup = snapshot.snapshot(R, S / "cold-snapshot", rows, lambda: snapshot.inspect_owners(D), controls=controls, memory_guards=guards, external_media_binds=cold_external_media_binds, media_staging_roots=staging_roots, docker=D)
+    backup = snapshot.snapshot(R, S / "cold-snapshot", rows, lambda: snapshot.inspect_owners(D), controls=controls, memory_guards=guards, external_media_binds=cold_external_media_binds, external_data_binds=cap.get("external_data_binds", {}), media_staging_roots=staging_roots, docker=D)
     require(backup["status"] == "offline_restore_verified" and backup["restored_disabled"] and backup["authority_unchanged"], "offline_restore_not_verified")
     guard_backup = S / "cold-snapshot/controls-backup" / str(guard_control_index)
     require(guard_backup.is_dir(), "guard_rollback_carry_missing")

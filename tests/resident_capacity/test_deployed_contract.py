@@ -105,6 +105,37 @@ class DeployedContractTests(unittest.TestCase):
         self.assertEqual(config.images["platform"], "sha256:" + "b" * 64)
         self.assertIsNotNone(guard.IMAGE.fullmatch(config.images["memory"]))
 
+    def test_data_mounts_keep_internal_paths_and_are_owned_per_service(self):
+        value = self.configuration()
+        directory = self.base / "hdd-logs"
+        directory.mkdir()
+        entry = {"source": str(directory), "target": "/var/log/tianshu", "read_only": False}
+        value["binds"]["memory"].append(entry)
+        value["external_data_binds"] = {"memory": [copy.deepcopy(entry)]}
+        config = self.load(value)
+        self.assertIn(directory, config.free_paths)
+        self.assertEqual(config.max_deployment_bytes, 20 * guard.GIB)
+        rows = []
+        for row in self.fixture.containers:
+            signature = config.signatures()[f"{row.project}/{row.service}"]
+            row = replace(row, compose_file=signature["compose_file"], workdir=signature["workdir"])
+            if row.service == "memory":
+                row = replace(row, mounts=(*row.mounts, ("bind", str(directory), entry["target"], True)))
+            rows.append(row)
+        self.assertEqual(len(guard.assess(rows, config.signatures(), str(config.root))), 9)
+        for changed in ("owner", "read_only", "unused", "source"):
+            bad = copy.deepcopy(value)
+            if changed == "owner":
+                bad["external_data_binds"] = {"companion": [entry]}
+            elif changed == "read_only":
+                bad["external_data_binds"]["memory"][0]["read_only"] = True
+            elif changed == "unused":
+                bad["binds"]["memory"].pop()
+            else:
+                bad["external_data_binds"]["memory"][0]["source"] = str(config.root.parent)
+            with self.subTest(changed=changed), self.assertRaises(guard.Unsafe):
+                self.load(bad)
+
     def test_load_rejects_unregistered_unused_nonplatform_or_nonmedia_bind(self):
         original = self.configuration()
         cases = []

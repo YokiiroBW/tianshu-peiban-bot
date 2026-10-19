@@ -53,7 +53,7 @@
       "properties": {
         "platform": {
           "type": "array", "minItems": 1,
-          "items": {"anyOf": [{"$ref": "#/$defs/bind"}, {"$ref": "#/$defs/external_media_bind"}]}
+          "items": {"anyOf": [{"$ref": "#/$defs/bind"}, {"$ref": "#/$defs/external_media_bind"}, {"$ref": "#/$defs/external_data_bind"}]}
         },
         "companion": {"$ref": "#/$defs/bind_list"},
         "memory": {"$ref": "#/$defs/bind_list"},
@@ -65,6 +65,11 @@
         "obs-prometheus": {"$ref": "#/$defs/bind_list"},
         "obs-guard": {"$ref": "#/$defs/bind_list"}
       }
+    },
+    "external_data_binds": {
+      "type": "object",
+      "propertyNames": {"enum": ["platform", "companion", "memory", "knowledge", "gateway", "obs-vector", "obs-loki", "obs-grafana", "obs-prometheus", "obs-guard"]},
+      "additionalProperties": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/external_data_bind"}}
     },
     "external_media_binds": {
       "type": "array", "uniqueItems": true,
@@ -115,13 +120,22 @@
       }
     },
     "image": {"type": "string", "pattern": "^(?:.+@)?sha256:[0-9a-f]{64}$"},
-    "bind_list": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/bind"}},
+    "bind_list": {"type": "array", "minItems": 1, "items": {"anyOf": [{"$ref": "#/$defs/bind"}, {"$ref": "#/$defs/external_data_bind"}]}},
     "bind": {
       "type": "object",
       "additionalProperties": false,
       "required": ["source", "target", "read_only"],
       "properties": {
         "source": {"type": "string", "pattern": "^/volume2/tianshu-v2-resident(?:/|$)"},
+        "target": {"type": "string", "pattern": "^/"},
+        "read_only": {"type": "boolean"}
+      }
+    },
+    "external_data_bind": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source", "target", "read_only"],
+      "properties": {
+        "source": {"type": "string", "pattern": "^/", "not": {"pattern": "^/volume2/tianshu-v2-resident(?:/|$)"}},
         "target": {"type": "string", "pattern": "^/"},
         "read_only": {"type": "boolean"}
       }
