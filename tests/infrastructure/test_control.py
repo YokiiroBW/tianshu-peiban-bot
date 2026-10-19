@@ -139,6 +139,9 @@ class ControlTest(unittest.TestCase):
         self.assertEqual(result["state"], "succeeded", result)
         self.assertIn(b"synthetic-original-secret", self.compose.read_bytes())
         self.assertEqual((self.stack / ".env").read_bytes(), original_env)
+        invalid_image = self.dispatch("stack.plan", {"action": "create", "project_name": "invalid-image", "compose_content": "services:\n  web:\n    image: https://user:synthetic-image-password@example.invalid/image\n"})["data"]["plan"]
+        self.assertEqual(invalid_image["state"], "blocked")
+        self.assertNotIn("synthetic-image-password", json.dumps(invalid_image))
 
     def test_external_edit_env_and_target_replacement_invalidate_plan(self):
         revision = self.revision()
@@ -334,7 +337,9 @@ class ControlTest(unittest.TestCase):
                         return CommandResult(stdout=b'{"active":true}', exit_code=0)
                     marker = Path(argv[-3])
                     marker.write_text(json.dumps({"state": "running", "pid": 123, "created": "fixture-created"}))
-                    return CommandResult(timed_out=True, exit_code=-1)
+                    # Docker exec can exit nonzero after its connection drops
+                    # while the original container-side Compose keeps running.
+                    return CommandResult(exit_code=1, stderr=b"synthetic client connection closed")
                 return local.command(argv, payload, **kwargs)
         service.engine.transport = LostExec()
         service.engine.docker.transport = service.engine.transport

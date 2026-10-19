@@ -9,9 +9,10 @@ import socket
 from pathlib import Path
 
 from ..config import Node
+from ..compose import _image
 from ..docker import DockerCollector
 from ..protocol import CONTAINER_ID, Failure, decode_json, utc_now
-from ..transport import Deadline, run_bounded
+from ..transport import run_bounded
 from .files import document, dump
 from .lifecycle import WRAPPER, exec_prefix, lease_active, prepare_lease
 
@@ -131,8 +132,12 @@ class Engine:
             ports, mounts, images = [], [], []
             for name, service in services.items():
                 image = service.get("image")
-                if not isinstance(name, str) or not isinstance(service, dict) or not isinstance(image, str) or len(image) > 512 or service.get("build"):
+                if not isinstance(name, str) or not isinstance(service, dict) or not isinstance(image, str) or _image(image)["state"] != "resolved" or service.get("build"):
                     raise ValueError("image required, no build")
+                if "@" in image:
+                    algorithm, _, digest = image.rsplit("@", 1)[1].partition(":")
+                    if algorithm != "sha256" or not CONTAINER_ID.fullmatch(digest):
+                        raise ValueError("unsupported image digest")
                 images.append({"service": name, "from": image, "to": image, "pull": False, "pull_policy": service.get("pull_policy", "missing")})
                 for port in service.get("ports", []):
                     if not isinstance(port, dict) or not isinstance(port.get("target"), int):

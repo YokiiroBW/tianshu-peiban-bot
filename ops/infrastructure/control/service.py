@@ -406,7 +406,9 @@ class Service:
 
     def finish(self, value, result, resolved, services, plan, save):
         public = value["receipt"]
+        execution = self.engine.execution_active()
         uncertain = result.timed_out or result.truncated or result.exit_code is None and not result.unavailable and not result.setup_failed
+        uncertain = uncertain or bool(result.reason) and execution is not False
         command = {"state": "unknown" if uncertain else "failed" if result.reason else "succeeded", "exit_code": result.exit_code,
                    "reason_codes": ["command_outcome_unknown"] if uncertain else ["control_command_failed"] if result.reason else []}
         save(phase="observing", command=command)
@@ -438,7 +440,6 @@ class Service:
             except Failure as failure:
                 reasons.append(failure.code)
                 state = "failed"
-        execution = self.engine.execution_active()
         save(state=state, phase="unknown" if uncertain else "complete", execution_active=execution, runtime=observed, reason_codes=list(dict.fromkeys(reasons)))
 
     def dispatch(self, request, launch):

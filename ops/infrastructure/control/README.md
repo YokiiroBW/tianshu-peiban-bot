@@ -7,10 +7,11 @@ schemas, configuration or request dispatch. See the [control contract](../../../
 
 ## Package and launchers
 
-Export `ops/__init__.py` and **all** of `ops/infrastructure/` from the fixed
-accepted commit, including `control/compose-wrapper.js` and
+Export **all** of `ops/infrastructure/` from the fixed accepted commit, including `control/compose-wrapper.js` and
 `control/compose-probe.js`. Do not export a mutable worktree or only the Python
-files. Runtime requirements remain `ops/infrastructure/requirements.txt`.
+files. The existing bundle builder supplies its empty `ops/__init__.py`
+namespace marker; that file is not a tracked source and must not be requested
+from `git archive`. Runtime requirements remain `ops/infrastructure/requirements.txt`.
 The relay needs Python 3.11+, its pinned parser and OpenSSH. The remote runner
 needs Python 3.11+, that parser and the deployment's Docker/Compose commands.
 Dockge execution also uses its existing Node binary. No new service is installed.
