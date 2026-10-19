@@ -15,6 +15,7 @@ from pathlib import Path, PurePosixPath
 
 from .bundle import digest, git_files, json_bytes, require
 from .image import NODE_COMMIT, NODE_SHA256
+from . import control_install as control_inputs
 from .recovery_input import current_recovery, FILES as RECOVERY_FILES
 from ops.recovery import resident_retention
 
@@ -81,13 +82,28 @@ def patch_templates(templates, capacity, image, credential_binds, *, preserve_ex
     return templates, capacity
 
 
-def merge_settings(settings, infrastructure, *, preserve_existing=False):
+def merge_settings(settings, infrastructure, *, preserve_existing=False, control=None):
     if preserve_existing:
         require(settings.get("infrastructure") == infrastructure, "existing_infrastructure_changed")
-        return copy.deepcopy(settings)
-    require("infrastructure" not in settings, "infrastructure_settings_already_present")
-    require(settings["web_external"]["directory"] == infrastructure["directory"], "external_directory_mismatch")
-    return {**settings, "infrastructure": copy.deepcopy(infrastructure)}
+        result = copy.deepcopy(settings)
+    else:
+        require("infrastructure" not in settings, "infrastructure_settings_already_present")
+        require(settings["web_external"]["directory"] == infrastructure["directory"], "external_directory_mismatch")
+        result = {**settings, "infrastructure": copy.deepcopy(infrastructure)}
+    if control is not None:
+        result["infrastructure"]["control"] = copy.deepcopy(control)
+    return result
+
+
+def restore_control_settings(settings, installed, previous):
+    """Revert only our control reference while preserving later unrelated settings."""
+    result = copy.deepcopy(settings)
+    require(result.get("infrastructure", {}).get("control") == installed, "control_changed_after_release")
+    if "control" in previous:
+        result["infrastructure"]["control"] = copy.deepcopy(previous["control"])
+    else:
+        result["infrastructure"].pop("control")
+    return result
 
 
 def helpers_source(raw):
@@ -158,7 +174,7 @@ print(json.dumps({'status':'rolled_back','stage':str(S),'database_restore':False
 
 def prepare(*, baseline, metadata, build_result, mechanism_directory, recovery,
             executor_config, guard_repo, guard_commit, stage, output,
-            preserve_infrastructure=False, additional_media_binds=None):
+            preserve_infrastructure=False, additional_media_binds=None, control_install=None):
     output = Path(output)
     require(output.is_absolute() and output.parent.is_dir() and not output.exists(), "new_output_required")
     require(PurePosixPath(stage).parent == PurePosixPath("/volume2/tianshu-v2-resident-updates"), "resident_stage_invalid")
@@ -194,6 +210,12 @@ def prepare(*, baseline, metadata, build_result, mechanism_directory, recovery,
         settings = metadata["infrastructure_settings"]
         require(settings["directory"] == metadata["external_directory"], "external_directory_mismatch")
         credential_binds = []
+    control = None
+    if control_install:
+        require(preserve_infrastructure, "control_requires_existing_infrastructure")
+        control = control_inputs.validate(json.loads(Path(control_install).read_bytes()), resident_root=root,
+                                          mounts=platform["mounts"], node_ids=executor["nodes"])
+        require(build.get("control_package") == control["package"], "control_image_package_mismatch")
     media_binds = json.loads(Path(additional_media_binds).read_bytes()) if additional_media_binds else []
     require(isinstance(media_binds, list), "media_binds_invalid")
     for bind in media_binds:
@@ -233,6 +255,8 @@ def prepare(*, baseline, metadata, build_result, mechanism_directory, recovery,
         "mechanism_sha256": {name: digest(raw) for name, raw in source_bytes.items()},
         "retention_sha256": digest(Path(resident_retention.__file__).read_bytes().replace(b"\r\n", b"\n")),
     }
+    if control:
+        release["control"] = control
     functions = existing_functions(sources["resident_update_body.py.txt"])
     helpers = helpers_source(sources["resident_helpers.py.txt"])
     worker = (HERE / "resident_worker.py").read_text(encoding="utf-8")
@@ -241,10 +265,11 @@ def prepare(*, baseline, metadata, build_result, mechanism_directory, recovery,
     # The runtime gets the exact same tested patch rules; no second merge algorithm.
     merge_source = "\n\n".join(ast.get_source_segment(Path(__file__).read_text(encoding="utf-8"), node)
                                  for node in ast.parse(Path(__file__).read_text(encoding="utf-8")).body
-                                 if isinstance(node, ast.FunctionDef) and node.name in {"patch_templates", "merge_settings"})
+                                 if isinstance(node, ast.FunctionDef) and node.name in {"patch_templates", "merge_settings", "restore_control_settings"})
     script = ("RELEASE=" + repr(release) + "\n" + helpers + "\n" + functions
               + "\nSAMPLE_STATE=" + repr(SAMPLE_STATE) + "\n" + merge_source + "\n" + inventory_source
-              + "\n" + mountpoint_source + retention_runtime_source(install=True) + "\n" + worker)
+              + "\n" + mountpoint_source + retention_runtime_source(install=True)
+              + ("\n" + control_inputs.runtime_source() if control else "") + "\n" + worker)
     compile(script, "resident-update.py", "exec")
     inputs = {"release": release, "script_sha256": digest(script.encode())}
     rollback = rollback_source(stage, inputs["script_sha256"])
@@ -278,6 +303,8 @@ with (stage/'rollback.py').open('xb') as stream:
     receipt = {"status": "prepared_locally", "stage": stage, "script_sha256": inputs["script_sha256"],
                "guard_commit": guard_commit, "node_commit": NODE_COMMIT, "image_id": build["image_id"],
                "nas_changed": False, "node_ids": ["nas-main"], "output": str(output), "rollback_sha256": digest(rollback.encode())}
+    if control:
+        receipt["control_package"] = control["package"]
     (output / "prepared.json").write_bytes(json_bytes(receipt))
     return receipt
 
@@ -289,6 +316,7 @@ def main():
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--preserve-infrastructure", action="store_true")
     parser.add_argument("--additional-media-binds")
+    parser.add_argument("--control-install")
     print(json.dumps(prepare(**vars(parser.parse_args())), sort_keys=True))
 
 

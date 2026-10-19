@@ -65,7 +65,7 @@ def readback():
                 and record["new_permissions"] == record["new_service_credentials"] == 0, "gateway_resume_scope_changed")
     GATEWAY_REISSUED = origin["origin_reissued"]
     rows = snapshot.inspect_owners(D)
-    expect_owners(rows, RELEASE["baseline"]["owners"], RELEASE["infrastructure"]["credential_binds"])
+    expect_owners(rows, RELEASE["baseline"]["owners"], RELEASE["infrastructure"]["credential_binds"] + RELEASE.get("media_binds", []))
     identifiers = {row["service"]: row["id"] for row in RELEASE["baseline"]["owners"]}
     identifiers.update(platform=EXPECTED["platform_id"], gateway=EXPECTED["gateway_id"])
     require({row["service"]: row["id"] for row in rows} == identifiers, "resume_owner_identity_changed")
@@ -73,9 +73,16 @@ def readback():
     cap = read(CAP)
     paths = paths_from(cap)
     settings_path = R / "config/platform/settings.json"
-    expected_settings = merge_settings(read(S / "original-platform-settings.json"), RELEASE["infrastructure"]["settings"])
+    control_settings = RELEASE["control"]["configuration"]["platform_control"] if RELEASE.get("control") else None
+    merge_options = {"preserve_existing": True} if RELEASE.get("preserve_infrastructure") else {}
+    if control_settings is not None:
+        merge_options["control"] = control_settings
+    expected_settings = merge_settings(read(S / "original-platform-settings.json"), RELEASE["infrastructure"]["settings"], **merge_options)
     require(read(settings_path) == expected_settings, "platform_settings_changed")
-    expected_templates, expected_cap = patch_templates(read(S / "original-templates.json"), read(S / "original-capacity.json"), EXPECTED["image_id"], RELEASE["infrastructure"]["credential_binds"])
+    patch_options = {}
+    if RELEASE.get("preserve_infrastructure") or RELEASE.get("media_binds"):
+        patch_options = {"preserve_existing": RELEASE.get("preserve_infrastructure", False), "media_binds": RELEASE.get("media_binds", [])}
+    expected_templates, expected_cap = patch_templates(read(S / "original-templates.json"), read(S / "original-capacity.json"), EXPECTED["image_id"], RELEASE["infrastructure"]["credential_binds"], **patch_options)
     expected_cap["state_dir"] = EXPECTED["state_dir"]
     require(cap == expected_cap, "candidate_capacity_changed")
     if GATEWAY_REISSUED:

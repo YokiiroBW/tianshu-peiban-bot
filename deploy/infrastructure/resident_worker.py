@@ -88,6 +88,8 @@ def expect_owners(rows, originals, credential_binds, *, expect_sampling=True):
 
 
 def check_private_inputs():
+    if RELEASE.get("control"):
+        check_control_install(RELEASE["control"])
     for bind in RELEASE.get("media_binds", []):
         path = Path(bind["source"])
         require(path.parent.is_dir() and not any(p.is_symlink() for p in (path, *path.parents)), "media_directory_parent_invalid")
@@ -114,6 +116,8 @@ def install_private_inputs():
             os.chown(path, 10001, 10001)
             path.chmod(0o755)
     if RELEASE.get("preserve_infrastructure"):
+        if RELEASE.get("control"):
+            save(S / "control-installation.json", install_control(RELEASE["control"]))
         return
     # runc can inherit the existing mountpoint mode on later container starts.
     # This host directory remains empty; all sampling content lives in tmpfs.
@@ -158,7 +162,10 @@ def start_and_verify(rows, paths, expected_rows, credential_binds, *, expect_sam
 
 
 def verify_infrastructure_runtime(platform_id, memory_limit):
-    program = "EXPECTED=" + repr(RELEASE["infrastructure"]["settings"]) + "\n" + r'''
+    expected = copy.deepcopy(RELEASE["infrastructure"]["settings"])
+    if RELEASE.get("control"):
+        expected["control"] = RELEASE["control"]["configuration"]["platform_control"]
+    program = "EXPECTED=" + repr(expected) + "\n" + r'''
 import json,os,subprocess
 from pathlib import Path
 settings=json.loads(Path('/etc/tianshu/settings.json').read_bytes())
@@ -177,7 +184,21 @@ request={'version':'infrastructure-node.v1','request_id':'resident:catalog','nod
 p=subprocess.run(EXPECTED['executor']['command'],input=json.dumps(request).encode(),capture_output=True,timeout=10,cwd=EXPECTED['executor']['directory'])
 assert p.returncode==0 and not p.stderr
 result=json.loads(p.stdout);assert result['status']=='ok'
-print(json.dumps({'directory_reused':True,'node_ids':['nas-main'],'sampling_tmpfs_bytes':disk.f_frsize*disk.f_blocks,'credential_files_readable':True,'catalog_process_passed':True}))
+control_passed=False
+if EXPECTED.get('control'):
+ control=EXPECTED['control']
+ request={'version':'infrastructure-control.v1','request_id':'resident:control-catalog','node_id':None,'operation':'control.catalog','params':{},'timeout_ms':1000}
+ p=subprocess.run(control['executor']['command'],input=json.dumps(request).encode(),capture_output=True,timeout=10,cwd=control['executor']['directory'])
+ assert p.returncode==0 and not p.stderr
+ result=json.loads(p.stdout);assert result['status']=='ok' and [n['id'] for n in result['data']['nodes']]==['nas-main']
+ relay_path=control['executor']['command'][-1]
+ relay=json.loads(Path(relay_path).read_bytes())
+ root=control['executor']['directory']
+ program='import sys;sys.path.insert(0,'+repr(root)+');from ops.infrastructure.control.state import checked_directory;from pathlib import Path;checked_directory(Path('+repr(relay['state_dir'])+'))'
+ p=subprocess.run([control['executor']['command'][0],'-I','-B','-c',program],capture_output=True,timeout=10)
+ assert p.returncode==0,'control_relay_persistence_invalid'
+ control_passed=True
+print(json.dumps({'directory_reused':True,'node_ids':['nas-main'],'sampling_tmpfs_bytes':disk.f_frsize*disk.f_blocks,'credential_files_readable':True,'catalog_process_passed':True,'control_catalog_process_passed':control_passed}))
 '''
     report = json.loads(command([D, "exec", "-i", platform_id, "python", "-I", "-B", "-"], input=program, timeout=20).stdout)
     raw = json.loads(command([D, "inspect", platform_id]).stdout)[0]
@@ -209,7 +230,12 @@ def release():
     settings = read(settings_path)
     save(S / "original-platform-settings.json", settings)
     preserve_infrastructure = RELEASE.get("preserve_infrastructure", False)
-    new_settings = merge_settings(settings, RELEASE["infrastructure"]["settings"], preserve_existing=preserve_infrastructure)
+    control = RELEASE.get("control")
+    if control:
+        new_settings = merge_settings(settings, RELEASE["infrastructure"]["settings"], preserve_existing=preserve_infrastructure,
+                                      control=control["configuration"]["platform_control"])
+    else:
+        new_settings = merge_settings(settings, RELEASE["infrastructure"]["settings"], preserve_existing=preserve_infrastructure)
     settings_hashes = current_settings_hashes()
     save(S / "settings-hashes.json", settings_hashes)
     platform = next(row for row in rows if row["service"] == "platform")
@@ -237,7 +263,7 @@ def release():
     # No production input is written until the existing stopped-owner backup
     # and independent disabled restore verification have succeeded.
     install_private_inputs()
-    if not preserve_infrastructure:
+    if new_settings != settings:
         atomic_bytes(settings_path, (json.dumps(new_settings, ensure_ascii=False, indent=2) + "\n").encode())
     added_binds = RELEASE["infrastructure"]["credential_binds"] + RELEASE.get("media_binds", [])
     templates, cap = patch_templates(templates, cap, RELEASE["images"]["platform"]["image_id"], RELEASE["infrastructure"]["credential_binds"], preserve_existing=preserve_infrastructure, media_binds=RELEASE.get("media_binds", []))
@@ -256,13 +282,26 @@ def release():
     require(non_target_report["preserved"], "non_target_container_changed")
     require(user_state_hashes(R) == read(S / "user-state-before.json"), "user_state_changed")
     require(read(settings_path) == new_settings, "platform_settings_changed")
-    require(all(value == settings_hashes[name] for name, value in current_settings_hashes().items() if name != "platform" or preserve_infrastructure), "other_settings_changed")
+    require(all(value == settings_hashes[name] for name, value in current_settings_hashes().items() if name != "platform" or new_settings == settings), "other_settings_changed")
     media_after = media_state()
     require(media_after["configuration_sha256"] == media_before["configuration_sha256"], "music_media_configuration_changed")
     save(S / "media-after.json", media_after)
     actual_platform = next(row for row in current if row["service"] == "platform")
     verify_infrastructure_runtime(actual_platform["id"], memory_limit)
-    save(S / "result.json", {"status": "deployed", "images": RELEASE["images"], "guard_commit": RELEASE["guard_commit"], "guard": "ready", "node_ids": ["nas-main"], "backup": str(S / "cold-snapshot"), "sqlite_backups": backup["sqlite_databases_verified"], "health": health_checks(current), "user_state_preserved": True, "music_media_configuration_preserved": True, "non_target_containers_preserved": True, "platform_memory_limit_preserved": True, "existing_settings_preserved": preserve_infrastructure, "existing_settings_preserved_except_infrastructure_addition": not preserve_infrastructure, "added_media_binds": RELEASE.get("media_binds", []), "gateway_origin_reissued": GATEWAY_REISSUED, "database_restore": False, "real_qq_test_sent": False, "real_node_sampling_accepted": False, "dockge_sync_required": True})
+    save(S / "result.json", {
+        "status": "deployed", "images": RELEASE["images"], "guard_commit": RELEASE["guard_commit"],
+        "guard": "ready", "node_ids": ["nas-main"], "backup": str(S / "cold-snapshot"),
+        "sqlite_backups": backup["sqlite_databases_verified"], "health": health_checks(current),
+        "user_state_preserved": True, "music_media_configuration_preserved": True,
+        "non_target_containers_preserved": True, "platform_memory_limit_preserved": True,
+        "existing_settings_preserved": preserve_infrastructure and new_settings == settings,
+        "existing_settings_preserved_except_control": bool(control),
+        "existing_settings_preserved_except_infrastructure_addition": not preserve_infrastructure,
+        "control_source_commit": control["package"]["source_commit"] if control else None,
+        "control_real_operations_accepted": False, "added_media_binds": RELEASE.get("media_binds", []),
+        "gateway_origin_reissued": GATEWAY_REISSUED, "database_restore": False,
+        "real_qq_test_sent": False, "real_node_sampling_accepted": False, "dockge_sync_required": True,
+    })
 
 
 def rollback_release(parent):
@@ -294,6 +333,8 @@ def rollback_release(parent):
     templates = {name: read(path) for name, path in paths.items()}
     settings_path = R / "config/platform/settings.json"
     settings = read(settings_path)
+    if original.get("control"):
+        settings = restore_control_settings(settings, original["control"]["configuration"]["platform_control"], original["infrastructure"]["settings"])
     if "infrastructure" in settings and not preserve_infrastructure:
         require(settings["infrastructure"] == original["infrastructure"]["settings"], "infrastructure_changed_after_release")
         settings.pop("infrastructure")
@@ -348,7 +389,7 @@ def rollback_release(parent):
     require(guard_backup.is_dir(), "guard_rollback_carry_missing")
     user_state = user_state_hashes(R)
     media_before = media_state()
-    if not preserve_infrastructure:
+    if read(settings_path) != settings:
         atomic_bytes(settings_path, (json.dumps(settings, ensure_ascii=False, indent=2) + "\n").encode())
     for name in ("core", "platform"):
         atomic_bytes(paths[name], (json.dumps(templates[name], indent=2) + "\n").encode())
