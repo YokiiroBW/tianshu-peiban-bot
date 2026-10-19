@@ -18,6 +18,7 @@ import zipfile
 from pathlib import Path, PurePosixPath
 
 from .bundle import Refused, digest, git_files, json_bytes, require, verify
+from .control_bundle import verify as verify_control
 
 
 HERE = Path(__file__).resolve().parent
@@ -65,7 +66,7 @@ def snapshot_files(repository, commit, prefixes):
     return git_files(repository, commit, selected), {name: modes[name] for name in selected}
 
 
-def candidate_dockerfile(original):
+def candidate_dockerfile(original, *, control=False):
     """Extend the same fixed repository recipe; never edit its worktree copy."""
     require(original.count("RUN npm run build\n") == 1, "web_build_recipe_changed")
     require(original.count("USER 10001:10001\n") == 1, "runtime_user_recipe_changed")
@@ -90,6 +91,11 @@ RUN apt-get update \\
     && find /opt/tianshu-infrastructure-node -type f -exec chmod 0644 {} +
 COPY --from=console /build/web-hashes.json /srv/tianshu/web-hashes.json
 """
+    if control:
+        addition += """COPY control-package/ /opt/tianshu-infrastructure-control/
+RUN find /opt/tianshu-infrastructure-control -type d -exec chmod 0755 {} + \\
+    && find /opt/tianshu-infrastructure-control -type f -exec chmod 0644 {} +
+"""
     return recipe.replace("USER 10001:10001\n", addition + "USER 10001:10001\n")
 
 
@@ -109,7 +115,7 @@ def dependency_delta(source, previous, *, base_revision, revision, manifest=None
 
 def prepare(*, platform_repo, platform_commit, music_commit, music_image,
             contracts_repo, contracts_commit, node_package, stage, docker, remote_python, tag, output,
-            dependency_changes=None):
+            dependency_changes=None, control_package=None):
     output = Path(output)
     require(output.is_absolute() and output.parent.is_dir() and not output.exists(), "new_output_required")
     require(bool(re.fullmatch(r"sha256:[0-9a-f]{64}", music_image)), "immutable_music_image_required")
@@ -136,7 +142,11 @@ def prepare(*, platform_repo, platform_commit, music_commit, music_image,
     files = {**source, **contracts}
     with zipfile.ZipFile(node_package) as archive:
         files.update({"node-package/" + name: archive.read(name) for name in archive.namelist()})
-    files["Dockerfile.candidate"] = candidate_dockerfile(source["Dockerfile"].decode("utf-8")).encode()
+    control = verify_control(control_package) if control_package else None
+    if control:
+        with zipfile.ZipFile(control_package) as archive:
+            files.update({"control-package/" + name: archive.read(name) for name in archive.namelist()})
+    files["Dockerfile.candidate"] = candidate_dockerfile(source["Dockerfile"].decode("utf-8"), control=bool(control)).encode()
     config = {
         "revision": platform_commit, "base_revision": music_commit, "base_image": music_image,
         "contracts_revision": contracts_commit, "node_commit": NODE_COMMIT,
@@ -148,6 +158,8 @@ def prepare(*, platform_repo, platform_commit, music_commit, music_image,
         "dependency_changes": changed_dependencies,
         "inherited_image_fields": list(IMAGE_FIELDS),
     }
+    if control:
+        config["control_package"] = control
     files["build-inputs.json"] = json_bytes(config)
     files["build-controller.py"] = (HERE / "image_controller.py").read_bytes().replace(b"\r\n", b"\n")
     compile(files["build-controller.py"], "build-controller.py", "exec")
@@ -173,6 +185,8 @@ def prepare(*, platform_repo, platform_commit, music_commit, music_image,
         "file_count": len(files), "output": str(output),
         "dependency_changes": changed_dependencies,
     }
+    if control:
+        receipt["control_package"] = control
     (output / "prepared.json").write_bytes(json_bytes(receipt))
     prefix = ("CONFIG=" + repr(config) + "\nARCHIVE_SHA256=" + repr(receipt["archive_sha256"])
               + "\nCONTROLLER_SHA256=" + repr(receipt["controller_sha256"])
@@ -255,6 +269,7 @@ def main():
                  "contracts-repo", "contracts-commit", "node-package", "stage", "docker", "remote-python", "tag", "output"):
         parser.add_argument("--" + name, required=True)
     parser.add_argument("--dependency-changes", help="Exact base/candidate commits and before/after hashes for intentional dependency input changes")
+    parser.add_argument("--control-package")
     print(json.dumps(prepare(**vars(parser.parse_args())), sort_keys=True))
 
 

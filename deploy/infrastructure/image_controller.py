@@ -22,8 +22,10 @@ def command(arguments, **kwargs):
 
 
 def in_image(config, image, program, *, python="python", timeout=45):
-    return command([config["docker"], "run", "--rm", "-i", "--read-only", "--network", "none",
-                    "--entrypoint", python, image, "-I", "-B", "-"], input=program, timeout=timeout)
+    arguments = [config["docker"], "run", "--rm", "-i", "--read-only", "--network", "none"]
+    if config.get("control_package"):
+        arguments += ["--tmpfs", "/tmp:rw,noexec,nosuid,nodev,size=16m,uid=10001,gid=10001,mode=0700"]
+    return command([*arguments, "--entrypoint", python, image, "-I", "-B", "-"], input=program, timeout=timeout)
 
 
 def finish(path, value):
@@ -99,23 +101,57 @@ for name,item in manifest['files'].items():
  assert (node/name).stat().st_uid==0 and (node/name).stat().st_mode&0o222==0o200,'node_file_mode_changed'
 version=json.loads(subprocess.check_output(['/opt/tianshu-infrastructure-venv/bin/python','-I','-B',str(node/'run_node.py'),'--version']))
 assert version['source_commit']==CONFIG['node_commit']
+
+control_report=None
+if CONFIG.get('control_package'):
+ import tempfile
+ control=Path('/opt/tianshu-infrastructure-control')
+ pinned=CONFIG['control_package']
+ manifest=json.loads((control/'package-manifest.json').read_bytes())
+ assert manifest['source_commit']==pinned['source_commit'] and manifest['contract']==pinned['contract']
+ for name,item in manifest['files'].items():
+  path=control/name
+  raw=path.read_bytes()
+  assert hashlib.sha256(raw).hexdigest()==item['sha256'],'installed_control_changed'
+  assert path.stat().st_uid==0 and path.stat().st_mode&0o777==0o644,'control_file_mode_changed'
+  if name.endswith('.py'):compile(raw,name,'exec')
+ python='/opt/tianshu-infrastructure-venv/bin/python'
+ for launcher in ['relay_entry.py','remote_entry.py']:
+  subprocess.run([python,'-I','-B',str(control/'ops/infrastructure/control'/launcher),'--help'],capture_output=True,check=True)
+ version=json.loads(subprocess.check_output([python,'-I','-B',str(control/'run_control.py'),'--version']))
+ assert version['source_commit']==pinned['source_commit'] and version['protocol_version']=='infrastructure-control.v1'
+ with tempfile.TemporaryDirectory() as folder:
+  folder=Path(folder)
+  observation=folder/'observation.json'
+  observation.write_text(json.dumps({'version':'infrastructure-node.v1','state_dir':str(folder/'sampling'),'ssh_command':['/usr/bin/ssh'],'nodes':{}}))
+  relay=folder/'control.json'
+  relay.write_text(json.dumps({'version':'infrastructure-control.config.v1','observation_config':str(observation),'state_dir':str(folder/'journal'),'nodes':{}}))
+  request={'version':'infrastructure-control.v1','request_id':'image:catalog','node_id':None,'operation':'control.catalog','params':{},'timeout_ms':1000}
+  result=subprocess.run([python,'-I','-B',str(control/'run_control.py'),'--config',str(relay)],input=json.dumps(request),capture_output=True,text=True,check=True)
+  response=json.loads(result.stdout)
+  assert not result.stderr and response['status']=='ok' and response['data']['nodes']==[],'installed_control_catalog_failed'
+ control_report={'source_commit':pinned['source_commit'],'catalog_process_passed':True,'both_absolute_launchers_passed':True,'file_count':len(manifest['files'])}
 yaml=subprocess.check_output(['/opt/tianshu-infrastructure-venv/bin/python','-I','-B','-c','import yaml;print(yaml.__version__)'],text=True).strip()
 assert yaml=='6.0.3'
 for python in ['python','/opt/tianshu-infrastructure-venv/bin/python']:
  subprocess.run([python,'-I','-m','pip','check'],capture_output=True,check=True)
 ssh=subprocess.run(['/usr/bin/ssh','-V'],capture_output=True,text=True,check=True)
 ssh_package=subprocess.check_output(['/usr/bin/dpkg-query','--show','--showformat=${Version}','openssh-client'],text=True).strip()
-print(json.dumps({'uid':os.getuid(),'node_source':version['source_commit'],'yaml':yaml,'openssh':(ssh.stdout+ssh.stderr).strip(),'openssh_package':ssh_package,'installed_web_files':len(actual),'source_hashes_verified':True,'main_venv_preserved':True,'independent_node_venv':True}))
+print(json.dumps({'uid':os.getuid(),'node_source':CONFIG['node_commit'],'yaml':yaml,'openssh':(ssh.stdout+ssh.stderr).strip(),'openssh_package':ssh_package,'installed_web_files':len(actual),'source_hashes_verified':True,'main_venv_preserved':True,'independent_node_venv':True,'control':control_report}))
 '''
 
 
 def candidate_labels(config):
-    return {
+    labels = {
         "org.opencontainers.image.revision": config["revision"],
         "org.tianshu.contracts.revision": config["contracts_revision"],
         "org.tianshu.infrastructure.revision": config["node_commit"],
         "org.tianshu.infrastructure.package-sha256": config["node_package_sha256"],
     }
+    if config.get("control_package"):
+        labels["org.tianshu.infrastructure-control.revision"] = config["control_package"]["source_commit"]
+        labels["org.tianshu.infrastructure-control.package-sha256"] = config["control_package"]["package_sha256"]
+    return labels
 
 
 def image_inspect(config, reference):
@@ -160,7 +196,7 @@ def verify_candidate(config, base, reference, music_before):
     assert music_after == music_before, "music_runtime_changed"
     program = "CONFIG=" + repr(config) + "\n" + LINUX_CHECKS
     verified = json.loads(in_image(config, image["Id"], program).stdout)
-    return {
+    result = {
         "status": "built", "image_id": image["Id"], "revision": config["revision"],
         "base_image_id": config["base_image"], "base_revision": config["base_revision"],
         "contracts_revision": config["contracts_revision"], "node_commit": config["node_commit"],
@@ -169,6 +205,9 @@ def verify_candidate(config, base, reference, music_before):
         "music_runtime": music_after,
         "production_changed": False, "production_data_mounted": False, "production_service_started": False,
     }
+    if config.get("control_package"):
+        result["control_package"] = config["control_package"]
+    return result
 
 
 def run(stage, *, verify_image=None, receipt_name=None):

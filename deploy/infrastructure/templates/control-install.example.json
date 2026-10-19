@@ -1,0 +1,47 @@
+{
+  "version": "infrastructure-control.install.v1",
+  "remote_code_root": "/ABS_EXISTING_TOOLING_PARENT/control",
+  "remote_python": "/ABS_ALREADY_AUTHORIZED/python",
+  "remote_runtime_directory": "/ABS_EXISTING_TOOLING_PARENT/control/FULL_PACKAGE_SHA256.venv",
+  "remote_config_path": "/ABS_RESIDENT/config/platform/infrastructure/control-remote-UNIQUE.json",
+  "relay_config_path": "/ABS_RESIDENT/config/platform/infrastructure/control-relay-UNIQUE.json",
+  "remote_config": {
+    "version": "infrastructure-control.remote.v1",
+    "node_id": "registered-nas",
+    "state_dir": "/ABS_RESIDENT/data/platform/infrastructure-control-node",
+    "stacks_root": "/ABS_EXISTING_HOST_STACKS",
+    "compose_path_root": "/ABS_EXISTING_DOCKGE_STACKS_MOUNT",
+    "docker_command": ["/ABS_EXISTING/docker"],
+    "docker_socket": "/ABS_EXISTING/docker.sock",
+    "compose_command": ["/ABS_EXISTING/docker", "--host", "unix:///ABS_EXISTING/docker.sock", "exec", "-i", "dockge", "docker", "--host", "unix:///ABS_EXISTING/docker.sock", "compose"],
+    "platform_stacks": [],
+    "protected_projects": {
+      "tianshu-v2-resident": {"owner": "resident-update", "reason": "capacity_guard_ownership", "maintenance_ref": "resident-update"},
+      "tianshu-v2-resident-obs": {"owner": "resident-update", "reason": "capacity_guard_ownership", "maintenance_ref": "resident-update"}
+    },
+    "protected_container_names": {
+      "dockge": {"owner": "dockge", "reason": "control_execution_dependency", "maintenance_ref": null}
+    },
+    "protected_bind_roots": [
+      {"path": "/ABS_RESIDENT", "owner": "resident-update", "reason": "capacity_guard_mount_ownership"}
+    ],
+    "operation_timeout_seconds": 1800
+  },
+  "relay_config": {
+    "version": "infrastructure-control.config.v1",
+    "observation_config": "/etc/tianshu/infrastructure/executor.json",
+    "state_dir": "/var/lib/tianshu/infrastructure-control-relay",
+    "nodes": {
+      "registered-nas": {
+        "command": ["sudo", "-n", "/ABS_ALREADY_AUTHORIZED/python", "-B", "/ABS_EXISTING_TOOLING_PARENT/control/FULL_PACKAGE_SHA256/run_remote.py", "--python", "/ABS_EXISTING_TOOLING_PARENT/control/FULL_PACKAGE_SHA256.venv/bin/python", "--config", "/ABS_RESIDENT/config/platform/infrastructure/control-remote-UNIQUE.json"]
+      }
+    }
+  },
+  "platform_control": {
+    "contract_directory": "/opt/tianshu-infrastructure-control/contracts/infrastructure-control/candidate-v1",
+    "executor": {
+      "directory": "/opt/tianshu-infrastructure-control",
+      "command": ["/opt/tianshu-infrastructure-venv/bin/python", "-I", "-B", "/opt/tianshu-infrastructure-control/run_control.py", "--config", "/etc/tianshu/infrastructure/control-relay-UNIQUE.json"]
+    }
+  }
+}

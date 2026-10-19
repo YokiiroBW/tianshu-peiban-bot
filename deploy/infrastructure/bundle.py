@@ -168,6 +168,15 @@ def build(repository, commit, output):
         },
     }
     files[MANIFEST] = json_bytes(manifest)
+    write_archive(output, files)
+    return verify(output)
+
+
+def write_archive(output, files):
+    """Shared deterministic ZIP writer for observation and control source packages."""
+    output = Path(output)
+    require(output.is_absolute() and output.parent.is_dir(), "absolute_output_parent_required")
+    require(not output.exists(), "new_output_required")
     require(sum(len(raw) for raw in files.values()) <= MAX_PACKAGE_BYTES, "package_too_large")
     try:
         with output.open("xb") as stream, zipfile.ZipFile(stream, "w", compression=zipfile.ZIP_STORED) as archive:
@@ -179,41 +188,46 @@ def build(repository, commit, output):
                 archive.writestr(info, raw)
     except OSError:
         raise Refused("package_write_failed") from None
-    return verify(output)
+
+
+def read_archive(path, expected):
+    """Validate exact declared members and manifest hashes before returning bytes."""
+    with zipfile.ZipFile(path) as archive:
+        entries = archive.infolist()
+        names = [item.filename for item in entries]
+        require(set(names) == expected and len(names) == len(expected), "package_file_list_mismatch")
+        require(sum(item.file_size for item in entries) <= MAX_PACKAGE_BYTES, "package_too_large")
+        for item in entries:
+            require(
+                item.file_size <= MAX_FILE_BYTES and item.compress_type == zipfile.ZIP_STORED
+                and item.create_system == 3 and stat.S_ISREG(item.external_attr >> 16),
+                "package_member_invalid",
+            )
+        manifest = json.loads(archive.read(MANIFEST))
+        require(set(manifest["files"]) == expected - {MANIFEST}, "manifest_file_list_mismatch")
+        files = {name: archive.read(name) for name in names}
+        for name, entry in manifest["files"].items():
+            raw = files[name]
+            require(len(raw) == entry["bytes"] and digest(raw) == entry["sha256"], "package_hash_mismatch")
+    return manifest, files
 
 
 def verify(path):
     try:
-        with zipfile.ZipFile(path) as archive:
-            entries = archive.infolist()
-            names = [item.filename for item in entries]
-            expected = {*SOURCE_FILES, *CONTRACT_FILES, *EXTRA_FILES, MANIFEST}
-            require(set(names) == expected and len(names) == len(expected), "package_file_list_mismatch")
-            require(sum(item.file_size for item in entries) <= MAX_PACKAGE_BYTES, "package_too_large")
-            for item in entries:
-                require(
-                    item.file_size <= MAX_FILE_BYTES and item.compress_type == zipfile.ZIP_STORED
-                    and item.create_system == 3 and stat.S_ISREG(item.external_attr >> 16),
-                    "package_member_invalid",
-                )
-            manifest = json.loads(archive.read(MANIFEST))
-            require(
-                manifest["format_version"] == 1 and manifest["protocol_version"] == PROTOCOL
-                and manifest["package"] == "tianshu-infrastructure-node" and manifest["runtime"] == RUNTIME,
-                "package_version_mismatch",
-            )
-            require(re.fullmatch(r"[0-9a-f]{40}", manifest["source_commit"]), "full_commit_required")
-            require(set(manifest["files"]) == expected - {MANIFEST}, "manifest_file_list_mismatch")
-            for name, entry in manifest["files"].items():
-                raw = archive.read(name)
-                require(len(raw) == entry["bytes"] and digest(raw) == entry["sha256"], "package_hash_mismatch")
-            files = {name: archive.read(name) for name in (*SOURCE_FILES, *CONTRACT_FILES)}
-            _versions(files)
-            contract_hash = digest(json_bytes({name: digest(files[name]) for name in sorted(CONTRACT_FILES)}))
-            require(
-                manifest["contract"] == {"path": CONTRACT, "source_commit": manifest["source_commit"], "files_sha256": contract_hash},
-                "contract_hash_mismatch",
-            )
+        expected = {*SOURCE_FILES, *CONTRACT_FILES, *EXTRA_FILES, MANIFEST}
+        manifest, files = read_archive(path, expected)
+        require(
+            manifest["format_version"] == 1 and manifest["protocol_version"] == PROTOCOL
+            and manifest["package"] == "tianshu-infrastructure-node" and manifest["runtime"] == RUNTIME,
+            "package_version_mismatch",
+        )
+        require(re.fullmatch(r"[0-9a-f]{40}", manifest["source_commit"]), "full_commit_required")
+        _versions(files)
+        contract_hash = digest(json_bytes({name: digest(files[name]) for name in sorted(CONTRACT_FILES)}))
+        require(
+            manifest["contract"] == {"path": CONTRACT, "source_commit": manifest["source_commit"], "files_sha256": contract_hash},
+            "contract_hash_mismatch",
+        )
     except Refused:
         raise
     except (OSError, zipfile.BadZipFile, ValueError, KeyError, TypeError, UnicodeError):
@@ -223,6 +237,6 @@ def verify(path):
         "source_commit": manifest["source_commit"],
         "protocol_version": PROTOCOL,
         "package_sha256": digest(Path(path).read_bytes()),
-        "file_count": len(names),
+        "file_count": len(files),
         "deployed": False,
     }
