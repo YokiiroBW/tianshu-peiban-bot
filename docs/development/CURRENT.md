@@ -1,12 +1,12 @@
-## 2026-10-19 Dockge 控制HTTP修复已部署待网页验收
+## 2026-10-19 Dockge 控制与任务详情修复已部署，详情待登录验收
 
-TS205/206/207/208由gpt-6.1-sol/max并行交付并独立验收，控制节点fb9ee5c6、包装a4af6db3保持。TS209 d6afd37b修复NAS HTTP请求编号、丢响应完成结果和null-stack失败展示，复用既有requestId、操作台账与维护归属；协调者完整diff审查及24/24浏览器通过，0跳过，类型构建通过。保留首轮20通过/2失败及正式网页发送前异常证据，未把失败当成功。
+实现全部由gpt-6.1-sol/max交付，协调者回收、独立验收、串行集成发布。TS209 d6afd37b解决HTTP编号、恢复结果消失和null-stack误加载，24/24独立网页通过且正式三处复验通过。正式页在TS211 d921c8f/72cd7ade上完成容器启动、配置预览/标签部署、原版本预览/恢复和栈停止：6请求均observed，4命令结束；标签已移除，原镜像/环境/marker保持，136非目标未变。统一任务列表4条可读，但详情缺timeline及嵌套结果不可渲染，原错误保留并交新TS212。
 
-Platform b44041757eb6a0759d347a4c794ed34ca52fcb6a（含漫画最新文档9fe9e4c）已非强制推送main并部署为sha256:66bca03caaebdfe856519ee9c044c0abf59eb158412ae46405f22d5d68832a47。控制ZIP898b6fcb与旧只读ZIP9aac3dc0保持，未重复安装控制器。全部settings含infrastructure.control、16项bind、原Dockge身份及媒体配置保留。39库冷备/离线恢复、十服务/五TLS/guard、64网页资源通过；唯一冷备为/volume2/tianshu-v2-resident-updates/dockge-http-20261019-b440417-release/cold-snapshot，恢复代次/volume2/tianshu-v2-resident-updates/dockge-http-20261019-b440417-release/capacity-state-2f0b03f1814d4ff2865b4c4d9dbc81e7。
+TS212固定29a09e8在Tasks._task补真实时间线并扩展既有显示处理JSON结构；不制造结束时间，保留home/model原事实。代理42后端+2真实HTTP网页+1家庭/模型网页及类型构建通过；协调者任务20/20、真实HTTP网页2/2通过。控制初轮21/22有一条并发耗时437ms超400ms，单项串行复核通过，阈值未改，原失败日志保留。详见[交付记录](dockge-control-delivery-2026-10-19.json)。
 
-已完成受控更新及后台检查，服务重启导致登录失效，正式网页动作仍待用户重新登录。测试栈保持停止，发布窗口已释放；用户登录后重新核对线上版本与非目标基线，再验收该栈，不将本地网页或旧CLI结果冒称正式网页通过。
+Platform 29a09e8bbc3c333637bfd65ed69374686c8ff4d6已ff推送并部署为sha256:21941cc319ef17db1be9dc4826f4b0c57a27c8d1569543ebd5e4f805f046c63a，完整保留漫画f3c1500历史。控制ZIP898b6fcb、只读ZIP9aac3dc0、全部settings、16 bind和原Dockge身份保持；39库冷备/离线恢复、十服务/五TLS/guard、64静态资源通过。当前恢复代次/volume2/tianshu-v2-resident-updates/dockge-task-detail-20261019-29a09e8-release/capacity-state-412ab288d2b74b00bc215b12bd7e1667，唯一冷备/volume2/tianshu-v2-resident-updates/dockge-task-detail-20261019-29a09e8-release/cold-snapshot；无生产数据库回滚。最新9漫画任务/8CBZ/3订阅（2 active、1 paused）、849章/2音频、4712书/7进度及原文件配置保持。
 
-先前真实Docker十项控制与同编号重放、busybox→alpine→原镜像及数据标记通过，原挂载顺序误报证据保留并只读复核；显式拉取前后镜像ID相同，不称版本升级。音乐、849书籍章节、2音频、阅读进度、漫画8任务/7CBZ/2订阅及原文件记录保持。后续发布须保留控制包、现有配置和挂载并重新读取最新生产状态；记忆TS210、漫画TS211各自隔离开发不由本批接管。见[精确交付](dockge-control-delivery-2026-10-19.json)与[计划](dockge-control-plan-2026-10-19.md)。
+正式控制6请求/4修改已在前一轮通过，测试栈恢复并停止。任务详情修复已上线，服务重启后需要用户重新登录，最后仅只读打开已保存任务详情；不能将本地通过当正式详情已通过。 发布窗口已释放；后续发布必须重取最新线上状态，并保留控制包、现有设置和挂载。根历史混合修改与其他任务保持，未接管媒体/记忆开发。见[本批计划](dockge-control-plan-2026-10-19.md)。
 
 ## 2026-10-18 听书预生成与显式陪读已部署验收
 

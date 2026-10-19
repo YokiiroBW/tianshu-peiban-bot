@@ -1,5 +1,5 @@
 {
-  "status": "pushed_deployed_fixed_http_pending_login",
+  "status": "pushed_deployed_control_verified_task_detail_pending_login",
   "date": "2026-10-19",
   "models": {
     "implementation": "gpt-6.1-sol",
@@ -26,6 +26,10 @@
     "TS-209": {
       "candidate": "d6afd37b5dcb62b1c740ba1bacb67946d4965e9c",
       "integration": "b44041757eb6a0759d347a4c794ed34ca52fcb6a"
+    },
+    "TS-212": {
+      "candidate": "29a09e8bbc3c333637bfd65ed69374686c8ff4d6",
+      "integration": "29a09e8bbc3c333637bfd65ed69374686c8ff4d6"
     }
   },
   "preserved_platform_baseline": {
@@ -173,10 +177,10 @@
     "owners_running": 10,
     "last_readonly_state_dir": "/volume2/tianshu-v2-resident-updates/comic-chinese-search-20261019-ea45faa-release/capacity-state-bf65ae54d05644ac8b95812c090ff650",
     "candidate_build_started": true,
-    "platform_commit": "b44041757eb6a0759d347a4c794ed34ca52fcb6a",
-    "platform_image": "sha256:66bca03caaebdfe856519ee9c044c0abf59eb158412ae46405f22d5d68832a47",
-    "platform_id": "629af4d95bb9aa4c4968b2d070e94fc05fda55abacc1dea5c1ff80347064493e",
-    "current_state_dir": "/volume2/tianshu-v2-resident-updates/dockge-http-20261019-b440417-release/capacity-state-2f0b03f1814d4ff2865b4c4d9dbc81e7",
+    "platform_commit": "29a09e8bbc3c333637bfd65ed69374686c8ff4d6",
+    "platform_image": "sha256:21941cc319ef17db1be9dc4826f4b0c57a27c8d1569543ebd5e4f805f046c63a",
+    "platform_id": "748c4cb27c2abb7b2bd94dd32c20d424ff9b232b9911e404023488fb230168f3",
+    "current_state_dir": "/volume2/tianshu-v2-resident-updates/dockge-task-detail-20261019-29a09e8-release/capacity-state-412ab288d2b74b00bc215b12bd7e1667",
     "platform_binds": 16,
     "original_dockge_preserved": true,
     "existing_settings_preserved_except_control": true,
@@ -184,7 +188,7 @@
     "tls_health_services": 5,
     "static_assets_verified": 64,
     "cold_backup_count": 1,
-    "cold_backup": "/volume2/tianshu-v2-resident-updates/dockge-http-20261019-b440417-release/cold-snapshot",
+    "cold_backup": "/volume2/tianshu-v2-resident-updates/dockge-task-detail-20261019-29a09e8-release/cold-snapshot",
     "database_restore": false,
     "real_control_accepted": true,
     "production_gui_accepted": false,
@@ -192,7 +196,7 @@
     "all_settings_including_control_preserved": true
   },
   "remaining": [
-    "Login after service restart; then real NAS GUI actions and task-center verification on the isolated test stack only."
+    "User login after restart, then read saved Dockge task details in the production task centre; no repeated container mutations."
   ],
   "packages": {
     "control_source": "fb9ee5c6aaf3f00f9706aaba812577d82053300a",
@@ -253,18 +257,20 @@
     "book_chapters": 849,
     "audio_files": 2,
     "audio_and_reader_unchanged": true,
-    "comic_tasks": 8,
-    "comic_subscriptions": 2,
+    "comic_tasks": 9,
+    "comic_subscriptions": 3,
     "comic_subscription_interval_seconds": 21600,
     "configuration_and_reader_records": 11,
     "comic_sources": 2432,
     "extension_files": 1444,
-    "completed_cbz_full_hashes_preserved": 7,
+    "completed_cbz_full_hashes_preserved": 8,
     "original_comic_files": 9887,
     "original_comic_directories": 579,
-    "komga_books": 4711,
-    "original_read_progress_records": 6,
-    "original_comic_validation": "identity/size/mtime/ownership/mode, not a full 47 GB content rehash"
+    "komga_books": 4712,
+    "original_read_progress_records": 7,
+    "original_comic_validation": "identity/size/mtime/ownership/mode, not a full 47 GB content rehash",
+    "active_comic_subscriptions": 2,
+    "paused_comic_acceptance_subscriptions": 1
   },
   "release_preservation_requirement": "Future Platform images must retain the installed control package 898b6fcb5deb58f3b399cb19dae3d904806309ac89f14221181ff7fbb1789a2c (or explicitly validated successor) and preserve current infrastructure.control, complete mounts and current guard generation.",
   "first_release": {
@@ -318,7 +324,26 @@
     "backend_and_contracts_unchanged": true,
     "control_install_repeated": false,
     "evidence_directory": ".runtime/dockge-http-20261019",
-    "real_gui": null,
+    "real_gui": {
+      "status": "control_flows_passed_task_detail_failed",
+      "operations": {
+        "container_start": "c9462758-df34-421d-895c-291e68060eb3",
+        "configure_plan": "efd54e46-b2b7-4948-ab11-f8c5cab0c560",
+        "configure_execute": "8ea7c62c-3fce-47d1-8f58-05f25fdf0176",
+        "restore_plan": "601db74c-0259-4fb7-b619-3a4c21fa6e17",
+        "restore_execute": "2996bbd8-965a-423f-ad48-3f36d495a2f6",
+        "stack_stop": "4d0ebbb1-38aa-4362-ba69-b42df12007a8"
+      },
+      "test_label_added_and_removed": true,
+      "original_marker_environment_mount_preserved": true,
+      "protected_stack_failure_displayed": true,
+      "protected_control_buttons": 0,
+      "task_source_filter": "4 observed mutations; two preview plans are not execution tasks",
+      "task_detail_error": "Object.entries(undefined/null) from missing timeline",
+      "followup": "TS-212",
+      "production_rebuild": false,
+      "non_target_containers": 136
+    },
     "book_progress_readback": {
       "initial_compare": "downloaded transiently 651 while unchanged subscription worker traversed cached chapters",
       "initial_failed_comparison_preserved": "audio-preservation-after.json",
@@ -327,5 +352,83 @@
       "chapter_count_artifact_audio_reading_unchanged": true,
       "no_book_code_or_configuration_changed": true
     }
+  },
+  "http_fix_release": {
+    "read_only_inspected": true,
+    "production_mutations": true,
+    "dockge_version": "1.5.0",
+    "compose_version_in_dockge": "2.34.0",
+    "node_version_in_dockge": "22.14.0",
+    "guard_ready": true,
+    "owners_running": 10,
+    "last_readonly_state_dir": "/volume2/tianshu-v2-resident-updates/comic-chinese-search-20261019-ea45faa-release/capacity-state-bf65ae54d05644ac8b95812c090ff650",
+    "candidate_build_started": true,
+    "platform_commit": "b44041757eb6a0759d347a4c794ed34ca52fcb6a",
+    "platform_image": "sha256:66bca03caaebdfe856519ee9c044c0abf59eb158412ae46405f22d5d68832a47",
+    "platform_id": "629af4d95bb9aa4c4968b2d070e94fc05fda55abacc1dea5c1ff80347064493e",
+    "current_state_dir": "/volume2/tianshu-v2-resident-updates/dockge-http-20261019-b440417-release/capacity-state-2f0b03f1814d4ff2865b4c4d9dbc81e7",
+    "platform_binds": 16,
+    "original_dockge_preserved": true,
+    "existing_settings_preserved_except_control": true,
+    "sqlite_backups_verified": 39,
+    "tls_health_services": 5,
+    "static_assets_verified": 64,
+    "cold_backup_count": 1,
+    "cold_backup": "/volume2/tianshu-v2-resident-updates/dockge-http-20261019-b440417-release/cold-snapshot",
+    "database_restore": false,
+    "real_control_accepted": true,
+    "production_gui_accepted": false,
+    "production_write_window": "released",
+    "all_settings_including_control_preserved": true
+  },
+  "task_detail_repair": {
+    "model": "gpt-6.1-sol/max",
+    "candidate": "29a09e8bbc3c333637bfd65ed69374686c8ff4d6",
+    "root_causes": [
+      "missing timeline in infrastructure/media task projections",
+      "scalar-only rendering of structured result objects and arrays"
+    ],
+    "producer": "Tasks._task uses actual ledger timestamps; existing home/model timelines retained; finished_at not inferred",
+    "renderer": "existing show() handles recursive JSON; null and unknown preserved",
+    "agent_checks": {
+      "backend_passed": 42,
+      "real_dockge_http_browser_passed": 2,
+      "home_model_browser_passed": 1,
+      "skipped": 0,
+      "type_build_format": "passed"
+    },
+    "independent_checks": {
+      "tasks_passed": 20,
+      "control_initial_passed": 21,
+      "control_initial_failed": 1,
+      "control_serial_recheck_passed": 1,
+      "browser_passed": 2,
+      "skipped": 0,
+      "original_timing_failure": "0.4369999999180436 seconds exceeded 0.4 while suites ran in parallel; unchanged view path; threshold unchanged; isolated full-case recheck passed",
+      "evidence": "worktrees/TS-212/tianshu-platform/.runtime/ts212-coordinator-*.log"
+    },
+    "previous_real_web": {
+      "status": "control_flows_passed_task_detail_failed",
+      "operations": {
+        "container_start": "c9462758-df34-421d-895c-291e68060eb3",
+        "configure_plan": "efd54e46-b2b7-4948-ab11-f8c5cab0c560",
+        "configure_execute": "8ea7c62c-3fce-47d1-8f58-05f25fdf0176",
+        "restore_plan": "601db74c-0259-4fb7-b619-3a4c21fa6e17",
+        "restore_execute": "2996bbd8-965a-423f-ad48-3f36d495a2f6",
+        "stack_stop": "4d0ebbb1-38aa-4362-ba69-b42df12007a8"
+      },
+      "test_label_added_and_removed": true,
+      "original_marker_environment_mount_preserved": true,
+      "protected_stack_failure_displayed": true,
+      "protected_control_buttons": 0,
+      "task_source_filter": "4 observed mutations; two preview plans are not execution tasks",
+      "task_detail_error": "Object.entries(undefined/null) from missing timeline",
+      "followup": "TS-212",
+      "production_rebuild": false,
+      "non_target_containers": 136
+    },
+    "final_real_detail": null,
+    "new_real_control_mutations": false,
+    "evidence_directory": ".runtime/dockge-task-detail-20261019"
   }
 }
