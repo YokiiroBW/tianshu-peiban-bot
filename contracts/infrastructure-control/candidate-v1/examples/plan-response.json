@@ -10,6 +10,7 @@
     "control.catalog",
     "stack.list",
     "stack.inspect",
+    "container.inspect",
     "stack.plan",
     "operation.submit",
     "operation.get",

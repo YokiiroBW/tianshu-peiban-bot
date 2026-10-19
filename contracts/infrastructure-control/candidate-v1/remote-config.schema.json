@@ -20,6 +20,11 @@
       "minLength": 1,
       "maxLength": 4096
     },
+    "compose_path_root": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
     "docker_command": {
       "type": "array",
       "items": {

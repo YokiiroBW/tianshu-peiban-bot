@@ -18,6 +18,7 @@ raw subprocess output, credentials or exception strings.
 | `control.catalog` | `{}` | `nodes`: registered ID, label, capabilities |
 | `stack.list` | optional `limit` (1–200), `cursor` | `stacks` |
 | `stack.inspect` | `stack_id` | `stack` with redacted editable `compose_content` |
+| `container.inspect` | full64 `container_id` | `container`: identity, safe actions, protection and runtime |
 | `stack.plan` | action-specific fields below | `plan` |
 | `operation.submit` | `operation_id`, `action`, `target` | `operation`, `replayed` |
 | `operation.get` | `operation_id`, optional `reconcile` (default true) | `operation`, `replayed` |
@@ -75,6 +76,11 @@ request returns the original receipt; a different request returns
 disconnect is `unknown`; use `operation.get` to retrieve/reconcile the original.
 Neither get nor replay launches another mutation. On worker interruption,
 readback reports observed state without inventing a successful command.
+`execution_active` is true while the node holds the worker lock, false after
+the node has confirmed it is released, and null when relay transport cannot
+establish that fact. Unknown outcomes do not imply worker termination. A caller
+may release its same-object queue only when the node confirms false; the node
+also independently enforces the project lock.
 
 `command.state` is `not_sent/sent/succeeded/failed/unknown`, with nullable exit
 code. Runtime state is `running/stopped/partial/absent/unknown`. Health is
@@ -92,6 +98,10 @@ Its deployment-owned `infrastructure-control.remote.v1` file registers
 `node_id`, persistent `state_dir`, `stacks_root`, Docker argv/socket, complete
 Compose argv (including any explicit Docker host), `platform_stacks`, protected
 projects/container names and operation deadline. The remote package requires
+an optional `compose_path_root` only when the registered Compose command runs
+inside the existing Dockge context with a different mounted path. It maps each
+registered stack directory to that context without changing Compose bind paths.
+The remote package requires
 Python 3.11+ and the existing pinned YAML parser. Paths/argv have no production
 defaults. Both journal directories must be durable local filesystems, outside
 the sampling tmpfs and shared by invocations; the remote one belongs in the

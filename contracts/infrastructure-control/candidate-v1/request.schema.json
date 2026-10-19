@@ -29,6 +29,7 @@
         "control.catalog",
         "stack.list",
         "stack.inspect",
+        "container.inspect",
         "stack.plan",
         "operation.submit",
         "operation.get",
@@ -144,6 +145,40 @@
             },
             "required": [
               "stack_id"
+            ]
+          },
+          "node_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "container.inspect"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "container_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": [
+              "container_id"
             ]
           },
           "node_id": {

@@ -12,6 +12,7 @@
     "control.catalog",
     "stack.list",
     "stack.inspect",
+    "container.inspect",
     "stack.plan",
     "operation.submit",
     "operation.get",
@@ -36,6 +37,7 @@
       "phase": "unknown",
       "created_at": "2026-10-19T00:00:00.000Z",
       "updated_at": "2026-10-19T00:00:00.000Z",
+      "execution_active": false,
       "command": {
         "state": "unknown",
         "exit_code": null,

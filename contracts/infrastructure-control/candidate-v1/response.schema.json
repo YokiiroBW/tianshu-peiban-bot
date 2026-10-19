@@ -37,6 +37,7 @@
             "control.catalog",
             "stack.list",
             "stack.inspect",
+            "container.inspect",
             "stack.plan",
             "operation.submit",
             "operation.get",
@@ -200,6 +201,223 @@
               },
               "required": [
                 "stack"
+              ]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "container": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64,
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    "name": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "allowed_actions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 32
+                      },
+                      "maxItems": 16
+                    },
+                    "protection": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "protected": {
+                          "type": "boolean"
+                        },
+                        "owner": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 128
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "reason": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 128
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "maintenance_ref": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 512
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "protected",
+                        "owner",
+                        "reason",
+                        "maintenance_ref"
+                      ]
+                    },
+                    "runtime": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "state": {
+                          "enum": [
+                            "running",
+                            "stopped",
+                            "partial",
+                            "absent",
+                            "unknown"
+                          ]
+                        },
+                        "health": {
+                          "enum": [
+                            "healthy",
+                            "unhealthy",
+                            "starting",
+                            "not_configured",
+                            "mixed",
+                            "unknown"
+                          ]
+                        },
+                        "containers": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 64,
+                                "pattern": "^[a-f0-9]{64}$"
+                              },
+                              "name": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 128
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "state": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 32
+                              },
+                              "running": {
+                                "anyOf": [
+                                  {
+                                    "type": "boolean"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "health": {
+                                "enum": [
+                                  "none",
+                                  "healthy",
+                                  "unhealthy",
+                                  "starting",
+                                  "unknown"
+                                ]
+                              },
+                              "image_id": {
+                                "anyOf": [
+                                  {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "reason_codes": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 128
+                                },
+                                "maxItems": 100
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "state",
+                              "running",
+                              "health",
+                              "image_id",
+                              "reason_codes"
+                            ]
+                          },
+                          "maxItems": 10000
+                        },
+                        "observed_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": [
+                        "state",
+                        "health",
+                        "containers",
+                        "observed_at"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "allowed_actions",
+                    "protection",
+                    "runtime"
+                  ]
+                }
+              },
+              "required": [
+                "container"
               ]
             },
             {
@@ -929,6 +1147,16 @@
           "type": "string",
           "format": "date-time"
         },
+        "execution_active": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "command": {
           "type": "object",
           "additionalProperties": false,
@@ -1117,6 +1345,7 @@
         "phase",
         "created_at",
         "updated_at",
+        "execution_active",
         "command",
         "runtime",
         "reason_codes",
