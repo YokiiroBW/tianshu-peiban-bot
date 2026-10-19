@@ -73,6 +73,16 @@ audio, comics and dependency changes. The candidate must descend from that
 source. Supply `--dependency-changes` only for the reviewed exact before/after
 lock changes, as in the existing image workflow.
 
+After control is installed, every subsequent Platform image release must also
+carry its verified `--control-package`. When `--preserve-infrastructure` keeps
+an existing `infrastructure.control` without a new `--control-install`, resident
+preparation checks the build receipt's control source/protocol/hash/contract
+metadata and matching successful Linux control probes against the existing
+fixed executor/contract layout. Missing, invalid or mismatched inputs are
+refused locally before any output directory is created. The successful path
+retains the existing settings, command/config reference, journals and complete
+mounts; it does not reinstall control or invent a new registration.
+
 The existing repository Dockerfile still builds the full application, frontend,
 music tools and runtime. Control adds image-owned read-only code at
 `/opt/tianshu-infrastructure-control`, sharing the existing isolated node venv.

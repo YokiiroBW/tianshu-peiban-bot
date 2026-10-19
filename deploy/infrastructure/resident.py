@@ -11,11 +11,13 @@ import ast
 import base64
 import copy
 import json
+import re
 from pathlib import Path, PurePosixPath
 
 from .bundle import digest, git_files, json_bytes, require
 from .image import NODE_COMMIT, NODE_SHA256
 from . import control_install as control_inputs
+from .control_bundle import CONTRACT as CONTROL_CONTRACT, PROTOCOL as CONTROL_PROTOCOL
 from .recovery_input import current_recovery, FILES as RECOVERY_FILES
 from ops.recovery import resident_retention
 
@@ -104,6 +106,38 @@ def restore_control_settings(settings, installed, previous):
     else:
         result["infrastructure"].pop("control")
     return result
+
+
+def require_preserved_control(control, build):
+    """Preserved settings must still point at a verified control runtime in the image."""
+    package = build.get("control_package")
+    require(isinstance(package, dict), "existing_control_package_required")
+    source = package.get("source_commit")
+    contract = package.get("contract")
+    require(package.get("status") == "package_verified" and package.get("protocol_version") == CONTROL_PROTOCOL
+            and isinstance(source, str) and re.fullmatch(r"[0-9a-f]{40}", source)
+            and isinstance(package.get("package_sha256"), str) and re.fullmatch(r"[0-9a-f]{64}", package["package_sha256"])
+            and type(package.get("file_count")) is int and package["file_count"] > 1
+            and isinstance(contract, dict), "existing_control_package_invalid")
+    schemas = contract.get("schemas")
+    require(contract.get("source_commit") == source and contract.get("path") == CONTROL_CONTRACT
+            and isinstance(contract.get("files_sha256"), str) and re.fullmatch(r"[0-9a-f]{64}", contract["files_sha256"])
+            and isinstance(schemas, dict) and set(schemas) == {"request.schema.json", "response.schema.json", "config.schema.json", "remote-config.schema.json"}
+            and all(isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value) for value in schemas.values()),
+            "existing_control_package_invalid")
+    checks = build.get("linux_checks")
+    checked = checks.get("control") if isinstance(checks, dict) else None
+    require(isinstance(checked, dict) and checked.get("source_commit") == source
+            and checked.get("catalog_process_passed") is True and checked.get("both_absolute_launchers_passed") is True
+            and checked.get("file_count") == package["file_count"] - 1, "existing_control_package_unverified")
+    executor = control.get("executor") if isinstance(control, dict) else None
+    require(isinstance(executor, dict) and executor.get("directory") == "/opt/tianshu-infrastructure-control"
+            and control.get("contract_directory") == executor["directory"] + "/" + CONTROL_CONTRACT,
+            "existing_control_executor_mismatch")
+    command = executor.get("command")
+    require(isinstance(command, list) and len(command) == 6
+            and command[:5] == ["/opt/tianshu-infrastructure-venv/bin/python", "-I", "-B", executor["directory"] + "/run_control.py", "--config"]
+            and control_inputs.absolute(command[5]), "existing_control_executor_mismatch")
 
 
 def helpers_source(raw):
@@ -216,6 +250,8 @@ def prepare(*, baseline, metadata, build_result, mechanism_directory, recovery,
         control = control_inputs.validate(json.loads(Path(control_install).read_bytes()), resident_root=root,
                                           mounts=platform["mounts"], node_ids=executor["nodes"])
         require(build.get("control_package") == control["package"], "control_image_package_mismatch")
+    elif preserve_infrastructure and settings.get("control") is not None:
+        require_preserved_control(settings["control"], build)
     media_binds = json.loads(Path(additional_media_binds).read_bytes()) if additional_media_binds else []
     require(isinstance(media_binds, list), "media_binds_invalid")
     for bind in media_binds:
