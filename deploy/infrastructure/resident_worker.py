@@ -309,7 +309,8 @@ def rollback_release(parent):
     global S, RELEASE, GATEWAY_REISSUED, TRANSACTION_STARTED
     global FAILURE_BASELINE_ROWS, FAILURE_EXPECTED_ROWS, FAILURE_CREDENTIAL_BINDS, FAILURE_EXPECT_SAMPLING
     require((parent / "result.json").exists() or (parent / "failure.json").exists(), "release_receipt_required")
-    require((parent / "cold-snapshot/receipt.json").exists(), "verified_original_backup_required")
+    parent_cold = _retention.resolve_snapshot(parent / "cold-snapshot")
+    require((parent_cold / "receipt.json").exists(), "verified_original_backup_required")
     original = copy.deepcopy(RELEASE)
     previous_image = original["previous_images"]["platform"]
     image = json.loads(command([D, "image", "inspect", previous_image["image_id"]]).stdout)[0]
@@ -362,7 +363,7 @@ def rollback_release(parent):
     candidate_guard = load_candidate_guard()
     non_targets = metadata_inventory(candidate_guard, {row["id"] for row in rows})
     original_controls = read(parent / "cold-expectation.json")["controls"]
-    guard_backup = parent / "cold-snapshot/controls-backup" / str(original_controls.index(str(TOOLING / "ops/resident_capacity")))
+    guard_backup = parent_cold / "controls-backup" / str(original_controls.index(str(TOOLING / "ops/resident_capacity")))
     require(guard_backup.is_dir(), "guard_rollback_backup_missing")
     guards = read(parent / "cold-expectation.json")["memory_guards"]
     staging_roots = [Path(path) for path in read(parent / "cold-expectation.json")["media_staging_roots"]]
@@ -371,7 +372,9 @@ def rollback_release(parent):
     # retention is allowed to remove the previous full backup's data trees.
     guard_control_index = len(controls)
     controls.append(guard_backup)
-    S = parent / ("rollback-" + uuid.uuid4().hex)
+    operation_parent = _retention.HDD_UPDATES / parent.name if any(root in parent.parents for root in _retention.LEGACY_UPDATES) else parent
+    operation_parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    S = operation_parent / ("rollback-" + uuid.uuid4().hex)
     S.mkdir(mode=0o700)
     RELEASE = copy.deepcopy(original)
     RELEASE["stage"] = str(S)

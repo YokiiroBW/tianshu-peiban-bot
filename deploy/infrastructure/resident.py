@@ -211,7 +211,7 @@ def prepare(*, baseline, metadata, build_result, mechanism_directory, recovery,
             preserve_infrastructure=False, additional_media_binds=None, control_install=None):
     output = Path(output)
     require(output.is_absolute() and output.parent.is_dir() and not output.exists(), "new_output_required")
-    require(str(PurePosixPath(stage).parent) in {"/volume2/tianshu-v2-resident-updates", "/volume1/Download/Tianshu/updates"}, "resident_stage_invalid")
+    require(str(PurePosixPath(stage).parent) in {"/volume2/tianshu-v2-resident-updates", "/volume1/Download/Tianshu/updates", "/volume1/tianshu-v2-resident-updates"}, "resident_stage_invalid")
     baseline = json.loads(Path(baseline).read_bytes())
     metadata = json.loads(Path(metadata).read_bytes())
     build = json.loads(Path(build_result).read_bytes())

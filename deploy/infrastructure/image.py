@@ -203,7 +203,7 @@ BUILD_ACTIONS = {
 import base64,hashlib,io,json,os,tarfile
 from pathlib import Path
 stage=Path(CONFIG['stage'])
-assert stage.parent.resolve() in {Path('/volume2/tianshu-v2-resident-updates'),Path('/volume1/Download/Tianshu/updates')}
+assert stage.parent.resolve() in {Path('/volume2/tianshu-v2-resident-updates'),Path('/volume1/Download/Tianshu/updates'),Path('/volume1/tianshu-v2-resident-updates')}
 assert not stage.exists(),'candidate stage exists; inspect it without overwriting'
 raw=base64.b64decode(DATA)
 assert hashlib.sha256(raw).hexdigest()==ARCHIVE_SHA256
@@ -230,7 +230,7 @@ print(json.dumps({'status':'staged','stage':str(stage),'source_archive_sha256':A
 import hashlib,json,os,subprocess,time
 from pathlib import Path
 stage=Path(CONFIG['stage'])
-assert stage.parent.resolve() in {Path('/volume2/tianshu-v2-resident-updates'),Path('/volume1/Download/Tianshu/updates')}
+assert stage.parent.resolve() in {Path('/volume2/tianshu-v2-resident-updates'),Path('/volume1/Download/Tianshu/updates'),Path('/volume1/tianshu-v2-resident-updates')}
 assert json.loads((stage/'build-inputs.json').read_bytes())==CONFIG
 script=stage/'build-controller.py'
 assert hashlib.sha256(script.read_bytes()).hexdigest()==CONTROLLER_SHA256

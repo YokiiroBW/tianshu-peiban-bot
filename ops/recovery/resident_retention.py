@@ -21,6 +21,9 @@ DATA_DIRECTORIES = ("backup", "controls-backup", "restored-disabled",
 VERIFICATION_DIRECTORIES = DATA_DIRECTORIES[2:]
 OWNERS = {"platform", "gateway", "memory", "knowledge", "companion",
           "obs-loki", "obs-vector", "obs-prometheus", "obs-grafana", "obs-guard"}
+HDD_UPDATES = Path("/volume1/tianshu-v2-resident-updates")
+LEGACY_UPDATES = (Path("/volume2/tianshu-v2-resident-updates"),
+                  Path("/volume1/Download/Tianshu/updates"))
 
 
 def _require(condition, code):
@@ -164,6 +167,27 @@ def read_evidence(path, authority):
              "manifest": manifest, "receipt": receipt, "children": [child.name for child in path.iterdir()]})
 
 
+def resolve_snapshot(path):
+    """Follow a hash-bound cold-backup relocation to the dedicated HDD namespace."""
+    path = _safe_directory(path)
+    marker = path / "relocation.json"
+    if not marker.exists():
+        return path
+    record = json.loads(marker.read_bytes())
+    _require(record.get("schema_version") == "resident-cold-relocation/1"
+             and record.get("source") == path.as_posix(), "relocation_source_changed")
+    origins = [root for root in LEGACY_UPDATES if root in path.parents]
+    _require(len(origins) == 1 and path.name == "cold-snapshot", "relocation_scope_invalid")
+    relative = path.relative_to(origins[0])
+    _require(len(relative.parts) in (2, 3), "relocation_scope_invalid")
+    target = _safe_directory(record["target"])
+    _require(target == HDD_UPDATES / relative, "relocation_target_changed")
+    for name in ("manifest", "receipt"):
+        _require(_sha((target / (name + ".json")).read_bytes()) == record[name + "_sha256"],
+                 "relocation_proof_changed")
+    return target
+
+
 def verify_kept_copies(path, manifest, snapshot):
     """Reuse the snapshot's byte/mode/uid/gid inventory for the only remaining backup."""
     path = _safe_directory(path)
@@ -294,9 +318,9 @@ def after_verified_snapshot(root, operation, *, snapshot, docker):
     """The resident cold CLI and rendered releases call this only after a good receipt."""
     root, operation = Path(root), Path(operation)
     updates = root.with_name(root.name + "-updates")
-    hdd_updates = Path("/volume1/Download/Tianshu/updates")
-    if hdd_updates in operation.parents:
-        updates = hdd_updates
+    for hdd_updates in (HDD_UPDATES, LEGACY_UPDATES[1]):
+        if hdd_updates in operation.parents:
+            updates = hdd_updates
     if operation.name != "cold-snapshot" or updates not in operation.parents:
         return {"status": "outside_resident_release_namespace"}
     skipped, records = [], []

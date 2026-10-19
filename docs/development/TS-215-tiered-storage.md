@@ -11,7 +11,7 @@
 | Loki 日志分块、Vector 持久缓冲 | 同目录下 `logs/loki-chunks`、`logs/vector-buffer` |
 | 漫画插件安装包、历史媒体元数据备份 | 同目录下 `cache/comic-extensions`、`cache/media-maintenance` |
 | 离线校验文件 | 同目录下 `archive` |
-| 新发布材料、冷备 | 同目录下 `updates/<发布>/cold-snapshot` |
+| 新发布材料、冷备 | `/volume1/tianshu-v2-resident-updates/<发布>/cold-snapshot` |
 | 活动配置、凭据、在线数据库、索引、日志账本、Prometheus、封面与预览热点缓存 | 原 SSD 路径 |
 
 现有音乐、视频、书籍和漫画成品库本来就在机械盘，保持原样。全局 Docker、其他 NAS 应用和其他服务的存储不属于本任务。
@@ -21,3 +21,5 @@
 迁移先停写盘点，按 SHA256、文件数、所有者、权限及硬链接关系验证机械盘副本。Synology ACL 掩码可能改变目录组权限，因此复制后显式恢复原 Unix 权限并重新核对。原件临时同卷留存至挂载与副本核对完成；不清空业务数据库，不删除没有校验副本的数据。日志校验器仅映射已经确认的磁盘身份，偏移、事件和计数保持。
 
 验证沿用相关容量、冷备和发布测试；实际 NAS 执行复制及硬链接样本、三份 Compose 配置解析、迁移前后数据和非目标容器核对，恢复十服务及原容量守护后再部署 TS-213。不得把本地检查或文件复制称为已经部署。
+
+2026-10-20 收尾补充：实际 qBittorrent 挂载整个 Download，备份保留策略因真实父级挂载引用而拒绝自动清理。因此冷备改到无其他容器挂载的机械盘专用目录 `/volume1/tianshu-v2-resident-updates`。旧发布入口保留绑定原 manifest/receipt 哈希的 relocation.json；读取/回滚工具按该证据定位实际冷备。原保护规则保持，Download 下载暂存和当前服务会话保持。

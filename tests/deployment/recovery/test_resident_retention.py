@@ -51,6 +51,24 @@ class ResidentRetentionTests(unittest.TestCase):
                                    keep=new.as_posix(), snapshots=records, containers=[],
                                    protected_images=["sha256:" + "a" * 64, "sha256:" + "b" * 64])
 
+    def test_relocation_requires_exact_namespace_and_unchanged_proof(self):
+        old = self.cold("relocated")
+        dedicated = self.base / "dedicated-hdd"
+        target = dedicated / "relocated/cold-snapshot"
+        target.parent.mkdir(parents=True)
+        old.rename(target)
+        old.mkdir()
+        record = {"schema_version": "resident-cold-relocation/1", "source": old.as_posix(),
+                  "target": target.as_posix(),
+                  "manifest_sha256": hashlib.sha256((target / "manifest.json").read_bytes()).hexdigest(),
+                  "receipt_sha256": hashlib.sha256((target / "receipt.json").read_bytes()).hexdigest()}
+        (old / "relocation.json").write_text(json.dumps(record))
+        with patch.object(retention, "HDD_UPDATES", dedicated), patch.object(retention, "LEGACY_UPDATES", (self.updates,)):
+            self.assertEqual(retention.resolve_snapshot(old), target)
+            (target / "receipt.json").write_bytes(b"changed")
+            with self.assertRaisesRegex(RuntimeError, "relocation_proof_changed"):
+                retention.resolve_snapshot(old)
+
     def test_dry_run_then_prune_keeps_exact_backup_controls_and_original_proof(self):
         old, new = self.cold("old"), self.cold("new")
         plan = self.plan(old, new)

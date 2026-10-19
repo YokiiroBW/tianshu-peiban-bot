@@ -43,8 +43,9 @@ def readback():
     failure = json.loads(failure_raw)
     require(failure["code"] == "non_target_container_changed" and failure["cleanup"] == "stopped_preserving_ledgers"
             and failure["automatic_database_restore"] is False, "unexpected_original_failure")
-    backup = read(S / "cold-snapshot/receipt.json")
-    manifest_raw = (S / "cold-snapshot/manifest.json").read_bytes()
+    cold = _retention.resolve_snapshot(S / "cold-snapshot")
+    backup = read(cold / "receipt.json")
+    manifest_raw = (cold / "manifest.json").read_bytes()
     manifest = json.loads(manifest_raw)
     require(backup["status"] == "offline_restore_verified" and backup["restored_disabled"] and backup["authority_unchanged"]
             and backup["sqlite_databases_verified"] == EXPECTED["sqlite_databases"], "verified_backup_changed")
@@ -52,8 +53,8 @@ def readback():
             and manifest["sqlite_databases_verified"] == EXPECTED["sqlite_databases"]
             and manifest["restore_status"] == "restored_disabled" and manifest["authority_unchanged"], "backup_manifest_changed")
     require(signatures(manifest["owners"]) == signatures(RELEASE["baseline"]["owners"]), "backup_owner_identity_changed")
-    require((S / "cold-snapshot/backup").is_dir() and (S / "cold-snapshot/controls-backup").is_dir(), "backup_tree_missing")
-    require(_retention.verification_copies_available(S / "cold-snapshot"), "offline_verification_proof_missing")
+    require((cold / "backup").is_dir() and (cold / "controls-backup").is_dir(), "backup_tree_missing")
+    require(_retention.verification_copies_available(cold), "offline_verification_proof_missing")
     require(RELEASE["guard_commit"] == EXPECTED["guard_commit"]
             and RELEASE["images"]["platform"]["image_id"] == EXPECTED["image_id"], "release_pin_changed")
     origin = read(S / "gateway-origin-result.json")
@@ -125,7 +126,7 @@ def readback():
     health = health_checks(rows)
     require((S / "failure.json").read_bytes() == failure_raw and not (S / "result.json").exists(), "original_release_evidence_changed")
     result = {"status": "deployed_after_verified_resume", "images": RELEASE["images"], "guard_commit": RELEASE["guard_commit"],
-              "guard": "ready", "node_ids": ["nas-main"], "backup": str(S / "cold-snapshot"), "sqlite_backups": backup["sqlite_databases_verified"],
+              "guard": "ready", "node_ids": ["nas-main"], "backup": str(cold), "sqlite_backups": backup["sqlite_databases_verified"],
               "health": health, "user_state_preserved": True, "music_media_configuration_preserved": True,
               "non_target_containers_preserved": True, "concurrent_non_target_additions": len(report["added"]),
               "platform_memory_limit_preserved": True, "existing_settings_preserved_except_infrastructure_addition": True,
