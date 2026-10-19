@@ -1,0 +1,54 @@
+{
+  "version": "infrastructure-control.v1",
+  "request_id": "synthetic-request",
+  "node_id": "fixture-nas",
+  "operation": "stack.plan",
+  "status": "ok",
+  "reason_codes": [],
+  "observed_at": "2026-10-19T00:00:00.000Z",
+  "capabilities": [
+    "control.catalog",
+    "stack.list",
+    "stack.inspect",
+    "stack.plan",
+    "operation.submit",
+    "operation.get",
+    "operation.list",
+    "stack.versions"
+  ],
+  "completeness": {
+    "state": "complete",
+    "returned": 1,
+    "total": 1,
+    "next_cursor": null
+  },
+  "data": {
+    "plan": {
+      "plan_id": "plan:fixture",
+      "stack_id": "stack_aaaaaaaaaaaaaaaaaaaaaaaa",
+      "project_name": "fixture-web",
+      "action": "update",
+      "state": "ready",
+      "base_revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "proposed_revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "created_at": "2026-10-19T00:00:00.000Z",
+      "expires_at": "2026-10-19T01:00:00.000Z",
+      "config_diff": "",
+      "ports": [],
+      "mounts": [],
+      "images": [
+        {
+          "service": "web",
+          "from": "nginx:alpine",
+          "to": "nginx:alpine",
+          "pull": true
+        }
+      ],
+      "warnings": [
+        "image_update_not_data_rollback"
+      ],
+      "blockers": [],
+      "restore_version_id": null
+    }
+  }
+}

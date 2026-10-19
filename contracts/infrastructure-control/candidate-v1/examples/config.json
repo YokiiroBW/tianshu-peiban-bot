@@ -1,0 +1,17 @@
+{
+  "version": "infrastructure-control.config.v1",
+  "observation_config": "/synthetic/observation-config.json",
+  "state_dir": "/synthetic/persistent/control-relay",
+  "nodes": {
+    "fixture-nas": {
+      "command": [
+        "python3",
+        "-B",
+        "-m",
+        "ops.infrastructure.control.remote",
+        "--config",
+        "/synthetic/control-remote.json"
+      ]
+    }
+  }
+}

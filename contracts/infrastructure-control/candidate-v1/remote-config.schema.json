@@ -1,0 +1,149 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": "infrastructure-control.remote.v1"
+    },
+    "node_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "state_dir": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "stacks_root": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "docker_command": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
+      },
+      "maxItems": 32,
+      "minItems": 1
+    },
+    "docker_socket": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "compose_command": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
+      },
+      "maxItems": 32,
+      "minItems": 1
+    },
+    "platform_stacks": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[a-z0-9][a-z0-9_-]{0,127}$"
+      },
+      "maxItems": 10000
+    },
+    "protected_projects": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "owner": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "maintenance_ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "owner",
+          "reason",
+          "maintenance_ref"
+        ]
+      }
+    },
+    "protected_container_names": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "owner": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "maintenance_ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "owner",
+          "reason",
+          "maintenance_ref"
+        ]
+      }
+    },
+    "operation_timeout_seconds": {
+      "type": "integer",
+      "minimum": 5,
+      "maximum": 3600
+    }
+  },
+  "required": [
+    "version",
+    "node_id",
+    "state_dir",
+    "stacks_root",
+    "docker_command",
+    "docker_socket",
+    "compose_command",
+    "protected_projects",
+    "protected_container_names"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:tianshu:infrastructure-control:candidate-v1:remote-config"
+}

@@ -1,0 +1,718 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": "infrastructure-control.v1"
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$"
+    },
+    "node_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "operation": {
+      "enum": [
+        "control.catalog",
+        "stack.list",
+        "stack.inspect",
+        "stack.plan",
+        "operation.submit",
+        "operation.get",
+        "operation.list",
+        "stack.versions"
+      ]
+    },
+    "params": {
+      "type": "object"
+    },
+    "timeout_ms": {
+      "type": "integer",
+      "minimum": 500,
+      "maximum": 30000
+    }
+  },
+  "required": [
+    "version",
+    "request_id",
+    "node_id",
+    "operation",
+    "params",
+    "timeout_ms"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:tianshu:infrastructure-control:candidate-v1:request",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "control.catalog"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {},
+            "required": []
+          },
+          "node_id": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "stack.list"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 200
+              },
+              "cursor": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1024
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": []
+          },
+          "node_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "stack.inspect"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "stack_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 30,
+                "pattern": "^stack_[a-f0-9]{24}$"
+              }
+            },
+            "required": [
+              "stack_id"
+            ]
+          },
+          "node_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "stack.plan"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "action": {
+                    "const": "create"
+                  },
+                  "project_name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[a-z0-9][a-z0-9_-]{0,127}$"
+                  },
+                  "compose_content": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 262144
+                  }
+                },
+                "required": [
+                  "action",
+                  "project_name",
+                  "compose_content"
+                ]
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "action": {
+                    "const": "deploy"
+                  },
+                  "stack_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 30,
+                    "pattern": "^stack_[a-f0-9]{24}$"
+                  },
+                  "expected_revision": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "compose_content": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 262144
+                  }
+                },
+                "required": [
+                  "action",
+                  "stack_id",
+                  "expected_revision",
+                  "compose_content"
+                ]
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "action": {
+                    "const": "update"
+                  },
+                  "stack_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 30,
+                    "pattern": "^stack_[a-f0-9]{24}$"
+                  },
+                  "expected_revision": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^[a-f0-9]{64}$"
+                  }
+                },
+                "required": [
+                  "action",
+                  "stack_id",
+                  "expected_revision"
+                ]
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "action": {
+                    "const": "restore"
+                  },
+                  "stack_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 30,
+                    "pattern": "^stack_[a-f0-9]{24}$"
+                  },
+                  "expected_revision": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "restore_version_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$"
+                  }
+                },
+                "required": [
+                  "action",
+                  "stack_id",
+                  "expected_revision",
+                  "restore_version_id"
+                ]
+              }
+            ]
+          },
+          "node_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "operation.submit"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "operation_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$"
+                  },
+                  "action": {
+                    "const": "container.start"
+                  },
+                  "target": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "container_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "pattern": "^[a-f0-9]{64}$"
+                      }
+                    },
+                    "required": [
+                      "container_id"
+                    ]
+                  }
+                },
+                "required": [
+                  "operation_id",
+                  "action",
+                  "target"
+                ]
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "operation_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$"
+                  },
+                  "action": {
+                    "const": "container.stop"
+                  },
+                  "target": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "container_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "pattern": "^[a-f0-9]{64}$"
+                      }
+                    },
+                    "required": [
+                      "container_id"
+                    ]
+                  }
+                },
+                "required": [
+                  "operation_id",
+                  "action",
+                  "target"
+                ]
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "operation_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$"
+                  },
+                  "action": {
+                    "const": "container.restart"
+                  },
+                  "target": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "container_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "pattern": "^[a-f0-9]{64}$"
+                      }
+                    },
+                    "required": [
+                      "container_id"
+                    ]
+                  }
+                },
+                "required": [
+                  "operation_id",
+                  "action",
+                  "target"
+                ]
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "operation_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$"
+                  },
+                  "action": {
+                    "const": "stack.start"
+                  },
+                  "target": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "stack_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 30,
+                        "pattern": "^stack_[a-f0-9]{24}$"
+                      },
+                      "expected_revision": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "pattern": "^[a-f0-9]{64}$"
+                      }
+                    },
+                    "required": [
+                      "stack_id",
+                      "expected_revision"
+                    ]
+                  }
+                },
+                "required": [
+                  "operation_id",
+                  "action",
+                  "target"
+                ]
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "operation_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$"
+                  },
+                  "action": {
+                    "const": "stack.stop"
+                  },
+                  "target": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "stack_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 30,
+                        "pattern": "^stack_[a-f0-9]{24}$"
+                      },
+                      "expected_revision": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "pattern": "^[a-f0-9]{64}$"
+                      }
+                    },
+                    "required": [
+                      "stack_id",
+                      "expected_revision"
+                    ]
+                  }
+                },
+                "required": [
+                  "operation_id",
+                  "action",
+                  "target"
+                ]
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "operation_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$"
+                  },
+                  "action": {
+                    "const": "stack.restart"
+                  },
+                  "target": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "stack_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 30,
+                        "pattern": "^stack_[a-f0-9]{24}$"
+                      },
+                      "expected_revision": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "pattern": "^[a-f0-9]{64}$"
+                      }
+                    },
+                    "required": [
+                      "stack_id",
+                      "expected_revision"
+                    ]
+                  }
+                },
+                "required": [
+                  "operation_id",
+                  "action",
+                  "target"
+                ]
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "operation_id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$"
+                  },
+                  "action": {
+                    "const": "stack.apply"
+                  },
+                  "target": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "plan_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 128,
+                        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$"
+                      }
+                    },
+                    "required": [
+                      "plan_id"
+                    ]
+                  }
+                },
+                "required": [
+                  "operation_id",
+                  "action",
+                  "target"
+                ]
+              }
+            ]
+          },
+          "node_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "operation.get"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "operation_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$"
+              },
+              "reconcile": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "operation_id"
+            ]
+          },
+          "node_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "operation.list"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 200
+              },
+              "cursor": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1024
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": []
+          },
+          "node_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "stack.versions"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "params": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "stack_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 30,
+                "pattern": "^stack_[a-f0-9]{24}$"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 200
+              },
+              "cursor": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1024
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "stack_id"
+            ]
+          },
+          "node_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$"
+          }
+        }
+      }
+    }
+  ]
+}
