@@ -1,5 +1,5 @@
 {
-  "status": "pushed_deployed_control_verified_task_detail_pending_login",
+  "status": "pushed_deployed_real_web_verified",
   "date": "2026-10-19",
   "models": {
     "implementation": "gpt-6.1-sol",
@@ -191,13 +191,11 @@
     "cold_backup": "/volume2/tianshu-v2-resident-updates/dockge-task-detail-20261019-29a09e8-release/cold-snapshot",
     "database_restore": false,
     "real_control_accepted": true,
-    "production_gui_accepted": false,
+    "production_gui_accepted": true,
     "production_write_window": "released",
     "all_settings_including_control_preserved": true
   },
-  "remaining": [
-    "User login after restart, then read saved Dockge task details in the production task centre; no repeated container mutations."
-  ],
+  "remaining": [],
   "packages": {
     "control_source": "fb9ee5c6aaf3f00f9706aaba812577d82053300a",
     "control_sha256": "898b6fcb5deb58f3b399cb19dae3d904806309ac89f14221181ff7fbb1789a2c",
@@ -427,7 +425,76 @@
       "production_rebuild": false,
       "non_target_containers": 136
     },
-    "final_real_detail": null,
+    "final_real_detail": {
+      "status": "accepted",
+      "read_only": true,
+      "completed_at": "2026-10-19T14:09:18.602035+00:00",
+      "url": "http://192.168.31.210:18446/#/settings/0",
+      "platform_commit": "29a09e8bbc3c333637bfd65ed69374686c8ff4d6",
+      "platform_image": "sha256:21941cc319ef17db1be9dc4826f4b0c57a27c8d1569543ebd5e4f805f046c63a",
+      "task_details": [
+        {
+          "title": "恢复 Compose 栈版本",
+          "operation_id": "infra-control:2996bbd8-965a-423f-ad48-3f36d495a2f6",
+          "timeline_visible": true,
+          "structured_result_visible": true,
+          "command_outcome": "succeeded",
+          "execution_active": false,
+          "recorded_runtime_state": "运行中",
+          "target_fields_visible": true,
+          "module_href": "#/home/1"
+        },
+        {
+          "title": "停止 Compose 栈",
+          "operation_id": "infra-control:4d0ebbb1-38aa-4362-ba69-b42df12007a8",
+          "timeline_visible": true,
+          "structured_result_visible": true,
+          "command_outcome": "succeeded",
+          "execution_active": false,
+          "recorded_runtime_state": "已停止",
+          "target_fields_visible": true,
+          "module_href": "#/home/1"
+        },
+        {
+          "title": "部署 Compose 栈配置",
+          "operation_id": "infra-control:8ea7c62c-3fce-47d1-8f58-05f25fdf0176",
+          "timeline_visible": true,
+          "structured_result_visible": true,
+          "command_outcome": "succeeded",
+          "execution_active": false,
+          "recorded_runtime_state": "运行中",
+          "target_fields_visible": true,
+          "module_href": "#/home/1"
+        },
+        {
+          "title": "启动容器",
+          "operation_id": "infra-control:c9462758-df34-421d-895c-291e68060eb3",
+          "timeline_visible": true,
+          "structured_result_visible": true,
+          "command_outcome": "succeeded",
+          "execution_active": false,
+          "recorded_runtime_state": "运行中",
+          "target_fields_visible": true,
+          "module_href": "#/home/1"
+        }
+      ],
+      "browser_console_errors_or_warnings": [],
+      "new_control_mutations": 0,
+      "prior_real_control_requests": 6,
+      "prior_real_control_mutations": 4,
+      "prior_controls_replayed": false,
+      "non_targets_unchanged": 136,
+      "test_target_unchanged": true,
+      "test_stack_running": false,
+      "settings_and_media_configuration_preserved": true,
+      "guard": "ready",
+      "evidence": {
+        "visible_detail_texts": ".runtime/dockge-task-detail-20261019/final-task-detail-texts.json",
+        "preservation": ".runtime/dockge-task-detail-20261019/final-ui-preservation-proof.json",
+        "screenshot": ".runtime/dockge-task-detail-20261019/task-detail-accepted.png",
+        "screenshot_sha256": "f2576b1bfd86ecab22236ae63882f5a9a3615f9baf6b9738376f80ac44e78ff9"
+      }
+    },
     "new_real_control_mutations": false,
     "evidence_directory": ".runtime/dockge-task-detail-20261019"
   }
