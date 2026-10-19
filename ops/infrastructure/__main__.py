@@ -13,14 +13,14 @@ from .executor import execute
 from .protocol import Failure, MAX_REQUEST_BYTES, encode_response, envelope, parse_request
 
 
-def read_input(stream, timeout=5.0):
+def read_input(stream, timeout=5.0, *, max_bytes=MAX_REQUEST_BYTES):
     completed = queue.Queue(maxsize=1)
 
     def read():
         try:
             chunks = bytearray()
-            while len(chunks) <= MAX_REQUEST_BYTES:
-                chunk = os.read(stream.fileno(), min(8192, MAX_REQUEST_BYTES + 1 - len(chunks)))
+            while len(chunks) <= max_bytes:
+                chunk = os.read(stream.fileno(), min(8192, max_bytes + 1 - len(chunks)))
                 if not chunk:
                     break
                 chunks.extend(chunk)

@@ -169,7 +169,7 @@ class CommandResult:
 
 
 def run_bounded(argv, payload: bytes, deadline: Deadline, *, max_output=2 * 1024 * 1024, stderr_limit=32768,
-                keep_stdin_open=False) -> CommandResult:
+                keep_stdin_open=False, env=None) -> CommandResult:
     deadline.check()
     options = {"stdin": subprocess.PIPE, "stdout": subprocess.PIPE, "stderr": subprocess.PIPE}
     if os.name == "nt":
@@ -178,7 +178,7 @@ def run_bounded(argv, payload: bytes, deadline: Deadline, *, max_output=2 * 1024
         options["creationflags"] = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP | 0x00000004
     else:
         options["start_new_session"] = True
-    environment = dict(os.environ)
+    environment = dict(os.environ if env is None else env)
     environment.pop("SSH_AUTH_SOCK", None)
     try:
         process = subprocess.Popen(argv, env=environment, **options)

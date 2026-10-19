@@ -1,0 +1,14 @@
+{
+  "version": "infrastructure-control.v1",
+  "request_id": "synthetic-request",
+  "node_id": "fixture-nas",
+  "operation": "operation.submit",
+  "params": {
+    "operation_id": "fixture:bad",
+    "action": "container.stop",
+    "target": {
+      "container_id": "abc123"
+    }
+  },
+  "timeout_ms": 10000
+}
