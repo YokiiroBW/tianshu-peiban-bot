@@ -41,7 +41,10 @@ def main():
     if argv[:2] == ["image", "inspect"]:
         if state.get("missing_image"):
             return 1
-        print(argv[-1] if argv[-1].startswith("sha256:") else "sha256:" + ("c" if state.get("pull_success") else "b") * 64)
+        reference = argv[-1]
+        fallback = "sha256:" + ("c" if state.get("pull_success") else "b") * 64
+        identity = reference if reference.startswith("sha256:") else state.get("image_ids", {}).get(reference, fallback)
+        print(identity)
         return 0
     if argv[0] in ("start", "stop", "restart"):
         action, identity = argv[0], argv[-1]
@@ -110,19 +113,53 @@ def main():
         return 0
     state["calls"].append(["compose." + action, project])
     write(path, state)
-    if action == "pull" and state.get("pull_failure"):
-        print("synthetic registry password should not escape", file=sys.stderr)
-        return 1
+    if action == "pull":
+        tokens = argv[argv.index("pull") + 1:]
+        policy, selected = None, []
+        while tokens:
+            token, *tokens = tokens
+            if token == "--policy":
+                policy, *tokens = tokens
+            elif token.startswith("--policy="):
+                policy = token.split("=", 1)[1]
+            else:
+                selected.append(token)
+        selected = selected or list(value["services"])
+        attempted, skipped = [], []
+        for name in selected:
+            service = value["services"][name]
+            effective = policy or service.get("pull_policy", "")
+            repository = service["image"].rsplit("/", 1)[-1]
+            tag = repository.rsplit(":", 1)[1] if ":" in repository else "latest"
+            local_tag = not state.get("missing_image") and "@" not in repository and tag != "latest"
+            if effective in ("never", "build") or effective in ("missing", "if_not_present") and local_tag:
+                skipped.append(name)
+            else:
+                attempted.append(name)
+        invocation = {"argv": argv, "services": selected, "policy": policy, "attempted": attempted, "skipped": skipped, "pulled": []}
+        state.setdefault("pull_invocations", []).append(invocation)
+        write(path, state)
+        if not attempted:
+            return 0
+        if state.get("pull_failure"):
+            print("synthetic registry password should not escape", file=sys.stderr)
+            return 1
+        if state.get("flood"):
+            while True:
+                os.write(1, b"synthetic-sensitive-output" * 4096)
+        for name in attempted:
+            state.setdefault("image_ids", {})[value["services"][name]["image"]] = "sha256:" + "c" * 64
+        invocation["pulled"] = attempted
+        state["pull_success"] = True
+        write(path, state)
+        return 0
     if action == "up" and state.get("delay"):
         time.sleep(state["delay"])
         state = json.loads(path.read_text())
     if state.get("flood"):
         while True:
             os.write(1, b"synthetic-sensitive-output" * 4096)
-    selected = argv[argv.index("pull") + 1:] if action == "pull" else None
     for index, (name, service) in enumerate(value["services"].items(), 1):
-        if selected is not None and name not in selected:
-            continue
         existing = next((item for item in state["containers"].values() if item[9] == project and item[10] == name), None)
         if action in ("stop", "restart", "start"):
             if existing:
@@ -131,7 +168,9 @@ def main():
             if state.get("partial_start") and index > 1:
                 continue
             identity = existing[0] if existing else __import__("hashlib").sha256((project + name).encode()).hexdigest()
-            image_id = service.get("image") if str(service.get("image", "")).startswith("sha256:") else "sha256:" + ("c" if state.get("updated") or state.get("pull_success") else "b") * 64
+            fallback = "sha256:" + ("c" if state.get("updated") or state.get("pull_success") else "b") * 64
+            reference = service["image"]
+            image_id = reference if reference.startswith("sha256:") else state.get("image_ids", {}).get(reference, fallback)
             ports = {}
             for port in service.get("ports", []):
                 if isinstance(port, str):
@@ -144,8 +183,6 @@ def main():
             state["containers"][identity] = [identity, "/" + project + "-" + name, service["image"], image_id,
                 "2026-10-19T00:00:00Z", "2026-10-19T00:00:00Z", "running", True, "bridge", project, name,
                 str(directory), inputs[0] + (",-" if len(inputs) > 1 else ""), "False", ports, mounts, state.get("health", "none")]
-    if action == "pull":
-        state["pull_success"] = True
     write(path, state)
     return 1 if state.get("partial_start") and action == "up" else 0
 

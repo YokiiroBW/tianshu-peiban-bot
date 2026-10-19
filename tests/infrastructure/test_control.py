@@ -324,6 +324,52 @@ class ControlTest(unittest.TestCase):
         self.assertIn("restore_would_remove_new_reference_file", restored["blockers"])
         self.assertEqual(env.read_text(), "NEW_SECRET=synthetic-new-secret\n")
 
+    def test_explicit_update_overrides_compose_pull_policy_without_changing_file(self):
+        for policy in ("never", "missing"):
+            with self.subTest(policy=policy):
+                reference = "fixture-image:" + policy + "-fixed"
+                self.compose.write_text("name: synthetic\nservices:\n  web:\n    image: " + reference + "\n    pull_policy: " + policy + "\n", encoding="utf-8")
+                original = self.compose.read_bytes()
+                state = self.daemon_state()
+                state["containers"][self.identity][2:4] = [reference, "sha256:" + "b" * 64]
+                state["pull_success"] = False
+                state["image_ids"] = {reference: "sha256:" + "b" * 64}
+                self.save_daemon(state)
+                service = self.service()
+                result = service.engine.compose_run(self.stack, [*service.engine.compose_argv(self.stack, "synthetic", stdin_config=True), "pull", "web"], original)
+                self.assertIsNone(result.reason)
+                skipped = self.daemon_state()["pull_invocations"][-1]
+                self.assertEqual(skipped["skipped"], ["web"])
+                self.assertEqual(skipped["pulled"], [])
+                self.assertEqual(self.daemon_state()["image_ids"][reference], "sha256:" + "b" * 64)
+                plan = self.dispatch("stack.plan", {"action": "update", "stack_id": self.stack_id, "expected_revision": self.revision()})["data"]["plan"]
+                self.assertTrue(plan["images"][0]["pull"])
+                _, finished = self.execute_now(self.mutation("stack.apply", "policy-update:" + policy, {"plan_id": plan["plan_id"]}))
+                self.assertEqual(finished["state"], "succeeded", finished)
+                invoked = self.daemon_state()["pull_invocations"][-1]
+                self.assertEqual(invoked["argv"][-4:], ["pull", "--policy", "always", "web"])
+                self.assertEqual(invoked["policy"], "always")
+                self.assertEqual(invoked["services"], ["web"])
+                self.assertEqual(invoked["skipped"], [])
+                self.assertEqual(invoked["pulled"], ["web"])
+                self.assertEqual(finished["runtime"]["containers"][0]["image_id"], "sha256:" + "c" * 64)
+                self.assertEqual(self.compose.read_bytes(), original)
+
+    def test_create_and_deploy_never_reuse_local_image_without_pull(self):
+        plan = self.dispatch("stack.plan", {"action": "create", "project_name": "policy-offline", "compose_content": "services:\n  web:\n    image: fixture-offline:fixed\n    pull_policy: never\n"})["data"]["plan"]
+        self.assertFalse(plan["images"][0]["pull"])
+        _, created = self.execute_now(self.mutation("stack.apply", "policy-offline:create", {"plan_id": plan["plan_id"]}))
+        self.assertEqual(created["state"], "succeeded", created)
+        stack = self.dispatch("stack.inspect", {"stack_id": plan["stack_id"]})["data"]["stack"]
+        deployed = self.dispatch("stack.plan", {"action": "deploy", "stack_id": stack["id"], "expected_revision": stack["revision"], "compose_content": stack["compose_content"].replace("fixture-offline:fixed", "fixture-next:fixed")})["data"]["plan"]
+        self.assertFalse(deployed["images"][0]["pull"])
+        _, changed = self.execute_now(self.mutation("stack.apply", "policy-offline:deploy", {"plan_id": deployed["plan_id"]}))
+        self.assertEqual(changed["state"], "succeeded", changed)
+        self.assertEqual(self.daemon_state().get("pull_invocations", []), [])
+        saved = document((self.stacks / "policy-offline" / "compose.yaml").read_bytes())
+        self.assertEqual(saved["services"]["web"]["pull_policy"], "never")
+        self.assertEqual(saved["services"]["web"]["image"], "fixture-next:fixed")
+
     def test_late_launcher_cannot_be_timed_out_into_releasing_project(self):
         sleeper = subprocess.Popen([sys.executable, "-c", "import time;time.sleep(10)"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.addCleanup(lambda: sleeper.wait(timeout=2) if sleeper.poll() is not None else (sleeper.kill(), sleeper.wait(timeout=2)))
