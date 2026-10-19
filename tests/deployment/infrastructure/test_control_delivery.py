@@ -50,6 +50,72 @@ class ControlDeliveryTests(unittest.TestCase):
         self.assertIsNone(projected[0]["project"])
         self.assertNotIn("SYNTHETIC_ENV_SECRET", json.dumps(projected))
 
+    def inspect_projection(self, method, mounts, *, project="foreign-compose-project"):
+        """Real Docker inspect field shapes, emitted in caller-supplied mount order."""
+        inspected = {"Id": "a" * 64, "Name": "/synthetic-container", "Image": "sha256:" + "b" * 64,
+                     "Config": {"Labels": {"com.docker.compose.project": project}, "Env": ["ACCEPTANCE_REVISION=one"]},
+                     "HostConfig": {"RestartPolicy": {"Name": "unless-stopped"}},
+                     "State": {"Running": True, "Status": "running", "StartedAt": "2026-10-19T00:00:00Z", "FinishedAt": "0001-01-01T00:00:00Z"},
+                     "Mounts": mounts}
+        with patch.object(acceptance.subprocess, "run", side_effect=[SimpleNamespace(returncode=0, stdout=("a" * 64 + "\n").encode()),
+                                                                   SimpleNamespace(returncode=0, stdout=json.dumps([inspected]).encode())]):
+            return method()
+
+    def mount_fixtures(self):
+        bind = {"Type": "bind", "Source": "/synthetic/data", "Destination": "/data", "Mode": "rw", "RW": True,
+                "Propagation": "rprivate", "observed_extension": {"kept": True}}
+        volume = {"Type": "volume", "Name": "synthetic-volume", "Source": "/synthetic/volumes/data", "Destination": "/cache",
+                  "Driver": "local", "Mode": "ro", "RW": False, "Propagation": ""}
+        return [bind, volume, copy.deepcopy(bind)]
+
+    def test_inventory_and_replay_target_ignore_only_mount_order_preserving_duplicate_objects(self):
+        mounts = self.mount_fixtures()
+        original = copy.deepcopy(mounts)
+        reordered = [mounts[1], mounts[2], mounts[0]]
+        before = self.inspect_projection(lambda: acceptance.inventory(["/synthetic/docker"]), mounts)
+        after = self.inspect_projection(lambda: acceptance.inventory(["/synthetic/docker"]), reordered)
+        self.assertEqual(before, after)
+        self.assertTrue(acceptance.compare_inventory(before, after, self.config["project_name"])["preserved"])
+        self.assertEqual(len(before[0]["mounts"]), 3)
+        self.assertEqual(before[0]["mounts"].count(mounts[0]), 2)
+        driver = acceptance.Acceptance(self.config, self.base / "output")
+        target_before = self.inspect_projection(driver.target, mounts, project=self.config["project_name"])
+        target_after = self.inspect_projection(driver.target, reordered, project=self.config["project_name"])
+        self.assertEqual(target_before, target_after)
+        self.assertEqual(mounts, original)
+
+    def test_original_unsorted_evidence_compares_without_mutating_or_discarding_fields(self):
+        before = [{"id": "a" * 64, "project": "foreign", "health": "healthy", "state": {"Running": True}, "mounts": self.mount_fixtures(),
+                   "image_id": "sha256:" + "b" * 64, "additional_container_field": {"kept": True}}]
+        after = json.loads(json.dumps(before))
+        after[0]["mounts"] = [after[0]["mounts"][1], after[0]["mounts"][0], after[0]["mounts"][2]]
+        original = copy.deepcopy((before, after))
+        self.assertTrue(acceptance.compare_inventory(before, after, self.config["project_name"])["preserved"])
+        self.assertEqual((before, after), original)
+        self.assertEqual(acceptance.normalize_container(before[0])["additional_container_field"], {"kept": True})
+
+    def test_reordered_mount_evidence_still_rejects_each_real_change_duplicate_loss_health_and_identity(self):
+        before = [{"id": "a" * 64, "project": "foreign", "health": "healthy", "state": {"Running": True}, "mounts": self.mount_fixtures()}]
+        for index, field, value in ((0, "Type", "volume"), (0, "Source", "/changed-source"), (0, "Destination", "/changed-target"),
+                                    (0, "Mode", "ro,z"), (0, "RW", False), (0, "Propagation", "rshared"),
+                                    (0, "observed_extension", {"kept": False}), (1, "Name", "changed-volume"), (1, "Driver", "changed-driver")):
+            after = copy.deepcopy(before)
+            after[0]["mounts"][index][field] = value
+            after[0]["mounts"].reverse()
+            with self.subTest(field=field):
+                report = acceptance.compare_inventory(before, after, self.config["project_name"])
+                self.assertFalse(report["preserved"])
+                self.assertEqual(report["changed"], ["a" * 64])
+        after = copy.deepcopy(before)
+        after[0]["mounts"].pop()
+        self.assertFalse(acceptance.compare_inventory(before, after, self.config["project_name"])["preserved"])
+        for field, value in (("health", "unhealthy"), ("id", "c" * 64), ("state", {"Running": False})):
+            after = copy.deepcopy(before)
+            after[0]["mounts"].reverse()
+            after[0][field] = value
+            with self.subTest(field=field):
+                self.assertFalse(acceptance.compare_inventory(before, after, self.config["project_name"])["preserved"])
+
     def test_send_disconnect_only_reads_original_before_proven_replay(self):
         driver = acceptance.Acceptance(self.config, self.base / "output")
         driver.output.mkdir()

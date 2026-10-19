@@ -28,6 +28,19 @@ def sha(value):
     return hashlib.sha256(encoded(value)).hexdigest()
 
 
+def normalize_mounts(mounts):
+    """Match resident metadata semantics, retaining duplicate objects and every field."""
+    mounts = json.loads(json.dumps(mounts, sort_keys=True, allow_nan=False))
+    return sorted(mounts, key=lambda mount: json.dumps(mount, sort_keys=True, separators=(",", ":")))
+
+
+def normalize_container(row):
+    row = dict(row)
+    if "mounts" in row:
+        row["mounts"] = normalize_mounts(row["mounts"])
+    return row
+
+
 def docker_json(command, *args):
     result = subprocess.run([*command, *args], capture_output=True, timeout=45)
     require(result.returncode == 0 and len(result.stdout) <= 32 * 1024 * 1024, "acceptance_docker_readback_failed")
@@ -49,12 +62,12 @@ def inventory(command):
                          "state": {key: state.get(key) for key in ("Status", "Running", "Paused", "Restarting", "Dead", "OOMKilled", "ExitCode")},
                          "health": (state.get("Health") or {}).get("Status"), "mounts": item["Mounts"],
                          "configuration_sha256": sha(item["Config"]), "host_configuration_sha256": sha(item["HostConfig"])})
-    return sorted(rows, key=lambda item: item["id"])
+    return sorted((normalize_container(row) for row in rows), key=lambda item: item["id"])
 
 
 def compare_inventory(before, after, project):
-    old = {row["id"]: row for row in before if row["project"] != project}
-    new = {row["id"]: row for row in after if row["project"] != project}
+    old = {row["id"]: normalize_container(row) for row in before if row["project"] != project}
+    new = {row["id"]: normalize_container(row) for row in after if row["project"] != project}
     removed = sorted(set(old) - set(new))
     changed = sorted(identity for identity in old.keys() & new.keys() if old[identity] != new[identity])
     return {"preserved": not removed and not changed, "original_count": len(old), "current_count": len(new),
@@ -146,9 +159,9 @@ class Acceptance:
         value = docker_json(self.config["docker_command"], "inspect", ids[0])[0]
         require(value["Config"]["Labels"]["com.docker.compose.project"] == self.config["project_name"], "acceptance_target_project_changed")
         environment = dict(item.split("=", 1) for item in value["Config"].get("Env", []) if "=" in item)
-        return {"id": value["Id"], "image_id": value["Image"], "state": {key: value["State"].get(key) for key in (
+        return normalize_container({"id": value["Id"], "image_id": value["Image"], "state": {key: value["State"].get(key) for key in (
             "Status", "Running", "Paused", "StartedAt", "FinishedAt")}, "mounts": value["Mounts"],
-            "configuration_sha256": sha(value["Config"]), "acceptance_revision": environment.get("ACCEPTANCE_REVISION")}
+            "configuration_sha256": sha(value["Config"]), "acceptance_revision": environment.get("ACCEPTANCE_REVISION")})
 
     def stack(self, stack_id):
         return self.call("stack.inspect", {"stack_id": stack_id})["stack"]
