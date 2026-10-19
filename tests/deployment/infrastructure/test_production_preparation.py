@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import test_package as fixtures
-from deploy.infrastructure import bundle, image, resident
+from deploy.infrastructure import bundle, control_bundle, image, resident
 
 
 class ProductionPreparationTests(unittest.TestCase):
@@ -125,7 +125,7 @@ class ProductionPreparationTests(unittest.TestCase):
         self.assertLess(rendered.index("RELEASE['paths']['root']"), rendered.index("def host_path"))
         self.assertIn("raise RuntimeError('never execute during rendering')", rendered)
 
-    def test_resident_renderer_compiles_all_operator_payloads_without_executing_mechanism(self):
+    def resident_arguments(self):
         for name in resident.GUARD_FILES:
             self.fixture.put(name, "# synthetic immutable guard source\n")
         guard_commit = self.fixture.save("guard input")
@@ -156,6 +156,28 @@ class ProductionPreparationTests(unittest.TestCase):
         arguments = dict(baseline=self.base / "baseline.json", metadata=self.base / "metadata.json", build_result=self.base / "build.json",
                          mechanism_directory=mechanism, recovery=self.base / "recovery.json", executor_config=self.base / "executor.json",
                          guard_repo=self.repo, guard_commit=guard_commit, stage="/volume2/tianshu-v2-resident-updates/synthetic-render")
+        return arguments, baseline, metadata, build
+
+    def preserved_control_arguments(self):
+        arguments, baseline, metadata, build = self.resident_arguments()
+        infrastructure = json.loads((Path(resident.__file__).parent / "templates/platform-settings.fragment.json").read_bytes())["infrastructure"]
+        root = "/opt/tianshu-infrastructure-control"
+        infrastructure["control"] = {"contract_directory": root + "/" + control_bundle.CONTRACT,
+                                     "executor": {"directory": root, "command": ["/opt/tianshu-infrastructure-venv/bin/python", "-I", "-B", root + "/run_control.py",
+                                                                                "--config", "/etc/tianshu/infrastructure/existing-control-relay.json"]}}
+        metadata.update(infrastructure_configured=True, infrastructure_settings=infrastructure)
+        arguments["metadata"].write_bytes(bundle.json_bytes(metadata))
+        arguments["preserve_infrastructure"] = True
+        source = self.fixture.commit
+        build["control_package"] = {"status": "package_verified", "source_commit": source, "protocol_version": control_bundle.PROTOCOL,
+                                    "package_sha256": "c" * 64, "file_count": 48, "deployed": False,
+                                    "contract": {"path": control_bundle.CONTRACT, "source_commit": source, "files_sha256": "d" * 64,
+                                                 "schemas": {name: "e" * 64 for name in ("request.schema.json", "response.schema.json", "config.schema.json", "remote-config.schema.json")}}}
+        build["linux_checks"] = {"control": {"source_commit": source, "catalog_process_passed": True, "both_absolute_launchers_passed": True, "file_count": 47}}
+        return arguments, baseline, metadata, build
+
+    def test_resident_renderer_compiles_all_operator_payloads_without_executing_mechanism(self):
+        arguments, baseline, _, _ = self.resident_arguments()
         receipt = resident.prepare(**arguments, output=self.base / "rendered")
         self.assertFalse(receipt["nas_changed"])
         inputs = json.loads((self.base / "rendered/resident-release.json").read_bytes())
@@ -168,6 +190,67 @@ class ProductionPreparationTests(unittest.TestCase):
         with self.assertRaisesRegex(bundle.Refused, "final_ready_baseline_required"):
             resident.prepare(**arguments, output=self.base / "must-not-render")
         self.assertFalse((self.base / "must-not-render").exists())
+
+    def test_preserved_control_requires_matching_verified_image_package_before_output(self):
+        arguments, _, metadata, build = self.preserved_control_arguments()
+        cases = []
+        missing = copy.deepcopy(build)
+        missing.pop("control_package")
+        cases.append((missing, "existing_control_package_required"))
+        malformed = copy.deepcopy(build)
+        malformed["control_package"]["package_sha256"] = "not-a-sha256"
+        cases.append((malformed, "existing_control_package_invalid"))
+        mismatched = copy.deepcopy(build)
+        mismatched["linux_checks"]["control"]["source_commit"] = "f" * 40
+        cases.append((mismatched, "existing_control_package_unverified"))
+        for index, (candidate, reason) in enumerate(cases):
+            arguments["build_result"].write_bytes(bundle.json_bytes(candidate))
+            output = self.base / ("refused-control-" + str(index))
+            with self.subTest(reason=reason), patch.object(resident, "git_files", side_effect=AssertionError("must refuse before loading release mechanism")) as export:
+                with self.assertRaisesRegex(bundle.Refused, reason):
+                    resident.prepare(**arguments, output=output)
+                export.assert_not_called()
+                self.assertFalse(output.exists())
+        metadata["infrastructure_settings"]["control"]["executor"]["directory"] = "/different/executor"
+        arguments["metadata"].write_bytes(bundle.json_bytes(metadata))
+        arguments["build_result"].write_bytes(bundle.json_bytes(build))
+        with self.assertRaisesRegex(bundle.Refused, "existing_control_executor_mismatch"):
+            resident.prepare(**arguments, output=self.base / "refused-control-directory")
+        self.assertFalse((self.base / "refused-control-directory").exists())
+
+    def test_later_release_with_control_package_preserves_existing_control_settings_and_binds(self):
+        arguments, baseline, metadata, build = self.preserved_control_arguments()
+        arguments["build_result"].write_bytes(bundle.json_bytes(build))
+        mounts = baseline["owners"][0]["mounts"]
+        mounts[0].update(Type="bind", RW=False)
+        mounts.extend([
+            {"Type": "bind", "Source": "/synthetic/resident/config/platform", "Destination": "/etc/tianshu", "RW": False},
+            {"Type": "bind", "Source": "/synthetic/resident/data/platform", "Destination": "/var/lib/tianshu", "RW": True},
+            {"Type": "bind", "Source": "/synthetic/media/books", "Destination": "/media/Books", "RW": True},
+            {"Type": "bind", "Source": "/synthetic/comic.sock", "Destination": "/run/comic.sock", "RW": False},
+        ])
+        arguments["baseline"].write_bytes(bundle.json_bytes(baseline))
+        original = copy.deepcopy((metadata, baseline))
+        output = self.base / "preserved-control-render"
+        receipt = resident.prepare(**arguments, output=output)
+        release = json.loads((output / "resident-release.json").read_bytes())["release"]
+        self.assertFalse(receipt["nas_changed"])
+        self.assertNotIn("control", release, "keeping the installed control must not reinstall it")
+        self.assertEqual(release["infrastructure"]["settings"], metadata["infrastructure_settings"])
+        self.assertEqual(release["baseline"], baseline)
+        settings = {"infrastructure": metadata["infrastructure_settings"], "books": {"keep": True}, "music": {"period": 1500}}
+        self.assertEqual(resident.merge_settings(settings, release["infrastructure"]["settings"], preserve_existing=True), settings)
+        volumes = [{"type": "bind", "source": item["Source"], "target": item["Destination"], "read_only": not item["RW"]} for item in mounts]
+        service = {"image": "old", "volumes": volumes, "tmpfs": [resident.SAMPLE_STATE + ":rw,size=128m,uid=10001,gid=10001,mode=0700"]}
+        templates = {name: {"services": {"platform": copy.deepcopy(service)}} for name in ("core", "platform")}
+        capacity = {"images": {"platform": "old"}, "binds": {"platform": copy.deepcopy(volumes)}, "external_media_binds": []}
+        patched, _ = resident.patch_templates(templates, capacity, "new", [], preserve_existing=True)
+        for name in templates:
+            self.assertEqual(patched[name]["services"]["platform"]["volumes"], volumes)
+            self.assertEqual(patched[name]["services"]["platform"]["tmpfs"], service["tmpfs"])
+        self.assertEqual((metadata, baseline), original)
+        for name in ("resident-update.py", "remote-stage.py", "remote-launch.py", "remote-poll.py", "rollback.py"):
+            compile((output / name).read_bytes(), name, "exec")
 
     def test_failed_disabled_restore_prevents_every_production_input_write(self):
         root, stage = self.base / "resident", self.base / "stage"
