@@ -61,7 +61,9 @@ under a same-project lock. Only the selected registered directory is written.
 `compose_content` returned by inspect contains opaque `{{tianshu.secret:...}}`
 scalar markers. Keep markers intact to preserve existing values; markers are
 bound to that stack and current revision. Interpolation such as `${API_TOKEN}`
-is retained as a reference. Raw `.env`/secret contents never leave the node.
+is retained as a reference. Sensitive interpolation containing literal defaults
+or error messages is masked as a whole and restored through its opaque marker.
+Raw `.env`/secret contents never leave the node.
 Plan diffs use the same masks and show configuration changes, ports and mounts.
 Saved versions are private node files and preserve file modes/roles and image
 IDs. Restore concerns configuration and runtime images; `restores_data:false`

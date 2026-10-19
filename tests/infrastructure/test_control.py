@@ -143,6 +143,23 @@ class ControlTest(unittest.TestCase):
         self.assertEqual(invalid_image["state"], "blocked")
         self.assertNotIn("synthetic-image-password", json.dumps(invalid_image))
 
+    def test_secret_interpolation_defaults_and_errors_are_masked_and_roundtrip(self):
+        self.compose.write_text("name: synthetic\nservices:\n  web:\n    image: nginx:alpine\n    environment:\n      PASSWORD: ${PASSWORD:-synthetic-default-secret}\n      TOKEN: ${TOKEN?synthetic-error-message-secret}\n      PLAIN_REFERENCE: ${REGISTERED_VARIABLE}\n", encoding="utf-8")
+        inspected = self.dispatch("stack.inspect", {"stack_id": self.stack_id})["data"]["stack"]
+        self.assertIn("${REGISTERED_VARIABLE}", inspected["compose_content"])
+        for secret in ("synthetic-default-secret", "synthetic-error-message-secret"):
+            self.assertNotIn(secret, json.dumps(inspected))
+        plan = self.dispatch("stack.plan", {"action": "deploy", "stack_id": self.stack_id, "expected_revision": inspected["revision"], "compose_content": inspected["compose_content"].replace("nginx:alpine", "nginx:stable")})["data"]["plan"]
+        self.assertEqual(plan["state"], "ready", plan)
+        for secret in ("synthetic-default-secret", "synthetic-error-message-secret"):
+            self.assertNotIn(secret, json.dumps(plan))
+        _, result = self.execute_now(self.mutation("stack.apply", target={"plan_id": plan["plan_id"]}))
+        self.assertEqual(result["state"], "succeeded", result)
+        environment = document(self.compose.read_bytes())["services"]["web"]["environment"]
+        self.assertEqual(environment["PASSWORD"], "${PASSWORD:-synthetic-default-secret}")
+        self.assertEqual(environment["TOKEN"], "${TOKEN?synthetic-error-message-secret}")
+        self.assertEqual(environment["PLAIN_REFERENCE"], "${REGISTERED_VARIABLE}")
+
     def test_external_edit_env_and_target_replacement_invalidate_plan(self):
         revision = self.revision()
         plan = self.dispatch("stack.plan", {"action": "update", "stack_id": self.stack_id, "expected_revision": revision})["data"]["plan"]

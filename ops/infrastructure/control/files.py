@@ -17,7 +17,7 @@ from ..protocol import Failure
 from ..sampling import stable_id
 
 TOKEN = re.compile(r"\{\{tianshu\.secret:([a-f0-9]{32})\}\}")
-REFERENCE = re.compile(r"^\$(?:\{[^{}]+\}|[A-Za-z_][A-Za-z0-9_]*)$")
+REFERENCE = re.compile(r"^\$(?:\{[A-Za-z_][A-Za-z0-9_]*\}|[A-Za-z_][A-Za-z0-9_]*)$")
 URL_CREDENTIAL = re.compile(r"[a-z][a-z0-9+.-]*://[^/@\s]+:[^/@\s]+@", re.I)
 UNSPECIFIED = object()
 # These fields are meaningful for a deployment preview. Every other scalar is
