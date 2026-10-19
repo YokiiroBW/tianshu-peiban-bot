@@ -1,12 +1,12 @@
-## 2026-10-19 Dockge 控制已部署，后台实机通过、网页待登录
+## 2026-10-19 Dockge 控制HTTP修复已部署待网页验收
 
-用户要求继续完善 Dockge 控制，TS205/206/207/208 已由 gpt-6.1-sol/max 交付并由协调者独立验收。节点最终 `fb9ee5c6`、平台 `8a92bfde`、网页 `19e2fe30`、发布包装 `a4af6db3` 已串行集成；Platform `44534fa3` 已非强制推送 main、同步集成检出并部署 NAS。独立节点专项 23 通过/3 环境跳过，新增拉取策略定向 2/2；平台候选 38 通过/7 环境跳过、任务 19/19、真实 HTTP→SSH→节点联合 1/1；类型构建与真实本地 HTTP 网页预览/执行通过。包装 70/70、NAS 原 Dockge Node 合成进程 2/2、实际安装镜像 Linux 进程 5/5 通过。新控制协议复用原 SSH 登记和传输，原只读协议、三栏卡片内滚动和 CPU/内存条保留。
+TS205/206/207/208由gpt-6.1-sol/max并行交付并独立验收，控制节点fb9ee5c6、包装a4af6db3保持。TS209 d6afd37b修复NAS HTTP请求编号、丢响应完成结果和null-stack失败展示，复用既有requestId、操作台账与维护归属；协调者完整diff审查及24/24浏览器通过，0跳过，类型构建通过。保留首轮20通过/2失败及正式网页发送前异常证据，未把失败当成功。
 
-现已从 TS204 `ea45faa`/`c7c89142` 新鲜基线切换至 Platform `44534fa3`/镜像 `342143798f70`，全部最新媒体历史和 OpenCC 依赖保留。39 库冷备与离线恢复、五 TLS 健康、十服务和 guard 已通过；16 项 Platform bind、其他服务配置、原 Dockge full ID 均保持。只新增 infrastructure.control；唯一保留冷备位于 dockge-control-20261019-44534fa-release/cold-snapshot。当前恢复代次为同目录 capacity-state-75af1ea920114ec7840be586852fc340。
+Platform b44041757eb6a0759d347a4c794ed34ca52fcb6a（含漫画最新文档9fe9e4c）已非强制推送main并部署为sha256:66bca03caaebdfe856519ee9c044c0abf59eb158412ae46405f22d5d68832a47。控制ZIP898b6fcb与旧只读ZIP9aac3dc0保持，未重复安装控制器。全部settings含infrastructure.control、16项bind、原Dockge身份及媒体配置保留。39库冷备/离线恢复、十服务/五TLS/guard、64网页资源通过；唯一冷备为/volume2/tianshu-v2-resident-updates/dockge-http-20261019-b440417-release/cold-snapshot，恢复代次/volume2/tianshu-v2-resident-updates/dockge-http-20261019-b440417-release/capacity-state-2f0b03f1814d4ff2865b4c4d9dbc81e7。
 
-隔离真实 Docker 10 项操作及同 ID 重放通过，busybox→alpine→原 busybox 的配置/镜像恢复及数据标记通过。显式更新确实拉取成功，但本次前后镜像 ID 相同，不称版本升级。验收脚本原将 45 个容器 Mounts 顺序变化误报变更；修复只规范化完整挂载对象顺序，原失败证据保留，只读复核原始及当前 136 非目标容器全部字段一致，没有重跑修改。849 章书籍/2 音频/陪读、音乐配置、8 漫画任务/7 CBZ 全 SHA、2 订阅/6 小时、2432 源/1444 扩展、9887 原文件/579 目录元数据、4711 书及 6 阅读进度保持。
+已完成受控更新及后台检查，服务重启导致登录失效，正式网页动作仍待用户重新登录。测试栈保持停止，发布窗口已释放；用户登录后重新核对线上版本与非目标基线，再验收该栈，不将本地网页或旧CLI结果冒称正式网页通过。
 
-生产发布窗口已释放；独立 tianshu-control-acceptance-20261019-44534fa 栈已停止，保留用于用户登录后的正式网页/任务中心验收，不算网页已完成。后续 Platform 构建须携带已安装控制 ZIP `898b6fcb5deb58f3b399cb19dae3d904806309ac89f14221181ff7fbb1789a2c` 或经完整验证的后继包，沿用当前 infrastructure.control、全量挂载与最新恢复代次；不得用旧镜像配方丢失控制入口。见 [本批计划](dockge-control-plan-2026-10-19.md)及[精确记录](dockge-control-delivery-2026-10-19.json)。
+先前真实Docker十项控制与同编号重放、busybox→alpine→原镜像及数据标记通过，原挂载顺序误报证据保留并只读复核；显式拉取前后镜像ID相同，不称版本升级。音乐、849书籍章节、2音频、阅读进度、漫画8任务/7CBZ/2订阅及原文件记录保持。后续发布须保留控制包、现有配置和挂载并重新读取最新生产状态；记忆TS210、漫画TS211各自隔离开发不由本批接管。见[精确交付](dockge-control-delivery-2026-10-19.json)与[计划](dockge-control-plan-2026-10-19.md)。
 
 ## 2026-10-18 听书预生成与显式陪读已部署验收
 

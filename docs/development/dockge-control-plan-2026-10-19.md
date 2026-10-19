@@ -57,3 +57,11 @@ TS207 候选交付后释放实现槽，TS208 先依据冻结协议与已发布�
 Platform `44534fa3978217ead8f7df5e0ca6223c1fbd909b` 已推送并部署为镜像 `sha256:342143798f70dd1b872738f0d2883ce0b9797030043a221eeb708b2a52e33d47`。控制代码固定 `fb9ee5c6`，ZIP `898b6fcb5deb58f3b399cb19dae3d904806309ac89f14221181ff7fbb1789a2c`；旧只读 ZIP `9aac3dc0` 完整保持。后续媒体/其他模块发布须保留这份控制包、已有控制登记和两个持久日志目录，不覆盖原工具 Python 或 Dockge。
 
 39 库冷备/离线恢复、五 TLS、十服务、guard、64 网页资源及数据保留通过，冷备仅留本批一份。真实隔离栈十项控制与重放已通过；挂载数组顺序导致验收误报已在工具中修正，原失败与原始证据保留，仅只读复核，没有重跑修改。测试栈已停止并保留数据；正式登录网页与任务中心交互待用户登录。精确状态和未覆盖以同目录 `dockge-control-delivery-2026-10-19.json` 为准，不能把本地网页或真实 CLI 当作已完成正式网页验收。
+
+### TS209 正式 HTTP 页面验收修复
+
+用户登录后在唯一隔离测试容器点击启动，正式 NAS HTTP IP 页面报 `crypto.randomUUID is not a function`；源码在设置 latch 后、发送前调用该仅在部分访问上下文可用的方法，所以没有执行控制。另确认受保护栈详情后台已 settled/failed（`compose_reference_outside_stack`），前端在 stack=null 时丢弃整个响应，将失败误显示为持续加载。新增精确卡 TS209，固定 Platform 44534fa，gpt-6.1-sol/max 实现，协调者独立验收与串行发布。允许 infrastructure/dockge 前端、既有 dockge-control.spec 与本卡交接；复用 app/requestId，不修改后台、媒体、控制合同或节点。
+
+修复须覆盖 HTTP 缺失 randomUUID 的 action/plan/execute、请求编号准备失败的可重试状态、丢响应同编号恢复，以及 null-stack 已完成失败/切换目标不串数据。若利用列表维护归属，只消费同 stack_id 的既有行，不把摘要当可执行详情。下一发布保留控制ZIP898b、已有登记和journals，resident仅 preserve-infrastructure，不传control-install；没有静态热复制或新的发布体系，仍只保留一份已验证冷备。实机动作限原验收测试栈，不通过操作音乐/书籍/其他服务来证明按钮。
+
+TS209 固定实现为 `d6afd37b5dcb62b1c740ba1bacb67946d4965e9c`，代理及协调者独立浏览器均24/24通过，0跳过；类型、构建通过。真实丢响应测试另发现 completed 结果被空编号错误匹配清掉，一并修正，原20通过/2失败证据保留。与漫画最新文档9fe9e4c合并为 `b44041757eb6a0759d347a4c794ed34ca52fcb6a`，已推送并部署 `sha256:66bca03caaebdfe856519ee9c044c0abf59eb158412ae46405f22d5d68832a47`。控制包、设置、16 bind、Dockge身份保持，39库冷备/离线恢复、五TLS及64静态资源通过。恢复代次已更新为 `dockge-http-20261019-b440417-release/capacity-state-2f0b03f1814d4ff2865b4c4d9dbc81e7`；正式网页最终状态以精确交付记录为准。

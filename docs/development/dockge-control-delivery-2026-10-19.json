@@ -1,5 +1,5 @@
 {
-  "status": "pushed_deployed_backend_verified_pending_web",
+  "status": "pushed_deployed_fixed_http_pending_login",
   "date": "2026-10-19",
   "models": {
     "implementation": "gpt-6.1-sol",
@@ -22,6 +22,10 @@
       "candidate": "a4af6db3ed85a666b63979e88c01cddf8f601eb6",
       "implementation": "4abe2c26409e8c7d5104fcf0f607794e836f597a",
       "integration": "2010bca27a5354399c7f90b121b629aa0515e706"
+    },
+    "TS-209": {
+      "candidate": "d6afd37b5dcb62b1c740ba1bacb67946d4965e9c",
+      "integration": "b44041757eb6a0759d347a4c794ed34ca52fcb6a"
     }
   },
   "preserved_platform_baseline": {
@@ -169,10 +173,10 @@
     "owners_running": 10,
     "last_readonly_state_dir": "/volume2/tianshu-v2-resident-updates/comic-chinese-search-20261019-ea45faa-release/capacity-state-bf65ae54d05644ac8b95812c090ff650",
     "candidate_build_started": true,
-    "platform_commit": "44534fa3978217ead8f7df5e0ca6223c1fbd909b",
-    "platform_image": "sha256:342143798f70dd1b872738f0d2883ce0b9797030043a221eeb708b2a52e33d47",
-    "platform_id": "373b0e271f43036f55723c5cbe16b476bd52d049a8ed42345c1867e75d7e3af8",
-    "current_state_dir": "/volume2/tianshu-v2-resident-updates/dockge-control-20261019-44534fa-release/capacity-state-75af1ea920114ec7840be586852fc340",
+    "platform_commit": "b44041757eb6a0759d347a4c794ed34ca52fcb6a",
+    "platform_image": "sha256:66bca03caaebdfe856519ee9c044c0abf59eb158412ae46405f22d5d68832a47",
+    "platform_id": "629af4d95bb9aa4c4968b2d070e94fc05fda55abacc1dea5c1ff80347064493e",
+    "current_state_dir": "/volume2/tianshu-v2-resident-updates/dockge-http-20261019-b440417-release/capacity-state-2f0b03f1814d4ff2865b4c4d9dbc81e7",
     "platform_binds": 16,
     "original_dockge_preserved": true,
     "existing_settings_preserved_except_control": true,
@@ -180,14 +184,15 @@
     "tls_health_services": 5,
     "static_assets_verified": 64,
     "cold_backup_count": 1,
-    "cold_backup": "/volume2/tianshu-v2-resident-updates/dockge-control-20261019-44534fa-release/cold-snapshot",
+    "cold_backup": "/volume2/tianshu-v2-resident-updates/dockge-http-20261019-b440417-release/cold-snapshot",
     "database_restore": false,
     "real_control_accepted": true,
     "production_gui_accepted": false,
-    "production_write_window": "released"
+    "production_write_window": "released",
+    "all_settings_including_control_preserved": true
   },
   "remaining": [
-    "User login to existing NAS page, then authenticated production UI interaction and task-center acceptance on the stopped test stack"
+    "Login after service restart; then real NAS GUI actions and task-center verification on the isolated test stack only."
   ],
   "packages": {
     "control_source": "fb9ee5c6aaf3f00f9706aaba812577d82053300a",
@@ -261,5 +266,66 @@
     "original_read_progress_records": 6,
     "original_comic_validation": "identity/size/mtime/ownership/mode, not a full 47 GB content rehash"
   },
-  "release_preservation_requirement": "Future Platform images must retain the installed control package 898b6fcb5deb58f3b399cb19dae3d904806309ac89f14221181ff7fbb1789a2c (or explicitly validated successor) and preserve current infrastructure.control, complete mounts and current guard generation."
+  "release_preservation_requirement": "Future Platform images must retain the installed control package 898b6fcb5deb58f3b399cb19dae3d904806309ac89f14221181ff7fbb1789a2c (or explicitly validated successor) and preserve current infrastructure.control, complete mounts and current guard generation.",
+  "first_release": {
+    "read_only_inspected": true,
+    "production_mutations": true,
+    "dockge_version": "1.5.0",
+    "compose_version_in_dockge": "2.34.0",
+    "node_version_in_dockge": "22.14.0",
+    "guard_ready": true,
+    "owners_running": 10,
+    "last_readonly_state_dir": "/volume2/tianshu-v2-resident-updates/comic-chinese-search-20261019-ea45faa-release/capacity-state-bf65ae54d05644ac8b95812c090ff650",
+    "candidate_build_started": true,
+    "platform_commit": "44534fa3978217ead8f7df5e0ca6223c1fbd909b",
+    "platform_image": "sha256:342143798f70dd1b872738f0d2883ce0b9797030043a221eeb708b2a52e33d47",
+    "platform_id": "373b0e271f43036f55723c5cbe16b476bd52d049a8ed42345c1867e75d7e3af8",
+    "current_state_dir": "/volume2/tianshu-v2-resident-updates/dockge-control-20261019-44534fa-release/capacity-state-75af1ea920114ec7840be586852fc340",
+    "platform_binds": 16,
+    "original_dockge_preserved": true,
+    "existing_settings_preserved_except_control": true,
+    "sqlite_backups_verified": 39,
+    "tls_health_services": 5,
+    "static_assets_verified": 64,
+    "cold_backup_count": 1,
+    "cold_backup": "/volume2/tianshu-v2-resident-updates/dockge-control-20261019-44534fa-release/cold-snapshot",
+    "database_restore": false,
+    "real_control_accepted": true,
+    "production_gui_accepted": false,
+    "production_write_window": "released"
+  },
+  "http_repair": {
+    "model": "gpt-6.1-sol/max",
+    "candidate": "d6afd37b5dcb62b1c740ba1bacb67946d4965e9c",
+    "independent_browser": {
+      "passed": 24,
+      "skipped": 0,
+      "flaky": 0
+    },
+    "agent_type_and_build": "passed",
+    "fixes": [
+      "reuse existing HTTP-compatible requestId and release preparation latch",
+      "retain completed operation after lost response recovery",
+      "show terminal null-stack failure and preserve selected maintenance ownership"
+    ],
+    "original_failed_gui_no_request": true,
+    "original_failure_evidence": ".runtime/dockge-control-20261019/web-original-http-failure.json",
+    "first_test_run": {
+      "passed": 20,
+      "failed": 2,
+      "retained": true
+    },
+    "backend_and_contracts_unchanged": true,
+    "control_install_repeated": false,
+    "evidence_directory": ".runtime/dockge-http-20261019",
+    "real_gui": null,
+    "book_progress_readback": {
+      "initial_compare": "downloaded transiently 651 while unchanged subscription worker traversed cached chapters",
+      "initial_failed_comparison_preserved": "audio-preservation-after.json",
+      "settled_readonly_recheck": "audio-preservation-after-preview.json",
+      "downloaded_restored": 849,
+      "chapter_count_artifact_audio_reading_unchanged": true,
+      "no_book_code_or_configuration_changed": true
+    }
+  }
 }
