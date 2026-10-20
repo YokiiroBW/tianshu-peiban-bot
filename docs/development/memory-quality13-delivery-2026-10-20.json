@@ -1,0 +1,829 @@
+{
+  "status": "local_verified_with_recorded_semantic_limitations_not_integrated",
+  "created_at": "2026-10-20T08:50:14.875750+00:00",
+  "deployed_baseline": {
+    "memory": "97f2b01d403102634c0e537593c68069dd7b8b6c",
+    "companion": "ed4af8b7ac328f5b700c1e1db696d1d1bad7318d"
+  },
+  "candidates": {
+    "memory": {
+      "task": "TS-220",
+      "baseline": "97f2b01d403102634c0e537593c68069dd7b8b6c",
+      "commit": "320139f051cf462c73a73ff0997ff1a450990bec",
+      "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\TS-220\\tianshu-memory",
+      "branch": "work/ts-220",
+      "pushed": false,
+      "deployed": false,
+      "runtime_hash_matches_tested_snapshot": true,
+      "files": [
+        "src/tianshu_memory/recall_constraints.py",
+        "src/tianshu_memory/recall_index.py",
+        "src/tianshu_memory/recall_relevance.py",
+        "docs/handoffs/TS-220.md",
+        "README.md",
+        "tests/test_fact_quality_regressions.py"
+      ]
+    },
+    "companion": {
+      "task": "TS-221",
+      "baseline": "ed4af8b7ac328f5b700c1e1db696d1d1bad7318d",
+      "commit": "fb3a4e6d89510124a0114cf74d1bcdc60caa1365",
+      "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\TS-221\\tianshu-companion",
+      "branch": "work/ts-221",
+      "pushed": false,
+      "deployed": false,
+      "runtime_hash_matches_tested_snapshot": true,
+      "files": [
+        "src/tianshu_companion/context_time.py",
+        "src/tianshu_companion/core.py",
+        "src/tianshu_companion/qq_identity.py",
+        "docs/handoffs/TS-221.md",
+        "tests/test_context_time.py",
+        "tests/test_dialogue_sources.py",
+        "tests/test_context_retrieval.py",
+        "tests/test_prompt_projection.py"
+      ]
+    }
+  },
+  "changes": {
+    "memory": {
+      "added": 119,
+      "deleted": 115,
+      "net": 4,
+      "files": [
+        "src/tianshu_memory/recall_constraints.py",
+        "src/tianshu_memory/recall_index.py",
+        "src/tianshu_memory/recall_relevance.py"
+      ],
+      "frozen_source_matches": true
+    },
+    "companion": {
+      "added": 63,
+      "deleted": 128,
+      "net": -65,
+      "files": [
+        "src/tianshu_companion/context_time.py",
+        "src/tianshu_companion/core.py",
+        "src/tianshu_companion/qq_identity.py"
+      ],
+      "frozen_source_matches": true
+    }
+  },
+  "unit": {
+    "memory": {
+      "counts": {
+        "passed": 277,
+        "failure": 0,
+        "error": 0,
+        "skipped": 1
+      },
+      "failures": [],
+      "errors": [],
+      "evidence": [
+        "memory-targeted.xml",
+        "memory-targeted-fixed.xml",
+        "memory-fixed-time.xml"
+      ]
+    },
+    "companion": {
+      "counts": {
+        "passed": 974,
+        "failure": 2,
+        "error": 0,
+        "skipped": 16
+      },
+      "failures": [
+        "tests.test_profile_joint.ProfileJointTests::test_core_consumes_real_producer_profiles_and_stops_after_withdrawal",
+        "tests.test_source_https.HttpsSourceTests::test_core_https_first_identity_fanout_facts_and_background_check"
+      ],
+      "errors": [],
+      "evidence": [
+        "companion-full.xml",
+        "companion-observability-after.xml",
+        "companion-r2-targeted.xml"
+      ]
+    }
+  },
+  "performance": {
+    "rank": {
+      "pairs": 7680,
+      "mismatches": [],
+      "ranked_ids_equal": true,
+      "before_median": 0.4115978996269405,
+      "after_median": 0.34721329994499683
+    },
+    "small_rank": {
+      "before": 0.014145299792289734,
+      "after": 0.014344499912112951,
+      "ranked_ids_equal": true
+    },
+    "prompt": {
+      "before": {
+        "system_bytes": 13730,
+        "data_bytes": 8784,
+        "total_message_bytes": 23895,
+        "selected_messages": 5,
+        "copies": {
+          "现在确定的有哪几位，走哪里，几点？": 2,
+          "北门在施工，我想从东门进去。": 2,
+          "行，那就东门九点，咱们这么定。": 2,
+          "我还要看排班，别先算上我。": 2,
+          "我那边也没问题，东门九点。": 2
+        }
+      },
+      "after": {
+        "system_bytes": 9207,
+        "data_bytes": 7396,
+        "total_message_bytes": 17876,
+        "selected_messages": 5,
+        "copies": {
+          "现在确定的有哪几位，走哪里，几点？": 1,
+          "北门在施工，我想从东门进去。": 1,
+          "行，那就东门九点，咱们这么定。": 1,
+          "我还要看排班，别先算上我。": 1,
+          "我那边也没问题，东门九点。": 1
+        }
+      },
+      "reduction_percent": 25.189370161121573
+    }
+  },
+  "native_summary": {
+    "cohorts": {
+      "heldout-before": {
+        "inputs": 16,
+        "states": {
+          "sent": 16
+        },
+        "learning": {
+          "completed": 16
+        },
+        "model_calls": 31,
+        "model_peak": 2,
+        "withdrawal_query_selected_human_text": [
+          "现在还有谁确定参加，时间地点变了吗？",
+          "那天临时要值班，我不参加这次了。"
+        ]
+      },
+      "heldout": {
+        "inputs": 16,
+        "states": {
+          "sent": 16
+        },
+        "learning": {
+          "completed": 16
+        },
+        "model_calls": 30,
+        "model_peak": 2,
+        "withdrawal_query_selected_human_text": [
+          "现在还有谁确定参加，时间地点变了吗？",
+          "那天临时要值班，我不参加这次了。"
+        ]
+      },
+      "probes": {
+        "inputs": 24,
+        "states": {
+          "sent": 24
+        },
+        "learning": {
+          "completed": 24
+        },
+        "model_calls": 44,
+        "model_peak": 2
+      },
+      "admin": {
+        "inputs": 8,
+        "states": {
+          "sent": 8
+        },
+        "learning": {
+          "completed": 8
+        },
+        "model_calls": 12,
+        "model_peak": 2
+      },
+      "heldout-r2": {
+        "inputs": 16,
+        "states": {
+          "sent": 16
+        },
+        "learning": {
+          "completed": 16
+        },
+        "model_calls": 30,
+        "model_peak": 2,
+        "withdrawal_query_selected_human_text": [
+          "现在还有谁确定参加，时间地点变了吗？",
+          "那天临时要值班，我不参加这次了。"
+        ]
+      },
+      "probes-r2": {
+        "inputs": 24,
+        "states": {
+          "sent": 24
+        },
+        "learning": {
+          "completed": 24
+        },
+        "model_calls": 44,
+        "model_peak": 2
+      }
+    },
+    "model_calls": 191,
+    "inputs": 104,
+    "registered_people": 100,
+    "boundary_violations": [],
+    "cold_checks": {
+      "heldout-before": [
+        {
+          "index": 10,
+          "expected": [
+            "雾岭"
+          ],
+          "primary_correct": true
+        }
+      ],
+      "heldout": [
+        {
+          "index": 10,
+          "expected": [
+            "雾岭"
+          ],
+          "primary_correct": true
+        }
+      ],
+      "probes": [
+        {
+          "index": 2,
+          "expected": [
+            "雨点"
+          ],
+          "primary_correct": true
+        },
+        {
+          "index": 3,
+          "expected": [
+            "晚霞"
+          ],
+          "primary_correct": true
+        },
+        {
+          "index": 5,
+          "expected": [
+            "细雨",
+            "晚霞"
+          ],
+          "primary_correct": true
+        },
+        {
+          "index": 22,
+          "expected": [
+            "松笺"
+          ],
+          "primary_correct": true
+        },
+        {
+          "index": 23,
+          "expected": [
+            "雨点",
+            "细雨"
+          ],
+          "primary_correct": true
+        }
+      ],
+      "admin": [],
+      "heldout-r2": [
+        {
+          "index": 10,
+          "expected": [
+            "雾岭"
+          ],
+          "primary_correct": true
+        }
+      ],
+      "probes-r2": [
+        {
+          "index": 2,
+          "expected": [
+            "雨点"
+          ],
+          "primary_correct": true
+        },
+        {
+          "index": 3,
+          "expected": [
+            "晚霞"
+          ],
+          "primary_correct": true
+        },
+        {
+          "index": 5,
+          "expected": [
+            "细雨",
+            "晚霞"
+          ],
+          "primary_correct": true
+        },
+        {
+          "index": 22,
+          "expected": [
+            "松笺"
+          ],
+          "primary_correct": true
+        },
+        {
+          "index": 23,
+          "expected": [
+            "雨点",
+            "细雨"
+          ],
+          "primary_correct": true
+        }
+      ]
+    },
+    "model_failures": [],
+    "actual_speakers": 15,
+    "rooms": [
+      "dm:u000",
+      "dm:u073",
+      "dm:u080",
+      "dm:u092",
+      "dm:u099",
+      "g00",
+      "g06",
+      "g07",
+      "g08",
+      "g09"
+    ],
+    "distinct_inputs": 48,
+    "dialogue_prompts": 104,
+    "budget": {
+      "used": 6961,
+      "hard_cap": 7000,
+      "remaining": 39,
+      "unknown_still_counted": [
+        "M008",
+        "M324",
+        "M421",
+        "M1547"
+      ]
+    }
+  },
+  "semantic": {
+    "method": "Manual review of saved final answers and the corresponding selected human inputs; no provider reasoning inspected; no claim of benchmark-wide accuracy.",
+    "final_reading_review_complete": true,
+    "final_candidate": "Q13 r2 frozen source",
+    "cold_primary": {
+      "release_q12": "5/5",
+      "q13_r1": "5/5",
+      "q13_r2": "5/5",
+      "interpretation": "Positive regression facts held; no demonstrated cold-recall accuracy gain over deployed Q12."
+    },
+    "heldout_primary": {
+      "indices": [
+        5,
+        6,
+        8,
+        10,
+        12,
+        13,
+        15
+      ],
+      "baseline": "6/7",
+      "r1": "6/7",
+      "r2": "6/7",
+      "limit": "Primary facts only. Does not mark extra statements, pronouns, verbosity or time wording as correct. Not comparable to LoCoMo or LongMemEval scores."
+    },
+    "improved_sample": {
+      "cohort": "probes-r2",
+      "index": 19,
+      "observation": "Counts both the natural adoption and the literal agreement, keeps requester pending and does not claim full-group unanimity.",
+      "limit": "One observed sample, not stable resolution of consensus reasoning."
+    },
+    "unresolved": [
+      {
+        "cohort": "heldout-r2",
+        "index": 8,
+        "kind": "retrieval_omission",
+        "observation": "Both deployed baseline and final candidate select only the withdrawal source. Earlier remaining participant and time/location are absent, so the model cannot answer the requested current plan.",
+        "next": "Repair bounded history retrieval and retain same-plan source dependencies; do not patch the answer with invented participants."
+      },
+      {
+        "cohort": "probes-r2",
+        "index": 20,
+        "kind": "reader_under_count",
+        "observation": "Prompt contains the requester's natural adoption, the pending participant, literal agreement and status question. Final answer still reports only the literal agreement as confirmation.",
+        "next": "Evaluate personal stance/state interpretation with evidence references and fresh unseen wording; do not add one regex per phrase."
+      },
+      {
+        "cohort": "probes-r2",
+        "index": 8,
+        "kind": "reported_clock_as_message_time_and_unasked_detail",
+        "observation": "Primary event attribution is correct but answer unnecessarily describes the self-reported clock as message time, then qualifies that it was not system-verified."
+      },
+      {
+        "cohort": "probes-r2",
+        "index": 7,
+        "kind": "unasked_time_attribution",
+        "observation": "Correct cat name accompanied by wording linking when its name was said to the event, which the name-only question did not request."
+      },
+      {
+        "cohort": "heldout-r2",
+        "index": 6,
+        "kind": "unsupported_pronoun_and_verbosity",
+        "observation": "Primary participants and plan are correct, but unknown-gender person is called 他 and extra pending-person commentary is included despite the concise-answer rule."
+      }
+    ],
+    "r1_specific_regression_preserved": {
+      "cohort": "probes",
+      "index": 12,
+      "observation": "First compact prompt answer invented an earlier forgetting-keys incident. Final r2 answer to the same question did not repeat that incident; this does not establish that all unsupported elaboration is eliminated."
+    },
+    "acceptance": "Storage/source/permission contracts and primary regression facts held in the exercised scope. Query performance and reduced prompt duplication are supported. Overall dialogue latency, broad semantic recall, consensus reasoning and time wording are not claimed solved. Q13 remains a local candidate."
+  },
+  "research_sources": {
+    "retrieved_at": "2026-10-20T08:07:00.976921+00:00",
+    "method": "fixed_commit_official_read_only_source_no_execution",
+    "repositories": {
+      "mem0ai/mem0": {
+        "commit": "0724291bd864cf807e88ee8981c8226644e8fb42",
+        "commit_date": "2026-10-14T21:09:50+05:30",
+        "files": [
+          {
+            "path": "README.md",
+            "bytes": 12586,
+            "sha256": "dccb6a8292f6b5888dd827ca694ca21eab5bbf41b34938c632c836c164ac9c45",
+            "url": "https://github.com/mem0ai/mem0/blob/0724291bd864cf807e88ee8981c8226644e8fb42/README.md"
+          },
+          {
+            "path": "LICENSE",
+            "bytes": 11550,
+            "sha256": "bdc813b8cc3d9cbd6b26024eacc677cba327eeb6e598e02cc291b0b63ca5b05e",
+            "url": "https://github.com/mem0ai/mem0/blob/0724291bd864cf807e88ee8981c8226644e8fb42/LICENSE"
+          },
+          {
+            "path": "mem0/memory/main.py",
+            "bytes": 173793,
+            "sha256": "f63b856ff86b2b9da3730548116bfbc023560fe941dbfbd34075519b855c46d3",
+            "url": "https://github.com/mem0ai/mem0/blob/0724291bd864cf807e88ee8981c8226644e8fb42/mem0/memory/main.py"
+          },
+          {
+            "path": "mem0/memory/storage.py",
+            "bytes": 13233,
+            "sha256": "d0f8e65f817a591684c27f0c63c4456cd03bf658380d242f1f7a24eabe46adbd",
+            "url": "https://github.com/mem0ai/mem0/blob/0724291bd864cf807e88ee8981c8226644e8fb42/mem0/memory/storage.py"
+          },
+          {
+            "path": "mem0/memory/utils.py",
+            "bytes": 11486,
+            "sha256": "64e328e7515d77cbd0dd7dbc496cdd110b113a0e97c26a49c4708fd656a6fa69",
+            "url": "https://github.com/mem0ai/mem0/blob/0724291bd864cf807e88ee8981c8226644e8fb42/mem0/memory/utils.py"
+          },
+          {
+            "path": "mem0/configs/base.py",
+            "bytes": 3356,
+            "sha256": "5ec47531291aa8aa90bd294a4d60063937dba1387d28aec225cb1d36c6ca9ea9",
+            "url": "https://github.com/mem0ai/mem0/blob/0724291bd864cf807e88ee8981c8226644e8fb42/mem0/configs/base.py"
+          },
+          {
+            "path": "mem0/configs/prompts.py",
+            "bytes": 65126,
+            "sha256": "908103e53bdef67fa835700857a56c515c4bfc09abc970b26f27c1dbfc626cf9",
+            "url": "https://github.com/mem0ai/mem0/blob/0724291bd864cf807e88ee8981c8226644e8fb42/mem0/configs/prompts.py"
+          },
+          {
+            "path": "tests/memory/test_decay_feature_notice.py",
+            "bytes": 2317,
+            "sha256": "6eb3611022b87ac4ff046c0b464bc0c63181428bb9026321f3683b1884d47be3",
+            "url": "https://github.com/mem0ai/mem0/blob/0724291bd864cf807e88ee8981c8226644e8fb42/tests/memory/test_decay_feature_notice.py"
+          },
+          {
+            "path": "tests/memory/test_decay_usage_notice.py",
+            "bytes": 10170,
+            "sha256": "6e269fc96364ac893311fbe61625c9bfa49631b3a16ef2cd6be14776cae88526",
+            "url": "https://github.com/mem0ai/mem0/blob/0724291bd864cf807e88ee8981c8226644e8fb42/tests/memory/test_decay_usage_notice.py"
+          },
+          {
+            "path": "tests/memory/test_json_prompt_fix.py",
+            "bytes": 8677,
+            "sha256": "58063431a4ba7e75cf8e6f35245f47e86655cb6264ff6db19728914d3f94b163",
+            "url": "https://github.com/mem0ai/mem0/blob/0724291bd864cf807e88ee8981c8226644e8fb42/tests/memory/test_json_prompt_fix.py"
+          },
+          {
+            "path": "tests/memory/test_main.py",
+            "bytes": 59366,
+            "sha256": "4973b1e8c16251144a88ff6ef192d5587295a0be2fd6ac2bac5a7ee3319a743a",
+            "url": "https://github.com/mem0ai/mem0/blob/0724291bd864cf807e88ee8981c8226644e8fb42/tests/memory/test_main.py"
+          },
+          {
+            "path": "tests/memory/test_memory_utils.py",
+            "bytes": 9254,
+            "sha256": "9b3906406d8a7b5938b473698120001059deefaaf31c7c1b6a6096d028bf060a",
+            "url": "https://github.com/mem0ai/mem0/blob/0724291bd864cf807e88ee8981c8226644e8fb42/tests/memory/test_memory_utils.py"
+          }
+        ]
+      },
+      "getzep/graphiti": {
+        "commit": "3cc723cd292eb5c2ac5ea2c5539270b8e1b6389f",
+        "commit_date": "2026-10-20T05:55:01Z",
+        "files": [
+          {
+            "path": "README.md",
+            "bytes": 35548,
+            "sha256": "a2d3ac051a4207f459fa1ace4e0569392cd1bf7fca8176ccf08cdb6f72b0e6b1",
+            "url": "https://github.com/getzep/graphiti/blob/3cc723cd292eb5c2ac5ea2c5539270b8e1b6389f/README.md"
+          },
+          {
+            "path": "LICENSE",
+            "bytes": 11526,
+            "sha256": "8035dec1815d62cb21812ca04204f6f2c8947b3a1795ec532b96eaf3b11191f7",
+            "url": "https://github.com/getzep/graphiti/blob/3cc723cd292eb5c2ac5ea2c5539270b8e1b6389f/LICENSE"
+          },
+          {
+            "path": "graphiti_core/edges.py",
+            "bytes": 34873,
+            "sha256": "d4f517d0efdd875b0ea53c4f1db22cd18e637f2fd038763e28a368a3ec63666a",
+            "url": "https://github.com/getzep/graphiti/blob/3cc723cd292eb5c2ac5ea2c5539270b8e1b6389f/graphiti_core/edges.py"
+          },
+          {
+            "path": "graphiti_core/graphiti.py",
+            "bytes": 95501,
+            "sha256": "ba3660cd30f0390cd2a9a1b831cd815435fbf4b32296a5b1d9c764b5c1fce1ce",
+            "url": "https://github.com/getzep/graphiti/blob/3cc723cd292eb5c2ac5ea2c5539270b8e1b6389f/graphiti_core/graphiti.py"
+          },
+          {
+            "path": "graphiti_core/nodes.py",
+            "bytes": 40638,
+            "sha256": "3735596fbf602992609c57e641774e12a327393e6d45128daf8f3aaade6a3ed7",
+            "url": "https://github.com/getzep/graphiti/blob/3cc723cd292eb5c2ac5ea2c5539270b8e1b6389f/graphiti_core/nodes.py"
+          },
+          {
+            "path": "graphiti_core/search/search.py",
+            "bytes": 34624,
+            "sha256": "375d617b09f55c5410e5edfc2d13ee10976786afb5f4335009b51b9855bb978b",
+            "url": "https://github.com/getzep/graphiti/blob/3cc723cd292eb5c2ac5ea2c5539270b8e1b6389f/graphiti_core/search/search.py"
+          },
+          {
+            "path": "graphiti_core/search/search_config.py",
+            "bytes": 5436,
+            "sha256": "5c8f5b3abd5e37ce49c2bfea5af16e062a888228bf8620b9492a6d1ec16eee81",
+            "url": "https://github.com/getzep/graphiti/blob/3cc723cd292eb5c2ac5ea2c5539270b8e1b6389f/graphiti_core/search/search_config.py"
+          },
+          {
+            "path": "graphiti_core/search/search_utils.py",
+            "bytes": 76486,
+            "sha256": "23e6afb0ca04e3ab36995aa0aca95ddb31a5206948d99a91f15691cf6776c8c7",
+            "url": "https://github.com/getzep/graphiti/blob/3cc723cd292eb5c2ac5ea2c5539270b8e1b6389f/graphiti_core/search/search_utils.py"
+          },
+          {
+            "path": "graphiti_core/utils/maintenance/edge_operations.py",
+            "bytes": 47896,
+            "sha256": "2064ca5e03d48ca1c7841dac4c2980169d25bf1d199af073eb34bd32d6c95af7",
+            "url": "https://github.com/getzep/graphiti/blob/3cc723cd292eb5c2ac5ea2c5539270b8e1b6389f/graphiti_core/utils/maintenance/edge_operations.py"
+          },
+          {
+            "path": "tests/test_edge_db_queries.py",
+            "bytes": 3216,
+            "sha256": "016811b625f675d5f6b758bb888da6cb24ba05257e831b9fe5a51404f6ff16e8",
+            "url": "https://github.com/getzep/graphiti/blob/3cc723cd292eb5c2ac5ea2c5539270b8e1b6389f/tests/test_edge_db_queries.py"
+          },
+          {
+            "path": "tests/test_edge_int.py",
+            "bytes": 15887,
+            "sha256": "abc0877bb7857f24e3e47852e69ec25f6ea63dab0550cc95463534fca8c54d53",
+            "url": "https://github.com/getzep/graphiti/blob/3cc723cd292eb5c2ac5ea2c5539270b8e1b6389f/tests/test_edge_int.py"
+          },
+          {
+            "path": "tests/test_neptune_search_isolation.py",
+            "bytes": 9500,
+            "sha256": "67fd536ea72eb0019c137a610eb14ddf148460700850c33647c7891f50062eec",
+            "url": "https://github.com/getzep/graphiti/blob/3cc723cd292eb5c2ac5ea2c5539270b8e1b6389f/tests/test_neptune_search_isolation.py"
+          },
+          {
+            "path": "tests/utils/maintenance/test_edge_dedup_scenarios.py",
+            "bytes": 12373,
+            "sha256": "8ab4a3b654e7c3e50b5fed720f431a8287879d7190bf7e110760f53b36d7c160",
+            "url": "https://github.com/getzep/graphiti/blob/3cc723cd292eb5c2ac5ea2c5539270b8e1b6389f/tests/utils/maintenance/test_edge_dedup_scenarios.py"
+          },
+          {
+            "path": "tests/utils/maintenance/test_edge_operations.py",
+            "bytes": 64512,
+            "sha256": "033358cc1a326c4b8c718a0d9b847826bfc40430fb1150ab82d21b3bf866cc9d",
+            "url": "https://github.com/getzep/graphiti/blob/3cc723cd292eb5c2ac5ea2c5539270b8e1b6389f/tests/utils/maintenance/test_edge_operations.py"
+          }
+        ]
+      },
+      "letta-ai/letta": {
+        "commit": "8816d3a8516893bfdc0fa14bfb1235226012e295",
+        "commit_date": "2026-10-18T15:28:01-07:00",
+        "files": [
+          {
+            "path": "README.md",
+            "bytes": 1515,
+            "sha256": "83492d4c737c74afd7c10d3f77a2c09caf394631eb70920f8b41b27cf2449320",
+            "url": "https://github.com/letta-ai/letta/blob/8816d3a8516893bfdc0fa14bfb1235226012e295/README.md"
+          },
+          {
+            "path": "LICENSE",
+            "bytes": 10949,
+            "sha256": "27554527a23e7c70bea4b180d9e016b2e69e4f93c9bb303caf0c5effd7b46920",
+            "url": "https://github.com/letta-ai/letta/blob/8816d3a8516893bfdc0fa14bfb1235226012e295/LICENSE"
+          }
+        ]
+      },
+      "langchain-ai/langmem": {
+        "commit": "48e3c11f5bb527282c7d5339c6a87a0b35abccfc",
+        "commit_date": "2026-10-02T12:35:19-07:00",
+        "files": [
+          {
+            "path": "README.md",
+            "bytes": 5304,
+            "sha256": "b2c2a2c572c6ac55826b711938bcc3ddf83ed6bd34d2dd9af4efe02f294b761d",
+            "url": "https://github.com/langchain-ai/langmem/blob/48e3c11f5bb527282c7d5339c6a87a0b35abccfc/README.md"
+          },
+          {
+            "path": "LICENSE",
+            "bytes": 1087,
+            "sha256": "9bc75ced0dc6df655c7ac6a3787012fe364e8fa7b499fda048543102f5cbdee3",
+            "url": "https://github.com/langchain-ai/langmem/blob/48e3c11f5bb527282c7d5339c6a87a0b35abccfc/LICENSE"
+          },
+          {
+            "path": "docs/docs/concepts/conceptual_guide.md",
+            "bytes": 21046,
+            "sha256": "a53e4c1cba76d9f44554175720f37efdc8c2bc6fc3dc03099a0004d6305c12ee",
+            "url": "https://github.com/langchain-ai/langmem/blob/48e3c11f5bb527282c7d5339c6a87a0b35abccfc/docs/docs/concepts/conceptual_guide.md"
+          },
+          {
+            "path": "src/langmem/knowledge/__init__.py",
+            "bytes": 1494,
+            "sha256": "05688b8edd069df37370d29aa96528988f674bfacbbe951062526561f4fe4fe4",
+            "url": "https://github.com/langchain-ai/langmem/blob/48e3c11f5bb527282c7d5339c6a87a0b35abccfc/src/langmem/knowledge/__init__.py"
+          },
+          {
+            "path": "src/langmem/knowledge/extraction.py",
+            "bytes": 83888,
+            "sha256": "f6e6bdda777832e5d4853366a08e82f90bbdaab72d05c39e73fe535771f4bcb4",
+            "url": "https://github.com/langchain-ai/langmem/blob/48e3c11f5bb527282c7d5339c6a87a0b35abccfc/src/langmem/knowledge/extraction.py"
+          },
+          {
+            "path": "src/langmem/knowledge/tools.py",
+            "bytes": 19770,
+            "sha256": "5f3a17d80f444d8f50c4345052ec6cdf26a8c973a191546ce39160894b6cb1e3",
+            "url": "https://github.com/langchain-ai/langmem/blob/48e3c11f5bb527282c7d5339c6a87a0b35abccfc/src/langmem/knowledge/tools.py"
+          },
+          {
+            "path": "tests/__init__.py",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "url": "https://github.com/langchain-ai/langmem/blob/48e3c11f5bb527282c7d5339c6a87a0b35abccfc/tests/__init__.py"
+          },
+          {
+            "path": "tests/conftest.py",
+            "bytes": 80,
+            "sha256": "1353203320e332b280950bfa4508f85801983e536cc13b519ae2a90186dbb0cb",
+            "url": "https://github.com/langchain-ai/langmem/blob/48e3c11f5bb527282c7d5339c6a87a0b35abccfc/tests/conftest.py"
+          },
+          {
+            "path": "tests/short_term/__init__.py",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "url": "https://github.com/langchain-ai/langmem/blob/48e3c11f5bb527282c7d5339c6a87a0b35abccfc/tests/short_term/__init__.py"
+          },
+          {
+            "path": "tests/short_term/test_summarization.py",
+            "bytes": 33119,
+            "sha256": "d9f3e24a0f375f5541ecfe2cc91f8f190ecbdc2bdd3e331fa051a09c3465fd0c",
+            "url": "https://github.com/langchain-ai/langmem/blob/48e3c11f5bb527282c7d5339c6a87a0b35abccfc/tests/short_term/test_summarization.py"
+          },
+          {
+            "path": "tests/short_term/test_summarization_async.py",
+            "bytes": 33412,
+            "sha256": "833786df86aa4fc4f0b3d9aec46c233ddb0ae1fc9b0d5a5d7fe37458a1633492",
+            "url": "https://github.com/langchain-ai/langmem/blob/48e3c11f5bb527282c7d5339c6a87a0b35abccfc/tests/short_term/test_summarization_async.py"
+          }
+        ]
+      },
+      "letta-ai/letta-code": {
+        "commit": "e8073d4e475ab7f56e76f9aaeea81a7618a92575",
+        "commit_date": "2026-10-19T15:23:36-07:00",
+        "files": [
+          {
+            "path": "LICENSE",
+            "sha256": "036e78b9d7dd33ae5b378fdda973b4aad7901c8d8371a0ae40fae1f6659a89d0",
+            "bytes": 11092,
+            "url": "https://github.com/letta-ai/letta-code/blob/e8073d4e475ab7f56e76f9aaeea81a7618a92575/LICENSE"
+          },
+          {
+            "path": "README.md",
+            "sha256": "7543b5df7349bb8fbdbf7f377a161c3163b6ff062a9c6f7b7430a5ca9a3d0abe",
+            "bytes": 9952,
+            "url": "https://github.com/letta-ai/letta-code/blob/e8073d4e475ab7f56e76f9aaeea81a7618a92575/README.md"
+          },
+          {
+            "path": "src/agent/memory-format.ts",
+            "sha256": "d06c0d5eb4a206ac35a2f673910782ef3c846155405aa443d315dbaf3ef77a47",
+            "bytes": 1278,
+            "url": "https://github.com/letta-ai/letta-code/blob/e8073d4e475ab7f56e76f9aaeea81a7618a92575/src/agent/memory-format.ts"
+          },
+          {
+            "path": "src/agent/memory-operation.ts",
+            "sha256": "ad2ed4fe2a5db068748ca653b7e9e94a337685f1d114ef3b6bbfef6d18ba514c",
+            "bytes": 2022,
+            "url": "https://github.com/letta-ai/letta-code/blob/e8073d4e475ab7f56e76f9aaeea81a7618a92575/src/agent/memory-operation.ts"
+          },
+          {
+            "path": "src/agent/memory-prompt.integration.test.ts",
+            "sha256": "11514b215a38696c2404a24b8064d5365ea12eaa9e4d43d7cd0ef3c68542b17e",
+            "bytes": 2110,
+            "url": "https://github.com/letta-ai/letta-code/blob/e8073d4e475ab7f56e76f9aaeea81a7618a92575/src/agent/memory-prompt.integration.test.ts"
+          },
+          {
+            "path": "src/agent/memory-runtime.ts",
+            "sha256": "54ff0262bd947aa865f9e47cedba8c98b34bdc3d2b56aeae19749f8e9be9159b",
+            "bytes": 945,
+            "url": "https://github.com/letta-ai/letta-code/blob/e8073d4e475ab7f56e76f9aaeea81a7618a92575/src/agent/memory-runtime.ts"
+          },
+          {
+            "path": "src/backend/local/compaction.test.ts",
+            "sha256": "e413dc9baad0e6b93cd37ce4735f74a5b85434e2269972e1fd28e6207ef4ada6",
+            "bytes": 6002,
+            "url": "https://github.com/letta-ai/letta-code/blob/e8073d4e475ab7f56e76f9aaeea81a7618a92575/src/backend/local/compaction.test.ts"
+          },
+          {
+            "path": "src/backend/local/compaction.ts",
+            "sha256": "37cf5b97727f4bb3c8bd3b98fe0cf0ede4d465403b38ec0e323a32bdee3a6af4",
+            "bytes": 28304,
+            "url": "https://github.com/letta-ai/letta-code/blob/e8073d4e475ab7f56e76f9aaeea81a7618a92575/src/backend/local/compaction.ts"
+          }
+        ]
+      }
+    },
+    "notes": [
+      "Public GitHub API rate limited; used shallow sparse git checkouts instead. No downloaded code executed or installed.",
+      "letta-ai/letta main now redirects to letta-code; inspected current source instead of claiming its archived V1 is current.",
+      "Managed-platform benchmarks are not equivalent to OSS features or Tianshu scores."
+    ]
+  },
+  "production_check": {
+    "captured_at": "2026-10-20T08:44:50.680484+00:00",
+    "services": {
+      "companion": {
+        "revision": "ed4af8b7ac328f5b700c1e1db696d1d1bad7318d",
+        "health": "healthy"
+      },
+      "memory": {
+        "revision": "97f2b01d403102634c0e537593c68069dd7b8b6c",
+        "health": "healthy"
+      },
+      "gateway": {
+        "revision": "0a6b0099149b4b7dcad4c165f9b1972d091eed08",
+        "health": "healthy"
+      },
+      "platform": {
+        "revision": "9ca514d65bcaa6fee1ad17b6a8d48fd99db74175",
+        "health": "healthy"
+      },
+      "knowledge": {
+        "revision": "097ccfa55dfb5af541d24cfcb48ba6ccf02f1a3a",
+        "health": "healthy"
+      },
+      "obs-vector": {
+        "revision": null,
+        "health": null
+      },
+      "obs-guard": {
+        "revision": null,
+        "health": null
+      },
+      "obs-loki": {
+        "revision": null,
+        "health": null
+      },
+      "obs-grafana": {
+        "revision": null,
+        "health": null
+      },
+      "obs-prometheus": {
+        "revision": null,
+        "health": null
+      }
+    },
+    "guard": "ready",
+    "production_changed": false
+  },
+  "evidence": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\memory-quality13-research",
+  "model_phase": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-13\\task\\upgrade-20261013\\quality13-20261020",
+  "preserved": [
+    "daily Gemini",
+    "real user memory",
+    "real QQ/notifications",
+    "manga/audiobook/co-reading/Books/Ebooks mounts"
+  ],
+  "note": "Current Q12 already pushed/deployed by TS219; Q13 is a new local candidate, no production switch in this phase.",
+  "validation_notes": [
+    "Initial Companion targeted setup used the mixed coordinator contract and failed at contract recognition; repeated on the accepted fixed contract bundle, 43 passed.",
+    "Initial Memory TLS fixture rejected default temp paths outside the checkout .runtime; affected tests repeated with the documented explicit basetemp.",
+    "Two old explicit-date fixture failures were fixed with a controlled read clock on both sides of the effective date; product date logic unchanged.",
+    "Two additional observability timing failures in the broad run did not recur in isolated baseline or candidate tests; both first failures and reruns are retained, exact environmental cause not proven.",
+    "R2 runner initially lacked synthetic cases.json, failed at import before any model call; fixture restored and original failure log retained."
+  ]
+}
