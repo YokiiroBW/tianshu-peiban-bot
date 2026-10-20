@@ -1,5 +1,6 @@
 """Result-scoped row metadata and cursor compatibility without a database server."""
 
+import os
 import weakref
 from collections import namedtuple
 from types import SimpleNamespace
@@ -11,6 +12,10 @@ from tianshu_storage import MemoryCursor, PostgresConnection, Row, StorageError
 from tianshu_storage.postgres import Cursor
 
 Column = namedtuple("Column", "name type_code")
+PG_URL = os.environ.get("TIANSHU_TEST_POSTGRES_URL", "")
+REAL_PG = pytest.mark.skipif(
+    not PG_URL, reason="explicit isolated PostgreSQL URL required"
+)
 
 
 class Result:
@@ -276,3 +281,44 @@ def test_memory_cursor_reuses_metadata_and_keeps_noop_close_and_counts():
     assert first["name"] == 1 and second["name"] == 3
     assert first._positions is second._positions
     assert cursor.fetchone() is None
+
+
+@REAL_PG
+def test_real_postgres_rows_across_fetch_modes_factories_and_result_changes():
+    statement = """
+        SELECT n AS "ID", n + 1000 AS id, 'row-' || n::text AS label,
+               n + 2000 AS "Straße", n + 3000 AS "STRASSE"
+          FROM generate_series(1, 1000) AS series(n) ORDER BY n;
+        SELECT 42 AS "Changed", 43 AS changed
+    """
+    with psycopg.connect(PG_URL, autocommit=True, connect_timeout=3) as raw:
+        connection = PostgresConnection(raw)
+        cursor = connection.native(statement)
+        try:
+            first = cursor.fetchone()
+            assert first["id"] == 1 and first["strasse"] == 2001
+            assert first.keys() == ["ID", "id", "label", "Straße", "STRASSE"]
+            before = cursor.description
+            assert before is not cursor.description and before[0].name == "ID"
+            connection.row_factory = None
+            assert cursor.fetchone() == (2, 1002, "row-2", 2002, 3002)
+            connection.row_factory = Row
+            cursor.arraysize = 31
+            batch = cursor.fetchmany()
+            rest = cursor.fetchall()
+            assert len(batch) == 31 and len(rest) == 967
+            assert batch[0]["id"] == 3 and rest[-1]["id"] == 1000
+            assert first._positions is batch[0]._positions is rest[-1]._positions
+            assert cursor.raw.nextset() is True
+            assert cursor.description[0].name == "Changed"
+            second = cursor.fetchone()
+            assert second["changed"] == 42 and second.keys() == ["Changed", "changed"]
+            assert second._positions is not first._positions
+            assert first["ID"] == 1 and first.keys()[0] == "ID"
+            cursor.raw.execute('SELECT 77 AS "Third"', prepare=False)
+            assert cursor.description[0].name == "Third"
+            assert cursor.fetchone()["third"] == 77
+            assert second["CHANGED"] == 42 and second.keys() == ["Changed", "changed"]
+        finally:
+            cursor.close()
+        assert first["Id"] == 1 and second["changed"] == 42
