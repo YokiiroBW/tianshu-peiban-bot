@@ -2,6 +2,8 @@
 
 import re
 from collections.abc import Sequence
+from contextlib import contextmanager
+from functools import lru_cache
 from types import MappingProxyType
 from uuid import uuid4
 
@@ -17,6 +19,8 @@ def _row_metadata(columns):
 
 
 class Row(Sequence):
+    __slots__ = ("_columns", "_positions", "_values")
+
     def __init__(self, values, columns):
         self._values = tuple(values)
         self._columns, self._positions = _row_metadata(columns)
@@ -31,9 +35,13 @@ class Row(Sequence):
     def __getitem__(self, key):
         if isinstance(key, str):
             try:
-                return self._values[self._positions[key.casefold()]]
+                position = self._positions[key]
             except KeyError:
-                raise IndexError("No item with that key") from None
+                try:
+                    position = self._positions[key.casefold()]
+                except KeyError:
+                    raise IndexError("No item with that key") from None
+            return self._values[position]
         return self._values[key]
 
     def __iter__(self):
@@ -89,6 +97,12 @@ def qmark(sql, has_parameters):
     """Bind positional '?' outside SQL literals/comments; never interpolate values."""
     if not has_parameters:
         return sql
+    return _bound_qmark(sql)
+
+
+@lru_cache(maxsize=512)
+def _bound_qmark(sql):
+    """Cache only the pure SQL-text transformation, never bound parameters."""
     output = []
     n = 0
     quote = None
@@ -269,6 +283,23 @@ class PostgresConnection:
         from psycopg.pq import TransactionStatus
 
         return self.raw.info.transaction_status != TransactionStatus.IDLE
+
+    @contextmanager
+    def pipeline(self):
+        """Confirm SET/BEGIN/advisory-lock setup together before a later read.
+
+        Queue setup statements only: consume no results or business DML here.
+        Exiting confirms every queued command, including advisory lock acquisition;
+        snapshot-sensitive reads must be separate statements after this context.
+        This does not commit, roll back, retry or release the owning connection.
+        """
+        if self._closed:
+            raise StorageError("storage_connection_closed")
+        try:
+            with self.raw.pipeline():
+                yield self
+        except psycopg.Error as exc:
+            raise postgres_error(exc) from None
 
     def native(self, sql, parameters=(), *, savepoint=False):
         if self._closed:

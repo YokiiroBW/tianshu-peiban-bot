@@ -10,9 +10,11 @@ See [INTERFACE.md](INTERFACE.md) for the product API and read-only diagnostics. 
 
 ## Distribution
 
-Release wheels are immutable. Build each release once and vendor that exact artifact in consumers adopting it. Version 0.1.1 uses `vendor/tianshu_storage-0.1.1-py3-none-any.whl` and a `tianshu-storage==0.1.1` pin; uv projects bind the package to the relative wheel. Consumers retaining 0.1.0 keep their original artifact and pin. Container builds copy the selected wheel before installing the product. Development editable paths must never appear in deployment locks.
+Release wheels are immutable. Build each release once and vendor that exact artifact in consumers adopting it. Version 0.1.2 uses `vendor/tianshu_storage-0.1.2-py3-none-any.whl` and a `tianshu-storage==0.1.2` pin; uv projects bind the package to the relative wheel. Consumers retaining 0.1.0 or 0.1.1 keep their original artifact and pin. Container builds copy the selected wheel before installing the product. Development editable paths must never appear in deployment locks.
 
 Version 0.1.1 reuses PostgreSQL column names and immutable name-to-position mappings for each result set. Public row/cursor behavior and the 0.1 interface remain unchanged; the native SQLite connection path is unchanged.
+
+Version 0.1.2 confirms the existing PostgreSQL checkout settings in one pipeline before binding validation. `PostgresConnection.pipeline()` additionally lets products confirm their existing SET/BEGIN/advisory-lock setup together; snapshot-sensitive reads must remain separate statements after its exit. It is limited to setup without result consumption or business DML, with no automatic transaction control, retry or connection release. Rows keep all lookup semantics while using slots and avoiding casefold on exact normalized keys. A 512-entry LRU caches only parameterized SQL text conversion, never parameters or query results. The native SQLite runtime path is unchanged.
 
 ## Validation
 
