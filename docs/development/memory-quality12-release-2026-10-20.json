@@ -1,0 +1,77 @@
+{
+  "task": "TS-219",
+  "status": "deployed_verified",
+  "created_at": "2026-10-20T07:39:06.039172+00:00",
+  "targets": {
+    "memory": "97f2b01d403102634c0e537593c68069dd7b8b6c",
+    "companion": "ed4af8b7ac328f5b700c1e1db696d1d1bad7318d"
+  },
+  "tooling_base": "1b19a59e6d17bb457bc4b2fd3a58974561da86d8",
+  "production_write_window": "released_production_verified",
+  "release_stage": "/volume1/tianshu-v2-resident-updates/memory-quality12-20261020-97f2b01-ed4af8b-release",
+  "model_start": 6713,
+  "model_cap": 7000,
+  "pushed": true,
+  "deployed": true,
+  "retest_phase": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-13\\task\\upgrade-20261013\\quality12-release-20261020",
+  "push": {
+    "memory": {
+      "before": "8662c1a1d72c439eb7e8f032c5a2b7c86e4b008e",
+      "after": "97f2b01d403102634c0e537593c68069dd7b8b6c",
+      "non_force": true,
+      "verified": true,
+      "local_main_fast_forwarded": true
+    },
+    "companion": {
+      "before": "014c7c7baf1d2681f862208c9f104e32e209392c",
+      "after": "ed4af8b7ac328f5b700c1e1db696d1d1bad7318d",
+      "non_force": true,
+      "verified": true,
+      "local_main_fast_forwarded": true
+    }
+  },
+  "pushed_at": "2026-10-20T07:49:20.453488+00:00",
+  "deployed_at": "2026-10-20T08:00:39.054306+00:00",
+  "guard": "ready",
+  "guard_state_dir": "/volume1/tianshu-v2-resident-updates/memory-quality12-20261020-97f2b01-ed4af8b-release/capacity-state-4140f62028264ee18dc4e3913d8d6522",
+  "backup": "/volume1/tianshu-v2-resident-updates/memory-quality12-20261020-97f2b01-ed4af8b-release/cold-snapshot",
+  "backup_manifest_sha256": "787cb18842d97a102da2dfcc6e7f3b88a674c2e07224da891355b15f8d19b18f",
+  "retest_completed_at": "2026-10-20T08:11:08.477474+00:00",
+  "model_end": 6770,
+  "model_calls": 57,
+  "retest_summary": {
+    "inputs": 32,
+    "sent": 32,
+    "learning_completed": 32,
+    "cold_primary_correct": 5,
+    "cold_primary_total": 5,
+    "boundary_violations": 0,
+    "residual": "group confirmation undercounts ordinary affirmative wording"
+  },
+  "images": {
+    "memory": "sha256:454c572c6e88f09ccffb11b28b12088fb1c2e22694004d9be4ed217f0a992ad0",
+    "companion": "sha256:ade49a421c8a5230a6e63c76349fd1a7d8d50326f121ee57521a7d20585693a6"
+  },
+  "backup_databases": 39,
+  "backup_offline_verified": true,
+  "services_running": 10,
+  "core_tls_ready": 5,
+  "platform_binds": 19,
+  "external_data_binds": 20,
+  "media_binds": 9,
+  "silence_ms": 1500,
+  "preserved": [
+    "Gemini daily model/default and role settings",
+    "auto memory extraction OpenCode DeepSeek",
+    "credentials/config/user state",
+    "manga/audiobook/co-reading/Books/Ebooks"
+  ],
+  "non_target_runtime_change": "Gateway original-origin lease refreshed after maintenance expiration; same image/owner/route and permissions, new container identity.",
+  "test_repairs": {
+    "memory": "initial 38 errors: isolated 256MiB tmpfs full; affected two modules split into fresh same-size tmpfs, merged unique 279 passed/1 skip",
+    "companion": "initial missing workspace-context fixture repaired only inside disposable tmpfs; merged 242 passed/89 subtests"
+  },
+  "final_readback_runtime_drift": "Only music subscription last_scan_at/next_scan_at advanced, same revision; no user config rollback.",
+  "evidence": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\memory-quality12-release-20261020",
+  "phase": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-13\\task\\upgrade-20261013\\quality12-release-20261020"
+}
