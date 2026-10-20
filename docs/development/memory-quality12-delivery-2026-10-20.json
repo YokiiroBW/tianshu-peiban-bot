@@ -1,0 +1,681 @@
+{
+  "tasks": [
+    "TS-217",
+    "TS-218"
+  ],
+  "completed_at": "2026-10-20T07:20:54.232523+00:00",
+  "status": "local_verified_not_integrated",
+  "implementation_commits": {
+    "memory": "97f2b01d403102634c0e537593c68069dd7b8b6c",
+    "companion": "ed4af8b7ac328f5b700c1e1db696d1d1bad7318d"
+  },
+  "pushed": false,
+  "feature_deployed": false,
+  "coordination_checkouts_changed": false,
+  "development_bases": {
+    "memory": "8662c1a1d72c439eb7e8f032c5a2b7c86e4b008e",
+    "companion": "fd5d872bd3e722c08b0024ac55fa2fadd4bc1840"
+  },
+  "recovery": {
+    "task": "TS-216",
+    "commit": "838cc89d10f565ca344c16e498fc83d5dec67574",
+    "pushed_by_existing_authorized_thread": true,
+    "deployed": true,
+    "independent_check": "2026-10-20T07:15:32.438408+00:00",
+    "guard": "ready",
+    "web_http": 200,
+    "local_tests": 72,
+    "nas_linux_tests": 72,
+    "original_incident_path_errno_unknown": true,
+    "record": "docs/development/capacity-scan-recovery-2026-10-20.json"
+  },
+  "production_revisions": {
+    "companion": "014c7c7baf1d2681f862208c9f104e32e209392c",
+    "gateway": "0a6b0099149b4b7dcad4c165f9b1972d091eed08",
+    "knowledge": "097ccfa55dfb5af541d24cfcb48ba6ccf02f1a3a",
+    "memory": "8662c1a1d72c439eb7e8f032c5a2b7c86e4b008e",
+    "platform": "9ca514d65bcaa6fee1ad17b6a8d48fd99db74175"
+  },
+  "remote_main": {
+    "checked_at": "2026-10-20T07:15:34+00:00",
+    "method": "git ls-remote using explicit authorized GitHub URLs",
+    "memory": "8662c1a1d72c439eb7e8f032c5a2b7c86e4b008e",
+    "companion": "014c7c7baf1d2681f862208c9f104e32e209392c"
+  },
+  "preservation": {
+    "checked_at": "2026-10-20T07:15:32.438408+00:00",
+    "settings_unchanged": true,
+    "mounts_unchanged": true,
+    "mount_order_ignored": true,
+    "images_revisions_unchanged": true,
+    "guard_source_verified": true,
+    "books_mounts": [
+      {
+        "Type": "bind",
+        "Source": "/volume1/Documents/电子书",
+        "Destination": "/media/Ebooks",
+        "RW": true
+      },
+      {
+        "Type": "bind",
+        "Source": "/volume1/Documents/天枢书库",
+        "Destination": "/media/Books",
+        "RW": true
+      }
+    ],
+    "production_writes": false
+  },
+  "unit": {
+    "memory": {
+      "passed": 1438,
+      "failures": [
+        "tests.test_fact_quality_regressions::test_explicit_dates_are_not_discarded_or_merged[self_private]",
+        "tests.test_fact_quality_regressions::test_explicit_dates_are_not_discarded_or_merged[group]",
+        "tests.test_trusted_workflow::test_confirmation_rejects_mismatched_authority[account-403]"
+      ],
+      "errors": [],
+      "skipped": 7,
+      "total": 1448
+    },
+    "companion": {
+      "passed": 972,
+      "skipped": 16,
+      "failures": [
+        "tests.test_profile_joint.ProfileJointTests::test_core_consumes_real_producer_profiles_and_stops_after_withdrawal",
+        "tests.test_source_https.HttpsSourceTests::test_core_https_first_identity_fanout_facts_and_background_check"
+      ],
+      "subtests_passed": 130,
+      "new_regressions_observed": 0
+    },
+    "baseline_reproductions": [
+      ".runtime/memory-quality12/memory-known-baseline.log",
+      ".runtime/memory-quality11/baseline-reproduced.log"
+    ],
+    "full_logs": [
+      ".runtime/memory-quality12/memory-full-final-{0,1,2,3}.log",
+      ".runtime/memory-quality12/full-companion-r6.log"
+    ],
+    "static_changed_files": "Ruff check, format check and git diff --check passed"
+  },
+  "native": {
+    "inputs": 204,
+    "sent": 203,
+    "failed": 1,
+    "final_r6_inputs": 54,
+    "final_r6_sent": 54,
+    "registered_people": 100,
+    "actual_speakers": 21,
+    "administrators": 1,
+    "rooms": [
+      "dm:u000",
+      "dm:u070",
+      "dm:u072",
+      "dm:u080",
+      "dm:u090",
+      "dm:u092",
+      "dm:u099",
+      "g00",
+      "g01",
+      "g07",
+      "g08",
+      "g09"
+    ],
+    "maximum_overlapping_inputs": 6,
+    "final_model_peak": 4,
+    "primary_cold_answer_scores": {
+      "before-probes": {
+        "passed": 1,
+        "total": 5
+      },
+      "probes": {
+        "passed": 5,
+        "total": 5
+      },
+      "cold-heldout": {
+        "passed": 3,
+        "total": 3
+      },
+      "cold-final": {
+        "passed": 4,
+        "total": 4
+      }
+    },
+    "final_mixed_stable_facts": 6,
+    "final_mixed_cold_answers": "6/6",
+    "mixed_temporary_hypothetical_other_person_facts_persisted": 0,
+    "boundary_counts": {
+      "dialogue_prompts": 203,
+      "evidence_units": 78,
+      "private_prompts": 86
+    },
+    "boundary_violations": 0,
+    "cohorts": {
+      "admin": {
+        "inputs": 8,
+        "states": {
+          "sent": 8
+        },
+        "model_calls": 12,
+        "learning": {
+          "completed": 8
+        },
+        "error": null,
+        "model_peak": 2,
+        "source": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-13\\task\\upgrade-20261013\\quality12-20261020\\admin\\source-manifest.json"
+      },
+      "before-live": {
+        "inputs": 36,
+        "states": {
+          "sent": 36
+        },
+        "model_calls": 62,
+        "learning": {
+          "completed": 36
+        },
+        "error": null,
+        "model_peak": 3,
+        "source": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-13\\task\\upgrade-20261013\\quality12-20261020\\before-live\\source-manifest.json",
+        "timings": {
+          "private-normal": {
+            "inputs": 8,
+            "sent": 8,
+            "first": {
+              "n": 8,
+              "median": 10.281,
+              "maximum": 12.361
+            },
+            "full": {
+              "n": 8,
+              "median": 10.302,
+              "maximum": 12.413
+            }
+          },
+          "two-normal": {
+            "inputs": 6,
+            "sent": 6,
+            "first": {
+              "n": 6,
+              "median": 11.467,
+              "maximum": 14.593
+            },
+            "full": {
+              "n": 6,
+              "median": 11.501,
+              "maximum": 14.67
+            }
+          },
+          "two-overlap": {
+            "inputs": 4,
+            "sent": 4,
+            "first": {
+              "n": 4,
+              "median": 14.98,
+              "maximum": 17.173
+            },
+            "full": {
+              "n": 4,
+              "median": 15.024,
+              "maximum": 17.212
+            }
+          },
+          "three-normal": {
+            "inputs": 6,
+            "sent": 6,
+            "first": {
+              "n": 6,
+              "median": 10.63,
+              "maximum": 12.701
+            },
+            "full": {
+              "n": 6,
+              "median": 10.668,
+              "maximum": 12.76
+            }
+          },
+          "three-overlap": {
+            "inputs": 6,
+            "sent": 6,
+            "first": {
+              "n": 6,
+              "median": 15.176,
+              "maximum": 25.754
+            },
+            "full": {
+              "n": 6,
+              "median": 15.252,
+              "maximum": 25.863
+            }
+          },
+          "mixed-overlap": {
+            "inputs": 6,
+            "sent": 6,
+            "first": {
+              "n": 6,
+              "median": 18.279,
+              "maximum": 24.924
+            },
+            "full": {
+              "n": 6,
+              "median": 18.408,
+              "maximum": 29.483
+            }
+          }
+        }
+      },
+      "before-probes": {
+        "inputs": 24,
+        "states": {
+          "sent": 24
+        },
+        "model_calls": 46,
+        "learning": {
+          "completed": 23,
+          "blocked": 1
+        },
+        "error": null,
+        "model_peak": 2,
+        "source": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-13\\task\\upgrade-20261013\\quality12-20261020\\before-probes\\source-manifest.json"
+      },
+      "cold-final": {
+        "inputs": 11,
+        "states": {
+          "sent": 11
+        },
+        "model_calls": 18,
+        "learning": {
+          "completed": 11
+        },
+        "error": null,
+        "model_peak": 1,
+        "source": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-13\\task\\upgrade-20261013\\quality12-20261020\\cold-final\\source-manifest.json"
+      },
+      "cold-heldout": {
+        "inputs": 6,
+        "states": {
+          "sent": 6
+        },
+        "model_calls": 10,
+        "learning": {
+          "completed": 6
+        },
+        "error": null,
+        "model_peak": 1,
+        "source": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-13\\task\\upgrade-20261013\\quality12-20261020\\cold-heldout\\source-manifest.json"
+      },
+      "heldout": {
+        "inputs": 15,
+        "states": {
+          "sent": 15
+        },
+        "model_calls": 28,
+        "learning": {
+          "completed": 15
+        },
+        "error": null,
+        "model_peak": 2,
+        "source": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-13\\task\\upgrade-20261013\\quality12-20261020\\heldout\\source-manifest.json"
+      },
+      "live": {
+        "inputs": 36,
+        "states": {
+          "sent": 36
+        },
+        "model_calls": 62,
+        "learning": {
+          "completed": 36
+        },
+        "error": null,
+        "model_peak": 4,
+        "source": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-13\\task\\upgrade-20261013\\quality12-20261020\\live\\source-manifest.json",
+        "timings": {
+          "private-normal": {
+            "inputs": 8,
+            "sent": 8,
+            "first": {
+              "n": 8,
+              "median": 10.36,
+              "maximum": 26.644
+            },
+            "full": {
+              "n": 8,
+              "median": 10.38,
+              "maximum": 26.665
+            }
+          },
+          "two-normal": {
+            "inputs": 6,
+            "sent": 6,
+            "first": {
+              "n": 6,
+              "median": 12.499,
+              "maximum": 24.97
+            },
+            "full": {
+              "n": 6,
+              "median": 12.572,
+              "maximum": 25.005
+            }
+          },
+          "two-overlap": {
+            "inputs": 4,
+            "sent": 4,
+            "first": {
+              "n": 4,
+              "median": 13.789,
+              "maximum": 16.837
+            },
+            "full": {
+              "n": 4,
+              "median": 13.852,
+              "maximum": 16.9
+            }
+          },
+          "three-normal": {
+            "inputs": 6,
+            "sent": 6,
+            "first": {
+              "n": 6,
+              "median": 10.517,
+              "maximum": 19.036
+            },
+            "full": {
+              "n": 6,
+              "median": 10.561,
+              "maximum": 19.09
+            }
+          },
+          "three-overlap": {
+            "inputs": 6,
+            "sent": 6,
+            "first": {
+              "n": 6,
+              "median": 15.169,
+              "maximum": 25.753
+            },
+            "full": {
+              "n": 6,
+              "median": 15.228,
+              "maximum": 25.805
+            }
+          },
+          "mixed-overlap": {
+            "inputs": 6,
+            "sent": 6,
+            "first": {
+              "n": 6,
+              "median": 20.472,
+              "maximum": 25.402
+            },
+            "full": {
+              "n": 6,
+              "median": 20.533,
+              "maximum": 25.486
+            }
+          }
+        }
+      },
+      "mixed": {
+        "inputs": 16,
+        "states": {
+          "sent": 15,
+          "failed": 1
+        },
+        "model_calls": 25,
+        "learning": {
+          "completed": 16
+        },
+        "error": null,
+        "model_peak": 2,
+        "source": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-13\\task\\upgrade-20261013\\quality12-20261020\\mixed\\source-manifest.json"
+      },
+      "mixed-final": {
+        "inputs": 16,
+        "states": {
+          "sent": 16
+        },
+        "model_calls": 27,
+        "learning": {
+          "completed": 16
+        },
+        "error": null,
+        "model_peak": 2,
+        "source": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-13\\task\\upgrade-20261013\\quality12-20261020\\mixed-final\\source-manifest.json"
+      },
+      "probes": {
+        "inputs": 24,
+        "states": {
+          "sent": 24
+        },
+        "model_calls": 44,
+        "learning": {
+          "completed": 24
+        },
+        "error": null,
+        "model_peak": 2,
+        "source": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-13\\task\\upgrade-20261013\\quality12-20261020\\probes\\source-manifest.json"
+      },
+      "time-refined": {
+        "inputs": 10,
+        "states": {
+          "sent": 10
+        },
+        "model_calls": 18,
+        "learning": {
+          "completed": 10
+        },
+        "error": null,
+        "model_peak": 2,
+        "source": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-13\\task\\upgrade-20261013\\quality12-20261020\\time-refined\\source-manifest.json"
+      },
+      "timeout-recovery": {
+        "inputs": 2,
+        "states": {
+          "sent": 2
+        },
+        "model_calls": 3,
+        "learning": {
+          "completed": 2
+        },
+        "error": null,
+        "model_peak": 2,
+        "source": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-13\\task\\upgrade-20261013\\quality12-20261020\\timeout-recovery\\source-manifest.json"
+      }
+    },
+    "timing": {
+      "before-live": {
+        "inputs": 36,
+        "states": {
+          "sent": 36
+        },
+        "first": {
+          "n": 36,
+          "median": 12.543,
+          "maximum": 25.754
+        },
+        "full": {
+          "n": 36,
+          "median": 12.587,
+          "maximum": 29.483
+        },
+        "preflight": {
+          "n": 76,
+          "median": 0.594,
+          "maximum": 2.64
+        },
+        "preflight_per_input": {
+          "n": 36,
+          "median": 1.18,
+          "maximum": 8.421
+        },
+        "preflight_wire_reads": {
+          "platform:/internal/v2/bot-delivery/context": 121,
+          "platform:/internal/v1/qq-admin/check": 93,
+          "platform:/internal/v1/origins/resolve": 1515,
+          "memory:/internal/v1/identity/resolve": 471,
+          "platform:/internal/v1/source-access/read": 607,
+          "memory:/internal/v1/memory/context/query": 98,
+          "platform:/internal/v1/books/reading": 4,
+          "memory:/internal/v1/memory/context/history": 153,
+          "memory:/internal/v1/memory/context/input-history": 267,
+          "platform:/internal/v1/model-config/snapshot": 30,
+          "platform:/internal/v2/bot-delivery/send": 5,
+          "platform:/internal/v2/bot-delivery/finalize": 5,
+          "platform:/internal/v2/bot-delivery/query": 77,
+          "memory:/internal/v1/memory/profiles/select": 14,
+          "memory:/internal/v1/memory/turn-commits": 4,
+          "memory:/internal/v1/memory/candidates/process": 3
+        },
+        "model_calls": 62,
+        "model_peak": 3,
+        "model_slot_wait_ms": {
+          "n": 36,
+          "median": 0.008,
+          "maximum": 2144.317
+        },
+        "model_header_wait": {
+          "n": 36,
+          "median": 2.461,
+          "maximum": 5.812
+        },
+        "model_first_content_wait": {
+          "n": 36,
+          "median": 3.922,
+          "maximum": 7.328
+        },
+        "measurement": "Capture into standalone OneBot observation queue to first local host send callback / final Core sent acknowledgement. First segment is an actual sentence segment, not first provider token. Native owner transport and model streaming are real; QQ send callback is isolated.",
+        "caveat": "Sequential before/after runs, variable external provider and reply lengths. Small deterministic workload; no production QQ/Gemini SLA or 100-concurrent-user claim."
+      },
+      "live": {
+        "inputs": 36,
+        "states": {
+          "sent": 36
+        },
+        "first": {
+          "n": 36,
+          "median": 12.802,
+          "maximum": 26.644
+        },
+        "full": {
+          "n": 36,
+          "median": 12.955,
+          "maximum": 26.665
+        },
+        "preflight": {
+          "n": 77,
+          "median": 0.515,
+          "maximum": 4.984
+        },
+        "preflight_per_input": {
+          "n": 36,
+          "median": 1.039,
+          "maximum": 8.203
+        },
+        "preflight_wire_reads": {
+          "platform:/internal/v2/bot-delivery/context": 117,
+          "platform:/internal/v1/origins/resolve": 1369,
+          "platform:/internal/v1/qq-admin/check": 90,
+          "memory:/internal/v1/identity/resolve": 426,
+          "platform:/internal/v1/source-access/read": 542,
+          "memory:/internal/v1/memory/context/query": 95,
+          "platform:/internal/v1/books/reading": 6,
+          "memory:/internal/v1/memory/context/history": 129,
+          "memory:/internal/v1/memory/context/input-history": 237,
+          "platform:/internal/v1/model-config/snapshot": 20,
+          "platform:/internal/v2/bot-delivery/query": 128,
+          "memory:/internal/v1/memory/turn-commits": 3,
+          "memory:/internal/v1/memory/profiles/select": 15,
+          "platform:/internal/v2/bot-delivery/finalize": 10,
+          "platform:/internal/v2/bot-delivery/send": 4
+        },
+        "model_calls": 62,
+        "model_peak": 4,
+        "model_slot_wait_ms": {
+          "n": 36,
+          "median": 0.008,
+          "maximum": 1158.262
+        },
+        "model_header_wait": {
+          "n": 36,
+          "median": 3.282,
+          "maximum": 18.375
+        },
+        "model_first_content_wait": {
+          "n": 36,
+          "median": 4.351,
+          "maximum": 19.032
+        },
+        "measurement": "Capture into standalone OneBot observation queue to first local host send callback / final Core sent acknowledgement. First segment is an actual sentence segment, not first provider token. Native owner transport and model streaming are real; QQ send callback is isolated.",
+        "caveat": "Sequential before/after runs, variable external provider and reply lengths. Small deterministic workload; no production QQ/Gemini SLA or 100-concurrent-user claim."
+      }
+    },
+    "controlled_read_timeout": "One local nonexecuted retryable 408; same request hash, both inputs sent, two dialogue calls.",
+    "model": {
+      "phase_calls": 355,
+      "final_states": {
+        "completed": 355
+      },
+      "cumulative_used": 6713,
+      "cap": 7000,
+      "remaining": 287,
+      "fixed_smoke_excluded": 6,
+      "old_unknown_reservations_still_counted": true
+    },
+    "final_source": {
+      "memory": {
+        "revision": "8662c1a1d72c439eb7e8f032c5a2b7c86e4b008e+Q12-r6",
+        "runtime_files": 90,
+        "equal": true
+      },
+      "companion": {
+        "revision": "fd5d872bd3e722c08b0024ac55fa2fadd4bc1840+Q12-r6",
+        "runtime_files": 95,
+        "equal": true
+      }
+    },
+    "reused_evidence": {
+      "companion": {
+        "from_revision": "r4",
+        "final_revision": "r6",
+        "changed_runtime_files": [
+          "src/tianshu_companion/clients.py"
+        ],
+        "basis": "Time rendering/checkpoint code unchanged; new client recovery independently retested."
+      },
+      "memory": {
+        "from_revision": "r5",
+        "final_revision": "r6",
+        "changed_runtime_files": [],
+        "basis": "Final full unit suite source is byte-equivalent after LF normalization."
+      }
+    },
+    "real_qq_sent": false,
+    "real_notifications_sent": false,
+    "production_memory_mounted": false,
+    "daily_gemini_changed": false,
+    "evidence": "C:\\Users\\Administrator\\Documents\\Codex\\2026-10-13\\task\\upgrade-20261013\\quality12-20261020"
+  },
+  "limitations": [
+    "Refined time attribution query still adds speaker-reported clock as send time; source distinction improves but wording scope remains imperfect.",
+    "New group consent heldout names explicit confirmer/refuser correctly but undercounts the original proposer and uses anonymous speaker references.",
+    "Original mixed cohort retained one pre-model failure with concurrent 408/400; raw trace does not establish first cause.",
+    "Lexical cup aliases do not establish universal semantic recall or merge arbitrary model entity kinds.",
+    "Registered population is 100; only observed speakers and at most six overlapping inputs are counted in this round.",
+    "End-to-end latency is not demonstrably faster: median full reply 12.587 to 12.955 seconds; per-check maximum increased despite lower median.",
+    "Capacity traversal race is reproduced and fixed, but original incident lacks errno/path; exact production trigger remains unproven.",
+    "Five component failures are reproduced baseline failures; 23 skips are not passes.",
+    "No real QQ/Gemini latency or 100-user simultaneous load claim."
+  ],
+  "next_focus": [
+    "Profile slow context preparation and send-boundary source verification, preserving fresh authority and exact source lease boundaries; measure separately from model ingress.",
+    "Narrow event-time answers to the asked clause and include the proposer when explaining group intent; validate new heldout wording rather than treating prompt rules as success.",
+    "Attribute OpenCode header-wait tails using existing request timings before claiming a scheduling or provider bottleneck."
+  ],
+  "handoffs": {
+    "memory": "worktrees/TS-217/tianshu-memory/docs/handoffs/TS-217.md",
+    "companion": "worktrees/TS-218/tianshu-companion/docs/handoffs/TS-218.md"
+  },
+  "root_mixed_files_not_committed": [
+    "docs/development/CURRENT.md",
+    "docs/development/tasks.json"
+  ]
+}

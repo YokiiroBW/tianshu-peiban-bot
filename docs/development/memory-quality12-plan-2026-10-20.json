@@ -1,0 +1,63 @@
+{
+  "status": "local_verified_not_integrated",
+  "recorded_at": "2026-10-20T05:59:12.267799+00:00",
+  "tasks": [
+    {
+      "id": "TS-217",
+      "project": "memory",
+      "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\TS-217\\tianshu-memory",
+      "branch": "codex/ts-217-cold-recall",
+      "base": "8662c1a1d72c439eb7e8f032c5a2b7c86e4b008e"
+    },
+    {
+      "id": "TS-218",
+      "project": "companion",
+      "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\TS-218\\tianshu-companion",
+      "branch": "codex/ts-218-time-queue",
+      "base": "fd5d872bd3e722c08b0024ac55fa2fadd4bc1840"
+    }
+  ],
+  "production_write_window": "released_by_TS216_no_memory_feature_deployment",
+  "recovery_thread": "01a154d7-9ef1-7ad3-91a1-5dd685a5fec9",
+  "recovery_note": "Same ten-service capacity_guard_io_failure is being restored by the already-authorized settings thread; independently verify its final result before production work.",
+  "model_start": 6358,
+  "model_cap": 7000,
+  "phase": "C:/Users/Administrator/Documents/Codex/2026-10-13/task/upgrade-20261013/quality12-20261020",
+  "order": [
+    "Independent read-only confirmation of current guard root cause and restored ten services",
+    "Cold object aliases with color/owner/ordinal/material discrimination",
+    "Typed event versus utterance evidence",
+    "Bounded fresh checkpoint verification and comparable queue measurements"
+  ],
+  "preserve": [
+    "current data and settings",
+    "Gemini daily default",
+    "latest comics",
+    "audiobooks and co-reading",
+    "Books/Ebooks and all external_data_binds"
+  ],
+  "production_product_deployment": false,
+  "model_original_cap": 6400,
+  "model_cap_extension": 600,
+  "model_extension_basis": "Current user explicitly permits appending the existing model ledger quota; no purchase or Gemini configuration change.",
+  "recovery": {
+    "status": "independently_verified_restored",
+    "task": "TS-216",
+    "guard_commit": "838cc89d10f565ca344c16e498fc83d5dec67574",
+    "state_dir": "/volume1/tianshu-v2-resident-updates/capacity-scan-recovery-20261020-838cc89/capacity-state-78551bc40495492db6b4df0f42edb8c1",
+    "checked_at": "2026-10-20T06:12:44.061303+00:00",
+    "guard": "ready",
+    "core_services_healthy": 5,
+    "running_owners": 10,
+    "web_http": 200,
+    "platform_mounts": 19,
+    "evidence": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\memory-quality12\\nas-restored.json",
+    "underlying_incident_errno_path_unknown": true
+  },
+  "completed_at": "2026-10-20T07:20:54.232523+00:00",
+  "implementation_commits": {
+    "memory": "97f2b01d403102634c0e537593c68069dd7b8b6c",
+    "companion": "ed4af8b7ac328f5b700c1e1db696d1d1bad7318d"
+  },
+  "delivery_record": "docs/development/memory-quality12-delivery-2026-10-20.json"
+}
