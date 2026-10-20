@@ -1,0 +1,142 @@
+{
+  "date": "2026-10-20",
+  "authorization": "按这个开始做吧；同聊天gpt-6.1-sol/max并行",
+  "state": "local_code_integrated_pg_verified_live_redis_pending",
+  "local_code_complete": true,
+  "full_validation_complete": false,
+  "workspace_check": {
+    "status": "environment_blocked",
+    "reason": "Existing TS-016 worktree has different Windows ownership; Git dubious-ownership refusal",
+    "global_safe_directory_changed": false
+  },
+  "pushed": false,
+  "deployed": false,
+  "nas_accessed": false,
+  "production_migrated": false,
+  "real_models_or_qq": false,
+  "products": {
+    "platform": {
+      "commit": "14c2d1a33579f0c8e7b41da6422b1b6115b2419e",
+      "coordinator": "projects\\tianshu-platform",
+      "state": "local_integrated_not_deployed",
+      "wheel_sha256": "e7c8ef910a43a5e2d1f426948fe19e4ea3942e1ff0618a35ecfae03bfedc1482",
+      "git_blob_zip_crc": "passed"
+    },
+    "memory": {
+      "commit": "f496c25ea79a9f47c4a53d4090294a5d2d0949e3",
+      "coordinator": "projects\\tianshu-memory",
+      "state": "local_integrated_not_deployed",
+      "wheel_sha256": "e7c8ef910a43a5e2d1f426948fe19e4ea3942e1ff0618a35ecfae03bfedc1482",
+      "git_blob_zip_crc": "passed"
+    },
+    "companion": {
+      "commit": "11b3761b43c164a5be87214abbc4458560ff9449",
+      "coordinator": "projects\\tianshu-companion",
+      "state": "local_integrated_not_deployed",
+      "wheel_sha256": "e7c8ef910a43a5e2d1f426948fe19e4ea3942e1ff0618a35ecfae03bfedc1482",
+      "git_blob_zip_crc": "passed"
+    },
+    "model-gateway": {
+      "commit": "d7336e013e0b194ed87717af5c288be89c18db41",
+      "coordinator": "projects\\tianshu-model-gateway",
+      "state": "local_integrated_not_deployed",
+      "wheel_sha256": "e7c8ef910a43a5e2d1f426948fe19e4ea3942e1ff0618a35ecfae03bfedc1482",
+      "git_blob_zip_crc": "passed"
+    }
+  },
+  "shared": {
+    "version": "0.1.0",
+    "source_commit": "119ebd6",
+    "root_integration_commit": "4ebbc00",
+    "candidate_integration_commit": "295cd02",
+    "wheel_sha256": "e7c8ef910a43a5e2d1f426948fe19e4ea3942e1ff0618a35ecfae03bfedc1482",
+    "test_cases": 24,
+    "result": "passed",
+    "real_postgresql": true,
+    "redis_backend": "fakeredis_only"
+  },
+  "infrastructure": {
+    "branch": "codex/ts-236-storage-integration",
+    "candidate_commit": "0b22768b727d7d0ec5743de9f80bc2d50a7c2dc0",
+    "baseline_commit": "0864ae8f4a9b24b63dee0435699b09613b38797f",
+    "packaging_commit": "a55917a629bb4ddd6f5d013e67ce8a6fd2941db6",
+    "rollback_protection_commit": "cd5640caa5a17fb272e4ff1f721dd1b0564a45be",
+    "native_recovery_commit": "1860683f3b7eb8d07cac8b580003f1af5b844403",
+    "worktree": "worktrees/TS-236/workspace",
+    "state": "local_candidate_not_merged_into_dirty_root",
+    "wheel_sha256": "e7c8ef910a43a5e2d1f426948fe19e4ea3942e1ff0618a35ecfae03bfedc1482",
+    "git_blob_zip_crc": "passed",
+    "default_suite": "208 passed, 175 subtests, 1 skip; 2 failures; missing PyYAML corrected and relevant case passed; remaining AST parent_cold failure reproduced at 0864ae8",
+    "rollback_followup": "30 passed, 3 subtests",
+    "independent_storage_wiring": "15 passed",
+    "independent_recovery_export": "1 passed",
+    "native_and_default_recovery": {
+      "passed": 26,
+      "new_cases": 7,
+      "real_pg_cases": 6,
+      "existing_cases": 19
+    }
+  },
+  "independent_product_acceptance": {
+    "platform": "22 passed",
+    "memory": "5 passed",
+    "companion": "4 selected cases passed in separate calls; one initial contract-root invocation corrected",
+    "gateway": "coordinator-owned native integration; details TS-234"
+  },
+  "product_verification": {
+    "platform": {
+      "storage": "109 passed, 2 skipped; 111 total",
+      "committed_wheel": "32 passed",
+      "default_full": "1457 passed, 20 failed, 77 errors, 290 skipped; environment corrections and baseline family reproductions documented"
+    },
+    "memory": {
+      "storage": "28 passed; 27 real PG and 1 SQLite",
+      "default_full": "1442 passed, 6 failed, 21 skipped",
+      "failed_case_followup": "3 passed, 3 failed; remaining 3 reproduced at Q12 baseline",
+      "lifetime_http_probes": "208 passed"
+    },
+    "companion": {
+      "default_components": "978 passed, 3 failed, 18 skipped; 2 corrected/followed up, remaining old HTTPS fixture issue",
+      "final_missing_table_and_storage": "20 passed including 7 real PG"
+    },
+    "gateway": {
+      "real_pg_wires": "25 passed",
+      "native_ledger_followup": "6 passed",
+      "sqlite": "component results and baseline status-code failure in handoff",
+      "additional": "82 of 83 initially passed; timing case passed individually at baseline and candidate"
+    }
+  },
+  "benchmark": {
+    "scope": "driver_sql_only_local_windows",
+    "same_data": true,
+    "repetitions": 3,
+    "records": 1000,
+    "payload_utf8_bytes": 1242,
+    "raw": ".runtime/storage-sql-timing-20261020.json",
+    "overall_speedup_claim": false,
+    "real_redis_hit_rate_measured": false,
+    "models_or_nas_measured": false
+  },
+  "files": {
+    "media_paths_and_hardlinks": "unchanged",
+    "knowledge_originals_and_fulltext": "FileStore references; includes registered external file roots in cold backup",
+    "reliable_media_and_large_inputs": "owned file roots; SQL retains metadata/hashes/recovery state",
+    "independent_guard_and_backend_markers": "preserved and backed up"
+  },
+  "limitations": [
+    "real Redis not tested; previous binary-download action rejected by automatic approval with no specific reason",
+    "isolated NAS Redis test awaits user authorization or provided test service; no NAS action taken",
+    "no local Docker; no image build/run or actual container/network/SIGTERM validation",
+    "default full suites retain documented baseline/environment failures; not all green",
+    "native backup requires compatible PG CLI clients and temporary-database CREATEDB maintenance privilege",
+    "resident only updates Platform image; each product must be upgraded to its storage-capable candidate before enabling options",
+    "infrastructure candidate intentionally isolated from unrelated dirty root; product coordinators fast-forwarded"
+  ],
+  "synthetic_postgres": {
+    "version": "16.15",
+    "scope": ".runtime/storage-services/postgres-data",
+    "state": "stopped_after_validation",
+    "existing_other_pg_instances": "not_operated"
+  },
+  "handoff": "worktrees/TS-236/workspace/docs/handoffs/TS-236.md"
+}
