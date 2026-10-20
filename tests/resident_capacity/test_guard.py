@@ -1,5 +1,6 @@
 """Isolated metadata/Docker fixtures; no Docker daemon or NAS access."""
 
+import errno
 import json
 import subprocess
 import sys
@@ -441,6 +442,64 @@ class ResidentCapacityTests(unittest.TestCase):
         used, free = guard.capacity(self.config.root, (self.config.root,))
         self.assertEqual(used, 3)
         self.assertGreater(free, 0)
+
+    def test_capacity_handles_queued_directory_removed_before_stat(self):
+        child = self.config.root / "rotating"
+        child.mkdir()
+        (self.config.root / "retained.bin").write_bytes(b"retained")
+        original = Path.stat
+
+        def remove_then_stat(path, *args, **kwargs):
+            if path == child:
+                child.rmdir()
+            return original(path, *args, **kwargs)
+
+        with patch.object(Path, "stat", remove_then_stat):
+            used, free = guard.capacity(self.config.root)
+        self.assertEqual(used, len(b"retained"))
+        self.assertGreater(free, 0)
+
+    def test_capacity_handles_directory_removed_before_open(self):
+        child = self.config.root / "rotating"
+        child.mkdir()
+        (self.config.root / "retained.bin").write_bytes(b"retained")
+        original = guard.os.scandir
+
+        def remove_then_open(path):
+            if Path(path) == child:
+                child.rmdir()
+            return original(path)
+
+        with patch.object(guard.os, "scandir", side_effect=remove_then_open):
+            used, free = guard.capacity(self.config.root)
+        self.assertEqual(used, len(b"retained"))
+        self.assertGreater(free, 0)
+
+    def test_capacity_missing_root_still_refuses(self):
+        self.config.root.rename(self.config.root.with_name("removed-root"))
+        with self.assertRaisesRegex(guard.Unsafe, "deployment_scan_failed"):
+            guard.capacity(self.config.root)
+
+    def test_capacity_permission_and_io_errors_still_refuse(self):
+        child = self.config.root / "unreadable"
+        child.mkdir()
+        original_stat, original_open = Path.stat, guard.os.scandir
+        for stage in ("stat", "open"):
+            for code in (errno.EACCES, errno.EIO):
+                with self.subTest(stage=stage, errno=code):
+                    def failing_stat(path, *args, **kwargs):
+                        if path == child:
+                            raise OSError(code, "synthetic metadata failure")
+                        return original_stat(path, *args, **kwargs)
+
+                    def failing_open(path):
+                        if Path(path) == child:
+                            raise OSError(code, "synthetic metadata failure")
+                        return original_open(path)
+
+                    method = patch.object(Path, "stat", failing_stat) if stage == "stat" else patch.object(guard.os, "scandir", side_effect=failing_open)
+                    with method, self.assertRaisesRegex(guard.Unsafe, "deployment_scan_failed"):
+                        guard.capacity(self.config.root)
 
     def test_docker_template_excludes_secret_fields_and_unit_has_watchdog(self):
         self.assertNotIn(".Config.Env", guard.INSPECT_FORMAT)

@@ -570,11 +570,11 @@ def capacity(root: Path, free_paths=(), *, max_entries=1_000_000):
     total, count, stack, filesystems = 0, 0, [root], {}
     while stack:
         directory = stack.pop()
-        info = directory.stat(follow_symlinks=False)
-        if not stat.S_ISDIR(info.st_mode):
-            raise Unsafe("deployment_tree_invalid")
-        filesystems.setdefault(info.st_dev, directory)
         try:
+            info = directory.stat(follow_symlinks=False)
+            if not stat.S_ISDIR(info.st_mode):
+                raise Unsafe("deployment_tree_invalid")
+            filesystems.setdefault(info.st_dev, directory)
             with os.scandir(directory) as entries:
                 for entry in entries:
                     count += 1
@@ -593,6 +593,12 @@ def capacity(root: Path, free_paths=(), *, max_entries=1_000_000):
                         filesystems.setdefault(info.st_dev, Path(entry.path))
                     else:
                         raise Unsafe("deployment_tree_invalid")
+        except FileNotFoundError as error:
+            if directory == root:
+                raise Unsafe("deployment_scan_failed") from error
+            # Runtime cleanup can remove a queued child before stat/scandir.
+            # Its absence is valid; the next pass counts the current tree.
+            continue
         except OSError as error:
             raise Unsafe("deployment_scan_failed") from error
     try:
