@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tianshu-storage"
-version = "0.1.0"
+version = "0.1.1"
 description = "Explicit SQLite/PostgreSQL selection, disposable Redis caches and immutable files"
 requires-python = ">=3.12"
 dependencies = ["psycopg[binary,pool]==3.3.6", "redis==7.4.1"]

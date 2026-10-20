@@ -10,7 +10,9 @@ See [INTERFACE.md](INTERFACE.md) for the product API and read-only diagnostics. 
 
 ## Distribution
 
-Build the shared wheel once and vendor that exact artifact in every product under `vendor/tianshu_storage-0.1.0-py3-none-any.whl`. Product manifests pin `tianshu-storage==0.1.0`; uv projects bind that package to the relative wheel. Container builds copy the wheel before installing the product. Development editable paths must never appear in deployment locks.
+Release wheels are immutable. Build each release once and vendor that exact artifact in consumers adopting it. Version 0.1.1 uses `vendor/tianshu_storage-0.1.1-py3-none-any.whl` and a `tianshu-storage==0.1.1` pin; uv projects bind the package to the relative wheel. Consumers retaining 0.1.0 keep their original artifact and pin. Container builds copy the selected wheel before installing the product. Development editable paths must never appear in deployment locks.
+
+Version 0.1.1 reuses PostgreSQL column names and immutable name-to-position mappings for each result set. Public row/cursor behavior and the 0.1 interface remain unchanged; the native SQLite connection path is unchanged.
 
 ## Validation
 

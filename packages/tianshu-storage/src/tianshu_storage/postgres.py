@@ -2,6 +2,7 @@
 
 import re
 from collections.abc import Sequence
+from types import MappingProxyType
 from uuid import uuid4
 
 import psycopg
@@ -9,11 +10,23 @@ import psycopg
 from .errors import StorageError, postgres_error
 
 
+def _row_metadata(columns):
+    columns = tuple(columns)
+    positions = {name.casefold(): n for n, name in reversed(list(enumerate(columns)))}
+    return columns, MappingProxyType(positions)
+
+
 class Row(Sequence):
     def __init__(self, values, columns):
         self._values = tuple(values)
-        self._columns = tuple(columns)
-        self._positions = {name.casefold(): n for n, name in reversed(list(enumerate(columns)))}
+        self._columns, self._positions = _row_metadata(columns)
+
+    @classmethod
+    def _from_metadata(cls, values, metadata):
+        row = cls.__new__(cls)
+        row._values = tuple(values)
+        row._columns, row._positions = metadata
+        return row
 
     def __getitem__(self, key):
         if isinstance(key, str):
@@ -37,14 +50,15 @@ class MemoryCursor:
     def __init__(self, rows=(), columns=(), rowcount=-1, lastrowid=None):
         self._rows = iter(rows)
         self._columns = tuple(columns)
-        self.description = [(name, None, None, None, None, None, None) for name in columns]
+        self._row_metadata = _row_metadata(self._columns)
+        self.description = [(name, None, None, None, None, None, None) for name in self._columns]
         self.rowcount = rowcount
         self.lastrowid = lastrowid
         self.arraysize = 1
 
     def fetchone(self):
         value = next(self._rows, None)
-        return None if value is None else Row(value, self._columns)
+        return None if value is None else Row._from_metadata(value, self._row_metadata)
 
     def fetchmany(self, size=None):
         rows = []
@@ -150,13 +164,17 @@ class Cursor:
         self.raw = raw
         self._delegate = None
         self.arraysize = 1
+        self._row_result = None
+        self._row_metadata = None
 
     def execute(self, sql, parameters=()):
         self._delegate = self.connection.execute(sql, parameters)
+        self._clear_row_metadata()
         return self
 
     def executemany(self, sql, parameters):
         self._delegate = self.connection.executemany(sql, parameters)
+        self._clear_row_metadata()
         return self
 
     @property
@@ -173,6 +191,24 @@ class Cursor:
     def lastrowid(self):
         return self._delegate.lastrowid if self._delegate is not None else None
 
+    def _clear_row_metadata(self):
+        self._row_result = self._row_metadata = None
+
+    def _get_row_metadata(self):
+        result = getattr(self.raw, "pgresult", None)
+        if result is None:
+            # Non-psycopg cursors may expose only a changing DB-API description.
+            columns = tuple(field.name for field in self.raw.description)
+            if self._row_metadata is None or columns != self._row_metadata[0]:
+                self._row_metadata = _row_metadata(columns)
+            self._row_result = None
+        elif self._row_metadata is None or result is not self._row_result:
+            # psycopg creates new Column objects on every description access.
+            # Its PGresult identifies the current execute()/nextset() result.
+            self._row_metadata = _row_metadata(field.name for field in self.raw.description)
+            self._row_result = result
+        return self._row_metadata
+
     def fetchone(self):
         if self._delegate is not None:
             return self._delegate.fetchone()
@@ -182,10 +218,9 @@ class Cursor:
             raise postgres_error(exc) from None
         if row is None:
             return None
-        columns = [field.name for field in self.raw.description]
         if self.connection.row_factory is None:
             return tuple(row)
-        return Row(row, columns)
+        return Row._from_metadata(row, self._get_row_metadata())
 
     def fetchmany(self, size=None):
         result = []
@@ -209,10 +244,13 @@ class Cursor:
         return row
 
     def close(self):
-        if self._delegate is not None:
-            self._delegate.close()
-        elif self.raw is not None:
-            self.raw.close()
+        try:
+            if self._delegate is not None:
+                self._delegate.close()
+            elif self.raw is not None:
+                self.raw.close()
+        finally:
+            self._clear_row_metadata()
 
 
 class PostgresConnection:
