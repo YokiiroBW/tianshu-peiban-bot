@@ -54,3 +54,17 @@ SQLite写控制入口为`sqlite_write_control.py`，四case为`local_commit`、`
 `--mode run --stream`可保持两个只读rootfs的容器/热Python与Contracts。先输出`event=ready`；stdin每行`{"case":"local_commit"}`（或其余case）对当前新克隆执行一次并完成所有close/验证后输出sample，`{"case":"stop"}`输出closed。每条命令新开/关闭原生Store，不持SQLite连接等下一条。私有driver负责在**两个worker均无打开连接**时，将下一对全新克隆放到各自专属工作挂载；绑定目录inode应保留，不能靠重命名宿主绑定目录改变容器所见目录。模板和历史结果保持，上一对不能再次run；初态SHA将拒绝已用副本，不能把幂等ledger命中或空commit当预热。
 
 建议正式控制3个block×每case20对，四case合计240对/480真实提交，先后次数按case/block各半；预热也使用独立克隆并单列。始终一次一个活跃调用，旧/新内部绝对DB与guard路径相同、冻结clock/hashseed相同，资源保持CPU0–7/shares128/512MiB。每对**初态**物理bytes/hash必须一致；原生UUID可令提交后bytes不同，比较持久化业务增量及语义签名，不伪造ID。所有异常值和未达标结果保留。该控制覆盖固定普通完整组写入，不代表一切自动事实、并发或真实远端网络负载。NAS驱动、采样、生产足迹与清理由协调者单写，不将私有驱动入库。
+
+## TS-271 共享连接层与运行链路研究
+
+本批固定 Memory 完整历史 `e5e1b394a8f6d318dda4d9280587e599fd64c653`、运行源码 `4447bb4`，不改 Memory 业务代码。original 使用共享存储 0.1.3；optimized 使用本批冻结的 0.1.4。两种镜像的 98 个 Memory 包文件一致，分别核对 8 个共享包文件与依赖闭包；候选测试轮只调整 Memory wheel 的依赖元数据和 RECORD，以装配新共享包，未修改产品仓库的依赖锁定。精确 wheel、源码、镜像和脚本 manifest 见同号报告。
+
+正式研究保持现有三个 Memory suite 的计时与校验边界：三轮、四组合共 36 次，读取/普通写入两 suite 共 4,560 个正式采样，独立 SourceAuthority 写入另 720 个。SQLite 同物理初态控制采用三 block、每 case 每 block 10 对，共 120 对/240 次正式真实提交；另 24 对/48 次预热提交。规模与上批不同，不能合并分母或宣称重用了上批结果。
+
+`memory_flow_profile.py` 另建相同规模的普通来源及 SourceAuthority 夹具，对短 field、关键词、零预算、纯提交、完整消费提交分别归因。hook 仅覆盖当前调用线程；exclusive 桶互斥，inclusive 桶嵌套重叠，不可相加。driver execute/fetch 包含等待；SQLite 的内部执行计入应用桶，不能直接把两种后端的 driver 桶相比。另一次 cProfile 调用只输出函数位置、调用数和时间，不导出参数、正文或原始 profile 文件。该 suite 强制 `profile_only`，返回 `diagnostic_only=true`、空正式 `results`，不计入三轮收益。
+
+`pg_execution_profile.py` 只读取相应 `memory_sql` 已完成夹具，在原生只读事务内核对 schema 并选择当前仍有效且确有记录的 field。对绑定、metadata、候选、records 与 lineage 的固定 SELECT 使用 `EXPLAIN (ANALYZE, BUFFERS, WAL, SETTINGS, SERIALIZE TEXT, TIMING OFF, FORMAT JSON)`，输出去值后的计划结构与统计，不执行 DML、手动 ANALYZE 或参数修改。它同样强制诊断模式；服务器计划与执行耗时不包含完整应用、连接池和客户端网络成本。
+
+`checkout_paired.py` 将旧版本 Git 字节导出的两个 checkout 方法和候选方法交替绑定到同一进程、pool、schema、guard 及产品夹具，每个 case 三 block×100 对。方法切换在计时外，测 checkout+SELECT、原生授权 field 和零预算；每次仍读取当前绑定和原生来源权限，不缓存业务结果。保留全部 wall/thread CPU 样本、每 block 中位数和前后 guard hash。这项因果控制与正式四组合分开；原生 SourceAuthority 链仍由正式 suite 覆盖，不能用本地来源夹具替代远端同步结论。第一候选变慢的样本及修订候选的 CPU 代价均须保留。
+
+`checkout_sequence_compare.py` 用于解释因果控制与正式短查询差异：先导入空 schema，再在 PG 原生写入 300 组、30 次纯提交与35次全流程，得到365组并做100次未计时关键词预热。此前 `checkout_paired` 是 SQLite 写满300组后导入PG，二者不具有相同物理/MVCC历史。新诊断在同 pool/guard 上旋转旧版、当前pipeline、仅去除当前 `_checkout` AST 中 `raw.pipeline` 上下文的顺序模板三种方法；其余设置、完整限定、计划策略和新鲜绑定相同。每 case 三 block×60个trio（另每block6个预热trio），保留全部wall/thread CPU及AST hash。它明确是临时方法替换的独立诊断，未修改已安装候选，不冒称新的产品版本或混入正式样本。
