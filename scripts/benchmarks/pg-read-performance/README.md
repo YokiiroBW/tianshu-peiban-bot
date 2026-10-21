@@ -1,8 +1,8 @@
 # PG读取优化的四组对照
 
-这些负载延续TS247，比较原版/候选版分别使用SQLite和PostgreSQL。代码导入固定镜像中的已安装产品包；公开合成夹具从原版e1da946的Git对象按AST导出，所有版本用相同夹具和合同。协调者在NAS创建UUID独立数据库、受限角色和独立合成文件目录后，通过私有stdin传递连接配置。脚本拒绝非`ts_pgopt_`测试库，不使用Redis。
+这些负载延续TS247，比较原版/候选版分别使用SQLite和PostgreSQL。代码导入固定镜像中的已安装产品包；首批以e1da946为基线并从其Git对象按AST导出公开合成夹具，本批TS257以84c2f56为基线、从84c导出夹具，两边使用相同夹具和合同，各阶段精确来源以对应manifest为准。协调者在NAS创建UUID独立数据库、受限角色和独立合成文件目录后，通过私有stdin传递连接配置。脚本拒绝非`ts_pgopt_`测试库，不使用Redis。
 
-每个负载接受`--config /bench/private.json --backend sqlite|postgresql --variant original|optimized --trial N`，可加`--smoke`。私有配置包含`database`、`postgresql_url`、空`redis_url`，以及精确`original_revision`/`candidate_revision`。优化版在计时前核对安装文件与候选Git字节证明。实际backend必须符合请求，初始化、建表、迁移、种子数据和SQL诊断均在计时外。
+每个负载接受`--config /bench/private.json --backend sqlite|postgresql --variant original|optimized --trial N`，可加`--smoke`。私有配置包含`database`、`postgresql_url`、空`redis_url`，以及精确`original_revision`/`candidate_revision`。当前a020冻结脚本对original和optimized两种镜像都在计时前核对revision及产品/共享包完整安装文件的Git字节证明；不能沿用首批仅候选有proof的历史例外。实际backend必须符合请求，初始化、建表、迁移、种子数据和SQL诊断均在计时外。
 
 `memory_sql.py`保留TS247的300组初始数据、完整组提交和来源→候选→提交边界，新增写入不命中Python，确保30个关键词匹配均在默认32条上限内。测关键词、精确field、零预算和原生来源撤回后的召回；返回签名核对完整组成员和语义字段。该组使用原生LocalFixtureSources，不能代表真实来源同步的完整耗时。
 
@@ -18,7 +18,7 @@ Knowledge另外计量原生受限HTTP/ASGI单块和20块请求，保留序列化
 
 额外的未计时PG调用记录native adapter SQL数，不记录参数和正文。该诊断不包括驱动启动、隐式BEGIN或SQL函数内部语句，也不是跨后端语句数比较。SQLite另做一次未计时trace，覆盖该操作新开的普通及来源只读连接，仅保存command计数和去值规范化后的语句shape哈希；保留trigger重复回调，不将它当作物理I/O。它辅助定位SQLite变化，不能替代三轮时延对照。
 
-候选装入固定版本的共享适配器时，计时前同时核对Memory和tianshu-storage的已安装文件hash；原版保持其原wheel不变。容器只挂测试目录，不挂生产配置、数据或媒体。完整镜像、夹具、合同、脚本hash及清理回执由本批交付记录保存。
+首批原版保留其原wheel；本批TS257两种镜像均离线安装固定共享适配器0.1.2，在相同原e1镜像基底分别装入84c/本批候选产品包，计时前分别核对Memory和tianshu-storage的完整已安装文件集合与hash。容器只挂测试目录，不挂生产配置、数据或媒体。完整镜像、夹具、合同、脚本hash及清理回执由各批交付记录保存。
 
 `knowledge_mature.py`是主36次完成后的补充研究，三轮四组复用各自trial23的既有251块，仅测单块/20块和对应HTTP检索。它不重新导入、不手动ANALYZE或修改参数，保留完整原生授权、两阶段配置/文件校验；记录PG当时的自动统计时间。12次/1,440采样与主研究分开，不能混用两个阶段的分母或将差异全部归因于统计。原始结果和脚本Git字节分别保存，追加研究不替换任何原始样本。
 
