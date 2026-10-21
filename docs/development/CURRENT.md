@@ -1,3 +1,13 @@
+## 2026-10-21 PG短查询与写入优化已本地集成，未部署（TS264/265/269）
+
+Memory main已ff到e5e1b39（完整C4、b166、35255f7、4447、5e0历史），运行冻结4447bb4；共享0.1.3/019b954及wheel a87947a1保持。源码98文件与实测镜像一致，主检出Python3.12离线锁定环境及8个shared安装文件核对通过。Memory代码写权released，Q18可沿完整历史继续，不混入本轮实测。
+
+正式24次/4560、来源写12次/720及SQLite240对/480正式提交已全部通过内容和重开验证。PG来源关键词494.52→270.66ms，来源提交627.95→369.10ms；短field5.16→4.48ms仍慢于SQ2.92。SQLite配对普通写未见稳定退步，来源写约快40%；顺序写入上浮和全部尾延迟保留。
+
+产品相关249通过=102原生PG+147本地/替身；SQLite完整1624通过/103跳过/1项已复现旧400/403失败；shared97全通过。测试UUID库/角色/目录/容器/3镜像标签已清理，十服务/五TLS、配置hash/挂载/guard和129非目标容器已采集字段保持，生产Q15及媒体未改，Redis/模型/QQ无访问。TS265报告1499af1及基准脚本已合入根，全部NAS测试资源清理，未推送部署。
+
+[实测报告](pg-write-performance-2026-10-21.md) · [全部样本](pg-write-performance-2026-10-21.json) · [精确集成与释放](pg-write-integration-2026-10-21.json) · [本批卡](TS-264-pg-write-performance.md)。
+
 # 当前交接
 
 2026-09-30 记忆角色选择已集成部署NAS：Platform95ca75c、Memoryda14cfd（087f9c9仅handoff），线上Companion9863800保持；入口 /#/memory/0。顶端角色选择，概览/投影/记录/游标按actor隔离，切换清空，后台恢复先核验；Luna返修通过。真实Chromium联合1/10.037s、缓存UI2/2、合入后HTTPS1/4.318s、NAS十服务guard/五核心ready/授权Memory只读/LAN资源/匿名门禁/归档日志均通过，原账号人格保留。capacity-state为memory-role-20260930，Dockge同步。产品mainPdffedb2/M9e0c39f保留独立未部署QQ身份，禁止main直接作线上版本。完整证据memory-role-deployment-2026-09-30.md/json；无生产网页登录/角色写入/真实QQ模型消息。

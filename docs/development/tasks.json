@@ -1111,6 +1111,134 @@
       "dsh_session_id": null,
       "delivery_directory": "worktrees/TS-015/tianshu-platform/.runtime/dsh-delivery",
       "blocked_reason": "DSH model selection routable; persistent session file/presets unavailable, not a missing project workspace"
+    },
+    {
+      "id": "TS-265",
+      "project": "workspace",
+      "title": "PG comparison and SQLite durable-write control",
+      "status": "done",
+      "assignee": "storage_redis_plan",
+      "depends_on": [
+        "TS-256",
+        "TS-257",
+        "TS-264",
+        "TS-269"
+      ],
+      "allowed_paths": [
+        "scripts/benchmarks/pg-read-performance/",
+        "docs/development/pg-write-performance-2026-10-21*",
+        "docs/handoffs/TS-265.md"
+      ],
+      "execution_model": "gpt-6.1-sol",
+      "reasoning_effort": "max",
+      "task_card": "docs/development/TS-264-pg-write-performance.md",
+      "authorization": "Current user request: optimize PG short reads, source sync and writes; verify SQLite writes do not regress; same-chat parallel agents remain authorized; isolated synthetic tests only, no production/media changes or deployment.",
+      "done_when": "Native correctness and durable-write comparison satisfy task card; report all remaining limits.",
+      "pushed": false,
+      "deployed": false,
+      "worktree": "worktrees/TS-265/workspace",
+      "branch": "codex/ts-265-pg-write-bench",
+      "baseline_commit": "075c7ce7e07d94859a6a6ed4b2efba95bfa90b52",
+      "allocation_note": "Dirty coordinator preserved; standard allocator attempted; isolated exact committed baseline used.",
+      "implementation_commit": "a436965aa8cc0cf7e042cedbaae7e0045a55f28f",
+      "delivery_state": "local_integrated_not_deployed",
+      "acceptance_owner": "root coordinator; original implementation agent stopped awaiting safe results",
+      "result_commit": "1499af15c45080e0866ee3fbcf6436de4118b34c",
+      "result": "docs/handoffs/TS-265.md",
+      "verification": {
+        "core_runs": 24,
+        "core_samples": 4560,
+        "source_write_runs": 12,
+        "source_write_samples": 720,
+        "sqlite_write_pairs": 240,
+        "sqlite_write_samples": 480,
+        "content_and_reopen": "passed",
+        "cleanup": "complete",
+        "production_footprint": "unchanged within captured fields"
+      },
+      "performance_goal_all_pg_at_least_sqlite": false,
+      "sqlite_paired_stable_regression_found": false
+    },
+    {
+      "id": "TS-264",
+      "project": "memory",
+      "title": "PG short-query/source-sync/write optimization",
+      "status": "done",
+      "assignee": "storage_memory_companion_plan",
+      "depends_on": [
+        "TS-256",
+        "TS-257"
+      ],
+      "allowed_paths": [
+        "src/tianshu_memory/",
+        "tests/",
+        "docs/pg-read-performance.md",
+        "docs/handoffs/TS-264.md"
+      ],
+      "execution_model": "gpt-6.1-sol",
+      "reasoning_effort": "max",
+      "task_card": "docs/development/TS-264-pg-write-performance.md",
+      "authorization": "Current user request: optimize PG short reads, source sync and writes; verify SQLite writes do not regress; same-chat parallel agents remain authorized; isolated synthetic tests only, no production/media changes or deployment.",
+      "done_when": "Native correctness and durable-write comparison satisfy task card; report all remaining limits.",
+      "pushed": false,
+      "deployed": false,
+      "worktree": "worktrees/TS-264/tianshu-memory",
+      "branch": "codex/ts-264-pg-short-write",
+      "baseline_commit": "c4a75d648635b2833c7bf71a74a1100e40688461",
+      "runtime_commit": "4447bb4cad78877f4ecee0766081d08396cfa227",
+      "current_delivery_commit": "e5e1b394a8f6d318dda4d9280587e599fd64c653",
+      "memory_write_ownership": "released",
+      "verification": {
+        "sqlite_passed": 1624,
+        "sqlite_skipped": 103,
+        "sqlite_known_failed": 1,
+        "related_passed": 249,
+        "native_pg": 102,
+        "local_or_double": 147
+      },
+      "delivery_state": "local_integrated_not_deployed",
+      "result_commit": "e5e1b394a8f6d318dda4d9280587e599fd64c653",
+      "result": "docs/handoffs/TS-264.md",
+      "performance_record": "docs/development/pg-write-performance-2026-10-21.md",
+      "remaining_limits": "PG short field remains slower than SQLite; sequential ordinary write upward samples and overlaps retained; four paired SQLite workloads show no stable regression"
+    },
+    {
+      "id": "TS-269",
+      "project": "workspace",
+      "title": "PG checkout and confirmed read batching",
+      "status": "done",
+      "assignee": "storage_platform_plan",
+      "depends_on": [
+        "TS-255",
+        "TS-257"
+      ],
+      "allowed_paths": [
+        "packages/tianshu-storage/",
+        "tests/storage/",
+        "docs/handoffs/TS-269.md"
+      ],
+      "execution_model": "gpt-6.1-sol",
+      "reasoning_effort": "max",
+      "task_card": "docs/development/TS-264-pg-write-performance.md",
+      "authorization": "User PG optimization follow-up; coordinator microbench confirmed bounded protocol overhead. Preserve per-checkout configuration, transaction/error and SQLite behavior; isolated tests only.",
+      "done_when": "Per-checkout settings use one parameterized statement and confirmed independent SELECT batching preserves native errors/row contracts; related shared checks and native PG acceptance pass; no change to default prepare or executemany.",
+      "pushed": false,
+      "deployed": false,
+      "worktree": "worktrees/TS-269/workspace",
+      "baseline_commit": "075c7ce7e07d94859a6a6ed4b2efba95bfa90b52",
+      "branch": "codex/ts-269-pg-read-batch",
+      "allocation_note": "TS265 implementation finished and is genuinely waiting for dependency/data; standard allocator retried after slot released; dirty coordinator preserved.",
+      "result_commit": "019b954195b4d3afc9e754c3cbd1c0cdd1e225ce",
+      "result": "docs/handoffs/TS-269.md",
+      "delivery_state": "local_integrated_not_deployed",
+      "verification": {
+        "local_passed": 82,
+        "local_explicit_pg_skipped": 15,
+        "isolated_pg_suite_passed": 97,
+        "isolated_pg_suite_skipped": 0
+      },
+      "shared_version": "0.1.3",
+      "shared_wheel_sha256": "a87947a1260fd24de5ae241f19fcc3bb2c2d3fa2869c9a0328825b5f81789d0f"
     }
   ],
   "dispatch_defaults": {

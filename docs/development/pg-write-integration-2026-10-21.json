@@ -1,0 +1,79 @@
+{
+  "tasks": [
+    "TS-264",
+    "TS-265",
+    "TS-269"
+  ],
+  "status": "local_integrated_not_deployed",
+  "memory_write_ownership": "released",
+  "memory_original_revision": "c4a75d648635b2833c7bf71a74a1100e40688461",
+  "memory_runtime_revision": "4447bb4cad78877f4ecee0766081d08396cfa227",
+  "memory_complete_history_tip": "e5e1b394a8f6d318dda4d9280587e599fd64c653",
+  "memory_runtime_files": 98,
+  "shared_version": "0.1.3",
+  "shared_revision": "019b954195b4d3afc9e754c3cbd1c0cdd1e225ce",
+  "shared_wheel_sha256": "a87947a1260fd24de5ae241f19fcc3bb2c2d3fa2869c9a0328825b5f81789d0f",
+  "benchmark_revision": "a436965aa8cc0cf7e042cedbaae7e0045a55f28f",
+  "verification": {
+    "shared_all": {
+      "passed": 97,
+      "skipped": 0
+    },
+    "product_related": {
+      "passed": 249,
+      "native_pg": 102,
+      "local_or_double": 147
+    },
+    "sqlite_full": {
+      "passed": 1624,
+      "skipped": 103,
+      "failed": 1
+    },
+    "sqlite_existing_failure": "test_confirmation_rejects_mismatched_authority[account-403]: actual 400, already reproduced on e1 in previous performance round",
+    "native_initial": {
+      "passed": 248,
+      "failed": 1
+    },
+    "native_test_seed_repair": "committed synthetic seed before rollback cycles; reran only failed node, 1 passed; no runtime change"
+  },
+  "performance": {
+    "core_runs": 24,
+    "core_samples": 4560,
+    "source_write_runs": 12,
+    "source_write_samples": 720,
+    "sqlite_paired_commits": 480,
+    "sqlite_pairs": 240,
+    "sqlite_paired_stable_regression_found": false,
+    "all_pg_cases_at_least_sqlite": false
+  },
+  "production": "Q15 preserved; production data/media not mounted into tests; no Redis/model/QQ access",
+  "cleanup": {
+    "stage_removed": true,
+    "benchmark_containers_remaining": 0,
+    "temporary_image_tags_removed": [
+      "tianshu/ts265-cf642c73-memory:c4a75d648635",
+      "tianshu/ts265-cf642c73-base-memory:pinned",
+      "tianshu/ts265-cf642c73-memory:4447bb4cad78"
+    ],
+    "preexisting_base_aliases_preserved": [],
+    "production_image_references_removed": false,
+    "temporary_database_removed": true,
+    "temporary_role_removed": true,
+    "redis_accessed": false
+  },
+  "pushed": false,
+  "deployed": false,
+  "q17_q18_included": false,
+  "continuation": "Memory write ownership released. Q18 consumes the complete e5e1b39 history with shared0.1.3 and merges its separate Q17/Q18 changes; no performance task or NAS resource remains active.",
+  "memory_coordinator_main": "e5e1b394a8f6d318dda4d9280587e599fd64c653",
+  "memory_environment": {
+    "python": "3.12.14",
+    "locked_offline_all_extras": true,
+    "shared_installed_files_equal_git": 8,
+    "initial_default_python314_offline_wheel_missing": "resolved by selecting the already verified Python3.12 interpreter; no network or lock change"
+  },
+  "production_footprint": "verified unchanged within captured fields",
+  "benchmark_report_revision": "1499af15c45080e0866ee3fbcf6436de4118b34c",
+  "root_benchmark_shared_merge": "83b1ac492adf60b21e271311883054e3524c96ad",
+  "report": "docs/development/pg-write-performance-2026-10-21.md"
+}
