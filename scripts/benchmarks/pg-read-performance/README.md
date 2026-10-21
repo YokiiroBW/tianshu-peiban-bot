@@ -31,3 +31,7 @@ Knowledge另外计量原生受限HTTP/ASGI单块和20块请求，保留序列化
 该模式分别调用一次关键词、精确 field、零预算及撤回后的关键词查询，输出 `untimed_python_profiles` 的前20个 self/cumulative 调用位置、次数、毫秒数，不导出参数、局部变量、正文或原始 `.prof`。完整语料的前三项在撤回前剖析。cProfile 只覆盖当前线程；这里两种负载都直接执行原生 `MemoryService` / `SourceAuthority`，不把它冒称为 HTTP worker 剖析。其默认时钟包含驱动等待和剖析开销，`process_cpu_ms` 是全进程 CPU 时间；不能将 self time 当成纯数据库执行耗时。
 
 现有未计时 PG native / SQLite trace 继续独立运行，诊断模式另外记录零预算统计。它们与 cProfile 是不同调用，不能将不同调用的耗时相减来计算网络或 Python 净耗时。正式三轮不传 `--profile-only`，其 workload、样本数、计时边界及正确性校验保持；诊断结果单独保存，不混入正式三轮。本批仅复测两种 Memory suite，Knowledge 暂不重跑。
+
+`sqlite_same_fixture.py`另做同物理库控制：两镜像仍经 `common.arguments` 核验安装 proof，固定 `PYTHONHASHSEED=0`，仅允许 `/bench/runs/memory-original-43-sqlite/config.json` 与其既有365组SQLite库/guard；不因控制trial或variant另建库。保留原 `moriginal43` namespace和pool4，显式空PG/Redis且拒绝环境变量覆盖，使用原生公开 `Store.from_config` 和 `MemoryService.select`，复用Harness请求构造及冻结clock。构造器既有准备在计时外执行，但必须在构造前、构造后、测量后核对DB和guard的SHA256完全不变；非空残留WAL或任一字节变化立即失败，不手动checkpoint、迁移、恢复或改guard。每次选择仍执行产品原有事务、权限和来源校验，关键词原有临时FTS不改。
+
+控制查询在事务内从当前有效groups/lineage/sources选一条field，核验精确一组、零预算空、撤回后Python十组的语义签名；精确/零预算各500次、关键词100次（`--smoke`各3次，另有原有五次预热），输出3个独立case及schema/features/durability、同库三阶段hash。协调者以原版/候选各三轮串行运行，源manifest与结果单列，不能混入正式24次/4,560采样；这用于排除随机ID、页布局和进程hashseed差异，不替代正式四组合，也不代表物理冷缓存。示例参数仍为 `--config /bench/private.json --backend sqlite --variant original --trial 61`，候选改variant并使用独立输出文件；控制固定读原trial43的同一个库。
