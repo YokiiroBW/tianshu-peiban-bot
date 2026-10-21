@@ -1239,6 +1239,59 @@
       },
       "shared_version": "0.1.3",
       "shared_wheel_sha256": "a87947a1260fd24de5ae241f19fcc3bb2c2d3fa2869c9a0328825b5f81789d0f"
+    },
+    {
+      "id": "TS-271",
+      "project": "workspace",
+      "title": "PG data-flow research and isolated optimization evaluation",
+      "status": "done",
+      "assignee": "current-thread",
+      "depends_on": [
+        "TS-269",
+        "TS-265"
+      ],
+      "allowed_paths": [
+        "packages/tianshu-storage/",
+        "tests/storage/",
+        "scripts/benchmarks/pg-read-performance/",
+        "docs/development/TS-271-pg-system-optimization.md",
+        "docs/development/pg-system-performance-2026-10-21*",
+        "docs/handoffs/TS-271.md"
+      ],
+      "execution_model": "gpt-6.1-sol",
+      "reasoning_effort": "max",
+      "task_card": "docs/development/TS-271-pg-system-optimization.md",
+      "authorization": "User requests new web research into PostgreSQL execution and analogous data flows, then systematic optimization. Existing parallel authorization persists. No production data/media changes or deployment.",
+      "done_when": "Primary-source research and measured flow attribution guide a shared-layer optimization, preserving fresh binding/settings, source/permission checks, transactions, SQLite and durability. Native PG checks, same-NAS comparisons and resource cleanup recorded.",
+      "pushed": false,
+      "deployed": false,
+      "worktree": "worktrees/TS-271/workspace",
+      "branch": "codex/ts-271-pg-system",
+      "baseline_commit": "ffbffe05aaf49eaeb3870ed6305eb36e1ca57056",
+      "allocation_note": "Standard allocator refused mixed dirty coordinator; reviewed unchanged shared/benchmark paths and allocated committed baseline, preserving every existing root change and worker ownership.",
+      "result_commit": "a4e61ec3fadcdd91b90cb90b79f4b44ce8a11ba6",
+      "result": "docs/handoffs/TS-271.md",
+      "delivery_state": "local_research_tools_integrated_candidates_not_adopted_not_deployed",
+      "experiment_tip": "ef6f7f4e6ca4fa2c18bc8e23617bf334f92e8311",
+      "runtime_candidate_adopted": false,
+      "retained_shared_version": "0.1.3",
+      "performance_goal_all_pg_at_least_sqlite": false,
+      "verification": {
+        "formal_runs": 36,
+        "formal_samples": 5280,
+        "prototype_shared_effective_passed": 119,
+        "prototype_product_related_passed": 249,
+        "same_pool_pairs_per_revision": 900,
+        "native_write_history_trios": 540,
+        "sqlite_durable_write_pairs": 120,
+        "sqlite_durable_write_commits": 240,
+        "sqlite_stable_regression_cases": [
+          "local_commit",
+          "source_commit"
+        ],
+        "cleanup": "complete",
+        "production_footprint": "unchanged within captured fields"
+      }
     }
   ],
   "dispatch_defaults": {

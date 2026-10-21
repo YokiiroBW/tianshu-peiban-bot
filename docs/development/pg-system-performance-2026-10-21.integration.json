@@ -1,0 +1,44 @@
+{
+  "task": "TS-271",
+  "delivery_state": "local_research_tools_integrated_candidates_not_adopted_not_deployed",
+  "completed_at_utc": "2026-10-21T16:10:42.898706+00:00",
+  "root_artifact_commit": "a4e61ec3fadcdd91b90cb90b79f4b44ce8a11ba6",
+  "experiment_branch": "codex/ts-271-pg-system",
+  "preserved_experiment_tip": "ef6f7f4e6ca4fa2c18bc8e23617bf334f92e8311",
+  "retained_root_shared_version": "0.1.3",
+  "retained_root_shared_revision": "019b954195b4d3afc9e754c3cbd1c0cdd1e225ce",
+  "rejected_shared_candidate_revision": "16700d966e88fd9b2b80473105713e5b21f5764d",
+  "rejected_shared_candidate_version": "0.1.4",
+  "rejected_shared_candidate_wheel_sha256": "8de3bbca2c49618b79f2194fbfee1b0232a351911b6fdad1fdfbc019c3ba973f",
+  "runtime_changes_integrated": false,
+  "prototype_tests_integrated": false,
+  "retained_tree_oids": {
+    "packages/tianshu-storage": "c4cc0cd440cb5cfe73026a5685256afcc1f49669",
+    "tests/storage": "06e37c42772d9c39962c99ed66e42bc0e1928d1d"
+  },
+  "memory_code_pins_vendor_lock_modified_by_this_task": false,
+  "memory_write_owner": "TS267",
+  "performance_goal_all_pg_at_least_sqlite": false,
+  "sqlite_paired_stable_regression_cases": [
+    "local_commit",
+    "source_commit"
+  ],
+  "production_changed": false,
+  "pushed": false,
+  "deployed": false,
+  "resource_cleanup": "complete",
+  "integrated_paths": [
+    "docs/development/TS-271-pg-system-optimization.md",
+    "docs/development/pg-system-performance-2026-10-21.json",
+    "docs/development/pg-system-performance-2026-10-21.md",
+    "docs/development/pg-system-performance-2026-10-21.research.md",
+    "docs/development/pg-system-performance-2026-10-21.sources.json",
+    "docs/handoffs/TS-271.md",
+    "scripts/benchmarks/pg-read-performance/README.md",
+    "scripts/benchmarks/pg-read-performance/checkout_paired.py",
+    "scripts/benchmarks/pg-read-performance/checkout_sequence_compare.py",
+    "scripts/benchmarks/pg-read-performance/memory_flow_profile.py",
+    "scripts/benchmarks/pg-read-performance/pg_execution_profile.py"
+  ],
+  "report": "docs/development/pg-system-performance-2026-10-21.md"
+}
