@@ -1,0 +1,78 @@
+{
+  "tasks": ["TS-256", "TS-257"],
+  "date": "2026-10-21",
+  "delivery_state": "local_integrated_not_deployed",
+  "pushed": false,
+  "deployed": false,
+  "memory": {
+    "baseline": "84c2f56ab28921c0008c6e4e0de48d3fe5bd40bd",
+    "runtime": "45d80619803a145bfa4c94108bb990d6868a17a3",
+    "integrated_product_main": "c4a75d648635b2833c7bf71a74a1100e40688461",
+    "integration": "fast-forward, clean product checkout",
+    "runtime_files_changed": 6,
+    "shared_package_both_variants": "0.1.2",
+    "shared_wheel_sha256": "936236aa9be50cb63197ed2ccc16fcb70413637bb38e808fa0029f5782ecf4ed"
+  },
+  "workspace": {
+    "baseline": "804e8360ace5ec6f3d77c533fdda42cf5411980a",
+    "formal_harness": "a020fe552055dfb33afc71c07eaf50a5b8088f94",
+    "sequential_control": "f0018667528151d51f29974728be4195e4751fff",
+    "paired_worker": "e284a12cfdaa0fe68837a6c9df7d36c517a5db82",
+    "report_and_harness_integrated": "373435a1b4526e96f8fd331072854c55060df393",
+    "integration": "complete history fast-forward; unrelated dirty records preserved",
+    "task_card": "docs/development/TS-256-pg-followup.md",
+    "report": "docs/development/pg-followup-performance-2026-10-21.md",
+    "results": "docs/development/pg-followup-performance-2026-10-21.json",
+    "results_sha256": "5b62a42e58711b418c3be3add5fdfcbefe7b60a2209a5b044d8d6aae13296756",
+    "sources": "docs/development/pg-followup-performance-2026-10-21.sources.json",
+    "sources_sha256": "aeb85081b012d9e13c38894df48dbb14687a3905c4e4e500381674393c051a85"
+  },
+  "validation": {
+    "pg_enabled_related_suite": {"passed": 159, "native_pg": 96, "local_or_sql_double": 63},
+    "sqlite_full": {
+      "collected": 1638,
+      "passed": 1540,
+      "skipped": 97,
+      "known_baseline_failures": 1,
+      "setup_errors": 0,
+      "failure": "tests/test_trusted_workflow.py::test_confirmation_rejects_mismatched_authority[account-403]",
+      "failure_detail": "Actual 400 versus expected 403; independently reproduced on original e1 during the prior batch; unchanged here."
+    },
+    "shared_68_passes_reused": true,
+    "report_review": "All formal samples, sequential and paired controls match safe raw evidence; 14 original evidence hashes and 18 script Git blob hashes verified. Public JSON uses LF; stderr diagnostics omitted as documented and footprint adds its snapshot scope."
+  },
+  "performance": {
+    "formal": {"runs": 24, "rounds": 3, "samples": 4560, "cases": 10},
+    "sqlite_sequential_control": {"runs": 6, "samples": 6600},
+    "sqlite_paired_control": {"blocks": 3, "pairs": 3300, "samples": 6600},
+    "memory_keyword_p50_ms": {"old_pg": 80.5005535, "new_pg": 70.911472, "old_sqlite": 71.988806, "new_sqlite": 73.447731},
+    "source_sync_keyword_p50_ms": {"old_pg": 497.3882335, "new_pg": 474.6780265, "old_sqlite": 449.336434, "new_sqlite": 469.930318},
+    "pg_at_least_sqlite_all_cases": false,
+    "sqlite_stable_short_read_regression_reproduced_in_paired_control": false,
+    "sqlite_all_workloads_zero_regression_proven": false,
+    "limitation": "PG short exact reads and some writes still slower. Main SQLite medians and outliers are retained; paired controls cover same-database short reads, not source synchronization or writes."
+  },
+  "preserved": [
+    "SQLite default and original SQL path",
+    "six fresh source revision checks per normal operation",
+    "current source and permission checks before record-body reads",
+    "complete groups and original BM25 corpus/parser/ranking semantics",
+    "source invalidation commit before revision comparison and business transaction",
+    "lock-confirmed fresh statement snapshot, CAS and guard-before-commit",
+    "production Q15 and existing media file library"
+  ],
+  "production_footprint": {
+    "production_business_writes_by_test": false,
+    "production_configuration_changes_by_test": false,
+    "production_business_or_media_mounts_in_test": false,
+    "redis_or_model_or_qq_access_by_benchmark": false,
+    "core_lifecycle_images_and_mounts_unchanged": 10,
+    "tls_services_healthy": 5,
+    "non_target_container_snapshots_equal": 129,
+    "non_target_scope": "Collected id, image, mounts, status and policy fields; not all restart counters were captured.",
+    "settings_hashes_capacity_configuration_guard_code_unchanged": true,
+    "temporary_database_role_stage_containers_removed": true,
+    "temporary_image_tags_removed": 3,
+    "production_image_references_removed": false
+  }
+}
