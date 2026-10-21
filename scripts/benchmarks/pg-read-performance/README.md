@@ -55,6 +55,10 @@ SQLite写控制入口为`sqlite_write_control.py`，四case为`local_commit`、`
 
 建议正式控制3个block×每case20对，四case合计240对/480真实提交，先后次数按case/block各半；预热也使用独立克隆并单列。始终一次一个活跃调用，旧/新内部绝对DB与guard路径相同、冻结clock/hashseed相同，资源保持CPU0–7/shares128/512MiB。每对**初态**物理bytes/hash必须一致；原生UUID可令提交后bytes不同，比较持久化业务增量及语义签名，不伪造ID。所有异常值和未达标结果保留。该控制覆盖固定普通完整组写入，不代表一切自动事实、并发或真实远端网络负载。NAS驱动、采样、生产足迹与清理由协调者单写，不将私有驱动入库。
 
+`--mode run --validation-profile`（也可加 `--stream`）仅用于独立诊断。默认不启用，原计时分支、sample 字段和 stream 协议消息保持。启用时仍走同一个 `run_one` 的封存初态、WAL/FULL、真实提交、关闭重开和语义证明；同一个热 Contracts 继续由 stream 复用，预热与四 case 交错仍由既有 driver 安排。示例为在上述通用参数后添加 `--mode run --stream --validation-profile`，stdin 命令不变；不允许用于 seed / prepare / verify，也不混入正式性能统计。
+
+诊断只在实际 commit / full_flow 计时窗口内启用 validate 观察和 GC 计数，安装 / 还原 hook 在计时外，异常也恢复原实例属性及本工具的 callback。每个 sample 额外含 `validation_profile`：`diagnostic_only=true`、`clock=process_time_ns`、`validate_calls`、不重复累计嵌套调用的 `validate_cpu_ns`、`by_contract[合同名]={calls,inclusive_cpu_ns}`，以及 `gc={collections,cpu_ns,by_generation,unfinished_collections}`。合同分项为包含式 CPU，嵌套时不可相加；总 validation CPU 和 GC CPU 都属于整段 process CPU，GC 可能与 validation 重叠，不可把这些数相加。GC CPU 是本 callback 观察到的 start→stop process CPU，未完整结束的 collection 单列；不强制 collect、不调阈值、不禁用 GC。没有缓存文档、通过结论或来源 / 权限判定，也不导出参数或正文。计数器本身有开销，诊断耗时不能替代无 hook 的正式结果。
+
 ## TS-271 共享连接层与运行链路研究
 
 本批固定 Memory 完整历史 `e5e1b394a8f6d318dda4d9280587e599fd64c653`、运行源码 `4447bb4`，不改 Memory 业务代码。original 使用共享存储 0.1.3；optimized 使用本批冻结的 0.1.4。两种镜像的 98 个 Memory 包文件一致，分别核对 8 个共享包文件与依赖闭包；候选测试轮只调整 Memory wheel 的依赖元数据和 RECORD，以装配新共享包，未修改产品仓库的依赖锁定。精确 wheel、源码、镜像和脚本 manifest 见同号报告。
@@ -68,3 +72,13 @@ SQLite写控制入口为`sqlite_write_control.py`，四case为`local_commit`、`
 `checkout_paired.py` 将旧版本 Git 字节导出的两个 checkout 方法和候选方法交替绑定到同一进程、pool、schema、guard 及产品夹具，每个 case 三 block×100 对。方法切换在计时外，测 checkout+SELECT、原生授权 field 和零预算；每次仍读取当前绑定和原生来源权限，不缓存业务结果。保留全部 wall/thread CPU 样本、每 block 中位数和前后 guard hash。这项因果控制与正式四组合分开；原生 SourceAuthority 链仍由正式 suite 覆盖，不能用本地来源夹具替代远端同步结论。第一候选变慢的样本及修订候选的 CPU 代价均须保留。
 
 `checkout_sequence_compare.py` 用于解释因果控制与正式短查询差异：先导入空 schema，再在 PG 原生写入 300 组、30 次纯提交与35次全流程，得到365组并做100次未计时关键词预热。此前 `checkout_paired` 是 SQLite 写满300组后导入PG，二者不具有相同物理/MVCC历史。新诊断在同 pool/guard 上旋转旧版、当前pipeline、仅去除当前 `_checkout` AST 中 `raw.pipeline` 上下文的顺序模板三种方法；其余设置、完整限定、计划策略和新鲜绑定相同。每 case 三 block×60个trio（另每block6个预热trio），保留全部wall/thread CPU及AST hash。它明确是临时方法替换的独立诊断，未修改已安装候选，不冒称新的产品版本或混入正式样本。
+
+## TS-276 来源校验配对诊断
+
+本批沿用现有suite，对照Memory完整Q18基线`4dbb816`，共享包两侧均固定0.1.3。通用`5b50579`版停止于15次/2660采样并保留反证；来源限定`226d9c8`版36次/5280采样独立封存。最终分配修订`eb65763`使用独立24次/4560个短召回和来源同步采样，再独立执行SQLite持久写入/读取与下列CPU诊断；226版12次来源变化写入不能冒称最终eb版结果。SQL结构的有界消融没有稳定业务收益，原exact SQL保持。正式样本、顺序pilot、SQL诊断与以下同库配对分开保存，不合并分母。
+
+`source_validation_paired.py`复用`source_full_flow`的独立300组合成封存模板，验证hash后复制到全新目录；PG从副本导入新UUID namespace，属于导入历史，不是来源正式套件原生300组的同一物理初态；普通`memory_sql`正式读取则为365组。CLI必须显式提供config/backend/template/directory/contract-directory/baseline-contracts/baseline-sha256/output，并调用既有`verify_installation`核对完整已安装候选与共享文件。旧Contracts从指定Git blob导出并逐字节核对。没有生产路径或数据库默认值。
+
+单进程中保持同一Store、SourceAuthority和合成owner，只分派唯一Contracts对象的`validate`：新旧delegate经正常构造，各有独立锁和准备缓存，每次从当前已验证的不可变schema/registry完整校验当前输入。其他业务、关系规则、权限、六次fresh revision、三个owner调用、CAS和guard均走原路径。默认每后端三block×每case20对，field、零预算和关键词轮换并平衡先后；首block各case三对预热单列。关键词要求封存数据中全部预期匹配组完整返回；300组模板为30组。前版只有field/零预算的120对结果独立保留，最终增加关键词以核对正式轮次观察到的SQLite来源关键词上浮，总计每后端180对/360诊断样本及9对预热，不混为前版协议。每次核对完整返回、schema调用计数及前后行数/revision/guard，不允许选成功子集。
+
+该脚本强制`diagnostic_only=true`，以JSONL逐条flush开始、样本、配对结果及异常。只导出hash、计数和固定错误代码，不导出文档正文；全部wall、process CPU与validate CPU保留。validate CPU属于整段process CPU的一部分，不能相加。模板复制、开库、delegate构造和状态核对在计时外；这些额外读取会影响缓存状态，故不能用它的绝对延迟代替正式镜像比较。两种后端保持同步持久性，结束关闭Store并还原hooks。

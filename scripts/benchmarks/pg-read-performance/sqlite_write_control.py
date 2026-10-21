@@ -6,6 +6,7 @@ No transaction rollback, idempotent replay, or durability adjustment is used.
 """
 
 import argparse
+import gc
 import json
 import os
 import shutil
@@ -29,6 +30,92 @@ ACTIVE = STAGE / "write-active"
 CONTROL = STAGE / "write-control"
 STATE = "fixture-state.json"
 SEAL = "snapshot.json"
+
+
+class ValidationProfile:
+    """Observe the timed write only; never retain input or validation results."""
+
+    def __init__(self, contracts):
+        self.contracts = contracts
+        self.original = contracts.validate
+        self.had_override = "validate" in vars(contracts)
+        self.override = vars(contracts).get("validate")
+        self.active = False
+        self.depth = 0
+        self.calls = 0
+        self.cpu_ns = 0
+        self.by_contract = {}
+        self.gc_started = {}
+        self.gc_generations = {
+            str(generation): {"collections": 0, "cpu_ns": 0} for generation in range(3)
+        }
+
+    def __enter__(self):
+        self.contracts.validate = self.validate
+        gc.callbacks.append(self.collection)
+        return self
+
+    def __exit__(self, *exception):
+        self.active = False
+        try:
+            if self.collection in gc.callbacks:
+                gc.callbacks.remove(self.collection)
+        finally:
+            if self.had_override:
+                self.contracts.validate = self.override
+            else:
+                del self.contracts.validate
+
+    def validate(self, name, document):
+        if not self.active:
+            return self.original(name, document)
+        started = time.process_time_ns()
+        self.depth += 1
+        try:
+            return self.original(name, document)
+        finally:
+            elapsed = time.process_time_ns() - started
+            self.depth -= 1
+            self.calls += 1
+            entry = self.by_contract.get(name)
+            if entry is None:
+                entry = self.by_contract[name] = {"calls": 0, "inclusive_cpu_ns": 0}
+            entry["calls"] += 1
+            entry["inclusive_cpu_ns"] += elapsed
+            # Inclusive per-contract timings can nest. Count only outer calls
+            # in the total, so nested validation is not added twice.
+            if self.depth == 0:
+                self.cpu_ns += elapsed
+
+    def collection(self, phase, info):
+        if not self.active:
+            return
+        generation = str(info["generation"])
+        if phase == "start":
+            self.gc_started[generation] = time.process_time_ns()
+        elif phase == "stop":
+            started = self.gc_started.pop(generation, None)
+            if started is not None:
+                entry = self.gc_generations[generation]
+                entry["collections"] += 1
+                entry["cpu_ns"] += time.process_time_ns() - started
+
+    def result(self):
+        return {
+            "diagnostic_only": True,
+            "clock": "process_time_ns",
+            "validate_calls": self.calls,
+            "validate_cpu_ns": self.cpu_ns,
+            "by_contract": self.by_contract,
+            "gc": {
+                "collections": sum(
+                    x["collections"] for x in self.gc_generations.values()
+                ),
+                "cpu_ns": sum(x["cpu_ns"] for x in self.gc_generations.values()),
+                "by_generation": self.gc_generations,
+                "unfinished_collections": len(self.gc_started),
+            },
+        }
 
 
 def reply(event, **values):
@@ -222,7 +309,7 @@ def reopen_proof(
     }, state
 
 
-def run_one(case, args, private, contracts):
+def run_one(case, args, private, contracts, *, validation_profile=False):
     seal = load_seal(ACTIVE, case, initial=True)
     payload = json.loads((ACTIVE / STATE).read_bytes())
     before_hashes = seal["initial_hashes"]
@@ -251,7 +338,23 @@ def run_one(case, args, private, contracts):
                     is None
                 )
         owner_before = fixture.owners.calls if fixture.owners else 0
-        if case.endswith("_commit"):
+        if validation_profile:
+            packet = payload["packet"]
+            assert (packet is not None) == case.endswith("_commit")
+            with ValidationProfile(contracts) as profile:
+                cpu_started, started = time.process_time_ns(), time.perf_counter_ns()
+                profile.active = True
+                try:
+                    if case.endswith("_commit"):
+                        result = fixture.commit(packet)
+                    else:
+                        packet, result = fixture.full_flow(payload["index"])
+                finally:
+                    profile.active = False
+                    latency_ns = time.perf_counter_ns() - started
+                    cpu_ns = time.process_time_ns() - cpu_started
+            validation = profile.result()
+        elif case.endswith("_commit"):
             packet = payload["packet"]
             assert packet is not None
             cpu_started, started = time.process_time_ns(), time.perf_counter_ns()
@@ -298,6 +401,8 @@ def run_one(case, args, private, contracts):
         "durability": seal["durability"],
         "models_called": 0,
     }
+    if validation_profile:
+        record["validation_profile"] = validation
     write_json(ACTIVE / "fixture-after.json", state)
     write_json(ACTIVE / "result.json", record)
     reply(
@@ -340,7 +445,10 @@ def main():
     parser.add_argument("--source", type=Path)
     parser.add_argument("--destination", type=Path)
     parser.add_argument("--stream", action="store_true")
+    parser.add_argument("--validation-profile", action="store_true")
     control, remaining = parser.parse_known_args()
+    if control.validation_profile and control.mode != "run":
+        parser.error("--validation-profile requires --mode run")
     previous = sys.argv
     try:
         sys.argv = [sys.argv[0], *remaining]
@@ -384,11 +492,23 @@ def main():
                 reply("closed", stores_closed=True)
                 return
             assert command["case"] in CASES
-            run_one(command["case"], args, private, contracts)
+            run_one(
+                command["case"],
+                args,
+                private,
+                contracts,
+                validation_profile=control.validation_profile,
+            )
         raise RuntimeError("write worker input ended before stop")
     else:
         assert control.case
-        run_one(control.case, args, private, contracts)
+        run_one(
+            control.case,
+            args,
+            private,
+            contracts,
+            validation_profile=control.validation_profile,
+        )
 
 
 if __name__ == "__main__":
