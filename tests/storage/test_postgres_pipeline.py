@@ -71,6 +71,7 @@ class RawConnection:
         self.deferred_error = None
         self.immediate_error_at = None
         self.rollback_error = False
+        self.settings_error = False
         self.binding_error = False
         self.binding = ("installation", "main", "ready")
         self.rollbacks = self.commits = self.closes = 0
@@ -88,13 +89,16 @@ class RawConnection:
         self.events.append(("execute", statement, parameters, self.in_pipeline))
         if self.closed:
             raise psycopg.InterfaceError("synthetic secret closed socket")
+        if self.settings_error and "pg_catalog.set_config('search_path'" in statement:
+            raise psycopg.OperationalError("synthetic secret settings error")
         if self.in_pipeline:
             if self.immediate_error_at == len(self.pending) + 1:
                 raise psycopg.OperationalError("synthetic secret immediate error")
             self.pending.append((statement, parameters))
             return RawCursor()
         if "FROM __tianshu_storage_binding" in statement:
-            assert self.events[-2] == ("sync",)
+            assert len(self.confirmed) == 1
+            assert "pg_catalog.set_config('search_path'" in self.confirmed[0][0]
             if self.binding_error:
                 raise psycopg.OperationalError("synthetic secret binding error")
             return RawCursor([self.binding])
@@ -165,17 +169,23 @@ def test_checkout_confirms_settings_before_independent_binding_read(
     database = Database(runtime, "main", tmp_path / "anchor.sqlite")
     connection = database.connect(timeout=timeout, read_only=read_only)
     assert raw.confirmed == [
-        (f'SET search_path TO "{database.schema}", pg_catalog', None),
-        ("SELECT set_config('lock_timeout', %s, false)", (expected,)),
         (
-            "SET default_transaction_read_only TO " + ("on" if read_only else "off"),
-            None,
+            (
+                "SELECT pg_catalog.set_config('search_path', %s, false),"
+                "pg_catalog.set_config('lock_timeout', %s, false),"
+                "pg_catalog.set_config('default_transaction_read_only', %s, false)"
+            ),
+            (
+                f'"{database.schema}", pg_catalog',
+                expected,
+                "on" if read_only else "off",
+            ),
         ),
     ]
     executed = [entry for entry in raw.events if entry[0] == "execute"]
-    assert [entry[3] for entry in executed] == [True, True, True, False]
+    assert [entry[3] for entry in executed] == [False, False]
     assert "FROM __tianshu_storage_binding" in executed[-1][1]
-    assert raw.events.count(("pipeline",)) == raw.events.count(("sync",)) == 1
+    assert raw.events.count(("pipeline",)) == raw.events.count(("sync",)) == 0
     assert runtime._pool.borrowed == [runtime.options.connect_timeout]
     assert runtime._pool.returned == [] and raw.rollbacks == 0
     connection.close()
@@ -187,26 +197,37 @@ def test_checkout_keeps_identifier_quoting(tmp_path):
     raw = RawConnection()
     runtime = manager(tmp_path, raw)
     assert runtime._checkout('odd"schema') is raw
-    assert raw.confirmed[0][0] == 'SET search_path TO "odd""schema", pg_catalog'
+    assert raw.confirmed[0][1] == ('"odd""schema", pg_catalog', "5000ms", "off")
+    assert 'odd"schema' not in raw.confirmed[0][0]
 
 
-@pytest.mark.parametrize(
-    "failure", ["enter", "first", "second", "third", "sync", "closed"]
-)
+def test_checkout_resets_all_settings_on_each_borrow(tmp_path):
+    raw = RawConnection()
+    runtime = manager(tmp_path, raw)
+    assert runtime._checkout("first", read_only=True, timeout=2) is raw
+    runtime._release(raw)
+    assert runtime._checkout("second", read_only=False, timeout=3) is raw
+    assert [parameters for _, parameters in raw.confirmed] == [
+        ('"first", pg_catalog', "2000ms", "on"),
+        ('"second", pg_catalog', "3000ms", "off"),
+    ]
+    assert runtime._pool.borrowed == [runtime.options.connect_timeout] * 2
+    assert runtime._pool.returned == [raw]
+
+
+@pytest.mark.parametrize("failure", ["execute", "rollback", "closed"])
 def test_checkout_errors_release_once_without_binding_or_raw_error_text(
     tmp_path, failure
 ):
     raw = RawConnection()
     runtime = manager(tmp_path, raw)
-    if failure == "enter":
-        raw.enter_error = psycopg.OperationalError("synthetic secret entering pipeline")
-    elif failure == "sync":
-        raw.deferred_error = psycopg.OperationalError("synthetic secret delayed error")
+    if failure == "rollback":
+        raw.settings_error = True
         raw.rollback_error = True
     elif failure == "closed":
         raw.closed = True
     else:
-        raw.immediate_error_at = {"first": 1, "second": 2, "third": 3}[failure]
+        raw.settings_error = True
     with pytest.raises(StorageError, match="^postgresql_unavailable$") as caught:
         Database(runtime, "main", tmp_path / "anchor.sqlite").connect()
     assert caught.value.__suppress_context__
@@ -216,7 +237,7 @@ def test_checkout_errors_release_once_without_binding_or_raw_error_text(
         for entry in raw.events
         if entry[0] == "execute"
     )
-    assert raw.closes == (1 if failure in {"sync", "closed"} else 0)
+    assert raw.closes == (1 if failure in {"rollback", "closed"} else 0)
 
 
 def test_checkout_getconn_failure_does_not_return_an_unborrowed_connection(tmp_path):
@@ -242,7 +263,7 @@ def test_binding_failure_stays_outside_setup_pipeline_and_releases_once(
         code = "postgresql_operation_failed"
     with pytest.raises(StorageError, match="^" + code + "$"):
         Database(runtime, "main", tmp_path / "anchor.sqlite").connect()
-    assert len(raw.confirmed) == 3 and raw.events.count(("sync",)) == 1
+    assert len(raw.confirmed) == 1 and raw.events.count(("sync",)) == 0
     assert runtime._pool.returned == [raw] and raw.rollbacks == 1
 
 
@@ -389,6 +410,35 @@ def test_sql_text_cache_is_bounded_and_unparameterized_calls_do_not_enter_it():
         )
     finally:
         _bound_qmark.cache_clear()
+
+
+@REAL_PG
+def test_real_checkout_sets_quoted_schema_timeout_and_read_only_on_every_borrow(
+    tmp_path,
+):
+    with psycopg.connect(PG_URL, autocommit=True, connect_timeout=3) as raw:
+        runtime = manager(tmp_path, raw)
+        for schema, timeout, read_only, expected_timeout in [
+            ('synthetic "雪" schema', 1.0001, True, "1001ms"),
+            ("pg_catalog", 0, False, "1ms"),
+        ]:
+            assert (
+                runtime._checkout(schema, timeout=timeout, read_only=read_only) is raw
+            )
+            assert raw.execute(
+                "SELECT current_setting('search_path'),current_setting('lock_timeout'),"
+                "current_setting('default_transaction_read_only'),"
+                "current_setting('transaction_read_only')"
+            ).fetchone() == (
+                sql.Identifier(schema).as_string() + ", pg_catalog",
+                expected_timeout,
+                "on" if read_only else "off",
+                "on" if read_only else "off",
+            )
+            assert raw.info.transaction_status == TransactionStatus.IDLE
+            runtime._release(raw)
+        assert runtime._pool.borrowed == [runtime.options.connect_timeout] * 2
+        assert runtime._pool.returned == [raw, raw]
 
 
 @REAL_PG

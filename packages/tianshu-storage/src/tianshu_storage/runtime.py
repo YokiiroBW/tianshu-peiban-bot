@@ -263,17 +263,16 @@ class StorageRuntime:
         raw = None
         try:
             raw = self._pool.getconn(timeout=self.options.connect_timeout)
-            with raw.pipeline():
-                raw.execute(
-                    sql.SQL("SET search_path TO {}, pg_catalog").format(sql.Identifier(schema))
-                )
-                raw.execute(
-                    "SELECT set_config('lock_timeout', %s, false)",
-                    (f"{max(1, math.ceil(timeout * 1000))}ms",),
-                )
-                raw.execute(
-                    "SET default_transaction_read_only TO " + ("on" if read_only else "off")
-                )
+            raw.execute(
+                "SELECT pg_catalog.set_config('search_path', %s, false),"
+                "pg_catalog.set_config('lock_timeout', %s, false),"
+                "pg_catalog.set_config('default_transaction_read_only', %s, false)",
+                (
+                    sql.Identifier(schema).as_string() + ", pg_catalog",
+                    f"{max(1, math.ceil(timeout * 1000))}ms",
+                    "on" if read_only else "off",
+                ),
+            )
             return raw
         except (psycopg.Error, OSError):
             if raw is not None:

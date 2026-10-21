@@ -301,6 +301,44 @@ class PostgresConnection:
         except psycopg.Error as exc:
             raise postgres_error(exc) from None
 
+    def read_batch(self, requests):
+        """Confirm independent native SELECTs before returning their ordered cursors.
+
+        Requests are trusted internal (SQL, parameters) pairs, with SELECT as the
+        first token. This is not a parser for arbitrary/user-supplied SQL. Nonempty
+        batches require an existing healthy transaction. No results are consumed,
+        and no transaction control, dialect translation or replay is performed.
+        """
+        if self._closed or self.raw.closed:
+            raise StorageError("storage_connection_closed")
+        requests = list(requests)
+        for statement, _ in requests:
+            if not isinstance(statement, str):
+                raise TypeError("SQL must be a string")
+            if not re.match(r"\s*SELECT\b", statement, re.IGNORECASE):
+                raise ValueError("read_batch requires native SELECT statements")
+        if not requests:
+            return []
+        if self.raw.info.transaction_status != psycopg.pq.TransactionStatus.INTRANS:
+            raise StorageError("postgresql_read_batch_requires_transaction")
+        cursors = []
+        try:
+            with self.raw.pipeline():
+                for statement, parameters in requests:
+                    cursors.append(self.native(statement, parameters))
+        except BaseException as exc:
+            # No partial batch escapes, including on a delayed pipeline error.
+            # The owner retains its existing rollback/connection-release path.
+            for cursor in cursors:
+                try:
+                    cursor.close()
+                except psycopg.Error:
+                    pass
+            if isinstance(exc, psycopg.Error):
+                raise postgres_error(exc) from None
+            raise
+        return cursors
+
     def native(self, sql, parameters=(), *, savepoint=False):
         if self._closed:
             raise StorageError("storage_connection_closed")
