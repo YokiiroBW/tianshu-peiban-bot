@@ -1,0 +1,41 @@
+{
+  "tasks": [
+    "TS-275",
+    "TS-276"
+  ],
+  "completed_at_utc": "2026-10-21T20:12:11.603675+00:00",
+  "delivery_state": "local_evaluated_candidate_not_adopted_not_deployed",
+  "root_artifact_commit": "221e602c6179af96131ab345c0e3650f3fd51f09",
+  "experiment_tip": "94672c3dbd313e23d91c5b933c4cab86b88b842b",
+  "contracts_candidate": "eb6576300158829e3fd96cc66cef0217a49da0d2",
+  "contracts_delivery_tip": "8e949b128bff4cc4e186777a622c583cf7c2116d",
+  "contracts_candidate_accepted_for_integration": false,
+  "memory_main_observed": "e5e1b394a8f6d318dda4d9280587e599fd64c653",
+  "product_main_changed_by_this_task": false,
+  "runtime_changes_integrated": false,
+  "q18_product_assembly_owner": "TS268",
+  "sql_candidates_adopted": false,
+  "shared_version": "0.1.3",
+  "retained_shared_tree_oids": {
+    "packages/tianshu-storage": "c4cc0cd440cb5cfe73026a5685256afcc1f49669",
+    "tests/storage": "06e37c42772d9c39962c99ed66e42bc0e1928d1d"
+  },
+  "production_changed_by_this_task": false,
+  "external_maintenance_recorded": true,
+  "overall_core_lifecycle_changed": true,
+  "pushed": false,
+  "deployed": false,
+  "resource_cleanup": "complete",
+  "integrated_paths": [
+    "docs/development/TS-275-validation-recall-optimization.md",
+    "docs/development/validation-recall-performance-2026-10-22.json",
+    "docs/development/validation-recall-performance-2026-10-22.md",
+    "docs/development/validation-recall-performance-2026-10-22.research.md",
+    "docs/development/validation-recall-performance-2026-10-22.sources.json",
+    "docs/handoffs/TS-276.md",
+    "scripts/benchmarks/pg-read-performance/README.md",
+    "scripts/benchmarks/pg-read-performance/source_validation_paired.py",
+    "scripts/benchmarks/pg-read-performance/sqlite_write_control.py"
+  ],
+  "report": "docs/development/validation-recall-performance-2026-10-22.md"
+}
