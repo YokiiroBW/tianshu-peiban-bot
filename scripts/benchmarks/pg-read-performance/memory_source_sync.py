@@ -18,6 +18,7 @@ from common import (
     memory_features,
     pg_calls,
     prepare_memory_schema,
+    python_profile,
     settings,
     sqlite_calls,
 )
@@ -51,7 +52,7 @@ class SyntheticOwners:
 
 
 def main():
-    args, private, _ = arguments()
+    args, private, _ = arguments(allow_profile=True)
     directory = (
         args.config.parent
         / "runs"
@@ -182,7 +183,7 @@ def main():
     )
     count = 3 if args.smoke else 20
     signatures = {"keyword": signature(keyword), "exact": signature(exact)}
-    results = [
+    results = [] if args.profile_only else [
         measure(
             "source_sync_authorized_keyword_recall",
             lambda _: select(),
@@ -210,6 +211,26 @@ def main():
         "keyword": sqlite_calls(lambda: select(), args.backend),
         "exact": sqlite_calls(lambda: select("field:bench-0"), args.backend),
     }
+    python_profiles = {}
+    if args.profile_only:
+        profile["zero_budget"] = pg_calls(lambda: select(budget=0), args.backend)
+        sqlite_profile["zero_budget"] = sqlite_calls(lambda: select(budget=0), args.backend)
+        # Profile the complete original corpus before changing any physical source.
+        # Native/SQLite hooks have already been restored; these are separate calls.
+        python_profiles = {
+            "keyword": python_profile(
+                lambda: select(),
+                check=lambda result: signature(result) == signatures["keyword"] or fail(),
+            ),
+            "exact": python_profile(
+                lambda: select("field:bench-0"),
+                check=lambda result: signature(result) == signatures["exact"] or fail(),
+            ),
+            "zero_budget": python_profile(
+                lambda: select(budget=0),
+                check=lambda result: result["selected_units"] == [] or fail(),
+            ),
+        }
     # Retain historical coverage and native durable invalidation after withdrawal.
     for physical in h.physicals[: max(1, len(h.physicals) * 2 // 3)]:
         physical.update(state="withdrawn", kind="retract", revision=2)
@@ -219,14 +240,20 @@ def main():
     assert not select("field:bench-0")["selected_units"]
     signatures["withdrawn_keyword"] = signature(withdrawn)
     expected = signature(withdrawn)
-    results.append(
-        measure(
-            "source_sync_recall_after_withdrawal",
-            lambda _: select(),
-            count,
+    if args.profile_only:
+        python_profiles["withdrawn_keyword"] = python_profile(
+            lambda: select(),
             check=lambda result: signature(result) == expected or fail(),
         )
-    )
+    else:
+        results.append(
+            measure(
+                "source_sync_recall_after_withdrawal",
+                lambda _: select(),
+                count,
+                check=lambda result: signature(result) == expected or fail(),
+            )
+        )
     with h.store.transaction() as db:
         sync = durability(db, args.backend)
         retained = db.execute("SELECT COUNT(*) FROM source_admissions").fetchone()[0]
@@ -242,6 +269,7 @@ def main():
         logical_result_signatures=signatures,
         untimed_pg_adapter_calls=profile,
         untimed_sqlite_trace=sqlite_profile,
+        **({"untimed_python_profiles": python_profiles} if args.profile_only else {}),
         owner_transport="published synthetic in-process responses; no TLS or real upstream latency",
         owner_reads=owners.calls,
         durability=sync,

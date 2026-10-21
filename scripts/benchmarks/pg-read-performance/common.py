@@ -14,39 +14,115 @@ from collections import Counter
 from pathlib import Path
 
 
-def arguments():
+def arguments(*, allow_profile=False):
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--backend", choices=("sqlite", "postgresql"), required=True)
     parser.add_argument("--trial", type=int, required=True)
     parser.add_argument("--variant", choices=("original", "optimized"), required=True)
     parser.add_argument("--smoke", action="store_true")
+    parser.set_defaults(profile_only=False)
+    if allow_profile:
+        parser.add_argument(
+            "--profile-only",
+            action="store_true",
+            help="Run untimed diagnostics over the same fixture; emit no timed samples",
+        )
     args = parser.parse_args()
     config = json.loads(args.config.read_bytes())
     assert config["database"].startswith("ts_pgopt_")
     assert not config.get("redis_url")
     args.namespace = f"{args.variant}{args.trial}"
-    if args.variant == "optimized":
-        import hashlib
-        import importlib.util
-
-        proof = json.loads(Path("/usr/share/ts249-candidate.json").read_bytes())
-        assert proof["revision"] == config["candidate_revision"]
-        for name, key in (
-            ("tianshu_memory", "package_files"),
-            ("tianshu_storage", "shared_files"),
-        ):
-            package = Path(importlib.util.find_spec(name).origin).parent
-            actual = {
-                name + "/" + p.relative_to(package).as_posix(): hashlib.sha256(
-                    p.read_bytes()
-                ).hexdigest()
-                for p in package.rglob("*")
-                if p.is_file() and "__pycache__" not in p.parts
-            }
-            assert actual == proof[key]
+    args.verified_revision = verify_installation(
+        config, args.variant, Path("/usr/share/ts249-candidate.json")
+    )
     root = args.config.parent / "runs" / f"{Path(__file__).stem}-{args.trial}"
     return args, config, root
+
+
+def verify_installation(config, variant, proof_path):
+    """Both comparison images must prove the product and fixed shared wheel bytes."""
+    import hashlib
+    import importlib.util
+
+    proof = json.loads(proof_path.read_bytes())
+    revision_key = "original_revision" if variant == "original" else "candidate_revision"
+    assert proof["revision"] == config[revision_key]
+    for name, key in (
+        ("tianshu_memory", "package_files"),
+        ("tianshu_storage", "shared_files"),
+    ):
+        package = Path(importlib.util.find_spec(name).origin).parent
+        actual = {
+            name + "/" + p.relative_to(package).as_posix(): hashlib.sha256(
+                p.read_bytes()
+            ).hexdigest()
+            for p in package.rglob("*")
+            if p.is_file() and "__pycache__" not in p.parts
+        }
+        assert actual == proof[key]
+    return proof["revision"]
+
+
+def python_profile(operation, *, check=None, limit=20):
+    """One untimed current-thread call, with no argument/local-variable export.
+
+    cProfile's default clock includes driver waits and profiler overhead; this is
+    not a CPU-only sample or a replacement for the uninstrumented latency runs.
+    The caller runs this separately from the native SQL/SQLite trace wrappers.
+    """
+    import cProfile
+    import pstats
+
+    profiler = cProfile.Profile()
+    started = time.perf_counter()
+    cpu_started = time.process_time()
+    profiler.enable()
+    try:
+        result = operation()
+    finally:
+        profiler.disable()
+    wall_ms = (time.perf_counter() - started) * 1000
+    cpu_ms = (time.process_time() - cpu_started) * 1000
+    if check:
+        check(result)
+    stats = pstats.Stats(profiler)
+    functions = []
+    for (filename, line, name), (primitive, calls, own, cumulative, _) in stats.stats.items():
+        # Keep useful package identities without exposing machine-specific roots.
+        filename = filename.replace("\\", "/")
+        for package in ("tianshu_memory/", "tianshu_storage/"):
+            if package in filename:
+                filename = package + filename.split(package, 1)[1]
+                break
+        else:
+            filename = filename.rsplit("/", 1)[-1]
+        functions.append(
+            {
+                "file": filename,
+                "line": line,
+                "function": name,
+                "primitive_calls": primitive,
+                "calls": calls,
+                "self_ms": own * 1000,
+                "cumulative_ms": cumulative * 1000,
+            }
+        )
+    return {
+        "timing_included": False,
+        "current_thread_only": True,
+        "profiler_overhead_included": True,
+        "timer": "wall_clock_including_waits",
+        "profiled_wall_ms": wall_ms,
+        "process_cpu_ms": cpu_ms,
+        "primitive_calls": stats.prim_calls,
+        "calls": stats.total_calls,
+        "function_count": len(functions),
+        "top_by_self_ms": sorted(functions, key=lambda row: row["self_ms"], reverse=True)[:limit],
+        "top_by_cumulative_ms": sorted(
+            functions, key=lambda row: row["cumulative_ms"], reverse=True
+        )[:limit],
+    }
 
 
 def settings(config, namespace, backend):
@@ -275,6 +351,8 @@ def emit(args, suite, results, **details):
                 backend=args.backend,
                 trial=args.trial,
                 variant=args.variant,
+                verified_revision=args.verified_revision,
+                measurement_mode="profile_only" if args.profile_only else "timed",
                 correctness="passed",
                 cpu_count=os.cpu_count(),
                 cpu_affinity=sorted(os.sched_getaffinity(0)),

@@ -17,6 +17,7 @@ from common import (
     memory_features,
     pg_calls,
     prepare_memory_schema,
+    python_profile,
     settings,
     sqlite_calls,
     summarize,
@@ -27,7 +28,7 @@ from tianshu_memory.store import Store
 
 
 def main():
-    args, config, _ = arguments()
+    args, config, _ = arguments(allow_profile=True)
     root = (
         args.config.parent
         / "runs"
@@ -97,12 +98,19 @@ def main():
     values = []
     for index in range(count):
         job, units = prepare([size + index])
-        before = time.perf_counter_ns()
-        result = h.workflow.commit_candidate(job, units)
-        values.append((time.perf_counter_ns() - before) / 1e6)
+        if args.profile_only:
+            result = h.workflow.commit_candidate(job, units)
+        else:
+            before = time.perf_counter_ns()
+            result = h.workflow.commit_candidate(job, units)
+            values.append((time.perf_counter_ns() - before) / 1e6)
         assert result["state"] == "committed"
     # Prepared source/candidate work is deliberately outside this commit measurement.
-    results = [summarize("memory_complete_group_commit", values, sum(values) / 1000)]
+    results = (
+        []
+        if args.profile_only
+        else [summarize("memory_complete_group_commit", values, sum(values) / 1000)]
+    )
 
     def full_flow(index):
         job, units = prepare([10000 + index])
@@ -110,7 +118,12 @@ def main():
         assert result["state"] == "committed"
         return result
 
-    results.append(measure("memory_source_candidate_commit", full_flow, count))
+    if args.profile_only:
+        # Preserve the formal fixture's post-write corpus without recording samples.
+        for index in range(-5, count):
+            full_flow(index)
+    else:
+        results.append(measure("memory_source_candidate_commit", full_flow, count))
 
     def select(query):
         return h.service.select(h.selection(query=query), context)
@@ -121,30 +134,31 @@ def main():
     assert exact["scope_version"] == keyword["scope_version"]
     assert len(keyword["dependency_groups"]) == size // 10
     signatures = {"keyword": signature(keyword), "exact": signature(exact)}
-    results.append(
-        measure(
-            "memory_authorized_keyword_recall",
-            lambda _: select("Python"),
-            5 if args.smoke else 40,
-            check=lambda result: signature(result) == signatures["keyword"] or fail(),
+    if not args.profile_only:
+        results.append(
+            measure(
+                "memory_authorized_keyword_recall",
+                lambda _: select("Python"),
+                5 if args.smoke else 40,
+                check=lambda result: signature(result) == signatures["keyword"] or fail(),
+            )
         )
-    )
-    results.append(
-        measure(
-            "memory_authorized_field_recall",
-            lambda _: select("field:bench-0"),
-            5 if args.smoke else 80,
-            check=lambda result: signature(result) == signatures["exact"] or fail(),
+        results.append(
+            measure(
+                "memory_authorized_field_recall",
+                lambda _: select("field:bench-0"),
+                5 if args.smoke else 80,
+                check=lambda result: signature(result) == signatures["exact"] or fail(),
+            )
         )
-    )
-    results.append(
-        measure(
-            "memory_zero_budget",
-            lambda _: h.service.select(h.selection(query="Python", budget=0), context),
-            5 if args.smoke else 80,
-            check=lambda result: result["selected_units"] == [] or fail(),
+        results.append(
+            measure(
+                "memory_zero_budget",
+                lambda _: h.service.select(h.selection(query="Python", budget=0), context),
+                5 if args.smoke else 80,
+                check=lambda result: result["selected_units"] == [] or fail(),
+            )
         )
-    )
     sql_profile = {
         "keyword": pg_calls(lambda: select("Python"), args.backend),
         "exact": pg_calls(lambda: select("field:bench-0"), args.backend),
@@ -153,6 +167,27 @@ def main():
         "keyword": sqlite_calls(lambda: select("Python"), args.backend),
         "exact": sqlite_calls(lambda: select("field:bench-0"), args.backend),
     }
+    python_profiles = {}
+    if args.profile_only:
+
+        def zero():
+            return h.service.select(h.selection(query="Python", budget=0), context)
+
+        sql_profile["zero_budget"] = pg_calls(zero, args.backend)
+        sqlite_profile["zero_budget"] = sqlite_calls(zero, args.backend)
+        python_profiles = {
+            "keyword": python_profile(
+                lambda: select("Python"),
+                check=lambda result: signature(result) == signatures["keyword"] or fail(),
+            ),
+            "exact": python_profile(
+                lambda: select("field:bench-0"),
+                check=lambda result: signature(result) == signatures["exact"] or fail(),
+            ),
+            "zero_budget": python_profile(
+                zero, check=lambda result: result["selected_units"] == [] or fail()
+            ),
+        }
     with h.store.transaction() as db:
         groups = db.execute("SELECT COUNT(*) FROM groups").fetchone()[0]
         writes = db.execute("SELECT COUNT(*) FROM write_ledger").fetchone()[0]
@@ -164,16 +199,24 @@ def main():
     remaining = select("Python")
     assert 0 < len(remaining["dependency_groups"]) < len(keyword["dependency_groups"])
     signatures["withdrawn_keyword"] = signature(remaining)
-    results.append(
-        measure(
-            "memory_recall_after_source_withdrawal",
-            lambda _: select("Python"),
-            5 if args.smoke else 40,
+    if args.profile_only:
+        python_profiles["withdrawn_keyword"] = python_profile(
+            lambda: select("Python"),
             check=lambda result: (
                 signature(result) == signatures["withdrawn_keyword"] or fail()
             ),
         )
-    )
+    else:
+        results.append(
+            measure(
+                "memory_recall_after_source_withdrawal",
+                lambda _: select("Python"),
+                5 if args.smoke else 40,
+                check=lambda result: (
+                    signature(result) == signatures["withdrawn_keyword"] or fail()
+                ),
+            )
+        )
     h.client.close()
     h.store.close()
     emit(
@@ -189,6 +232,7 @@ def main():
         logical_result_signatures=signatures,
         untimed_pg_adapter_calls=sql_profile,
         untimed_sqlite_trace=sqlite_profile,
+        **({"untimed_python_profiles": python_profiles} if args.profile_only else {}),
         withdrawn_keyword_groups=len(remaining["dependency_groups"]),
     )
 

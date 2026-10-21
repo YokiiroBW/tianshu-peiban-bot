@@ -21,3 +21,13 @@ Knowledge另外计量原生受限HTTP/ASGI单块和20块请求，保留序列化
 候选装入固定版本的共享适配器时，计时前同时核对Memory和tianshu-storage的已安装文件hash；原版保持其原wheel不变。容器只挂测试目录，不挂生产配置、数据或媒体。完整镜像、夹具、合同、脚本hash及清理回执由本批交付记录保存。
 
 `knowledge_mature.py`是主36次完成后的补充研究，三轮四组复用各自trial23的既有251块，仅测单块/20块和对应HTTP检索。它不重新导入、不手动ANALYZE或修改参数，保留完整原生授权、两阶段配置/文件校验；记录PG当时的自动统计时间。12次/1,440采样与主研究分开，不能混用两个阶段的分母或将差异全部归因于统计。原始结果和脚本Git字节分别保存，追加研究不替换任何原始样本。
+
+## TS-257 接续诊断
+
+本批的 `original` 指本地集成的 Memory `84c2f56` 与固定共享包 `0.1.2`，不是上批 `e1da946`；`optimized` 指本批另行指定的候选。两种镜像均须保留 `/usr/share/ts249-candidate.json`，分别匹配私有配置的 `original_revision` / `candidate_revision`，且产品及共享包完整文件集合与 SHA256 都必须符合 proof。输出 `verified_revision` 记录已核验版本，旧路径名仅为复用现有打包器。
+
+仅 `memory_sql.py` 和 `memory_source_sync.py` 接受 `--profile-only`，需使用独立 trial 和独立合成目录，例如在原命令上加 `--trial 140 --profile-only`。它们建立相同种子、迁移和必要写入状态，保留结果签名、预算和撤回校验；不执行正式读取采样，也不输出任何正式 `results` 样本，`measurement_mode` 为 `profile_only`。Memory 写入路径仍执行原来完整提交及五次预热加正式次数的流程，以保持随后查询的语料相同，但这些写入不计入性能结果。
+
+该模式分别调用一次关键词、精确 field、零预算及撤回后的关键词查询，输出 `untimed_python_profiles` 的前20个 self/cumulative 调用位置、次数、毫秒数，不导出参数、局部变量、正文或原始 `.prof`。完整语料的前三项在撤回前剖析。cProfile 只覆盖当前线程；这里两种负载都直接执行原生 `MemoryService` / `SourceAuthority`，不把它冒称为 HTTP worker 剖析。其默认时钟包含驱动等待和剖析开销，`process_cpu_ms` 是全进程 CPU 时间；不能将 self time 当成纯数据库执行耗时。
+
+现有未计时 PG native / SQLite trace 继续独立运行，诊断模式另外记录零预算统计。它们与 cProfile 是不同调用，不能将不同调用的耗时相减来计算网络或 Python 净耗时。正式三轮不传 `--profile-only`，其 workload、样本数、计时边界及正确性校验保持；诊断结果单独保存，不混入正式三轮。本批仅复测两种 Memory suite，Knowledge 暂不重跑。
