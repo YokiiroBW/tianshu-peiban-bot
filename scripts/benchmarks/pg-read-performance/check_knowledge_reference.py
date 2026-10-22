@@ -8,6 +8,7 @@ import argparse
 import importlib.util
 import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 
@@ -21,7 +22,7 @@ class ReferenceChecks(unittest.TestCase):
         native_reference = study.KnowledgeApplication._reference
         native_read = study.knowledge_sources.read_file
         with tempfile.TemporaryDirectory(
-            prefix="ts286-knowledge-reference-"
+            prefix="ts292-knowledge-reference-"
         ) as temporary:
             results, details = study.run_study(
                 Path(temporary),
@@ -32,6 +33,7 @@ class ReferenceChecks(unittest.TestCase):
                 count=2,
                 warmup=1,
                 cpu_clocks=True,
+                concurrency=4,
             )
         self.assertIs(study.KnowledgeApplication._reference, native_reference)
         self.assertIs(study.knowledge_sources.read_file, native_read)
@@ -56,6 +58,24 @@ class ReferenceChecks(unittest.TestCase):
         self.assertEqual(counts["check"]["reference_calls"], 40)
         self.assertEqual(counts["recover"]["source_file_reads"], 4)
         self.assertEqual(counts["check"]["source_file_reads"], 4)
+        concurrent = details["concurrent_results"]
+        self.assertEqual(len(concurrent), 2)
+        for row in concurrent:
+            self.assertEqual(row["operations"], 2)
+            self.assertEqual(row["logical_request_count"], 8)
+            self.assertEqual(row["warmup_logical_request_count"], 4)
+            self.assertEqual(len(row["process_cpu_ms"]), 2)
+            self.assertEqual(len(row["worker_request_timings"]), 2)
+            self.assertEqual(len(row["warmup_worker_request_timings"]), 1)
+            for slots in (
+                row["worker_request_timings"] + row["warmup_worker_request_timings"]
+            ):
+                self.assertEqual([slot["slot"] for slot in slots], [0, 1, 2, 3])
+                for slot in slots:
+                    self.assertIsNone(slot["error"])
+                    self.assertGreaterEqual(slot["wall_ms"], 0)
+                    self.assertGreaterEqual(slot["thread_cpu_ms"], 0)
+                    self.assertNotIn("process_cpu_ms", slot)
         proof = details["native_negative_proofs"]
         self.assertEqual(proof["wrong_project"], "forbidden")
         self.assertEqual(proof["revoked_permission"], "forbidden")
@@ -63,6 +83,62 @@ class ReferenceChecks(unittest.TestCase):
         self.assertFalse(proof["other_client_seal"]["valid"])
         self.assertFalse(proof["changed_source"]["valid"])
         self.assertFalse(proof["changed_state_seal"]["valid"])
+        self.assertFalse(proof["reordered_package"]["valid"])
+        self.assertEqual(
+            proof["rejected_first_reference"],
+            dict(
+                missing_document="not_found",
+                stale_version="stale_evidence",
+                wrong_hash="stale_evidence",
+                malformed="invalid_input",
+            ),
+        )
+
+    def test_four_slots_overlap_and_failed_slot_retains_the_entire_batch(self):
+        from knowledge_reference_concurrent import BatchFailure, measure_four
+
+        gate = threading.Barrier(4)
+        checked = []
+
+        def operation():
+            gate.wait(timeout=5)
+            return "synthetic-ok"
+
+        result = measure_four(
+            "concurrency-check",
+            operation,
+            2,
+            warmup=1,
+            check=checked.append,
+        )
+        self.assertEqual(len(checked), 12)
+        self.assertNotIn("process_cpu_ms", result)
+        self.assertTrue(
+            all(
+                slot["thread_cpu_ms"] is None
+                for batch in result["worker_request_timings"]
+                for slot in batch
+            )
+        )
+        calls = []
+        lock = threading.Lock()
+
+        def one_failed():
+            with lock:
+                calls.append(len(calls))
+                index = calls[-1]
+            if index == 0:
+                raise ValueError("synthetic-private-error-text")
+            return index
+
+        with self.assertRaises(BatchFailure) as raised:
+            measure_four("failed-batch", one_failed, 1, warmup=0, check=checked.append)
+        self.assertEqual(len(calls), 4)
+        self.assertEqual(len(raised.exception.slots), 4)
+        self.assertEqual(
+            sum(slot["error"] is not None for slot in raised.exception.slots), 1
+        )
+        self.assertNotIn("synthetic-private-error-text", str(raised.exception))
 
     def test_untimed_count_methods_restore_on_exception(self):
         import knowledge_reference as study

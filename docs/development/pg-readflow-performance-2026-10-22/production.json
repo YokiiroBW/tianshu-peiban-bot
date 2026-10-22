@@ -1,0 +1,18 @@
+{
+  "core_count": 10,
+  "verified_tls_ready": 5,
+  "core_lifecycle_unchanged": true,
+  "capacity_guard_ready": true,
+  "production_configuration_hashes_unchanged": true,
+  "production_business_tables_read": false,
+  "production_business_data_written": false,
+  "production_media_mounted": false,
+  "production_media_written": false,
+  "production_pg_parameters_changed": false,
+  "redis_accessed": false,
+  "actual_business_owner_calls": 0,
+  "actual_model_calls": 0,
+  "production_readiness_probes_outside_timed_work": true,
+  "private_before_sha256": "353b25a0059df35d2d13aa638ddef6f7e911845b1b0fd629cb3fab51ab4edb85",
+  "private_after_sha256": "e6ea5eda49e655ef80be8eb9df9d686accc767d674ed4f6bfbb925e16fab24dc"
+}

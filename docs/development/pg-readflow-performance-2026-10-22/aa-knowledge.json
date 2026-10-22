@@ -1,0 +1,294 @@
+{
+  "role": "Same-original-image A/A control, separate from formal A/B",
+  "runs_count": 6,
+  "source": "599c1e9436c9091fe5d3607d7ca60e208430851f",
+  "image_id": "sha256:b70bf116611b620b4a0ab04a2945b93f448268d32bf000a306797d9a5901016a",
+  "native_operations": 1020,
+  "formal_runs_added": 0,
+  "reported_subset_signatures_equal": true,
+  "signature_scope": "Legacy Knowledge exact/cohort/closure/small-budget subsets; import does not have a complete envelope signature",
+  "causal_limit": "Can show variability with identical image/code; cannot erase formal adverse A/B values or establish their cause. No confidence interval or equivalence claim.",
+  "summary": [
+    {
+      "case": "knowledge_authorized_exact_query",
+      "variants": {
+        "original": {
+          "p50_ms": 20.2321765,
+          "process_cpu_p50_ms": 6.455469,
+          "trial_p50_ms": [
+            10.0271845,
+            23.4935075,
+            20.2321765
+          ],
+          "operations": 120
+        },
+        "optimized": {
+          "p50_ms": 22.1037495,
+          "process_cpu_p50_ms": 6.875597,
+          "trial_p50_ms": [
+            21.120812,
+            23.756067,
+            22.1037495
+          ],
+          "operations": 120
+        }
+      },
+      "latency_change_pct": 9.25047782180033,
+      "client_process_cpu_change_pct": 6.508094144670196,
+      "trial_latency_change_pct": [
+        110.6355178764288,
+        1.1175832301754118,
+        9.25047782180033
+      ],
+      "paired_round_median_latency_change_pct": 9.25047782180033
+    },
+    {
+      "case": "knowledge_authorized_cohort20_query",
+      "variants": {
+        "original": {
+          "p50_ms": 36.952543000000006,
+          "process_cpu_p50_ms": 20.017251,
+          "trial_p50_ms": [
+            24.799598500000002,
+            39.144289,
+            36.952543000000006
+          ],
+          "operations": 120
+        },
+        "optimized": {
+          "p50_ms": 37.50093,
+          "process_cpu_p50_ms": 19.6495645,
+          "trial_p50_ms": [
+            37.50093,
+            38.964952,
+            37.371654
+          ],
+          "operations": 120
+        }
+      },
+      "latency_change_pct": 1.4840304766034373,
+      "client_process_cpu_change_pct": -1.8368481266483716,
+      "trial_latency_change_pct": [
+        51.2158755312107,
+        -0.4581434599565837,
+        1.1341871654137359
+      ],
+      "paired_round_median_latency_change_pct": 1.1341871654137359
+    },
+    {
+      "case": "knowledge_fresh_application_query",
+      "variants": {
+        "original": {
+          "p50_ms": 87.253954,
+          "process_cpu_p50_ms": 25.371821500000003,
+          "trial_p50_ms": [
+            86.2971675,
+            89.9236865,
+            87.253954
+          ],
+          "operations": 60
+        },
+        "optimized": {
+          "p50_ms": 94.22639050000001,
+          "process_cpu_p50_ms": 24.8861695,
+          "trial_p50_ms": [
+            94.22639050000001,
+            114.2270405,
+            78.4794995
+          ],
+          "operations": 60
+        }
+      },
+      "latency_change_pct": 7.9909690969420355,
+      "client_process_cpu_change_pct": -1.9141392745491315,
+      "trial_latency_change_pct": [
+        9.188277239806286,
+        27.02664330826783,
+        -10.05622564680564
+      ],
+      "paired_round_median_latency_change_pct": 9.188277239806286
+    },
+    {
+      "case": "knowledge_indivisible_group_small_budget",
+      "variants": {
+        "original": {
+          "p50_ms": 20.9562005,
+          "process_cpu_p50_ms": 7.037248,
+          "trial_p50_ms": [
+            10.6995845,
+            22.9103545,
+            20.9562005
+          ],
+          "operations": 60
+        },
+        "optimized": {
+          "p50_ms": 24.371389,
+          "process_cpu_p50_ms": 7.907019,
+          "trial_p50_ms": [
+            24.371389,
+            24.879420000000003,
+            20.922078
+          ],
+          "operations": 60
+        }
+      },
+      "latency_change_pct": 16.29679244574893,
+      "client_process_cpu_change_pct": 12.359533158416468,
+      "trial_latency_change_pct": [
+        127.77883571086335,
+        8.594653129439811,
+        -0.16282770342840314
+      ],
+      "paired_round_median_latency_change_pct": 8.594653129439811
+    },
+    {
+      "case": "knowledge_import_5blocks",
+      "variants": {
+        "original": {
+          "p50_ms": 29.301444,
+          "process_cpu_p50_ms": 12.448721,
+          "trial_p50_ms": [
+            51.068526000000006,
+            29.001514999999998,
+            29.301444
+          ],
+          "operations": 30
+        },
+        "optimized": {
+          "p50_ms": 32.1838765,
+          "process_cpu_p50_ms": 12.333720499999998,
+          "trial_p50_ms": [
+            32.1838765,
+            42.8209885,
+            27.393546999999998
+          ],
+          "operations": 30
+        }
+      },
+      "latency_change_pct": 9.837168775709483,
+      "client_process_cpu_change_pct": -0.9237936973605754,
+      "trial_latency_change_pct": [
+        -36.97903773451383,
+        47.650867549505605,
+        -6.511272959789971
+      ],
+      "paired_round_median_latency_change_pct": -6.511272959789971
+    },
+    {
+      "case": "knowledge_http_exact_query",
+      "variants": {
+        "original": {
+          "p50_ms": 27.7827095,
+          "process_cpu_p50_ms": 8.6803205,
+          "trial_p50_ms": [
+            11.684687499999999,
+            27.7827095,
+            33.3386955
+          ],
+          "operations": 60
+        },
+        "optimized": {
+          "p50_ms": 27.535466,
+          "process_cpu_p50_ms": 8.666136,
+          "trial_p50_ms": [
+            27.535466,
+            32.237255000000005,
+            27.275333
+          ],
+          "operations": 60
+        }
+      },
+      "latency_change_pct": -0.8899186020715488,
+      "client_process_cpu_change_pct": -0.16340986487769493,
+      "trial_latency_change_pct": [
+        135.65427830226525,
+        16.033517177293334,
+        -18.187161822213472
+      ],
+      "paired_round_median_latency_change_pct": 16.033517177293334
+    },
+    {
+      "case": "knowledge_http_cohort_query",
+      "variants": {
+        "original": {
+          "p50_ms": 47.201788500000006,
+          "process_cpu_p50_ms": 22.728021499999997,
+          "trial_p50_ms": [
+            24.800826,
+            49.355132999999995,
+            47.201788500000006
+          ],
+          "operations": 60
+        },
+        "optimized": {
+          "p50_ms": 46.735161500000004,
+          "process_cpu_p50_ms": 22.400985499999997,
+          "trial_p50_ms": [
+            45.3534315,
+            51.908781000000005,
+            46.735161500000004
+          ],
+          "operations": 60
+        }
+      },
+      "latency_change_pct": -0.9885790662360283,
+      "client_process_cpu_change_pct": -1.4389109936383981,
+      "trial_latency_change_pct": [
+        82.87064914692759,
+        5.174027187810459,
+        -0.9885790662360283
+      ],
+      "paired_round_median_latency_change_pct": 5.174027187810459
+    }
+  ],
+  "runs": [
+    {
+      "variant": "original",
+      "trial": 601,
+      "revision": "599c1e9436c9091fe5d3607d7ca60e208430851f",
+      "image_id": "sha256:b70bf116611b620b4a0ab04a2945b93f448268d32bf000a306797d9a5901016a",
+      "raw_file": "aa-knowledge_sql-original-601-postgresql.json",
+      "raw_sha256": "01c3d812bfe320a406ee7eb0a679d91eed44db90f1e07617e48a6311b3452e50"
+    },
+    {
+      "variant": "optimized",
+      "trial": 601,
+      "revision": "599c1e9436c9091fe5d3607d7ca60e208430851f",
+      "image_id": "sha256:b70bf116611b620b4a0ab04a2945b93f448268d32bf000a306797d9a5901016a",
+      "raw_file": "aa-knowledge_sql-optimized-601-postgresql.json",
+      "raw_sha256": "34ee275d9fb3cfd8a02c7a08860d4d755819f280eb645fbc38162e39264fe3a2"
+    },
+    {
+      "variant": "optimized",
+      "trial": 602,
+      "revision": "599c1e9436c9091fe5d3607d7ca60e208430851f",
+      "image_id": "sha256:b70bf116611b620b4a0ab04a2945b93f448268d32bf000a306797d9a5901016a",
+      "raw_file": "aa-knowledge_sql-optimized-602-postgresql.json",
+      "raw_sha256": "6b6b65e2a2bf4650c925918463ee47df7b0bc6d4e4b8b80c225bbe52406eb0ff"
+    },
+    {
+      "variant": "original",
+      "trial": 602,
+      "revision": "599c1e9436c9091fe5d3607d7ca60e208430851f",
+      "image_id": "sha256:b70bf116611b620b4a0ab04a2945b93f448268d32bf000a306797d9a5901016a",
+      "raw_file": "aa-knowledge_sql-original-602-postgresql.json",
+      "raw_sha256": "62a7e9eea76aee6509371dd04d6e53dcf6760e1322d5a07c702bb11bfb258ecf"
+    },
+    {
+      "variant": "original",
+      "trial": 603,
+      "revision": "599c1e9436c9091fe5d3607d7ca60e208430851f",
+      "image_id": "sha256:b70bf116611b620b4a0ab04a2945b93f448268d32bf000a306797d9a5901016a",
+      "raw_file": "aa-knowledge_sql-original-603-postgresql.json",
+      "raw_sha256": "c2788c2ec0ed58e7218f4590e197160a344372f972aeb1c24c6c9e570060083d"
+    },
+    {
+      "variant": "optimized",
+      "trial": 603,
+      "revision": "599c1e9436c9091fe5d3607d7ca60e208430851f",
+      "image_id": "sha256:b70bf116611b620b4a0ab04a2945b93f448268d32bf000a306797d9a5901016a",
+      "raw_file": "aa-knowledge_sql-optimized-603-postgresql.json",
+      "raw_sha256": "1187c2fe4647fd6e100ea96cbddd2b4cccde5e8b59ddbf22a947ec727406e84a"
+    }
+  ]
+}

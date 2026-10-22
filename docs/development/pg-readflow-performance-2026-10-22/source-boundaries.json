@@ -1,0 +1,32 @@
+{
+  "baseline": "599c1e9436c9091fe5d3607d7ca60e208430851f",
+  "candidate": "70022d47de219bfab1bb29dbf3a5be2f73f7acda",
+  "changed_application_paths": [
+    "src/tianshu_memory/knowledge.py",
+    "src/tianshu_memory/knowledge_references.py",
+    "src/tianshu_memory/recall_language.py",
+    "src/tianshu_memory/recall_relevance.py"
+  ],
+  "unchanged_blobs": {
+    "contracts.py": "ec62471fb0ea672eb47c12271336762656f9d4b1",
+    "postgres.py": "8d88c80f838d2c7d7bb39c9ce0d725571f9fe2ac",
+    "postgres_schema.sql": "1150322de3ba093f43bbf2eaf3801ff03147104c",
+    "store.py": "9c88e83257c078da0a7f231e55986a01db51abad",
+    "service.py": "96ea9fb133a49d7612b8aea341609a76cc24b352",
+    "workflow.py": "8058fb134424611532fd88f5cdbf21768c327894",
+    "sources.py": "992b50432231a1357a8c8ca623e16a8d1508e123",
+    "source_authority.py": "ffcad58448a2fc421d7f53bb8cd35e634c028558",
+    "source_transport.py": "12c952618512ef3c67a872f470b1d9decb66aca8",
+    "automatic_facts.py": "0b426bb7d31ef2db95215d929345da7ddf386dbb",
+    "knowledge_files.py": "2baaae6a517de19d1152e5ca3aa5a684370dab05",
+    "knowledge_evidence.py": "2547e8963a45ab28dd7159b0f344fc6615f5b9cf",
+    "knowledge_ports.py": "8411cc0922fe14ef43f558e397431a7436217aeb",
+    "knowledge_sources.py": "ed580314183ff6b53c0d86274039f36a640ada3d"
+  },
+  "shared_storage_version": "0.1.3",
+  "source_operations_keep_fresh_revision_checks": 6,
+  "dependent_owner_rpc_per_ordinary_operation": 3,
+  "cross_request_authority_cache_added": false,
+  "new_database_migration": false,
+  "schema_and_lock_protocol_changed": false
+}

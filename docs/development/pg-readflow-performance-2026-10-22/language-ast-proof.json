@@ -1,0 +1,17 @@
+{
+  "baseline": "599c1e9436c9091fe5d3607d7ca60e208430851f",
+  "candidate": "70022d47de219bfab1bb29dbf3a5be2f73f7acda",
+  "checks": [
+    {
+      "original_function": "explicit_named_reference",
+      "prepared_method": "explicit",
+      "grammar_ast_equal_after_body_lookup_substitution": true
+    },
+    {
+      "original_function": "named_reference",
+      "prepared_method": "for_name",
+      "grammar_ast_equal_after_body_lookup_substitution": true
+    }
+  ],
+  "scope": "Statement grammar only; body memoization lifetime/exception behavior requires functional tests and caller review"
+}

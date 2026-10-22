@@ -1,0 +1,24 @@
+{
+  "revision": "599c1e9436c9091fe5d3607d7ca60e208430851f",
+  "images": {
+    "memory": {
+      "service": "memory",
+      "image_id": "sha256:b70bf116611b620b4a0ab04a2945b93f448268d32bf000a306797d9a5901016a",
+      "tag": "tianshu/ts292-c7838437-memory:599c1e9436c9",
+      "base_tag": "tianshu/ts292-c7838437-base-memory:pinned",
+      "base_image": "sha256:03ecca02aff160f62eeb732f831f1e72528a112e1d4f7e2b40df9eb5f001a9e8",
+      "runtime_configuration_preserved": [
+        "User",
+        "Entrypoint",
+        "Cmd",
+        "WorkingDir",
+        "Healthcheck",
+        "Env",
+        "Volumes",
+        "ExposedPorts",
+        "StopSignal"
+      ],
+      "production_container_changed": false
+    }
+  }
+}

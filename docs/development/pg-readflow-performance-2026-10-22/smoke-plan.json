@@ -1,0 +1,68 @@
+{
+  "mode": "smoke-combined",
+  "plan": [
+    {
+      "suite": "knowledge_reference_concurrent",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 910
+    },
+    {
+      "suite": "knowledge_reference_concurrent",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 910
+    },
+    {
+      "suite": "memory_named_context",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 911
+    },
+    {
+      "suite": "memory_named_context",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 911
+    }
+  ],
+  "completed": [
+    {
+      "suite": "knowledge_reference_concurrent",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 910
+    },
+    {
+      "suite": "knowledge_reference_concurrent",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 910
+    },
+    {
+      "suite": "memory_named_context",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 911
+    },
+    {
+      "suite": "memory_named_context",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 911
+    }
+  ],
+  "reuse": "Knowledge executable/dependency bytes unchanged; old 0a81 named proof excluded",
+  "superseded": [
+    {
+      "suite": "memory_named_context",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 910
+    }
+  ],
+  "source_manifests": [
+    "source-manifest-smoke-initial.json",
+    "source-manifest-formal.json"
+  ]
+}

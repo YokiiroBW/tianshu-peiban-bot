@@ -1,0 +1,60 @@
+{
+  "knowledge": {
+    "baseline": "599c1e9436c9091fe5d3607d7ca60e208430851f",
+    "reviewed_commit": "4042e6bf8b94fd7d309ecf2ad46e978448024757",
+    "concrete_blockers": [],
+    "review": "Ordered scalar authority checks remain; project-filtered raw metadata only is eager; raw blocks are lazy per admitted current document; decoding remains ordered; per-generator rows do not survive capture/serve or invocations.",
+    "limit": "New phase unit test repeats resolve in one transaction. Actual cross-phase read-gap behavior is covered by existing unchanged end-to-end tests and control-flow evidence."
+  },
+  "named_query": {
+    "baseline": "4042e6bf8b94fd7d309ecf2ad46e978448024757",
+    "reviewed_commit": "70022d47de219bfab1bb29dbf3a5be2f73f7acda",
+    "concrete_blockers": [],
+    "review": "Preparation object belongs only to one named_owner invocation; plain/lexical generation stays lazy; assignment occurs after success, so exceptions are not cached; authority and new-operation boundaries unchanged. Independent AST substitution confirms both original grammars unchanged."
+  },
+  "knowledge_benchmark": {
+    "reviewed_commit": "fc518f14bcff7e70b47b62079c9ce057cbef1c13",
+    "concrete_blockers": [],
+    "review": "Four native requests share one app/namespace and start through a barrier; every completed result checked outside timer; process CPU recorded per batch only; worker thread clocks separate; errors cannot produce passed output.",
+    "limit": "Same client/project synthetic concurrency; does not prove mixed-identity isolation or simultaneous SQL execution."
+  },
+  "named_benchmark": {
+    "initial_commit": "0a81f5a893fe16daa1796394fea9981d73f98e16",
+    "finding": "Initial projection normalization could hide a swap of two valid projection references between records.",
+    "fixed_commit": "c0a0777e5c66b8bee117350fceaa82f8e9273888",
+    "resolution": "Native _projections_current checks active state, record ownership and version before normalization. Contract-valid swapped-reference negative must fail at this native gate. Check remains outside timing and diagnostic spies.",
+    "remaining_concrete_blockers": [],
+    "superseded_smoke": "memory_named_context original trial910; no formal sample used this protocol"
+  },
+  "namespace_amendment": {
+    "finding": "named context n prefix collided with retrieval's independent negative-sync n prefix; native ownership guard refused the latter",
+    "fixed_commit": "3d65ece",
+    "resolution": "Only retrieval negative prefix changed to rn; first retrieval pair uses trial411, later402/403; all other suites keep401/402/403",
+    "pure_schedule_review": "42 unique valid runs, 48 unique PG fixture namespaces, no collisions; failed original401 and its incomplete main segment excluded; prior10 valid runs retain their actual c0 manifest",
+    "product_or_timing_changed": false
+  },
+  "analysis_review": {
+    "independent_counts": "4806 serial native operations, 240 concurrent batches / 960 logical requests; 720 formal submissions across four write controls",
+    "verification_counts": "2161 full passes +258 selected-native passes -60 overlapping nodes =2359 distinct; 198 full PG skips now passed; one intentional skip remains",
+    "bounded_revisions": "Exact unique plan/case/count/trial/unit assertions, named native projection and source proof gates, write-control role labels, limited-signature claims",
+    "independent_arithmetic": "All 29 summaries rebuilt from 42 raw timing and process CPU arrays; plan/unique keys, manifests, raw hashes and denominators agree. local_commit aggregate -6.30% versus paired median +9.49%; all four write p95 adverse retained.",
+    "durability": "36 of42 runs directly emit SHOW; all PG17.6 on/on/on. Six legacy Knowledge runs omit SHOW, not off."
+  },
+  "review_method": "Independent read-only committed Git blobs and bounded protocol/XML calculations; review agents did not execute product tests or access NAS. Actual tests and measurements are separate evidence.",
+  "adverse_knowledge_review": {
+    "new_hot_path_root_cause_found": false,
+    "evidence": "PG query directly current/evidence; import prepares/stores versions; neither enters new collection path. Fresh/import CPU also adverse; unchanged code or14 untimed adapter calls cannot prove non-regression or classify all as wait noise.",
+    "formal_values_retained": true,
+    "aa_cannot_erase_ab_or_establish_cause": true
+  },
+  "same_image_aa_review": {
+    "independently_rebuilt": true,
+    "runs": 6,
+    "native_operations": 1020,
+    "formal_runs_added": 0,
+    "same_baseline_revision_and_image": true,
+    "reported_subset_signatures_equal": true,
+    "limit": "Post-formal A/A with independent namespaces is not a simultaneous error distribution for previous A/B; cannot subtract, impose a noise threshold, erase adverse values, or infer their cause. A/B import CPU+32.36% is not reproduced by A/A aggregate CPU and remains unexplained.",
+    "differing_aggregation_examples": "A/A import ratio-of-medians+9.84% versus paired-ratio median-6.51%; HTTPexact-.89% versus+16.03%, all retained in raw analysis."
+  }
+}

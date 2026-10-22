@@ -1,0 +1,80 @@
+{
+  "plan": [
+    {
+      "suite": "knowledge_sql",
+      "variant": "original",
+      "trial": 601,
+      "backend": "postgresql"
+    },
+    {
+      "suite": "knowledge_sql",
+      "variant": "optimized",
+      "trial": 601,
+      "backend": "postgresql"
+    },
+    {
+      "suite": "knowledge_sql",
+      "variant": "optimized",
+      "trial": 602,
+      "backend": "postgresql"
+    },
+    {
+      "suite": "knowledge_sql",
+      "variant": "original",
+      "trial": 602,
+      "backend": "postgresql"
+    },
+    {
+      "suite": "knowledge_sql",
+      "variant": "original",
+      "trial": 603,
+      "backend": "postgresql"
+    },
+    {
+      "suite": "knowledge_sql",
+      "variant": "optimized",
+      "trial": 603,
+      "backend": "postgresql"
+    }
+  ],
+  "completed": [
+    {
+      "suite": "knowledge_sql",
+      "variant": "original",
+      "trial": 601,
+      "backend": "postgresql"
+    },
+    {
+      "suite": "knowledge_sql",
+      "variant": "optimized",
+      "trial": 601,
+      "backend": "postgresql"
+    },
+    {
+      "suite": "knowledge_sql",
+      "variant": "optimized",
+      "trial": 602,
+      "backend": "postgresql"
+    },
+    {
+      "suite": "knowledge_sql",
+      "variant": "original",
+      "trial": 602,
+      "backend": "postgresql"
+    },
+    {
+      "suite": "knowledge_sql",
+      "variant": "original",
+      "trial": 603,
+      "backend": "postgresql"
+    },
+    {
+      "suite": "knowledge_sql",
+      "variant": "optimized",
+      "trial": 603,
+      "backend": "postgresql"
+    }
+  ],
+  "same_source_both_labels": true,
+  "scope": "Counterfactual noise control after formal measurement; does not establish a cause for earlier adverse AB values"
+}
