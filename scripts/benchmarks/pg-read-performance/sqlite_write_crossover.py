@@ -291,8 +291,13 @@ for line in sys.stdin:
         for leg in (0, 1):
             workers, placement = {}, {}
             closed = {}
+            role_variants = {
+                role: variant for variant, role in assignments(block, leg).items()
+            }
+            launch_order = [role_variants[role] for role in ROLES]
             try:
-                for variant, role in assignments(block, leg).items():
+                for launch_position, role in enumerate(ROLES, 1):
+                    variant = role_variants[role]
                     active = active_paths[role]
                     name = prefix + str(block) + "-" + str(leg) + "-" + role
                     worker = Worker(
@@ -324,6 +329,7 @@ for line in sys.stdin:
                     ] == str(root)
                     placement[variant] = {
                         "role": role,
+                        "launch_position": launch_position,
                         "image_id": actual["Image"],
                         "container_id": actual["Id"],
                         "container_name": name,
@@ -335,6 +341,7 @@ for line in sys.stdin:
                 placements.append(
                     {
                         "assignment": leg,
+                        "launch_order": launch_order,
                         "placement": placement,
                         "ready": {v: w.ready for v, w in workers.items()},
                     }
