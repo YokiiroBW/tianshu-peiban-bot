@@ -35,7 +35,7 @@ def arguments(*, allow_profile=False):
         )
     args = parser.parse_args()
     config = json.loads(args.config.read_bytes())
-    assert config["database"].startswith("ts_pgopt_")
+    assert config["database"].startswith(("ts_pgopt_", "ts_pgflow_"))
     assert not config.get("redis_url")
     args.namespace = f"{args.variant}{args.trial}"
     args.verified_revision = verify_installation(
