@@ -16,6 +16,8 @@
 
 TS-291可写：`knowledge.py`、必要的同域 `knowledge_references.py`、`service.py`、`recall_index.py`、`fact_queries.py`、`recall_relevance.py`、`postgres_recall.py`、`source_authority.py`、`postgres_source_snapshot.py`、相关现有测试和本号交接。不得修改Store、通用PG adapter、schema、合同、依赖或共享入口；确有需要先由协调者在已有授权内收敛具体范围。
 
+协调者定位后补充 `recall_language.py`：只在每次 `named_owner` 内惰性准备同一query的plain/lexical body，复用到该次名称遍历；空值可复用，异常不缓存。姓名匹配、current_names/complete/uncertain、权限和来源依旧逐次核验，外部排序后的新operation重新准备。沿用现有语言规则与函数行为，不新建结果缓存。此块在Knowledge块冻结后由同一产品写者串行实施。
+
 ## 保持的边界
 
 完整合同与关系规则、scope/person/actor/project权限、lineage/revision/epoch/admission/suppression、完整组/projection、当前事实过滤和排序语义保持。常见来源操作仍六次fresh revision和三个依赖owner RPC；排序后新operation重新同步与授权。跨actor撤回、负向先持久化、锁后独立SELECT、CAS、guard先于commit、PG同步提交保持。媒体、原始文件和默认文件库不迁移进数据库。

@@ -1650,14 +1650,16 @@
         "src/tianshu_memory/recall_index.py",
         "src/tianshu_memory/fact_queries.py",
         "tests/",
-        "docs/handoffs/TS-291.md"
+        "docs/handoffs/TS-291.md",
+        "src/tianshu_memory/recall_language.py"
       ],
       "done_when": "PG专用优化分块提交；完整权限、来源、当前性、错误及持久性等价，PG与SQLite功能验证通过，PG前后端到端有实测收益。",
       "worktree": "worktrees/TS-291/tianshu-memory",
       "branch": "codex/ts-291-pg-readflow",
       "baseline_commit": "e5e1b394a8f6d318dda4d9280587e599fd64c653",
       "implementation_baseline_commit": "599c1e9436c9091fe5d3607d7ca60e208430851f",
-      "allocation_note": "Standard clean Memory allocation; isolated checkout fast-forwarded to accepted full Q19 TS287 history. Previous PG TS285 candidate is not stacked; product assembly remains separate."
+      "allocation_note": "Standard clean Memory allocation; isolated checkout fast-forwarded to accepted full Q19 TS287 history. Previous PG TS285 candidate is not stacked; product assembly remains separate.",
+      "scope_extension": "Per-named_owner lazy plain/lexical query body preparation; preserve matching, authority, source checks and phase boundaries."
     },
     {
       "execution_model": "gpt-6.1-sol",
