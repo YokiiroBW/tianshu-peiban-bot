@@ -1410,6 +1410,100 @@
       },
       "writer_released": true,
       "result_commit": "221e602c6179af96131ab345c0e3650f3fd51f09"
+    },
+    {
+      "execution_model": "gpt-6.1-sol",
+      "reasoning_effort": "max",
+      "task_card": "docs/development/TS-278-business-flow-performance.md",
+      "authorization": "2026-10-22用户明确授权实施业务链路方案前两项并进行PG/SQLite隔离实测；沿用同聊天gpt-6.1-sol/max，生产数据及媒体不改、不推送部署。",
+      "pushed": false,
+      "deployed": false,
+      "id": "TS-278",
+      "project": "memory",
+      "title": "业务链路精确预算与同步纯计算复用",
+      "status": "done",
+      "assignee": "business_flow_impl",
+      "depends_on": [
+        "TS-267",
+        "TS-276"
+      ],
+      "desired_baseline_commit": "4dbb8163524af55822d492cfdfda740090b569e9",
+      "integration_depends_on": [
+        "TS-272"
+      ],
+      "allowed_paths": [
+        "src/tianshu_memory/service.py",
+        "src/tianshu_memory/knowledge.py",
+        "src/tianshu_memory/source_authority.py",
+        "src/tianshu_memory/postgres_source_snapshot.py",
+        "src/tianshu_memory/response_budget.py",
+        "tests/",
+        "docs/handoffs/TS-278.md"
+      ],
+      "done_when": "预算与同步派生计算分别冻结提交；完整当前输入/权限/来源/错误及持久性等价，相关与原生PG验证通过，SQLite无退步才采用。",
+      "worktree": "worktrees/TS-278/tianshu-memory",
+      "branch": "codex/ts-278-business-flow",
+      "baseline_commit": "e5e1b394a8f6d318dda4d9280587e599fd64c653",
+      "implementation_baseline_commit": "4dbb8163524af55822d492cfdfda740090b569e9",
+      "allocation_note": "Standard clean Memory allocation; isolated checkout fast-forwarded to accepted full 4db history. No rejected TS275/TS271 runtime; Q18 product assembly remains separate.",
+      "writer_released": true,
+      "adopted": false,
+      "runtime_commit": "4d33d053f0107553019e8dd5f08c80a086a9ae81",
+      "phase1_commit": "61304513356c4bb9293f62a2473021f95664812e",
+      "result_commit": "9b68e07ad7906d01fa78a572eb24447539c164ef",
+      "delivery_state": "local_verified_not_adopted_not_integrated_not_deployed",
+      "result": "worktrees/TS-278/tianshu-memory/docs/handoffs/TS-278.md",
+      "adoption_reason": "SQLite普通提交无退步尚未成立，保留产品原实现。"
+    },
+    {
+      "execution_model": "gpt-6.1-sol",
+      "reasoning_effort": "max",
+      "task_card": "docs/development/TS-278-business-flow-performance.md",
+      "authorization": "2026-10-22用户明确授权实施业务链路方案前两项并进行PG/SQLite隔离实测；沿用同聊天gpt-6.1-sol/max，生产数据及媒体不改、不推送部署。",
+      "pushed": false,
+      "deployed": false,
+      "id": "TS-279",
+      "project": "workspace",
+      "title": "业务链路前两项PG与SQLite隔离验收",
+      "status": "done",
+      "assignee": "current-thread",
+      "depends_on": [
+        "TS-276"
+      ],
+      "integration_depends_on": [
+        "TS-278"
+      ],
+      "allowed_paths": [
+        "scripts/benchmarks/pg-read-performance/",
+        "docs/development/TS-278-business-flow-performance.md",
+        "docs/development/business-flow-performance-2026-10-22*",
+        "docs/handoffs/TS-279.md"
+      ],
+      "done_when": "旧新PG/SQLite三轮覆盖记忆/来源/资料检索，SQLite真实读写配对交换目录和worker位置；全部正确性、尾延迟、反证和清理记录准确，不访问生产业务或媒体。",
+      "worktree": "worktrees/TS-279/workspace",
+      "branch": "codex/ts-279-business-flow",
+      "baseline_commit": "b45ef76f97189f903edcdb7f4686328b356de5f1",
+      "allocation_note": "Standard allocator refused foreign mixed root; reviewed benchmark/storage paths unchanged and created committed-baseline worktree, preserving all root bytes.",
+      "writer_released": true,
+      "adopted": false,
+      "result_commit": "7c5b2afd8304b27d94d23e286a3cf2a61c6ef17b",
+      "benchmark_window_released": true,
+      "delivery_state": "isolated_measurements_complete_candidate_not_adopted",
+      "result": "docs/development/business-flow-performance-2026-10-22.md",
+      "verification": {
+        "distinct_passed_nodes": 1875,
+        "native_pg_passed": 130,
+        "baseline_reproduced_failures": 1,
+        "intentional_remaining_skips": 1,
+        "formal_runs": 36,
+        "formal_operations": 6600,
+        "memory_read_pairs": 3300,
+        "knowledge_read_pairs": 600,
+        "balanced_write_ab_pairs": 240,
+        "balanced_write_aa_pairs": 240,
+        "cleanup_complete": true,
+        "sqlite_non_regression_confirmed": false
+      }
     }
   ],
   "dispatch_defaults": {
