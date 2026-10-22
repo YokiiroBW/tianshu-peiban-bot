@@ -1,0 +1,525 @@
+{
+  "task": "TS-286",
+  "mode": "smoke",
+  "baseline": "c696fd0de073dc375b161fb8192dc2713dc26b63",
+  "candidate": "06040aad9482f1f0ec8742f0a382daba9174f30a",
+  "runs_count": 2,
+  "measurements": 12,
+  "cpu_clock": "client process_time_ns and calling-thread thread_time_ns; overlapping clocks",
+  "aggregation": "median of each round's p50/p95/p99; no fastest-run selection; no SQLite performance gate",
+  "summary": [
+    {
+      "suite": "knowledge_reference",
+      "case": "knowledge_reference_check20",
+      "variants": {
+        "original": {
+          "p50_ms": 62.060679,
+          "p95_ms": 64.138484,
+          "p99_ms": 64.138484,
+          "ops_s": 16.27131943527262,
+          "process_cpu_p50_ms": 38.64767,
+          "thread_cpu_p50_ms": 38.645483,
+          "operations": 3,
+          "trial_p50_ms": [
+            62.060679
+          ],
+          "trial_p95_ms": [
+            64.138484
+          ],
+          "trial_process_cpu_p50_ms": [
+            38.64767
+          ]
+        },
+        "optimized": {
+          "p50_ms": 68.566467,
+          "p95_ms": 74.824115,
+          "p99_ms": 74.824115,
+          "ops_s": 14.762204359670637,
+          "process_cpu_p50_ms": 41.97503,
+          "thread_cpu_p50_ms": 41.972894,
+          "operations": 3,
+          "trial_p50_ms": [
+            68.566467
+          ],
+          "trial_p95_ms": [
+            74.824115
+          ],
+          "trial_process_cpu_p50_ms": [
+            41.97503
+          ]
+        }
+      },
+      "latency_change_pct": 10.482946859153763,
+      "p95_change_pct": 16.660248782930374,
+      "client_process_cpu_change_pct": 8.609471153112214,
+      "trial_latency_change_pct": [
+        10.482946859153763
+      ],
+      "tail_estimate_supported": true
+    },
+    {
+      "suite": "knowledge_reference",
+      "case": "knowledge_reference_recover20",
+      "variants": {
+        "original": {
+          "p50_ms": 92.989299,
+          "p95_ms": 98.112542,
+          "p99_ms": 98.112542,
+          "ops_s": 11.025418860623954,
+          "process_cpu_p50_ms": 54.160803,
+          "thread_cpu_p50_ms": 54.157338,
+          "operations": 3,
+          "trial_p50_ms": [
+            92.989299
+          ],
+          "trial_p95_ms": [
+            98.112542
+          ],
+          "trial_process_cpu_p50_ms": [
+            54.160803
+          ]
+        },
+        "optimized": {
+          "p50_ms": 83.669173,
+          "p95_ms": 84.827595,
+          "p99_ms": 84.827595,
+          "ops_s": 12.149546237532165,
+          "process_cpu_p50_ms": 46.23105,
+          "thread_cpu_p50_ms": 46.226855,
+          "operations": 3,
+          "trial_p50_ms": [
+            83.669173
+          ],
+          "trial_p95_ms": [
+            84.827595
+          ],
+          "trial_process_cpu_p50_ms": [
+            46.23105
+          ]
+        }
+      },
+      "latency_change_pct": -10.022794128171675,
+      "p95_change_pct": -13.540518601587149,
+      "client_process_cpu_change_pct": -14.64112893599454,
+      "trial_latency_change_pct": [
+        -10.022794128171675
+      ],
+      "tail_estimate_supported": true
+    }
+  ],
+  "runs": [
+    {
+      "requested_suite": "knowledge_reference",
+      "image_id": "sha256:cc62ff79cfdad319624c6104b3b1fd5e424251f974c4e2d8ba3e171e2b8156dc",
+      "revision": "c696fd0de073dc375b161fb8192dc2713dc26b63",
+      "client_wall_s": 8.187411366961896,
+      "raw_record_sha256": "6460bbbfca5805cc989bee8dc3a2d516d70354be0ef292862e379411d0c6fba6",
+      "suite": "knowledge_reference",
+      "backend": "postgresql",
+      "trial": 902,
+      "variant": "original",
+      "verified_revision": "c696fd0de073dc375b161fb8192dc2713dc26b63",
+      "measurement_mode": "timed",
+      "correctness": "passed",
+      "cpu_count": 8,
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "loadavg": [
+        6.04345703125,
+        4.7412109375,
+        4.80810546875
+      ],
+      "results": [
+        {
+          "case": "knowledge_reference_recover20",
+          "operations": 3,
+          "elapsed_s": 0.27209850599999996,
+          "ops_s": 11.025418860623954,
+          "p50_ms": 92.989299,
+          "p95_ms": 98.112542,
+          "p99_ms": 98.112542,
+          "mean_ms": 90.699502,
+          "latencies_ms": [
+            92.989299,
+            80.996665,
+            98.112542
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.5129555950406939,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            54.564382,
+            47.668141,
+            54.160803
+          ],
+          "process_cpu_p50_ms": 54.160803,
+          "process_cpu_p95_ms": 54.564382,
+          "process_cpu_p99_ms": 54.564382,
+          "process_cpu_mean_ms": 52.13110866666667,
+          "thread_cpu_ms": [
+            54.560544,
+            47.664113,
+            54.157338
+          ],
+          "thread_cpu_p50_ms": 54.157338,
+          "thread_cpu_p95_ms": 54.560544,
+          "thread_cpu_p99_ms": 54.560544,
+          "thread_cpu_mean_ms": 52.12733166666667
+        },
+        {
+          "case": "knowledge_reference_check20",
+          "operations": 3,
+          "elapsed_s": 0.184373493,
+          "ops_s": 16.27131943527262,
+          "p50_ms": 62.060679,
+          "p95_ms": 64.138484,
+          "p99_ms": 64.138484,
+          "mean_ms": 61.457831,
+          "latencies_ms": [
+            58.17433,
+            64.138484,
+            62.060679
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.18441346194595098,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            38.439453,
+            41.414818,
+            38.64767
+          ],
+          "process_cpu_p50_ms": 38.64767,
+          "process_cpu_p95_ms": 41.414818,
+          "process_cpu_p99_ms": 41.414818,
+          "process_cpu_mean_ms": 39.500647,
+          "thread_cpu_ms": [
+            38.435891,
+            41.412335,
+            38.645483
+          ],
+          "thread_cpu_p50_ms": 38.645483,
+          "thread_cpu_p95_ms": 41.412335,
+          "thread_cpu_p99_ms": 41.412335,
+          "thread_cpu_mean_ms": 39.497903
+        }
+      ],
+      "seed_blocks": 200,
+      "source_files": 2,
+      "state_evidence_refs": 16,
+      "recovered_refs": 20,
+      "query_extra_refs": 4,
+      "native_state_limit": 16,
+      "models_called": 0,
+      "logical_result_signatures": {
+        "query_cohort": {
+          "ordered": "4ba762ef0e64cb8756abee958d61d4647ffae89b7878ae56b53a9490b2141e83",
+          "content": "4ba762ef0e64cb8756abee958d61d4647ffae89b7878ae56b53a9490b2141e83"
+        },
+        "recover": {
+          "ordered": "2a089767103e0570a812d9dd61b5ee60ada20060d22f63789572f3a24241709d",
+          "content": "2a089767103e0570a812d9dd61b5ee60ada20060d22f63789572f3a24241709d"
+        },
+        "check": "ccbcfc908d477ad41b62dd878f19d52f329299b9d98c21aa9d9268ffc9c54440"
+      },
+      "untimed_call_counts": {
+        "recover": {
+          "reference_calls": 32,
+          "source_file_reads": 4,
+          "timing_included": false
+        },
+        "check": {
+          "reference_calls": 40,
+          "source_file_reads": 4,
+          "timing_included": false
+        }
+      },
+      "native_negative_proofs": {
+        "wrong_project": "forbidden",
+        "wrong_credential": "unauthorized",
+        "revoked_permission": "forbidden",
+        "other_client_seal": {
+          "valid": false,
+          "reason": "stale_or_tampered"
+        },
+        "changed_source": {
+          "valid": false,
+          "reason": "stale_or_tampered"
+        },
+        "changed_state_seal": {
+          "valid": false,
+          "reason": "stale_or_tampered"
+        }
+      },
+      "storage_before": {
+        "counts": {
+          "knowledge_documents": 2,
+          "knowledge_versions": 2,
+          "knowledge_blocks": 200,
+          "knowledge_states": 1,
+          "knowledge_state_history": 1
+        },
+        "project_revision": 3,
+        "guard_sha256": "661c669785ccca0b0477df7b2c446f6ec2f3a7ba4b3f12ccf4d2b68cb9399074",
+        "durability": {
+          "server_version": "17.6 (Debian 17.6-1.pgdg13+1)",
+          "fsync": "on",
+          "synchronous_commit": "on",
+          "full_page_writes": "on"
+        }
+      },
+      "storage_after": {
+        "counts": {
+          "knowledge_documents": 2,
+          "knowledge_versions": 2,
+          "knowledge_blocks": 200,
+          "knowledge_states": 1,
+          "knowledge_state_history": 1
+        },
+        "project_revision": 3,
+        "guard_sha256": "661c669785ccca0b0477df7b2c446f6ec2f3a7ba4b3f12ccf4d2b68cb9399074",
+        "durability": {
+          "server_version": "17.6 (Debian 17.6-1.pgdg13+1)",
+          "fsync": "on",
+          "synchronous_commit": "on",
+          "full_page_writes": "on"
+        }
+      },
+      "synthetic_source_hashes": {
+        "synthetic-0.txt": "536be58d03e3b789ec7af3f09a90d81ace5a6bcbae73484085faca001f531b90",
+        "synthetic-1.txt": "99ee8c5509579dd70586104a7f62abb030795f214059707cea70516315a7a635"
+      },
+      "timed_boundary": "Native KnowledgeApplication.execute; recover's additional native check and signature run outside its timer; check case times check only; no formal hooks",
+      "normalization": "imported_at omitted; per-DB seal omitted only after native check; actual registration verified then registered root replaced for cross-run fingerprint; all other fields retained"
+    },
+    {
+      "requested_suite": "knowledge_reference",
+      "image_id": "sha256:a0a8e87daa5f99800d3d57686df5aa2532362946ba5531f8cec874a20bd9747f",
+      "revision": "06040aad9482f1f0ec8742f0a382daba9174f30a",
+      "client_wall_s": 9.151021291967481,
+      "raw_record_sha256": "e7d876918cb3f5dde75f2df499d005e1a78c18a3c445e0e8d5c0b77809a537e3",
+      "suite": "knowledge_reference",
+      "backend": "postgresql",
+      "trial": 902,
+      "variant": "optimized",
+      "verified_revision": "06040aad9482f1f0ec8742f0a382daba9174f30a",
+      "measurement_mode": "timed",
+      "correctness": "passed",
+      "cpu_count": 8,
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "loadavg": [
+        6.03955078125,
+        4.76220703125,
+        4.81494140625
+      ],
+      "results": [
+        {
+          "case": "knowledge_reference_recover20",
+          "operations": 3,
+          "elapsed_s": 0.246922802,
+          "ops_s": 12.149546237532165,
+          "p50_ms": 83.669173,
+          "p95_ms": 84.827595,
+          "p99_ms": 84.827595,
+          "mean_ms": 82.30760066666667,
+          "latencies_ms": [
+            78.426034,
+            83.669173,
+            84.827595
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.41997427796013653,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            43.307486,
+            46.248781,
+            46.23105
+          ],
+          "process_cpu_p50_ms": 46.23105,
+          "process_cpu_p95_ms": 46.248781,
+          "process_cpu_p99_ms": 46.248781,
+          "process_cpu_mean_ms": 45.262439,
+          "thread_cpu_ms": [
+            43.302529,
+            46.242975,
+            46.226855
+          ],
+          "thread_cpu_p50_ms": 46.226855,
+          "thread_cpu_p95_ms": 46.242975,
+          "thread_cpu_p99_ms": 46.242975,
+          "thread_cpu_mean_ms": 45.257453
+        },
+        {
+          "case": "knowledge_reference_check20",
+          "operations": 3,
+          "elapsed_s": 0.20322168200000001,
+          "ops_s": 14.762204359670637,
+          "p50_ms": 68.566467,
+          "p95_ms": 74.824115,
+          "p99_ms": 74.824115,
+          "mean_ms": 67.74056066666667,
+          "latencies_ms": [
+            74.824115,
+            68.566467,
+            59.8311
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.20326523599214852,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            42.371615,
+            41.97503,
+            38.68617
+          ],
+          "process_cpu_p50_ms": 41.97503,
+          "process_cpu_p95_ms": 42.371615,
+          "process_cpu_p99_ms": 42.371615,
+          "process_cpu_mean_ms": 41.01093833333333,
+          "thread_cpu_ms": [
+            42.367128,
+            41.972894,
+            38.683723
+          ],
+          "thread_cpu_p50_ms": 41.972894,
+          "thread_cpu_p95_ms": 42.367128,
+          "thread_cpu_p99_ms": 42.367128,
+          "thread_cpu_mean_ms": 41.007915
+        }
+      ],
+      "seed_blocks": 200,
+      "source_files": 2,
+      "state_evidence_refs": 16,
+      "recovered_refs": 20,
+      "query_extra_refs": 4,
+      "native_state_limit": 16,
+      "models_called": 0,
+      "logical_result_signatures": {
+        "query_cohort": {
+          "ordered": "4ba762ef0e64cb8756abee958d61d4647ffae89b7878ae56b53a9490b2141e83",
+          "content": "4ba762ef0e64cb8756abee958d61d4647ffae89b7878ae56b53a9490b2141e83"
+        },
+        "recover": {
+          "ordered": "2a089767103e0570a812d9dd61b5ee60ada20060d22f63789572f3a24241709d",
+          "content": "2a089767103e0570a812d9dd61b5ee60ada20060d22f63789572f3a24241709d"
+        },
+        "check": "ccbcfc908d477ad41b62dd878f19d52f329299b9d98c21aa9d9268ffc9c54440"
+      },
+      "untimed_call_counts": {
+        "recover": {
+          "reference_calls": 32,
+          "source_file_reads": 4,
+          "timing_included": false
+        },
+        "check": {
+          "reference_calls": 40,
+          "source_file_reads": 4,
+          "timing_included": false
+        }
+      },
+      "native_negative_proofs": {
+        "wrong_project": "forbidden",
+        "wrong_credential": "unauthorized",
+        "revoked_permission": "forbidden",
+        "other_client_seal": {
+          "valid": false,
+          "reason": "stale_or_tampered"
+        },
+        "changed_source": {
+          "valid": false,
+          "reason": "stale_or_tampered"
+        },
+        "changed_state_seal": {
+          "valid": false,
+          "reason": "stale_or_tampered"
+        }
+      },
+      "storage_before": {
+        "counts": {
+          "knowledge_documents": 2,
+          "knowledge_versions": 2,
+          "knowledge_blocks": 200,
+          "knowledge_states": 1,
+          "knowledge_state_history": 1
+        },
+        "project_revision": 3,
+        "guard_sha256": "7ed6f395b430548951abf8654d0a449a9b731d210f2b7c01eaca880c276d9dc4",
+        "durability": {
+          "server_version": "17.6 (Debian 17.6-1.pgdg13+1)",
+          "fsync": "on",
+          "synchronous_commit": "on",
+          "full_page_writes": "on"
+        }
+      },
+      "storage_after": {
+        "counts": {
+          "knowledge_documents": 2,
+          "knowledge_versions": 2,
+          "knowledge_blocks": 200,
+          "knowledge_states": 1,
+          "knowledge_state_history": 1
+        },
+        "project_revision": 3,
+        "guard_sha256": "7ed6f395b430548951abf8654d0a449a9b731d210f2b7c01eaca880c276d9dc4",
+        "durability": {
+          "server_version": "17.6 (Debian 17.6-1.pgdg13+1)",
+          "fsync": "on",
+          "synchronous_commit": "on",
+          "full_page_writes": "on"
+        }
+      },
+      "synthetic_source_hashes": {
+        "synthetic-0.txt": "536be58d03e3b789ec7af3f09a90d81ace5a6bcbae73484085faca001f531b90",
+        "synthetic-1.txt": "99ee8c5509579dd70586104a7f62abb030795f214059707cea70516315a7a635"
+      },
+      "timed_boundary": "Native KnowledgeApplication.execute; recover's additional native check and signature run outside its timer; check case times check only; no formal hooks",
+      "normalization": "imported_at omitted; per-DB seal omitted only after native check; actual registration verified then registered root replaced for cross-run fingerprint; all other fields retained"
+    }
+  ],
+  "all_implemented_logical_signatures_equal": true,
+  "signature_comparison_scope": {
+    "memory_sql_and_memory_source_sync": "Legacy unordered semantic group signature only: statement/conditions/negations/valid_time/uncertainty/reality and whole group membership; does not compare permission/source envelopes or result order. Native application validation and dedicated functional tests cover these separately.",
+    "memory_retrieval": "Full normalized unit/scope/source/group/visibility/verification/budget/omission envelope; both ordered and content hashes for two-stage/context/withdrawn results. First-negative lexical tie order depends on generated IDs, so content hash only there.",
+    "knowledge_sql": "Full query result except verified dynamic imported_at; both ordered and content hashes.",
+    "knowledge_reference": "Native check on every package; full state/query/project/principal envelope, ordered and content hashes; only dynamic imported_at, validated per-DB seal and registered-root-derived fingerprint normalized."
+  }
+}

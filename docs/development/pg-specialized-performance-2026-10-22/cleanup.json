@@ -1,0 +1,14 @@
+{
+  "stage_removed": true,
+  "benchmark_containers_remaining": 0,
+  "temporary_image_tags_removed": [
+    "tianshu/ts286-5f7c544b-memory:c696fd0de073",
+    "tianshu/ts286-5f7c544b-base-memory:pinned",
+    "tianshu/ts286-5f7c544b-memory:06040aad9482"
+  ],
+  "preexisting_base_aliases_preserved": [],
+  "production_image_references_removed": false,
+  "temporary_database_removed": true,
+  "temporary_role_removed": true,
+  "redis_accessed": false
+}

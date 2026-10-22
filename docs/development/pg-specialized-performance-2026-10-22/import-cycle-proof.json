@@ -1,0 +1,27 @@
+{
+  "baseline": "c696fd0de073dc375b161fb8192dc2713dc26b63",
+  "candidate": "06040aad9482f1f0ec8742f0a382daba9174f30a",
+  "scope": "same top-level graph, including function-local imports, as test_audit_runtime",
+  "cyclic_components_identical": true,
+  "cyclic_components": [
+    [
+      "automatic_facts",
+      "fact_labels",
+      "fact_names",
+      "fact_queries",
+      "fact_references",
+      "fact_updates",
+      "recall_index",
+      "recall_relevance"
+    ]
+  ],
+  "new_cyclic_components": [],
+  "changed_import_edges": {
+    "profiles": {
+      "added": [
+        "postgres"
+      ],
+      "removed": []
+    }
+  }
+}

@@ -5,6 +5,8 @@ import time
 
 from common import (
     arguments,
+    cpu_details,
+    cpu_sample,
     durability,
     emit,
     measure,
@@ -37,16 +39,29 @@ def main():
         features = memory_features(fixture.store)
         with fixture.store.transaction() as db:
             sync = durability(db, args.backend)
-        values, written = [], []
+        values, written, process, thread = [], [], [], []
         for index in range(count):
             packet = fixture.prepare([size + index])
-            started = time.perf_counter_ns()
-            result = fixture.commit(packet)
-            values.append((time.perf_counter_ns() - started) / 1e6)
+            if args.cpu_clocks:
+                result, wall_ms, process_ms, thread_ms = cpu_sample(
+                    lambda: fixture.commit(packet)
+                )
+                values.append(wall_ms)
+                process.append(process_ms)
+                thread.append(thread_ms)
+            else:
+                started = time.perf_counter_ns()
+                result = fixture.commit(packet)
+                values.append((time.perf_counter_ns() - started) / 1e6)
             assert result["state"] == "committed" and len(result["group_ids"]) == 1
             written.append((packet, result))
         results = [
-            summarize("source_sync_complete_group_commit", values, sum(values) / 1000)
+            summarize(
+                "source_sync_complete_group_commit",
+                values,
+                sum(values) / 1000,
+                **(cpu_details(process, thread) if args.cpu_clocks else {}),
+            )
         ]
 
         def full_flow(index):
@@ -55,7 +70,14 @@ def main():
             written.append((packet, result))
             return result
 
-        results.append(measure("source_sync_source_candidate_commit", full_flow, count))
+        results.append(
+            measure(
+                "source_sync_source_candidate_commit",
+                full_flow,
+                count,
+                cpu_clocks=args.cpu_clocks,
+            )
+        )
         counts = fixture.counts()
         assert counts["groups"] == counts["records"] == size + count * 2 + 5
         assert counts["write_ledger"] == (size + 9) // 10 + count * 2 + 5

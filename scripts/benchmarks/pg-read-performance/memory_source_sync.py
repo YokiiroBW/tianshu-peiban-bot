@@ -183,26 +183,35 @@ def main():
     )
     count = 3 if args.smoke else 20
     signatures = {"keyword": signature(keyword), "exact": signature(exact)}
-    results = [] if args.profile_only else [
-        measure(
-            "source_sync_authorized_keyword_recall",
-            lambda _: select(),
-            count,
-            check=lambda result: signature(result) == signatures["keyword"] or fail(),
-        ),
-        measure(
-            "source_sync_authorized_field_recall",
-            lambda _: select("field:bench-0"),
-            count,
-            check=lambda result: signature(result) == signatures["exact"] or fail(),
-        ),
-        measure(
-            "source_sync_zero_budget",
-            lambda _: select(budget=0),
-            count,
-            check=lambda result: result["selected_units"] == [] or fail(),
-        ),
-    ]
+    results = (
+        []
+        if args.profile_only
+        else [
+            measure(
+                "source_sync_authorized_keyword_recall",
+                lambda _: select(),
+                count,
+                cpu_clocks=args.cpu_clocks,
+                check=lambda result: (
+                    signature(result) == signatures["keyword"] or fail()
+                ),
+            ),
+            measure(
+                "source_sync_authorized_field_recall",
+                lambda _: select("field:bench-0"),
+                count,
+                cpu_clocks=args.cpu_clocks,
+                check=lambda result: signature(result) == signatures["exact"] or fail(),
+            ),
+            measure(
+                "source_sync_zero_budget",
+                lambda _: select(budget=0),
+                count,
+                cpu_clocks=args.cpu_clocks,
+                check=lambda result: result["selected_units"] == [] or fail(),
+            ),
+        ]
+    )
     profile = {
         "keyword": pg_calls(lambda: select(), args.backend),
         "exact": pg_calls(lambda: select("field:bench-0"), args.backend),
@@ -214,13 +223,17 @@ def main():
     python_profiles = {}
     if args.profile_only:
         profile["zero_budget"] = pg_calls(lambda: select(budget=0), args.backend)
-        sqlite_profile["zero_budget"] = sqlite_calls(lambda: select(budget=0), args.backend)
+        sqlite_profile["zero_budget"] = sqlite_calls(
+            lambda: select(budget=0), args.backend
+        )
         # Profile the complete original corpus before changing any physical source.
         # Native/SQLite hooks have already been restored; these are separate calls.
         python_profiles = {
             "keyword": python_profile(
                 lambda: select(),
-                check=lambda result: signature(result) == signatures["keyword"] or fail(),
+                check=lambda result: (
+                    signature(result) == signatures["keyword"] or fail()
+                ),
             ),
             "exact": python_profile(
                 lambda: select("field:bench-0"),
@@ -251,6 +264,7 @@ def main():
                 "source_sync_recall_after_withdrawal",
                 lambda _: select(),
                 count,
+                cpu_clocks=args.cpu_clocks,
                 check=lambda result: signature(result) == expected or fail(),
             )
         )

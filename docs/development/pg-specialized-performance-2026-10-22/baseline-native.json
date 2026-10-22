@@ -1,0 +1,9 @@
+{
+  "source": "c696fd0de073dc375b161fb8192dc2713dc26b63",
+  "distinct_passed": 225,
+  "first_attempt_environment_errors": 117,
+  "second_attempt_environment_errors": 117,
+  "third_attempt_passed": 117,
+  "wrapper_summary_print_error": true,
+  "production_business_access": false
+}

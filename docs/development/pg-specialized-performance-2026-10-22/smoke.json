@@ -1,0 +1,4015 @@
+{
+  "task": "TS-286",
+  "mode": "smoke",
+  "baseline": "c696fd0de073dc375b161fb8192dc2713dc26b63",
+  "candidate": "06040aad9482f1f0ec8742f0a382daba9174f30a",
+  "runs_count": 8,
+  "measurements": 136,
+  "cpu_clock": "client process_time_ns and calling-thread thread_time_ns; overlapping clocks",
+  "aggregation": "median of each round's p50/p95/p99; no fastest-run selection; no SQLite performance gate",
+  "first_negative_sync_limit": "One independent first-negative sample per variant per round; no tail estimate or population confidence claim",
+  "summary": [
+    {
+      "suite": "knowledge_sql",
+      "case": "knowledge_authorized_cohort20_query",
+      "variants": {
+        "original": {
+          "p50_ms": 13.224686,
+          "p95_ms": 17.883176,
+          "p99_ms": 17.883176,
+          "ops_s": 67.68379008648613,
+          "process_cpu_p50_ms": 8.769993,
+          "thread_cpu_p50_ms": 8.766649,
+          "operations": 3,
+          "trial_p50_ms": [
+            13.224686
+          ],
+          "trial_p95_ms": [
+            17.883176
+          ],
+          "trial_process_cpu_p50_ms": [
+            8.769993
+          ]
+        },
+        "optimized": {
+          "p50_ms": 13.067728,
+          "p95_ms": 17.495682,
+          "p99_ms": 17.495682,
+          "ops_s": 70.0607225623878,
+          "process_cpu_p50_ms": 8.556379,
+          "thread_cpu_p50_ms": 8.553408,
+          "operations": 3,
+          "trial_p50_ms": [
+            13.067728
+          ],
+          "trial_p95_ms": [
+            17.495682
+          ],
+          "trial_process_cpu_p50_ms": [
+            8.556379
+          ]
+        }
+      },
+      "latency_change_pct": -1.1868561567359714,
+      "p95_change_pct": -2.16680750667555,
+      "client_process_cpu_change_pct": -2.4357374059477577,
+      "trial_latency_change_pct": [
+        -1.1868561567359714
+      ],
+      "tail_estimate_supported": true
+    },
+    {
+      "suite": "knowledge_sql",
+      "case": "knowledge_authorized_exact_query",
+      "variants": {
+        "original": {
+          "p50_ms": 10.993967,
+          "p95_ms": 15.385826,
+          "p99_ms": 15.385826,
+          "ops_s": 80.9501977383972,
+          "process_cpu_p50_ms": 6.905803,
+          "thread_cpu_p50_ms": 6.902905,
+          "operations": 3,
+          "trial_p50_ms": [
+            10.993967
+          ],
+          "trial_p95_ms": [
+            15.385826
+          ],
+          "trial_process_cpu_p50_ms": [
+            6.905803
+          ]
+        },
+        "optimized": {
+          "p50_ms": 11.657918,
+          "p95_ms": 15.978058,
+          "p99_ms": 15.978058,
+          "ops_s": 78.5508087970936,
+          "process_cpu_p50_ms": 6.811848,
+          "thread_cpu_p50_ms": 6.808911,
+          "operations": 3,
+          "trial_p50_ms": [
+            11.657918
+          ],
+          "trial_p95_ms": [
+            15.978058
+          ],
+          "trial_process_cpu_p50_ms": [
+            6.811848
+          ]
+        }
+      },
+      "latency_change_pct": 6.0392304251959406,
+      "p95_change_pct": 3.849205106050202,
+      "client_process_cpu_change_pct": -1.3605224475705335,
+      "trial_latency_change_pct": [
+        6.0392304251959406
+      ],
+      "tail_estimate_supported": true
+    },
+    {
+      "suite": "knowledge_sql",
+      "case": "knowledge_fresh_application_query",
+      "variants": {
+        "original": {
+          "p50_ms": 66.36852,
+          "p95_ms": 90.228478,
+          "p99_ms": 90.228478,
+          "ops_s": 13.744528515092956,
+          "process_cpu_p50_ms": 23.29013,
+          "thread_cpu_p50_ms": 18.530684,
+          "operations": 3,
+          "trial_p50_ms": [
+            66.36852
+          ],
+          "trial_p95_ms": [
+            90.228478
+          ],
+          "trial_process_cpu_p50_ms": [
+            23.29013
+          ]
+        },
+        "optimized": {
+          "p50_ms": 96.095141,
+          "p95_ms": 105.183897,
+          "p99_ms": 105.183897,
+          "ops_s": 10.647938561224134,
+          "process_cpu_p50_ms": 29.021654,
+          "thread_cpu_p50_ms": 24.212217,
+          "operations": 3,
+          "trial_p50_ms": [
+            96.095141
+          ],
+          "trial_p95_ms": [
+            105.183897
+          ],
+          "trial_process_cpu_p50_ms": [
+            29.021654
+          ]
+        }
+      },
+      "latency_change_pct": 44.79024242216036,
+      "p95_change_pct": 16.57505405333337,
+      "client_process_cpu_change_pct": 24.609240051472447,
+      "trial_latency_change_pct": [
+        44.79024242216036
+      ],
+      "tail_estimate_supported": true
+    },
+    {
+      "suite": "knowledge_sql",
+      "case": "knowledge_http_cohort_query",
+      "variants": {
+        "original": {
+          "p50_ms": 15.470451,
+          "p95_ms": 22.874798,
+          "p99_ms": 22.874798,
+          "ops_s": 57.3953200238688,
+          "process_cpu_p50_ms": 10.930132,
+          "thread_cpu_p50_ms": 0.8397,
+          "operations": 3,
+          "trial_p50_ms": [
+            15.470451
+          ],
+          "trial_p95_ms": [
+            22.874798
+          ],
+          "trial_process_cpu_p50_ms": [
+            10.930132
+          ]
+        },
+        "optimized": {
+          "p50_ms": 12.87941,
+          "p95_ms": 13.572838,
+          "p99_ms": 13.572838,
+          "ops_s": 77.61260321053328,
+          "process_cpu_p50_ms": 9.292105,
+          "thread_cpu_p50_ms": 0.67886,
+          "operations": 3,
+          "trial_p50_ms": [
+            12.87941
+          ],
+          "trial_p95_ms": [
+            13.572838
+          ],
+          "trial_process_cpu_p50_ms": [
+            9.292105
+          ]
+        }
+      },
+      "latency_change_pct": -16.748322333977207,
+      "p95_change_pct": -40.66466510436507,
+      "client_process_cpu_change_pct": -14.986342342434666,
+      "trial_latency_change_pct": [
+        -16.748322333977207
+      ],
+      "tail_estimate_supported": true
+    },
+    {
+      "suite": "knowledge_sql",
+      "case": "knowledge_http_exact_query",
+      "variants": {
+        "original": {
+          "p50_ms": 10.275636,
+          "p95_ms": 11.558497,
+          "p99_ms": 11.558497,
+          "ops_s": 93.6776340277136,
+          "process_cpu_p50_ms": 7.101667,
+          "thread_cpu_p50_ms": 0.597941,
+          "operations": 3,
+          "trial_p50_ms": [
+            10.275636
+          ],
+          "trial_p95_ms": [
+            11.558497
+          ],
+          "trial_process_cpu_p50_ms": [
+            7.101667
+          ]
+        },
+        "optimized": {
+          "p50_ms": 11.798231,
+          "p95_ms": 12.906048,
+          "p99_ms": 12.906048,
+          "ops_s": 82.62570612961281,
+          "process_cpu_p50_ms": 8.447444,
+          "thread_cpu_p50_ms": 0.767194,
+          "operations": 3,
+          "trial_p50_ms": [
+            11.798231
+          ],
+          "trial_p95_ms": [
+            12.906048
+          ],
+          "trial_process_cpu_p50_ms": [
+            8.447444
+          ]
+        }
+      },
+      "latency_change_pct": 14.817525649993811,
+      "p95_change_pct": 11.658531381718596,
+      "client_process_cpu_change_pct": 18.950156350614588,
+      "trial_latency_change_pct": [
+        14.817525649993811
+      ],
+      "tail_estimate_supported": true
+    },
+    {
+      "suite": "knowledge_sql",
+      "case": "knowledge_import_5blocks",
+      "variants": {
+        "original": {
+          "p50_ms": 58.56352,
+          "p95_ms": 82.550056,
+          "p99_ms": 82.550056,
+          "ops_s": 17.075476337487913,
+          "process_cpu_p50_ms": 16.189181,
+          "thread_cpu_p50_ms": 16.1868055,
+          "operations": 2,
+          "trial_p50_ms": [
+            58.56352
+          ],
+          "trial_p95_ms": [
+            82.550056
+          ],
+          "trial_process_cpu_p50_ms": [
+            16.189181
+          ]
+        },
+        "optimized": {
+          "p50_ms": 61.680567,
+          "p95_ms": 89.987278,
+          "p99_ms": 89.987278,
+          "ops_s": 16.21256172953144,
+          "process_cpu_p50_ms": 15.441067499999999,
+          "thread_cpu_p50_ms": 15.437923999999999,
+          "operations": 2,
+          "trial_p50_ms": [
+            61.680567
+          ],
+          "trial_p95_ms": [
+            89.987278
+          ],
+          "trial_process_cpu_p50_ms": [
+            15.441067499999999
+          ]
+        }
+      },
+      "latency_change_pct": 5.322506229133772,
+      "p95_change_pct": 9.009348218976388,
+      "client_process_cpu_change_pct": -4.6210707014765156,
+      "trial_latency_change_pct": [
+        5.322506229133772
+      ],
+      "tail_estimate_supported": true
+    },
+    {
+      "suite": "knowledge_sql",
+      "case": "knowledge_indivisible_group_small_budget",
+      "variants": {
+        "original": {
+          "p50_ms": 10.633297,
+          "p95_ms": 13.00461,
+          "p99_ms": 13.00461,
+          "ops_s": 88.94768132963264,
+          "process_cpu_p50_ms": 6.67735,
+          "thread_cpu_p50_ms": 6.674962,
+          "operations": 3,
+          "trial_p50_ms": [
+            10.633297
+          ],
+          "trial_p95_ms": [
+            13.00461
+          ],
+          "trial_process_cpu_p50_ms": [
+            6.67735
+          ]
+        },
+        "optimized": {
+          "p50_ms": 11.361548,
+          "p95_ms": 11.47576,
+          "p99_ms": 11.47576,
+          "ops_s": 88.94048491123192,
+          "process_cpu_p50_ms": 6.994679,
+          "thread_cpu_p50_ms": 6.992446,
+          "operations": 3,
+          "trial_p50_ms": [
+            11.361548
+          ],
+          "trial_p95_ms": [
+            11.47576
+          ],
+          "trial_process_cpu_p50_ms": [
+            6.994679
+          ]
+        }
+      },
+      "latency_change_pct": 6.848778887677076,
+      "p95_change_pct": -11.756215680439475,
+      "client_process_cpu_change_pct": 4.752319408148442,
+      "trial_latency_change_pct": [
+        6.848778887677076
+      ],
+      "tail_estimate_supported": true
+    },
+    {
+      "suite": "memory_retrieval",
+      "case": "memory_context_retrieval_sourced_facts_whole_groups",
+      "variants": {
+        "original": {
+          "p50_ms": 171.635044,
+          "p95_ms": 173.723561,
+          "p99_ms": 173.723561,
+          "ops_s": 5.863391297067195,
+          "process_cpu_p50_ms": 129.753023,
+          "thread_cpu_p50_ms": 129.749558,
+          "operations": 3,
+          "trial_p50_ms": [
+            171.635044
+          ],
+          "trial_p95_ms": [
+            173.723561
+          ],
+          "trial_process_cpu_p50_ms": [
+            129.753023
+          ]
+        },
+        "optimized": {
+          "p50_ms": 130.457237,
+          "p95_ms": 136.519619,
+          "p99_ms": 136.519619,
+          "ops_s": 7.5548074080144785,
+          "process_cpu_p50_ms": 106.992476,
+          "thread_cpu_p50_ms": 106.988145,
+          "operations": 3,
+          "trial_p50_ms": [
+            130.457237
+          ],
+          "trial_p95_ms": [
+            136.519619
+          ],
+          "trial_process_cpu_p50_ms": [
+            106.992476
+          ]
+        }
+      },
+      "latency_change_pct": -23.991491504497187,
+      "p95_change_pct": -21.415599464945334,
+      "client_process_cpu_change_pct": -17.54143870698104,
+      "trial_latency_change_pct": [
+        -23.991491504497187
+      ],
+      "tail_estimate_supported": true
+    },
+    {
+      "suite": "memory_retrieval",
+      "case": "memory_retrieval_after_source_withdrawal",
+      "variants": {
+        "original": {
+          "p50_ms": 181.133185,
+          "p95_ms": 195.547311,
+          "p99_ms": 195.547311,
+          "ops_s": 5.777104173422229,
+          "process_cpu_p50_ms": 127.308358,
+          "thread_cpu_p50_ms": 127.303671,
+          "operations": 3,
+          "trial_p50_ms": [
+            181.133185
+          ],
+          "trial_p95_ms": [
+            195.547311
+          ],
+          "trial_process_cpu_p50_ms": [
+            127.308358
+          ]
+        },
+        "optimized": {
+          "p50_ms": 118.951334,
+          "p95_ms": 127.33032,
+          "p99_ms": 127.33032,
+          "ops_s": 8.239906209652098,
+          "process_cpu_p50_ms": 102.449237,
+          "thread_cpu_p50_ms": 102.445058,
+          "operations": 3,
+          "trial_p50_ms": [
+            118.951334
+          ],
+          "trial_p95_ms": [
+            127.33032
+          ],
+          "trial_process_cpu_p50_ms": [
+            102.449237
+          ]
+        }
+      },
+      "latency_change_pct": -34.32935328774791,
+      "p95_change_pct": -34.88515932596997,
+      "client_process_cpu_change_pct": -19.526699888784993,
+      "trial_latency_change_pct": [
+        -34.32935328774791
+      ],
+      "tail_estimate_supported": true
+    },
+    {
+      "suite": "memory_retrieval",
+      "case": "memory_retrieval_sourced_facts_whole_groups",
+      "variants": {
+        "original": {
+          "p50_ms": 171.014659,
+          "p95_ms": 208.68416,
+          "p99_ms": 208.68416,
+          "ops_s": 5.452601631805179,
+          "process_cpu_p50_ms": 135.264223,
+          "thread_cpu_p50_ms": 135.258932,
+          "operations": 3,
+          "trial_p50_ms": [
+            171.014659
+          ],
+          "trial_p95_ms": [
+            208.68416
+          ],
+          "trial_process_cpu_p50_ms": [
+            135.264223
+          ]
+        },
+        "optimized": {
+          "p50_ms": 118.352784,
+          "p95_ms": 118.741917,
+          "p99_ms": 118.741917,
+          "ops_s": 8.468170291731825,
+          "process_cpu_p50_ms": 102.548292,
+          "thread_cpu_p50_ms": 102.544347,
+          "operations": 3,
+          "trial_p50_ms": [
+            118.352784
+          ],
+          "trial_p95_ms": [
+            118.741917
+          ],
+          "trial_process_cpu_p50_ms": [
+            102.548292
+          ]
+        }
+      },
+      "latency_change_pct": -30.793778327505827,
+      "p95_change_pct": -43.09969812754355,
+      "client_process_cpu_change_pct": -24.18668460469402,
+      "trial_latency_change_pct": [
+        -30.793778327505827
+      ],
+      "tail_estimate_supported": true
+    },
+    {
+      "suite": "memory_retrieval",
+      "case": "source_negative_sync",
+      "variants": {
+        "original": {
+          "p50_ms": 178.662309,
+          "p95_ms": 178.662309,
+          "p99_ms": 178.662309,
+          "ops_s": 5.597151439479045,
+          "process_cpu_p50_ms": 88.764587,
+          "thread_cpu_p50_ms": 88.760072,
+          "operations": 1,
+          "trial_p50_ms": [
+            178.662309
+          ],
+          "trial_p95_ms": [
+            178.662309
+          ],
+          "trial_process_cpu_p50_ms": [
+            88.764587
+          ]
+        },
+        "optimized": {
+          "p50_ms": 100.516061,
+          "p95_ms": 100.516061,
+          "p99_ms": 100.516061,
+          "ops_s": 9.94865885164362,
+          "process_cpu_p50_ms": 68.498061,
+          "thread_cpu_p50_ms": 68.494075,
+          "operations": 1,
+          "trial_p50_ms": [
+            100.516061
+          ],
+          "trial_p95_ms": [
+            100.516061
+          ],
+          "trial_process_cpu_p50_ms": [
+            68.498061
+          ]
+        }
+      },
+      "latency_change_pct": -43.739638448308646,
+      "p95_change_pct": -43.739638448308646,
+      "client_process_cpu_change_pct": -22.831769611004894,
+      "trial_latency_change_pct": [
+        -43.739638448308646
+      ],
+      "tail_estimate_supported": false
+    },
+    {
+      "suite": "memory_source_sync",
+      "case": "source_sync_authorized_field_recall",
+      "variants": {
+        "original": {
+          "p50_ms": 32.227136,
+          "p95_ms": 32.918747,
+          "p99_ms": 32.918747,
+          "ops_s": 31.118736630742433,
+          "process_cpu_p50_ms": 25.413937,
+          "thread_cpu_p50_ms": 25.409947,
+          "operations": 3,
+          "trial_p50_ms": [
+            32.227136
+          ],
+          "trial_p95_ms": [
+            32.918747
+          ],
+          "trial_process_cpu_p50_ms": [
+            25.413937
+          ]
+        },
+        "optimized": {
+          "p50_ms": 32.262882,
+          "p95_ms": 36.501374,
+          "p99_ms": 36.501374,
+          "ops_s": 29.71426642548191,
+          "process_cpu_p50_ms": 24.980654,
+          "thread_cpu_p50_ms": 24.977269,
+          "operations": 3,
+          "trial_p50_ms": [
+            32.262882
+          ],
+          "trial_p95_ms": [
+            36.501374
+          ],
+          "trial_process_cpu_p50_ms": [
+            24.980654
+          ]
+        }
+      },
+      "latency_change_pct": 0.1109189473119665,
+      "p95_change_pct": 10.88324230566855,
+      "client_process_cpu_change_pct": -1.7049031010031968,
+      "trial_latency_change_pct": [
+        0.1109189473119665
+      ],
+      "tail_estimate_supported": true
+    },
+    {
+      "suite": "memory_source_sync",
+      "case": "source_sync_authorized_keyword_recall",
+      "variants": {
+        "original": {
+          "p50_ms": 38.320409,
+          "p95_ms": 38.499956,
+          "p99_ms": 38.499956,
+          "ops_s": 26.220632039944725,
+          "process_cpu_p50_ms": 28.831381,
+          "thread_cpu_p50_ms": 28.828559,
+          "operations": 3,
+          "trial_p50_ms": [
+            38.320409
+          ],
+          "trial_p95_ms": [
+            38.499956
+          ],
+          "trial_process_cpu_p50_ms": [
+            28.831381
+          ]
+        },
+        "optimized": {
+          "p50_ms": 39.798275,
+          "p95_ms": 41.248273,
+          "p99_ms": 41.248273,
+          "ops_s": 25.185157923029056,
+          "process_cpu_p50_ms": 30.112036,
+          "thread_cpu_p50_ms": 30.107087,
+          "operations": 3,
+          "trial_p50_ms": [
+            39.798275
+          ],
+          "trial_p95_ms": [
+            41.248273
+          ],
+          "trial_process_cpu_p50_ms": [
+            30.112036
+          ]
+        }
+      },
+      "latency_change_pct": 3.8566028875109293,
+      "p95_change_pct": 7.138493872564422,
+      "client_process_cpu_change_pct": 4.441878798660381,
+      "trial_latency_change_pct": [
+        3.8566028875109293
+      ],
+      "tail_estimate_supported": true
+    },
+    {
+      "suite": "memory_source_sync",
+      "case": "source_sync_recall_after_withdrawal",
+      "variants": {
+        "original": {
+          "p50_ms": 37.637376,
+          "p95_ms": 40.625112,
+          "p99_ms": 40.625112,
+          "ops_s": 26.055380119856135,
+          "process_cpu_p50_ms": 28.112871,
+          "thread_cpu_p50_ms": 28.109988,
+          "operations": 3,
+          "trial_p50_ms": [
+            37.637376
+          ],
+          "trial_p95_ms": [
+            40.625112
+          ],
+          "trial_process_cpu_p50_ms": [
+            28.112871
+          ]
+        },
+        "optimized": {
+          "p50_ms": 35.24193,
+          "p95_ms": 36.069988,
+          "p99_ms": 36.069988,
+          "ops_s": 28.536984431220088,
+          "process_cpu_p50_ms": 27.138164,
+          "thread_cpu_p50_ms": 27.135433,
+          "operations": 3,
+          "trial_p50_ms": [
+            35.24193
+          ],
+          "trial_p95_ms": [
+            36.069988
+          ],
+          "trial_process_cpu_p50_ms": [
+            27.138164
+          ]
+        }
+      },
+      "latency_change_pct": -6.364540397290186,
+      "p95_change_pct": -11.212582010850824,
+      "client_process_cpu_change_pct": -3.4671200959873416,
+      "trial_latency_change_pct": [
+        -6.364540397290186
+      ],
+      "tail_estimate_supported": true
+    },
+    {
+      "suite": "memory_source_sync",
+      "case": "source_sync_zero_budget",
+      "variants": {
+        "original": {
+          "p50_ms": 29.134844,
+          "p95_ms": 29.462441,
+          "p99_ms": 29.462441,
+          "ops_s": 34.60528878857507,
+          "process_cpu_p50_ms": 23.671825,
+          "thread_cpu_p50_ms": 23.668585,
+          "operations": 3,
+          "trial_p50_ms": [
+            29.134844
+          ],
+          "trial_p95_ms": [
+            29.462441
+          ],
+          "trial_process_cpu_p50_ms": [
+            23.671825
+          ]
+        },
+        "optimized": {
+          "p50_ms": 31.218464,
+          "p95_ms": 32.212594,
+          "p99_ms": 32.212594,
+          "ops_s": 31.769502516594663,
+          "process_cpu_p50_ms": 24.76637,
+          "thread_cpu_p50_ms": 24.762409,
+          "operations": 3,
+          "trial_p50_ms": [
+            31.218464
+          ],
+          "trial_p95_ms": [
+            32.212594
+          ],
+          "trial_process_cpu_p50_ms": [
+            24.76637
+          ]
+        }
+      },
+      "latency_change_pct": 7.151642891926935,
+      "p95_change_pct": 9.334437021019415,
+      "client_process_cpu_change_pct": 4.623830228552306,
+      "trial_latency_change_pct": [
+        7.151642891926935
+      ],
+      "tail_estimate_supported": true
+    },
+    {
+      "suite": "memory_sql",
+      "case": "memory_authorized_field_recall",
+      "variants": {
+        "original": {
+          "p50_ms": 6.596458,
+          "p95_ms": 17.980871,
+          "p99_ms": 17.980871,
+          "ops_s": 115.51016693922061,
+          "process_cpu_p50_ms": 3.364244,
+          "thread_cpu_p50_ms": 3.360734,
+          "operations": 5,
+          "trial_p50_ms": [
+            6.596458
+          ],
+          "trial_p95_ms": [
+            17.980871
+          ],
+          "trial_process_cpu_p50_ms": [
+            3.364244
+          ]
+        },
+        "optimized": {
+          "p50_ms": 3.947273,
+          "p95_ms": 4.458506,
+          "p99_ms": 4.458506,
+          "ops_s": 251.63151584083298,
+          "process_cpu_p50_ms": 2.374517,
+          "thread_cpu_p50_ms": 2.372043,
+          "operations": 5,
+          "trial_p50_ms": [
+            3.947273
+          ],
+          "trial_p95_ms": [
+            4.458506
+          ],
+          "trial_process_cpu_p50_ms": [
+            2.374517
+          ]
+        }
+      },
+      "latency_change_pct": -40.16071958617792,
+      "p95_change_pct": -75.20417114387841,
+      "client_process_cpu_change_pct": -29.41900171331211,
+      "trial_latency_change_pct": [
+        -40.16071958617792
+      ],
+      "tail_estimate_supported": true
+    },
+    {
+      "suite": "memory_sql",
+      "case": "memory_authorized_keyword_recall",
+      "variants": {
+        "original": {
+          "p50_ms": 13.268384,
+          "p95_ms": 14.963973,
+          "p99_ms": 14.963973,
+          "ops_s": 73.84661664858089,
+          "process_cpu_p50_ms": 8.469307,
+          "thread_cpu_p50_ms": 8.465077,
+          "operations": 5,
+          "trial_p50_ms": [
+            13.268384
+          ],
+          "trial_p95_ms": [
+            14.963973
+          ],
+          "trial_process_cpu_p50_ms": [
+            8.469307
+          ]
+        },
+        "optimized": {
+          "p50_ms": 10.936011,
+          "p95_ms": 12.373053,
+          "p99_ms": 12.373053,
+          "ops_s": 88.86558161909997,
+          "process_cpu_p50_ms": 7.513462,
+          "thread_cpu_p50_ms": 7.509609,
+          "operations": 5,
+          "trial_p50_ms": [
+            10.936011
+          ],
+          "trial_p95_ms": [
+            12.373053
+          ],
+          "trial_process_cpu_p50_ms": [
+            7.513462
+          ]
+        }
+      },
+      "latency_change_pct": -17.57842552642431,
+      "p95_change_pct": -17.31438569155397,
+      "client_process_cpu_change_pct": -11.285988334110463,
+      "trial_latency_change_pct": [
+        -17.57842552642431
+      ],
+      "tail_estimate_supported": true
+    },
+    {
+      "suite": "memory_sql",
+      "case": "memory_complete_group_commit",
+      "variants": {
+        "original": {
+          "p50_ms": 23.887956,
+          "p95_ms": 25.476409,
+          "p99_ms": 25.476409,
+          "ops_s": 41.49946933936898,
+          "process_cpu_p50_ms": 9.164059,
+          "thread_cpu_p50_ms": 9.158813,
+          "operations": 3,
+          "trial_p50_ms": [
+            23.887956
+          ],
+          "trial_p95_ms": [
+            25.476409
+          ],
+          "trial_process_cpu_p50_ms": [
+            9.164059
+          ]
+        },
+        "optimized": {
+          "p50_ms": 26.476532,
+          "p95_ms": 35.158269,
+          "p99_ms": 35.158269,
+          "ops_s": 36.02833311350045,
+          "process_cpu_p50_ms": 9.088599,
+          "thread_cpu_p50_ms": 9.083889,
+          "operations": 3,
+          "trial_p50_ms": [
+            26.476532
+          ],
+          "trial_p95_ms": [
+            35.158269
+          ],
+          "trial_process_cpu_p50_ms": [
+            9.088599
+          ]
+        }
+      },
+      "latency_change_pct": 10.83632270588577,
+      "p95_change_pct": 38.003236641396356,
+      "client_process_cpu_change_pct": -0.823434244585286,
+      "trial_latency_change_pct": [
+        10.83632270588577
+      ],
+      "tail_estimate_supported": true
+    },
+    {
+      "suite": "memory_sql",
+      "case": "memory_recall_after_source_withdrawal",
+      "variants": {
+        "original": {
+          "p50_ms": 14.091641,
+          "p95_ms": 14.705472,
+          "p99_ms": 14.705472,
+          "ops_s": 72.56093772763727,
+          "process_cpu_p50_ms": 8.633343,
+          "thread_cpu_p50_ms": 8.630478,
+          "operations": 5,
+          "trial_p50_ms": [
+            14.091641
+          ],
+          "trial_p95_ms": [
+            14.705472
+          ],
+          "trial_process_cpu_p50_ms": [
+            8.633343
+          ]
+        },
+        "optimized": {
+          "p50_ms": 9.688005,
+          "p95_ms": 9.859076,
+          "p99_ms": 9.859076,
+          "ops_s": 104.90044308058948,
+          "process_cpu_p50_ms": 6.112219,
+          "thread_cpu_p50_ms": 6.109583,
+          "operations": 5,
+          "trial_p50_ms": [
+            9.688005
+          ],
+          "trial_p95_ms": [
+            9.859076
+          ],
+          "trial_process_cpu_p50_ms": [
+            6.112219
+          ]
+        }
+      },
+      "latency_change_pct": -31.249987137764855,
+      "p95_change_pct": -32.95641241573205,
+      "client_process_cpu_change_pct": -29.202175796791586,
+      "trial_latency_change_pct": [
+        -31.249987137764855
+      ],
+      "tail_estimate_supported": true
+    },
+    {
+      "suite": "memory_sql",
+      "case": "memory_source_candidate_commit",
+      "variants": {
+        "original": {
+          "p50_ms": 82.258692,
+          "p95_ms": 88.755723,
+          "p99_ms": 88.755723,
+          "ops_s": 12.548919347718885,
+          "process_cpu_p50_ms": 27.775594,
+          "thread_cpu_p50_ms": 27.772205,
+          "operations": 3,
+          "trial_p50_ms": [
+            82.258692
+          ],
+          "trial_p95_ms": [
+            88.755723
+          ],
+          "trial_process_cpu_p50_ms": [
+            27.775594
+          ]
+        },
+        "optimized": {
+          "p50_ms": 58.157278,
+          "p95_ms": 65.099635,
+          "p99_ms": 65.099635,
+          "ops_s": 16.89797506777003,
+          "process_cpu_p50_ms": 18.779628,
+          "thread_cpu_p50_ms": 18.775262,
+          "operations": 3,
+          "trial_p50_ms": [
+            58.157278
+          ],
+          "trial_p95_ms": [
+            65.099635
+          ],
+          "trial_process_cpu_p50_ms": [
+            18.779628
+          ]
+        }
+      },
+      "latency_change_pct": -29.299534692333783,
+      "p95_change_pct": -26.653028334860164,
+      "client_process_cpu_change_pct": -32.3880238168804,
+      "trial_latency_change_pct": [
+        -29.299534692333783
+      ],
+      "tail_estimate_supported": true
+    },
+    {
+      "suite": "memory_sql",
+      "case": "memory_zero_budget",
+      "variants": {
+        "original": {
+          "p50_ms": 3.110268,
+          "p95_ms": 3.535641,
+          "p99_ms": 3.535641,
+          "ops_s": 315.4701912847196,
+          "process_cpu_p50_ms": 1.946773,
+          "thread_cpu_p50_ms": 1.937803,
+          "operations": 5,
+          "trial_p50_ms": [
+            3.110268
+          ],
+          "trial_p95_ms": [
+            3.535641
+          ],
+          "trial_process_cpu_p50_ms": [
+            1.946773
+          ]
+        },
+        "optimized": {
+          "p50_ms": 2.315935,
+          "p95_ms": 2.764404,
+          "p99_ms": 2.764404,
+          "ops_s": 423.23011935766533,
+          "process_cpu_p50_ms": 1.551349,
+          "thread_cpu_p50_ms": 1.547759,
+          "operations": 5,
+          "trial_p50_ms": [
+            2.315935
+          ],
+          "trial_p95_ms": [
+            2.764404
+          ],
+          "trial_process_cpu_p50_ms": [
+            1.551349
+          ]
+        }
+      },
+      "latency_change_pct": -25.53905322628146,
+      "p95_change_pct": -21.81321576483586,
+      "client_process_cpu_change_pct": -20.311767216824972,
+      "trial_latency_change_pct": [
+        -25.53905322628146
+      ],
+      "tail_estimate_supported": true
+    }
+  ],
+  "runs": [
+    {
+      "requested_suite": "memory_sql",
+      "image_id": "sha256:cc62ff79cfdad319624c6104b3b1fd5e424251f974c4e2d8ba3e171e2b8156dc",
+      "revision": "c696fd0de073dc375b161fb8192dc2713dc26b63",
+      "client_wall_s": 5.010054745012894,
+      "raw_record_sha256": "cd367b8538bd9950a025f638adfe8a3a503eb7f6025797d7967bda602bccb5e8",
+      "suite": "memory",
+      "backend": "postgresql",
+      "trial": 901,
+      "variant": "original",
+      "verified_revision": "c696fd0de073dc375b161fb8192dc2713dc26b63",
+      "measurement_mode": "timed",
+      "correctness": "passed",
+      "cpu_count": 8,
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "loadavg": [
+        2.8759765625,
+        4.02783203125,
+        4.41015625
+      ],
+      "results": [
+        {
+          "case": "memory_complete_group_commit",
+          "operations": 3,
+          "elapsed_s": 0.072290081,
+          "ops_s": 41.49946933936898,
+          "p50_ms": 23.887956,
+          "p95_ms": 25.476409,
+          "p99_ms": 25.476409,
+          "mean_ms": 24.096693666666667,
+          "latencies_ms": [
+            23.887956,
+            22.925716,
+            25.476409
+          ],
+          "errors": 0,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            8.417469,
+            9.986684,
+            9.164059
+          ],
+          "process_cpu_p50_ms": 9.164059,
+          "process_cpu_p95_ms": 9.986684,
+          "process_cpu_p99_ms": 9.986684,
+          "process_cpu_mean_ms": 9.189404,
+          "thread_cpu_ms": [
+            8.411878,
+            9.981712,
+            9.158813
+          ],
+          "thread_cpu_p50_ms": 9.158813,
+          "thread_cpu_p95_ms": 9.981712,
+          "thread_cpu_p99_ms": 9.981712,
+          "thread_cpu_mean_ms": 9.184134333333333
+        },
+        {
+          "case": "memory_source_candidate_commit",
+          "operations": 3,
+          "elapsed_s": 0.23906441,
+          "ops_s": 12.548919347718885,
+          "p50_ms": 82.258692,
+          "p95_ms": 88.755723,
+          "p99_ms": 88.755723,
+          "mean_ms": 79.68813666666667,
+          "latencies_ms": [
+            88.755723,
+            82.258692,
+            68.049995
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.2391165909357369,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            28.835865,
+            27.775594,
+            23.171664
+          ],
+          "process_cpu_p50_ms": 27.775594,
+          "process_cpu_p95_ms": 28.835865,
+          "process_cpu_p99_ms": 28.835865,
+          "process_cpu_mean_ms": 26.594374333333334,
+          "thread_cpu_ms": [
+            28.830805,
+            27.772205,
+            23.168861
+          ],
+          "thread_cpu_p50_ms": 27.772205,
+          "thread_cpu_p95_ms": 28.830805,
+          "thread_cpu_p99_ms": 28.830805,
+          "thread_cpu_mean_ms": 26.590623666666666
+        },
+        {
+          "case": "memory_authorized_keyword_recall",
+          "operations": 5,
+          "elapsed_s": 0.067707909,
+          "ops_s": 73.84661664858089,
+          "p50_ms": 13.268384,
+          "p95_ms": 14.963973,
+          "p99_ms": 14.963973,
+          "mean_ms": 13.5415818,
+          "latencies_ms": [
+            12.772327,
+            12.335578,
+            13.268384,
+            14.367647,
+            14.963973
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.06831624382175505,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            8.469307,
+            8.16082,
+            8.299665,
+            9.286335,
+            9.70382
+          ],
+          "process_cpu_p50_ms": 8.469307,
+          "process_cpu_p95_ms": 9.70382,
+          "process_cpu_p99_ms": 9.70382,
+          "process_cpu_mean_ms": 8.7839894,
+          "thread_cpu_ms": [
+            8.465077,
+            8.158271,
+            8.296916,
+            9.283813,
+            9.700105
+          ],
+          "thread_cpu_p50_ms": 8.465077,
+          "thread_cpu_p95_ms": 9.700105,
+          "thread_cpu_p99_ms": 9.700105,
+          "thread_cpu_mean_ms": 8.7808364
+        },
+        {
+          "case": "memory_authorized_field_recall",
+          "operations": 5,
+          "elapsed_s": 0.043286233,
+          "ops_s": 115.51016693922061,
+          "p50_ms": 6.596458,
+          "p95_ms": 17.980871,
+          "p99_ms": 17.980871,
+          "mean_ms": 8.6572466,
+          "latencies_ms": [
+            6.596458,
+            5.422619,
+            4.817839,
+            8.468446,
+            17.980871
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.04375695902854204,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            3.464287,
+            3.083309,
+            2.80545,
+            3.364244,
+            4.391791
+          ],
+          "process_cpu_p50_ms": 3.364244,
+          "process_cpu_p95_ms": 4.391791,
+          "process_cpu_p99_ms": 4.391791,
+          "process_cpu_mean_ms": 3.4218162,
+          "thread_cpu_ms": [
+            3.460367,
+            3.080506,
+            2.802529,
+            3.360734,
+            4.388734
+          ],
+          "thread_cpu_p50_ms": 3.360734,
+          "thread_cpu_p95_ms": 4.388734,
+          "thread_cpu_p99_ms": 4.388734,
+          "thread_cpu_mean_ms": 3.418574
+        },
+        {
+          "case": "memory_zero_budget",
+          "operations": 5,
+          "elapsed_s": 0.015849357999999997,
+          "ops_s": 315.4701912847196,
+          "p50_ms": 3.110268,
+          "p95_ms": 3.535641,
+          "p99_ms": 3.535641,
+          "mean_ms": 3.1698716,
+          "latencies_ms": [
+            3.535641,
+            2.82386,
+            3.110268,
+            3.373535,
+            3.006054
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.01596446498297155,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            1.946773,
+            1.879566,
+            1.988766,
+            2.191856,
+            1.874027
+          ],
+          "process_cpu_p50_ms": 1.946773,
+          "process_cpu_p95_ms": 2.191856,
+          "process_cpu_p99_ms": 2.191856,
+          "process_cpu_mean_ms": 1.9761976,
+          "thread_cpu_ms": [
+            1.937803,
+            1.877354,
+            1.986093,
+            2.189004,
+            1.871276
+          ],
+          "thread_cpu_p50_ms": 1.937803,
+          "thread_cpu_p95_ms": 2.189004,
+          "thread_cpu_p99_ms": 2.189004,
+          "thread_cpu_mean_ms": 1.9723060000000001
+        },
+        {
+          "case": "memory_recall_after_source_withdrawal",
+          "operations": 5,
+          "elapsed_s": 0.068907599,
+          "ops_s": 72.56093772763727,
+          "p50_ms": 14.091641,
+          "p95_ms": 14.705472,
+          "p99_ms": 14.705472,
+          "mean_ms": 13.7815198,
+          "latencies_ms": [
+            11.914587,
+            14.524536,
+            14.091641,
+            14.705472,
+            13.671363
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.06940439809113741,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            7.410947,
+            8.824999,
+            8.367443,
+            8.683232,
+            8.633343
+          ],
+          "process_cpu_p50_ms": 8.633343,
+          "process_cpu_p95_ms": 8.824999,
+          "process_cpu_p99_ms": 8.824999,
+          "process_cpu_mean_ms": 8.3839928,
+          "thread_cpu_ms": [
+            7.407523,
+            8.821708,
+            8.36422,
+            8.68011,
+            8.630478
+          ],
+          "thread_cpu_p50_ms": 8.630478,
+          "thread_cpu_p95_ms": 8.821708,
+          "thread_cpu_p99_ms": 8.821708,
+          "thread_cpu_mean_ms": 8.3808078
+        }
+      ],
+      "seed_groups": 20,
+      "active_memory_features": {
+        "source_lookup_schema": "1",
+        "automatic_fact_schema": "2",
+        "memory_context_schema": "1"
+      },
+      "verified_groups": 31,
+      "keyword_groups": 2,
+      "durability": {
+        "server_version": "17.6 (Debian 17.6-1.pgdg13+1)",
+        "fsync": "on",
+        "synchronous_commit": "on",
+        "full_page_writes": "on"
+      },
+      "models_called": 0,
+      "logical_result_signatures": {
+        "keyword": "66936e179231e5b8250ef55d99f755def585b4f151a0d15ed8b4d03471e65442",
+        "exact": "7d5fee7b2c1d1dbd27b8334d7d7db85a77e8ec9d4c939eb31451fcda861858cb",
+        "withdrawn_keyword": "7fa259f7b5afd899a94bdfcb9f8a3121845a2fbcef9cf5ad270c05a8c0972af3"
+      },
+      "untimed_pg_adapter_calls": {
+        "keyword": {
+          "statements": 14,
+          "by_command": {
+            "SET": 1,
+            "BEGIN": 1,
+            "SELECT": 11,
+            "WITH": 1
+          },
+          "native_elapsed_ms": 7.126946,
+          "slowest_statement_shapes_ms": [
+            [
+              "WITH documents AS MATERIALIZED ( SELECT group_id,to_tsvector('simple',text) AS vector FROM jsonb_to_recordset(?::jsonb) ",
+              2.657203
+            ],
+            [
+              "SELECT key,value FROM metadata",
+              0.9140870000000001
+            ],
+            [
+              "SELECT l.group_id,l.revision AS required_revision,l.epoch AS required_epoch,s.key,s.state,s.revision,s.epoch FROM lineag",
+              0.638608
+            ],
+            [
+              "SELECT * FROM groups WHERE scope=? AND state='active' AND category IN (?) ORDER BY id",
+              0.563886
+            ],
+            [
+              "SELECT * FROM records WHERE group_id IN (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ORDER BY group_i",
+              0.509271
+            ]
+          ]
+        },
+        "exact": {
+          "statements": 11,
+          "by_command": {
+            "SET": 1,
+            "BEGIN": 1,
+            "SELECT": 8,
+            "WITH": 1
+          },
+          "native_elapsed_ms": 3.0573390000000003,
+          "slowest_statement_shapes_ms": [
+            [
+              "WITH candidates AS MATERIALIZED (SELECT * FROM groups WHERE scope=? AND state='active' AND category IN (?) AND field_key",
+              1.076773
+            ],
+            [
+              "SELECT key,value FROM metadata",
+              0.585852
+            ],
+            [
+              "SELECT * FROM accounts WHERE account_key=?",
+              0.380576
+            ],
+            [
+              "SELECT version FROM scopes WHERE key=?",
+              0.353973
+            ],
+            [
+              "SELECT * FROM automatic_facts WHERE group_id IN (?)",
+              0.131705
+            ]
+          ]
+        }
+      },
+      "untimed_sqlite_trace": {
+        "keyword": null,
+        "exact": null
+      },
+      "withdrawn_keyword_groups": 1
+    },
+    {
+      "requested_suite": "memory_sql",
+      "image_id": "sha256:a0a8e87daa5f99800d3d57686df5aa2532362946ba5531f8cec874a20bd9747f",
+      "revision": "06040aad9482f1f0ec8742f0a382daba9174f30a",
+      "client_wall_s": 4.653252605115995,
+      "raw_record_sha256": "75750cbc9d7111fea6a6d2f268841934ebc2c57ed8605231f5528ec4d2182d4d",
+      "suite": "memory",
+      "backend": "postgresql",
+      "trial": 901,
+      "variant": "optimized",
+      "verified_revision": "06040aad9482f1f0ec8742f0a382daba9174f30a",
+      "measurement_mode": "timed",
+      "correctness": "passed",
+      "cpu_count": 8,
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "loadavg": [
+        4.00732421875,
+        4.24365234375,
+        4.47802734375
+      ],
+      "results": [
+        {
+          "case": "memory_complete_group_commit",
+          "operations": 3,
+          "elapsed_s": 0.083267799,
+          "ops_s": 36.02833311350045,
+          "p50_ms": 26.476532,
+          "p95_ms": 35.158269,
+          "p99_ms": 35.158269,
+          "mean_ms": 27.755933,
+          "latencies_ms": [
+            21.632998,
+            26.476532,
+            35.158269
+          ],
+          "errors": 0,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            8.930301,
+            9.088599,
+            9.974213
+          ],
+          "process_cpu_p50_ms": 9.088599,
+          "process_cpu_p95_ms": 9.974213,
+          "process_cpu_p99_ms": 9.974213,
+          "process_cpu_mean_ms": 9.331037666666667,
+          "thread_cpu_ms": [
+            8.925604,
+            9.083889,
+            9.968149
+          ],
+          "thread_cpu_p50_ms": 9.083889,
+          "thread_cpu_p95_ms": 9.968149,
+          "thread_cpu_p99_ms": 9.968149,
+          "thread_cpu_mean_ms": 9.325880666666666
+        },
+        {
+          "case": "memory_source_candidate_commit",
+          "operations": 3,
+          "elapsed_s": 0.17753606500000002,
+          "ops_s": 16.89797506777003,
+          "p50_ms": 58.157278,
+          "p95_ms": 65.099635,
+          "p99_ms": 65.099635,
+          "mean_ms": 59.178688333333334,
+          "latencies_ms": [
+            65.099635,
+            54.279152,
+            58.157278
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.17758052796125412,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            18.779628,
+            19.15063,
+            17.131239
+          ],
+          "process_cpu_p50_ms": 18.779628,
+          "process_cpu_p95_ms": 19.15063,
+          "process_cpu_p99_ms": 19.15063,
+          "process_cpu_mean_ms": 18.353832333333333,
+          "thread_cpu_ms": [
+            18.775262,
+            19.148105,
+            17.129172
+          ],
+          "thread_cpu_p50_ms": 18.775262,
+          "thread_cpu_p95_ms": 19.148105,
+          "thread_cpu_p99_ms": 19.148105,
+          "thread_cpu_mean_ms": 18.350846333333333
+        },
+        {
+          "case": "memory_authorized_keyword_recall",
+          "operations": 5,
+          "elapsed_s": 0.056264753,
+          "ops_s": 88.86558161909997,
+          "p50_ms": 10.936011,
+          "p95_ms": 12.373053,
+          "p99_ms": 12.373053,
+          "mean_ms": 11.2529506,
+          "latencies_ms": [
+            10.936011,
+            12.373053,
+            11.344612,
+            10.856359,
+            10.754718
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.056810318026691675,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            7.513462,
+            8.489872,
+            7.756379,
+            7.34094,
+            7.259303
+          ],
+          "process_cpu_p50_ms": 7.513462,
+          "process_cpu_p95_ms": 8.489872,
+          "process_cpu_p99_ms": 8.489872,
+          "process_cpu_mean_ms": 7.6719912,
+          "thread_cpu_ms": [
+            7.509609,
+            8.486884,
+            7.753026,
+            7.338164,
+            7.256468
+          ],
+          "thread_cpu_p50_ms": 7.509609,
+          "thread_cpu_p95_ms": 8.486884,
+          "thread_cpu_p99_ms": 8.486884,
+          "thread_cpu_mean_ms": 7.6688302
+        },
+        {
+          "case": "memory_authorized_field_recall",
+          "operations": 5,
+          "elapsed_s": 0.019870325,
+          "ops_s": 251.63151584083298,
+          "p50_ms": 3.947273,
+          "p95_ms": 4.458506,
+          "p99_ms": 4.458506,
+          "mean_ms": 3.974065,
+          "latencies_ms": [
+            3.440281,
+            3.947273,
+            3.743317,
+            4.458506,
+            4.280948
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.020271235844120383,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            2.08319,
+            2.374517,
+            2.215125,
+            2.670073,
+            2.46219
+          ],
+          "process_cpu_p50_ms": 2.374517,
+          "process_cpu_p95_ms": 2.670073,
+          "process_cpu_p99_ms": 2.670073,
+          "process_cpu_mean_ms": 2.361019,
+          "thread_cpu_ms": [
+            2.079032,
+            2.372043,
+            2.212707,
+            2.667361,
+            2.459504
+          ],
+          "thread_cpu_p50_ms": 2.372043,
+          "thread_cpu_p95_ms": 2.667361,
+          "thread_cpu_p99_ms": 2.667361,
+          "thread_cpu_mean_ms": 2.3581294
+        },
+        {
+          "case": "memory_zero_budget",
+          "operations": 5,
+          "elapsed_s": 0.011813904,
+          "ops_s": 423.23011935766533,
+          "p50_ms": 2.315935,
+          "p95_ms": 2.764404,
+          "p99_ms": 2.764404,
+          "mean_ms": 2.3627808,
+          "latencies_ms": [
+            2.203035,
+            2.3891,
+            2.315935,
+            2.14143,
+            2.764404
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.011880991980433464,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            1.551349,
+            1.553568,
+            1.531878,
+            1.399131,
+            1.732756
+          ],
+          "process_cpu_p50_ms": 1.551349,
+          "process_cpu_p95_ms": 1.732756,
+          "process_cpu_p99_ms": 1.732756,
+          "process_cpu_mean_ms": 1.5537364,
+          "thread_cpu_ms": [
+            1.547759,
+            1.551261,
+            1.529332,
+            1.397057,
+            1.730752
+          ],
+          "thread_cpu_p50_ms": 1.547759,
+          "thread_cpu_p95_ms": 1.730752,
+          "thread_cpu_p99_ms": 1.730752,
+          "thread_cpu_mean_ms": 1.5512322
+        },
+        {
+          "case": "memory_recall_after_source_withdrawal",
+          "operations": 5,
+          "elapsed_s": 0.047664241,
+          "ops_s": 104.90044308058948,
+          "p50_ms": 9.688005,
+          "p95_ms": 9.859076,
+          "p99_ms": 9.859076,
+          "mean_ms": 9.5328482,
+          "latencies_ms": [
+            9.859076,
+            9.688005,
+            9.289471,
+            9.063569,
+            9.76412
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.04806694481521845,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            6.478832,
+            6.112219,
+            5.941674,
+            5.898269,
+            6.329273
+          ],
+          "process_cpu_p50_ms": 6.112219,
+          "process_cpu_p95_ms": 6.478832,
+          "process_cpu_p99_ms": 6.478832,
+          "process_cpu_mean_ms": 6.1520534,
+          "thread_cpu_ms": [
+            6.474919,
+            6.109583,
+            5.939435,
+            5.895707,
+            6.326992
+          ],
+          "thread_cpu_p50_ms": 6.109583,
+          "thread_cpu_p95_ms": 6.474919,
+          "thread_cpu_p99_ms": 6.474919,
+          "thread_cpu_mean_ms": 6.1493272
+        }
+      ],
+      "seed_groups": 20,
+      "active_memory_features": {
+        "source_lookup_schema": "1",
+        "automatic_fact_schema": "2",
+        "memory_context_schema": "1"
+      },
+      "verified_groups": 31,
+      "keyword_groups": 2,
+      "durability": {
+        "server_version": "17.6 (Debian 17.6-1.pgdg13+1)",
+        "fsync": "on",
+        "synchronous_commit": "on",
+        "full_page_writes": "on"
+      },
+      "models_called": 0,
+      "logical_result_signatures": {
+        "keyword": "66936e179231e5b8250ef55d99f755def585b4f151a0d15ed8b4d03471e65442",
+        "exact": "7d5fee7b2c1d1dbd27b8334d7d7db85a77e8ec9d4c939eb31451fcda861858cb",
+        "withdrawn_keyword": "7fa259f7b5afd899a94bdfcb9f8a3121845a2fbcef9cf5ad270c05a8c0972af3"
+      },
+      "untimed_pg_adapter_calls": {
+        "keyword": {
+          "statements": 14,
+          "by_command": {
+            "SET": 1,
+            "BEGIN": 1,
+            "SELECT": 11,
+            "WITH": 1
+          },
+          "native_elapsed_ms": 4.495569,
+          "slowest_statement_shapes_ms": [
+            [
+              "WITH documents AS MATERIALIZED ( SELECT group_id,to_tsvector('simple',text) AS vector FROM jsonb_to_recordset(?::jsonb) ",
+              1.818456
+            ],
+            [
+              "SELECT key,value FROM metadata",
+              0.706372
+            ],
+            [
+              "SELECT * FROM accounts WHERE account_key=?",
+              0.394157
+            ],
+            [
+              "SELECT * FROM groups WHERE scope=? AND state='active' AND category IN (?) ORDER BY id",
+              0.387021
+            ],
+            [
+              "SET synchronous_commit=on",
+              0.260368
+            ]
+          ]
+        },
+        "exact": {
+          "statements": 11,
+          "by_command": {
+            "SET": 1,
+            "BEGIN": 1,
+            "SELECT": 8,
+            "WITH": 1
+          },
+          "native_elapsed_ms": 1.8888989999999999,
+          "slowest_statement_shapes_ms": [
+            [
+              "WITH candidates AS MATERIALIZED (SELECT * FROM groups WHERE scope=? AND state='active' AND category IN (?) AND field_key",
+              0.754056
+            ],
+            [
+              "SELECT key,value FROM metadata",
+              0.31171899999999997
+            ],
+            [
+              "SELECT * FROM accounts WHERE account_key=?",
+              0.228637
+            ],
+            [
+              "SELECT version FROM scopes WHERE key=?",
+              0.202344
+            ],
+            [
+              "SELECT * FROM automatic_facts WHERE group_id IN (?)",
+              0.093566
+            ]
+          ]
+        }
+      },
+      "untimed_sqlite_trace": {
+        "keyword": null,
+        "exact": null
+      },
+      "withdrawn_keyword_groups": 1
+    },
+    {
+      "requested_suite": "memory_source_sync",
+      "image_id": "sha256:cc62ff79cfdad319624c6104b3b1fd5e424251f974c4e2d8ba3e171e2b8156dc",
+      "revision": "c696fd0de073dc375b161fb8192dc2713dc26b63",
+      "client_wall_s": 5.0967176291160285,
+      "raw_record_sha256": "84b9fa56e47b9fb60becb9d5949659d759384d2affb6fc1731ca9c84a49077a5",
+      "suite": "source_sync",
+      "backend": "postgresql",
+      "trial": 901,
+      "variant": "original",
+      "verified_revision": "c696fd0de073dc375b161fb8192dc2713dc26b63",
+      "measurement_mode": "timed",
+      "correctness": "passed",
+      "cpu_count": 8,
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "loadavg": [
+        4.3271484375,
+        4.30615234375,
+        4.4970703125
+      ],
+      "results": [
+        {
+          "case": "source_sync_authorized_keyword_recall",
+          "operations": 3,
+          "elapsed_s": 0.11441371799999998,
+          "ops_s": 26.220632039944725,
+          "p50_ms": 38.320409,
+          "p95_ms": 38.499956,
+          "p99_ms": 38.499956,
+          "mean_ms": 38.137906,
+          "latencies_ms": [
+            38.320409,
+            38.499956,
+            37.593353
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.11473795492202044,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            29.518037,
+            28.831381,
+            28.438339
+          ],
+          "process_cpu_p50_ms": 28.831381,
+          "process_cpu_p95_ms": 29.518037,
+          "process_cpu_p99_ms": 29.518037,
+          "process_cpu_mean_ms": 28.929252333333334,
+          "thread_cpu_ms": [
+            29.513928,
+            28.828559,
+            28.435915
+          ],
+          "thread_cpu_p50_ms": 28.828559,
+          "thread_cpu_p95_ms": 29.513928,
+          "thread_cpu_p99_ms": 29.513928,
+          "thread_cpu_mean_ms": 28.926134
+        },
+        {
+          "case": "source_sync_authorized_field_recall",
+          "operations": 3,
+          "elapsed_s": 0.09640494200000001,
+          "ops_s": 31.118736630742433,
+          "p50_ms": 32.227136,
+          "p95_ms": 32.918747,
+          "p99_ms": 32.918747,
+          "mean_ms": 32.13498066666667,
+          "latencies_ms": [
+            32.918747,
+            32.227136,
+            31.259059
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.09665835299529135,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            25.413937,
+            25.634901,
+            24.527379
+          ],
+          "process_cpu_p50_ms": 25.413937,
+          "process_cpu_p95_ms": 25.634901,
+          "process_cpu_p99_ms": 25.634901,
+          "process_cpu_mean_ms": 25.192072333333332,
+          "thread_cpu_ms": [
+            25.409947,
+            25.632147,
+            24.525138
+          ],
+          "thread_cpu_p50_ms": 25.409947,
+          "thread_cpu_p95_ms": 25.632147,
+          "thread_cpu_p99_ms": 25.632147,
+          "thread_cpu_mean_ms": 25.189077333333334
+        },
+        {
+          "case": "source_sync_zero_budget",
+          "operations": 3,
+          "elapsed_s": 0.086691951,
+          "ops_s": 34.60528878857507,
+          "p50_ms": 29.134844,
+          "p95_ms": 29.462441,
+          "p99_ms": 29.462441,
+          "mean_ms": 28.897317,
+          "latencies_ms": [
+            29.462441,
+            29.134844,
+            28.094666
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.08673383318819106,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            23.671825,
+            23.739614,
+            22.559379
+          ],
+          "process_cpu_p50_ms": 23.671825,
+          "process_cpu_p95_ms": 23.739614,
+          "process_cpu_p99_ms": 23.739614,
+          "process_cpu_mean_ms": 23.323605999999998,
+          "thread_cpu_ms": [
+            23.668585,
+            23.73719,
+            22.557152
+          ],
+          "thread_cpu_p50_ms": 23.668585,
+          "thread_cpu_p95_ms": 23.73719,
+          "thread_cpu_p99_ms": 23.73719,
+          "thread_cpu_mean_ms": 23.320975666666666
+        },
+        {
+          "case": "source_sync_recall_after_withdrawal",
+          "operations": 3,
+          "elapsed_s": 0.115139368,
+          "ops_s": 26.055380119856135,
+          "p50_ms": 37.637376,
+          "p95_ms": 40.625112,
+          "p99_ms": 40.625112,
+          "mean_ms": 38.379789333333335,
+          "latencies_ms": [
+            40.625112,
+            37.637376,
+            36.87688
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.11538885999470949,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            29.674106,
+            28.112871,
+            27.58411
+          ],
+          "process_cpu_p50_ms": 28.112871,
+          "process_cpu_p95_ms": 29.674106,
+          "process_cpu_p99_ms": 29.674106,
+          "process_cpu_mean_ms": 28.457029,
+          "thread_cpu_ms": [
+            29.669947,
+            28.109988,
+            27.581879
+          ],
+          "thread_cpu_p50_ms": 28.109988,
+          "thread_cpu_p95_ms": 29.669947,
+          "thread_cpu_p99_ms": 29.669947,
+          "thread_cpu_mean_ms": 28.453938
+        }
+      ],
+      "seed_groups": 20,
+      "active_memory_features": {
+        "source_lookup_schema": "1",
+        "automatic_fact_schema": "2",
+        "memory_context_schema": "1"
+      },
+      "retained_source_admissions": 2,
+      "logical_result_signatures": {
+        "keyword": "14c7f52c799fd2845e480e0673918c0970da1b3d9b6c9898526911b0fe9271f1",
+        "exact": "f3cef482d4a7246566fe8f6e39fb1e8a712a5e2a942e657c66ede0ff8024c0ef",
+        "withdrawn_keyword": "7ac68ad09c40138d379c119b7b456f052f79d25f8077cd886ac5b9e10247162e"
+      },
+      "untimed_pg_adapter_calls": {
+        "keyword": {
+          "statements": 45,
+          "by_command": {
+            "SET": 3,
+            "BEGIN": 3,
+            "SELECT": 38,
+            "WITH": 1
+          },
+          "native_elapsed_ms": 13.661475,
+          "slowest_statement_shapes_ms": [
+            [
+              "SELECT max(value) FILTER (WHERE key='source_lookup_schema') AS source_lookup_schema,max(value) FILTER (WHERE key='source",
+              3.780039
+            ],
+            [
+              "WITH documents AS MATERIALIZED ( SELECT group_id,to_tsvector('simple',text) AS vector FROM jsonb_to_recordset(?::jsonb) ",
+              1.797806
+            ],
+            [
+              "SELECT key,value FROM metadata",
+              1.4429880000000002
+            ],
+            [
+              "SELECT * FROM accounts WHERE account_key=?",
+              1.1309529999999999
+            ],
+            [
+              "SELECT a.selector FROM source_admissions a JOIN sources s ON s.key=a.key WHERE s.scope=?",
+              1.022487
+            ]
+          ]
+        },
+        "exact": {
+          "statements": 42,
+          "by_command": {
+            "SET": 3,
+            "BEGIN": 3,
+            "SELECT": 35,
+            "WITH": 1
+          },
+          "native_elapsed_ms": 10.669287,
+          "slowest_statement_shapes_ms": [
+            [
+              "SELECT max(value) FILTER (WHERE key='source_lookup_schema') AS source_lookup_schema,max(value) FILTER (WHERE key='source",
+              3.648564
+            ],
+            [
+              "SELECT key,value FROM metadata",
+              1.2557
+            ],
+            [
+              "SELECT * FROM accounts WHERE account_key=?",
+              1.045699
+            ],
+            [
+              "WITH candidates AS MATERIALIZED (SELECT * FROM groups WHERE scope=? AND state='active' AND category IN (?) AND field_key",
+              0.945384
+            ],
+            [
+              "SELECT a.selector FROM source_admissions a JOIN sources s ON s.key=a.key WHERE s.scope=?",
+              0.833053
+            ]
+          ]
+        }
+      },
+      "untimed_sqlite_trace": {
+        "keyword": null,
+        "exact": null
+      },
+      "owner_transport": "published synthetic in-process responses; no TLS or real upstream latency",
+      "owner_reads": 126,
+      "durability": {
+        "server_version": "17.6 (Debian 17.6-1.pgdg13+1)",
+        "fsync": "on",
+        "synchronous_commit": "on",
+        "full_page_writes": "on"
+      },
+      "models_called": 0
+    },
+    {
+      "requested_suite": "memory_source_sync",
+      "image_id": "sha256:a0a8e87daa5f99800d3d57686df5aa2532362946ba5531f8cec874a20bd9747f",
+      "revision": "06040aad9482f1f0ec8742f0a382daba9174f30a",
+      "client_wall_s": 4.76000271178782,
+      "raw_record_sha256": "297148d50b03e11e9c52bf773a588cc78bc3979139dfa245757e682012ee067b",
+      "suite": "source_sync",
+      "backend": "postgresql",
+      "trial": 901,
+      "variant": "optimized",
+      "verified_revision": "06040aad9482f1f0ec8742f0a382daba9174f30a",
+      "measurement_mode": "timed",
+      "correctness": "passed",
+      "cpu_count": 8,
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "loadavg": [
+        4.46142578125,
+        4.33447265625,
+        4.50537109375
+      ],
+      "results": [
+        {
+          "case": "source_sync_authorized_keyword_recall",
+          "operations": 3,
+          "elapsed_s": 0.119117776,
+          "ops_s": 25.185157923029056,
+          "p50_ms": 39.798275,
+          "p95_ms": 41.248273,
+          "p99_ms": 41.248273,
+          "mean_ms": 39.70592533333333,
+          "latencies_ms": [
+            39.798275,
+            38.071228,
+            41.248273
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.11949650617316365,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            30.112036,
+            28.899297,
+            30.493104
+          ],
+          "process_cpu_p50_ms": 30.112036,
+          "process_cpu_p95_ms": 30.493104,
+          "process_cpu_p99_ms": 30.493104,
+          "process_cpu_mean_ms": 29.834812333333332,
+          "thread_cpu_ms": [
+            30.107087,
+            28.895536,
+            30.490568
+          ],
+          "thread_cpu_p50_ms": 30.107087,
+          "thread_cpu_p95_ms": 30.490568,
+          "thread_cpu_p99_ms": 30.490568,
+          "thread_cpu_mean_ms": 29.831063666666665
+        },
+        {
+          "case": "source_sync_authorized_field_recall",
+          "operations": 3,
+          "elapsed_s": 0.100961604,
+          "ops_s": 29.71426642548191,
+          "p50_ms": 32.262882,
+          "p95_ms": 36.501374,
+          "p99_ms": 36.501374,
+          "mean_ms": 33.653867999999996,
+          "latencies_ms": [
+            32.197348,
+            32.262882,
+            36.501374
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.1012324329931289,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            24.980654,
+            24.526408,
+            27.462833
+          ],
+          "process_cpu_p50_ms": 24.980654,
+          "process_cpu_p95_ms": 27.462833,
+          "process_cpu_p99_ms": 27.462833,
+          "process_cpu_mean_ms": 25.656631666666666,
+          "thread_cpu_ms": [
+            24.977269,
+            24.523403,
+            27.460557
+          ],
+          "thread_cpu_p50_ms": 24.977269,
+          "thread_cpu_p95_ms": 27.460557,
+          "thread_cpu_p99_ms": 27.460557,
+          "thread_cpu_mean_ms": 25.653743
+        },
+        {
+          "case": "source_sync_zero_budget",
+          "operations": 3,
+          "elapsed_s": 0.09443018500000001,
+          "ops_s": 31.769502516594663,
+          "p50_ms": 31.218464,
+          "p95_ms": 32.212594,
+          "p99_ms": 32.212594,
+          "mean_ms": 31.476728333333334,
+          "latencies_ms": [
+            30.999127,
+            32.212594,
+            31.218464
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.09447499481029809,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            24.76637,
+            25.521067,
+            24.616314
+          ],
+          "process_cpu_p50_ms": 24.76637,
+          "process_cpu_p95_ms": 25.521067,
+          "process_cpu_p99_ms": 25.521067,
+          "process_cpu_mean_ms": 24.967917,
+          "thread_cpu_ms": [
+            24.762409,
+            25.518925,
+            24.614182
+          ],
+          "thread_cpu_p50_ms": 24.762409,
+          "thread_cpu_p95_ms": 25.518925,
+          "thread_cpu_p99_ms": 25.518925,
+          "thread_cpu_mean_ms": 24.965172
+        },
+        {
+          "case": "source_sync_recall_after_withdrawal",
+          "operations": 3,
+          "elapsed_s": 0.105126735,
+          "ops_s": 28.536984431220088,
+          "p50_ms": 35.24193,
+          "p95_ms": 36.069988,
+          "p99_ms": 36.069988,
+          "mean_ms": 35.042245,
+          "latencies_ms": [
+            33.814817,
+            36.069988,
+            35.24193
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.10537172807380557,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            25.84776,
+            27.138164,
+            27.163169
+          ],
+          "process_cpu_p50_ms": 27.138164,
+          "process_cpu_p95_ms": 27.163169,
+          "process_cpu_p99_ms": 27.163169,
+          "process_cpu_mean_ms": 26.716364333333335,
+          "thread_cpu_ms": [
+            25.844122,
+            27.135433,
+            27.160389
+          ],
+          "thread_cpu_p50_ms": 27.135433,
+          "thread_cpu_p95_ms": 27.160389,
+          "thread_cpu_p99_ms": 27.160389,
+          "thread_cpu_mean_ms": 26.713314666666665
+        }
+      ],
+      "seed_groups": 20,
+      "active_memory_features": {
+        "source_lookup_schema": "1",
+        "automatic_fact_schema": "2",
+        "memory_context_schema": "1"
+      },
+      "retained_source_admissions": 2,
+      "logical_result_signatures": {
+        "keyword": "14c7f52c799fd2845e480e0673918c0970da1b3d9b6c9898526911b0fe9271f1",
+        "exact": "f3cef482d4a7246566fe8f6e39fb1e8a712a5e2a942e657c66ede0ff8024c0ef",
+        "withdrawn_keyword": "7ac68ad09c40138d379c119b7b456f052f79d25f8077cd886ac5b9e10247162e"
+      },
+      "untimed_pg_adapter_calls": {
+        "keyword": {
+          "statements": 45,
+          "by_command": {
+            "SET": 3,
+            "BEGIN": 3,
+            "SELECT": 38,
+            "WITH": 1
+          },
+          "native_elapsed_ms": 13.714946000000001,
+          "slowest_statement_shapes_ms": [
+            [
+              "SELECT max(value) FILTER (WHERE key='source_lookup_schema') AS source_lookup_schema,max(value) FILTER (WHERE key='source",
+              4.202322000000001
+            ],
+            [
+              "WITH documents AS MATERIALIZED ( SELECT group_id,to_tsvector('simple',text) AS vector FROM jsonb_to_recordset(?::jsonb) ",
+              1.895486
+            ],
+            [
+              "SELECT * FROM accounts WHERE account_key=?",
+              1.628678
+            ],
+            [
+              "SELECT key,value FROM metadata",
+              1.566551
+            ],
+            [
+              "SELECT a.selector FROM source_admissions a JOIN sources s ON s.key=a.key WHERE s.scope=?",
+              0.889226
+            ]
+          ]
+        },
+        "exact": {
+          "statements": 42,
+          "by_command": {
+            "SET": 3,
+            "BEGIN": 3,
+            "SELECT": 35,
+            "WITH": 1
+          },
+          "native_elapsed_ms": 11.369175,
+          "slowest_statement_shapes_ms": [
+            [
+              "SELECT max(value) FILTER (WHERE key='source_lookup_schema') AS source_lookup_schema,max(value) FILTER (WHERE key='source",
+              3.956682
+            ],
+            [
+              "SELECT key,value FROM metadata",
+              1.2829199999999998
+            ],
+            [
+              "SELECT * FROM accounts WHERE account_key=?",
+              1.124233
+            ],
+            [
+              "SELECT a.selector FROM source_admissions a JOIN sources s ON s.key=a.key WHERE s.scope=?",
+              1.117868
+            ],
+            [
+              "WITH candidates AS MATERIALIZED (SELECT * FROM groups WHERE scope=? AND state='active' AND category IN (?) AND field_key",
+              1.052288
+            ]
+          ]
+        }
+      },
+      "untimed_sqlite_trace": {
+        "keyword": null,
+        "exact": null
+      },
+      "owner_transport": "published synthetic in-process responses; no TLS or real upstream latency",
+      "owner_reads": 126,
+      "durability": {
+        "server_version": "17.6 (Debian 17.6-1.pgdg13+1)",
+        "fsync": "on",
+        "synchronous_commit": "on",
+        "full_page_writes": "on"
+      },
+      "models_called": 0
+    },
+    {
+      "requested_suite": "knowledge_sql",
+      "image_id": "sha256:cc62ff79cfdad319624c6104b3b1fd5e424251f974c4e2d8ba3e171e2b8156dc",
+      "revision": "c696fd0de073dc375b161fb8192dc2713dc26b63",
+      "client_wall_s": 5.626959661021829,
+      "raw_record_sha256": "2b55884741ccd08c72c34d8a0701f5a7ada762092cd16c97b46268707240f4de",
+      "suite": "knowledge",
+      "backend": "postgresql",
+      "trial": 901,
+      "variant": "original",
+      "verified_revision": "c696fd0de073dc375b161fb8192dc2713dc26b63",
+      "measurement_mode": "timed",
+      "correctness": "passed",
+      "cpu_count": 8,
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "loadavg": [
+        4.630859375,
+        4.373046875,
+        4.51611328125
+      ],
+      "results": [
+        {
+          "case": "knowledge_authorized_exact_query",
+          "operations": 3,
+          "elapsed_s": 0.037059823,
+          "ops_s": 80.9501977383972,
+          "p50_ms": 10.993967,
+          "p95_ms": 15.385826,
+          "p99_ms": 15.385826,
+          "mean_ms": 12.353274333333333,
+          "latencies_ms": [
+            10.68003,
+            10.993967,
+            15.385826
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.03752914094366133,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            6.569529,
+            6.905803,
+            8.758277
+          ],
+          "process_cpu_p50_ms": 6.905803,
+          "process_cpu_p95_ms": 8.758277,
+          "process_cpu_p99_ms": 8.758277,
+          "process_cpu_mean_ms": 7.4112029999999995,
+          "thread_cpu_ms": [
+            6.564538,
+            6.902905,
+            8.75567
+          ],
+          "thread_cpu_p50_ms": 6.902905,
+          "thread_cpu_p95_ms": 8.75567,
+          "thread_cpu_p99_ms": 8.75567,
+          "thread_cpu_mean_ms": 7.407704333333333
+        },
+        {
+          "case": "knowledge_authorized_cohort20_query",
+          "operations": 3,
+          "elapsed_s": 0.044323759,
+          "ops_s": 67.68379008648613,
+          "p50_ms": 13.224686,
+          "p95_ms": 17.883176,
+          "p99_ms": 17.883176,
+          "mean_ms": 14.774586333333334,
+          "latencies_ms": [
+            13.215897,
+            13.224686,
+            17.883176
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.04485263000242412,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            8.769993,
+            8.217658,
+            10.936644
+          ],
+          "process_cpu_p50_ms": 8.769993,
+          "process_cpu_p95_ms": 10.936644,
+          "process_cpu_p99_ms": 10.936644,
+          "process_cpu_mean_ms": 9.308098333333334,
+          "thread_cpu_ms": [
+            8.766649,
+            8.214688,
+            10.933025
+          ],
+          "thread_cpu_p50_ms": 8.766649,
+          "thread_cpu_p95_ms": 10.933025,
+          "thread_cpu_p99_ms": 10.933025,
+          "thread_cpu_mean_ms": 9.304787333333334
+        },
+        {
+          "case": "knowledge_fresh_application_query",
+          "operations": 3,
+          "elapsed_s": 0.218268673,
+          "ops_s": 13.744528515092956,
+          "p50_ms": 66.36852,
+          "p95_ms": 90.228478,
+          "p99_ms": 90.228478,
+          "mean_ms": 72.75622433333334,
+          "latencies_ms": [
+            66.36852,
+            90.228478,
+            61.671675
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.21872955397702754,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            23.29013,
+            24.528471,
+            20.949744
+          ],
+          "process_cpu_p50_ms": 23.29013,
+          "process_cpu_p95_ms": 24.528471,
+          "process_cpu_p99_ms": 24.528471,
+          "process_cpu_mean_ms": 22.922781666666666,
+          "thread_cpu_ms": [
+            18.530684,
+            20.16014,
+            16.573802
+          ],
+          "thread_cpu_p50_ms": 18.530684,
+          "thread_cpu_p95_ms": 20.16014,
+          "thread_cpu_p99_ms": 20.16014,
+          "thread_cpu_mean_ms": 18.421542
+        },
+        {
+          "case": "knowledge_indivisible_group_small_budget",
+          "operations": 3,
+          "elapsed_s": 0.033727692,
+          "ops_s": 88.94768132963264,
+          "p50_ms": 10.633297,
+          "p95_ms": 13.00461,
+          "p99_ms": 13.00461,
+          "mean_ms": 11.242564,
+          "latencies_ms": [
+            10.089785,
+            10.633297,
+            13.00461
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.03376625804230571,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            6.63595,
+            6.67735,
+            7.728906
+          ],
+          "process_cpu_p50_ms": 6.67735,
+          "process_cpu_p95_ms": 7.728906,
+          "process_cpu_p99_ms": 7.728906,
+          "process_cpu_mean_ms": 7.014068666666667,
+          "thread_cpu_ms": [
+            6.632381,
+            6.674962,
+            7.72705
+          ],
+          "thread_cpu_p50_ms": 6.674962,
+          "thread_cpu_p95_ms": 7.72705,
+          "thread_cpu_p99_ms": 7.72705,
+          "thread_cpu_mean_ms": 7.0114643333333335
+        },
+        {
+          "case": "knowledge_import_5blocks",
+          "operations": 2,
+          "elapsed_s": 0.11712703999999999,
+          "ops_s": 17.075476337487913,
+          "p50_ms": 58.56352,
+          "p95_ms": 82.550056,
+          "p99_ms": 82.550056,
+          "mean_ms": 58.56352,
+          "latencies_ms": [
+            82.550056,
+            34.576984
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.11715321894735098,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            20.524964,
+            11.853398
+          ],
+          "process_cpu_p50_ms": 16.189181,
+          "process_cpu_p95_ms": 20.524964,
+          "process_cpu_p99_ms": 20.524964,
+          "process_cpu_mean_ms": 16.189181,
+          "thread_cpu_ms": [
+            20.52217,
+            11.851441
+          ],
+          "thread_cpu_p50_ms": 16.1868055,
+          "thread_cpu_p95_ms": 20.52217,
+          "thread_cpu_p99_ms": 20.52217,
+          "thread_cpu_mean_ms": 16.1868055
+        },
+        {
+          "case": "knowledge_http_exact_query",
+          "operations": 3,
+          "elapsed_s": 0.03202472,
+          "ops_s": 93.6776340277136,
+          "p50_ms": 10.275636,
+          "p95_ms": 11.558497,
+          "p99_ms": 11.558497,
+          "mean_ms": 10.674906666666667,
+          "latencies_ms": [
+            11.558497,
+            10.190587,
+            10.275636
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.032339805038645864,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            8.05448,
+            7.101667,
+            6.95099
+          ],
+          "process_cpu_p50_ms": 7.101667,
+          "process_cpu_p95_ms": 8.05448,
+          "process_cpu_p99_ms": 8.05448,
+          "process_cpu_mean_ms": 7.369045666666667,
+          "thread_cpu_ms": [
+            0.671303,
+            0.586168,
+            0.597941
+          ],
+          "thread_cpu_p50_ms": 0.597941,
+          "thread_cpu_p95_ms": 0.671303,
+          "thread_cpu_p99_ms": 0.671303,
+          "thread_cpu_mean_ms": 0.6184706666666666
+        },
+        {
+          "case": "knowledge_http_cohort_query",
+          "operations": 3,
+          "elapsed_s": 0.05226907,
+          "ops_s": 57.3953200238688,
+          "p50_ms": 15.470451,
+          "p95_ms": 22.874798,
+          "p99_ms": 22.874798,
+          "mean_ms": 17.423023333333333,
+          "latencies_ms": [
+            13.923821,
+            22.874798,
+            15.470451
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.05278475699014962,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            10.332373,
+            10.930132,
+            11.038537
+          ],
+          "process_cpu_p50_ms": 10.930132,
+          "process_cpu_p95_ms": 11.038537,
+          "process_cpu_p99_ms": 11.038537,
+          "process_cpu_mean_ms": 10.767014,
+          "thread_cpu_ms": [
+            0.81874,
+            0.8397,
+            0.852561
+          ],
+          "thread_cpu_p50_ms": 0.8397,
+          "thread_cpu_p95_ms": 0.852561,
+          "thread_cpu_p99_ms": 0.852561,
+          "thread_cpu_mean_ms": 0.8370003333333333
+        }
+      ],
+      "seed_blocks": 20,
+      "models_called": 0,
+      "logical_result_signatures": {
+        "exact": {
+          "ordered": "98565888d6f4fb88e74a7f44448fe3d5e09e261246dfae00f014da412676d988",
+          "content": "98565888d6f4fb88e74a7f44448fe3d5e09e261246dfae00f014da412676d988"
+        },
+        "cohort": {
+          "ordered": "add071baebbdc896c69e2ebbf4547f619a4abee8c58bf559739c518ca1bba46f",
+          "content": "add071baebbdc896c69e2ebbf4547f619a4abee8c58bf559739c518ca1bba46f"
+        },
+        "closure": {
+          "ordered": "0705261dd9366a3f51647c1315f74fa3c72f31331cc9ee42198827318f6ba7ac",
+          "content": "0705261dd9366a3f51647c1315f74fa3c72f31331cc9ee42198827318f6ba7ac"
+        },
+        "small_budget": {
+          "ordered": "b97dc991a17163b9c26a8ef268740e4df2900999ab30bb1313fd7f91c047be63",
+          "content": "b97dc991a17163b9c26a8ef268740e4df2900999ab30bb1313fd7f91c047be63"
+        }
+      },
+      "untimed_pg_adapter_calls": {
+        "exact": {
+          "statements": 14,
+          "by_command": {
+            "SET": 2,
+            "BEGIN": 2,
+            "SELECT": 10
+          },
+          "native_elapsed_ms": 4.335954,
+          "slowest_statement_shapes_ms": [
+            [
+              "SELECT b.id,b.document_id,b.version,v.hash,d.project_id,d.version AS document_version,d.state,d.kind,d.locator,d.source_",
+              2.409523
+            ],
+            [
+              "SELECT m.knowledge_schema,m.knowledge_seal_key,p.id,p.registration,p.revision FROM (SELECT max(value) FILTER (WHERE key=",
+              0.838823
+            ],
+            [
+              "SELECT key,value FROM metadata",
+              0.778017
+            ],
+            [
+              "SET synchronous_commit=on",
+              0.125866
+            ],
+            [
+              "BEGIN",
+              0.095722
+            ]
+          ]
+        },
+        "cohort": {
+          "statements": 14,
+          "by_command": {
+            "SET": 2,
+            "BEGIN": 2,
+            "SELECT": 10
+          },
+          "native_elapsed_ms": 4.487771,
+          "slowest_statement_shapes_ms": [
+            [
+              "SELECT b.id,b.document_id,b.version,v.hash,d.project_id,d.version AS document_version,d.state,d.kind,d.locator,d.source_",
+              2.572251
+            ],
+            [
+              "SELECT key,value FROM metadata",
+              0.822954
+            ],
+            [
+              "SELECT m.knowledge_schema,m.knowledge_seal_key,p.id,p.registration,p.revision FROM (SELECT max(value) FILTER (WHERE key=",
+              0.7922560000000001
+            ],
+            [
+              "SET synchronous_commit=on",
+              0.115271
+            ],
+            [
+              "SELECT pg_advisory_xact_lock(hashtextextended(current_schema() || ':memory-authority',0))",
+              0.09643199999999999
+            ]
+          ]
+        },
+        "http_exact": {
+          "statements": 14,
+          "by_command": {
+            "SET": 2,
+            "BEGIN": 2,
+            "SELECT": 10
+          },
+          "native_elapsed_ms": 7.264301,
+          "slowest_statement_shapes_ms": [
+            [
+              "SELECT b.id,b.document_id,b.version,v.hash,d.project_id,d.version AS document_version,d.state,d.kind,d.locator,d.source_",
+              3.26527
+            ],
+            [
+              "SELECT m.knowledge_schema,m.knowledge_seal_key,p.id,p.registration,p.revision FROM (SELECT max(value) FILTER (WHERE key=",
+              2.1531789999999997
+            ],
+            [
+              "SELECT key,value FROM metadata",
+              1.460569
+            ],
+            [
+              "SET synchronous_commit=on",
+              0.16692
+            ],
+            [
+              "BEGIN",
+              0.115149
+            ]
+          ]
+        }
+      },
+      "untimed_sqlite_trace": {
+        "exact": null,
+        "cohort": null,
+        "http_exact": null
+      },
+      "timed_boundary": "Native KnowledgeApplication.execute plus explicit HTTP/ASGI cases; warm app retains only its supported Store lifecycle; fresh app includes creation and close; auth and live file checks included"
+    },
+    {
+      "requested_suite": "knowledge_sql",
+      "image_id": "sha256:a0a8e87daa5f99800d3d57686df5aa2532362946ba5531f8cec874a20bd9747f",
+      "revision": "06040aad9482f1f0ec8742f0a382daba9174f30a",
+      "client_wall_s": 5.951460062991828,
+      "raw_record_sha256": "63018a1d340763049489110b68c718213c0b197c65089d8c0761d5fb32836e36",
+      "suite": "knowledge",
+      "backend": "postgresql",
+      "trial": 901,
+      "variant": "optimized",
+      "verified_revision": "06040aad9482f1f0ec8742f0a382daba9174f30a",
+      "measurement_mode": "timed",
+      "correctness": "passed",
+      "cpu_count": 8,
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "loadavg": [
+        4.74072265625,
+        4.400390625,
+        4.5244140625
+      ],
+      "results": [
+        {
+          "case": "knowledge_authorized_exact_query",
+          "operations": 3,
+          "elapsed_s": 0.038191841000000004,
+          "ops_s": 78.5508087970936,
+          "p50_ms": 11.657918,
+          "p95_ms": 15.978058,
+          "p99_ms": 15.978058,
+          "mean_ms": 12.730613666666667,
+          "latencies_ms": [
+            15.978058,
+            11.657918,
+            10.555865
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.038598329992964864,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            6.788658,
+            7.476938,
+            6.811848
+          ],
+          "process_cpu_p50_ms": 6.811848,
+          "process_cpu_p95_ms": 7.476938,
+          "process_cpu_p99_ms": 7.476938,
+          "process_cpu_mean_ms": 7.025814666666666,
+          "thread_cpu_ms": [
+            6.784415,
+            7.474042,
+            6.808911
+          ],
+          "thread_cpu_p50_ms": 6.808911,
+          "thread_cpu_p95_ms": 7.474042,
+          "thread_cpu_p99_ms": 7.474042,
+          "thread_cpu_mean_ms": 7.022456
+        },
+        {
+          "case": "knowledge_authorized_cohort20_query",
+          "operations": 3,
+          "elapsed_s": 0.042819998,
+          "ops_s": 70.0607225623878,
+          "p50_ms": 13.067728,
+          "p95_ms": 17.495682,
+          "p99_ms": 17.495682,
+          "mean_ms": 14.273332666666667,
+          "latencies_ms": [
+            12.256588,
+            13.067728,
+            17.495682
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.043327865889295936,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            8.043276,
+            8.556379,
+            9.329009
+          ],
+          "process_cpu_p50_ms": 8.556379,
+          "process_cpu_p95_ms": 9.329009,
+          "process_cpu_p99_ms": 9.329009,
+          "process_cpu_mean_ms": 8.642888,
+          "thread_cpu_ms": [
+            8.039613,
+            8.553408,
+            9.32572
+          ],
+          "thread_cpu_p50_ms": 8.553408,
+          "thread_cpu_p95_ms": 9.32572,
+          "thread_cpu_p99_ms": 9.32572,
+          "thread_cpu_mean_ms": 8.639580333333333
+        },
+        {
+          "case": "knowledge_fresh_application_query",
+          "operations": 3,
+          "elapsed_s": 0.281744676,
+          "ops_s": 10.647938561224134,
+          "p50_ms": 96.095141,
+          "p95_ms": 105.183897,
+          "p99_ms": 105.183897,
+          "mean_ms": 93.914892,
+          "latencies_ms": [
+            105.183897,
+            96.095141,
+            80.465638
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.28239352395758033,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            26.249394,
+            34.276055,
+            29.021654
+          ],
+          "process_cpu_p50_ms": 29.021654,
+          "process_cpu_p95_ms": 34.276055,
+          "process_cpu_p99_ms": 34.276055,
+          "process_cpu_mean_ms": 29.849034333333332,
+          "thread_cpu_ms": [
+            21.758645,
+            29.426582,
+            24.212217
+          ],
+          "thread_cpu_p50_ms": 24.212217,
+          "thread_cpu_p95_ms": 29.426582,
+          "thread_cpu_p99_ms": 29.426582,
+          "thread_cpu_mean_ms": 25.132481333333335
+        },
+        {
+          "case": "knowledge_indivisible_group_small_budget",
+          "operations": 3,
+          "elapsed_s": 0.033730421,
+          "ops_s": 88.94048491123192,
+          "p50_ms": 11.361548,
+          "p95_ms": 11.47576,
+          "p99_ms": 11.47576,
+          "mean_ms": 11.243473666666667,
+          "latencies_ms": [
+            11.47576,
+            10.893113,
+            11.361548
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.03377039800398052,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            7.328432,
+            6.844092,
+            6.994679
+          ],
+          "process_cpu_p50_ms": 6.994679,
+          "process_cpu_p95_ms": 7.328432,
+          "process_cpu_p99_ms": 7.328432,
+          "process_cpu_mean_ms": 7.0557343333333336,
+          "thread_cpu_ms": [
+            7.324655,
+            6.841833,
+            6.992446
+          ],
+          "thread_cpu_p50_ms": 6.992446,
+          "thread_cpu_p95_ms": 7.324655,
+          "thread_cpu_p99_ms": 7.324655,
+          "thread_cpu_mean_ms": 7.052978
+        },
+        {
+          "case": "knowledge_import_5blocks",
+          "operations": 2,
+          "elapsed_s": 0.12336113400000001,
+          "ops_s": 16.21256172953144,
+          "p50_ms": 61.680567,
+          "p95_ms": 89.987278,
+          "p99_ms": 89.987278,
+          "mean_ms": 61.680567,
+          "latencies_ms": [
+            89.987278,
+            33.373856
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.12338993698358536,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            17.516493,
+            13.365642
+          ],
+          "process_cpu_p50_ms": 15.441067499999999,
+          "process_cpu_p95_ms": 17.516493,
+          "process_cpu_p99_ms": 17.516493,
+          "process_cpu_mean_ms": 15.441067499999999,
+          "thread_cpu_ms": [
+            17.512963,
+            13.362885
+          ],
+          "thread_cpu_p50_ms": 15.437923999999999,
+          "thread_cpu_p95_ms": 17.512963,
+          "thread_cpu_p99_ms": 17.512963,
+          "thread_cpu_mean_ms": 15.437923999999999
+        },
+        {
+          "case": "knowledge_http_exact_query",
+          "operations": 3,
+          "elapsed_s": 0.036308312999999995,
+          "ops_s": 82.62570612961281,
+          "p50_ms": 11.798231,
+          "p95_ms": 12.906048,
+          "p99_ms": 12.906048,
+          "mean_ms": 12.102771,
+          "latencies_ms": [
+            11.798231,
+            12.906048,
+            11.604034
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.036677886033430696,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            8.447444,
+            9.034372,
+            8.14241
+          ],
+          "process_cpu_p50_ms": 8.447444,
+          "process_cpu_p95_ms": 9.034372,
+          "process_cpu_p99_ms": 9.034372,
+          "process_cpu_mean_ms": 8.541408666666667,
+          "thread_cpu_ms": [
+            0.767194,
+            0.806957,
+            0.687878
+          ],
+          "thread_cpu_p50_ms": 0.767194,
+          "thread_cpu_p95_ms": 0.806957,
+          "thread_cpu_p99_ms": 0.806957,
+          "thread_cpu_mean_ms": 0.7540096666666667
+        },
+        {
+          "case": "knowledge_http_cohort_query",
+          "operations": 3,
+          "elapsed_s": 0.038653516000000006,
+          "ops_s": 77.61260321053328,
+          "p50_ms": 12.87941,
+          "p95_ms": 13.572838,
+          "p99_ms": 13.572838,
+          "mean_ms": 12.884505333333333,
+          "latencies_ms": [
+            12.87941,
+            13.572838,
+            12.201268
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.03910642000846565,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            9.292105,
+            9.445358,
+            8.746028
+          ],
+          "process_cpu_p50_ms": 9.292105,
+          "process_cpu_p95_ms": 9.445358,
+          "process_cpu_p99_ms": 9.445358,
+          "process_cpu_mean_ms": 9.161163666666667,
+          "thread_cpu_ms": [
+            0.701383,
+            0.67886,
+            0.617531
+          ],
+          "thread_cpu_p50_ms": 0.67886,
+          "thread_cpu_p95_ms": 0.701383,
+          "thread_cpu_p99_ms": 0.701383,
+          "thread_cpu_mean_ms": 0.6659246666666667
+        }
+      ],
+      "seed_blocks": 20,
+      "models_called": 0,
+      "logical_result_signatures": {
+        "exact": {
+          "ordered": "98565888d6f4fb88e74a7f44448fe3d5e09e261246dfae00f014da412676d988",
+          "content": "98565888d6f4fb88e74a7f44448fe3d5e09e261246dfae00f014da412676d988"
+        },
+        "cohort": {
+          "ordered": "add071baebbdc896c69e2ebbf4547f619a4abee8c58bf559739c518ca1bba46f",
+          "content": "add071baebbdc896c69e2ebbf4547f619a4abee8c58bf559739c518ca1bba46f"
+        },
+        "closure": {
+          "ordered": "0705261dd9366a3f51647c1315f74fa3c72f31331cc9ee42198827318f6ba7ac",
+          "content": "0705261dd9366a3f51647c1315f74fa3c72f31331cc9ee42198827318f6ba7ac"
+        },
+        "small_budget": {
+          "ordered": "b97dc991a17163b9c26a8ef268740e4df2900999ab30bb1313fd7f91c047be63",
+          "content": "b97dc991a17163b9c26a8ef268740e4df2900999ab30bb1313fd7f91c047be63"
+        }
+      },
+      "untimed_pg_adapter_calls": {
+        "exact": {
+          "statements": 14,
+          "by_command": {
+            "SET": 2,
+            "BEGIN": 2,
+            "SELECT": 10
+          },
+          "native_elapsed_ms": 6.223059,
+          "slowest_statement_shapes_ms": [
+            [
+              "SELECT b.id,b.document_id,b.version,v.hash,d.project_id,d.version AS document_version,d.state,d.kind,d.locator,d.source_",
+              3.4674110000000002
+            ],
+            [
+              "SELECT key,value FROM metadata",
+              1.327088
+            ],
+            [
+              "SELECT m.knowledge_schema,m.knowledge_seal_key,p.id,p.registration,p.revision FROM (SELECT max(value) FILTER (WHERE key=",
+              0.9717549999999999
+            ],
+            [
+              "SET synchronous_commit=on",
+              0.21862199999999998
+            ],
+            [
+              "BEGIN",
+              0.13477899999999998
+            ]
+          ]
+        },
+        "cohort": {
+          "statements": 14,
+          "by_command": {
+            "SET": 2,
+            "BEGIN": 2,
+            "SELECT": 10
+          },
+          "native_elapsed_ms": 5.620579,
+          "slowest_statement_shapes_ms": [
+            [
+              "SELECT b.id,b.document_id,b.version,v.hash,d.project_id,d.version AS document_version,d.state,d.kind,d.locator,d.source_",
+              2.881838
+            ],
+            [
+              "SELECT m.knowledge_schema,m.knowledge_seal_key,p.id,p.registration,p.revision FROM (SELECT max(value) FILTER (WHERE key=",
+              1.2727240000000002
+            ],
+            [
+              "SELECT key,value FROM metadata",
+              1.119855
+            ],
+            [
+              "SET synchronous_commit=on",
+              0.137907
+            ],
+            [
+              "BEGIN",
+              0.109788
+            ]
+          ]
+        },
+        "http_exact": {
+          "statements": 14,
+          "by_command": {
+            "SET": 2,
+            "BEGIN": 2,
+            "SELECT": 10
+          },
+          "native_elapsed_ms": 4.575621,
+          "slowest_statement_shapes_ms": [
+            [
+              "SELECT b.id,b.document_id,b.version,v.hash,d.project_id,d.version AS document_version,d.state,d.kind,d.locator,d.source_",
+              2.4170730000000002
+            ],
+            [
+              "SELECT key,value FROM metadata",
+              0.8648659999999999
+            ],
+            [
+              "SELECT m.knowledge_schema,m.knowledge_seal_key,p.id,p.registration,p.revision FROM (SELECT max(value) FILTER (WHERE key=",
+              0.804754
+            ],
+            [
+              "SELECT pg_advisory_xact_lock(hashtextextended(current_schema() || ':memory-authority',0))",
+              0.25975899999999996
+            ],
+            [
+              "SET synchronous_commit=on",
+              0.121064
+            ]
+          ]
+        }
+      },
+      "untimed_sqlite_trace": {
+        "exact": null,
+        "cohort": null,
+        "http_exact": null
+      },
+      "timed_boundary": "Native KnowledgeApplication.execute plus explicit HTTP/ASGI cases; warm app retains only its supported Store lifecycle; fresh app includes creation and close; auth and live file checks included"
+    },
+    {
+      "requested_suite": "memory_retrieval",
+      "image_id": "sha256:cc62ff79cfdad319624c6104b3b1fd5e424251f974c4e2d8ba3e171e2b8156dc",
+      "revision": "c696fd0de073dc375b161fb8192dc2713dc26b63",
+      "client_wall_s": 15.037450159201398,
+      "raw_record_sha256": "b717cbf8c5b34752d79c5abd8ca9aebcc7abe8caa911782dbf3203ac36f2c828",
+      "suite": "memory_retrieval",
+      "backend": "postgresql",
+      "trial": 901,
+      "variant": "original",
+      "verified_revision": "c696fd0de073dc375b161fb8192dc2713dc26b63",
+      "measurement_mode": "timed",
+      "correctness": "passed",
+      "cpu_count": 8,
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "loadavg": [
+        5.3642578125,
+        4.546875,
+        4.5703125
+      ],
+      "results": [
+        {
+          "case": "memory_retrieval_sourced_facts_whole_groups",
+          "operations": 3,
+          "elapsed_s": 0.550196072,
+          "ops_s": 5.452601631805179,
+          "p50_ms": 171.014659,
+          "p95_ms": 208.68416,
+          "p99_ms": 208.68416,
+          "mean_ms": 183.39869066666665,
+          "latencies_ms": [
+            208.68416,
+            171.014659,
+            170.497253
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.5732480739243329,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            147.843549,
+            135.264223,
+            131.94874
+          ],
+          "process_cpu_p50_ms": 135.264223,
+          "process_cpu_p95_ms": 147.843549,
+          "process_cpu_p99_ms": 147.843549,
+          "process_cpu_mean_ms": 138.35217066666667,
+          "thread_cpu_ms": [
+            147.836975,
+            135.258932,
+            131.943967
+          ],
+          "thread_cpu_p50_ms": 135.258932,
+          "thread_cpu_p95_ms": 147.836975,
+          "thread_cpu_p99_ms": 147.836975,
+          "thread_cpu_mean_ms": 138.34662466666666
+        },
+        {
+          "case": "memory_context_retrieval_sourced_facts_whole_groups",
+          "operations": 3,
+          "elapsed_s": 0.5116492909999999,
+          "ops_s": 5.863391297067195,
+          "p50_ms": 171.635044,
+          "p95_ms": 173.723561,
+          "p99_ms": 173.723561,
+          "mean_ms": 170.54976366666665,
+          "latencies_ms": [
+            171.635044,
+            173.723561,
+            166.290686
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.5307727339677513,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            129.753023,
+            130.50319,
+            128.603565
+          ],
+          "process_cpu_p50_ms": 129.753023,
+          "process_cpu_p95_ms": 130.50319,
+          "process_cpu_p99_ms": 130.50319,
+          "process_cpu_mean_ms": 129.619926,
+          "thread_cpu_ms": [
+            129.749558,
+            130.498658,
+            128.599803
+          ],
+          "thread_cpu_p50_ms": 129.749558,
+          "thread_cpu_p95_ms": 130.498658,
+          "thread_cpu_p99_ms": 130.498658,
+          "thread_cpu_mean_ms": 129.61600633333333
+        },
+        {
+          "case": "memory_retrieval_after_source_withdrawal",
+          "operations": 3,
+          "elapsed_s": 0.5192913109999999,
+          "ops_s": 5.777104173422229,
+          "p50_ms": 181.133185,
+          "p95_ms": 195.547311,
+          "p99_ms": 195.547311,
+          "mean_ms": 173.09710366666667,
+          "latencies_ms": [
+            142.610815,
+            195.547311,
+            181.133185
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.5377029918599874,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            119.084348,
+            127.308358,
+            129.053829
+          ],
+          "process_cpu_p50_ms": 127.308358,
+          "process_cpu_p95_ms": 129.053829,
+          "process_cpu_p99_ms": 129.053829,
+          "process_cpu_mean_ms": 125.14884500000001,
+          "thread_cpu_ms": [
+            119.079867,
+            127.303671,
+            129.048876
+          ],
+          "thread_cpu_p50_ms": 127.303671,
+          "thread_cpu_p95_ms": 129.048876,
+          "thread_cpu_p99_ms": 129.048876,
+          "thread_cpu_mean_ms": 125.144138
+        },
+        {
+          "case": "source_negative_sync",
+          "operations": 1,
+          "elapsed_s": 0.178662309,
+          "ops_s": 5.597151439479045,
+          "p50_ms": 178.662309,
+          "p95_ms": 178.662309,
+          "p99_ms": 178.662309,
+          "mean_ms": 178.662309,
+          "latencies_ms": [
+            178.662309
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.17868388211354613,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            88.764587
+          ],
+          "process_cpu_p50_ms": 88.764587,
+          "process_cpu_p95_ms": 88.764587,
+          "process_cpu_p99_ms": 88.764587,
+          "process_cpu_mean_ms": 88.764587,
+          "thread_cpu_ms": [
+            88.760072
+          ],
+          "thread_cpu_p50_ms": 88.760072,
+          "thread_cpu_p95_ms": 88.760072,
+          "thread_cpu_p99_ms": 88.760072,
+          "thread_cpu_mean_ms": 88.760072,
+          "interpretation": "one first-negative transition per trial; p95/p99 are not tail estimates"
+        }
+      ],
+      "active_memory_features": {
+        "source_lookup_schema": "1",
+        "automatic_fact_schema": "2",
+        "memory_context_schema": "1"
+      },
+      "seed_groups": 6,
+      "seed_units": 8,
+      "source_selectors": 6,
+      "durability": {
+        "server_version": "17.6 (Debian 17.6-1.pgdg13+1)",
+        "fsync": "on",
+        "synchronous_commit": "on",
+        "full_page_writes": "on"
+      },
+      "verified_counts": {
+        "groups": 6,
+        "records": 8,
+        "jobs": 6,
+        "write_ledger": 6,
+        "source_writes": 6,
+        "inbox": 6,
+        "outbox": 13,
+        "sources": 6,
+        "source_admissions": 6,
+        "source_revision": 227
+      },
+      "logical_result_signatures": {
+        "two_stage": {
+          "ordered": "eb9b17b79f24e3ec3a52e4ff192246a1ecfd37c7ff20c900fffed04bcf39b550",
+          "content": "b74a305f921f53d4fe9779cfaea0f9371b316cedb9b04bd453152956d205d2e0"
+        },
+        "context_two_stage": {
+          "ordered": "3d81e075cbbaa9daf5e287e8396a8bce3b1fe5057fc89bec9b72637f57279f9d",
+          "content": "944cf3271cf3b67e1ca859a204c0b45c304039c0eb32c3e875025a1fbd850e67"
+        },
+        "withdrawn": {
+          "ordered": "eb91dd7ff49666583d336b5a4cc55c3730663c0c9031c11344307649c552e9e6",
+          "content": "710d064ef0dee7d8788cae0560acecd071cd13b954aafdeb8c163b254eb874cb"
+        },
+        "first_negative_sync": {
+          "content": "cd648b96bb676d6ea18fe0735bf42cd596d33731dcdf4cf38c1aeb266b0be18f"
+        }
+      },
+      "native_negative_proofs": {
+        "wrong_actor": "forbidden",
+        "between_operations_withdrawal": "scope_changed"
+      },
+      "measured_and_warmup_owner_calls": 48,
+      "measured_and_warmup_model_calls": {
+        "settings": 8,
+        "rerank": 8
+      },
+      "context_measured_and_warmup_owner_calls": 48,
+      "context_measured_and_warmup_model_calls": {
+        "settings": 8,
+        "rerank": 8
+      },
+      "owner_calls_per_two_stage_call": 6,
+      "first_negative_sync_proof": {
+        "before": {
+          "source_revision": 207,
+          "source_states": {
+            "active": 6
+          },
+          "source_revisions": {
+            "1": 6
+          },
+          "source_epochs": {
+            "1": 6
+          },
+          "physical_states": {
+            "active": 6
+          },
+          "physical_revisions": {
+            "1": 6
+          },
+          "group_states": {
+            "active": 6
+          },
+          "guard_sha256": "27b4bfbd999af95e282af9ea598ad3838af7fedc4688f67ce051128910925daa"
+        },
+        "after": {
+          "source_revision": 242,
+          "source_states": {
+            "active": 2,
+            "withdrawn": 4
+          },
+          "source_revisions": {
+            "1": 6
+          },
+          "source_epochs": {
+            "1": 2,
+            "2": 4
+          },
+          "physical_states": {
+            "active": 2,
+            "withdrawn": 4
+          },
+          "physical_revisions": {
+            "1": 2,
+            "2": 4
+          },
+          "group_states": {
+            "active": 2,
+            "invalidated": 4
+          },
+          "guard_sha256": "b23780876d4189aba640b45e7cbbe2a1af42ad3427696dee5876c693cea697d1"
+        },
+        "withdrawn_selectors": 4,
+        "original_selectors": 6,
+        "owner_calls_in_measurement": 3,
+        "same_native_guard_reopened": true,
+        "unchanged_on_repeat_read": true,
+        "logical_result_signature": {
+          "content": "cd648b96bb676d6ea18fe0735bf42cd596d33731dcdf4cf38c1aeb266b0be18f"
+        }
+      },
+      "untimed_pg_adapter_calls": {
+        "withdrawn_two_stage": {
+          "statements": 108,
+          "by_command": {
+            "SET": 6,
+            "BEGIN": 6,
+            "SELECT": 95,
+            "WITH": 1
+          },
+          "native_elapsed_ms": 42.84738,
+          "slowest_statement_shapes_ms": [
+            [
+              "SELECT max(value) FILTER (WHERE key='source_lookup_schema') AS source_lookup_schema,max(value) FILTER (WHERE key='source",
+              8.930038
+            ],
+            [
+              "SELECT l.revision AS required_revision,l.epoch AS required_epoch,s.* FROM lineage l JOIN sources s ON s.key=l.source_key",
+              4.830892
+            ],
+            [
+              "SELECT 1 FROM suppression WHERE source_key=?",
+              3.96314
+            ],
+            [
+              "SELECT key,value FROM metadata",
+              3.669064
+            ],
+            [
+              "SELECT * FROM accounts WHERE account_key=?",
+              2.773759
+            ]
+          ]
+        }
+      },
+      "owner_transport": "published synthetic in-process owners; full native authority, no TLS latency",
+      "model_transport": "deterministic synthetic rerank responses through native Retrieval.rank and backend.call",
+      "models_called": 0
+    },
+    {
+      "requested_suite": "memory_retrieval",
+      "image_id": "sha256:a0a8e87daa5f99800d3d57686df5aa2532362946ba5531f8cec874a20bd9747f",
+      "revision": "06040aad9482f1f0ec8742f0a382daba9174f30a",
+      "client_wall_s": 11.055634872056544,
+      "raw_record_sha256": "7bb443849f25649b0c8cc76e0d013fc3296540382869565e89987c5fddf60cb1",
+      "suite": "memory_retrieval",
+      "backend": "postgresql",
+      "trial": 901,
+      "variant": "optimized",
+      "verified_revision": "06040aad9482f1f0ec8742f0a382daba9174f30a",
+      "measurement_mode": "timed",
+      "correctness": "passed",
+      "cpu_count": 8,
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "loadavg": [
+        5.10498046875,
+        4.53515625,
+        4.56591796875
+      ],
+      "results": [
+        {
+          "case": "memory_retrieval_sourced_facts_whole_groups",
+          "operations": 3,
+          "elapsed_s": 0.354267793,
+          "ops_s": 8.468170291731825,
+          "p50_ms": 118.352784,
+          "p95_ms": 118.741917,
+          "p99_ms": 118.741917,
+          "mean_ms": 118.08926433333333,
+          "latencies_ms": [
+            118.741917,
+            118.352784,
+            117.173092
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.3709387481212616,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            103.54382,
+            102.517239,
+            102.548292
+          ],
+          "process_cpu_p50_ms": 102.548292,
+          "process_cpu_p95_ms": 103.54382,
+          "process_cpu_p99_ms": 103.54382,
+          "process_cpu_mean_ms": 102.86978366666666,
+          "thread_cpu_ms": [
+            103.53968,
+            102.513258,
+            102.544347
+          ],
+          "thread_cpu_p50_ms": 102.544347,
+          "thread_cpu_p95_ms": 103.53968,
+          "thread_cpu_p99_ms": 103.53968,
+          "thread_cpu_mean_ms": 102.86576166666667
+        },
+        {
+          "case": "memory_context_retrieval_sourced_facts_whole_groups",
+          "operations": 3,
+          "elapsed_s": 0.397098144,
+          "ops_s": 7.5548074080144785,
+          "p50_ms": 130.457237,
+          "p95_ms": 136.519619,
+          "p99_ms": 136.519619,
+          "mean_ms": 132.366048,
+          "latencies_ms": [
+            130.121288,
+            130.457237,
+            136.519619
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.4157882039435208,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            106.310229,
+            106.992476,
+            112.048554
+          ],
+          "process_cpu_p50_ms": 106.992476,
+          "process_cpu_p95_ms": 112.048554,
+          "process_cpu_p99_ms": 112.048554,
+          "process_cpu_mean_ms": 108.45041966666666,
+          "thread_cpu_ms": [
+            106.306142,
+            106.988145,
+            112.044927
+          ],
+          "thread_cpu_p50_ms": 106.988145,
+          "thread_cpu_p95_ms": 112.044927,
+          "thread_cpu_p99_ms": 112.044927,
+          "thread_cpu_mean_ms": 108.44640466666667
+        },
+        {
+          "case": "memory_retrieval_after_source_withdrawal",
+          "operations": 3,
+          "elapsed_s": 0.364081814,
+          "ops_s": 8.239906209652098,
+          "p50_ms": 118.951334,
+          "p95_ms": 127.33032,
+          "p99_ms": 127.33032,
+          "mean_ms": 121.36060466666667,
+          "latencies_ms": [
+            127.33032,
+            118.951334,
+            117.80016
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.3791435610037297,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            107.857127,
+            102.449237,
+            101.618263
+          ],
+          "process_cpu_p50_ms": 102.449237,
+          "process_cpu_p95_ms": 107.857127,
+          "process_cpu_p99_ms": 107.857127,
+          "process_cpu_mean_ms": 103.97487566666666,
+          "thread_cpu_ms": [
+            107.853254,
+            102.445058,
+            101.613435
+          ],
+          "thread_cpu_p50_ms": 102.445058,
+          "thread_cpu_p95_ms": 107.853254,
+          "thread_cpu_p99_ms": 107.853254,
+          "thread_cpu_mean_ms": 103.97058233333334
+        },
+        {
+          "case": "source_negative_sync",
+          "operations": 1,
+          "elapsed_s": 0.10051606099999999,
+          "ops_s": 9.94865885164362,
+          "p50_ms": 100.516061,
+          "p95_ms": 100.516061,
+          "p99_ms": 100.516061,
+          "mean_ms": 100.516061,
+          "latencies_ms": [
+            100.516061
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.10054072085767984,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            68.498061
+          ],
+          "process_cpu_p50_ms": 68.498061,
+          "process_cpu_p95_ms": 68.498061,
+          "process_cpu_p99_ms": 68.498061,
+          "process_cpu_mean_ms": 68.498061,
+          "thread_cpu_ms": [
+            68.494075
+          ],
+          "thread_cpu_p50_ms": 68.494075,
+          "thread_cpu_p95_ms": 68.494075,
+          "thread_cpu_p99_ms": 68.494075,
+          "thread_cpu_mean_ms": 68.494075,
+          "interpretation": "one first-negative transition per trial; p95/p99 are not tail estimates"
+        }
+      ],
+      "active_memory_features": {
+        "source_lookup_schema": "1",
+        "automatic_fact_schema": "2",
+        "memory_context_schema": "1"
+      },
+      "seed_groups": 6,
+      "seed_units": 8,
+      "source_selectors": 6,
+      "durability": {
+        "server_version": "17.6 (Debian 17.6-1.pgdg13+1)",
+        "fsync": "on",
+        "synchronous_commit": "on",
+        "full_page_writes": "on"
+      },
+      "verified_counts": {
+        "groups": 6,
+        "records": 8,
+        "jobs": 6,
+        "write_ledger": 6,
+        "source_writes": 6,
+        "inbox": 6,
+        "outbox": 13,
+        "sources": 6,
+        "source_admissions": 6,
+        "source_revision": 227
+      },
+      "logical_result_signatures": {
+        "two_stage": {
+          "ordered": "eb9b17b79f24e3ec3a52e4ff192246a1ecfd37c7ff20c900fffed04bcf39b550",
+          "content": "b74a305f921f53d4fe9779cfaea0f9371b316cedb9b04bd453152956d205d2e0"
+        },
+        "context_two_stage": {
+          "ordered": "3d81e075cbbaa9daf5e287e8396a8bce3b1fe5057fc89bec9b72637f57279f9d",
+          "content": "944cf3271cf3b67e1ca859a204c0b45c304039c0eb32c3e875025a1fbd850e67"
+        },
+        "withdrawn": {
+          "ordered": "eb91dd7ff49666583d336b5a4cc55c3730663c0c9031c11344307649c552e9e6",
+          "content": "710d064ef0dee7d8788cae0560acecd071cd13b954aafdeb8c163b254eb874cb"
+        },
+        "first_negative_sync": {
+          "content": "cd648b96bb676d6ea18fe0735bf42cd596d33731dcdf4cf38c1aeb266b0be18f"
+        }
+      },
+      "native_negative_proofs": {
+        "wrong_actor": "forbidden",
+        "between_operations_withdrawal": "scope_changed"
+      },
+      "measured_and_warmup_owner_calls": 48,
+      "measured_and_warmup_model_calls": {
+        "settings": 8,
+        "rerank": 8
+      },
+      "context_measured_and_warmup_owner_calls": 48,
+      "context_measured_and_warmup_model_calls": {
+        "settings": 8,
+        "rerank": 8
+      },
+      "owner_calls_per_two_stage_call": 6,
+      "first_negative_sync_proof": {
+        "before": {
+          "source_revision": 207,
+          "source_states": {
+            "active": 6
+          },
+          "source_revisions": {
+            "1": 6
+          },
+          "source_epochs": {
+            "1": 6
+          },
+          "physical_states": {
+            "active": 6
+          },
+          "physical_revisions": {
+            "1": 6
+          },
+          "group_states": {
+            "active": 6
+          },
+          "guard_sha256": "65cbcfa469d89e816d8d76b99f69e803a0ab6924ddc0ccf9e583884d938c72e5"
+        },
+        "after": {
+          "source_revision": 242,
+          "source_states": {
+            "active": 2,
+            "withdrawn": 4
+          },
+          "source_revisions": {
+            "1": 6
+          },
+          "source_epochs": {
+            "1": 2,
+            "2": 4
+          },
+          "physical_states": {
+            "active": 2,
+            "withdrawn": 4
+          },
+          "physical_revisions": {
+            "1": 2,
+            "2": 4
+          },
+          "group_states": {
+            "active": 2,
+            "invalidated": 4
+          },
+          "guard_sha256": "3bd61962210543aeb289dd5423aa81bce4f4988e1566106ccd0bf3a68388fc01"
+        },
+        "withdrawn_selectors": 4,
+        "original_selectors": 6,
+        "owner_calls_in_measurement": 3,
+        "same_native_guard_reopened": true,
+        "unchanged_on_repeat_read": true,
+        "logical_result_signature": {
+          "content": "cd648b96bb676d6ea18fe0735bf42cd596d33731dcdf4cf38c1aeb266b0be18f"
+        }
+      },
+      "untimed_pg_adapter_calls": {
+        "withdrawn_two_stage": {
+          "statements": 87,
+          "by_command": {
+            "SET": 6,
+            "BEGIN": 6,
+            "SELECT": 74,
+            "WITH": 1
+          },
+          "native_elapsed_ms": 19.612037,
+          "slowest_statement_shapes_ms": [
+            [
+              "SELECT max(value) FILTER (WHERE key='source_lookup_schema') AS source_lookup_schema,max(value) FILTER (WHERE key='source",
+              7.067834
+            ],
+            [
+              "SELECT key,value FROM metadata",
+              2.2841060000000004
+            ],
+            [
+              "SELECT * FROM accounts WHERE account_key=?",
+              1.7763030000000002
+            ],
+            [
+              "SELECT a.selector FROM source_admissions a JOIN sources s ON s.key=a.key WHERE s.scope=?",
+              1.307682
+            ],
+            [
+              "WITH documents AS MATERIALIZED ( SELECT group_id,to_tsvector('simple',text) AS vector FROM jsonb_to_recordset(?::jsonb) ",
+              1.215812
+            ]
+          ]
+        }
+      },
+      "owner_transport": "published synthetic in-process owners; full native authority, no TLS latency",
+      "model_transport": "deterministic synthetic rerank responses through native Retrieval.rank and backend.call",
+      "models_called": 0
+    }
+  ],
+  "all_implemented_logical_signatures_equal": true,
+  "signature_comparison_scope": {
+    "memory_sql_and_memory_source_sync": "Legacy unordered semantic group signature only: statement/conditions/negations/valid_time/uncertainty/reality and whole group membership; does not compare permission/source envelopes or result order. Native application validation and dedicated functional tests cover these separately.",
+    "memory_retrieval": "Full normalized unit/scope/source/group/visibility/verification/budget/omission envelope; both ordered and content hashes for two-stage/context/withdrawn results. First-negative lexical tie order depends on generated IDs, so content hash only there.",
+    "knowledge_sql": "Full query result except verified dynamic imported_at; both ordered and content hashes.",
+    "knowledge_reference": "Native check on every package; full state/query/project/principal envelope, ordered and content hashes; only dynamic imported_at, validated per-DB seal and registered-root-derived fingerprint normalized."
+  }
+}

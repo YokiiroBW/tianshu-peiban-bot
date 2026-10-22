@@ -1,0 +1,399 @@
+{
+  "stored_encoding": "UTF-8 LF; sha256 is for stored artifact bytes",
+  "original_receipts": "original_source_sha256 and raw_record_sha256 refer to pre-normalization private collection bytes",
+  "files": [
+    {
+      "file": "formal.json",
+      "bytes": 565714,
+      "sha256": "04ad47f17d3256da69849f913157326c18dd2a05ce33a0f044267c1aded1e3ce",
+      "original_private_source": "formal-analysis.json",
+      "original_source_sha256": "04ad47f17d3256da69849f913157326c18dd2a05ce33a0f044267c1aded1e3ce"
+    },
+    {
+      "file": "reference-formal.json",
+      "bytes": 60772,
+      "sha256": "3b886fea906a77b704e4365a196cdbf8d168b3f290fa004c0eef6226cd75e335",
+      "original_private_source": "reference-formal-analysis.json",
+      "original_source_sha256": "3b886fea906a77b704e4365a196cdbf8d168b3f290fa004c0eef6226cd75e335"
+    },
+    {
+      "file": "smoke.json",
+      "bytes": 126621,
+      "sha256": "1133f74bb252e9df0f4a63be0f3bd80d7c4eb2b985bdd42afdd56ed7897060fb",
+      "original_private_source": "smoke-analysis.json",
+      "original_source_sha256": "1133f74bb252e9df0f4a63be0f3bd80d7c4eb2b985bdd42afdd56ed7897060fb"
+    },
+    {
+      "file": "reference-smoke.json",
+      "bytes": 18078,
+      "sha256": "90b75aa7d411bdcf022514209fb9d2a5439577aed06d2e0a63256390f21dd145",
+      "original_private_source": "reference-smoke-analysis.json",
+      "original_source_sha256": "90b75aa7d411bdcf022514209fb9d2a5439577aed06d2e0a63256390f21dd145"
+    },
+    {
+      "file": "work-counts.json",
+      "bytes": 63115,
+      "sha256": "9cfefbfd9225f4988c1c34bca4da431f4d4d3c0b6dceff290b9bce8ea35a2581",
+      "original_private_source": "work-count-analysis.json",
+      "original_source_sha256": "9cfefbfd9225f4988c1c34bca4da431f4d4d3c0b6dceff290b9bce8ea35a2581"
+    },
+    {
+      "file": "verification.json",
+      "bytes": 2575,
+      "sha256": "43b58d572a5e848433b7909d604f5480c21ee95edfaecf4a46691f0fb0f72788",
+      "original_private_source": "verification.json",
+      "original_source_sha256": "43b58d572a5e848433b7909d604f5480c21ee95edfaecf4a46691f0fb0f72788"
+    },
+    {
+      "file": "baseline-native.json",
+      "bytes": 281,
+      "sha256": "8b19fd1cfe49d7483eaa4378365c4bc2be4f117c225b18900c9b525097c36670",
+      "original_private_source": "baseline-native-summary.json",
+      "original_source_sha256": "d76ef168dc4b045f09496ea732ee22afda38460fbad412e6c023125d17e54e08"
+    },
+    {
+      "file": "baseline-account.json",
+      "bytes": 289,
+      "sha256": "846f66dfeee21aaf956db8d707c7f4f59741d6b9eca740da7fbaf0bb341bd3e4",
+      "original_private_source": "baseline-account.json",
+      "original_source_sha256": "bc0408789e8ca48fe7ff4529f832318785d13c8d81455c37db5326587e93547b"
+    },
+    {
+      "file": "baseline-imports.json",
+      "bytes": 283,
+      "sha256": "9d45ef1d2cd6021fa297f0132c783d2b4ac8c956c43c35bb898f1af161845877",
+      "original_private_source": "baseline-imports.json",
+      "original_source_sha256": "0f6b16d9c399325d7e5794b5bf4c8c98e396e5487a05f964088ae6a2d7dc3a24"
+    },
+    {
+      "file": "import-cycle-proof.json",
+      "bytes": 628,
+      "sha256": "a27e71b391f488df1bcf423a58b918a69b8a770aa84b687527fbea67b3a1c1d9",
+      "original_private_source": "import-cycle-proof.json",
+      "original_source_sha256": "0f1526fbcf21dff7ee0a89b60f31d530ba01a2ad4186609103bdbc3b6f63735d"
+    },
+    {
+      "file": "source-boundaries.json",
+      "bytes": 881,
+      "sha256": "1ad109a297cebfe2175f7855878eefb27e56778b03fc3a2e88fce47900f17acb",
+      "original_private_source": "structural-proof.json",
+      "original_source_sha256": "0c2024fd40ccd0357b6b1fa713fa91e8a3a4e6a9a1491cca32d8753a131b4dcf"
+    },
+    {
+      "file": "source-selection.json",
+      "bytes": 634,
+      "sha256": "c57e83634dd950cd7266defe424e6ca39e9196ddad159a77ef3d6a1d2e53d2b4",
+      "original_private_source": "selection.json",
+      "original_source_sha256": "0e14ddbd662bff741dfa3685b26f5beeca0e1d41f193562f32ef28d5f8dc6104"
+    },
+    {
+      "file": "contracts.json",
+      "bytes": 42681,
+      "sha256": "c8e7b1961289e8c26c911ce204582bad32e824dcd421f64098f097e33b1d11eb",
+      "original_private_source": "contracts-receipt.json",
+      "original_source_sha256": "fb719155ca842c5e2d89c68282370e10b208f3e4b08620d7e41fc4b22cf87710"
+    },
+    {
+      "file": "source-manifest-main.json",
+      "bytes": 46656,
+      "sha256": "cae4d719c7fb52f62a46ec2164d46f2990c40f66b285ecd3f56a24ece782d168",
+      "original_private_source": "source-manifest-final.json",
+      "original_source_sha256": "0950dd5dde1f239eecca067b1b429ab0640b73b483762ac33667dd171cb97408"
+    },
+    {
+      "file": "source-manifest-reference.json",
+      "bytes": 46959,
+      "sha256": "35f69b36a518abbbda7bcb9cb4a9197ab6ab2c2799db5dbf50e06e5b706485f3",
+      "original_private_source": "source-manifest-reference.json",
+      "original_source_sha256": "a7ea99234aaa9592d0025b1abfec106a8d3ae35aef9836ad398105850cebdfbe"
+    },
+    {
+      "file": "source-manifest-first-diagnostic.json",
+      "bytes": 46360,
+      "sha256": "6d911f94f2177fb5a651dd78d90204e9879aa14a21b603a68723bd4b00c3e56f",
+      "original_private_source": "source-manifest-initial-diagnostic.json",
+      "original_source_sha256": "638f4aa3f5f4ef09fa22afc5eb599b04a0badf364d41837852aa3797e8fb44ef"
+    },
+    {
+      "file": "original-build.json",
+      "bytes": 259,
+      "sha256": "eb21bcbf89a6a69fe1d5fa004a45384338d258c42ba81510edb5db4e91aa324b",
+      "original_private_source": "original.json",
+      "original_source_sha256": "62351ae7999a2204249c0339312726eee3ef4ce85c3f63ea6e00914ed9c2fd63"
+    },
+    {
+      "file": "candidate-build.json",
+      "bytes": 259,
+      "sha256": "b8dd85468f54c7843a3939db47126cca35581f77fff9238b3f7c4763fff9067a",
+      "original_private_source": "candidate.json",
+      "original_source_sha256": "3143ff9ec38426ef192243cb5ca0f2142b27d5b3673f32aab6fabb470e3210b0"
+    },
+    {
+      "file": "original-images.json",
+      "bytes": 712,
+      "sha256": "ce67a38488c1a76d8ddc8ba07222529ad3f1d2138f2b89c5aa28988174066f61",
+      "original_private_source": "original-images.json",
+      "original_source_sha256": "630735c2718dfaeb0d7b2a09e099602c3f723dcc05a7108305fad996f4fc6ece"
+    },
+    {
+      "file": "candidate-images.json",
+      "bytes": 712,
+      "sha256": "a03e2c4011008ac2ff2750e1e88f6dc052e926382a7dbcda9b15e5c00536be1d",
+      "original_private_source": "candidate-images.json",
+      "original_source_sha256": "c95082bba8599d39985aff8a4f1a20e02b268d5e963af03bcb57821f341d0d7a"
+    },
+    {
+      "file": "cleanup.json",
+      "bytes": 447,
+      "sha256": "e7e5792b1d2f272eb2c1caddc9bef1efeea6eddbe532ee0bdc557f3a4dd38c40",
+      "original_private_source": "cleanup.json",
+      "original_source_sha256": "f595244db566f1389776dabcccba12908d33fbc6dea07fe2351ba68e629f7248"
+    },
+    {
+      "file": "diagnostic-original.json",
+      "bytes": 174601,
+      "sha256": "c9fe9ff54312d83fad710d6927f8775e2a262fde488938f03068e71c53ae0255",
+      "original_private_source": "results/memory_flow_profile-original-102-postgresql.json",
+      "original_source_sha256": "0d48bae1edbbaa56ed675b280be53e135a1b94e6b00a55261cb1e5590c6a11b4"
+    },
+    {
+      "file": "diagnostic-optimized.json",
+      "bytes": 174112,
+      "sha256": "4db5aa28183bbee7a85e3f30eb4fb5e68d8b32ac9e2855ff37884d099d8fe608",
+      "original_private_source": "results/memory_flow_profile-optimized-103-postgresql.json",
+      "original_source_sha256": "38e5e08ccce4354ff9707e5d838c7d035a00c70ef2121c202d6f522bd6ef2e19"
+    },
+    {
+      "file": "diagnostic-initial-invalid.json",
+      "bytes": 2346,
+      "sha256": "5b06a57a8e8b93e0ee37e47cf281e8b85b5aa8ff1d0203f7cba18b1d75bdc7ee",
+      "original_private_source": "results/memory_flow_profile-original-101-postgresql.json",
+      "original_source_sha256": "cec941a5cec4dd014323a4893daa84f756a5c6939fcdf0f6f9bb7b89b844918a"
+    },
+    {
+      "file": "raw/memory_sql-original-201-postgresql.json",
+      "bytes": 18797,
+      "sha256": "009e6a6df573c4249c509c6287a5a2f6961f73e38b8143c2a54d57140b772109",
+      "original_private_source": "results/memory_sql-original-201-postgresql.json",
+      "original_source_sha256": "766a7a00890013d605bea79646ec6c0f554d28ba94bff79866f759391bbb2fdf"
+    },
+    {
+      "file": "raw/memory_sql-optimized-201-postgresql.json",
+      "bytes": 18810,
+      "sha256": "d9812d774c4cc505eb74bad7c91069741f810728f2def6cee35302434638c351",
+      "original_private_source": "results/memory_sql-optimized-201-postgresql.json",
+      "original_source_sha256": "30757964ac69370045a90a8b5120cf0c4d613287c6da79afafe27ebe80aba707"
+    },
+    {
+      "file": "raw/memory_source_sync-original-201-postgresql.json",
+      "bytes": 10825,
+      "sha256": "56f7b1a7d5c5678bff8a938287457aa70e55e19860109f49b1f03c1aa0e8c669",
+      "original_private_source": "results/memory_source_sync-original-201-postgresql.json",
+      "original_source_sha256": "545dbc272fa8c5ca092357e7b0c7bb07853bca901c04dc464643aead21799256"
+    },
+    {
+      "file": "raw/memory_source_sync-optimized-201-postgresql.json",
+      "bytes": 10688,
+      "sha256": "cf2947545349342bc97371681ea86995828a59fdc4464354714e351b99f42ebb",
+      "original_private_source": "results/memory_source_sync-optimized-201-postgresql.json",
+      "original_source_sha256": "1277b43ea883dba24c54158d61d2dd2ba0e1fb648e6f50cf8f68930cf9f175e7"
+    },
+    {
+      "file": "raw/knowledge_sql-original-201-postgresql.json",
+      "bytes": 16760,
+      "sha256": "90993db5f86174b924fa98310d83dbabdcf89741afee2d2f189a854b3b5ce974",
+      "original_private_source": "results/knowledge_sql-original-201-postgresql.json",
+      "original_source_sha256": "54cc8f9e50cf955eaa82cc2dc0e4be288462fc0a75b688105c1ba2475b1b2c6a"
+    },
+    {
+      "file": "raw/knowledge_sql-optimized-201-postgresql.json",
+      "bytes": 16574,
+      "sha256": "46248c9b0da563420880d58b340a794f2b2f00a9616392e8e68ea5f87a01c656",
+      "original_private_source": "results/knowledge_sql-optimized-201-postgresql.json",
+      "original_source_sha256": "57a24b99e0566243fbea7ad6dad008252b32a8b309692abb50f3159054657c0a"
+    },
+    {
+      "file": "raw/memory_retrieval-original-201-postgresql.json",
+      "bytes": 12739,
+      "sha256": "8f69388ed4aba33a493efd57729db00f331c9c9f081f0f576f30912bba01a615",
+      "original_private_source": "results/memory_retrieval-original-201-postgresql.json",
+      "original_source_sha256": "5ea9e3008f70bc61fada03d3b2de8879132223b688970df69338b170c8d4479d"
+    },
+    {
+      "file": "raw/memory_retrieval-optimized-201-postgresql.json",
+      "bytes": 12786,
+      "sha256": "b87e13419d88bdd2a76f4807a0d888f3e715e762c8ae2ec3a237ce95c04492bb",
+      "original_private_source": "results/memory_retrieval-optimized-201-postgresql.json",
+      "original_source_sha256": "ede397f7651d38caa0b3eddbb59893a2fa0b8834862d02ca41f0cb9c1765281d"
+    },
+    {
+      "file": "raw/memory_source_sync-optimized-202-postgresql.json",
+      "bytes": 10830,
+      "sha256": "dee28ff52b7eab7b5e0f92612ac27eab0c503375264f05803db580c401bb33ee",
+      "original_private_source": "results/memory_source_sync-optimized-202-postgresql.json",
+      "original_source_sha256": "1c624853300ed326d72da95158a68feed93513ac6e476e403e4d3bbd1d66ee52"
+    },
+    {
+      "file": "raw/memory_source_sync-original-202-postgresql.json",
+      "bytes": 10836,
+      "sha256": "412570b7321061d1eaa43d38490a1c92da4623663f20c293e8e67f5d87f02548",
+      "original_private_source": "results/memory_source_sync-original-202-postgresql.json",
+      "original_source_sha256": "819c5ff627380b117efe6a418bcffe0e66e762d92b5b0199ade61a044f8ad4b9"
+    },
+    {
+      "file": "raw/knowledge_sql-optimized-202-postgresql.json",
+      "bytes": 16608,
+      "sha256": "a306addb1ae8d6bf179e06ef78e6f206f3b5aa76558af06b3c81917202ba35d2",
+      "original_private_source": "results/knowledge_sql-optimized-202-postgresql.json",
+      "original_source_sha256": "67a548a3619ff68135bea080dde01a3f6c17117f80ea7f356ed7429e124a2d75"
+    },
+    {
+      "file": "raw/knowledge_sql-original-202-postgresql.json",
+      "bytes": 16600,
+      "sha256": "56b35d4d51d69189b9449c1d338883e60da232161824de276dc76b757a92e622",
+      "original_private_source": "results/knowledge_sql-original-202-postgresql.json",
+      "original_source_sha256": "4ecab5c1302693094b6e5ff15ed34eab56bcfa6e43dca6d76b13c669e378502f"
+    },
+    {
+      "file": "raw/memory_retrieval-optimized-202-postgresql.json",
+      "bytes": 12784,
+      "sha256": "01e996052673887e0c9edca6342da9eda0df37a9cc7c423cf4f707fe631cea41",
+      "original_private_source": "results/memory_retrieval-optimized-202-postgresql.json",
+      "original_source_sha256": "2bcb88215ddbc7f24aaff6c27e6e1af09130fea8b936a409c559e24fffb2ac93"
+    },
+    {
+      "file": "raw/memory_retrieval-original-202-postgresql.json",
+      "bytes": 12772,
+      "sha256": "2732e97bd93d1d0b86e0a5303e49382bbb4e008979272725b4661f0c86a1d281",
+      "original_private_source": "results/memory_retrieval-original-202-postgresql.json",
+      "original_source_sha256": "0ab96af7bef22a8d6d3774245587b6632f7d1d2d2e75763e1f646fce8d907e44"
+    },
+    {
+      "file": "raw/memory_sql-optimized-202-postgresql.json",
+      "bytes": 18839,
+      "sha256": "0bd1336313b72bf77738790923819eb3f7b4dca47c3fcb4bc419d0ba31baadc1",
+      "original_private_source": "results/memory_sql-optimized-202-postgresql.json",
+      "original_source_sha256": "ff592d6c9d10247c5309f2a2c87c68486401713babe6806a78d7483fc1ccacfd"
+    },
+    {
+      "file": "raw/memory_sql-original-202-postgresql.json",
+      "bytes": 18805,
+      "sha256": "7b59bbaa12010ba30a77b8b2b7bf4a38b08eea49add735b73077d28953a33212",
+      "original_private_source": "results/memory_sql-original-202-postgresql.json",
+      "original_source_sha256": "9bb6607efa96e73bf2413165ef5666df94b56fecc6f71114c658df6b5ec1e87d"
+    },
+    {
+      "file": "raw/knowledge_sql-original-203-postgresql.json",
+      "bytes": 16549,
+      "sha256": "190dd0a571be716e01467427f0351a0dbf19bbaabb18c364899589eafbcd6137",
+      "original_private_source": "results/knowledge_sql-original-203-postgresql.json",
+      "original_source_sha256": "05cb57fa726c86a1e0004043002441055e68645aa25357d936546b031a26cdab"
+    },
+    {
+      "file": "raw/knowledge_sql-optimized-203-postgresql.json",
+      "bytes": 16538,
+      "sha256": "6fcb4e83b6cdcc16b5da70f17e99ffb62d57e0a8865459ddb070f7f69e9977cc",
+      "original_private_source": "results/knowledge_sql-optimized-203-postgresql.json",
+      "original_source_sha256": "1cd4319bd870f81b6c3159beaa5864a2fe36fdc3c94520c9cfff157f454a6b71"
+    },
+    {
+      "file": "raw/memory_retrieval-original-203-postgresql.json",
+      "bytes": 12781,
+      "sha256": "c0a0e36381cc5069789379f0afc257deea0dd716b5b4b20327897ca61a5e0521",
+      "original_private_source": "results/memory_retrieval-original-203-postgresql.json",
+      "original_source_sha256": "3084663107ae33e2478ad9f1f49bfaf8db87d174b7df104b2def04dc582cd02e"
+    },
+    {
+      "file": "raw/memory_retrieval-optimized-203-postgresql.json",
+      "bytes": 12763,
+      "sha256": "324a36938d084b4c757c5c81061616074c5cc8f6c669f9a0890f7b2a22f7bf6b",
+      "original_private_source": "results/memory_retrieval-optimized-203-postgresql.json",
+      "original_source_sha256": "f357940c17ece159fa62f91bc2ac40b1e27cc81acd1757748514a4318374a30d"
+    },
+    {
+      "file": "raw/memory_sql-original-203-postgresql.json",
+      "bytes": 18865,
+      "sha256": "834730ac30651d7bb65c05da8b4ee605c36c8ad487f8a6723f79d7b72f637da8",
+      "original_private_source": "results/memory_sql-original-203-postgresql.json",
+      "original_source_sha256": "db81351bb73c65035662afb54a88d16bfd56bff728ff14ef417132f470b68cfb"
+    },
+    {
+      "file": "raw/memory_sql-optimized-203-postgresql.json",
+      "bytes": 18872,
+      "sha256": "4fe09c798e40c9f6486170b923d2129f82a7281917347d59d1b75ef01d460a95",
+      "original_private_source": "results/memory_sql-optimized-203-postgresql.json",
+      "original_source_sha256": "e5ee6ddbd76ca2fc7ddfc438144790873a8a13b4129b4eb226393569dff800e6"
+    },
+    {
+      "file": "raw/memory_source_sync-original-203-postgresql.json",
+      "bytes": 10875,
+      "sha256": "148ee24702b49ffff879b8ba7f1906565732b7628a852a051d391d262715f7b8",
+      "original_private_source": "results/memory_source_sync-original-203-postgresql.json",
+      "original_source_sha256": "ae2616ae01f18ffb11013b86ca081a71f7215237300297dff2750500e9e95699"
+    },
+    {
+      "file": "raw/memory_source_sync-optimized-203-postgresql.json",
+      "bytes": 10696,
+      "sha256": "74e784db15792716d518bac87c51bd8f52502598ff5fa31fbf6a847363b0959a",
+      "original_private_source": "results/memory_source_sync-optimized-203-postgresql.json",
+      "original_source_sha256": "b39c8d925a688a1867709f76f6c2b2ebcc0ab99c0b2f5f483ca136f51fbcd69a"
+    },
+    {
+      "file": "raw/knowledge_reference-original-301-postgresql.json",
+      "bytes": 7806,
+      "sha256": "bdca78f3daf74a74c392ac12dbf1d2e4d7ded62eb126a2dae5505b2e1d52fb0b",
+      "original_private_source": "results/knowledge_reference-original-301-postgresql.json",
+      "original_source_sha256": "8072a708bf1a01877b613e0ed5e47e95dc714019ebcdd4436e0ed571f5f76a15"
+    },
+    {
+      "file": "raw/knowledge_reference-optimized-301-postgresql.json",
+      "bytes": 7798,
+      "sha256": "40f035ffd6410d4956b7abd8e0f5bb32eabf12bc43bd939649bf9affa86de458",
+      "original_private_source": "results/knowledge_reference-optimized-301-postgresql.json",
+      "original_source_sha256": "8027f97606ee724a17a75c5c599e610e7daca4229314b8a176ed3af2f5ed9d52"
+    },
+    {
+      "file": "raw/knowledge_reference-optimized-302-postgresql.json",
+      "bytes": 7814,
+      "sha256": "4b9be6730d5959e9982239ce652f999c1ec387bf190118b5f726dd9743856121",
+      "original_private_source": "results/knowledge_reference-optimized-302-postgresql.json",
+      "original_source_sha256": "7a7f6d7e8544271ee9c5ac96f286422cf9087ac650f632e5171962fbfac4c7e1"
+    },
+    {
+      "file": "raw/knowledge_reference-original-302-postgresql.json",
+      "bytes": 7801,
+      "sha256": "b8bfaa107a9ac9131edf4d77353a2cd3b773e5b0d35bded61167005a6d94f9c0",
+      "original_private_source": "results/knowledge_reference-original-302-postgresql.json",
+      "original_source_sha256": "9381b5b76239eee15d0b2f2ba37e64781d1bd27173dd488795504304131d984f"
+    },
+    {
+      "file": "raw/knowledge_reference-original-303-postgresql.json",
+      "bytes": 7809,
+      "sha256": "475a9f5645c775043580c7c852ecc600330ebe863f8c4b8e282229a18afe88a2",
+      "original_private_source": "results/knowledge_reference-original-303-postgresql.json",
+      "original_source_sha256": "499bf3c964174fc3cd7634f3b0db73fc66bf1f63e373511fc9b0f225dfb4adb6"
+    },
+    {
+      "file": "raw/knowledge_reference-optimized-303-postgresql.json",
+      "bytes": 7838,
+      "sha256": "e59383f278c85dc29aa798626ee8944904816a07ff00e66ce14b6b48a257a9f0",
+      "original_private_source": "results/knowledge_reference-optimized-303-postgresql.json",
+      "original_source_sha256": "c6878893c49a767cd77d0deaa66cdef5c0cd854bbddf4c5ec1dcc0fa75abc908"
+    },
+    {
+      "file": "production-boundary.json",
+      "bytes": 806,
+      "sha256": "a686e8beb85f6f32e307a624e69db50cf498f9629d7e28f8df47f6f8ed1b3742"
+    },
+    {
+      "file": "independent-review.json",
+      "bytes": 1334,
+      "sha256": "09f8d1de4a6fbf9f4b22e9513096780e8b6602d1d05d207a5d0c31000d74af3b"
+    },
+    {
+      "file": "delivery.json",
+      "bytes": 1398,
+      "sha256": "af92fedb8d1e11851d305c954570c95694cf8f6fba66ee45e910af7bdf863d8e"
+    }
+  ]
+}

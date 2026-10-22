@@ -1,0 +1,20 @@
+{
+  "core_count": 10,
+  "all_core_running": true,
+  "verified_tls_ready": 5,
+  "core_lifecycle_unchanged": true,
+  "production_configuration_hashes_unchanged": true,
+  "capacity_guard_ready": true,
+  "production_business_tables_read": false,
+  "production_business_data_written": false,
+  "production_media_mounted": false,
+  "production_media_written": false,
+  "redis_accessed": false,
+  "actual_owner_calls": 0,
+  "actual_model_calls": 0,
+  "private_before_sha256": "65981543529b4842dd44622a7a5cb35232d37616f609f4473f4fedf0266a4379",
+  "private_after_sha256": "6874d7b2040fde99e7afd23866c0a25aff7c4bd7cc3bdb4f41650df6d2c97513",
+  "database_scope": "New task-owned low-privilege UUID database only; synthetic data; removed after tests",
+  "production_pg_parameters_changed": false,
+  "deployed": false
+}

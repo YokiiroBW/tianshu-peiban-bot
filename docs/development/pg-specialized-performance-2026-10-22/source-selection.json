@@ -1,0 +1,17 @@
+{
+  "baseline": "c696fd0de073dc375b161fb8192dc2713dc26b63",
+  "shared_revision": "019b954195b4d3afc9e754c3cbd1c0cdd1e225ce",
+  "shared_version": "0.1.3",
+  "contracts_unchanged": true,
+  "sqlite_performance_gate": false,
+  "sqlite_functional_compatibility": true,
+  "state": "frozen_for_validation",
+  "candidate": "06040aad9482f1f0ec8742f0a382daba9174f30a",
+  "implementation_commits": [
+    "87c73611334591adee561876525c3d4344e071cf",
+    "a59375bcd396dcc064349f656e19f395b1fbc932",
+    "d5d3ba5e60040632d927382f6ad404032e2673df",
+    "9de49064d8d923d7210e13fddb4de9ec54d204e6",
+    "06040aad9482f1f0ec8742f0a382daba9174f30a"
+  ]
+}

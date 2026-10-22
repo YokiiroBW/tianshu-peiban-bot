@@ -68,12 +68,14 @@ def main():
             "knowledge_authorized_exact_query",
             lambda _: query("unique0x0"),
             3 if args.smoke else 40,
+            cpu_clocks=args.cpu_clocks,
             check=lambda value: signature(value) == expected["exact"] or fail(),
         ),
         measure(
             "knowledge_authorized_cohort20_query",
             lambda _: query("cohort3"),
             3 if args.smoke else 40,
+            cpu_clocks=args.cpu_clocks,
             check=lambda value: signature(value) == expected["cohort"] or fail(),
         ),
     ]
@@ -100,6 +102,7 @@ def main():
             "knowledge_fresh_application_query",
             cold,
             3 if args.smoke else 20,
+            cpu_clocks=args.cpu_clocks,
             check=lambda value: signature(value) == expected["exact"] or fail(),
         )
     )
@@ -135,6 +138,7 @@ def main():
             "knowledge_indivisible_group_small_budget",
             lambda _: query("closuretoken", 256),
             3 if args.smoke else 20,
+            cpu_clocks=args.cpu_clocks,
             check=lambda value: (
                 not value["blocks"] and "budget" in value["omissions"] or fail()
             ),
@@ -166,6 +170,7 @@ def main():
             "knowledge_import_5blocks",
             import_new,
             count,
+            cpu_clocks=args.cpu_clocks,
             warmup=0,
             check=lambda value: value["status"] == "imported" or fail(),
         )
@@ -217,6 +222,7 @@ def main():
                     "knowledge_http_" + name + "_query",
                     lambda _, q=text: http_query(q),
                     3 if args.smoke else 20,
+                    cpu_clocks=args.cpu_clocks,
                     check=lambda value, key=name: (
                         signature(value) == expected[key] or fail()
                     ),

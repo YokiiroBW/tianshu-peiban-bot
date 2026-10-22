@@ -1,0 +1,13 @@
+{
+  "source": "c696fd0de073dc375b161fb8192dc2713dc26b63",
+  "exit_code": 1,
+  "tests": 1,
+  "failures": [
+    {
+      "classname": "tests.test_trusted_workflow",
+      "name": "test_confirmation_rejects_mismatched_authority[account-403]",
+      "time": "0.451"
+    }
+  ],
+  "errors": []
+}
