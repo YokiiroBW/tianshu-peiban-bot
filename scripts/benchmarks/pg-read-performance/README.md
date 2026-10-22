@@ -110,3 +110,13 @@ Knowledge 现有签名只剔除导入时间，不删除来源 ID、reference、h
 正式三轮可对 `memory_sql.py`、`memory_source_sync.py`、`knowledge_sql.py` 和独立 `memory_source_write.py` 加 `--cpu-clocks`。每条结果增加与 `latencies_ms` 一一对应的 `process_cpu_ms`、`thread_cpu_ms` 数组及各自p50/p95/p99/mean；`cpu_clock_protocol`注明 `process_time_ns` 为客户端进程所有线程、`thread_time_ns` 为调用线程、wall为 `perf_counter_ns`。它们是重叠时钟，不相加。同步Memory/Knowledge直接调用可读两者；HTTP/ASGI工作在其他线程，须以process CPU衡量完整客户端CPU，调用线程CPU不能代表HTTP业务CPU。数据库服务器/真实远端owner CPU不在这两个时钟内。
 
 只在原操作边界读时钟，不装hook/profiler；签名/check在计时外，预热不进入正式数组。CPU时钟读取本身有固定开销，双方同协议比较；不与旧wall-only样本混算。省略flag保留旧计时分支和旧输出字段；`--profile-only`仍无正式样本。
+
+`memory_retrieval.py` 是独立新增负载，仍使用同一个安装proof/合同夹具和公开导出的Harness/SyncHarness。它从空的原生初始化状态开始，再在所选backend原生提交16个CandidateExtraction事实组和8个两单元完整组（24selectors、32units；smoke为4+2组、8units）。事实内容由合成owner提供，提取的证据quote和事实语义仍经产品完整验证，没有直接写入业务表。`Retrieval(keyword, rerank=True)`实际调用确定性合成排序端口，再经过第二次SourceAuthority operation和 `_verify_retrieval`；真实模型、TLS及上游CPU/延迟不在本负载范围内。
+
+新增case为 `memory_retrieval_sourced_facts_whole_groups`、`memory_context_retrieval_sourced_facts_whole_groups`、`memory_retrieval_after_source_withdrawal`，各30次正式/5次预热；smoke各3次/5次预热。context_query复用同scope/Store与原生MemoryContext，显式允许该operation、关闭关联人展开，不另建reader或多人物体系。每个两阶段调用核对6次合成owner RPC；本机独立spy证明12次fresh revision和1次完整复核，spy不进入正式采样。错误actor须在排序前被拒；合成排序端口内撤回source后，第二阶段必须返回原生scope_changed。签名保留完整组、全部unit字段/来源、scope/version/时效/预算及context的association/scope_checks/coverage，仅规范化生成的person/record/group标识和每请求request_id。
+
+同suite的独立 `source_negative_sync` 另从相同逻辑形状的原生正向夹具开始，在计时外改变前2/3合成owner physical状态，再计时第一次完整SourceAuthority同步及MemoryService.select。每trial仅1次、无预热，三轮也不能据此宣称p95/p99改善；通用汇总的单样本分位只是同一个值，`interpretation`明确标记。先关闭前一个Store，再开这个独立namespace；不克隆/手修DB或guard。计时外保留source revision、epoch/state/revision直方图、guard hash变化、撤回后完整组签名及原生close/reopen后重复读取状态/guard不变的证明。guard hash只核对本轮闭合，不能要求不同UUID夹具的物理hash相同。负向case原生词法排序可能以生成ID打破同分，跨轮只比较其完整内容签名。
+
+正式每个suite run为91个操作+15个预热；smoke为10个操作+15个预热。沿用CLI，如 `python /bench/code/memory_retrieval.py --config /bench/private.json --backend postgresql --variant original --trial 101 --cpu-clocks`，候选和三轮顺序由协调者统一指定，必须使用独立namespace/目录。现有knowledge cohort20已覆盖两文档各10块，source_sync已有30selectors，旧suite不改其形状。真实profile/projection发布、群内多人物/关联人召回及HTTP origin再解析未被此新suite覆盖，仍由产品专项功能测试负责，不能把本负载收益外推到这些路径。
+
+`check_pg_specialized.py --source-root <冻结产品全量导出> --contract-directory <精确冻结v1目录>` 用固定已安装解释器做有界本机SQLite功能/协议自检，加载显式冻结的两份原生Harness，无NAS、容器、PG或安装proof冒充。它覆盖时钟默认/显式边界、完整32units context-query、两阶段权限/来源复核与强签名、首次负向同步/原生guard重开。它不是性能采用证据；原生PG采样和资源证明由协调者执行。
