@@ -5,6 +5,7 @@ binding and fact is written through the existing native HTTP fixture. Timed
 requests retain real HTTP authorization, loopback TLS and source synchronization.
 """
 
+import copy
 import hashlib
 import json
 import os
@@ -62,9 +63,13 @@ def inspection(h):
     )
 
 
-def signature(value, contracts, people):
-    """Preserve the full public envelope, order, complete groups and provenance."""
+def signature(value, contracts, people, service):
+    """Prove native projection ownership before normalizing generated identities."""
     contracts.validate("memory-context#query_response", value)
+    with service.store.transaction() as db:
+        assert service._projections_current(db, value["selected_units"]), (
+            "native_projection_not_current"
+        )
 
     def replace(item, identities):
         if isinstance(item, str):
@@ -287,11 +292,30 @@ def run_study(
                     target,
                 ]
                 assert len(value["dependency_groups"]) == 2
-            signed = signature(value, contracts, people)
+            signed = signature(value, contracts, people, h.service)
             assert signed == expected.setdefault(label, signed)
 
         for label, text in (("unknown", UNKNOWN), ("known", known)):
-            checked(operation(text), label)
+            ready = operation(text)
+            checked(ready, label)
+        # The last readiness result is the real, source-proven two-unit known
+        # response. Keep its body/owner/version intact and exchange only the two
+        # valid projection IDs: the public contract still passes, native ownership
+        # must reject before any generated ref can disappear into normalization.
+        swapped = copy.deepcopy(ready)
+        first, second = [unit["sources"][0] for unit in swapped["selected_units"]]
+        assert first["projection_ref"] != second["projection_ref"]
+        first["projection_ref"], second["projection_ref"] = (
+            second["projection_ref"],
+            first["projection_ref"],
+        )
+        contracts.validate("memory-context#query_response", swapped)
+        try:
+            signature(swapped, contracts, people, h.service)
+        except AssertionError as error:
+            assert str(error) == "native_projection_not_current"
+        else:
+            raise AssertionError("swapped projection ownership must be rejected")
         before = inspection(h)
         assert (
             before["counts"]["groups"]
@@ -337,6 +361,12 @@ def run_study(
         storage_before=before,
         storage_after=after,
         wrong_actor="forbidden",
+        projection_ownership_proof=dict(
+            native_check="MemoryService._projections_current: active projection, actual record_id, version",
+            boundary="New native transaction per response, outside formal clocks and without owner RPC",
+            swapped_refs_contract_valid=True,
+            swapped_refs="rejected_before_normalization",
+        ),
         models_called=0,
         timed_boundary="query construction + native TestClient HTTP + actual auth + synthetic loopback TLS source owners + MemoryContext query; result/signature/count checks outside timer",
         cpu_denominator="process CPU includes this process's ASGI and synthetic TLS owner threads; calling-thread CPU is the coordinator only; clocks overlap; no PG server CPU",

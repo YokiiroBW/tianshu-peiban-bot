@@ -38,6 +38,13 @@ class NamedChecks(unittest.TestCase):
         self.assertEqual(details["native_fact_groups"], 101)
         self.assertEqual(details["returned_scope_checks"], dict(unknown=1, known=2))
         self.assertEqual(details["wrong_actor"], "forbidden")
+        self.assertTrue(
+            details["projection_ownership_proof"]["swapped_refs_contract_valid"]
+        )
+        self.assertEqual(
+            details["projection_ownership_proof"]["swapped_refs"],
+            "rejected_before_normalization",
+        )
         self.assertEqual(details["storage_before"], details["storage_after"])
         self.assertEqual(details["storage_before"]["durability"]["journal_mode"], "wal")
         self.assertEqual(details["storage_before"]["durability"]["synchronous"], 2)
