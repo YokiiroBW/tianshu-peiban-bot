@@ -11,6 +11,8 @@ import time
 
 from common import (
     arguments,
+    cpu_details,
+    cpu_sample,
     durability,
     emit,
     measure,
@@ -95,11 +97,18 @@ def main():
         assert h.workflow.commit_candidate(job, units)["state"] == "committed"
     with h.store.transaction() as db:
         sync = durability(db, args.backend)
-    values = []
+    values, process, thread = [], [], []
     for index in range(count):
         job, units = prepare([size + index])
         if args.profile_only:
             result = h.workflow.commit_candidate(job, units)
+        elif args.cpu_clocks:
+            result, wall_ms, process_ms, thread_ms = cpu_sample(
+                lambda: h.workflow.commit_candidate(job, units)
+            )
+            values.append(wall_ms)
+            process.append(process_ms)
+            thread.append(thread_ms)
         else:
             before = time.perf_counter_ns()
             result = h.workflow.commit_candidate(job, units)
@@ -109,7 +118,14 @@ def main():
     results = (
         []
         if args.profile_only
-        else [summarize("memory_complete_group_commit", values, sum(values) / 1000)]
+        else [
+            summarize(
+                "memory_complete_group_commit",
+                values,
+                sum(values) / 1000,
+                **(cpu_details(process, thread) if args.cpu_clocks else {}),
+            )
+        ]
     )
 
     def full_flow(index):
@@ -123,7 +139,14 @@ def main():
         for index in range(-5, count):
             full_flow(index)
     else:
-        results.append(measure("memory_source_candidate_commit", full_flow, count))
+        results.append(
+            measure(
+                "memory_source_candidate_commit",
+                full_flow,
+                count,
+                cpu_clocks=args.cpu_clocks,
+            )
+        )
 
     def select(query):
         return h.service.select(h.selection(query=query), context)
@@ -140,7 +163,10 @@ def main():
                 "memory_authorized_keyword_recall",
                 lambda _: select("Python"),
                 5 if args.smoke else 40,
-                check=lambda result: signature(result) == signatures["keyword"] or fail(),
+                cpu_clocks=args.cpu_clocks,
+                check=lambda result: (
+                    signature(result) == signatures["keyword"] or fail()
+                ),
             )
         )
         results.append(
@@ -148,14 +174,18 @@ def main():
                 "memory_authorized_field_recall",
                 lambda _: select("field:bench-0"),
                 5 if args.smoke else 80,
+                cpu_clocks=args.cpu_clocks,
                 check=lambda result: signature(result) == signatures["exact"] or fail(),
             )
         )
         results.append(
             measure(
                 "memory_zero_budget",
-                lambda _: h.service.select(h.selection(query="Python", budget=0), context),
+                lambda _: h.service.select(
+                    h.selection(query="Python", budget=0), context
+                ),
                 5 if args.smoke else 80,
+                cpu_clocks=args.cpu_clocks,
                 check=lambda result: result["selected_units"] == [] or fail(),
             )
         )
@@ -178,7 +208,9 @@ def main():
         python_profiles = {
             "keyword": python_profile(
                 lambda: select("Python"),
-                check=lambda result: signature(result) == signatures["keyword"] or fail(),
+                check=lambda result: (
+                    signature(result) == signatures["keyword"] or fail()
+                ),
             ),
             "exact": python_profile(
                 lambda: select("field:bench-0"),
@@ -212,6 +244,7 @@ def main():
                 "memory_recall_after_source_withdrawal",
                 lambda _: select("Python"),
                 5 if args.smoke else 40,
+                cpu_clocks=args.cpu_clocks,
                 check=lambda result: (
                     signature(result) == signatures["withdrawn_keyword"] or fail()
                 ),

@@ -100,3 +100,13 @@ Knowledge 现有签名只剔除导入时间，不删除来源 ID、reference、h
 3300 对读取复用原 `sqlite_paired_worker.py` 与同一物理 365 组库。该库由本批原版 `memory_sql` 的完整 SQLite trial43 原生生成（300 初始组 +30 次纯提交 +35 次全流程），直接保留 `/bench/runs/memory-original-43-sqlite` 的 config/DB/guard；`sqlite_same_fixture` 是只读检查，不能替代种子生成，也不手动 checkpoint 或修复。三块每块 exact500/zero500/keyword100 对和额外预热继续单列。
 
 `memory_flow_profile.py` 仅在独立诊断调用中复用 Phases，新增 `work_counts`：domain/service/source_authority 各 canonical/fingerprint 别名调用数、canonical 返回值 UTF-8 累计 bytes、按合同名的验证次数、按规则名的 relations 次数、fresh revision 和合成 owner RPC 次数。不保存参数或正文，不改变正式 suite。fingerprint 内部仍调用 domain.canonical，因此两层调用和包含式 CPU 不能相加；别名范围也不代表全进程全部序列化。原有六次 fresh revision /三个 owner 调用应按实际读场景核对，写全流程的动态次数另行保留。Knowledge 的纯预算计数由协调者另作对照，不改变本批完整业务测量。
+
+## TS285/286 PG 专用实测准备
+
+本号产品基线为 `c696fd0de073dc375b161fb8192dc2713dc26b63`，共享存储仍固定0.1.3。SQLite只验证功能兼容，性能采用以PG实测为准。既有三套负载、操作名和结果签名不改；安装proof仍要求精确冻结源码和共享文件。
+
+测量层允许原生 `source_lookup_schema=1`、`automatic_fact_schema=1或2`、`memory_context_schema=1`，返回并记录实际版本。当前基线新建夹具由原生迁移生成事实schema2；已存在1/2不会因旧硬编码再次迁移，也不降级、改metadata或修补备份。其他版本仍拒绝。这个兼容同时供memory_sql、source_sync、flow_profile和write_fixture复用。
+
+正式三轮可对 `memory_sql.py`、`memory_source_sync.py`、`knowledge_sql.py` 和独立 `memory_source_write.py` 加 `--cpu-clocks`。每条结果增加与 `latencies_ms` 一一对应的 `process_cpu_ms`、`thread_cpu_ms` 数组及各自p50/p95/p99/mean；`cpu_clock_protocol`注明 `process_time_ns` 为客户端进程所有线程、`thread_time_ns` 为调用线程、wall为 `perf_counter_ns`。它们是重叠时钟，不相加。同步Memory/Knowledge直接调用可读两者；HTTP/ASGI工作在其他线程，须以process CPU衡量完整客户端CPU，调用线程CPU不能代表HTTP业务CPU。数据库服务器/真实远端owner CPU不在这两个时钟内。
+
+只在原操作边界读时钟，不装hook/profiler；签名/check在计时外，预热不进入正式数组。CPU时钟读取本身有固定开销，双方同协议比较；不与旧wall-only样本混算。省略flag保留旧计时分支和旧输出字段；`--profile-only`仍无正式样本。

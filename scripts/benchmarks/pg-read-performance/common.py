@@ -21,6 +21,11 @@ def arguments(*, allow_profile=False):
     parser.add_argument("--trial", type=int, required=True)
     parser.add_argument("--variant", choices=("original", "optimized"), required=True)
     parser.add_argument("--smoke", action="store_true")
+    parser.add_argument(
+        "--cpu-clocks",
+        action="store_true",
+        help="Also sample process and calling-thread CPU clocks, without profiling",
+    )
     parser.set_defaults(profile_only=False)
     if allow_profile:
         parser.add_argument(
@@ -46,7 +51,9 @@ def verify_installation(config, variant, proof_path):
     import importlib.util
 
     proof = json.loads(proof_path.read_bytes())
-    revision_key = "original_revision" if variant == "original" else "candidate_revision"
+    revision_key = (
+        "original_revision" if variant == "original" else "candidate_revision"
+    )
     assert proof["revision"] == config[revision_key]
     for name, key in (
         ("tianshu_memory", "package_files"),
@@ -88,7 +95,13 @@ def python_profile(operation, *, check=None, limit=20):
         check(result)
     stats = pstats.Stats(profiler)
     functions = []
-    for (filename, line, name), (primitive, calls, own, cumulative, _) in stats.stats.items():
+    for (filename, line, name), (
+        primitive,
+        calls,
+        own,
+        cumulative,
+        _,
+    ) in stats.stats.items():
         # Keep useful package identities without exposing machine-specific roots.
         filename = filename.replace("\\", "/")
         for package in ("tianshu_memory/", "tianshu_storage/"):
@@ -118,7 +131,9 @@ def python_profile(operation, *, check=None, limit=20):
         "primitive_calls": stats.prim_calls,
         "calls": stats.total_calls,
         "function_count": len(functions),
-        "top_by_self_ms": sorted(functions, key=lambda row: row["self_ms"], reverse=True)[:limit],
+        "top_by_self_ms": sorted(
+            functions, key=lambda row: row["self_ms"], reverse=True
+        )[:limit],
         "top_by_cumulative_ms": sorted(
             functions, key=lambda row: row["cumulative_ms"], reverse=True
         )[:limit],
@@ -153,7 +168,7 @@ def prepare_memory_schema(store, directory):
     with store.transaction() as db:
         installed = dict(db.execute("SELECT key,value FROM metadata"))
     for key, method in migrations.items():
-        if installed.get(key) != "1":
+        if key not in installed:
             getattr(store, method)(directory / (key + ".backup"))
     return memory_features(store)
 
@@ -169,7 +184,9 @@ def memory_features(store):
             "memory_context_schema",
         )
     }
-    assert all(value == "1" for value in features.values())
+    assert features["source_lookup_schema"] == "1"
+    assert features["automatic_fact_schema"] in {"1", "2"}
+    assert features["memory_context_schema"] == "1"
     return features
 
 
@@ -250,7 +267,46 @@ def summarize(name, values, wall, **details):
     )
 
 
-def measure(name, operation, count, *, warmup=5, check=None, **details):
+def cpu_sample(operation):
+    """A native call only; process CPU includes worker threads, thread CPU does not."""
+    process = time.process_time_ns()
+    thread = time.thread_time_ns()
+    wall = time.perf_counter_ns()
+    result = operation()
+    wall = (time.perf_counter_ns() - wall) / 1e6
+    thread = (time.thread_time_ns() - thread) / 1e6
+    process = (time.process_time_ns() - process) / 1e6
+    return result, wall, process, thread
+
+
+def cpu_details(process, thread):
+    """Keep every CPU sample aligned with latencies_ms; the clocks overlap."""
+    result = {
+        "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": False,
+            "clock_read_overhead_included": True,
+        }
+    }
+    for name, values in (("process", process), ("thread", thread)):
+        ordered = sorted(values)
+        result[name + "_cpu_ms"] = values
+        result[name + "_cpu_p50_ms"] = statistics.median(ordered)
+        result[name + "_cpu_p95_ms"] = ordered[math.ceil(len(ordered) * 0.95) - 1]
+        result[name + "_cpu_p99_ms"] = ordered[math.ceil(len(ordered) * 0.99) - 1]
+        result[name + "_cpu_mean_ms"] = statistics.mean(ordered)
+    return result
+
+
+def measure(
+    name, operation, count, *, warmup=5, check=None, cpu_clocks=False, **details
+):
+    if cpu_clocks:
+        return measure_cpu(
+            name, operation, count, warmup=warmup, check=check, **details
+        )
     for index in range(-warmup, 0):
         result = operation(index)
         if check:
@@ -269,6 +325,32 @@ def measure(name, operation, count, *, warmup=5, check=None, **details):
         values,
         sum(values) / 1000,
         operation_and_validation_wall_s=wall,
+        **details,
+    )
+
+
+def measure_cpu(name, operation, count, *, warmup=5, check=None, **details):
+    """Same operation/check boundary as measure; no hook or profiler is installed."""
+    for index in range(-warmup, 0):
+        result = operation(index)
+        if check:
+            check(result)
+    values, process, thread = [], [], []
+    start = time.perf_counter()
+    for index in range(count):
+        result, wall_ms, process_ms, thread_ms = cpu_sample(lambda: operation(index))
+        values.append(wall_ms)
+        process.append(process_ms)
+        thread.append(thread_ms)
+        if check:
+            check(result)
+    wall = time.perf_counter() - start
+    return summarize(
+        name,
+        values,
+        sum(values) / 1000,
+        operation_and_validation_wall_s=wall,
+        **cpu_details(process, thread),
         **details,
     )
 
