@@ -1,0 +1,13 @@
+{
+  "source": "c696fd0de073dc375b161fb8192dc2713dc26b63",
+  "exit_code": 1,
+  "tests": 1,
+  "failures": [
+    {
+      "classname": "tests.test_audit_runtime",
+      "name": "test_domain_imports_have_no_cycles_even_inside_functions",
+      "time": "0.179"
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,16 @@
+{
+  "runtime_candidate": "06040aad9482f1f0ec8742f0a382daba9174f30a",
+  "benchmark_commit": "cd23d4e8482e6846538350606c151422ef57dda4",
+  "baseline": "c696fd0de073dc375b161fb8192dc2713dc26b63",
+  "independent_review": "No concrete semantic blocker found in frozen Git blobs; actual PG and performance pending.",
+  "unchanged_blobs": {
+    "contracts.py": "ec62471fb0ea672eb47c12271336762656f9d4b1",
+    "postgres.py": "8d88c80f838d2c7d7bb39c9ce0d725571f9fe2ac",
+    "postgres_schema.sql": "1150322de3ba093f43bbf2eaf3801ff03147104c",
+    "source_transport.py": "12c952618512ef3c67a872f470b1d9decb66aca8",
+    "store.py": "9c88e83257c078da0a7f231e55986a01db51abad",
+    "knowledge_ports.py": "8411cc0922fe14ef43f558e397431a7436217aeb",
+    "knowledge_files.py": "2baaae6a517de19d1152e5ca3aa5a684370dab05",
+    "knowledge_evidence.py": "2547e8963a45ab28dd7159b0f344fc6615f5b9cf"
+  }
+}

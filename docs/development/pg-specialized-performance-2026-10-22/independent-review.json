@@ -1,0 +1,32 @@
+{
+  "baseline": "c696fd0de073dc375b161fb8192dc2713dc26b63",
+  "measured_runtime": "06040aad9482f1f0ec8742f0a382daba9174f30a",
+  "tested_checkout": "daef6b08fcc78570904a17b66d8de6f177f9e711",
+  "source_delivery": "6d15af8d1c86c256d7e8030566addcf8a093bbbb",
+  "runtime_tree_unchanged_after_measurements": true,
+  "semantic_review": "Independent committed-blob review found no concrete semantic blocker.",
+  "short_field": {
+    "group_count": 1,
+    "prepared_groups_used": false,
+    "adapter_statements_before": 11,
+    "adapter_statements_after": 11,
+    "read_batches_before": 2,
+    "read_batches_after": 2,
+    "actual_new_work": "is_postgres check and incremental budget integer accounting",
+    "causal_regression_proven": false,
+    "non_regression_proven": false
+  },
+  "write_controls": {
+    "authority": "LocalFixtureSources + LocalWorkflow, not SourceAuthority",
+    "timed_commit_modules_unchanged": true,
+    "zero_budget_prepare_skips_fit_groups": true,
+    "causal_regression_proven": false,
+    "non_regression_proven": false
+  },
+  "explicit_limits": [
+    "All adverse timings are retained.",
+    "Three first-negative observations per variant do not estimate tails.",
+    "Client CPU excludes PG server and external owners.",
+    "One active synthetic benchmark client is not a production concurrency test."
+  ]
+}

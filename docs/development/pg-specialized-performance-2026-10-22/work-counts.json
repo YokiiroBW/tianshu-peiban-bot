@@ -1,0 +1,1973 @@
+{
+  "diagnostic_only": true,
+  "profile_hooks_included": true,
+  "all_validation_and_owner_counts_equal": true,
+  "baseline_trial": 102,
+  "candidate_trial": 103,
+  "cases": [
+    {
+      "case": "local_exact",
+      "before_counts": {
+        "serialization_calls": {
+          "service.canonical": 3
+        },
+        "canonical_returned_utf8_bytes": {
+          "service.canonical": 1063
+        },
+        "contracts_by_name": {},
+        "relations_by_name": {},
+        "fresh_revision_calls": 0,
+        "owner_rpc_calls": 0,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "after_counts": {
+        "serialization_calls": {
+          "service.canonical": 3
+        },
+        "canonical_returned_utf8_bytes": {
+          "service.canonical": 1063
+        },
+        "contracts_by_name": {},
+        "relations_by_name": {},
+        "fresh_revision_calls": 0,
+        "owner_rpc_calls": 0,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "before_phases": {
+        "application_and_adapter": {
+          "calls": 1,
+          "exclusive_wall_ms": 1.842015,
+          "exclusive_thread_cpu_ms": 1.833559
+        },
+        "connection_checkout": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.097849,
+          "exclusive_thread_cpu_ms": 0.097349
+        },
+        "driver_execute": {
+          "calls": 13,
+          "exclusive_wall_ms": 3.167665,
+          "exclusive_thread_cpu_ms": 1.366025
+        },
+        "driver_fetch": {
+          "calls": 31,
+          "exclusive_wall_ms": 0.194605,
+          "exclusive_thread_cpu_ms": 0.193611
+        },
+        "pipeline_confirmation": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.746739,
+          "exclusive_thread_cpu_ms": 0.365884
+        },
+        "guard_verify": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.144183,
+          "exclusive_thread_cpu_ms": 0.144796
+        },
+        "service.canonical": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.096537,
+          "exclusive_thread_cpu_ms": 0.096342
+        },
+        "driver_commit": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.158294,
+          "exclusive_thread_cpu_ms": 0.098767
+        },
+        "driver_rollback": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.014359,
+          "exclusive_thread_cpu_ms": 0.014169
+        }
+      },
+      "after_phases": {
+        "application_and_adapter": {
+          "calls": 1,
+          "exclusive_wall_ms": 1.615061,
+          "exclusive_thread_cpu_ms": 1.60149
+        },
+        "connection_checkout": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.081169,
+          "exclusive_thread_cpu_ms": 0.080794
+        },
+        "driver_execute": {
+          "calls": 13,
+          "exclusive_wall_ms": 2.294763,
+          "exclusive_thread_cpu_ms": 1.075195
+        },
+        "driver_fetch": {
+          "calls": 31,
+          "exclusive_wall_ms": 0.177156,
+          "exclusive_thread_cpu_ms": 0.175146
+        },
+        "pipeline_confirmation": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.603792,
+          "exclusive_thread_cpu_ms": 0.304726
+        },
+        "guard_verify": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.13967,
+          "exclusive_thread_cpu_ms": 0.134542
+        },
+        "service.canonical": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.098466,
+          "exclusive_thread_cpu_ms": 0.098163
+        },
+        "driver_commit": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.155815,
+          "exclusive_thread_cpu_ms": 0.069931
+        },
+        "driver_rollback": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.011496,
+          "exclusive_thread_cpu_ms": 0.011425
+        }
+      },
+      "all_validation_and_owner_counts_equal": true
+    },
+    {
+      "case": "local_keyword",
+      "before_counts": {
+        "serialization_calls": {
+          "service.canonical": 33
+        },
+        "canonical_returned_utf8_bytes": {
+          "service.canonical": 385692
+        },
+        "contracts_by_name": {},
+        "relations_by_name": {},
+        "fresh_revision_calls": 0,
+        "owner_rpc_calls": 0,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "after_counts": {
+        "serialization_calls": {
+          "service.canonical": 33
+        },
+        "canonical_returned_utf8_bytes": {
+          "service.canonical": 26388
+        },
+        "contracts_by_name": {},
+        "relations_by_name": {},
+        "fresh_revision_calls": 0,
+        "owner_rpc_calls": 0,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "before_phases": {
+        "application_and_adapter": {
+          "calls": 1,
+          "exclusive_wall_ms": 44.138227,
+          "exclusive_thread_cpu_ms": 43.72307
+        },
+        "connection_checkout": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.094319,
+          "exclusive_thread_cpu_ms": 0.093391
+        },
+        "driver_execute": {
+          "calls": 16,
+          "exclusive_wall_ms": 18.6882,
+          "exclusive_thread_cpu_ms": 5.944056
+        },
+        "driver_fetch": {
+          "calls": 1262,
+          "exclusive_wall_ms": 5.37012,
+          "exclusive_thread_cpu_ms": 5.367986
+        },
+        "pipeline_confirmation": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.231183,
+          "exclusive_thread_cpu_ms": 0.118189
+        },
+        "guard_verify": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.150347,
+          "exclusive_thread_cpu_ms": 0.150792
+        },
+        "service.canonical": {
+          "calls": 33,
+          "exclusive_wall_ms": 5.091601,
+          "exclusive_thread_cpu_ms": 5.097502
+        },
+        "driver_commit": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.185029,
+          "exclusive_thread_cpu_ms": 0.08822
+        },
+        "driver_rollback": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.01746,
+          "exclusive_thread_cpu_ms": 0.017468
+        }
+      },
+      "after_phases": {
+        "application_and_adapter": {
+          "calls": 1,
+          "exclusive_wall_ms": 42.5439,
+          "exclusive_thread_cpu_ms": 42.49539
+        },
+        "connection_checkout": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.106407,
+          "exclusive_thread_cpu_ms": 0.105103
+        },
+        "driver_execute": {
+          "calls": 16,
+          "exclusive_wall_ms": 13.9938,
+          "exclusive_thread_cpu_ms": 5.06513
+        },
+        "driver_fetch": {
+          "calls": 1262,
+          "exclusive_wall_ms": 5.327476,
+          "exclusive_thread_cpu_ms": 5.327982
+        },
+        "pipeline_confirmation": {
+          "calls": 4,
+          "exclusive_wall_ms": 3.154833,
+          "exclusive_thread_cpu_ms": 0.932971
+        },
+        "guard_verify": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.127971,
+          "exclusive_thread_cpu_ms": 0.128274
+        },
+        "service.canonical": {
+          "calls": 33,
+          "exclusive_wall_ms": 0.900005,
+          "exclusive_thread_cpu_ms": 0.902848
+        },
+        "driver_commit": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.271264,
+          "exclusive_thread_cpu_ms": 0.097689
+        },
+        "driver_rollback": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.010965,
+          "exclusive_thread_cpu_ms": 0.011028
+        }
+      },
+      "all_validation_and_owner_counts_equal": true
+    },
+    {
+      "case": "local_zero_budget",
+      "before_counts": {
+        "serialization_calls": {
+          "service.canonical": 2
+        },
+        "canonical_returned_utf8_bytes": {
+          "service.canonical": 198
+        },
+        "contracts_by_name": {},
+        "relations_by_name": {},
+        "fresh_revision_calls": 0,
+        "owner_rpc_calls": 0,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "after_counts": {
+        "serialization_calls": {
+          "service.canonical": 2
+        },
+        "canonical_returned_utf8_bytes": {
+          "service.canonical": 198
+        },
+        "contracts_by_name": {},
+        "relations_by_name": {},
+        "fresh_revision_calls": 0,
+        "owner_rpc_calls": 0,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "before_phases": {
+        "application_and_adapter": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.806406,
+          "exclusive_thread_cpu_ms": 0.808303
+        },
+        "connection_checkout": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.074838,
+          "exclusive_thread_cpu_ms": 0.074524
+        },
+        "driver_execute": {
+          "calls": 9,
+          "exclusive_wall_ms": 1.409004,
+          "exclusive_thread_cpu_ms": 0.687791
+        },
+        "driver_fetch": {
+          "calls": 25,
+          "exclusive_wall_ms": 0.118644,
+          "exclusive_thread_cpu_ms": 0.118199
+        },
+        "pipeline_confirmation": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.172988,
+          "exclusive_thread_cpu_ms": 0.094989
+        },
+        "guard_verify": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.128378,
+          "exclusive_thread_cpu_ms": 0.128738
+        },
+        "service.canonical": {
+          "calls": 2,
+          "exclusive_wall_ms": 0.033845,
+          "exclusive_thread_cpu_ms": 0.033647
+        },
+        "driver_commit": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.119492,
+          "exclusive_thread_cpu_ms": 0.049833
+        },
+        "driver_rollback": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.009544,
+          "exclusive_thread_cpu_ms": 0.009585
+        }
+      },
+      "after_phases": {
+        "application_and_adapter": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.98865,
+          "exclusive_thread_cpu_ms": 0.900562
+        },
+        "connection_checkout": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.064425,
+          "exclusive_thread_cpu_ms": 0.063662
+        },
+        "driver_execute": {
+          "calls": 9,
+          "exclusive_wall_ms": 1.452608,
+          "exclusive_thread_cpu_ms": 0.74457
+        },
+        "driver_fetch": {
+          "calls": 25,
+          "exclusive_wall_ms": 0.14656,
+          "exclusive_thread_cpu_ms": 0.146162
+        },
+        "pipeline_confirmation": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.154138,
+          "exclusive_thread_cpu_ms": 0.095633
+        },
+        "guard_verify": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.141324,
+          "exclusive_thread_cpu_ms": 0.141937
+        },
+        "service.canonical": {
+          "calls": 2,
+          "exclusive_wall_ms": 0.034873,
+          "exclusive_thread_cpu_ms": 0.034382
+        },
+        "driver_commit": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.114693,
+          "exclusive_thread_cpu_ms": 0.066895
+        },
+        "driver_rollback": {
+          "calls": 1,
+          "exclusive_wall_ms": 0.010522,
+          "exclusive_thread_cpu_ms": 0.010546
+        }
+      },
+      "all_validation_and_owner_counts_equal": true
+    },
+    {
+      "case": "local_commit",
+      "before_counts": {
+        "serialization_calls": {
+          "domain.canonical": 11,
+          "service.canonical": 3,
+          "domain.fingerprint": 4
+        },
+        "canonical_returned_utf8_bytes": {
+          "domain.canonical": 3052,
+          "service.canonical": 496
+        },
+        "contracts_by_name": {
+          "common#scope": 1,
+          "identity-memory#unit": 1
+        },
+        "relations_by_name": {},
+        "fresh_revision_calls": 0,
+        "owner_rpc_calls": 0,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "after_counts": {
+        "serialization_calls": {
+          "domain.canonical": 11,
+          "service.canonical": 3,
+          "domain.fingerprint": 4
+        },
+        "canonical_returned_utf8_bytes": {
+          "domain.canonical": 3052,
+          "service.canonical": 496
+        },
+        "contracts_by_name": {
+          "common#scope": 1,
+          "identity-memory#unit": 1
+        },
+        "relations_by_name": {},
+        "fresh_revision_calls": 0,
+        "owner_rpc_calls": 0,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "before_phases": {
+        "application_and_adapter": {
+          "calls": 1,
+          "exclusive_wall_ms": 8.08116,
+          "exclusive_thread_cpu_ms": 7.357026
+        },
+        "domain.canonical": {
+          "calls": 11,
+          "exclusive_wall_ms": 0.393465,
+          "exclusive_thread_cpu_ms": 0.392515
+        },
+        "connection_checkout": {
+          "calls": 2,
+          "exclusive_wall_ms": 0.251447,
+          "exclusive_thread_cpu_ms": 0.230647
+        },
+        "driver_execute": {
+          "calls": 38,
+          "exclusive_wall_ms": 23.018135,
+          "exclusive_thread_cpu_ms": 7.904455
+        },
+        "driver_fetch": {
+          "calls": 60,
+          "exclusive_wall_ms": 0.413771,
+          "exclusive_thread_cpu_ms": 0.411249
+        },
+        "pipeline_confirmation": {
+          "calls": 2,
+          "exclusive_wall_ms": 0.445997,
+          "exclusive_thread_cpu_ms": 0.266692
+        },
+        "guard_verify": {
+          "calls": 2,
+          "exclusive_wall_ms": 0.485074,
+          "exclusive_thread_cpu_ms": 0.389677
+        },
+        "driver_commit": {
+          "calls": 2,
+          "exclusive_wall_ms": 3.904604,
+          "exclusive_thread_cpu_ms": 0.286522
+        },
+        "driver_rollback": {
+          "calls": 2,
+          "exclusive_wall_ms": 0.06742,
+          "exclusive_thread_cpu_ms": 0.067575
+        },
+        "service.canonical": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.102937,
+          "exclusive_thread_cpu_ms": 0.101851
+        },
+        "domain.fingerprint": {
+          "calls": 4,
+          "exclusive_wall_ms": 0.138047,
+          "exclusive_thread_cpu_ms": 0.136963
+        },
+        "document_validation": {
+          "calls": 2,
+          "exclusive_wall_ms": 1.36146,
+          "exclusive_thread_cpu_ms": 1.318717
+        },
+        "guard_persist": {
+          "calls": 1,
+          "exclusive_wall_ms": 4.008058,
+          "exclusive_thread_cpu_ms": 0.810117
+        }
+      },
+      "after_phases": {
+        "application_and_adapter": {
+          "calls": 1,
+          "exclusive_wall_ms": 5.023887,
+          "exclusive_thread_cpu_ms": 5.002695
+        },
+        "domain.canonical": {
+          "calls": 11,
+          "exclusive_wall_ms": 0.285575,
+          "exclusive_thread_cpu_ms": 0.286298
+        },
+        "connection_checkout": {
+          "calls": 2,
+          "exclusive_wall_ms": 0.152553,
+          "exclusive_thread_cpu_ms": 0.152333
+        },
+        "driver_execute": {
+          "calls": 38,
+          "exclusive_wall_ms": 12.091167,
+          "exclusive_thread_cpu_ms": 4.538317
+        },
+        "driver_fetch": {
+          "calls": 60,
+          "exclusive_wall_ms": 0.333394,
+          "exclusive_thread_cpu_ms": 0.331795
+        },
+        "pipeline_confirmation": {
+          "calls": 2,
+          "exclusive_wall_ms": 0.316994,
+          "exclusive_thread_cpu_ms": 0.20737
+        },
+        "guard_verify": {
+          "calls": 2,
+          "exclusive_wall_ms": 0.287004,
+          "exclusive_thread_cpu_ms": 0.287778
+        },
+        "driver_commit": {
+          "calls": 2,
+          "exclusive_wall_ms": 8.739758,
+          "exclusive_thread_cpu_ms": 0.19756
+        },
+        "driver_rollback": {
+          "calls": 2,
+          "exclusive_wall_ms": 0.024433,
+          "exclusive_thread_cpu_ms": 0.024418
+        },
+        "service.canonical": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.089172,
+          "exclusive_thread_cpu_ms": 0.088659
+        },
+        "domain.fingerprint": {
+          "calls": 4,
+          "exclusive_wall_ms": 0.080872,
+          "exclusive_thread_cpu_ms": 0.080408
+        },
+        "document_validation": {
+          "calls": 2,
+          "exclusive_wall_ms": 0.932392,
+          "exclusive_thread_cpu_ms": 0.933924
+        },
+        "guard_persist": {
+          "calls": 1,
+          "exclusive_wall_ms": 3.583392,
+          "exclusive_thread_cpu_ms": 0.606961
+        }
+      },
+      "all_validation_and_owner_counts_equal": true
+    },
+    {
+      "case": "local_full_flow",
+      "before_counts": {
+        "serialization_calls": {
+          "domain.fingerprint": 8,
+          "domain.canonical": 18,
+          "service.canonical": 11,
+          "service.fingerprint": 3
+        },
+        "canonical_returned_utf8_bytes": {
+          "domain.canonical": 6041,
+          "service.canonical": 2286
+        },
+        "contracts_by_name": {
+          "common#source": 1,
+          "common#scope": 2,
+          "identity-memory#unit": 1
+        },
+        "relations_by_name": {},
+        "fresh_revision_calls": 0,
+        "owner_rpc_calls": 0,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "after_counts": {
+        "serialization_calls": {
+          "domain.fingerprint": 8,
+          "domain.canonical": 18,
+          "service.canonical": 11,
+          "service.fingerprint": 3
+        },
+        "canonical_returned_utf8_bytes": {
+          "domain.canonical": 6041,
+          "service.canonical": 2286
+        },
+        "contracts_by_name": {
+          "common#source": 1,
+          "common#scope": 2,
+          "identity-memory#unit": 1
+        },
+        "relations_by_name": {},
+        "fresh_revision_calls": 0,
+        "owner_rpc_calls": 0,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "before_phases": {
+        "application_and_adapter": {
+          "calls": 1,
+          "exclusive_wall_ms": 9.738284,
+          "exclusive_thread_cpu_ms": 9.673616
+        },
+        "document_validation": {
+          "calls": 4,
+          "exclusive_wall_ms": 1.746841,
+          "exclusive_thread_cpu_ms": 1.750198
+        },
+        "connection_checkout": {
+          "calls": 5,
+          "exclusive_wall_ms": 0.470971,
+          "exclusive_thread_cpu_ms": 0.465973
+        },
+        "driver_execute": {
+          "calls": 79,
+          "exclusive_wall_ms": 24.408726,
+          "exclusive_thread_cpu_ms": 10.203912
+        },
+        "driver_fetch": {
+          "calls": 143,
+          "exclusive_wall_ms": 0.786042,
+          "exclusive_thread_cpu_ms": 0.787862
+        },
+        "pipeline_confirmation": {
+          "calls": 5,
+          "exclusive_wall_ms": 1.317585,
+          "exclusive_thread_cpu_ms": 0.699448
+        },
+        "guard_verify": {
+          "calls": 5,
+          "exclusive_wall_ms": 0.829191,
+          "exclusive_thread_cpu_ms": 0.832531
+        },
+        "domain.fingerprint": {
+          "calls": 8,
+          "exclusive_wall_ms": 0.184451,
+          "exclusive_thread_cpu_ms": 0.183033
+        },
+        "domain.canonical": {
+          "calls": 18,
+          "exclusive_wall_ms": 0.535474,
+          "exclusive_thread_cpu_ms": 0.537357
+        },
+        "guard_persist": {
+          "calls": 3,
+          "exclusive_wall_ms": 12.548116,
+          "exclusive_thread_cpu_ms": 2.621258
+        },
+        "driver_commit": {
+          "calls": 5,
+          "exclusive_wall_ms": 15.959091,
+          "exclusive_thread_cpu_ms": 0.713618
+        },
+        "driver_rollback": {
+          "calls": 5,
+          "exclusive_wall_ms": 0.080116,
+          "exclusive_thread_cpu_ms": 0.079571
+        },
+        "service.canonical": {
+          "calls": 11,
+          "exclusive_wall_ms": 0.345728,
+          "exclusive_thread_cpu_ms": 0.345688
+        },
+        "service.fingerprint": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.08669,
+          "exclusive_thread_cpu_ms": 0.085977
+        }
+      },
+      "after_phases": {
+        "application_and_adapter": {
+          "calls": 1,
+          "exclusive_wall_ms": 9.547754,
+          "exclusive_thread_cpu_ms": 9.452065
+        },
+        "document_validation": {
+          "calls": 4,
+          "exclusive_wall_ms": 1.873321,
+          "exclusive_thread_cpu_ms": 1.876192
+        },
+        "connection_checkout": {
+          "calls": 5,
+          "exclusive_wall_ms": 0.400695,
+          "exclusive_thread_cpu_ms": 0.39697
+        },
+        "driver_execute": {
+          "calls": 79,
+          "exclusive_wall_ms": 34.092225,
+          "exclusive_thread_cpu_ms": 9.821162
+        },
+        "driver_fetch": {
+          "calls": 143,
+          "exclusive_wall_ms": 0.813668,
+          "exclusive_thread_cpu_ms": 0.809257
+        },
+        "pipeline_confirmation": {
+          "calls": 5,
+          "exclusive_wall_ms": 1.125909,
+          "exclusive_thread_cpu_ms": 0.590207
+        },
+        "guard_verify": {
+          "calls": 5,
+          "exclusive_wall_ms": 0.726925,
+          "exclusive_thread_cpu_ms": 0.729198
+        },
+        "domain.fingerprint": {
+          "calls": 8,
+          "exclusive_wall_ms": 0.201883,
+          "exclusive_thread_cpu_ms": 0.199904
+        },
+        "domain.canonical": {
+          "calls": 18,
+          "exclusive_wall_ms": 0.550007,
+          "exclusive_thread_cpu_ms": 0.551268
+        },
+        "guard_persist": {
+          "calls": 3,
+          "exclusive_wall_ms": 13.412357,
+          "exclusive_thread_cpu_ms": 2.490996
+        },
+        "driver_commit": {
+          "calls": 5,
+          "exclusive_wall_ms": 24.85236,
+          "exclusive_thread_cpu_ms": 0.647735
+        },
+        "driver_rollback": {
+          "calls": 5,
+          "exclusive_wall_ms": 0.068168,
+          "exclusive_thread_cpu_ms": 0.067901
+        },
+        "service.canonical": {
+          "calls": 11,
+          "exclusive_wall_ms": 0.304581,
+          "exclusive_thread_cpu_ms": 0.304589
+        },
+        "service.fingerprint": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.080096,
+          "exclusive_thread_cpu_ms": 0.079943
+        }
+      },
+      "all_validation_and_owner_counts_equal": true
+    },
+    {
+      "case": "source_exact",
+      "before_counts": {
+        "serialization_calls": {
+          "source_authority.canonical": 392,
+          "service.canonical": 6,
+          "domain.canonical": 363,
+          "source_authority.fingerprint": 240
+        },
+        "canonical_returned_utf8_bytes": {
+          "source_authority.canonical": 161077,
+          "service.canonical": 1303,
+          "domain.canonical": 124552
+        },
+        "contracts_by_name": {
+          "sync-sources#facts_request": 2,
+          "sync-sources#facts_response": 2,
+          "sync-sources#current_access_request": 1,
+          "sync-sources#current_access_response": 1,
+          "sync-workflow#sync_input": 1,
+          "sync-workflow#sync_result": 1
+        },
+        "relations_by_name": {
+          "source_snapshot": 2,
+          "current_access": 1,
+          "sync_barrier": 1
+        },
+        "fresh_revision_calls": 6,
+        "owner_rpc_calls": 3,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "after_counts": {
+        "serialization_calls": {
+          "source_authority.canonical": 392,
+          "service.canonical": 6,
+          "domain.canonical": 363,
+          "source_authority.fingerprint": 240
+        },
+        "canonical_returned_utf8_bytes": {
+          "source_authority.canonical": 161077,
+          "service.canonical": 1303,
+          "domain.canonical": 124552
+        },
+        "contracts_by_name": {
+          "sync-sources#facts_request": 2,
+          "sync-sources#facts_response": 2,
+          "sync-sources#current_access_request": 1,
+          "sync-sources#current_access_response": 1,
+          "sync-workflow#sync_input": 1,
+          "sync-workflow#sync_result": 1
+        },
+        "relations_by_name": {
+          "source_snapshot": 2,
+          "current_access": 1,
+          "sync_barrier": 1
+        },
+        "fresh_revision_calls": 6,
+        "owner_rpc_calls": 3,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "before_phases": {
+        "application_and_adapter": {
+          "calls": 1,
+          "exclusive_wall_ms": 16.51805,
+          "exclusive_thread_cpu_ms": 16.450552
+        },
+        "connection_checkout": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.269111,
+          "exclusive_thread_cpu_ms": 0.266231
+        },
+        "driver_execute": {
+          "calls": 48,
+          "exclusive_wall_ms": 14.469515,
+          "exclusive_thread_cpu_ms": 6.692256
+        },
+        "driver_fetch": {
+          "calls": 342,
+          "exclusive_wall_ms": 1.649662,
+          "exclusive_thread_cpu_ms": 1.638455
+        },
+        "pipeline_confirmation": {
+          "calls": 6,
+          "exclusive_wall_ms": 1.691012,
+          "exclusive_thread_cpu_ms": 0.775538
+        },
+        "guard_verify": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.427817,
+          "exclusive_thread_cpu_ms": 0.429081
+        },
+        "fresh_revision": {
+          "calls": 6,
+          "exclusive_wall_ms": 0.681655,
+          "exclusive_thread_cpu_ms": 0.676326
+        },
+        "source_authority.canonical": {
+          "calls": 392,
+          "exclusive_wall_ms": 7.008684,
+          "exclusive_thread_cpu_ms": 6.968168
+        },
+        "service.canonical": {
+          "calls": 6,
+          "exclusive_wall_ms": 0.193789,
+          "exclusive_thread_cpu_ms": 0.19319
+        },
+        "driver_commit": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.503124,
+          "exclusive_thread_cpu_ms": 0.23633
+        },
+        "driver_rollback": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.040558,
+          "exclusive_thread_cpu_ms": 0.040501
+        },
+        "owner_rpc": {
+          "calls": 3,
+          "exclusive_wall_ms": 4.649907,
+          "exclusive_thread_cpu_ms": 4.266923
+        },
+        "document_validation": {
+          "calls": 8,
+          "exclusive_wall_ms": 187.241539,
+          "exclusive_thread_cpu_ms": 187.09338
+        },
+        "domain.canonical": {
+          "calls": 363,
+          "exclusive_wall_ms": 5.849486,
+          "exclusive_thread_cpu_ms": 5.875962
+        },
+        "source_relation_rules": {
+          "calls": 4,
+          "exclusive_wall_ms": 7.271099,
+          "exclusive_thread_cpu_ms": 7.275375
+        },
+        "source_authority.fingerprint": {
+          "calls": 240,
+          "exclusive_wall_ms": 3.489921,
+          "exclusive_thread_cpu_ms": 2.688107
+        }
+      },
+      "after_phases": {
+        "application_and_adapter": {
+          "calls": 1,
+          "exclusive_wall_ms": 15.425824,
+          "exclusive_thread_cpu_ms": 15.334681
+        },
+        "connection_checkout": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.262099,
+          "exclusive_thread_cpu_ms": 0.259288
+        },
+        "driver_execute": {
+          "calls": 48,
+          "exclusive_wall_ms": 17.527156,
+          "exclusive_thread_cpu_ms": 6.279241
+        },
+        "driver_fetch": {
+          "calls": 342,
+          "exclusive_wall_ms": 1.634408,
+          "exclusive_thread_cpu_ms": 1.626858
+        },
+        "pipeline_confirmation": {
+          "calls": 7,
+          "exclusive_wall_ms": 2.245822,
+          "exclusive_thread_cpu_ms": 0.918906
+        },
+        "guard_verify": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.412408,
+          "exclusive_thread_cpu_ms": 0.413474
+        },
+        "fresh_revision": {
+          "calls": 6,
+          "exclusive_wall_ms": 0.704853,
+          "exclusive_thread_cpu_ms": 0.647877
+        },
+        "source_authority.canonical": {
+          "calls": 392,
+          "exclusive_wall_ms": 6.104185,
+          "exclusive_thread_cpu_ms": 6.119158
+        },
+        "service.canonical": {
+          "calls": 6,
+          "exclusive_wall_ms": 0.190768,
+          "exclusive_thread_cpu_ms": 0.190186
+        },
+        "driver_commit": {
+          "calls": 3,
+          "exclusive_wall_ms": 1.037096,
+          "exclusive_thread_cpu_ms": 0.274275
+        },
+        "driver_rollback": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.034536,
+          "exclusive_thread_cpu_ms": 0.034453
+        },
+        "owner_rpc": {
+          "calls": 3,
+          "exclusive_wall_ms": 3.747836,
+          "exclusive_thread_cpu_ms": 3.743249
+        },
+        "document_validation": {
+          "calls": 8,
+          "exclusive_wall_ms": 172.3245,
+          "exclusive_thread_cpu_ms": 172.260021
+        },
+        "domain.canonical": {
+          "calls": 363,
+          "exclusive_wall_ms": 5.380067,
+          "exclusive_thread_cpu_ms": 5.406021
+        },
+        "source_relation_rules": {
+          "calls": 4,
+          "exclusive_wall_ms": 6.874647,
+          "exclusive_thread_cpu_ms": 6.877404
+        },
+        "source_authority.fingerprint": {
+          "calls": 240,
+          "exclusive_wall_ms": 2.508411,
+          "exclusive_thread_cpu_ms": 2.492364
+        }
+      },
+      "all_validation_and_owner_counts_equal": true
+    },
+    {
+      "case": "source_keyword",
+      "before_counts": {
+        "serialization_calls": {
+          "source_authority.canonical": 392,
+          "service.canonical": 36,
+          "domain.canonical": 363,
+          "source_authority.fingerprint": 240
+        },
+        "canonical_returned_utf8_bytes": {
+          "source_authority.canonical": 161077,
+          "service.canonical": 393312,
+          "domain.canonical": 124552
+        },
+        "contracts_by_name": {
+          "sync-sources#facts_request": 2,
+          "sync-sources#facts_response": 2,
+          "sync-sources#current_access_request": 1,
+          "sync-sources#current_access_response": 1,
+          "sync-workflow#sync_input": 1,
+          "sync-workflow#sync_result": 1
+        },
+        "relations_by_name": {
+          "source_snapshot": 2,
+          "current_access": 1,
+          "sync_barrier": 1
+        },
+        "fresh_revision_calls": 6,
+        "owner_rpc_calls": 3,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "after_counts": {
+        "serialization_calls": {
+          "source_authority.canonical": 392,
+          "service.canonical": 36,
+          "domain.canonical": 363,
+          "source_authority.fingerprint": 240
+        },
+        "canonical_returned_utf8_bytes": {
+          "source_authority.canonical": 161077,
+          "service.canonical": 27101,
+          "domain.canonical": 124552
+        },
+        "contracts_by_name": {
+          "sync-sources#facts_request": 2,
+          "sync-sources#facts_response": 2,
+          "sync-sources#current_access_request": 1,
+          "sync-sources#current_access_response": 1,
+          "sync-workflow#sync_input": 1,
+          "sync-workflow#sync_result": 1
+        },
+        "relations_by_name": {
+          "source_snapshot": 2,
+          "current_access": 1,
+          "sync_barrier": 1
+        },
+        "fresh_revision_calls": 6,
+        "owner_rpc_calls": 3,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "before_phases": {
+        "application_and_adapter": {
+          "calls": 1,
+          "exclusive_wall_ms": 57.433839,
+          "exclusive_thread_cpu_ms": 57.345203
+        },
+        "connection_checkout": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.284724,
+          "exclusive_thread_cpu_ms": 0.282873
+        },
+        "driver_execute": {
+          "calls": 51,
+          "exclusive_wall_ms": 28.033248,
+          "exclusive_thread_cpu_ms": 10.628489
+        },
+        "driver_fetch": {
+          "calls": 1602,
+          "exclusive_wall_ms": 7.190994,
+          "exclusive_thread_cpu_ms": 7.196915
+        },
+        "pipeline_confirmation": {
+          "calls": 4,
+          "exclusive_wall_ms": 1.271209,
+          "exclusive_thread_cpu_ms": 0.626293
+        },
+        "guard_verify": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.396758,
+          "exclusive_thread_cpu_ms": 0.398314
+        },
+        "fresh_revision": {
+          "calls": 6,
+          "exclusive_wall_ms": 0.491213,
+          "exclusive_thread_cpu_ms": 0.487885
+        },
+        "source_authority.canonical": {
+          "calls": 392,
+          "exclusive_wall_ms": 6.606213,
+          "exclusive_thread_cpu_ms": 6.619543
+        },
+        "service.canonical": {
+          "calls": 36,
+          "exclusive_wall_ms": 4.992044,
+          "exclusive_thread_cpu_ms": 5.00215
+        },
+        "driver_commit": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.517059,
+          "exclusive_thread_cpu_ms": 0.282708
+        },
+        "driver_rollback": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.03549,
+          "exclusive_thread_cpu_ms": 0.035367
+        },
+        "owner_rpc": {
+          "calls": 3,
+          "exclusive_wall_ms": 4.021237,
+          "exclusive_thread_cpu_ms": 4.016213
+        },
+        "document_validation": {
+          "calls": 8,
+          "exclusive_wall_ms": 181.930757,
+          "exclusive_thread_cpu_ms": 179.787401
+        },
+        "domain.canonical": {
+          "calls": 363,
+          "exclusive_wall_ms": 5.503288,
+          "exclusive_thread_cpu_ms": 5.529702
+        },
+        "source_relation_rules": {
+          "calls": 4,
+          "exclusive_wall_ms": 7.087743,
+          "exclusive_thread_cpu_ms": 7.089722
+        },
+        "source_authority.fingerprint": {
+          "calls": 240,
+          "exclusive_wall_ms": 2.535403,
+          "exclusive_thread_cpu_ms": 2.524781
+        }
+      },
+      "after_phases": {
+        "application_and_adapter": {
+          "calls": 1,
+          "exclusive_wall_ms": 59.272147,
+          "exclusive_thread_cpu_ms": 58.736402
+        },
+        "connection_checkout": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.270105,
+          "exclusive_thread_cpu_ms": 0.268616
+        },
+        "driver_execute": {
+          "calls": 51,
+          "exclusive_wall_ms": 25.166945,
+          "exclusive_thread_cpu_ms": 10.035616
+        },
+        "driver_fetch": {
+          "calls": 1602,
+          "exclusive_wall_ms": 7.29462,
+          "exclusive_thread_cpu_ms": 7.194014
+        },
+        "pipeline_confirmation": {
+          "calls": 8,
+          "exclusive_wall_ms": 4.336554,
+          "exclusive_thread_cpu_ms": 1.59503
+        },
+        "guard_verify": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.402004,
+          "exclusive_thread_cpu_ms": 0.402874
+        },
+        "fresh_revision": {
+          "calls": 6,
+          "exclusive_wall_ms": 0.592747,
+          "exclusive_thread_cpu_ms": 0.587405
+        },
+        "source_authority.canonical": {
+          "calls": 392,
+          "exclusive_wall_ms": 6.153007,
+          "exclusive_thread_cpu_ms": 6.162342
+        },
+        "service.canonical": {
+          "calls": 36,
+          "exclusive_wall_ms": 0.926917,
+          "exclusive_thread_cpu_ms": 0.924466
+        },
+        "driver_commit": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.469219,
+          "exclusive_thread_cpu_ms": 0.215755
+        },
+        "driver_rollback": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.030859,
+          "exclusive_thread_cpu_ms": 0.030873
+        },
+        "owner_rpc": {
+          "calls": 3,
+          "exclusive_wall_ms": 3.89468,
+          "exclusive_thread_cpu_ms": 3.890891
+        },
+        "document_validation": {
+          "calls": 8,
+          "exclusive_wall_ms": 172.361888,
+          "exclusive_thread_cpu_ms": 172.182705
+        },
+        "domain.canonical": {
+          "calls": 363,
+          "exclusive_wall_ms": 5.189569,
+          "exclusive_thread_cpu_ms": 5.217445
+        },
+        "source_relation_rules": {
+          "calls": 4,
+          "exclusive_wall_ms": 6.548102,
+          "exclusive_thread_cpu_ms": 6.550202
+        },
+        "source_authority.fingerprint": {
+          "calls": 240,
+          "exclusive_wall_ms": 2.396272,
+          "exclusive_thread_cpu_ms": 2.380137
+        }
+      },
+      "all_validation_and_owner_counts_equal": true
+    },
+    {
+      "case": "source_zero_budget",
+      "before_counts": {
+        "serialization_calls": {
+          "source_authority.canonical": 392,
+          "service.canonical": 5,
+          "domain.canonical": 363,
+          "source_authority.fingerprint": 240
+        },
+        "canonical_returned_utf8_bytes": {
+          "source_authority.canonical": 161077,
+          "service.canonical": 422,
+          "domain.canonical": 124552
+        },
+        "contracts_by_name": {
+          "sync-sources#facts_request": 2,
+          "sync-sources#facts_response": 2,
+          "sync-sources#current_access_request": 1,
+          "sync-sources#current_access_response": 1,
+          "sync-workflow#sync_input": 1,
+          "sync-workflow#sync_result": 1
+        },
+        "relations_by_name": {
+          "source_snapshot": 2,
+          "current_access": 1,
+          "sync_barrier": 1
+        },
+        "fresh_revision_calls": 6,
+        "owner_rpc_calls": 3,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "after_counts": {
+        "serialization_calls": {
+          "source_authority.canonical": 392,
+          "service.canonical": 5,
+          "domain.canonical": 363,
+          "source_authority.fingerprint": 240
+        },
+        "canonical_returned_utf8_bytes": {
+          "source_authority.canonical": 161077,
+          "service.canonical": 422,
+          "domain.canonical": 124552
+        },
+        "contracts_by_name": {
+          "sync-sources#facts_request": 2,
+          "sync-sources#facts_response": 2,
+          "sync-sources#current_access_request": 1,
+          "sync-sources#current_access_response": 1,
+          "sync-workflow#sync_input": 1,
+          "sync-workflow#sync_result": 1
+        },
+        "relations_by_name": {
+          "source_snapshot": 2,
+          "current_access": 1,
+          "sync_barrier": 1
+        },
+        "fresh_revision_calls": 6,
+        "owner_rpc_calls": 3,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "before_phases": {
+        "application_and_adapter": {
+          "calls": 1,
+          "exclusive_wall_ms": 15.31684,
+          "exclusive_thread_cpu_ms": 15.011573
+        },
+        "connection_checkout": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.246917,
+          "exclusive_thread_cpu_ms": 0.245822
+        },
+        "driver_execute": {
+          "calls": 43,
+          "exclusive_wall_ms": 11.605705,
+          "exclusive_thread_cpu_ms": 5.290639
+        },
+        "driver_fetch": {
+          "calls": 334,
+          "exclusive_wall_ms": 1.7824,
+          "exclusive_thread_cpu_ms": 1.634474
+        },
+        "pipeline_confirmation": {
+          "calls": 4,
+          "exclusive_wall_ms": 1.288971,
+          "exclusive_thread_cpu_ms": 0.640728
+        },
+        "guard_verify": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.394722,
+          "exclusive_thread_cpu_ms": 0.3961
+        },
+        "fresh_revision": {
+          "calls": 6,
+          "exclusive_wall_ms": 0.642995,
+          "exclusive_thread_cpu_ms": 0.638331
+        },
+        "source_authority.canonical": {
+          "calls": 392,
+          "exclusive_wall_ms": 6.76184,
+          "exclusive_thread_cpu_ms": 6.723706
+        },
+        "service.canonical": {
+          "calls": 5,
+          "exclusive_wall_ms": 0.12458,
+          "exclusive_thread_cpu_ms": 0.124115
+        },
+        "driver_commit": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.502426,
+          "exclusive_thread_cpu_ms": 0.224695
+        },
+        "driver_rollback": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.031574,
+          "exclusive_thread_cpu_ms": 0.031402
+        },
+        "owner_rpc": {
+          "calls": 3,
+          "exclusive_wall_ms": 4.047898,
+          "exclusive_thread_cpu_ms": 4.04066
+        },
+        "document_validation": {
+          "calls": 8,
+          "exclusive_wall_ms": 187.970764,
+          "exclusive_thread_cpu_ms": 187.141345
+        },
+        "domain.canonical": {
+          "calls": 363,
+          "exclusive_wall_ms": 5.785584,
+          "exclusive_thread_cpu_ms": 5.750859
+        },
+        "source_relation_rules": {
+          "calls": 4,
+          "exclusive_wall_ms": 7.068674,
+          "exclusive_thread_cpu_ms": 7.071769
+        },
+        "source_authority.fingerprint": {
+          "calls": 240,
+          "exclusive_wall_ms": 2.814772,
+          "exclusive_thread_cpu_ms": 2.679329
+        }
+      },
+      "after_phases": {
+        "application_and_adapter": {
+          "calls": 1,
+          "exclusive_wall_ms": 13.81449,
+          "exclusive_thread_cpu_ms": 13.770297
+        },
+        "connection_checkout": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.249412,
+          "exclusive_thread_cpu_ms": 0.246247
+        },
+        "driver_execute": {
+          "calls": 43,
+          "exclusive_wall_ms": 10.509481,
+          "exclusive_thread_cpu_ms": 5.122876
+        },
+        "driver_fetch": {
+          "calls": 334,
+          "exclusive_wall_ms": 1.55179,
+          "exclusive_thread_cpu_ms": 1.544558
+        },
+        "pipeline_confirmation": {
+          "calls": 4,
+          "exclusive_wall_ms": 1.137648,
+          "exclusive_thread_cpu_ms": 0.621559
+        },
+        "guard_verify": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.403465,
+          "exclusive_thread_cpu_ms": 0.404566
+        },
+        "fresh_revision": {
+          "calls": 6,
+          "exclusive_wall_ms": 0.578309,
+          "exclusive_thread_cpu_ms": 0.581264
+        },
+        "source_authority.canonical": {
+          "calls": 392,
+          "exclusive_wall_ms": 6.078778,
+          "exclusive_thread_cpu_ms": 6.088343
+        },
+        "service.canonical": {
+          "calls": 5,
+          "exclusive_wall_ms": 0.116266,
+          "exclusive_thread_cpu_ms": 0.11603
+        },
+        "driver_commit": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.485562,
+          "exclusive_thread_cpu_ms": 0.224947
+        },
+        "driver_rollback": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.032644,
+          "exclusive_thread_cpu_ms": 0.032498
+        },
+        "owner_rpc": {
+          "calls": 3,
+          "exclusive_wall_ms": 3.947615,
+          "exclusive_thread_cpu_ms": 3.943877
+        },
+        "document_validation": {
+          "calls": 8,
+          "exclusive_wall_ms": 174.754644,
+          "exclusive_thread_cpu_ms": 174.757577
+        },
+        "domain.canonical": {
+          "calls": 363,
+          "exclusive_wall_ms": 5.260998,
+          "exclusive_thread_cpu_ms": 5.286165
+        },
+        "source_relation_rules": {
+          "calls": 4,
+          "exclusive_wall_ms": 6.70643,
+          "exclusive_thread_cpu_ms": 6.708516
+        },
+        "source_authority.fingerprint": {
+          "calls": 240,
+          "exclusive_wall_ms": 2.376524,
+          "exclusive_thread_cpu_ms": 2.363379
+        }
+      },
+      "all_validation_and_owner_counts_equal": true
+    },
+    {
+      "case": "source_commit",
+      "before_counts": {
+        "serialization_calls": {
+          "domain.canonical": 386,
+          "source_authority.canonical": 409,
+          "source_authority.fingerprint": 248,
+          "service.canonical": 5,
+          "domain.fingerprint": 4
+        },
+        "canonical_returned_utf8_bytes": {
+          "domain.canonical": 131926,
+          "source_authority.canonical": 168648,
+          "service.canonical": 830
+        },
+        "contracts_by_name": {
+          "sync-workflow#candidate_commit": 1,
+          "sync-sources#facts_request": 2,
+          "sync-sources#facts_response": 2,
+          "sync-sources#current_access_request": 1,
+          "sync-sources#current_access_response": 1,
+          "sync-workflow#sync_input": 1,
+          "sync-workflow#sync_result": 1,
+          "common#scope": 1,
+          "identity-memory#unit": 1,
+          "sync-workflow#candidate_result": 1
+        },
+        "relations_by_name": {
+          "source_snapshot": 2,
+          "current_access": 1,
+          "sync_barrier": 1,
+          "actor_event": 1
+        },
+        "fresh_revision_calls": 6,
+        "owner_rpc_calls": 3,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "after_counts": {
+        "serialization_calls": {
+          "domain.canonical": 386,
+          "source_authority.canonical": 409,
+          "source_authority.fingerprint": 248,
+          "service.canonical": 5,
+          "domain.fingerprint": 4
+        },
+        "canonical_returned_utf8_bytes": {
+          "domain.canonical": 131926,
+          "source_authority.canonical": 168648,
+          "service.canonical": 830
+        },
+        "contracts_by_name": {
+          "sync-workflow#candidate_commit": 1,
+          "sync-sources#facts_request": 2,
+          "sync-sources#facts_response": 2,
+          "sync-sources#current_access_request": 1,
+          "sync-sources#current_access_response": 1,
+          "sync-workflow#sync_input": 1,
+          "sync-workflow#sync_result": 1,
+          "common#scope": 1,
+          "identity-memory#unit": 1,
+          "sync-workflow#candidate_result": 1
+        },
+        "relations_by_name": {
+          "source_snapshot": 2,
+          "current_access": 1,
+          "sync_barrier": 1,
+          "actor_event": 1
+        },
+        "fresh_revision_calls": 6,
+        "owner_rpc_calls": 3,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "before_phases": {
+        "application_and_adapter": {
+          "calls": 1,
+          "exclusive_wall_ms": 20.073416,
+          "exclusive_thread_cpu_ms": 19.560165
+        },
+        "document_validation": {
+          "calls": 12,
+          "exclusive_wall_ms": 196.563572,
+          "exclusive_thread_cpu_ms": 196.354574
+        },
+        "domain.canonical": {
+          "calls": 386,
+          "exclusive_wall_ms": 6.535921,
+          "exclusive_thread_cpu_ms": 6.415534
+        },
+        "connection_checkout": {
+          "calls": 4,
+          "exclusive_wall_ms": 0.402571,
+          "exclusive_thread_cpu_ms": 0.380921
+        },
+        "driver_execute": {
+          "calls": 69,
+          "exclusive_wall_ms": 26.287159,
+          "exclusive_thread_cpu_ms": 9.929496
+        },
+        "driver_fetch": {
+          "calls": 377,
+          "exclusive_wall_ms": 1.897227,
+          "exclusive_thread_cpu_ms": 1.855955
+        },
+        "pipeline_confirmation": {
+          "calls": 5,
+          "exclusive_wall_ms": 2.194708,
+          "exclusive_thread_cpu_ms": 0.935234
+        },
+        "guard_verify": {
+          "calls": 4,
+          "exclusive_wall_ms": 0.541934,
+          "exclusive_thread_cpu_ms": 0.543138
+        },
+        "driver_commit": {
+          "calls": 4,
+          "exclusive_wall_ms": 15.984977,
+          "exclusive_thread_cpu_ms": 0.425445
+        },
+        "driver_rollback": {
+          "calls": 4,
+          "exclusive_wall_ms": 0.055133,
+          "exclusive_thread_cpu_ms": 0.054929
+        },
+        "fresh_revision": {
+          "calls": 6,
+          "exclusive_wall_ms": 0.6072,
+          "exclusive_thread_cpu_ms": 0.602723
+        },
+        "source_authority.canonical": {
+          "calls": 409,
+          "exclusive_wall_ms": 7.472137,
+          "exclusive_thread_cpu_ms": 7.227132
+        },
+        "owner_rpc": {
+          "calls": 3,
+          "exclusive_wall_ms": 4.232467,
+          "exclusive_thread_cpu_ms": 4.226763
+        },
+        "source_relation_rules": {
+          "calls": 5,
+          "exclusive_wall_ms": 7.784359,
+          "exclusive_thread_cpu_ms": 7.769407
+        },
+        "source_authority.fingerprint": {
+          "calls": 248,
+          "exclusive_wall_ms": 3.03778,
+          "exclusive_thread_cpu_ms": 2.840404
+        },
+        "service.canonical": {
+          "calls": 5,
+          "exclusive_wall_ms": 0.193748,
+          "exclusive_thread_cpu_ms": 0.155591
+        },
+        "domain.fingerprint": {
+          "calls": 4,
+          "exclusive_wall_ms": 0.089966,
+          "exclusive_thread_cpu_ms": 0.088906
+        },
+        "guard_persist": {
+          "calls": 1,
+          "exclusive_wall_ms": 3.821696,
+          "exclusive_thread_cpu_ms": 0.734838
+        }
+      },
+      "after_phases": {
+        "application_and_adapter": {
+          "calls": 1,
+          "exclusive_wall_ms": 17.07018,
+          "exclusive_thread_cpu_ms": 16.935917
+        },
+        "document_validation": {
+          "calls": 12,
+          "exclusive_wall_ms": 186.527411,
+          "exclusive_thread_cpu_ms": 186.523173
+        },
+        "domain.canonical": {
+          "calls": 386,
+          "exclusive_wall_ms": 5.712765,
+          "exclusive_thread_cpu_ms": 5.677491
+        },
+        "connection_checkout": {
+          "calls": 4,
+          "exclusive_wall_ms": 0.310161,
+          "exclusive_thread_cpu_ms": 0.30725
+        },
+        "driver_execute": {
+          "calls": 69,
+          "exclusive_wall_ms": 18.012063,
+          "exclusive_thread_cpu_ms": 7.285907
+        },
+        "driver_fetch": {
+          "calls": 377,
+          "exclusive_wall_ms": 1.744081,
+          "exclusive_thread_cpu_ms": 1.735
+        },
+        "pipeline_confirmation": {
+          "calls": 5,
+          "exclusive_wall_ms": 1.183136,
+          "exclusive_thread_cpu_ms": 0.623912
+        },
+        "guard_verify": {
+          "calls": 4,
+          "exclusive_wall_ms": 0.516019,
+          "exclusive_thread_cpu_ms": 0.517377
+        },
+        "driver_commit": {
+          "calls": 4,
+          "exclusive_wall_ms": 3.805415,
+          "exclusive_thread_cpu_ms": 0.350055
+        },
+        "driver_rollback": {
+          "calls": 4,
+          "exclusive_wall_ms": 0.055801,
+          "exclusive_thread_cpu_ms": 0.055423
+        },
+        "fresh_revision": {
+          "calls": 6,
+          "exclusive_wall_ms": 0.49256,
+          "exclusive_thread_cpu_ms": 0.488468
+        },
+        "source_authority.canonical": {
+          "calls": 409,
+          "exclusive_wall_ms": 6.376448,
+          "exclusive_thread_cpu_ms": 6.330027
+        },
+        "owner_rpc": {
+          "calls": 3,
+          "exclusive_wall_ms": 4.091287,
+          "exclusive_thread_cpu_ms": 4.085037
+        },
+        "source_relation_rules": {
+          "calls": 5,
+          "exclusive_wall_ms": 7.715252,
+          "exclusive_thread_cpu_ms": 7.718642
+        },
+        "source_authority.fingerprint": {
+          "calls": 248,
+          "exclusive_wall_ms": 2.436475,
+          "exclusive_thread_cpu_ms": 2.43336
+        },
+        "service.canonical": {
+          "calls": 5,
+          "exclusive_wall_ms": 0.123494,
+          "exclusive_thread_cpu_ms": 0.123003
+        },
+        "domain.fingerprint": {
+          "calls": 4,
+          "exclusive_wall_ms": 0.076815,
+          "exclusive_thread_cpu_ms": 0.079478
+        },
+        "guard_persist": {
+          "calls": 1,
+          "exclusive_wall_ms": 3.530348,
+          "exclusive_thread_cpu_ms": 0.71272
+        }
+      },
+      "all_validation_and_owner_counts_equal": true
+    },
+    {
+      "case": "source_full_flow",
+      "before_counts": {
+        "serialization_calls": {
+          "source_authority.canonical": 1287,
+          "service.canonical": 16,
+          "domain.canonical": 1202,
+          "source_authority.fingerprint": 784,
+          "service.fingerprint": 3,
+          "domain.fingerprint": 7
+        },
+        "canonical_returned_utf8_bytes": {
+          "source_authority.canonical": 530330,
+          "service.canonical": 2889,
+          "domain.canonical": 412842
+        },
+        "contracts_by_name": {
+          "sync-sources#facts_request": 6,
+          "sync-sources#facts_response": 6,
+          "sync-sources#current_access_request": 3,
+          "sync-sources#current_access_response": 3,
+          "sync-workflow#sync_input": 3,
+          "sync-workflow#sync_result": 3,
+          "sync-workflow#candidate_commit": 1,
+          "common#scope": 1,
+          "identity-memory#unit": 1,
+          "sync-workflow#candidate_result": 1
+        },
+        "relations_by_name": {
+          "source_snapshot": 6,
+          "current_access": 3,
+          "sync_barrier": 3,
+          "actor_event": 2
+        },
+        "fresh_revision_calls": 18,
+        "owner_rpc_calls": 9,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "after_counts": {
+        "serialization_calls": {
+          "source_authority.canonical": 1287,
+          "service.canonical": 16,
+          "domain.canonical": 1202,
+          "source_authority.fingerprint": 784,
+          "service.fingerprint": 3,
+          "domain.fingerprint": 7
+        },
+        "canonical_returned_utf8_bytes": {
+          "source_authority.canonical": 530330,
+          "service.canonical": 2889,
+          "domain.canonical": 412842
+        },
+        "contracts_by_name": {
+          "sync-sources#facts_request": 6,
+          "sync-sources#facts_response": 6,
+          "sync-sources#current_access_request": 3,
+          "sync-sources#current_access_response": 3,
+          "sync-workflow#sync_input": 3,
+          "sync-workflow#sync_result": 3,
+          "sync-workflow#candidate_commit": 1,
+          "common#scope": 1,
+          "identity-memory#unit": 1,
+          "sync-workflow#candidate_result": 1
+        },
+        "relations_by_name": {
+          "source_snapshot": 6,
+          "current_access": 3,
+          "sync_barrier": 3,
+          "actor_event": 2
+        },
+        "fresh_revision_calls": 18,
+        "owner_rpc_calls": 9,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "before_phases": {
+        "application_and_adapter": {
+          "calls": 1,
+          "exclusive_wall_ms": 64.241526,
+          "exclusive_thread_cpu_ms": 62.648433
+        },
+        "connection_checkout": {
+          "calls": 10,
+          "exclusive_wall_ms": 0.884079,
+          "exclusive_thread_cpu_ms": 0.86582
+        },
+        "driver_execute": {
+          "calls": 270,
+          "exclusive_wall_ms": 92.884423,
+          "exclusive_thread_cpu_ms": 36.179852
+        },
+        "driver_fetch": {
+          "calls": 1098,
+          "exclusive_wall_ms": 5.05918,
+          "exclusive_thread_cpu_ms": 5.031963
+        },
+        "pipeline_confirmation": {
+          "calls": 13,
+          "exclusive_wall_ms": 4.619246,
+          "exclusive_thread_cpu_ms": 2.236446
+        },
+        "guard_verify": {
+          "calls": 10,
+          "exclusive_wall_ms": 1.47885,
+          "exclusive_thread_cpu_ms": 1.484698
+        },
+        "fresh_revision": {
+          "calls": 18,
+          "exclusive_wall_ms": 1.901718,
+          "exclusive_thread_cpu_ms": 1.886138
+        },
+        "source_authority.canonical": {
+          "calls": 1287,
+          "exclusive_wall_ms": 23.932262,
+          "exclusive_thread_cpu_ms": 23.946485
+        },
+        "service.canonical": {
+          "calls": 16,
+          "exclusive_wall_ms": 0.455692,
+          "exclusive_thread_cpu_ms": 0.454886
+        },
+        "driver_commit": {
+          "calls": 10,
+          "exclusive_wall_ms": 21.759611,
+          "exclusive_thread_cpu_ms": 1.168919
+        },
+        "driver_rollback": {
+          "calls": 10,
+          "exclusive_wall_ms": 0.130988,
+          "exclusive_thread_cpu_ms": 0.129968
+        },
+        "owner_rpc": {
+          "calls": 9,
+          "exclusive_wall_ms": 13.771737,
+          "exclusive_thread_cpu_ms": 13.7315
+        },
+        "document_validation": {
+          "calls": 28,
+          "exclusive_wall_ms": 628.974642,
+          "exclusive_thread_cpu_ms": 626.329766
+        },
+        "domain.canonical": {
+          "calls": 1202,
+          "exclusive_wall_ms": 19.435535,
+          "exclusive_thread_cpu_ms": 19.513248
+        },
+        "source_relation_rules": {
+          "calls": 14,
+          "exclusive_wall_ms": 25.758378,
+          "exclusive_thread_cpu_ms": 25.727116
+        },
+        "source_authority.fingerprint": {
+          "calls": 784,
+          "exclusive_wall_ms": 8.780973,
+          "exclusive_thread_cpu_ms": 8.667012
+        },
+        "guard_persist": {
+          "calls": 4,
+          "exclusive_wall_ms": 16.03152,
+          "exclusive_thread_cpu_ms": 2.956269
+        },
+        "service.fingerprint": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.05689,
+          "exclusive_thread_cpu_ms": 0.056652
+        },
+        "domain.fingerprint": {
+          "calls": 7,
+          "exclusive_wall_ms": 0.148189,
+          "exclusive_thread_cpu_ms": 0.147232
+        }
+      },
+      "after_phases": {
+        "application_and_adapter": {
+          "calls": 1,
+          "exclusive_wall_ms": 59.498252,
+          "exclusive_thread_cpu_ms": 58.905441
+        },
+        "connection_checkout": {
+          "calls": 10,
+          "exclusive_wall_ms": 0.79057,
+          "exclusive_thread_cpu_ms": 0.783323
+        },
+        "driver_execute": {
+          "calls": 270,
+          "exclusive_wall_ms": 86.028932,
+          "exclusive_thread_cpu_ms": 32.293375
+        },
+        "driver_fetch": {
+          "calls": 1098,
+          "exclusive_wall_ms": 5.004156,
+          "exclusive_thread_cpu_ms": 5.003408
+        },
+        "pipeline_confirmation": {
+          "calls": 13,
+          "exclusive_wall_ms": 5.458828,
+          "exclusive_thread_cpu_ms": 2.355032
+        },
+        "guard_verify": {
+          "calls": 10,
+          "exclusive_wall_ms": 1.326378,
+          "exclusive_thread_cpu_ms": 1.32163
+        },
+        "fresh_revision": {
+          "calls": 18,
+          "exclusive_wall_ms": 1.746142,
+          "exclusive_thread_cpu_ms": 1.725001
+        },
+        "source_authority.canonical": {
+          "calls": 1287,
+          "exclusive_wall_ms": 23.102436,
+          "exclusive_thread_cpu_ms": 23.09215
+        },
+        "service.canonical": {
+          "calls": 16,
+          "exclusive_wall_ms": 0.406484,
+          "exclusive_thread_cpu_ms": 0.405981
+        },
+        "driver_commit": {
+          "calls": 10,
+          "exclusive_wall_ms": 80.898197,
+          "exclusive_thread_cpu_ms": 1.005788
+        },
+        "driver_rollback": {
+          "calls": 10,
+          "exclusive_wall_ms": 0.153648,
+          "exclusive_thread_cpu_ms": 0.152602
+        },
+        "owner_rpc": {
+          "calls": 9,
+          "exclusive_wall_ms": 13.816857,
+          "exclusive_thread_cpu_ms": 13.721593
+        },
+        "document_validation": {
+          "calls": 28,
+          "exclusive_wall_ms": 608.561126,
+          "exclusive_thread_cpu_ms": 606.745069
+        },
+        "domain.canonical": {
+          "calls": 1202,
+          "exclusive_wall_ms": 19.176072,
+          "exclusive_thread_cpu_ms": 19.244277
+        },
+        "source_relation_rules": {
+          "calls": 14,
+          "exclusive_wall_ms": 24.62057,
+          "exclusive_thread_cpu_ms": 24.353071
+        },
+        "source_authority.fingerprint": {
+          "calls": 784,
+          "exclusive_wall_ms": 8.262219,
+          "exclusive_thread_cpu_ms": 8.21879
+        },
+        "guard_persist": {
+          "calls": 4,
+          "exclusive_wall_ms": 49.318403,
+          "exclusive_thread_cpu_ms": 3.360317
+        },
+        "service.fingerprint": {
+          "calls": 3,
+          "exclusive_wall_ms": 0.079911,
+          "exclusive_thread_cpu_ms": 0.079466
+        },
+        "domain.fingerprint": {
+          "calls": 7,
+          "exclusive_wall_ms": 0.131196,
+          "exclusive_thread_cpu_ms": 0.130517
+        }
+      },
+      "all_validation_and_owner_counts_equal": true
+    }
+  ]
+}

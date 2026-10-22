@@ -1,0 +1,79 @@
+{
+  "baseline": "c696fd0de073dc375b161fb8192dc2713dc26b63",
+  "candidate": "06040aad9482f1f0ec8742f0a382daba9174f30a",
+  "full": {
+    "mode": "full",
+    "source": "06040aad9482f1f0ec8742f0a382daba9174f30a",
+    "tested_checkout": "06040aad9482f1f0ec8742f0a382daba9174f30a",
+    "exit_code": 1,
+    "tests": 2281,
+    "passed": 2113,
+    "failures": [
+      {
+        "classname": "tests.test_audit_runtime",
+        "name": "test_domain_imports_have_no_cycles_even_inside_functions",
+        "time": "0.188"
+      },
+      {
+        "classname": "tests.test_trusted_workflow",
+        "name": "test_confirmation_rejects_mismatched_authority[account-403]",
+        "time": "0.137"
+      }
+    ],
+    "errors": [],
+    "skipped": 166,
+    "xml_sha256": "08901283bdf65aae1592a265a4735b0f17ae817f2ae646550c74a8f22f378a94",
+    "shared_version": "0.1.3",
+    "schemas": "synthetic UUID low privilege; no production settings",
+    "real_models": false
+  },
+  "native": {
+    "mode": "native",
+    "source": "06040aad9482f1f0ec8742f0a382daba9174f30a",
+    "tested_checkout": "06040aad9482f1f0ec8742f0a382daba9174f30a",
+    "exit_code": 0,
+    "tests": 235,
+    "passed": 235,
+    "failures": [],
+    "errors": [],
+    "skipped": 0,
+    "xml_sha256": "5fdc479d3279c11e8ef043aebc74c47392e1149009ac2ab3fc0842458943d239",
+    "shared_version": "0.1.3",
+    "schemas": "synthetic UUID low privilege; no production settings",
+    "real_models": false
+  },
+  "distinct_passed": 2280,
+  "native_covers_full_skips": 165,
+  "remaining_skipped": [
+    {
+      "node": {
+        "classname": "tests.test_automatic_facts",
+        "name": "test_profile_preparation_preserves_qualifiers_and_requires_existing_grant[group]",
+        "time": "0.158"
+      },
+      "reason": "Private evidence is the authorized profile-source path under test"
+    }
+  ],
+  "failures_reproduced_at_exact_baseline": [
+    "baseline-account.json",
+    "baseline-imports.json"
+  ],
+  "import_cycles_unchanged": true,
+  "new_failures": 0,
+  "supplemental_native_reference": {
+    "mode": "supplemental_native_reference",
+    "source": "06040aad9482f1f0ec8742f0a382daba9174f30a",
+    "tested_checkout": "daef6b08fcc78570904a17b66d8de6f177f9e711",
+    "exit_code": 0,
+    "tests": 2,
+    "passed": 2,
+    "failures": [],
+    "errors": [],
+    "skipped": 0,
+    "xml_sha256": "a09e9e65aa8d06890fde74e6fba0ad56ce68afefb4cd1743775354fafd263fe1",
+    "shared_version": "0.1.3",
+    "real_models": false
+  },
+  "native_postgresql_distinct_passed": 237,
+  "tested_tests_checkout": "daef6b08fcc78570904a17b66d8de6f177f9e711"
+}
