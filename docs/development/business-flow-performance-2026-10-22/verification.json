@@ -1,0 +1,56 @@
+{
+  "full": {
+    "mode": "full",
+    "source": "4d33d053f0107553019e8dd5f08c80a086a9ae81",
+    "tested_checkout": "4d33d053f0107553019e8dd5f08c80a086a9ae81",
+    "exit_code": 1,
+    "tests": 1877,
+    "passed": 1745,
+    "failures": [
+      {
+        "classname": "tests.test_trusted_workflow",
+        "name": "test_confirmation_rejects_mismatched_authority[account-403]",
+        "time": "0.477"
+      }
+    ],
+    "errors": [],
+    "skipped": 131,
+    "xml_sha256": "2fe0b948a28edbc49287f7a0228ed864e8a58e3e143c00bfc53f3393ae2b680f",
+    "shared_version": "0.1.3",
+    "schemas": "synthetic UUID low privilege; no production settings",
+    "real_models": false
+  },
+  "native_postgresql": {
+    "mode": "native",
+    "source": "4d33d053f0107553019e8dd5f08c80a086a9ae81",
+    "tested_checkout": "4d33d053f0107553019e8dd5f08c80a086a9ae81",
+    "exit_code": 0,
+    "tests": 130,
+    "passed": 130,
+    "failures": [],
+    "errors": [],
+    "skipped": 0,
+    "xml_sha256": "8974067db5079e0e4041d7fc551408759df7b3615085a42dd0acf5bec7145eaa",
+    "shared_version": "0.1.3",
+    "schemas": "synthetic UUID low privilege; no production settings",
+    "real_models": false
+  },
+  "distinct_passed": 1875,
+  "remaining_intentional_skips": 1,
+  "remaining_skip_reason": "Private evidence is the authorized profile-source path under test",
+  "baseline_known_failure": {
+    "reproduced": true,
+    "baseline": "4dbb8163524af55822d492cfdfda740090b569e9",
+    "actual": 400,
+    "expected": 403,
+    "node": "tests/test_trusted_workflow.py::test_confirmation_rejects_mismatched_authority[account-403]",
+    "evidence_sha256": "af3c84d1ef28a094a4ed9d80727886914e4727d2d6bce99d75b8141769c2dcbc"
+  },
+  "source_only_implementation": "4d33d053f0107553019e8dd5f08c80a086a9ae81",
+  "independent_semantic_review": "No concrete blocker; exact committed contracts and map uniqueness verified; not a performance acceptance",
+  "source_writer_released": true,
+  "real_models": 0,
+  "real_owner_calls": 0,
+  "real_qq_calls": 0,
+  "redis_accessed": false
+}

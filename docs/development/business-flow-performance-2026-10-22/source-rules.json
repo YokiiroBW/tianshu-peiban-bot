@@ -1,0 +1,26 @@
+[
+  {
+    "revision": "960509eadff287f775a6ae9834b460e9159172c8",
+    "path": "contracts/source-sync/v1/manifest.json",
+    "equal": true,
+    "sha256": "6d5c417c2e407aaf055151c1a3639d3b4e2ce4ad7da999f95273b6fcbf487370"
+  },
+  {
+    "revision": "960509eadff287f775a6ae9834b460e9159172c8",
+    "path": "contracts/source-sync/v1/rules.py",
+    "equal": true,
+    "sha256": "69eecf03bcdfb6904d02b597fd46ad1938d7d5e3a7eb4838159d081156dacfb8"
+  },
+  {
+    "revision": "960509eadff287f775a6ae9834b460e9159172c8",
+    "path": "contracts/source-sync-batch/v1/manifest.json",
+    "equal": true,
+    "sha256": "ac6f39d1f0afe55677fbbb0ce2da1b212d22c49f18917d8fe2ed613d424c4327"
+  },
+  {
+    "revision": "960509eadff287f775a6ae9834b460e9159172c8",
+    "path": "contracts/source-sync-batch/v1/rules.py",
+    "equal": true,
+    "sha256": "bd237a723094561cd82fca14f108b582a6262e791a6b69156a3c6d875f477107"
+  }
+]

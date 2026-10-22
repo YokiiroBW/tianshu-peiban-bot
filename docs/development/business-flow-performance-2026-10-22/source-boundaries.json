@@ -1,0 +1,172 @@
+{
+  "baseline": "4dbb8163524af55822d492cfdfda740090b569e9",
+  "candidate": "4d33d053f0107553019e8dd5f08c80a086a9ae81",
+  "changed_paths": [
+    "docs/handoffs/TS-278.md",
+    "src/tianshu_memory/knowledge.py",
+    "src/tianshu_memory/postgres_source_snapshot.py",
+    "src/tianshu_memory/service.py",
+    "src/tianshu_memory/source_authority.py",
+    "tests/test_postgres_source_snapshot.py",
+    "tests/test_response_budget.py",
+    "tests/test_source_read_batch.py"
+  ],
+  "source_files": {
+    "src/tianshu_memory/knowledge.py": {
+      "sql_literals_unchanged": true,
+      "changed_methods": [
+        "KnowledgeApplication._query"
+      ],
+      "unchanged_methods": [
+        "CatalogEvidence.__init__",
+        "CatalogEvidence.reference",
+        "CatalogReader.external",
+        "Sources.__init__",
+        "Sources.reader",
+        "Sources._new_reader",
+        "Sources.bind",
+        "Sources.external",
+        "Sources.context",
+        "ProjectAdapter.__init__",
+        "ProjectAdapter.revision",
+        "ProjectAdapter.declared_state",
+        "ProjectAdapter.bump",
+        "Plan.build",
+        "Plan.__init__",
+        "Plan.__call__",
+        "Plan._lessons",
+        "Plan.external",
+        "KnowledgeApplication.__init__",
+        "KnowledgeApplication.string",
+        "KnowledgeApplication.integer",
+        "KnowledgeApplication.bump",
+        "KnowledgeApplication._authorize",
+        "KnowledgeApplication._context",
+        "KnowledgeApplication.execute",
+        "KnowledgeApplication.close",
+        "KnowledgeApplication._execute",
+        "KnowledgeApplication._planner",
+        "KnowledgeApplication._seal_key",
+        "KnowledgeApplication._snapshot",
+        "KnowledgeApplication._replay",
+        "KnowledgeApplication._claim",
+        "KnowledgeApplication._directory",
+        "KnowledgeApplication._reauthorize",
+        "KnowledgeApplication._ensure_project",
+        "KnowledgeApplication._directory_scan",
+        "KnowledgeApplication._directory_apply",
+        "KnowledgeApplication._progress",
+        "KnowledgeApplication._observe",
+        "KnowledgeApplication._dispatch",
+        "KnowledgeApplication._bump",
+        "KnowledgeApplication._document",
+        "KnowledgeApplication._prepare_import",
+        "KnowledgeApplication._import",
+        "KnowledgeApplication._store_version",
+        "KnowledgeApplication._delete",
+        "KnowledgeApplication._current",
+        "KnowledgeApplication._reference",
+        "KnowledgeApplication._evidence",
+        "KnowledgeApplication._bound_worktrees",
+        "KnowledgeApplication._stamped_state",
+        "KnowledgeApplication._write_state",
+        "KnowledgeApplication._seal",
+        "KnowledgeApplication._recover",
+        "KnowledgeApplication._check"
+      ],
+      "baseline_sha256": "7976b0ae47b277321dcd578606e2187594a5fd3e944c47326f1c0ae6532e90e6",
+      "candidate_sha256": "7a6e8ef633c4d40c4520900ad3d2ce60c9f343d046a5ee6099290dc715b8a5ba"
+    },
+    "src/tianshu_memory/postgres_source_snapshot.py": {
+      "sql_literals_unchanged": true,
+      "changed_methods": [
+        "SourceSnapshot.__init__"
+      ],
+      "unchanged_methods": [
+        "SourceSnapshot._request",
+        "SourceSnapshot._rows",
+        "SourceSnapshot.withdraw"
+      ],
+      "baseline_sha256": "f324d8c013bfff314065cd0ee4771302d0da02016af67cc3dd82fee70933d7a2",
+      "candidate_sha256": "9245e948ab42b994be2850b33ec41fe6f9dfcd367d8fa59f17a7de9d44a1a2a1"
+    },
+    "src/tianshu_memory/service.py": {
+      "sql_literals_unchanged": true,
+      "changed_methods": [
+        "MemoryService._fit_groups"
+      ],
+      "unchanged_methods": [
+        "MemoryService.__init__",
+        "MemoryService.synchronized",
+        "MemoryService.source_identity",
+        "MemoryService.operation",
+        "MemoryService._binding",
+        "MemoryService._scope_version",
+        "MemoryService._bump",
+        "MemoryService._authorize",
+        "MemoryService._idempotent",
+        "MemoryService.resolve",
+        "MemoryService.register",
+        "MemoryService.link",
+        "MemoryService._source_rows",
+        "MemoryService._group_current",
+        "MemoryService._invalidate_jobs",
+        "MemoryService._emit",
+        "MemoryService._invalidate",
+        "MemoryService.revise",
+        "MemoryService._revision_in_transaction",
+        "MemoryService.select",
+        "MemoryService._verify_retrieval",
+        "MemoryService._rank_groups",
+        "MemoryService._projections_current",
+        "MemoryService.select_profiles",
+        "MemoryService.consume",
+        "MemoryService.check_sources"
+      ],
+      "baseline_sha256": "5a3ae768dbdbb7201ec97c282bb8a5061df2b351f499654455038fe260a2fe42",
+      "candidate_sha256": "f2b8d5cd15fd1edc8172e04c36fec5ec885d3543cc40db36c4e97601638af529"
+    },
+    "src/tianshu_memory/source_authority.py": {
+      "sql_literals_unchanged": true,
+      "changed_methods": [
+        "SourceAuthority._commit_observations",
+        "SourceAuthority._apply"
+      ],
+      "unchanged_methods": [
+        "SourceAuthority.__init__",
+        "SourceAuthority.revision",
+        "SourceAuthority.coverage",
+        "SourceAuthority._relations",
+        "SourceAuthority.batches",
+        "SourceAuthority._read_batch",
+        "SourceAuthority._read_access",
+        "SourceAuthority.barrier",
+        "SourceAuthority._refresh_unchanged",
+        "SourceAuthority.sync",
+        "SourceAuthority.sync_batches",
+        "SourceAuthority.operation",
+        "SourceAuthority._operation",
+        "SourceAuthority.verify",
+        "SourceAuthority.current",
+        "SourceAuthority.current_many"
+      ],
+      "baseline_sha256": "10be6b63314956a33fe1e0373f5717ede293f4ebeb7039fd136f65e7b24b0456",
+      "candidate_sha256": "a3cf43f082bd5f8588481c7a6a752e635880a7965e68556a358a8e801a7a14c5"
+    }
+  },
+  "unchanged_boundary_files": {
+    "src/tianshu_memory/contracts.py": "dc2506d1a23f48968c41c7b22e1259d7478a39e0cb3dd14786555ea385366096",
+    "src/tianshu_memory/source_transport.py": "cbde0db72275740871e3da7e444509f94cb9f126f779f68e1f7c4e59e4e7e8bf",
+    "src/tianshu_memory/source_recovery.py": "3a8cfe3e949faef8be3e951e8f33eb4fdf24e54b64e1fa316b1308ea485fa29d",
+    "src/tianshu_memory/store.py": "2e971cc99b4f97a9462ce42ba83ec9c3395de42901cbbe0776780d78fb0fdb27",
+    "src/tianshu_memory/postgres.py": "0cbf2fc667a1c2d20b1b564c2bd7024a30afbdc18397a57ee32b630335b2b0fb",
+    "src/tianshu_memory/postgres_schema.sql": "58b0b3af60028ea95a3cfc58e754eeb7f14fda87bc9d1ef163accf5270dd32c1",
+    "src/tianshu_memory/knowledge_files.py": "84189e93b0660ca6850678658dfa219aa77b518cba2e18ad9eb6dcb8494ce7b0",
+    "src/tianshu_memory/knowledge_storage.py": "cd1fbcc3ec9dfdf5a989d8e3be48ed57b8cac42af60754ae8fa4673e8704b011",
+    "src/tianshu_memory/workflow.py": "f8d589e4af0a8d71c25c9be298032fd1dcf36167cd0512abe48d53769053b3bd",
+    "src/tianshu_memory/qq_identity.py": "4756356347eada9f154059c446c1294ff704c67a05af362b8da8d2288351cc6c"
+  },
+  "manifest_and_dependencies_unchanged": true,
+  "media_or_file_storage_edits": false,
+  "note": "Structural evidence supports, and does not replace, native authority and durability tests"
+}

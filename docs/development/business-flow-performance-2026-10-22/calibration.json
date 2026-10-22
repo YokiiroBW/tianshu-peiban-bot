@@ -1,0 +1,41 @@
+{
+  "summary": [
+    {
+      "case": "local_commit",
+      "ab_cpu_pct": 6.206056982147601,
+      "aa_cpu_pct": 0.19964755483947716,
+      "descriptive_ratio_of_cpu_ratios_pct": 5.994441671085515,
+      "ab_wall_pct": 6.210708434229684,
+      "aa_wall_pct": -0.6169899804729706,
+      "causal_adjustment_proven": false
+    },
+    {
+      "case": "local_full_flow",
+      "ab_cpu_pct": 1.1465684874855109,
+      "aa_cpu_pct": -3.1469170413131686,
+      "descriptive_ratio_of_cpu_ratios_pct": 4.432987983077519,
+      "ab_wall_pct": -2.2997139823382806,
+      "aa_wall_pct": -2.7374484025998846,
+      "causal_adjustment_proven": false
+    },
+    {
+      "case": "source_commit",
+      "ab_cpu_pct": -0.2725150580508595,
+      "aa_cpu_pct": 0.4027912684791968,
+      "descriptive_ratio_of_cpu_ratios_pct": -0.672597163881905,
+      "ab_wall_pct": 1.0529988621812425,
+      "aa_wall_pct": 0.5609173513699828,
+      "causal_adjustment_proven": false
+    },
+    {
+      "case": "source_full_flow",
+      "ab_cpu_pct": -0.12500104630468467,
+      "aa_cpu_pct": -0.7588572121151937,
+      "descriptive_ratio_of_cpu_ratios_pct": 0.6387030096633328,
+      "ab_wall_pct": -0.06329453037365873,
+      "aa_wall_pct": -0.6368573038738723,
+      "causal_adjustment_proven": false
+    }
+  ],
+  "warning": "Interleaved but separate calls. A/A can reveal measurement instability; subtracting its percent is not proof of zero regression."
+}

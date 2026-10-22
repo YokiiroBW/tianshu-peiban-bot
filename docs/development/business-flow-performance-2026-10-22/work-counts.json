@@ -1,0 +1,1238 @@
+{
+  "diagnostic_only": true,
+  "formal_samples_included": false,
+  "summary": [
+    {
+      "backend": "sqlite",
+      "case": "local_exact",
+      "authority_counts_equal": true,
+      "work_counts": {
+        "original": {
+          "serialization_calls": {
+            "service.canonical": 4
+          },
+          "canonical_returned_utf8_bytes": {
+            "service.canonical": 1212
+          },
+          "contracts_by_name": {},
+          "relations_by_name": {},
+          "fresh_revision_calls": 0,
+          "owner_rpc_calls": 0,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        },
+        "optimized": {
+          "serialization_calls": {
+            "service.canonical": 4
+          },
+          "canonical_returned_utf8_bytes": {
+            "service.canonical": 1212
+          },
+          "contracts_by_name": {},
+          "relations_by_name": {},
+          "fresh_revision_calls": 0,
+          "owner_rpc_calls": 0,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        }
+      },
+      "diagnostic_cpu_ms": {
+        "original": 2.448508,
+        "optimized": 2.888782
+      },
+      "timing_is_diagnostic_only": true
+    },
+    {
+      "backend": "sqlite",
+      "case": "local_keyword",
+      "authority_counts_equal": true,
+      "work_counts": {
+        "original": {
+          "serialization_calls": {
+            "service.canonical": 33
+          },
+          "canonical_returned_utf8_bytes": {
+            "service.canonical": 385558
+          },
+          "contracts_by_name": {},
+          "relations_by_name": {},
+          "fresh_revision_calls": 0,
+          "owner_rpc_calls": 0,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        },
+        "optimized": {
+          "serialization_calls": {
+            "service.canonical": 33
+          },
+          "canonical_returned_utf8_bytes": {
+            "service.canonical": 26388
+          },
+          "contracts_by_name": {},
+          "relations_by_name": {},
+          "fresh_revision_calls": 0,
+          "owner_rpc_calls": 0,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        }
+      },
+      "diagnostic_cpu_ms": {
+        "original": 54.968341,
+        "optimized": 52.589839
+      },
+      "timing_is_diagnostic_only": true
+    },
+    {
+      "backend": "sqlite",
+      "case": "local_zero_budget",
+      "authority_counts_equal": true,
+      "work_counts": {
+        "original": {
+          "serialization_calls": {
+            "service.canonical": 2
+          },
+          "canonical_returned_utf8_bytes": {
+            "service.canonical": 198
+          },
+          "contracts_by_name": {},
+          "relations_by_name": {},
+          "fresh_revision_calls": 0,
+          "owner_rpc_calls": 0,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        },
+        "optimized": {
+          "serialization_calls": {
+            "service.canonical": 2
+          },
+          "canonical_returned_utf8_bytes": {
+            "service.canonical": 198
+          },
+          "contracts_by_name": {},
+          "relations_by_name": {},
+          "fresh_revision_calls": 0,
+          "owner_rpc_calls": 0,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        }
+      },
+      "diagnostic_cpu_ms": {
+        "original": 2.210804,
+        "optimized": 2.217581
+      },
+      "timing_is_diagnostic_only": true
+    },
+    {
+      "backend": "sqlite",
+      "case": "local_commit",
+      "authority_counts_equal": true,
+      "work_counts": {
+        "original": {
+          "serialization_calls": {
+            "domain.canonical": 12,
+            "service.canonical": 6,
+            "domain.fingerprint": 4
+          },
+          "canonical_returned_utf8_bytes": {
+            "domain.canonical": 3201,
+            "service.canonical": 943
+          },
+          "contracts_by_name": {
+            "common#scope": 1,
+            "identity-memory#unit": 1
+          },
+          "relations_by_name": {},
+          "fresh_revision_calls": 0,
+          "owner_rpc_calls": 0,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        },
+        "optimized": {
+          "serialization_calls": {
+            "domain.canonical": 12,
+            "service.canonical": 6,
+            "domain.fingerprint": 4
+          },
+          "canonical_returned_utf8_bytes": {
+            "domain.canonical": 3201,
+            "service.canonical": 943
+          },
+          "contracts_by_name": {
+            "common#scope": 1,
+            "identity-memory#unit": 1
+          },
+          "relations_by_name": {},
+          "fresh_revision_calls": 0,
+          "owner_rpc_calls": 0,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        }
+      },
+      "diagnostic_cpu_ms": {
+        "original": 14.69499,
+        "optimized": 12.503787
+      },
+      "timing_is_diagnostic_only": true
+    },
+    {
+      "backend": "sqlite",
+      "case": "local_full_flow",
+      "authority_counts_equal": true,
+      "work_counts": {
+        "original": {
+          "serialization_calls": {
+            "domain.fingerprint": 8,
+            "domain.canonical": 19,
+            "service.canonical": 14,
+            "service.fingerprint": 3
+          },
+          "canonical_returned_utf8_bytes": {
+            "domain.canonical": 6190,
+            "service.canonical": 2733
+          },
+          "contracts_by_name": {
+            "common#source": 1,
+            "common#scope": 2,
+            "identity-memory#unit": 1
+          },
+          "relations_by_name": {},
+          "fresh_revision_calls": 0,
+          "owner_rpc_calls": 0,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        },
+        "optimized": {
+          "serialization_calls": {
+            "domain.fingerprint": 8,
+            "domain.canonical": 19,
+            "service.canonical": 14,
+            "service.fingerprint": 3
+          },
+          "canonical_returned_utf8_bytes": {
+            "domain.canonical": 6190,
+            "service.canonical": 2733
+          },
+          "contracts_by_name": {
+            "common#source": 1,
+            "common#scope": 2,
+            "identity-memory#unit": 1
+          },
+          "relations_by_name": {},
+          "fresh_revision_calls": 0,
+          "owner_rpc_calls": 0,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        }
+      },
+      "diagnostic_cpu_ms": {
+        "original": 35.096378,
+        "optimized": 32.128192
+      },
+      "timing_is_diagnostic_only": true
+    },
+    {
+      "backend": "sqlite",
+      "case": "source_exact",
+      "authority_counts_equal": true,
+      "work_counts": {
+        "original": {
+          "serialization_calls": {
+            "source_authority.canonical": 392,
+            "service.canonical": 37,
+            "domain.canonical": 273,
+            "source_authority.fingerprint": 240
+          },
+          "canonical_returned_utf8_bytes": {
+            "source_authority.canonical": 165478,
+            "service.canonical": 3441,
+            "domain.canonical": 106279
+          },
+          "contracts_by_name": {
+            "sync-sources#facts_request": 2,
+            "sync-sources#facts_response": 2,
+            "sync-sources#current_access_request": 1,
+            "sync-sources#current_access_response": 1,
+            "sync-workflow#sync_input": 1,
+            "sync-workflow#sync_result": 1
+          },
+          "relations_by_name": {
+            "source_snapshot": 2,
+            "current_access": 1,
+            "sync_barrier": 1
+          },
+          "fresh_revision_calls": 6,
+          "owner_rpc_calls": 3,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        },
+        "optimized": {
+          "serialization_calls": {
+            "source_authority.canonical": 332,
+            "service.canonical": 37,
+            "domain.canonical": 153,
+            "source_authority.fingerprint": 120
+          },
+          "canonical_returned_utf8_bytes": {
+            "source_authority.canonical": 152116,
+            "service.canonical": 3441,
+            "domain.canonical": 82495
+          },
+          "contracts_by_name": {
+            "sync-sources#facts_request": 2,
+            "sync-sources#facts_response": 2,
+            "sync-sources#current_access_request": 1,
+            "sync-sources#current_access_response": 1,
+            "sync-workflow#sync_input": 1,
+            "sync-workflow#sync_result": 1
+          },
+          "relations_by_name": {
+            "source_snapshot": 2,
+            "current_access": 1,
+            "sync_barrier": 1
+          },
+          "fresh_revision_calls": 6,
+          "owner_rpc_calls": 3,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        }
+      },
+      "diagnostic_cpu_ms": {
+        "original": 208.542972,
+        "optimized": 209.895759
+      },
+      "timing_is_diagnostic_only": true
+    },
+    {
+      "backend": "sqlite",
+      "case": "source_keyword",
+      "authority_counts_equal": true,
+      "work_counts": {
+        "original": {
+          "serialization_calls": {
+            "source_authority.canonical": 392,
+            "service.canonical": 66,
+            "domain.canonical": 273,
+            "source_authority.fingerprint": 240
+          },
+          "canonical_returned_utf8_bytes": {
+            "source_authority.canonical": 165478,
+            "service.canonical": 395309,
+            "domain.canonical": 106279
+          },
+          "contracts_by_name": {
+            "sync-sources#facts_request": 2,
+            "sync-sources#facts_response": 2,
+            "sync-sources#current_access_request": 1,
+            "sync-sources#current_access_response": 1,
+            "sync-workflow#sync_input": 1,
+            "sync-workflow#sync_result": 1
+          },
+          "relations_by_name": {
+            "source_snapshot": 2,
+            "current_access": 1,
+            "sync_barrier": 1
+          },
+          "fresh_revision_calls": 6,
+          "owner_rpc_calls": 3,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        },
+        "optimized": {
+          "serialization_calls": {
+            "source_authority.canonical": 332,
+            "service.canonical": 66,
+            "domain.canonical": 153,
+            "source_authority.fingerprint": 120
+          },
+          "canonical_returned_utf8_bytes": {
+            "source_authority.canonical": 152116,
+            "service.canonical": 29081,
+            "domain.canonical": 82495
+          },
+          "contracts_by_name": {
+            "sync-sources#facts_request": 2,
+            "sync-sources#facts_response": 2,
+            "sync-sources#current_access_request": 1,
+            "sync-sources#current_access_response": 1,
+            "sync-workflow#sync_input": 1,
+            "sync-workflow#sync_result": 1
+          },
+          "relations_by_name": {
+            "source_snapshot": 2,
+            "current_access": 1,
+            "sync_barrier": 1
+          },
+          "fresh_revision_calls": 6,
+          "owner_rpc_calls": 3,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        }
+      },
+      "diagnostic_cpu_ms": {
+        "original": 282.12055,
+        "optimized": 275.269946
+      },
+      "timing_is_diagnostic_only": true
+    },
+    {
+      "backend": "sqlite",
+      "case": "source_zero_budget",
+      "authority_counts_equal": true,
+      "work_counts": {
+        "original": {
+          "serialization_calls": {
+            "source_authority.canonical": 392,
+            "service.canonical": 35,
+            "domain.canonical": 273,
+            "source_authority.fingerprint": 240
+          },
+          "canonical_returned_utf8_bytes": {
+            "source_authority.canonical": 165478,
+            "service.canonical": 2402,
+            "domain.canonical": 106279
+          },
+          "contracts_by_name": {
+            "sync-sources#facts_request": 2,
+            "sync-sources#facts_response": 2,
+            "sync-sources#current_access_request": 1,
+            "sync-sources#current_access_response": 1,
+            "sync-workflow#sync_input": 1,
+            "sync-workflow#sync_result": 1
+          },
+          "relations_by_name": {
+            "source_snapshot": 2,
+            "current_access": 1,
+            "sync_barrier": 1
+          },
+          "fresh_revision_calls": 6,
+          "owner_rpc_calls": 3,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        },
+        "optimized": {
+          "serialization_calls": {
+            "source_authority.canonical": 332,
+            "service.canonical": 35,
+            "domain.canonical": 153,
+            "source_authority.fingerprint": 120
+          },
+          "canonical_returned_utf8_bytes": {
+            "source_authority.canonical": 152116,
+            "service.canonical": 2402,
+            "domain.canonical": 82495
+          },
+          "contracts_by_name": {
+            "sync-sources#facts_request": 2,
+            "sync-sources#facts_response": 2,
+            "sync-sources#current_access_request": 1,
+            "sync-sources#current_access_response": 1,
+            "sync-workflow#sync_input": 1,
+            "sync-workflow#sync_result": 1
+          },
+          "relations_by_name": {
+            "source_snapshot": 2,
+            "current_access": 1,
+            "sync_barrier": 1
+          },
+          "fresh_revision_calls": 6,
+          "owner_rpc_calls": 3,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        }
+      },
+      "diagnostic_cpu_ms": {
+        "original": 212.050997,
+        "optimized": 234.707792
+      },
+      "timing_is_diagnostic_only": true
+    },
+    {
+      "backend": "sqlite",
+      "case": "source_commit",
+      "authority_counts_equal": true,
+      "work_counts": {
+        "original": {
+          "serialization_calls": {
+            "domain.canonical": 294,
+            "source_authority.canonical": 409,
+            "source_authority.fingerprint": 248,
+            "service.canonical": 39,
+            "domain.fingerprint": 4
+          },
+          "canonical_returned_utf8_bytes": {
+            "domain.canonical": 113201,
+            "source_authority.canonical": 173196,
+            "service.canonical": 3350
+          },
+          "contracts_by_name": {
+            "sync-workflow#candidate_commit": 1,
+            "sync-sources#facts_request": 2,
+            "sync-sources#facts_response": 2,
+            "sync-sources#current_access_request": 1,
+            "sync-sources#current_access_response": 1,
+            "sync-workflow#sync_input": 1,
+            "sync-workflow#sync_result": 1,
+            "common#scope": 1,
+            "identity-memory#unit": 1,
+            "sync-workflow#candidate_result": 1
+          },
+          "relations_by_name": {
+            "source_snapshot": 2,
+            "current_access": 1,
+            "sync_barrier": 1,
+            "actor_event": 1
+          },
+          "fresh_revision_calls": 6,
+          "owner_rpc_calls": 3,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        },
+        "optimized": {
+          "serialization_calls": {
+            "domain.canonical": 170,
+            "source_authority.canonical": 347,
+            "source_authority.fingerprint": 124,
+            "service.canonical": 39,
+            "domain.fingerprint": 4
+          },
+          "canonical_returned_utf8_bytes": {
+            "domain.canonical": 88623,
+            "source_authority.canonical": 159388,
+            "service.canonical": 3350
+          },
+          "contracts_by_name": {
+            "sync-workflow#candidate_commit": 1,
+            "sync-sources#facts_request": 2,
+            "sync-sources#facts_response": 2,
+            "sync-sources#current_access_request": 1,
+            "sync-sources#current_access_response": 1,
+            "sync-workflow#sync_input": 1,
+            "sync-workflow#sync_result": 1,
+            "common#scope": 1,
+            "identity-memory#unit": 1,
+            "sync-workflow#candidate_result": 1
+          },
+          "relations_by_name": {
+            "source_snapshot": 2,
+            "current_access": 1,
+            "sync_barrier": 1,
+            "actor_event": 1
+          },
+          "fresh_revision_calls": 6,
+          "owner_rpc_calls": 3,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        }
+      },
+      "diagnostic_cpu_ms": {
+        "original": 233.987665,
+        "optimized": 258.516535
+      },
+      "timing_is_diagnostic_only": true
+    },
+    {
+      "backend": "sqlite",
+      "case": "source_full_flow",
+      "authority_counts_equal": true,
+      "work_counts": {
+        "original": {
+          "serialization_calls": {
+            "source_authority.canonical": 1286,
+            "service.canonical": 117,
+            "domain.canonical": 909,
+            "source_authority.fingerprint": 784,
+            "service.fingerprint": 3,
+            "domain.fingerprint": 7
+          },
+          "canonical_returned_utf8_bytes": {
+            "source_authority.canonical": 544496,
+            "service.canonical": 9831,
+            "domain.canonical": 353301
+          },
+          "contracts_by_name": {
+            "sync-sources#facts_request": 6,
+            "sync-sources#facts_response": 6,
+            "sync-sources#current_access_request": 3,
+            "sync-sources#current_access_response": 3,
+            "sync-workflow#sync_input": 3,
+            "sync-workflow#sync_result": 3,
+            "sync-workflow#candidate_commit": 1,
+            "common#scope": 1,
+            "identity-memory#unit": 1,
+            "sync-workflow#candidate_result": 1
+          },
+          "relations_by_name": {
+            "source_snapshot": 6,
+            "current_access": 3,
+            "sync_barrier": 3,
+            "actor_event": 2
+          },
+          "fresh_revision_calls": 18,
+          "owner_rpc_calls": 9,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        },
+        "optimized": {
+          "serialization_calls": {
+            "source_authority.canonical": 1092,
+            "service.canonical": 117,
+            "domain.canonical": 517,
+            "source_authority.fingerprint": 392,
+            "service.fingerprint": 3,
+            "domain.fingerprint": 7
+          },
+          "canonical_returned_utf8_bytes": {
+            "source_authority.canonical": 501288,
+            "service.canonical": 9831,
+            "domain.canonical": 275597
+          },
+          "contracts_by_name": {
+            "sync-sources#facts_request": 6,
+            "sync-sources#facts_response": 6,
+            "sync-sources#current_access_request": 3,
+            "sync-sources#current_access_response": 3,
+            "sync-workflow#sync_input": 3,
+            "sync-workflow#sync_result": 3,
+            "sync-workflow#candidate_commit": 1,
+            "common#scope": 1,
+            "identity-memory#unit": 1,
+            "sync-workflow#candidate_result": 1
+          },
+          "relations_by_name": {
+            "source_snapshot": 6,
+            "current_access": 3,
+            "sync_barrier": 3,
+            "actor_event": 2
+          },
+          "fresh_revision_calls": 18,
+          "owner_rpc_calls": 9,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        }
+      },
+      "diagnostic_cpu_ms": {
+        "original": 808.405959,
+        "optimized": 783.098295
+      },
+      "timing_is_diagnostic_only": true
+    },
+    {
+      "backend": "postgresql",
+      "case": "local_exact",
+      "authority_counts_equal": true,
+      "work_counts": {
+        "original": {
+          "serialization_calls": {
+            "service.canonical": 3
+          },
+          "canonical_returned_utf8_bytes": {
+            "service.canonical": 1063
+          },
+          "contracts_by_name": {},
+          "relations_by_name": {},
+          "fresh_revision_calls": 0,
+          "owner_rpc_calls": 0,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        },
+        "optimized": {
+          "serialization_calls": {
+            "service.canonical": 3
+          },
+          "canonical_returned_utf8_bytes": {
+            "service.canonical": 1063
+          },
+          "contracts_by_name": {},
+          "relations_by_name": {},
+          "fresh_revision_calls": 0,
+          "owner_rpc_calls": 0,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        }
+      },
+      "diagnostic_cpu_ms": {
+        "original": 3.721441,
+        "optimized": 3.738574
+      },
+      "timing_is_diagnostic_only": true
+    },
+    {
+      "backend": "postgresql",
+      "case": "local_keyword",
+      "authority_counts_equal": true,
+      "work_counts": {
+        "original": {
+          "serialization_calls": {
+            "service.canonical": 33
+          },
+          "canonical_returned_utf8_bytes": {
+            "service.canonical": 385749
+          },
+          "contracts_by_name": {},
+          "relations_by_name": {},
+          "fresh_revision_calls": 0,
+          "owner_rpc_calls": 0,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        },
+        "optimized": {
+          "serialization_calls": {
+            "service.canonical": 33
+          },
+          "canonical_returned_utf8_bytes": {
+            "service.canonical": 26388
+          },
+          "contracts_by_name": {},
+          "relations_by_name": {},
+          "fresh_revision_calls": 0,
+          "owner_rpc_calls": 0,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        }
+      },
+      "diagnostic_cpu_ms": {
+        "original": 61.684987,
+        "optimized": 53.340504
+      },
+      "timing_is_diagnostic_only": true
+    },
+    {
+      "backend": "postgresql",
+      "case": "local_zero_budget",
+      "authority_counts_equal": true,
+      "work_counts": {
+        "original": {
+          "serialization_calls": {
+            "service.canonical": 2
+          },
+          "canonical_returned_utf8_bytes": {
+            "service.canonical": 198
+          },
+          "contracts_by_name": {},
+          "relations_by_name": {},
+          "fresh_revision_calls": 0,
+          "owner_rpc_calls": 0,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        },
+        "optimized": {
+          "serialization_calls": {
+            "service.canonical": 2
+          },
+          "canonical_returned_utf8_bytes": {
+            "service.canonical": 198
+          },
+          "contracts_by_name": {},
+          "relations_by_name": {},
+          "fresh_revision_calls": 0,
+          "owner_rpc_calls": 0,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        }
+      },
+      "diagnostic_cpu_ms": {
+        "original": 2.417005,
+        "optimized": 2.238609
+      },
+      "timing_is_diagnostic_only": true
+    },
+    {
+      "backend": "postgresql",
+      "case": "local_commit",
+      "authority_counts_equal": true,
+      "work_counts": {
+        "original": {
+          "serialization_calls": {
+            "domain.canonical": 11,
+            "service.canonical": 3,
+            "domain.fingerprint": 4
+          },
+          "canonical_returned_utf8_bytes": {
+            "domain.canonical": 3052,
+            "service.canonical": 496
+          },
+          "contracts_by_name": {
+            "common#scope": 1,
+            "identity-memory#unit": 1
+          },
+          "relations_by_name": {},
+          "fresh_revision_calls": 0,
+          "owner_rpc_calls": 0,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        },
+        "optimized": {
+          "serialization_calls": {
+            "domain.canonical": 11,
+            "service.canonical": 3,
+            "domain.fingerprint": 4
+          },
+          "canonical_returned_utf8_bytes": {
+            "domain.canonical": 3052,
+            "service.canonical": 496
+          },
+          "contracts_by_name": {
+            "common#scope": 1,
+            "identity-memory#unit": 1
+          },
+          "relations_by_name": {},
+          "fresh_revision_calls": 0,
+          "owner_rpc_calls": 0,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        }
+      },
+      "diagnostic_cpu_ms": {
+        "original": 13.354483,
+        "optimized": 15.678049
+      },
+      "timing_is_diagnostic_only": true
+    },
+    {
+      "backend": "postgresql",
+      "case": "local_full_flow",
+      "authority_counts_equal": true,
+      "work_counts": {
+        "original": {
+          "serialization_calls": {
+            "domain.fingerprint": 8,
+            "domain.canonical": 18,
+            "service.canonical": 11,
+            "service.fingerprint": 3
+          },
+          "canonical_returned_utf8_bytes": {
+            "domain.canonical": 6041,
+            "service.canonical": 2286
+          },
+          "contracts_by_name": {
+            "common#source": 1,
+            "common#scope": 2,
+            "identity-memory#unit": 1
+          },
+          "relations_by_name": {},
+          "fresh_revision_calls": 0,
+          "owner_rpc_calls": 0,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        },
+        "optimized": {
+          "serialization_calls": {
+            "domain.fingerprint": 8,
+            "domain.canonical": 18,
+            "service.canonical": 11,
+            "service.fingerprint": 3
+          },
+          "canonical_returned_utf8_bytes": {
+            "domain.canonical": 6041,
+            "service.canonical": 2286
+          },
+          "contracts_by_name": {
+            "common#source": 1,
+            "common#scope": 2,
+            "identity-memory#unit": 1
+          },
+          "relations_by_name": {},
+          "fresh_revision_calls": 0,
+          "owner_rpc_calls": 0,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        }
+      },
+      "diagnostic_cpu_ms": {
+        "original": 23.155905,
+        "optimized": 31.771739
+      },
+      "timing_is_diagnostic_only": true
+    },
+    {
+      "backend": "postgresql",
+      "case": "source_exact",
+      "authority_counts_equal": true,
+      "work_counts": {
+        "original": {
+          "serialization_calls": {
+            "source_authority.canonical": 392,
+            "service.canonical": 6,
+            "domain.canonical": 363,
+            "source_authority.fingerprint": 240
+          },
+          "canonical_returned_utf8_bytes": {
+            "source_authority.canonical": 161077,
+            "service.canonical": 1303,
+            "domain.canonical": 124552
+          },
+          "contracts_by_name": {
+            "sync-sources#facts_request": 2,
+            "sync-sources#facts_response": 2,
+            "sync-sources#current_access_request": 1,
+            "sync-sources#current_access_response": 1,
+            "sync-workflow#sync_input": 1,
+            "sync-workflow#sync_result": 1
+          },
+          "relations_by_name": {
+            "source_snapshot": 2,
+            "current_access": 1,
+            "sync_barrier": 1
+          },
+          "fresh_revision_calls": 6,
+          "owner_rpc_calls": 3,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        },
+        "optimized": {
+          "serialization_calls": {
+            "source_authority.canonical": 302,
+            "service.canonical": 6,
+            "domain.canonical": 153,
+            "source_authority.fingerprint": 120
+          },
+          "canonical_returned_utf8_bytes": {
+            "source_authority.canonical": 145735,
+            "service.canonical": 1303,
+            "domain.canonical": 82495
+          },
+          "contracts_by_name": {
+            "sync-sources#facts_request": 2,
+            "sync-sources#facts_response": 2,
+            "sync-sources#current_access_request": 1,
+            "sync-sources#current_access_response": 1,
+            "sync-workflow#sync_input": 1,
+            "sync-workflow#sync_result": 1
+          },
+          "relations_by_name": {
+            "source_snapshot": 2,
+            "current_access": 1,
+            "sync_barrier": 1
+          },
+          "fresh_revision_calls": 6,
+          "owner_rpc_calls": 3,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        }
+      },
+      "diagnostic_cpu_ms": {
+        "original": 220.82731,
+        "optimized": 227.235369
+      },
+      "timing_is_diagnostic_only": true
+    },
+    {
+      "backend": "postgresql",
+      "case": "source_keyword",
+      "authority_counts_equal": true,
+      "work_counts": {
+        "original": {
+          "serialization_calls": {
+            "source_authority.canonical": 392,
+            "service.canonical": 36,
+            "domain.canonical": 363,
+            "source_authority.fingerprint": 240
+          },
+          "canonical_returned_utf8_bytes": {
+            "source_authority.canonical": 161077,
+            "service.canonical": 393271,
+            "domain.canonical": 124552
+          },
+          "contracts_by_name": {
+            "sync-sources#facts_request": 2,
+            "sync-sources#facts_response": 2,
+            "sync-sources#current_access_request": 1,
+            "sync-sources#current_access_response": 1,
+            "sync-workflow#sync_input": 1,
+            "sync-workflow#sync_result": 1
+          },
+          "relations_by_name": {
+            "source_snapshot": 2,
+            "current_access": 1,
+            "sync_barrier": 1
+          },
+          "fresh_revision_calls": 6,
+          "owner_rpc_calls": 3,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        },
+        "optimized": {
+          "serialization_calls": {
+            "source_authority.canonical": 302,
+            "service.canonical": 36,
+            "domain.canonical": 153,
+            "source_authority.fingerprint": 120
+          },
+          "canonical_returned_utf8_bytes": {
+            "source_authority.canonical": 145735,
+            "service.canonical": 27101,
+            "domain.canonical": 82495
+          },
+          "contracts_by_name": {
+            "sync-sources#facts_request": 2,
+            "sync-sources#facts_response": 2,
+            "sync-sources#current_access_request": 1,
+            "sync-sources#current_access_response": 1,
+            "sync-workflow#sync_input": 1,
+            "sync-workflow#sync_result": 1
+          },
+          "relations_by_name": {
+            "source_snapshot": 2,
+            "current_access": 1,
+            "sync_barrier": 1
+          },
+          "fresh_revision_calls": 6,
+          "owner_rpc_calls": 3,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        }
+      },
+      "diagnostic_cpu_ms": {
+        "original": 281.914874,
+        "optimized": 283.422792
+      },
+      "timing_is_diagnostic_only": true
+    },
+    {
+      "backend": "postgresql",
+      "case": "source_zero_budget",
+      "authority_counts_equal": true,
+      "work_counts": {
+        "original": {
+          "serialization_calls": {
+            "source_authority.canonical": 392,
+            "service.canonical": 5,
+            "domain.canonical": 363,
+            "source_authority.fingerprint": 240
+          },
+          "canonical_returned_utf8_bytes": {
+            "source_authority.canonical": 161077,
+            "service.canonical": 422,
+            "domain.canonical": 124552
+          },
+          "contracts_by_name": {
+            "sync-sources#facts_request": 2,
+            "sync-sources#facts_response": 2,
+            "sync-sources#current_access_request": 1,
+            "sync-sources#current_access_response": 1,
+            "sync-workflow#sync_input": 1,
+            "sync-workflow#sync_result": 1
+          },
+          "relations_by_name": {
+            "source_snapshot": 2,
+            "current_access": 1,
+            "sync_barrier": 1
+          },
+          "fresh_revision_calls": 6,
+          "owner_rpc_calls": 3,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        },
+        "optimized": {
+          "serialization_calls": {
+            "source_authority.canonical": 302,
+            "service.canonical": 5,
+            "domain.canonical": 153,
+            "source_authority.fingerprint": 120
+          },
+          "canonical_returned_utf8_bytes": {
+            "source_authority.canonical": 145735,
+            "service.canonical": 422,
+            "domain.canonical": 82495
+          },
+          "contracts_by_name": {
+            "sync-sources#facts_request": 2,
+            "sync-sources#facts_response": 2,
+            "sync-sources#current_access_request": 1,
+            "sync-sources#current_access_response": 1,
+            "sync-workflow#sync_input": 1,
+            "sync-workflow#sync_result": 1
+          },
+          "relations_by_name": {
+            "source_snapshot": 2,
+            "current_access": 1,
+            "sync_barrier": 1
+          },
+          "fresh_revision_calls": 6,
+          "owner_rpc_calls": 3,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        }
+      },
+      "diagnostic_cpu_ms": {
+        "original": 221.542246,
+        "optimized": 210.869299
+      },
+      "timing_is_diagnostic_only": true
+    },
+    {
+      "backend": "postgresql",
+      "case": "source_commit",
+      "authority_counts_equal": true,
+      "work_counts": {
+        "original": {
+          "serialization_calls": {
+            "domain.canonical": 386,
+            "source_authority.canonical": 409,
+            "source_authority.fingerprint": 248,
+            "service.canonical": 5,
+            "domain.fingerprint": 4
+          },
+          "canonical_returned_utf8_bytes": {
+            "domain.canonical": 131926,
+            "source_authority.canonical": 168648,
+            "service.canonical": 830
+          },
+          "contracts_by_name": {
+            "sync-workflow#candidate_commit": 1,
+            "sync-sources#facts_request": 2,
+            "sync-sources#facts_response": 2,
+            "sync-sources#current_access_request": 1,
+            "sync-sources#current_access_response": 1,
+            "sync-workflow#sync_input": 1,
+            "sync-workflow#sync_result": 1,
+            "common#scope": 1,
+            "identity-memory#unit": 1,
+            "sync-workflow#candidate_result": 1
+          },
+          "relations_by_name": {
+            "source_snapshot": 2,
+            "current_access": 1,
+            "sync_barrier": 1,
+            "actor_event": 1
+          },
+          "fresh_revision_calls": 6,
+          "owner_rpc_calls": 3,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        },
+        "optimized": {
+          "serialization_calls": {
+            "domain.canonical": 169,
+            "source_authority.canonical": 316,
+            "source_authority.fingerprint": 124,
+            "service.canonical": 5,
+            "domain.fingerprint": 4
+          },
+          "canonical_returned_utf8_bytes": {
+            "domain.canonical": 88465,
+            "source_authority.canonical": 152794,
+            "service.canonical": 830
+          },
+          "contracts_by_name": {
+            "sync-workflow#candidate_commit": 1,
+            "sync-sources#facts_request": 2,
+            "sync-sources#facts_response": 2,
+            "sync-sources#current_access_request": 1,
+            "sync-sources#current_access_response": 1,
+            "sync-workflow#sync_input": 1,
+            "sync-workflow#sync_result": 1,
+            "common#scope": 1,
+            "identity-memory#unit": 1,
+            "sync-workflow#candidate_result": 1
+          },
+          "relations_by_name": {
+            "source_snapshot": 2,
+            "current_access": 1,
+            "sync_barrier": 1,
+            "actor_event": 1
+          },
+          "fresh_revision_calls": 6,
+          "owner_rpc_calls": 3,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        }
+      },
+      "diagnostic_cpu_ms": {
+        "original": 229.443901,
+        "optimized": 224.28381
+      },
+      "timing_is_diagnostic_only": true
+    },
+    {
+      "backend": "postgresql",
+      "case": "source_full_flow",
+      "authority_counts_equal": true,
+      "work_counts": {
+        "original": {
+          "serialization_calls": {
+            "source_authority.canonical": 1287,
+            "service.canonical": 16,
+            "domain.canonical": 1202,
+            "source_authority.fingerprint": 784,
+            "service.fingerprint": 3,
+            "domain.fingerprint": 7
+          },
+          "canonical_returned_utf8_bytes": {
+            "source_authority.canonical": 530330,
+            "service.canonical": 2889,
+            "domain.canonical": 412842
+          },
+          "contracts_by_name": {
+            "sync-sources#facts_request": 6,
+            "sync-sources#facts_response": 6,
+            "sync-sources#current_access_request": 3,
+            "sync-sources#current_access_response": 3,
+            "sync-workflow#sync_input": 3,
+            "sync-workflow#sync_result": 3,
+            "sync-workflow#candidate_commit": 1,
+            "common#scope": 1,
+            "identity-memory#unit": 1,
+            "sync-workflow#candidate_result": 1
+          },
+          "relations_by_name": {
+            "source_snapshot": 6,
+            "current_access": 3,
+            "sync_barrier": 3,
+            "actor_event": 2
+          },
+          "fresh_revision_calls": 18,
+          "owner_rpc_calls": 9,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        },
+        "optimized": {
+          "serialization_calls": {
+            "source_authority.canonical": 995,
+            "service.canonical": 16,
+            "domain.canonical": 516,
+            "source_authority.fingerprint": 392,
+            "service.fingerprint": 3,
+            "domain.fingerprint": 7
+          },
+          "canonical_returned_utf8_bytes": {
+            "source_authority.canonical": 480654,
+            "service.canonical": 2889,
+            "domain.canonical": 275439
+          },
+          "contracts_by_name": {
+            "sync-sources#facts_request": 6,
+            "sync-sources#facts_response": 6,
+            "sync-sources#current_access_request": 3,
+            "sync-sources#current_access_response": 3,
+            "sync-workflow#sync_input": 3,
+            "sync-workflow#sync_result": 3,
+            "sync-workflow#candidate_commit": 1,
+            "common#scope": 1,
+            "identity-memory#unit": 1,
+            "sync-workflow#candidate_result": 1
+          },
+          "relations_by_name": {
+            "source_snapshot": 6,
+            "current_access": 3,
+            "sync_barrier": 3,
+            "actor_event": 2
+          },
+          "fresh_revision_calls": 18,
+          "owner_rpc_calls": 9,
+          "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+          "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+        }
+      },
+      "diagnostic_cpu_ms": {
+        "original": 823.614872,
+        "optimized": 704.808979
+      },
+      "timing_is_diagnostic_only": true
+    }
+  ],
+  "authority_counts_equal_every_case": true,
+  "common_source_reads_fresh_revisions": 6,
+  "common_source_reads_owner_rpcs": 3,
+  "scope": "Counters from domain/service/source_authority current-thread aliases; fingerprint includes domain.canonical; do not add overlapping phases."
+}

@@ -1,0 +1,28 @@
+{
+  "status": "candidate_not_adopted",
+  "reason": "SQLite ordinary-write CPU protection remains unconfirmed; same-version calibration also varies, so neither code regression nor non-regression is established.",
+  "functional_verification": "1875 distinct passes; one old baseline expectation mismatch; one existing profile-scenario skip",
+  "pg_all_cases_at_least_sqlite": false,
+  "source_runtime": "4d33d053f0107553019e8dd5f08c80a086a9ae81",
+  "phase1": "61304513356c4bb9293f62a2473021f95664812e",
+  "product_main_unchanged": true,
+  "pushed": false,
+  "deployed": false,
+  "production_migration": false,
+  "current_sqlite_implementation_retained": true,
+  "source_writer_released": true,
+  "benchmark_window_released": true,
+  "integration_owner": "Original Q18 coordinator; candidate must not be auto-consumed",
+  "merge_tree_only": {
+    "with_component": "31bd9a7df2b92b929161b4380db01d45e4878a63",
+    "tree": "01a3d39e535b6705107f1091bf8ac0cc55d59fa9",
+    "joint_tests": false
+  },
+  "diagnostic_invocation_failure": {
+    "trial": 71,
+    "reason": "An unsupported --profile-only flag was supplied; no measurement ran",
+    "corrected_trial": 72,
+    "all_four_corrected_diagnostics_passed": true
+  },
+  "source_delivery_commit": "9b68e07ad7906d01fa78a572eb24447539c164ef"
+}

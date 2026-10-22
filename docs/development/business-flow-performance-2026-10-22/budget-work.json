@@ -1,0 +1,86 @@
+{
+  "diagnostic_only": true,
+  "timing_included": false,
+  "source_only": true,
+  "baseline": "4dbb8163524af55822d492cfdfda740090b569e9",
+  "candidate_phase1": "61304513356c4bb9293f62a2473021f95664812e",
+  "source": "exact committed _fit_groups AST; synthetic isolated units",
+  "excludes_source_authorization_and_io": true,
+  "includes_rejected_candidates": true,
+  "reports": [
+    {
+      "candidates": 0,
+      "selected_units": 0,
+      "content_equal": true,
+      "counters": {
+        "original": {
+          "calls": 0,
+          "encoded_utf8_bytes": 0,
+          "source_sha256": "5a3ae768dbdbb7201ec97c282bb8a5061df2b351f499654455038fe260a2fe42"
+        },
+        "optimized": {
+          "calls": 0,
+          "encoded_utf8_bytes": 0,
+          "source_sha256": "f2b8d5cd15fd1edc8172e04c36fec5ec885d3543cc40db36c4e97601638af529"
+        }
+      }
+    },
+    {
+      "candidates": 1,
+      "selected_units": 1,
+      "content_equal": true,
+      "counters": {
+        "original": {
+          "calls": 1,
+          "encoded_utf8_bytes": 483,
+          "source_sha256": "5a3ae768dbdbb7201ec97c282bb8a5061df2b351f499654455038fe260a2fe42"
+        },
+        "optimized": {
+          "calls": 1,
+          "encoded_utf8_bytes": 483,
+          "source_sha256": "f2b8d5cd15fd1edc8172e04c36fec5ec885d3543cc40db36c4e97601638af529"
+        }
+      }
+    },
+    {
+      "candidates": 32,
+      "selected_units": 32,
+      "content_equal": true,
+      "counters": {
+        "original": {
+          "calls": 32,
+          "encoded_utf8_bytes": 234951,
+          "source_sha256": "5a3ae768dbdbb7201ec97c282bb8a5061df2b351f499654455038fe260a2fe42"
+        },
+        "optimized": {
+          "calls": 32,
+          "encoded_utf8_bytes": 15522,
+          "source_sha256": "f2b8d5cd15fd1edc8172e04c36fec5ec885d3543cc40db36c4e97601638af529"
+        }
+      }
+    },
+    {
+      "candidates": 64,
+      "selected_units": 32,
+      "content_equal": true,
+      "counters": {
+        "original": {
+          "calls": 64,
+          "encoded_utf8_bytes": 704199,
+          "source_sha256": "5a3ae768dbdbb7201ec97c282bb8a5061df2b351f499654455038fe260a2fe42"
+        },
+        "optimized": {
+          "calls": 64,
+          "encoded_utf8_bytes": 31074,
+          "source_sha256": "f2b8d5cd15fd1edc8172e04c36fec5ec885d3543cc40db36c4e97601638af529"
+        }
+      }
+    }
+  ],
+  "module_initialization_accounting": {
+    "original_extra_calls": 0,
+    "optimized_extra_calls": 1,
+    "optimized_extra_utf8_bytes": 44,
+    "excluded_from_per_call_counters": true
+  }
+}

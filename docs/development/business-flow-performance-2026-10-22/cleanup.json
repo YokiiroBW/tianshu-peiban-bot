@@ -1,0 +1,29 @@
+{
+  "stage_removed": true,
+  "benchmark_containers_remaining": 0,
+  "temporary_image_tags_removed": [
+    "tianshu/ts279-11d609a2-memory:4dbb8163524a",
+    "tianshu/ts279-11d609a2-base-memory:pinned",
+    "tianshu/ts279-11d609a2-memory:4d33d053f010"
+  ],
+  "preexisting_base_aliases_preserved": [],
+  "production_image_references_removed": false,
+  "temporary_database_removed": true,
+  "temporary_role_removed": true,
+  "redis_accessed": false,
+  "auxiliary_directories": {
+    "aa-cleanup-receipt.json": {
+      "aa_owned_stage_removed": true,
+      "production_changes": false
+    },
+    "balanced-ab-cleanup-receipt.json": {
+      "aa_owned_stage_removed": true,
+      "production_changes": false
+    },
+    "balanced-aa-cleanup-receipt.json": {
+      "aa_owned_stage_removed": true,
+      "production_changes": false
+    }
+  },
+  "all_auxiliary_directories_removed": true
+}

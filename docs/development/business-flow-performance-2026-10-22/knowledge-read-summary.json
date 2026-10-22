@@ -1,0 +1,260 @@
+{
+  "correctness": "passed",
+  "pairs": 600,
+  "measurements": 1200,
+  "warmup_pairs": 120,
+  "summary": [
+    {
+      "case": "exact",
+      "pairs": 150,
+      "groups": {
+        "original": {
+          "p50_ms": 9.44791,
+          "p95_ms": 11.029668,
+          "cpu_p50_ms": 9.431962500000001
+        },
+        "optimized": {
+          "p50_ms": 9.452321999999999,
+          "p95_ms": 10.975167,
+          "cpu_p50_ms": 9.4300355
+        }
+      },
+      "paired_wall_change_pct": -0.015012573747497093,
+      "paired_cpu_change_pct": 0.2116230747887915,
+      "placement_slices": [
+        {
+          "block": 1,
+          "assignment": 0,
+          "original_role": "a",
+          "wall_change_pct": 0.3665887468419893,
+          "cpu_change_pct": 0.5302282808954617
+        },
+        {
+          "block": 1,
+          "assignment": 1,
+          "original_role": "b",
+          "wall_change_pct": -2.324257396650997,
+          "cpu_change_pct": -2.287564496127892
+        },
+        {
+          "block": 2,
+          "assignment": 0,
+          "original_role": "b",
+          "wall_change_pct": 0.1348490386292145,
+          "cpu_change_pct": -0.431846169988348
+        },
+        {
+          "block": 2,
+          "assignment": 1,
+          "original_role": "a",
+          "wall_change_pct": -1.8539064771831981,
+          "cpu_change_pct": -0.8109884990320393
+        },
+        {
+          "block": 3,
+          "assignment": 0,
+          "original_role": "a",
+          "wall_change_pct": 3.1356609111356626,
+          "cpu_change_pct": 3.4256578919028335
+        },
+        {
+          "block": 3,
+          "assignment": 1,
+          "original_role": "b",
+          "wall_change_pct": -0.0707691553714973,
+          "cpu_change_pct": 2.4138645125342695
+        }
+      ]
+    },
+    {
+      "case": "cohort20",
+      "pairs": 150,
+      "groups": {
+        "original": {
+          "p50_ms": 25.5768705,
+          "p95_ms": 31.224752,
+          "cpu_p50_ms": 25.189572
+        },
+        "optimized": {
+          "p50_ms": 22.6019565,
+          "p95_ms": 29.035385,
+          "cpu_p50_ms": 22.459687000000002
+        }
+      },
+      "paired_wall_change_pct": -11.525102191321734,
+      "paired_cpu_change_pct": -11.546798646332768,
+      "placement_slices": [
+        {
+          "block": 1,
+          "assignment": 0,
+          "original_role": "a",
+          "wall_change_pct": -9.835492361776321,
+          "cpu_change_pct": -9.707180981295604
+        },
+        {
+          "block": 1,
+          "assignment": 1,
+          "original_role": "b",
+          "wall_change_pct": -12.539077105339713,
+          "cpu_change_pct": -12.65445026733204
+        },
+        {
+          "block": 2,
+          "assignment": 0,
+          "original_role": "b",
+          "wall_change_pct": -10.51469266826902,
+          "cpu_change_pct": -10.373844579074598
+        },
+        {
+          "block": 2,
+          "assignment": 1,
+          "original_role": "a",
+          "wall_change_pct": -8.037447136323905,
+          "cpu_change_pct": -8.780221451435876
+        },
+        {
+          "block": 3,
+          "assignment": 0,
+          "original_role": "a",
+          "wall_change_pct": -12.870808263972911,
+          "cpu_change_pct": -12.893339892995515
+        },
+        {
+          "block": 3,
+          "assignment": 1,
+          "original_role": "b",
+          "wall_change_pct": -11.522978423335362,
+          "cpu_change_pct": -11.977987299194181
+        }
+      ]
+    },
+    {
+      "case": "fresh_application",
+      "pairs": 150,
+      "groups": {
+        "original": {
+          "p50_ms": 15.8591985,
+          "p95_ms": 19.291193,
+          "cpu_p50_ms": 15.769301500000001
+        },
+        "optimized": {
+          "p50_ms": 16.0093855,
+          "p95_ms": 19.152956,
+          "cpu_p50_ms": 15.97095
+        }
+      },
+      "paired_wall_change_pct": 0.07068988411660371,
+      "paired_cpu_change_pct": 1.0565046164142444,
+      "placement_slices": [
+        {
+          "block": 1,
+          "assignment": 0,
+          "original_role": "a",
+          "wall_change_pct": -1.542896364572821,
+          "cpu_change_pct": -1.2881886033556667
+        },
+        {
+          "block": 1,
+          "assignment": 1,
+          "original_role": "b",
+          "wall_change_pct": 3.9992758513949234,
+          "cpu_change_pct": 3.520549839221898
+        },
+        {
+          "block": 2,
+          "assignment": 0,
+          "original_role": "b",
+          "wall_change_pct": -1.6151967673041279,
+          "cpu_change_pct": -1.3565529052851022
+        },
+        {
+          "block": 2,
+          "assignment": 1,
+          "original_role": "a",
+          "wall_change_pct": -0.24452652426354415,
+          "cpu_change_pct": 0.13974294751797345
+        },
+        {
+          "block": 3,
+          "assignment": 0,
+          "original_role": "a",
+          "wall_change_pct": 3.5622412351136834,
+          "cpu_change_pct": 1.3813188409044885
+        },
+        {
+          "block": 3,
+          "assignment": 1,
+          "original_role": "b",
+          "wall_change_pct": -1.8507545906429002,
+          "cpu_change_pct": 1.477742807024951
+        }
+      ]
+    },
+    {
+      "case": "http_exact",
+      "pairs": 150,
+      "groups": {
+        "original": {
+          "p50_ms": 11.224012,
+          "p95_ms": 14.255308,
+          "cpu_p50_ms": 11.153300999999999
+        },
+        "optimized": {
+          "p50_ms": 11.1554415,
+          "p95_ms": 15.311685,
+          "cpu_p50_ms": 11.163808
+        }
+      },
+      "paired_wall_change_pct": -0.43785555610822424,
+      "paired_cpu_change_pct": -0.2671570592232775,
+      "placement_slices": [
+        {
+          "block": 1,
+          "assignment": 0,
+          "original_role": "a",
+          "wall_change_pct": -1.5137808310987322,
+          "cpu_change_pct": -1.5900432806696951
+        },
+        {
+          "block": 1,
+          "assignment": 1,
+          "original_role": "b",
+          "wall_change_pct": 1.214293500590391,
+          "cpu_change_pct": -0.037900521219702554
+        },
+        {
+          "block": 2,
+          "assignment": 0,
+          "original_role": "b",
+          "wall_change_pct": 0.6854032815765132,
+          "cpu_change_pct": -0.272715499368259
+        },
+        {
+          "block": 2,
+          "assignment": 1,
+          "original_role": "a",
+          "wall_change_pct": -1.245554903486057,
+          "cpu_change_pct": -1.2899791644007563
+        },
+        {
+          "block": 3,
+          "assignment": 0,
+          "original_role": "a",
+          "wall_change_pct": -0.5410608572992248,
+          "cpu_change_pct": 0.30492280844616193
+        },
+        {
+          "block": 3,
+          "assignment": 1,
+          "original_role": "b",
+          "wall_change_pct": 3.4356846032828736,
+          "cpu_change_pct": 1.3601408812950355
+        }
+      ]
+    }
+  ],
+  "all_fixture_hashes_closed": true,
+  "one_active_operation_at_a_time": true,
+  "roles_crossed": true,
+  "limit": "Four native read paths on a single immutable synthetic Knowledge fixture; imports and concurrency are not covered."
+}

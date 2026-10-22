@@ -1,0 +1,14 @@
+{
+  "core_count": 10,
+  "all_core_running": true,
+  "verified_tls_ready": 5,
+  "core_lifecycle_unchanged": true,
+  "configuration_hashes_unchanged": true,
+  "guard_ready": true,
+  "actual_business_tables_read": false,
+  "business_or_media_writes": false,
+  "production_media_mounted": false,
+  "before_sha256": "85d5187128d1ba4dccca7158c38854a6d192f9183b35bd7ec6413971ff9684b7",
+  "after_sha256": "075b6251c61eebba742be17a78ff55b0809681e96b2f93622352fc0575972722",
+  "test_scope": "New low-privilege UUID database, isolated directories and synthetic files; one active client; no production tuning or deployment"
+}
