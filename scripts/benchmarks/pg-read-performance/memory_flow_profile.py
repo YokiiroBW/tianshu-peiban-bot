@@ -9,6 +9,7 @@ No argument values, SQL text, results or real records are exported by the hooks.
 from collections import Counter
 from contextlib import contextmanager
 from functools import wraps
+import inspect
 import threading
 import time
 
@@ -28,6 +29,9 @@ class Phases:
         self.calls = Counter()
         self.patches = []
         self.last_wall = self.last_cpu = None
+        self.canonical_bytes = Counter()
+        self.contract_calls = Counter()
+        self.relation_calls = Counter()
 
     def charge(self):
         wall, cpu = time.perf_counter_ns(), time.thread_time_ns()
@@ -53,29 +57,59 @@ class Phases:
             self.inclusive_cpu[name] += self.last_cpu - started_cpu
             assert self.stack.pop() == name
 
-    def patch(self, owner, name, phase):
+    def patch(self, owner, name, phase, observe=None):
         original = getattr(owner, name)
+        attribute = inspect.getattr_static(owner, name)
 
         @wraps(original)
         def wrapped(*args, **kwargs):
             with self.phase(phase):
-                return original(*args, **kwargs)
+                result = original(*args, **kwargs)
+                if observe is not None and threading.get_ident() == self.thread:
+                    observe(args, kwargs, result)
+                return result
 
-        self.patches.append((owner, name, original))
-        setattr(owner, name, wrapped)
+        self.patches.append((owner, name, attribute))
+        setattr(
+            owner,
+            name,
+            staticmethod(wrapped) if isinstance(attribute, staticmethod) else wrapped,
+        )
 
     @contextmanager
     def installed(self):
         import psycopg
+        from memory_source_sync import SyntheticOwners
+        from tianshu_memory import domain, service, source_authority
         from tianshu_memory.contracts import Contracts
         from tianshu_memory.source_authority import SourceAuthority
         from tianshu_memory import source_recovery
         from tianshu_storage.runtime import StorageRuntime
 
+        def contract_name(args, kwargs, result):
+            self.contract_calls[args[1] if len(args) > 1 else kwargs["name"]] += 1
+
+        def relation_name(args, kwargs, result):
+            self.relation_calls[args[1] if len(args) > 1 else kwargs["name"]] += 1
+
         try:
             self.patch(StorageRuntime, "_checkout", "connection_checkout")
-            self.patch(Contracts, "validate", "document_validation")
-            self.patch(SourceAuthority, "_relations", "source_relation_rules")
+            self.patch(Contracts, "validate", "document_validation", contract_name)
+            self.patch(
+                SourceAuthority, "_relations", "source_relation_rules", relation_name
+            )
+            self.patch(SourceAuthority, "revision", "fresh_revision")
+            self.patch(SyntheticOwners, "read", "owner_rpc")
+            for module in (domain, service, source_authority):
+                for name in ("canonical", "fingerprint"):
+                    phase = module.__name__.rsplit(".", 1)[-1] + "." + name
+
+                    def serialized(args, kwargs, result, label=phase):
+                        self.canonical_bytes[label] += len(result.encode("utf-8"))
+
+                    self.patch(
+                        module, name, phase, serialized if name == "canonical" else None
+                    )
             self.patch(source_recovery, "verify", "guard_verify")
             self.patch(source_recovery, "persist", "guard_persist")
             self.patch(psycopg.Cursor, "execute", "driver_execute")
@@ -115,6 +149,20 @@ class Phases:
             attribution_wall_ms=sum(self.wall.values()) / 1e6,
             attribution_thread_cpu_ms=sum(self.cpu.values()) / 1e6,
             phases=phases,
+            work_counts={
+                "serialization_calls": {
+                    name: count
+                    for name, count in self.calls.items()
+                    if name.endswith((".canonical", ".fingerprint"))
+                },
+                "canonical_returned_utf8_bytes": dict(self.canonical_bytes),
+                "contracts_by_name": dict(self.contract_calls),
+                "relations_by_name": dict(self.relation_calls),
+                "fresh_revision_calls": self.calls["fresh_revision"],
+                "owner_rpc_calls": self.calls["owner_rpc"],
+                "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+                "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added",
+            },
         )
 
 

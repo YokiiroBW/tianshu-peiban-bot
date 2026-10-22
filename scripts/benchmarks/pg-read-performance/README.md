@@ -82,3 +82,21 @@ SQLite写控制入口为`sqlite_write_control.py`，四case为`local_commit`、`
 单进程中保持同一Store、SourceAuthority和合成owner，只分派唯一Contracts对象的`validate`：新旧delegate经正常构造，各有独立锁和准备缓存，每次从当前已验证的不可变schema/registry完整校验当前输入。其他业务、关系规则、权限、六次fresh revision、三个owner调用、CAS和guard均走原路径。默认每后端三block×每case20对，field、零预算和关键词轮换并平衡先后；首block各case三对预热单列。关键词要求封存数据中全部预期匹配组完整返回；300组模板为30组。前版只有field/零预算的120对结果独立保留，最终增加关键词以核对正式轮次观察到的SQLite来源关键词上浮，总计每后端180对/360诊断样本及9对预热，不混为前版协议。每次核对完整返回、schema调用计数及前后行数/revision/guard，不允许选成功子集。
 
 该脚本强制`diagnostic_only=true`，以JSONL逐条flush开始、样本、配对结果及异常。只导出hash、计数和固定错误代码，不导出文档正文；全部wall、process CPU与validate CPU保留。validate CPU属于整段process CPU的一部分，不能相加。模板复制、开库、delegate构造和状态核对在计时外；这些额外读取会影响缓存状态，故不能用它的绝对延迟代替正式镜像比较。两种后端保持同步持久性，结束关闭Store并还原hooks。
+
+## TS-279 业务链路比较与 SQLite 位置交叉
+
+本批原版统一为 Memory `4dbb8163524af55822d492cfdfda740090b569e9`，候选由协调者分别冻结，不能沿用 TS275 未采用的校验器。正式三轮同时纳入既有 `memory_sql.py`、`memory_source_sync.py` 和 `knowledge_sql.py`，每 suite 比较 original/optimized × SQLite/PG。安装证明、完整权限、来源与持久性保持；Knowledge 使用同一 Memory 测试镜像内的原生应用。操作数从每份输出的 `results[].operations` 求和，不把旧轮次或额外诊断并入分母，保留全部样本与失败。
+
+Knowledge 现有签名只剔除导入时间，不删除来源 ID、reference、hash、spans 或 provenance。固定 demo/file/相对 locator 派生的 source/document/block ID 可跨版本和后端比较；宿主临时 root 不进入 file 查询结果。跨后端比较 `content`，同后端同时比较 `ordered`。所有测量仍调用 `KnowledgeApplication.execute` 或受限 HTTP，保留逐请求授权和当前文件核验，不用纯预算 oracle 替代这些业务调用。
+
+`sqlite_write_crossover.py` 是既有 `sqlite_write_control.py` 的宿主调度器，没有另一套提交实现。它的 `run(stage=..., owner_token=..., docker=..., mode=..., block=..., owners=..., images=...)` 接口全部显式传参；stage 必须是本批新 UUID 目录且 owner-token 匹配。`images` 为 `{original|optimized: {image_id, revision}}`，`owners` 为既有核心生命周期 receipt 的原始行。也可在协调主机使用 `--control <仅含这些字段的JSON> --mode seed|smoke|block --block N`，不需要把数据库 URL 放进该 control 文件；容器继续读取既有受限 `/bench/private.json` 并核对安装 proof。
+
+协调者私有入口 `run_write_control_benchmark.py seed` 封存四个原生 300 组模板；`smoke` 使用 block901，走两段位置交换，共 8 个测量对和 8 个预热对，不计入正式结果；`block --block 1`、`2`、`3` 分别执行正式块。每块两个 assignment，各 case 每 assignment 10 个测量对、1 个真实预热对；两段之间必须先关闭两个 worker，再让 image 在同一 `active-a` / `active-b` 目录交换。三块仍为 **240 对 / 480 次真实提交，另 24 对 / 48 次预热提交**。每 case 每 block 两种先后各十次，每个 image 在每个物理角色各十个测量对。
+
+位置记录经 Docker inspect 核对实际 image ID 和 mount source，保留角色、容器 ID、物理 active path、容器固定 `/bench/write-active` 及目录 device/inode；复制不更换挂载目录 inode。计时仍完全由旧 `run_one` 执行，保留原生 WAL/FULL、同初态 hash、完整增长、guard、ledger、关闭重开、FK/quick_check 与语义签名。每段新建 worker 和 Contracts，各 case 预热一次；这与旧单 worker 生命周期内两次预热不同，报告必须注明。交叉不能保证相同文件 extent、OS 缓存或后台 I/O。
+
+输出保留原 `results[].samples`，新增 `results[].assignment`、`results[].placement` 和顶层 `worker_assignments`。每块仍有 88 行（80 测量、8 预热），测量 index 为 0–19，预热为 -2/-1；分析应额外核验并按 block × assignment、先后及角色分层，不能只报最快角色。每一侧结果也写入 owned partial receipt，失败的未完成对另留，不作为有效配对。CI 跨 1 不等于 SQLite 不下降。
+
+3300 对读取复用原 `sqlite_paired_worker.py` 与同一物理 365 组库。该库由本批原版 `memory_sql` 的完整 SQLite trial43 原生生成（300 初始组 +30 次纯提交 +35 次全流程），直接保留 `/bench/runs/memory-original-43-sqlite` 的 config/DB/guard；`sqlite_same_fixture` 是只读检查，不能替代种子生成，也不手动 checkpoint 或修复。三块每块 exact500/zero500/keyword100 对和额外预热继续单列。
+
+`memory_flow_profile.py` 仅在独立诊断调用中复用 Phases，新增 `work_counts`：domain/service/source_authority 各 canonical/fingerprint 别名调用数、canonical 返回值 UTF-8 累计 bytes、按合同名的验证次数、按规则名的 relations 次数、fresh revision 和合成 owner RPC 次数。不保存参数或正文，不改变正式 suite。fingerprint 内部仍调用 domain.canonical，因此两层调用和包含式 CPU 不能相加；别名范围也不代表全进程全部序列化。原有六次 fresh revision /三个 owner 调用应按实际读场景核对，写全流程的动态次数另行保留。Knowledge 的纯预算计数由协调者另作对照，不改变本批完整业务测量。
