@@ -1515,7 +1515,7 @@
       "id": "TS-285",
       "project": "memory",
       "title": "PG专用记忆召回、资料检索和来源同步优化",
-      "status": "in_progress",
+      "status": "done",
       "assignee": "business_flow_impl",
       "depends_on": [
         "TS-284",
@@ -1535,14 +1535,34 @@
         "src/tianshu_memory/fact_queries.py",
         "src/tianshu_memory/contracts.py",
         "tests/",
-        "docs/handoffs/TS-285.md"
+        "docs/handoffs/TS-285.md",
+        "src/tianshu_memory/memory_context/query.py",
+        "src/tianshu_memory/profiles.py"
       ],
       "done_when": "PG专用优化分块提交；完整权限、来源、当前性、错误及持久性等价，PG与SQLite功能验证通过，PG前后端到端有实测收益。",
       "worktree": "worktrees/TS-285/tianshu-memory",
       "branch": "codex/ts-285-pg-specialized",
       "baseline_commit": "e5e1b394a8f6d318dda4d9280587e599fd64c653",
       "implementation_baseline_commit": "c696fd0de073dc375b161fb8192dc2713dc26b63",
-      "allocation_note": "Standard clean Memory allocation; isolated checkout fast-forwarded to accepted full TS284 history. No rejected TS275/TS278/TS271 runtime; Q18 product assembly remains separate."
+      "allocation_note": "Standard clean Memory allocation; isolated checkout fast-forwarded to accepted full TS284 history. No rejected TS275/TS278/TS271 runtime; Q18 product assembly remains separate.",
+      "scope_extension": "PG-only incremental budget thin wiring for current context/profile entrypoints; no authority/ranking changes.",
+      "writer_released": true,
+      "integrated": false,
+      "production_migration": false,
+      "delivery_state": "local_candidate_verified_and_pg_measured_not_product_integrated_not_deployed",
+      "candidate_read_benefits_verified": true,
+      "all_pg_paths_improved": false,
+      "runtime_commit": "06040aad9482f1f0ec8742f0a382daba9174f30a",
+      "result_commit": "6d15af8d1c86c256d7e8030566addcf8a093bbbb",
+      "test_commit": "daef6b08fcc78570904a17b66d8de6f177f9e711",
+      "result": "worktrees/TS-285/tianshu-memory/docs/handoffs/TS-285.md",
+      "implementation_commits": [
+        "87c73611334591adee561876525c3d4344e071cf",
+        "a59375bcd396dcc064349f656e19f395b1fbc932",
+        "d5d3ba5e60040632d927382f6ad404032e2673df",
+        "9de49064d8d923d7210e13fddb4de9ec54d204e6",
+        "06040aad9482f1f0ec8742f0a382daba9174f30a"
+      ]
     },
     {
       "execution_model": "gpt-6.1-sol",
@@ -1554,7 +1574,7 @@
       "id": "TS-286",
       "project": "workspace",
       "title": "PG专用优化前后隔离实测与兼容验收",
-      "status": "in_progress",
+      "status": "done",
       "assignee": "current-thread",
       "depends_on": [
         "TS-279"
@@ -1572,7 +1592,32 @@
       "worktree": "worktrees/TS-286/workspace",
       "branch": "codex/ts-286-pg-specialized",
       "baseline_commit": "413e707286dc8a038edd47c6ef24caa8e2d8e02d",
-      "allocation_note": "Standard allocator refused foreign mixed root; reviewed benchmark/storage paths unchanged and created committed-baseline worktree, preserving all root bytes."
+      "allocation_note": "Standard allocator refused foreign mixed root; reviewed benchmark/storage paths unchanged and created committed-baseline worktree, preserving all root bytes.",
+      "writer_released": true,
+      "integrated": false,
+      "production_migration": false,
+      "delivery_state": "local_candidate_verified_and_pg_measured_not_product_integrated_not_deployed",
+      "candidate_read_benefits_verified": true,
+      "all_pg_paths_improved": false,
+      "result_commit": "a411ffd1cdfa9ef3cdb6736a009b8c3d2d1d56bf",
+      "benchmark_window_released": true,
+      "benchmark_main_commit": "cd23d4e8482e6846538350606c151422ef57dda4",
+      "benchmark_reference_commit": "fbfe0b70752e3175a60844c4eee04658ee6283ba",
+      "result": "docs/development/pg-specialized-performance-2026-10-22.md",
+      "verification": {
+        "distinct_passed_nodes": 2280,
+        "native_pg_passed": 237,
+        "baseline_reproduced_failures": 2,
+        "intentional_remaining_skips": 1,
+        "main_formal_runs": 24,
+        "main_formal_operations": 3846,
+        "reference_formal_runs": 6,
+        "reference_formal_operations": 240,
+        "cleanup_complete": true,
+        "sqlite_functional_compatibility": true,
+        "sqlite_performance_gate": false,
+        "pg_write_non_regression_established": false
+      }
     }
   ],
   "dispatch_defaults": {
