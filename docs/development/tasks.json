@@ -1504,6 +1504,75 @@
         "cleanup_complete": true,
         "sqlite_non_regression_confirmed": false
       }
+    },
+    {
+      "execution_model": "gpt-6.1-sol",
+      "reasoning_effort": "max",
+      "task_card": "docs/development/TS-285-pg-specialized-performance.md",
+      "authorization": "2026-10-22用户明确授权集中优化PG记忆召回、资料检索和来源同步，优先PG专用路径，SQLite只保证功能兼容；完整权限与来源校验、生产数据及媒体保护保持，PG前后隔离实测；沿用已授权同聊天gpt-6.1-sol/max。",
+      "pushed": false,
+      "deployed": false,
+      "id": "TS-285",
+      "project": "memory",
+      "title": "PG专用记忆召回、资料检索和来源同步优化",
+      "status": "in_progress",
+      "assignee": "business_flow_impl",
+      "depends_on": [
+        "TS-284",
+        "TS-279"
+      ],
+      "desired_baseline_commit": "c696fd0de073dc375b161fb8192dc2713dc26b63",
+      "integration_depends_on": [
+        "TS-284"
+      ],
+      "allowed_paths": [
+        "src/tianshu_memory/service.py",
+        "src/tianshu_memory/knowledge.py",
+        "src/tianshu_memory/source_authority.py",
+        "src/tianshu_memory/postgres_source_snapshot.py",
+        "src/tianshu_memory/postgres*.py",
+        "src/tianshu_memory/recall_index.py",
+        "src/tianshu_memory/fact_queries.py",
+        "src/tianshu_memory/contracts.py",
+        "tests/",
+        "docs/handoffs/TS-285.md"
+      ],
+      "done_when": "PG专用优化分块提交；完整权限、来源、当前性、错误及持久性等价，PG与SQLite功能验证通过，PG前后端到端有实测收益。",
+      "worktree": "worktrees/TS-285/tianshu-memory",
+      "branch": "codex/ts-285-pg-specialized",
+      "baseline_commit": "e5e1b394a8f6d318dda4d9280587e599fd64c653",
+      "implementation_baseline_commit": "c696fd0de073dc375b161fb8192dc2713dc26b63",
+      "allocation_note": "Standard clean Memory allocation; isolated checkout fast-forwarded to accepted full TS284 history. No rejected TS275/TS278/TS271 runtime; Q18 product assembly remains separate."
+    },
+    {
+      "execution_model": "gpt-6.1-sol",
+      "reasoning_effort": "max",
+      "task_card": "docs/development/TS-285-pg-specialized-performance.md",
+      "authorization": "2026-10-22用户明确授权集中优化PG记忆召回、资料检索和来源同步，优先PG专用路径，SQLite只保证功能兼容；完整权限与来源校验、生产数据及媒体保护保持，PG前后隔离实测；沿用已授权同聊天gpt-6.1-sol/max。",
+      "pushed": false,
+      "deployed": false,
+      "id": "TS-286",
+      "project": "workspace",
+      "title": "PG专用优化前后隔离实测与兼容验收",
+      "status": "in_progress",
+      "assignee": "current-thread",
+      "depends_on": [
+        "TS-279"
+      ],
+      "integration_depends_on": [
+        "TS-285"
+      ],
+      "allowed_paths": [
+        "scripts/benchmarks/pg-read-performance/",
+        "docs/development/TS-285-pg-specialized-performance.md",
+        "docs/development/pg-specialized-performance-2026-10-22*",
+        "docs/handoffs/TS-286.md"
+      ],
+      "done_when": "PG前后三轮交替覆盖记忆/来源/资料检索及写入，保留正确性、CPU、尾延迟、不利结果与清理；SQLite只做功能兼容，不做性能否决。",
+      "worktree": "worktrees/TS-286/workspace",
+      "branch": "codex/ts-286-pg-specialized",
+      "baseline_commit": "413e707286dc8a038edd47c6ef24caa8e2d8e02d",
+      "allocation_note": "Standard allocator refused foreign mixed root; reviewed benchmark/storage paths unchanged and created committed-baseline worktree, preserving all root bytes."
     }
   ],
   "dispatch_defaults": {
