@@ -1735,6 +1735,60 @@
         "sqlite_performance_gate": false,
         "pg_write_non_regression_established": false
       }
+    },
+    {
+      "id": "TS-293",
+      "project": "workspace",
+      "title": "PG优化与插件联合推送和NAS发布",
+      "status": "in_progress",
+      "assignee": "current-thread",
+      "depends_on": [
+        "TS-291",
+        "TS-292",
+        "TS-237"
+      ],
+      "allowed_paths": [
+        "docs/development/pg-plugins-release-2026-10-22.md",
+        "docs/development/pg-plugins-release-2026-10-22/",
+        "docs/handoffs/TS-293.md"
+      ],
+      "execution_model": "gpt-6.1-sol",
+      "execution_reasoning_effort": "max",
+      "production_single_writer": "current-thread",
+      "pushed": false,
+      "deployed": false,
+      "worktree": "worktrees/TS-293/workspace",
+      "branch": "work/ts-293",
+      "baseline_commit": "6abcdf29a8aeacfc7ed4748aab94df2105e4492d",
+      "allocation_note": "Standard allocator refused foreign mixed root or existing Platform build/. Reviewed committed baseline worktree preserves original bytes; Platform starts from current deployed afb5efa."
+    },
+    {
+      "id": "TS-294",
+      "project": "platform",
+      "title": "插件与线上PG背压修复装配及Linux发布兼容",
+      "status": "in_progress",
+      "assignee": "business_flow_impl",
+      "depends_on": [
+        "TS-237",
+        "TS-246"
+      ],
+      "allowed_paths": [
+        "services/platform/",
+        "tianshu_plugin/",
+        "Dockerfile",
+        "deploy/",
+        "pyproject.toml",
+        "tests/backend/",
+        "docs/handoffs/TS-294.md"
+      ],
+      "execution_model": "gpt-6.1-sol",
+      "execution_reasoning_effort": "max",
+      "pushed": false,
+      "deployed": false,
+      "worktree": "worktrees/TS-294/tianshu-platform",
+      "branch": "work/ts-294",
+      "baseline_commit": "afb5efade9d243ba406f754deff46abed0b74543",
+      "allocation_note": "Standard allocator refused foreign mixed root or existing Platform build/. Reviewed committed baseline worktree preserves original bytes; Platform starts from current deployed afb5efa."
     }
   ],
   "dispatch_defaults": {
