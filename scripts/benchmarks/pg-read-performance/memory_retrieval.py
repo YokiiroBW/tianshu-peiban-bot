@@ -511,7 +511,7 @@ def main():
         contracts,
         private,
         args.backend,
-        "n" + args.namespace,
+        "rn" + args.namespace,
         smoke=args.smoke,
         cpu_clocks=args.cpu_clocks,
     )
