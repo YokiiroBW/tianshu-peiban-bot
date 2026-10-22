@@ -1,0 +1,11 @@
+{
+  "baseline": "599c1e9436c9091fe5d3607d7ca60e208430851f",
+  "shared_revision": "019b954195b4d3afc9e754c3cbd1c0cdd1e225ce",
+  "shared_version": "0.1.3",
+  "old_pg_candidate_stacked": false,
+  "sqlite_performance_gate": false,
+  "sqlite_functional_compatibility": true,
+  "state": "candidate_frozen_pending_native_and_performance",
+  "knowledge_candidate": "4042e6bf8b94fd7d309ecf2ad46e978448024757",
+  "candidate": "70022d47de219bfab1bb29dbf3a5be2f73f7acda"
+}

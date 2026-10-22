@@ -1,0 +1,1047 @@
+{
+  "task": "TS-292",
+  "diagnostics_not_formal_measurements": true,
+  "flow_profiles": [
+    {
+      "case": "local_exact",
+      "original": {
+        "serialization_calls": {
+          "service.canonical": 3
+        },
+        "canonical_returned_utf8_bytes": {
+          "service.canonical": 1063
+        },
+        "contracts_by_name": {},
+        "relations_by_name": {},
+        "fresh_revision_calls": 0,
+        "owner_rpc_calls": 0,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "optimized": {
+        "serialization_calls": {
+          "service.canonical": 3
+        },
+        "canonical_returned_utf8_bytes": {
+          "service.canonical": 1063
+        },
+        "contracts_by_name": {},
+        "relations_by_name": {},
+        "fresh_revision_calls": 0,
+        "owner_rpc_calls": 0,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "serialization_call_counts_equal": true,
+      "canonical_returned_bytes_equal": true,
+      "complete_contract_relation_and_fresh_source_work_unchanged": true
+    },
+    {
+      "case": "local_keyword",
+      "original": {
+        "serialization_calls": {
+          "service.canonical": 33
+        },
+        "canonical_returned_utf8_bytes": {
+          "service.canonical": 385778
+        },
+        "contracts_by_name": {},
+        "relations_by_name": {},
+        "fresh_revision_calls": 0,
+        "owner_rpc_calls": 0,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "optimized": {
+        "serialization_calls": {
+          "service.canonical": 33
+        },
+        "canonical_returned_utf8_bytes": {
+          "service.canonical": 385689
+        },
+        "contracts_by_name": {},
+        "relations_by_name": {},
+        "fresh_revision_calls": 0,
+        "owner_rpc_calls": 0,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "serialization_call_counts_equal": true,
+      "canonical_returned_bytes_equal": false,
+      "complete_contract_relation_and_fresh_source_work_unchanged": true
+    },
+    {
+      "case": "local_zero_budget",
+      "original": {
+        "serialization_calls": {
+          "service.canonical": 2
+        },
+        "canonical_returned_utf8_bytes": {
+          "service.canonical": 198
+        },
+        "contracts_by_name": {},
+        "relations_by_name": {},
+        "fresh_revision_calls": 0,
+        "owner_rpc_calls": 0,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "optimized": {
+        "serialization_calls": {
+          "service.canonical": 2
+        },
+        "canonical_returned_utf8_bytes": {
+          "service.canonical": 198
+        },
+        "contracts_by_name": {},
+        "relations_by_name": {},
+        "fresh_revision_calls": 0,
+        "owner_rpc_calls": 0,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "serialization_call_counts_equal": true,
+      "canonical_returned_bytes_equal": true,
+      "complete_contract_relation_and_fresh_source_work_unchanged": true
+    },
+    {
+      "case": "local_commit",
+      "original": {
+        "serialization_calls": {
+          "domain.canonical": 11,
+          "service.canonical": 3,
+          "domain.fingerprint": 4
+        },
+        "canonical_returned_utf8_bytes": {
+          "domain.canonical": 3052,
+          "service.canonical": 496
+        },
+        "contracts_by_name": {
+          "common#scope": 1,
+          "identity-memory#unit": 1
+        },
+        "relations_by_name": {},
+        "fresh_revision_calls": 0,
+        "owner_rpc_calls": 0,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "optimized": {
+        "serialization_calls": {
+          "domain.canonical": 11,
+          "service.canonical": 3,
+          "domain.fingerprint": 4
+        },
+        "canonical_returned_utf8_bytes": {
+          "domain.canonical": 3052,
+          "service.canonical": 496
+        },
+        "contracts_by_name": {
+          "common#scope": 1,
+          "identity-memory#unit": 1
+        },
+        "relations_by_name": {},
+        "fresh_revision_calls": 0,
+        "owner_rpc_calls": 0,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "serialization_call_counts_equal": true,
+      "canonical_returned_bytes_equal": true,
+      "complete_contract_relation_and_fresh_source_work_unchanged": true
+    },
+    {
+      "case": "local_full_flow",
+      "original": {
+        "serialization_calls": {
+          "domain.fingerprint": 8,
+          "domain.canonical": 18,
+          "service.canonical": 11,
+          "service.fingerprint": 3
+        },
+        "canonical_returned_utf8_bytes": {
+          "domain.canonical": 6041,
+          "service.canonical": 2286
+        },
+        "contracts_by_name": {
+          "common#source": 1,
+          "common#scope": 2,
+          "identity-memory#unit": 1
+        },
+        "relations_by_name": {},
+        "fresh_revision_calls": 0,
+        "owner_rpc_calls": 0,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "optimized": {
+        "serialization_calls": {
+          "domain.fingerprint": 8,
+          "domain.canonical": 18,
+          "service.canonical": 11,
+          "service.fingerprint": 3
+        },
+        "canonical_returned_utf8_bytes": {
+          "domain.canonical": 6041,
+          "service.canonical": 2286
+        },
+        "contracts_by_name": {
+          "common#source": 1,
+          "common#scope": 2,
+          "identity-memory#unit": 1
+        },
+        "relations_by_name": {},
+        "fresh_revision_calls": 0,
+        "owner_rpc_calls": 0,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "serialization_call_counts_equal": true,
+      "canonical_returned_bytes_equal": true,
+      "complete_contract_relation_and_fresh_source_work_unchanged": true
+    },
+    {
+      "case": "source_exact",
+      "original": {
+        "serialization_calls": {
+          "source_authority.canonical": 392,
+          "service.canonical": 6,
+          "domain.canonical": 363,
+          "source_authority.fingerprint": 240
+        },
+        "canonical_returned_utf8_bytes": {
+          "source_authority.canonical": 161077,
+          "service.canonical": 1303,
+          "domain.canonical": 124552
+        },
+        "contracts_by_name": {
+          "sync-sources#facts_request": 2,
+          "sync-sources#facts_response": 2,
+          "sync-sources#current_access_request": 1,
+          "sync-sources#current_access_response": 1,
+          "sync-workflow#sync_input": 1,
+          "sync-workflow#sync_result": 1
+        },
+        "relations_by_name": {
+          "source_snapshot": 2,
+          "current_access": 1,
+          "sync_barrier": 1
+        },
+        "fresh_revision_calls": 6,
+        "owner_rpc_calls": 3,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "optimized": {
+        "serialization_calls": {
+          "source_authority.canonical": 392,
+          "service.canonical": 6,
+          "domain.canonical": 363,
+          "source_authority.fingerprint": 240
+        },
+        "canonical_returned_utf8_bytes": {
+          "source_authority.canonical": 161077,
+          "service.canonical": 1303,
+          "domain.canonical": 124552
+        },
+        "contracts_by_name": {
+          "sync-sources#facts_request": 2,
+          "sync-sources#facts_response": 2,
+          "sync-sources#current_access_request": 1,
+          "sync-sources#current_access_response": 1,
+          "sync-workflow#sync_input": 1,
+          "sync-workflow#sync_result": 1
+        },
+        "relations_by_name": {
+          "source_snapshot": 2,
+          "current_access": 1,
+          "sync_barrier": 1
+        },
+        "fresh_revision_calls": 6,
+        "owner_rpc_calls": 3,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "serialization_call_counts_equal": true,
+      "canonical_returned_bytes_equal": true,
+      "complete_contract_relation_and_fresh_source_work_unchanged": true
+    },
+    {
+      "case": "source_keyword",
+      "original": {
+        "serialization_calls": {
+          "source_authority.canonical": 392,
+          "service.canonical": 36,
+          "domain.canonical": 363,
+          "source_authority.fingerprint": 240
+        },
+        "canonical_returned_utf8_bytes": {
+          "source_authority.canonical": 161077,
+          "service.canonical": 393452,
+          "domain.canonical": 124552
+        },
+        "contracts_by_name": {
+          "sync-sources#facts_request": 2,
+          "sync-sources#facts_response": 2,
+          "sync-sources#current_access_request": 1,
+          "sync-sources#current_access_response": 1,
+          "sync-workflow#sync_input": 1,
+          "sync-workflow#sync_result": 1
+        },
+        "relations_by_name": {
+          "source_snapshot": 2,
+          "current_access": 1,
+          "sync_barrier": 1
+        },
+        "fresh_revision_calls": 6,
+        "owner_rpc_calls": 3,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "optimized": {
+        "serialization_calls": {
+          "source_authority.canonical": 392,
+          "service.canonical": 36,
+          "domain.canonical": 363,
+          "source_authority.fingerprint": 240
+        },
+        "canonical_returned_utf8_bytes": {
+          "source_authority.canonical": 161077,
+          "service.canonical": 393437,
+          "domain.canonical": 124552
+        },
+        "contracts_by_name": {
+          "sync-sources#facts_request": 2,
+          "sync-sources#facts_response": 2,
+          "sync-sources#current_access_request": 1,
+          "sync-sources#current_access_response": 1,
+          "sync-workflow#sync_input": 1,
+          "sync-workflow#sync_result": 1
+        },
+        "relations_by_name": {
+          "source_snapshot": 2,
+          "current_access": 1,
+          "sync_barrier": 1
+        },
+        "fresh_revision_calls": 6,
+        "owner_rpc_calls": 3,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "serialization_call_counts_equal": true,
+      "canonical_returned_bytes_equal": false,
+      "complete_contract_relation_and_fresh_source_work_unchanged": true
+    },
+    {
+      "case": "source_zero_budget",
+      "original": {
+        "serialization_calls": {
+          "source_authority.canonical": 392,
+          "service.canonical": 5,
+          "domain.canonical": 363,
+          "source_authority.fingerprint": 240
+        },
+        "canonical_returned_utf8_bytes": {
+          "source_authority.canonical": 161077,
+          "service.canonical": 422,
+          "domain.canonical": 124552
+        },
+        "contracts_by_name": {
+          "sync-sources#facts_request": 2,
+          "sync-sources#facts_response": 2,
+          "sync-sources#current_access_request": 1,
+          "sync-sources#current_access_response": 1,
+          "sync-workflow#sync_input": 1,
+          "sync-workflow#sync_result": 1
+        },
+        "relations_by_name": {
+          "source_snapshot": 2,
+          "current_access": 1,
+          "sync_barrier": 1
+        },
+        "fresh_revision_calls": 6,
+        "owner_rpc_calls": 3,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "optimized": {
+        "serialization_calls": {
+          "source_authority.canonical": 392,
+          "service.canonical": 5,
+          "domain.canonical": 363,
+          "source_authority.fingerprint": 240
+        },
+        "canonical_returned_utf8_bytes": {
+          "source_authority.canonical": 161077,
+          "service.canonical": 422,
+          "domain.canonical": 124552
+        },
+        "contracts_by_name": {
+          "sync-sources#facts_request": 2,
+          "sync-sources#facts_response": 2,
+          "sync-sources#current_access_request": 1,
+          "sync-sources#current_access_response": 1,
+          "sync-workflow#sync_input": 1,
+          "sync-workflow#sync_result": 1
+        },
+        "relations_by_name": {
+          "source_snapshot": 2,
+          "current_access": 1,
+          "sync_barrier": 1
+        },
+        "fresh_revision_calls": 6,
+        "owner_rpc_calls": 3,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "serialization_call_counts_equal": true,
+      "canonical_returned_bytes_equal": true,
+      "complete_contract_relation_and_fresh_source_work_unchanged": true
+    },
+    {
+      "case": "source_commit",
+      "original": {
+        "serialization_calls": {
+          "domain.canonical": 386,
+          "source_authority.canonical": 409,
+          "source_authority.fingerprint": 248,
+          "service.canonical": 5,
+          "domain.fingerprint": 4
+        },
+        "canonical_returned_utf8_bytes": {
+          "domain.canonical": 131926,
+          "source_authority.canonical": 168648,
+          "service.canonical": 830
+        },
+        "contracts_by_name": {
+          "sync-workflow#candidate_commit": 1,
+          "sync-sources#facts_request": 2,
+          "sync-sources#facts_response": 2,
+          "sync-sources#current_access_request": 1,
+          "sync-sources#current_access_response": 1,
+          "sync-workflow#sync_input": 1,
+          "sync-workflow#sync_result": 1,
+          "common#scope": 1,
+          "identity-memory#unit": 1,
+          "sync-workflow#candidate_result": 1
+        },
+        "relations_by_name": {
+          "source_snapshot": 2,
+          "current_access": 1,
+          "sync_barrier": 1,
+          "actor_event": 1
+        },
+        "fresh_revision_calls": 6,
+        "owner_rpc_calls": 3,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "optimized": {
+        "serialization_calls": {
+          "domain.canonical": 386,
+          "source_authority.canonical": 409,
+          "source_authority.fingerprint": 248,
+          "service.canonical": 5,
+          "domain.fingerprint": 4
+        },
+        "canonical_returned_utf8_bytes": {
+          "domain.canonical": 131926,
+          "source_authority.canonical": 168648,
+          "service.canonical": 830
+        },
+        "contracts_by_name": {
+          "sync-workflow#candidate_commit": 1,
+          "sync-sources#facts_request": 2,
+          "sync-sources#facts_response": 2,
+          "sync-sources#current_access_request": 1,
+          "sync-sources#current_access_response": 1,
+          "sync-workflow#sync_input": 1,
+          "sync-workflow#sync_result": 1,
+          "common#scope": 1,
+          "identity-memory#unit": 1,
+          "sync-workflow#candidate_result": 1
+        },
+        "relations_by_name": {
+          "source_snapshot": 2,
+          "current_access": 1,
+          "sync_barrier": 1,
+          "actor_event": 1
+        },
+        "fresh_revision_calls": 6,
+        "owner_rpc_calls": 3,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "serialization_call_counts_equal": true,
+      "canonical_returned_bytes_equal": true,
+      "complete_contract_relation_and_fresh_source_work_unchanged": true
+    },
+    {
+      "case": "source_full_flow",
+      "original": {
+        "serialization_calls": {
+          "source_authority.canonical": 1287,
+          "service.canonical": 16,
+          "domain.canonical": 1202,
+          "source_authority.fingerprint": 784,
+          "service.fingerprint": 3,
+          "domain.fingerprint": 7
+        },
+        "canonical_returned_utf8_bytes": {
+          "source_authority.canonical": 530330,
+          "service.canonical": 2889,
+          "domain.canonical": 412842
+        },
+        "contracts_by_name": {
+          "sync-sources#facts_request": 6,
+          "sync-sources#facts_response": 6,
+          "sync-sources#current_access_request": 3,
+          "sync-sources#current_access_response": 3,
+          "sync-workflow#sync_input": 3,
+          "sync-workflow#sync_result": 3,
+          "sync-workflow#candidate_commit": 1,
+          "common#scope": 1,
+          "identity-memory#unit": 1,
+          "sync-workflow#candidate_result": 1
+        },
+        "relations_by_name": {
+          "source_snapshot": 6,
+          "current_access": 3,
+          "sync_barrier": 3,
+          "actor_event": 2
+        },
+        "fresh_revision_calls": 18,
+        "owner_rpc_calls": 9,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "optimized": {
+        "serialization_calls": {
+          "source_authority.canonical": 1287,
+          "service.canonical": 16,
+          "domain.canonical": 1202,
+          "source_authority.fingerprint": 784,
+          "service.fingerprint": 3,
+          "domain.fingerprint": 7
+        },
+        "canonical_returned_utf8_bytes": {
+          "source_authority.canonical": 530330,
+          "service.canonical": 2889,
+          "domain.canonical": 412842
+        },
+        "contracts_by_name": {
+          "sync-sources#facts_request": 6,
+          "sync-sources#facts_response": 6,
+          "sync-sources#current_access_request": 3,
+          "sync-sources#current_access_response": 3,
+          "sync-workflow#sync_input": 3,
+          "sync-workflow#sync_result": 3,
+          "sync-workflow#candidate_commit": 1,
+          "common#scope": 1,
+          "identity-memory#unit": 1,
+          "sync-workflow#candidate_result": 1
+        },
+        "relations_by_name": {
+          "source_snapshot": 6,
+          "current_access": 3,
+          "sync_barrier": 3,
+          "actor_event": 2
+        },
+        "fresh_revision_calls": 18,
+        "owner_rpc_calls": 9,
+        "scope": "current-thread aliases in domain/service/source_authority; no arguments or results exported",
+        "overlap": "fingerprint includes domain.canonical; inclusive phases and different statistic units must not be added"
+      },
+      "serialization_call_counts_equal": true,
+      "canonical_returned_bytes_equal": true,
+      "complete_contract_relation_and_fresh_source_work_unchanged": true
+    }
+  ],
+  "named_query_preparation": [
+    {
+      "variant": "original",
+      "trial": 401,
+      "counts": {
+        "unknown": {
+          "reference_body_plain": 101,
+          "reference_body_lexical": 102,
+          "name_matches": 100,
+          "fresh_revision": 6,
+          "name_views": [
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            },
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            }
+          ],
+          "name_match_counter": "named_reference",
+          "timing_included": false,
+          "owner_rpc_counts": {
+            "origin": 1,
+            "snapshot": 1,
+            "current": 1,
+            "head": 1
+          }
+        },
+        "known": {
+          "reference_body_plain": 100,
+          "reference_body_lexical": 102,
+          "name_matches": 100,
+          "fresh_revision": 6,
+          "name_views": [
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            },
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            }
+          ],
+          "name_match_counter": "named_reference",
+          "timing_included": false,
+          "owner_rpc_counts": {
+            "origin": 1,
+            "snapshot": 1,
+            "current": 1,
+            "head": 1
+          }
+        }
+      },
+      "projection_ownership_proof": {
+        "native_check": "MemoryService._projections_current: active projection, actual record_id, version",
+        "boundary": "New native transaction per response, outside formal clocks and without owner RPC",
+        "swapped_refs_contract_valid": true,
+        "swapped_refs": "rejected_before_normalization"
+      }
+    },
+    {
+      "variant": "optimized",
+      "trial": 401,
+      "counts": {
+        "unknown": {
+          "reference_body_plain": 1,
+          "reference_body_lexical": 1,
+          "name_matches": 100,
+          "fresh_revision": 6,
+          "name_views": [
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            },
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            }
+          ],
+          "name_match_counter": "for_name",
+          "timing_included": false,
+          "owner_rpc_counts": {
+            "origin": 1,
+            "snapshot": 1,
+            "current": 1,
+            "head": 1
+          }
+        },
+        "known": {
+          "reference_body_plain": 1,
+          "reference_body_lexical": 1,
+          "name_matches": 100,
+          "fresh_revision": 6,
+          "name_views": [
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            },
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            }
+          ],
+          "name_match_counter": "for_name",
+          "timing_included": false,
+          "owner_rpc_counts": {
+            "origin": 1,
+            "snapshot": 1,
+            "current": 1,
+            "head": 1
+          }
+        }
+      },
+      "projection_ownership_proof": {
+        "native_check": "MemoryService._projections_current: active projection, actual record_id, version",
+        "boundary": "New native transaction per response, outside formal clocks and without owner RPC",
+        "swapped_refs_contract_valid": true,
+        "swapped_refs": "rejected_before_normalization"
+      }
+    },
+    {
+      "variant": "optimized",
+      "trial": 402,
+      "counts": {
+        "unknown": {
+          "reference_body_plain": 1,
+          "reference_body_lexical": 1,
+          "name_matches": 100,
+          "fresh_revision": 6,
+          "name_views": [
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            },
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            }
+          ],
+          "name_match_counter": "for_name",
+          "timing_included": false,
+          "owner_rpc_counts": {
+            "origin": 1,
+            "snapshot": 1,
+            "current": 1,
+            "head": 1
+          }
+        },
+        "known": {
+          "reference_body_plain": 1,
+          "reference_body_lexical": 1,
+          "name_matches": 100,
+          "fresh_revision": 6,
+          "name_views": [
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            },
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            }
+          ],
+          "name_match_counter": "for_name",
+          "timing_included": false,
+          "owner_rpc_counts": {
+            "origin": 1,
+            "snapshot": 1,
+            "current": 1,
+            "head": 1
+          }
+        }
+      },
+      "projection_ownership_proof": {
+        "native_check": "MemoryService._projections_current: active projection, actual record_id, version",
+        "boundary": "New native transaction per response, outside formal clocks and without owner RPC",
+        "swapped_refs_contract_valid": true,
+        "swapped_refs": "rejected_before_normalization"
+      }
+    },
+    {
+      "variant": "original",
+      "trial": 402,
+      "counts": {
+        "unknown": {
+          "reference_body_plain": 101,
+          "reference_body_lexical": 102,
+          "name_matches": 100,
+          "fresh_revision": 6,
+          "name_views": [
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            },
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            }
+          ],
+          "name_match_counter": "named_reference",
+          "timing_included": false,
+          "owner_rpc_counts": {
+            "origin": 1,
+            "snapshot": 1,
+            "current": 1,
+            "head": 1
+          }
+        },
+        "known": {
+          "reference_body_plain": 100,
+          "reference_body_lexical": 102,
+          "name_matches": 100,
+          "fresh_revision": 6,
+          "name_views": [
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            },
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            }
+          ],
+          "name_match_counter": "named_reference",
+          "timing_included": false,
+          "owner_rpc_counts": {
+            "origin": 1,
+            "snapshot": 1,
+            "current": 1,
+            "head": 1
+          }
+        }
+      },
+      "projection_ownership_proof": {
+        "native_check": "MemoryService._projections_current: active projection, actual record_id, version",
+        "boundary": "New native transaction per response, outside formal clocks and without owner RPC",
+        "swapped_refs_contract_valid": true,
+        "swapped_refs": "rejected_before_normalization"
+      }
+    },
+    {
+      "variant": "original",
+      "trial": 403,
+      "counts": {
+        "unknown": {
+          "reference_body_plain": 101,
+          "reference_body_lexical": 102,
+          "name_matches": 100,
+          "fresh_revision": 6,
+          "name_views": [
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            },
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            }
+          ],
+          "name_match_counter": "named_reference",
+          "timing_included": false,
+          "owner_rpc_counts": {
+            "origin": 1,
+            "snapshot": 1,
+            "current": 1,
+            "head": 1
+          }
+        },
+        "known": {
+          "reference_body_plain": 100,
+          "reference_body_lexical": 102,
+          "name_matches": 100,
+          "fresh_revision": 6,
+          "name_views": [
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            },
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            }
+          ],
+          "name_match_counter": "named_reference",
+          "timing_included": false,
+          "owner_rpc_counts": {
+            "origin": 1,
+            "snapshot": 1,
+            "current": 1,
+            "head": 1
+          }
+        }
+      },
+      "projection_ownership_proof": {
+        "native_check": "MemoryService._projections_current: active projection, actual record_id, version",
+        "boundary": "New native transaction per response, outside formal clocks and without owner RPC",
+        "swapped_refs_contract_valid": true,
+        "swapped_refs": "rejected_before_normalization"
+      }
+    },
+    {
+      "variant": "optimized",
+      "trial": 403,
+      "counts": {
+        "unknown": {
+          "reference_body_plain": 1,
+          "reference_body_lexical": 1,
+          "name_matches": 100,
+          "fresh_revision": 6,
+          "name_views": [
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            },
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            }
+          ],
+          "name_match_counter": "for_name",
+          "timing_included": false,
+          "owner_rpc_counts": {
+            "origin": 1,
+            "snapshot": 1,
+            "current": 1,
+            "head": 1
+          }
+        },
+        "known": {
+          "reference_body_plain": 1,
+          "reference_body_lexical": 1,
+          "name_matches": 100,
+          "fresh_revision": 6,
+          "name_views": [
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            },
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            }
+          ],
+          "name_match_counter": "for_name",
+          "timing_included": false,
+          "owner_rpc_counts": {
+            "origin": 1,
+            "snapshot": 1,
+            "current": 1,
+            "head": 1
+          }
+        }
+      },
+      "projection_ownership_proof": {
+        "native_check": "MemoryService._projections_current: active projection, actual record_id, version",
+        "boundary": "New native transaction per response, outside formal clocks and without owner RPC",
+        "swapped_refs_contract_valid": true,
+        "swapped_refs": "rejected_before_normalization"
+      }
+    }
+  ],
+  "knowledge_references": [
+    {
+      "variant": "original",
+      "trial": 401,
+      "counts": {
+        "recover": {
+          "reference_calls": 32,
+          "source_file_reads": 4,
+          "timing_included": false
+        },
+        "check": {
+          "reference_calls": 40,
+          "source_file_reads": 4,
+          "timing_included": false
+        }
+      }
+    },
+    {
+      "variant": "optimized",
+      "trial": 401,
+      "counts": {
+        "recover": {
+          "reference_calls": 32,
+          "source_file_reads": 4,
+          "timing_included": false
+        },
+        "check": {
+          "reference_calls": 40,
+          "source_file_reads": 4,
+          "timing_included": false
+        }
+      }
+    },
+    {
+      "variant": "optimized",
+      "trial": 402,
+      "counts": {
+        "recover": {
+          "reference_calls": 32,
+          "source_file_reads": 4,
+          "timing_included": false
+        },
+        "check": {
+          "reference_calls": 40,
+          "source_file_reads": 4,
+          "timing_included": false
+        }
+      }
+    },
+    {
+      "variant": "original",
+      "trial": 402,
+      "counts": {
+        "recover": {
+          "reference_calls": 32,
+          "source_file_reads": 4,
+          "timing_included": false
+        },
+        "check": {
+          "reference_calls": 40,
+          "source_file_reads": 4,
+          "timing_included": false
+        }
+      }
+    },
+    {
+      "variant": "original",
+      "trial": 403,
+      "counts": {
+        "recover": {
+          "reference_calls": 32,
+          "source_file_reads": 4,
+          "timing_included": false
+        },
+        "check": {
+          "reference_calls": 40,
+          "source_file_reads": 4,
+          "timing_included": false
+        }
+      }
+    },
+    {
+      "variant": "optimized",
+      "trial": 403,
+      "counts": {
+        "recover": {
+          "reference_calls": 32,
+          "source_file_reads": 4,
+          "timing_included": false
+        },
+        "check": {
+          "reference_calls": 40,
+          "source_file_reads": 4,
+          "timing_included": false
+        }
+      }
+    }
+  ],
+  "native_source_checks_preserved": true,
+  "overlap": "Serialization aliases/fingerprint are inclusive and overlap; profiler wall and process/thread CPU clocks must not be added to formal samples",
+  "transport": "Synthetic owner responses only; actual product authority and native PG operations; no real owner/model latency"
+}

@@ -1,0 +1,20 @@
+{
+  "source": "599c1e9436c9091fe5d3607d7ca60e208430851f",
+  "exit_code": 1,
+  "tests": 2,
+  "passed": 0,
+  "failures": [
+    {
+      "classname": "tests.test_trusted_workflow",
+      "name": "test_confirmation_rejects_mismatched_authority[account-403]",
+      "time": "0.893"
+    },
+    {
+      "classname": "tests.test_audit_runtime",
+      "name": "test_domain_imports_have_no_cycles_even_inside_functions",
+      "time": "0.164"
+    }
+  ],
+  "errors": [],
+  "xml_sha256": "ce69f11c1640af0934b23cf76095f6a1ea0575b45b2b9b5d792096d36f709208"
+}

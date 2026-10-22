@@ -1,0 +1,957 @@
+{
+  "files": {
+    ".gitignore": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "f5cd54b5791eefaf4f106b9b46f882e46cb88298510de7d6c049ef3c26dfebc8"
+    },
+    "README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "26c94bffd7d9eb2d7bd69fb584da0df5c6293bed3ac24fbbb2a1291d30029651"
+    },
+    "requirements-validation.txt": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "b44255a95f7d18fe3561486ef4e73096ee8452d6738db54dbceb6b4056b2f48f"
+    },
+    "validate.py": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "20ca35e030f96a5df76b555dcde2fac94a8b3bf68bd4c73d2ac10748e039dec4"
+    },
+    "bot-connection/v1/manifest.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "ba4c23494452e911526b10aa85fb8c2d994e7feaa1bc1e24e1f8f7cd69a4223d"
+    },
+    "bot-connection/v1/qq-profile.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "3f6c8091dbb68f283121f2e95741c87fa630b3e19f6e3ecde8892bbd70367445"
+    },
+    "bot-connection/v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "ac04b0b1c8392c1cc847a0788440585df29870adbf474aab1038367060067d0d"
+    },
+    "bot-connection/v2/examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "d4cdfde682e336df15aabdc076861c8b43fdf3d22bc24a2ebb88e12e685a142e"
+    },
+    "bot-connection/v2/manifest.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "b3037eb21444b754c729dfbdab97fbd4ec8da9e0353f500c486c9263cfc7ad17"
+    },
+    "bot-connection/v2/negative-examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "3342846a0681af331422717190fbe9b170c7d6e56451eca3cf6f1de563e9637f"
+    },
+    "bot-connection/v2/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "f75ef6bc02b8992df30035b11298eba140273c14aefb9df62f3623fb4fa1193a"
+    },
+    "bot-connection/v2/schema.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "96b41dd2088887c8b4c8f9df78c7989d4fd6c170e6cfabf566130e7bd6ea7097"
+    },
+    "bot-connection/v1/examples/documents.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "37b349abc8dbf6c69f080261adff71121a3924aecb08779d48ba4ec8992fdbf5"
+    },
+    "bot-connection/v1/schemas/bot-connection.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "8c1c6f7c72f1abde90fa8ef1a08a7d2a9a49eefcd4dc07be29c6dac92407fbc6"
+    },
+    "bot-delivery/v2/manifest.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "edec27d83b8b9427656096d45818d9db3665d8d7bd82cc796805e21ba35b757b"
+    },
+    "bot-delivery/v2/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "6ea50c53e7af532d7f1af5c660bccacae9b252f821b286e5e625b5c87e3b19d9"
+    },
+    "bot-delivery/v2.1/manifest.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "768aaf25db41ada4bc4ac3768c9e4758b0753e362bd3c8be482881a9e530eb1a"
+    },
+    "bot-delivery/v2.1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "09cebadbc0c6e6d6eecf6e343f81d4c6b8d7a9e13dfeea21110406d0d640bbfb"
+    },
+    "bot-delivery/v2/examples/media.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "99a508b38083402b774e29754ee9c98f9d6472744cac1d936f66a8ac32d2629f"
+    },
+    "bot-delivery/v2/examples/proactive-context.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "0f6b68427e6cee9c789683f5c25cbda1ec4725c644224a2daadb38242e8eb65c"
+    },
+    "bot-delivery/v2/examples/requests.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "3ffc117b25eec5be46d0b68c88c1402b23b9daf6d123ae017aee6c3a5c8b9fc9"
+    },
+    "bot-delivery/v2/schemas/delivery.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "2817f1a9f266447c8fbacba7801105321f9dc80e73b6626055dd4897777c19bb"
+    },
+    "bot-delivery/v2.1/examples/media.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "99a508b38083402b774e29754ee9c98f9d6472744cac1d936f66a8ac32d2629f"
+    },
+    "bot-delivery/v2.1/examples/proactive-context.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "093d77413e896da9b890a09f67469a65bca30f5048aa101206d808860491b312"
+    },
+    "bot-delivery/v2.1/examples/requests.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "3ffc117b25eec5be46d0b68c88c1402b23b9daf6d123ae017aee6c3a5c8b9fc9"
+    },
+    "bot-delivery/v2.1/schemas/delivery.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "6babb6db0a7f03485993963c5f7e5d8e83920607ecf5f3e9d3e628df9b78f2c2"
+    },
+    "context-history/v1/examples.json": {
+      "origin": "364a240f81a965dad405a67f042cc3e25b17b181",
+      "sha256": "e8de9cd3245973883a9c62737ded3d47a6bfc4e796660562bfb995f2f602b0e8"
+    },
+    "context-history/v1/manifest.json": {
+      "origin": "364a240f81a965dad405a67f042cc3e25b17b181",
+      "sha256": "5db7d9223a8c9bb69dd8046355ed0bc0fff1f963290adf43566b529493624e6e"
+    },
+    "context-history/v1/negative-examples.json": {
+      "origin": "364a240f81a965dad405a67f042cc3e25b17b181",
+      "sha256": "3ae20c0ec08c0c06a82de3bcead9ef615dd57ad1e8ba9ad3fbb600456d58da39"
+    },
+    "context-history/v1/README.md": {
+      "origin": "364a240f81a965dad405a67f042cc3e25b17b181",
+      "sha256": "18c0c8487ae7a7aecee99cb64f83d1648d8934d9989a1b4737dfac44a2535809"
+    },
+    "context-history/v1/schema.json": {
+      "origin": "364a240f81a965dad405a67f042cc3e25b17b181",
+      "sha256": "a905275297b9eaf6388fca5dd8191fcbe351bae0257e9a75222b43bb4047a113"
+    },
+    "diagnostics/v1/event.schema.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "c91ccc13f2a975f234934eb6e7d9ef03d9ad0a650e4c2acbdeb87761b3bf0a53"
+    },
+    "diagnostics/v1/examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "a1139afd483d146f120df4e31c950ae81e7922dcbc57afcd92ac63a996675d0d"
+    },
+    "diagnostics/v1/manifest.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "5d89f7a21637fd57cea4a236e17f8d8c4917799497ff44f87ee68ea614d4805f"
+    },
+    "diagnostics/v1/negative-examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "a8a8453646ef2f4cf2ee870758316fe08f3f9522748d19730aba7338670b3632"
+    },
+    "diagnostics/v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "c7a52353d75db9a7a36c8a966b62ced55d55edc22fb77d25d6033024f91d487b"
+    },
+    "image-backend/v1/manifest.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "62e71dd2f42fb5b1376c439c362a555619da41cb7f7ae26d07acc1182b80ffbd"
+    },
+    "image-backend/v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "5902170ecc6b0e8e28f5e7d9a009176754c4e55653f837f12a06235804ce4a46"
+    },
+    "image-backend/v1/examples/read.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "71e8188230f3af0930bb1483701efa3c5ba2af81354bee373613ea6165d5ebe9"
+    },
+    "image-backend/v1/schemas/image-backend.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "eb8354e647389b7d46c0377eea8ac6f2f1d52ead1b41c8790246ef73e696007e"
+    },
+    "infrastructure-node/candidate-v1/config.schema.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "34feb483c025e1d1f348d7efad6fd0846209f065d122e9d61d6285f5b15fbf35"
+    },
+    "infrastructure-node/candidate-v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "59e538b1801bcaed6ab757e0f6d0ff7af6b2f96d79f9f7d575734f1a536ebbdf"
+    },
+    "infrastructure-node/candidate-v1/request.schema.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "83208d146feaaeca586558391bf04c80f7266973a4fa17cde184da389fdffbb5"
+    },
+    "infrastructure-node/candidate-v1/response.schema.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "e2bee732aa22119000be753974e54124cc119e01ca2b1fd9d79157e267f6e092"
+    },
+    "infrastructure-node/candidate-v1/validate.py": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "fc98b1a41ea0283c4aadc7cccf2758874ce8ef41279fb48b097dfc5c1aeeb55a"
+    },
+    "infrastructure-node/candidate-v1/examples/catalog.request.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "22fa9c8b6357bf218124bf8e5c73067db842dfdb3421203ce6690148a73d349f"
+    },
+    "infrastructure-node/candidate-v1/examples/catalog.response.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "9e72ca2b23f7123615d32056ddc9261750a50050f8cc4e4c862040952466e685"
+    },
+    "infrastructure-node/candidate-v1/examples/compose.request.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "f07dfba7bc6dbc6445edcd3fe08abb752813906e2461da824ecb6d9eba0bf2a0"
+    },
+    "infrastructure-node/candidate-v1/examples/compose.response.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "f7eafaf3c50fc5f9bb574adb26d7536cc10a81889a213ae54c3eaa9ccaf39058"
+    },
+    "infrastructure-node/candidate-v1/examples/config.example.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "cda7ede1877fb6f7771b21c3ec5345feb3bc1f8ef8c47437a14f00a2ff18419b"
+    },
+    "infrastructure-node/candidate-v1/examples/index.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "6ca3d41afae63773d6d0b4115c5b5ff3487a8b51789976c3bbf09a3b60c4f5fd"
+    },
+    "infrastructure-node/candidate-v1/examples/inventory.request.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "cd0504acfe1ac465fdbcc72dfa5f8fcc44df523352003253a8b785766869720d"
+    },
+    "infrastructure-node/candidate-v1/examples/inventory.response.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "14ac3c223022f506c392d7f764b45fb0180e8271a17392aa7428c712964777fc"
+    },
+    "infrastructure-node/candidate-v1/examples/logs.request.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "f79c8f8d64fbd9c59b14aaf5b004e947abc9f1999859ccfcf313b4a80d0a5c7a"
+    },
+    "infrastructure-node/candidate-v1/examples/logs.response.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "6349affc40ea7bc3b29c4236cf639be71bc4ae80817b8c13c13459dd1a524074"
+    },
+    "infrastructure-node/candidate-v1/examples/openwrt.request.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "f524175a565d2e31b690ec2bfb05de3bf1f6dca0fe289ff42656b092f819503d"
+    },
+    "infrastructure-node/candidate-v1/examples/openwrt.response.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "54fe94025c82beef24221a7bfb46b44741277431816c1ec0071f144b70bf9836"
+    },
+    "infrastructure-node/candidate-v1/examples/snapshot.request.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "7fba5f0e47cb69c9cebb3e740bbbef3329780a7f6f6cd3352a08d5d111dc6c61"
+    },
+    "infrastructure-node/candidate-v1/examples/snapshot.response.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "e7e7ce9e8c02f0d72e436b1001e4d09ea7b57e4bc91b2c884885433bae5d054a"
+    },
+    "infrastructure-node/candidate-v1/examples/stats.request.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "0bb4fd9e4b85b9473f8fb5e14ba6931a35ad2b9f39475df3abe3d36726425841"
+    },
+    "infrastructure-node/candidate-v1/examples/stats.response.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "0093376d446cfd676f4a7a968963f72d23533f771d4fb796fea0d26ea47b96fb"
+    },
+    "infrastructure-node/candidate-v1/examples/unavailable.response.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "0c14ddf23036e1e54c381a14d56f82228a09c156858c371ba2f97605ce71fdf2"
+    },
+    "infrastructure-node/candidate-v1/examples/invalid/catalog-host.response.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "bbd9bd4dc29705c62b06fe9d4d8232c505bc440f05e550eccd2413095bc18355"
+    },
+    "infrastructure-node/candidate-v1/examples/invalid/command.request.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "cdeeb8659c923c1be89b3635d004d4a455197421ac42d2e5639c339f982510bf"
+    },
+    "infrastructure-node/candidate-v1/examples/invalid/deadline.request.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "fb873a8381f2243f964693236e9fd730b076581fb3ef926959102dafa17cd713"
+    },
+    "infrastructure-node/candidate-v1/examples/invalid/false-health.response.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "f32166ca4ca7db02c44d973f5f2b6ee897d8928aec6f220d7a456319a427692d"
+    },
+    "infrastructure-node/candidate-v1/examples/invalid/short-id.request.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "c324929b36dfb89b7ceab75ea3996bc75e83e3788c6d188bb8c9779af9fe5210"
+    },
+    "infrastructure-node/candidate-v1/examples/invalid/zero-unknown.response.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "9bfd560958718eb043a34f404180c13ce4ceb72f36ebc16082a4b1d85b9057ac"
+    },
+    "knowledge-content/v1/examples.json": {
+      "origin": "960509eadff287f775a6ae9834b460e9159172c8",
+      "sha256": "54a09444b77bae56ae3d2b602bd3fd01b6aa8a90b52174ae6b7dea33baa0eaca"
+    },
+    "knowledge-content/v1/manifest.json": {
+      "origin": "960509eadff287f775a6ae9834b460e9159172c8",
+      "sha256": "beecd2f75b09df089f7d20c10c1ba39cdaa79c5ba78b8db702ef5005129e9199"
+    },
+    "knowledge-content/v1/negative-examples.json": {
+      "origin": "960509eadff287f775a6ae9834b460e9159172c8",
+      "sha256": "6ab1ffd7c7352a4a0f3b32d8dbab0fa889ff433a85e9836f3001d5576dabb851"
+    },
+    "knowledge-content/v1/README.md": {
+      "origin": "960509eadff287f775a6ae9834b460e9159172c8",
+      "sha256": "a24f6a9ce5d9b588b199fb1e1fb88bc22e971487cd6ac90a63f5480ac67d3897"
+    },
+    "knowledge-content/v1/schema.json": {
+      "origin": "960509eadff287f775a6ae9834b460e9159172c8",
+      "sha256": "fe11d0f64cc0e7e7beb8bdf640069fae279a5391edeb5e656dc762ce0b7b95d9"
+    },
+    "life-read/v1/examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "fa842fa7e91bb056cc865780b501de3ace2b59a37a59a7f80c7159226cf6e6b5"
+    },
+    "life-read/v1/manifest.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "7be7507d58f897a739b269de3c096ba948c92b25266888a91fa50130d342c551"
+    },
+    "life-read/v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "08efebe487256ece9f2deadcf807f946a88ce93b3986b21c04ae00a1bd8b134e"
+    },
+    "life-read/v1/schemas/life.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "dd26c88db4d703957653f2876339b61a1a1d86dc8471d4129dcf0899a6641d1a"
+    },
+    "life-runtime/v2/manifest.json": {
+      "origin": "960509eadff287f775a6ae9834b460e9159172c8",
+      "sha256": "ff7cbaf5bb9cf1330a11821c0e5f0eefb728a934e9fb8698c9b644e09f43042c"
+    },
+    "life-runtime/v2/README.md": {
+      "origin": "960509eadff287f775a6ae9834b460e9159172c8",
+      "sha256": "0fa5e54db353836345deed1417e8a59ac95e330ad05f50dc2f570bf4eaa07db0"
+    },
+    "life-runtime/v2/dependencies/platform-credential.json": {
+      "origin": "960509eadff287f775a6ae9834b460e9159172c8",
+      "sha256": "e4c5c0c3c0f35d03458277f12e59dcc2a2b2c87f7a115456a8ee456e0e3f2354"
+    },
+    "life-runtime/v2/examples/content-projection.json": {
+      "origin": "960509eadff287f775a6ae9834b460e9159172c8",
+      "sha256": "ac3d7ced7ff904fe74553d7ee1e0ecb37acc2b07272aee5d8a3c51e25d631f74"
+    },
+    "life-runtime/v2/examples/conversation-image-jobs.json": {
+      "origin": "960509eadff287f775a6ae9834b460e9159172c8",
+      "sha256": "6f56420cc4bb054cc3e97835412cba48b6f6815d94f6f1c28e1f215ff7dd77d5"
+    },
+    "life-runtime/v2/examples/extensions.json": {
+      "origin": "960509eadff287f775a6ae9834b460e9159172c8",
+      "sha256": "99909929d186a0dda1c977bd9f55abc571d366e106b316dedf5472290a18a19a"
+    },
+    "life-runtime/v2/examples/image-references.json": {
+      "origin": "960509eadff287f775a6ae9834b460e9159172c8",
+      "sha256": "a424b75ec05d1290adb9f4ab53f92c09e6c7d79d1c05e4561956afc099debc34"
+    },
+    "life-runtime/v2/examples/management-continuation.json": {
+      "origin": "960509eadff287f775a6ae9834b460e9159172c8",
+      "sha256": "a22e4861af6007627924ae59b92c7bb5a9a18b9a529a06411039f1a0180de717"
+    },
+    "life-runtime/v2/examples/proactive-control.json": {
+      "origin": "960509eadff287f775a6ae9834b460e9159172c8",
+      "sha256": "a85f9f2d150d1c676c845a2b581abca0dca79d98961b5c143b0ba51f42178a67"
+    },
+    "life-runtime/v2/examples/reads.json": {
+      "origin": "960509eadff287f775a6ae9834b460e9159172c8",
+      "sha256": "a3bf5c0f8f8f5593b9150f077a28eabf2b3171f7c3848d9c16d0ade2742b89d3"
+    },
+    "life-runtime/v2/examples/requests.json": {
+      "origin": "960509eadff287f775a6ae9834b460e9159172c8",
+      "sha256": "e58526436aa6c86a9ae9c0af2bead5b252e8a1e9f812fb8bf77ce14f24f73302"
+    },
+    "life-runtime/v2/examples/semantic-cases.json": {
+      "origin": "960509eadff287f775a6ae9834b460e9159172c8",
+      "sha256": "1b3e179731289c6e8ef142333dab9d146a4b353741270b19f32ffad5a5757981"
+    },
+    "life-runtime/v2/schemas/life.json": {
+      "origin": "960509eadff287f775a6ae9834b460e9159172c8",
+      "sha256": "beaf103289885d03cbcee44a1e03535f10fe90781f3c2dbe5058a6d87b566142"
+    },
+    "media-package/v1/examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "dd3ebd718b7e161be5029476c290371007c59a1612348633e18c91c15e0f1b47"
+    },
+    "media-package/v1/inspector-semantics.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "973359362a38a75170aa8ff153b557a4bad8cad2b4c1085d516e16225302ce9f"
+    },
+    "media-package/v1/manifest.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "9d56d3938d0c067390ac30eb70888e2c99504ac423aa24a8b9db42ea69b31955"
+    },
+    "media-package/v1/negative-examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "00d3cba85719d30b92f48f18123ed2bf11d349008e8b46d406978a3fbc1b0956"
+    },
+    "media-package/v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "d0c5c7cac7a42ef43faa07c7f236a2dfb0150b255d2860761befc9c1916b0f2b"
+    },
+    "media-package/v1/schema.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "5268d305290353f574a1b30f4f31b9a13492d82021e19b998bd8ffccbb0c79e4"
+    },
+    "memory-context/v1/examples.json": {
+      "origin": "364a240f81a965dad405a67f042cc3e25b17b181",
+      "sha256": "a65a93848d948710eedcc54c0c6d01c9312f931319639905f044f680f3d2d529"
+    },
+    "memory-context/v1/manifest.json": {
+      "origin": "364a240f81a965dad405a67f042cc3e25b17b181",
+      "sha256": "aaf25b4446c3915d48e46c6f0f687a26b57f30ac1c4494085266a586f67953e8"
+    },
+    "memory-context/v1/negative-examples.json": {
+      "origin": "364a240f81a965dad405a67f042cc3e25b17b181",
+      "sha256": "32f045ba9f7177b707a30091a870f1ff6e9dac331e9bc5f1b840ed6797d064f7"
+    },
+    "memory-context/v1/README.md": {
+      "origin": "364a240f81a965dad405a67f042cc3e25b17b181",
+      "sha256": "cf5ab2b2d30b50e29d6e2ce16a3a5b6c89f5e9f4be27ed510748990b359c64dc"
+    },
+    "memory-context/v1/schema.json": {
+      "origin": "364a240f81a965dad405a67f042cc3e25b17b181",
+      "sha256": "f17575dee2bd16fba18e7d1f2128f25e02c735ca801621775dbb503f15b84470"
+    },
+    "memory-role-browser/v1/examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "f9f509b5c985305138349d624a4d436b4de98c8c653051bdef44a2c8a7093fe0"
+    },
+    "memory-role-browser/v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "074baabda77b518a457e7572052cde8aa532397ba65a36d4592db6473646235c"
+    },
+    "memory-role-browser/v1/request.schema.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "209f2447e1b6b487a62ccd9ef245fbad7cbd152d9e87ae0f5d9612bde5bf03e6"
+    },
+    "model-origin-renewal/v1/examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "6540bfbb1703d02726a808f2ca998fd85683d6f21d182bea76985cee62e34f94"
+    },
+    "model-origin-renewal/v1/manifest.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "c5017724187c1386b647fcc5b41ab3cb1702f27d6192f3a87fcefb23e7a5a61c"
+    },
+    "model-origin-renewal/v1/negative-examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "c1f00a33a8aaeee86441cdca3d7dd01715ca79b2884a89def1e24f3f3357b28a"
+    },
+    "model-origin-renewal/v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "549904168e8b71b8382734dbec5a3bbb0048b703fad082bcb42569b07bd60ef9"
+    },
+    "model-origin-renewal/v1/request.schema.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "93bdfc5a1c248da4f227c51f0e62b43c513a2a769a687ce8ee9ffaaca0fbe228"
+    },
+    "model-origin-renewal/v1/response.schema.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "9520c729fa5fea8501cebaf1581ceb4d5c58dc90533f3dcf6e0575b641882677"
+    },
+    "model-protocol/v1/compatibility.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "32cfba5f8fbca8e6ef9aff7ab871931dd82b0d596eeb40030542d5bcc6ca4dc3"
+    },
+    "model-protocol/v1/errors.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "e7a155ee5b5b058eb8d9d1195f0ee6887aff9ed94099b39939c76cb880996fa3"
+    },
+    "model-protocol/v1/interfaces.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "312d0610f24b19407c205d293e4f282de5e4f497c17aa383692cd408250372d0"
+    },
+    "model-protocol/v1/manifest.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "832abdbfbbb49d71bffc0aabdd816f4de92d892680f26cc5f05402e397d34262"
+    },
+    "model-protocol/v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "963b6c561fddb5796f3eb3e2a7311565630cf63d3740379607fa43843e16773f"
+    },
+    "model-protocol/v1/requirements.txt": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "9cba6d4508d006391ab899893990d5ac5d03b4811a0f71f152c5883897ee8120"
+    },
+    "model-protocol/v1/semantics.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "df9f6e5286ef77b66a8c4aab76b9ff805dc7804dd0a91143f619e465b8620568"
+    },
+    "model-protocol/v1/test_validator.py": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "1cbefa0b3c096caff4708826a442c50eca3004f4fdd206b7782356a3177a3dea"
+    },
+    "model-protocol/v1/validate.py": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "d39d2efa07834a2a6e62250c4319660831e54e90f99f2799f7c0d5bba85c24b0"
+    },
+    "model-protocol/v1/examples/documents.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "385414cc43fe07df1f19d561926ece8f6c44d3018cccd307d936fd33cd663428"
+    },
+    "model-protocol/v1/examples/negative-documents.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "99cdcf4305ed2b0c12b5778311b6eeee282be3d5027ffddcdb30c56219bd99a9"
+    },
+    "model-protocol/v1/examples/relations.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "1c3f18bb29b2023280419bb47e7a02151ba1dc1668f691d32a77d94d3aad5ff1"
+    },
+    "model-protocol/v1/schemas/model.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "4c9ec322a30117701236170fd196d3471b98d51758ef3325ac7b10e0acfb8c82"
+    },
+    "observation-source/candidate-v1/capabilities.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "f36cee9fcc551af2980e9c1e310fd56ccfcf82eadfea9ddea17196830663997e"
+    },
+    "observation-source/candidate-v1/examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "2594e8fd7aa85bfe88c4ef50657f2e107dff387720c088d8114a7f51f1c5172a"
+    },
+    "observation-source/candidate-v1/manifest.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "8379d9a4a0e6902d7ffefa7febae28e49cc2f562d4c3057106164a2b7ba3a0a8"
+    },
+    "observation-source/candidate-v1/negative-examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "1ff79e2d71fc30de3a4f976fde4b8a163a6ca640b8fe801323aa943de27c736e"
+    },
+    "observation-source/candidate-v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "4bf0bf24f795b20cc04f957407a87f1cbc19f41ada33064b79f2f68d91f36ca5"
+    },
+    "observation-source/candidate-v1/schema.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "adff00d178c6b7f5c0a2a7d73b9290b137836eda69378c207ea52f2b534c6f8a"
+    },
+    "observation-source/candidate-v1/validate.py": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "5e8b550186fbecf36bcddc754e762e1795881ead4e17de5624e2cf2d56fc5237"
+    },
+    "observation-source/v1/capabilities.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "f36cee9fcc551af2980e9c1e310fd56ccfcf82eadfea9ddea17196830663997e"
+    },
+    "observation-source/v1/examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "2594e8fd7aa85bfe88c4ef50657f2e107dff387720c088d8114a7f51f1c5172a"
+    },
+    "observation-source/v1/manifest.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "c44f0983629c3e145cf37cccc64563cf2ba8d2a569b34308267fd88fab3713d3"
+    },
+    "observation-source/v1/negative-examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "1ff79e2d71fc30de3a4f976fde4b8a163a6ca640b8fe801323aa943de27c736e"
+    },
+    "observation-source/v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "96cc6a52aa237a443dd42cefc8c2083e474c103a2ffbce7b34da70dd6727d3e5"
+    },
+    "observation-source/v1/schema.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "bb43f722196abe6da1932878a64f422e5a118bd3905d242b5c497aa2c487f9c3"
+    },
+    "observation-source/v1/validate.py": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "5e8b550186fbecf36bcddc754e762e1795881ead4e17de5624e2cf2d56fc5237"
+    },
+    "persona-authoring/candidate-v1/examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "1d85d756d1bd45617f3b8bfbc89606e66083d258c7b5041f8dcce507dfbfb8d8"
+    },
+    "persona-authoring/candidate-v1/manifest.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "d70921ad9823e22f839d4df7a8a52c2fe799bc951e58a8975eedc48f9d577a87"
+    },
+    "persona-authoring/candidate-v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "ed6d49f4ce27c9703b96b06cb12378a327d47c2d33e9a9dd195cd7e33182c55c"
+    },
+    "persona-authoring/candidate-v1/request.schema.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "e32a864c037f117bfb7bc3ffb4393aaba34c425bba72ba9de60e6f0985b55415"
+    },
+    "persona-authoring/candidate-v1/response.schema.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "850b6f628759e7a74d78438a2e35951a3c78a7475dd85b1bfa61025cb8a77de0"
+    },
+    "persona-authoring/v1/examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "1d85d756d1bd45617f3b8bfbc89606e66083d258c7b5041f8dcce507dfbfb8d8"
+    },
+    "persona-authoring/v1/manifest.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "dc837b8ab98637d4dedc35248e94a9895a856f34181a2351d43c7292fbf971a3"
+    },
+    "persona-authoring/v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "1a0055585a52130c42aec84158d7c890299a73e9a25efde08c2c04c27134871f"
+    },
+    "persona-authoring/v1/request.schema.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "a72a89b752dc0289e9d6ed7fe7c02a6e7fd3cb126dde14e47d1fa56440f5a942"
+    },
+    "persona-authoring/v1/response.schema.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "9d192fcfb47a9e808094da21713d78ed1994580886851ebc638b155339660beb"
+    },
+    "persona-management/v1/examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "c8ee6abff62d0e3982d9302f6cb03ea2633c0a76c3d8c7ed6e208a2fc2e0c770"
+    },
+    "persona-management/v1/manifest.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "72ae9ee2fd5e0140e122877c35d90eb747f1d56804c33d8f01c9eb38413c0e2d"
+    },
+    "persona-management/v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "e4dbe082990c8d572fc42823e0e74e4311ddbd0c2616b995c01934856948e513"
+    },
+    "persona-management/v1/request.schema.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "89178e72f3537bf18a9540b4eb158dd15baa8dd1d75e6e524d9b7ef71c3bd907"
+    },
+    "persona-management/v1/response.schema.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "665841c9ac9fe43c26dd8f3c4a4cf1bf3fe52616fb25e5999fd6c5f098054a51"
+    },
+    "profile-memory/v1/examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "0ffdc88d76ee8817923f5fbedbad576a787c6ddc5af6bdfd31f082ce5a1e8f5d"
+    },
+    "profile-memory/v1/manifest.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "757b243a25945a75d55dafab9da94828e79a009a0a77ce2aeb43039e4c2565c9"
+    },
+    "profile-memory/v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "c2480689a4603d8f8616f8d80683bafe7636bd2a9c36c81161e74b73d1d559f8"
+    },
+    "profile-memory/v1/semantics.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "bd62ea2299e4ed34609a420bf4ae8d4f187b09e02a61eb5d81e49d415bd6f27a"
+    },
+    "profile-memory/v1/validate.py": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "4fbff50a03eabffe75f46fc717d95214051e4146f93c3a8fb174e6e69f6ee549"
+    },
+    "profile-memory/v1/schemas/profiles.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "3d7ee2605fc2aefc890f38244197e284d287ffcee1746bb5639cb6a6ecb034ed"
+    },
+    "provider-functions/v1/delivery.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "ff388a265d0080bae8e765456e35bf810d4e30d553cfd17c098932f9db54d5b5"
+    },
+    "provider-functions/v1/examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "7d0a56137b9e7d41b38f549b16a83bef771a30a30af184fc81ce02c4a23d1a7a"
+    },
+    "provider-functions/v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "48a10d5b1bfbee28763634fc5853350bb73d1919faf204e8c21fb645488701ce"
+    },
+    "provider-functions/v1/schema.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "12f9fac4010d9d88edd6e02a8d80343334017f81ff6f42727701edc9bc02707c"
+    },
+    "provider-self-service/v1/examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "15ac6edd6dd839cbcd6a9e0550c82f7590d709ead2792ad7d46aab264ce1cfc5"
+    },
+    "provider-self-service/v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "c7398eabd6a7fed73122bc344edecd4ff0abc0467de4dd9d8343d5407e90654e"
+    },
+    "provider-self-service/v1/schema.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "98d02ad8b88ccb081d1ca6ed428d159b181a5a655d97c0aef546543c2e5a78c9"
+    },
+    "qq-identity/v1/examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "cceb58e7a9df12786cd9bd9763afdd72a0d66a3c0a61f696cf7206b19a8f9d68"
+    },
+    "qq-identity/v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "7387e736a2aca5503bb5ac5ad75542d3352c432bad892225857cda5f6466b0dd"
+    },
+    "qq-identity/v1/schema.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "a64759217431b7fc7a4fb8238ab4696a467771d07b3405edec064022f268b032"
+    },
+    "reading-state/v1/examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "4e00ab9ebc2948ac2477ea72c04f42fd55b14a2d84fe0ab7275d1a979812050e"
+    },
+    "reading-state/v1/manifest.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "2dc05bb8658988a46e286de6ef283d49bfb286e45141a4d2cfc0501d79bf1ebb"
+    },
+    "reading-state/v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "1b8497cf65cfba46948ee3244435aaf50776c2e3394a9d7a6dd06e381f8dc8cf"
+    },
+    "reading-state/v1/schema.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "fdf9d8e912e0f6eba2468b73a3596ed019ed8feeb3affec8a7d19ccfc6b368b3"
+    },
+    "role-relationship/candidate-v1/acceptance.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "8bdd91fe4118c8351772f755cbee9de4bfb68263a1de1691c1b41085dbed392e"
+    },
+    "role-relationship/candidate-v1/examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "9a43e8502bfacfb0c9b4984ee4eaf476a1585a875b7aa2adb0a5d35909de920a"
+    },
+    "role-relationship/candidate-v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "ca7a2963f5c2c836e07c4e277ffc94147f4af37e8ada0e336b9edf99ef956208"
+    },
+    "role-relationship/candidate-v1/schema.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "f3b588591411f1ed4b8aa7c9003d201530644d4dfc02294bdd9e9d7f847214a3"
+    },
+    "role-relationship/v1/compatibility.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "94ff3991476ccc34865b33cd07e02dba5b6fe7468b017a9cbe3e17240693047a"
+    },
+    "role-relationship/v1/examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "716965c65bf7d17d8045173495dd21dc50063c450cdfbef5ebb8bcbabd3f7d0e"
+    },
+    "role-relationship/v1/http-examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "121d25deb4ff89f344228900eb599aae78506ed755aa0c19a6d2a3026f277732"
+    },
+    "role-relationship/v1/http-schema.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "de091a4ffa0581aa85d63c962dddacfd93b62b04814dc08afe70e223381e60bf"
+    },
+    "role-relationship/v1/manifest.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "2045e5a3e7e8618c688df0234e4ff2cb3e0001576d123822f2d18966e364d925"
+    },
+    "role-relationship/v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "087c9a522458d01ddc8b2e89c1b5343eac98b87624fb4f3d1a30df56024b7408"
+    },
+    "role-relationship/v1/schema.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "e96397bac2b6ad8ff9d23c023d7d3c5ba0701734b27053a05b9d0f65a7ff8ee6"
+    },
+    "role-relationship/v1/validate.py": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "f82d43c0336b3dd5f100f6541a1f38c624892fabdca91d91b6c4ac1057fc75ad"
+    },
+    "role-runtime/v1/examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "d6b9432db87e17f1ecbc658eebd404c4a43d55f82fa3860ae2dc9dc010bf53d5"
+    },
+    "role-runtime/v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "326fba3132fdbdb2e990b035168be5d07a77da9baa8377a24b483dfc222c71c3"
+    },
+    "role-runtime/v1/schema.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "117f938ce01b19d92473eeac9ce9536d8b666c22a130a49bc7a1b6bdd5a856ed"
+    },
+    "skills/v1/manifest.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "0ad3a444e8bff26721c14664260d08b463feb3288a556364e1af35f3e277d0f2"
+    },
+    "skills/v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "7fbb62ec2dc63d6c6b831c35c08ad23367d5f470f6760e7c66a9cd89dabeafa3"
+    },
+    "skills/v1/dependencies/platform-credential.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "c636fe09b05f443aed67752226c3305a9828ef81332a29087f3f172c815f891f"
+    },
+    "skills/v1/examples/disable.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "485c22b3de8b2423c62beee5a6fc0d88eefdf70028032fd0b1255191c3c6a68e"
+    },
+    "skills/v1/examples/manifest.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "44c206de030135d60f366ff86c4a202aed0bf610dc002ec92a2058272878b658"
+    },
+    "skills/v1/examples/read.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "1fa7cdd00c1a42575dcf989a035088ab1cba6f8d3a3e52e9a28fe5f138efda6f"
+    },
+    "skills/v1/examples/response.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "3771d3a50d7a225f867de2f788f48b9564dffa3de216357efa1d0ec52a0f83ed"
+    },
+    "skills/v1/examples/source.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "9fbafeb83b413ffc9a666272a74f608a504cd110119592c5b24ae6b61c64f5df"
+    },
+    "skills/v1/schemas/skills.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "857ef74afb7dd8d597f8f8b613f7bb3188ae9d15bb53bc078bc421a5a146042f"
+    },
+    "source-sync/v1/compatibility.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "be0cd61080662554fedf66a8875d8bd20da0c888636195544452ea0f2f73d89e"
+    },
+    "source-sync/v1/interfaces.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "e771ef7aee1caeecf7fba3b154274cde80256f27d6822e616e6d1dd42d30ddef"
+    },
+    "source-sync/v1/manifest.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "6d5c417c2e407aaf055151c1a3639d3b4e2ce4ad7da999f95273b6fcbf487370"
+    },
+    "source-sync/v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "e36f925af0298bf868a564b7b4300cbcdc97889149db8cad5bcad0ddca984a79"
+    },
+    "source-sync/v1/rules.py": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "69eecf03bcdfb6904d02b597fd46ad1938d7d5e3a7eb4838159d081156dacfb8"
+    },
+    "source-sync/v1/semantics.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "4de65d52931b53e16079403ae3e4a65b0e718ea330a126e713afc638f65f5a92"
+    },
+    "source-sync/v1/validate.py": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "9f63cf90dc2541d611210124cbf042d53bb5aae7ffd395a02e0f97823504b988"
+    },
+    "source-sync/v1/examples/documents.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "5c923bc322f38ba58330cade3c97659963749650addf4337288b83d84359c50d"
+    },
+    "source-sync/v1/examples/negative-documents.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "c0301b7e7fe9c590b29d39cce54e1d78f418f00d15ef7adb004e29d204db4ce2"
+    },
+    "source-sync/v1/examples/relations.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "173c2c8ed2dc6651e76cded66b8fa6ea2cd6bd98c3c872165bf579faa3912c96"
+    },
+    "source-sync/v1/schemas/shared.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "24b0c297007651ac4a3821cc41d68f8d6e7460d911cd42c4e4edc30b84b1d76d"
+    },
+    "source-sync/v1/schemas/sources.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "48749a31638f0d81e7ac9528ed3f3fc78400519409d2832ec77e0816e2d311fd"
+    },
+    "source-sync/v1/schemas/workflow.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "01424adddaf3d838337d37d0d1c0a58ccfb56ed7c984899c0602d37a86bf6e28"
+    },
+    "source-sync-batch/v1/manifest.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "ac6f39d1f0afe55677fbbb0ce2da1b212d22c49f18917d8fe2ed613d424c4327"
+    },
+    "source-sync-batch/v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "4e53b20628da7a9739016402aac63a0386f58daf1f86ac0fe28e6f1ca0091714"
+    },
+    "source-sync-batch/v1/rules.py": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "bd237a723094561cd82fca14f108b582a6262e791a6b69156a3c6d875f477107"
+    },
+    "source-sync-batch/v1/schemas/batch.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "148debf3221964695f51b6c2bbd632e8b4aecb3bf8eea7e3b2de588ed20b920f"
+    },
+    "text-dialogue/v1/compatibility.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "558534ea33bc75973a20de1b6a3afc9492f623d8feaf8157a7726ab553a8e9b6"
+    },
+    "text-dialogue/v1/manifest.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "90697e6ecbb587d3db8c8e4682f7f8f43a8b1a98f70d8835c8282b03828d2d3a"
+    },
+    "text-dialogue/v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "85b9b011501600aa65e1cc072fa8e7a26d4b2ce947633766db52c9a70e3754ac"
+    },
+    "text-dialogue/v1/semantics.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "07f0e23c1858ac769194f681d12abe7eb652fe167e45ce40174e645cf9477dfc"
+    },
+    "text-dialogue/v1/examples/documents.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "7ff8da16faf3277cb996107d5909fbe452c9202eac6a0277fd9c7da4ed4f1fe1"
+    },
+    "text-dialogue/v1/examples/negative-documents.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "2feae6a24bf9e0cd09510386c110b929e44912e1a46dfb7c49d727046d7b940a"
+    },
+    "text-dialogue/v1/examples/relations.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "62fa37ec1e06abe010ada938f8f9a0e574e988fe331f4c5c62aa5fea3820c74e"
+    },
+    "text-dialogue/v1/model-execution/negative.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "81d678c958e7ef056d75a6545e35471b3ba547bc915f425a0dbd3b54fdce977b"
+    },
+    "text-dialogue/v1/model-execution/positive.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "c433f0c2cb2ee1666f9bf98850f159dd1b77844dbe88bff8e43bfefcb8ba2f30"
+    },
+    "text-dialogue/v1/model-execution/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "e583c357e87b7440db438683feaa276ce7ea79324e7fbc435d0e68a97ea018f9"
+    },
+    "text-dialogue/v1/schemas/common.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "938b7c8b9fb69419dd6afc94d29c4b341697403f34af11d743d2cd8d684ab687"
+    },
+    "text-dialogue/v1/schemas/conversation.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "e640040fa816100b258999087f8784d1e7d1d55df007992632e202e02b64b6cb"
+    },
+    "text-dialogue/v1/schemas/identity-memory.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "7e32e26aea89cc88fb48f9d0af43f32ea68de8561404ff495d3a8044985ef848"
+    },
+    "text-dialogue/v1/schemas/model.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "d8bb87e94221bb0cf65d050bb898fe5988b0df2e34c8bc62776e59a77c793c1f"
+    },
+    "text-dialogue/v1/schemas/web.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "6d1be804b1ff3e0fd63d776cea6c1615455923c4b1fe7782fd52202713cc333c"
+    },
+    "web-conversation/v1/authorization-examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "0ffecb85fe8f3b1773c4788aa887fff0c9ba964440b9b53733efd7b6f26a9649"
+    },
+    "web-conversation/v1/examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "21a7e99d3d063e62026b7c5165016921a6f9d90109959104e1287f7ce85118de"
+    },
+    "web-conversation/v1/manifest.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "3ccb44c13f5969ce4cd279c51d14f58d95c9cd4e75ca85cd8d6af286b3db0417"
+    },
+    "web-conversation/v1/negative-examples.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "3806c1fced4084ec085929f58952d3daf28f2eb01484e7ef5a22000161a05b67"
+    },
+    "web-conversation/v1/README.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "3e95c73dddf4e4beec76b8de94b1404267dd43a1b1a947b3ed20cd7e34e52405"
+    },
+    "web-conversation/v1/schema.json": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "d2c6925fc55a471a96b89687812266dadc4214e8b904639f7c0220c6144f2316"
+    },
+    "web-conversation/v1/semantics.md": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "20559fdf482050d1cd2ff0ce1053f44f7587cfa7752cbfb950d539dd530ee5d5"
+    },
+    "web-conversation/v1/validate.py": {
+      "origin": "frozen Q15 fixture",
+      "sha256": "751c3209a00c2fa62d7e104be6f21b6af2fa3e4a85620a243ffe7e24c0792967"
+    },
+    "memory-context/v1/group-read-relations.json": {
+      "origin": "364a240f81a965dad405a67f042cc3e25b17b181",
+      "sha256": "0614b771f2e4d785a3e73256b06583809697d77cea1c1d4175c1116f4bf60d81"
+    },
+    "context-history/v1/group-history-relations.json": {
+      "origin": "364a240f81a965dad405a67f042cc3e25b17b181",
+      "sha256": "e9105bc3742a810d62c7cbd5ceab9683eafde2175642fdfb67908dc70f2fb194"
+    }
+  },
+  "directory": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\pg-readflow-20261022\\contract-fixture\\contracts"
+}

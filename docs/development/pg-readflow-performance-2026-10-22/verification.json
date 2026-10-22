@@ -1,0 +1,82 @@
+{
+  "baseline": "599c1e9436c9091fe5d3607d7ca60e208430851f",
+  "candidate": "70022d47de219bfab1bb29dbf3a5be2f73f7acda",
+  "full": {
+    "mode": "full",
+    "source": "70022d47de219bfab1bb29dbf3a5be2f73f7acda",
+    "tested_checkout": "70022d47de219bfab1bb29dbf3a5be2f73f7acda",
+    "exit_code": 1,
+    "tests": 2363,
+    "passed": 2161,
+    "failures": [
+      {
+        "classname": "tests.test_audit_runtime",
+        "name": "test_domain_imports_have_no_cycles_even_inside_functions",
+        "time": "0.168"
+      },
+      {
+        "classname": "tests.test_recall_preparation",
+        "name": "test_fact_filter_and_history_rank_share_one_explicit_transaction_snapshot",
+        "time": "0.002"
+      },
+      {
+        "classname": "tests.test_trusted_workflow",
+        "name": "test_confirmation_rejects_mismatched_authority[account-403]",
+        "time": "0.151"
+      }
+    ],
+    "errors": [],
+    "skipped": 199,
+    "xml_sha256": "491a259976da22bf4dc67b13d3ad0e1ee9381f4bd7e4a63a41e1a9357dd8316e",
+    "shared_version": "0.1.3",
+    "schemas": "synthetic UUID low privilege; no production settings",
+    "real_models": false
+  },
+  "native": {
+    "mode": "native",
+    "source": "70022d47de219bfab1bb29dbf3a5be2f73f7acda",
+    "tested_checkout": "70022d47de219bfab1bb29dbf3a5be2f73f7acda",
+    "exit_code": 0,
+    "tests": 258,
+    "passed": 258,
+    "failures": [],
+    "errors": [],
+    "skipped": 0,
+    "xml_sha256": "ee1ec551db091c016198db2b9c49ee6ebac0ad4e7998c963d221f2ec8a6304e0",
+    "shared_version": "0.1.3",
+    "schemas": "synthetic UUID low privilege; no production settings",
+    "real_models": false
+  },
+  "distinct_passed": 2359,
+  "native_selected_passed": 258,
+  "native_postgresql_distinct_passed": 198,
+  "native_pg_count_scope": "Only nodes skipped in full for unavailable PostgreSQL and passed with real PG; selected SQLite/proxy controls excluded",
+  "native_covers_full_skips": 198,
+  "remaining_skipped": [
+    {
+      "classname": "tests.test_automatic_facts",
+      "name": "test_profile_preparation_preserves_qualifiers_and_requires_existing_grant[group]",
+      "reason": "Private evidence is the authorized profile-source path under test"
+    }
+  ],
+  "baseline_failures_reproduced": [
+    [
+      "tests.test_audit_runtime",
+      "test_domain_imports_have_no_cycles_even_inside_functions"
+    ],
+    [
+      "tests.test_recall_preparation",
+      "test_fact_filter_and_history_rank_share_one_explicit_transaction_snapshot"
+    ],
+    [
+      "tests.test_trusted_workflow",
+      "test_confirmation_rejects_mismatched_authority[account-403]"
+    ]
+  ],
+  "new_failures": 0,
+  "import_cycles_unchanged": true,
+  "baseline_xml_sha256": {
+    "baseline-known-failures.xml": "ce69f11c1640af0934b23cf76095f6a1ea0575b45b2b9b5d792096d36f709208",
+    "baseline-recall-preparation.xml": "34982997f1a62bb7f392333971c0b5d89388b5f94b277d4c1dddcd0910bbc02c"
+  }
+}

@@ -1,0 +1,323 @@
+{
+  "mode": "formal",
+  "started_at_utc": "2026-10-22T13:22:04.841785+00:00",
+  "plan": [
+    {
+      "suite": "knowledge_reference_concurrent",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 401
+    },
+    {
+      "suite": "knowledge_reference_concurrent",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 401
+    },
+    {
+      "suite": "memory_named_context",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 401
+    },
+    {
+      "suite": "memory_named_context",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 401
+    },
+    {
+      "suite": "memory_sql",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 401
+    },
+    {
+      "suite": "memory_sql",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 401
+    },
+    {
+      "suite": "memory_source_sync",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 401
+    },
+    {
+      "suite": "memory_source_sync",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 401
+    },
+    {
+      "suite": "knowledge_sql",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 401
+    },
+    {
+      "suite": "knowledge_sql",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 401
+    },
+    {
+      "suite": "memory_retrieval",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 401
+    },
+    {
+      "suite": "memory_retrieval",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 401
+    },
+    {
+      "suite": "memory_source_write",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 401
+    },
+    {
+      "suite": "memory_source_write",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 401
+    },
+    {
+      "suite": "memory_named_context",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 402
+    },
+    {
+      "suite": "memory_named_context",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 402
+    },
+    {
+      "suite": "memory_sql",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 402
+    },
+    {
+      "suite": "memory_sql",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 402
+    },
+    {
+      "suite": "memory_source_sync",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 402
+    },
+    {
+      "suite": "memory_source_sync",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 402
+    },
+    {
+      "suite": "knowledge_sql",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 402
+    },
+    {
+      "suite": "knowledge_sql",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 402
+    },
+    {
+      "suite": "memory_retrieval",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 402
+    },
+    {
+      "suite": "memory_retrieval",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 402
+    },
+    {
+      "suite": "memory_source_write",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 402
+    },
+    {
+      "suite": "memory_source_write",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 402
+    },
+    {
+      "suite": "knowledge_reference_concurrent",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 402
+    },
+    {
+      "suite": "knowledge_reference_concurrent",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 402
+    },
+    {
+      "suite": "memory_sql",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 403
+    },
+    {
+      "suite": "memory_sql",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 403
+    },
+    {
+      "suite": "memory_source_sync",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 403
+    },
+    {
+      "suite": "memory_source_sync",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 403
+    },
+    {
+      "suite": "knowledge_sql",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 403
+    },
+    {
+      "suite": "knowledge_sql",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 403
+    },
+    {
+      "suite": "memory_retrieval",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 403
+    },
+    {
+      "suite": "memory_retrieval",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 403
+    },
+    {
+      "suite": "memory_source_write",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 403
+    },
+    {
+      "suite": "memory_source_write",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 403
+    },
+    {
+      "suite": "knowledge_reference_concurrent",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 403
+    },
+    {
+      "suite": "knowledge_reference_concurrent",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 403
+    },
+    {
+      "suite": "memory_named_context",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 403
+    },
+    {
+      "suite": "memory_named_context",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 403
+    }
+  ],
+  "completed": [
+    {
+      "suite": "knowledge_reference_concurrent",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 401
+    },
+    {
+      "suite": "knowledge_reference_concurrent",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 401
+    },
+    {
+      "suite": "memory_named_context",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 401
+    },
+    {
+      "suite": "memory_named_context",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 401
+    },
+    {
+      "suite": "memory_sql",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 401
+    },
+    {
+      "suite": "memory_sql",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 401
+    },
+    {
+      "suite": "memory_source_sync",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 401
+    },
+    {
+      "suite": "memory_source_sync",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 401
+    },
+    {
+      "suite": "knowledge_sql",
+      "variant": "original",
+      "backend": "postgresql",
+      "trial": 401
+    },
+    {
+      "suite": "knowledge_sql",
+      "variant": "optimized",
+      "backend": "postgresql",
+      "trial": 401
+    }
+  ],
+  "concurrent_active_clients": 1,
+  "cpu_clocks": true,
+  "write_control": "separate fixture observations; unchanged write paths do not prove non-regression"
+}

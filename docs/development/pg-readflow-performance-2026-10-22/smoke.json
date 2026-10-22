@@ -1,0 +1,2362 @@
+{
+  "task": "TS-292",
+  "mode": "smoke-combined",
+  "baseline": "599c1e9436c9091fe5d3607d7ca60e208430851f",
+  "candidate": "70022d47de219bfab1bb29dbf3a5be2f73f7acda",
+  "runs_count": 4,
+  "measurement_totals": {
+    "serial_native_operations": 24,
+    "concurrent_batches": 12,
+    "concurrent_logical_requests": 48
+  },
+  "reported_logical_signatures_equal": true,
+  "signature_scope": "Knowledge reference and named-context signatures carry complete normalized native results, with native projection ownership checked before named normalization. Existing memory_sql/source_sync signatures cover documented read subsets. source_write has first/last semantic checkpoints and durable receipt checks, not full semantic hashes of every timed write. Retrieval first-negative signature covers content, not order. Zero-budget/import cases do not all have independent complete-envelope signatures.",
+  "cpu_clock": "Serial process_time_ns and calling-thread thread_time_ns overlap. Concurrent process CPU is batch-only; worker thread CPU and coordinator thread CPU are separate, never additive with process CPU.",
+  "aggregation": "Median of each round p50/p95/p99; retain every round and negative result; batch and serial units stay separate",
+  "first_negative_sync_limit": "One first-negative sample per side per round; no tail/population estimate",
+  "write_control_limit": "Write paths unchanged is a source fact, not proof of latency non-regression; independent fixture observations remain sensitive to WAL/OS/background/ordering noise",
+  "summary": [
+    {
+      "suite": "knowledge_reference_concurrent",
+      "category": "main",
+      "case": "knowledge_reference_check20_concurrent4",
+      "variants": {
+        "original": {
+          "p50_ms": 250.183744,
+          "p95_ms": 298.184833,
+          "p99_ms": 298.184833,
+          "ops_s": 3.831354703205455,
+          "process_cpu_p50_ms": 168.752132,
+          "thread_cpu_p50_ms": 0.125819,
+          "operations": 3,
+          "trials": [
+            910
+          ],
+          "trial_p50_ms": [
+            250.183744
+          ],
+          "trial_p95_ms": [
+            298.184833
+          ],
+          "trial_process_cpu_p50_ms": [
+            168.752132
+          ],
+          "worker_request_p50_ms": 212.735506
+        },
+        "optimized": {
+          "p50_ms": 110.157678,
+          "p95_ms": 232.773914,
+          "p99_ms": 232.773914,
+          "ops_s": 6.703554659517722,
+          "process_cpu_p50_ms": 90.091931,
+          "thread_cpu_p50_ms": 0.174533,
+          "operations": 3,
+          "trials": [
+            910
+          ],
+          "trial_p50_ms": [
+            110.157678
+          ],
+          "trial_p95_ms": [
+            232.773914
+          ],
+          "trial_process_cpu_p50_ms": [
+            90.091931
+          ],
+          "worker_request_p50_ms": 99.1808585
+        }
+      },
+      "operation_unit": "four_request_batch",
+      "latency_change_pct": -55.969290314881526,
+      "p95_change_pct": -21.936366897641648,
+      "client_process_cpu_change_pct": -46.612863534073746,
+      "trial_latency_change_pct": [
+        -55.969290314881526
+      ],
+      "tail_estimate_supported": true,
+      "study_role": "read_or_import"
+    },
+    {
+      "suite": "knowledge_reference_concurrent",
+      "category": "main",
+      "case": "knowledge_reference_recover20_concurrent4",
+      "variants": {
+        "original": {
+          "p50_ms": 342.9324,
+          "p95_ms": 414.168725,
+          "p99_ms": 414.168725,
+          "ops_s": 2.744819577807718,
+          "process_cpu_p50_ms": 216.071892,
+          "thread_cpu_p50_ms": 0.115226,
+          "operations": 3,
+          "trials": [
+            910
+          ],
+          "trial_p50_ms": [
+            342.9324
+          ],
+          "trial_p95_ms": [
+            414.168725
+          ],
+          "trial_process_cpu_p50_ms": [
+            216.071892
+          ],
+          "worker_request_p50_ms": 296.36892
+        },
+        "optimized": {
+          "p50_ms": 233.389244,
+          "p95_ms": 243.64669,
+          "p99_ms": 243.64669,
+          "ops_s": 4.36911958011153,
+          "process_cpu_p50_ms": 150.096633,
+          "thread_cpu_p50_ms": 0.11691,
+          "operations": 3,
+          "trials": [
+            910
+          ],
+          "trial_p50_ms": [
+            233.389244
+          ],
+          "trial_p95_ms": [
+            243.64669
+          ],
+          "trial_process_cpu_p50_ms": [
+            150.096633
+          ],
+          "worker_request_p50_ms": 184.7040365
+        }
+      },
+      "operation_unit": "four_request_batch",
+      "latency_change_pct": -31.94307566155895,
+      "p95_change_pct": -41.172117716034684,
+      "client_process_cpu_change_pct": -30.533938676299456,
+      "trial_latency_change_pct": [
+        -31.94307566155895
+      ],
+      "tail_estimate_supported": true,
+      "study_role": "read_or_import"
+    },
+    {
+      "suite": "knowledge_reference_concurrent",
+      "category": "serial_control",
+      "case": "knowledge_reference_check20",
+      "variants": {
+        "original": {
+          "p50_ms": 65.678625,
+          "p95_ms": 79.19735,
+          "p99_ms": 79.19735,
+          "ops_s": 14.39647887464529,
+          "process_cpu_p50_ms": 42.860178,
+          "thread_cpu_p50_ms": 42.856034,
+          "operations": 3,
+          "trials": [
+            910
+          ],
+          "trial_p50_ms": [
+            65.678625
+          ],
+          "trial_p95_ms": [
+            79.19735
+          ],
+          "trial_process_cpu_p50_ms": [
+            42.860178
+          ]
+        },
+        "optimized": {
+          "p50_ms": 28.776396,
+          "p95_ms": 32.39992,
+          "p99_ms": 32.39992,
+          "ops_s": 33.7193865904069,
+          "process_cpu_p50_ms": 21.503794,
+          "thread_cpu_p50_ms": 21.501576,
+          "operations": 3,
+          "trials": [
+            910
+          ],
+          "trial_p50_ms": [
+            28.776396
+          ],
+          "trial_p95_ms": [
+            32.39992
+          ],
+          "trial_process_cpu_p50_ms": [
+            21.503794
+          ]
+        }
+      },
+      "operation_unit": "native_operation",
+      "latency_change_pct": -56.1860559656966,
+      "p95_change_pct": -59.08964125693599,
+      "client_process_cpu_change_pct": -49.82803384530974,
+      "trial_latency_change_pct": [
+        -56.1860559656966
+      ],
+      "tail_estimate_supported": true,
+      "study_role": "serial_control"
+    },
+    {
+      "suite": "knowledge_reference_concurrent",
+      "category": "serial_control",
+      "case": "knowledge_reference_recover20",
+      "variants": {
+        "original": {
+          "p50_ms": 84.607045,
+          "p95_ms": 87.871284,
+          "p99_ms": 87.871284,
+          "ops_s": 11.913791707891365,
+          "process_cpu_p50_ms": 49.616966,
+          "thread_cpu_p50_ms": 49.612436,
+          "operations": 3,
+          "trials": [
+            910
+          ],
+          "trial_p50_ms": [
+            84.607045
+          ],
+          "trial_p95_ms": [
+            87.871284
+          ],
+          "trial_process_cpu_p50_ms": [
+            49.616966
+          ]
+        },
+        "optimized": {
+          "p50_ms": 68.341206,
+          "p95_ms": 88.133463,
+          "p99_ms": 88.133463,
+          "ops_s": 13.814839303578847,
+          "process_cpu_p50_ms": 39.663652,
+          "thread_cpu_p50_ms": 39.658979,
+          "operations": 3,
+          "trials": [
+            910
+          ],
+          "trial_p50_ms": [
+            68.341206
+          ],
+          "trial_p95_ms": [
+            88.133463
+          ],
+          "trial_process_cpu_p50_ms": [
+            39.663652
+          ]
+        }
+      },
+      "operation_unit": "native_operation",
+      "latency_change_pct": -19.225159086929466,
+      "p95_change_pct": 0.29836709794750504,
+      "client_process_cpu_change_pct": -20.060303566324468,
+      "trial_latency_change_pct": [
+        -19.225159086929466
+      ],
+      "tail_estimate_supported": true,
+      "study_role": "serial_control"
+    },
+    {
+      "suite": "memory_named_context",
+      "category": "main",
+      "case": "memory_named_context_known",
+      "variants": {
+        "original": {
+          "p50_ms": 945.539763,
+          "p95_ms": 1005.077708,
+          "p99_ms": 1005.077708,
+          "ops_s": 1.0504656349122756,
+          "process_cpu_p50_ms": 925.508968,
+          "thread_cpu_p50_ms": 0.790311,
+          "operations": 3,
+          "trials": [
+            911
+          ],
+          "trial_p50_ms": [
+            945.539763
+          ],
+          "trial_p95_ms": [
+            1005.077708
+          ],
+          "trial_process_cpu_p50_ms": [
+            925.508968
+          ]
+        },
+        "optimized": {
+          "p50_ms": 923.130275,
+          "p95_ms": 956.850379,
+          "p99_ms": 956.850379,
+          "ops_s": 1.0756523319831157,
+          "process_cpu_p50_ms": 903.794013,
+          "thread_cpu_p50_ms": 0.763472,
+          "operations": 3,
+          "trials": [
+            911
+          ],
+          "trial_p50_ms": [
+            923.130275
+          ],
+          "trial_p95_ms": [
+            956.850379
+          ],
+          "trial_process_cpu_p50_ms": [
+            903.794013
+          ]
+        }
+      },
+      "operation_unit": "native_operation",
+      "latency_change_pct": -2.370020688384311,
+      "p95_change_pct": -4.798368187467561,
+      "client_process_cpu_change_pct": -2.3462717003083666,
+      "trial_latency_change_pct": [
+        -2.370020688384311
+      ],
+      "tail_estimate_supported": true,
+      "study_role": "read_or_import"
+    },
+    {
+      "suite": "memory_named_context",
+      "category": "main",
+      "case": "memory_named_context_unknown",
+      "variants": {
+        "original": {
+          "p50_ms": 907.765309,
+          "p95_ms": 931.119618,
+          "p99_ms": 931.119618,
+          "ops_s": 1.0971011176487244,
+          "process_cpu_p50_ms": 889.371295,
+          "thread_cpu_p50_ms": 0.70499,
+          "operations": 3,
+          "trials": [
+            911
+          ],
+          "trial_p50_ms": [
+            907.765309
+          ],
+          "trial_p95_ms": [
+            931.119618
+          ],
+          "trial_process_cpu_p50_ms": [
+            889.371295
+          ]
+        },
+        "optimized": {
+          "p50_ms": 984.135064,
+          "p95_ms": 988.786705,
+          "p99_ms": 988.786705,
+          "ops_s": 1.029742792184034,
+          "process_cpu_p50_ms": 957.205531,
+          "thread_cpu_p50_ms": 0.846408,
+          "operations": 3,
+          "trials": [
+            911
+          ],
+          "trial_p50_ms": [
+            984.135064
+          ],
+          "trial_p95_ms": [
+            988.786705
+          ],
+          "trial_process_cpu_p50_ms": [
+            957.205531
+          ]
+        }
+      },
+      "operation_unit": "native_operation",
+      "latency_change_pct": 8.412940464108454,
+      "p95_change_pct": 6.193305981874397,
+      "client_process_cpu_change_pct": 7.627212209496803,
+      "trial_latency_change_pct": [
+        8.412940464108454
+      ],
+      "tail_estimate_supported": true,
+      "study_role": "read_or_import"
+    }
+  ],
+  "runs": [
+    {
+      "requested_suite": "knowledge_reference_concurrent",
+      "image_id": "sha256:b70bf116611b620b4a0ab04a2945b93f448268d32bf000a306797d9a5901016a",
+      "revision": "599c1e9436c9091fe5d3607d7ca60e208430851f",
+      "client_wall_s": 16.59330485900864,
+      "raw_record_sha256": "0e7e33c3b5011db5f8882e1273d34241ed719f7e36757b0524c3a2f5a6e7e875",
+      "suite": "knowledge_reference_concurrent",
+      "backend": "postgresql",
+      "trial": 910,
+      "variant": "original",
+      "verified_revision": "599c1e9436c9091fe5d3607d7ca60e208430851f",
+      "measurement_mode": "timed",
+      "correctness": "passed",
+      "cpu_count": 8,
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "loadavg": [
+        3.8193359375,
+        4.20458984375,
+        4.44140625
+      ],
+      "results": [
+        {
+          "case": "knowledge_reference_recover20_concurrent4",
+          "operations": 3,
+          "elapsed_s": 1.092968013,
+          "ops_s": 2.744819577807718,
+          "p50_ms": 342.9324,
+          "p95_ms": 414.168725,
+          "p99_ms": 414.168725,
+          "mean_ms": 364.322671,
+          "latencies_ms": [
+            342.9324,
+            414.168725,
+            335.866888
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 1.8901018239557743,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            216.071892,
+            253.495635,
+            207.4036
+          ],
+          "process_cpu_p50_ms": 216.071892,
+          "process_cpu_p95_ms": 253.495635,
+          "process_cpu_p99_ms": 253.495635,
+          "process_cpu_mean_ms": 225.65704233333332,
+          "thread_cpu_ms": [
+            0.137048,
+            0.115226,
+            0.104343
+          ],
+          "thread_cpu_p50_ms": 0.115226,
+          "thread_cpu_p95_ms": 0.137048,
+          "thread_cpu_p99_ms": 0.137048,
+          "thread_cpu_mean_ms": 0.11887233333333333,
+          "operation_unit": "four_request_batch",
+          "request_concurrency": 4,
+          "logical_request_count": 12,
+          "warmup_logical_request_count": 20,
+          "worker_clock_protocol": {
+            "wall": "perf_counter_ns: native request after all four slots meet the barrier",
+            "thread_cpu": "thread_time_ns: executing worker only",
+            "process_cpu": "batch process_time_ns only; never sampled or summed per worker",
+            "batch_thread_cpu": "thread_time_ns: coordinator only, excludes executing workers",
+            "batch_wall": "includes submission, barrier wait, native work and joining all slots"
+          },
+          "worker_request_timings": [
+            [
+              {
+                "slot": 0,
+                "wall_ms": 256.637087,
+                "thread_cpu_ms": 52.953487,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 342.566588,
+                "thread_cpu_ms": 56.608742,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 212.899504,
+                "thread_cpu_ms": 53.901846,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 298.748078,
+                "thread_cpu_ms": 52.133719,
+                "error": null
+              }
+            ],
+            [
+              {
+                "slot": 0,
+                "wall_ms": 413.769773,
+                "thread_cpu_ms": 56.619316,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 369.470498,
+                "thread_cpu_ms": 63.989654,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 263.35495,
+                "thread_cpu_ms": 70.641627,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 316.16221,
+                "thread_cpu_ms": 61.775794,
+                "error": null
+              }
+            ],
+            [
+              {
+                "slot": 0,
+                "wall_ms": 335.48275,
+                "thread_cpu_ms": 50.559391,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 204.542897,
+                "thread_cpu_ms": 51.066582,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 293.989762,
+                "thread_cpu_ms": 49.619053,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 252.709118,
+                "thread_cpu_ms": 55.692273,
+                "error": null
+              }
+            ]
+          ],
+          "warmup_worker_request_timings": [
+            [
+              {
+                "slot": 0,
+                "wall_ms": 371.232922,
+                "thread_cpu_ms": 57.701794,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 282.034408,
+                "thread_cpu_ms": 55.856866,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 240.611192,
+                "thread_cpu_ms": 58.861863,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 325.181276,
+                "thread_cpu_ms": 54.603843,
+                "error": null
+              }
+            ],
+            [
+              {
+                "slot": 0,
+                "wall_ms": 338.098896,
+                "thread_cpu_ms": 54.141738,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 297.502964,
+                "thread_cpu_ms": 50.5526,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 260.859477,
+                "thread_cpu_ms": 55.277757,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 218.951397,
+                "thread_cpu_ms": 56.851775,
+                "error": null
+              }
+            ],
+            [
+              {
+                "slot": 0,
+                "wall_ms": 339.728205,
+                "thread_cpu_ms": 53.304788,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 213.06669,
+                "thread_cpu_ms": 48.793684,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 255.811519,
+                "thread_cpu_ms": 51.840065,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 297.66438,
+                "thread_cpu_ms": 52.290236,
+                "error": null
+              }
+            ],
+            [
+              {
+                "slot": 0,
+                "wall_ms": 298.203894,
+                "thread_cpu_ms": 47.689924,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 220.995246,
+                "thread_cpu_ms": 45.220099,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 185.816487,
+                "thread_cpu_ms": 47.556891,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 258.338749,
+                "thread_cpu_ms": 46.613461,
+                "error": null
+              }
+            ],
+            [
+              {
+                "slot": 0,
+                "wall_ms": 274.179595,
+                "thread_cpu_ms": 48.889588,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 233.630095,
+                "thread_cpu_ms": 49.233384,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 311.938054,
+                "thread_cpu_ms": 50.82652,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 193.730688,
+                "thread_cpu_ms": 47.515026,
+                "error": null
+              }
+            ]
+          ],
+          "worker_request_p50_ms": 296.36892,
+          "sample_dependence": "Four correlated requests per batch; analyze by batch/block, not as independent process CPU samples"
+        },
+        {
+          "case": "knowledge_reference_check20_concurrent4",
+          "operations": 3,
+          "elapsed_s": 0.7830128590000001,
+          "ops_s": 3.831354703205455,
+          "p50_ms": 250.183744,
+          "p95_ms": 298.184833,
+          "p99_ms": 298.184833,
+          "mean_ms": 261.0042863333333,
+          "latencies_ms": [
+            234.644282,
+            250.183744,
+            298.184833
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.783086899202317,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            164.818018,
+            168.752132,
+            202.857789
+          ],
+          "process_cpu_p50_ms": 168.752132,
+          "process_cpu_p95_ms": 202.857789,
+          "process_cpu_p99_ms": 202.857789,
+          "process_cpu_mean_ms": 178.809313,
+          "thread_cpu_ms": [
+            0.125819,
+            0.085471,
+            0.135277
+          ],
+          "thread_cpu_p50_ms": 0.125819,
+          "thread_cpu_p95_ms": 0.135277,
+          "thread_cpu_p99_ms": 0.135277,
+          "thread_cpu_mean_ms": 0.11552233333333334,
+          "operation_unit": "four_request_batch",
+          "request_concurrency": 4,
+          "logical_request_count": 12,
+          "warmup_logical_request_count": 20,
+          "worker_clock_protocol": {
+            "wall": "perf_counter_ns: native request after all four slots meet the barrier",
+            "thread_cpu": "thread_time_ns: executing worker only",
+            "process_cpu": "batch process_time_ns only; never sampled or summed per worker",
+            "batch_thread_cpu": "thread_time_ns: coordinator only, excludes executing workers",
+            "batch_wall": "includes submission, barrier wait, native work and joining all slots"
+          },
+          "worker_request_timings": [
+            [
+              {
+                "slot": 0,
+                "wall_ms": 180.325301,
+                "thread_cpu_ms": 41.616163,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 152.061781,
+                "thread_cpu_ms": 42.344452,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 232.590266,
+                "thread_cpu_ms": 40.591609,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 206.708995,
+                "thread_cpu_ms": 39.830542,
+                "error": null
+              }
+            ],
+            [
+              {
+                "slot": 0,
+                "wall_ms": 249.353163,
+                "thread_cpu_ms": 43.897009,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 218.762017,
+                "thread_cpu_ms": 41.057424,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 161.195281,
+                "thread_cpu_ms": 45.827866,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 190.6454,
+                "thread_cpu_ms": 37.563026,
+                "error": null
+              }
+            ],
+            [
+              {
+                "slot": 0,
+                "wall_ms": 264.578179,
+                "thread_cpu_ms": 52.157992,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 296.659331,
+                "thread_cpu_ms": 54.368402,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 191.30151,
+                "thread_cpu_ms": 49.733769,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 227.792303,
+                "thread_cpu_ms": 46.104234,
+                "error": null
+              }
+            ]
+          ],
+          "warmup_worker_request_timings": [
+            [
+              {
+                "slot": 0,
+                "wall_ms": 175.839383,
+                "thread_cpu_ms": 41.5481,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 227.060419,
+                "thread_cpu_ms": 39.45402,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 147.080683,
+                "thread_cpu_ms": 40.611143,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 203.952279,
+                "thread_cpu_ms": 40.738937,
+                "error": null
+              }
+            ],
+            [
+              {
+                "slot": 0,
+                "wall_ms": 235.5372,
+                "thread_cpu_ms": 41.270871,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 150.41459,
+                "thread_cpu_ms": 42.294067,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 182.810721,
+                "thread_cpu_ms": 43.045341,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 210.482115,
+                "thread_cpu_ms": 40.16469,
+                "error": null
+              }
+            ],
+            [
+              {
+                "slot": 0,
+                "wall_ms": 173.71699,
+                "thread_cpu_ms": 39.747639,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 226.655036,
+                "thread_cpu_ms": 39.35117,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 199.826744,
+                "thread_cpu_ms": 41.593231,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 148.985523,
+                "thread_cpu_ms": 38.728073,
+                "error": null
+              }
+            ],
+            [
+              {
+                "slot": 0,
+                "wall_ms": 161.497347,
+                "thread_cpu_ms": 40.647349,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 246.458733,
+                "thread_cpu_ms": 43.984912,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 188.221673,
+                "thread_cpu_ms": 44.160878,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 220.266363,
+                "thread_cpu_ms": 45.154332,
+                "error": null
+              }
+            ],
+            [
+              {
+                "slot": 0,
+                "wall_ms": 141.366905,
+                "thread_cpu_ms": 37.694321,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 195.036148,
+                "thread_cpu_ms": 40.018284,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 165.591118,
+                "thread_cpu_ms": 38.459467,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 225.380065,
+                "thread_cpu_ms": 41.945598,
+                "error": null
+              }
+            ]
+          ],
+          "worker_request_p50_ms": 212.735506,
+          "sample_dependence": "Four correlated requests per batch; analyze by batch/block, not as independent process CPU samples"
+        }
+      ],
+      "serial_control_results": [
+        {
+          "case": "knowledge_reference_recover20",
+          "operations": 3,
+          "elapsed_s": 0.251809002,
+          "ops_s": 11.913791707891365,
+          "p50_ms": 84.607045,
+          "p95_ms": 87.871284,
+          "p99_ms": 87.871284,
+          "mean_ms": 83.936334,
+          "latencies_ms": [
+            87.871284,
+            84.607045,
+            79.330673
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.42972027510404587,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            53.324561,
+            49.616966,
+            47.612024
+          ],
+          "process_cpu_p50_ms": 49.616966,
+          "process_cpu_p95_ms": 53.324561,
+          "process_cpu_p99_ms": 53.324561,
+          "process_cpu_mean_ms": 50.184517,
+          "thread_cpu_ms": [
+            53.319724,
+            49.612436,
+            47.608334
+          ],
+          "thread_cpu_p50_ms": 49.612436,
+          "thread_cpu_p95_ms": 53.319724,
+          "thread_cpu_p99_ms": 53.319724,
+          "thread_cpu_mean_ms": 50.18016466666667
+        },
+        {
+          "case": "knowledge_reference_check20",
+          "operations": 3,
+          "elapsed_s": 0.208384288,
+          "ops_s": 14.39647887464529,
+          "p50_ms": 65.678625,
+          "p95_ms": 79.19735,
+          "p99_ms": 79.19735,
+          "mean_ms": 69.46142933333333,
+          "latencies_ms": [
+            65.678625,
+            63.508313,
+            79.19735
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.2084258641116321,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            42.860178,
+            42.253035,
+            46.785801
+          ],
+          "process_cpu_p50_ms": 42.860178,
+          "process_cpu_p95_ms": 46.785801,
+          "process_cpu_p99_ms": 46.785801,
+          "process_cpu_mean_ms": 43.966338,
+          "thread_cpu_ms": [
+            42.856034,
+            42.250789,
+            46.78389
+          ],
+          "thread_cpu_p50_ms": 42.856034,
+          "thread_cpu_p95_ms": 46.78389,
+          "thread_cpu_p99_ms": 46.78389,
+          "thread_cpu_mean_ms": 43.963571
+        }
+      ],
+      "denominators": "results are concurrent batches; serial_control_results are individual native operations; keep them separate",
+      "seed_blocks": 200,
+      "source_files": 2,
+      "state_evidence_refs": 16,
+      "recovered_refs": 20,
+      "query_extra_refs": 4,
+      "native_state_limit": 16,
+      "models_called": 0,
+      "logical_result_signatures": {
+        "query_cohort": {
+          "ordered": "4ba762ef0e64cb8756abee958d61d4647ffae89b7878ae56b53a9490b2141e83",
+          "content": "4ba762ef0e64cb8756abee958d61d4647ffae89b7878ae56b53a9490b2141e83"
+        },
+        "recover": {
+          "ordered": "2a089767103e0570a812d9dd61b5ee60ada20060d22f63789572f3a24241709d",
+          "content": "2a089767103e0570a812d9dd61b5ee60ada20060d22f63789572f3a24241709d"
+        },
+        "check": "ccbcfc908d477ad41b62dd878f19d52f329299b9d98c21aa9d9268ffc9c54440"
+      },
+      "untimed_call_counts": {
+        "recover": {
+          "reference_calls": 32,
+          "source_file_reads": 4,
+          "timing_included": false
+        },
+        "check": {
+          "reference_calls": 40,
+          "source_file_reads": 4,
+          "timing_included": false
+        }
+      },
+      "individual_reference_count_is_diagnostic": true,
+      "native_negative_proofs": {
+        "wrong_project": "forbidden",
+        "wrong_credential": "unauthorized",
+        "revoked_permission": "forbidden",
+        "other_client_seal": {
+          "valid": false,
+          "reason": "stale_or_tampered"
+        },
+        "changed_source": {
+          "valid": false,
+          "reason": "stale_or_tampered"
+        },
+        "changed_state_seal": {
+          "valid": false,
+          "reason": "stale_or_tampered"
+        },
+        "reordered_package": {
+          "valid": false,
+          "reason": "stale_or_tampered"
+        },
+        "rejected_first_reference": {
+          "missing_document": "not_found",
+          "stale_version": "stale_evidence",
+          "wrong_hash": "stale_evidence",
+          "malformed": "invalid_input"
+        }
+      },
+      "storage_before": {
+        "counts": {
+          "knowledge_documents": 2,
+          "knowledge_versions": 2,
+          "knowledge_blocks": 200,
+          "knowledge_states": 1,
+          "knowledge_state_history": 1
+        },
+        "project_revision": 3,
+        "guard_sha256": "6ac2b2684936db66d9c3f254dc1a5321b5b0826ae93e00c58c341f0aadb94471",
+        "durability": {
+          "server_version": "17.6 (Debian 17.6-1.pgdg13+1)",
+          "fsync": "on",
+          "synchronous_commit": "on",
+          "full_page_writes": "on"
+        }
+      },
+      "storage_after": {
+        "counts": {
+          "knowledge_documents": 2,
+          "knowledge_versions": 2,
+          "knowledge_blocks": 200,
+          "knowledge_states": 1,
+          "knowledge_state_history": 1
+        },
+        "project_revision": 3,
+        "guard_sha256": "6ac2b2684936db66d9c3f254dc1a5321b5b0826ae93e00c58c341f0aadb94471",
+        "durability": {
+          "server_version": "17.6 (Debian 17.6-1.pgdg13+1)",
+          "fsync": "on",
+          "synchronous_commit": "on",
+          "full_page_writes": "on"
+        }
+      },
+      "synthetic_source_hashes": {
+        "synthetic-0.txt": "536be58d03e3b789ec7af3f09a90d81ace5a6bcbae73484085faca001f531b90",
+        "synthetic-1.txt": "99ee8c5509579dd70586104a7f62abb030795f214059707cea70516315a7a635"
+      },
+      "timed_boundary": "Native KnowledgeApplication.execute; recover's additional native check and signature run outside its timer; check case times check only; no formal hooks",
+      "normalization": "imported_at omitted; per-DB seal omitted only after native check; actual registration verified then registered root replaced for cross-run fingerprint; all other fields retained"
+    },
+    {
+      "requested_suite": "knowledge_reference_concurrent",
+      "image_id": "sha256:55c1c75118d27965cb78ecdf322affab67fc94803efa5ec446c90fee721dd649",
+      "revision": "70022d47de219bfab1bb29dbf3a5be2f73f7acda",
+      "client_wall_s": 11.761939720250666,
+      "raw_record_sha256": "17acfff7aff93951858904096271f5ad003a8b5cf47aaf0cf4d4c5a9c0a15608",
+      "suite": "knowledge_reference_concurrent",
+      "backend": "postgresql",
+      "trial": 910,
+      "variant": "optimized",
+      "verified_revision": "70022d47de219bfab1bb29dbf3a5be2f73f7acda",
+      "measurement_mode": "timed",
+      "correctness": "passed",
+      "cpu_count": 8,
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "loadavg": [
+        4.408203125,
+        4.310546875,
+        4.47265625
+      ],
+      "results": [
+        {
+          "case": "knowledge_reference_recover20_concurrent4",
+          "operations": 3,
+          "elapsed_s": 0.6866371920000001,
+          "ops_s": 4.36911958011153,
+          "p50_ms": 233.389244,
+          "p95_ms": 243.64669,
+          "p99_ms": 243.64669,
+          "mean_ms": 228.879064,
+          "latencies_ms": [
+            209.601258,
+            233.389244,
+            243.64669
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 1.0733717577531934,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            137.469305,
+            150.096633,
+            151.390494
+          ],
+          "process_cpu_p50_ms": 150.096633,
+          "process_cpu_p95_ms": 151.390494,
+          "process_cpu_p99_ms": 151.390494,
+          "process_cpu_mean_ms": 146.31881066666665,
+          "thread_cpu_ms": [
+            0.11691,
+            0.166655,
+            0.109487
+          ],
+          "thread_cpu_p50_ms": 0.11691,
+          "thread_cpu_p95_ms": 0.166655,
+          "thread_cpu_p99_ms": 0.166655,
+          "thread_cpu_mean_ms": 0.13101733333333332,
+          "operation_unit": "four_request_batch",
+          "request_concurrency": 4,
+          "logical_request_count": 12,
+          "warmup_logical_request_count": 20,
+          "worker_clock_protocol": {
+            "wall": "perf_counter_ns: native request after all four slots meet the barrier",
+            "thread_cpu": "thread_time_ns: executing worker only",
+            "process_cpu": "batch process_time_ns only; never sampled or summed per worker",
+            "batch_thread_cpu": "thread_time_ns: coordinator only, excludes executing workers",
+            "batch_wall": "includes submission, barrier wait, native work and joining all slots"
+          },
+          "worker_request_timings": [
+            [
+              {
+                "slot": 0,
+                "wall_ms": 208.946893,
+                "thread_cpu_ms": 35.560464,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 155.72698,
+                "thread_cpu_ms": 34.280034,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 180.676937,
+                "thread_cpu_ms": 34.047779,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 130.388452,
+                "thread_cpu_ms": 33.106261,
+                "error": null
+              }
+            ],
+            [
+              {
+                "slot": 0,
+                "wall_ms": 205.07214,
+                "thread_cpu_ms": 37.68597,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 176.564324,
+                "thread_cpu_ms": 37.905124,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 144.210712,
+                "thread_cpu_ms": 37.131702,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 233.12357,
+                "thread_cpu_ms": 36.84641,
+                "error": null
+              }
+            ],
+            [
+              {
+                "slot": 0,
+                "wall_ms": 243.251767,
+                "thread_cpu_ms": 39.758776,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 214.698208,
+                "thread_cpu_ms": 35.812564,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 161.828233,
+                "thread_cpu_ms": 38.712987,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 188.731136,
+                "thread_cpu_ms": 36.629421,
+                "error": null
+              }
+            ]
+          ],
+          "warmup_worker_request_timings": [
+            [
+              {
+                "slot": 0,
+                "wall_ms": 225.844572,
+                "thread_cpu_ms": 38.405625,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 198.887153,
+                "thread_cpu_ms": 38.129947,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 254.789817,
+                "thread_cpu_ms": 38.439636,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 170.161391,
+                "thread_cpu_ms": 41.776053,
+                "error": null
+              }
+            ],
+            [
+              {
+                "slot": 0,
+                "wall_ms": 196.635185,
+                "thread_cpu_ms": 41.512073,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 267.892217,
+                "thread_cpu_ms": 39.920674,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 165.459448,
+                "thread_cpu_ms": 39.040765,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 228.169457,
+                "thread_cpu_ms": 41.371431,
+                "error": null
+              }
+            ],
+            [
+              {
+                "slot": 0,
+                "wall_ms": 246.365697,
+                "thread_cpu_ms": 39.238486,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 161.854753,
+                "thread_cpu_ms": 38.648334,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 189.149706,
+                "thread_cpu_ms": 38.856605,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 218.596365,
+                "thread_cpu_ms": 39.93261,
+                "error": null
+              }
+            ],
+            [
+              {
+                "slot": 0,
+                "wall_ms": 139.417129,
+                "thread_cpu_ms": 35.58766,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 221.39525,
+                "thread_cpu_ms": 37.819037,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 165.082699,
+                "thread_cpu_ms": 37.057223,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 193.82261,
+                "thread_cpu_ms": 37.546653,
+                "error": null
+              }
+            ],
+            [
+              {
+                "slot": 0,
+                "wall_ms": 171.600397,
+                "thread_cpu_ms": 38.035404,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 198.250037,
+                "thread_cpu_ms": 36.666337,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 229.833745,
+                "thread_cpu_ms": 37.230236,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 146.875147,
+                "thread_cpu_ms": 36.193796,
+                "error": null
+              }
+            ]
+          ],
+          "worker_request_p50_ms": 184.7040365,
+          "sample_dependence": "Four correlated requests per batch; analyze by batch/block, not as independent process CPU samples"
+        },
+        {
+          "case": "knowledge_reference_check20_concurrent4",
+          "operations": 3,
+          "elapsed_s": 0.447523762,
+          "ops_s": 6.703554659517722,
+          "p50_ms": 110.157678,
+          "p95_ms": 232.773914,
+          "p99_ms": 232.773914,
+          "mean_ms": 149.17458733333333,
+          "latencies_ms": [
+            232.773914,
+            110.157678,
+            104.59217
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.4476124928332865,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            105.531634,
+            90.091931,
+            84.413163
+          ],
+          "process_cpu_p50_ms": 90.091931,
+          "process_cpu_p95_ms": 105.531634,
+          "process_cpu_p99_ms": 105.531634,
+          "process_cpu_mean_ms": 93.345576,
+          "thread_cpu_ms": [
+            0.174533,
+            0.182766,
+            0.144781
+          ],
+          "thread_cpu_p50_ms": 0.174533,
+          "thread_cpu_p95_ms": 0.182766,
+          "thread_cpu_p99_ms": 0.182766,
+          "thread_cpu_mean_ms": 0.16736,
+          "operation_unit": "four_request_batch",
+          "request_concurrency": 4,
+          "logical_request_count": 12,
+          "warmup_logical_request_count": 20,
+          "worker_clock_protocol": {
+            "wall": "perf_counter_ns: native request after all four slots meet the barrier",
+            "thread_cpu": "thread_time_ns: executing worker only",
+            "process_cpu": "batch process_time_ns only; never sampled or summed per worker",
+            "batch_thread_cpu": "thread_time_ns: coordinator only, excludes executing workers",
+            "batch_wall": "includes submission, barrier wait, native work and joining all slots"
+          },
+          "worker_request_timings": [
+            [
+              {
+                "slot": 0,
+                "wall_ms": 167.306203,
+                "thread_cpu_ms": 27.221555,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 134.914187,
+                "thread_cpu_ms": 26.17563,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 212.075481,
+                "thread_cpu_ms": 26.699604,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 108.749279,
+                "thread_cpu_ms": 24.906527,
+                "error": null
+              }
+            ],
+            [
+              {
+                "slot": 0,
+                "wall_ms": 88.235039,
+                "thread_cpu_ms": 22.178792,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 95.429309,
+                "thread_cpu_ms": 21.586706,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 107.301987,
+                "thread_cpu_ms": 22.299624,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 77.891577,
+                "thread_cpu_ms": 23.44186,
+                "error": null
+              }
+            ],
+            [
+              {
+                "slot": 0,
+                "wall_ms": 72.837999,
+                "thread_cpu_ms": 21.14698,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 102.932408,
+                "thread_cpu_ms": 20.549289,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 92.090783,
+                "thread_cpu_ms": 21.092294,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 84.274935,
+                "thread_cpu_ms": 21.113856,
+                "error": null
+              }
+            ]
+          ],
+          "warmup_worker_request_timings": [
+            [
+              {
+                "slot": 0,
+                "wall_ms": 69.250172,
+                "thread_cpu_ms": 21.451561,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 100.188882,
+                "thread_cpu_ms": 21.592264,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 90.894013,
+                "thread_cpu_ms": 22.971048,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 80.882596,
+                "thread_cpu_ms": 22.142,
+                "error": null
+              }
+            ],
+            [
+              {
+                "slot": 0,
+                "wall_ms": 72.512503,
+                "thread_cpu_ms": 21.355665,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 103.102937,
+                "thread_cpu_ms": 22.828819,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 81.314127,
+                "thread_cpu_ms": 22.051379,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 93.477965,
+                "thread_cpu_ms": 22.081745,
+                "error": null
+              }
+            ],
+            [
+              {
+                "slot": 0,
+                "wall_ms": 87.922338,
+                "thread_cpu_ms": 22.357002,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 107.813489,
+                "thread_cpu_ms": 22.617846,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 76.364621,
+                "thread_cpu_ms": 23.451689,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 99.211655,
+                "thread_cpu_ms": 23.956858,
+                "error": null
+              }
+            ],
+            [
+              {
+                "slot": 0,
+                "wall_ms": 96.179891,
+                "thread_cpu_ms": 23.472226,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 108.285194,
+                "thread_cpu_ms": 22.765831,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 115.769712,
+                "thread_cpu_ms": 22.634163,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 107.940276,
+                "thread_cpu_ms": 23.884711,
+                "error": null
+              }
+            ],
+            [
+              {
+                "slot": 0,
+                "wall_ms": 107.61983,
+                "thread_cpu_ms": 24.637591,
+                "error": null
+              },
+              {
+                "slot": 1,
+                "wall_ms": 93.90028,
+                "thread_cpu_ms": 22.557853,
+                "error": null
+              },
+              {
+                "slot": 2,
+                "wall_ms": 118.233646,
+                "thread_cpu_ms": 23.564277,
+                "error": null
+              },
+              {
+                "slot": 3,
+                "wall_ms": 83.423352,
+                "thread_cpu_ms": 23.593344,
+                "error": null
+              }
+            ]
+          ],
+          "worker_request_p50_ms": 99.1808585,
+          "sample_dependence": "Four correlated requests per batch; analyze by batch/block, not as independent process CPU samples"
+        }
+      ],
+      "serial_control_results": [
+        {
+          "case": "knowledge_reference_recover20",
+          "operations": 3,
+          "elapsed_s": 0.217157792,
+          "ops_s": 13.814839303578847,
+          "p50_ms": 68.341206,
+          "p95_ms": 88.133463,
+          "p99_ms": 88.133463,
+          "mean_ms": 72.38593066666667,
+          "latencies_ms": [
+            88.133463,
+            68.341206,
+            60.683123
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.3135658008977771,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            46.583822,
+            39.663652,
+            36.4996
+          ],
+          "process_cpu_p50_ms": 39.663652,
+          "process_cpu_p95_ms": 46.583822,
+          "process_cpu_p99_ms": 46.583822,
+          "process_cpu_mean_ms": 40.915691333333335,
+          "thread_cpu_ms": [
+            46.580048,
+            39.658979,
+            36.492524
+          ],
+          "thread_cpu_p50_ms": 39.658979,
+          "thread_cpu_p95_ms": 46.580048,
+          "thread_cpu_p99_ms": 46.580048,
+          "thread_cpu_mean_ms": 40.910517
+        },
+        {
+          "case": "knowledge_reference_check20",
+          "operations": 3,
+          "elapsed_s": 0.08896959,
+          "ops_s": 33.7193865904069,
+          "p50_ms": 28.776396,
+          "p95_ms": 32.39992,
+          "p99_ms": 32.39992,
+          "mean_ms": 29.65653,
+          "latencies_ms": [
+            27.793274,
+            32.39992,
+            28.776396
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 0.089012092910707,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            21.075031,
+            22.279384,
+            21.503794
+          ],
+          "process_cpu_p50_ms": 21.503794,
+          "process_cpu_p95_ms": 22.279384,
+          "process_cpu_p99_ms": 22.279384,
+          "process_cpu_mean_ms": 21.619403,
+          "thread_cpu_ms": [
+            21.070187,
+            22.277182,
+            21.501576
+          ],
+          "thread_cpu_p50_ms": 21.501576,
+          "thread_cpu_p95_ms": 22.277182,
+          "thread_cpu_p99_ms": 22.277182,
+          "thread_cpu_mean_ms": 21.616315
+        }
+      ],
+      "denominators": "results are concurrent batches; serial_control_results are individual native operations; keep them separate",
+      "seed_blocks": 200,
+      "source_files": 2,
+      "state_evidence_refs": 16,
+      "recovered_refs": 20,
+      "query_extra_refs": 4,
+      "native_state_limit": 16,
+      "models_called": 0,
+      "logical_result_signatures": {
+        "query_cohort": {
+          "ordered": "4ba762ef0e64cb8756abee958d61d4647ffae89b7878ae56b53a9490b2141e83",
+          "content": "4ba762ef0e64cb8756abee958d61d4647ffae89b7878ae56b53a9490b2141e83"
+        },
+        "recover": {
+          "ordered": "2a089767103e0570a812d9dd61b5ee60ada20060d22f63789572f3a24241709d",
+          "content": "2a089767103e0570a812d9dd61b5ee60ada20060d22f63789572f3a24241709d"
+        },
+        "check": "ccbcfc908d477ad41b62dd878f19d52f329299b9d98c21aa9d9268ffc9c54440"
+      },
+      "untimed_call_counts": {
+        "recover": {
+          "reference_calls": 32,
+          "source_file_reads": 4,
+          "timing_included": false
+        },
+        "check": {
+          "reference_calls": 40,
+          "source_file_reads": 4,
+          "timing_included": false
+        }
+      },
+      "individual_reference_count_is_diagnostic": true,
+      "native_negative_proofs": {
+        "wrong_project": "forbidden",
+        "wrong_credential": "unauthorized",
+        "revoked_permission": "forbidden",
+        "other_client_seal": {
+          "valid": false,
+          "reason": "stale_or_tampered"
+        },
+        "changed_source": {
+          "valid": false,
+          "reason": "stale_or_tampered"
+        },
+        "changed_state_seal": {
+          "valid": false,
+          "reason": "stale_or_tampered"
+        },
+        "reordered_package": {
+          "valid": false,
+          "reason": "stale_or_tampered"
+        },
+        "rejected_first_reference": {
+          "missing_document": "not_found",
+          "stale_version": "stale_evidence",
+          "wrong_hash": "stale_evidence",
+          "malformed": "invalid_input"
+        }
+      },
+      "storage_before": {
+        "counts": {
+          "knowledge_documents": 2,
+          "knowledge_versions": 2,
+          "knowledge_blocks": 200,
+          "knowledge_states": 1,
+          "knowledge_state_history": 1
+        },
+        "project_revision": 3,
+        "guard_sha256": "64f52be8ea955f347acb904fccb615cefd486b3cb9b4cd485b8f2130856ddb9c",
+        "durability": {
+          "server_version": "17.6 (Debian 17.6-1.pgdg13+1)",
+          "fsync": "on",
+          "synchronous_commit": "on",
+          "full_page_writes": "on"
+        }
+      },
+      "storage_after": {
+        "counts": {
+          "knowledge_documents": 2,
+          "knowledge_versions": 2,
+          "knowledge_blocks": 200,
+          "knowledge_states": 1,
+          "knowledge_state_history": 1
+        },
+        "project_revision": 3,
+        "guard_sha256": "64f52be8ea955f347acb904fccb615cefd486b3cb9b4cd485b8f2130856ddb9c",
+        "durability": {
+          "server_version": "17.6 (Debian 17.6-1.pgdg13+1)",
+          "fsync": "on",
+          "synchronous_commit": "on",
+          "full_page_writes": "on"
+        }
+      },
+      "synthetic_source_hashes": {
+        "synthetic-0.txt": "536be58d03e3b789ec7af3f09a90d81ace5a6bcbae73484085faca001f531b90",
+        "synthetic-1.txt": "99ee8c5509579dd70586104a7f62abb030795f214059707cea70516315a7a635"
+      },
+      "timed_boundary": "Native KnowledgeApplication.execute; recover's additional native check and signature run outside its timer; check case times check only; no formal hooks",
+      "normalization": "imported_at omitted; per-DB seal omitted only after native check; actual registration verified then registered root replaced for cross-run fingerprint; all other fields retained"
+    },
+    {
+      "requested_suite": "memory_named_context",
+      "image_id": "sha256:b70bf116611b620b4a0ab04a2945b93f448268d32bf000a306797d9a5901016a",
+      "revision": "599c1e9436c9091fe5d3607d7ca60e208430851f",
+      "client_wall_s": 78.38152093207464,
+      "raw_record_sha256": "715cd574d2628007fe3096d4d399ea5a303dee25a51a8da646299516c7c5e48e",
+      "suite": "memory_named_context",
+      "backend": "postgresql",
+      "trial": 911,
+      "variant": "original",
+      "verified_revision": "599c1e9436c9091fe5d3607d7ca60e208430851f",
+      "measurement_mode": "timed",
+      "correctness": "passed",
+      "cpu_count": 8,
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "loadavg": [
+        4.76123046875,
+        4.59033203125,
+        4.55419921875
+      ],
+      "results": [
+        {
+          "case": "memory_named_context_unknown",
+          "operations": 3,
+          "elapsed_s": 2.73447903,
+          "ops_s": 1.0971011176487244,
+          "p50_ms": 907.765309,
+          "p95_ms": 931.119618,
+          "p99_ms": 931.119618,
+          "mean_ms": 911.49301,
+          "latencies_ms": [
+            931.119618,
+            907.765309,
+            895.594103
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 2.744311925023794,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            915.619908,
+            889.371295,
+            874.380701
+          ],
+          "process_cpu_p50_ms": 889.371295,
+          "process_cpu_p95_ms": 915.619908,
+          "process_cpu_p99_ms": 915.619908,
+          "process_cpu_mean_ms": 893.123968,
+          "thread_cpu_ms": [
+            0.74462,
+            0.643644,
+            0.70499
+          ],
+          "thread_cpu_p50_ms": 0.70499,
+          "thread_cpu_p95_ms": 0.74462,
+          "thread_cpu_p99_ms": 0.74462,
+          "thread_cpu_mean_ms": 0.6977513333333333
+        },
+        {
+          "case": "memory_named_context_known",
+          "operations": 3,
+          "elapsed_s": 2.855876385,
+          "ops_s": 1.0504656349122756,
+          "p50_ms": 945.539763,
+          "p95_ms": 1005.077708,
+          "p99_ms": 1005.077708,
+          "mean_ms": 951.958795,
+          "latencies_ms": [
+            945.539763,
+            905.258914,
+            1005.077708
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 2.8716750890016556,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            925.508968,
+            886.784121,
+            976.931832
+          ],
+          "process_cpu_p50_ms": 925.508968,
+          "process_cpu_p95_ms": 976.931832,
+          "process_cpu_p99_ms": 976.931832,
+          "process_cpu_mean_ms": 929.7416403333333,
+          "thread_cpu_ms": [
+            0.852806,
+            0.705526,
+            0.790311
+          ],
+          "thread_cpu_p50_ms": 0.790311,
+          "thread_cpu_p95_ms": 0.852806,
+          "thread_cpu_p99_ms": 0.852806,
+          "thread_cpu_mean_ms": 0.7828809999999999
+        }
+      ],
+      "registered_name_owners": 100,
+      "native_fact_groups": 101,
+      "returned_subjects": {
+        "unknown": 0,
+        "known": 1
+      },
+      "returned_scope_checks": {
+        "unknown": 1,
+        "known": 2
+      },
+      "logical_result_signatures": {
+        "unknown": "4557fcf62522bb5eef112418251b02f41f4fd0829524cf024b70c17fa8c75b0d",
+        "known": "1ca27594162f166afc7843c9a01c4d4e0a81be3802d818716922073774546f5b"
+      },
+      "untimed_call_counts": {
+        "unknown": {
+          "reference_body_plain": 101,
+          "reference_body_lexical": 102,
+          "name_matches": 100,
+          "fresh_revision": 6,
+          "name_views": [
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            },
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            }
+          ],
+          "name_match_counter": "named_reference",
+          "timing_included": false,
+          "owner_rpc_counts": {
+            "origin": 1,
+            "snapshot": 1,
+            "current": 1,
+            "head": 1
+          }
+        },
+        "known": {
+          "reference_body_plain": 100,
+          "reference_body_lexical": 102,
+          "name_matches": 100,
+          "fresh_revision": 6,
+          "name_views": [
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            },
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            }
+          ],
+          "name_match_counter": "named_reference",
+          "timing_included": false,
+          "owner_rpc_counts": {
+            "origin": 1,
+            "snapshot": 1,
+            "current": 1,
+            "head": 1
+          }
+        }
+      },
+      "storage_before": {
+        "counts": {
+          "accounts": 101,
+          "groups": 101,
+          "records": 101,
+          "automatic_facts": 101,
+          "sources": 101,
+          "source_admissions": 101,
+          "write_ledger": 101
+        },
+        "source_revision": 3333,
+        "durability": {
+          "server_version": "17.6 (Debian 17.6-1.pgdg13+1)",
+          "fsync": "on",
+          "synchronous_commit": "on",
+          "full_page_writes": "on"
+        },
+        "guard_sha256": "e3fbc5053da1f6a07477d0c5ba1dcdd997526b14863df874f2ceb64427105419",
+        "features": {
+          "source_lookup_schema": "1",
+          "automatic_fact_schema": "2",
+          "memory_context_schema": "1"
+        }
+      },
+      "storage_after": {
+        "counts": {
+          "accounts": 101,
+          "groups": 101,
+          "records": 101,
+          "automatic_facts": 101,
+          "sources": 101,
+          "source_admissions": 101,
+          "write_ledger": 101
+        },
+        "source_revision": 3333,
+        "durability": {
+          "server_version": "17.6 (Debian 17.6-1.pgdg13+1)",
+          "fsync": "on",
+          "synchronous_commit": "on",
+          "full_page_writes": "on"
+        },
+        "guard_sha256": "e3fbc5053da1f6a07477d0c5ba1dcdd997526b14863df874f2ceb64427105419",
+        "features": {
+          "source_lookup_schema": "1",
+          "automatic_fact_schema": "2",
+          "memory_context_schema": "1"
+        }
+      },
+      "wrong_actor": "forbidden",
+      "projection_ownership_proof": {
+        "native_check": "MemoryService._projections_current: active projection, actual record_id, version",
+        "boundary": "New native transaction per response, outside formal clocks and without owner RPC",
+        "swapped_refs_contract_valid": true,
+        "swapped_refs": "rejected_before_normalization"
+      },
+      "models_called": 0,
+      "timed_boundary": "query construction + native TestClient HTTP + actual auth + synthetic loopback TLS source owners + MemoryContext query; result/signature/count checks outside timer",
+      "cpu_denominator": "process CPU includes this process's ASGI and synthetic TLS owner threads; calling-thread CPU is the coordinator only; clocks overlap; no PG server CPU",
+      "normalization": "Only generated person/record/group/projection identities and per-request request_id; business clock fixed; complete public envelope, ordering, projection owner/version, scope/version/budget retained"
+    },
+    {
+      "requested_suite": "memory_named_context",
+      "image_id": "sha256:55c1c75118d27965cb78ecdf322affab67fc94803efa5ec446c90fee721dd649",
+      "revision": "70022d47de219bfab1bb29dbf3a5be2f73f7acda",
+      "client_wall_s": 76.79429109813645,
+      "raw_record_sha256": "6cfc019e6beaaf09234c84002f3d7b168276632f8bf00af17585c7970e447f8b",
+      "suite": "memory_named_context",
+      "backend": "postgresql",
+      "trial": 911,
+      "variant": "optimized",
+      "verified_revision": "70022d47de219bfab1bb29dbf3a5be2f73f7acda",
+      "measurement_mode": "timed",
+      "correctness": "passed",
+      "cpu_count": 8,
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "loadavg": [
+        5.85791015625,
+        5.01513671875,
+        4.71044921875
+      ],
+      "results": [
+        {
+          "case": "memory_named_context_unknown",
+          "operations": 3,
+          "elapsed_s": 2.9133488699999996,
+          "ops_s": 1.029742792184034,
+          "p50_ms": 984.135064,
+          "p95_ms": 988.786705,
+          "p99_ms": 988.786705,
+          "mean_ms": 971.11629,
+          "latencies_ms": [
+            988.786705,
+            984.135064,
+            940.427101
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 2.92637127218768,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            957.982836,
+            957.205531,
+            917.563091
+          ],
+          "process_cpu_p50_ms": 957.205531,
+          "process_cpu_p95_ms": 957.982836,
+          "process_cpu_p99_ms": 957.982836,
+          "process_cpu_mean_ms": 944.250486,
+          "thread_cpu_ms": [
+            0.800432,
+            0.875973,
+            0.846408
+          ],
+          "thread_cpu_p50_ms": 0.846408,
+          "thread_cpu_p95_ms": 0.875973,
+          "thread_cpu_p99_ms": 0.875973,
+          "thread_cpu_mean_ms": 0.8409376666666667
+        },
+        {
+          "case": "memory_named_context_known",
+          "operations": 3,
+          "elapsed_s": 2.7890052489999997,
+          "ops_s": 1.0756523319831157,
+          "p50_ms": 923.130275,
+          "p95_ms": 956.850379,
+          "p99_ms": 956.850379,
+          "mean_ms": 929.6684163333333,
+          "latencies_ms": [
+            923.130275,
+            909.024595,
+            956.850379
+          ],
+          "errors": 0,
+          "operation_and_validation_wall_s": 2.8040824686177075,
+          "cpu_clock_protocol": {
+            "process": "process_time_ns: all threads in this client process",
+            "thread": "thread_time_ns: calling thread only; excludes HTTP/ASGI workers",
+            "wall": "perf_counter_ns",
+            "profiling": false,
+            "clock_read_overhead_included": true
+          },
+          "process_cpu_ms": [
+            903.794013,
+            893.782738,
+            932.668621
+          ],
+          "process_cpu_p50_ms": 903.794013,
+          "process_cpu_p95_ms": 932.668621,
+          "process_cpu_p99_ms": 932.668621,
+          "process_cpu_mean_ms": 910.0817906666666,
+          "thread_cpu_ms": [
+            0.763472,
+            0.694856,
+            0.794627
+          ],
+          "thread_cpu_p50_ms": 0.763472,
+          "thread_cpu_p95_ms": 0.794627,
+          "thread_cpu_p99_ms": 0.794627,
+          "thread_cpu_mean_ms": 0.750985
+        }
+      ],
+      "registered_name_owners": 100,
+      "native_fact_groups": 101,
+      "returned_subjects": {
+        "unknown": 0,
+        "known": 1
+      },
+      "returned_scope_checks": {
+        "unknown": 1,
+        "known": 2
+      },
+      "logical_result_signatures": {
+        "unknown": "4557fcf62522bb5eef112418251b02f41f4fd0829524cf024b70c17fa8c75b0d",
+        "known": "1ca27594162f166afc7843c9a01c4d4e0a81be3802d818716922073774546f5b"
+      },
+      "untimed_call_counts": {
+        "unknown": {
+          "reference_body_plain": 1,
+          "reference_body_lexical": 1,
+          "name_matches": 100,
+          "fresh_revision": 6,
+          "name_views": [
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            },
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            }
+          ],
+          "name_match_counter": "for_name",
+          "timing_included": false,
+          "owner_rpc_counts": {
+            "origin": 1,
+            "snapshot": 1,
+            "current": 1,
+            "head": 1
+          }
+        },
+        "known": {
+          "reference_body_plain": 1,
+          "reference_body_lexical": 1,
+          "name_matches": 100,
+          "fresh_revision": 6,
+          "name_views": [
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            },
+            {
+              "entries": 100,
+              "current_names": 100,
+              "incomplete": 0
+            }
+          ],
+          "name_match_counter": "for_name",
+          "timing_included": false,
+          "owner_rpc_counts": {
+            "origin": 1,
+            "snapshot": 1,
+            "current": 1,
+            "head": 1
+          }
+        }
+      },
+      "storage_before": {
+        "counts": {
+          "accounts": 101,
+          "groups": 101,
+          "records": 101,
+          "automatic_facts": 101,
+          "sources": 101,
+          "source_admissions": 101,
+          "write_ledger": 101
+        },
+        "source_revision": 3333,
+        "durability": {
+          "server_version": "17.6 (Debian 17.6-1.pgdg13+1)",
+          "fsync": "on",
+          "synchronous_commit": "on",
+          "full_page_writes": "on"
+        },
+        "guard_sha256": "60ddc3bc002b1507f556dd4f8746ff5b3397bb483e76411acf5ab7f2829b6ff6",
+        "features": {
+          "source_lookup_schema": "1",
+          "automatic_fact_schema": "2",
+          "memory_context_schema": "1"
+        }
+      },
+      "storage_after": {
+        "counts": {
+          "accounts": 101,
+          "groups": 101,
+          "records": 101,
+          "automatic_facts": 101,
+          "sources": 101,
+          "source_admissions": 101,
+          "write_ledger": 101
+        },
+        "source_revision": 3333,
+        "durability": {
+          "server_version": "17.6 (Debian 17.6-1.pgdg13+1)",
+          "fsync": "on",
+          "synchronous_commit": "on",
+          "full_page_writes": "on"
+        },
+        "guard_sha256": "60ddc3bc002b1507f556dd4f8746ff5b3397bb483e76411acf5ab7f2829b6ff6",
+        "features": {
+          "source_lookup_schema": "1",
+          "automatic_fact_schema": "2",
+          "memory_context_schema": "1"
+        }
+      },
+      "wrong_actor": "forbidden",
+      "projection_ownership_proof": {
+        "native_check": "MemoryService._projections_current: active projection, actual record_id, version",
+        "boundary": "New native transaction per response, outside formal clocks and without owner RPC",
+        "swapped_refs_contract_valid": true,
+        "swapped_refs": "rejected_before_normalization"
+      },
+      "models_called": 0,
+      "timed_boundary": "query construction + native TestClient HTTP + actual auth + synthetic loopback TLS source owners + MemoryContext query; result/signature/count checks outside timer",
+      "cpu_denominator": "process CPU includes this process's ASGI and synthetic TLS owner threads; calling-thread CPU is the coordinator only; clocks overlap; no PG server CPU",
+      "normalization": "Only generated person/record/group/projection identities and per-request request_id; business clock fixed; complete public envelope, ordering, projection owner/version, scope/version/budget retained"
+    }
+  ]
+}

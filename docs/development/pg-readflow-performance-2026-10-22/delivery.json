@@ -1,0 +1,39 @@
+{
+  "status": "local_candidate_functionally_verified_and_pg_measured_not_product_integrated",
+  "baseline": "599c1e9436c9091fe5d3607d7ca60e208430851f",
+  "runtime": "70022d47de219bfab1bb29dbf3a5be2f73f7acda",
+  "source_delivery": "a3abf61ab15623803fd4043a1dd16d7b5b9e9f5c",
+  "benchmark_commit": "3d65eceadd3905cd052377093638ea1767581df2",
+  "shared_storage": "0.1.3",
+  "product_main": "e5e1b394a8f6d318dda4d9280587e599fd64c653",
+  "sqlite_functional_compatibility": true,
+  "sqlite_performance_gate": false,
+  "candidate_write_paths_changed": false,
+  "pg_write_non_regression_established": false,
+  "source_writer_released": true,
+  "benchmark_writer_released": true,
+  "benchmark_window_released": true,
+  "integrated": false,
+  "pushed": false,
+  "deployed": false,
+  "production_migration": false,
+  "cleanup_complete": true,
+  "setup_attempts": [
+    {
+      "action": "build",
+      "error": "owner-token stage not yet initialized",
+      "production_changed": false,
+      "benchmark_samples": 0,
+      "resolved": true
+    },
+    {
+      "action": "memory_flow_profile original trial501",
+      "error": "benchmark common helper allowed only the previous isolated PG prefix",
+      "production_changed": false,
+      "benchmark_samples": 0,
+      "resolved_by": "66f3e3d213278bc847cf592785ae311d92480231",
+      "replacement_diagnostic": 502,
+      "resolved": true
+    }
+  ]
+}
