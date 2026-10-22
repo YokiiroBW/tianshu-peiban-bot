@@ -1629,7 +1629,7 @@
       "id": "TS-291",
       "project": "memory",
       "title": "PG专用记忆召回、资料检索和来源同步优化",
-      "status": "in_progress",
+      "status": "done",
       "assignee": "business_flow_impl",
       "depends_on": [
         "TS-287",
@@ -1659,7 +1659,21 @@
       "baseline_commit": "e5e1b394a8f6d318dda4d9280587e599fd64c653",
       "implementation_baseline_commit": "599c1e9436c9091fe5d3607d7ca60e208430851f",
       "allocation_note": "Standard clean Memory allocation; isolated checkout fast-forwarded to accepted full Q19 TS287 history. Previous PG TS285 candidate is not stacked; product assembly remains separate.",
-      "scope_extension": "Per-named_owner lazy plain/lexical query body preparation; preserve matching, authority, source checks and phase boundaries."
+      "scope_extension": "Per-named_owner lazy plain/lexical query body preparation; preserve matching, authority, source checks and phase boundaries.",
+      "writer_released": true,
+      "integrated": false,
+      "product_integrated": false,
+      "production_migration": false,
+      "delivery_state": "local_candidate_functionally_verified_and_pg_measured_not_product_integrated",
+      "candidate_read_benefits_verified": true,
+      "all_pg_paths_improved_established": false,
+      "runtime_commit": "70022d47de219bfab1bb29dbf3a5be2f73f7acda",
+      "result_commit": "a3abf61ab15623803fd4043a1dd16d7b5b9e9f5c",
+      "implementation_commits": [
+        "4042e6bf8b94fd7d309ecf2ad46e978448024757",
+        "70022d47de219bfab1bb29dbf3a5be2f73f7acda"
+      ],
+      "result": "worktrees/TS-291/tianshu-memory/docs/handoffs/TS-291.md"
     },
     {
       "execution_model": "gpt-6.1-sol",
@@ -1671,7 +1685,7 @@
       "id": "TS-292",
       "project": "workspace",
       "title": "PG专用优化前后隔离实测与兼容验收",
-      "status": "in_progress",
+      "status": "done",
       "assignee": "current-thread",
       "depends_on": [
         "TS-286"
@@ -1689,7 +1703,38 @@
       "worktree": "worktrees/TS-292/workspace",
       "branch": "codex/ts-292-pg-readflow",
       "baseline_commit": "37f9184e37e8bde564c1cee08ecb5e704e3be8f6",
-      "allocation_note": "Standard allocator refused foreign mixed root; reviewed benchmark/storage paths unchanged and created committed-baseline worktree, preserving all root bytes."
+      "allocation_note": "Standard allocator refused foreign mixed root; reviewed benchmark/storage paths unchanged and created committed-baseline worktree, preserving all root bytes.",
+      "writer_released": true,
+      "integrated": false,
+      "product_integrated": false,
+      "production_migration": false,
+      "delivery_state": "local_candidate_functionally_verified_and_pg_measured_not_product_integrated",
+      "candidate_read_benefits_verified": true,
+      "all_pg_paths_improved_established": false,
+      "result_commit": "d31e8236b5de5de94ea74c3e98ba20b53e2f9aba",
+      "workspace_report_integrated": true,
+      "benchmark_window_released": true,
+      "benchmark_code_commit": "3d65eceadd3905cd052377093638ea1767581df2",
+      "result": "docs/development/pg-readflow-performance-2026-10-22.md",
+      "verification": {
+        "distinct_passed_nodes": 2359,
+        "native_pg_required_passed": 198,
+        "native_selected_passed": 258,
+        "baseline_reproduced_failures": 3,
+        "intentional_remaining_skips": 1,
+        "formal_runs": 42,
+        "serial_native_operations": 4806,
+        "concurrent_batches": 240,
+        "concurrent_logical_requests": 960,
+        "cleanup_complete": true,
+        "same_original_image_aa_runs": 6,
+        "same_image_aa_native_operations": 1020,
+        "direct_durability_telemetry_runs": 36,
+        "legacy_knowledge_runs_without_show": 6,
+        "sqlite_functional_compatibility": true,
+        "sqlite_performance_gate": false,
+        "pg_write_non_regression_established": false
+      }
     }
   ],
   "dispatch_defaults": {
