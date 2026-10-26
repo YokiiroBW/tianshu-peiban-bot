@@ -39,7 +39,7 @@
     "apps/web/tests/memory-role.spec.ts"
   ],
   "AL08_independent_candidate": "TS318 already has a separate authorized card/worktree. Final TS316 shared entry ownership is released; assembly still requires that card's exact scope update and independent validation.",
-  "AL11_dependency": "TS314 final Companion interface is available at671deeadb04301b42f56a3a2020548117698bbc0. Any AL11 implementation still needs its separately authorized exact card/worktree and a single owner for canonical/release adapter copies. Do not modify TS307 or existing frozen candidate contracts.",
+  "AL11_dependency": "Use final Companion671deead and serial final TS318 Platform baseline for separately authorized AL11 cards. New namespace/integrations ownership is specified below; do not modify TS307/TS311 or existing frozen contracts.",
   "operations": "This extension batch is local only: no additional push/deploy, external model/QQ calls, production migration or shared test-resource use. Model ledger remains 17540/18000. Root original index and existing changes are preserved.",
   "communication": "This file is a local coordination record. No outbound thread message was sent by this chat.",
   "platform_candidate_commit": "3e2cc412c676450a90dc0cbd3c3387d1c945e5e2",
@@ -62,7 +62,7 @@
     "assembly": "TS316 final commit 3e2cc412c676450a90dc0cbd3c3387d1c945e5e2 is released for separately authorized serial assembly in TS318's own registered worktree after its exact card/scope update. Do not modify TS311; no forwarding entry points or candidate contract changes.",
     "resources": "Only that card private SQLite/temp dirs and read-only existing interpreter. No shared PG, model budget, credentials, current test outputs or product checkouts.",
     "allocation": "One slot is free after closed TS317. This record releases path ownership only; the other batch coordinator must validate dependencies/capacity and register its own authorized card, preserving all unrelated tasks/root index.",
-    "AL11": "TS314 interface delivery no longer blocks planning. AL11 is not allocated or contract-delegated by this record; proposed observation-participation/candidate-v1 remains an offline proposal pending explicit namespace/card ownership. Existing actor contracts are unchanged."
+    "AL11": "TS314 final interface is delivered. New observation-participation/candidate-v1 and integrations-only ownership are explicitly delegated to the coordinator identified in AL11_namespace_delegation; exact new cards/worktrees and single-writer boundaries still apply. Existing frozen contracts and Companion src remain outside that delegation."
   },
   "platform_shared_paths_release": {
     "state": "released_from_TS316_for_separately_authorized_serial_assembly",
@@ -71,5 +71,20 @@
     "scope": "Previously listed TS316 Platform shared entry points may now be assembled by a separately authorized exact card after allocator scope update. Preserve this final complete history; no new candidate contracts or parallel writers."
   },
   "companion_candidate_commit": "671deeadb04301b42f56a3a2020548117698bbc0",
-  "delivery_record": "docs/development/memory-extensions-delivery-2026-10-26.json"
+  "delivery_record": "docs/development/memory-extensions-delivery-2026-10-26.json",
+  "AL11_namespace_delegation": {
+    "state": "new_candidate_namespace_and_integrations_only_ownership_delegated",
+    "owner_thread": "01a15a96-9c82-7102-b512-9b592e1f4dff",
+    "namespace": "observation-participation/candidate-v1",
+    "allowed_contract_paths": [
+      "contracts/observation-participation/candidate-v1/"
+    ],
+    "contract_scope": "That coordinator is sole author for this new offline-candidate schema, positive/negative examples and manifest. Existing actor/user/Chat/group/archive contracts and immutable extension-v7 are not delegated or modified. Candidate publication/consumer pins and validation are recorded by that coordinator; this does not assert production release.",
+    "companion_baseline": "671deeadb04301b42f56a3a2020548117698bbc0",
+    "companion_scope": "A separately registered exact integrations-only adapter card may write integrations/shared, canonical NoneBot/AstrBot and their release copies plus corresponding tests/docs in its own worktree. One writer owns canonical/release copies. Companion src, actor-memory domain, queues and TS307 remain frozen.",
+    "platform_scope": "Any AL11 Platform implementation follows TS318 final committed history serially, in a separately registered exact card/worktree. Do not modify TS311 or assemble concurrent writers in server/service/bots/observation/delivery.",
+    "allocation": "The other coordinator owns fresh task ids, allocator capacity/dependencies, task cards, consumer pins and independent validation. This record allocates no task and changes no task row.",
+    "operations": "Local-only ownership release; no external models, QQ/site/account action, production migration, push or deploy authorized by this record.",
+    "this_batch": "Future separate AL11 work; not part of the five locally completed TS313-317 implementations."
+  }
 }
