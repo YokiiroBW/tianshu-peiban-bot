@@ -10,7 +10,9 @@
   "implementation_contracts": ".runtime/memory-extensions-20261026/contracts-v7",
   "contract_scope": "Immutable accepted user rev6 plus candidate actor/Chat/group/archive extensions. This is not the rejected user protocol rev7. Root coordinator is the only contract writer.",
   "active_tasks": [
-    "TS-236"
+    "TS-236",
+    "TS-320",
+    "TS-321"
   ],
   "allocation": "TS313/314/315/316/317 are done locally, not integrated/deployed. Unrelated active rows are preserved. No future card is allocated by this record.",
   "writers": {
@@ -39,7 +41,7 @@
   ],
   "AL08_independent_candidate": "TS318 closed local_verified_not_integrated at 6d8dbaf29979c210c027f36a8333b5a605f7c3e6; clean, direct parent is final TS3163e2cc412. Use the complete serial history for subsequent independently allocated Platform work.",
   "AL11_dependency": "Use Companion671deeadb04301b42f56a3a2020548117698bbc0 and Platform6d8dbaf29979c210c027f36a8333b5a605f7c3e6 (direct parent TS3163e2cc412) for separately authorized AL11 cards. New namespace/integrations ownership is delegated below; do not modify TS307/TS311 or existing frozen contracts.",
-  "operations": "This extension batch is local only: no additional push/deploy, external model/QQ calls, production migration or shared test-resource use. Model ledger remains 17540/18000. Root original index and existing changes are preserved.",
+  "operations": "Completed TS313-317 local development remains frozen and performed no push/deploy. Unified release is now owned by the separately authorized coordinator identified in release_coordination; this chat does not perform concurrent production actions. Original data/config/other services and model ledger are preserved.",
   "communication": "This file is a local coordination record. No outbound thread message was sent by this chat.",
   "platform_candidate_commit": "3e2cc412c676450a90dc0cbd3c3387d1c945e5e2",
   "platform_candidate_state": "Final committed clean TS316 delivery. Component/backend/native PG/browser, actual Chat-Platform-Memory and actual Comp-Memory-Platform actor joints passed. No further TS316 Platform writes.",
@@ -97,5 +99,25 @@
     "this_chat_verified": "Actual Git HEAD/direct parent/clean state, own handoff/structured delivery and done task row; tests not rerun",
     "pushed": false,
     "deployed": false
+  },
+  "release_coordination": {
+    "coordinator_thread": "01a15a96-9c82-7102-b512-9b592e1f4dff",
+    "reported_user_authorization": "该聊天报告用户明确要求其当前工作完成后连记忆系统更新一起推送部署",
+    "phase": "read_only_release_preparation_pending_AL08_AL11_review_and_actual_joint",
+    "production_write_owner": "that_coordinator_only_serial_integration_push_deployment_and_live_acceptance",
+    "this_chat_role": "frozen_TS313_317_source_owner_and_release_handoff_only",
+    "handoff_json": "docs/development/memory-extensions-release-handoff-2026-10-27.json",
+    "handoff_markdown": "docs/development/memory-extensions-release-handoff-2026-10-27.md",
+    "shared_branch": "codex/memory-extensions-shared-20261026",
+    "five_final_product_SHAs_unchanged": true,
+    "no_parallel_production_write_push_or_service_rebuild": true,
+    "test_model_budget": {
+      "used": 17540,
+      "cap": 18000,
+      "remaining": 460,
+      "this_handoff_calls": 0,
+      "future_acceptance_calls_owner": "single release coordinator, same original ledger"
+    },
+    "production_deployed_not_claimed": true
   }
 }

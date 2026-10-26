@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-27",
+  "state": "frozen_memory_extensions_handed_to_single_release_coordinator",
+  "release_coordinator_thread": "01a15a96-9c82-7102-b512-9b592e1f4dff",
+  "authorization_reported_by_release_coordinator": "用户要求该聊天完成当前工作后，连同记忆系统更新一并推送部署；由该协调者等待AL08/AL11审查与实际联合完成后串行执行",
+  "production_writer": "release_coordinator_only",
+  "this_chat_production_actions": 0,
+  "source_records": [
+    "docs/development/memory-extensions-delivery-2026-10-26.json",
+    "docs/development/autonomous-life-boundary-2026-10-26.json",
+    "docs/development/autonomous-life-wave2-delivery-2026-10-26.json"
+  ],
+  "frozen_products": {
+    "memory_TS313": "a2de620c676a24d7c08bb33ef3f1be2488b71666",
+    "companion_TS314": "671deeadb04301b42f56a3a2020548117698bbc0",
+    "chat_TS315": "1c2ee12c42d466bd9b48d1dd67d491429753f395",
+    "platform_TS316": "3e2cc412c676450a90dc0cbd3c3387d1c945e5e2",
+    "gateway_TS317": "5ff98947f7eaf82384d359ca84ad581a5cf113f0"
+  },
+  "serial_descendants": {
+    "platform_TS318": "6d8dbaf29979c210c027f36a8333b5a605f7c3e6",
+    "TS318_direct_parent": "3e2cc412c676450a90dc0cbd3c3387d1c945e5e2",
+    "final_platform": "release coordinator TS321 final descendant of TS318",
+    "final_companion": "release coordinator TS320 final descendant of TS314; integrations-only",
+    "gateway_note": "TS317 preserves complete d658367 parent/Q17 candidate history; inspect full actual release range rather than treating three newly changed paths as the whole release"
+  },
+  "shared_branch": "codex/memory-extensions-shared-20261026",
+  "shared_revision_before_this_handoff": "a72ebca818e0016775dc7957d734b43b9bd4a75c",
+  "accepted_contract_set": ".runtime/memory-extensions-20261026/contracts-v7",
+  "contract_set_meaning": "accepted user rev6 plus extension candidates; not rejected user protocol rev7; do not copy whole mixed root contracts",
+  "candidate_manifest_pins_LF_normalized": {
+    "actor-self-memory/candidate-v1": "bfec1bedaee06039e3f33bac8413ff49bb62a81515a664aae8ea704c6c09af33",
+    "actor-capabilities/candidate-v1": "6e36fbfa6c82cadc93b2d0642c3591b596f4e9d7dde0b8774742ba63db1631ef",
+    "chat-history/candidate-v1": "4395f4207ef4bcaacb45522213aa622c5603d79006c29b48b5ff350525082ef4",
+    "group-memory-projection/candidate-v1": "ce97efa564962779c112a453970f8e93f340ac4366f4df641dff58fde871709b",
+    "archive-memory-check/candidate-v1": "4a99c3bda5e07c06974e9d21224230b7cdcbf3ba68490c67d0ffa4193a263260"
+  },
+  "separate_namespace_owner": {
+    "namespace": "observation-participation/candidate-v1",
+    "owner_thread": "01a15a96-9c82-7102-b512-9b592e1f4dff",
+    "pin_and_consumers": "release coordinator TS319/320/321 exact records; existing five packages are unchanged"
+  },
+  "deployment_dependencies": [
+    "Explicit new actor-memory/main StorageRuntime schema2 initialization with stopped actor writers, separate persistent database binding/state/guard, existing backend config; no user Store migration",
+    "tianshu-memory --config <private-config.json> migrate-actor-memory --backup <new-local-file>; equivalent python -m tianshu_memory.cli; initial absence receipt is not a full PG/user backup",
+    "Memory actor authorities.actor_check and producers.companion fixed HTTPS URL/token/CA; actual Memory-Comp-Platform-Knowledge mutual caller/TLS chain",
+    "Memory callers.companion actor_memory_operations and exact allowed_actors/allow_runtime_roles; Platform actor.memory.authorize and companion actor.capabilities; current role/read/write/discover version",
+    "Chat EVIDENCE_READ_CONFIG independent reader token_sha256 and fixed mappings, persistent APP_SECRET_KEY, real evidence router and HTTPS service access",
+    "Comp services.chat_history and chat_history_mappings; Memory browser reader exact account/actor/group scope and archive_mappings",
+    "Platform web_group_memory plus current operator-owned WEB group entry, true QQ chat_channel canonical mapping and Memory scope; Origins read_channels auto assembly",
+    "Publish final Platform frontend static artifacts with final backend; preserve existing external static mount and rollback handling",
+    "Comp gateway_background plus provider_selector_background; Platform authenticated companion_background config.select; Gateway internal ClientGrant and workload_bindings.bindings companion_background=background with existing provider self service/runtime",
+    "Inventory backup/restore must include new actor-memory binding/guard/database; previous24-source inventory is historical, not a fixed expected new source count"
+  ],
+  "verified_local_results": {
+    "companion": "1680P/48S effective, full once plus exact retests",
+    "native_PG": "70 applicable P; own isolated database/role cleaned",
+    "actual_local_owner_TLS_joints": "archive1P, actor2P, background2P",
+    "receipts": "docs/development/memory-extensions-delivery-2026-10-26.json"
+  },
+  "unverified_in_production": [
+    "new actor storage, actual source/caller/TLS chain and durable receipts",
+    "actual Chat archive scopes and browser/operator/group mappings",
+    "final combined Platform static assets and backend",
+    "companion_background actual deployed identity/class/provider grants",
+    "new AL11 final combined behaviour owned by release coordinator"
+  ],
+  "preserved_limits": [
+    "No real actor-memory injection into publishable fictional diary",
+    "Actor-only is internal; external use requires current matching audience and source constraints",
+    "Unsupported QQNT aliases are filtered; archive/no-known-forget is not Core-current",
+    "Prior local joints use fixed Knowledge peer and original user-memory dialogue anchors; not a live deployment acceptance",
+    "Existing original worktrees/branches/root index and unrelated services/data preserved"
+  ],
+  "test_model_budget": {
+    "used": 17540,
+    "cap": 18000,
+    "remaining": 460,
+    "this_handoff_calls": 0,
+    "future_acceptance_calls_owner": "single release coordinator, same original ledger"
+  },
+  "this_handoff": {
+    "product_code_changes": false,
+    "tests_rerun": false,
+    "credentials_read": false,
+    "production_or_device_operations": false,
+    "push": false,
+    "deploy": false
+  }
+}
