@@ -1,0 +1,145 @@
+{
+  "status": "local_verified_not_integrated",
+  "completed_at": "2026-10-27",
+  "pushed": false,
+  "deployed": false,
+  "products": [
+    {
+      "task": "TS-313",
+      "product": "Memory",
+      "worktree": "worktrees/TS-306/tianshu-memory",
+      "branch": "codex/memory-extensions-20261026",
+      "commit": "a2de620c676a24d7c08bb33ef3f1be2488b71666",
+      "baseline": "62206f2a58be08e4032ce32ddf2c90219f417877",
+      "clean": true,
+      "handoff": "worktrees/TS-306/tianshu-memory/docs/handoffs/TS-313.md"
+    },
+    {
+      "task": "TS-314",
+      "product": "Companion",
+      "worktree": "worktrees/TS-307/tianshu-companion",
+      "branch": "codex/memory-extensions-20261026",
+      "commit": "671deeadb04301b42f56a3a2020548117698bbc0",
+      "baseline": "68b85d0d59e2cdbe93a5240e4d7771d4f7a31840",
+      "clean": true,
+      "handoff": "worktrees/TS-307/tianshu-companion/docs/handoffs/TS-314.md"
+    },
+    {
+      "task": "TS-315",
+      "product": "Chat",
+      "worktree": "worktrees/TS-061/chat-audit-core",
+      "branch": "codex/memory-extensions-20261026",
+      "commit": "1c2ee12c42d466bd9b48d1dd67d491429753f395",
+      "baseline": "e6d8e21",
+      "clean": true,
+      "handoff": "worktrees/TS-061/chat-audit-core/docs/handoffs/TS-315.md"
+    },
+    {
+      "task": "TS-316",
+      "product": "Platform",
+      "worktree": "worktrees/TS-311/tianshu-platform",
+      "branch": "codex/memory-extensions-20261026",
+      "commit": "3e2cc412c676450a90dc0cbd3c3387d1c945e5e2",
+      "baseline": "506a82062166cef457974ef9b95789010e3435d0",
+      "clean": true,
+      "handoff": "worktrees/TS-311/tianshu-platform/docs/handoffs/TS-316.md"
+    },
+    {
+      "task": "TS-317",
+      "product": "Gateway",
+      "worktree": "worktrees/TS-261/tianshu-model-gateway",
+      "branch": "codex/memory-extensions-20261026",
+      "commit": "5ff98947f7eaf82384d359ca84ad581a5cf113f0",
+      "baseline": "d65836727bc01e9c2f19e7b79a74cb96e80d8355",
+      "clean": true,
+      "handoff": "worktrees/TS-261/tianshu-model-gateway/docs/handoffs/TS-317.md"
+    }
+  ],
+  "implementation": [
+    "Chat existing authorized archive: search, bound keyset pagination, exact text and neighbours, native alias known-forget filtering.",
+    "Group interaction graph from reply/@ only; topic projection and deterministic zoomable 2D point cloud; raw heat separate from summary coverage.",
+    "Independent BOT actual episode/derived-memory domain using existing StorageRuntime and current producer/actor/audience proof.",
+    "Companion actual Reading interval/source and original outbox delivery; durable receipt recovery, scoped recall and interpretation based on actual recalled episode revisions.",
+    "Existing Life/MemoryLearning background phases, fixed authenticated background caller and dynamic provider grants; no new persistent queue/model step/semantic matching rules.",
+    "Default Knowledge callback uses a separately managed existing JsonService from the same Memory connection configuration; unchanged per-client3/4 admission and15s budget, no model-slot change."
+  ],
+  "validation": {
+    "contracts": "17 parents passed; accepted candidate manifests and examples, not rejected user protocol rev7",
+    "memory_component": "142 applicable parents:119P/23S, original fixture failures retained; actor AL02/AL04 earlier focused receipts retained",
+    "companion_component": "1728 applicable parents:1680P/48S;451 aggregate subtests P; full once plus precise affected retests, not one all-green full rerun",
+    "companion_callback_followup": "36P/90 subtests P, rechecks not added twice; actual build_runtime/JsonService with fixed httpx.MockTransport",
+    "chat_component": "78P/1 Windows fcntl skip",
+    "gateway_component": "59P;3489 aggregate subtests P",
+    "platform_backend": "52 parents:51P/1 PG-unconfigured skip; native PG13 separately passed",
+    "platform_browser": "10 applicable desktop/mobile behaviours passed; two CSS failures fixed and only affected behaviours rechecked on both targets",
+    "platform_frontend": "TypeScript and Vite build passed; existing renderer chunk-size warning retained",
+    "native_postgresql": "70 applicable passed:42 actor+15 browser+13 Platform; original setup/deadline fixture failures retained; owned UUID database/role cleaned",
+    "actual_owner_joints": "Chat-Platform-Memory1P; actor Companion-Memory-Platform2P; background Companion-Platform-Gateway2P. Original joint fixture failures retained.",
+    "workspace_preparation": "Failed on51 missing historical done-task directories, all same paths/statuses before this batch. Unrelated metadata unchanged.",
+    "static": "Relevant changed-path Ruff/format/compile/diff passed; original Memory/Companion/Origins whole-file format limitations retained in product handoffs"
+  },
+  "receipts": {
+    "memory_component": {
+      "path": "worktrees/TS-306/tianshu-memory/.runtime/ts313-browser-delivery-v1/commit.json",
+      "sha256": "7e7f852b73fb27f1deca7ded3912743915d97c1434bd10f7018a379e1d84f78d"
+    },
+    "companion_component": {
+      "path": "worktrees/TS-307/tianshu-companion/.runtime/ts314-final-delivery-v2/delivery.json",
+      "sha256": "4bf5f31e2eb1614b966cc159b16c70d0da7524d52e0f732007f302cea5c8bce6"
+    },
+    "chat_component": {
+      "path": "worktrees/TS-061/chat-audit-core/.runtime/ts315-evidence-kernel-v1/delivery.json",
+      "sha256": "c3026aae6cb9f7c6d3606ee2f71f05d027c12fbf6edb93cfb8eca58445da7de6"
+    },
+    "chat_platform_memory_joint": {
+      "path": "worktrees/TS-061/chat-audit-core/.runtime/ts316-three-owner-joint-v1/receipt.json",
+      "sha256": "a7f6a7167bec881eea89d6e04c53e405474e11956d2906e0fa2a1795a3298df8"
+    },
+    "actor_companion_memory_platform_joint": {
+      "path": "worktrees/TS-061/chat-audit-core/.runtime/ts314-actor-three-owner-joint-v4/delivery.json",
+      "sha256": "18a657292477cd9392b4d62e24403d9be0dafa1a6e9a4cd7504e8d025e9a5f7c"
+    },
+    "background_companion_platform_gateway_joint": {
+      "path": "worktrees/TS-261/tianshu-model-gateway/.runtime/ts317-platform-joint-v3/delivery.json",
+      "sha256": "288155ea0a4e62a8294a0c8e832cd826ecd3af66a9917833aebcb3e4ced193eb"
+    },
+    "native_postgresql": {
+      "path": ".runtime/memory-extensions-20261026/pg-verification.json",
+      "sha256": "6212f7ae19a8d4242a40bb346f4d981eddc2e0b07d89897071927f50cfd4d7e2"
+    },
+    "independent_companion_verification": {
+      "path": ".runtime/memory-extensions-20261026/companion-final-verification.json",
+      "sha256": "50f37e3f535ae08e43c2692730b4f8438591c58629368608ff114aaf5923e85a"
+    },
+    "workspace_preparation": {
+      "path": ".runtime/memory-extensions-20261026/workspace-check.json",
+      "sha256": "ed8c1db808382be5e3adc1a2570ac4ceb99e759db89afade1924aab9d35cb135"
+    }
+  },
+  "limits": [
+    "No deployment or real Chat/QQ/external-account activation in this extension batch; previous core release remains the production version.",
+    "Actor joint Knowledge original-content peer is fixed local TLS; user-memory dialogue anchors use the original Harness stand-in. These are not full Knowledge/Core/OneBot live acceptance.",
+    "Actual BOT reading interval does not prove whole-book completion or understanding; text beyond the existing4000-character fact budget retains exact metadata/ref without an invented summary.",
+    "Actor-only material stays internal. External reuse requires matching current audience and producer constraints. Publishable fictional diaries do not receive real actor-memory material in this batch.",
+    "Unsupported unmapped QQNT aliases are filtered; an authorized external-ID import can be no_known_forget/unmapped, never falsely Core-current.",
+    "Interaction volume is not friendship; 2D coordinates are presentation layout, not facts. Statistics count physical messages and a bounded10000-message window.",
+    "Schema6 omits BOT-derived user-memory material when the new Chat/Actor proof cannot be represented, while retaining original human messages.",
+    "AL08 content discovery/AL11 observation participation and the full autonomous-life roadmap are separate tasks, not claimed complete here."
+  ],
+  "budget": {
+    "cumulative_test_model_calls": 17540,
+    "cap": 18000,
+    "remaining": 460,
+    "batch_real_model_calls": 0,
+    "qq_test_messages": 0
+  },
+  "preservation": {
+    "original_root_head": "ab93be4e91b824008d387d71c80e77dfac7341b3",
+    "original_index_sha256": "bc8f3aa117deda30035922d0db358fe41bd7703853961e065d96310c85400351",
+    "cached_diff_sha256": "a6b2a98b826d6223fb0e91d3ef0e9cfde304fd01abf01220b9eb7efa4d275716",
+    "old_branches_and_worktrees": true,
+    "unrelated_task_rows": true,
+    "reset_clean_stash": false,
+    "product_main_modified": false
+  }
+}

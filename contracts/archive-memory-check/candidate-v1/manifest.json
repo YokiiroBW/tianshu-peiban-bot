@@ -1,0 +1,11 @@
+{
+  "name": "archive-memory-check",
+  "version": "1.0.0-candidate.1",
+  "state": "isolated-development-candidate",
+  "hash_basis": "UTF-8 LF-normalized",
+  "sha256": {
+    "schema.json": "87cb50146291d4386a8cdd8d0cae57689231a985187c688c031b5b40d0c7a201",
+    "examples.json": "3f58f7be5be3e51233e403dfd79803b63612c4314411e1f6400162ff4bfab251",
+    "README.md": "7299f0e76239262b0161b9369ea2f9fa7113573b5ad5226a192a0167b5db2f6d"
+  }
+}

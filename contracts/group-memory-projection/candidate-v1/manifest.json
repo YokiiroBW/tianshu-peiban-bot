@@ -1,0 +1,11 @@
+{
+  "name": "group-memory-projection",
+  "version": "1.0.0-candidate.1",
+  "state": "isolated-development-candidate",
+  "hash_basis": "UTF-8 LF-normalized",
+  "sha256": {
+    "schema.json": "8915d18573996cdeb9a168b91f1c47a9e358b537c1d1efe4532c7b5f4c00788a",
+    "examples.json": "84766ad2e6b2e0f749503935e7a3e9a9aaddc6fe9d5121d00b4dfd7bc5ea50d9",
+    "README.md": "8da7c791fad39b8d677ecbcd1454661ebce9be90144dac60edafdfde55629a43"
+  }
+}

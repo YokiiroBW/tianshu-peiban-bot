@@ -1,0 +1,75 @@
+{
+  "updated_at": "2026-10-27",
+  "coordinator": "memory-extensions current chat",
+  "state": "memory_extensions_five_cards_locally_verified_not_integrated",
+  "production_platform_commit": "506a82062166cef457974ef9b95789010e3435d0",
+  "platform_worktree": "worktrees/TS-311/tianshu-platform",
+  "platform_task": "TS-316",
+  "accepted_actor_capabilities_commit": "90c0d44fc5d244e91ea4665e59e18e18a607e3df",
+  "actor_capabilities_integration": "Already merged in TS316 at 209df023f223027880d597191ac3a49dcca1459c; do not merge it a second time.",
+  "implementation_contracts": ".runtime/memory-extensions-20261026/contracts-v7",
+  "contract_scope": "Immutable accepted user rev6 plus candidate actor/Chat/group/archive extensions. This is not the rejected user protocol rev7. Root coordinator is the only contract writer.",
+  "active_tasks": [
+    "TS-236",
+    "TS-318"
+  ],
+  "allocation": "TS313/314/315/316/317 are done locally, not integrated/deployed. Unrelated active rows are preserved. No future card is allocated by this record.",
+  "writers": {
+    "TS-313": "Closed local_verified_not_integrated at a2de620c676a24d7c08bb33ef3f1be2488b71666; actor, browser and native PG/actual-owner joints verified.",
+    "TS-314": "Closed local_verified_not_integrated at 671deeadb04301b42f56a3a2020548117698bbc0; all Companion files frozen. Actual actor source/outbox/recall/derive and independent background route verified; default Knowledge callback isolation regression passed.",
+    "TS-316": "Closed local_verified_not_integrated at 3e2cc412c676450a90dc0cbd3c3387d1c945e5e2; shared paths released only for separately authorized serial assembly.",
+    "TS-317": "Closed local_verified_not_integrated at 5ff98947f7eaf82384d359ca84ad581a5cf113f0; 59 component parents and two actual-owner joint parents passed; no push/deploy."
+  },
+  "platform_owned_paths_until_delivery": [
+    "services/platform/server.py",
+    "services/platform/service.py",
+    "services/platform/auth.py",
+    "services/platform/origins.py",
+    "services/platform/provider_authority.py",
+    "services/platform/web_memory.py",
+    "services/platform/web_group_memory.py",
+    "services/platform/actor_memory_authority.py",
+    "services/platform/candidate_protocol.py",
+    "services/platform/actor_capabilities/",
+    "apps/web/src/features/memory/",
+    "tests/backend/test_actor_memory_authority.py",
+    "tests/backend/test_web_group_memory.py",
+    "tests/backend/test_model_functions.py",
+    "apps/web/tests/group-insights.spec.ts",
+    "apps/web/tests/memory-role.spec.ts"
+  ],
+  "AL08_independent_candidate": "TS318 already has a separate authorized card/worktree. Final TS316 shared entry ownership is released; assembly still requires that card's exact scope update and independent validation.",
+  "AL11_dependency": "TS314 final Companion interface is available at671deeadb04301b42f56a3a2020548117698bbc0. Any AL11 implementation still needs its separately authorized exact card/worktree and a single owner for canonical/release adapter copies. Do not modify TS307 or existing frozen candidate contracts.",
+  "operations": "This extension batch is local only: no additional push/deploy, external model/QQ calls, production migration or shared test-resource use. Model ledger remains 17540/18000. Root original index and existing changes are preserved.",
+  "communication": "This file is a local coordination record. No outbound thread message was sent by this chat.",
+  "platform_candidate_commit": "3e2cc412c676450a90dc0cbd3c3387d1c945e5e2",
+  "platform_candidate_state": "Final committed clean TS316 delivery. Component/backend/native PG/browser, actual Chat-Platform-Memory and actual Comp-Memory-Platform actor joints passed. No further TS316 Platform writes.",
+  "partial_release": {
+    "state": "non_overlapping_AL08_paths_released_for_separately_authorized_card",
+    "baseline": "3e2cc412c676450a90dc0cbd3c3387d1c945e5e2",
+    "worktree": "A separate registered worktree only; do not write TS311 or change its branch/files.",
+    "paths": [
+      "services/platform/content_discovery/",
+      "services/platform/plugins/builtin/content-discovery/",
+      "services/platform/plugins/manager.py",
+      "services/platform/plugins/ports.py",
+      "services/platform/plugins/port_schemas.py",
+      "services/platform/plugins/execution.py",
+      "services/platform/media/repository.py",
+      "tests/backend/test_content_discovery*.py"
+    ],
+    "media_repository_extension": "TS318 may add only bounded read-only document_page(kind, limit<=128, after_id) for book/comic/music_source/subscription, and member_page(subscription_id, after=(bvid,cid), limit<=128), using existing documents/members/member_parts and payload decoding. Preserve actual source private_scope filtering at the caller. No migration, download, account action, administrator projection or unrelated repository refactor. TS316 does not modify this file; separate TS318 worktree only.",
+    "assembly": "TS316 final commit 3e2cc412c676450a90dc0cbd3c3387d1c945e5e2 is released for separately authorized serial assembly in TS318's own registered worktree after its exact card/scope update. Do not modify TS311; no forwarding entry points or candidate contract changes.",
+    "resources": "Only that card private SQLite/temp dirs and read-only existing interpreter. No shared PG, model budget, credentials, current test outputs or product checkouts.",
+    "allocation": "One slot is free after closed TS317. This record releases path ownership only; the other batch coordinator must validate dependencies/capacity and register its own authorized card, preserving all unrelated tasks/root index.",
+    "AL11": "TS314 interface delivery no longer blocks planning. AL11 is not allocated or contract-delegated by this record; proposed observation-participation/candidate-v1 remains an offline proposal pending explicit namespace/card ownership. Existing actor contracts are unchanged."
+  },
+  "platform_shared_paths_release": {
+    "state": "released_from_TS316_for_separately_authorized_serial_assembly",
+    "final_commit": "3e2cc412c676450a90dc0cbd3c3387d1c945e5e2",
+    "worktree": "TS311 remains frozen; other tasks use their own registered worktree.",
+    "scope": "Previously listed TS316 Platform shared entry points may now be assembled by a separately authorized exact card after allocator scope update. Preserve this final complete history; no new candidate contracts or parallel writers."
+  },
+  "companion_candidate_commit": "671deeadb04301b42f56a3a2020548117698bbc0",
+  "delivery_record": "docs/development/memory-extensions-delivery-2026-10-26.json"
+}

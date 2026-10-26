@@ -1,0 +1,314 @@
+{
+  "positive": [
+    {
+      "id": "discover-own-bindings",
+      "definition": "discover",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "discover"
+      }
+    },
+    {
+      "id": "invoke-stable-intent",
+      "definition": "invoke",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "invoke",
+        "binding": {
+          "binding_id": "00000000-0000-4000-8000-000000000001",
+          "binding_revision": 2,
+          "instance_id": "00000000-0000-4000-8000-000000000002",
+          "action_id": "echo"
+        },
+        "intent_key": "synthetic-intent-1",
+        "arguments": {
+          "text": "hello"
+        }
+      }
+    },
+    {
+      "id": "get-same-invocation",
+      "definition": "get",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "get",
+        "invocation_id": "00000000-0000-4000-8000-000000000003"
+      }
+    },
+    {
+      "id": "reconcile-same-invocation",
+      "definition": "reconcile",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "reconcile",
+        "invocation_id": "00000000-0000-4000-8000-000000000003"
+      }
+    },
+    {
+      "id": "cancel-same-invocation",
+      "definition": "cancel",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "cancel",
+        "invocation_id": "00000000-0000-4000-8000-000000000003"
+      }
+    },
+    {
+      "id": "directory",
+      "definition": "discovery_result",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "capabilities": [
+          {
+            "binding": {
+              "binding_id": "00000000-0000-4000-8000-000000000001",
+              "binding_revision": 2,
+              "instance_id": "00000000-0000-4000-8000-000000000002",
+              "action_id": "echo"
+            },
+            "title": "Synthetic echo",
+            "description": "Isolated fixture only",
+            "effect": "read",
+            "input_schema": {
+              "type": "object"
+            },
+            "output_schema": {
+              "type": "object"
+            },
+            "availability": "ready",
+            "reason": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "safe-receipt",
+      "definition": "receipt",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "invocation_id": "00000000-0000-4000-8000-000000000003",
+        "binding": {
+          "binding_id": "00000000-0000-4000-8000-000000000001",
+          "binding_revision": 2,
+          "instance_id": "00000000-0000-4000-8000-000000000002",
+          "action_id": "echo"
+        },
+        "intent_key": "synthetic-intent-1",
+        "revision": 3,
+        "execution": "succeeded",
+        "effect": "none",
+        "result": {
+          "value": "hello"
+        },
+        "error_code": null
+      }
+    },
+    {
+      "id": "unknown-error",
+      "definition": "error",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "code": "unknown",
+        "execution": "unknown",
+        "retryable": false
+      }
+    },
+    {
+      "id": "discover-before-version-known",
+      "definition": "discover",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "operation": "discover"
+      }
+    },
+    {
+      "id": "write-confirmed-not-applied",
+      "definition": "receipt",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "invocation_id": "00000000-0000-4000-8000-000000000003",
+        "binding": {
+          "binding_id": "00000000-0000-4000-8000-000000000001",
+          "binding_revision": 2,
+          "instance_id": "00000000-0000-4000-8000-000000000002",
+          "action_id": "echo"
+        },
+        "intent_key": "synthetic-intent-1",
+        "revision": 3,
+        "execution": "succeeded",
+        "effect": "not_applied",
+        "result": {
+          "value": "hello"
+        },
+        "error_code": null
+      }
+    }
+  ],
+  "negative": [
+    {
+      "id": "forged-principal",
+      "definition": "invoke",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "invoke",
+        "binding": {
+          "binding_id": "00000000-0000-4000-8000-000000000001",
+          "binding_revision": 2,
+          "instance_id": "00000000-0000-4000-8000-000000000002",
+          "action_id": "echo"
+        },
+        "intent_key": "synthetic-intent-1",
+        "arguments": {
+          "text": "hello"
+        },
+        "principal": "admin"
+      }
+    },
+    {
+      "id": "raw-credential",
+      "definition": "invoke",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "invoke",
+        "binding": {
+          "binding_id": "00000000-0000-4000-8000-000000000001",
+          "binding_revision": 2,
+          "instance_id": "00000000-0000-4000-8000-000000000002",
+          "action_id": "echo"
+        },
+        "intent_key": "synthetic-intent-1",
+        "arguments": {
+          "text": "hello"
+        },
+        "cookie": "not-a-real-cookie"
+      }
+    },
+    {
+      "id": "account-override",
+      "definition": "invoke",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "invoke",
+        "binding": {
+          "binding_id": "00000000-0000-4000-8000-000000000001",
+          "binding_revision": 2,
+          "instance_id": "00000000-0000-4000-8000-000000000002",
+          "action_id": "echo"
+        },
+        "intent_key": "synthetic-intent-1",
+        "arguments": {
+          "text": "hello"
+        },
+        "account_id": "other-account"
+      }
+    },
+    {
+      "id": "missing-intent",
+      "definition": "invoke",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "invoke",
+        "binding": {
+          "binding_id": "00000000-0000-4000-8000-000000000001",
+          "binding_revision": 2,
+          "instance_id": "00000000-0000-4000-8000-000000000002",
+          "action_id": "echo"
+        },
+        "arguments": {
+          "text": "hello"
+        }
+      }
+    },
+    {
+      "id": "wrong-binding-shape",
+      "definition": "invoke",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "invoke",
+        "binding": {
+          "binding_id": "other",
+          "binding_revision": 2,
+          "instance_id": "00000000-0000-4000-8000-000000000002",
+          "action_id": "echo"
+        },
+        "intent_key": "synthetic-intent-1",
+        "arguments": {
+          "text": "hello"
+        }
+      }
+    },
+    {
+      "id": "arbitrary-url",
+      "definition": "invoke",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "invoke",
+        "binding": {
+          "binding_id": "00000000-0000-4000-8000-000000000001",
+          "binding_revision": 2,
+          "instance_id": "00000000-0000-4000-8000-000000000002",
+          "action_id": "echo"
+        },
+        "intent_key": "synthetic-intent-1",
+        "arguments": {
+          "text": "hello"
+        },
+        "url": "https://example.invalid"
+      }
+    },
+    {
+      "id": "unknown-must-not-resend",
+      "definition": "error",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "code": "unknown",
+        "execution": "unknown",
+        "retryable": true
+      }
+    }
+  ]
+}
