@@ -1,12 +1,24 @@
-# memory-context/v1 提案（未发布）
+# memory-context/v1 1.1.0：同群原始来源读取（本地协调候选）
 
 Memory C1提供此包供协调者审阅。复用text-dialogue/v1精确query/command/scope/source/account/budget与unit、dependency_group，以及source-sync/v1 draft_unit；不更改已发布包。schema闭合且所有外部$ref仅指向上述本地固定依赖。协调者发布并回传清单hash后才能正式装配。本文没有授予生产权限或宣布验收。
+
+## 1.1.0 协调语义增量
+
+本版本只扩展 `/memory/context/query` 的群只读语义，JSON schema、schema_version=1、version_domain和HTTP路径不变。它不是对旧1.0.0消费者的透明替换：Memory、Companion及装配同一包的Platform须同时对齐新manifest；旧发布包、text-dialogue/v1的 `/memory/select` 本人规则，以及所有提议/修订/遗忘写权限保持。
+
+viewer始终是本次真实origin解析出的requester。群查询可读取同actor、原始audience=group、同conversation内已有的共享投影，unit.subject_person_id继续表示真实owner。每个完整语义组的全部lineage必须属于该owner的这个原群scope，visibility必须为shared_projection、所有source必须为shareable_projection，投影、owner binding/grant、viewer及源当前版本都沿既有snapshot/current/head屏障核验。仅有allowed grant、模型说法、昵称、关系分值或管理员身份均不授予范围。混合私聊lineage、跨群、跨actor和私人关联不得借此进入。
+
+scope_checks首项为requester的精确scope，其余仅为本次实际返回unit的owner scope，最多16个其他owner，全部同actor/group conversation、无association、association_version=1。预算按完整组拟合；owner数量预算超出也整组省略，并令coverage.complete=false且omissions包含budget。响应与核验从不把owner重写成viewer，不枚举或暴露群成员名册。明确自指对象只匹配requester；一般群回忆保留原owner，不能从问题中的名字猜person或合并同名人物。
+
+known_scope_checks是待复核的旧观察，不是授权输入。零预算查询先由服务端重新证明这些owner拥有当前可读的原群共享来源，完成相同fresh屏障后才比较其版本和完整集合；失败时拒绝旧上下文。调用方必须核对首项、唯一性、同群边界、真实unit owner集合及原完整组/预算/投影条件。关联私聊继续走1.0.0的显式同意路径。返回其他人的可读记录不产生修改该人物记忆的权限。
+
+`group-read-relations.json` 是生产者和消费者共用的语义正反例索引，字段描述事实前提，不是新的wire输入、成员目录或授权端口。JSON形状验证不能代替这些来源与权限关系验证；实际联合结果由本轮交付另行记录。
 
 ## 服务接口
 
 全部POST、服务Bearer、JSON、no-store；共用现有有界请求和超时。路由前缀`/internal/v1/memory/context/`：query→query_request/query_response、propose→proposal_request/receipt、receipt→receipt_request/receipt_response、batch→batch_request/batch_response、association→association_request/association_response。caller operations分别为context_query/context_propose/context_receipt/context_batch/context_association。
 
-Memory实时通过既有Platform origin resolver核验请求者账号、actor及精确scope，并验证Memory账号binding。query先同步来源屏障，再在有权范围取至多limit+1完整组候选，共享调用方整轮预算；selection不固定为evidence。时间范围按来源owner的sent_at过滤，不把记忆形成时间当事件发生时间。coverage.complete只证明本次候选窗口，不证明历史全部捕获（history_complete始终false）。完整语义组不拆分，条件/否定/不确定性保留。scope_checks记录全部实际有权范围及关联版本，发送前零预算以known_scope_checks和known_association_version复验。普通群永不展开私聊关联。
+Memory实时通过既有Platform origin resolver核验请求者账号、actor及精确scope，并验证Memory账号binding。query先同步来源屏障，再在有权范围取至多limit+1完整组候选，共享调用方整轮预算；selection不固定为evidence。时间范围按来源owner的sent_at过滤，不把记忆形成时间当事件发生时间。coverage.complete只证明本次候选窗口，不证明历史全部捕获（history_complete始终false）。完整语义组不拆分，条件/否定/不确定性保留。scope_checks记录本轮实际使用的范围及关联版本（群1.1.0按上文实际返回owner集合），发送前零预算以known_scope_checks和known_association_version复验。普通群永不展开私聊关联。
 
 ## 逐项提议及恢复
 

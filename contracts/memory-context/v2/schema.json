@@ -1,0 +1,2302 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.tianshu.invalid/memory-context/v2/schema.json",
+  "title": "Memory context v2 contextual selection and factual verification",
+  "$comment": "LOCAL DRAFT. Root must publish and freeze manifest before implementation.",
+  "$defs": {
+    "time_filter": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "basis": {
+              "enum": [
+                "observed_at",
+                "valid_time"
+              ]
+            },
+            "from": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            "to": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            }
+          },
+          "required": [
+            "basis",
+            "from",
+            "to"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "subquery": {
+      "type": "object",
+      "properties": {
+        "query_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "kinds": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "facts",
+              "episodes"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 2,
+          "uniqueItems": true
+        },
+        "intent": {
+          "enum": [
+            "current",
+            "history",
+            "mixed"
+          ]
+        },
+        "time_filter": {
+          "$ref": "#/$defs/time_filter"
+        }
+      },
+      "required": [
+        "query_id",
+        "text",
+        "kinds",
+        "intent",
+        "time_filter"
+      ],
+      "additionalProperties": false
+    },
+    "limits": {
+      "type": "object",
+      "properties": {
+        "facts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8,
+          "default": 8
+        },
+        "episodes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8,
+          "default": 8
+        }
+      },
+      "required": [
+        "facts",
+        "episodes"
+      ],
+      "additionalProperties": false
+    },
+    "query_request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "query": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/query"
+        },
+        "requested_scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "queries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/subquery"
+          },
+          "minItems": 1,
+          "maxItems": 4
+        },
+        "selection": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "identity",
+              "style",
+              "relationship",
+              "current_items",
+              "evidence"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 5,
+          "uniqueItems": true
+        },
+        "include_associated": {
+          "type": "boolean"
+        },
+        "budget": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/budget"
+        },
+        "limits": {
+          "$ref": "#/$defs/limits"
+        },
+        "known_bundle": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/bundle"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "retrieval_mode": {
+          "enum": [
+            "context",
+            "factual"
+          ],
+          "default": "factual"
+        }
+      },
+      "required": [
+        "schema_version",
+        "query",
+        "requested_scope",
+        "queries",
+        "selection",
+        "include_associated",
+        "budget",
+        "limits",
+        "known_bundle"
+      ],
+      "additionalProperties": false
+    },
+    "source_dependency": {
+      "type": "object",
+      "properties": {
+        "dependency_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "owner_scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "source_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "epoch": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "content_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "state": {
+          "const": "active"
+        }
+      },
+      "required": [
+        "dependency_id",
+        "owner_scope",
+        "source_key",
+        "revision",
+        "epoch",
+        "content_hash",
+        "state"
+      ],
+      "additionalProperties": false
+    },
+    "group_dependency": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/identity-memory.json#/$defs/group"
+        },
+        "owner_scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "records": {
+          "type": "array",
+          "items": {
+            "$ref": "https://contracts.tianshu.invalid/memory-extraction/v1/schema.json#/$defs/target_ref"
+          },
+          "minItems": 1,
+          "maxItems": 256,
+          "uniqueItems": true
+        },
+        "source_dependency_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+          },
+          "minItems": 1,
+          "maxItems": 256,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "group",
+        "owner_scope",
+        "records",
+        "source_dependency_ids"
+      ],
+      "additionalProperties": false
+    },
+    "episode_dependency": {
+      "type": "object",
+      "properties": {
+        "episode_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "episode_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source_dependency_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "span": {
+          "type": "object",
+          "properties": {
+            "start_utf8": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "end_utf8": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": [
+            "start_utf8",
+            "end_utf8"
+          ],
+          "additionalProperties": false
+        },
+        "text_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "episode_id",
+        "episode_version",
+        "source_dependency_id",
+        "span",
+        "text_hash"
+      ],
+      "additionalProperties": false
+    },
+    "owner_target": {
+      "type": "object",
+      "properties": {
+        "target_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "kind": {
+          "enum": [
+            "self",
+            "named"
+          ]
+        },
+        "mention": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "resolved",
+            "unknown",
+            "ambiguous"
+          ]
+        },
+        "person_id": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "witness_group_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+          },
+          "minItems": 0,
+          "maxItems": 32,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "target_id",
+        "kind",
+        "mention",
+        "status",
+        "person_id",
+        "witness_group_ids"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "resolved"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "person_id": {
+                "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "person_id": {
+                "type": "null"
+              },
+              "witness_group_ids": {
+                "const": []
+              }
+            }
+          }
+        }
+      ]
+    },
+    "owner_resolution": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "enum": [
+            "self",
+            "named",
+            "room",
+            "multiple",
+            "unresolved"
+          ]
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/owner_target"
+          },
+          "minItems": 0,
+          "maxItems": 8
+        }
+      },
+      "required": [
+        "mode",
+        "targets"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "multiple"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "targets": {
+                "minItems": 2
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "room"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "targets": {
+                "const": []
+              }
+            }
+          }
+        }
+      ]
+    },
+    "selection_constraint": {
+      "type": "object",
+      "properties": {
+        "query_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "owner_resolution": {
+          "$ref": "#/$defs/owner_resolution"
+        },
+        "proof_kinds": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "positive_sources",
+              "unique_owner",
+              "latest_values",
+              "no_match"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 4,
+          "uniqueItems": true
+        },
+        "candidate_domain_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "candidate_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "candidate_domain_complete": {
+          "type": "boolean"
+        },
+        "result_status": {
+          "enum": [
+            "matched",
+            "no_match",
+            "incomplete",
+            "unresolved"
+          ]
+        }
+      },
+      "required": [
+        "query_id",
+        "owner_resolution",
+        "proof_kinds",
+        "candidate_domain_hash",
+        "candidate_count",
+        "candidate_domain_complete",
+        "result_status"
+      ],
+      "additionalProperties": false
+    },
+    "owner_head": {
+      "type": "object",
+      "properties": {
+        "generation": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "generation",
+        "sequence"
+      ],
+      "additionalProperties": false
+    },
+    "bundle": {
+      "type": "object",
+      "properties": {
+        "bundle_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "bundle_version": {
+          "const": 1
+        },
+        "effective_scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "selection": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "identity",
+              "style",
+              "relationship",
+              "current_items",
+              "evidence"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 5,
+          "uniqueItems": true
+        },
+        "include_associated": {
+          "type": "boolean"
+        },
+        "queries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/subquery"
+          },
+          "minItems": 1,
+          "maxItems": 4
+        },
+        "budget": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/budget"
+        },
+        "limits": {
+          "$ref": "#/$defs/limits"
+        },
+        "scope_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "association_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "scope_checks": {
+          "type": "array",
+          "items": {
+            "$ref": "https://contracts.tianshu.invalid/memory-context/v1/schema.json#/$defs/scope_check"
+          },
+          "minItems": 1,
+          "maxItems": 17
+        },
+        "history_snapshot": {
+          "$ref": "https://contracts.tianshu.invalid/context-history/v1/schema.json#/$defs/snapshot"
+        },
+        "input_history_snapshot": {
+          "$ref": "https://contracts.tianshu.invalid/context-history/v1/schema.json#/$defs/snapshot"
+        },
+        "group_dependencies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/group_dependency"
+          },
+          "minItems": 0,
+          "maxItems": 8
+        },
+        "episode_dependencies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/episode_dependency"
+          },
+          "minItems": 0,
+          "maxItems": 8
+        },
+        "source_dependencies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_dependency"
+          },
+          "minItems": 0,
+          "maxItems": 256
+        },
+        "evidence_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+          },
+          "minItems": 0,
+          "maxItems": 16,
+          "uniqueItems": true
+        },
+        "evidence_digest": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "selection_constraints": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/selection_constraint"
+          },
+          "minItems": 1,
+          "maxItems": 4
+        },
+        "owner_heads": {
+          "type": "object",
+          "properties": {
+            "core": {
+              "$ref": "#/$defs/owner_head"
+            },
+            "platform": {
+              "$ref": "#/$defs/owner_head"
+            }
+          },
+          "required": [
+            "core",
+            "platform"
+          ],
+          "additionalProperties": false
+        },
+        "source_revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "validation_mode": {
+          "const": "full_barrier"
+        },
+        "verified_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "valid_until": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "retrieval_mode": {
+          "enum": [
+            "context",
+            "factual"
+          ],
+          "default": "factual"
+        }
+      },
+      "required": [
+        "bundle_id",
+        "bundle_version",
+        "effective_scope",
+        "selection",
+        "include_associated",
+        "queries",
+        "budget",
+        "limits",
+        "scope_version",
+        "association_version",
+        "scope_checks",
+        "history_snapshot",
+        "input_history_snapshot",
+        "group_dependencies",
+        "episode_dependencies",
+        "source_dependencies",
+        "evidence_ids",
+        "evidence_digest",
+        "selection_constraints",
+        "owner_heads",
+        "source_revision",
+        "validation_mode",
+        "verified_at",
+        "valid_until"
+      ],
+      "additionalProperties": false
+    },
+    "fact_evidence": {
+      "type": "object",
+      "properties": {
+        "evidence_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "subject_person_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "owner_scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/identity-memory.json#/$defs/recall_source"
+          },
+          "minItems": 1,
+          "maxItems": 16
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "valid_from": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "valid_to": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "enum": [
+            "current_fact",
+            "historical_fact"
+          ]
+        },
+        "unit": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/identity-memory.json#/$defs/unit"
+        },
+        "fact": {
+          "$ref": "https://contracts.tianshu.invalid/memory-extraction/v1/schema.json#/$defs/stored_fact"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "subject_person_id",
+        "owner_scope",
+        "source_refs",
+        "observed_at",
+        "valid_from",
+        "valid_to",
+        "kind",
+        "unit",
+        "fact"
+      ],
+      "additionalProperties": false
+    },
+    "legacy_evidence": {
+      "type": "object",
+      "properties": {
+        "evidence_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "subject_person_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "owner_scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/identity-memory.json#/$defs/recall_source"
+          },
+          "minItems": 1,
+          "maxItems": 16
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "valid_from": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "valid_to": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "const": "legacy_fact"
+        },
+        "unit": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/identity-memory.json#/$defs/unit"
+        },
+        "representation": {
+          "const": "legacy_unstructured"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "subject_person_id",
+        "owner_scope",
+        "source_refs",
+        "observed_at",
+        "valid_from",
+        "valid_to",
+        "kind",
+        "unit",
+        "representation"
+      ],
+      "additionalProperties": false
+    },
+    "episode_source_ref": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "source_episode"
+        },
+        "owner": {
+          "const": "memory"
+        },
+        "episode_ref": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "episode_version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "kind",
+        "owner",
+        "episode_ref",
+        "episode_version"
+      ],
+      "additionalProperties": false
+    },
+    "episode_evidence": {
+      "type": "object",
+      "properties": {
+        "evidence_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "subject_person_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "owner_scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/episode_source_ref"
+          },
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "valid_from": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "valid_to": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "const": "episode"
+        },
+        "episode_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "episode_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32768
+        },
+        "span": {
+          "type": "object",
+          "properties": {
+            "start_utf8": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "end_utf8": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": [
+            "start_utf8",
+            "end_utf8"
+          ],
+          "additionalProperties": false
+        },
+        "event_time": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "expression": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "from": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "Z$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "to": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "Z$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "expression",
+                "from",
+                "to"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reality": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/identity-memory.json#/$defs/unit/properties/reality"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "subject_person_id",
+        "owner_scope",
+        "source_refs",
+        "observed_at",
+        "valid_from",
+        "valid_to",
+        "kind",
+        "episode_id",
+        "episode_version",
+        "text",
+        "span",
+        "event_time",
+        "reality"
+      ],
+      "additionalProperties": false
+    },
+    "evidence": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/fact_evidence"
+        },
+        {
+          "$ref": "#/$defs/legacy_evidence"
+        },
+        {
+          "$ref": "#/$defs/episode_evidence"
+        },
+        {
+          "$ref": "#/$defs/summary_evidence"
+        },
+        {
+          "$ref": "#/$defs/portrait_evidence"
+        }
+      ]
+    },
+    "omission": {
+      "enum": [
+        "budget",
+        "no_match",
+        "scope_filtered",
+        "stale_source",
+        "source_time_unavailable",
+        "index_incomplete",
+        "unresolved_reference",
+        "context_only"
+      ]
+    },
+    "query_result": {
+      "type": "object",
+      "properties": {
+        "query_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "status": {
+          "enum": [
+            "matched",
+            "no_match",
+            "incomplete",
+            "unresolved"
+          ]
+        },
+        "evidence_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+          },
+          "minItems": 0,
+          "maxItems": 16,
+          "uniqueItems": true
+        },
+        "omissions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/omission"
+          },
+          "minItems": 0,
+          "maxItems": 8,
+          "uniqueItems": true
+        },
+        "coverage": {
+          "type": "object",
+          "properties": {
+            "matched_facts": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "returned_facts": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "matched_episodes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "returned_episodes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "candidate_complete": {
+              "type": "boolean"
+            },
+            "index_complete": {
+              "type": "boolean"
+            },
+            "history_complete": {
+              "const": false
+            },
+            "missing_source_times": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "matched_facts",
+            "returned_facts",
+            "matched_episodes",
+            "returned_episodes",
+            "candidate_complete",
+            "index_complete",
+            "history_complete",
+            "missing_source_times"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "query_id",
+        "status",
+        "evidence_ids",
+        "omissions",
+        "coverage"
+      ],
+      "additionalProperties": false
+    },
+    "query_response": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "version_domain": {
+          "const": "memory-context/v2"
+        },
+        "request_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "effective_scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          },
+          "minItems": 0,
+          "maxItems": 16
+        },
+        "query_results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/query_result"
+          },
+          "minItems": 1,
+          "maxItems": 4
+        },
+        "bundle": {
+          "$ref": "#/$defs/bundle"
+        },
+        "budget_used": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/budget"
+        },
+        "omissions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/omission"
+          },
+          "minItems": 0,
+          "maxItems": 8,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "schema_version",
+        "version_domain",
+        "request_id",
+        "effective_scope",
+        "evidence",
+        "query_results",
+        "bundle",
+        "budget_used",
+        "omissions"
+      ],
+      "additionalProperties": false
+    },
+    "legacy_check": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "check_id": {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+            },
+            "kind": {
+              "const": "select"
+            },
+            "request": {
+              "allOf": [
+                {
+                  "$ref": "https://contracts.tianshu.invalid/memory-context/v1/schema.json#/$defs/query_request"
+                },
+                {
+                  "properties": {
+                    "budget": {
+                      "const": {
+                        "tokens": 0,
+                        "bytes": 0
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "expected": {
+              "type": "object",
+              "properties": {
+                "effective_scope": {
+                  "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+                },
+                "scope_version": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "association_version": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "scope_checks": {
+                  "anyOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "$ref": "https://contracts.tianshu.invalid/memory-context/v1/schema.json#/$defs/scope_check"
+                      },
+                      "minItems": 1,
+                      "maxItems": 17
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "effective_scope",
+                "scope_version",
+                "association_version",
+                "scope_checks"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "check_id",
+            "kind",
+            "request",
+            "expected"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "check_id": {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+            },
+            "kind": {
+              "enum": [
+                "history",
+                "input_history"
+              ]
+            },
+            "request": {
+              "$ref": "https://contracts.tianshu.invalid/context-history/v1/schema.json#/$defs/request"
+            },
+            "expected": {
+              "type": "object",
+              "properties": {
+                "effective_scope": {
+                  "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+                },
+                "snapshot": {
+                  "$ref": "https://contracts.tianshu.invalid/context-history/v1/schema.json#/$defs/snapshot"
+                }
+              },
+              "required": [
+                "effective_scope",
+                "snapshot"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "check_id",
+            "kind",
+            "request",
+            "expected"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "check_id": {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+            },
+            "kind": {
+              "const": "profile"
+            },
+            "request": {
+              "allOf": [
+                {
+                  "$ref": "https://contracts.tianshu.invalid/profile-memory/v1/profiles.json#/$defs/select_request"
+                },
+                {
+                  "properties": {
+                    "budget": {
+                      "const": {
+                        "tokens": 0,
+                        "bytes": 0
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "expected": {
+              "type": "object",
+              "properties": {
+                "requester_scope": {
+                  "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+                },
+                "target": {
+                  "$ref": "https://contracts.tianshu.invalid/profile-memory/v1/profiles.json#/$defs/subject"
+                },
+                "scope_version": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              },
+              "required": [
+                "requester_scope",
+                "target",
+                "scope_version"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "check_id",
+            "kind",
+            "request",
+            "expected"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "check_id": {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+            },
+            "kind": {
+              "const": "input_sources"
+            },
+            "request": {
+              "$ref": "#/$defs/input_sources_request"
+            },
+            "expected": {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "check_id",
+            "kind",
+            "request",
+            "expected"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "check_id": {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+            },
+            "kind": {
+              "const": "context_bundle"
+            },
+            "request": {
+              "$ref": "#/$defs/context_bundle_request"
+            },
+            "expected": {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "check_id",
+            "kind",
+            "request",
+            "expected"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "verify_request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "query": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/query"
+        },
+        "requested_scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "bundle": {
+          "$ref": "#/$defs/bundle"
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/legacy_check"
+          },
+          "minItems": 0,
+          "maxItems": 64
+        }
+      },
+      "required": [
+        "schema_version",
+        "query",
+        "requested_scope",
+        "bundle",
+        "checks"
+      ],
+      "additionalProperties": false
+    },
+    "check_result": {
+      "type": "object",
+      "properties": {
+        "check_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "kind": {
+          "enum": [
+            "select",
+            "history",
+            "input_history",
+            "profile",
+            "input_sources",
+            "context_bundle"
+          ]
+        },
+        "status": {
+          "const": "valid"
+        }
+      },
+      "required": [
+        "check_id",
+        "kind",
+        "status"
+      ],
+      "additionalProperties": false
+    },
+    "verify_response": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "version_domain": {
+          "const": "memory-context/v2"
+        },
+        "request_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "effective_scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "state": {
+          "const": "valid"
+        },
+        "bundle": {
+          "$ref": "#/$defs/bundle"
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/check_result"
+          },
+          "minItems": 0,
+          "maxItems": 64
+        },
+        "checked_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "valid_until": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        }
+      },
+      "required": [
+        "schema_version",
+        "version_domain",
+        "request_id",
+        "effective_scope",
+        "state",
+        "bundle",
+        "checks",
+        "checked_at",
+        "valid_until"
+      ],
+      "additionalProperties": false
+    },
+    "error": {
+      "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/error"
+    },
+    "forget_request": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/command"
+        },
+        "scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "batch_ref": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "item_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "kind": {
+          "const": "forget_episode"
+        },
+        "target": {
+          "type": "object",
+          "properties": {
+            "episode_ref": {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+            },
+            "episode_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": [
+            "episode_ref",
+            "episode_version"
+          ],
+          "additionalProperties": false
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/source"
+          },
+          "minItems": 1,
+          "maxItems": 64
+        },
+        "proof_ref": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        }
+      },
+      "required": [
+        "command",
+        "scope",
+        "batch_ref",
+        "item_id",
+        "kind",
+        "target",
+        "evidence_refs",
+        "proof_ref"
+      ],
+      "additionalProperties": false
+    },
+    "forget_draft": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/command"
+        },
+        "scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "batch_ref": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "item_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "kind": {
+          "const": "forget_episode"
+        },
+        "target": {
+          "type": "object",
+          "properties": {
+            "episode_ref": {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+            },
+            "episode_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": [
+            "episode_ref",
+            "episode_version"
+          ],
+          "additionalProperties": false
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/source"
+          },
+          "minItems": 1,
+          "maxItems": 64
+        },
+        "proof_ref": {
+          "type": "null"
+        }
+      },
+      "required": [
+        "command",
+        "scope",
+        "batch_ref",
+        "item_id",
+        "kind",
+        "target",
+        "evidence_refs",
+        "proof_ref"
+      ],
+      "additionalProperties": false
+    },
+    "forget_issue_request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "request_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "origin": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/origin"
+        },
+        "source": {
+          "$ref": "https://contracts.tianshu.invalid/source-sync/v1/sources.json#/$defs/physical_input"
+        },
+        "proposal": {
+          "$ref": "#/$defs/forget_draft"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "origin",
+        "source",
+        "proposal"
+      ],
+      "additionalProperties": false
+    },
+    "forget_response": {
+      "$ref": "https://contracts.tianshu.invalid/memory-context/v1/schema.json#/$defs/receipt"
+    },
+    "forget_issue_response": {
+      "$ref": "https://contracts.tianshu.invalid/memory-context/v1/schema.json#/$defs/issue_response"
+    },
+    "prepare_request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "query": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/query"
+        },
+        "requested_scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "bundle": {
+          "$ref": "#/$defs/bundle"
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/legacy_check"
+          },
+          "minItems": 0,
+          "maxItems": 64
+        },
+        "required_check_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+          },
+          "minItems": 0,
+          "maxItems": 64,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "schema_version",
+        "query",
+        "requested_scope",
+        "bundle",
+        "checks",
+        "required_check_ids"
+      ],
+      "additionalProperties": false
+    },
+    "prepare_check_result": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/check_result"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "check_id": {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+            },
+            "kind": {
+              "enum": [
+                "select",
+                "history",
+                "input_history",
+                "profile",
+                "input_sources",
+                "context_bundle"
+              ]
+            },
+            "status": {
+              "const": "rejected"
+            },
+            "reason": {
+              "enum": [
+                "origin_denied",
+                "dependency_changed"
+              ]
+            }
+          },
+          "required": [
+            "check_id",
+            "kind",
+            "status",
+            "reason"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "check_id": {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+            },
+            "kind": {
+              "enum": [
+                "select",
+                "history",
+                "input_history",
+                "profile",
+                "input_sources",
+                "context_bundle"
+              ]
+            },
+            "status": {
+              "const": "unavailable"
+            },
+            "reason": {
+              "const": "origin_unavailable"
+            }
+          },
+          "required": [
+            "check_id",
+            "kind",
+            "status",
+            "reason"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "prepare_valid": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "version_domain": {
+          "const": "memory-context/v2"
+        },
+        "request_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "effective_scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "state": {
+          "const": "valid"
+        },
+        "bundle": {
+          "$ref": "#/$defs/bundle"
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/prepare_check_result"
+          },
+          "minItems": 0,
+          "maxItems": 64
+        },
+        "checked_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "valid_until": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        }
+      },
+      "required": [
+        "schema_version",
+        "version_domain",
+        "request_id",
+        "effective_scope",
+        "state",
+        "bundle",
+        "checks",
+        "checked_at",
+        "valid_until"
+      ],
+      "additionalProperties": false
+    },
+    "prepare_invalid": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "version_domain": {
+          "const": "memory-context/v2"
+        },
+        "request_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "effective_scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "state": {
+          "const": "invalid"
+        },
+        "component": {
+          "enum": [
+            "current_selection",
+            "required_check"
+          ]
+        },
+        "check_id": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "failure": {
+          "allOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/error"
+            },
+            {
+              "properties": {
+                "code": {
+                  "enum": [
+                    "scope_changed",
+                    "forbidden"
+                  ]
+                },
+                "execution_state": {
+                  "const": "not_started"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "version_domain",
+        "request_id",
+        "effective_scope",
+        "state",
+        "component",
+        "check_id",
+        "failure"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "component": {
+                "const": "current_selection"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "check_id": {
+                "type": "null"
+              },
+              "failure": {
+                "properties": {
+                  "code": {
+                    "const": "scope_changed"
+                  }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "check_id": {
+                "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "prepare_response": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/prepare_valid"
+        },
+        {
+          "$ref": "#/$defs/prepare_invalid"
+        }
+      ]
+    },
+    "profile_batch_request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "query": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/query"
+        },
+        "requested_scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "requests": {
+          "type": "array",
+          "items": {
+            "$ref": "https://contracts.tianshu.invalid/profile-memory/v1/profiles.json#/$defs/select_request"
+          },
+          "minItems": 1,
+          "maxItems": 4
+        }
+      },
+      "required": [
+        "schema_version",
+        "query",
+        "requested_scope",
+        "requests"
+      ],
+      "additionalProperties": false
+    },
+    "profile_batch_response": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "version_domain": {
+          "const": "memory-context/v2"
+        },
+        "request_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "effective_scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "state": {
+          "const": "valid"
+        },
+        "responses": {
+          "type": "array",
+          "items": {
+            "$ref": "https://contracts.tianshu.invalid/profile-memory/v1/profiles.json#/$defs/select_response"
+          },
+          "minItems": 1,
+          "maxItems": 4
+        },
+        "checked_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "valid_until": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        }
+      },
+      "required": [
+        "schema_version",
+        "version_domain",
+        "request_id",
+        "effective_scope",
+        "state",
+        "responses",
+        "checked_at",
+        "valid_until"
+      ],
+      "additionalProperties": false
+    },
+    "summary_evidence": {
+      "type": "object",
+      "properties": {
+        "evidence_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "subject_person_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "owner_scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "https://contracts.tianshu.invalid/memory-extraction/v1/schema.json#/$defs/segment_recall_source"
+          },
+          "minItems": 1,
+          "maxItems": 16
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "valid_from": {
+          "type": "null"
+        },
+        "valid_to": {
+          "type": "null"
+        },
+        "kind": {
+          "const": "summary"
+        },
+        "unit": {
+          "allOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/memory-extraction/v1/schema.json#/$defs/segment_unit"
+            },
+            {
+              "properties": {
+                "uncertainty": {
+                  "const": "inferred"
+                }
+              }
+            }
+          ]
+        },
+        "importance": {
+          "enum": [
+            "low",
+            "normal",
+            "high"
+          ]
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "memory_kind": {
+          "enum": [
+            "experience",
+            "thought",
+            "agreement"
+          ]
+        },
+        "state": {
+          "enum": [
+            "described",
+            "considering",
+            "confirmed",
+            "completed",
+            "cancelled",
+            "unknown"
+          ]
+        },
+        "valid_until": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "Z$"
+            }
+          ]
+        }
+      },
+      "required": [
+        "evidence_id",
+        "subject_person_id",
+        "owner_scope",
+        "source_refs",
+        "observed_at",
+        "valid_from",
+        "valid_to",
+        "kind",
+        "unit",
+        "importance",
+        "expires_at"
+      ],
+      "additionalProperties": false
+    },
+    "portrait_evidence": {
+      "type": "object",
+      "properties": {
+        "evidence_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "subject_person_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "owner_scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "https://contracts.tianshu.invalid/memory-extraction/v1/schema.json#/$defs/segment_recall_source"
+          },
+          "minItems": 1,
+          "maxItems": 16
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "valid_from": {
+          "type": "null"
+        },
+        "valid_to": {
+          "type": "null"
+        },
+        "kind": {
+          "const": "portrait"
+        },
+        "unit": {
+          "allOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/memory-extraction/v1/schema.json#/$defs/segment_unit"
+            },
+            {
+              "properties": {
+                "uncertainty": {
+                  "const": "inferred"
+                }
+              }
+            }
+          ]
+        },
+        "importance": {
+          "enum": [
+            "low",
+            "normal",
+            "high"
+          ]
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "subject_person_id",
+        "owner_scope",
+        "source_refs",
+        "observed_at",
+        "valid_from",
+        "valid_to",
+        "kind",
+        "unit",
+        "importance",
+        "expires_at"
+      ],
+      "additionalProperties": false
+    },
+    "input_sources_request": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/query"
+        },
+        "requested_scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "source_check": {
+          "$ref": "https://contracts.tianshu.invalid/source-sync/v1/shared.json#/$defs/check_request"
+        }
+      },
+      "required": [
+        "query",
+        "requested_scope",
+        "source_check"
+      ],
+      "additionalProperties": false
+    },
+    "context_bundle_request": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/query"
+        },
+        "requested_scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "bundle": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/bundle"
+            },
+            {
+              "properties": {
+                "retrieval_mode": {
+                  "const": "context"
+                }
+              },
+              "required": [
+                "retrieval_mode"
+              ]
+            }
+          ]
+        }
+      },
+      "required": [
+        "query",
+        "requested_scope",
+        "bundle"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

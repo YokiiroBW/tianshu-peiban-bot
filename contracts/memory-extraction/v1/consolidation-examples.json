@@ -1,0 +1,329 @@
+{
+  "positive": [
+    {
+      "definition": "process_request",
+      "document": {
+        "job_id": "job:sample",
+        "job_ids": [
+          "job:sample"
+        ],
+        "output": null,
+        "supported_extraction_schemas": [
+          5
+        ],
+        "window": {
+          "manifest": {
+            "schema_version": 1,
+            "scope": {
+              "actor_id": "actor:sample",
+              "person_id": "person:sample",
+              "audience": "self_private",
+              "conversation_id": "conversation:sample"
+            },
+            "channel": {
+              "namespace": "qq",
+              "binding_id": "binding:sample",
+              "channel_conversation_id": "sample-private",
+              "thread_id": null
+            },
+            "anchor": {
+              "turn_id": "turn:sample",
+              "input_revision": 1
+            },
+            "new_turns": [
+              {
+                "turn_id": "turn:sample",
+                "input_revision": 1
+              }
+            ],
+            "members": [
+              {
+                "member_id": "member:sample",
+                "turn_id": "turn:sample",
+                "turn_sequence": 1,
+                "role": "user",
+                "speaker": {
+                  "kind": "person",
+                  "person_id": "person:sample",
+                  "account": {
+                    "namespace": "qq",
+                    "immutable_account_id": "synthetic-user"
+                  }
+                },
+                "source_scope": {
+                  "actor_id": "actor:sample",
+                  "person_id": "person:sample",
+                  "audience": "self_private",
+                  "conversation_id": "conversation:sample"
+                },
+                "binding_version": 1,
+                "purpose": "new",
+                "reference": {
+                  "input_revision": 1,
+                  "source": {
+                    "message_key": {
+                      "channel": {
+                        "namespace": "qq",
+                        "binding_id": "binding:sample",
+                        "channel_conversation_id": "sample-private",
+                        "thread_id": null
+                      },
+                      "message_id": "sample-message",
+                      "revision": 1
+                    },
+                    "receipt_id": "receipt:sample",
+                    "archive_state": "pending",
+                    "locator": null
+                  }
+                },
+                "observed_at": "2026-10-24T08:00:00Z",
+                "content_sha256": "3e34ff8b383051a49d48562ab893ef162a4f639757d61e016699b85e926901b6",
+                "memory_dependencies": {
+                  "group_dependencies": [],
+                  "episode_dependencies": [],
+                  "source_dependencies": []
+                }
+              }
+            ],
+            "coverage": {
+              "complete": false,
+              "omitted_before": true,
+              "omitted_after": false
+            },
+            "window_id": "d943195b34d11b44b69aac372222818b34ac4851ffc5551ddb5c8204c98463c9"
+          },
+          "members": [
+            {
+              "member_id": "member:sample",
+              "text": "刚才那句只是吐槽，周六我还是照常去。"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "definition": "process_request",
+      "document": {
+        "job_id": "job:sample",
+        "job_ids": [
+          "job:sample"
+        ],
+        "batch_ref": "batch:sample",
+        "extraction_schema": 5,
+        "output": {
+          "summary": "用户澄清此前只是吐槽，表示周六仍照常参加。",
+          "portrait": null,
+          "importance": "normal",
+          "subject_person_id": "person:sample"
+        }
+      }
+    },
+    {
+      "definition": "process_response",
+      "document": {
+        "state": "pending",
+        "extraction_schema": 5,
+        "batch_ref": "batch:sample",
+        "job_ids": [
+          "job:sample"
+        ],
+        "window_id": "d943195b34d11b44b69aac372222818b34ac4851ffc5551ddb5c8204c98463c9",
+        "portrait_input": null,
+        "subject_person_id": "person:sample"
+      }
+    },
+    {
+      "definition": "summary_window_check_request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "request:sample",
+        "manifest": {
+          "schema_version": 1,
+          "scope": {
+            "actor_id": "actor:sample",
+            "person_id": "person:sample",
+            "audience": "self_private",
+            "conversation_id": "conversation:sample"
+          },
+          "channel": {
+            "namespace": "qq",
+            "binding_id": "binding:sample",
+            "channel_conversation_id": "sample-private",
+            "thread_id": null
+          },
+          "anchor": {
+            "turn_id": "turn:sample",
+            "input_revision": 1
+          },
+          "new_turns": [
+            {
+              "turn_id": "turn:sample",
+              "input_revision": 1
+            }
+          ],
+          "members": [
+            {
+              "member_id": "member:sample",
+              "turn_id": "turn:sample",
+              "turn_sequence": 1,
+              "role": "user",
+              "speaker": {
+                "kind": "person",
+                "person_id": "person:sample",
+                "account": {
+                  "namespace": "qq",
+                  "immutable_account_id": "synthetic-user"
+                }
+              },
+              "source_scope": {
+                "actor_id": "actor:sample",
+                "person_id": "person:sample",
+                "audience": "self_private",
+                "conversation_id": "conversation:sample"
+              },
+              "binding_version": 1,
+              "purpose": "new",
+              "reference": {
+                "input_revision": 1,
+                "source": {
+                  "message_key": {
+                    "channel": {
+                      "namespace": "qq",
+                      "binding_id": "binding:sample",
+                      "channel_conversation_id": "sample-private",
+                      "thread_id": null
+                    },
+                    "message_id": "sample-message",
+                    "revision": 1
+                  },
+                  "receipt_id": "receipt:sample",
+                  "archive_state": "pending",
+                  "locator": null
+                }
+              },
+              "observed_at": "2026-10-24T08:00:00Z",
+              "content_sha256": "3e34ff8b383051a49d48562ab893ef162a4f639757d61e016699b85e926901b6",
+              "memory_dependencies": {
+                "group_dependencies": [],
+                "episode_dependencies": [],
+                "source_dependencies": []
+              }
+            }
+          ],
+          "coverage": {
+            "complete": false,
+            "omitted_before": true,
+            "omitted_after": false
+          },
+          "window_id": "d943195b34d11b44b69aac372222818b34ac4851ffc5551ddb5c8204c98463c9"
+        }
+      }
+    },
+    {
+      "definition": "summary_window_check_response",
+      "document": {
+        "schema_version": 1,
+        "request_id": "request:sample",
+        "request_digest": "cfc27a562f54253eb0ae93200129ed9fb83d9feb024e78b5de346cecffb21f44",
+        "window_id": "d943195b34d11b44b69aac372222818b34ac4851ffc5551ddb5c8204c98463c9",
+        "state": "valid",
+        "invalid_member_ids": [],
+        "checked_at": "2026-10-24T08:00:01Z"
+      }
+    },
+    {
+      "definition": "portrait_input",
+      "document": {
+        "subject_person_id": "person:sample",
+        "expected_revision": 0,
+        "summary_refs": [
+          {
+            "record_id": "record:sample",
+            "record_version": 1
+          }
+        ],
+        "summaries": [
+          {
+            "record_id": "record:sample",
+            "record_version": 1,
+            "subject_person_id": "person:sample",
+            "subject_material": [
+              {
+                "member_id": "member:sample",
+                "speaker": {
+                  "kind": "person",
+                  "person_id": "person:sample",
+                  "account": {
+                    "namespace": "qq",
+                    "immutable_account_id": "synthetic-user"
+                  }
+                },
+                "observed_at": "2026-10-25T00:00:00.000Z",
+                "text": "我打算周四去取书，现在还没出门。"
+              }
+            ]
+          }
+        ],
+        "current_text": ""
+      }
+    },
+    {
+      "definition": "summary_receipt",
+      "document": {
+        "subject_person_id": "person:sample",
+        "state": "committed",
+        "record_ids": [
+          "record:sample"
+        ],
+        "group_ids": [
+          "group:sample"
+        ],
+        "experience_state": "saved",
+        "summary_state": "committed",
+        "summary_record_refs": [
+          {
+            "record_id": "record:sample",
+            "record_version": 1
+          }
+        ],
+        "portrait": {
+          "state": "not_requested",
+          "record_refs": []
+        },
+        "covered_job_ids": [
+          "job:sample"
+        ],
+        "cursor": {
+          "window_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "job_ids": [
+            "job:sample"
+          ]
+        }
+      }
+    }
+  ],
+  "negative_structure": [
+    {
+      "definition": "summary_output",
+      "document": {
+        "summary": "missing portrait"
+      }
+    },
+    {
+      "definition": "summary_output",
+      "document": {
+        "summary": "旧无归属输出仅能作持久旧提案回执重放，不能作为新模型输出。",
+        "portrait": null
+      }
+    }
+  ],
+  "negative_relations": [
+    "new source omitted but cursor advanced",
+    "body hash mismatch",
+    "cross-conversation member",
+    "forgotten dependency via prior portrait",
+    "Bound output subject_person_id differs from persistent job/window scope: reject without writes.",
+    "portrait_input summary material speaker/source owner differs from subject: reject, never reinterpret other speaker as owner.",
+    "Old unbound schema5 pending batch: invalidate optional consolidation, preserve exact frozen original and original episodes; no new derived write through legacy replay structure."
+  ]
+}

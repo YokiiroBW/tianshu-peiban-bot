@@ -4,7 +4,7 @@
 
 ## 完整轮次
 
-Memory 在本地 m0 版本下收集完整 coverage。把当前显式请求的 selector 排在前面，每批最多 256 项且不同批不能重叠；turn_ids 仅放第一批。各批依次请求 Core snapshot 和 Platform current access，沿用原包的 schema、source_snapshot 和 current_access 关系校验。单批保留旧同步行为。
+Memory 在本地 m0 版本下收集完整 coverage。把当前显式请求的 selector 排在前面，每批最多 256 项且不同批不能重叠；完整 turn_ids 按每批最多 32 项分页，批内和跨批均不能重复。每页 selectors 或 turn_ids 至少一项非空，因此允许只携带消息 ID 的合法尾页，不裁掉尾页消息。各批依次请求 Core snapshot 和 Platform current access，沿用原包的 schema、source_snapshot 和 current_access 关系校验，响应必须精准覆盖本页全部请求。单批保留旧同步行为。
 
 多批收集完毕后，以相同 viewer、空 admissions 请求 Platform current，最后再次读取 Core head。全部批次的 Core generation 和 sequence 必须等于最终 Core head，全部 Platform generation 和 sequence 必须等于最终 Platform head；viewer_context 也必须完全一致并在应用时未过期。绝不拼接不同版本的快照。`rules.batch_barrier(observation, now)` 检查跨批关系；它不替代每批原合同检查、真实认证或 scope 授权。
 

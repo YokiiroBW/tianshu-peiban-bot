@@ -582,5 +582,123 @@
       "operation_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "expires_at": "2026-10-04T12:01:00Z"
     }
+  },
+  {
+    "definition": "query_request",
+    "document": {
+      "query": {
+        "schema_version": 1,
+        "request_id": "request:group-known",
+        "origin": {
+          "assertion_ref": "origin:1"
+        }
+      },
+      "requested_scope": {
+        "actor_id": "actor:group-reader",
+        "person_id": "person:viewer",
+        "audience": "group",
+        "conversation_id": "conversation:group"
+      },
+      "query_text": "群里那只猫的名字",
+      "selection": [
+        "identity",
+        "style",
+        "relationship",
+        "current_items",
+        "evidence"
+      ],
+      "known_scope_version": 1,
+      "budget": {
+        "tokens": 0,
+        "bytes": 0
+      },
+      "include_associated": false,
+      "time_range": null,
+      "limit": 32,
+      "known_association_version": 1,
+      "known_scope_checks": [
+        {
+          "scope": {
+            "actor_id": "actor:group-reader",
+            "person_id": "person:viewer",
+            "audience": "group",
+            "conversation_id": "conversation:group"
+          },
+          "scope_version": 1,
+          "association_id": null,
+          "association_version": 1
+        },
+        {
+          "scope": {
+            "actor_id": "actor:group-reader",
+            "person_id": "person:owner",
+            "audience": "group",
+            "conversation_id": "conversation:group"
+          },
+          "scope_version": 1,
+          "association_id": null,
+          "association_version": 1
+        }
+      ]
+    }
+  },
+  {
+    "definition": "query_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request:group-known",
+      "effective_scope": {
+        "actor_id": "actor:group-reader",
+        "person_id": "person:viewer",
+        "audience": "group",
+        "conversation_id": "conversation:group"
+      },
+      "scope_version": 1,
+      "verified_at": "2026-10-04T00:00:00Z",
+      "valid_until": "2026-10-04T00:00:30Z",
+      "selected_units": [],
+      "dependency_groups": [],
+      "budget_used": {
+        "tokens": 0,
+        "bytes": 0
+      },
+      "omissions": [
+        "budget"
+      ],
+      "version_domain": "memory-context/v1",
+      "association_version": 1,
+      "scope_checks": [
+        {
+          "scope": {
+            "actor_id": "actor:group-reader",
+            "person_id": "person:viewer",
+            "audience": "group",
+            "conversation_id": "conversation:group"
+          },
+          "scope_version": 1,
+          "association_id": null,
+          "association_version": 1
+        },
+        {
+          "scope": {
+            "actor_id": "actor:group-reader",
+            "person_id": "person:owner",
+            "audience": "group",
+            "conversation_id": "conversation:group"
+          },
+          "scope_version": 1,
+          "association_id": null,
+          "association_version": 1
+        }
+      ],
+      "coverage": {
+        "matched_groups": 0,
+        "returned_groups": 0,
+        "complete": false,
+        "time_basis": "source_sent_at",
+        "history_complete": false,
+        "missing_source_times": 0
+      }
+    }
   }
 ]

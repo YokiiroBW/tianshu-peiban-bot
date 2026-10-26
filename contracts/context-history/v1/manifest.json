@@ -1,15 +1,16 @@
 {
   "package": "context-history/v1",
-  "version": "1.0.0",
-  "status": "published_local_extension",
+  "version": "1.1.0",
+  "status": "local_coordinated_semantic_upgrade_candidate",
   "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
   "dependencies": {
-    "memory-context/v1": "d44a23ac674d5fd3f8e9325c80884dc1426305055b873be1da239f126056e570"
+    "memory-context/v1": "aaf25b4446c3915d48e46c6f0f687a26b57f30ac1c4494085266a586f67953e8"
   },
   "sha256": {
-    "README.md": "a90203f24b1f8f5425771b4eff5ee6423f0f6998ec42f6583855fe8f60397114",
+    "README.md": "18c0c8487ae7a7aecee99cb64f83d1648d8934d9989a1b4737dfac44a2535809",
     "schema.json": "a905275297b9eaf6388fca5dd8191fcbe351bae0257e9a75222b43bb4047a113",
-    "examples.json": "b5d0203862d38a879385b6dade83f569e621e3a6fc305494381a45de83c8be56",
-    "negative-examples.json": "3ae20c0ec08c0c06a82de3bcead9ef615dd57ad1e8ba9ad3fbb600456d58da39"
+    "examples.json": "e8de9cd3245973883a9c62737ded3d47a6bfc4e796660562bfb995f2f602b0e8",
+    "negative-examples.json": "3ae20c0ec08c0c06a82de3bcead9ef615dd57ad1e8ba9ad3fbb600456d58da39",
+    "group-history-relations.json": "e9105bc3742a810d62c7cbd5ceab9683eafde2175642fdfb67908dc70f2fb194"
   }
 }

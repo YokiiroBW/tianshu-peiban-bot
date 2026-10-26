@@ -1,0 +1,1280 @@
+[
+  {
+    "name": "factual",
+    "definition": "legacy_check",
+    "document": {
+      "check_id": "check:adopted-context-bundle",
+      "kind": "context_bundle",
+      "request": {
+        "query": {
+          "schema_version": 1,
+          "request_id": "request:q21",
+          "origin": {
+            "assertion_ref": "origin:q21"
+          }
+        },
+        "requested_scope": {
+          "actor_id": "actor:q21",
+          "person_id": "person:requester",
+          "audience": "group",
+          "conversation_id": "room:q21"
+        },
+        "bundle": {
+          "bundle_id": "bundle:two-cats",
+          "bundle_version": 1,
+          "effective_scope": {
+            "actor_id": "actor:q21",
+            "person_id": "person:requester",
+            "audience": "group",
+            "conversation_id": "room:q21"
+          },
+          "selection": [
+            "identity",
+            "evidence"
+          ],
+          "include_associated": false,
+          "queries": [
+            {
+              "query_id": "query:two-cats",
+              "text": "我的猫和小明的猫分别叫什么？",
+              "kinds": [
+                "facts",
+                "episodes"
+              ],
+              "intent": "current",
+              "time_filter": null
+            }
+          ],
+          "budget": {
+            "tokens": 4096,
+            "bytes": 16384
+          },
+          "limits": {
+            "facts": 8,
+            "episodes": 8
+          },
+          "scope_version": 7,
+          "association_version": 1,
+          "scope_checks": [
+            {
+              "scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:requester",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "scope_version": 7,
+              "association_id": null,
+              "association_version": 1
+            },
+            {
+              "scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:lin",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "scope_version": 7,
+              "association_id": null,
+              "association_version": 1
+            }
+          ],
+          "history_snapshot": {
+            "association_version": 1,
+            "history_checks": [
+              {
+                "scope": {
+                  "actor_id": "actor:q21",
+                  "person_id": "person:requester",
+                  "audience": "group",
+                  "conversation_id": "room:q21"
+                },
+                "history_version": 5,
+                "association_id": null,
+                "association_version": 1
+              },
+              {
+                "scope": {
+                  "actor_id": "actor:q21",
+                  "person_id": "person:lin",
+                  "audience": "group",
+                  "conversation_id": "room:q21"
+                },
+                "history_version": 5,
+                "association_id": null,
+                "association_version": 1
+              }
+            ]
+          },
+          "input_history_snapshot": {
+            "association_version": 1,
+            "history_checks": [
+              {
+                "scope": {
+                  "actor_id": "actor:q21",
+                  "person_id": "person:requester",
+                  "audience": "group",
+                  "conversation_id": "room:q21"
+                },
+                "history_version": 5,
+                "association_id": null,
+                "association_version": 1
+              },
+              {
+                "scope": {
+                  "actor_id": "actor:q21",
+                  "person_id": "person:lin",
+                  "audience": "group",
+                  "conversation_id": "room:q21"
+                },
+                "history_version": 5,
+                "association_id": null,
+                "association_version": 1
+              }
+            ]
+          },
+          "group_dependencies": [
+            {
+              "group": {
+                "semantic_group_id": "group:self-cat",
+                "record_ids": [
+                  "record:self-cat"
+                ],
+                "complete": true
+              },
+              "owner_scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:requester",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "records": [
+                {
+                  "group_id": "group:self-cat",
+                  "record_id": "record:self-cat",
+                  "record_version": 1
+                }
+              ],
+              "source_dependency_ids": [
+                "source-dependency:self-cat"
+              ]
+            },
+            {
+              "group": {
+                "semantic_group_id": "group:name",
+                "record_ids": [
+                  "record:name"
+                ],
+                "complete": true
+              },
+              "owner_scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:lin",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "records": [
+                {
+                  "group_id": "group:name",
+                  "record_id": "record:name",
+                  "record_version": 1
+                }
+              ],
+              "source_dependency_ids": [
+                "source-dependency:name"
+              ]
+            },
+            {
+              "group": {
+                "semantic_group_id": "group:named-cat",
+                "record_ids": [
+                  "record:named-cat"
+                ],
+                "complete": true
+              },
+              "owner_scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:lin",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "records": [
+                {
+                  "group_id": "group:named-cat",
+                  "record_id": "record:named-cat",
+                  "record_version": 1
+                }
+              ],
+              "source_dependency_ids": [
+                "source-dependency:named-cat"
+              ]
+            }
+          ],
+          "episode_dependencies": [],
+          "source_dependencies": [
+            {
+              "dependency_id": "source-dependency:self-cat",
+              "owner_scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:requester",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "source_key": "source:self-cat",
+              "revision": 1,
+              "epoch": 1,
+              "content_hash": "7a3b22429fb108f7750cd7b3bfc99887b60726c506b54147193d3fb74ab9321c",
+              "state": "active"
+            },
+            {
+              "dependency_id": "source-dependency:name",
+              "owner_scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:lin",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "source_key": "source:name",
+              "revision": 1,
+              "epoch": 1,
+              "content_hash": "7960bd317e3b8bb878b765d471acf9823acc0dff6dc55f4b4f8942d85eeeb663",
+              "state": "active"
+            },
+            {
+              "dependency_id": "source-dependency:named-cat",
+              "owner_scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:lin",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "source_key": "source:named-cat",
+              "revision": 1,
+              "epoch": 1,
+              "content_hash": "5b05c269ec9fb693e2e9b59d80e53a1d3f0dd095f7f1206bdfe263c71d184684",
+              "state": "active"
+            }
+          ],
+          "evidence_ids": [
+            "evidence:self-cat",
+            "evidence:name",
+            "evidence:named-cat"
+          ],
+          "evidence_digest": "7ef7fa36093a68f1972e18aec5a339168963c62b7dd5cbe24cd0d51dfff26a24",
+          "selection_constraints": [
+            {
+              "query_id": "query:two-cats",
+              "owner_resolution": {
+                "mode": "multiple",
+                "targets": [
+                  {
+                    "target_id": "target:self",
+                    "kind": "self",
+                    "mention": "我",
+                    "status": "resolved",
+                    "person_id": "person:requester",
+                    "witness_group_ids": []
+                  },
+                  {
+                    "target_id": "target:named",
+                    "kind": "named",
+                    "mention": "小明",
+                    "status": "resolved",
+                    "person_id": "person:lin",
+                    "witness_group_ids": [
+                      "group:name"
+                    ]
+                  }
+                ]
+              },
+              "proof_kinds": [
+                "positive_sources",
+                "latest_values",
+                "unique_owner"
+              ],
+              "candidate_domain_hash": "537c7ecf14480f38e5ccdedc354d774e17d90de758e11a88d69489d0a0a242bd",
+              "candidate_count": 3,
+              "candidate_domain_complete": true,
+              "result_status": "matched"
+            }
+          ],
+          "owner_heads": {
+            "core": {
+              "generation": "generation:core",
+              "sequence": 10
+            },
+            "platform": {
+              "generation": "generation:platform",
+              "sequence": 11
+            }
+          },
+          "source_revision": 42,
+          "validation_mode": "full_barrier",
+          "verified_at": "2026-10-23T10:00:00Z",
+          "valid_until": "2026-10-23T10:00:30Z",
+          "retrieval_mode": "factual"
+        }
+      },
+      "expected": {}
+    }
+  },
+  {
+    "name": "missing-mode",
+    "definition": "legacy_check",
+    "document": {
+      "check_id": "check:adopted-context-bundle",
+      "kind": "context_bundle",
+      "request": {
+        "query": {
+          "schema_version": 1,
+          "request_id": "request:q21",
+          "origin": {
+            "assertion_ref": "origin:q21"
+          }
+        },
+        "requested_scope": {
+          "actor_id": "actor:q21",
+          "person_id": "person:requester",
+          "audience": "group",
+          "conversation_id": "room:q21"
+        },
+        "bundle": {
+          "bundle_id": "bundle:two-cats",
+          "bundle_version": 1,
+          "effective_scope": {
+            "actor_id": "actor:q21",
+            "person_id": "person:requester",
+            "audience": "group",
+            "conversation_id": "room:q21"
+          },
+          "selection": [
+            "identity",
+            "evidence"
+          ],
+          "include_associated": false,
+          "queries": [
+            {
+              "query_id": "query:two-cats",
+              "text": "我的猫和小明的猫分别叫什么？",
+              "kinds": [
+                "facts",
+                "episodes"
+              ],
+              "intent": "current",
+              "time_filter": null
+            }
+          ],
+          "budget": {
+            "tokens": 4096,
+            "bytes": 16384
+          },
+          "limits": {
+            "facts": 8,
+            "episodes": 8
+          },
+          "scope_version": 7,
+          "association_version": 1,
+          "scope_checks": [
+            {
+              "scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:requester",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "scope_version": 7,
+              "association_id": null,
+              "association_version": 1
+            },
+            {
+              "scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:lin",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "scope_version": 7,
+              "association_id": null,
+              "association_version": 1
+            }
+          ],
+          "history_snapshot": {
+            "association_version": 1,
+            "history_checks": [
+              {
+                "scope": {
+                  "actor_id": "actor:q21",
+                  "person_id": "person:requester",
+                  "audience": "group",
+                  "conversation_id": "room:q21"
+                },
+                "history_version": 5,
+                "association_id": null,
+                "association_version": 1
+              },
+              {
+                "scope": {
+                  "actor_id": "actor:q21",
+                  "person_id": "person:lin",
+                  "audience": "group",
+                  "conversation_id": "room:q21"
+                },
+                "history_version": 5,
+                "association_id": null,
+                "association_version": 1
+              }
+            ]
+          },
+          "input_history_snapshot": {
+            "association_version": 1,
+            "history_checks": [
+              {
+                "scope": {
+                  "actor_id": "actor:q21",
+                  "person_id": "person:requester",
+                  "audience": "group",
+                  "conversation_id": "room:q21"
+                },
+                "history_version": 5,
+                "association_id": null,
+                "association_version": 1
+              },
+              {
+                "scope": {
+                  "actor_id": "actor:q21",
+                  "person_id": "person:lin",
+                  "audience": "group",
+                  "conversation_id": "room:q21"
+                },
+                "history_version": 5,
+                "association_id": null,
+                "association_version": 1
+              }
+            ]
+          },
+          "group_dependencies": [
+            {
+              "group": {
+                "semantic_group_id": "group:self-cat",
+                "record_ids": [
+                  "record:self-cat"
+                ],
+                "complete": true
+              },
+              "owner_scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:requester",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "records": [
+                {
+                  "group_id": "group:self-cat",
+                  "record_id": "record:self-cat",
+                  "record_version": 1
+                }
+              ],
+              "source_dependency_ids": [
+                "source-dependency:self-cat"
+              ]
+            },
+            {
+              "group": {
+                "semantic_group_id": "group:name",
+                "record_ids": [
+                  "record:name"
+                ],
+                "complete": true
+              },
+              "owner_scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:lin",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "records": [
+                {
+                  "group_id": "group:name",
+                  "record_id": "record:name",
+                  "record_version": 1
+                }
+              ],
+              "source_dependency_ids": [
+                "source-dependency:name"
+              ]
+            },
+            {
+              "group": {
+                "semantic_group_id": "group:named-cat",
+                "record_ids": [
+                  "record:named-cat"
+                ],
+                "complete": true
+              },
+              "owner_scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:lin",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "records": [
+                {
+                  "group_id": "group:named-cat",
+                  "record_id": "record:named-cat",
+                  "record_version": 1
+                }
+              ],
+              "source_dependency_ids": [
+                "source-dependency:named-cat"
+              ]
+            }
+          ],
+          "episode_dependencies": [],
+          "source_dependencies": [
+            {
+              "dependency_id": "source-dependency:self-cat",
+              "owner_scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:requester",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "source_key": "source:self-cat",
+              "revision": 1,
+              "epoch": 1,
+              "content_hash": "7a3b22429fb108f7750cd7b3bfc99887b60726c506b54147193d3fb74ab9321c",
+              "state": "active"
+            },
+            {
+              "dependency_id": "source-dependency:name",
+              "owner_scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:lin",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "source_key": "source:name",
+              "revision": 1,
+              "epoch": 1,
+              "content_hash": "7960bd317e3b8bb878b765d471acf9823acc0dff6dc55f4b4f8942d85eeeb663",
+              "state": "active"
+            },
+            {
+              "dependency_id": "source-dependency:named-cat",
+              "owner_scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:lin",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "source_key": "source:named-cat",
+              "revision": 1,
+              "epoch": 1,
+              "content_hash": "5b05c269ec9fb693e2e9b59d80e53a1d3f0dd095f7f1206bdfe263c71d184684",
+              "state": "active"
+            }
+          ],
+          "evidence_ids": [
+            "evidence:self-cat",
+            "evidence:name",
+            "evidence:named-cat"
+          ],
+          "evidence_digest": "7ef7fa36093a68f1972e18aec5a339168963c62b7dd5cbe24cd0d51dfff26a24",
+          "selection_constraints": [
+            {
+              "query_id": "query:two-cats",
+              "owner_resolution": {
+                "mode": "multiple",
+                "targets": [
+                  {
+                    "target_id": "target:self",
+                    "kind": "self",
+                    "mention": "我",
+                    "status": "resolved",
+                    "person_id": "person:requester",
+                    "witness_group_ids": []
+                  },
+                  {
+                    "target_id": "target:named",
+                    "kind": "named",
+                    "mention": "小明",
+                    "status": "resolved",
+                    "person_id": "person:lin",
+                    "witness_group_ids": [
+                      "group:name"
+                    ]
+                  }
+                ]
+              },
+              "proof_kinds": [
+                "positive_sources",
+                "latest_values",
+                "unique_owner"
+              ],
+              "candidate_domain_hash": "537c7ecf14480f38e5ccdedc354d774e17d90de758e11a88d69489d0a0a242bd",
+              "candidate_count": 3,
+              "candidate_domain_complete": true,
+              "result_status": "matched"
+            }
+          ],
+          "owner_heads": {
+            "core": {
+              "generation": "generation:core",
+              "sequence": 10
+            },
+            "platform": {
+              "generation": "generation:platform",
+              "sequence": 11
+            }
+          },
+          "source_revision": 42,
+          "validation_mode": "full_barrier",
+          "verified_at": "2026-10-23T10:00:00Z",
+          "valid_until": "2026-10-23T10:00:30Z"
+        }
+      },
+      "expected": {}
+    }
+  },
+  {
+    "name": "extra-expected",
+    "definition": "legacy_check",
+    "document": {
+      "check_id": "check:adopted-context-bundle",
+      "kind": "context_bundle",
+      "request": {
+        "query": {
+          "schema_version": 1,
+          "request_id": "request:q21",
+          "origin": {
+            "assertion_ref": "origin:q21"
+          }
+        },
+        "requested_scope": {
+          "actor_id": "actor:q21",
+          "person_id": "person:requester",
+          "audience": "group",
+          "conversation_id": "room:q21"
+        },
+        "bundle": {
+          "bundle_id": "bundle:two-cats",
+          "bundle_version": 1,
+          "effective_scope": {
+            "actor_id": "actor:q21",
+            "person_id": "person:requester",
+            "audience": "group",
+            "conversation_id": "room:q21"
+          },
+          "selection": [
+            "identity",
+            "evidence"
+          ],
+          "include_associated": false,
+          "queries": [
+            {
+              "query_id": "query:two-cats",
+              "text": "我的猫和小明的猫分别叫什么？",
+              "kinds": [
+                "facts",
+                "episodes"
+              ],
+              "intent": "current",
+              "time_filter": null
+            }
+          ],
+          "budget": {
+            "tokens": 4096,
+            "bytes": 16384
+          },
+          "limits": {
+            "facts": 8,
+            "episodes": 8
+          },
+          "scope_version": 7,
+          "association_version": 1,
+          "scope_checks": [
+            {
+              "scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:requester",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "scope_version": 7,
+              "association_id": null,
+              "association_version": 1
+            },
+            {
+              "scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:lin",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "scope_version": 7,
+              "association_id": null,
+              "association_version": 1
+            }
+          ],
+          "history_snapshot": {
+            "association_version": 1,
+            "history_checks": [
+              {
+                "scope": {
+                  "actor_id": "actor:q21",
+                  "person_id": "person:requester",
+                  "audience": "group",
+                  "conversation_id": "room:q21"
+                },
+                "history_version": 5,
+                "association_id": null,
+                "association_version": 1
+              },
+              {
+                "scope": {
+                  "actor_id": "actor:q21",
+                  "person_id": "person:lin",
+                  "audience": "group",
+                  "conversation_id": "room:q21"
+                },
+                "history_version": 5,
+                "association_id": null,
+                "association_version": 1
+              }
+            ]
+          },
+          "input_history_snapshot": {
+            "association_version": 1,
+            "history_checks": [
+              {
+                "scope": {
+                  "actor_id": "actor:q21",
+                  "person_id": "person:requester",
+                  "audience": "group",
+                  "conversation_id": "room:q21"
+                },
+                "history_version": 5,
+                "association_id": null,
+                "association_version": 1
+              },
+              {
+                "scope": {
+                  "actor_id": "actor:q21",
+                  "person_id": "person:lin",
+                  "audience": "group",
+                  "conversation_id": "room:q21"
+                },
+                "history_version": 5,
+                "association_id": null,
+                "association_version": 1
+              }
+            ]
+          },
+          "group_dependencies": [
+            {
+              "group": {
+                "semantic_group_id": "group:self-cat",
+                "record_ids": [
+                  "record:self-cat"
+                ],
+                "complete": true
+              },
+              "owner_scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:requester",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "records": [
+                {
+                  "group_id": "group:self-cat",
+                  "record_id": "record:self-cat",
+                  "record_version": 1
+                }
+              ],
+              "source_dependency_ids": [
+                "source-dependency:self-cat"
+              ]
+            },
+            {
+              "group": {
+                "semantic_group_id": "group:name",
+                "record_ids": [
+                  "record:name"
+                ],
+                "complete": true
+              },
+              "owner_scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:lin",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "records": [
+                {
+                  "group_id": "group:name",
+                  "record_id": "record:name",
+                  "record_version": 1
+                }
+              ],
+              "source_dependency_ids": [
+                "source-dependency:name"
+              ]
+            },
+            {
+              "group": {
+                "semantic_group_id": "group:named-cat",
+                "record_ids": [
+                  "record:named-cat"
+                ],
+                "complete": true
+              },
+              "owner_scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:lin",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "records": [
+                {
+                  "group_id": "group:named-cat",
+                  "record_id": "record:named-cat",
+                  "record_version": 1
+                }
+              ],
+              "source_dependency_ids": [
+                "source-dependency:named-cat"
+              ]
+            }
+          ],
+          "episode_dependencies": [],
+          "source_dependencies": [
+            {
+              "dependency_id": "source-dependency:self-cat",
+              "owner_scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:requester",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "source_key": "source:self-cat",
+              "revision": 1,
+              "epoch": 1,
+              "content_hash": "7a3b22429fb108f7750cd7b3bfc99887b60726c506b54147193d3fb74ab9321c",
+              "state": "active"
+            },
+            {
+              "dependency_id": "source-dependency:name",
+              "owner_scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:lin",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "source_key": "source:name",
+              "revision": 1,
+              "epoch": 1,
+              "content_hash": "7960bd317e3b8bb878b765d471acf9823acc0dff6dc55f4b4f8942d85eeeb663",
+              "state": "active"
+            },
+            {
+              "dependency_id": "source-dependency:named-cat",
+              "owner_scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:lin",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "source_key": "source:named-cat",
+              "revision": 1,
+              "epoch": 1,
+              "content_hash": "5b05c269ec9fb693e2e9b59d80e53a1d3f0dd095f7f1206bdfe263c71d184684",
+              "state": "active"
+            }
+          ],
+          "evidence_ids": [
+            "evidence:self-cat",
+            "evidence:name",
+            "evidence:named-cat"
+          ],
+          "evidence_digest": "7ef7fa36093a68f1972e18aec5a339168963c62b7dd5cbe24cd0d51dfff26a24",
+          "selection_constraints": [
+            {
+              "query_id": "query:two-cats",
+              "owner_resolution": {
+                "mode": "multiple",
+                "targets": [
+                  {
+                    "target_id": "target:self",
+                    "kind": "self",
+                    "mention": "我",
+                    "status": "resolved",
+                    "person_id": "person:requester",
+                    "witness_group_ids": []
+                  },
+                  {
+                    "target_id": "target:named",
+                    "kind": "named",
+                    "mention": "小明",
+                    "status": "resolved",
+                    "person_id": "person:lin",
+                    "witness_group_ids": [
+                      "group:name"
+                    ]
+                  }
+                ]
+              },
+              "proof_kinds": [
+                "positive_sources",
+                "latest_values",
+                "unique_owner"
+              ],
+              "candidate_domain_hash": "537c7ecf14480f38e5ccdedc354d774e17d90de758e11a88d69489d0a0a242bd",
+              "candidate_count": 3,
+              "candidate_domain_complete": true,
+              "result_status": "matched"
+            }
+          ],
+          "owner_heads": {
+            "core": {
+              "generation": "generation:core",
+              "sequence": 10
+            },
+            "platform": {
+              "generation": "generation:platform",
+              "sequence": 11
+            }
+          },
+          "source_revision": 42,
+          "validation_mode": "full_barrier",
+          "verified_at": "2026-10-23T10:00:00Z",
+          "valid_until": "2026-10-23T10:00:30Z",
+          "retrieval_mode": "context"
+        }
+      },
+      "expected": {
+        "valid": true
+      }
+    }
+  },
+  {
+    "name": "extra-request",
+    "definition": "legacy_check",
+    "document": {
+      "check_id": "check:adopted-context-bundle",
+      "kind": "context_bundle",
+      "request": {
+        "query": {
+          "schema_version": 1,
+          "request_id": "request:q21",
+          "origin": {
+            "assertion_ref": "origin:q21"
+          }
+        },
+        "requested_scope": {
+          "actor_id": "actor:q21",
+          "person_id": "person:requester",
+          "audience": "group",
+          "conversation_id": "room:q21"
+        },
+        "bundle": {
+          "bundle_id": "bundle:two-cats",
+          "bundle_version": 1,
+          "effective_scope": {
+            "actor_id": "actor:q21",
+            "person_id": "person:requester",
+            "audience": "group",
+            "conversation_id": "room:q21"
+          },
+          "selection": [
+            "identity",
+            "evidence"
+          ],
+          "include_associated": false,
+          "queries": [
+            {
+              "query_id": "query:two-cats",
+              "text": "我的猫和小明的猫分别叫什么？",
+              "kinds": [
+                "facts",
+                "episodes"
+              ],
+              "intent": "current",
+              "time_filter": null
+            }
+          ],
+          "budget": {
+            "tokens": 4096,
+            "bytes": 16384
+          },
+          "limits": {
+            "facts": 8,
+            "episodes": 8
+          },
+          "scope_version": 7,
+          "association_version": 1,
+          "scope_checks": [
+            {
+              "scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:requester",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "scope_version": 7,
+              "association_id": null,
+              "association_version": 1
+            },
+            {
+              "scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:lin",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "scope_version": 7,
+              "association_id": null,
+              "association_version": 1
+            }
+          ],
+          "history_snapshot": {
+            "association_version": 1,
+            "history_checks": [
+              {
+                "scope": {
+                  "actor_id": "actor:q21",
+                  "person_id": "person:requester",
+                  "audience": "group",
+                  "conversation_id": "room:q21"
+                },
+                "history_version": 5,
+                "association_id": null,
+                "association_version": 1
+              },
+              {
+                "scope": {
+                  "actor_id": "actor:q21",
+                  "person_id": "person:lin",
+                  "audience": "group",
+                  "conversation_id": "room:q21"
+                },
+                "history_version": 5,
+                "association_id": null,
+                "association_version": 1
+              }
+            ]
+          },
+          "input_history_snapshot": {
+            "association_version": 1,
+            "history_checks": [
+              {
+                "scope": {
+                  "actor_id": "actor:q21",
+                  "person_id": "person:requester",
+                  "audience": "group",
+                  "conversation_id": "room:q21"
+                },
+                "history_version": 5,
+                "association_id": null,
+                "association_version": 1
+              },
+              {
+                "scope": {
+                  "actor_id": "actor:q21",
+                  "person_id": "person:lin",
+                  "audience": "group",
+                  "conversation_id": "room:q21"
+                },
+                "history_version": 5,
+                "association_id": null,
+                "association_version": 1
+              }
+            ]
+          },
+          "group_dependencies": [
+            {
+              "group": {
+                "semantic_group_id": "group:self-cat",
+                "record_ids": [
+                  "record:self-cat"
+                ],
+                "complete": true
+              },
+              "owner_scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:requester",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "records": [
+                {
+                  "group_id": "group:self-cat",
+                  "record_id": "record:self-cat",
+                  "record_version": 1
+                }
+              ],
+              "source_dependency_ids": [
+                "source-dependency:self-cat"
+              ]
+            },
+            {
+              "group": {
+                "semantic_group_id": "group:name",
+                "record_ids": [
+                  "record:name"
+                ],
+                "complete": true
+              },
+              "owner_scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:lin",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "records": [
+                {
+                  "group_id": "group:name",
+                  "record_id": "record:name",
+                  "record_version": 1
+                }
+              ],
+              "source_dependency_ids": [
+                "source-dependency:name"
+              ]
+            },
+            {
+              "group": {
+                "semantic_group_id": "group:named-cat",
+                "record_ids": [
+                  "record:named-cat"
+                ],
+                "complete": true
+              },
+              "owner_scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:lin",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "records": [
+                {
+                  "group_id": "group:named-cat",
+                  "record_id": "record:named-cat",
+                  "record_version": 1
+                }
+              ],
+              "source_dependency_ids": [
+                "source-dependency:named-cat"
+              ]
+            }
+          ],
+          "episode_dependencies": [],
+          "source_dependencies": [
+            {
+              "dependency_id": "source-dependency:self-cat",
+              "owner_scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:requester",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "source_key": "source:self-cat",
+              "revision": 1,
+              "epoch": 1,
+              "content_hash": "7a3b22429fb108f7750cd7b3bfc99887b60726c506b54147193d3fb74ab9321c",
+              "state": "active"
+            },
+            {
+              "dependency_id": "source-dependency:name",
+              "owner_scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:lin",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "source_key": "source:name",
+              "revision": 1,
+              "epoch": 1,
+              "content_hash": "7960bd317e3b8bb878b765d471acf9823acc0dff6dc55f4b4f8942d85eeeb663",
+              "state": "active"
+            },
+            {
+              "dependency_id": "source-dependency:named-cat",
+              "owner_scope": {
+                "actor_id": "actor:q21",
+                "person_id": "person:lin",
+                "audience": "group",
+                "conversation_id": "room:q21"
+              },
+              "source_key": "source:named-cat",
+              "revision": 1,
+              "epoch": 1,
+              "content_hash": "5b05c269ec9fb693e2e9b59d80e53a1d3f0dd095f7f1206bdfe263c71d184684",
+              "state": "active"
+            }
+          ],
+          "evidence_ids": [
+            "evidence:self-cat",
+            "evidence:name",
+            "evidence:named-cat"
+          ],
+          "evidence_digest": "7ef7fa36093a68f1972e18aec5a339168963c62b7dd5cbe24cd0d51dfff26a24",
+          "selection_constraints": [
+            {
+              "query_id": "query:two-cats",
+              "owner_resolution": {
+                "mode": "multiple",
+                "targets": [
+                  {
+                    "target_id": "target:self",
+                    "kind": "self",
+                    "mention": "我",
+                    "status": "resolved",
+                    "person_id": "person:requester",
+                    "witness_group_ids": []
+                  },
+                  {
+                    "target_id": "target:named",
+                    "kind": "named",
+                    "mention": "小明",
+                    "status": "resolved",
+                    "person_id": "person:lin",
+                    "witness_group_ids": [
+                      "group:name"
+                    ]
+                  }
+                ]
+              },
+              "proof_kinds": [
+                "positive_sources",
+                "latest_values",
+                "unique_owner"
+              ],
+              "candidate_domain_hash": "537c7ecf14480f38e5ccdedc354d774e17d90de758e11a88d69489d0a0a242bd",
+              "candidate_count": 3,
+              "candidate_domain_complete": true,
+              "result_status": "matched"
+            }
+          ],
+          "owner_heads": {
+            "core": {
+              "generation": "generation:core",
+              "sequence": 10
+            },
+            "platform": {
+              "generation": "generation:platform",
+              "sequence": 11
+            }
+          },
+          "source_revision": 42,
+          "validation_mode": "full_barrier",
+          "verified_at": "2026-10-23T10:00:00Z",
+          "valid_until": "2026-10-23T10:00:30Z",
+          "retrieval_mode": "context"
+        },
+        "skip_authority": true
+      },
+      "expected": {}
+    }
+  }
+]

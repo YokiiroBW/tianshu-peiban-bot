@@ -34,14 +34,18 @@ def batch_barrier(observation, now):
         "correlation",
     )
     seen = set()
-    for index, batch in enumerate(batches):
+    seen_turns = set()
+    for batch in batches:
         _require(batch["snapshot"]["head"] == batch["final_head"] == core_head, "moving_owner")
         _require(batch["access"]["head"] == final_access["head"], "moving_owner")
         _require(batch["access_request"]["viewer"] == final_request["viewer"], "viewer_actor")
         _require(batch["access"]["viewer_context"] == final_access["viewer_context"], "viewer_actor")
-        _require(index == 0 or not batch["request"]["turn_ids"], "turn_coverage")
+        turns = batch["request"]["turn_ids"]
+        _require(len(turns) <= 32 and len(set(turns)) == len(turns), "turn_coverage")
+        _require(not seen_turns.intersection(turns), "turn_coverage")
+        seen_turns.update(turns)
         selectors = batch["request"]["selectors"]
-        _require(0 < len(selectors) <= 256, "batch_coverage")
+        _require(len(selectors) <= 256 and bool(selectors or turns), "batch_coverage")
         keys = {_canonical(selector) for selector in selectors}
         _require(len(keys) == len(selectors) and not seen.intersection(keys), "batch_coverage")
         seen.update(keys)

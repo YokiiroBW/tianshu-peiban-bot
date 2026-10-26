@@ -1,0 +1,551 @@
+[
+  {
+    "name": "extraction-positive-event-modalities",
+    "submit_request": {
+      "job_id": "job:modality",
+      "extraction_schema": 4,
+      "output": {
+        "memories": [
+          {
+            "conditions": [],
+            "negations": [],
+            "valid_time": "作者明确描述的出发时间",
+            "evidence": [
+              {
+                "source_index": 0,
+                "quote": "这次出游计划14:10出发。"
+              }
+            ],
+            "fact": {
+              "subject": {
+                "kind": "event",
+                "id": "entity:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "type": "outing",
+                "mention": "这次出游"
+              },
+              "predicate": "event.departure",
+              "value": "14:10",
+              "cardinality": "single",
+              "modality": "planned",
+              "state": "current",
+              "valid_from": null,
+              "valid_to": null,
+              "keywords": [
+                "杯子",
+                "位置"
+              ],
+              "operation": "assert",
+              "target_refs": []
+            }
+          },
+          {
+            "conditions": [],
+            "negations": [],
+            "valid_time": "作者明确描述的出发时间",
+            "evidence": [
+              {
+                "source_index": 1,
+                "quote": "这次出游实际14:25出发。"
+              }
+            ],
+            "fact": {
+              "subject": {
+                "kind": "event",
+                "id": "entity:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                "type": "outing",
+                "mention": "这次出游"
+              },
+              "predicate": "event.departure",
+              "value": "14:25",
+              "cardinality": "single",
+              "modality": "observed",
+              "state": "current",
+              "valid_from": null,
+              "valid_to": null,
+              "keywords": [
+                "杯子",
+                "位置"
+              ],
+              "operation": "assert",
+              "target_refs": []
+            }
+          }
+        ]
+      }
+    },
+    "expected": "same_event_predicate_with_two_distinct_modality_slots"
+  },
+  {
+    "name": "extraction-positive-legacy-empty-time",
+    "legacy_submit_request": {
+      "job_id": "job:legacy-empty-time",
+      "extraction_schema": 3,
+      "output": {
+        "memories": [
+          {
+            "statement": "杯子放玄关柜",
+            "conditions": [],
+            "negations": [],
+            "valid_time": "",
+            "evidence": [
+              {
+                "source_index": 0,
+                "quote": "杯子放玄关柜"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "expected": "old_empty_valid_time_normalized_by_existing_schema3_path"
+  },
+  {
+    "name": "extraction-positive-legacy-negotiation",
+    "read_request": {
+      "job_id": "job:q21",
+      "output": null,
+      "supported_extraction_schemas": [
+        3,
+        4
+      ]
+    },
+    "legacy_pending_response": {
+      "state": "pending",
+      "result": null,
+      "extraction_schema": 3,
+      "content": [
+        {
+          "index": 0,
+          "text": "我的玻璃杯现在放餐桌。",
+          "sent_at": "2026-10-23T10:00:00Z"
+        }
+      ],
+      "known_facts": [
+        {
+          "key": "cup.location",
+          "value": "玄关柜",
+          "state": "current",
+          "valid_from": null,
+          "valid_to": null,
+          "keywords": [
+            "杯子"
+          ],
+          "statement": "杯子放玄关柜",
+          "conditions": [],
+          "negations": [],
+          "group_id": "group:old-location",
+          "superseded": false
+        }
+      ]
+    },
+    "fixture_job_schema": 3,
+    "expected": "explicit_server_selected_legacy_schema_without_downgrade_guessing"
+  },
+  {
+    "name": "extraction-positive",
+    "read_request": {
+      "job_id": "job:q21",
+      "output": null,
+      "supported_extraction_schemas": [
+        3,
+        4
+      ]
+    },
+    "pending_response": {
+      "state": "pending",
+      "result": null,
+      "content": [
+        {
+          "index": 0,
+          "text": "我的玻璃杯现在放餐桌。",
+          "sent_at": "2026-10-23T10:00:00Z"
+        }
+      ],
+      "extraction_schema": 4,
+      "known_facts": [
+        {
+          "conditions": [],
+          "negations": [],
+          "valid_time": "未说明有效时间",
+          "representation": "canonical",
+          "fact": {
+            "subject": {
+              "kind": "entity",
+              "id": "entity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "cup",
+              "mention": "我的玻璃杯"
+            },
+            "predicate": "object.location",
+            "value": "玄关柜",
+            "cardinality": "single",
+            "modality": "asserted",
+            "state": "current",
+            "valid_from": null,
+            "valid_to": null,
+            "keywords": [
+              "杯子",
+              "位置"
+            ]
+          },
+          "legacy_fact": null,
+          "legacy_statement": null,
+          "target_refs": [
+            {
+              "group_id": "group:old-location",
+              "record_id": "record:old-location",
+              "record_version": 1
+            }
+          ],
+          "superseded": false
+        }
+      ]
+    },
+    "submit_request": {
+      "job_id": "job:q21",
+      "extraction_schema": 4,
+      "output": {
+        "memories": [
+          {
+            "conditions": [],
+            "negations": [],
+            "valid_time": "未说明有效时间",
+            "evidence": [
+              {
+                "source_index": 0,
+                "quote": "我的玻璃杯现在放餐桌。"
+              }
+            ],
+            "fact": {
+              "subject": {
+                "kind": "entity",
+                "id": "entity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "type": "cup",
+                "mention": "我的玻璃杯"
+              },
+              "predicate": "object.location",
+              "value": "餐桌",
+              "cardinality": "single",
+              "modality": "asserted",
+              "state": "current",
+              "valid_from": null,
+              "valid_to": null,
+              "keywords": [
+                "杯子",
+                "位置"
+              ],
+              "operation": "replace",
+              "target_refs": [
+                {
+                  "group_id": "group:old-location",
+                  "record_id": "record:old-location",
+                  "record_version": 1
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "completed_response": {
+      "state": "completed",
+      "result": {
+        "state": "committed",
+        "record_ids": [
+          "record:new-location"
+        ],
+        "group_ids": [
+          "group:new-location"
+        ]
+      },
+      "content": [],
+      "extraction_schema": 4
+    },
+    "fixture_authority": {
+      "job_schema": 4,
+      "scope": {
+        "actor_id": "actor:q21",
+        "person_id": "person:lin",
+        "audience": "group",
+        "conversation_id": "room:q21"
+      },
+      "target_owner_scope": {
+        "actor_id": "actor:q21",
+        "person_id": "person:lin",
+        "audience": "group",
+        "conversation_id": "room:q21"
+      }
+    }
+  },
+  {
+    "name": "extraction-positive-explicit-modality-replace-intent",
+    "read_request": {
+      "job_id": "job:q21",
+      "output": null,
+      "supported_extraction_schemas": [
+        3,
+        4
+      ]
+    },
+    "pending_response": {
+      "state": "pending",
+      "result": null,
+      "content": [
+        {
+          "index": 0,
+          "text": "我的周末出游从拿不定主意改为计划去湖畔公园。",
+          "sent_at": "2026-10-23T10:00:00Z"
+        }
+      ],
+      "extraction_schema": 4,
+      "known_facts": [
+        {
+          "conditions": [],
+          "negations": [],
+          "valid_time": "未说明有效时间",
+          "representation": "canonical",
+          "fact": {
+            "subject": {
+              "kind": "event",
+              "id": "entity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "outing",
+              "mention": "我的周末出游"
+            },
+            "predicate": "outing.destination",
+            "value": "湖畔公园",
+            "cardinality": "single",
+            "modality": "uncertain",
+            "state": "current",
+            "valid_from": null,
+            "valid_to": null,
+            "keywords": [
+              "杯子",
+              "位置"
+            ]
+          },
+          "legacy_fact": null,
+          "legacy_statement": null,
+          "target_refs": [
+            {
+              "group_id": "group:old-location",
+              "record_id": "record:old-location",
+              "record_version": 1
+            }
+          ],
+          "superseded": false
+        }
+      ]
+    },
+    "submit_request": {
+      "job_id": "job:q21",
+      "extraction_schema": 4,
+      "output": {
+        "memories": [
+          {
+            "conditions": [],
+            "negations": [],
+            "valid_time": "未说明有效时间",
+            "evidence": [
+              {
+                "source_index": 0,
+                "quote": "我的周末出游从拿不定主意改为计划去湖畔公园。"
+              }
+            ],
+            "fact": {
+              "subject": {
+                "kind": "event",
+                "id": "entity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "type": "outing",
+                "mention": "我的周末出游"
+              },
+              "predicate": "outing.destination",
+              "value": "湖畔公园",
+              "cardinality": "single",
+              "modality": "planned",
+              "state": "current",
+              "valid_from": null,
+              "valid_to": null,
+              "keywords": [
+                "杯子",
+                "位置"
+              ],
+              "operation": "replace",
+              "target_refs": [
+                {
+                  "group_id": "group:old-location",
+                  "record_id": "record:old-location",
+                  "record_version": 1
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "completed_response": {
+      "state": "completed",
+      "result": {
+        "state": "committed",
+        "record_ids": [
+          "record:new-location"
+        ],
+        "group_ids": [
+          "group:new-location"
+        ]
+      },
+      "content": [],
+      "extraction_schema": 4
+    },
+    "fixture_authority": {
+      "job_schema": 4,
+      "scope": {
+        "actor_id": "actor:q21",
+        "person_id": "person:lin",
+        "audience": "group",
+        "conversation_id": "room:q21"
+      },
+      "target_owner_scope": {
+        "actor_id": "actor:q21",
+        "person_id": "person:lin",
+        "audience": "group",
+        "conversation_id": "room:q21"
+      }
+    },
+    "expected": "explicit_same_property_target_changes_modality_without_retiring_other_slots"
+  },
+  {
+    "name": "extraction-positive-explicit-modality-replace-reported-location",
+    "read_request": {
+      "job_id": "job:q21",
+      "output": null,
+      "supported_extraction_schemas": [
+        3,
+        4
+      ]
+    },
+    "pending_response": {
+      "state": "pending",
+      "result": null,
+      "content": [
+        {
+          "index": 0,
+          "text": "我的玻璃杯刚刚放到了餐桌。",
+          "sent_at": "2026-10-23T10:00:00Z"
+        }
+      ],
+      "extraction_schema": 4,
+      "known_facts": [
+        {
+          "conditions": [],
+          "negations": [],
+          "valid_time": "未说明有效时间",
+          "representation": "canonical",
+          "fact": {
+            "subject": {
+              "kind": "entity",
+              "id": "entity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "type": "cup",
+              "mention": "我的玻璃杯"
+            },
+            "predicate": "object.location",
+            "value": "玄关柜",
+            "cardinality": "single",
+            "modality": "asserted",
+            "state": "current",
+            "valid_from": null,
+            "valid_to": null,
+            "keywords": [
+              "杯子",
+              "位置"
+            ]
+          },
+          "legacy_fact": null,
+          "legacy_statement": null,
+          "target_refs": [
+            {
+              "group_id": "group:old-location",
+              "record_id": "record:old-location",
+              "record_version": 1
+            }
+          ],
+          "superseded": false
+        }
+      ]
+    },
+    "submit_request": {
+      "job_id": "job:q21",
+      "extraction_schema": 4,
+      "output": {
+        "memories": [
+          {
+            "conditions": [],
+            "negations": [],
+            "valid_time": "未说明有效时间",
+            "evidence": [
+              {
+                "source_index": 0,
+                "quote": "我的玻璃杯刚刚放到了餐桌。"
+              }
+            ],
+            "fact": {
+              "subject": {
+                "kind": "entity",
+                "id": "entity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "type": "cup",
+                "mention": "我的玻璃杯"
+              },
+              "predicate": "object.location",
+              "value": "餐桌",
+              "cardinality": "single",
+              "modality": "observed",
+              "state": "current",
+              "valid_from": null,
+              "valid_to": null,
+              "keywords": [
+                "杯子",
+                "位置"
+              ],
+              "operation": "replace",
+              "target_refs": [
+                {
+                  "group_id": "group:old-location",
+                  "record_id": "record:old-location",
+                  "record_version": 1
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "completed_response": {
+      "state": "completed",
+      "result": {
+        "state": "committed",
+        "record_ids": [
+          "record:new-location"
+        ],
+        "group_ids": [
+          "group:new-location"
+        ]
+      },
+      "content": [],
+      "extraction_schema": 4
+    },
+    "fixture_authority": {
+      "job_schema": 4,
+      "scope": {
+        "actor_id": "actor:q21",
+        "person_id": "person:lin",
+        "audience": "group",
+        "conversation_id": "room:q21"
+      },
+      "target_owner_scope": {
+        "actor_id": "actor:q21",
+        "person_id": "person:lin",
+        "audience": "group",
+        "conversation_id": "room:q21"
+      }
+    },
+    "expected": "explicit_same_property_target_changes_modality_without_retiring_other_slots"
+  }
+]

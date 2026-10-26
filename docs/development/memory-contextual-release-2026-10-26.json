@@ -1,0 +1,320 @@
+{
+  "schema": "memory-contextual-release/1",
+  "status": "production_verified",
+  "date": "2026-10-26",
+  "production": {
+    "compute": "192.168.31.230",
+    "postgresql_redis_media": "192.168.31.210",
+    "web": "http://192.168.31.230:18446/"
+  },
+  "images": {
+    "companion": {
+      "base": "sha256:d1ce12daa84636c3c145792c21dbcbc9ca9306e9058c60a33825dda2c4ce2d62",
+      "dependencies_unchanged": true,
+      "exact_source": {
+        "exact": true,
+        "files": 99
+      },
+      "image": "sha256:46973fdbb913e5cd04aa70142b53312e7e53875953b58d2ea6e56cf7d2b08c3b",
+      "revision": "68b85d0d59e2cdbe93a5240e4d7771d4f7a31840"
+    },
+    "knowledge": {
+      "base": "sha256:84c17370f45810b86a0e995e5ffb34c748f8e56707d4bcdd382a0db5a69e4946",
+      "dependencies_unchanged": true,
+      "exact_source": {
+        "exact": true,
+        "files": 132
+      },
+      "image": "sha256:579051ba6e2c18b7ab7e2ce7e177f1b88767f47b064207d29f05cd2c4d28474f",
+      "revision": "62206f2a58be08e4032ce32ddf2c90219f417877"
+    },
+    "memory": {
+      "base": "sha256:7655f0c842dffc843e05aac6515afc9e81260c8c7267b6c037a8824f6d77b1cc",
+      "dependencies_unchanged": true,
+      "exact_source": {
+        "exact": true,
+        "files": 132
+      },
+      "image": "sha256:6f46be21570e8f9f425b7d344b9879c51ec203300e005b6751e341f5f6209306",
+      "revision": "62206f2a58be08e4032ce32ddf2c90219f417877"
+    },
+    "platform": {
+      "base": "sha256:633243f01d5b1e92cf57268953f514544cc0714f9ed30ffb73a736d5341fd909",
+      "dependencies_unchanged": true,
+      "exact_source": {
+        "exact": true,
+        "files": 304
+      },
+      "image": "sha256:478cab2687908bfe02c4163e58e7295bed4014f6d532d95a7e61c63e0787633f",
+      "revision": "506a82062166cef457974ef9b95789010e3435d0"
+    }
+  },
+  "products_push": {
+    "memory": {
+      "before": "a3abf61ab15623803fd4043a1dd16d7b5b9e9f5c",
+      "after": "62206f2a58be08e4032ce32ddf2c90219f417877",
+      "non_force": true,
+      "remote_verified": true,
+      "coordination_main_fast_forwarded": true
+    },
+    "companion": {
+      "before": "a188a3b438ed100491198a1be49ab402e26b6fe5",
+      "after": "68b85d0d59e2cdbe93a5240e4d7771d4f7a31840",
+      "non_force": true,
+      "remote_verified": true,
+      "coordination_main_fast_forwarded": true
+    },
+    "platform": {
+      "before": "8eb90ccc391a6833996965058e86765b95a071a4",
+      "after": "506a82062166cef457974ef9b95789010e3435d0",
+      "non_force": true,
+      "remote_verified": true,
+      "coordination_main_fast_forwarded": true,
+      "original_untracked_build_files_preserved": 44
+    }
+  },
+  "contracts": {
+    "packages": [
+      "memory-extraction/v1",
+      "memory-context/v2",
+      "source-sync-batch/v1"
+    ],
+    "changed_files_per_actual_root": 16,
+    "actual_roots": 4,
+    "unrelated_live_packages_preserved": true,
+    "manifests": {
+      "memory-extraction/v1": "205239730bf6aa5ff320cf9f300ae9c301c15559c0147aecd1fe001e8bfe5b82",
+      "memory-context/v2": "ec39155651f4c2d09183ccba5735cc9b9fc8ab9854de546223a89a46ff020ac9",
+      "source-sync-batch/v1": "7f4c4587f1acea34f8af79f3792280b1532953bec018ab646532d670aa81c091"
+    }
+  },
+  "backup": {
+    "operation": "/srv/tianshu-tooling/memory-contextual-20261026-62206f2-81e73582d53b4305a4f479414a94bc7a/cold-snapshot",
+    "manifest_sha256": "66a48b16a604f4d7d79e1b01f9ce9618b1282c52a938db3a2889a27bfd163719",
+    "bytes": 3270193759,
+    "entries": 7545,
+    "sqlite_databases_verified": 39,
+    "postgresql_services_verified": 5,
+    "postgresql_databases_verified": 24,
+    "memory_guards_verified": 2,
+    "production_restore_performed": false,
+    "original_failure_retained": true,
+    "continuation": {
+      "original_failure_retained": true,
+      "original_run_id": "012d801de15d48e68b8d97e35b8a8bcc",
+      "control_delta": {
+        "source-evidence/__pycache__/cold_backup.cpython-312.pyc": {
+          "mode": 384,
+          "uid": 0,
+          "gid": 0,
+          "kind": "file",
+          "size": 20759,
+          "sha256": "569e74b79709473e76599c4aa6256be7f1ebeceaeb7d769b2596e85b084ee2cb"
+        }
+      },
+      "cache_evidence": "/srv/tianshu-tooling/memory-contextual-20261026-62206f2-81e73582d53b4305a4f479414a94bc7a/cold-resume-evidence/generated-bytecode",
+      "pg_verification": "original_before_equals_restore_equals_after_manifest_reused",
+      "original_pg_manifest_sha256": "85f65f434e3c5273788ca30b38b7c1fd592ce8b00256aa2692dbfa2666298251",
+      "fresh_pg_fingerprints_rerun": false,
+      "new_pg_client_count": 0,
+      "new_dump_count": 0,
+      "new_pg_restore_count": 0,
+      "production_sql_mutated": false,
+      "external_media_identity_interval": "resume_only_original_local_tuple_not_persisted",
+      "original_snapshot_tail_unchanged": true,
+      "original_module_globals_preserved": true,
+      "resumed_at": 1793018983.7502537
+    }
+  },
+  "migration": {
+    "after": {
+      "automatic_fact_schema": "3",
+      "memory_consolidation_schema": "1",
+      "memory_context_schema": "1",
+      "memory_segment_schema": "1",
+      "observation_schema": "1",
+      "schema": "3"
+    },
+    "before": {
+      "automatic_fact_schema": "2",
+      "memory_context_schema": "1",
+      "observation_schema": "1",
+      "schema": "3"
+    },
+    "model_calls": 0,
+    "operations": [
+      {
+        "operation": "migrate_memory",
+        "result": {
+          "automatic_fact_schema": 3,
+          "backup": "/release-backups/migrate_memory.backup",
+          "backup_guard": "/release-backups/migrate_memory.backup.source-guard.json",
+          "existing_records_preserved": true,
+          "historical_backfill": false,
+          "memory_consolidation_schema": 1,
+          "old_jobs_schema": 3
+        }
+      },
+      {
+        "operation": "migrate_segments",
+        "result": {
+          "backup": "/release-backups/migrate_segments.backup",
+          "backup_guard": "/release-backups/migrate_segments.backup.source-guard.json",
+          "existing_records_preserved": true,
+          "memory_segment_schema": 1
+        }
+      }
+    ],
+    "status": "memory_migrations_verified",
+    "worker_started": false
+  },
+  "companion_initialization": {
+    "automatic_memory_candidates": true,
+    "model_calls": 0,
+    "observations_bound": true,
+    "status": "companion_initialized",
+    "worker_started": false
+  },
+  "acceptance": {
+    "status": "acceptance_verified",
+    "guard_status": "ready",
+    "current_guard_state": "/srv/tianshu-tooling/capacity-state-8df1d9746aae465abb46537f7e892d5d",
+    "current_guard_config_sha256": "59df7c2862a20ca3d33be32588345699b897753beaa0b3024bb67cd5e4d04f72",
+    "owners_running": 13,
+    "core_tls_services": 5,
+    "core_ready_services": 5,
+    "postgresql_logical_sources": 24,
+    "runtime_sources": {
+      "memory": {
+        "exact_installed_files": 132,
+        "markers": {
+          "automatic_fact_schema": "3",
+          "memory_consolidation_schema": "1",
+          "memory_context_schema": "1",
+          "memory_segment_schema": "1",
+          "observation_schema": "1",
+          "schema": "3"
+        }
+      },
+      "companion": {
+        "exact_installed_files": 99,
+        "extraction_schema": 6,
+        "automatic_memory_candidates": true,
+        "bot_observation_enabled": true
+      },
+      "platform": {
+        "exact_installed_files": 304
+      },
+      "knowledge": {
+        "exact_installed_files": 132
+      }
+    },
+    "lan_public_web": {
+      "status": 200,
+      "bytes": 790,
+      "sha256": "a13e9273ff97b6390dbd60d830134c8006e4fa737b73ac4266852ec407a7baeb"
+    },
+    "gateway_reissued": true,
+    "static_tree_sha256": "861544f6822c876416b9e15cde1a2e54d74645014ca69b39c0f11d70ecf147a4",
+    "auxiliary_identity_and_process_preserved": true,
+    "full_started_at": 1793020934.2070189,
+    "full_finished_at": 1793020940.9979272
+  },
+  "full_log_preservation_and_recovery": {
+    "archive_bytes": 1073741776,
+    "archive_files": 161,
+    "configuration_values_preserved": true,
+    "full_acceptance_pending": true,
+    "gateway_reissued": false,
+    "guard": {
+      "deployment_bytes": 2161625477,
+      "docker_diagnostics": [
+        {
+          "attempt": 1,
+          "batch_size": 0,
+          "elapsed_seconds": 0.014507,
+          "outcome": "ok",
+          "returncode": 0,
+          "stage": "ps",
+          "timed_out": false
+        },
+        {
+          "attempt": 1,
+          "batch_size": 13,
+          "elapsed_seconds": 0.032056,
+          "outcome": "ok",
+          "returncode": 0,
+          "stage": "batch_inspect",
+          "timed_out": false
+        }
+      ],
+      "heartbeat_age_seconds": 0.011,
+      "minimum_free_bytes": 74545561600,
+      "services": 10,
+      "status": "ready"
+    },
+    "guard_config_sha256": "59df7c2862a20ca3d33be32588345699b897753beaa0b3024bb67cd5e4d04f72",
+    "images_changed": false,
+    "messages_sent": 0,
+    "model_calls": 0,
+    "new_guard_state": "/srv/tianshu-tooling/capacity-state-8df1d9746aae465abb46537f7e892d5d",
+    "original_logs_preserved": true,
+    "sql_migrations": 0,
+    "stage": "/srv/tianshu-tooling/memory-contextual-20261026-62206f2-81e73582d53b4305a4f479414a94bc7a/logging-recovery-v1",
+    "status": "full_logs_preserved_existing_services_restarted_guard_ready"
+  },
+  "budget": {
+    "cumulative_test_model_calls": 17540,
+    "model_cap": 18000,
+    "remaining": 460,
+    "this_release_intentional_model_calls": 0,
+    "this_release_test_messages": 0,
+    "normal_production_activity_separate": true
+  },
+  "extensions": {
+    "status": "planning_only_not_implemented",
+    "plan": "docs/development/memory-extensions-plan-2026-10-26.md",
+    "items": [
+      "Chat全历史查询",
+      "群关系图",
+      "群点云图",
+      "群热度",
+      "BOT自主生活记忆接入"
+    ],
+    "historical_backfill_started": false,
+    "al_task_states_changed": false
+  },
+  "release_tooling_corrections": [
+    {
+      "failure": "current_control_diverged",
+      "cause": "helper import created exactly one PYC in snapshotted controls",
+      "correction": "strict source/PYC proof, preserved cache outside controls, reran original file predicates and original snapshot tail; reused completed native PG restore evidence"
+    },
+    {
+      "failure": "memory_maintenance_failed_before_first_marker_read",
+      "cause": "maintenance inherited primary network only, missing original second network",
+      "correction": "create with original environment, attach all service-specific original networks and verify before start; continued from migration, contracts not reapplied"
+    },
+    {
+      "failure": "first_full_health_failed",
+      "cause": "Companion inherited logs had reached 1GiB with 48 bytes free; Platform initially exceeded probe budget and later reported media runtime recovering",
+      "correction": "preserved 161 closed log files with full hash/metadata equality, kept log directory/configuration, restarted original owners under fresh guard; final five TLS readiness checks passed; no media/source/pool/budget changes",
+      "platform_media_exact_initial_cause": "not_claimed"
+    }
+  ],
+  "preserved": {
+    "existing_configuration": true,
+    "original_worktrees_and_branches": true,
+    "root_original_head": "ab93be4e91b824008d387d71c80e77dfac7341b3",
+    "root_original_index_sha256": "bc8f3aa117deda30035922d0db358fe41bd7703853961e065d96310c85400351",
+    "no_reset_clean_stash": true
+  },
+  "limitations": [
+    "本次为运行、存储、源码、配置与接入验收，没有新增真实QQ或模型语义测试",
+    "原真实145的两个上游502、软修饰及动机/时间理解限制仍保留",
+    "极端突发下整理首段延迟及跨窗/预算导致的不完整检索仍可能出现",
+    "外部媒体原件未复制；目录identity只对续接窗口前后可证，原备份初始inode局部变量未持久化",
+    "冷备隔离恢复验证不等于覆盖生产恢复演练"
+  ],
+  "completed_at": "2026-10-26T13:24:31.493030+00:00"
+}

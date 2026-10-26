@@ -4,8 +4,8 @@
   "schema_version": 1,
   "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
   "sha256": {
-    "README.md": "4e53b20628da7a9739016402aac63a0386f58daf1f86ac0fe28e6f1ca0091714",
-    "rules.py": "bd237a723094561cd82fca14f108b582a6262e791a6b69156a3c6d875f477107",
+    "README.md": "0ef8b145ffeaa6fd0c2200f8668e7344a1f575d866c46ca0bbd86b8fb218de5a",
+    "rules.py": "f54e302e74402805e17f9535a3045ad95706e80ec7239d35d8429864b5609987",
     "schemas/batch.json": "148debf3221964695f51b6c2bbd632e8b4aecb3bf8eea7e3b2de588ed20b920f"
   },
   "dependencies": [
