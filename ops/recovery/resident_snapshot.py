@@ -1,7 +1,8 @@
 """Cold, byte-preserving ten-owner backup and disabled offline restore verification.
 
 This adapter never stops/starts services, edits authority, or activates the restored tree.
-Configuration and credentials are copied as opaque protected bytes, never interpreted.
+Configuration and credentials are copied as protected bytes. Only optional PG connection
+fields are read in memory by the native backup helper; no URL enters public evidence.
 """
 from __future__ import annotations
 
@@ -15,8 +16,19 @@ import subprocess
 import time
 from pathlib import Path
 
-from .safety import (RecoveryError, canonical, copy_new, digest, file_hash, read_json,
-                     require, safe_path, sync_tree, walk_tree, write_new)
+from .safety import (
+    RecoveryError,
+    canonical,
+    copy_new,
+    digest,
+    file_hash,
+    read_json,
+    require,
+    safe_path,
+    sync_tree,
+    walk_tree,
+    write_new,
+)
 
 OWNERS = {"platform", "memory", "companion", "gateway", "knowledge",
           "obs-loki", "obs-vector", "obs-prometheus", "obs-grafana", "obs-guard"}
@@ -111,7 +123,8 @@ def copy_tree(source: Path, target: Path, recorded: dict, check, *, media_stagin
     require(inventory(target, check) == recorded, "copied_state_mismatch")
 
 
-def verify_sqlite(root: Path, recorded: dict, scratch: Path, check, memory_guards=()) -> tuple[int, int]:
+def verify_sqlite(root: Path, recorded: dict, scratch: Path, check, memory_guards=(),
+                  actor_memory=None) -> tuple[int, int]:
     databases = 0
     verified_guards = set()
     for name, item in recorded["entries"].items():
@@ -150,9 +163,17 @@ def verify_sqlite(root: Path, recorded: dict, scratch: Path, check, memory_guard
                 require(canonical(read_json(root / guard_name)) == canonical(paired),
                         "guard_database_mismatch")
                 verified_guards.add(guard_name)
+            if actor_memory and name == actor_memory["database"]:
+                from .postgres_backend import verify_actor_guard
+                metadata = dict(connection.execute("SELECT key,value FROM actor_metadata"))
+                verify_actor_guard(root, actor_memory, metadata)
+                verified_guards.add(actor_memory["guard"])
         finally:
             connection.close()
-    require(verified_guards == set(memory_guards), "memory_guard_not_verified")
+    expected_guards = set(memory_guards)
+    if actor_memory:
+        expected_guards.add(actor_memory["guard"])
+    require(verified_guards == expected_guards, "memory_guard_not_verified")
     return databases, len(verified_guards)
 
 
@@ -249,7 +270,7 @@ def _external_media(root: Path, operation: Path, expected: list[dict], entries, 
 
 def snapshot(root: Path, operation: Path, expected: list[dict], observe, *, seconds=600,
              controls=(), memory_guards=(), external_media_binds=(), external_data_binds=None,
-             media_staging_roots=(), docker=None) -> dict:
+             media_staging_roots=(), docker=None, postgresql=None, postgresql_tools=None) -> dict:
     root = safe_path(root); operation = safe_path(operation, exists=False)
     require(not operation.exists() and root not in operation.parents and operation not in root.parents,
             "independent_new_operation_required")
@@ -264,12 +285,18 @@ def snapshot(root: Path, operation: Path, expected: list[dict], observe, *, seco
             all(path != root and path.is_relative_to(root) and path.is_dir() for path in staging),
             "invalid_media_staging_roots")
     check = Deadline(seconds)
+    from .postgres_backend import actor_memory_domain, required_file_controls
+    actor_memory = actor_memory_domain(root, expected)
     controls = [safe_path(path) for path in controls]
+    for path in required_file_controls(root, expected):
+        if not any(path.is_relative_to(existing) for existing in controls):
+            controls.append(path)
     require(len(controls) == len(set(controls)) <= 32, "invalid_control_set")
     require(all(operation != path and operation not in path.parents and path not in operation.parents
                 for path in controls), "control_operation_overlap")
     require(all(not path.is_relative_to(Path(source)) and not Path(source).is_relative_to(path)
-                for path in controls for source in media_identity), "external_media_control_overlap")
+                for path in controls for source in (entry["source"] for entry in media)),
+            "external_media_control_overlap")
     require(len(memory_guards) == len(set(memory_guards)) <= 100, "invalid_guard_set")
     require(all(name.endswith(".source-guard.json") and not Path(name).is_absolute()
                 and ".." not in Path(name).parts for name in memory_guards), "invalid_guard_path")
@@ -291,8 +318,16 @@ def snapshot(root: Path, operation: Path, expected: list[dict], observe, *, seco
     require_stopped(expected, observe())
     require(inventory(root, check, media_staging_roots=staging) == original, "current_authority_diverged")
     copy_tree(backup, restored, original, check)
+    from .postgres_backend import export_and_verify
+    postgres, pg_guards = export_and_verify(root, operation, original, postgresql, postgresql_tools,
+                                           check, memory_guards=memory_guards,
+                                           actor_memory=actor_memory, restored_root=restored)
+    require_stopped(expected, observe())
     scratch = operation / "sqlite-verification"; scratch.mkdir(mode=0o700)
-    database_count, guard_count = verify_sqlite(restored, original, scratch, check, memory_guards)
+    database_count, guard_count = verify_sqlite(restored, original, scratch, check,
+                                               set(memory_guards) - pg_guards,
+                                               actor_memory if actor_memory and actor_memory["backend"] == "sqlite" else None)
+    guard_count += len(pg_guards)
     require(database_count > 0, "no_sqlite_evidence")
     require(inventory(restored, check) == original, "restored_state_changed")
     require(inventory(root, check, media_staging_roots=staging) == original, "current_authority_diverged")
@@ -311,6 +346,13 @@ def snapshot(root: Path, operation: Path, expected: list[dict], observe, *, seco
                 "sqlite_databases_verified": database_count,
                 "authority_unchanged": True, "functional_restore_test": False,
                 "original_restore_activation": False}
+    if postgres:
+        manifest["postgresql"] = postgres
+        manifest["authority_root"] = str(root)
+        manifest["postgresql_databases_verified"] = sum(len(row["schemas"]) for row in postgres)
+        manifest["postgresql_bytes"] = sum(row["bytes"] for row in postgres)
+    if actor_memory:
+        manifest["actor_memory"] = {**actor_memory, "guard_verified": True}
     raw = canonical(manifest)
     write_new(operation / "manifest.json", raw + b"\n")
     report = {"status": "offline_restore_verified", "owner_count": 10,
@@ -322,9 +364,14 @@ def snapshot(root: Path, operation: Path, expected: list[dict], observe, *, seco
               "media_staging_restore": "independent_content_files",
               "authority_unchanged": True, "restored_disabled": True,
               "functional_restore_test": False, "original_restore_activation": False}
+    if postgres:
+        report["postgresql_databases_verified"] = manifest["postgresql_databases_verified"]
+        report["postgresql_services_verified"] = len(postgres)
+        report["postgresql_bytes"] = manifest["postgresql_bytes"]
     write_new(operation / "receipt.json", canonical(report) + b"\n")
-    from .resident_retention import after_verified_snapshot
     import sys
+
+    from .resident_retention import after_verified_snapshot
     report['retention'] = after_verified_snapshot(root, operation, snapshot=sys.modules[__name__], docker=docker)
     return report
 
@@ -340,7 +387,7 @@ def main(argv=None):
         expectation = read_json(args.expectation)
         required = {"root", "containers", "controls", "memory_guards"}
         require(required <= set(expectation) and not set(expectation) - required -
-                {"external_media_binds", "external_data_binds", "media_staging_roots"}, "invalid_expectation")
+                {"external_media_binds", "external_data_binds", "media_staging_roots", "postgresql", "postgresql_tools"}, "invalid_expectation")
         if not args.execute:
             print(json.dumps({"status": "plan", "owners_required": 10, "activation": False}))
             return 0
@@ -353,7 +400,9 @@ def main(argv=None):
                                   memory_guards=expectation["memory_guards"],
                                   external_media_binds=expectation.get("external_media_binds", ()),
                                   external_data_binds=expectation.get("external_data_binds", {}),
-                                  media_staging_roots=expectation.get("media_staging_roots", ()), docker=args.docker), sort_keys=True))
+                                  media_staging_roots=expectation.get("media_staging_roots", ()), docker=args.docker,
+                                  postgresql=expectation.get("postgresql"),
+                                  postgresql_tools=expectation.get("postgresql_tools")), sort_keys=True))
         return 0
     except (RecoveryError, OSError, sqlite3.Error, subprocess.SubprocessError, KeyError, ValueError):
         print(json.dumps({"status": "refused", "reason": "snapshot_or_restore_not_verified"}))

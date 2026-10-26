@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-27",
+  "batch": "autonomous-life-wave2-2026-10-26",
+  "state": "AL08_AL11_local_verified_release_preparation",
+  "AL08": {
+    "task": "TS-318",
+    "commit": "6d8dbaf29979c210c027f36a8333b5a605f7c3e6",
+    "baseline": "3e2cc412c676450a90dc0cbd3c3387d1c945e5e2",
+    "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\TS-318\\tianshu-platform",
+    "files": [
+      "docs/handoffs/TS-318.md",
+      "docs/platform/content-discovery.md",
+      "services/platform/content_discovery/__init__.py",
+      "services/platform/content_discovery/candidates.py",
+      "services/platform/content_discovery/media.py",
+      "services/platform/content_discovery/schemas.py",
+      "services/platform/content_discovery/service.py",
+      "services/platform/media/repository.py",
+      "services/platform/plugins/actor_bridge.py",
+      "services/platform/plugins/builtin/content-discovery/config.schema.json",
+      "services/platform/plugins/builtin/content-discovery/contract.json",
+      "services/platform/plugins/builtin/content-discovery/main.py",
+      "services/platform/plugins/builtin/content-discovery/plugin.json",
+      "services/platform/plugins/execution.py",
+      "services/platform/plugins/manager.py",
+      "services/platform/plugins/port_schemas.py",
+      "services/platform/plugins/ports.py",
+      "services/platform/service.py",
+      "tests/backend/test_content_discovery.py",
+      "tests/backend/test_content_discovery_platform.py",
+      "tests/backend/test_content_discovery_plugins.py"
+    ],
+    "state": "local_verified_not_integrated",
+    "checks": {
+      "passed": 72,
+      "skipped": 1,
+      "failed": 0
+    },
+    "independent_review_fixes": 6,
+    "root_index_unchanged": true,
+    "pushed": true,
+    "deployed": false
+  },
+  "reuse": [
+    "PluginManager/Executions/Vault/RoleRuntime/actor_capabilities",
+    "Media Repository and existing Books/Comics/Music catalog",
+    "Original principal+intent receipt and authorizer"
+  ],
+  "verification": {
+    "applicable": 73,
+    "passed": 72,
+    "skipped": 1,
+    "groups": [
+      {
+        "group": "new content discovery + actual Platform/AL07 HTTP",
+        "passed": 24,
+        "log": "worktrees/TS-318/tianshu-platform/.runtime/ts318-content-tests-r4.log"
+      },
+      {
+        "group": "original plugins and affected media owner",
+        "passed": 32,
+        "log": "worktrees/TS-318/tianshu-platform/.runtime/ts318-regression-r1.log"
+      },
+      {
+        "group": "original actor capabilities",
+        "passed": 16,
+        "skipped": 1,
+        "skip_reason": "isolated PostgreSQL URL not provided",
+        "log": "worktrees/TS-318/tianshu-platform/.runtime/ts318-actor-regression-r1.log"
+      }
+    ],
+    "independent_review": "root plugin/HTTP/assembly plus separate media review; six actual defects fixed and statically rechecked; reviewed immutable final commit; successful unchanged tests reused",
+    "original_failures_preserved": true,
+    "workspace_preparation_check": "Existing historical completed tasks reference absent worktrees; not product failure; unchanged"
+  },
+  "AL11": {
+    "state": "local_verified_not_integrated",
+    "location": ".runtime/autonomous-life-20261026/participation-proposal",
+    "proposal_revision": 2,
+    "schema_positive": 24,
+    "schema_negative": 29,
+    "runtime_or_sdk_cas_tested": true,
+    "gate": "实际受控 NoneBot 和 Platform 联合验证完成；没有 AL12 自动语义决策，不自动发群消息。",
+    "NoneBot_first_support": "only own standalone controlled bootstrap with actual successful rule/hook receipts; unknown host graph remains ownership_unknown",
+    "AstrBot": "ordinary candidate observation only until complete host ownership proof",
+    "runtime_tasks": [
+      "TS-319",
+      "TS-320",
+      "TS-321"
+    ],
+    "namespace_ownership": "delegated_to_this_coordinator",
+    "companion_baseline": "671deeadb04301b42f56a3a2020548117698bbc0",
+    "platform_baseline": "6d8dbaf29979c210c027f36a8333b5a605f7c3e6",
+    "contract_commit": "188b52a6cc8fe8736bf569d117bcf7517cfc1ddc",
+    "candidate_manifest_sha256": "347b60a1dde6967adf559597e5bd7dfaa948f5b268d158d04ea3e3ad78b7c826",
+    "contract_checks": {
+      "applicable": 10,
+      "changed_state_passed": 9,
+      "unchanged_calendar_pass_reused": 1,
+      "positive": 30,
+      "negative": 48,
+      "runtime_shape_only": 15
+    },
+    "commits": {
+      "companion": "d416b68c2bf47f6a5675c8f170c5185062e66688",
+      "platform": "620b1e0b0a6c76ac69f538a13e00c9c6d53b112d"
+    },
+    "checks": {
+      "adapter": {
+        "passed": 29,
+        "skipped": 1,
+        "skip": "AstrBot SDK unavailable; ordinary host ownership remains unknown"
+      },
+      "platform_applicable": {
+        "passed": 115,
+        "skipped": 9
+      },
+      "platform_actual_postgresql": {
+        "initial_passed": 15,
+        "final_affected_passed": 5,
+        "failures": 0,
+        "isolated_resources_cleaned": true
+      },
+      "actual_sdk_joint": {
+        "checks": 10,
+        "synthetic_sender_calls": 3,
+        "production_qq": 0,
+        "models": 0,
+        "platform_runtime_source_lf_sha256": "6e95c31e3a4ac456f21690142ff0da0c0f00c62f790c2578d339b45d8d289cee"
+      }
+    },
+    "independent_review": "Immutable product diffs reviewed; claimed pagination and confirmed-source dispatch deadline defects fixed and verified; original failed harness attempts retained",
+    "pushed": true,
+    "deployed": false
+  },
+  "external_deliveries": {
+    "TS-313": {
+      "commit": "a2de620c676a24d7c08bb33ef3f1be2488b71666",
+      "state": "done"
+    },
+    "TS-314": {
+      "commit": "671deeadb04301b42f56a3a2020548117698bbc0",
+      "state": "done"
+    },
+    "TS-315": {
+      "commit": "1c2ee12c42d466bd9b48d1dd67d491429753f395",
+      "state": "done"
+    },
+    "TS-316": {
+      "commit": "3e2cc412c676450a90dc0cbd3c3387d1c945e5e2",
+      "state": "done"
+    },
+    "TS-317": {
+      "commit": "5ff98947f7eaf82384d359ca84ad581a5cf113f0",
+      "state": "done"
+    }
+  },
+  "unchanged_domains": [
+    "Memory user dialogue memory",
+    "Companion src behavior",
+    "published user/actor/Chat/group/archive contracts"
+  ],
+  "not_verified": [
+    "real SearXNG instance",
+    "external media accounts",
+    "native PostgreSQL for new code",
+    "browser configuration of new plugin",
+    "Companion AL04/09/10 actual consumption"
+  ],
+  "pushed": false,
+  "deployed": false,
+  "release_authorization": {
+    "date": "2026-10-27",
+    "authorized": true,
+    "scope": "功能审查和实际联合完成后，连记忆系统更新一并推送部署并实机验收；保留配置数据与其他服务，统一串行协调。",
+    "record": "docs/development/autonomous-life-memory-release-2026-10-27.md",
+    "performed": false
+  },
+  "release_preparation": {
+    "authorization": "Latest user explicitly authorized combined push and deployment with Memory updates",
+    "chat_integration_commit": "6aa6e7f2765ff2702b443b1fe318b38ca91a9057",
+    "chat_checks_passed": 43,
+    "chat_production_identity_fixes_preserved": true,
+    "actor_recovery_task": "TS-323",
+    "production_operations_performed": false,
+    "limitations": [
+      "No authorized production group/archive mapping; no inferred person or group identities",
+      "AL12 not implemented: ordinary participation candidates remain silent",
+      "Actor memories are actual experiences; no raw private-material injection into publishable diaries"
+    ],
+    "record": "docs/development/autonomous-life-memory-release-2026-10-27.md",
+    "published_products": {
+      "memory": "a2de620c676a24d7c08bb33ef3f1be2488b71666",
+      "companion": "d416b68c2bf47f6a5675c8f170c5185062e66688",
+      "platform": "620b1e0b0a6c76ac69f538a13e00c9c6d53b112d",
+      "gateway": "5ff98947f7eaf82384d359ca84ad581a5cf113f0",
+      "chat": "6aa6e7f2765ff2702b443b1fe318b38ca91a9057"
+    }
+  }
+}

@@ -1,0 +1,221 @@
+{
+  "schema_version": 1,
+  "state": "products_published_release_preparation",
+  "date": "2026-10-27",
+  "products": {
+    "memory": "a2de620c676a24d7c08bb33ef3f1be2488b71666",
+    "companion": "d416b68c2bf47f6a5675c8f170c5185062e66688",
+    "platform": "620b1e0b0a6c76ac69f538a13e00c9c6d53b112d",
+    "gateway": "5ff98947f7eaf82384d359ca84ad581a5cf113f0",
+    "chat": "6aa6e7f2765ff2702b443b1fe318b38ca91a9057"
+  },
+  "non_force_pushes": 5,
+  "root_index_unchanged": true,
+  "builds": {
+    "target": {
+      "status": "images_built_and_isolated_verified_not_deployed",
+      "manifest_sha256": "689ccdc75df740f239e61bfddd4e226fd6af6bfa27a6dbe3d86258d4ce8149ec",
+      "images": {
+        "memory": {
+          "image": "sha256:661696f366d63c2069656b3ed61a7786895bfe8cc96ed53c71d14323df93291e",
+          "tag": "tianshu/autonomous-life-memory:a2de620c676a",
+          "base": "sha256:6f46be21570e8f9f425b7d344b9879c51ec203300e005b6751e341f5f6209306",
+          "revision": "a2de620c676a24d7c08bb33ef3f1be2488b71666",
+          "pip_check": true,
+          "dependency_policy": "unchanged",
+          "source_proof": {
+            "origins": {
+              "tianshu_memory": "/opt/tianshu/venv/lib/python3.12/site-packages/tianshu_memory/__init__.py"
+            },
+            "source_file_count": 142
+          },
+          "inherited_runtime_config_preserved": true,
+          "production_changed": false
+        },
+        "knowledge": {
+          "image": "sha256:8f244e0b6fafe58efff389fa074599b30100ea6fafe3d45a40e74fd092b10d6a",
+          "tag": "tianshu/autonomous-life-knowledge:a2de620c676a",
+          "base": "sha256:579051ba6e2c18b7ab7e2ce7e177f1b88767f47b064207d29f05cd2c4d28474f",
+          "revision": "a2de620c676a24d7c08bb33ef3f1be2488b71666",
+          "pip_check": true,
+          "dependency_policy": "unchanged",
+          "source_proof": {
+            "origins": {
+              "tianshu_memory": "/opt/tianshu/venv/lib/python3.12/site-packages/tianshu_memory/__init__.py"
+            },
+            "source_file_count": 142
+          },
+          "inherited_runtime_config_preserved": true,
+          "production_changed": false
+        },
+        "companion": {
+          "image": "sha256:eb133e0e0b0295cf1bdcd145381ee01fe5f51c366411bc7ae85d2ab18b1ad5ff",
+          "tag": "tianshu/autonomous-life-companion:d416b68c2bf4",
+          "base": "sha256:46973fdbb913e5cd04aa70142b53312e7e53875953b58d2ea6e56cf7d2b08c3b",
+          "revision": "d416b68c2bf47f6a5675c8f170c5185062e66688",
+          "pip_check": true,
+          "dependency_policy": "unchanged",
+          "source_proof": {
+            "origins": {
+              "tianshu_companion": "/usr/local/lib/python3.12/site-packages/tianshu_companion/__init__.py",
+              "tianshu_nonebot": "/usr/local/lib/python3.12/site-packages/tianshu_nonebot/__init__.py"
+            },
+            "source_file_count": 106
+          },
+          "inherited_runtime_config_preserved": true,
+          "production_changed": false
+        },
+        "platform": {
+          "image": "sha256:0ffb6f4f1977a8c23c41b97cecbce426efdd13632ccaf87327d9ac26fc7bfef7",
+          "tag": "tianshu/autonomous-life-platform:620b1e0b0a6c",
+          "base": "sha256:478cab2687908bfe02c4163e58e7295bed4014f6d532d95a7e61c63e0787633f",
+          "revision": "620b1e0b0a6c76ac69f538a13e00c9c6d53b112d",
+          "pip_check": true,
+          "dependency_policy": "unchanged",
+          "source_proof": {
+            "origins": {
+              "services/platform": "/opt/tianshu-venv/lib/python3.12/site-packages/services/platform/__init__.py",
+              "tianshu_plugin": "/opt/tianshu-venv/lib/python3.12/site-packages/tianshu_plugin/__init__.py"
+            },
+            "source_file_count": 396
+          },
+          "inherited_runtime_config_preserved": true,
+          "production_changed": false
+        },
+        "gateway": {
+          "image": "sha256:4cb3a12d95b1128d5bf4a0657013ced66b87eec6821372805c3c3441229ae42b",
+          "tag": "tianshu/autonomous-life-gateway:5ff98947f7ea",
+          "base": "sha256:42e6888c815234ad4163cae85cbb63ba698af15e519142686598347cf8712d9b",
+          "revision": "5ff98947f7eaf82384d359ca84ad581a5cf113f0",
+          "pip_check": true,
+          "dependency_policy": "unchanged",
+          "source_proof": {
+            "origins": {
+              "tianshu_gateway": "/opt/tianshu-venv/lib/python3.12/site-packages/tianshu_gateway/__init__.py"
+            },
+            "source_file_count": 24
+          },
+          "inherited_runtime_config_preserved": true,
+          "production_changed": false
+        },
+        "onebot": {
+          "image": "sha256:0e2c40f9f96c8d327f5563ad43c72d0bd8d2b8311c1e55eb84e0d75703dd0a20",
+          "tag": "tianshu/autonomous-life-onebot:d416b68c2bf4",
+          "base": "sha256:7da76881c0a1f9d92c11ca19ac112e467283054e0c165fa5f11881fd839e2a25",
+          "revision": "d416b68c2bf47f6a5675c8f170c5185062e66688",
+          "pip_check": true,
+          "dependency_policy": "declared_onebot_additions",
+          "source_proof": {
+            "origins": {
+              "tianshu_nonebot": "/app/tianshu_nonebot/__init__.py"
+            },
+            "source_file_count": 15
+          },
+          "inherited_runtime_config_preserved": true,
+          "production_changed": false
+        }
+      },
+      "production_changed": false
+    },
+    "nas": {
+      "status": "images_built_and_isolated_verified_not_deployed",
+      "manifest_sha256": "689ccdc75df740f239e61bfddd4e226fd6af6bfa27a6dbe3d86258d4ce8149ec",
+      "images": {
+        "chat": {
+          "image": "sha256:1d8250623550c7bc039abd068ea981a16da4c3897bb66908949375679e0738a2",
+          "tag": "tianshu/autonomous-life-chat:6aa6e7f2765f",
+          "base": "sha256:bfdbe5b1b03b3dc44320b20c576e2f2dc767d0fa3c9bc3b3504cf46f8cc92786",
+          "revision": "6aa6e7f2765ff2702b443b1fe318b38ca91a9057",
+          "pip_check": true,
+          "dependency_policy": "unchanged",
+          "source_proof": {
+            "origins": {},
+            "source_file_count": 86
+          },
+          "inherited_runtime_config_preserved": true,
+          "production_changed": false
+        }
+      },
+      "production_changed": false
+    }
+  },
+  "production_deployed": false,
+  "production_configuration_changed": false,
+  "model_calls": 0,
+  "real_qq_test_messages": 0,
+  "acceptance": "docs/development/autonomous-life-wave2-delivery-2026-10-26.json",
+  "pending": [
+    "shared credential rotation scope answer",
+    "cold backup and serial service switch with real read-only acceptance"
+  ],
+  "actor_recovery": {
+    "revision": "8fd0a34799021dadf67029f4bdf5af8b71dfb178",
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "source_hashes_equal_before_after": true,
+    "scratch": [
+      {
+        "database": "ts_restore_24c527853cdb4665a64c4d8bc0b60127",
+        "already_removed_by_export": true,
+        "absent": true
+      },
+      {
+        "database": "ts_restore_7508783feef04168ab722674f9712e54",
+        "already_removed_by_export": true,
+        "absent": true
+      }
+    ],
+    "production_modified": false
+  },
+  "contract_assembly": {
+    "status": "owner_specific_contracts_verified_not_deployed",
+    "original_files_replaced": 0,
+    "merged_or_packaged_combinations_passed": 6,
+    "successful_loader_checks": 42,
+    "expected_uniform_snapshot_failure": "Knowledge actual content loader rejects life-runtime/v2 pin in the common 275-file snapshot",
+    "owner_directories": {
+      "memory": {
+        "directory": ".runtime\\autonomous-life-release-20261027\\contracts\\merged\\memory",
+        "file_count": 202,
+        "preserved_live_files": 190,
+        "tree_sha256": "017ca747b99e4adce922496593d31b77f81252c7d580dd4df72c12cec3c3168a"
+      },
+      "knowledge": {
+        "directory": ".runtime\\autonomous-life-release-20261027\\contracts\\merged\\knowledge",
+        "file_count": 185,
+        "preserved_live_files": 185,
+        "tree_sha256": "5f5b2a3b88555d5e6cbe2d744ebb98ea913eb90c4e1991af7d4c4ad38b9586ed"
+      },
+      "companion": {
+        "directory": ".runtime\\autonomous-life-release-20261027\\contracts\\merged\\companion",
+        "file_count": 229,
+        "preserved_live_files": 213,
+        "tree_sha256": "5c2145e50ebd046e7d7fd859999800f493fd2f4d0609dacfd2b77c7314a052ca"
+      },
+      "platform": {
+        "directory": ".runtime\\autonomous-life-release-20261027\\contracts\\merged\\platform",
+        "file_count": 237,
+        "preserved_live_files": 213,
+        "tree_sha256": "98f90f97a164c83f8d226d32ba0bb7343377e465e351e5bef23821832bd726af"
+      },
+      "gateway": {
+        "directory": ".runtime\\autonomous-life-release-20261027\\contracts\\merged\\gateway",
+        "file_count": 185,
+        "preserved_live_files": 185,
+        "tree_sha256": "5f5b2a3b88555d5e6cbe2d744ebb98ea913eb90c4e1991af7d4c4ad38b9586ed"
+      }
+    },
+    "chat_external_contract_mount_required": false,
+    "user_extraction_schema": 6,
+    "actor_candidate_version": "1.0.0-candidate.2",
+    "remote_writes": 0,
+    "evidence_sha256": {
+      "live-receipt.json": "3e31a502fc0f7cf9cdf25bf5e72612e127b6b3d9ce6e3e93e1bf158f4f6922de",
+      "merge-receipt.json": "0bd22ceb48d5f574fc1e36945b7de6a3e726845672ef0c56b1c8361c4506d9c8",
+      "loader-results-r1.json": "9a326753484c31fcde4d3254eac69bb0a95d5ef235ea91c8680a137f9d0422c3",
+      "source-pins-and-external.json": "1989f21cc39f8775066884387ca6c59aeaa0e2e0974371fbc315233e5e0f29ac"
+    }
+  }
+}

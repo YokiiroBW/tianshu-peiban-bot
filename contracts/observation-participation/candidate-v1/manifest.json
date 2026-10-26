@@ -1,0 +1,25 @@
+{
+  "name": "observation-participation",
+  "version": "1.0.0-candidate.1",
+  "state": "isolated-development-candidate",
+  "hash_basis": "UTF-8 LF-normalized",
+  "wire_messages": [
+    "candidate",
+    "host_ownership",
+    "claim_request",
+    "claim_result",
+    "semantic_decision",
+    "admission_registration",
+    "delivery_binding"
+  ],
+  "example_counts": {
+    "positive": 30,
+    "negative": 48,
+    "runtime_scenarios": 15
+  },
+  "sha256": {
+    "schema.json": "da3ace7c1077dc2b3bb9d10cc8cfb5709d48a5a3019e3513b8b7ef85a86aef75",
+    "examples.json": "550ca0cc184955484fd34800bba88e5da34f9737ac2270f146e86c4fcf500d05",
+    "README.md": "87ce51834a2d56bc2bfdd36673ce52419736b4e836c229045dfe41bd6c2b8b46"
+  }
+}

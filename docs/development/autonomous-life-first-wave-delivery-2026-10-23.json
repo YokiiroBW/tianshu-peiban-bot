@@ -1,0 +1,81 @@
+{
+  "date": "2026-10-23",
+  "status": "first_wave_local_verified_not_integrated",
+  "contract_task": {
+    "id": "TS-309",
+    "al_id": "AL-01",
+    "commit": "1d5523e7c968d1deccc569ef396d953b8c1f2241",
+    "tests_passed": 13
+  },
+  "platform_task": {
+    "id": "TS-310",
+    "al_id": "AL-07",
+    "baseline": "95767b2b18c78eb9c503f5def34fd297b8a9fcc9",
+    "commit": "90c0d44fc5d244e91ea4665e59e18e18a607e3df",
+    "changed_files": [
+      "apps/web/src/features/plugins/BindingsPanel.tsx",
+      "apps/web/src/features/plugins/InstancePanel.tsx",
+      "apps/web/src/features/plugins/types.ts",
+      "apps/web/tests/plugins.spec.ts",
+      "docs/handoffs/TS-310.md",
+      "docs/platform/actor-capabilities.md",
+      "services/platform/actor_capabilities/__init__.py",
+      "services/platform/actor_capabilities/application.py",
+      "services/platform/actor_capabilities/http.py",
+      "services/platform/actor_capabilities/protocol.py",
+      "services/platform/auth.py",
+      "services/platform/plugins/actor_bridge.py",
+      "services/platform/plugins/control.py",
+      "services/platform/plugins/execution.py",
+      "services/platform/plugins/web.py",
+      "services/platform/server.py",
+      "services/platform/service.py",
+      "tests/backend/run_plugins_fixture.py",
+      "tests/backend/test_actor_capabilities.py",
+      "tests/backend/test_actor_capabilities_http.py",
+      "tests/backend/test_actor_capabilities_pg.py",
+      "tests/backend/test_plugins_web.py"
+    ],
+    "handoff": "docs/handoffs/TS-310.md",
+    "independent_review": "one queued-write cancellation finding fixed in execution owner; no other blockers",
+    "validation": {
+      "actor_behavior_passed": 16,
+      "actor_pg_skipped": 1,
+      "related_existing_passed": 59,
+      "related_existing_skipped": 4,
+      "plugins_web_passed": 6,
+      "browser_passed": 3,
+      "typescript": "passed",
+      "vite_build": "passed",
+      "format_and_lint": "passed",
+      "extra_packaging_passed": 1,
+      "extra_packaging_dependency_failure": 1,
+      "invalid_nonexistent_test_module_loader_error": 1,
+      "repeated_cancel_checks_not_added_to_counts": true
+    }
+  },
+  "q21": {
+    "thread_title": "记忆系统优化",
+    "thread_id": "01a1675b-3594-7c91-90e2-91d80aeaab75",
+    "active_tasks": [
+      "TS-306",
+      "TS-307",
+      "TS-308"
+    ],
+    "last_observed_stage": "真实对照已判定并放行集中实现：规范当前事实与原话证据共同保留，明确区分计划和实际执行；Memory/Companion写权未释放",
+    "products_untouched_by_this_batch": [
+      "memory",
+      "companion",
+      "gateway"
+    ]
+  },
+  "root_index_unchanged": true,
+  "other_task_rows_unchanged": true,
+  "product_integrated": false,
+  "pushed": false,
+  "deployed": false,
+  "next_order": [
+    "AL-08 platform content discovery after a precise new card",
+    "AL-02 and AL-05 after Q21 verified baseline and writer release or explicit partition"
+  ]
+}

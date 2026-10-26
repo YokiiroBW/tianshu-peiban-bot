@@ -1,0 +1,1633 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianshu.local/contracts/observation-participation/candidate-v1/schema.json",
+  "title": "Observation participation 1.0.0-candidate.1; isolated implementation candidate",
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$"
+    },
+    "actor_id": {
+      "type": "string",
+      "maxLength": 128,
+      "pattern": "^actor:[A-Za-z0-9._:-]+$"
+    },
+    "person_id": {
+      "$ref": "#/$defs/id"
+    },
+    "qq_id": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{4,19}$"
+    },
+    "hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "maxLength": 64,
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])[Tt](?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\\.[0-9]+)?(?:[Zz]|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])$"
+    },
+    "framework": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "version"
+          ],
+          "properties": {
+            "name": {
+              "const": "nonebot2"
+            },
+            "version": {
+              "const": "2.5.0"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "version"
+          ],
+          "properties": {
+            "name": {
+              "const": "astrbot"
+            },
+            "version": {
+              "const": "4.27.3"
+            }
+          }
+        }
+      ]
+    },
+    "native_message": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "framework",
+        "instance_id",
+        "namespace",
+        "self_id",
+        "group_id",
+        "native_message_id",
+        "author_account_id",
+        "message_revision"
+      ],
+      "properties": {
+        "framework": {
+          "$ref": "#/$defs/framework"
+        },
+        "instance_id": {
+          "$ref": "#/$defs/id"
+        },
+        "namespace": {
+          "const": "qq"
+        },
+        "self_id": {
+          "$ref": "#/$defs/qq_id"
+        },
+        "group_id": {
+          "$ref": "#/$defs/qq_id"
+        },
+        "native_message_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "author_account_id": {
+          "$ref": "#/$defs/qq_id"
+        },
+        "message_revision": {
+          "$ref": "#/$defs/revision"
+        }
+      }
+    },
+    "observation_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_ref",
+        "source_digest",
+        "scope_version",
+        "archive_epoch"
+      ],
+      "properties": {
+        "source_ref": {
+          "$ref": "#/$defs/id"
+        },
+        "source_digest": {
+          "$ref": "#/$defs/hash"
+        },
+        "scope_version": {
+          "$ref": "#/$defs/revision"
+        },
+        "archive_epoch": {
+          "$ref": "#/$defs/revision"
+        }
+      }
+    },
+    "author_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "account_id",
+        "group_id",
+        "entry_id",
+        "person_id",
+        "conversation_id",
+        "binding_version"
+      ],
+      "properties": {
+        "stage": {
+          "enum": [
+            "observed",
+            "registered",
+            "resolved"
+          ]
+        },
+        "account_id": {
+          "$ref": "#/$defs/qq_id"
+        },
+        "group_id": {
+          "$ref": "#/$defs/qq_id"
+        },
+        "entry_id": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "person_id": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/person_id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "conversation_id": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "binding_version": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/revision"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "description": "The physical author/group never changes; null means not confirmed at this stage, not that no global identity exists.",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "stage": {
+                "const": "observed"
+              }
+            },
+            "required": [
+              "stage"
+            ]
+          },
+          "then": {
+            "properties": {
+              "entry_id": {
+                "type": "null"
+              },
+              "person_id": {
+                "type": "null"
+              },
+              "conversation_id": {
+                "type": "null"
+              },
+              "binding_version": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "stage": {
+                "const": "registered"
+              }
+            },
+            "required": [
+              "stage"
+            ]
+          },
+          "then": {
+            "properties": {
+              "entry_id": {
+                "$ref": "#/$defs/id"
+              },
+              "person_id": {
+                "type": "null"
+              },
+              "conversation_id": {
+                "type": "null"
+              },
+              "binding_version": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "stage": {
+                "const": "resolved"
+              }
+            },
+            "required": [
+              "stage"
+            ]
+          },
+          "then": {
+            "properties": {
+              "entry_id": {
+                "$ref": "#/$defs/id"
+              },
+              "person_id": {
+                "$ref": "#/$defs/person_id"
+              },
+              "conversation_id": {
+                "$ref": "#/$defs/id"
+              },
+              "binding_version": {
+                "$ref": "#/$defs/revision"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platform_generation",
+        "host_generation",
+        "role_version",
+        "reply_policy_revision"
+      ],
+      "properties": {
+        "platform_generation": {
+          "$ref": "#/$defs/id"
+        },
+        "host_generation": {
+          "$ref": "#/$defs/id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/revision"
+        },
+        "reply_policy_revision": {
+          "$ref": "#/$defs/revision"
+        }
+      }
+    },
+    "candidate_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "candidate_id",
+        "actor_id",
+        "candidate_digest"
+      ],
+      "properties": {
+        "candidate_id": {
+          "$ref": "#/$defs/id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "candidate_digest": {
+          "$ref": "#/$defs/hash"
+        }
+      }
+    },
+    "decision_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_id",
+        "revision",
+        "decision_digest"
+      ],
+      "properties": {
+        "decision_id": {
+          "$ref": "#/$defs/id"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "decision_digest": {
+          "$ref": "#/$defs/hash"
+        }
+      }
+    },
+    "claim_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_id",
+        "candidate",
+        "decision",
+        "host_epoch",
+        "host_generation",
+        "owner_revision",
+        "expires_at"
+      ],
+      "properties": {
+        "claim_id": {
+          "$ref": "#/$defs/id"
+        },
+        "candidate": {
+          "$ref": "#/$defs/candidate_ref"
+        },
+        "decision": {
+          "$ref": "#/$defs/decision_ref"
+        },
+        "host_epoch": {
+          "$ref": "#/$defs/id"
+        },
+        "host_generation": {
+          "$ref": "#/$defs/id"
+        },
+        "owner_revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "expires_at": {
+          "$ref": "#/$defs/timestamp"
+        }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "candidate_id",
+        "actor_id",
+        "trigger",
+        "native",
+        "source",
+        "author_anchor",
+        "configuration",
+        "host_epoch",
+        "sent_at",
+        "created_at",
+        "expires_at",
+        "mentioned",
+        "text"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "kind": {
+          "const": "participation_candidate"
+        },
+        "candidate_id": {
+          "$ref": "#/$defs/id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "trigger": {
+          "const": "ordinary_group_message"
+        },
+        "native": {
+          "$ref": "#/$defs/native_message"
+        },
+        "source": {
+          "$ref": "#/$defs/observation_source"
+        },
+        "author_anchor": {
+          "$ref": "#/$defs/author_anchor"
+        },
+        "configuration": {
+          "$ref": "#/$defs/configuration"
+        },
+        "host_epoch": {
+          "$ref": "#/$defs/id"
+        },
+        "sent_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "created_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "expires_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "mentioned": {
+          "const": false
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8000
+        }
+      }
+    },
+    "ownership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "native",
+        "host_epoch",
+        "host_generation",
+        "owner_revision",
+        "state",
+        "basis",
+        "observed_at",
+        "claim",
+        "completion_evidence"
+      ],
+      "properties": {
+        "native": {
+          "$ref": "#/$defs/native_message"
+        },
+        "host_epoch": {
+          "$ref": "#/$defs/id"
+        },
+        "host_generation": {
+          "$ref": "#/$defs/id"
+        },
+        "owner_revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "state": {
+          "enum": [
+            "processing",
+            "free",
+            "handled_elsewhere",
+            "ownership_unknown",
+            "claimed",
+            "expired"
+          ]
+        },
+        "basis": {
+          "enum": [
+            "event_processing",
+            "all_handlers_completed",
+            "other_handler_entered",
+            "no_completion_proof",
+            "claim_cas",
+            "deadline"
+          ]
+        },
+        "observed_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "claim": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/claim_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "completion_evidence": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/completion_evidence"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "processing"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "basis": {
+                "const": "event_processing"
+              },
+              "claim": {
+                "type": "null"
+              },
+              "completion_evidence": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "free"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "basis": {
+                "const": "all_handlers_completed"
+              },
+              "claim": {
+                "type": "null"
+              },
+              "completion_evidence": {
+                "$ref": "#/$defs/completion_evidence"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "handled_elsewhere"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "basis": {
+                "const": "other_handler_entered"
+              },
+              "claim": {
+                "type": "null"
+              },
+              "completion_evidence": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "ownership_unknown"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "basis": {
+                "const": "no_completion_proof"
+              },
+              "claim": {
+                "type": "null"
+              },
+              "completion_evidence": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "claimed"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "basis": {
+                "const": "claim_cas"
+              },
+              "claim": {
+                "$ref": "#/$defs/claim_ref"
+              },
+              "completion_evidence": {
+                "$ref": "#/$defs/completion_evidence"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "expired"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "basis": {
+                "const": "deadline"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "native": {
+                "properties": {
+                  "framework": {
+                    "properties": {
+                      "name": {
+                        "const": "astrbot"
+                      }
+                    },
+                    "required": [
+                      "name"
+                    ]
+                  }
+                },
+                "required": [
+                  "framework"
+                ]
+              }
+            },
+            "required": [
+              "native"
+            ]
+          },
+          "then": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "processing",
+                  "handled_elsewhere",
+                  "ownership_unknown",
+                  "expired"
+                ]
+              },
+              "claim": {
+                "type": "null"
+              },
+              "completion_evidence": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "host_ownership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "ownership"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "kind": {
+          "const": "host_ownership"
+        },
+        "ownership": {
+          "$ref": "#/$defs/ownership"
+        }
+      }
+    },
+    "claim_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "request_id",
+        "candidate",
+        "decision",
+        "native",
+        "host_epoch",
+        "host_generation",
+        "expected_owner_revision",
+        "expires_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "kind": {
+          "const": "participation_claim_request"
+        },
+        "request_id": {
+          "$ref": "#/$defs/id"
+        },
+        "candidate": {
+          "$ref": "#/$defs/candidate_ref"
+        },
+        "decision": {
+          "$ref": "#/$defs/decision_ref"
+        },
+        "native": {
+          "$ref": "#/$defs/native_message"
+        },
+        "host_epoch": {
+          "$ref": "#/$defs/id"
+        },
+        "host_generation": {
+          "$ref": "#/$defs/id"
+        },
+        "expected_owner_revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "expires_at": {
+          "$ref": "#/$defs/timestamp"
+        }
+      }
+    },
+    "claim_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "request_id",
+        "request_digest",
+        "candidate",
+        "decision",
+        "receipt_status",
+        "result",
+        "reason",
+        "claim",
+        "recorded_at",
+        "ownership",
+        "current_claim_state",
+        "checked_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "kind": {
+          "const": "participation_claim_result"
+        },
+        "request_id": {
+          "$ref": "#/$defs/id"
+        },
+        "request_digest": {
+          "$ref": "#/$defs/hash"
+        },
+        "candidate": {
+          "$ref": "#/$defs/candidate_ref"
+        },
+        "decision": {
+          "$ref": "#/$defs/decision_ref"
+        },
+        "receipt_status": {
+          "enum": [
+            "recorded",
+            "replayed",
+            "conflict",
+            "unavailable"
+          ]
+        },
+        "result": {
+          "enum": [
+            "granted",
+            "denied",
+            "unavailable"
+          ]
+        },
+        "reason": {
+          "enum": [
+            "claim_granted",
+            "not_free",
+            "handled_elsewhere",
+            "ownership_unknown",
+            "expired",
+            "stale_revision",
+            "stale_generation",
+            "not_permitted",
+            "row_unavailable",
+            "idempotency_conflict"
+          ]
+        },
+        "claim": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/claim_ref"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "recorded_at": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ownership": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ownership"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "current_claim_state": {
+          "enum": [
+            "active",
+            "inactive",
+            "unavailable"
+          ]
+        },
+        "checked_at": {
+          "$ref": "#/$defs/timestamp"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "result": {
+                "const": "granted"
+              }
+            },
+            "required": [
+              "result"
+            ]
+          },
+          "then": {
+            "properties": {
+              "reason": {
+                "const": "claim_granted"
+              },
+              "claim": {
+                "$ref": "#/$defs/claim_ref"
+              },
+              "recorded_at": {
+                "$ref": "#/$defs/timestamp"
+              },
+              "receipt_status": {
+                "enum": [
+                  "recorded",
+                  "replayed"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "result": {
+                "const": "denied"
+              }
+            },
+            "required": [
+              "result"
+            ]
+          },
+          "then": {
+            "properties": {
+              "reason": {
+                "not": {
+                  "enum": [
+                    "claim_granted",
+                    "row_unavailable",
+                    "idempotency_conflict"
+                  ]
+                }
+              },
+              "claim": {
+                "type": "null"
+              },
+              "recorded_at": {
+                "$ref": "#/$defs/timestamp"
+              },
+              "receipt_status": {
+                "enum": [
+                  "recorded",
+                  "replayed"
+                ]
+              },
+              "current_claim_state": {
+                "const": "inactive"
+              },
+              "ownership": {
+                "$ref": "#/$defs/ownership"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "result": {
+                "const": "unavailable"
+              }
+            },
+            "required": [
+              "result"
+            ]
+          },
+          "then": {
+            "properties": {
+              "reason": {
+                "enum": [
+                  "row_unavailable",
+                  "idempotency_conflict"
+                ]
+              },
+              "claim": {
+                "type": "null"
+              },
+              "recorded_at": {
+                "type": "null"
+              },
+              "ownership": {
+                "type": "null"
+              },
+              "current_claim_state": {
+                "const": "unavailable"
+              },
+              "receipt_status": {
+                "enum": [
+                  "conflict",
+                  "unavailable"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "receipt_status": {
+                "const": "conflict"
+              }
+            },
+            "required": [
+              "receipt_status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "result": {
+                "const": "unavailable"
+              },
+              "reason": {
+                "const": "idempotency_conflict"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "receipt_status": {
+                "const": "unavailable"
+              }
+            },
+            "required": [
+              "receipt_status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "result": {
+                "const": "unavailable"
+              },
+              "reason": {
+                "const": "row_unavailable"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "reason": {
+                "const": "row_unavailable"
+              }
+            },
+            "required": [
+              "reason"
+            ]
+          },
+          "then": {
+            "properties": {
+              "receipt_status": {
+                "const": "unavailable"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "reason": {
+                "const": "idempotency_conflict"
+              }
+            },
+            "required": [
+              "reason"
+            ]
+          },
+          "then": {
+            "properties": {
+              "receipt_status": {
+                "const": "conflict"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "current_claim_state": {
+                "const": "active"
+              }
+            },
+            "required": [
+              "current_claim_state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "result": {
+                "const": "granted"
+              },
+              "ownership": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/ownership"
+                  },
+                  {
+                    "properties": {
+                      "state": {
+                        "const": "claimed"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "current_claim_state": {
+                "const": "inactive"
+              }
+            },
+            "required": [
+              "current_claim_state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "ownership": {
+                "$ref": "#/$defs/ownership"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "current_claim_state": {
+                "const": "unavailable"
+              }
+            },
+            "required": [
+              "current_claim_state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "result": {
+                "const": "unavailable"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "semantic_decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "candidate",
+        "decision_id",
+        "revision",
+        "outcome",
+        "reason",
+        "contribution",
+        "decided_at",
+        "expires_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "kind": {
+          "const": "semantic_participation_decision"
+        },
+        "candidate": {
+          "$ref": "#/$defs/candidate_ref"
+        },
+        "decision_id": {
+          "$ref": "#/$defs/id"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "outcome": {
+          "enum": [
+            "engage",
+            "abstain",
+            "defer"
+          ]
+        },
+        "reason": {
+          "enum": [
+            "useful_contribution",
+            "no_contribution",
+            "busy",
+            "not_integrated",
+            "source_unavailable",
+            "ownership_unavailable"
+          ]
+        },
+        "contribution": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "decided_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "expires_at": {
+          "$ref": "#/$defs/timestamp"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "engage"
+              }
+            },
+            "required": [
+              "outcome"
+            ]
+          },
+          "then": {
+            "properties": {
+              "reason": {
+                "const": "useful_contribution"
+              },
+              "contribution": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 240
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "reason": {
+                "not": {
+                  "const": "useful_contribution"
+                }
+              },
+              "contribution": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "reason": {
+                "const": "not_integrated"
+              }
+            },
+            "required": [
+              "reason"
+            ]
+          },
+          "then": {
+            "properties": {
+              "outcome": {
+                "const": "abstain"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "existing_delivery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "connection_id",
+        "turn_id",
+        "reply_id",
+        "attempt_id"
+      ],
+      "properties": {
+        "connection_id": {
+          "$ref": "#/$defs/id"
+        },
+        "turn_id": {
+          "$ref": "#/$defs/id"
+        },
+        "reply_id": {
+          "$ref": "#/$defs/id"
+        },
+        "attempt_id": {
+          "$ref": "#/$defs/id"
+        }
+      }
+    },
+    "delivery_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "request_id",
+        "candidate",
+        "decision",
+        "claim",
+        "source",
+        "author_anchor",
+        "configuration",
+        "delivery",
+        "bound_at",
+        "expires_at",
+        "registration",
+        "source_confirmation"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "kind": {
+          "const": "participation_delivery_binding"
+        },
+        "request_id": {
+          "$ref": "#/$defs/id"
+        },
+        "candidate": {
+          "$ref": "#/$defs/candidate_ref"
+        },
+        "decision": {
+          "$ref": "#/$defs/decision_ref"
+        },
+        "claim": {
+          "$ref": "#/$defs/claim_ref"
+        },
+        "source": {
+          "$ref": "#/$defs/observation_source"
+        },
+        "author_anchor": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/author_anchor"
+            },
+            {
+              "properties": {
+                "stage": {
+                  "const": "resolved"
+                }
+              }
+            }
+          ]
+        },
+        "configuration": {
+          "$ref": "#/$defs/configuration"
+        },
+        "delivery": {
+          "$ref": "#/$defs/existing_delivery"
+        },
+        "bound_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "expires_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "registration": {
+          "$ref": "#/$defs/registration_ref"
+        },
+        "source_confirmation": {
+          "enum": [
+            "pending",
+            "confirmed"
+          ],
+          "description": "Confirmation of this registration fanout admission, independently of an already-resolved identity. Pending is never eligible for delivery claim."
+        }
+      }
+    },
+    "host_claim": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/host_ownership"
+        },
+        {
+          "$ref": "#/$defs/claim_request"
+        },
+        {
+          "$ref": "#/$defs/claim_result"
+        }
+      ]
+    },
+    "wire": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/candidate"
+        },
+        {
+          "$ref": "#/$defs/host_ownership"
+        },
+        {
+          "$ref": "#/$defs/claim_request"
+        },
+        {
+          "$ref": "#/$defs/claim_result"
+        },
+        {
+          "$ref": "#/$defs/semantic_decision"
+        },
+        {
+          "$ref": "#/$defs/delivery_binding"
+        },
+        {
+          "$ref": "#/$defs/admission_registration"
+        }
+      ]
+    },
+    "admission_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "connection_id",
+        "event_id",
+        "account_id",
+        "event_semantic_digest",
+        "message_id",
+        "revision",
+        "input_entry_id",
+        "input_digest",
+        "source_input_assertion_ref",
+        "actor_assertion_ref",
+        "fanout_ticket",
+        "core_idempotency_key"
+      ],
+      "properties": {
+        "connection_id": {
+          "$ref": "#/$defs/id"
+        },
+        "event_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "account_id": {
+          "$ref": "#/$defs/qq_id"
+        },
+        "event_semantic_digest": {
+          "$ref": "#/$defs/hash"
+        },
+        "message_id": {
+          "$ref": "#/$defs/id"
+        },
+        "revision": {
+          "const": 1
+        },
+        "input_entry_id": {
+          "$ref": "#/$defs/id"
+        },
+        "input_digest": {
+          "$ref": "#/$defs/hash"
+        },
+        "source_input_assertion_ref": {
+          "type": "string",
+          "pattern": "^source-input:[A-Za-z0-9_.:-]+$",
+          "maxLength": 256
+        },
+        "actor_assertion_ref": {
+          "type": "string",
+          "pattern": "^origin:[A-Za-z0-9_.:-]+$",
+          "maxLength": 256
+        },
+        "fanout_ticket": {
+          "type": "string",
+          "pattern": "^fanout:[A-Za-z0-9_.:-]+$",
+          "maxLength": 256
+        },
+        "core_idempotency_key": {
+          "type": "string",
+          "pattern": "^bot:[a-f0-9]{64}$"
+        }
+      }
+    },
+    "admission_registration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "registration_id",
+        "candidate",
+        "decision",
+        "claim",
+        "native",
+        "source",
+        "author_anchor",
+        "configuration",
+        "admission",
+        "registered_at",
+        "expires_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "kind": {
+          "const": "participation_admission_registration"
+        },
+        "registration_id": {
+          "$ref": "#/$defs/id"
+        },
+        "candidate": {
+          "$ref": "#/$defs/candidate_ref"
+        },
+        "decision": {
+          "$ref": "#/$defs/decision_ref"
+        },
+        "claim": {
+          "$ref": "#/$defs/claim_ref"
+        },
+        "native": {
+          "$ref": "#/$defs/native_message"
+        },
+        "source": {
+          "$ref": "#/$defs/observation_source"
+        },
+        "author_anchor": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/author_anchor"
+            },
+            {
+              "properties": {
+                "stage": {
+                  "enum": [
+                    "registered",
+                    "resolved"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "configuration": {
+          "$ref": "#/$defs/configuration"
+        },
+        "admission": {
+          "$ref": "#/$defs/admission_identity"
+        },
+        "registered_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "expires_at": {
+          "$ref": "#/$defs/timestamp"
+        }
+      }
+    },
+    "registration_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "registration_id",
+        "registration_digest"
+      ],
+      "properties": {
+        "registration_id": {
+          "$ref": "#/$defs/id"
+        },
+        "registration_digest": {
+          "$ref": "#/$defs/hash"
+        }
+      }
+    },
+    "completion_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_record_id",
+        "handler_set_digest",
+        "capture_receipt_id",
+        "explicit_reply_receipt_id",
+        "scope_receipt_id",
+        "closure_receipt_id",
+        "completed_at"
+      ],
+      "properties": {
+        "event_record_id": {
+          "$ref": "#/$defs/id"
+        },
+        "handler_set_digest": {
+          "$ref": "#/$defs/hash"
+        },
+        "capture_receipt_id": {
+          "$ref": "#/$defs/id"
+        },
+        "explicit_reply_receipt_id": {
+          "$ref": "#/$defs/id"
+        },
+        "scope_receipt_id": {
+          "$ref": "#/$defs/id"
+        },
+        "closure_receipt_id": {
+          "$ref": "#/$defs/id"
+        },
+        "completed_at": {
+          "$ref": "#/$defs/timestamp"
+        }
+      },
+      "description": "References to actual owner receipts on the same native event; shape is not proof of successful execution or a controlled host."
+    }
+  },
+  "$ref": "#/$defs/wire"
+}

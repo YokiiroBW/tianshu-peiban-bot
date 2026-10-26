@@ -1,0 +1,5085 @@
+{
+  "positive": [
+    {
+      "id": "ordinary-native-candidate",
+      "definition": "candidate",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_candidate",
+        "candidate_id": "candidate:synthetic-1",
+        "actor_id": "actor:synthetic-a",
+        "trigger": "ordinary_group_message",
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "stage": "observed",
+          "account_id": "10002",
+          "group_id": "20001",
+          "entry_id": null,
+          "person_id": null,
+          "conversation_id": null,
+          "binding_version": null
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "host_epoch": "host-epoch:g1",
+        "sent_at": "2026-10-27T02:00:00Z",
+        "created_at": "2026-10-27T02:00:00.100Z",
+        "expires_at": "2026-10-27T02:00:20Z",
+        "mentioned": false,
+        "text": "这段游戏配乐里是不是用了古典吉他？"
+      }
+    },
+    {
+      "id": "astrbot-observation-remains-candidate",
+      "definition": "candidate",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_candidate",
+        "candidate_id": "candidate:astrbot-1",
+        "actor_id": "actor:synthetic-a",
+        "trigger": "ordinary_group_message",
+        "native": {
+          "framework": {
+            "name": "astrbot",
+            "version": "4.27.3"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "stage": "observed",
+          "account_id": "10002",
+          "group_id": "20001",
+          "entry_id": null,
+          "person_id": null,
+          "conversation_id": null,
+          "binding_version": null
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "host_epoch": "host-epoch:g1",
+        "sent_at": "2026-10-27T02:00:00Z",
+        "created_at": "2026-10-27T02:00:00.100Z",
+        "expires_at": "2026-10-27T02:00:20Z",
+        "mentioned": false,
+        "text": "这段游戏配乐里是不是用了古典吉他？"
+      }
+    },
+    {
+      "id": "processing",
+      "definition": "host_ownership",
+      "document": {
+        "schema_version": 1,
+        "kind": "host_ownership",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 1,
+          "state": "processing",
+          "basis": "event_processing",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": null,
+          "completion_evidence": null
+        }
+      }
+    },
+    {
+      "id": "free-after-all-handlers",
+      "definition": "host_ownership",
+      "document": {
+        "schema_version": 1,
+        "kind": "host_ownership",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 2,
+          "state": "free",
+          "basis": "all_handlers_completed",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": null,
+          "completion_evidence": {
+            "event_record_id": "host-event:synthetic-1",
+            "handler_set_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "capture_receipt_id": "capture-receipt:synthetic-1",
+            "explicit_reply_receipt_id": "explicit-reply-receipt:synthetic-1",
+            "scope_receipt_id": "scope-receipt:synthetic-1",
+            "closure_receipt_id": "closure-receipt:synthetic-1",
+            "completed_at": "2026-10-27T02:00:01.900Z"
+          }
+        }
+      }
+    },
+    {
+      "id": "handled-before-other-matcher",
+      "definition": "host_ownership",
+      "document": {
+        "schema_version": 1,
+        "kind": "host_ownership",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 2,
+          "state": "handled_elsewhere",
+          "basis": "other_handler_entered",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": null,
+          "completion_evidence": null
+        }
+      }
+    },
+    {
+      "id": "astrbot-ownership-unknown",
+      "definition": "host_ownership",
+      "document": {
+        "schema_version": 1,
+        "kind": "host_ownership",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "astrbot",
+              "version": "4.27.3"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 2,
+          "state": "ownership_unknown",
+          "basis": "no_completion_proof",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": null,
+          "completion_evidence": null
+        }
+      }
+    },
+    {
+      "id": "claimed-single-owner",
+      "definition": "host_ownership",
+      "document": {
+        "schema_version": 1,
+        "kind": "host_ownership",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "state": "claimed",
+          "basis": "claim_cas",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": {
+            "claim_id": "claim:synthetic-1",
+            "candidate": {
+              "candidate_id": "candidate:synthetic-1",
+              "actor_id": "actor:synthetic-a",
+              "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+            },
+            "decision": {
+              "decision_id": "decision:synthetic-1",
+              "revision": 1,
+              "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+            },
+            "host_epoch": "host-epoch:g1",
+            "host_generation": "host-config:g1",
+            "owner_revision": 3,
+            "expires_at": "2026-10-27T02:00:12Z"
+          },
+          "completion_evidence": {
+            "event_record_id": "host-event:synthetic-1",
+            "handler_set_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "capture_receipt_id": "capture-receipt:synthetic-1",
+            "explicit_reply_receipt_id": "explicit-reply-receipt:synthetic-1",
+            "scope_receipt_id": "scope-receipt:synthetic-1",
+            "closure_receipt_id": "closure-receipt:synthetic-1",
+            "completed_at": "2026-10-27T02:00:01.900Z"
+          }
+        }
+      }
+    },
+    {
+      "id": "expired-never-free",
+      "definition": "host_ownership",
+      "document": {
+        "schema_version": 1,
+        "kind": "host_ownership",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 4,
+          "state": "expired",
+          "basis": "deadline",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": {
+            "claim_id": "claim:synthetic-1",
+            "candidate": {
+              "candidate_id": "candidate:synthetic-1",
+              "actor_id": "actor:synthetic-a",
+              "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+            },
+            "decision": {
+              "decision_id": "decision:synthetic-1",
+              "revision": 1,
+              "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+            },
+            "host_epoch": "host-epoch:g1",
+            "host_generation": "host-config:g1",
+            "owner_revision": 3,
+            "expires_at": "2026-10-27T02:00:12Z"
+          },
+          "completion_evidence": {
+            "event_record_id": "host-event:synthetic-1",
+            "handler_set_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "capture_receipt_id": "capture-receipt:synthetic-1",
+            "explicit_reply_receipt_id": "explicit-reply-receipt:synthetic-1",
+            "scope_receipt_id": "scope-receipt:synthetic-1",
+            "closure_receipt_id": "closure-receipt:synthetic-1",
+            "completed_at": "2026-10-27T02:00:01.900Z"
+          }
+        }
+      }
+    },
+    {
+      "id": "claim-free-exact-version",
+      "definition": "claim_request",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_claim_request",
+        "request_id": "request:claim-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "host_epoch": "host-epoch:g1",
+        "host_generation": "host-config:g1",
+        "expected_owner_revision": 2,
+        "expires_at": "2026-10-27T02:00:12Z"
+      }
+    },
+    {
+      "id": "claim-granted",
+      "definition": "claim_result",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_claim_result",
+        "request_id": "request:claim-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "result": "granted",
+        "reason": "claim_granted",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "state": "claimed",
+          "basis": "claim_cas",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": {
+            "claim_id": "claim:synthetic-1",
+            "candidate": {
+              "candidate_id": "candidate:synthetic-1",
+              "actor_id": "actor:synthetic-a",
+              "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+            },
+            "decision": {
+              "decision_id": "decision:synthetic-1",
+              "revision": 1,
+              "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+            },
+            "host_epoch": "host-epoch:g1",
+            "host_generation": "host-config:g1",
+            "owner_revision": 3,
+            "expires_at": "2026-10-27T02:00:12Z"
+          },
+          "completion_evidence": {
+            "event_record_id": "host-event:synthetic-1",
+            "handler_set_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "capture_receipt_id": "capture-receipt:synthetic-1",
+            "explicit_reply_receipt_id": "explicit-reply-receipt:synthetic-1",
+            "scope_receipt_id": "scope-receipt:synthetic-1",
+            "closure_receipt_id": "closure-receipt:synthetic-1",
+            "completed_at": "2026-10-27T02:00:01.900Z"
+          }
+        },
+        "request_digest": "dd7a6e49f2069e49eda32f2497882fa4db2f974ef2082c44e108cf4d0f26adc2",
+        "receipt_status": "recorded",
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "recorded_at": "2026-10-27T02:00:02.100Z",
+        "current_claim_state": "active",
+        "checked_at": "2026-10-27T02:00:02.200Z"
+      }
+    },
+    {
+      "id": "claim-denied-other-handler",
+      "definition": "claim_result",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_claim_result",
+        "request_id": "request:claim-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "result": "denied",
+        "reason": "handled_elsewhere",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 2,
+          "state": "handled_elsewhere",
+          "basis": "other_handler_entered",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": null,
+          "completion_evidence": null
+        },
+        "request_digest": "dd7a6e49f2069e49eda32f2497882fa4db2f974ef2082c44e108cf4d0f26adc2",
+        "receipt_status": "recorded",
+        "claim": null,
+        "recorded_at": "2026-10-27T02:00:02.100Z",
+        "current_claim_state": "inactive",
+        "checked_at": "2026-10-27T02:00:02.200Z"
+      }
+    },
+    {
+      "id": "astrbot-no-global-completion-no-claim",
+      "definition": "claim_result",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_claim_result",
+        "request_id": "request:claim-1",
+        "candidate": {
+          "candidate_id": "candidate:astrbot-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "c56102274b2f448b20a3ad120d9ada79084108d7e76b53ef0136ca327c83f739"
+        },
+        "decision": {
+          "decision_id": "decision:astrbot-1",
+          "revision": 1,
+          "decision_digest": "e90d668eec7ee895664d985b8be273b1455d37f43304aab7d18d4eb5d381b35b"
+        },
+        "result": "denied",
+        "reason": "ownership_unknown",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "astrbot",
+              "version": "4.27.3"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 2,
+          "state": "ownership_unknown",
+          "basis": "no_completion_proof",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": null,
+          "completion_evidence": null
+        },
+        "request_digest": "ef10bf5034004dfc58835e32fd5fe4833578e7b81d4d277f1a72bc7ccb10df07",
+        "receipt_status": "recorded",
+        "claim": null,
+        "recorded_at": "2026-10-27T02:00:02.100Z",
+        "current_claim_state": "inactive",
+        "checked_at": "2026-10-27T02:00:02.200Z"
+      }
+    },
+    {
+      "id": "retired-source-row-not-recreated",
+      "definition": "claim_result",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_claim_result",
+        "request_id": "request:claim-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "result": "unavailable",
+        "reason": "row_unavailable",
+        "ownership": null,
+        "request_digest": "dd7a6e49f2069e49eda32f2497882fa4db2f974ef2082c44e108cf4d0f26adc2",
+        "receipt_status": "unavailable",
+        "claim": null,
+        "recorded_at": null,
+        "current_claim_state": "unavailable",
+        "checked_at": "2026-10-27T02:00:02.200Z"
+      }
+    },
+    {
+      "id": "semantic-engage-with-contribution",
+      "definition": "semantic_decision",
+      "document": {
+        "schema_version": 1,
+        "kind": "semantic_participation_decision",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision_id": "decision:synthetic-1",
+        "revision": 1,
+        "outcome": "engage",
+        "reason": "useful_contribution",
+        "contribution": "有同一作品配器的真实阅读经历，可以补充有来源的信息。",
+        "decided_at": "2026-10-27T02:00:02Z",
+        "expires_at": "2026-10-27T02:00:15Z"
+      }
+    },
+    {
+      "id": "al12-absent-is-silent",
+      "definition": "semantic_decision",
+      "document": {
+        "schema_version": 1,
+        "kind": "semantic_participation_decision",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision_id": "decision:synthetic-1",
+        "revision": 1,
+        "outcome": "abstain",
+        "reason": "not_integrated",
+        "contribution": null,
+        "decided_at": "2026-10-27T02:00:02Z",
+        "expires_at": "2026-10-27T02:00:15Z"
+      }
+    },
+    {
+      "id": "defer-does-not-reserve-host",
+      "definition": "semantic_decision",
+      "document": {
+        "schema_version": 1,
+        "kind": "semantic_participation_decision",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision_id": "decision:synthetic-1",
+        "revision": 1,
+        "outcome": "defer",
+        "reason": "busy",
+        "contribution": null,
+        "decided_at": "2026-10-27T02:00:02Z",
+        "expires_at": "2026-10-27T02:00:15Z"
+      }
+    },
+    {
+      "id": "bind-real-existing-delivery",
+      "definition": "delivery_binding",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_delivery_binding",
+        "request_id": "request:binding-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "delivery": {
+          "connection_id": "bot-connection:synthetic",
+          "turn_id": "turn:actually-admitted-fixture",
+          "reply_id": "reply:actual-ledger-fixture",
+          "attempt_id": "attempt:actual-ledger-fixture"
+        },
+        "bound_at": "2026-10-27T02:00:04Z",
+        "expires_at": "2026-10-27T02:00:12Z",
+        "registration": {
+          "registration_id": "participation-registration:synthetic-1",
+          "registration_digest": "1b2d4112c3d1a98bab16867386e6a2b53289f4dc97579af890141167e6045a77"
+        },
+        "source_confirmation": "confirmed"
+      }
+    },
+    {
+      "id": "astrbot-interest-does-not-grant-host-permission",
+      "definition": "semantic_decision",
+      "document": {
+        "schema_version": 1,
+        "kind": "semantic_participation_decision",
+        "candidate": {
+          "candidate_id": "candidate:astrbot-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "c56102274b2f448b20a3ad120d9ada79084108d7e76b53ef0136ca327c83f739"
+        },
+        "decision_id": "decision:astrbot-1",
+        "revision": 1,
+        "outcome": "engage",
+        "reason": "useful_contribution",
+        "contribution": "有同一作品配器的真实阅读经历，可以补充有来源的信息。",
+        "decided_at": "2026-10-27T02:00:02Z",
+        "expires_at": "2026-10-27T02:00:15Z"
+      }
+    },
+    {
+      "id": "register-real-admission-before-core-dispatch",
+      "definition": "admission_registration",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_admission_registration",
+        "registration_id": "participation-registration:synthetic-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "stage": "registered",
+          "account_id": "10002",
+          "group_id": "20001",
+          "entry_id": "entry:synthetic-author",
+          "person_id": null,
+          "conversation_id": null,
+          "binding_version": null
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "admission": {
+          "connection_id": "bot-connection:synthetic",
+          "event_id": "30001",
+          "account_id": "10002",
+          "event_semantic_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "message_id": "message:actually-admitted-fixture",
+          "revision": 1,
+          "input_entry_id": "source-entry:synthetic-author",
+          "input_digest": "3333333333333333333333333333333333333333333333333333333333333333",
+          "source_input_assertion_ref": "source-input:actual-registered-fixture",
+          "actor_assertion_ref": "origin:actual-prepared-fixture",
+          "fanout_ticket": "fanout:actual-prepared-fixture",
+          "core_idempotency_key": "bot:ba5ebbdd5df0cfa5fe4133577d314699234a8ab029da9333fc15ac3a37a332cf"
+        },
+        "registered_at": "2026-10-27T02:00:02.500Z",
+        "expires_at": "2026-10-27T02:00:12Z"
+      }
+    },
+    {
+      "id": "same-request-replays-before-free-cas",
+      "definition": "claim_result",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_claim_result",
+        "request_id": "request:claim-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "result": "granted",
+        "reason": "claim_granted",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "state": "claimed",
+          "basis": "claim_cas",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": {
+            "claim_id": "claim:synthetic-1",
+            "candidate": {
+              "candidate_id": "candidate:synthetic-1",
+              "actor_id": "actor:synthetic-a",
+              "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+            },
+            "decision": {
+              "decision_id": "decision:synthetic-1",
+              "revision": 1,
+              "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+            },
+            "host_epoch": "host-epoch:g1",
+            "host_generation": "host-config:g1",
+            "owner_revision": 3,
+            "expires_at": "2026-10-27T02:00:12Z"
+          },
+          "completion_evidence": {
+            "event_record_id": "host-event:synthetic-1",
+            "handler_set_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "capture_receipt_id": "capture-receipt:synthetic-1",
+            "explicit_reply_receipt_id": "explicit-reply-receipt:synthetic-1",
+            "scope_receipt_id": "scope-receipt:synthetic-1",
+            "closure_receipt_id": "closure-receipt:synthetic-1",
+            "completed_at": "2026-10-27T02:00:01.900Z"
+          }
+        },
+        "request_digest": "dd7a6e49f2069e49eda32f2497882fa4db2f974ef2082c44e108cf4d0f26adc2",
+        "receipt_status": "replayed",
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "recorded_at": "2026-10-27T02:00:02.100Z",
+        "current_claim_state": "active",
+        "checked_at": "2026-10-27T02:00:03Z"
+      }
+    },
+    {
+      "id": "expired-replay-preserves-original-grant",
+      "definition": "claim_result",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_claim_result",
+        "request_id": "request:claim-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "result": "granted",
+        "reason": "claim_granted",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 4,
+          "state": "expired",
+          "basis": "deadline",
+          "observed_at": "2026-10-27T02:00:12Z",
+          "claim": {
+            "claim_id": "claim:synthetic-1",
+            "candidate": {
+              "candidate_id": "candidate:synthetic-1",
+              "actor_id": "actor:synthetic-a",
+              "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+            },
+            "decision": {
+              "decision_id": "decision:synthetic-1",
+              "revision": 1,
+              "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+            },
+            "host_epoch": "host-epoch:g1",
+            "host_generation": "host-config:g1",
+            "owner_revision": 3,
+            "expires_at": "2026-10-27T02:00:12Z"
+          },
+          "completion_evidence": {
+            "event_record_id": "host-event:synthetic-1",
+            "handler_set_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "capture_receipt_id": "capture-receipt:synthetic-1",
+            "explicit_reply_receipt_id": "explicit-reply-receipt:synthetic-1",
+            "scope_receipt_id": "scope-receipt:synthetic-1",
+            "closure_receipt_id": "closure-receipt:synthetic-1",
+            "completed_at": "2026-10-27T02:00:01.900Z"
+          }
+        },
+        "request_digest": "dd7a6e49f2069e49eda32f2497882fa4db2f974ef2082c44e108cf4d0f26adc2",
+        "receipt_status": "replayed",
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "recorded_at": "2026-10-27T02:00:02.100Z",
+        "current_claim_state": "inactive",
+        "checked_at": "2026-10-27T02:00:13Z"
+      }
+    },
+    {
+      "id": "old-grant-is-not-current-send-permission",
+      "definition": "claim_result",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_claim_result",
+        "request_id": "request:claim-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "result": "granted",
+        "reason": "claim_granted",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "state": "claimed",
+          "basis": "claim_cas",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": {
+            "claim_id": "claim:synthetic-1",
+            "candidate": {
+              "candidate_id": "candidate:synthetic-1",
+              "actor_id": "actor:synthetic-a",
+              "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+            },
+            "decision": {
+              "decision_id": "decision:synthetic-1",
+              "revision": 1,
+              "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+            },
+            "host_epoch": "host-epoch:g1",
+            "host_generation": "host-config:g1",
+            "owner_revision": 3,
+            "expires_at": "2026-10-27T02:00:12Z"
+          },
+          "completion_evidence": {
+            "event_record_id": "host-event:synthetic-1",
+            "handler_set_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "capture_receipt_id": "capture-receipt:synthetic-1",
+            "explicit_reply_receipt_id": "explicit-reply-receipt:synthetic-1",
+            "scope_receipt_id": "scope-receipt:synthetic-1",
+            "closure_receipt_id": "closure-receipt:synthetic-1",
+            "completed_at": "2026-10-27T02:00:01.900Z"
+          }
+        },
+        "request_digest": "dd7a6e49f2069e49eda32f2497882fa4db2f974ef2082c44e108cf4d0f26adc2",
+        "receipt_status": "replayed",
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "recorded_at": "2026-10-27T02:00:02.100Z",
+        "current_claim_state": "inactive",
+        "checked_at": "2026-10-27T02:00:03Z"
+      }
+    },
+    {
+      "id": "same-request-different-parameters-conflicts",
+      "definition": "claim_result",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_claim_result",
+        "request_id": "request:claim-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "result": "unavailable",
+        "reason": "idempotency_conflict",
+        "ownership": null,
+        "request_digest": "0020f811e45d434f4fe7dfe35a9821c7766b26ef2f92c2bcf6550cde605fd311",
+        "receipt_status": "conflict",
+        "claim": null,
+        "recorded_at": null,
+        "current_claim_state": "unavailable",
+        "checked_at": "2026-10-27T02:00:02.200Z"
+      }
+    },
+    {
+      "id": "nonebot-exception-or-cancel-is-unknown",
+      "definition": "host_ownership",
+      "document": {
+        "schema_version": 1,
+        "kind": "host_ownership",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 2,
+          "state": "ownership_unknown",
+          "basis": "no_completion_proof",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": null,
+          "completion_evidence": null
+        }
+      }
+    },
+    {
+      "id": "astrbot-claim-request-cannot-create-a-grant",
+      "definition": "claim_request",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_claim_request",
+        "request_id": "request:claim-1",
+        "candidate": {
+          "candidate_id": "candidate:astrbot-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "c56102274b2f448b20a3ad120d9ada79084108d7e76b53ef0136ca327c83f739"
+        },
+        "decision": {
+          "decision_id": "decision:astrbot-1",
+          "revision": 1,
+          "decision_digest": "e90d668eec7ee895664d985b8be273b1455d37f43304aab7d18d4eb5d381b35b"
+        },
+        "native": {
+          "framework": {
+            "name": "astrbot",
+            "version": "4.27.3"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "host_epoch": "host-epoch:g1",
+        "host_generation": "host-config:g1",
+        "expected_owner_revision": 2,
+        "expires_at": "2026-10-27T02:00:12Z"
+      }
+    },
+    {
+      "id": "different-claim-parameters-same-request-id",
+      "definition": "claim_request",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_claim_request",
+        "request_id": "request:claim-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "host_epoch": "host-epoch:g1",
+        "host_generation": "host-config:g1",
+        "expected_owner_revision": 3,
+        "expires_at": "2026-10-27T02:00:12Z"
+      }
+    },
+    {
+      "id": "known-author-candidate-keeps-resolved-snapshot",
+      "definition": "candidate",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_candidate",
+        "candidate_id": "candidate:known-author-1",
+        "actor_id": "actor:synthetic-a",
+        "trigger": "ordinary_group_message",
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "host_epoch": "host-epoch:g1",
+        "sent_at": "2026-10-27T02:00:00Z",
+        "created_at": "2026-10-27T02:00:00.100Z",
+        "expires_at": "2026-10-27T02:00:20Z",
+        "mentioned": false,
+        "text": "这段游戏配乐里是不是用了古典吉他？"
+      }
+    },
+    {
+      "id": "existing-entry-candidate-without-confirmed-person",
+      "definition": "candidate",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_candidate",
+        "candidate_id": "candidate:registered-author-1",
+        "actor_id": "actor:synthetic-a",
+        "trigger": "ordinary_group_message",
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "stage": "registered",
+          "account_id": "10002",
+          "group_id": "20001",
+          "entry_id": "entry:synthetic-author",
+          "person_id": null,
+          "conversation_id": null,
+          "binding_version": null
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "host_epoch": "host-epoch:g1",
+        "sent_at": "2026-10-27T02:00:00Z",
+        "created_at": "2026-10-27T02:00:00.100Z",
+        "expires_at": "2026-10-27T02:00:20Z",
+        "mentioned": false,
+        "text": "这段游戏配乐里是不是用了古典吉他？"
+      }
+    },
+    {
+      "id": "known-author-registration-before-current-fanout-confirmation",
+      "definition": "admission_registration",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_admission_registration",
+        "registration_id": "participation-registration:known-author-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001",
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "admission": {
+          "connection_id": "bot-connection:synthetic",
+          "event_id": "30001",
+          "account_id": "10002",
+          "event_semantic_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "message_id": "message:actually-admitted-fixture",
+          "revision": 1,
+          "input_entry_id": "source-entry:synthetic-author",
+          "input_digest": "3333333333333333333333333333333333333333333333333333333333333333",
+          "source_input_assertion_ref": "source-input:actual-registered-fixture",
+          "actor_assertion_ref": "origin:actual-prepared-fixture",
+          "fanout_ticket": "fanout:actual-prepared-fixture",
+          "core_idempotency_key": "bot:ba5ebbdd5df0cfa5fe4133577d314699234a8ab029da9333fc15ac3a37a332cf"
+        },
+        "registered_at": "2026-10-27T02:00:02.500Z",
+        "expires_at": "2026-10-27T02:00:12Z"
+      }
+    },
+    {
+      "id": "resolved-reply-bound-while-current-fanout-is-pending",
+      "definition": "delivery_binding",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_delivery_binding",
+        "request_id": "request:binding-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "delivery": {
+          "connection_id": "bot-connection:synthetic",
+          "turn_id": "turn:actually-admitted-fixture",
+          "reply_id": "reply:actual-ledger-fixture",
+          "attempt_id": "attempt:actual-ledger-fixture"
+        },
+        "bound_at": "2026-10-27T02:00:04Z",
+        "expires_at": "2026-10-27T02:00:12Z",
+        "registration": {
+          "registration_id": "participation-registration:synthetic-1",
+          "registration_digest": "1b2d4112c3d1a98bab16867386e6a2b53289f4dc97579af890141167e6045a77"
+        },
+        "source_confirmation": "pending"
+      }
+    }
+  ],
+  "negative": [
+    {
+      "id": "cannot-forge-at-trigger",
+      "definition": "candidate",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_candidate",
+        "candidate_id": "candidate:synthetic-1",
+        "actor_id": "actor:synthetic-a",
+        "trigger": "ordinary_group_message",
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "host_epoch": "host-epoch:g1",
+        "sent_at": "2026-10-27T02:00:00Z",
+        "created_at": "2026-10-27T02:00:00.100Z",
+        "expires_at": "2026-10-27T02:00:20Z",
+        "mentioned": true,
+        "text": "这段游戏配乐里是不是用了古典吉他？"
+      }
+    },
+    {
+      "id": "candidate-cannot-invent-turn",
+      "definition": "candidate",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_candidate",
+        "candidate_id": "candidate:synthetic-1",
+        "actor_id": "actor:synthetic-a",
+        "trigger": "ordinary_group_message",
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "host_epoch": "host-epoch:g1",
+        "sent_at": "2026-10-27T02:00:00Z",
+        "created_at": "2026-10-27T02:00:00.100Z",
+        "expires_at": "2026-10-27T02:00:20Z",
+        "mentioned": false,
+        "text": "这段游戏配乐里是不是用了古典吉他？",
+        "turn_id": "turn:invented"
+      }
+    },
+    {
+      "id": "anchor-needs-explicit-person-resolution-state",
+      "definition": "candidate",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_candidate",
+        "candidate_id": "candidate:synthetic-1",
+        "actor_id": "actor:synthetic-a",
+        "trigger": "ordinary_group_message",
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "host_epoch": "host-epoch:g1",
+        "sent_at": "2026-10-27T02:00:00Z",
+        "created_at": "2026-10-27T02:00:00.100Z",
+        "expires_at": "2026-10-27T02:00:20Z",
+        "mentioned": false,
+        "text": "这段游戏配乐里是不是用了古典吉他？"
+      }
+    },
+    {
+      "id": "anchor-needs-explicit-entry-resolution-state",
+      "definition": "candidate",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_candidate",
+        "candidate_id": "candidate:synthetic-1",
+        "actor_id": "actor:synthetic-a",
+        "trigger": "ordinary_group_message",
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "host_epoch": "host-epoch:g1",
+        "sent_at": "2026-10-27T02:00:00Z",
+        "created_at": "2026-10-27T02:00:00.100Z",
+        "expires_at": "2026-10-27T02:00:20Z",
+        "mentioned": false,
+        "text": "这段游戏配乐里是不是用了古典吉他？"
+      }
+    },
+    {
+      "id": "history-proof-is-not-send-authority",
+      "definition": "candidate",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_candidate",
+        "candidate_id": "candidate:synthetic-1",
+        "actor_id": "actor:synthetic-a",
+        "trigger": "ordinary_group_message",
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "host_epoch": "host-epoch:g1",
+        "sent_at": "2026-10-27T02:00:00Z",
+        "created_at": "2026-10-27T02:00:00.100Z",
+        "expires_at": "2026-10-27T02:00:20Z",
+        "mentioned": false,
+        "text": "这段游戏配乐里是不是用了古典吉他？",
+        "history_read_proof": "history-proof-not-send-permission"
+      }
+    },
+    {
+      "id": "boolean-source-version",
+      "definition": "candidate",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_candidate",
+        "candidate_id": "candidate:synthetic-1",
+        "actor_id": "actor:synthetic-a",
+        "trigger": "ordinary_group_message",
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": true,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "host_epoch": "host-epoch:g1",
+        "sent_at": "2026-10-27T02:00:00Z",
+        "created_at": "2026-10-27T02:00:00.100Z",
+        "expires_at": "2026-10-27T02:00:20Z",
+        "mentioned": false,
+        "text": "这段游戏配乐里是不是用了古典吉他？"
+      }
+    },
+    {
+      "id": "invalid-calendar-date",
+      "definition": "candidate",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_candidate",
+        "candidate_id": "candidate:synthetic-1",
+        "actor_id": "actor:synthetic-a",
+        "trigger": "ordinary_group_message",
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "host_epoch": "host-epoch:g1",
+        "sent_at": "2026-10-27T02:00:00Z",
+        "created_at": "2026-10-27T02:00:00.100Z",
+        "expires_at": "2026-02-30T12:00:00Z",
+        "mentioned": false,
+        "text": "这段游戏配乐里是不是用了古典吉他？"
+      }
+    },
+    {
+      "id": "processing-is-not-completion",
+      "definition": "host_ownership",
+      "document": {
+        "schema_version": 1,
+        "kind": "host_ownership",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 2,
+          "state": "free",
+          "basis": "event_processing",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": null,
+          "completion_evidence": {
+            "event_record_id": "host-event:synthetic-1",
+            "handler_set_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "capture_receipt_id": "capture-receipt:synthetic-1",
+            "explicit_reply_receipt_id": "explicit-reply-receipt:synthetic-1",
+            "scope_receipt_id": "scope-receipt:synthetic-1",
+            "closure_receipt_id": "closure-receipt:synthetic-1",
+            "completed_at": "2026-10-27T02:00:01.900Z"
+          }
+        }
+      }
+    },
+    {
+      "id": "astrbot-hook-cannot-prove-free",
+      "definition": "host_ownership",
+      "document": {
+        "schema_version": 1,
+        "kind": "host_ownership",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "astrbot",
+              "version": "4.27.3"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 2,
+          "state": "free",
+          "basis": "all_handlers_completed",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": null,
+          "completion_evidence": {
+            "event_record_id": "host-event:synthetic-1",
+            "handler_set_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "capture_receipt_id": "capture-receipt:synthetic-1",
+            "explicit_reply_receipt_id": "explicit-reply-receipt:synthetic-1",
+            "scope_receipt_id": "scope-receipt:synthetic-1",
+            "closure_receipt_id": "closure-receipt:synthetic-1",
+            "completed_at": "2026-10-27T02:00:01.900Z"
+          }
+        }
+      }
+    },
+    {
+      "id": "astrbot-ordinary-cannot-claim",
+      "definition": "claim_result",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_claim_result",
+        "request_id": "request:claim-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "result": "granted",
+        "reason": "claim_granted",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "astrbot",
+              "version": "4.27.3"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "state": "claimed",
+          "basis": "claim_cas",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": {
+            "claim_id": "claim:synthetic-1",
+            "candidate": {
+              "candidate_id": "candidate:synthetic-1",
+              "actor_id": "actor:synthetic-a",
+              "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+            },
+            "decision": {
+              "decision_id": "decision:synthetic-1",
+              "revision": 1,
+              "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+            },
+            "host_epoch": "host-epoch:g1",
+            "host_generation": "host-config:g1",
+            "owner_revision": 3,
+            "expires_at": "2026-10-27T02:00:12Z"
+          },
+          "completion_evidence": {
+            "event_record_id": "host-event:synthetic-1",
+            "handler_set_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "capture_receipt_id": "capture-receipt:synthetic-1",
+            "explicit_reply_receipt_id": "explicit-reply-receipt:synthetic-1",
+            "scope_receipt_id": "scope-receipt:synthetic-1",
+            "closure_receipt_id": "closure-receipt:synthetic-1",
+            "completed_at": "2026-10-27T02:00:01.900Z"
+          }
+        },
+        "request_digest": "dd7a6e49f2069e49eda32f2497882fa4db2f974ef2082c44e108cf4d0f26adc2",
+        "receipt_status": "recorded",
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "recorded_at": "2026-10-27T02:00:02.100Z",
+        "current_claim_state": "active",
+        "checked_at": "2026-10-27T02:00:02.200Z"
+      }
+    },
+    {
+      "id": "handled-elsewhere-cannot-grant",
+      "definition": "claim_result",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_claim_result",
+        "request_id": "request:claim-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "result": "granted",
+        "reason": "claim_granted",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 2,
+          "state": "handled_elsewhere",
+          "basis": "other_handler_entered",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": null,
+          "completion_evidence": null
+        },
+        "request_digest": "dd7a6e49f2069e49eda32f2497882fa4db2f974ef2082c44e108cf4d0f26adc2",
+        "receipt_status": "recorded",
+        "claim": null,
+        "recorded_at": "2026-10-27T02:00:02.100Z",
+        "current_claim_state": "active",
+        "checked_at": "2026-10-27T02:00:02.200Z"
+      }
+    },
+    {
+      "id": "claim-caller-cannot-reset-state",
+      "definition": "claim_request",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_claim_request",
+        "request_id": "request:claim-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "host_epoch": "host-epoch:g1",
+        "host_generation": "host-config:g1",
+        "expected_owner_revision": 2,
+        "expires_at": "2026-10-27T02:00:12Z",
+        "desired_state": "free"
+      }
+    },
+    {
+      "id": "claim-requires-cas-revision",
+      "definition": "claim_request",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_claim_request",
+        "request_id": "request:claim-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "host_epoch": "host-epoch:g1",
+        "host_generation": "host-config:g1",
+        "expires_at": "2026-10-27T02:00:12Z"
+      }
+    },
+    {
+      "id": "al12-not-integrated-cannot-engage",
+      "definition": "semantic_decision",
+      "document": {
+        "schema_version": 1,
+        "kind": "semantic_participation_decision",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision_id": "decision:synthetic-1",
+        "revision": 1,
+        "outcome": "engage",
+        "reason": "not_integrated",
+        "contribution": "pretend handler exists",
+        "decided_at": "2026-10-27T02:00:02Z",
+        "expires_at": "2026-10-27T02:00:15Z"
+      }
+    },
+    {
+      "id": "decision-does-not-contain-direct-send",
+      "definition": "semantic_decision",
+      "document": {
+        "schema_version": 1,
+        "kind": "semantic_participation_decision",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision_id": "decision:synthetic-1",
+        "revision": 1,
+        "outcome": "engage",
+        "reason": "useful_contribution",
+        "contribution": "有同一作品配器的真实阅读经历，可以补充有来源的信息。",
+        "decided_at": "2026-10-27T02:00:02Z",
+        "expires_at": "2026-10-27T02:00:15Z",
+        "reply_text": "send this without Core"
+      }
+    },
+    {
+      "id": "delivery-needs-host-claim",
+      "definition": "delivery_binding",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_delivery_binding",
+        "request_id": "request:binding-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "delivery": {
+          "connection_id": "bot-connection:synthetic",
+          "turn_id": "turn:actually-admitted-fixture",
+          "reply_id": "reply:actual-ledger-fixture",
+          "attempt_id": "attempt:actual-ledger-fixture"
+        },
+        "bound_at": "2026-10-27T02:00:04Z",
+        "expires_at": "2026-10-27T02:00:12Z",
+        "registration": {
+          "registration_id": "participation-registration:synthetic-1",
+          "registration_digest": "1b2d4112c3d1a98bab16867386e6a2b53289f4dc97579af890141167e6045a77"
+        },
+        "source_confirmation": "confirmed"
+      }
+    },
+    {
+      "id": "delivery-needs-existing-attempt",
+      "definition": "delivery_binding",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_delivery_binding",
+        "request_id": "request:binding-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "delivery": {
+          "connection_id": "bot-connection:synthetic",
+          "turn_id": "turn:actually-admitted-fixture",
+          "reply_id": "reply:actual-ledger-fixture"
+        },
+        "bound_at": "2026-10-27T02:00:04Z",
+        "expires_at": "2026-10-27T02:00:12Z",
+        "registration": {
+          "registration_id": "participation-registration:synthetic-1",
+          "registration_digest": "1b2d4112c3d1a98bab16867386e6a2b53289f4dc97579af890141167e6045a77"
+        },
+        "source_confirmation": "confirmed"
+      }
+    },
+    {
+      "id": "claim-cannot-be-history-read-proof",
+      "definition": "delivery_binding",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_delivery_binding",
+        "request_id": "request:binding-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z",
+          "source_read_proof": "not-a-claim"
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "delivery": {
+          "connection_id": "bot-connection:synthetic",
+          "turn_id": "turn:actually-admitted-fixture",
+          "reply_id": "reply:actual-ledger-fixture",
+          "attempt_id": "attempt:actual-ledger-fixture"
+        },
+        "bound_at": "2026-10-27T02:00:04Z",
+        "expires_at": "2026-10-27T02:00:12Z",
+        "registration": {
+          "registration_id": "participation-registration:synthetic-1",
+          "registration_digest": "1b2d4112c3d1a98bab16867386e6a2b53289f4dc97579af890141167e6045a77"
+        },
+        "source_confirmation": "confirmed"
+      }
+    },
+    {
+      "id": "registration-cannot-invent-turn",
+      "definition": "admission_registration",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_admission_registration",
+        "registration_id": "participation-registration:synthetic-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "admission": {
+          "connection_id": "bot-connection:synthetic",
+          "event_id": "30001",
+          "account_id": "10002",
+          "event_semantic_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "message_id": "message:actually-admitted-fixture",
+          "revision": 1,
+          "input_entry_id": "source-entry:synthetic-author",
+          "input_digest": "3333333333333333333333333333333333333333333333333333333333333333",
+          "source_input_assertion_ref": "source-input:actual-registered-fixture",
+          "actor_assertion_ref": "origin:actual-prepared-fixture",
+          "fanout_ticket": "fanout:actual-prepared-fixture",
+          "core_idempotency_key": "bot:ba5ebbdd5df0cfa5fe4133577d314699234a8ab029da9333fc15ac3a37a332cf",
+          "turn_id": "turn:invented"
+        },
+        "registered_at": "2026-10-27T02:00:02.500Z",
+        "expires_at": "2026-10-27T02:00:12Z"
+      }
+    },
+    {
+      "id": "registration-cannot-invent-reply",
+      "definition": "admission_registration",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_admission_registration",
+        "registration_id": "participation-registration:synthetic-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "admission": {
+          "connection_id": "bot-connection:synthetic",
+          "event_id": "30001",
+          "account_id": "10002",
+          "event_semantic_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "message_id": "message:actually-admitted-fixture",
+          "revision": 1,
+          "input_entry_id": "source-entry:synthetic-author",
+          "input_digest": "3333333333333333333333333333333333333333333333333333333333333333",
+          "source_input_assertion_ref": "source-input:actual-registered-fixture",
+          "actor_assertion_ref": "origin:actual-prepared-fixture",
+          "fanout_ticket": "fanout:actual-prepared-fixture",
+          "core_idempotency_key": "bot:ba5ebbdd5df0cfa5fe4133577d314699234a8ab029da9333fc15ac3a37a332cf",
+          "reply_id": "reply:invented"
+        },
+        "registered_at": "2026-10-27T02:00:02.500Z",
+        "expires_at": "2026-10-27T02:00:12Z"
+      }
+    },
+    {
+      "id": "registration-needs-real-event-message",
+      "definition": "admission_registration",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_admission_registration",
+        "registration_id": "participation-registration:synthetic-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "admission": {
+          "connection_id": "bot-connection:synthetic",
+          "event_id": "30001",
+          "account_id": "10002",
+          "event_semantic_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "revision": 1,
+          "input_entry_id": "source-entry:synthetic-author",
+          "input_digest": "3333333333333333333333333333333333333333333333333333333333333333",
+          "source_input_assertion_ref": "source-input:actual-registered-fixture",
+          "actor_assertion_ref": "origin:actual-prepared-fixture",
+          "fanout_ticket": "fanout:actual-prepared-fixture",
+          "core_idempotency_key": "bot:ba5ebbdd5df0cfa5fe4133577d314699234a8ab029da9333fc15ac3a37a332cf"
+        },
+        "registered_at": "2026-10-27T02:00:02.500Z",
+        "expires_at": "2026-10-27T02:00:12Z"
+      }
+    },
+    {
+      "id": "registration-needs-prepared-actor-origin",
+      "definition": "admission_registration",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_admission_registration",
+        "registration_id": "participation-registration:synthetic-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "admission": {
+          "connection_id": "bot-connection:synthetic",
+          "event_id": "30001",
+          "account_id": "10002",
+          "event_semantic_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "message_id": "message:actually-admitted-fixture",
+          "revision": 1,
+          "input_entry_id": "source-entry:synthetic-author",
+          "input_digest": "3333333333333333333333333333333333333333333333333333333333333333",
+          "source_input_assertion_ref": "source-input:actual-registered-fixture",
+          "fanout_ticket": "fanout:actual-prepared-fixture",
+          "core_idempotency_key": "bot:ba5ebbdd5df0cfa5fe4133577d314699234a8ab029da9333fc15ac3a37a332cf"
+        },
+        "registered_at": "2026-10-27T02:00:02.500Z",
+        "expires_at": "2026-10-27T02:00:12Z"
+      }
+    },
+    {
+      "id": "history-proof-is-not-admission-origin",
+      "definition": "admission_registration",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_admission_registration",
+        "registration_id": "participation-registration:synthetic-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "admission": {
+          "connection_id": "bot-connection:synthetic",
+          "event_id": "30001",
+          "account_id": "10002",
+          "event_semantic_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "message_id": "message:actually-admitted-fixture",
+          "revision": 1,
+          "input_entry_id": "source-entry:synthetic-author",
+          "input_digest": "3333333333333333333333333333333333333333333333333333333333333333",
+          "source_input_assertion_ref": "source-input:actual-registered-fixture",
+          "actor_assertion_ref": "read-proof:historical",
+          "fanout_ticket": "fanout:actual-prepared-fixture",
+          "core_idempotency_key": "bot:ba5ebbdd5df0cfa5fe4133577d314699234a8ab029da9333fc15ac3a37a332cf"
+        },
+        "registered_at": "2026-10-27T02:00:02.500Z",
+        "expires_at": "2026-10-27T02:00:12Z"
+      }
+    },
+    {
+      "id": "delivery-cannot-rely-on-after-claim-association",
+      "definition": "delivery_binding",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_delivery_binding",
+        "request_id": "request:binding-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "delivery": {
+          "connection_id": "bot-connection:synthetic",
+          "turn_id": "turn:actually-admitted-fixture",
+          "reply_id": "reply:actual-ledger-fixture",
+          "attempt_id": "attempt:actual-ledger-fixture"
+        },
+        "bound_at": "2026-10-27T02:00:04Z",
+        "expires_at": "2026-10-27T02:00:12Z",
+        "source_confirmation": "confirmed"
+      }
+    },
+    {
+      "id": "expired-receipt-cannot-be-active",
+      "definition": "claim_result",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_claim_result",
+        "request_id": "request:claim-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "result": "granted",
+        "reason": "claim_granted",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 4,
+          "state": "expired",
+          "basis": "deadline",
+          "observed_at": "2026-10-27T02:00:12Z",
+          "claim": {
+            "claim_id": "claim:synthetic-1",
+            "candidate": {
+              "candidate_id": "candidate:synthetic-1",
+              "actor_id": "actor:synthetic-a",
+              "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+            },
+            "decision": {
+              "decision_id": "decision:synthetic-1",
+              "revision": 1,
+              "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+            },
+            "host_epoch": "host-epoch:g1",
+            "host_generation": "host-config:g1",
+            "owner_revision": 3,
+            "expires_at": "2026-10-27T02:00:12Z"
+          },
+          "completion_evidence": {
+            "event_record_id": "host-event:synthetic-1",
+            "handler_set_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "capture_receipt_id": "capture-receipt:synthetic-1",
+            "explicit_reply_receipt_id": "explicit-reply-receipt:synthetic-1",
+            "scope_receipt_id": "scope-receipt:synthetic-1",
+            "closure_receipt_id": "closure-receipt:synthetic-1",
+            "completed_at": "2026-10-27T02:00:01.900Z"
+          }
+        },
+        "request_digest": "dd7a6e49f2069e49eda32f2497882fa4db2f974ef2082c44e108cf4d0f26adc2",
+        "receipt_status": "replayed",
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "recorded_at": "2026-10-27T02:00:02.100Z",
+        "current_claim_state": "active",
+        "checked_at": "2026-10-27T02:00:13Z"
+      }
+    },
+    {
+      "id": "conflict-cannot-disclose-or-grant-original-claim",
+      "definition": "claim_result",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_claim_result",
+        "request_id": "request:claim-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "result": "unavailable",
+        "reason": "idempotency_conflict",
+        "ownership": null,
+        "request_digest": "0020f811e45d434f4fe7dfe35a9821c7766b26ef2f92c2bcf6550cde605fd311",
+        "receipt_status": "conflict",
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "recorded_at": null,
+        "current_claim_state": "unavailable",
+        "checked_at": "2026-10-27T02:00:02.200Z"
+      }
+    },
+    {
+      "id": "replay-cannot-rewrite-grant-as-denial",
+      "definition": "claim_result",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_claim_result",
+        "request_id": "request:claim-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "result": "denied",
+        "reason": "claim_granted",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "state": "claimed",
+          "basis": "claim_cas",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": {
+            "claim_id": "claim:synthetic-1",
+            "candidate": {
+              "candidate_id": "candidate:synthetic-1",
+              "actor_id": "actor:synthetic-a",
+              "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+            },
+            "decision": {
+              "decision_id": "decision:synthetic-1",
+              "revision": 1,
+              "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+            },
+            "host_epoch": "host-epoch:g1",
+            "host_generation": "host-config:g1",
+            "owner_revision": 3,
+            "expires_at": "2026-10-27T02:00:12Z"
+          },
+          "completion_evidence": {
+            "event_record_id": "host-event:synthetic-1",
+            "handler_set_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "capture_receipt_id": "capture-receipt:synthetic-1",
+            "explicit_reply_receipt_id": "explicit-reply-receipt:synthetic-1",
+            "scope_receipt_id": "scope-receipt:synthetic-1",
+            "closure_receipt_id": "closure-receipt:synthetic-1",
+            "completed_at": "2026-10-27T02:00:01.900Z"
+          }
+        },
+        "request_digest": "dd7a6e49f2069e49eda32f2497882fa4db2f974ef2082c44e108cf4d0f26adc2",
+        "receipt_status": "replayed",
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "recorded_at": "2026-10-27T02:00:02.100Z",
+        "current_claim_state": "active",
+        "checked_at": "2026-10-27T02:00:03Z"
+      }
+    },
+    {
+      "id": "missing-completion-proof-cannot-be-free",
+      "definition": "host_ownership",
+      "document": {
+        "schema_version": 1,
+        "kind": "host_ownership",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 2,
+          "state": "free",
+          "basis": "no_completion_proof",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": null,
+          "completion_evidence": {
+            "event_record_id": "host-event:synthetic-1",
+            "handler_set_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "capture_receipt_id": "capture-receipt:synthetic-1",
+            "explicit_reply_receipt_id": "explicit-reply-receipt:synthetic-1",
+            "scope_receipt_id": "scope-receipt:synthetic-1",
+            "closure_receipt_id": "closure-receipt:synthetic-1",
+            "completed_at": "2026-10-27T02:00:01.900Z"
+          }
+        }
+      }
+    },
+    {
+      "id": "receipt-must-bind-complete-request",
+      "definition": "claim_result",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_claim_result",
+        "request_id": "request:claim-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "result": "granted",
+        "reason": "claim_granted",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "state": "claimed",
+          "basis": "claim_cas",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": {
+            "claim_id": "claim:synthetic-1",
+            "candidate": {
+              "candidate_id": "candidate:synthetic-1",
+              "actor_id": "actor:synthetic-a",
+              "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+            },
+            "decision": {
+              "decision_id": "decision:synthetic-1",
+              "revision": 1,
+              "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+            },
+            "host_epoch": "host-epoch:g1",
+            "host_generation": "host-config:g1",
+            "owner_revision": 3,
+            "expires_at": "2026-10-27T02:00:12Z"
+          },
+          "completion_evidence": {
+            "event_record_id": "host-event:synthetic-1",
+            "handler_set_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "capture_receipt_id": "capture-receipt:synthetic-1",
+            "explicit_reply_receipt_id": "explicit-reply-receipt:synthetic-1",
+            "scope_receipt_id": "scope-receipt:synthetic-1",
+            "closure_receipt_id": "closure-receipt:synthetic-1",
+            "completed_at": "2026-10-27T02:00:01.900Z"
+          }
+        },
+        "receipt_status": "recorded",
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "recorded_at": "2026-10-27T02:00:02.100Z",
+        "current_claim_state": "active",
+        "checked_at": "2026-10-27T02:00:02.200Z"
+      }
+    },
+    {
+      "id": "free-needs-capture-receipt-id",
+      "definition": "host_ownership",
+      "document": {
+        "schema_version": 1,
+        "kind": "host_ownership",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 2,
+          "state": "free",
+          "basis": "all_handlers_completed",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": null,
+          "completion_evidence": {
+            "event_record_id": "host-event:synthetic-1",
+            "handler_set_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "explicit_reply_receipt_id": "explicit-reply-receipt:synthetic-1",
+            "scope_receipt_id": "scope-receipt:synthetic-1",
+            "closure_receipt_id": "closure-receipt:synthetic-1",
+            "completed_at": "2026-10-27T02:00:01.900Z"
+          }
+        }
+      }
+    },
+    {
+      "id": "free-needs-explicit-reply-receipt-id",
+      "definition": "host_ownership",
+      "document": {
+        "schema_version": 1,
+        "kind": "host_ownership",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 2,
+          "state": "free",
+          "basis": "all_handlers_completed",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": null,
+          "completion_evidence": {
+            "event_record_id": "host-event:synthetic-1",
+            "handler_set_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "capture_receipt_id": "capture-receipt:synthetic-1",
+            "scope_receipt_id": "scope-receipt:synthetic-1",
+            "closure_receipt_id": "closure-receipt:synthetic-1",
+            "completed_at": "2026-10-27T02:00:01.900Z"
+          }
+        }
+      }
+    },
+    {
+      "id": "free-needs-scope-receipt-id",
+      "definition": "host_ownership",
+      "document": {
+        "schema_version": 1,
+        "kind": "host_ownership",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 2,
+          "state": "free",
+          "basis": "all_handlers_completed",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": null,
+          "completion_evidence": {
+            "event_record_id": "host-event:synthetic-1",
+            "handler_set_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "capture_receipt_id": "capture-receipt:synthetic-1",
+            "explicit_reply_receipt_id": "explicit-reply-receipt:synthetic-1",
+            "closure_receipt_id": "closure-receipt:synthetic-1",
+            "completed_at": "2026-10-27T02:00:01.900Z"
+          }
+        }
+      }
+    },
+    {
+      "id": "free-needs-closure-receipt-id",
+      "definition": "host_ownership",
+      "document": {
+        "schema_version": 1,
+        "kind": "host_ownership",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 2,
+          "state": "free",
+          "basis": "all_handlers_completed",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": null,
+          "completion_evidence": {
+            "event_record_id": "host-event:synthetic-1",
+            "handler_set_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "capture_receipt_id": "capture-receipt:synthetic-1",
+            "explicit_reply_receipt_id": "explicit-reply-receipt:synthetic-1",
+            "scope_receipt_id": "scope-receipt:synthetic-1",
+            "completed_at": "2026-10-27T02:00:01.900Z"
+          }
+        }
+      }
+    },
+    {
+      "id": "free-needs-handler-set-digest",
+      "definition": "host_ownership",
+      "document": {
+        "schema_version": 1,
+        "kind": "host_ownership",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 2,
+          "state": "free",
+          "basis": "all_handlers_completed",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": null,
+          "completion_evidence": {
+            "event_record_id": "host-event:synthetic-1",
+            "capture_receipt_id": "capture-receipt:synthetic-1",
+            "explicit_reply_receipt_id": "explicit-reply-receipt:synthetic-1",
+            "scope_receipt_id": "scope-receipt:synthetic-1",
+            "closure_receipt_id": "closure-receipt:synthetic-1",
+            "completed_at": "2026-10-27T02:00:01.900Z"
+          }
+        }
+      }
+    },
+    {
+      "id": "free-cannot-use-hook-return-without-receipts",
+      "definition": "host_ownership",
+      "document": {
+        "schema_version": 1,
+        "kind": "host_ownership",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 2,
+          "state": "free",
+          "basis": "all_handlers_completed",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": null,
+          "completion_evidence": null
+        }
+      }
+    },
+    {
+      "id": "adapter-kind-is-not-completion-evidence",
+      "definition": "host_ownership",
+      "document": {
+        "schema_version": 1,
+        "kind": "host_ownership",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 2,
+          "state": "free",
+          "basis": "all_handlers_completed",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": null,
+          "completion_evidence": {
+            "event_record_id": "host-event:synthetic-1",
+            "handler_set_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "capture_receipt_id": "capture-receipt:synthetic-1",
+            "explicit_reply_receipt_id": "explicit-reply-receipt:synthetic-1",
+            "scope_receipt_id": "scope-receipt:synthetic-1",
+            "closure_receipt_id": "closure-receipt:synthetic-1",
+            "completed_at": "2026-10-27T02:00:01.900Z",
+            "adapter_kind": "nonebot2"
+          }
+        }
+      }
+    },
+    {
+      "id": "processing-cannot-claim-normal-closure",
+      "definition": "host_ownership",
+      "document": {
+        "schema_version": 1,
+        "kind": "host_ownership",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 1,
+          "state": "processing",
+          "basis": "event_processing",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": null,
+          "completion_evidence": {
+            "event_record_id": "host-event:synthetic-1",
+            "handler_set_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "capture_receipt_id": "capture-receipt:synthetic-1",
+            "explicit_reply_receipt_id": "explicit-reply-receipt:synthetic-1",
+            "scope_receipt_id": "scope-receipt:synthetic-1",
+            "closure_receipt_id": "closure-receipt:synthetic-1",
+            "completed_at": "2026-10-27T02:00:01.900Z"
+          }
+        }
+      }
+    },
+    {
+      "id": "nonebot-version-must-be-exact-2-5-0",
+      "definition": "candidate",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_candidate",
+        "candidate_id": "candidate:synthetic-1",
+        "actor_id": "actor:synthetic-a",
+        "trigger": "ordinary_group_message",
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "host_epoch": "host-epoch:g1",
+        "sent_at": "2026-10-27T02:00:00Z",
+        "created_at": "2026-10-27T02:00:00.100Z",
+        "expires_at": "2026-10-27T02:00:20Z",
+        "mentioned": false,
+        "text": "这段游戏配乐里是不是用了古典吉他？"
+      }
+    },
+    {
+      "id": "observed-stage-cannot-invent-entry-id",
+      "definition": "candidate",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_candidate",
+        "candidate_id": "candidate:synthetic-1",
+        "actor_id": "actor:synthetic-a",
+        "trigger": "ordinary_group_message",
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "stage": "observed",
+          "account_id": "10002",
+          "group_id": "20001",
+          "entry_id": "entry:invented",
+          "person_id": null,
+          "conversation_id": null,
+          "binding_version": null
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "host_epoch": "host-epoch:g1",
+        "sent_at": "2026-10-27T02:00:00Z",
+        "created_at": "2026-10-27T02:00:00.100Z",
+        "expires_at": "2026-10-27T02:00:20Z",
+        "mentioned": false,
+        "text": "这段游戏配乐里是不是用了古典吉他？"
+      }
+    },
+    {
+      "id": "observed-stage-cannot-invent-person-id",
+      "definition": "candidate",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_candidate",
+        "candidate_id": "candidate:synthetic-1",
+        "actor_id": "actor:synthetic-a",
+        "trigger": "ordinary_group_message",
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "stage": "observed",
+          "account_id": "10002",
+          "group_id": "20001",
+          "entry_id": null,
+          "person_id": "person:invented",
+          "conversation_id": null,
+          "binding_version": null
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "host_epoch": "host-epoch:g1",
+        "sent_at": "2026-10-27T02:00:00Z",
+        "created_at": "2026-10-27T02:00:00.100Z",
+        "expires_at": "2026-10-27T02:00:20Z",
+        "mentioned": false,
+        "text": "这段游戏配乐里是不是用了古典吉他？"
+      }
+    },
+    {
+      "id": "observed-stage-cannot-invent-conversation-id",
+      "definition": "candidate",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_candidate",
+        "candidate_id": "candidate:synthetic-1",
+        "actor_id": "actor:synthetic-a",
+        "trigger": "ordinary_group_message",
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "stage": "observed",
+          "account_id": "10002",
+          "group_id": "20001",
+          "entry_id": null,
+          "person_id": null,
+          "conversation_id": "group:20001",
+          "binding_version": null
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "host_epoch": "host-epoch:g1",
+        "sent_at": "2026-10-27T02:00:00Z",
+        "created_at": "2026-10-27T02:00:00.100Z",
+        "expires_at": "2026-10-27T02:00:20Z",
+        "mentioned": false,
+        "text": "这段游戏配乐里是不是用了古典吉他？"
+      }
+    },
+    {
+      "id": "observed-stage-cannot-invent-binding-version",
+      "definition": "candidate",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_candidate",
+        "candidate_id": "candidate:synthetic-1",
+        "actor_id": "actor:synthetic-a",
+        "trigger": "ordinary_group_message",
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "stage": "observed",
+          "account_id": "10002",
+          "group_id": "20001",
+          "entry_id": null,
+          "person_id": null,
+          "conversation_id": null,
+          "binding_version": 1
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "host_epoch": "host-epoch:g1",
+        "sent_at": "2026-10-27T02:00:00Z",
+        "created_at": "2026-10-27T02:00:00.100Z",
+        "expires_at": "2026-10-27T02:00:20Z",
+        "mentioned": false,
+        "text": "这段游戏配乐里是不是用了古典吉他？"
+      }
+    },
+    {
+      "id": "pre-dispatch-requires-real-installed-entry",
+      "definition": "admission_registration",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_admission_registration",
+        "registration_id": "participation-registration:synthetic-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "stage": "observed",
+          "account_id": "10002",
+          "group_id": "20001",
+          "entry_id": null,
+          "person_id": null,
+          "conversation_id": null,
+          "binding_version": null
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "admission": {
+          "connection_id": "bot-connection:synthetic",
+          "event_id": "30001",
+          "account_id": "10002",
+          "event_semantic_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "message_id": "message:actually-admitted-fixture",
+          "revision": 1,
+          "input_entry_id": "source-entry:synthetic-author",
+          "input_digest": "3333333333333333333333333333333333333333333333333333333333333333",
+          "source_input_assertion_ref": "source-input:actual-registered-fixture",
+          "actor_assertion_ref": "origin:actual-prepared-fixture",
+          "fanout_ticket": "fanout:actual-prepared-fixture",
+          "core_idempotency_key": "bot:ba5ebbdd5df0cfa5fe4133577d314699234a8ab029da9333fc15ac3a37a332cf"
+        },
+        "registered_at": "2026-10-27T02:00:02.500Z",
+        "expires_at": "2026-10-27T02:00:12Z"
+      }
+    },
+    {
+      "id": "registered-stage-is-not-a-person-attestation",
+      "definition": "admission_registration",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_admission_registration",
+        "registration_id": "participation-registration:synthetic-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "stage": "registered",
+          "account_id": "10002",
+          "group_id": "20001",
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:invented",
+          "conversation_id": null,
+          "binding_version": null
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "admission": {
+          "connection_id": "bot-connection:synthetic",
+          "event_id": "30001",
+          "account_id": "10002",
+          "event_semantic_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "message_id": "message:actually-admitted-fixture",
+          "revision": 1,
+          "input_entry_id": "source-entry:synthetic-author",
+          "input_digest": "3333333333333333333333333333333333333333333333333333333333333333",
+          "source_input_assertion_ref": "source-input:actual-registered-fixture",
+          "actor_assertion_ref": "origin:actual-prepared-fixture",
+          "fanout_ticket": "fanout:actual-prepared-fixture",
+          "core_idempotency_key": "bot:ba5ebbdd5df0cfa5fe4133577d314699234a8ab029da9333fc15ac3a37a332cf"
+        },
+        "registered_at": "2026-10-27T02:00:02.500Z",
+        "expires_at": "2026-10-27T02:00:12Z"
+      }
+    },
+    {
+      "id": "delivery-binding-needs-owner-resolved-author",
+      "definition": "delivery_binding",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_delivery_binding",
+        "request_id": "request:binding-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "stage": "registered",
+          "account_id": "10002",
+          "group_id": "20001",
+          "entry_id": "entry:synthetic-author",
+          "person_id": null,
+          "conversation_id": null,
+          "binding_version": null
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "delivery": {
+          "connection_id": "bot-connection:synthetic",
+          "turn_id": "turn:actually-admitted-fixture",
+          "reply_id": "reply:actual-ledger-fixture",
+          "attempt_id": "attempt:actual-ledger-fixture"
+        },
+        "bound_at": "2026-10-27T02:00:04Z",
+        "expires_at": "2026-10-27T02:00:12Z",
+        "registration": {
+          "registration_id": "participation-registration:synthetic-1",
+          "registration_digest": "1b2d4112c3d1a98bab16867386e6a2b53289f4dc97579af890141167e6045a77"
+        },
+        "source_confirmation": "confirmed"
+      }
+    },
+    {
+      "id": "pending-source-confirmation-does-not-allow-unmapped-reply",
+      "definition": "delivery_binding",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_delivery_binding",
+        "request_id": "request:binding-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "stage": "registered",
+          "account_id": "10002",
+          "group_id": "20001",
+          "entry_id": "entry:synthetic-author",
+          "person_id": null,
+          "conversation_id": null,
+          "binding_version": null
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "delivery": {
+          "connection_id": "bot-connection:synthetic",
+          "turn_id": "turn:actually-admitted-fixture",
+          "reply_id": "reply:actual-ledger-fixture",
+          "attempt_id": "attempt:actual-ledger-fixture"
+        },
+        "bound_at": "2026-10-27T02:00:04Z",
+        "expires_at": "2026-10-27T02:00:12Z",
+        "registration": {
+          "registration_id": "participation-registration:synthetic-1",
+          "registration_digest": "1b2d4112c3d1a98bab16867386e6a2b53289f4dc97579af890141167e6045a77"
+        },
+        "source_confirmation": "pending"
+      }
+    },
+    {
+      "id": "identity-mapping-is-not-current-source-confirmation",
+      "definition": "delivery_binding",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_delivery_binding",
+        "request_id": "request:binding-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "delivery": {
+          "connection_id": "bot-connection:synthetic",
+          "turn_id": "turn:actually-admitted-fixture",
+          "reply_id": "reply:actual-ledger-fixture",
+          "attempt_id": "attempt:actual-ledger-fixture"
+        },
+        "bound_at": "2026-10-27T02:00:04Z",
+        "expires_at": "2026-10-27T02:00:12Z",
+        "registration": {
+          "registration_id": "participation-registration:synthetic-1",
+          "registration_digest": "1b2d4112c3d1a98bab16867386e6a2b53289f4dc97579af890141167e6045a77"
+        }
+      }
+    },
+    {
+      "id": "caller-cannot-grant-pending-reply-eligibility",
+      "definition": "delivery_binding",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_delivery_binding",
+        "request_id": "request:binding-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "delivery": {
+          "connection_id": "bot-connection:synthetic",
+          "turn_id": "turn:actually-admitted-fixture",
+          "reply_id": "reply:actual-ledger-fixture",
+          "attempt_id": "attempt:actual-ledger-fixture"
+        },
+        "bound_at": "2026-10-27T02:00:04Z",
+        "expires_at": "2026-10-27T02:00:12Z",
+        "registration": {
+          "registration_id": "participation-registration:synthetic-1",
+          "registration_digest": "1b2d4112c3d1a98bab16867386e6a2b53289f4dc97579af890141167e6045a77"
+        },
+        "source_confirmation": "pending",
+        "eligible": true
+      }
+    }
+  ],
+  "runtime_scenarios": [
+    {
+      "id": "wrong-person-with-valid-shape",
+      "definition": "candidate",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_candidate",
+        "candidate_id": "candidate:synthetic-1",
+        "actor_id": "actor:synthetic-a",
+        "trigger": "ordinary_group_message",
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:someone-else",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "host_epoch": "host-epoch:g1",
+        "sent_at": "2026-10-27T02:00:00Z",
+        "created_at": "2026-10-27T02:00:00.100Z",
+        "expires_at": "2026-10-27T02:00:20Z",
+        "mentioned": false,
+        "text": "这段游戏配乐里是不是用了古典吉他？"
+      },
+      "schema_valid": true,
+      "required_runtime_result": "Reject: original author account does not resolve to the proposed person/entry."
+    },
+    {
+      "id": "late-free-revision",
+      "definition": "claim_request",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_claim_request",
+        "request_id": "request:claim-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "host_epoch": "host-epoch:g1",
+        "host_generation": "host-config:g1",
+        "expected_owner_revision": 2,
+        "expires_at": "2026-10-27T02:00:12Z"
+      },
+      "schema_valid": true,
+      "required_runtime_result": "Reject: current ownership is handled_elsewhere/ownership_unknown/claimed/expired, even if the old snapshot was free."
+    },
+    {
+      "id": "withdrawn-source",
+      "definition": "candidate",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_candidate",
+        "candidate_id": "candidate:synthetic-1",
+        "actor_id": "actor:synthetic-a",
+        "trigger": "ordinary_group_message",
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "host_epoch": "host-epoch:g1",
+        "sent_at": "2026-10-27T02:00:00Z",
+        "created_at": "2026-10-27T02:00:00.100Z",
+        "expires_at": "2026-10-27T02:00:20Z",
+        "mentioned": false,
+        "text": "这段游戏配乐里是不是用了古典吉他？"
+      },
+      "schema_valid": true,
+      "required_runtime_result": "Reject: current source digest, scope version, archive epoch or observation permission changed."
+    },
+    {
+      "id": "stale-configuration",
+      "definition": "delivery_binding",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_delivery_binding",
+        "request_id": "request:binding-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "delivery": {
+          "connection_id": "bot-connection:synthetic",
+          "turn_id": "turn:actually-admitted-fixture",
+          "reply_id": "reply:actual-ledger-fixture",
+          "attempt_id": "attempt:actual-ledger-fixture"
+        },
+        "bound_at": "2026-10-27T02:00:04Z",
+        "expires_at": "2026-10-27T02:00:12Z",
+        "registration": {
+          "registration_id": "participation-registration:synthetic-1",
+          "registration_digest": "1b2d4112c3d1a98bab16867386e6a2b53289f4dc97579af890141167e6045a77"
+        },
+        "source_confirmation": "confirmed"
+      },
+      "schema_valid": true,
+      "required_runtime_result": "Reject: role, reply policy, host lease or either configuration generation changed."
+    },
+    {
+      "id": "unknown-delivery-effect",
+      "definition": "delivery_binding",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_delivery_binding",
+        "request_id": "request:binding-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "delivery": {
+          "connection_id": "bot-connection:synthetic",
+          "turn_id": "turn:actually-admitted-fixture",
+          "reply_id": "reply:actual-ledger-fixture",
+          "attempt_id": "attempt:actual-ledger-fixture"
+        },
+        "bound_at": "2026-10-27T02:00:04Z",
+        "expires_at": "2026-10-27T02:00:12Z",
+        "registration": {
+          "registration_id": "participation-registration:synthetic-1",
+          "registration_digest": "1b2d4112c3d1a98bab16867386e6a2b53289f4dc97579af890141167e6045a77"
+        },
+        "source_confirmation": "confirmed"
+      },
+      "schema_valid": true,
+      "required_runtime_result": "Do not resend or free ownership: reconcile the existing BotDelivery attempt."
+    },
+    {
+      "id": "deleted-observation-row",
+      "definition": "claim_request",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_claim_request",
+        "request_id": "request:claim-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "host_epoch": "host-epoch:g1",
+        "host_generation": "host-config:g1",
+        "expected_owner_revision": 2,
+        "expires_at": "2026-10-27T02:00:12Z"
+      },
+      "schema_valid": true,
+      "required_runtime_result": "Deny row_unavailable; do not reconstruct a free row from a copied candidate."
+    },
+    {
+      "id": "registration-record-missing-at-reply-create",
+      "definition": "admission_registration",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_admission_registration",
+        "registration_id": "participation-registration:synthetic-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "admission": {
+          "connection_id": "bot-connection:synthetic",
+          "event_id": "30001",
+          "account_id": "10002",
+          "event_semantic_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "message_id": "message:actually-admitted-fixture",
+          "revision": 1,
+          "input_entry_id": "source-entry:synthetic-author",
+          "input_digest": "3333333333333333333333333333333333333333333333333333333333333333",
+          "source_input_assertion_ref": "source-input:actual-registered-fixture",
+          "actor_assertion_ref": "origin:actual-prepared-fixture",
+          "fanout_ticket": "fanout:actual-prepared-fixture",
+          "core_idempotency_key": "bot:ba5ebbdd5df0cfa5fe4133577d314699234a8ab029da9333fc15ac3a37a332cf"
+        },
+        "registered_at": "2026-10-27T02:00:02.500Z",
+        "expires_at": "2026-10-27T02:00:12Z"
+      },
+      "schema_valid": true,
+      "required_runtime_result": "Reject participation reply creation before pending; never claim and then await association; unrelated normal replies remain eligible."
+    },
+    {
+      "id": "same-request-digest-but-actor-origin-from-other-event",
+      "definition": "admission_registration",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_admission_registration",
+        "registration_id": "participation-registration:synthetic-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "admission": {
+          "connection_id": "bot-connection:synthetic",
+          "event_id": "30001",
+          "account_id": "10002",
+          "event_semantic_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+          "message_id": "message:actually-admitted-fixture",
+          "revision": 1,
+          "input_entry_id": "source-entry:synthetic-author",
+          "input_digest": "3333333333333333333333333333333333333333333333333333333333333333",
+          "source_input_assertion_ref": "source-input:actual-registered-fixture",
+          "actor_assertion_ref": "origin:actual-prepared-fixture",
+          "fanout_ticket": "fanout:actual-prepared-fixture",
+          "core_idempotency_key": "bot:ba5ebbdd5df0cfa5fe4133577d314699234a8ab029da9333fc15ac3a37a332cf"
+        },
+        "registered_at": "2026-10-27T02:00:02.500Z",
+        "expires_at": "2026-10-27T02:00:12Z"
+      },
+      "schema_valid": true,
+      "required_runtime_result": "Resolve actual prepared origin/input mapping and reject mismatched admission; string formats and caller digests are not proof."
+    },
+    {
+      "id": "finally-ran-after-cancellation-is-not-free",
+      "definition": "host_ownership",
+      "document": {
+        "schema_version": 1,
+        "kind": "host_ownership",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 2,
+          "state": "free",
+          "basis": "all_handlers_completed",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": null,
+          "completion_evidence": {
+            "event_record_id": "host-event:synthetic-1",
+            "handler_set_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "capture_receipt_id": "capture-receipt:synthetic-1",
+            "explicit_reply_receipt_id": "explicit-reply-receipt:synthetic-1",
+            "scope_receipt_id": "scope-receipt:synthetic-1",
+            "closure_receipt_id": "closure-receipt:synthetic-1",
+            "completed_at": "2026-10-27T02:00:01.900Z"
+          }
+        }
+      },
+      "schema_valid": true,
+      "required_runtime_result": "The real producer must emit ownership_unknown or expire; finally execution alone cannot certify normal closure."
+    },
+    {
+      "id": "ack-does-not-hide-retained-claim-receipt",
+      "definition": "claim_request",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_claim_request",
+        "request_id": "request:claim-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "native": {
+          "framework": {
+            "name": "nonebot2",
+            "version": "2.5.0"
+          },
+          "instance_id": "adapter:synthetic",
+          "namespace": "qq",
+          "self_id": "10001",
+          "group_id": "20001",
+          "native_message_id": "30001",
+          "author_account_id": "10002",
+          "message_revision": 1
+        },
+        "host_epoch": "host-epoch:g1",
+        "host_generation": "host-config:g1",
+        "expected_owner_revision": 2,
+        "expires_at": "2026-10-27T02:00:12Z"
+      },
+      "schema_valid": true,
+      "required_runtime_result": "Read retained original row and exact request receipt before free/CAS, including acked=1; missing row returns unavailable without reconstruction."
+    },
+    {
+      "id": "receipt-ids-exist-only-in-caller-state-copy",
+      "definition": "host_ownership",
+      "document": {
+        "schema_version": 1,
+        "kind": "host_ownership",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 2,
+          "state": "free",
+          "basis": "all_handlers_completed",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": null,
+          "completion_evidence": {
+            "event_record_id": "host-event:synthetic-1",
+            "handler_set_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "capture_receipt_id": "capture-receipt:synthetic-1",
+            "explicit_reply_receipt_id": "explicit-reply-receipt:synthetic-1",
+            "scope_receipt_id": "scope-receipt:synthetic-1",
+            "closure_receipt_id": "closure-receipt:synthetic-1",
+            "completed_at": "2026-10-27T02:00:01.900Z"
+          }
+        }
+      },
+      "schema_valid": true,
+      "required_runtime_result": "Reject free: matcher state.copy is not the durable original event. All four receipt references must resolve to actual normal executions owned by this same event."
+    },
+    {
+      "id": "permission-rule-error-was-swallowed-as-false",
+      "definition": "host_ownership",
+      "document": {
+        "schema_version": 1,
+        "kind": "host_ownership",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 2,
+          "state": "free",
+          "basis": "all_handlers_completed",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": null,
+          "completion_evidence": {
+            "event_record_id": "host-event:synthetic-1",
+            "handler_set_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "capture_receipt_id": "capture-receipt:synthetic-1",
+            "explicit_reply_receipt_id": "explicit-reply-receipt:synthetic-1",
+            "scope_receipt_id": "scope-receipt:synthetic-1",
+            "closure_receipt_id": "closure-receipt:synthetic-1",
+            "completed_at": "2026-10-27T02:00:01.900Z"
+          }
+        }
+      },
+      "schema_valid": true,
+      "required_runtime_result": "Keep ownership_unknown or expire: a false return/finally callback is not a successful capture, explicit-unclaimed or no-route receipt; do not rerun filters."
+    },
+    {
+      "id": "handler-set-changed-after-capture",
+      "definition": "host_ownership",
+      "document": {
+        "schema_version": 1,
+        "kind": "host_ownership",
+        "ownership": {
+          "native": {
+            "framework": {
+              "name": "nonebot2",
+              "version": "2.5.0"
+            },
+            "instance_id": "adapter:synthetic",
+            "namespace": "qq",
+            "self_id": "10001",
+            "group_id": "20001",
+            "native_message_id": "30001",
+            "author_account_id": "10002",
+            "message_revision": 1
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 2,
+          "state": "free",
+          "basis": "all_handlers_completed",
+          "observed_at": "2026-10-27T02:00:02.100Z",
+          "claim": null,
+          "completion_evidence": {
+            "event_record_id": "host-event:synthetic-1",
+            "handler_set_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "capture_receipt_id": "capture-receipt:synthetic-1",
+            "explicit_reply_receipt_id": "explicit-reply-receipt:synthetic-1",
+            "scope_receipt_id": "scope-receipt:synthetic-1",
+            "closure_receipt_id": "closure-receipt:synthetic-1",
+            "completed_at": "2026-10-27T02:00:01.900Z"
+          }
+        }
+      },
+      "schema_valid": true,
+      "required_runtime_result": "Keep ownership_unknown or expire: verify the actual closed host graph and unchanged handler set, not adapter_kind, plugin names or a caller-supplied digest."
+    },
+    {
+      "id": "pending-current-fanout-cannot-enter-claim-set",
+      "definition": "delivery_binding",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_delivery_binding",
+        "request_id": "request:binding-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10002",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "delivery": {
+          "connection_id": "bot-connection:synthetic",
+          "turn_id": "turn:actually-admitted-fixture",
+          "reply_id": "reply:actual-ledger-fixture",
+          "attempt_id": "attempt:actual-ledger-fixture"
+        },
+        "bound_at": "2026-10-27T02:00:04Z",
+        "expires_at": "2026-10-27T02:00:12Z",
+        "registration": {
+          "registration_id": "participation-registration:synthetic-1",
+          "registration_digest": "1b2d4112c3d1a98bab16867386e6a2b53289f4dc97579af890141167e6045a77"
+        },
+        "source_confirmation": "pending"
+      },
+      "schema_valid": true,
+      "required_runtime_result": "Keep this already-bound reply ineligible until original Core admission/current source confirms this exact fanout and same original author; never claim early or change registration."
+    },
+    {
+      "id": "resolved-stage-cannot-switch-original-author",
+      "definition": "delivery_binding",
+      "document": {
+        "schema_version": 1,
+        "kind": "participation_delivery_binding",
+        "request_id": "request:binding-1",
+        "candidate": {
+          "candidate_id": "candidate:synthetic-1",
+          "actor_id": "actor:synthetic-a",
+          "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+        },
+        "decision": {
+          "decision_id": "decision:synthetic-1",
+          "revision": 1,
+          "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+        },
+        "claim": {
+          "claim_id": "claim:synthetic-1",
+          "candidate": {
+            "candidate_id": "candidate:synthetic-1",
+            "actor_id": "actor:synthetic-a",
+            "candidate_digest": "eed2444de0c39cb28ad3f303222de1a42896f469262e8a829343e7f4114c2313"
+          },
+          "decision": {
+            "decision_id": "decision:synthetic-1",
+            "revision": 1,
+            "decision_digest": "197ddcd1b09a16d0fda8cabaf35a712af3655f12dd21f82229e86e33179e0ae9"
+          },
+          "host_epoch": "host-epoch:g1",
+          "host_generation": "host-config:g1",
+          "owner_revision": 3,
+          "expires_at": "2026-10-27T02:00:12Z"
+        },
+        "source": {
+          "source_ref": "observation:synthetic-1",
+          "source_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+          "scope_version": 4,
+          "archive_epoch": 2
+        },
+        "author_anchor": {
+          "entry_id": "entry:synthetic-author",
+          "person_id": "person:synthetic-author",
+          "conversation_id": "conversation:synthetic-group",
+          "binding_version": 3,
+          "stage": "resolved",
+          "account_id": "10003",
+          "group_id": "20001"
+        },
+        "configuration": {
+          "platform_generation": "platform:g1",
+          "host_generation": "host-config:g1",
+          "role_version": 7,
+          "reply_policy_revision": 4
+        },
+        "delivery": {
+          "connection_id": "bot-connection:synthetic",
+          "turn_id": "turn:actually-admitted-fixture",
+          "reply_id": "reply:actual-ledger-fixture",
+          "attempt_id": "attempt:actual-ledger-fixture"
+        },
+        "bound_at": "2026-10-27T02:00:04Z",
+        "expires_at": "2026-10-27T02:00:12Z",
+        "registration": {
+          "registration_id": "participation-registration:synthetic-1",
+          "registration_digest": "1b2d4112c3d1a98bab16867386e6a2b53289f4dc97579af890141167e6045a77"
+        },
+        "source_confirmation": "confirmed"
+      },
+      "schema_valid": true,
+      "required_runtime_result": "Reject binding: resolution may add proven person/conversation but account/native/source/actor and registered entry must remain the same original identity."
+    }
+  ]
+}

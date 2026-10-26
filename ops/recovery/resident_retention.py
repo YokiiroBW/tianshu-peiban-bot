@@ -1,6 +1,6 @@
 """Retain one verified resident cold backup, using the existing snapshot proof.
 
-Only the five data directories of a recognized cold snapshot are removable.
+Only the named data directories of a recognized cold snapshot are removable.
 Original manifests/receipts and new, hash-bound retention receipts remain.
 No image, container, live authority, or arbitrary release directory is removed.
 """
@@ -15,9 +15,9 @@ import subprocess
 import uuid
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
-
 DATA_DIRECTORIES = ("backup", "controls-backup", "restored-disabled",
                     "controls-restored-disabled", "sqlite-verification")
+POSTGRES_DIRECTORIES = ("postgresql",)
 VERIFICATION_DIRECTORIES = DATA_DIRECTORIES[2:]
 OWNERS = {"platform", "gateway", "memory", "knowledge", "companion",
           "obs-loki", "obs-vector", "obs-prometheus", "obs-grafana", "obs-guard"}
@@ -90,6 +90,18 @@ def validate_proof(manifest, receipt, authority):
              and receipt["bytes"] == manifest["inventory"]["bytes"]
              and receipt["entries"] == len(manifest["inventory"]["entries"]),
              "retention_snapshot_proof_changed")
+    if manifest.get("postgresql"):
+        rows = manifest["postgresql"]
+        _require(isinstance(rows, list) and all(
+            row.get("native_restore_verified") is True and row.get("scratch_removed") is True
+            and isinstance(row.get("schemas"), dict) and bool(row["schemas"])
+            and re.fullmatch(r"postgresql/[0-9]+\.dump", row.get("archive", ""))
+            and re.fullmatch("[a-f0-9]{64}", row.get("sha256", "")) for row in rows),
+            "retention_postgresql_proof_changed")
+        _require(receipt.get("postgresql_databases_verified") == manifest.get("postgresql_databases_verified")
+                 == sum(len(row["schemas"]) for row in rows)
+                 and receipt.get("postgresql_services_verified") == len(rows),
+                 "retention_postgresql_proof_changed")
 
 
 def make_plan(*, updates_root, authority_root, keep, snapshots, containers,
@@ -105,7 +117,8 @@ def make_plan(*, updates_root, authority_root, keep, snapshots, containers,
         _require(row["receipt"]["manifest_sha256"] == row["manifest_sha256"], "retention_manifest_hash_changed")
         _require(all(re.fullmatch("[a-f0-9]{64}", row[key]) for key in ("manifest_sha256", "receipt_sha256")),
                  "retention_hash_required")
-        directories = VERIFICATION_DIRECTORIES if str(path) == keep else DATA_DIRECTORIES
+        data_directories = DATA_DIRECTORIES + (POSTGRES_DIRECTORIES if row["manifest"].get("postgresql") else ())
+        directories = VERIFICATION_DIRECTORIES if str(path) == keep else data_directories
         present = set(row.get("children", DATA_DIRECTORIES))
         records.append({"path": str(path), "device": row["device"], "inode": row["inode"],
                         "manifest_sha256": row["manifest_sha256"], "receipt_sha256": row["receipt_sha256"],
@@ -202,6 +215,17 @@ def verify_kept_copies(path, manifest, snapshot):
     actual = [snapshot.control_inventory(controls / str(index), check) for index in range(len(manifest["external_controls"]))]
     _require(sorted(_json(value) for value in actual) == sorted(_json(value) for value in manifest["external_controls"].values()),
              "retention_kept_controls_changed")
+    if manifest.get("postgresql"):
+        postgres = _safe_directory(path / "postgresql")
+        rows = manifest["postgresql"]
+        _require(json.loads((postgres / "manifest.json").read_bytes()) == {"version": 1, "databases": rows},
+                 "retention_kept_postgresql_changed")
+        for row in rows:
+            archive = path / row["archive"]
+            info = archive.lstat()
+            _require(stat.S_ISREG(info.st_mode) and not archive.is_symlink() and info.st_nlink == 1
+                     and info.st_size == row["bytes"] and snapshot.file_hash(archive) == row["sha256"],
+                     "retention_kept_postgresql_changed")
 
 
 def verification_copies_available(path):
@@ -250,11 +274,12 @@ def apply_plan(plan, *, snapshot, containers, execute=False):
     keep, proof = None, {}
     for row in plan["snapshots"]:
         _snapshot_path(row["path"], plan["updates_root"], plan["authority_root"])
-        allowed = VERIFICATION_DIRECTORIES if row["path"] == plan["keep"] else DATA_DIRECTORIES
+        evidence = read_evidence(row["path"], plan["authority_root"])
+        data_directories = DATA_DIRECTORIES + (POSTGRES_DIRECTORIES if evidence["manifest"].get("postgresql") else ())
+        allowed = VERIFICATION_DIRECTORIES if row["path"] == plan["keep"] else data_directories
         _require(row["keep_data"] == (row["path"] == plan["keep"])
                  and len(row["remove"]) == len(set(row["remove"]))
                  and set(row["remove"]) <= set(allowed), "retention_deletion_scope_changed")
-        evidence = read_evidence(row["path"], plan["authority_root"])
         for key in ("device", "inode", "manifest_sha256", "receipt_sha256"):
             _require(evidence[key] == row[key], "retention_catalog_changed")
         for name in row["remove"]:

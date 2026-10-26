@@ -1,0 +1,573 @@
+{
+  "schema_version": 1,
+  "planning_id": "autonomous-life-2026-10-23",
+  "date": "2026-10-23",
+  "timezone": "Asia/Shanghai",
+  "state": "wave2_AL08_AL11_local_verified_release_preparation",
+  "canonical_plan": "docs/development/autonomous-life-development-queue-2026-10-23.md",
+  "architecture": "docs/architecture/actor-self-memory-design-2026-10-23.md",
+  "id_policy": "AL编号仅为本批规划身份，不是scripts/workspace.py运行任务；正式派发由根协调者登记新TS并维护AL到TS映射。",
+  "product_implementation_started": true,
+  "production_operations_performed": false,
+  "baseline_snapshot": {
+    "memory": "a3abf61ab15623803fd4043a1dd16d7b5b9e9f5c",
+    "companion": "a188a3b438ed100491198a1be49ab402e26b6fe5",
+    "execution_rule": "Q21核心已发布；记忆扩展五卡本地交付。TS318基于最终3e2cc41完整装配并验收；后续AL11须独立精确卡/合同和适配器归属，不改Memory或Companion src。",
+    "q20_includes": [
+      "TS-298",
+      "TS-299",
+      "TS-300",
+      "TS-301",
+      "TS-302",
+      "TS-303",
+      "TS-304",
+      "TS-305"
+    ],
+    "compute_host": "192.168.31.230",
+    "pg_redis_host": "192.168.31.210",
+    "evidence": "docs/development/CURRENT.md",
+    "platform_candidate": "95767b2b18c78eb9c503f5def34fd297b8a9fcc9",
+    "q21_released_candidates": {
+      "memory": "62206f2a58be08e4032ce32ddf2c90219f417877",
+      "companion": "68b85d0d59e2cdbe93a5240e4d7771d4f7a31840",
+      "platform": "506a82062166cef457974ef9b95789010e3435d0"
+    },
+    "active_extensions": [],
+    "q21_initial_active_tasks": [
+      "TS-306",
+      "TS-307",
+      "TS-308"
+    ],
+    "extension_local_candidates": {
+      "TS-313": "a2de620c676a24d7c08bb33ef3f1be2488b71666",
+      "TS-314": "671deeadb04301b42f56a3a2020548117698bbc0",
+      "TS-315": "1c2ee12c42d466bd9b48d1dd67d491429753f395",
+      "TS-316": "3e2cc412c676450a90dc0cbd3c3387d1c945e5e2",
+      "TS-317": "5ff98947f7eaf82384d359ca84ad581a5cf113f0"
+    }
+  },
+  "ownership": {
+    "long_term_actor_memory": "memory actor_memory domain",
+    "user_memory": "existing memory domain",
+    "persona_and_execution_state": "companion existing owners",
+    "original_content": "knowledge existing owners",
+    "account_actions": "platform existing adapters"
+  },
+  "constraints": [
+    "同产品单写者，独立分支/worktree，根共享入口与发布单写",
+    "不改变用户记忆旧接口/表/索引/主体语义，不伪造person_id",
+    "同PG独立角色逻辑源/schema/guard/任务及有界准入，不承诺CPU/IO零影响",
+    "共同经历仅通过带受众/版本/撤回语义的来源引用连接",
+    "不新增普通聊天必经模型步骤，不扩大总模型槽掩盖回归",
+    "外部账号需求完整保留，替身或只读能力不能冒称真实写动作"
+  ],
+  "suggested_lanes": {
+    "memory": [
+      "AL-02",
+      "AL-04",
+      "AL-09"
+    ],
+    "companion": [
+      "AL-05",
+      "AL-03",
+      "AL-06",
+      "AL-10",
+      "AL-12",
+      "AL-13"
+    ],
+    "platform": [
+      "AL-07",
+      "AL-08",
+      "AL-11",
+      "AL-14",
+      "AL-15",
+      "AL-16"
+    ],
+    "coordination": [
+      "AL-01",
+      "AL-17",
+      "AL-18"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "AL-01",
+      "title": "角色记忆与行动来源合同",
+      "owner": "workspace",
+      "status": "local_candidate_verified",
+      "depends_on": [],
+      "size": "中",
+      "path_scope": [
+        "contracts/",
+        "docs/architecture/actor-self-memory-design-2026-10-23.md"
+      ],
+      "deliverable": "合同、来源/权限正反样例、旧用户API兼容语义及AL到TS映射",
+      "detail_section": "AL-01",
+      "external_dependencies": [],
+      "runtime_tasks": [
+        "TS-309"
+      ],
+      "delivery_commit": "1d5523e7c968d1deccc569ef396d953b8c1f2241",
+      "production_published": false
+    },
+    {
+      "id": "AL-02",
+      "title": "独立角色记忆存储与应用接口",
+      "owner": "memory",
+      "status": "external_candidate_delivered",
+      "depends_on": [
+        "AL-01"
+      ],
+      "size": "大",
+      "path_scope": [
+        "src/tianshu_memory/actor_memory/ (新增)",
+        "src/tianshu_memory/app.py (薄装配)",
+        "tests/"
+      ],
+      "deliverable": "独立逻辑源/schema、DDL/guard/任务/索引/回执及角色接口，不改用户领域语义",
+      "detail_section": "AL-02",
+      "external_dependencies": [
+        "q21_memory_verified_and_writer_released_or_explicit_partition"
+      ],
+      "runtime_tasks": [
+        "TS-313"
+      ],
+      "external_execution_record": "docs/development/memory-extensions-execution-2026-10-26.md",
+      "external_delivery_commit": "a2de620c676a24d7c08bb33ef3f1be2488b71666",
+      "external_task_state": "local_verified_not_integrated"
+    },
+    {
+      "id": "AL-03",
+      "title": "自身经历可靠写回与历史导入",
+      "owner": "companion",
+      "status": "external_candidate_delivered",
+      "depends_on": [
+        "AL-02"
+      ],
+      "size": "中",
+      "path_scope": [
+        "src/tianshu_companion/life.py",
+        "src/tianshu_companion/reading.py",
+        "src/tianshu_companion/runtime_execution.py",
+        "src/tianshu_companion/clients.py",
+        "tests/"
+      ],
+      "deliverable": "原事件与待交付引用同事务、幂等补传和有界历史导入",
+      "detail_section": "AL-03",
+      "external_dependencies": [
+        "q21_companion_verified_and_writer_released_or_explicit_partition"
+      ],
+      "runtime_tasks": [
+        "TS-314"
+      ],
+      "external_execution_record": "docs/development/memory-extensions-execution-2026-10-26.md",
+      "external_delivery_commit": "671deeadb04301b42f56a3a2020548117698bbc0",
+      "external_task_state": "local_verified_not_integrated"
+    },
+    {
+      "id": "AL-04",
+      "title": "自我召回、长期兴趣与派生认识生命周期",
+      "owner": "memory",
+      "status": "external_candidate_delivered",
+      "depends_on": [
+        "AL-02"
+      ],
+      "size": "大",
+      "path_scope": [
+        "src/tianshu_memory/actor_memory/ (新增)",
+        "tests/"
+      ],
+      "deliverable": "角色检索、唯一长期兴趣版本、来源撤回与派生生命周期",
+      "detail_section": "AL-04",
+      "external_dependencies": [
+        "q21_memory_verified_and_writer_released_or_explicit_partition"
+      ],
+      "runtime_tasks": [
+        "TS-313"
+      ],
+      "external_execution_record": "docs/development/memory-extensions-execution-2026-10-26.md",
+      "external_delivery_commit": "a2de620c676a24d7c08bb33ef3f1be2488b71666",
+      "external_task_state": "local_verified_not_integrated"
+    },
+    {
+      "id": "AL-05",
+      "title": "生活后台调度与活动恢复",
+      "owner": "companion",
+      "status": "external_candidate_delivered",
+      "depends_on": [
+        "AL-01"
+      ],
+      "size": "中至大",
+      "path_scope": [
+        "src/tianshu_companion/runtime_execution.py",
+        "src/tianshu_companion/life.py",
+        "src/tianshu_companion/life_activities.py",
+        "src/tianshu_companion/model_slots.py",
+        "tests/"
+      ],
+      "deliverable": "原后台槽、有界pump、暂停重评及实际Gateway类别核对",
+      "detail_section": "AL-05",
+      "external_dependencies": [
+        "q21_companion_verified_and_writer_released_or_explicit_partition"
+      ],
+      "runtime_tasks": [
+        "TS-314"
+      ],
+      "external_execution_record": "docs/development/memory-extensions-execution-2026-10-26.md",
+      "external_delivery_commit": "671deeadb04301b42f56a3a2020548117698bbc0",
+      "external_task_state": "local_verified_not_integrated"
+    },
+    {
+      "id": "AL-06",
+      "title": "兴趣驱动目标选择与滚动日程",
+      "owner": "companion",
+      "status": "planned",
+      "depends_on": [
+        "AL-03",
+        "AL-04",
+        "AL-05"
+      ],
+      "size": "大",
+      "path_scope": [
+        "src/tianshu_companion/life_daily.py",
+        "src/tianshu_companion/life_influences.py",
+        "src/tianshu_companion/life_work.py",
+        "src/tianshu_companion/life_activities.py",
+        "tests/"
+      ],
+      "deliverable": "自主小目标、既有concern/activity状态、跨日与重启续行",
+      "detail_section": "AL-06",
+      "external_dependencies": [
+        "q21_companion_verified_and_writer_released_or_explicit_partition"
+      ]
+    },
+    {
+      "id": "AL-07",
+      "title": "角色能力执行与账号绑定",
+      "owner": "platform",
+      "status": "local_verified",
+      "depends_on": [
+        "AL-01"
+      ],
+      "size": "大",
+      "path_scope": [
+        "services/platform/plugins/",
+        "services/platform/media/accounts.py",
+        "services/platform/role_runtime.py",
+        "tests/backend/"
+      ],
+      "deliverable": "角色动作能力桥、账号绑定及可核对回执",
+      "detail_section": "AL-07",
+      "external_dependencies": [
+        "platform_verified_baseline_and_single_writer"
+      ],
+      "runtime_tasks": [
+        "TS-310"
+      ],
+      "production_published": false,
+      "delivery_commit": "90c0d44fc5d244e91ea4665e59e18e18a607e3df",
+      "product_integrated": false
+    },
+    {
+      "id": "AL-08",
+      "title": "网页与现有媒体的内容发现",
+      "owner": "platform",
+      "status": "local_candidate_verified",
+      "depends_on": [
+        "AL-07"
+      ],
+      "size": "中至大",
+      "path_scope": [
+        "services/platform/media/",
+        "services/platform/plugins/",
+        "tests/backend/"
+      ],
+      "deliverable": "真实搜索和既有媒体目录候选、去重及实际可读来源",
+      "detail_section": "AL-08",
+      "external_dependencies": [
+        "platform_verified_baseline_and_single_writer"
+      ],
+      "implementation_gate": "TS316 final committed delivery, shared entry point and task capacity release",
+      "preparation": "docs/development/autonomous-life-wave2-execution-2026-10-26.md",
+      "runtime_tasks": [
+        "TS-318"
+      ],
+      "task_card": "docs/development/TS-318-AL08-content-discovery.md",
+      "integration_depends_on": [
+        "TS-316"
+      ],
+      "baseline_commit": "3e2cc412c676450a90dc0cbd3c3387d1c945e5e2",
+      "delivery_commit": "6d8dbaf29979c210c027f36a8333b5a605f7c3e6",
+      "production_published": false,
+      "shared_assembly_released": true,
+      "verification_record": "docs/development/autonomous-life-wave2-delivery-2026-10-26.json"
+    },
+    {
+      "id": "AL-09",
+      "title": "多媒体真实阅读与覆盖",
+      "owner": "memory",
+      "status": "planned",
+      "depends_on": [
+        "AL-01"
+      ],
+      "size": "大",
+      "path_scope": [
+        "src/tianshu_memory/knowledge_content.py",
+        "src/tianshu_memory/knowledge_sources.py",
+        "src/tianshu_memory/knowledge_media.py",
+        "tests/"
+      ],
+      "deliverable": "字幕/可用转录/片段与长内容进度、实际覆盖与gaps",
+      "detail_section": "AL-09",
+      "external_dependencies": [
+        "q21_memory_verified_and_writer_released_or_explicit_partition"
+      ]
+    },
+    {
+      "id": "AL-10",
+      "title": "自主阅读到体验的完整闭环",
+      "owner": "companion",
+      "status": "planned",
+      "depends_on": [
+        "AL-03",
+        "AL-04",
+        "AL-05",
+        "AL-06",
+        "AL-07",
+        "AL-08",
+        "AL-09"
+      ],
+      "size": "大",
+      "path_scope": [
+        "src/tianshu_companion/runtime_execution.py",
+        "src/tianshu_companion/role_actions.py",
+        "src/tianshu_companion/skills/registry.py",
+        "src/tianshu_companion/reading.py",
+        "tests/"
+      ],
+      "deliverable": "统一后台工具路径和选内容到理解到长期经历的闭环",
+      "detail_section": "AL-10",
+      "external_dependencies": [
+        "q21_companion_verified_and_writer_released_or_explicit_partition"
+      ]
+    },
+    {
+      "id": "AL-11",
+      "title": "普通群观察的参与请求与可靠出站",
+      "owner": "platform",
+      "status": "local_candidate_verified",
+      "depends_on": [
+        "AL-01"
+      ],
+      "size": "中",
+      "path_scope": [
+        "services/platform/bot_observation.py",
+        "services/platform/bot_delivery.py",
+        "services/platform/bots.py",
+        "tests/backend/"
+      ],
+      "deliverable": "观察/许可/语义参与/投递责任分离，协调唯一共享适配器作者",
+      "detail_section": "AL-11",
+      "external_dependencies": [
+        "platform_verified_baseline_and_single_writer"
+      ],
+      "implementation_gate": "TS316 final committed delivery, shared entry point and task capacity release",
+      "preparation": "docs/development/autonomous-life-wave2-execution-2026-10-26.md",
+      "gate": "集中审查和实际 SDK 联合验证完成；发布准备中，普通候选在 AL12 缺席时保持静默。",
+      "runtime_tasks": [
+        "TS-319",
+        "TS-320",
+        "TS-321"
+      ],
+      "candidate_contract_commit": "188b52a6cc8fe8736bf569d117bcf7517cfc1ddc",
+      "candidate_manifest_sha256": "347b60a1dde6967adf559597e5bd7dfaa948f5b268d158d04ea3e3ad78b7c826",
+      "delivery_commits": {
+        "companion": "d416b68c2bf47f6a5675c8f170c5185062e66688",
+        "platform": "620b1e0b0a6c76ac69f538a13e00c9c6d53b112d"
+      },
+      "production_published": false,
+      "verification_record": "docs/development/autonomous-life-wave2-delivery-2026-10-26.json"
+    },
+    {
+      "id": "AL-12",
+      "title": "人格与兴趣驱动的群聊参与",
+      "owner": "companion",
+      "status": "planned",
+      "depends_on": [
+        "AL-03",
+        "AL-04",
+        "AL-05",
+        "AL-11"
+      ],
+      "size": "大",
+      "path_scope": [
+        "src/tianshu_companion/observation.py",
+        "src/tianshu_companion/proactive.py",
+        "src/tianshu_companion/core.py (薄装配)",
+        "tests/"
+      ],
+      "deliverable": "聚合话题、候选想法、适时参与或静默；未回复但有价值的观察沿AL03有源写回并可次日探索，保留原触发路径",
+      "detail_section": "AL-12",
+      "external_dependencies": [
+        "q21_companion_verified_and_writer_released_or_explicit_partition"
+      ]
+    },
+    {
+      "id": "AL-13",
+      "title": "日记、反思、分享与对话自我召回",
+      "owner": "companion",
+      "status": "planned",
+      "depends_on": [
+        "AL-04",
+        "AL-06",
+        "AL-10"
+      ],
+      "size": "大",
+      "path_scope": [
+        "src/tianshu_companion/life.py",
+        "src/tianshu_companion/proactive.py",
+        "src/tianshu_companion/runtime_execution.py",
+        "src/tianshu_companion/life_read*.py",
+        "src/tianshu_companion/core.py (窄上下文装配)",
+        "tests/"
+      ],
+      "deliverable": "有来源日记与分享、两域按需分栏召回、普通聊天无新增必经模型步骤",
+      "detail_section": "AL-13",
+      "external_dependencies": [
+        "q21_companion_verified_and_writer_released_or_explicit_partition"
+      ]
+    },
+    {
+      "id": "AL-14",
+      "title": "B站角色账号互动",
+      "owner": "platform",
+      "status": "planned",
+      "depends_on": [
+        "AL-07",
+        "AL-08"
+      ],
+      "size": "中至大",
+      "path_scope": [
+        "services/platform/media/bilibili.py",
+        "services/platform/media/accounts.py",
+        "tests/backend/"
+      ],
+      "deliverable": "收藏、点赞、评论/回复真实动作及结果核对，观看理解与播放历史分列",
+      "detail_section": "AL-14",
+      "external_dependencies": [
+        "platform_verified_baseline_and_single_writer"
+      ],
+      "runtime_dependency": "当前B站具体动作接入路径及角色账号验证；不可用动作仍待完成"
+    },
+    {
+      "id": "AL-15",
+      "title": "小黑盒内容与角色账号互动",
+      "owner": "platform",
+      "status": "planned",
+      "depends_on": [
+        "AL-07",
+        "AL-08"
+      ],
+      "size": "大",
+      "path_scope": [
+        "services/platform/ 小黑盒领域适配器 (新增)",
+        "tests/backend/"
+      ],
+      "deliverable": "分区/推荐/楼层/通知、收藏点赞评论等实际能力并接统一内容与经历链",
+      "detail_section": "AL-15",
+      "external_dependencies": [
+        "platform_verified_baseline_and_single_writer"
+      ],
+      "runtime_dependency": "当前小黑盒具体动作接入路径及角色账号验证；不可用动作仍待完成"
+    },
+    {
+      "id": "AL-16",
+      "title": "生活与自身记忆的完整界面",
+      "owner": "platform",
+      "status": "planned",
+      "depends_on": [
+        "AL-02",
+        "AL-04",
+        "AL-06",
+        "AL-13"
+      ],
+      "size": "中至大",
+      "path_scope": [
+        "apps/web/src/features/life/",
+        "apps/web/src/features/memory/",
+        "services/platform/ 对应网页聚合",
+        "tests/backend/",
+        "apps/web/tests/"
+      ],
+      "deliverable": "目标、进度、兴趣变化、记忆来源与用户/角色分栏",
+      "detail_section": "AL-16",
+      "external_dependencies": [
+        "platform_verified_baseline_and_single_writer"
+      ]
+    },
+    {
+      "id": "AL-17",
+      "title": "全链路隔离与负载联合验收",
+      "owner": "workspace",
+      "status": "planned",
+      "depends_on": [
+        "AL-03",
+        "AL-04",
+        "AL-06",
+        "AL-10",
+        "AL-12",
+        "AL-13",
+        "AL-14",
+        "AL-15",
+        "AL-16"
+      ],
+      "size": "大",
+      "path_scope": [
+        "docs/development/ 本批验收记录",
+        "tests/ 现有联合测试",
+        "scripts/ 必要定向验证"
+      ],
+      "deliverable": "零串写/串召回、来源撤回、独立恢复、同配置用户负载对照及真实能力矩阵",
+      "detail_section": "AL-17",
+      "external_dependencies": []
+    },
+    {
+      "id": "AL-18",
+      "title": "串行发布、实机验收与连续使用",
+      "owner": "workspace",
+      "status": "planned",
+      "depends_on": [
+        "AL-17"
+      ],
+      "size": "中，另含观察时间",
+      "path_scope": [
+        "ops/ 既有发布工具按需",
+        "docs/development/ 本批发布与验收记录"
+      ],
+      "deliverable": "当前230/210拓扑串行发布、独立角色源恢复、完整实机与连续使用结果",
+      "detail_section": "AL-18",
+      "external_dependencies": [],
+      "execution_dependency": "对应发布与实际账号动作授权；本轮已授权本地开发，尚未执行发布或真实账号动作"
+    }
+  ],
+  "execution_record": "docs/development/autonomous-life-execution-2026-10-23.md",
+  "wave2_execution_record": "docs/development/autonomous-life-wave2-execution-2026-10-26.md",
+  "coordination_boundary": "docs/development/autonomous-life-boundary-2026-10-26.json",
+  "coordination_observation": {
+    "date": "2026-10-27",
+    "state": "TS320_TS321_independent_products_in_progress",
+    "active_task_count": 3,
+    "available_task_slots": 2,
+    "platform_candidate": "3e2cc412c676450a90dc0cbd3c3387d1c945e5e2",
+    "companion_candidate": "671deeadb04301b42f56a3a2020548117698bbc0",
+    "AL11": "offline_protocol_preparation_only_no_product_code"
+  },
+  "wave2_delivery_record": "docs/development/autonomous-life-wave2-delivery-2026-10-26.json",
+  "release_authorization": {
+    "date": "2026-10-27",
+    "authorized": true,
+    "scope": "功能审查和实际联合完成后，连记忆系统更新一并推送部署并实机验收；保留配置数据与其他服务，统一串行协调。",
+    "record": "docs/development/autonomous-life-memory-release-2026-10-27.md",
+    "performed": false
+  }
+}

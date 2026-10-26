@@ -1,5 +1,24 @@
 # DEP-C：离线恢复工具
 
+可选 PG 与原件文件库的常驻冷备、原生隔离恢复校验及客户端要求见 [POSTGRES.md](POSTGRES.md)。该扩展沿用当前 `resident_snapshot`，下文 DEP-C 合成接口的原有范围保持。
+
+常驻冷备同时识别 Memory 配置中的独立 `actor_memory` 域。数据库、state_directory
+和 guard_path（含产品默认值）由现有 Memory bind 映射到本次 authority 树，独立
+guard 自动收录，无需把它改名成用户的 `.source-guard.json`。已配置 PG 时必须存在
+active 的 `actor-memory/main` binding，连接和维护连接复用 Memory owner，不能复用
+用户 installation/schema。原生 dump 的 `actor_metadata` schema2 与独立 guard 的
+domain/schema/instance/revision/recovery 在原库和隔离恢复副本中分别核验；不把用户
+metadata schema3 的证明套到角色域。`memory_guards_verified` 计入这一个独立 guard，
+manifest 的 `actor_memory` 记录具体映射。恢复文件准备仅按原流程换缓存 epoch，不改
+角色 checkpoint、用户 guard 或数据库身份，也不激活服务。
+
+纯 SQLite 且未启用 Redis 的 StorageRuntime 不生成 binding 文件，该情形直接校验
+实际 actor 数据库和独立 guard；已有 binding 仍须与实际配置一致。未配置 actor 域
+保持原行为；配置了却缺数据库/guard/必要 binding、路径不在 Memory 实际可写挂载、
+落在 authority 树外、与用户域重叠或 checkpoint 不符均拒绝，不发布验证收据。
+外置 actor authority 的复制/启用不在本入口支持范围，不会将其当日志或媒体排除后
+默默完成。此扩展的组件检查与真实 PG 验收分别记录，不代表生产恢复已演练。
+
 本包实现**本机合成部署**备份、隔离恢复、更新前备份及独立代码选择。DEP-F 新增 [生命周期入口](LIFECYCLE.md)：默认 plan，显式绑定核心/日志两项目、停止并确认全部 owner 后才备份，消费 DEP-E 1.1 五个日志状态卷。已验证真实合成进程；Docker 适配器仅完成命令契约测试，Linux/四真实产品/NAS 未运行。以下为保留的 DEP-C 离线核心接口；生产 `restore_drill` 和原权威丢失的灾难恢复仍不支持。
 
 运行需要 Python 3.12+ 标准库，无第三方运行依赖。入口从协调仓库根运行：
