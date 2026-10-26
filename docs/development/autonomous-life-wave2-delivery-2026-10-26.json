@@ -2,7 +2,7 @@
   "schema_version": 1,
   "date": "2026-10-27",
   "batch": "autonomous-life-wave2-2026-10-26",
-  "state": "AL08_AL11_local_verified_release_preparation",
+  "state": "AL08_AL11_runtime_deployed_external_qq_login_pending",
   "AL08": {
     "task": "TS-318",
     "commit": "6d8dbaf29979c210c027f36a8333b5a605f7c3e6",
@@ -31,7 +31,7 @@
       "tests/backend/test_content_discovery_platform.py",
       "tests/backend/test_content_discovery_plugins.py"
     ],
-    "state": "local_verified_not_integrated",
+    "state": "production_runtime_deployed_with_limits",
     "checks": {
       "passed": 72,
       "skipped": 1,
@@ -40,7 +40,7 @@
     "independent_review_fixes": 6,
     "root_index_unchanged": true,
     "pushed": true,
-    "deployed": false
+    "deployed": true
   },
   "reuse": [
     "PluginManager/Executions/Vault/RoleRuntime/actor_capabilities",
@@ -75,7 +75,7 @@
     "workspace_preparation_check": "Existing historical completed tasks reference absent worktrees; not product failure; unchanged"
   },
   "AL11": {
-    "state": "local_verified_not_integrated",
+    "state": "production_runtime_deployed_external_qq_login_pending",
     "location": ".runtime/autonomous-life-20261026/participation-proposal",
     "proposal_revision": 2,
     "schema_positive": 24,
@@ -132,7 +132,7 @@
     },
     "independent_review": "Immutable product diffs reviewed; claimed pagination and confirmed-source dispatch deadline defects fixed and verified; original failed harness attempts retained",
     "pushed": true,
-    "deployed": false
+    "deployed": true
   },
   "external_deliveries": {
     "TS-313": {
@@ -168,14 +168,14 @@
     "browser configuration of new plugin",
     "Companion AL04/09/10 actual consumption"
   ],
-  "pushed": false,
-  "deployed": false,
+  "pushed": true,
+  "deployed": true,
   "release_authorization": {
     "date": "2026-10-27",
     "authorized": true,
     "scope": "功能审查和实际联合完成后，连记忆系统更新一并推送部署并实机验收；保留配置数据与其他服务，统一串行协调。",
     "record": "docs/development/autonomous-life-memory-release-2026-10-27.md",
-    "performed": false
+    "performed": true
   },
   "release_preparation": {
     "authorization": "Latest user explicitly authorized combined push and deployment with Memory updates",
@@ -183,7 +183,7 @@
     "chat_checks_passed": 43,
     "chat_production_identity_fixes_preserved": true,
     "actor_recovery_task": "TS-323",
-    "production_operations_performed": false,
+    "production_operations_performed": true,
     "limitations": [
       "No authorized production group/archive mapping; no inferred person or group identities",
       "AL12 not implemented: ordinary participation candidates remain silent",
@@ -197,5 +197,16 @@
       "gateway": "5ff98947f7eaf82384d359ca84ad581a5cf113f0",
       "chat": "6aa6e7f2765ff2702b443b1fe318b38ca91a9057"
     }
+  },
+  "deployment_record": "docs/development/autonomous-life-memory-release-2026-10-27.json",
+  "deployment_limitations": {
+    "AL12": "not_implemented",
+    "real_group_chat": "not_verified",
+    "real_search": "not_verified",
+    "external_accounts": "not_verified",
+    "qq_ready": false,
+    "external_qq_login_required": true,
+    "full_runtime_acceptance_verified": false,
+    "token_http_status": "http_positive_incomplete"
   }
 }

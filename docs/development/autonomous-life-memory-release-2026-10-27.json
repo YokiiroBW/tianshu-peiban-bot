@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "state": "products_published_release_preparation",
+  "state": "production_deployed_runtime_verified_external_qq_login_pending",
   "date": "2026-10-27",
   "products": {
     "memory": "a2de620c676a24d7c08bb33ef3f1be2488b71666",
@@ -139,14 +139,17 @@
       "production_changed": false
     }
   },
-  "production_deployed": false,
-  "production_configuration_changed": false,
+  "production_deployed": true,
+  "production_configuration_changed": true,
   "model_calls": 0,
   "real_qq_test_messages": 0,
   "acceptance": "docs/development/autonomous-life-wave2-delivery-2026-10-26.json",
   "pending": [
-    "shared credential rotation scope answer",
-    "cold backup and serial service switch with real read-only acceptance"
+    "AL12 and real group participation",
+    "Real search/external account acceptance",
+    "Shared credential exposure remediation",
+    "External QQ login and full runtime acceptance",
+    "Complete actual HTTP-positive token acceptance"
   ],
   "actor_recovery": {
     "revision": "8fd0a34799021dadf67029f4bdf5af8b71dfb178",
@@ -217,5 +220,140 @@
       "loader-results-r1.json": "9a326753484c31fcde4d3254eac69bb0a95d5ef235ea91c8680a137f9d0422c3",
       "source-pins-and-external.json": "1989f21cc39f8775066884387ca6c59aeaa0e2e0974371fbc315233e5e0f29ac"
     }
+  },
+  "deployment": {
+    "recorded_at_utc": "2026-10-26T21:06:35.199244+00:00",
+    "state": "production_deployed_runtime_verified_external_qq_login_pending",
+    "full_runtime_acceptance_verified": false,
+    "qq_ready": false,
+    "external_qq_login_required": true,
+    "core": {
+      "status": "runtime_acceptance_verified_external_qq_offline",
+      "images": {
+        "memory": "sha256:661696f366d63c2069656b3ed61a7786895bfe8cc96ed53c71d14323df93291e",
+        "knowledge": "sha256:8f244e0b6fafe58efff389fa074599b30100ea6fafe3d45a40e74fd092b10d6a",
+        "companion": "sha256:eb133e0e0b0295cf1bdcd145381ee01fe5f51c366411bc7ae85d2ab18b1ad5ff",
+        "platform": "sha256:0ffb6f4f1977a8c23c41b97cecbce426efdd13632ccaf87327d9ac26fc7bfef7",
+        "gateway": "sha256:4cb3a12d95b1128d5bf4a0657013ced66b87eec6821372805c3c3441229ae42b",
+        "onebot": "sha256:0e2c40f9f96c8d327f5563ad43c72d0bd8d2b8311c1e55eb84e0d75703dd0a20"
+      },
+      "logical_sources": 25,
+      "guards": 3,
+      "independent_actor_guard_verified": true,
+      "source_files_verified": true,
+      "guard_ready": true,
+      "full_runtime_acceptance_verified": false,
+      "qq_ready": false,
+      "external_qq_login_required": true
+    },
+    "chat": {
+      "status": "image_mount_environment_health_verified",
+      "image": "sha256:1d8250623550c7bc039abd068ea981a16da4c3897bb66908949375679e0738a2",
+      "original_mounts_and_environment_preserved": true,
+      "native_restore_receipt_provided": true,
+      "APP_SECRET_KEY_changed": false,
+      "full_v4_export_or_restore_claimed": false,
+      "native_restore_table_count": 22
+    },
+    "token_http_acceptance": {
+      "status": "http_positive_incomplete",
+      "checks": [
+        {
+          "principal": "memory-reader",
+          "new_auth_component_accepted": true,
+          "existing_origin_available": false,
+          "old_http": {
+            "status": 401,
+            "code": "unauthorized",
+            "verified": true
+          },
+          "new_http": {
+            "status": null,
+            "code": null,
+            "verified": false
+          },
+          "new_http_positive_verified": false,
+          "old_http_rejected_verified": true
+        },
+        {
+          "principal": "memory-browser-resolver",
+          "new_auth_component_accepted": true,
+          "existing_origin_available": false,
+          "old_http": {
+            "status": 401,
+            "code": "unauthorized",
+            "verified": true
+          },
+          "new_http": {
+            "status": null,
+            "code": null,
+            "verified": false
+          },
+          "new_http_positive_verified": false,
+          "old_http_rejected_verified": true
+        },
+        {
+          "principal": "memory_relationship_resolver",
+          "new_auth_component_accepted": true,
+          "existing_origin_available": false,
+          "old_http": {
+            "status": 401,
+            "code": "unauthorized",
+            "verified": true
+          },
+          "new_http": {
+            "status": null,
+            "code": null,
+            "verified": false
+          },
+          "new_http_positive_verified": false,
+          "old_http_rejected_verified": true
+        }
+      ],
+      "new_http_positive_count": 0,
+      "old_http_rejected_count": 3,
+      "all_three_http_verified": false
+    },
+    "shared_credentials": "open_not_rotated",
+    "AL12_implemented": false,
+    "real_group_chat_behavior_verified": false,
+    "real_search_service_verified": false,
+    "external_account_actions_verified": false,
+    "group_reader_enabled_by_release": false,
+    "model_test_calls": 0,
+    "real_qq_test_messages": 0,
+    "evidence": {
+      "core": {
+        "path": ".runtime/autonomous-life-release-20261027/runtime-external-qq-acceptance-24f94033e2154988b35ed7d67291e69d.private.json",
+        "sha256": "1eb59ee9ac4d405189d931e4a48f7b342760b48c2dfe6f618a1dcc4e1c7bf475"
+      },
+      "chat": {
+        "path": ".runtime/autonomous-life-release-20261027/chat-release/activate-1793048410060540700.private.log",
+        "sha256": "beb2247f18e8f4e1205fdefa478c09f2e4d7f6848a93d74050d95abe7d883ef4"
+      },
+      "tokens": {
+        "path": ".runtime/autonomous-life-release-20261027/execution/token-http-acceptance-r1.json",
+        "sha256": "a708139b1ce2f1e44ff0a18190a2b8df79c4be852e687f1ce562f886a5626fc5"
+      },
+      "chat_restore": {
+        "path": ".runtime/autonomous-life-release-20261027/chat-release/restore_check-1793048242736312700.private.log",
+        "sha256": "ceee3c2a057efb646b6a05abf641792588305f04a51fe5994cb2f9beef1aca17"
+      }
+    },
+    "preserved_adverse_evidence": [
+      "Chat R1 temporary Unix-socket readiness failure before pg_restore connected",
+      "Chat R1 worker stop exit 137 after 90 seconds",
+      "Chat R2 worker stop also exited 137 after 90 seconds; native scratch restore and subsequent image/environment/health verification succeeded",
+      "Core cold-before final control consistency failed on two tool-created pycache files after native PostgreSQL proofs completed; original failure retained",
+      "Core cold-before continuation 8e789438 reused completed native proofs and rechecked 39 SQLite sources; no production restore",
+      "Core activation verifier rejected legitimate same-ref Gateway origin renewal after owner and Web checks; original failure retained for independent continuation",
+      "First token probe had one network dependency failure; retry verified all three old tokens rejected, while new HTTP positives remain incomplete without existing origins",
+      "Original build/contract/SDK/PG failures and conditional skips remain historical evidence"
+    ]
+  },
+  "source_publication": {
+    "commit": "31aafe0713c1e51a64e2df06d03ffacdea112d65",
+    "branch": "codex/autonomous-life-memory-release-20261027",
+    "pushed": true
   }
 }

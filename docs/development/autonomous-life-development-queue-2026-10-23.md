@@ -2,7 +2,7 @@
 
 日期：2026 年 10 月 23 日。状态：用户已授权开发，首批 TS-309 / AL-01 候选合同和 TS-310 / AL-07 平台能力已本地验证提交，分别为 `1d5523e` 与 `90c0d44`。尚未产品集成、迁移或部署；18 项没有全部完成。目标覆盖人格衍生兴趣、自主日程、角色自身记忆、真实内容阅读、群聊语义参与、主动分享、日记，以及 B站和小黑盒账号的收藏、点赞、评论等行为。精确范围见[首批执行卡](autonomous-life-execution-2026-10-23.md)，实际结果与限项见[首批交付](autonomous-life-first-wave-delivery-2026-10-23.json)。
 
-2026-10-27 最新更新：AL08与AL11已完成集中审查、实际SDK联合及受影响原生PG验证，最终Memory `a2de620`、Companion/SDK `d416b68`、Platform `620b1e0`、Chat `6aa6e7f`、Gateway `5ff9894`均已正常推送main，七候选镜像已隔离验证。独立角色记忆原生备份/恢复TS323已验证，生产尚未切换。详见[联合发布](autonomous-life-memory-release-2026-10-27.md)和[精确验收](autonomous-life-wave2-delivery-2026-10-26.json)。18项尚未全部完成；AL12缺席时普通群候选保持静默，不表示自主生活整批上线。上段为10月23日规划截面。
+2026-10-27 最新更新：五个核心服务、Chat 与独立 OneBot 的固定版本已实际部署，运行源码/镜像、原挂载与健康已核；新 actor 域与用户域独立，25 个逻辑源/3 个 guard 的冷备恢复已闭合。AL08/AL11 运行基础上线，AL12 尚未实现，普通候选继续静默；真实群聊、真实搜索和外站账号动作未验。后端运行验收已通过，外部 QQ 尚未登录，完整运行验收尚未通过；等待登录后复核。专属 token 新凭据真实 HTTP 阳性为 0/3；完整状态按逐 principal 收据记录，不以组件通过代替 HTTP 阳性。 共享凭据暴露仍 open，未改共享口令或 Chat 签名密钥。 18项尚未全部完成；详见[联合发布](autonomous-life-memory-release-2026-10-27.md)。
 
 设计依据为[角色自身记忆方案](../architecture/actor-self-memory-design-2026-10-23.md)和[前期可行性研究](../research/autonomous-companion-gap-analysis-2026-10-21.md)。本文件是本批功能范围与逐项完成条件的依据；[配套 JSON](autonomous-life-development-queue-2026-10-23.json)保存相同编号的依赖和归属，便于后续登记与调度。
 

@@ -3,12 +3,12 @@
   "planning_id": "autonomous-life-2026-10-23",
   "date": "2026-10-23",
   "timezone": "Asia/Shanghai",
-  "state": "wave2_AL08_AL11_local_verified_release_preparation",
+  "state": "wave2_AL08_AL11_runtime_deployed_external_qq_login_pending",
   "canonical_plan": "docs/development/autonomous-life-development-queue-2026-10-23.md",
   "architecture": "docs/architecture/actor-self-memory-design-2026-10-23.md",
   "id_policy": "AL编号仅为本批规划身份，不是scripts/workspace.py运行任务；正式派发由根协调者登记新TS并维护AL到TS映射。",
   "product_implementation_started": true,
-  "production_operations_performed": false,
+  "production_operations_performed": true,
   "baseline_snapshot": {
     "memory": "a3abf61ab15623803fd4043a1dd16d7b5b9e9f5c",
     "companion": "a188a3b438ed100491198a1be49ab402e26b6fe5",
@@ -272,7 +272,7 @@
       "id": "AL-08",
       "title": "网页与现有媒体的内容发现",
       "owner": "platform",
-      "status": "local_candidate_verified",
+      "status": "runtime_deployed_with_limits",
       "depends_on": [
         "AL-07"
       ],
@@ -298,7 +298,7 @@
       ],
       "baseline_commit": "3e2cc412c676450a90dc0cbd3c3387d1c945e5e2",
       "delivery_commit": "6d8dbaf29979c210c027f36a8333b5a605f7c3e6",
-      "production_published": false,
+      "production_published": true,
       "shared_assembly_released": true,
       "verification_record": "docs/development/autonomous-life-wave2-delivery-2026-10-26.json"
     },
@@ -355,7 +355,7 @@
       "id": "AL-11",
       "title": "普通群观察的参与请求与可靠出站",
       "owner": "platform",
-      "status": "local_candidate_verified",
+      "status": "runtime_deployed_external_qq_login_pending",
       "depends_on": [
         "AL-01"
       ],
@@ -373,7 +373,7 @@
       ],
       "implementation_gate": "TS316 final committed delivery, shared entry point and task capacity release",
       "preparation": "docs/development/autonomous-life-wave2-execution-2026-10-26.md",
-      "gate": "集中审查和实际 SDK 联合验证完成；发布准备中，普通候选在 AL12 缺席时保持静默。",
+      "gate": "Backend runtime deployed; external QQ login and full runtime acceptance pending; AL12 absent, ordinary candidates remain silent.",
       "runtime_tasks": [
         "TS-319",
         "TS-320",
@@ -385,7 +385,7 @@
         "companion": "d416b68c2bf47f6a5675c8f170c5185062e66688",
         "platform": "620b1e0b0a6c76ac69f538a13e00c9c6d53b112d"
       },
-      "production_published": false,
+      "production_published": true,
       "verification_record": "docs/development/autonomous-life-wave2-delivery-2026-10-26.json"
     },
     {
@@ -568,6 +568,6 @@
     "authorized": true,
     "scope": "功能审查和实际联合完成后，连记忆系统更新一并推送部署并实机验收；保留配置数据与其他服务，统一串行协调。",
     "record": "docs/development/autonomous-life-memory-release-2026-10-27.md",
-    "performed": false
+    "performed": true
   }
 }
