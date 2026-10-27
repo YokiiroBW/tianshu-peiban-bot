@@ -13,6 +13,7 @@ from pathlib import Path
 
 from .dependencies import PRODUCTS, STORAGE_WHEEL, lock, run, sha256, wheel_metadata
 from .image import base_references, dockerfile
+from .frontend import package_frontend
 
 SHA = re.compile(r"[a-f0-9]{40}\Z")
 BUILD_CONSTRAINTS = "setuptools==80.9.0\nwheel==0.45.1\n"
@@ -78,8 +79,19 @@ def application_files(source, target):
     return exported
 
 
-def prepare(release, output, *, uv="uv", python=sys.executable, constraints=None):
-    definition = dockerfile(release)
+def prepare(
+    release,
+    output,
+    *,
+    uv="uv",
+    python=sys.executable,
+    constraints=None,
+    frontend=None,
+    frontend_manifest=None,
+):
+    if (frontend is None) != (frontend_manifest is None):
+        raise ValueError("frontend_bundle_and_manifest_required_together")
+    definition = dockerfile(release, frontend=frontend is not None)
     if set(release.get("sources", {})) != set(PRODUCTS):
         raise ValueError("release_product_source_set_invalid")
     target = Path(output).resolve()
@@ -88,6 +100,7 @@ def prepare(release, output, *, uv="uv", python=sys.executable, constraints=None
     target.mkdir(parents=True)
     (target / "wheels").mkdir()
     provenance, wheels = {}, {}
+    frontend_receipt = None
     # Transient full source trees never enter the published image build context.
     with tempfile.TemporaryDirectory(prefix="tianshu-release-") as temporary:
         scratch = Path(temporary)
@@ -96,6 +109,14 @@ def prepare(release, output, *, uv="uv", python=sys.executable, constraints=None
         for name, package in PRODUCTS.items():
             exported = scratch / name
             provenance[name] = archive(release["sources"][name], exported)
+            if name == "platform" and frontend is not None:
+                frontend_receipt = package_frontend(
+                    frontend,
+                    frontend_manifest,
+                    exported,
+                    target / "frontend",
+                    release["sources"]["platform"]["commit"],
+                )
             run(
                 [
                     uv,
@@ -151,6 +172,8 @@ def prepare(release, output, *, uv="uv", python=sys.executable, constraints=None
         "uv_version": subprocess.check_output([uv, "--version"], text=True).strip(),
         "inherited_platform_volumes": ["/var/lib/tianshu", "/var/log/tianshu"],
     }
+    if frontend_receipt is not None:
+        receipt["frontend"] = frontend_receipt
     (target / "Dockerfile").write_text(definition, encoding="utf-8", newline="\n")
     (target / ".dockerignore").write_text(
         "**/__pycache__\n**/*.pyc\n", encoding="utf-8"
@@ -168,6 +191,8 @@ def main():
     parser.add_argument("--uv", default="uv")
     parser.add_argument("--python", default=sys.executable)
     parser.add_argument("--constraints", type=Path)
+    parser.add_argument("--frontend", type=Path)
+    parser.add_argument("--frontend-manifest", type=Path)
     args = parser.parse_args()
     result = prepare(
         json.loads(args.release.read_bytes()),
@@ -175,6 +200,8 @@ def main():
         uv=args.uv,
         python=args.python,
         constraints=args.constraints,
+        frontend=args.frontend,
+        frontend_manifest=args.frontend_manifest,
     )
     print(json.dumps({"status": result["status"], "version": result["version"]}))
 

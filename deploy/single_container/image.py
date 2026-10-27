@@ -105,7 +105,7 @@ def install_comic_aliases(media_directory="/media"):
             path.symlink_to(target, target_is_directory=True)
 
 
-def dockerfile(release):
+def dockerfile(release, *, frontend=False):
     images = base_references(release)
     # Docker 24's bundled frontend handles every instruction below. An external
     # syntax image would add an unpinned pull to the otherwise offline build.
@@ -136,6 +136,11 @@ def dockerfile(release):
             'ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH="/opt/tianshu/application" PATH="/opt/tianshu-venv/bin:/usr/share/grafana/bin:$PATH"',
             "RUN /usr/local/bin/vector --version && /usr/local/bin/loki --version && /usr/local/bin/prometheus --version && grafana --version",
             "COPY deploy/ /opt/tianshu/application/deploy/",
+            *(
+                ["RUN rm -rf /srv/tianshu/web", "COPY frontend/ /srv/tianshu/web/"]
+                if frontend
+                else []
+            ),
             "COPY release.json /opt/tianshu/distribution/",
             f'LABEL org.opencontainers.image.title="Tianshu" org.opencontainers.image.version="{release["version"]}"',
             'RUN /usr/local/bin/python -c "from deploy.single_container.image import install_comic_aliases; install_comic_aliases()"',
