@@ -169,6 +169,7 @@ def make_installation(
     native_origins=None,
     frontend=None,
     retention_days=None,
+    log_max_events=None,
 ):
     """Reuse reviewed native outputs; never generate credentials, models or storage."""
     if not isinstance(knowledge_client, str) or not knowledge_client.strip():
@@ -198,6 +199,9 @@ def make_installation(
             retention_days=guard_settings.get("retention_days", 30)
             if retention_days is None
             else retention_days,
+            log_max_events=guard_settings.get("log_max_events", 10000)
+            if log_max_events is None
+            else log_max_events,
         )
     )
     native_environment = copy.deepcopy(observability_environment or {})
