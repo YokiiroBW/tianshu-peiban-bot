@@ -1,0 +1,62 @@
+"""One Python environment over the existing Platform OS and four mature engines."""
+
+import re
+
+
+COMPONENTS = ("platform", "vector", "loki", "prometheus", "grafana")
+PIN = re.compile(r"(?:sha256:[a-f0-9]{64}|[^\s]+@sha256:[a-f0-9]{64})\Z")
+
+
+def validate(release):
+    images = release.get("images", {})
+    if set(images) != set(COMPONENTS):
+        raise ValueError("release_image_set_invalid")
+    if any(
+        not isinstance(value, str) or not PIN.fullmatch(value)
+        for value in images.values()
+    ):
+        raise ValueError("immutable_image_pin_required")
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}", release.get("version", "")):
+        raise ValueError("release_version_invalid")
+
+
+def dockerfile(release):
+    validate(release)
+    images = release["images"]
+    lines = ["# syntax=docker/dockerfile:1"]
+    lines.extend(
+        f"FROM --platform=linux/amd64 {images[name]} AS source-{name}"
+        for name in COMPONENTS[1:]
+    )
+    lines.extend(
+        [
+            f"FROM --platform=linux/amd64 {images['platform']} AS runtime",
+            "USER 0:10001",
+            f'LABEL org.opencontainers.image.title="Tianshu" org.opencontainers.image.version="{release["version"]}"',
+            "COPY wheels/ /opt/tianshu/distribution/wheels/",
+            "COPY runtime.lock dependencies.json release.json /opt/tianshu/distribution/",
+            "WORKDIR /opt/tianshu/distribution",
+            # Recreate rather than overlay the inherited Platform venv: an unchanged
+            # product version must not cause pip to retain its older installed code.
+            "RUN rm -rf /opt/tianshu-venv && /usr/local/bin/python -m venv /opt/tianshu-venv \\",
+            "    && /opt/tianshu-venv/bin/python -m pip install --no-cache-dir --no-index --find-links=./wheels --only-binary=:all: --require-hashes -r runtime.lock \\",
+            "    && /opt/tianshu-venv/bin/python -m pip check \\",
+            '    && /opt/tianshu-venv/bin/python -c "import services.platform, services.platform.media.comics.plugin, tianshu_companion, tianshu_nonebot.onebot, tianshu_memory, tianshu_gateway, tianshu_storage"',
+            "COPY --from=source-vector /usr/bin/vector /usr/local/bin/vector",
+            "COPY --from=source-loki /usr/bin/loki /usr/local/bin/loki",
+            "COPY --from=source-prometheus /bin/prometheus /bin/promtool /usr/local/bin/",
+            "COPY --from=source-grafana /usr/share/grafana/ /usr/share/grafana/",
+            "COPY --from=source-grafana /etc/grafana/ /etc/grafana/",
+            "COPY --from=source-grafana /run.sh /run.sh",
+            "RUN /usr/local/bin/vector --version && /usr/local/bin/loki --version && /usr/local/bin/prometheus --version && /usr/share/grafana/bin/grafana --version",
+            "COPY deploy/ /opt/tianshu/application/deploy/",
+            "RUN mkdir -p /run/tianshu /data /config && chmod 0755 /run/tianshu",
+            'ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH="/opt/tianshu/application" PATH="/opt/tianshu-venv/bin:$PATH"',
+            "WORKDIR /opt/tianshu/application",
+            "STOPSIGNAL SIGTERM",
+            'HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 CMD ["/opt/tianshu-venv/bin/python", "-m", "deploy.single_container.health", "--state", "/run/tianshu/runtime.json"]',
+            'ENTRYPOINT ["/opt/tianshu-venv/bin/python", "-m", "deploy.single_container.runtime"]',
+            'CMD ["--config", "/config/runtime.json"]',
+        ]
+    )
+    return "\n".join(lines) + "\n"
