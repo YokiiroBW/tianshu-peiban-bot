@@ -24,12 +24,15 @@ class LogResetTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.base = Path(self.temporary.name).resolve()
+        buffer_index = list(tool.ROOTS).index(tool.VECTOR_BUFFER_ROOT)
+        self.vector_buffer = str(self.base / "logs" / str(buffer_index))
         self.roots = {
             str(self.base / "logs" / str(index)): service
             for index, service in enumerate(tool.ROOTS.values())
         }
         self.addCleanup(patch.stopall)
         patch.object(tool, "ROOTS", self.roots).start()
+        patch.object(tool, "VECTOR_BUFFER_ROOT", self.vector_buffer).start()
         patch.object(tool, "mountpoints", return_value=set()).start()
         self.finished = datetime.fromtimestamp(
             time.time() - 60, timezone.utc
@@ -69,7 +72,9 @@ class LogResetTests(unittest.TestCase):
                     {
                         "Type": "bind",
                         "Source": text,
-                        "Destination": "/synthetic/" + root.name,
+                        "Destination": "/var/lib/vector/buffer"
+                        if text == self.vector_buffer
+                        else "/synthetic/" + root.name,
                         "RW": True,
                     }
                 )
@@ -146,9 +151,9 @@ class LogResetTests(unittest.TestCase):
         before = {root: tool.metadata(Path(root)) for root in self.roots}
         result = self.reset()
         self.assertEqual(result["status"], "runtime_logs_reset")
-        self.assertEqual(len(result["roots"]), 9)
-        self.assertEqual(sum(row["deleted"]["files"] for row in result["roots"]), 18)
-        self.assertEqual(sum(row["deleted"]["bytes"] for row in result["roots"]), 72)
+        self.assertEqual(len(result["roots"]), 10)
+        self.assertEqual(sum(row["deleted"]["files"] for row in result["roots"]), 20)
+        self.assertEqual(sum(row["deleted"]["bytes"] for row in result["roots"]), 80)
         for root in self.roots:
             self.assertEqual(list(Path(root).iterdir()), [])
             self.assertEqual(tool.metadata(Path(root)), before[root])
@@ -187,7 +192,7 @@ class LogResetTests(unittest.TestCase):
             self.reset()
         self.observed = deepcopy(self.owners)
         self.plan["roots"][0]["source"] = str(self.outside)
-        with self.assertRaisesRegex(RuntimeError, "exact_nine_log_roots_required"):
+        with self.assertRaisesRegex(RuntimeError, "exact_ten_log_roots_required"):
             self.reset()
         self.assert_untouched()
 
@@ -209,7 +214,7 @@ class LogResetTests(unittest.TestCase):
             self.reset()
         self.assert_untouched()
 
-    def test_nested_mount_and_permission_failure_preflight_all_nine(self):
+    def test_nested_mount_and_permission_failure_preflight_all_ten(self):
         root = Path(list(self.roots)[-1])
         with patch.object(tool, "mountpoints", return_value={root, root / "nested"}):
             with self.assertRaisesRegex(RuntimeError, "nested_log_mount_refused"):
@@ -227,6 +232,30 @@ class LogResetTests(unittest.TestCase):
         root = Path(list(self.roots)[-1])
         with patch.object(tool, "mountpoints", return_value={root}):
             self.assertEqual(self.reset()["status"], "runtime_logs_reset")
+
+    def test_old_nine_root_plan_and_nonwritable_vector_buffer_are_refused(self):
+        original = deepcopy(self.plan)
+        self.plan["roots"] = [
+            row for row in self.plan["roots"] if row["source"] != self.vector_buffer
+        ]
+        with self.assertRaisesRegex(RuntimeError, "exact_ten_log_roots_required"):
+            self.reset()
+        self.plan = original
+        for owner_map in (self.owners, self.observed):
+            mount = next(
+                row
+                for row in owner_map["obs-vector"]["Mounts"]
+                if row["Source"] == self.vector_buffer
+            )
+            mount["RW"] = False
+        with patch.object(
+            tool, "backup_verified", return_value="synthetic-frozen-proof"
+        ):
+            with self.assertRaisesRegex(
+                RuntimeError, "original_writable_vector_buffer_bind_required"
+            ):
+                self.reset()
+        self.assert_untouched()
 
     def test_links_unlink_only_the_link_and_root_symlink_is_refused(self):
         root = Path(next(iter(self.roots)))

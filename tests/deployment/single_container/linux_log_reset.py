@@ -1,4 +1,4 @@
-"""Explicit post-cold-backup reset of the nine original runtime log roots only.
+"""Explicit post-cold-backup reset of the ten original runtime log roots only.
 
 No action on import, stop/start, SSH, database connection or permission change.
 The coordinator calls reset with the final cold stage and stopped-owner snapshot.
@@ -26,13 +26,14 @@ CORE_OWNERS = set(PRODUCERS) | {
 }
 AUX_OWNERS = {"onebot", "inputs", "publisher"}
 AUX_COVERAGE = {"onebot", "comic-inputs", "comic-publisher"}
+VECTOR_BUFFER_ROOT = "/srv/tianshu/observability/external/vector-buffer"
 ROOTS = (
     {f"/srv/tianshu/logs/{name}": name for name in PRODUCERS}
     | {
         f"/srv/tianshu/observability/data/{name}": "obs-" + name
         for name in ("guard", "vector", "loki")
     }
-    | {"/mnt/tianshu-nas/loki-chunks": "obs-loki"}
+    | {VECTOR_BUFFER_ROOT: "obs-vector", "/mnt/tianshu-nas/loki-chunks": "obs-loki"}
 )
 
 
@@ -368,10 +369,10 @@ def reset(
     manifest_sha = backup_verified(stage, backup, read(aux_backup_receipt), expected)
     roots = read(roots_plan)["roots"]
     require(
-        len(roots) == 9
+        len(roots) == 10
         and {row["source"] for row in roots} == set(ROOTS)
         and all(row["service"] == ROOTS[row["source"]] for row in roots),
-        "exact_nine_log_roots_required",
+        "exact_ten_log_roots_required",
     )
     for row in roots:
         source = row["source"]
@@ -387,11 +388,17 @@ def reset(
                 if mount.get("Type") == "bind" and mount.get("Source") == source
             ]
             require(len(matches) == 1, "original_log_root_bind_required")
+            if source == VECTOR_BUFFER_ROOT:
+                require(
+                    matches[0]["Destination"] == "/var/lib/vector/buffer"
+                    and matches[0].get("RW") is True,
+                    "original_writable_vector_buffer_bind_required",
+                )
     mounts = mountpoints()
     records = []
     for row in roots:
         root = safe_directory(row["source"])
-        counts = inventory(root, mounts)  # All nine preflight before any deletion.
+        counts = inventory(root, mounts)  # All ten preflight before any deletion.
         records.append(
             {"root": str(root), "before": counts, "metadata": metadata(root)}
         )
