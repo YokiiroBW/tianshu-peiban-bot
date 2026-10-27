@@ -279,6 +279,41 @@ class FixtureChecks(unittest.TestCase):
             self.assertFalse(report["completed_all_scenarios"])
             self.assertEqual(report["phase_diagnostics"]["phase"], "prometheus_targets")
 
+    def test_capacity_scenario_only_prepares_small_explicit_fixture_without_engines(
+        self,
+    ):
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch("linux_observability.Suite") as suite,
+        ):
+            root = Path(directory) / "capacity-new"
+            self.assertEqual(
+                main(
+                    [
+                        "--contract",
+                        CONTRACT,
+                        "--output",
+                        str(root),
+                        "--image-id",
+                        "sha256:" + "f" * 64,
+                        "--scenario",
+                        "ledger-capacity",
+                        "--events-per-source",
+                        "1",
+                    ]
+                ),
+                0,
+            )
+            suite.assert_not_called()
+            report = json.loads((root / "linux-observability.json").read_bytes())
+            self.assertEqual(
+                (report["scenario"], report["status"], report["real_engines_executed"]),
+                ("ledger-capacity", "prepared_not_run", False),
+            )
+            config = json.loads((root / "native/guard.json").read_bytes())
+            self.assertEqual(config["ledger_max_events"], 5)
+            self.assertEqual(config["interval_seconds"], 30)
+
 
 if __name__ == "__main__":
     unittest.main()

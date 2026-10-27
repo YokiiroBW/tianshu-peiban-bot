@@ -365,7 +365,7 @@ class Suite(Scenarios):
             connection.close()
         return artifact
 
-    def execute(self):
+    def start_engines(self):
         self.phase("native_engine_startup")
         self.group.start()
 
@@ -402,6 +402,9 @@ class Suite(Scenarios):
                 for path in sorted(package.glob("*.py"))
             },
         )
+
+    def execute(self):
+        self.start_engines()
         self.phase("grafana_datasources_dashboard")
         self.ui_and_metrics()
         self.phase("fifteen_live_alert_rules")
@@ -490,13 +493,21 @@ def main(argv=None):
     parser.add_argument("--image-id", required=True)
     parser.add_argument("--events-per-source", type=int, default=8)
     parser.add_argument("--execute-synthetic", action="store_true")
+    parser.add_argument(
+        "--scenario", choices=("complete", "ledger-capacity"), default="complete"
+    )
     args = parser.parse_args(argv)
     require(1 <= args.events_per_source <= 100, "bounded_synthetic_count_required")
     if args.execute_synthetic:
         execution_boundary()
     fixture = prepare_fixture(args.output, args.contract)
+    if args.scenario == "ledger-capacity":
+        from linux_ledger_capacity import prepare
+
+        prepare(fixture)
     report = {
         "scope": "isolated_candidate_five_native_observers",
+        "scenario": args.scenario,
         "image_id_supplied_by_launcher": args.image_id,
         "status": "prepared_not_run",
         "real_engines_executed": False,
@@ -519,7 +530,12 @@ def main(argv=None):
         if args.execute_synthetic:
             evidence = Evidence(args.output / "evidence")
             suite = Suite(fixture, evidence, args.events_per_source)
-            suite.execute()
+            if args.scenario == "ledger-capacity":
+                from linux_ledger_capacity import execute
+
+                execute(suite)
+            else:
+                suite.execute()
             report.update(status="passed", completed_all_scenarios=True)
     except BaseException as error:  # noqa: BLE001 - interrupts must still finalize synthetic evidence
         report.update(status="failed", error_type=type(error).__name__)
