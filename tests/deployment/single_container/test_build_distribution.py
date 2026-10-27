@@ -13,7 +13,12 @@ from unittest.mock import patch
 from deploy.single_container import build, dependencies
 from deploy.single_container.build import application_files, archive
 from deploy.single_container.dependencies import PRODUCTS, lock, sha256, wheel_metadata
-from deploy.single_container.image import COMPONENTS, dockerfile
+from deploy.single_container.image import (
+    COMPONENTS,
+    base_references,
+    dockerfile,
+    verify_local_bases,
+)
 
 
 def release():
@@ -22,6 +27,9 @@ def release():
         "images": {
             name: "sha256:" + str(index) * 64
             for index, name in enumerate(COMPONENTS, 1)
+        },
+        "base_references": {
+            name: f"tianshu-ts348-base-{name}:synthetic" for name in COMPONENTS
         },
     }
 
@@ -97,6 +105,7 @@ class DistributionTests(unittest.TestCase):
             ):
                 result = build.prepare(value, output, constraints=runtime_constraints)
             self.assertEqual(result["constraints_sha256"], sha256(runtime_constraints))
+            self.assertEqual(result["base_references"], value["base_references"])
 
     def test_archive_uses_exact_tracked_commit_and_preserves_dirty_checkout(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -186,7 +195,18 @@ class DistributionTests(unittest.TestCase):
         self.assertIn('"deploy.single_container.runtime"', definition)
         self.assertNotIn("/opt/tianshu/modules", definition)
         self.assertNotIn("site-packages", definition)
+        self.assertNotIn("# syntax=", definition)
+        self.assertNotIn("FROM --platform=linux/amd64 sha256:", definition)
+        self.assertIn("tianshu-ts348-base-platform:synthetic AS runtime", definition)
         self.assertIn("/usr/share/grafana/ /usr/share/grafana/", definition)
+        self.assertIn(
+            'PATH="/opt/tianshu-venv/bin:/usr/share/grafana/bin:$PATH"', definition
+        )
+        self.assertLess(
+            definition.index("ENV PYTHONDONTWRITEBYTECODE"),
+            definition.index("RUN /usr/local/bin/vector --version"),
+        )
+        self.assertIn("&& grafana --version", definition)
         changed = release()
         changed["images"]["onebot"] = "sha256:" + "a" * 64
         with self.assertRaisesRegex(ValueError, "image_set"):
@@ -195,6 +215,85 @@ class DistributionTests(unittest.TestCase):
         changed["images"]["platform"] = "platform:latest"
         with self.assertRaisesRegex(ValueError, "immutable_image"):
             dockerfile(changed)
+
+    def test_config_ids_need_named_references_and_registry_pins_remain_unchanged(self):
+        value = release()
+        del value["base_references"]
+        with self.assertRaisesRegex(ValueError, "named_reference_required"):
+            dockerfile(value)
+        for reference in (
+            "sha256:" + "a" * 64,
+            "missing-tag",
+            "tag:bad value",
+            "tag:bad\nvalue",
+            "${UNREVIEWED}:tag",
+        ):
+            value = release()
+            value["base_references"]["platform"] = reference
+            with self.subTest(reference=reference), self.assertRaises(ValueError):
+                base_references(value)
+        value = release()
+        value.pop("base_references")
+        value["images"] = {
+            name: f"registry.example/tianshu/{name}@sha256:" + "a" * 64
+            for name in COMPONENTS
+        }
+        self.assertEqual(base_references(value), value["images"])
+        self.assertIn(value["images"]["platform"], dockerfile(value))
+
+    def test_local_base_verification_reads_only_identity_and_detects_changed_tags(self):
+        value = release()
+        calls = []
+
+        def inspect(argv, *, text):
+            calls.append(argv)
+            name = next(
+                name
+                for name, reference in value["base_references"].items()
+                if reference == argv[-1]
+            )
+            return json.dumps(
+                {"id": value["images"][name], "os": "linux", "architecture": "amd64"}
+            )
+
+        with patch(
+            "deploy.single_container.image.subprocess.check_output", side_effect=inspect
+        ):
+            result = verify_local_bases(value, docker="explicit-docker")
+        self.assertEqual(set(result["bases"]), set(COMPONENTS))
+        self.assertEqual(len(calls), 5)
+        self.assertTrue(
+            all(
+                argv[:4] == ["explicit-docker", "image", "inspect", "--format"]
+                for argv in calls
+            )
+        )
+        self.assertTrue(
+            all(".Env" not in argv[4] and ".Config" not in argv[4] for argv in calls)
+        )
+        for metadata, expected_error in (
+            (
+                {"id": "sha256:" + "f" * 64, "os": "linux", "architecture": "amd64"},
+                "identity_mismatch",
+            ),
+            (
+                {
+                    "id": value["images"]["platform"],
+                    "os": "linux",
+                    "architecture": "arm64",
+                },
+                "platform_mismatch",
+            ),
+        ):
+            with (
+                self.subTest(metadata=metadata),
+                patch(
+                    "deploy.single_container.image.subprocess.check_output",
+                    return_value=json.dumps(metadata),
+                ),
+                self.assertRaisesRegex(ValueError, expected_error),
+            ):
+                verify_local_bases(value)
 
     def test_wheel_metadata_keeps_actual_extra_and_dependency_markers(self):
         with tempfile.TemporaryDirectory() as directory:

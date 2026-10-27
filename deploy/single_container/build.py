@@ -12,7 +12,7 @@ import tempfile
 from pathlib import Path
 
 from .dependencies import PRODUCTS, STORAGE_WHEEL, lock, run, sha256, wheel_metadata
-from .image import dockerfile
+from .image import base_references, dockerfile
 
 SHA = re.compile(r"[a-f0-9]{40}\Z")
 BUILD_CONSTRAINTS = "setuptools==80.9.0\nwheel==0.45.1\n"
@@ -140,6 +140,7 @@ def prepare(release, output, *, uv="uv", python=sys.executable, constraints=None
         "version": release["version"],
         "status": "prepared_not_built_on_linux",
         "images": release["images"],
+        "base_references": base_references(release),
         "sources": provenance,
         "files": files,
         "dependencies_sha256": sha256(target / "dependencies.json"),
