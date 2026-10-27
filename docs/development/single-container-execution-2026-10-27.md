@@ -6,12 +6,17 @@
 
 新增隔离本地任务：
 
-- TS-334（原 runtime 作者）：拥有 deploy/single_container/exchange.py、frameworks/ 及其测试，实现显式模块注册、进程内请求/流式响应与生命周期桥接，无内部 TCP、无全局 monkeypatch；保留取消、回压与同步工作线程回调。
+- TS-334（原日志作者，已本地集成）：拥有 deploy/single_container/exchange.py、frameworks/ 及其测试，实现显式模块注册、进程内请求/流式响应与生命周期桥接，无内部 TCP、无全局 monkeypatch；保留取消、回压与同步工作线程回调。协调根 `99b1c4d` 包含原字节响应选项补充，真实框架相关 31 项通过；不是五产品完整验收。
 - TS-335（Platform 作者）：原 Platform 干净隔离检出新分支，拥有跨第一方客户端的组合根注入及原后台生命周期复用。WebConsole 与 Platform 共用显式内部端口；外部 AssetLibrary、Chat、设备、媒体及插件网络出口保持原实现。不得按 URL 猜测或全局替换 ClientSession。
-- TS-336（原日志作者）：原 Memory、Companion 干净隔离检出各开新分支，拥有明确 config/env/client 工厂注入；Memory 同步 authority/source/retrieval 与 Companion 现 JsonService 使用共享模块 exchange 适配。各自的合同、授权、来源、回执、admission、PG/Redis namespace 和日志保持。
-- TS-337（协调者）：Gateway 公共 source/authority 注入与 storage 0.1.3 对齐、统一业务应用装配和交付；旧镜像依赖树拼装不作为最终单宿主方案。集中核查注册、启动、取消、关闭和跨模块回调，必要真实 Linux/Docker 验收另按设备授权。
+- TS-336（原日志作者）：原 Memory 干净隔离检出新分支，拥有 Memory/Knowledge 明确 config/env/client 工厂、同步 authority/source/retrieval 及探针注入。各自的合同、授权、来源、回执、admission、PG/Redis namespace 和日志保持；generation 变更仍按原租约重新计算存储配置。
+- TS-337（协调者，已本地提交）：Gateway 公共 source 注入与 storage 0.1.3 对齐，`b7636079a0545ed8bc039407b3def5fd485e385a`；全套 503=463P/39S/1既有重复请求断言失败，实际原因与精确旧/新 wheel 比较见产品 handoff。外部模型连接池及实际授权/流/回执不变，未合产品 main。
+- TS-341（原 runtime 作者）：Companion 独立 config/environ/JsonService transport/log adapter 工厂，原 producer 与 owned-task quiesce/drain；真实外部 Chat、ComfyUI、NoneBot 保持原网络，不能按 service 别名误判。
+- TS-342（原 runtime 作者，在 TS-341 交付后）：每模块在自己的线程/loop 构造和启动原 app/Store，复用 TS-334 的有界请求与流。同步数据库等待只阻塞所属模块，不能共享一个 loop 或跨线程搬用 SQLite connection。补充目标 loop invoke、跨 loop 回压/取消及 A→B→A 回调与整体关闭。
+- TS-340（协调者）：统一业务应用装配、单一依赖环境及发行。外部入口先停止接收并排空已接收根请求，再停 producer/排空真实 owned workers；callback 与依赖继续可达，最后关闭应用和连接。必要真实 Linux/Docker 验收另按设备授权；旧镜像私有依赖树拼装不作为最终单宿主方案。
 
 统一端口的最小合同是显式目标模块的 session/transport 工厂：aiohttp 客户端取得兼容 session，httpx 客户端取得 async/sync transport。内部适配复用原请求和响应合同而不走网络，不绕过原 schema/auth/账本；阶段内仍有合同编解码的成本，不能宣称已经消除了全部序列化。模块调用可重入，不能用一个锁或单一串行队列包围跨模块 await。同步调用只在线程中回到宿主 loop，禁止 loop 内阻塞等待。
+
+宿主配置准备已实现 `host_settings.py`：五模块保留各自原 settings 文件；Platform 为进程启动时唯一基础环境，其余模块只继承标准系统路径/语言/证书等变量，并显式加载自己的 env 文件，不继承 Platform 的凭据或 PG namespace。没有逐模块切换全局 `os.environ`。原 `process.environment_for` 只增加可选 base 参数，默认进程行为不变。新配置/环境隔离及原 env 文件真实 worker 三项，集中 **5P/0.60s**，新增文件静态通过。该项仍为装配基础，宿主尚未完成。
 
 用户已明确授权：天枢统一为一个容器，内部模块化运行，漫画辅助作为插件；同时调研并实施有证据的复用、精简、性能及日志占用优化。先完成隔离本地实现、集中验证与可审阅交付；不操作生产数据、不推送部署、不发送 QQ 或调用真实模型。
 

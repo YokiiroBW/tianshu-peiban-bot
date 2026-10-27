@@ -75,8 +75,8 @@ def dependency_order(specifications):
     return [by_name[name] for name in ordered]
 
 
-def environment_for(spec):
-    environment = os.environ.copy()
+def environment_for(spec, *, base_environment=None):
+    environment = dict(os.environ if base_environment is None else base_environment)
     for path in spec["env_file"]:
         for line in Path(path).read_text(encoding="utf-8-sig").splitlines():
             if not line.strip() or line.lstrip().startswith("#"):
