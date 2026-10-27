@@ -117,16 +117,8 @@ def load_recovery(bundle):
     return modules
 
 
-def owned_binding(binding_path, state_path):
-    """Validate only supplied scratch files. Never follow admin_binding_file."""
-    binding, state = read(binding_path), read(state_path)
-    require(
-        binding.get("purpose") == "group-modes-isolated-pg2"
-        and binding.get("production") is False,
-        "original_pg2_binding_required",
-    )
-    identity = binding.get("isolation_id", "")
-    require(bool(HEX32.fullmatch(identity)), "pg2_uuid_required")
+def owned_resource(state):
+    """Public fields only; never follow admin_binding_file or binding_file."""
     require(
         state.get("version") == 1
         and state.get("purpose") == "isolated-group-modes-release-pg2"
@@ -138,6 +130,8 @@ def owned_binding(binding_path, state_path):
         isinstance(resources, list) and len(resources) == 1, "one_owned_pg2_required"
     )
     resource = resources[0]
+    identity = resource.get("isolation_id", "")
+    require(bool(HEX32.fullmatch(identity)), "pg2_uuid_required")
     token = state.get("token", "")
     role, database = "ts325_role_" + identity, "ts325_" + identity
     require(
@@ -152,6 +146,22 @@ def owned_binding(binding_path, state_path):
         and resource.get("cleaned") is False,
         "owned_pg2_state_mismatch",
     )
+    return resource
+
+
+def owned_binding(binding_path, state_path):
+    """Validate only supplied scratch files. Never follow admin_binding_file."""
+    binding, state = read(binding_path), read(state_path)
+    require(
+        binding.get("purpose") == "group-modes-isolated-pg2"
+        and binding.get("production") is False,
+        "original_pg2_binding_required",
+    )
+    identity = binding.get("isolation_id", "")
+    require(bool(HEX32.fullmatch(identity)), "pg2_uuid_required")
+    resource = owned_resource(state)
+    require(resource["isolation_id"] == identity, "owned_pg2_state_mismatch")
+    role, database = resource["role"], resource["database"]
     url = binding.get("postgresql_url", "")
     parsed = urlsplit(url)
     query = parse_qsl(parsed.query, keep_blank_values=True, strict_parsing=True)
@@ -178,6 +188,12 @@ IDENTITY_SQL = (
     "r.rolcanlogin,shobj_description(r.oid,'pg_authid')) "
     "FROM pg_database d JOIN pg_roles r ON r.rolname=current_user "
     "WHERE d.datname=current_database()"
+)
+EMPTY_DATABASE_SQL = (
+    "SELECT json_build_array((SELECT count(*) FROM pg_namespace WHERE nspname NOT IN "
+    "('public','information_schema') AND nspname NOT LIKE 'pg\\_%' ESCAPE '\\'),"
+    "(SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace "
+    "WHERE n.nspname NOT IN ('information_schema') AND n.nspname NOT LIKE 'pg\\_%' ESCAPE '\\'))"
 )
 
 
@@ -518,10 +534,7 @@ def prepare_clone(
     # Empty means no non-system schema or relation, including user relations in public.
     empty = ctx.tools.query(
         ctx.readonly,
-        "SELECT json_build_array((SELECT count(*) FROM pg_namespace WHERE nspname NOT IN "
-        "('public','information_schema') AND nspname NOT LIKE 'pg\\_%' ESCAPE '\\'),"
-        "(SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace "
-        "WHERE n.nspname NOT IN ('information_schema') AND n.nspname NOT LIKE 'pg\\_%' ESCAPE '\\'))",
+        EMPTY_DATABASE_SQL,
     )
     require(empty == [[0, 0]], "fresh_empty_owned_pg2_required")
     folder.mkdir(mode=0o700)
