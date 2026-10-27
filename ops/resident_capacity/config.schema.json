@@ -9,28 +9,26 @@
     "max_deployment_bytes", "poll_seconds", "term_timeout_seconds"
   ],
   "properties": {
-    "deployment_root": {"type": "string", "const": "/volume2/tianshu-v2-resident"},
-    "service_profile": {"type": "string", "enum": ["resident-nine", "knowledge-ten"]},
+    "deployment_root": {"type": "string", "const": "/srv/tianshu"},
+    "service_profile": {"type": "string", "enum": ["resident-nine", "knowledge-ten", "unified-one"]},
+    "retired_ids": {"type": "array", "minItems": 13, "maxItems": 13, "uniqueItems": true, "items": {"type": "string", "pattern": "^[0-9a-f]{64}$"}},
     "state_dir": {"type": "string", "pattern": "^/"},
     "docker_binary": {"type": "string", "pattern": "^/"},
     "compose": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["tianshu-v2-resident", "tianshu-v2-resident-obs"],
       "properties": {
         "tianshu-v2-resident": {"$ref": "#/$defs/compose_origin"},
-        "tianshu-v2-resident-obs": {"$ref": "#/$defs/compose_origin"}
+        "tianshu-v2-resident-obs": {"$ref": "#/$defs/compose_origin"},
+        "tianshu-unified": {"$ref": "#/$defs/unified_compose_origin"}
       }
     },
-    "platform_first_compose": {"$ref": "#/$defs/compose_origin"},
+    "platform_first_compose": {"type": "object"},
     "images": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "platform", "companion", "memory", "gateway", "obs-vector",
-        "obs-loki", "obs-grafana", "obs-prometheus", "obs-guard"
-      ],
       "properties": {
+        "tianshu": {"$ref": "#/$defs/image"},
         "platform": {"$ref": "#/$defs/image"},
         "companion": {"$ref": "#/$defs/image"},
         "memory": {"$ref": "#/$defs/image"},
@@ -46,12 +44,15 @@
     "binds": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "platform", "companion", "memory", "gateway", "obs-vector",
-        "obs-loki", "obs-grafana", "obs-prometheus", "obs-guard"
-      ],
       "properties": {
-        "platform": {"$ref": "#/$defs/bind_list"},
+        "tianshu": {
+          "type": "array", "minItems": 1,
+          "items": {"anyOf": [{"$ref": "#/$defs/bind"}, {"$ref": "#/$defs/external_media_bind"}, {"$ref": "#/$defs/external_data_bind"}]}
+        },
+        "platform": {
+          "type": "array", "minItems": 1,
+          "items": {"anyOf": [{"$ref": "#/$defs/bind"}, {"$ref": "#/$defs/external_media_bind"}, {"$ref": "#/$defs/external_data_bind"}]}
+        },
         "companion": {"$ref": "#/$defs/bind_list"},
         "memory": {"$ref": "#/$defs/bind_list"},
         "knowledge": {"$ref": "#/$defs/bind_list"},
@@ -63,6 +64,15 @@
         "obs-guard": {"$ref": "#/$defs/bind_list"}
       }
     },
+    "external_data_binds": {
+      "type": "object",
+      "propertyNames": {"enum": ["tianshu", "platform", "companion", "memory", "knowledge", "gateway", "obs-vector", "obs-loki", "obs-grafana", "obs-prometheus", "obs-guard"]},
+      "additionalProperties": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "#/$defs/external_data_bind"}}
+    },
+    "external_media_binds": {
+      "type": "array", "uniqueItems": true,
+      "items": {"$ref": "#/$defs/external_media_bind"}
+    },
     "free_paths": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^/"}},
     "min_free_bytes": {"type": "integer", "minimum": 21474836480, "maximum": 1099511627776},
     "max_deployment_bytes": {"type": "integer", "minimum": 1073741824, "maximum": 21474836480},
@@ -70,6 +80,29 @@
     "term_timeout_seconds": {"type": "integer", "minimum": 10, "maximum": 120}
   },
   "allOf": [
+    {
+      "if": {"properties": {"service_profile": {"const": "unified-one"}}, "required": ["service_profile"]},
+      "then": {
+        "required": ["retired_ids"],
+        "properties": {
+          "compose": {"required": ["tianshu-unified"], "propertyNames": {"const": "tianshu-unified"}},
+          "platform_first_compose": {"$ref": "#/$defs/unified_compose_origin"},
+          "images": {"required": ["tianshu"], "propertyNames": {"const": "tianshu"}},
+          "binds": {"required": ["tianshu"], "propertyNames": {"const": "tianshu"}},
+          "external_data_binds": {"propertyNames": {"const": "tianshu"}}
+        }
+      },
+      "else": {
+        "not": {"required": ["retired_ids"]},
+        "properties": {
+          "compose": {"required": ["tianshu-v2-resident", "tianshu-v2-resident-obs"], "propertyNames": {"enum": ["tianshu-v2-resident", "tianshu-v2-resident-obs"]}},
+          "platform_first_compose": {"$ref": "#/$defs/compose_origin"},
+          "images": {"$ref": "#/$defs/resident_services"},
+          "binds": {"$ref": "#/$defs/resident_services"},
+          "external_data_binds": {"propertyNames": {"enum": ["platform", "companion", "memory", "knowledge", "gateway", "obs-vector", "obs-loki", "obs-grafana", "obs-prometheus", "obs-guard"]}}
+        }
+      }
+    },
     {
       "if": {"properties": {"service_profile": {"const": "knowledge-ten"}}, "required": ["service_profile"]},
       "then": {
@@ -84,27 +117,72 @@
           "binds": {"not": {"required": ["knowledge"]}}
         }
       }
+    },
+    {
+      "if": {
+        "properties": {"external_media_binds": {"minItems": 1}},
+        "required": ["external_media_binds"]
+      },
+      "else": {
+        "properties": {
+          "binds": {"properties": {"platform": {"$ref": "#/$defs/bind_list"}, "tianshu": {"$ref": "#/$defs/bind_list"}}}
+        }
+      }
     }
   ],
   "$defs": {
+    "resident_services": {
+      "required": ["platform", "companion", "memory", "gateway", "obs-vector", "obs-loki", "obs-grafana", "obs-prometheus", "obs-guard"],
+      "propertyNames": {"enum": ["platform", "companion", "memory", "knowledge", "gateway", "obs-vector", "obs-loki", "obs-grafana", "obs-prometheus", "obs-guard"]}
+    },
     "compose_origin": {
       "type": "object",
       "additionalProperties": false,
       "required": ["workdir", "file"],
       "properties": {
-        "workdir": {"type": "string", "const": "/volume2/tianshu-v2-resident"},
+        "workdir": {"type": "string", "const": "/srv/tianshu"},
         "file": {"type": "string", "pattern": "^/"}
       }
     },
-    "image": {"type": "string", "pattern": "^.+@sha256:[0-9a-f]{64}$"},
-    "bind_list": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/bind"}},
+    "unified_compose_origin": {
+      "type": "object", "additionalProperties": false,
+      "required": ["workdir", "file"],
+      "properties": {
+        "workdir": {"type": "string", "pattern": "^/srv/tianshu(?:/|$)"},
+        "file": {"type": "string", "pattern": "^/srv/tianshu(?:/|$)"}
+      }
+    },
+    "image": {"type": "string", "pattern": "^(?:.+@)?sha256:[0-9a-f]{64}$"},
+    "bind_list": {"type": "array", "minItems": 1, "items": {"anyOf": [{"$ref": "#/$defs/bind"}, {"$ref": "#/$defs/external_data_bind"}]}},
     "bind": {
       "type": "object",
       "additionalProperties": false,
       "required": ["source", "target", "read_only"],
       "properties": {
-        "source": {"type": "string", "pattern": "^/volume2/tianshu-v2-resident(?:/|$)"},
+        "source": {"type": "string", "pattern": "^/srv/tianshu(?:/|$)"},
         "target": {"type": "string", "pattern": "^/"},
+        "read_only": {"type": "boolean"}
+      }
+    },
+    "external_data_bind": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source", "target", "read_only"],
+      "properties": {
+        "source": {"type": "string", "pattern": "^/", "not": {"pattern": "^/srv/tianshu(?:/|$)"}},
+        "target": {"type": "string", "pattern": "^/"},
+        "read_only": {"type": "boolean"}
+      }
+    },
+    "external_media_bind": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "target", "read_only"],
+      "properties": {
+        "source": {
+          "type": "string", "pattern": "^/",
+          "not": {"pattern": "^/srv/tianshu(?:/|$)"}
+        },
+        "target": {"type": "string", "pattern": "^/media/[^/]"},
         "read_only": {"type": "boolean"}
       }
     }
