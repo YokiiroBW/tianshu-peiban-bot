@@ -26,6 +26,7 @@ from linux_observability_fixture import SOURCES, prepare_fixture
 from acceptance import Evidence, require
 from configs import ALERTS
 from helpers import SNAPSHOT, emit, event
+from ledger_schema import VERSION as LEDGER_VERSION
 from linux_scenarios import NoRedirect, Scenarios
 from policy import Policy, canonical, digest_bytes
 from query import LokiClient
@@ -330,8 +331,9 @@ class Suite(Scenarios):
         try:
             connection.execute("BEGIN")
             require(
-                connection.execute("PRAGMA user_version").fetchone()[0] == 2,
-                "ledger_v2_not_running",
+                connection.execute("PRAGMA user_version").fetchone()[0]
+                == LEDGER_VERSION,
+                "ledger_schema_not_running",
             )
             rows = connection.execute("SELECT id,hash,verified FROM events").fetchall()
             expected = {row["event_id"]: digest_bytes(row) for row in self.generated}
@@ -351,7 +353,7 @@ class Suite(Scenarios):
             artifact = self.evidence.artifact(
                 name + ".json",
                 {
-                    "schema_version": 2,
+                    "schema_version": LEDGER_VERSION,
                     "unique_events": count,
                     "pending": 0,
                     "every_sha256_matches": True,
@@ -494,7 +496,9 @@ def main(argv=None):
     parser.add_argument("--events-per-source", type=int, default=8)
     parser.add_argument("--execute-synthetic", action="store_true")
     parser.add_argument(
-        "--scenario", choices=("complete", "ledger-capacity"), default="complete"
+        "--scenario",
+        choices=("complete", "ledger-capacity", "log-retention"),
+        default="complete",
     )
     args = parser.parse_args(argv)
     require(1 <= args.events_per_source <= 100, "bounded_synthetic_count_required")
@@ -503,6 +507,10 @@ def main(argv=None):
     fixture = prepare_fixture(args.output, args.contract)
     if args.scenario == "ledger-capacity":
         from linux_ledger_capacity import prepare
+
+        prepare(fixture)
+    elif args.scenario == "log-retention":
+        from linux_log_retention import prepare
 
         prepare(fixture)
     report = {
@@ -534,6 +542,10 @@ def main(argv=None):
                 from linux_ledger_capacity import execute
 
                 execute(suite)
+            elif args.scenario == "log-retention":
+                from linux_log_retention import execute
+
+                execute(suite)
             else:
                 suite.execute()
             report.update(status="passed", completed_all_scenarios=True)
@@ -550,6 +562,8 @@ def main(argv=None):
                 )
                 if isinstance(getattr(suite, "progress", None), dict):
                     report["phase_diagnostics"] = suite.progress
+                if isinstance(getattr(suite, "retention_verdict", None), dict):
+                    report["retention_verdict"] = suite.retention_verdict
                 report["native_processes_stopped"] = suite.close()
                 if not report["native_processes_stopped"]:
                     report["status"], code = "failed", 1
