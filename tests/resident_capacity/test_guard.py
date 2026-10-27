@@ -169,7 +169,7 @@ class ResidentCapacityTests(unittest.TestCase):
             output = ids if args[len(docker.prefix)] == "ps" else inspected
             return subprocess.CompletedProcess(args, returncode, stdout=output, stderr=b"")
 
-        def measure(*args):
+        def measure(*args, **kwargs):
             clock[0] += capacity_seconds[capacity_calls[0]]
             capacity_calls[0] += 1
             return 100, 30 * guard.GIB

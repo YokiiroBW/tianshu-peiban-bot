@@ -620,7 +620,28 @@ def load_config(path: Path):
     return config, hashlib.sha256(raw).hexdigest()
 
 
-def capacity(root: Path, free_paths=(), *, max_entries=1_000_000):
+def _plugin_venv_link(entry, info, root: Path, service_profile: str):
+    """Recognize only the standard lib64 alias owned by a unified plugin venv."""
+    if service_profile != UNIFIED_PROFILE or not stat.S_ISLNK(info.st_mode):
+        return False
+    parts = Path(entry.path).relative_to(root).parts
+    if (
+        len(parts) != 6 or parts[:3] != ("data", "platform-plugins", "plugins")
+        or not ID.fullmatch(parts[3]) or parts[4:] != (".environment", "lib64")
+        or info.st_uid != 10001 or info.st_gid != 10001
+        or os.readlink(entry.path) != "lib"
+    ):
+        return False
+    try:
+        return stat.S_ISDIR(Path(entry.path).with_name("lib").lstat().st_mode)
+    except FileNotFoundError:
+        # A removed/renamed environment follows the scanner's existing race
+        # handling. A surviving link with a missing lib is not a valid alias.
+        Path(entry.path).lstat()
+        return False
+
+
+def capacity(root: Path, free_paths=(), *, max_entries=1_000_000, service_profile="resident-nine"):
     """Count logical bytes and free bytes across deployment filesystems; metadata only."""
     total, count, stack, filesystems = 0, 0, [root], {}
     while stack:
@@ -646,6 +667,11 @@ def capacity(root: Path, free_paths=(), *, max_entries=1_000_000):
                     elif stat.S_ISREG(info.st_mode):
                         total += info.st_size
                         filesystems.setdefault(info.st_dev, Path(entry.path))
+                    elif _plugin_venv_link(entry, info, root, service_profile):
+                        # lib is already scanned as a normal directory. Count only
+                        # this alias's own bytes; never follow it for usage or free space.
+                        total += info.st_size
+                        filesystems.setdefault(info.st_dev, directory)
                     else:
                         raise Unsafe("deployment_tree_invalid")
         except FileNotFoundError as error:
@@ -813,7 +839,7 @@ def arm(config: Config, config_sha256: str, docker: Docker):
             docker.snapshot(diagnostics=diagnostics, fresh_ids=_retired_ids(signatures)),
             signatures, str(config.root),
         )
-        used, free = capacity(config.root, config.free_paths)
+        used, free = capacity(config.root, config.free_paths, service_profile=config.service_profile)
         if used >= config.max_deployment_bytes or free <= config.min_free_bytes:
             raise Unsafe("capacity_threshold_reached")
     except Unsafe as error:
@@ -844,7 +870,7 @@ def sample(config: Config, marker: dict, docker: Docker, *, deadline=None):
             ),
             marker["signatures"], marker["root"], marker["ids"],
         )
-        used, free = capacity(config.root, config.free_paths)
+        used, free = capacity(config.root, config.free_paths, service_profile=config.service_profile)
         if used >= config.max_deployment_bytes:
             raise Unsafe("deployment_budget_reached")
         if free <= config.min_free_bytes:
