@@ -1,0 +1,2164 @@
+{
+  "boundary": "synthetic local SQLite; no Loki/network/container/production",
+  "python": "3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]",
+  "platform": "Windows-11-10.0.26100-SP0",
+  "sqlite": "3.53.1",
+  "events": 10000,
+  "scan_events": 10000,
+  "append_events": 1000,
+  "normal_scan_batch": 20000,
+  "stream_count": 16,
+  "bulk_pending_fraction": 0.05,
+  "versions": [
+    {
+      "name": "prior",
+      "directory": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-log-optimization\\tianshu-peiban-bot\\.runtime\\ts363-perf\\prior\\deploy\\observability",
+      "source_sha256": {
+        "monitor.py": "96e048e989ef147db8bca25bc7850d95ace38a61d214c8c19caaf7a7b686182d",
+        "policy.py": "2e58ff7136639e7c65f567ea60db316bb84970aef66cc6b5da0071114d91a445",
+        "ledger_schema.py": "d814f44f794a95d7edbf437b94772dd664eded107c8d9b84827391e73ecf3341"
+      }
+    },
+    {
+      "name": "retained",
+      "directory": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-log-optimization\\tianshu-peiban-bot\\deploy\\observability",
+      "source_sha256": {
+        "monitor.py": "e80fa34943aee50e3286150b22836e26df18054b87cea603bfb7900b99a13fc7",
+        "policy.py": "f8d52d15bdabaf3fedfc51f1ebb6171994741b65806abe8f2dee66be00212972",
+        "ledger_schema.py": "0e9e1f297f7a3a8134d1afd924e75d87afa09e927a93e5431ffcc370d09d4cd4"
+      }
+    }
+  ],
+  "rounds": [
+    {
+      "order": [
+        "prior",
+        "retained"
+      ],
+      "results": {
+        "prior": {
+          "bulk": {
+            "wall_ms": 66.3226000033319,
+            "cpu_ms": 62.5
+          },
+          "bulk_values": {
+            "landed_events": 10000,
+            "pending_events": 500,
+            "sequence_gaps": 0
+          },
+          "bulk_digest_sha256": "b0b7ddbb5be7b8c9707a1aaca65d10f91e34fb34e14abfc187e7cbb6a7894dbb",
+          "bulk_storage": {
+            "page_count": 725,
+            "freelist_pages": 0,
+            "page_size": 4096,
+            "objects": [
+              {
+                "name": "counters",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "event_confirmed",
+                "bytes": 176128,
+                "payload_bytes": 123380
+              },
+              {
+                "name": "event_pending",
+                "bytes": 20480,
+                "payload_bytes": 10992
+              },
+              {
+                "name": "event_pending_age",
+                "bytes": 12288,
+                "payload_bytes": 6492
+              },
+              {
+                "name": "event_sequence",
+                "bytes": 643072,
+                "payload_bytes": 527824
+              },
+              {
+                "name": "events",
+                "bytes": 1576960,
+                "payload_bytes": 1463952
+              },
+              {
+                "name": "files",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_autoindex_counters_1",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_autoindex_events_1",
+                "bytes": 512000,
+                "payload_bytes": 409872
+              },
+              {
+                "name": "sqlite_autoindex_files_1",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_schema",
+                "bytes": 4096,
+                "payload_bytes": 2015
+              },
+              {
+                "name": "streams",
+                "bytes": 4096,
+                "payload_bytes": 848
+              },
+              {
+                "name": "totals",
+                "bytes": 4096,
+                "payload_bytes": 8
+              }
+            ]
+          },
+          "reads": {
+            "metrics": {
+              "median_wall_ms": 0.013700220733880997,
+              "median_cpu_ms": 0.0,
+              "samples": [
+                {
+                  "wall_ms": 0.029399991035461426,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.015600118786096573,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.013899989426136017,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.013899989426136017,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.013700220733880997,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.013399869203567505,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.01309998333454132,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.013299752026796341,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.013699755072593689,
+                  "cpu_ms": 0.0
+                }
+              ]
+            },
+            "confirmed_queue": {
+              "median_wall_ms": 0.03260001540184021,
+              "median_cpu_ms": 0.0,
+              "samples": [
+                {
+                  "wall_ms": 0.06779981777071953,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03620004281401634,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.034300144761800766,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03310013562440872,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03220001235604286,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.031600240617990494,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.031600240617990494,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03190012648701668,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03260001540184021,
+                  "cpu_ms": 0.0
+                }
+              ]
+            },
+            "idle_scan": {
+              "median_wall_ms": 0.005200039595365524,
+              "median_cpu_ms": 0.0,
+              "samples": [
+                {
+                  "wall_ms": 0.02019992098212242,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.008499715477228165,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.006299931555986404,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.005200039595365524,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.005300156772136688,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.00509992241859436,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.0048996880650520325,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.00490015372633934,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.00490015372633934,
+                  "cpu_ms": 0.0
+                }
+              ]
+            },
+            "confirmed_plan": [
+              "SEARCH events USING INDEX event_confirmed (last_checked<?)"
+            ]
+          },
+          "append": {
+            "wall_ms": 28.159799985587597,
+            "cpu_ms": 31.25,
+            "batches": [
+              {
+                "wall_ms": 28.159799985587597,
+                "cpu_ms": 31.25,
+                "scan_budget_exhausted": 0,
+                "partial_lines": 0
+              }
+            ]
+          },
+          "append_values": {
+            "landed_events": 11000,
+            "pending_events": 1500,
+            "sequence_gaps": 0
+          },
+          "append_digest_sha256": "0c47829706e3fe0538577d8932101f4b6a017ffeda73b3df096c2ba86fe178cc",
+          "integrity_check": "ok",
+          "scan": {
+            "wall_ms": 240.55120022967458,
+            "cpu_ms": 234.375,
+            "batches": [
+              {
+                "wall_ms": 240.55120022967458,
+                "cpu_ms": 234.375,
+                "scan_budget_exhausted": 0,
+                "partial_lines": 0
+              }
+            ]
+          },
+          "scan_values": {
+            "landed_events": 10000,
+            "pending_events": 10000,
+            "sequence_gaps": 0
+          },
+          "scan_digest_sha256": "3044aeec2b3ab9048e2952c4dfcfee83a0f8cdd57985f4d5e997b5119b293e4d",
+          "scan_storage": {
+            "page_count": 727,
+            "freelist_pages": 0,
+            "page_size": 4096,
+            "objects": [
+              {
+                "name": "counters",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "event_confirmed",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "event_pending",
+                "bytes": 196608,
+                "payload_bytes": 139872
+              },
+              {
+                "name": "event_pending_age",
+                "bytes": 184320,
+                "payload_bytes": 129872
+              },
+              {
+                "name": "event_sequence",
+                "bytes": 643072,
+                "payload_bytes": 527824
+              },
+              {
+                "name": "events",
+                "bytes": 1409024,
+                "payload_bytes": 1307952
+              },
+              {
+                "name": "files",
+                "bytes": 4096,
+                "payload_bytes": 134
+              },
+              {
+                "name": "sqlite_autoindex_counters_1",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_autoindex_events_1",
+                "bytes": 512000,
+                "payload_bytes": 409872
+              },
+              {
+                "name": "sqlite_autoindex_files_1",
+                "bytes": 4096,
+                "payload_bytes": 27
+              },
+              {
+                "name": "sqlite_schema",
+                "bytes": 4096,
+                "payload_bytes": 2015
+              },
+              {
+                "name": "streams",
+                "bytes": 4096,
+                "payload_bytes": 848
+              },
+              {
+                "name": "totals",
+                "bytes": 4096,
+                "payload_bytes": 8
+              }
+            ]
+          }
+        },
+        "retained": {
+          "bulk": {
+            "wall_ms": 66.02070014923811,
+            "cpu_ms": 62.5
+          },
+          "bulk_values": {
+            "landed_events": 10000,
+            "pending_events": 500,
+            "sequence_gaps": 0
+          },
+          "bulk_digest_sha256": "b0b7ddbb5be7b8c9707a1aaca65d10f91e34fb34e14abfc187e7cbb6a7894dbb",
+          "bulk_storage": {
+            "page_count": 731,
+            "freelist_pages": 0,
+            "page_size": 4096,
+            "objects": [
+              {
+                "name": "counters",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "event_confirmed",
+                "bytes": 176128,
+                "payload_bytes": 123380
+              },
+              {
+                "name": "event_pending",
+                "bytes": 20480,
+                "payload_bytes": 10992
+              },
+              {
+                "name": "event_pending_age",
+                "bytes": 12288,
+                "payload_bytes": 6492
+              },
+              {
+                "name": "event_sequence",
+                "bytes": 643072,
+                "payload_bytes": 527824
+              },
+              {
+                "name": "events",
+                "bytes": 1581056,
+                "payload_bytes": 1483952
+              },
+              {
+                "name": "files",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "retention_control",
+                "bytes": 4096,
+                "payload_bytes": 4
+              },
+              {
+                "name": "retention_deletes",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "retired_streams",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sequence_conflicts",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "source_receipts",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_autoindex_counters_1",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_autoindex_events_1",
+                "bytes": 512000,
+                "payload_bytes": 409872
+              },
+              {
+                "name": "sqlite_autoindex_files_1",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_schema",
+                "bytes": 4096,
+                "payload_bytes": 3435
+              },
+              {
+                "name": "streams",
+                "bytes": 4096,
+                "payload_bytes": 848
+              },
+              {
+                "name": "totals",
+                "bytes": 4096,
+                "payload_bytes": 8
+              }
+            ]
+          },
+          "reads": {
+            "metrics": {
+              "median_wall_ms": 0.017799902707338333,
+              "median_cpu_ms": 0.0,
+              "samples": [
+                {
+                  "wall_ms": 0.037999823689460754,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.020099803805351257,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.017599668353796005,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.01749955117702484,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.01819990575313568,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.01750001683831215,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.017900019884109497,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.017400365322828293,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.017799902707338333,
+                  "cpu_ms": 0.0
+                }
+              ]
+            },
+            "confirmed_queue": {
+              "median_wall_ms": 0.03260001540184021,
+              "median_cpu_ms": 0.0,
+              "samples": [
+                {
+                  "wall_ms": 0.07650023326277733,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.035799574106931686,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03369990736246109,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03240024670958519,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03260001540184021,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.031599774956703186,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.036699697375297546,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03190012648701668,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.030899886041879654,
+                  "cpu_ms": 0.0
+                }
+              ]
+            },
+            "idle_scan": {
+              "median_wall_ms": 0.021900050342082977,
+              "median_cpu_ms": 0.0,
+              "samples": [
+                {
+                  "wall_ms": 0.06160000339150429,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.02659996971487999,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.021199695765972137,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.05829986184835434,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.02530030906200409,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.021900050342082977,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.018999911844730377,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.018500257283449173,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.01769978553056717,
+                  "cpu_ms": 0.0
+                }
+              ]
+            },
+            "confirmed_plan": [
+              "SEARCH events USING INDEX event_confirmed (last_checked<?)"
+            ]
+          },
+          "append": {
+            "wall_ms": 27.373500168323517,
+            "cpu_ms": 31.25,
+            "batches": [
+              {
+                "wall_ms": 27.373500168323517,
+                "cpu_ms": 31.25,
+                "scan_budget_exhausted": 0,
+                "partial_lines": 0
+              }
+            ]
+          },
+          "append_values": {
+            "landed_events": 11000,
+            "pending_events": 1500,
+            "sequence_gaps": 0
+          },
+          "append_digest_sha256": "0c47829706e3fe0538577d8932101f4b6a017ffeda73b3df096c2ba86fe178cc",
+          "integrity_check": "ok",
+          "scan": {
+            "wall_ms": 247.63719970360398,
+            "cpu_ms": 250.0,
+            "batches": [
+              {
+                "wall_ms": 247.63719970360398,
+                "cpu_ms": 250.0,
+                "scan_budget_exhausted": 0,
+                "partial_lines": 0
+              }
+            ]
+          },
+          "scan_values": {
+            "landed_events": 10000,
+            "pending_events": 10000,
+            "sequence_gaps": 0
+          },
+          "scan_digest_sha256": "3044aeec2b3ab9048e2952c4dfcfee83a0f8cdd57985f4d5e997b5119b293e4d",
+          "scan_storage": {
+            "page_count": 747,
+            "freelist_pages": 0,
+            "page_size": 4096,
+            "objects": [
+              {
+                "name": "counters",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "event_confirmed",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "event_pending",
+                "bytes": 196608,
+                "payload_bytes": 139872
+              },
+              {
+                "name": "event_pending_age",
+                "bytes": 184320,
+                "payload_bytes": 129872
+              },
+              {
+                "name": "event_sequence",
+                "bytes": 643072,
+                "payload_bytes": 527824
+              },
+              {
+                "name": "events",
+                "bytes": 1470464,
+                "payload_bytes": 1367952
+              },
+              {
+                "name": "files",
+                "bytes": 4096,
+                "payload_bytes": 134
+              },
+              {
+                "name": "retention_control",
+                "bytes": 4096,
+                "payload_bytes": 12
+              },
+              {
+                "name": "retention_deletes",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "retired_streams",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sequence_conflicts",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "source_receipts",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_autoindex_counters_1",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_autoindex_events_1",
+                "bytes": 512000,
+                "payload_bytes": 409872
+              },
+              {
+                "name": "sqlite_autoindex_files_1",
+                "bytes": 4096,
+                "payload_bytes": 27
+              },
+              {
+                "name": "sqlite_schema",
+                "bytes": 4096,
+                "payload_bytes": 3435
+              },
+              {
+                "name": "streams",
+                "bytes": 4096,
+                "payload_bytes": 848
+              },
+              {
+                "name": "totals",
+                "bytes": 4096,
+                "payload_bytes": 8
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "order": [
+        "retained",
+        "prior"
+      ],
+      "results": {
+        "retained": {
+          "bulk": {
+            "wall_ms": 64.85059997066855,
+            "cpu_ms": 62.5
+          },
+          "bulk_values": {
+            "landed_events": 10000,
+            "pending_events": 500,
+            "sequence_gaps": 0
+          },
+          "bulk_digest_sha256": "b0b7ddbb5be7b8c9707a1aaca65d10f91e34fb34e14abfc187e7cbb6a7894dbb",
+          "bulk_storage": {
+            "page_count": 731,
+            "freelist_pages": 0,
+            "page_size": 4096,
+            "objects": [
+              {
+                "name": "counters",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "event_confirmed",
+                "bytes": 176128,
+                "payload_bytes": 123380
+              },
+              {
+                "name": "event_pending",
+                "bytes": 20480,
+                "payload_bytes": 10992
+              },
+              {
+                "name": "event_pending_age",
+                "bytes": 12288,
+                "payload_bytes": 6492
+              },
+              {
+                "name": "event_sequence",
+                "bytes": 643072,
+                "payload_bytes": 527824
+              },
+              {
+                "name": "events",
+                "bytes": 1581056,
+                "payload_bytes": 1483952
+              },
+              {
+                "name": "files",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "retention_control",
+                "bytes": 4096,
+                "payload_bytes": 4
+              },
+              {
+                "name": "retention_deletes",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "retired_streams",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sequence_conflicts",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "source_receipts",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_autoindex_counters_1",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_autoindex_events_1",
+                "bytes": 512000,
+                "payload_bytes": 409872
+              },
+              {
+                "name": "sqlite_autoindex_files_1",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_schema",
+                "bytes": 4096,
+                "payload_bytes": 3435
+              },
+              {
+                "name": "streams",
+                "bytes": 4096,
+                "payload_bytes": 848
+              },
+              {
+                "name": "totals",
+                "bytes": 4096,
+                "payload_bytes": 8
+              }
+            ]
+          },
+          "reads": {
+            "metrics": {
+              "median_wall_ms": 0.01800013706088066,
+              "median_cpu_ms": 0.0,
+              "samples": [
+                {
+                  "wall_ms": 0.04719989374279976,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.019599683582782745,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.01819990575313568,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.017599668353796005,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.01800013706088066,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.01729978248476982,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.018800143152475357,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.0171000137925148,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.017400365322828293,
+                  "cpu_ms": 0.0
+                }
+              ]
+            },
+            "confirmed_queue": {
+              "median_wall_ms": 0.03280024975538254,
+              "median_cpu_ms": 0.0,
+              "samples": [
+                {
+                  "wall_ms": 0.08819997310638428,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.035999808460474014,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03330036997795105,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03280024975538254,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03200024366378784,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03590015694499016,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.031100120395421982,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.031299889087677,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03190012648701668,
+                  "cpu_ms": 0.0
+                }
+              ]
+            },
+            "idle_scan": {
+              "median_wall_ms": 0.017900019884109497,
+              "median_cpu_ms": 0.0,
+              "samples": [
+                {
+                  "wall_ms": 0.06150035187602043,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.02259993925690651,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.01930026337504387,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.01819990575313568,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.017399899661540985,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.017799902707338333,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.017900019884109497,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.01730024814605713,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.0171000137925148,
+                  "cpu_ms": 0.0
+                }
+              ]
+            },
+            "confirmed_plan": [
+              "SEARCH events USING INDEX event_confirmed (last_checked<?)"
+            ]
+          },
+          "append": {
+            "wall_ms": 29.908999800682068,
+            "cpu_ms": 31.25,
+            "batches": [
+              {
+                "wall_ms": 29.908999800682068,
+                "cpu_ms": 31.25,
+                "scan_budget_exhausted": 0,
+                "partial_lines": 0
+              }
+            ]
+          },
+          "append_values": {
+            "landed_events": 11000,
+            "pending_events": 1500,
+            "sequence_gaps": 0
+          },
+          "append_digest_sha256": "0c47829706e3fe0538577d8932101f4b6a017ffeda73b3df096c2ba86fe178cc",
+          "integrity_check": "ok",
+          "scan": {
+            "wall_ms": 245.58100011199713,
+            "cpu_ms": 250.0,
+            "batches": [
+              {
+                "wall_ms": 245.58100011199713,
+                "cpu_ms": 250.0,
+                "scan_budget_exhausted": 0,
+                "partial_lines": 0
+              }
+            ]
+          },
+          "scan_values": {
+            "landed_events": 10000,
+            "pending_events": 10000,
+            "sequence_gaps": 0
+          },
+          "scan_digest_sha256": "3044aeec2b3ab9048e2952c4dfcfee83a0f8cdd57985f4d5e997b5119b293e4d",
+          "scan_storage": {
+            "page_count": 747,
+            "freelist_pages": 0,
+            "page_size": 4096,
+            "objects": [
+              {
+                "name": "counters",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "event_confirmed",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "event_pending",
+                "bytes": 196608,
+                "payload_bytes": 139872
+              },
+              {
+                "name": "event_pending_age",
+                "bytes": 184320,
+                "payload_bytes": 129872
+              },
+              {
+                "name": "event_sequence",
+                "bytes": 643072,
+                "payload_bytes": 527824
+              },
+              {
+                "name": "events",
+                "bytes": 1470464,
+                "payload_bytes": 1367952
+              },
+              {
+                "name": "files",
+                "bytes": 4096,
+                "payload_bytes": 134
+              },
+              {
+                "name": "retention_control",
+                "bytes": 4096,
+                "payload_bytes": 12
+              },
+              {
+                "name": "retention_deletes",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "retired_streams",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sequence_conflicts",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "source_receipts",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_autoindex_counters_1",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_autoindex_events_1",
+                "bytes": 512000,
+                "payload_bytes": 409872
+              },
+              {
+                "name": "sqlite_autoindex_files_1",
+                "bytes": 4096,
+                "payload_bytes": 27
+              },
+              {
+                "name": "sqlite_schema",
+                "bytes": 4096,
+                "payload_bytes": 3435
+              },
+              {
+                "name": "streams",
+                "bytes": 4096,
+                "payload_bytes": 848
+              },
+              {
+                "name": "totals",
+                "bytes": 4096,
+                "payload_bytes": 8
+              }
+            ]
+          }
+        },
+        "prior": {
+          "bulk": {
+            "wall_ms": 67.20079993829131,
+            "cpu_ms": 62.5
+          },
+          "bulk_values": {
+            "landed_events": 10000,
+            "pending_events": 500,
+            "sequence_gaps": 0
+          },
+          "bulk_digest_sha256": "b0b7ddbb5be7b8c9707a1aaca65d10f91e34fb34e14abfc187e7cbb6a7894dbb",
+          "bulk_storage": {
+            "page_count": 725,
+            "freelist_pages": 0,
+            "page_size": 4096,
+            "objects": [
+              {
+                "name": "counters",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "event_confirmed",
+                "bytes": 176128,
+                "payload_bytes": 123380
+              },
+              {
+                "name": "event_pending",
+                "bytes": 20480,
+                "payload_bytes": 10992
+              },
+              {
+                "name": "event_pending_age",
+                "bytes": 12288,
+                "payload_bytes": 6492
+              },
+              {
+                "name": "event_sequence",
+                "bytes": 643072,
+                "payload_bytes": 527824
+              },
+              {
+                "name": "events",
+                "bytes": 1576960,
+                "payload_bytes": 1463952
+              },
+              {
+                "name": "files",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_autoindex_counters_1",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_autoindex_events_1",
+                "bytes": 512000,
+                "payload_bytes": 409872
+              },
+              {
+                "name": "sqlite_autoindex_files_1",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_schema",
+                "bytes": 4096,
+                "payload_bytes": 2015
+              },
+              {
+                "name": "streams",
+                "bytes": 4096,
+                "payload_bytes": 848
+              },
+              {
+                "name": "totals",
+                "bytes": 4096,
+                "payload_bytes": 8
+              }
+            ]
+          },
+          "reads": {
+            "metrics": {
+              "median_wall_ms": 0.013499986380338669,
+              "median_cpu_ms": 0.0,
+              "samples": [
+                {
+                  "wall_ms": 0.027999747544527054,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.014800112694501877,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.013600103557109833,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.013499986380338669,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.013200100511312485,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.013599637895822525,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.012800097465515137,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.013000331819057465,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.013000331819057465,
+                  "cpu_ms": 0.0
+                }
+              ]
+            },
+            "confirmed_queue": {
+              "median_wall_ms": 0.03300001844763756,
+              "median_cpu_ms": 0.0,
+              "samples": [
+                {
+                  "wall_ms": 0.06700027734041214,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.037999823689460754,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03400025889277458,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03620004281401634,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03300001844763756,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03200024366378784,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03260001540184021,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.031600240617990494,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03279978409409523,
+                  "cpu_ms": 0.0
+                }
+              ]
+            },
+            "idle_scan": {
+              "median_wall_ms": 0.00470038503408432,
+              "median_cpu_ms": 0.0,
+              "samples": [
+                {
+                  "wall_ms": 0.0200001522898674,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.0066999346017837524,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.005200039595365524,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.004600267857313156,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.004500150680541992,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.00470038503408432,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.004599802196025848,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.0048996880650520325,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.004500150680541992,
+                  "cpu_ms": 0.0
+                }
+              ]
+            },
+            "confirmed_plan": [
+              "SEARCH events USING INDEX event_confirmed (last_checked<?)"
+            ]
+          },
+          "append": {
+            "wall_ms": 35.45759990811348,
+            "cpu_ms": 31.25,
+            "batches": [
+              {
+                "wall_ms": 35.45759990811348,
+                "cpu_ms": 31.25,
+                "scan_budget_exhausted": 0,
+                "partial_lines": 0
+              }
+            ]
+          },
+          "append_values": {
+            "landed_events": 11000,
+            "pending_events": 1500,
+            "sequence_gaps": 0
+          },
+          "append_digest_sha256": "0c47829706e3fe0538577d8932101f4b6a017ffeda73b3df096c2ba86fe178cc",
+          "integrity_check": "ok",
+          "scan": {
+            "wall_ms": 233.36949991062284,
+            "cpu_ms": 218.75,
+            "batches": [
+              {
+                "wall_ms": 233.36949991062284,
+                "cpu_ms": 218.75,
+                "scan_budget_exhausted": 0,
+                "partial_lines": 0
+              }
+            ]
+          },
+          "scan_values": {
+            "landed_events": 10000,
+            "pending_events": 10000,
+            "sequence_gaps": 0
+          },
+          "scan_digest_sha256": "3044aeec2b3ab9048e2952c4dfcfee83a0f8cdd57985f4d5e997b5119b293e4d",
+          "scan_storage": {
+            "page_count": 727,
+            "freelist_pages": 0,
+            "page_size": 4096,
+            "objects": [
+              {
+                "name": "counters",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "event_confirmed",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "event_pending",
+                "bytes": 196608,
+                "payload_bytes": 139872
+              },
+              {
+                "name": "event_pending_age",
+                "bytes": 184320,
+                "payload_bytes": 129872
+              },
+              {
+                "name": "event_sequence",
+                "bytes": 643072,
+                "payload_bytes": 527824
+              },
+              {
+                "name": "events",
+                "bytes": 1409024,
+                "payload_bytes": 1307952
+              },
+              {
+                "name": "files",
+                "bytes": 4096,
+                "payload_bytes": 134
+              },
+              {
+                "name": "sqlite_autoindex_counters_1",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_autoindex_events_1",
+                "bytes": 512000,
+                "payload_bytes": 409872
+              },
+              {
+                "name": "sqlite_autoindex_files_1",
+                "bytes": 4096,
+                "payload_bytes": 27
+              },
+              {
+                "name": "sqlite_schema",
+                "bytes": 4096,
+                "payload_bytes": 2015
+              },
+              {
+                "name": "streams",
+                "bytes": 4096,
+                "payload_bytes": 848
+              },
+              {
+                "name": "totals",
+                "bytes": 4096,
+                "payload_bytes": 8
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "order": [
+        "prior",
+        "retained"
+      ],
+      "results": {
+        "prior": {
+          "bulk": {
+            "wall_ms": 66.04119995608926,
+            "cpu_ms": 62.5
+          },
+          "bulk_values": {
+            "landed_events": 10000,
+            "pending_events": 500,
+            "sequence_gaps": 0
+          },
+          "bulk_digest_sha256": "b0b7ddbb5be7b8c9707a1aaca65d10f91e34fb34e14abfc187e7cbb6a7894dbb",
+          "bulk_storage": {
+            "page_count": 725,
+            "freelist_pages": 0,
+            "page_size": 4096,
+            "objects": [
+              {
+                "name": "counters",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "event_confirmed",
+                "bytes": 176128,
+                "payload_bytes": 123380
+              },
+              {
+                "name": "event_pending",
+                "bytes": 20480,
+                "payload_bytes": 10992
+              },
+              {
+                "name": "event_pending_age",
+                "bytes": 12288,
+                "payload_bytes": 6492
+              },
+              {
+                "name": "event_sequence",
+                "bytes": 643072,
+                "payload_bytes": 527824
+              },
+              {
+                "name": "events",
+                "bytes": 1576960,
+                "payload_bytes": 1463952
+              },
+              {
+                "name": "files",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_autoindex_counters_1",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_autoindex_events_1",
+                "bytes": 512000,
+                "payload_bytes": 409872
+              },
+              {
+                "name": "sqlite_autoindex_files_1",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_schema",
+                "bytes": 4096,
+                "payload_bytes": 2015
+              },
+              {
+                "name": "streams",
+                "bytes": 4096,
+                "payload_bytes": 848
+              },
+              {
+                "name": "totals",
+                "bytes": 4096,
+                "payload_bytes": 8
+              }
+            ]
+          },
+          "reads": {
+            "metrics": {
+              "median_wall_ms": 0.013899989426136017,
+              "median_cpu_ms": 0.0,
+              "samples": [
+                {
+                  "wall_ms": 0.0271000899374485,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.015300232917070389,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.014899764209985733,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.013600103557109833,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.013499986380338669,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.013999640941619873,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.01309998333454132,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.01309998333454132,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.013899989426136017,
+                  "cpu_ms": 0.0
+                }
+              ]
+            },
+            "confirmed_queue": {
+              "median_wall_ms": 0.03329990431666374,
+              "median_cpu_ms": 0.0,
+              "samples": [
+                {
+                  "wall_ms": 0.07560010999441147,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03590015694499016,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03329990431666374,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.033599790185689926,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.033200252801179886,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03279978409409523,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03310013562440872,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03229966387152672,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.033599790185689926,
+                  "cpu_ms": 0.0
+                }
+              ]
+            },
+            "idle_scan": {
+              "median_wall_ms": 0.00490015372633934,
+              "median_cpu_ms": 0.0,
+              "samples": [
+                {
+                  "wall_ms": 0.017900019884109497,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.00690016895532608,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.005499925464391708,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.004999805241823196,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.00490015372633934,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.00490015372633934,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.004699919372797012,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.004800036549568176,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.00470038503408432,
+                  "cpu_ms": 0.0
+                }
+              ]
+            },
+            "confirmed_plan": [
+              "SEARCH events USING INDEX event_confirmed (last_checked<?)"
+            ]
+          },
+          "append": {
+            "wall_ms": 27.412900235503912,
+            "cpu_ms": 31.25,
+            "batches": [
+              {
+                "wall_ms": 27.412900235503912,
+                "cpu_ms": 31.25,
+                "scan_budget_exhausted": 0,
+                "partial_lines": 0
+              }
+            ]
+          },
+          "append_values": {
+            "landed_events": 11000,
+            "pending_events": 1500,
+            "sequence_gaps": 0
+          },
+          "append_digest_sha256": "0c47829706e3fe0538577d8932101f4b6a017ffeda73b3df096c2ba86fe178cc",
+          "integrity_check": "ok",
+          "scan": {
+            "wall_ms": 248.93679982051253,
+            "cpu_ms": 234.375,
+            "batches": [
+              {
+                "wall_ms": 248.93679982051253,
+                "cpu_ms": 234.375,
+                "scan_budget_exhausted": 0,
+                "partial_lines": 0
+              }
+            ]
+          },
+          "scan_values": {
+            "landed_events": 10000,
+            "pending_events": 10000,
+            "sequence_gaps": 0
+          },
+          "scan_digest_sha256": "3044aeec2b3ab9048e2952c4dfcfee83a0f8cdd57985f4d5e997b5119b293e4d",
+          "scan_storage": {
+            "page_count": 727,
+            "freelist_pages": 0,
+            "page_size": 4096,
+            "objects": [
+              {
+                "name": "counters",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "event_confirmed",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "event_pending",
+                "bytes": 196608,
+                "payload_bytes": 139872
+              },
+              {
+                "name": "event_pending_age",
+                "bytes": 184320,
+                "payload_bytes": 129872
+              },
+              {
+                "name": "event_sequence",
+                "bytes": 643072,
+                "payload_bytes": 527824
+              },
+              {
+                "name": "events",
+                "bytes": 1409024,
+                "payload_bytes": 1307952
+              },
+              {
+                "name": "files",
+                "bytes": 4096,
+                "payload_bytes": 134
+              },
+              {
+                "name": "sqlite_autoindex_counters_1",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_autoindex_events_1",
+                "bytes": 512000,
+                "payload_bytes": 409872
+              },
+              {
+                "name": "sqlite_autoindex_files_1",
+                "bytes": 4096,
+                "payload_bytes": 27
+              },
+              {
+                "name": "sqlite_schema",
+                "bytes": 4096,
+                "payload_bytes": 2015
+              },
+              {
+                "name": "streams",
+                "bytes": 4096,
+                "payload_bytes": 848
+              },
+              {
+                "name": "totals",
+                "bytes": 4096,
+                "payload_bytes": 8
+              }
+            ]
+          }
+        },
+        "retained": {
+          "bulk": {
+            "wall_ms": 63.72460024431348,
+            "cpu_ms": 62.5
+          },
+          "bulk_values": {
+            "landed_events": 10000,
+            "pending_events": 500,
+            "sequence_gaps": 0
+          },
+          "bulk_digest_sha256": "b0b7ddbb5be7b8c9707a1aaca65d10f91e34fb34e14abfc187e7cbb6a7894dbb",
+          "bulk_storage": {
+            "page_count": 731,
+            "freelist_pages": 0,
+            "page_size": 4096,
+            "objects": [
+              {
+                "name": "counters",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "event_confirmed",
+                "bytes": 176128,
+                "payload_bytes": 123380
+              },
+              {
+                "name": "event_pending",
+                "bytes": 20480,
+                "payload_bytes": 10992
+              },
+              {
+                "name": "event_pending_age",
+                "bytes": 12288,
+                "payload_bytes": 6492
+              },
+              {
+                "name": "event_sequence",
+                "bytes": 643072,
+                "payload_bytes": 527824
+              },
+              {
+                "name": "events",
+                "bytes": 1581056,
+                "payload_bytes": 1483952
+              },
+              {
+                "name": "files",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "retention_control",
+                "bytes": 4096,
+                "payload_bytes": 4
+              },
+              {
+                "name": "retention_deletes",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "retired_streams",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sequence_conflicts",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "source_receipts",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_autoindex_counters_1",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_autoindex_events_1",
+                "bytes": 512000,
+                "payload_bytes": 409872
+              },
+              {
+                "name": "sqlite_autoindex_files_1",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_schema",
+                "bytes": 4096,
+                "payload_bytes": 3435
+              },
+              {
+                "name": "streams",
+                "bytes": 4096,
+                "payload_bytes": 848
+              },
+              {
+                "name": "totals",
+                "bytes": 4096,
+                "payload_bytes": 8
+              }
+            ]
+          },
+          "reads": {
+            "metrics": {
+              "median_wall_ms": 0.01800013706088066,
+              "median_cpu_ms": 0.0,
+              "samples": [
+                {
+                  "wall_ms": 0.039099715650081635,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.019900035113096237,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.01840014010667801,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.01800013706088066,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.017399899661540985,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.01729978248476982,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.018300022929906845,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.0171000137925148,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.017200130969285965,
+                  "cpu_ms": 0.0
+                }
+              ]
+            },
+            "confirmed_queue": {
+              "median_wall_ms": 0.032499898225069046,
+              "median_cpu_ms": 0.0,
+              "samples": [
+                {
+                  "wall_ms": 0.06900029256939888,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03479979932308197,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03329990431666374,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.032499898225069046,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.032700132578611374,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.031999778002500534,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.0320998951792717,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03220001235604286,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.03200024366378784,
+                  "cpu_ms": 0.0
+                }
+              ]
+            },
+            "idle_scan": {
+              "median_wall_ms": 0.01859990879893303,
+              "median_cpu_ms": 0.0,
+              "samples": [
+                {
+                  "wall_ms": 0.05630031228065491,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.02329982817173004,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.01989956945180893,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.018999911844730377,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.01840014010667801,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.01859990879893303,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.017599668353796005,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.017900019884109497,
+                  "cpu_ms": 0.0
+                },
+                {
+                  "wall_ms": 0.017600134015083313,
+                  "cpu_ms": 0.0
+                }
+              ]
+            },
+            "confirmed_plan": [
+              "SEARCH events USING INDEX event_confirmed (last_checked<?)"
+            ]
+          },
+          "append": {
+            "wall_ms": 28.018000070005655,
+            "cpu_ms": 31.25,
+            "batches": [
+              {
+                "wall_ms": 28.018000070005655,
+                "cpu_ms": 31.25,
+                "scan_budget_exhausted": 0,
+                "partial_lines": 0
+              }
+            ]
+          },
+          "append_values": {
+            "landed_events": 11000,
+            "pending_events": 1500,
+            "sequence_gaps": 0
+          },
+          "append_digest_sha256": "0c47829706e3fe0538577d8932101f4b6a017ffeda73b3df096c2ba86fe178cc",
+          "integrity_check": "ok",
+          "scan": {
+            "wall_ms": 251.39089999720454,
+            "cpu_ms": 250.0,
+            "batches": [
+              {
+                "wall_ms": 251.39089999720454,
+                "cpu_ms": 250.0,
+                "scan_budget_exhausted": 0,
+                "partial_lines": 0
+              }
+            ]
+          },
+          "scan_values": {
+            "landed_events": 10000,
+            "pending_events": 10000,
+            "sequence_gaps": 0
+          },
+          "scan_digest_sha256": "3044aeec2b3ab9048e2952c4dfcfee83a0f8cdd57985f4d5e997b5119b293e4d",
+          "scan_storage": {
+            "page_count": 747,
+            "freelist_pages": 0,
+            "page_size": 4096,
+            "objects": [
+              {
+                "name": "counters",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "event_confirmed",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "event_pending",
+                "bytes": 196608,
+                "payload_bytes": 139872
+              },
+              {
+                "name": "event_pending_age",
+                "bytes": 184320,
+                "payload_bytes": 129872
+              },
+              {
+                "name": "event_sequence",
+                "bytes": 643072,
+                "payload_bytes": 527824
+              },
+              {
+                "name": "events",
+                "bytes": 1470464,
+                "payload_bytes": 1367952
+              },
+              {
+                "name": "files",
+                "bytes": 4096,
+                "payload_bytes": 134
+              },
+              {
+                "name": "retention_control",
+                "bytes": 4096,
+                "payload_bytes": 12
+              },
+              {
+                "name": "retention_deletes",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "retired_streams",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sequence_conflicts",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "source_receipts",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_autoindex_counters_1",
+                "bytes": 4096,
+                "payload_bytes": 0
+              },
+              {
+                "name": "sqlite_autoindex_events_1",
+                "bytes": 512000,
+                "payload_bytes": 409872
+              },
+              {
+                "name": "sqlite_autoindex_files_1",
+                "bytes": 4096,
+                "payload_bytes": 27
+              },
+              {
+                "name": "sqlite_schema",
+                "bytes": 4096,
+                "payload_bytes": 3435
+              },
+              {
+                "name": "streams",
+                "bytes": 4096,
+                "payload_bytes": 848
+              },
+              {
+                "name": "totals",
+                "bytes": 4096,
+                "payload_bytes": 8
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "median_wall_ms": {
+    "prior": {
+      "bulk": 66.3226000033319,
+      "scan": 240.55120022967458,
+      "append": 28.159799985587597
+    },
+    "retained": {
+      "bulk": 64.85059997066855,
+      "scan": 247.63719970360398,
+      "append": 28.018000070005655
+    }
+  }
+}

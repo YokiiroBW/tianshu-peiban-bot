@@ -1,17 +1,22 @@
 """Local durable hash ledger and external observations, independent of product databases."""
 
+import heapq
 import shutil
 import sqlite3
 import time
+from contextlib import contextmanager
 
 from ledger_schema import initialize, insert_summary
-from policy import digest_bytes, segments
+from policy import digest_bytes, event_time, segments
 
 
 class Ledger:
-    def __init__(self, path, policy, max_events=1_000_000):
+    def __init__(self, path, policy, max_events=10000, retention_days=30):
         self.policy, self.max_events = policy, max_events
+        self.retention_days = retention_days
         self.capacity_rejected_current = 0
+        self.clear_before = 0
+        self.scan_cursor = None
         self.db = sqlite3.connect(path)
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("PRAGMA synchronous=FULL")
@@ -29,14 +34,29 @@ class Ledger:
 
     def _duplicate(self, event, digest):
         old = self.db.execute(
-            "SELECT hash FROM events WHERE id=?", (event["event_id"],)
+            "SELECT hash,service,instance,sequence FROM events WHERE id=?",
+            (event["event_id"],),
         ).fetchone()
         if old is None:
             return False
         self.count("source_duplicates")
         if old[0] != digest:
             self.count("identity_conflicts")
+            self.db.execute(
+                "INSERT OR IGNORE INTO sequence_conflicts VALUES (?,?,?)", old[1:]
+            )
+            self.db.execute(
+                "INSERT OR IGNORE INTO sequence_conflicts VALUES (?,?,?)",
+                (event["service"], event["instance_id"], event["sequence"]),
+            )
         return True
+
+    def _sequence_conflict(self, event):
+        self.count("identity_conflicts")
+        self.db.execute(
+            "INSERT OR IGNORE INTO sequence_conflicts VALUES (?,?,?)",
+            (event["service"], event["instance_id"], event["sequence"]),
+        )
 
     def _checkpoint(self, name, identity, offset):
         self.db.execute(
@@ -45,15 +65,31 @@ class Ledger:
         )
 
     def scan(self, roots, line_budget=20000):
+        self.apply_clear()
         self.capacity_rejected_current = 0
+        retired = {
+            (service, instance): through
+            for service, instance, through in self.db.execute(
+                "SELECT service,instance,through FROM retired_streams"
+            )
+        }
         partial, count = (
             0,
             self.db.execute("SELECT landed FROM totals WHERE singleton=1").fetchone()[
                 0
             ],
         )
-        with self.db, insert_summary(self.db) as inserted:
-            for service, root in roots.items():
+        items = list(roots.items())
+        names = list(roots)
+        if self.scan_cursor in names:
+            start = names.index(self.scan_cursor) + 1
+            items = items[start:] + items[:start]
+        with (
+            self.db,
+            insert_summary(self.db) as inserted,
+            self._scan_summary() as cleared,
+        ):
+            for service, root in items:
                 for path in segments(root):
                     if line_budget <= 0:
                         return {"scan_budget_exhausted": 1, "partial_lines": partial}
@@ -104,7 +140,32 @@ class Ledger:
                                     allowed = {service}
                                 if event["service"] not in allowed:
                                     raise ValueError()
+                                occurred = event_time(event)
+                                if (
+                                    self.clear_before > 0
+                                    and occurred <= self.clear_before
+                                ):
+                                    cleared(
+                                        event["service"],
+                                        event["instance_id"],
+                                        event["sequence"],
+                                    )
+                                    self.count("manual_cleared_replays")
+                                    offset = stream.tell()
+                                    self.scan_cursor = service
+                                    continue
                                 digest = digest_bytes(event)
+                                if event["sequence"] <= retired.get(
+                                    (event["service"], event["instance_id"]), 0
+                                ):
+                                    # The retention policy deliberately discarded this
+                                    # old hash. Consume replay without claiming that
+                                    # its expired contents were checked or reinserted.
+                                    if not self._duplicate(event, digest):
+                                        self.count("retired_replays")
+                                    offset = stream.tell()
+                                    self.scan_cursor = service
+                                    continue
                                 if count >= self.max_events:
                                     if not self._duplicate(event, digest):
                                         conflict = self.db.execute(
@@ -116,7 +177,7 @@ class Ledger:
                                             ),
                                         ).fetchone()
                                         if conflict:
-                                            self.count("identity_conflicts")
+                                            self._sequence_conflict(event)
                                         else:
                                             self.count("ledger_capacity_rejected")
                                             self.capacity_rejected_current = 1
@@ -128,11 +189,12 @@ class Ledger:
                                                 "partial_lines": partial,
                                             }
                                     offset = stream.tell()
+                                    self.scan_cursor = service
                                     continue
                                 try:
                                     written = self.db.execute(
-                                        "INSERT INTO events(id,service,instance,sequence,hash,first_seen) "
-                                        "VALUES (?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING",
+                                        "INSERT INTO events(id,service,instance,sequence,hash,first_seen,occurred) "
+                                        "VALUES (?,?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING",
                                         (
                                             event["event_id"],
                                             event["service"],
@@ -140,6 +202,7 @@ class Ledger:
                                             event["sequence"],
                                             digest,
                                             time.time(),
+                                            occurred,
                                         ),
                                     ).rowcount
                                 except sqlite3.IntegrityError:
@@ -156,12 +219,13 @@ class Ledger:
                                     # unique checks. On conflict, retain the
                                     # original ID-before-sequence classification.
                                     if not self._duplicate(event, digest):
-                                        self.count("identity_conflicts")
+                                        self._sequence_conflict(event)
                             except ValueError:
                                 self.count("invalid_source_lines")
                                 while raw and not raw.endswith(b"\n"):
                                     raw = stream.readline(4097)
                             offset = stream.tell()
+                            self.scan_cursor = service
                         self._checkpoint(name, identity, offset)
         return {
             "scan_budget_exhausted": int(line_budget <= 0),
@@ -200,7 +264,7 @@ class Ledger:
                 "UPDATE events SET last_checked=? WHERE id=?",
                 [(now, ident) for ident in expected],
             )
-            for _, line in rows:
+            for timestamp, line in rows:
                 try:
                     event = self.policy.line(line.encode() + b"\n")
                     ident = event["event_id"]
@@ -211,7 +275,9 @@ class Ledger:
                             self.count("retrieval_duplicates")
                         seen.add(ident)
                         self.db.execute(
-                            "UPDATE events SET verified=? WHERE id=?", (now, ident)
+                            "UPDATE events SET verified=?,collected=CASE WHEN collected IS NULL THEN ? "
+                            "ELSE min(collected,?) END WHERE id=?",
+                            (now, int(timestamp) / 1e9, int(timestamp) / 1e9, ident),
                         )
                 except ValueError:
                     self.count("invalid_retrieved_lines")
@@ -228,7 +294,11 @@ class Ledger:
             "SELECT first_seen FROM events WHERE verified=0 ORDER BY first_seen LIMIT 1"
         ).fetchone()
         gaps = self.db.execute(
-            "SELECT coalesce(sum(maximum-landed),0) FROM streams"
+            "SELECT coalesce(sum(maximum-landed-coalesce(through,0)),0) "
+            "FROM streams LEFT JOIN retired_streams USING(service,instance)"
+        ).fetchone()[0]
+        retired = self.db.execute(
+            "SELECT coalesce(sum(through),0) FROM retired_streams"
         ).fetchone()[0]
         return {
             "landed_events": total,
@@ -237,11 +307,221 @@ class Ledger:
             "pending_events": pending or 0,
             "oldest_pending_seconds": time.time() - oldest[0] if oldest else 0,
             "sequence_gaps": gaps,
+            "retired_events": retired,
             **{
                 name + "_total": value
                 for name, value in self.db.execute("SELECT name,value FROM counters")
             },
         }
+
+    def _retire(self, service, instance, through, start, end):
+        self.db.execute(
+            "INSERT INTO retired_streams VALUES (?,?,?) ON CONFLICT(service,instance) "
+            "DO UPDATE SET through=max(through,excluded.through)",
+            (service, instance, through),
+        )
+        self.db.execute(
+            "INSERT INTO retention_deletes(service,instance,through,start,end) VALUES (?,?,?,?,?) "
+            "ON CONFLICT(service,instance) DO UPDATE SET through=max(through,excluded.through),"
+            "start=CASE WHEN submitted>=through THEN excluded.start ELSE min(start,excluded.start) END,"
+            "end=max(end,excluded.end)",
+            (service, instance, through, start, end),
+        )
+
+    @contextmanager
+    def _scan_summary(self):
+        streams = {}
+
+        def cleared(service, instance, sequence):
+            key = (service, instance)
+            streams[key] = max(streams.get(key, 0), sequence)
+
+        yield cleared
+        self.db.execute(
+            "UPDATE retention_control SET scan_after=? WHERE singleton=1",
+            (self.scan_cursor,),
+        )
+        now = time.time()
+        for (service, instance), through in streams.items():
+            self._retire(
+                service, instance, through, now - (self.retention_days + 1) * 86400, now
+            )
+            self.db.execute(
+                "INSERT INTO streams VALUES (?,?,0,?) ON CONFLICT(service,instance) "
+                "DO UPDATE SET maximum=max(maximum,excluded.maximum)",
+                (service, instance, through),
+            )
+
+    def apply_clear(self):
+        cutoff, self.scan_cursor = self.db.execute(
+            "SELECT clear_before,scan_after FROM retention_control WHERE singleton=1"
+        ).fetchone()
+        if cutoff <= self.clear_before:
+            return
+        with self.db:
+            old = self.db.execute(
+                "SELECT service,instance,max(sequence),min(collected) FROM events "
+                "WHERE first_seen<=? OR occurred<=? GROUP BY service,instance",
+                (cutoff, cutoff),
+            ).fetchall()
+            now = time.time()
+            for service, instance, through, collected in old:
+                self._retire(
+                    service,
+                    instance,
+                    through,
+                    collected or now - (self.retention_days + 1) * 86400,
+                    now,
+                )
+            deleted = self.db.execute(
+                "DELETE FROM events WHERE first_seen<=? OR occurred<=?",
+                (cutoff, cutoff),
+            ).rowcount
+            if deleted:
+                self.count("manual_cleared_events", deleted)
+        self.clear_before = cutoff
+
+    def expire(
+        self,
+        retention_days=30,
+        *,
+        now=None,
+        event_budget=20000,
+        coverage=None,
+        reserve=0,
+    ):
+        """Apply age, global count and operator clear to confirmed stream prefixes.
+
+        The watermark and deletion share the transaction with trigger-maintained
+        totals. A missing, pending or still retained event stops that stream;
+        later events and their gap evidence stay intact. No source file is deleted.
+        """
+        from retention import days
+
+        cutoff = (time.time() if now is None else now) - days(retention_days) * 86400
+        deleted = 0
+        with self.db:
+            clear_before = self.db.execute(
+                "SELECT clear_before FROM retention_control WHERE singleton=1"
+            ).fetchone()[0]
+            total = self.db.execute(
+                "SELECT landed FROM totals WHERE singleton=1"
+            ).fetchone()[0]
+            target = max(0, self.max_events - reserve)
+            streams = self.db.execute(
+                "SELECT service,instance,coalesce(through,0) FROM streams "
+                "LEFT JOIN retired_streams USING(service,instance) "
+                "WHERE landed>0 ORDER BY service,instance"
+            ).fetchall()
+            ends = {
+                (service, instance): through for service, instance, through in streams
+            }
+
+            def records(key, after):
+                while True:
+                    rows = self.db.execute(
+                        "SELECT sequence,first_seen,verified FROM events WHERE service=? AND instance=? "
+                        "AND sequence>? ORDER BY sequence LIMIT 128",
+                        (*key, after),
+                    ).fetchall()
+                    if not rows:
+                        return
+                    yield from rows
+                    after = rows[-1][0]
+
+            waiting, readers = [], {}
+
+            def offer(key):
+                row = next(readers[key], None)
+                if row is None:
+                    return
+                sequence, seen, verified = row
+                if sequence != ends[key] + 1 or verified <= 0:
+                    return
+                if coverage is not None and sequence > coverage.get(key, ends[key]):
+                    return
+                heapq.heappush(waiting, (seen, *key, sequence))
+
+            for key, through in ends.items():
+                readers[key] = records(key, through)
+                offer(key)
+            changed = {}
+            while waiting and deleted < event_budget:
+                seen, service, instance, sequence = heapq.heappop(waiting)
+                if not (
+                    seen < cutoff or seen <= clear_before or total - deleted > target
+                ):
+                    break
+                key = (service, instance)
+                ends[key] = changed[key] = sequence
+                deleted += 1
+                offer(key)
+            for (service, instance), end in changed.items():
+                collected = self.db.execute(
+                    "SELECT min(collected) FROM events "
+                    "WHERE service=? AND instance=? AND sequence<=?",
+                    (service, instance, end),
+                ).fetchone()[0]
+                current = time.time() if now is None else now
+                self._retire(
+                    service,
+                    instance,
+                    end,
+                    collected or current - (days(retention_days) + 1) * 86400,
+                    current,
+                )
+                self.db.execute(
+                    "DELETE FROM events WHERE service=? AND instance=? AND sequence<=?",
+                    (service, instance, end),
+                )
+            if deleted:
+                self.count("expired_events", deleted)
+                self.db.execute(
+                    "DELETE FROM sequence_conflicts WHERE EXISTS (SELECT 1 FROM retired_streams r "
+                    "WHERE r.service=sequence_conflicts.service AND r.instance=sequence_conflicts.instance "
+                    "AND r.through>=sequence_conflicts.sequence)"
+                )
+        return {"retention_expired_events": deleted}
+
+    def retained_window(self):
+        return self.db.execute(
+            "SELECT e.id,e.service,e.instance,e.sequence,(c.sequence IS NOT NULL) FROM "
+            "(SELECT id,service,instance,sequence FROM events "
+            "ORDER BY first_seen DESC,id DESC LIMIT ?) e LEFT JOIN sequence_conflicts c "
+            "USING(service,instance,sequence) ORDER BY e.service,e.instance,e.sequence",
+            (self.max_events,),
+        ).fetchall()
+
+    def submit_deletions(self, client):
+        """Replay-safe outbox; never expose arbitrary deletion selectors to callers."""
+        from datetime import datetime, timezone
+        from urllib.parse import urlencode
+
+        for service, instance, through, start, end in self.db.execute(
+            "SELECT service,instance,through,start,end FROM retention_deletes WHERE submitted<through LIMIT 32"
+        ).fetchall():
+            selector = (
+                '{stack="tianshu",service="tianshu_' + service + '"} | json '
+                '| instance_id="' + instance + '" | sequence<=' + str(through)
+            )
+            status, _, _ = client.request(
+                "/loki/api/v1/delete?"
+                + urlencode(
+                    {
+                        "query": selector,
+                        "start": max(0, int(start) - 1),
+                        "end": datetime.fromtimestamp(end, timezone.utc).isoformat(),
+                    }
+                ),
+                "POST",
+            )
+            if status != 204:
+                raise RuntimeError("loki_retention_delete_failed")
+            with self.db:
+                self.db.execute(
+                    "UPDATE retention_deletes SET submitted=? WHERE service=? AND instance=?",
+                    (through, service, instance),
+                )
 
     def close(self):
         self.db.close()

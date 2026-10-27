@@ -60,7 +60,7 @@ class StorageTests(unittest.TestCase):
                          [("platform/source.jsonl", "identity", 123)])
         self.assertEqual(ledger.db.execute("SELECT * FROM counters").fetchall(),
                          [("identity_conflicts", 7)])
-        actual = ledger.db.execute("SELECT * FROM events ORDER BY first_seen").fetchall()
+        actual = ledger.db.execute("SELECT id,service,instance,sequence,hash,first_seen,verified,last_checked FROM events ORDER BY first_seen").fetchall()
         for index, row in enumerate(actual):
             self.assertEqual(row, (records[index]["event_id"], records[index]["service"],
                                   records[index]["instance_id"], records[index]["sequence"],
@@ -113,6 +113,13 @@ class StorageTests(unittest.TestCase):
             ledger.db.execute("UPDATE events SET verified=100,last_checked=200 WHERE sequence=1")
             # v1 has the same tables/indexes and these original insert-trigger bytes.
             ledger.db.executescript("""
+                ALTER TABLE events DROP COLUMN occurred;
+                ALTER TABLE events DROP COLUMN collected;
+                DROP TABLE retired_streams;
+                DROP TABLE source_receipts;
+                DROP TABLE retention_control;
+                DROP TABLE retention_deletes;
+                DROP TABLE sequence_conflicts;
                 CREATE TRIGGER event_insert AFTER INSERT ON events BEGIN
                     UPDATE totals SET landed=landed+1,pending=pending+(NEW.verified=0) WHERE singleton=1;
                     INSERT INTO streams VALUES(NEW.service,NEW.instance,1,NEW.sequence)
@@ -129,7 +136,8 @@ class StorageTests(unittest.TestCase):
         self.assertIsNone(reopened.db.execute(
             "SELECT name FROM sqlite_master WHERE name='event_insert'").fetchone())
         for name, rows in before.items():
-            self.assertEqual(reopened.db.execute(f"SELECT * FROM {name}").fetchall(), rows)
+            actual = reopened.db.execute(f"SELECT * FROM {name}").fetchall()
+            self.assertEqual([row[:8] for row in actual] if name == "events" else actual, rows)
         emit(self.root / "source.jsonl", [event(2)])
         reopened.scan({"platform": self.root})
         metrics = reopened.metrics()

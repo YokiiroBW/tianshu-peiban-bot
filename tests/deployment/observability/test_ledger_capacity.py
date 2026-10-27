@@ -171,7 +171,7 @@ class CapacityAlertTests(unittest.TestCase):
             "ledger_capacity_rejected_current": 0,
         }
         self.assertFalse(conditions(values)["ledger_capacity"])
-        self.assertTrue(
+        self.assertFalse(
             conditions({**values, "landed_events": 4_500_000})["ledger_capacity"]
         )
         self.assertFalse(
@@ -195,7 +195,9 @@ class CapacityAlertTests(unittest.TestCase):
         self.assertEqual(len(rules), 15)
         rule = next(row for row in rules if row["title"] == "LedgerCapacity")
         expression = ALERTS["LedgerCapacity"][0]
-        self.assertIn("tianshu_obs_ledger_max_events", expression)
+        self.assertNotIn("tianshu_obs_ledger_max_events", expression)
+        self.assertIn("tianshu_obs_source_retention_failures", expression)
+        self.assertIn("tianshu_obs_retention_delete_failures_current", expression)
         self.assertIn("tianshu_obs_ledger_capacity_rejected_current", expression)
         self.assertNotIn("900000", expression)
         self.assertNotIn("ledger_capacity_rejected_total", expression)

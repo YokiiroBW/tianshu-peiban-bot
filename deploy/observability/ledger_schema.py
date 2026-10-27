@@ -2,7 +2,7 @@
 
 from contextlib import contextmanager
 
-VERSION = 2
+VERSION = 3
 
 BASE = """
     CREATE TABLE IF NOT EXISTS files (name TEXT PRIMARY KEY, identity TEXT, offset INTEGER);
@@ -34,6 +34,39 @@ MIGRATION = """
                 WHERE service=OLD.service AND instance=OLD.instance),0)
             WHERE service=OLD.service AND instance=OLD.instance;
         DELETE FROM streams WHERE service=OLD.service AND instance=OLD.instance AND landed=0;
+    END;
+"""
+
+RETENTION = """
+    ALTER TABLE events ADD COLUMN occurred REAL;
+    ALTER TABLE events ADD COLUMN collected REAL;
+    CREATE TABLE retired_streams (service TEXT, instance TEXT, through INTEGER NOT NULL,
+        PRIMARY KEY(service,instance)) WITHOUT ROWID;
+    CREATE TABLE source_receipts (name TEXT, identity TEXT, size INTEGER NOT NULL,
+        hash BLOB NOT NULL, coverage TEXT NOT NULL,
+        PRIMARY KEY(name,identity)) WITHOUT ROWID;
+    CREATE TABLE retention_control (singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+        clear_before REAL NOT NULL, scan_after TEXT);
+    INSERT INTO retention_control VALUES (1,0,NULL);
+    CREATE TABLE retention_deletes (service TEXT, instance TEXT, through INTEGER NOT NULL,
+        submitted INTEGER NOT NULL DEFAULT 0, start REAL, end REAL,
+        PRIMARY KEY(service,instance)) WITHOUT ROWID;
+    CREATE TABLE sequence_conflicts (service TEXT, instance TEXT, sequence INTEGER,
+        PRIMARY KEY(service,instance,sequence)) WITHOUT ROWID;
+    DROP TRIGGER event_delete;
+    CREATE TRIGGER event_delete AFTER DELETE ON events BEGIN
+        UPDATE totals SET landed=landed-1,pending=pending-(OLD.verified=0) WHERE singleton=1;
+        UPDATE streams SET landed=landed-1,
+            maximum=CASE WHEN maximum=OLD.sequence THEN max(
+                coalesce((SELECT max(sequence) FROM events
+                    WHERE service=OLD.service AND instance=OLD.instance),0),
+                coalesce((SELECT through FROM retired_streams
+                    WHERE service=OLD.service AND instance=OLD.instance),0))
+                ELSE maximum END
+            WHERE service=OLD.service AND instance=OLD.instance;
+        DELETE FROM streams WHERE service=OLD.service AND instance=OLD.instance AND landed=0
+            AND NOT EXISTS (SELECT 1 FROM retired_streams
+                WHERE service=OLD.service AND instance=OLD.instance);
     END;
 """
 
@@ -69,8 +102,10 @@ def insert_summary(connection):
         connection.executemany(
             "INSERT INTO streams VALUES (?,?,?,?) ON CONFLICT(service,instance) "
             "DO UPDATE SET landed=landed+excluded.landed,maximum=max(maximum,excluded.maximum)",
-            [(service, instance, count, maximum)
-             for (service, instance), (count, maximum) in streams.items()],
+            [
+                (service, instance, count, maximum)
+                for (service, instance), (count, maximum) in streams.items()
+            ],
         )
 
 
@@ -85,12 +120,14 @@ def initialize(connection):
     version = connection.execute("PRAGMA user_version").fetchone()[0]
     if version == VERSION:
         return
-    if version not in (0, 1):
+    if version not in (0, 1, 2):
         raise ValueError("unsupported_ledger_schema")
     try:
         if version == 0:
             connection.executescript(MIGRATION)
-            rows = connection.execute("SELECT rowid,hash FROM events WHERE typeof(hash)='text'")
+            rows = connection.execute(
+                "SELECT rowid,hash FROM events WHERE typeof(hash)='text'"
+            )
             while batch := rows.fetchmany(1000):
                 converted = []
                 for rowid, value in batch:
@@ -98,14 +135,33 @@ def initialize(connection):
                     if len(binary) != 32 or len(value) != 64:
                         raise ValueError("invalid_ledger_digest")
                     converted.append((binary, rowid))
-                connection.executemany("UPDATE events SET hash=? WHERE rowid=?", converted)
+                connection.executemany(
+                    "UPDATE events SET hash=? WHERE rowid=?", converted
+                )
         else:
             connection.execute("BEGIN IMMEDIATE")
             # v1 already has lossless BLOBs, summaries and indexed revisit
             # queues. Only its per-event insert maintenance is replaced.
-            connection.execute("DROP TRIGGER event_insert")
+            if version == 1:
+                connection.execute("DROP TRIGGER event_insert")
+        # executescript would commit the earlier conversion before this step.
+        # Keep all migration changes, including the version, in one transaction.
+        for statement in _statements(RETENTION):
+            connection.execute(statement)
         connection.execute(f"PRAGMA user_version={VERSION}")
         connection.commit()
     except BaseException:
         connection.rollback()
         raise
+
+
+def _statements(script):
+    """Split complete SQLite statements while retaining trigger BEGIN/END bodies."""
+    import sqlite3
+
+    statement = ""
+    for line in script.splitlines(keepends=True):
+        statement += line
+        if sqlite3.complete_statement(statement):
+            yield statement
+            statement = ""

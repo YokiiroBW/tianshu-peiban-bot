@@ -2,20 +2,25 @@
 
 import argparse
 import hmac
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
-from pathlib import Path
 import re
 import shutil
+import sqlite3
 import ssl
 import threading
 import time
+from contextlib import closing
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from urllib.parse import urlsplit
 
+from alerts import MONITOR_STALE_SECONDS, AlertStore
 from monitor import Ledger, capacities
-from alerts import AlertStore, MONITOR_STALE_SECONDS
 from policy import Policy
 from query import LokiClient
+from retained_query import query_path, window_filter
+from retention import days, max_events
+from source_retention import prune_sources
 from transport import Deadline, accept_tls
 
 QUERY_PATHS = {
@@ -43,6 +48,8 @@ def route(method, raw_path):
         return None
     if method == "POST" and parts.path == "/loki/api/v1/push" and not parts.query:
         return "writer"
+    if method == "POST" and raw_path == "/retention/clear":
+        return "manage"
     if method == "GET" and (
         parts.path in QUERY_PATHS
         or re.fullmatch(r"/loki/api/v1/label/[a-zA-Z_][a-zA-Z0-9_]*/values", parts.path)
@@ -69,6 +76,7 @@ class State:
         }
         self.stop = threading.Event()
         self.monitor_running = threading.Event()
+        self.retained_filter = window_filter([])
         self.tokens = {
             role: Path(path).read_text().strip()
             for role, path in settings["tokens"].items()
@@ -93,10 +101,35 @@ class State:
             self.metrics.update(values)
 
     def authenticated(self, role, header):
+        if role == "manage":
+            role = "writer"
         roles = self.tokens if role == "probe" else (role,)
         return any(
             hmac.compare_digest(header, "Bearer " + self.tokens[key]) for key in roles
         )
+
+    def clear_logs(self):
+        """Persist one operator action; caller-supplied deletion queries are absent."""
+        before = time.time()
+        with closing(sqlite3.connect(self.settings["ledger"], timeout=3)) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            known, pending = db.execute(
+                "SELECT count(*),coalesce(sum(verified=0),0) FROM events "
+                "WHERE first_seen<=? OR occurred<=?",
+                (before, before),
+            ).fetchone()
+            db.execute(
+                "UPDATE retention_control SET clear_before=max(clear_before,?) WHERE singleton=1",
+                (before,),
+            )
+        with self.lock:
+            self.retained_filter = window_filter([])
+            self.metrics["retained_events"] = 0
+        return {
+            "before": before,
+            "known_events": known,
+            "known_pending_events": pending,
+        }
 
     def space_available(self):
         return all(
@@ -131,13 +164,21 @@ class State:
         try:
             policy = Policy(json.loads(Path(self.settings["snapshot"]).read_bytes()))
             policy.verify_contract(Path(self.settings["contract"]))
+            retention_days = days(self.settings.get("retention_days", 30))
+            maximum = max_events(
+                self.settings.get(
+                    "log_max_events", self.settings.get("ledger_max_events", 10000)
+                )
+            )
             ledger = Ledger(
                 self.settings["ledger"],
                 policy,
-                self.settings.get("ledger_max_events", 1_000_000),
+                maximum,
+                retention_days,
             )
             alerts = AlertStore(
-                str(Path(self.settings["ledger"]).with_name("alerts.sqlite"))
+                str(Path(self.settings["ledger"]).with_name("alerts.sqlite")),
+                retention_days,
             )
             while not self.stop.is_set():
                 succeeded = True
@@ -155,7 +196,56 @@ class State:
                         extra[f"storage_{role}_free_bytes"] = disk.free
                         extra[f"storage_{role}_ratio"] = 1 - disk.free / disk.total
                     self.update(**result, **extra)
-                    ledger.reconcile(self.backend)
+                    ledger.reconcile(
+                        self.backend,
+                        retention_seconds=retention_days * 86400,
+                        batch=min(1024, maximum),
+                    )
+                    cleanup, coverage = prune_sources(
+                        ledger,
+                        self.settings["log_roots"],
+                        retention_days,
+                        host_state_path=self.settings.get("host_state_path"),
+                    )
+                    self.update(
+                        **cleanup,
+                        **ledger.expire(
+                            retention_days,
+                            coverage=coverage,
+                            reserve=min(512, max(1, maximum // 10))
+                            if ledger.capacity_rejected_current
+                            else 0,
+                        ),
+                    )
+                    free = (
+                        maximum
+                        - ledger.db.execute(
+                            "SELECT landed FROM totals WHERE singleton=1"
+                        ).fetchone()[0]
+                    )
+                    if ledger.capacity_rejected_current and free > 0:
+                        # Fill only proven free slots now. The read budget stops
+                        # before another full-capacity rejection, while keeping
+                        # every new unconsumed source byte for the next cycle.
+                        self.update(
+                            **ledger.scan(self.settings["log_roots"], line_budget=free)
+                        )
+                    if free > 0:
+                        ledger.capacity_rejected_current = 0
+                    with self.lock:
+                        # An operator clear may arrive during the backend query.
+                        # Publish under the same lock used to hide its old window;
+                        # a completed clear cannot be overwritten by stale IDs.
+                        ledger.apply_clear()
+                        window = ledger.retained_window()
+                        self.retained_filter = window_filter(window)
+                        self.metrics["retained_events"] = len(window)
+                    self.update(retention_delete_failures_current=0)
+                    try:
+                        ledger.submit_deletions(self.backend)
+                    except Exception:
+                        self.update(retention_delete_failures_current=1)
+                        raise
                 except Exception:
                     succeeded = False
                     self.add("query_failures_total")
@@ -308,6 +398,19 @@ class Handler(BaseHTTPRequestHandler):
         if len(headers) != 1 or not state.authenticated(role, headers[0]):
             state.add("proxy_auth_rejected_total")
             return self.reply(401, b'{"error":"unauthorized"}')
+        if role == "manage":
+            if (
+                self.headers.get("Transfer-Encoding")
+                or self.headers.get("Content-Length", "0") != "0"
+            ):
+                return self.reply(400, b'{"error":"empty_clear_request_required"}')
+            try:
+                cleared = state.clear_logs()
+                return self.reply(
+                    202, json.dumps({"status": "accepted", **cleared}).encode()
+                )
+            except (sqlite3.Error, OSError, KeyError):
+                return self.reply(503, b'{"error":"retention_unavailable"}')
         if role == "metrics":
             if self.path == "/backend-metrics":
                 try:
@@ -353,8 +456,13 @@ class Handler(BaseHTTPRequestHandler):
             if len(body) != size:
                 return self.reply(400, b'{"error":"incomplete_body"}')
         try:
+            path = self.path
+            if role == "query":
+                with state.lock:
+                    expression = state.retained_filter
+                path = query_path(path, expression)
             status, data, content_type = state.backend.request(
-                self.path,
+                path,
                 self.command,
                 body,
                 self.headers.get("Content-Type"),

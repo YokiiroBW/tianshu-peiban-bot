@@ -67,7 +67,7 @@ def seed(ledger, count, now, binary):
                 inserted("platform", instance, sequence, 0 if pending else now - 7200)
     started = time.perf_counter()
     with ledger.db, insert_summary(ledger.db) as inserted:
-        ledger.db.executemany("INSERT INTO events VALUES (?,?,?,?,?,?,?,?)", rows())
+        ledger.db.executemany("INSERT INTO events(id,service,instance,sequence,hash,first_seen,verified,last_checked) VALUES (?,?,?,?,?,?,?,?)", rows())
     return time.perf_counter() - started
 
 

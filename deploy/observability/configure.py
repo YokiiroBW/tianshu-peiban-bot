@@ -3,14 +3,15 @@
 import argparse
 import hashlib
 import json
-from pathlib import Path, PurePosixPath
 import re
 import shutil
 import ssl
+from pathlib import Path, PurePosixPath
 
 import configs
 from compose import compose
 from policy import Policy
+from retention import days, max_events
 
 HERE = Path(__file__).resolve().parent
 TLS_FILES = (
@@ -179,6 +180,8 @@ def prepare(root, settings, manifest, output_relative, snapshot, candidate=False
             tls["ca.pem"], tls[role + ".pem"], tls[role + ".key"], hostname, **args
         )
     budgets = settings["log_budgets"]
+    retention_days = days(settings.get("retention_days", 30))
+    log_max_events = max_events(settings.get("log_max_events", 10000))
     if set(budgets) != set(configs.PRODUCTS) or any(
         type(n) is not int or not 32 * 1024**2 <= n <= 64 * 1024**3
         for n in budgets.values()
@@ -222,6 +225,10 @@ def prepare(root, settings, manifest, output_relative, snapshot, candidate=False
         "query.py",
         "transport.py",
         "alerts.py",
+        "retention.py",
+        "source_retention.py",
+        "retained_query.py",
+        "manage_logs.py",
         "grafana-entrypoint.sh",
     ):
         shutil.copyfile(HERE / name, output / "code" / name)
@@ -239,7 +246,7 @@ def prepare(root, settings, manifest, output_relative, snapshot, candidate=False
     )
     write("compose.yaml", stack)
     write("config/vector.json", configs.vector(snapshot))
-    write("config/loki.json", configs.loki())
+    write("config/loki.json", configs.loki(retention_days=retention_days))
     write("config/prometheus.json", configs.prometheus())
     write(
         "config/prometheus-web.json",
@@ -275,7 +282,9 @@ def prepare(root, settings, manifest, output_relative, snapshot, candidate=False
             },
             "reserve_bytes": 1024**3,
             "interval_seconds": 30,
-            "ledger_max_events": 1_000_000,
+            "ledger_max_events": log_max_events,
+            "log_max_events": log_max_events,
+            "retention_days": retention_days,
         },
     )
     write(

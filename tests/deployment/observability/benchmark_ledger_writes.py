@@ -84,7 +84,7 @@ def bulk_seed(ledger, version, count, now):
                 # succeeds. Summary writes are included in the measured scope.
                 if accepted:
                     accepted("platform", instance, sequence, verified)
-        ledger.db.executemany("INSERT INTO events VALUES (?,?,?,?,?,?,?,?)", rows())
+        ledger.db.executemany("INSERT INTO events(id,service,instance,sequence,hash,first_seen,verified,last_checked) VALUES (?,?,?,?,?,?,?,?)", rows())
 
 
 def digest_rows(ledger):

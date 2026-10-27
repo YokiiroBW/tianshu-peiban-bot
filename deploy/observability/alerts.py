@@ -47,15 +47,26 @@ def conditions(metrics):
             ),
             0.85,
         ),
-        "ledger_capacity": metrics.get("landed_events", 0)
-        >= 0.9 * metrics.get("ledger_max_events", 1_000_000)
-        or metrics.get("ledger_capacity_rejected_current", 0) > 0,
+        "ledger_capacity": any(
+            metrics.get(name, 0) > 0
+            for name in (
+                "ledger_capacity_rejected_current",
+                "source_retention_failures",
+                "retention_delete_failures_current",
+            )
+        ),
         "source_scan_behind": metrics.get("scan_budget_exhausted", 0) > 0,
     }
 
 
 class AlertStore:
-    def __init__(self, path):
+    def __init__(self, path, retention_days=30):
+        if __package__:
+            from .retention import days
+        else:
+            from retention import days
+
+        self.retention_days = days(retention_days)
         self.db = sqlite3.connect(path)
         self.db.execute("PRAGMA synchronous=FULL")
         self.db.executescript("""
@@ -79,8 +90,11 @@ class AlertStore:
                     self.db.execute(
                         "INSERT INTO history VALUES (?,?,?)", (now, name, int(active))
                     )
-            # Only this package's alert transitions, not application logs. Explicit 30d/10k retention.
-            self.db.execute("DELETE FROM history WHERE time < ?", (now - 30 * 86400,))
+            # Only local alert transitions. The 10k bound and current state stay.
+            self.db.execute(
+                "DELETE FROM history WHERE time < ?",
+                (now - self.retention_days * 86400,),
+            )
             self.db.execute(
                 "DELETE FROM history WHERE rowid NOT IN (SELECT rowid FROM history ORDER BY rowid DESC LIMIT 10000)"
             )

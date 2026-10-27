@@ -1,5 +1,7 @@
 {
   "grafana_hostname": "logs.internal",
+  "retention_days": 30,
+  "log_max_events": 10000,
   "ports": {"grafana": 18490, "query": 18491},
   "log_budgets": {"platform": 1073741824, "companion": 1073741824, "memory": 1073741824, "gateway": 1073741824},
   "tls": {

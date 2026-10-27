@@ -1,12 +1,12 @@
 """Closed diagnostics/v1 validation and safe segment enumeration. No source writes."""
 
-from datetime import datetime
 import hashlib
 import json
 import math
-from pathlib import Path
 import re
 import uuid
+from datetime import datetime
+from pathlib import Path
 
 FIELDS = {
     "schema_version",
@@ -165,6 +165,12 @@ def digest(event):
 
 def digest_bytes(event):
     return hashlib.sha256(canonical(event)).digest()
+
+
+def event_time(event):
+    return datetime.fromisoformat(
+        event["timestamp"].upper().replace("Z", "+00:00")
+    ).timestamp()
 
 
 def segments(directory):

@@ -5,9 +5,11 @@ import json
 if __package__:
     from .alerts import MONITOR_STALE_SECONDS
     from .policy import FIELDS, LEVELS, OUTCOMES
+    from .retention import apply_retention
 else:
     from alerts import MONITOR_STALE_SECONDS
     from policy import FIELDS, LEVELS, OUTCOMES
+    from retention import apply_retention
 
 PRODUCTS = ("platform", "companion", "memory", "gateway")
 
@@ -140,8 +142,8 @@ def vector(snapshot, buffer_bytes=4 * 1024**3, *, include_knowledge=False):
     }
 
 
-def loki(retention_hours=720):
-    return {
+def loki(retention_hours=720, *, retention_days=None):
+    configuration = {
         "auth_enabled": True,
         "server": {
             "http_listen_port": 3100,
@@ -216,6 +218,9 @@ def loki(retention_hours=720):
         },
         "analytics": {"reporting_enabled": False},
     }
+    if retention_days is not None:
+        return apply_retention({}, configuration, retention_days)[1]
+    return configuration
 
 
 ALERTS = {
@@ -253,7 +258,7 @@ ALERTS = {
         "10m",
     ),
     "LedgerCapacity": (
-        "(tianshu_obs_landed_events / clamp_min(tianshu_obs_ledger_max_events, 1) >= bool 0.9) + (tianshu_obs_ledger_capacity_rejected_current > bool 0)",
+        "(tianshu_obs_ledger_capacity_rejected_current > bool 0) + (tianshu_obs_source_retention_failures > bool 0) + (tianshu_obs_retention_delete_failures_current > bool 0)",
         "1m",
     ),
     "ScanBehind": ("tianshu_obs_scan_budget_exhausted", "5m"),
