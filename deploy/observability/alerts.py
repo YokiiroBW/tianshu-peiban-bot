@@ -3,7 +3,6 @@
 import sqlite3
 import time
 
-
 MONITOR_STALE_SECONDS = 120
 
 
@@ -48,8 +47,9 @@ def conditions(metrics):
             ),
             0.85,
         ),
-        "ledger_capacity": metrics.get("landed_events", 0) >= 900000
-        or metrics.get("ledger_capacity_rejected_total", 0) > 0,
+        "ledger_capacity": metrics.get("landed_events", 0)
+        >= 0.9 * metrics.get("ledger_max_events", 1_000_000)
+        or metrics.get("ledger_capacity_rejected_current", 0) > 0,
         "source_scan_behind": metrics.get("scan_budget_exhausted", 0) > 0,
     }
 

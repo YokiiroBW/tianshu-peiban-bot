@@ -14,7 +14,9 @@ PRODUCTS = ("platform", "companion", "memory", "gateway")
 
 def vector(snapshot, buffer_bytes=4 * 1024**3, *, include_knowledge=False):
     """Use Memory's vocabulary for an optional dedicated Knowledge log source."""
-    services = (*PRODUCTS[:3], "knowledge", PRODUCTS[3]) if include_knowledge else PRODUCTS
+    services = (
+        (*PRODUCTS[:3], "knowledge", PRODUCTS[3]) if include_knowledge else PRODUCTS
+    )
     sources, transforms = {}, {}
     for service in services:
         sources[service] = {
@@ -36,7 +38,9 @@ def vector(snapshot, buffer_bytes=4 * 1024**3, *, include_knowledge=False):
         if service == "knowledge":
             allowed = ["memory-knowledge"]
         else:
-            allowed = [service] if service != "memory" else ["memory", "memory-knowledge"]
+            allowed = (
+                [service] if service != "memory" else ["memory", "memory-knowledge"]
+            )
         code = [
             "raw = string!(.message)",
             'assert!(length(raw) <= 4095, "invalid_safe_event")',
@@ -248,7 +252,10 @@ ALERTS = {
         'min(predict_linear(label_replace({__name__=~"tianshu_obs_storage_.*_free_bytes"}, "storage_metric", "$1", "__name__", "(.*)")[1h:1m],86400)) < bool 1073741824',
         "10m",
     ),
-    "LedgerCapacity": ("tianshu_obs_landed_events > bool 900000", "1m"),
+    "LedgerCapacity": (
+        "(tianshu_obs_landed_events / clamp_min(tianshu_obs_ledger_max_events, 1) >= bool 0.9) + (tianshu_obs_ledger_capacity_rejected_current > bool 0)",
+        "1m",
+    ),
     "ScanBehind": ("tianshu_obs_scan_budget_exhausted", "5m"),
     "VectorBufferHigh": (
         'sum(vector_buffer_size_bytes{component_id="loki"}) / sum(vector_buffer_max_size_bytes{component_id="loki"}) > bool 0.8',

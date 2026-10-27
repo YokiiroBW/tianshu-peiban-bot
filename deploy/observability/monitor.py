@@ -11,6 +11,7 @@ from policy import digest_bytes, segments
 class Ledger:
     def __init__(self, path, policy, max_events=1_000_000):
         self.policy, self.max_events = policy, max_events
+        self.capacity_rejected_current = 0
         self.db = sqlite3.connect(path)
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("PRAGMA synchronous=FULL")
@@ -26,10 +27,31 @@ class Ledger:
             (name, amount),
         )
 
+    def _duplicate(self, event, digest):
+        old = self.db.execute(
+            "SELECT hash FROM events WHERE id=?", (event["event_id"],)
+        ).fetchone()
+        if old is None:
+            return False
+        self.count("source_duplicates")
+        if old[0] != digest:
+            self.count("identity_conflicts")
+        return True
+
+    def _checkpoint(self, name, identity, offset):
+        self.db.execute(
+            "INSERT INTO files VALUES (?,?,?) ON CONFLICT(name) DO UPDATE SET identity=excluded.identity,offset=excluded.offset",
+            (name, identity, offset),
+        )
+
     def scan(self, roots, line_budget=20000):
-        partial, count = 0, self.db.execute(
-            "SELECT landed FROM totals WHERE singleton=1"
-        ).fetchone()[0]
+        self.capacity_rejected_current = 0
+        partial, count = (
+            0,
+            self.db.execute("SELECT landed FROM totals WHERE singleton=1").fetchone()[
+                0
+            ],
+        )
         with self.db, insert_summary(self.db) as inserted:
             for service, root in roots.items():
                 for path in segments(root):
@@ -67,12 +89,6 @@ class Ledger:
                             raw = stream.readline(4097)
                             if not raw:
                                 break
-                            if count >= self.max_events:
-                                self.count("ledger_capacity_rejected")
-                                return {
-                                    "scan_budget_exhausted": 1,
-                                    "partial_lines": partial,
-                                }
                             line_budget -= 1
                             if not raw.endswith(b"\n") and len(raw) <= 4096:
                                 partial += 1
@@ -89,6 +105,30 @@ class Ledger:
                                 if event["service"] not in allowed:
                                     raise ValueError()
                                 digest = digest_bytes(event)
+                                if count >= self.max_events:
+                                    if not self._duplicate(event, digest):
+                                        conflict = self.db.execute(
+                                            "SELECT 1 FROM events WHERE service=? AND instance=? AND sequence=?",
+                                            (
+                                                event["service"],
+                                                event["instance_id"],
+                                                event["sequence"],
+                                            ),
+                                        ).fetchone()
+                                        if conflict:
+                                            self.count("identity_conflicts")
+                                        else:
+                                            self.count("ledger_capacity_rejected")
+                                            self.capacity_rejected_current = 1
+                                            # Keep prior duplicate/invalid progress,
+                                            # but leave this new event unread.
+                                            self._checkpoint(name, identity, position)
+                                            return {
+                                                "scan_budget_exhausted": 1,
+                                                "partial_lines": partial,
+                                            }
+                                    offset = stream.tell()
+                                    continue
                                 try:
                                     written = self.db.execute(
                                         "INSERT INTO events(id,service,instance,sequence,hash,first_seen) "
@@ -106,7 +146,8 @@ class Ledger:
                                     written = 0
                                 if written:
                                     inserted(
-                                        event["service"], event["instance_id"],
+                                        event["service"],
+                                        event["instance_id"],
                                         event["sequence"],
                                     )
                                     count += 1
@@ -114,25 +155,14 @@ class Ledger:
                                     # Normal new events need only the INSERT's
                                     # unique checks. On conflict, retain the
                                     # original ID-before-sequence classification.
-                                    old = self.db.execute(
-                                        "SELECT hash FROM events WHERE id=?",
-                                        (event["event_id"],),
-                                    ).fetchone()
-                                    if old:
-                                        self.count("source_duplicates")
-                                        if old[0] != digest:
-                                            self.count("identity_conflicts")
-                                    else:
+                                    if not self._duplicate(event, digest):
                                         self.count("identity_conflicts")
                             except ValueError:
                                 self.count("invalid_source_lines")
                                 while raw and not raw.endswith(b"\n"):
                                     raw = stream.readline(4097)
                             offset = stream.tell()
-                        self.db.execute(
-                            "INSERT INTO files VALUES (?,?,?) ON CONFLICT(name) DO UPDATE SET identity=excluded.identity,offset=excluded.offset",
-                            (name, identity, offset),
-                        )
+                        self._checkpoint(name, identity, offset)
         return {
             "scan_budget_exhausted": int(line_budget <= 0),
             "partial_lines": partial,
@@ -202,6 +232,8 @@ class Ledger:
         ).fetchone()[0]
         return {
             "landed_events": total,
+            "ledger_max_events": self.max_events,
+            "ledger_capacity_rejected_current": self.capacity_rejected_current,
             "pending_events": pending or 0,
             "oldest_pending_seconds": time.time() - oldest[0] if oldest else 0,
             "sequence_gaps": gaps,
