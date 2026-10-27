@@ -11,6 +11,48 @@ from deploy.single_container.host_settings import (
 
 
 class HostSettingsTests(unittest.TestCase):
+    def test_flow_reader_is_explicit_platform_only_and_preserves_product_settings(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            modules = {
+                name: {
+                    "settings": str(root / (name + ".json")),
+                    "origin": f"https://{name}.internal:8443",
+                }
+                for name in MODULES
+            }
+            modules["knowledge"]["client"] = "existing-client"
+            query = {
+                "url": "https://obs-guard:8445",
+                "settings": str(root / "guard.json"),
+            }
+            modules["platform"]["flow_query"] = query
+            document = {
+                "version": 1,
+                "state_file": str(root / "state.json"),
+                "modules": modules,
+            }
+            path = root / "host.json"
+            path.write_text(json.dumps(document))
+            self.assertEqual(
+                load_settings(path)["modules"]["platform"]["flow_query"], query
+            )
+            for invalid in (
+                {**query, "url": "http://obs-guard:8445"},
+                {**query, "url": "https://obs-guard:8445/query"},
+                {**query, "url": 3},
+                {**query, "settings": "relative.json"},
+            ):
+                modules["platform"]["flow_query"] = invalid
+                path.write_text(json.dumps(document))
+                with self.assertRaises(ValueError):
+                    load_settings(path)
+            modules["platform"]["flow_query"] = query
+            modules["memory"]["flow_query"] = query
+            path.write_text(json.dumps(document))
+            with self.assertRaises(ValueError):
+                load_settings(path)
+
     def test_explicit_module_environments_do_not_inherit_platform_identity(self):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "memory.env"

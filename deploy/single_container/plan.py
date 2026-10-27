@@ -236,6 +236,10 @@ def make_installation(
         if name == "knowledge":
             modules[name]["client"] = knowledge_client
     platform = document(files["modules/platform/settings.json"])
+    modules["platform"]["flow_query"] = {
+        "url": "https://obs-guard:8445",
+        "settings": "/config/observability/guard.json",
+    }
     if comics is not None:
         if (
             not isinstance(comics, dict)

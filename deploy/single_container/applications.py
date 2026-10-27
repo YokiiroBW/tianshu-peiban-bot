@@ -21,6 +21,7 @@ class NativeModule:
         self.probe_token = None
         self.assembly = None
         self.diagnostics = None
+        self.flow_reader = None
         # Aiohttp caches its default TLS context at import time. Construct the
         # Gateway's external trust context before Platform becomes the process
         # environment, preserving this module's own explicit CA configuration.
@@ -74,6 +75,13 @@ class NativeModule:
         try:
             platform = Platform(settings, internal_clients=self.ports)
             self.console = create_console(platform)
+            if "flow_query" in self.spec:
+                from .flow_reader import FlowEventReader
+
+                self.flow_reader = FlowEventReader.from_settings(
+                    self.spec["flow_query"]
+                )
+                self.console.flow_graph.event_reader = self.flow_reader
             app = create_app(
                 platform, console=self.console, trusted_local=self.ports.owns
             )
@@ -82,6 +90,8 @@ class NativeModule:
             )
             app.middlewares.insert(0, self.ingress.middleware)
         except BaseException:
+            if self.flow_reader is not None:
+                self.flow_reader.close()
             if platform is not None:
                 platform.close()
             sink.close(SHUTDOWN_FLUSH_SECONDS)
@@ -100,6 +110,8 @@ class NativeModule:
         async def close_log(app):
             # Native close_local_work has already drained and closed Platform.
             await self.ingress.close()
+            if self.flow_reader is not None:
+                await self.flow_reader.aclose()
             diagnostics.event("runtime.stopped", "INFO", "succeeded")
             sink.flush(SHUTDOWN_FLUSH_SECONDS)
             sink.close(SHUTDOWN_FLUSH_SECONDS)

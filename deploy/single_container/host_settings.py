@@ -103,6 +103,7 @@ def load_settings(path):
             "token_env",
             "token_file",
             "listen_host",
+            "flow_query",
         }
         if not isinstance(spec, dict) or set(spec) - allowed:
             raise ValueError("Invalid business module configuration")
@@ -116,6 +117,20 @@ def load_settings(path):
         for key in ("contracts", "log_directory"):
             if key in spec:
                 item[key] = absolute_path(spec[key])
+        if "flow_query" in spec:
+            query = spec["flow_query"]
+            if (
+                name != "platform"
+                or not isinstance(query, dict)
+                or set(query) != {"url", "settings"}
+                or not isinstance(query["url"], str)
+            ):
+                raise ValueError("Invalid platform flow query")
+            target = urlsplit(query["url"])
+            if target.scheme != "https" or target.path not in {"", "/"} or target.query:
+                raise ValueError("Flow query needs its explicit HTTPS origin")
+            authority(query["url"])
+            item["flow_query"] = {**query, "settings": absolute_path(query["settings"])}
         files = spec.get("env_file", [])
         files = [files] if isinstance(files, str) else files
         if not isinstance(files, list):

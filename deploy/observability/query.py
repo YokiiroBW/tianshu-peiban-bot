@@ -6,7 +6,10 @@ import ssl
 import threading
 from urllib.parse import urlencode, urlsplit
 
-from transport import Deadline, DeadlineExceeded, connect_tls
+if __package__:
+    from .transport import Deadline, DeadlineExceeded, connect_tls
+else:
+    from transport import Deadline, DeadlineExceeded, connect_tls
 
 
 class QueryError(RuntimeError):
