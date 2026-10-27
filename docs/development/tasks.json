@@ -1508,6 +1508,40 @@
       "result": "Independent diff reviewed; components 26P/7 conditional PG skips; final affected6P; separately actual actor+Memory native PG dump/restore1P/0S with both scratch DBs absent and own fixture DB+role cleaned [deployment 2026-10-27] Frozen8fd recovery used for actual actor-inclusive 25-source/3-guard cold restore; not a global resident backup-daemon replacement. Record: docs/development/autonomous-life-memory-release-2026-10-27.json",
       "handoff": "docs/handoffs/TS-323.md",
       "publication_commit": "31aafe0713c1e51a64e2df06d03ffacdea112d65"
+    },
+    {
+      "id": "TS-324",
+      "project": "chat-audit",
+      "title": "Chat signing key rotation with pinned historical backup verification",
+      "status": "done",
+      "depends_on": [
+        "TS-321"
+      ],
+      "assignee": "unassigned",
+      "task_card": "docs/development/TS-324-chat-signing-rotation.md",
+      "allowed_paths": [
+        "app/config.py",
+        "app/main.py",
+        "app/api.py",
+        "app/backup",
+        "app/services/backup_service.py",
+        "tests",
+        ".env.example",
+        "docker-compose.yml",
+        "docs",
+        "README.md",
+        "app/database.py",
+        "DISASTER_RECOVERY.md"
+      ],
+      "done_when": "Current-key-only signing and cursor; trusted-history bounded verification at every backup caller; focused negative/compatibility checks and clean handoff",
+      "authorization": "User 2026-10-27 explicitly authorized remaining reused credential rotation and historical backup compatibility",
+      "desired_baseline_commit": "6aa6e7f2765ff2702b443b1fe318b38ca91a9057",
+      "worktree": "worktrees/TS-324/chat-audit-core",
+      "branch": "codex/ts-324-chat-signing-rotation",
+      "baseline_commit": "6aa6e7f2765ff2702b443b1fe318b38ca91a9057",
+      "commit": "eb81e936b2675022ee135f101477b008ab26db34",
+      "delivery_state": "source_published_app_worker_deployed_verified",
+      "handoff": "docs/handoffs/TS-324.md"
     }
   ],
   "dispatch_defaults": {
