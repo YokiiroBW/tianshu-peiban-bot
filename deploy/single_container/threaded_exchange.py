@@ -223,6 +223,20 @@ class ThreadedExchange:
             for owner in self._owners.values()
         )
 
+    def started_modules(self):
+        """Lifecycle targets whose native startup completed and owner still lives.
+
+        Registered targets may still be waiting for startup, or may never open
+        after another factory fails. Root shutdown must not wait on those targets'
+        shared availability futures merely to discover that no app was started.
+        """
+        with self._lock:
+            return tuple(
+                name
+                for name, owner in self._owners.items()
+                if owner.started and not owner.exited.done()
+            )
+
     async def open(self, *, on_failure=None):
         if self._state != "new":
             raise RuntimeError("Threaded exchange can be opened once")
@@ -387,6 +401,7 @@ class ThreadedExchange:
                         owner.loop.call_soon_threadsafe(owner.loop.stop)
                     await completed(owner.exited)
                     await asyncio.to_thread(owner.thread.join)
+                    owner.started = False
         except TimeoutError:
             return False
         with self._lock:

@@ -436,6 +436,44 @@ def test_startup_failure_unwinds_already_started_owner_threads():
     asyncio.run(run())
 
 
+def test_started_module_snapshot_excludes_pending_failed_and_closed_owners():
+    async def run():
+        exchange = ThreadedExchange()
+        started = []
+
+        def factory(name):
+            def create(ports):
+                @asynccontextmanager
+                async def lifespan(app):
+                    if name == "b":
+                        raise ValueError("synthetic native startup refusal")
+                    yield
+
+                return Starlette(lifespan=lifespan)
+
+            return create
+
+        for name in ("a", "b", "c"):
+            exchange.register_factory(name, factory(name), "asgi", "https://" + name)
+        assert exchange.started_modules() == ()
+
+        async def failed():
+            started.extend(exchange.started_modules())
+            assert await exchange.invoke("a", lambda app: "available") == "available"
+
+        with pytest.raises(RuntimeError, match="startup"):
+            await exchange.open(on_failure=failed)
+        assert started == ["a"]
+        assert exchange.started_modules() == ()
+        assert exchange._owners["c"].thread is None
+        assert all(
+            owner.thread is None or not owner.thread.is_alive()
+            for owner in exchange._owners.values()
+        )
+
+    asyncio.run(run())
+
+
 def test_cancelled_close_waiter_does_not_close_active_application_early():
     async def run():
         exchange = ThreadedExchange()

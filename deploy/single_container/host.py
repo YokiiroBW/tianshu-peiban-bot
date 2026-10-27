@@ -7,7 +7,7 @@ import signal
 import time
 
 from .applications import NativeModule, app_platform
-from .host_settings import load_settings, module_environment
+from .host_settings import MODULES, load_settings, module_environment
 from .runtime import write_state
 from .threaded_exchange import ThreadedExchange
 
@@ -26,10 +26,11 @@ class BusinessHost:
             name: {"state": "starting", "health": {"ok": False, "code": "starting"}}
             for name in config["modules"]
         }
-        names = list(config["modules"])
-        if "onebot" in names:
-            names.remove("onebot")
-            names.insert(0, "onebot")
+        # Native Gateway startup renews its Platform authority. JSON object order
+        # is configuration spelling, not a dependency declaration. OneBot's owned
+        # instance is bound while constructing Platform; other native modules keep
+        # the existing product assembly order.
+        names = [name for name in ("onebot", *MODULES) if name in config["modules"]]
         for name in names:
             spec = config["modules"][name]
             environment = module_environment(spec)
@@ -141,7 +142,10 @@ class BusinessHost:
 
     async def _phase(self, operation, **kwargs):
         results = await asyncio.gather(
-            *(self.invoke(name, operation, **kwargs) for name in self.modules),
+            *(
+                self.invoke(name, operation, **kwargs)
+                for name in self.exchange.started_modules()
+            ),
             return_exceptions=True,
         )
         return all(

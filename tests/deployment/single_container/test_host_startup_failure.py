@@ -9,6 +9,51 @@ from aiohttp import web
 from deploy.single_container.host import BusinessHost
 
 
+def test_first_factory_failure_skips_unopened_lifecycle_targets_and_joins_owner(
+    tmp_path,
+):
+    phases = []
+
+    class UnopenedModule:
+        def __init__(self, name, *args, **kwargs):
+            self.name = name
+
+        async def __call__(self, ports):
+            assert self.name == "platform"
+            raise ValueError("synthetic first-module startup refusal")
+
+        async def quiesce(self, app):
+            phases.append(self.name)
+            raise AssertionError("unopened app has no producer lifecycle")
+
+    async def scenario():
+        before = dict(os.environ)
+        config = {
+            "state_file": str(tmp_path / "host.json"),
+            "shutdown_seconds": 0.02,
+            "modules": {
+                name: {
+                    "origin": "https://" + name + ".internal:8443",
+                    "env": {},
+                    "env_file": [],
+                }
+                for name in ("companion", "gateway", "knowledge", "memory", "platform")
+            },
+        }
+        host = BusinessHost(config, module_factory=UnopenedModule)
+        with pytest.raises(ValueError, match="synthetic first-module startup refusal"):
+            await asyncio.wait_for(host.open(), 1)
+        assert not phases
+        assert host.exchange.started_modules() == ()
+        assert not any(
+            owner.thread is not None and owner.thread.is_alive()
+            for owner in host.exchange._owners.values()
+        )
+        assert dict(os.environ) == before
+
+    asyncio.run(scenario())
+
+
 def test_partial_startup_keeps_real_owner_work_and_callback_until_receipt(tmp_path):
     class PartialModule:
         def __init__(self, name, spec, environment, **kwargs):

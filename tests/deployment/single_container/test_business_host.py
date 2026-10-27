@@ -130,6 +130,90 @@ def test_five_module_owner_lifecycles_callbacks_and_environment_isolation(tmp_pa
     asyncio.run(scenario())
 
 
+def test_sorted_configuration_keeps_platform_before_native_gateway_renewal(tmp_path):
+    import pytest
+
+    renewal = pytest.importorskip("tianshu_gateway.origin_renewal")
+    from datetime import datetime, timedelta, timezone
+
+    from tianshu_gateway.config import EnvSecrets, RegisteredTargets
+
+    opened = []
+    renewed = []
+    platform_url = "https://platform.internal:8443"
+    credential = "isolated-renewal-credential"
+    reference = "origin:" + "a" * 32
+
+    class RenewingModule(FixtureModule):
+        async def __call__(self, ports):
+            app = await super().__call__(ports)
+
+            async def started(app):
+                opened.append(self.name)
+                yield
+
+            if self.name == "platform":
+
+                async def renew(request):
+                    assert request.headers["Authorization"] == "Bearer " + credential
+                    body = await request.json()
+                    assert body["assertion_ref"] == reference
+                    renewed.append(True)
+                    return web.json_response(
+                        {
+                            **body,
+                            "expires_at": (
+                                datetime.now(timezone.utc) + timedelta(seconds=60)
+                            )
+                            .isoformat()
+                            .replace("+00:00", "Z"),
+                        }
+                    )
+
+                app.router.add_post(renewal.PATH, renew)
+            if self.name in {"platform", "gateway"}:
+                app.cleanup_ctx.append(started)
+            if self.name == "gateway":
+
+                async def native_renewal(app):
+                    async with ports.session_factory("platform")() as client:
+                        environment = {"CREDENTIAL": credential, "ORIGIN": reference}
+                        origin = renewal.OriginRenewal(
+                            client,
+                            RegisteredTargets(
+                                [{"base_url": platform_url, "addresses": ["127.0.0.1"]}]
+                            ),
+                            EnvSecrets({"platform": "CREDENTIAL"}, environ=environment),
+                            platform_url,
+                            "platform",
+                            "ORIGIN",
+                            environ=environment,
+                        )
+                        await origin.start()
+                        try:
+                            yield
+                        finally:
+                            await origin.close()
+
+                app.cleanup_ctx.append(native_renewal)
+            return app
+
+    async def scenario():
+        # This is the real native capture→candidate JSON key order that failed.
+        config = json.loads(json.dumps(configuration(tmp_path), sort_keys=True))
+        host = BusinessHost(config, module_factory=RenewingModule)
+        await asyncio.wait_for(host.open(), 3)
+        try:
+            assert tuple(host.modules) == MODULES
+            assert opened == ["platform", "gateway"]
+            assert renewed == [True]
+            assert host.results["gateway"]["health"]["ok"]
+        finally:
+            assert await host.close(timeout=3)
+
+    asyncio.run(scenario())
+
+
 def test_blocked_owner_does_not_freeze_health_or_pretend_shutdown_completed(tmp_path):
     async def scenario():
         host = BusinessHost(configuration(tmp_path), module_factory=FixtureModule)
