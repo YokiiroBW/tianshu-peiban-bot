@@ -2,12 +2,14 @@
 
 import json
 import os
+import signal
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
-from linux_observability import exact_lines, main, read_five
+from linux_observability import EngineLifecycle, Suite, exact_lines, main, read_five
 
 # isort: split
 
@@ -43,6 +45,119 @@ class ByteChecks(unittest.TestCase):
                 read_five(roots, Policy(SNAPSHOT))
 
 
+class ProgressChecks(unittest.TestCase):
+    def test_deadline_retains_phase_attempts_observations_and_safe_error_code(self):
+        with tempfile.TemporaryDirectory() as directory:
+            suite = object.__new__(Suite)
+            suite.root = Path(directory)
+            suite.phase("prometheus_targets")
+            clock = [0]
+
+            def targets():
+                suite.last_observation["jobs"] = {
+                    "guard": "0",
+                    "vector": "1",
+                    "loki": "0",
+                }
+                raise ValueError("prometheus_query_failed")
+
+            with (
+                patch(
+                    "linux_observability.time.monotonic", side_effect=lambda: clock[0]
+                ),
+                patch(
+                    "linux_observability.time.sleep",
+                    side_effect=lambda seconds: clock.__setitem__(
+                        0, clock[0] + seconds
+                    ),
+                ),
+                self.assertRaisesRegex(ValueError, "scenario_deadline_exceeded"),
+            ):
+                suite.wait(targets, seconds=4)
+            progress = json.loads((suite.root / "progress.json").read_bytes())
+            self.assertEqual(progress["phase"], "prometheus_targets")
+            self.assertEqual(progress["state"], "deadline_exceeded")
+            self.assertEqual(progress["attempts"], 2)
+            self.assertEqual(progress["last_error_code"], "prometheus_query_failed")
+            self.assertEqual(progress["last_observation"]["jobs"]["guard"], "0")
+
+    def test_success_after_retry_and_non_code_exception_does_not_expose_text(self):
+        with tempfile.TemporaryDirectory() as directory:
+            suite = object.__new__(Suite)
+            suite.root = Path(directory)
+            suite.phase("native_engine_startup")
+            clock = [0]
+            responses = iter([RuntimeError("Bearer SYNTHETIC_PRIVATE_VALUE"), "ready"])
+
+            def ready():
+                value = next(responses)
+                if isinstance(value, Exception):
+                    raise value
+                return value
+
+            with (
+                patch(
+                    "linux_observability.time.monotonic", side_effect=lambda: clock[0]
+                ),
+                patch(
+                    "linux_observability.time.sleep",
+                    side_effect=lambda seconds: clock.__setitem__(
+                        0, clock[0] + seconds
+                    ),
+                ),
+            ):
+                self.assertEqual(suite.wait(ready, seconds=4), "ready")
+            progress = (suite.root / "progress.json").read_text()
+            self.assertNotIn("SYNTHETIC_PRIVATE_VALUE", progress)
+            self.assertEqual(json.loads(progress)["state"], "passed")
+
+
+class CollectorLifecycleChecks(unittest.TestCase):
+    def test_rotation_restarts_already_stopped_collector_without_false_crash(self):
+        item = Mock(state="stopped", forced=False)
+        item.group_running.return_value = False
+        lifecycle = EngineLifecycle(
+            SimpleNamespace(processes={"obs-vector": item}), None
+        )
+        with patch.object(lifecycle, "start") as start:
+            lifecycle.recreate_vector()
+        start.assert_called_once_with("obs-vector")
+        item.signal.assert_not_called()
+        self.assertEqual(lifecycle.crashes, [])
+
+    def test_live_collector_requires_observed_sigkill_before_restart(self):
+        item = Mock()
+        item.child.pid = 123
+        item.child.wait.return_value = -9
+        item.group_running.side_effect = [True, False]
+        lifecycle = EngineLifecycle(
+            SimpleNamespace(processes={"obs-vector": item}), None
+        )
+        with (
+            patch.object(signal, "SIGKILL", 9, create=True),
+            patch.object(lifecycle, "start") as start,
+        ):
+            lifecycle.recreate_vector()
+        item.signal.assert_called_once_with(9)
+        start.assert_called_once_with("obs-vector")
+        self.assertEqual(
+            lifecycle.crashes, [{"pid": 123, "exit_code": -9, "intentional": True}]
+        )
+
+    def test_unexpected_dead_or_forced_collector_is_not_misreported_as_rotation(self):
+        for state, forced in (("failed", False), ("stopped", True)):
+            item = Mock(state=state, forced=forced)
+            item.group_running.return_value = False
+            lifecycle = EngineLifecycle(
+                SimpleNamespace(processes={"obs-vector": item}), None
+            )
+            with (
+                self.subTest(state=state, forced=forced),
+                self.assertRaisesRegex(ValueError, "collector_not_stopped"),
+            ):
+                lifecycle.recreate_vector()
+
+
 @unittest.skipUnless(
     CONTRACT, "DEP_B_CONTRACT required for original authoritative bytes"
 )
@@ -76,6 +191,16 @@ class FixtureChecks(unittest.TestCase):
             self.assertEqual(set(guard["log_roots"]), set(SOURCES))
             self.assertEqual(guard["interval_seconds"], 30)
             self.assertEqual(guard["reserve_bytes"], 1024**3)
+            prometheus = json.loads((native / "prometheus.json").read_bytes())
+            for job in prometheus["scrape_configs"]:
+                if "authorization" in job:
+                    self.assertEqual(
+                        Path(job["authorization"]["credentials_file"]),
+                        native / "secrets/metrics_token",
+                    )
+                    self.assertTrue(
+                        Path(job["authorization"]["credentials_file"]).is_file()
+                    )
             rules = json.loads(
                 (native / "provisioning/alerting/tianshu.yaml").read_bytes()
             )
@@ -126,6 +251,11 @@ class FixtureChecks(unittest.TestCase):
         ):
             suite.return_value.execute.side_effect = RuntimeError("synthetic failure")
             suite.return_value.close.return_value = True
+            suite.return_value.real_engines_executed = True
+            suite.return_value.progress = {
+                "phase": "prometheus_targets",
+                "state": "deadline_exceeded",
+            }
             root = Path(directory) / "new"
             self.assertEqual(
                 main(
@@ -145,7 +275,9 @@ class FixtureChecks(unittest.TestCase):
             report = json.loads((root / "linux-observability.json").read_bytes())
             self.assertEqual(report["status"], "failed")
             self.assertTrue(report["native_processes_stopped"])
-            self.assertFalse(report["real_engines_executed"])
+            self.assertTrue(report["real_engines_executed"])
+            self.assertFalse(report["completed_all_scenarios"])
+            self.assertEqual(report["phase_diagnostics"]["phase"], "prometheus_targets")
 
 
 if __name__ == "__main__":

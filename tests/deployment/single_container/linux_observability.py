@@ -90,6 +90,14 @@ class EngineLifecycle:
 
     def recreate_vector(self):
         item = self.group.processes["obs-vector"]
+        # Rotation has already stopped the collector gracefully. It still uses
+        # the same persistent directory, without inventing another crash.
+        if not item.group_running():
+            require(
+                item.state == "stopped" and not item.forced, "collector_not_stopped"
+            )
+            self.start("obs-vector")
+            return
         pid = item.child.pid
         item.signal(signal.SIGKILL)
         code = item.child.wait(timeout=10)
@@ -109,6 +117,10 @@ class Suite(Scenarios):
 
         self.root = Path(fixture["root"])
         self.evidence = evidence
+        self.current_case = "native_engine_startup"
+        self.real_engines_executed = False
+        self.progress = {}
+        self.last_observation = {}
         self.binding = SimpleNamespace(
             logs={name: Path(path) for name, path in fixture["logs"].items()},
             query_url="https://127.0.0.1:8445",
@@ -146,6 +158,70 @@ class Suite(Scenarios):
         self.lifecycle = EngineLifecycle(self.group, evidence)
         self.receiver = self.receiver_output = None
 
+    def checkpoint(self):
+        temporary = self.root / "progress.json.tmp"
+        temporary.write_text(
+            json.dumps(self.progress, indent=2) + "\n", encoding="utf-8"
+        )
+        temporary.replace(self.root / "progress.json")
+
+    def phase(self, name):
+        self.current_case = name
+        self.progress = {"phase": name, "state": "running"}
+        self.checkpoint()
+        print(json.dumps({"observability_phase": name}), flush=True)
+
+    def wait(self, function, seconds=180):
+        """Keep the original deadline/retries, retaining the failed observation."""
+        started = time.monotonic()
+        self.last_observation = {}
+        self.progress = {
+            "phase": self.current_case,
+            "probe": function.__name__,
+            "state": "waiting",
+            "timeout_seconds": seconds,
+            "attempts": 0,
+        }
+        self.checkpoint()
+        print(
+            json.dumps(
+                {"observability_wait": self.current_case, "probe": function.__name__}
+            ),
+            flush=True,
+        )
+        while time.monotonic() < started + seconds:
+            self.progress["attempts"] += 1
+            try:
+                result = function()
+                if result:
+                    self.progress.update(
+                        state="passed", elapsed_seconds=time.monotonic() - started
+                    )
+                    self.progress["last_observation"] = self.last_observation
+                    self.checkpoint()
+                    return result
+            except (OSError, ValueError, RuntimeError) as error:
+                self.progress["last_error_type"] = type(error).__name__
+                self.progress.pop("last_error_code", None)
+                # Arbitrary response/exception text may contain credentials.
+                code = str(error)
+                if isinstance(error, ValueError) and code.replace("_", "").isalnum():
+                    self.progress["last_error_code"] = code
+            self.progress["last_observation"] = self.last_observation
+            self.progress["elapsed_seconds"] = time.monotonic() - started
+            self.checkpoint()
+            time.sleep(2)
+        self.progress.update(
+            state="deadline_exceeded", elapsed_seconds=time.monotonic() - started
+        )
+        self.checkpoint()
+        raise ValueError("scenario_deadline_exceeded")
+
+    def prom(self, expression):
+        rows = super().prom(expression)
+        self.last_observation["prometheus"] = {"expression": expression, "result": rows}
+        return rows
+
     def api(self, path, method="GET", data=None, **kwargs):
         if path == "/api/v1/provisioning/contact-points" and data is not None:
             data = json.loads(json.dumps(data))
@@ -154,7 +230,13 @@ class Suite(Scenarios):
                 "unexpected_receiver",
             )
             data["settings"]["url"] = "http://127.0.0.1:18081/record"
-        return super().api(path, method, data, **kwargs)
+        result = super().api(path, method, data, **kwargs)
+        self.last_observation["grafana"] = {
+            "path": path,
+            "method": method,
+            "status": result[0],
+        }
+        return result
 
     def dc(self, *args):
         # Only the original scenario's local recorder is launched, as this UID.
@@ -199,11 +281,14 @@ class Suite(Scenarios):
         self.evidence.artifact(f"generated-{self.batch_index}.json", self.generated)
 
     def reconcile(self, case, *, artifact_name=None):
+        self.phase(artifact_name or case)
+
         def check():
             rows = self.client.range('{stack="tianshu"}', self.start, time.time_ns())
             retrieved = [self.policy.line(line.encode() + b"\n") for _, line in rows]
             landed, invalid, partial = read_five(self.binding.logs, self.policy)
             result = compare(self.generated, landed, retrieved, invalid, partial)
+            self.last_observation["reconciliation"] = result
             if result["status"] != "passed":
                 return None
             digest = exact_lines(self.generated, rows)
@@ -223,7 +308,15 @@ class Suite(Scenarios):
         count = len({row["event_id"] for row in self.generated})
         # A prior Prometheus scrape cannot prove that a restarted guard's real
         # monitor has completed a new cycle. Query its authenticated native ready.
-        self.wait(lambda: self.metric_client.request("/ready")[0] == 200)
+        self.phase(name + "_ready")
+
+        def ready():
+            status = self.metric_client.request("/ready")[0]
+            self.last_observation["guard_ready_status"] = status
+            return status == 200
+
+        self.wait(ready)
+        self.phase(name + "_metrics")
         self.wait(
             lambda: (
                 self.metrics_value("tianshu_obs_landed_events") == count
@@ -273,15 +366,19 @@ class Suite(Scenarios):
         return artifact
 
     def execute(self):
+        self.phase("native_engine_startup")
         self.group.start()
 
         def ready():
             self.group.tick()
-            if self.group.status() == "failed":
+            status = self.group.status()
+            self.last_observation["native_group_status"] = status
+            if status == "failed":
                 raise AssertionError("native_engine_start_failed")
-            return self.group.status() == "ready"
+            return status == "ready"
 
         self.wait(ready)
+        self.real_engines_executed = True
         owners = {}
         for name, item in self.group.processes.items():
             fields = Path(f"/proc/{item.child.pid}/status").read_text().splitlines()
@@ -305,7 +402,9 @@ class Suite(Scenarios):
                 for path in sorted(package.glob("*.py"))
             },
         )
+        self.phase("grafana_datasources_dashboard")
         self.ui_and_metrics()
+        self.phase("fifteen_live_alert_rules")
         status, rules = self.api("/api/v1/provisioning/alert-rules")
         require(
             status == 200
@@ -321,7 +420,9 @@ class Suite(Scenarios):
                 expr == ALERTS[rule["title"]][0], "original_alert_expression_changed"
             )
         self.evidence.artifact("fifteen-live-alert-rules.json", rules)
+        self.phase("alert_receiver_setup")
         self.alert_receiver()
+        self.phase("query_permissions")
         self.query_permissions()
         self.recovery()
         self.durable("ledger-before-restart")
@@ -337,17 +438,21 @@ class Suite(Scenarios):
             emit(directory / "replayed.jsonl", [record])
         self.reconcile("collector_recreate_rotation", artifact_name="source-replay")
         self.durable("ledger-after-source-replay")
+        self.phase("source_replay_duplicate_metrics")
         self.wait(
             lambda: (
                 self.metrics_value("tianshu_obs_source_duplicates_total")
                 >= len(SOURCES)
             )
         )
+        self.phase("sensitive_canary")
         self.canary()
+        self.phase("local_alert_delivery")
         self.verify_alert()
         self.evidence.artifact(
             "intentional-collector-crash.json", self.lifecycle.crashes
         )
+        self.phase("scenarios_completed")
 
     def close(self):
         clean = self.group.stop()
@@ -395,6 +500,7 @@ def main(argv=None):
         "image_id_supplied_by_launcher": args.image_id,
         "status": "prepared_not_run",
         "real_engines_executed": False,
+        "completed_all_scenarios": False,
         "production_30_day_retention_executed": False,
         "nas_business_verified": False,
         "physical_enospc": False,
@@ -414,7 +520,7 @@ def main(argv=None):
             evidence = Evidence(args.output / "evidence")
             suite = Suite(fixture, evidence, args.events_per_source)
             suite.execute()
-            report.update(status="passed", real_engines_executed=True)
+            report.update(status="passed", completed_all_scenarios=True)
     except BaseException as error:  # noqa: BLE001 - interrupts must still finalize synthetic evidence
         report.update(status="failed", error_type=type(error).__name__)
         if isinstance(error, ValueError) and str(error).replace("_", "").isalnum():
@@ -423,6 +529,11 @@ def main(argv=None):
     finally:
         try:
             if suite is not None:
+                report["real_engines_executed"] = (
+                    getattr(suite, "real_engines_executed", False) is True
+                )
+                if isinstance(getattr(suite, "progress", None), dict):
+                    report["phase_diagnostics"] = suite.progress
                 report["native_processes_stopped"] = suite.close()
                 if not report["native_processes_stopped"]:
                     report["status"], code = "failed", 1
