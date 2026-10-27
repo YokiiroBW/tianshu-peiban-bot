@@ -30,6 +30,8 @@ print(json.dumps({'status':r.status,'body':json.loads(r.read())}))
 c.close()
 """
 
+WORKER_UIDS = {"inputs": 1026, "publisher": 1654}
+
 
 @unittest.skipUnless(
     sys.platform == "linux" and os.environ.get("TIANSHU_RUN_COMICS_LINUX_SMOKE") == "1",
@@ -37,9 +39,9 @@ c.close()
 )
 class ComicsLinuxTests(unittest.TestCase):
     @staticmethod
-    def cleanup_media(root):
+    def cleanup_media(path, uid):
         # The supervisor has no DAC_OVERRIDE/CHOWN. Its synthetic media trees
-        # belong to the original media UID/GID and must be removed by that owner.
+        # belong to the two original service UIDs and are removed by each owner.
         # addCleanup runs before TemporaryDirectory.cleanup and records any cleanup
         # failure separately, preserving the original test assertion/exception.
         subprocess.run(
@@ -48,13 +50,12 @@ class ComicsLinuxTests(unittest.TestCase):
                 "-B",
                 "-c",
                 "import shutil,sys; from pathlib import Path; "
-                "[(shutil.rmtree(p) if p.exists() else None) "
-                "for p in (Path(sys.argv[1])/'inputs',Path(sys.argv[1])/'output')]",
-                str(root),
+                "p=Path(sys.argv[1]); shutil.rmtree(p) if p.exists() else None",
+                str(path),
             ],
-            user=1026,
-            group=1654,
-            extra_groups=[10001],
+            user=uid,
+            group=10001,
+            extra_groups=[],
             check=True,
             timeout=10,
         )
@@ -103,23 +104,25 @@ class ComicsLinuxTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory(prefix="ts352-comics-")
         self.addCleanup(temporary.cleanup)
         root = Path(temporary.name)
-        self.addCleanup(self.cleanup_media, root)
+        for directory, uid in (("inputs", 1026), ("output", 1654)):
+            self.addCleanup(self.cleanup_media, root / directory, uid)
         root.chmod(0o770)
-        subprocess.run(
-            [
-                sys.executable,
-                "-B",
-                "-c",
-                "from pathlib import Path; import sys; "
-                "[(Path(sys.argv[1])/p).mkdir(mode=0o750) for p in ('inputs','output')]",
-                str(root),
-            ],
-            user=1026,
-            group=1654,
-            extra_groups=[10001],
-            check=True,
-            timeout=5,
-        )
+        for directory, uid in (("inputs", 1026), ("output", 1654)):
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-B",
+                    "-c",
+                    "from pathlib import Path; import sys; "
+                    "Path(sys.argv[1]).mkdir(mode=0o750)",
+                    str(root / directory),
+                ],
+                user=uid,
+                group=10001,
+                extra_groups=[],
+                check=True,
+                timeout=5,
+            )
         specifications = []
         for role, module in (
             ("inputs", "source_service"),
@@ -148,9 +151,9 @@ class ComicsLinuxTests(unittest.TestCase):
                         "--settings",
                         str(path),
                     ],
-                    "uid": 1026,
-                    "gid": 1654,
-                    "supplementary_gids": [10001],
+                    "uid": WORKER_UIDS[role],
+                    "gid": 10001,
+                    "supplementary_gids": [],
                     "health": {
                         "type": "unix",
                         "path": settings["socket"],
@@ -202,20 +205,25 @@ class ComicsLinuxTests(unittest.TestCase):
                 self.assertEqual(len(pids), 2)
                 self.assertFalse(pids & all_pids)
                 all_pids.update(pids)
+                observed_uids = set()
                 for pid in pids:
                     fields = dict(
                         line.split(":", 1)
                         for line in Path(f"/proc/{pid}/status").read_text().splitlines()
                         if ":" in line
                     )
-                    self.assertEqual(fields["Uid"].split(), ["1026"] * 4)
-                    self.assertEqual(fields["Gid"].split(), ["1654"] * 4)
-                    self.assertEqual(fields["Groups"].split(), ["10001"])
+                    uid = fields["Uid"].split()[0]
+                    self.assertIn(int(uid), WORKER_UIDS.values())
+                    self.assertEqual(fields["Uid"].split(), [uid] * 4)
+                    observed_uids.add(int(uid))
+                    self.assertEqual(fields["Gid"].split(), ["10001"] * 4)
+                    self.assertEqual(fields["Groups"].split(), [])
+                self.assertEqual(observed_uids, set(WORKER_UIDS.values()))
                 for role in ("inputs", "publisher"):
                     entry = (ipc / role / "service.sock").stat()
                     self.assertEqual(
                         (entry.st_uid, entry.st_gid, stat.S_IMODE(entry.st_mode)),
-                        (1026, 10001, 0o660),
+                        (WORKER_UIDS[role], 10001, 0o660),
                     )
                 for name, method, route, body in (
                     (
