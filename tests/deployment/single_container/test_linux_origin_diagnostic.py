@@ -32,7 +32,7 @@ def settings(path):
 
 
 class Database:
-    def __init__(self, config, expiry, *, identity=None, revoked=False):
+    def __init__(self, config, expiry, *, identity=None, revoked=False, missing=False):
         from services.platform.contracts import digest
 
         self.db = sqlite3.connect(":memory:")
@@ -45,6 +45,9 @@ class Database:
             (REF, "model", digest(config["entries"]["model"]), expiry, int(revoked)),
         )
         self.db.commit()
+        if missing:
+            self.db.execute("DELETE FROM origins")
+            self.db.commit()
         self.db.execute("PRAGMA query_only=ON")
         self.identity = identity
 
@@ -62,6 +65,87 @@ class Database:
 
 
 class OriginDiagnosticTests(unittest.TestCase):
+    def test_snapshot_ref_comparison_uses_hashed_original_backup_inputs(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            backup = root / "backup"
+            backup.mkdir()
+            gateway = {"platform_origin_env": "MODEL_REF"}
+            config, env = backup / "gateway.json", backup / "gateway.env"
+            config.write_text(json.dumps(gateway))
+            old_ref = "origin:" + "b" * 32
+            env.write_bytes(
+                b"OTHER='unchanged'\r\nMODEL_REF='" + old_ref.encode() + b"'\r\n"
+            )
+            manifest = {
+                "inventory": {
+                    "entries": {
+                        path.name: {"kind": "file", "sha256": tool.clone.sha(path)}
+                        for path in (config, env)
+                    }
+                }
+            }
+            (root / "manifest.json").write_text(json.dumps(manifest))
+            (root / "receipt.json").write_text(
+                json.dumps(
+                    {
+                        "status": "offline_restore_verified",
+                        "manifest_sha256": tool.clone.sha(root / "manifest.json"),
+                    }
+                )
+            )
+            _, result = tool.snapshot_origin(
+                root, "gateway.json", "gateway.env", gateway, REF
+            )
+            self.assertTrue(result["snapshot_gateway_ref_present"])
+            self.assertFalse(result["snapshot_gateway_ref_equals_live"])
+            self.assertNotIn(old_ref, json.dumps(result))
+            env.write_bytes(env.read_bytes() + b"CHANGED=1\n")
+            with self.assertRaisesRegex(
+                tool.clone.CloneError, "snapshot_gateway_input_changed"
+            ):
+                tool.snapshot_origin(root, "gateway.json", "gateway.env", gateway, REF)
+
+    def test_missing_origin_still_checks_registered_entry_by_source_entry_id(self):
+        config = settings("/data/authority.sqlite")
+        with (
+            tool.closing(Database(config, 1100)) as source,
+            tool.closing(Database(config, 900, missing=True)) as target,
+        ):
+            left = tool.facts(source, config, {"GW_TOKEN": TOKEN}, REF, TOKEN, 1000)
+            right = tool.facts(
+                target,
+                config,
+                {"GW_TOKEN": TOKEN},
+                REF,
+                TOKEN,
+                1000,
+                source_origin=left["row"],
+            )
+            result = tool.comparison(left, right, 1000)
+            self.assertEqual(
+                result["clone_failed_checks"],
+                ["origin_exists", "origin_not_revoked", "origin_unexpired"],
+            )
+            self.assertTrue(result["missing_same_ref_clone_registry_matches"])
+            self.assertFalse(result["expired_same_ref_clone_candidate"])
+            changed = copy.deepcopy(config)
+            changed["entries"]["model"]["routes"] = []
+            wrong = tool.facts(
+                target,
+                changed,
+                {"GW_TOKEN": TOKEN},
+                REF,
+                TOKEN,
+                1000,
+                source_origin=left["row"],
+            )
+            self.assertFalse(
+                tool.comparison(left, wrong, 1000)[
+                    "missing_same_ref_clone_registry_matches"
+                ]
+            )
+
     def test_expired_same_ref_is_a_candidate_without_writes_or_http_claims(self):
         config = settings("/data/authority.sqlite")
         with (

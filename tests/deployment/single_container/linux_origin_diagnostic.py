@@ -113,7 +113,7 @@ def row_dict(cursor):
     )
 
 
-def facts(db, settings, env, ref, credential, now):
+def facts(db, settings, env, ref, credential, now, *, source_origin=None):
     """Observe the product renewal predicates without invoking its write transaction."""
     from services.platform.contracts import digest, epoch
 
@@ -135,7 +135,12 @@ def facts(db, settings, env, ref, credential, now):
         if caller
         else None
     )
-    entry = settings.get("entries", {}).get(row["entry_id"]) if row else None
+    registration = row if row is not None else source_origin
+    entry = (
+        settings.get("entries", {}).get(registration["entry_id"])
+        if registration
+        else None
+    )
     owner = principals.get(entry["owner"]) if entry else None
     checks = {
         "renewal_enabled": settings.get("model_origin_renewal_http") is True,
@@ -154,11 +159,13 @@ def facts(db, settings, env, ref, credential, now):
         "origin_not_revoked": bool(row is not None and not row["revoked"]),
         "origin_unexpired": bool(row is not None and row["expires_at"] > now),
         "entry_exists": entry is not None,
-        "entry_digest_matches": bool(entry and row["entry_digest"] == digest(entry)),
+        "entry_digest_matches": bool(
+            entry and registration["entry_digest"] == digest(entry)
+        ),
         "entry_not_revoked": bool(
-            row
+            registration
             and not db.execute(
-                "SELECT 1 FROM revoked_entries WHERE id=?", (row["entry_id"],)
+                "SELECT 1 FROM revoked_entries WHERE id=?", (registration["entry_id"],)
             ).fetchone()
         ),
         "entry_unexpired": bool(
@@ -205,6 +212,18 @@ def comparison(source, target, now):
     return {
         "checks": checks,
         "expired_same_ref_clone_candidate": all(checks.values()),
+        "missing_same_ref_clone_registry_matches": bool(
+            left
+            and right is None
+            and checks["same_complete_registered_entry"]
+            and checks["source_all_observed_renewal_predicates"]
+            and all(
+                value
+                for key, value in target["checks"].items()
+                if key
+                not in {"origin_exists", "origin_not_revoked", "origin_unexpired"}
+            )
+        ),
         "source_failed_checks": [
             key for key, value in source["checks"].items() if not value
         ],
@@ -243,8 +262,59 @@ def open_database(settings, env, directory):
     ), options
 
 
+def snapshot_origin(snapshot, gateway_relative, env_relative, live_settings, live_ref):
+    """Read only the two original, manifest-hashed backup files; print no ref."""
+    snapshot = Path(snapshot).resolve(strict=True)
+    manifest = clone.read(snapshot / "manifest.json")
+    receipt = clone.read(snapshot / "receipt.json")
+    clone.require(
+        receipt.get("status") == "offline_restore_verified"
+        and receipt.get("manifest_sha256") == clone.sha(snapshot / "manifest.json"),
+        "verified_snapshot_manifest_required",
+    )
+    files = []
+    for name in (gateway_relative, env_relative):
+        path = clone.relative(snapshot / "backup", name)
+        entry = manifest["inventory"]["entries"][name]
+        clone.require(
+            entry["kind"] == "file" and clone.sha(path) == entry["sha256"],
+            "snapshot_gateway_input_changed",
+        )
+        files.append(path)
+    settings = clone.read(files[0])
+    variable = settings["platform_origin_env"]
+    # Original activate.group.py:env_reference restricted exact-line semantics.
+    rows = [
+        line[len(variable) + 1 :]
+        for line in files[1].read_bytes().splitlines()
+        if line.startswith(variable.encode() + b"=")
+    ]
+    clone.require(len(rows) == 1, "exact_snapshot_origin_env_line_required")
+    ref = rows[0]
+    if ref[:1] in (b"'", b'"'):
+        clone.require(
+            len(ref) >= 2 and ref[-1:] == ref[:1], "snapshot_origin_env_quoting_invalid"
+        )
+        ref = ref[1:-1]
+    ref = ref.decode()
+    return ref, {
+        "snapshot_gateway_ref_present": REF.fullmatch(ref) is not None,
+        "snapshot_gateway_ref_equals_live": ref == live_ref,
+        "snapshot_gateway_origin_env_name_equals_live": variable
+        == live_settings["platform_origin_env"],
+    }
+
+
 def diagnose(
-    *, owners_inspect, source_root, clone_settings, clone_root, binding, state
+    *,
+    owners_inspect,
+    source_root,
+    clone_settings,
+    clone_root,
+    binding,
+    state,
+    snapshot=None,
+    snapshot_gateway_env=None,
 ):
     from tianshu_gateway.config import EnvSecrets
     from tianshu_storage import StorageOptions
@@ -288,6 +358,21 @@ def diagnose(
     credential = EnvSecrets(
         gateway_settings["secret_references"], environ=gateway_env
     ).resolve(gateway_settings["platform_credential_ref"])
+    snapshot_checks = {}
+    old_ref = None
+    if snapshot is not None:
+        clone.require(
+            snapshot_gateway_env is not None, "explicit_snapshot_gateway_env_required"
+        )
+        old_ref, snapshot_checks = snapshot_origin(
+            snapshot,
+            physical(gateway, native_settings(gateway), source_root)
+            .relative_to(source_root)
+            .as_posix(),
+            snapshot_gateway_env,
+            gateway_settings,
+            ref,
+        )
     native_directory = str(PurePosixPath(source_settings["database_path"]).parent)
     directory = physical(platform, native_directory, source_root)
     target_settings = clone.read(clone_settings)
@@ -346,7 +431,22 @@ def diagnose(
             source = facts(source_db, source_settings, source_env, ref, credential, now)
             # The original source credential/environment is only a comparison input.
             # Candidate private module env is intentionally not silently substituted.
-            target = facts(target_db, target_settings, source_env, ref, credential, now)
+            target = facts(
+                target_db,
+                target_settings,
+                source_env,
+                ref,
+                credential,
+                now,
+                source_origin=source["row"],
+            )
+            if old_ref is not None:
+                snapshot_checks["clone_snapshot_gateway_ref_exists"] = (
+                    target_db.execute(
+                        "SELECT 1 FROM origins WHERE ref=?", (old_ref,)
+                    ).fetchone()
+                    is not None
+                )
     return {
         "version": 1,
         "status": "read_only_diagnosed",
@@ -358,6 +458,7 @@ def diagnose(
         "source": source["checks"],
         "clone_using_original_credential_comparison": target["checks"],
         **comparison(source, target, now),
+        "snapshot_comparison": snapshot_checks,
         "clone_gateway_environment_checked": False,
         "http_authentication_or_readiness_claimed": False,
         "redis_used": False,
@@ -378,6 +479,8 @@ def main(argv=None):
         "output",
     ):
         parser.add_argument("--" + name, type=Path, required=True)
+    parser.add_argument("--snapshot", type=Path)
+    parser.add_argument("--snapshot-gateway-env")
     args = parser.parse_args(argv)
     values = vars(args)
     output = values.pop("output")
