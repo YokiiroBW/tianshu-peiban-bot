@@ -2,15 +2,21 @@
 
 import json
 
-from alerts import MONITOR_STALE_SECONDS
-from policy import FIELDS, LEVELS, OUTCOMES
+if __package__:
+    from .alerts import MONITOR_STALE_SECONDS
+    from .policy import FIELDS, LEVELS, OUTCOMES
+else:
+    from alerts import MONITOR_STALE_SECONDS
+    from policy import FIELDS, LEVELS, OUTCOMES
 
 PRODUCTS = ("platform", "companion", "memory", "gateway")
 
 
-def vector(snapshot, buffer_bytes=4 * 1024**3):
+def vector(snapshot, buffer_bytes=4 * 1024**3, *, include_knowledge=False):
+    """Use Memory's vocabulary for an optional dedicated Knowledge log source."""
+    services = (*PRODUCTS[:3], "knowledge", PRODUCTS[3]) if include_knowledge else PRODUCTS
     sources, transforms = {}, {}
-    for service in PRODUCTS:
+    for service in services:
         sources[service] = {
             "type": "file",
             "include": [
@@ -26,8 +32,11 @@ def vector(snapshot, buffer_bytes=4 * 1024**3):
             "oldest_first": True,
             "glob_minimum_cooldown_ms": 1000,
         }
-        registry = snapshot["products"][service]
-        allowed = [service] if service != "memory" else ["memory", "memory-knowledge"]
+        registry = snapshot["products"]["memory" if service == "knowledge" else service]
+        if service == "knowledge":
+            allowed = ["memory-knowledge"]
+        else:
+            allowed = [service] if service != "memory" else ["memory", "memory-knowledge"]
         code = [
             "raw = string!(.message)",
             'assert!(length(raw) <= 4095, "invalid_safe_event")',
@@ -79,7 +88,7 @@ def vector(snapshot, buffer_bytes=4 * 1024**3):
         "sinks": {
             "loki": {
                 "type": "loki",
-                "inputs": [p + "_safe" for p in PRODUCTS],
+                "inputs": [p + "_safe" for p in services],
                 "endpoint": "https://obs-guard:8443",
                 "auth": {"strategy": "bearer", "token": "SECRET[files.writer_token]"},
                 "tls": {

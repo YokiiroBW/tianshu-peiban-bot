@@ -16,6 +16,8 @@ python deploy/observability/configure.py --deployment-root <显式部署根> --r
 
 守卫命令可选 `--host`、`--port`，默认仍为 `0.0.0.0:8443`，原Compose生成行为不变。单容器可传`--host 127.0.0.1 --port 8445`，将内部日志入口与其他服务端口分开；TLS证书与三角色鉴权继续生效。
 
+配置API `vector(snapshot, buffer_bytes=4 * 1024**3, *, include_knowledge=False)`默认仍生成四产品来源；单容器传`include_knowledge=True`加入`/sources/knowledge`。该目录只接受`service="memory-knowledge"`，事件/错误码词汇来自`snapshot["products"]["memory"]`，不建立第五产品或改写真实服务标签。`from deploy.observability import configs`与既有脚本顶层`import configs`均可使用；原`buffer_bytes`参数、位点/缓冲/鉴权等默认行为不变。
+
 五服务UID/GID均10001:10001，分别写自己的data子目录，TLS/凭据和产品日志只读可达。生成器不chown/chmod/提权。产品日志可保持0600，同UID读取；最终镜像与挂载权限由DEP-A联验。主机需给Loki、Vector和产品日志配置独占空间/配额；Compose内存限额不是磁盘配额。
 
 固定版本官方来源及 `digest=null/unverified` 见 `versions.json`。原生二进制通过不等于Linux镜像digest/运行通过。更新TS104–106修复提交后必须重提词汇：
