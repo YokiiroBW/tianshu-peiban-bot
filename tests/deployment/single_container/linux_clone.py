@@ -18,6 +18,7 @@ import json
 import os
 from pathlib import Path, PurePosixPath
 import re
+import stat
 import sys
 from types import ModuleType, SimpleNamespace
 from urllib.parse import parse_qsl, unquote, urlsplit
@@ -586,6 +587,12 @@ def verify_clone(
     stage, new_owned_binding, state, *, snapshot, recovery_bundle, seconds=1800
 ):
     ctx = context(stage, new_owned_binding, state, snapshot, recovery_bundle, seconds)
+    verified_clone_receipt(ctx)
+    return {"status": "clone_verified_before_product_migration", **verify_contents(ctx)}
+
+
+def verified_clone_receipt(ctx):
+    """Check the completed original restore receipt without rehashing changed PG DDL."""
     receipt = read(ctx.stage / "clone/receipt.json")
     require(
         receipt.get("status")
@@ -598,7 +605,66 @@ def verify_clone(
         == sha(ctx.stage / "config/storage-backup.json"),
         "clone_receipt_inputs_changed",
     )
-    return {"status": "clone_verified_before_product_migration", **verify_contents(ctx)}
+    return receipt
+
+
+def expected_platform_marker(ctx, receipt):
+    platform = next(
+        row for row in ctx.manifest["postgresql"] if row["service"] == "platform"
+    )
+    require(
+        len(platform["schemas"]) == 17, "original_seventeen_platform_domains_required"
+    )
+    expected = read(relative(ctx.snapshot / "backup", platform["binding"]))
+    generation = receipt["cache_generation"]
+    require(bool(HEX32.fullmatch(generation)), "verified_clone_epoch_required")
+    expected["epoch"] = generation
+    return platform, expected
+
+
+def marker_proof(path, expected, before):
+    after = path.read_bytes()
+    require(json.loads(after) == expected, "migration_changed_platform_marker")
+    return {
+        "semantic_unchanged": True,
+        "representation_changed": before != after,
+        "before_sha256": hashlib.sha256(before).hexdigest(),
+        "after_sha256": hashlib.sha256(after).hexdigest(),
+    }
+
+
+def restore_clone_marker_metadata(ctx, platform, marker, expected):
+    """Only the one new clone marker; storage's temp replace uses caller UID."""
+    require(
+        marker == relative(ctx.root, platform["binding"]) and not marker.is_symlink(),
+        "exact_clone_marker_required",
+    )
+    marker_proof(marker, expected, marker.read_bytes())
+    original = ctx.manifest["inventory"]["entries"][platform["binding"]]
+    require(original["kind"] == "file", "original_marker_metadata_required")
+
+    def metadata():
+        item = marker.stat()
+        return {
+            "mode": stat.S_IMODE(item.st_mode),
+            "uid": item.st_uid,
+            "gid": item.st_gid,
+        }
+
+    before = metadata()
+    wanted = {key: original[key] for key in ("mode", "uid", "gid")}
+    if (before["uid"], before["gid"]) != (wanted["uid"], wanted["gid"]):
+        os.chown(marker, wanted["uid"], wanted["gid"])
+    if before["mode"] != wanted["mode"]:
+        marker.chmod(wanted["mode"])
+    after = metadata()
+    require(after == wanted, "clone_marker_metadata_not_restored")
+    return {
+        "before": before,
+        "after": after,
+        "changed": before != after,
+        "scope": "single_clone_marker_only",
+    }
 
 
 def migrate_platform_clone(
@@ -628,6 +694,24 @@ def migrate_platform_clone(
         seconds=seconds,
     )
     ctx = context(stage, new_owned_binding, state, snapshot, recovery_bundle, seconds)
+    return run_platform_migration(
+        ctx,
+        settings=settings,
+        readonly_probe=readonly_probe,
+        observation_sha256=observation_sha256,
+    )
+
+
+def run_platform_migration(
+    ctx,
+    *,
+    settings,
+    readonly_probe,
+    observation_sha256,
+    output_name="platform-migration",
+    continuation_evidence=None,
+):
+    """One original migration implementation shared by fresh and explicit continuation."""
     from services.platform import backends
     from services.platform.bot_observation import BotObservation
     from tianshu_storage import StorageOptions
@@ -645,14 +729,22 @@ def migrate_platform_clone(
         directory.is_relative_to(ctx.root), "clone_platform_state_directory_required"
     )
     marker = directory / state_filename("platform")
-    platform = next(
-        row for row in ctx.manifest["postgresql"] if row["service"] == "platform"
-    )
+    receipt = verified_clone_receipt(ctx)
+    platform, expected_marker = expected_platform_marker(ctx, receipt)
     require(
         marker == relative(ctx.root, platform["binding"]),
         "original_platform_marker_required",
     )
     marker_before = marker.read_bytes()
+    marker_proof(marker, expected_marker, marker_before)
+    metadata_proofs = [
+        restore_clone_marker_metadata(ctx, platform, marker, expected_marker)
+    ]
+    output = ctx.stage / "clone" / (output_name + ".json")
+    baseline = ctx.stage / "clone" / (output_name + "-before.json")
+    require(
+        not output.exists() and not baseline.exists(), "new_migration_evidence_required"
+    )
     anchor = config["database_path"] + ".bot-observations.sqlite"
     require(sha(readonly_probe) == PROBE_SHA256, "original_readonly_probe_required")
     probe = {"__name__": "ts353_original_readonly_probe"}
@@ -702,7 +794,16 @@ def migrate_platform_clone(
             return probe["snapshot"](db)
 
     before = readonly()
+    write_new(
+        baseline,
+        {
+            "status": "readonly_before_current_migration_passes",
+            "snapshot": before,
+            "continuation": continuation_evidence,
+        },
+    )
     proofs = []
+    marker_proofs = []
     for _ in range(2):
         verify_identity(ctx.tools, ctx.readonly, ctx.resource)
         raw = StorageRuntime(options, service="platform", state_directory=directory)
@@ -717,25 +818,57 @@ def migrate_platform_clone(
                 )
             # Never finalize a one-domain registry as the seventeen-domain owner.
         finally:
-            runtime.close()
+            try:
+                runtime.close()
+            finally:
+                metadata_proofs.append(
+                    restore_clone_marker_metadata(
+                        ctx, platform, marker, expected_marker
+                    )
+                )
         after = readonly()
         proofs.append(probe["compare"](before, after))
         before = after
-        require(
-            marker.read_bytes() == marker_before, "migration_changed_platform_marker"
+        marker_proofs.append(marker_proof(marker, expected_marker, marker_before))
+        write_new(
+            ctx.stage / "clone" / (output_name + "-pass-" + str(len(proofs)) + ".json"),
+            {
+                "rows_and_constraints": proofs[-1],
+                "marker": marker_proofs[-1],
+                "marker_metadata": metadata_proofs[-1],
+                "after": after,
+            },
         )
+        marker_before = marker.read_bytes()
     result = {
-        "status": "clone_platform_group_migration_verified_idempotent",
+        "status": (
+            "clone_platform_group_continuation_verified_idempotent"
+            if continuation_evidence
+            else "clone_platform_group_migration_verified_idempotent"
+        ),
         "passes": proofs,
         "historical_rows_unchanged": True,
-        "binding_unchanged": True,
+        "historical_rows_baseline": (
+            "current_readonly_snapshot"
+            if continuation_evidence
+            else "pre_migration_readonly_snapshot"
+        ),
+        "binding_semantically_unchanged": True,
+        "marker_passes": marker_proofs,
+        "representation_changed": any(
+            item["representation_changed"] for item in marker_proofs
+        ),
+        "readonly_baseline_sha256": sha(baseline),
+        "marker_metadata_passes": metadata_proofs,
+        "marker_metadata_restored": True,
         "native_domain_probe": installed_native_probe(ctx),
         "registry_finalized": False,
         "worker_started": False,
         "product_migration_method_used": True,
         "observation_source_sha256": observation_sha256,
+        "continuation": continuation_evidence,
     }
-    write_new(ctx.stage / "clone/platform-migration.json", result)
+    write_new(output, result)
     return result
 
 
