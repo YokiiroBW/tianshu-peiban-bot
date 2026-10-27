@@ -101,6 +101,41 @@ def atomic_env(path, before, after):
         temporary.unlink(missing_ok=True)
 
 
+def candidate_reference(
+    helper, raw, variable, source_ref, source_scope, settings, environment
+):
+    """Accept an earlier clone lease only through the original readonly scope check."""
+    rows = [
+        line[len(variable) + 1 :]
+        for line in raw.splitlines()
+        if line.startswith(variable.encode() + b"=")
+    ]
+    if len(rows) != 1:
+        raise RuntimeError("exact_candidate_origin_env_line_required")
+    current = rows[0]
+    if current[:1] in (b"'", b'"'):
+        if len(current) < 2 or current[-1:] != current[:1]:
+            raise RuntimeError("candidate_origin_quoting_invalid")
+        current = current[1:-1]
+    current = current.decode()
+    if re.fullmatch(r"origin:[0-9a-f]{32}", current) is None:
+        raise RuntimeError("candidate_origin_ref_invalid")
+    helper.replace_origin_line(raw, variable, current, "origin:" + uuid4().hex)
+    previous = None
+    if current != source_ref:
+        previous = program(
+            helper.ORIGIN_READ,
+            settings,
+            environment,
+            operation="clone_previous_origin_read",
+            REF=current,
+        )
+        # Original ORIGIN_READ rejects revocation; expiry is allowed for fresh issuance.
+        if not all(previous[key] == source_scope[key] for key in SCOPE):
+            raise RuntimeError("candidate_previous_origin_scope_changed")
+    return current, previous
+
+
 def issue(*, origin_helper, candidate_root, output, **inputs):
     diagnostic = load(
         Path(__file__).with_name("linux_origin_diagnostic.py"),
@@ -185,8 +220,6 @@ def issue(*, origin_helper, candidate_root, output, **inputs):
     ]
     clone.require(len(matching) == 1, "exact_candidate_gateway_origin_file_required")
     env_path, raw = matching[0], matching[0].read_bytes()
-    # Validate the exact original line before issuing any clone lease.
-    helper.replace_origin_line(raw, variable, ref, "origin:" + "0" * 32)
     target = clone.read(inputs["clone_settings"])
     for key in ("contract_directory", "source_contract_directory"):
         if candidate_p.get(key) is not None:
@@ -197,6 +230,9 @@ def issue(*, origin_helper, candidate_root, output, **inputs):
         "TIANSHU_POSTGRES_URL": binding["postgresql_url"],
         "TIANSHU_REDIS_URL": "",
     }
+    current_ref, previous = candidate_reference(
+        helper, raw, variable, ref, before, target, target_env
+    )
     marker = Path(target["database_path"]).parent / ".tianshu-storage-platform.json"
     marker_before, metadata = clone.read(marker), marker.stat()
     try:
@@ -210,7 +246,7 @@ def issue(*, origin_helper, candidate_root, output, **inputs):
         )
         new = issued["assertion_ref"]
         clone.require(
-            diagnostic.REF.fullmatch(new) is not None and new != ref,
+            diagnostic.REF.fullmatch(new) is not None and new not in {ref, current_ref},
             "fresh_clone_origin_required",
         )
         after = program(
@@ -230,7 +266,7 @@ def issue(*, origin_helper, candidate_root, output, **inputs):
         )
         os.chown(marker, metadata.st_uid, metadata.st_gid)
         marker.chmod(stat.S_IMODE(metadata.st_mode))
-    updated = helper.replace_origin_line(raw, variable, ref, new)
+    updated = helper.replace_origin_line(raw, variable, current_ref, new)
     atomic_env(env_path, raw, updated)
     clone.require(env_path.read_bytes() == updated, "candidate_origin_line_not_written")
     receipt = {
@@ -245,6 +281,11 @@ def issue(*, origin_helper, candidate_root, output, **inputs):
         "source_modified": False,
         "clone_normal_auth_origin_issue": True,
         "candidate_env_exact_one_line": True,
+        "candidate_previous_ref_was_source": current_ref == ref,
+        "candidate_previous_clone_scope_checked": previous is not None,
+        "candidate_previous_expired": previous["expired"]
+        if previous is not None
+        else None,
         "candidate_env_before_sha256": hashlib.sha256(raw).hexdigest(),
         "candidate_env_after_sha256": hashlib.sha256(updated).hexdigest(),
         "clone_marker_identity_and_metadata_preserved": True,

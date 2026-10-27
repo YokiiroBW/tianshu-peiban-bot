@@ -3,13 +3,112 @@ import json
 from pathlib import Path
 import subprocess
 import tempfile
+from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import linux_origin_lease as lease
 
 
 class OriginLeaseTests(unittest.TestCase):
+    def test_first_candidate_source_ref_preserves_existing_path(self):
+        source = "origin:" + "a" * 32
+        helper = SimpleNamespace(
+            ORIGIN_READ="original-read", replace_origin_line=Mock()
+        )
+        with patch.object(lease, "program") as program:
+            current, previous = lease.candidate_reference(
+                helper,
+                ("MODEL_REF='" + source + "'\r\n").encode(),
+                "MODEL_REF",
+                source,
+                {},
+                {},
+                {},
+            )
+        self.assertEqual(current, source)
+        self.assertIsNone(previous)
+        program.assert_not_called()
+
+    def test_previous_clone_ref_same_scope_allows_expired_lease(self):
+        source, current = "origin:" + "a" * 32, "origin:" + "b" * 32
+        scope = dict(
+            zip(
+                lease.SCOPE,
+                (
+                    "model",
+                    "digest",
+                    "operator",
+                    "TOKEN",
+                    [{"purpose": "config.snapshot"}],
+                    300,
+                    False,
+                ),
+            )
+        )
+        previous = {**scope, "expired": True}
+        helper = SimpleNamespace(
+            ORIGIN_READ="original-read", replace_origin_line=Mock()
+        )
+        with patch.object(lease, "program", return_value=previous) as program:
+            actual, proof = lease.candidate_reference(
+                helper,
+                ("MODEL_REF=" + current + "\n").encode(),
+                "MODEL_REF",
+                source,
+                scope,
+                {"clone": True},
+                {"owned": "environment"},
+            )
+        self.assertEqual((actual, proof), (current, previous))
+        self.assertEqual(program.call_args.args[0], helper.ORIGIN_READ)
+        self.assertEqual(program.call_args.kwargs["REF"], current)
+
+    def test_previous_clone_ref_mismatched_owner_route_or_ttl_is_refused(self):
+        source, current = "origin:" + "a" * 32, "origin:" + "b" * 32
+        scope = dict(
+            zip(
+                lease.SCOPE,
+                (
+                    "model",
+                    "digest",
+                    "operator",
+                    "TOKEN",
+                    [{"purpose": "config.snapshot"}],
+                    300,
+                    False,
+                ),
+            )
+        )
+        helper = SimpleNamespace(
+            ORIGIN_READ="original-read", replace_origin_line=Mock()
+        )
+        for key, value in (
+            ("owner", "different"),
+            ("routes", []),
+            ("ttl_seconds", 301),
+        ):
+            with (
+                self.subTest(key=key),
+                patch.object(
+                    lease,
+                    "program",
+                    return_value={**scope, key: value, "expired": False},
+                ),
+            ):
+                with self.assertRaisesRegex(
+                    RuntimeError, "candidate_previous_origin_scope_changed"
+                ):
+                    lease.candidate_reference(
+                        helper,
+                        ("MODEL_REF=" + current + "\n").encode(),
+                        "MODEL_REF",
+                        source,
+                        scope,
+                        {},
+                        {},
+                    )
+
     def test_original_program_uses_stdin_settings_and_env_secret_not_argv(self):
         source = "import json,os\nfrom pathlib import Path\n" + lease.SETTINGS_LINE
         source += "\nprint(json.dumps({'database_path':settings['database_path'],'credential_present':len(os.environ['SYNTHETIC_SECRET'])>20}))\n"
