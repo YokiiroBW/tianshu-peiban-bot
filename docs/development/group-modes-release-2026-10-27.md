@@ -21,7 +21,7 @@ Companion 实际服务身份调用 processing 状态接口 HTTP200。指定群�
 
 Platform f4bb 显式事务修复已在隔离真实PG两项通过，原1F1E保留，临时库/角色均确认清理。实际初始化只移除1项旧tuple UNIQUE；历史 reply_connections、reply_authors、sources 指纹完全一致，PK及其他约束、原binding和3guard保持。未重初始化 Memory/BOT记忆。
 
-基于轮换后的现场配置仅追加原 Companion principal 的 observation.verify、开启原合法 Memory reader 的 allow_runtime_groups；3原文件已备份。Gateway沿原同entry/routes/owner/TTL续租，配置其余字节/Env/mount/运行身份保留。Knowledge、观测服务保原容器和镜像；inputs/publisher未重启。共享数据库服务器、Chat/备份、媒体与SnowLuma未操作。根HEAD/index及原worktree改动保留。
+基于轮换后的现场配置仅追加原 Companion principal 的 observation.verify、开启原合法 Memory reader 的 allow_runtime_groups；3原文件已备份。Gateway沿原同entry/routes/owner/TTL续租，配置其余字节/Env/mount/运行身份保留。Knowledge、观测服务保原容器和镜像；inputs/publisher未重启。共享PG/Redis/MySQL服务器未重启、服务配置未改；Chat/备份、媒体与SnowLuma未操作。根HEAD/index及原worktree改动保留。
 
 ## 耗时及保留的不利证据
 
