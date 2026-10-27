@@ -35,21 +35,42 @@ def forwarded_headers(headers, *, request=False):
 
 
 def model_path(path):
-    return path.startswith(
-        ("/v1/", "/internal/v1/model-requests/", "/internal/v1/native-model-requests/")
-    ) or path in {
-        "/internal/v1/model-usage",
-        "/internal/v1/model-capabilities",
-        "/internal/v1/native-model-usage",
-        "/internal/v1/native-model-capabilities",
-    }
+    return (
+        path.startswith(
+            (
+                "/v1/",
+                "/internal/v1/model-requests/",
+                "/internal/v1/native-model-requests/",
+            )
+        )
+        or path
+        in {
+            "/internal/v1/model-usage",
+            "/internal/v1/model-capabilities",
+            "/internal/v1/native-model-usage",
+            "/internal/v1/native-model-capabilities",
+            "/internal/v1/memory-retrieval/execute",
+        }
+        or (
+            path.startswith("/internal/v1/provider-self-service/")
+            and path.rsplit("/", 1)[-1] not in {"select", "runtime"}
+        )
+    )
 
 
 class Ingress:
-    def __init__(self, ports, gateway_origin):
+    def __init__(self, ports, gateway_origin, *, platform_origin=None):
         self.ports, self.gateway_origin = ports, gateway_origin.rstrip("/")
+        self.platform_origin = platform_origin
         self.session = ports.session_factory("gateway")(
             timeout=aiohttp.ClientTimeout(total=None), auto_decompress=False
+        )
+        self.platform_session = (
+            ports.session_factory("platform")(
+                timeout=aiohttp.ClientTimeout(total=None), auto_decompress=False
+            )
+            if platform_origin
+            else None
         )
         self.active = set()
         self.stopping = False
@@ -63,19 +84,28 @@ class Ingress:
         task = asyncio.current_task()
         self.active.add(task)
         try:
-            if model_path(request.path):
+            model = model_path(request.path)
+            platform_rpc = self.platform_session is not None and (
+                request.path.startswith("/internal/")
+                or request.path in {"/health/live", "/health/ready"}
+            )
+            if model or platform_rpc:
                 # This is a real public TLS connection. Local requests never
                 # manufacture that fact or use a forwarded header as evidence.
                 if not request.secure:
                     raise web.HTTPForbidden()
-                return await self.model(request)
+                return await self.proxy(
+                    request,
+                    self.session if model else self.platform_session,
+                    self.gateway_origin if model else self.platform_origin,
+                )
             return await handler(request)
         finally:
             self.active.discard(task)
 
-    async def model(self, request):
-        target = URL(self.gateway_origin + request.raw_path, encoded=True)
-        async with self.session.request(
+    async def proxy(self, request, session, origin):
+        target = URL(origin.rstrip("/") + request.raw_path, encoded=True)
+        async with session.request(
             request.method,
             target,
             headers=forwarded_headers(request.headers, request=True),
@@ -109,6 +139,8 @@ class Ingress:
 
     async def close(self):
         await self.session.close()
+        if self.platform_session is not None:
+            await self.platform_session.close()
 
 
 class Listener:

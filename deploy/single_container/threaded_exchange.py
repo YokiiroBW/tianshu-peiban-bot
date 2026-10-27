@@ -1,10 +1,10 @@
 """One original application/Store per owner thread, joined by bounded bytes."""
 
 import asyncio
-from concurrent.futures import Future
-from contextvars import ContextVar
 import inspect
 import threading
+from concurrent.futures import Future
+from contextvars import ContextVar
 from urllib.parse import urlsplit
 
 from .exchange import LocalExchange, authority, target_name
@@ -223,7 +223,7 @@ class ThreadedExchange:
             for owner in self._owners.values()
         )
 
-    async def open(self):
+    async def open(self, *, on_failure=None):
         if self._state != "new":
             raise RuntimeError("Threaded exchange can be opened once")
         self.loop, self.loop_thread = asyncio.get_running_loop(), threading.get_ident()
@@ -237,7 +237,13 @@ class ThreadedExchange:
                     owner.available.set_exception(
                         TargetUnavailable("Host startup did not complete")
                     )
-            await self.close(grace=0)
+            try:
+                if on_failure is not None:
+                    # Stop already-started producers while callbacks can still
+                    # reach every other available owner during failed startup.
+                    await on_failure()
+            finally:
+                await self.close(grace=0)
             raise
         with self._lock:
             self._state = "open"

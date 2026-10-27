@@ -1,5 +1,6 @@
 """Explicit composition input; product configuration remains with its owner."""
 
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -64,6 +65,7 @@ def load_settings(path):
         "state_file",
         "shutdown_seconds",
         "probe_interval_seconds",
+        "frontend",
     }
     if (
         not isinstance(raw, dict)
@@ -73,7 +75,11 @@ def load_settings(path):
     ):
         raise ValueError("Invalid business host configuration")
     modules = raw.get("modules")
-    if not isinstance(modules, dict) or set(modules) != set(MODULES):
+    if (
+        not isinstance(modules, dict)
+        or set(MODULES) - set(modules)
+        or set(modules) - {*MODULES, "onebot"}
+    ):
         raise ValueError("The business host needs all five explicit modules")
     result = dict(raw)
     result["state_file"] = absolute_path(raw.get("state_file"))
@@ -83,7 +89,7 @@ def load_settings(path):
             raise ValueError("Invalid business host timing")
         result[key] = value
     result["modules"] = {}
-    for name in MODULES:
+    for name in (*MODULES, *(("onebot",) if "onebot" in modules else ())):
         spec = modules[name]
         allowed = {
             "settings",
@@ -93,6 +99,10 @@ def load_settings(path):
             "contracts",
             "log_directory",
             "client",
+            "data_directory",
+            "token_env",
+            "token_file",
+            "listen_host",
         }
         if not isinstance(spec, dict) or set(spec) - allowed:
             raise ValueError("Invalid business module configuration")
@@ -121,9 +131,37 @@ def load_settings(path):
         ):
             raise ValueError("Invalid module environment values")
         item["env"] = dict(values)
+        if name == "onebot":
+            ipaddress.ip_address(spec.get("listen_host", "0.0.0.0"))
+            item["data_directory"] = absolute_path(spec.get("data_directory"))
+            if ("token_env" in spec) == ("token_file" in spec):
+                raise ValueError("OneBot needs exactly one token source")
+            if "token_file" in spec:
+                item["token_file"] = absolute_path(spec["token_file"])
+            elif not isinstance(
+                spec["token_env"], str
+            ) or not ENVIRONMENT_KEY.fullmatch(spec["token_env"]):
+                raise ValueError("Invalid OneBot token reference")
         if name == "knowledge" and (
             not isinstance(spec.get("client"), str) or not spec["client"].strip()
         ):
             raise ValueError("Knowledge needs its existing registered client")
         result["modules"][name] = item
+    if "frontend" in raw:
+        front = raw["frontend"]
+        if not isinstance(front, dict) or set(front) != {
+            "host",
+            "port",
+            "tls_certfile",
+            "tls_keyfile",
+        }:
+            raise ValueError("Invalid public frontend")
+        ipaddress.ip_address(front["host"])
+        if type(front["port"]) is not int or not 1 <= front["port"] <= 65535:
+            raise ValueError("Invalid frontend port")
+        result["frontend"] = {
+            **front,
+            "tls_certfile": absolute_path(front["tls_certfile"]),
+            "tls_keyfile": absolute_path(front["tls_keyfile"]),
+        }
     return result

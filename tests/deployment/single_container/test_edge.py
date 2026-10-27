@@ -9,6 +9,83 @@ from deploy.single_container.exchange import LocalExchange
 from tests.deployment.observability.helpers import certificates
 
 
+def test_one_public_listener_routes_service_rpc_and_all_model_owners(tmp_path):
+    async def scenario():
+        certificates(tmp_path)
+        tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        tls.load_cert_chain(tmp_path / "guard.pem", tmp_path / "guard.key")
+        trust = ssl.create_default_context(cafile=tmp_path / "ca.pem")
+        exchange = LocalExchange()
+        ingress = Ingress(
+            exchange,
+            "https://gateway.internal:8444",
+            platform_origin="https://platform.internal:8443",
+        )
+        private, gateway = web.Application(), web.Application()
+        seen = []
+
+        async def private_rpc(request):
+            assert exchange.owns(request) and not request.secure
+            assert request.headers.get("Authorization") == "Bearer synthetic-service"
+            seen.append(("platform", request.path))
+            return web.json_response({"owner": "platform"})
+
+        async def gateway_rpc(request):
+            assert exchange.owns(request) and not request.secure
+            seen.append(("gateway", request.path))
+            return web.json_response({"owner": "gateway"})
+
+        async def public_console(request):
+            # The native public UI refuses service routes. Ingress must dispatch
+            # them to the registered private application before that boundary.
+            assert not request.path.startswith("/internal/")
+            return web.Response(text="public console")
+
+        private.router.add_route("*", "/{path:.*}", private_rpc)
+        gateway.router.add_route("*", "/{path:.*}", gateway_rpc)
+        public = web.Application(middlewares=[ingress.middleware])
+        public.router.add_route("*", "/{path:.*}", public_console)
+        exchange.register(
+            "platform", private, "aiohttp", "https://platform.internal:8443"
+        )
+        exchange.register(
+            "gateway", gateway, "aiohttp", "https://gateway.internal:8444"
+        )
+        await exchange.open()
+        listener = Listener(
+            public, host="127.0.0.1", port=0, tls=tls, own_lifecycle=True
+        )
+        await listener.start()
+        port = listener.site._server.sockets[0].getsockname()[1]
+        try:
+            async with aiohttp.ClientSession(
+                connector=aiohttp.TCPConnector(ssl=trust)
+            ) as client:
+                for path, owner in (
+                    ("/internal/v1/bot/events", "platform"),
+                    ("/internal/v1/provider-self-service/select", "platform"),
+                    ("/internal/v1/provider-self-service/runtime", "platform"),
+                    ("/internal/v1/provider-self-service/models", "gateway"),
+                    ("/internal/v1/provider-self-service/test", "gateway"),
+                    ("/internal/v1/memory-retrieval/execute", "gateway"),
+                    ("/internal/v1/native-model-requests/fixture", "gateway"),
+                ):
+                    async with client.post(
+                        f"https://127.0.0.1:{port}" + path,
+                        json={},
+                        headers={"Authorization": "Bearer synthetic-service"},
+                    ) as response:
+                        assert response.status == 200
+                        assert (await response.json())["owner"] == owner
+                assert len(seen) == 7
+        finally:
+            await listener.close()
+            await ingress.close()
+            await exchange.close()
+
+    asyncio.run(scenario())
+
+
 def test_public_tls_model_stream_and_single_product_lifecycle(tmp_path):
     async def scenario():
         certificates(tmp_path)

@@ -1,5 +1,13 @@
 # 单容器与整体优化执行范围（2026-10-27）
 
+## 本地交付状态
+
+原生统一业务宿主、单环境发行、一个服务 Compose 已实现；五业务域和可选 OneBot 在原生应用自己的 owner loop 构造 Store，模块间无 TCP。真实 wheel 联合已覆盖外部 HTTPS 网页/Platform RPC、原权限拒绝、真实临时 Memory 写入、Knowledge 边界、Platform 发布模型配置→Gateway→本地替身的普通/增量流/terminal receipt，以及 OneBot 单 lifespan/合成 WebSocket 和真实排空。详细结果与限制见 [TS-340](../handoffs/TS-340.md)、[TS-345](../handoffs/TS-345.md)、[TS-346](../handoffs/TS-346.md)。本地交付不表示推送、Linux 镜像实测、产品 main 合入或 NAS 部署。
+
+产品候选完整历史：Platform `d214ec237858f4e5c9e949f3999ec499864a6023`；Companion `7f471aa7d76ea7d2922b761363b30cbf150356e0`；Memory `0b25099a43b10238ad2de6e78d7b743acddb3562`；Gateway `29098f060d5055e69b079222d4de4d41c2ed2f42`。发布构建读取精确提交，不导出未提交配置或秘密。
+
+原任务进展补充：TS-334/335/336/337/338/339/341/342/343/344 已本地交付；TS-345 单依赖环境构建与 TS-346 发行装配已集成到本批隔离协调分支。TS-340 负责最终宿主接线与集中验收，TS-329/333 以最终源码发行上下文及本地交接收口；实际 Linux 镜像、UID/能力、PG/Redis 与 NAS 性能验收尚未执行。
+
 ## 用户进一步明确的交付方向
 
 用户已明确追问内部端口，并认可参考 AstrBot 的统一宿主、模块及插件组织。最终交付必须是一个业务宿主装配 Platform、Companion、Memory、Knowledge、Gateway，内部不建立 TCP 监听。此前将原 CLI 进程放进统一镜像的实现仅为过渡研究，不能作为本轮整合完成的依据。漫画文件助手保留必要的独立 UID，通过 Unix Socket 接入原插件宿主；外部 AstrBot/NoneBot 适配器保留正式网络协议和发送回执。Vector/Loki/Prometheus/Grafana 属于现有成熟观测引擎，在完整替代之前不得为减少进程而删除。

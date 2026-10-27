@@ -3,15 +3,15 @@
 import hashlib
 import json
 import os
-from pathlib import Path
 import subprocess
 import tempfile
 import unittest
-from unittest.mock import patch
 import zipfile
+from pathlib import Path
+from unittest.mock import patch
 
+from deploy.single_container import build, dependencies
 from deploy.single_container.build import application_files, archive
-from deploy.single_container import dependencies
 from deploy.single_container.dependencies import PRODUCTS, lock, sha256, wheel_metadata
 from deploy.single_container.image import COMPONENTS, dockerfile
 
@@ -42,6 +42,62 @@ def wheel(directory, name, *, extra=None, requires=(), version="0.1.0"):
 
 
 class DistributionTests(unittest.TestCase):
+    def test_prepare_keeps_runtime_constraints_after_temporary_build_backend_exits(
+        self,
+    ):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            runtime_constraints = root / "runtime.constraints"
+            runtime_constraints.write_text("synthetic-runtime==1\n", encoding="utf-8")
+            value = release()
+            source = {"repo": "synthetic-unused", "commit": "a" * 40}
+            value.update(
+                sources={name: dict(source) for name in PRODUCTS}, application=source
+            )
+            output = root / "output"
+            storage_bytes = wheel(root, "tianshu-storage", version="0.1.3").read_bytes()
+
+            def export(source, destination):
+                destination.mkdir()
+                (destination / "vendor").mkdir()
+                (destination / "vendor" / dependencies.STORAGE_WHEEL).write_bytes(
+                    storage_bytes
+                )
+                return {"commit": source["commit"], "archive_sha256": "b" * 64}
+
+            def build_wheel(argv, *, cwd):
+                backend = argv[argv.index("--build-constraints") + 1]
+                self.assertTrue(backend.is_file())
+                self.assertNotEqual(backend, runtime_constraints)
+                name = argv[-1].name
+                wheel(
+                    output / "wheels",
+                    PRODUCTS[name],
+                    extra="nonebot" if name == "companion" else None,
+                )
+
+            def resolve(wheels, target, *, uv, python, constraints):
+                self.assertEqual(constraints, runtime_constraints)
+                self.assertTrue(constraints.is_file())
+                (target / "dependencies.json").write_text("{}")
+                (target / "runtime.lock").write_text("synthetic")
+                return {
+                    "lock_sha256": "c" * 64,
+                    "constraints_sha256": sha256(constraints),
+                }
+
+            with (
+                patch.object(build, "archive", export),
+                patch.object(build, "run", build_wheel),
+                patch.object(build, "application_files", return_value={}),
+                patch.object(build, "lock", resolve),
+                patch.object(
+                    build.subprocess, "check_output", return_value="uv synthetic"
+                ),
+            ):
+                result = build.prepare(value, output, constraints=runtime_constraints)
+            self.assertEqual(result["constraints_sha256"], sha256(runtime_constraints))
+
     def test_archive_uses_exact_tracked_commit_and_preserves_dirty_checkout(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

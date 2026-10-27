@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import signal
+import stat
 import threading
 import time
 import uuid
@@ -12,20 +13,56 @@ import uuid
 from .health import positive_number
 from .process import ProcessGroup, validate_process
 
+HOST_DIRECTORY = Path("/run/tianshu/host")
+
+
+def prepare_host_directory():
+    """Only the fixed host-state tmpfs child is writable by the business UID."""
+    if os.name != "posix" or os.geteuid() != 0 or os.getegid() != 10001:
+        raise ValueError("business host IPC requires supervisor identity 0:10001")
+    parent = HOST_DIRECTORY.parent.lstat()
+    if not stat.S_ISDIR(parent.st_mode) or parent.st_uid != 0 or parent.st_mode & 0o022:
+        raise ValueError("unsafe business host IPC parent")
+    try:
+        HOST_DIRECTORY.mkdir(mode=0o770)
+    except FileExistsError:
+        pass
+    else:
+        HOST_DIRECTORY.chmod(0o770)
+    entry = HOST_DIRECTORY.lstat()
+    if (
+        not stat.S_ISDIR(entry.st_mode)
+        or entry.st_uid != 0
+        or entry.st_gid != 10001
+        or stat.S_IMODE(entry.st_mode) != 0o770
+    ):
+        raise ValueError("unsafe business host IPC directory")
+
 
 def load_config(path):
     raw = json.loads(Path(path).read_text(encoding="utf-8"))
-    if not isinstance(raw, dict) or set(raw) - {"version", "state_file", "poll_interval_seconds", "processes", "comics"}:
+    if not isinstance(raw, dict) or set(raw) - {
+        "version",
+        "state_file",
+        "poll_interval_seconds",
+        "processes",
+        "comics",
+    }:
         raise ValueError("invalid runtime fields")
     if raw.get("version") != 1 or type(raw.get("version")) is not int:
         raise ValueError("unsupported runtime version")
-    if not isinstance(raw.get("state_file"), str) or not Path(raw["state_file"]).is_absolute():
+    if (
+        not isinstance(raw.get("state_file"), str)
+        or not Path(raw["state_file"]).is_absolute()
+    ):
         raise ValueError("state_file must be absolute")
     if not isinstance(raw.get("processes"), list):
         raise ValueError("processes must be a list")
     result = dict(raw)
     result["processes"] = [validate_process(item) for item in raw["processes"]]
-    result["poll_interval_seconds"] = positive_number(raw.get("poll_interval_seconds", 1), "poll interval", 5)
+    result["poll_interval_seconds"] = positive_number(
+        raw.get("poll_interval_seconds", 1), "poll interval", 5
+    )
     return result
 
 
@@ -47,7 +84,11 @@ def reap_orphans(group, comics):
     """PID 1 adopts orphan workers; do not steal Popen's direct-child wait status."""
     if os.name != "posix" or os.getpid() != 1:
         return
-    owned = {item.child.pid for item in group.processes.values() if item.child and item.child.poll() is None}
+    owned = {
+        item.child.pid
+        for item in group.processes.values()
+        if item.child and item.child.poll() is None
+    }
     if comics is not None:
         owned.update(comics.live_pids())
     # Linux exposes the actual children without a racy waitpid(-1), which could
@@ -85,11 +126,19 @@ class Runtime:
         comics = self.comics.status() if self.comics else None
         if overall == "ready" and comics and comics["state"] in {"starting", "failed"}:
             overall = "degraded"
-        write_state(self.config["state_file"], {
-            "version": 1, "pid": os.getpid(), "instance": self.instance,
-            "started_at": self.started_at, "updated_at": time.time(),
-            "status": overall, "processes": self.group.snapshot(), "comics": comics,
-        })
+        write_state(
+            self.config["state_file"],
+            {
+                "version": 1,
+                "pid": os.getpid(),
+                "instance": self.instance,
+                "started_at": self.started_at,
+                "updated_at": time.time(),
+                "status": overall,
+                "processes": self.group.snapshot(),
+                "comics": comics,
+            },
+        )
 
     def run(self, *, install_signals=True):
         previous = {}
@@ -97,10 +146,14 @@ class Runtime:
         if install_signals:
             for name in ("SIGTERM", "SIGINT"):
                 number = getattr(signal, name)
-                previous[number] = signal.signal(number, lambda *_: self.stop_event.set())
+                previous[number] = signal.signal(
+                    number, lambda *_: self.stop_event.set()
+                )
         try:
             # Overwrite any previous container's ready state before opening listeners.
             self.publish("starting")
+            if "business-host" in self.group.processes:
+                prepare_host_directory()
             if self.comics:
                 self.comics.open()
             self.group.start()
@@ -117,10 +170,12 @@ class Runtime:
                     self.publish("stopping")
                 finally:
                     try:
-                        if self.comics:
-                            stopped = self.comics.close()
+                        # Platform's plugin shutdown still needs the owned Unix
+                        # controller to stop its workers and acknowledge it.
+                        stopped = self.group.stop()
                     finally:
-                        stopped = self.group.stop() and stopped
+                        if self.comics:
+                            stopped = self.comics.close() and stopped
                         reap_orphans(self.group, None)
                         self.publish("stopped" if stopped else "failed")
             finally:

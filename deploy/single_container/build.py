@@ -3,17 +3,16 @@
 import argparse
 import hashlib
 import json
-from pathlib import Path
 import re
 import shutil
 import subprocess
 import sys
 import tarfile
 import tempfile
+from pathlib import Path
 
 from .dependencies import PRODUCTS, STORAGE_WHEEL, lock, run, sha256, wheel_metadata
 from .image import dockerfile
-
 
 SHA = re.compile(r"[a-f0-9]{40}\Z")
 BUILD_CONSTRAINTS = "setuptools==80.9.0\nwheel==0.45.1\n"
@@ -92,8 +91,8 @@ def prepare(release, output, *, uv="uv", python=sys.executable, constraints=None
     # Transient full source trees never enter the published image build context.
     with tempfile.TemporaryDirectory(prefix="tianshu-release-") as temporary:
         scratch = Path(temporary)
-        constraints = scratch / "build-constraints.txt"
-        constraints.write_text(BUILD_CONSTRAINTS, encoding="utf-8")
+        build_constraints = scratch / "build-constraints.txt"
+        build_constraints.write_text(BUILD_CONSTRAINTS, encoding="utf-8")
         for name, package in PRODUCTS.items():
             exported = scratch / name
             provenance[name] = archive(release["sources"][name], exported)
@@ -110,7 +109,7 @@ def prepare(release, output, *, uv="uv", python=sys.executable, constraints=None
                     "--default-index",
                     "https://pypi.org/simple",
                     "--build-constraints",
-                    constraints,
+                    build_constraints,
                     "--out-dir",
                     target / "wheels",
                     exported,
