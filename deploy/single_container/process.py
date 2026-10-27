@@ -17,7 +17,7 @@ ENVIRONMENT_KEY = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 
 
 def validate_process(raw):
-    fields = {"name", "argv", "env", "env_file", "cwd", "uid", "gid", "depends_on", "health",
+    fields = {"name", "argv", "env", "env_file", "cwd", "uid", "gid", "supplementary_gids", "depends_on", "health",
               "startup_timeout_seconds", "stop_timeout_seconds", "stop_signal"}
     if not isinstance(raw, dict) or set(raw) - fields:
         raise ValueError("invalid process fields")
@@ -43,6 +43,13 @@ def validate_process(raw):
     for key in ("uid", "gid"):
         if key in raw and (type(raw[key]) is not int or raw[key] < 0):
             raise ValueError("invalid process " + key)
+    if "supplementary_gids" in raw:
+        groups = raw["supplementary_gids"]
+        if ("uid" not in raw or not isinstance(groups, list)
+                or any(type(group) is not int or group < 0 for group in groups)
+                or len(set(groups)) != len(groups)):
+            raise ValueError("invalid supplementary process groups")
+        result["supplementary_gids"] = list(groups)
     if "cwd" in raw and (not isinstance(raw["cwd"], str) or not Path(raw["cwd"]).is_absolute()):
         raise ValueError("cwd must be absolute")
     environment = raw.get("env", {})
@@ -115,9 +122,12 @@ class ManagedProcess:
             if os.name != "posix":
                 raise ValueError("process identities require POSIX")
             options.update(user=self.spec["uid"], group=self.spec["gid"])
-            # Root drops supplementary groups before executing each business service.
+            # Business defaults still drop inherited groups. Only explicit trusted
+            # worker configuration grants the IPC group without changing its media GID.
             if os.geteuid() == 0:
-                options["extra_groups"] = []
+                options["extra_groups"] = self.spec.get("supplementary_gids", [])
+            elif self.spec.get("supplementary_gids"):
+                raise ValueError("supplementary process groups require root")
         if os.name == "posix":
             options["start_new_session"] = True
         else:

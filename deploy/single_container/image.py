@@ -84,6 +84,27 @@ def verify_local_bases(release, *, docker="docker"):
     return {"status": "local_base_identities_verified_not_built", "bases": checked}
 
 
+def install_comic_aliases(media_directory="/media"):
+    """Build-time aliases keep existing comic ledger paths on the private IPC."""
+    root = Path(media_directory)
+    if root.is_symlink() or root.exists() and not root.is_dir():
+        raise ValueError("comic_alias_parent_invalid")
+    aliases = {
+        root / "ComicInputs": "/run/tianshu/comics/inputs",
+        root / "ComicPublisher": "/run/tianshu/comics/publisher",
+    }
+    for path, target in aliases.items():
+        if path.is_symlink():
+            if path.readlink().as_posix() != target:
+                raise ValueError("comic_alias_conflict")
+        elif path.exists():
+            raise ValueError("comic_alias_conflict")
+    root.mkdir(parents=True, exist_ok=True)
+    for path, target in aliases.items():
+        if not path.is_symlink():
+            path.symlink_to(target, target_is_directory=True)
+
+
 def dockerfile(release):
     images = base_references(release)
     # Docker 24's bundled frontend handles every instruction below. An external
@@ -97,9 +118,8 @@ def dockerfile(release):
         [
             f"FROM --platform=linux/amd64 {images['platform']} AS runtime",
             "USER 0:10001",
-            f'LABEL org.opencontainers.image.title="Tianshu" org.opencontainers.image.version="{release["version"]}"',
             "COPY wheels/ /opt/tianshu/distribution/wheels/",
-            "COPY runtime.lock dependencies.json release.json /opt/tianshu/distribution/",
+            "COPY runtime.lock dependencies.json /opt/tianshu/distribution/",
             "WORKDIR /opt/tianshu/distribution",
             # Recreate rather than overlay the inherited Platform venv: an unchanged
             # product version must not cause pip to retain its older installed code.
@@ -116,6 +136,9 @@ def dockerfile(release):
             'ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH="/opt/tianshu/application" PATH="/opt/tianshu-venv/bin:/usr/share/grafana/bin:$PATH"',
             "RUN /usr/local/bin/vector --version && /usr/local/bin/loki --version && /usr/local/bin/prometheus --version && grafana --version",
             "COPY deploy/ /opt/tianshu/application/deploy/",
+            "COPY release.json /opt/tianshu/distribution/",
+            f'LABEL org.opencontainers.image.title="Tianshu" org.opencontainers.image.version="{release["version"]}"',
+            'RUN /usr/local/bin/python -c "from deploy.single_container.image import install_comic_aliases; install_comic_aliases()"',
             "RUN mkdir -p /run/tianshu /data /config && chmod 0755 /run/tianshu",
             "WORKDIR /opt/tianshu/application",
             "STOPSIGNAL SIGTERM",

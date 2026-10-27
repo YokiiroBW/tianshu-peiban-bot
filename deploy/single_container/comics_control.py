@@ -52,14 +52,14 @@ def prepare_worker_directories():
     for role in ROLES:
         path = IPC_DIRECTORY / role
         try:
-            path.mkdir(mode=0o1770)
+            path.mkdir(mode=0o3770)
         except FileExistsError:
             pass
         else:
-            # mkdir's mode is filtered by umask. Set the complete sticky/group
-            # mode only on directories just created in this root-owned tree.
-            path.chmod(0o1770)
-        _checked_directory(path, group=10001, mode=0o1770)
+            # Keep the media GID on workers while their sockets inherit IPC GID
+            # 10001. Sticky prevents one worker removing another worker's files.
+            path.chmod(0o3770)
+        _checked_directory(path, group=10001, mode=0o3770)
 
 
 class ControlError(Exception):

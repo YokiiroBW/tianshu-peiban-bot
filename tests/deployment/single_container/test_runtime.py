@@ -261,6 +261,25 @@ class RuntimeTests(unittest.TestCase):
         row = self.recorded()[0]
         self.assertEqual((row["uid"], row["gid"], row["groups"]), (10001, 10001, []))
 
+    def test_supplementary_groups_require_explicit_identity_and_unique_integer_ids(self):
+        for options in ({"supplementary_gids": [10001]},
+                        {"uid": 1026, "gid": 1654, "supplementary_gids": [True]},
+                        {"uid": 1026, "gid": 1654, "supplementary_gids": [-1]},
+                        {"uid": 1026, "gid": 1654, "supplementary_gids": [10001, 10001]},
+                        {"uid": 1026, "gid": 1654, "supplementary_gids": "10001"}):
+            with self.subTest(options=options), self.assertRaises(ValueError):
+                self.specification(**options)
+        spec = self.specification(uid=1026, gid=1654, supplementary_gids=[10001])
+        self.assertEqual(validate_process(spec)["supplementary_gids"], [10001])
+
+    @unittest.skipUnless(POSIX and os.geteuid() == 0, "Linux/root worker supplementary IPC group")
+    def test_worker_primary_media_gid_and_explicit_supplementary_group_are_preserved(self):
+        self.root.chmod(0o777)
+        group = self.group(self.specification(uid=1026, gid=1654, supplementary_gids=[10001]))
+        self.until(lambda: group.status() == "ready", group)
+        row = self.recorded()[0]
+        self.assertEqual((row["uid"], row["gid"], row["groups"]), (1026, 1654, [10001]))
+
     def test_runtime_publishes_fresh_state_and_cleans_up_real_children(self):
         state = self.root / "run" / "state.json"
         config = {"version": 1, "state_file": str(state), "poll_interval_seconds": 0.02,
@@ -364,7 +383,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertTrue(controller.close())
 
     @unittest.skipUnless(POSIX and os.geteuid() == 0, "Linux/root IPC ownership and worker socket access")
-    def test_fixed_ipc_directories_allow_both_worker_uids_without_chown(self):
+    def test_fixed_ipc_directories_preserve_media_identity_and_socket_group_without_chown(self):
         self.root.chmod(0o755)
         ipc = self.root / "comics"
         previous_group = os.getegid()
@@ -374,14 +393,15 @@ class RuntimeTests(unittest.TestCase):
             with patch("deploy.single_container.comics_control.IPC_DIRECTORY", ipc):
                 prepare_worker_directories()
                 prepare_worker_directories()
-            for role, uid in (("inputs", 1026), ("publisher", 1654)):
+            for role in ("inputs", "publisher"):
                 directory = ipc / role
                 entry = directory.stat()
-                self.assertEqual((entry.st_uid, entry.st_gid, stat.S_IMODE(entry.st_mode)), (0, 10001, 0o1770))
+                self.assertEqual((entry.st_uid, entry.st_gid, stat.S_IMODE(entry.st_mode)), (0, 10001, 0o3770))
                 code = "import socket,sys; s=socket.socket(socket.AF_UNIX); s.bind(sys.argv[1]); s.close()"
                 subprocess.run([sys.executable, "-B", "-c", code, str(directory / "fixture.sock")],
-                               user=uid, group=10001, extra_groups=[], cwd=self.root, check=True)
-                self.assertEqual((directory / "fixture.sock").stat().st_uid, uid)
+                               user=1026, group=1654, extra_groups=[10001], cwd=self.root, check=True)
+                entry = (directory / "fixture.sock").stat()
+                self.assertEqual((entry.st_uid, entry.st_gid), (1026, 10001))
         finally:
             os.umask(previous_umask)
             os.setegid(previous_group)

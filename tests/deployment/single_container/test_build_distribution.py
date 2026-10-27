@@ -17,6 +17,7 @@ from deploy.single_container.image import (
     COMPONENTS,
     base_references,
     dockerfile,
+    install_comic_aliases,
     verify_local_bases,
 )
 
@@ -50,6 +51,52 @@ def wheel(directory, name, *, extra=None, requires=(), version="0.1.0"):
 
 
 class DistributionTests(unittest.TestCase):
+    def test_comic_alias_conflict_never_overwrites_existing_media_or_creates_other_alias(
+        self,
+    ):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            existing = root / "ComicPublisher"
+            existing.mkdir()
+            (existing / "untouched").write_bytes(b"original")
+            with self.assertRaisesRegex(ValueError, "comic_alias_conflict"):
+                install_comic_aliases(root)
+            self.assertEqual((existing / "untouched").read_bytes(), b"original")
+            self.assertFalse((root / "ComicInputs").exists())
+            self.assertFalse((root / "ComicInputs").is_symlink())
+
+    def test_comic_aliases_keep_old_socket_paths_and_refuse_different_existing_links(
+        self,
+    ):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            try:
+                install_comic_aliases(root)
+            except OSError as error:
+                if os.name == "nt" and error.winerror == 1314:
+                    self.skipTest(
+                        "Creating symlinks requires an unavailable Windows privilege"
+                    )
+                raise
+            self.assertEqual(
+                (root / "ComicInputs").readlink().as_posix(),
+                "/run/tianshu/comics/inputs",
+            )
+            self.assertEqual(
+                (root / "ComicPublisher").readlink().as_posix(),
+                "/run/tianshu/comics/publisher",
+            )
+            install_comic_aliases(root)
+            (root / "ComicPublisher").unlink()
+            (root / "ComicPublisher").symlink_to(
+                "/somewhere-else", target_is_directory=True
+            )
+            with self.assertRaisesRegex(ValueError, "comic_alias_conflict"):
+                install_comic_aliases(root)
+            self.assertEqual(
+                (root / "ComicPublisher").readlink().as_posix(), "/somewhere-else"
+            )
+
     def test_prepare_keeps_runtime_constraints_after_temporary_build_backend_exits(
         self,
     ):
@@ -192,6 +239,21 @@ class DistributionTests(unittest.TestCase):
             definition,
         )
         self.assertIn("-m pip check", definition)
+        self.assertIn(
+            "COPY runtime.lock dependencies.json /opt/tianshu/distribution/", definition
+        )
+        self.assertLess(
+            definition.index("-m pip check"), definition.index("COPY release.json")
+        )
+        self.assertLess(
+            definition.index("COPY deploy/"), definition.index("COPY release.json")
+        )
+        metadata_changed = release()
+        metadata_changed["version"] = "synthetic-next-metadata"
+        self.assertEqual(
+            definition.split("COPY deploy/")[0],
+            dockerfile(metadata_changed).split("COPY deploy/")[0],
+        )
         self.assertIn('"deploy.single_container.runtime"', definition)
         self.assertNotIn("/opt/tianshu/modules", definition)
         self.assertNotIn("site-packages", definition)
@@ -207,6 +269,11 @@ class DistributionTests(unittest.TestCase):
             definition.index("RUN /usr/local/bin/vector --version"),
         )
         self.assertIn("&& grafana --version", definition)
+        self.assertIn("install_comic_aliases; install_comic_aliases()", definition)
+        self.assertLess(
+            definition.index("COPY deploy/"),
+            definition.index("RUN /usr/local/bin/python -c"),
+        )
         changed = release()
         changed["images"]["onebot"] = "sha256:" + "a" * 64
         with self.assertRaisesRegex(ValueError, "image_set"):
