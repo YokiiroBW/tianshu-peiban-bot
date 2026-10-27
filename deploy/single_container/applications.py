@@ -17,6 +17,7 @@ class NativeModule:
         self.name, self.spec, self.environment = name, spec, environment
         self.frontend, self.gateway_origin = frontend, gateway_origin
         self.ports = self.app = self.listener = self.ingress = None
+        self.api_listener = None
         self.probe_token = None
         self.assembly = None
         # Aiohttp caches its default TLS context at import time. Construct the
@@ -240,6 +241,13 @@ class NativeModule:
             from services.platform.server import create_app
 
             access = self.console.access
+            additional_tls = access.current is not None and self.frontend is not None
+            if additional_tls and access.config["port"] == self.frontend["port"]:
+                if access.tls is None:
+                    raise ValueError("WebAccess and API listeners need distinct ports")
+                # Older hosts also supplied a bootstrap frontend while native
+                # HTTPS WebAccess owned that same port. Keep that one listener.
+                additional_tls = False
             if access.current is not None:
                 public = create_app(
                     app_platform(app), console=self.console, public=True
@@ -255,18 +263,13 @@ class NativeModule:
             else:
                 if self.frontend is None:
                     raise ValueError("A bootstrap frontend is required")
-                tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-                tls.minimum_version = ssl.TLSVersion.TLSv1_2
-                tls.load_cert_chain(
-                    self.frontend["tls_certfile"], self.frontend["tls_keyfile"]
-                )
-                self.listener = Listener(
-                    app,
-                    host=self.frontend["host"],
-                    port=self.frontend["port"],
-                    tls=tls,
-                )
+                self.listener = self.tls_listener(app)
             await self.listener.start()
+            if additional_tls:
+                # The exchange already owns this private application's startup.
+                # Keep the native HTTP console and a separate real TLS SDK edge.
+                self.api_listener = self.tls_listener(app)
+                await self.api_listener.start()
         elif self.name == "onebot":
             self.listener = OneBotListener(
                 app,
@@ -275,11 +278,31 @@ class NativeModule:
             )
             await self.listener.start()
 
+    def tls_listener(self, app):
+        tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        tls.minimum_version = ssl.TLSVersion.TLSv1_2
+        tls.load_cert_chain(self.frontend["tls_certfile"], self.frontend["tls_keyfile"])
+        return Listener(
+            app,
+            host=self.frontend["host"],
+            port=self.frontend["port"],
+            tls=tls,
+        )
+
     async def stop_accepting(self, app):
         if self.ingress is not None:
             self.ingress.stopping = True
-        if self.listener is not None:
-            await self.listener.stop_accepting()
+        results = await asyncio.gather(
+            *(
+                listener.stop_accepting()
+                for listener in (self.listener, self.api_listener)
+                if listener is not None
+            ),
+            return_exceptions=True,
+        )
+        for result in results:
+            if isinstance(result, BaseException):
+                raise result
 
     async def drain_ingress(self, app, *, timeout):
         return (
@@ -308,8 +331,17 @@ class NativeModule:
         return True
 
     async def close_public(self, app):
-        if self.listener is not None:
-            await self.listener.close()
+        results = await asyncio.gather(
+            *(
+                listener.close()
+                for listener in (self.api_listener, self.listener)
+                if listener is not None
+            ),
+            return_exceptions=True,
+        )
+        for result in results:
+            if isinstance(result, BaseException):
+                raise result
 
     async def health(self, app):
         path = "/health/live" if self.name == "onebot" else "/health/ready"

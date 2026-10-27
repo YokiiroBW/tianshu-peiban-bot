@@ -12,7 +12,10 @@ def compose(
     *,
     public_port=18446,
     frontend_port=8443,
+    api_port=None,
+    api_frontend_port=8443,
     onebot=False,
+    onebot_port=18765,
     observability_ports=None,
     comics=False,
     stop_grace_seconds=420,
@@ -28,7 +31,11 @@ def compose(
         raise ValueError("observability_ports_required")
     published = [port(public_port), *(port(value) for value in exposed.values())]
     if onebot:
-        published.append(18765)
+        published.append(port(onebot_port))
+    if api_port is not None:
+        published.append(port(api_port))
+        if port(api_frontend_port) == port(frontend_port):
+            raise ValueError("distribution_listener_ports_overlap")
     if len(published) != len(set(published)):
         raise ValueError("distribution_ports_overlap")
     service = {
@@ -58,7 +65,9 @@ def compose(
         "logging": {"driver": "local", "options": {"max-size": "10m", "max-file": "3"}},
     }
     if onebot:
-        service["ports"].append("18765:18765")
+        service["ports"].append(f"{onebot_port}:18765")
+    if api_port is not None:
+        service["ports"].append(f"{api_port}:{api_frontend_port}")
     if comics:
         service["environment"] = {"TIANSHU_COMICS_PLUGIN": "1"}
     return {"name": "tianshu", "services": {"tianshu": service}}

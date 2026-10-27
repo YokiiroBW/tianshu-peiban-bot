@@ -148,6 +148,8 @@ def load_settings(path):
             raise ValueError("Knowledge needs its existing registered client")
         result["modules"][name] = item
     if "frontend" in raw:
+        # With native WebAccess this is an additional TLS SDK/API listener;
+        # otherwise it remains the original bootstrap/public TLS listener.
         front = raw["frontend"]
         if not isinstance(front, dict) or set(front) != {
             "host",

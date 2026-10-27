@@ -6,6 +6,7 @@ import ssl
 import tempfile
 from urllib.parse import urlsplit
 
+from .exchange import authority
 from .profile import APPLICATION, MODULES, OBSERVABILITY, PORTS, PYTHON, adapt, document
 
 
@@ -162,6 +163,8 @@ def make_installation(
     mounts=(),
     comics=None,
     observability_environment=None,
+    native_origins=None,
+    frontend=None,
 ):
     """Reuse reviewed native outputs; never generate credentials, models or storage."""
     if not isinstance(knowledge_client, str) or not knowledge_client.strip():
@@ -248,12 +251,25 @@ def make_installation(
             else [],
             "env": {},
         }
+    if native_origins is not None:
+        if not isinstance(native_origins, dict) or set(native_origins) != set(modules):
+            raise ValueError("complete_native_module_origins_required")
+        for name, origin in native_origins.items():
+            if not isinstance(origin, str):
+                raise ValueError("native_module_origin_invalid")
+            authority(origin)
+            parsed = urlsplit(origin)
+            if parsed.path not in {"", "/"} or parsed.query:
+                raise ValueError("native_module_origin_invalid")
+            modules[name]["origin"] = origin
     host = {
         "version": 1,
         "state_file": "/run/tianshu/host/business-host.json",
         "modules": modules,
     }
-    if platform.get("web_access") is None:
+    if frontend is not None:
+        host["frontend"] = copy.deepcopy(frontend)
+    elif platform.get("web_access") is None:
         host["frontend"] = {
             "host": "0.0.0.0",
             "port": 8443,

@@ -33,8 +33,14 @@ def arguments():
     parser.add_argument(
         "--memory-fixture", type=Path, help="Optional complete TS336 fixture"
     )
-    parser.add_argument(
+    web = parser.add_mutually_exclusive_group()
+    web.add_argument(
         "--web-access", action="store_true", help="Use the real public WebAccess app"
+    )
+    web.add_argument(
+        "--http-web-access",
+        action="store_true",
+        help="Keep HTTP WebAccess and add a TLS API listener",
     )
     parser.add_argument(
         "--output", type=Path, required=True, help="New isolated directory"
@@ -159,6 +165,7 @@ def prepare(options, upstream):
     tls = root / "tls"
     certificates(tls)
     public_port, onebot_port, knowledge_port = free_port(), free_port(), free_port()
+    api_port = free_port() if options.http_web_access else public_port
     origins = {
         name: "https://" + name + ".internal"
         for name in ("platform", "gateway", "memory", "companion")
@@ -171,16 +178,21 @@ def prepare(options, upstream):
         name: secrets.token_urlsafe(32)
         for name in ("core", "client", "upstream", "origin", "sdk", "memory")
     }
-    platform = web_settings(str(root), origin="https://127.0.0.1:" + str(public_port))
+    platform = web_settings(
+        str(root),
+        origin=("http" if options.http_web_access else "https")
+        + "://127.0.0.1:"
+        + str(public_port),
+    )
     platform["mode"] = "service_https"
-    if options.web_access:
+    if options.web_access or options.http_web_access:
         platform["web_access"] = {
             "host": "127.0.0.1",
             "port": public_port,
             "initial": {
-                "mode": "https",
+                "mode": "http" if options.http_web_access else "https",
                 "origin": platform["web"]["origin"],
-                "certificate": "fixture",
+                "certificate": None if options.http_web_access else "fixture",
             },
             "certificates": {
                 "fixture": {
@@ -359,16 +371,20 @@ def prepare(options, upstream):
         "modules": specs,
         "frontend": {
             "host": "127.0.0.1",
-            "port": public_port,
+            "port": api_port,
             "tls_certfile": str(tls / "guard.pem"),
             "tls_keyfile": str(tls / "guard.key"),
         },
     }
+    if options.web_access:
+        del config["frontend"]
     path = write(root / "host.json", config)
     return path, tokens, account, source_databases
 
 
-async def model_roundtrip(host, public, root, token, provider_token, upstream):
+async def model_roundtrip(
+    host, public, root, token, provider_token, upstream, public_origin
+):
     from fixtures import DOCUMENTS, bearer, config, query
     from deploy.single_container.applications import app_platform
     import httpx
@@ -389,7 +405,6 @@ async def model_roundtrip(host, public, root, token, provider_token, upstream):
         "X-Tianshu-Config-Version": "7",
         "X-Tianshu-Workload": "companion.text",
     }
-    public_origin = json.loads((root / "platform.json").read_bytes())["web"]["origin"]
     async with httpx.AsyncClient(
         verify=ssl.create_default_context(cafile=root / "tls/ca.pem"), trust_env=False
     ) as fresh:
@@ -554,18 +569,39 @@ async def run(options):
             assert response.status_code == 401, response.text
         root = options.output.resolve()
         origin = json.loads((root / "platform.json").read_bytes())["web"]["origin"]
+        api_origin = (
+            "https://127.0.0.1:" + str(settings["frontend"]["port"])
+            if options.http_web_access
+            else origin
+        )
         async with httpx.AsyncClient(
             verify=ssl.create_default_context(cafile=root / "tls/ca.pem"),
             trust_env=False,
         ) as public:
-            response = await public.post(origin + "/v1/chat/completions", json={})
+            if options.http_web_access:
+                assert await host.exchange.invoke(
+                    "platform",
+                    lambda app: (
+                        host.modules["platform"].api_listener.app is app
+                        and not host.modules["platform"].api_listener.own_lifecycle
+                    ),
+                )
+                refused = await public.post(origin + "/v1/chat/completions", json={})
+                assert refused.status_code == 403, refused.text
+            response = await public.post(api_origin + "/v1/chat/completions", json={})
             assert response.status_code == 401, response.text
             page = await public.get(origin + "/")
             assert (
                 page.status_code == 200 and "Synthetic local web fixture" in page.text
             )
             await model_roundtrip(
-                host, public, root, tokens["client"], tokens["upstream"], upstream
+                host,
+                public,
+                root,
+                tokens["client"],
+                tokens["upstream"],
+                upstream,
+                api_origin,
             )
         port = settings["modules"]["onebot"]["origin"].rsplit(":", 1)[1]
         peer = await connect(
@@ -658,6 +694,7 @@ async def run(options):
             public_sdk_snapshot_authorized=200,
             public_sdk_snapshot_unauthorized=401,
             web_access=options.web_access,
+            http_web_access=options.http_web_access,
             owned_onebot_network_alias=True,
         )
     finally:

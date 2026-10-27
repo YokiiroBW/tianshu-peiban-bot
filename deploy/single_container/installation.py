@@ -87,15 +87,20 @@ def validate_host(files):
     if access is None:
         frontend = host.get("frontend", {})
         frontend_port = port(frontend.get("port"))
+        api_frontend_port = None
     else:
         frontend_port = port(access.get("port"))
-        if "frontend" in host:
-            raise ValueError("native_web_access_must_own_frontend")
-    if frontend_port in {8445, 9598, 3100, 9090, 3000, 9096} or (
-        "onebot" in modules and frontend_port == 18765
-    ):
-        raise ValueError("native_frontend_conflicts_with_observer_listener")
-    return host, frontend_port
+        api_frontend_port = (
+            port(host["frontend"].get("port")) if "frontend" in host else None
+        )
+        if api_frontend_port == frontend_port:
+            raise ValueError("native_frontend_ports_overlap")
+    for listener_port in (frontend_port, api_frontend_port):
+        if listener_port in {8445, 9598, 3100, 9090, 3000, 9096} or (
+            "onebot" in modules and listener_port == 18765
+        ):
+            raise ValueError("native_frontend_conflicts_with_observer_listener")
+    return host, frontend_port, api_frontend_port
 
 
 def observer_hosts(processes, files):
@@ -136,7 +141,15 @@ def observer_hosts(processes, files):
     return [f"{name}:127.0.0.1" for name in sorted(aliases)]
 
 
-def export(installation, output, *, public_port=18446, observability_ports=None):
+def export(
+    installation,
+    output,
+    *,
+    public_port=18446,
+    api_port=None,
+    onebot_port=18765,
+    observability_ports=None,
+):
     """Write one reviewed unit; all validation precedes creating its new directory."""
     if type(installation.get("version")) is not int or installation["version"] != 1:
         raise ValueError("installation_version_invalid")
@@ -155,7 +168,9 @@ def export(installation, output, *, public_port=18446, observability_ports=None)
         raise ValueError("runtime_configuration_is_generated")
     paths = {name: relative(name) for name in files}
     contents = {name: file_bytes(name, value) for name, value in files.items()}
-    host, frontend_port = validate_host(files)
+    host, frontend_port, api_frontend_port = validate_host(files)
+    if api_port is not None and api_frontend_port is None:
+        raise ValueError("additional_tls_api_frontend_required")
     if business["health"].get("path") != host["state_file"]:
         raise ValueError("business_host_state_probe_mismatch")
     # The real group stops in reverse order: business closes before its log pipeline.
@@ -172,7 +187,10 @@ def export(installation, output, *, public_port=18446, observability_ports=None)
         installation["image"],
         public_port=public_port,
         frontend_port=frontend_port,
+        api_port=api_port,
+        api_frontend_port=api_frontend_port,
         onebot="onebot" in host["modules"],
+        onebot_port=onebot_port,
         observability_ports=observability_ports,
         comics=comic is not None,
         stop_grace_seconds=max(180, grace),
@@ -258,6 +276,8 @@ def main(argv=None):
     parser.add_argument("--installation", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--public-port", type=int, default=18446)
+    parser.add_argument("--api-port", type=int)
+    parser.add_argument("--onebot-port", type=int, default=18765)
     parser.add_argument("--observability-ports", type=Path)
     args = parser.parse_args(argv)
     ports = (
@@ -271,6 +291,8 @@ def main(argv=None):
                 json.loads(args.installation.read_bytes()),
                 args.output,
                 public_port=args.public_port,
+                api_port=args.api_port,
+                onebot_port=args.onebot_port,
                 observability_ports=ports,
             )
         )

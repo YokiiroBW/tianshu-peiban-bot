@@ -316,6 +316,85 @@ class DistributionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "onebot_native"):
             installation(files)
 
+    def test_http_console_and_explicit_tls_api_keep_native_origins_and_config(self):
+        files = native_files()
+        platform = json.loads(files["modules/platform/settings.json"])
+        platform["web_access"] = {
+            "host": "0.0.0.0",
+            "port": 8080,
+            "initial": {
+                "mode": "http",
+                "origin": "http://192.0.2.10:18446",
+                "certificate": None,
+            },
+            "certificates": {},
+        }
+        files["modules/platform/settings.json"] = platform
+        origins = {name: f"https://{name}.internal:8443" for name in MODULES}
+        origins.update(
+            memory="https://memory.internal:8130",
+            knowledge="https://knowledge.internal:8131",
+            companion="https://companion.internal:8765",
+        )
+        frontend = {
+            "host": "0.0.0.0",
+            "port": 8443,
+            "tls_certfile": "/config/modules/platform/tls/server.pem",
+            "tls_keyfile": "/config/modules/platform/tls/server.key",
+        }
+        before = copy.deepcopy(files)
+        value = installation(files, native_origins=origins, frontend=frontend)
+        self.assertEqual(files, before)
+        self.assertEqual(
+            {
+                name: spec["origin"]
+                for name, spec in value["files"]["host.json"]["modules"].items()
+            },
+            origins,
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "candidate"
+            export(value, root, public_port=28446, api_port=28443)
+            ports = json.loads((root / "compose.yaml").read_bytes())["services"][
+                "tianshu"
+            ]["ports"]
+            self.assertIn("28446:8080", ports)
+            self.assertIn("28443:8443", ports)
+            config = json.loads(
+                (root / "config/modules/platform/settings.json").read_bytes()
+            )
+            self.assertEqual(config["web_access"], platform["web_access"])
+            self.assertEqual(config["service"], platform["service"])
+        for change in (
+            {"knowledge": "https://knowledge.internal:8131"},
+            {**origins, "memory": "https://memory.internal:8130/path"},
+            {**origins, "memory": "https://memory.internal:8130?query=1"},
+        ):
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                installation(files, native_origins=change)
+        overlap = copy.deepcopy(value)
+        overlap["files"]["host.json"]["frontend"]["port"] = 8080
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "bad"
+            with self.assertRaisesRegex(ValueError, "frontend_ports_overlap"):
+                export(overlap, root, api_port=28443)
+            self.assertFalse(root.exists())
+
+    def test_candidate_published_ports_are_explicit_and_distinct(self):
+        ports = compose(
+            "tianshu:local",
+            frontend_port=8080,
+            api_port=28443,
+            onebot=True,
+            onebot_port=28765,
+        )["services"]["tianshu"]["ports"]
+        self.assertIn("28765:18765", ports)
+        self.assertIn("28443:8443", ports)
+        with self.assertRaisesRegex(ValueError, "ports_overlap"):
+            compose("tianshu:local", frontend_port=8080, api_port=18446)
+        with self.assertRaisesRegex(ValueError, "listener_ports_overlap"):
+            compose("tianshu:local", api_port=18443)
+
     def test_comics_needs_existing_plugin_and_only_fixed_control_reference_is_added(
         self,
     ):

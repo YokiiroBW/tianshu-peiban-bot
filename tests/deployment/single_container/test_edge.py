@@ -1,12 +1,139 @@
 import asyncio
 import ssl
+import socket
+from types import SimpleNamespace
 
 import aiohttp
 from aiohttp import web
 
 from deploy.single_container.edge import Ingress, Listener
+from deploy.single_container.applications import NativeModule
 from deploy.single_container.exchange import LocalExchange
 from tests.deployment.observability.helpers import certificates
+
+
+def test_native_http_console_and_tls_api_share_one_private_lifecycle(
+    tmp_path, monkeypatch
+):
+    async def scenario():
+        from services.platform import server
+
+        certificates(tmp_path)
+        with socket.socket() as sock:
+            sock.bind(("127.0.0.1", 0))
+            api_port = sock.getsockname()[1]
+        exchange = LocalExchange()
+        module = NativeModule(
+            "platform",
+            {},
+            {},
+            frontend={
+                "host": "127.0.0.1",
+                "port": api_port,
+                "tls_certfile": str(tmp_path / "guard.pem"),
+                "tls_keyfile": str(tmp_path / "guard.key"),
+            },
+            gateway_origin="https://gateway",
+        )
+        module.ingress = Ingress(
+            exchange, "https://gateway", platform_origin="https://platform"
+        )
+        module.console = SimpleNamespace(
+            access=SimpleNamespace(
+                current={"mode": "http"},
+                config={"host": "127.0.0.1", "port": 0},
+                tls=None,
+            )
+        )
+        private = web.Application(middlewares=[module.ingress.middleware])
+        public, gateway = web.Application(), web.Application()
+        events = []
+
+        async def lifecycle(app):
+            events.append("start")
+            yield
+            events.append("close")
+
+        async def rpc(request):
+            assert exchange.owns(request)
+            return web.json_response(
+                {
+                    "authorized": request.headers.get("Authorization")
+                    == "Bearer synthetic"
+                }
+            )
+
+        async def page(request):
+            return web.Response(text="native HTTP console")
+
+        private.cleanup_ctx.append(lifecycle)
+        private.router.add_route("*", "/internal/{tail:.*}", rpc)
+        gateway.router.add_route("*", "/v1/{tail:.*}", rpc)
+        public.router.add_get("/", page)
+        monkeypatch.setattr(server, "create_app", lambda *args, **kwargs: public)
+        monkeypatch.setattr(
+            "deploy.single_container.applications.app_platform", lambda app: object()
+        )
+        exchange.register("platform", private, "aiohttp", "https://platform")
+        exchange.register("gateway", gateway, "aiohttp", "https://gateway")
+        await exchange.open()
+        try:
+            await module.start_public(private)
+            assert (
+                module.api_listener.app is private
+                and not module.api_listener.own_lifecycle
+            )
+            web_port = module.listener.site._server.sockets[0].getsockname()[1]
+            trust = ssl.create_default_context(cafile=tmp_path / "ca.pem")
+            async with aiohttp.ClientSession(
+                connector=aiohttp.TCPConnector(ssl=trust)
+            ) as client:
+                async with client.get(f"http://127.0.0.1:{web_port}/") as response:
+                    assert (
+                        response.status == 200
+                        and await response.text() == "native HTTP console"
+                    )
+                async with client.get(
+                    f"http://127.0.0.1:{web_port}/internal/probe"
+                ) as response:
+                    assert response.status == 403
+                for path in ("/internal/probe", "/v1/probe"):
+                    async with client.get(
+                        f"https://127.0.0.1:{api_port}" + path,
+                        headers={"Authorization": "Bearer synthetic"},
+                    ) as response:
+                        assert (
+                            response.status == 200
+                            and (await response.json())["authorized"]
+                        )
+            await module.stop_accepting(private)
+            assert not module.listener.site._server.is_serving()
+            assert not module.api_listener.site._server.is_serving()
+            original_close = module.api_listener.close
+
+            async def failed_after_close():
+                await original_close()
+                raise RuntimeError("synthetic API close failure")
+
+            module.api_listener.close = failed_after_close
+            try:
+                try:
+                    await module.close_public(private)
+                except RuntimeError as error:
+                    assert str(error) == "synthetic API close failure"
+                else:
+                    raise AssertionError("original close failure must remain visible")
+            finally:
+                module.api_listener.close = original_close
+            assert module.listener.runner.server is None
+            assert events == ["start"]
+        finally:
+            await module.close_public(private)
+            await module.ingress.close()
+            await exchange.close()
+        assert events == ["start", "close"]
+
+    asyncio.run(scenario())
 
 
 def test_one_public_listener_routes_service_rpc_and_all_model_owners(tmp_path):
