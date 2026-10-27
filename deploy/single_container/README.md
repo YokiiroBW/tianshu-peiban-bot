@@ -14,6 +14,8 @@
 
 运行日志默认五来源合计最多10000个逻辑事件、保留30天，数量或天数任一先到先清最旧的可安全退役日志。主设置为 `log_max_events` / `retention_days`，修改后重新导出并重启guard/Loki。容器内writer管理CLI可手动clear旧日志含pending，持久cutoff阻止旧raw/Vector缓冲重放回灌；query角色仍只读。活动段、持久buffer、Loki WAL/chunk/cache及Compactor异步回收不等于瞬时物理一万条。详见 [日志保留说明](../observability/RETENTION.md)。
 
-2026-10-28，R7已正式运行于 **192.168.31.230**，镜像 `sha256:d72f5febd4945ca5db8e51e2869f5720ab1ee86250ba76ede62b953bc3e1069b`（3.376GB、66个冻结Linux wheel）。正式容器healthy、六模块ready，漫画插件及容量守护运行；旧13已停机、关闭自动重启并保留镜像和冷备。25个逻辑库核验、公开HTTP/TLS/OneBot入口、五源日志确认及跨租期就绪检查通过；此前运行日志已按授权清空约900MB，业务配置和数据保留。
+2026-10-28，R11已正式运行于 **192.168.31.230**，镜像 `sha256:82dc69fd1b1a2404ac3c99c3bc9c8347a7fab52ec5e8b045c8effe4134795f11`（3.390GB、66个冻结Linux wheel）。六模块、五观测引擎、漫画插件和容量守护正常；旧13已停机、关闭自动重启，旧镜像/配置/冷备保留。原业务配置、数据、PG/Redis地址与namespace沿用，本批未恢复或迁移业务数据库。
 
-正式60秒采样working set中位0.9182GiB；旧13此前为1.737GiB，两窗口负载不同。真实QQ/模型收发、带session网页全流程及漫画发布未作实测结论。完整证据、启动故障修复、资源口径及恢复边界见[正式发布记录](../../docs/development/single-container-deployment-2026-10-27.md)；早期TS340/R6未部署表述为历史阶段。
+本轮已修复并发就绪503、日志1024批次分页超时与旧pending饥饿，并优化音乐批读、回执轮转、请求内向量复用和网关读取锁。双图入口为[任务与设置→链路图](http://192.168.31.230:18446/#/settings/12)，分别展示账号/角色/会话关系和实际消息/记忆/日程观测；缺少事件的环节如实标示。
+
+正式20次并发ready全200、跨租期检查、25逻辑存储绑定及前端71文件HTTP字节核验通过。跨租期后60秒working set中位0.9983GiB、CPU单核126.8269%（8核总量15.8534%）；仍有历史日志追赶，不能与旧13或R7不同负载窗口计算固定节省率。真实QQ/付费模型/外部发布、正式带session浏览器JS未作实测结论。完整记录见[整体链路优化与R11验收](../../docs/development/chain-optimization-2026-10-28.md)，R7前次发布与清旧记录见[原单容器发布记录](../../docs/development/single-container-deployment-2026-10-27.md)。
