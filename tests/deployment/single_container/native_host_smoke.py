@@ -34,6 +34,9 @@ def arguments():
         "--memory-fixture", type=Path, help="Optional complete TS336 fixture"
     )
     parser.add_argument(
+        "--web-access", action="store_true", help="Use the real public WebAccess app"
+    )
+    parser.add_argument(
         "--output", type=Path, required=True, help="New isolated directory"
     )
     return parser.parse_args()
@@ -170,6 +173,22 @@ def prepare(options, upstream):
     }
     platform = web_settings(str(root), origin="https://127.0.0.1:" + str(public_port))
     platform["mode"] = "service_https"
+    if options.web_access:
+        platform["web_access"] = {
+            "host": "127.0.0.1",
+            "port": public_port,
+            "initial": {
+                "mode": "https",
+                "origin": platform["web"]["origin"],
+                "certificate": "fixture",
+            },
+            "certificates": {
+                "fixture": {
+                    "certificate_file": str(tls / "guard.pem"),
+                    "private_key_file": str(tls / "guard.key"),
+                }
+            },
+        }
     platform["core"] = {
         "base_url": origins["companion"],
         "token_env": "SYNTHETIC_CORE_TOKEN",
@@ -350,7 +369,7 @@ def prepare(options, upstream):
 
 
 async def model_roundtrip(host, public, root, token, provider_token, upstream):
-    from fixtures import DOCUMENTS, bearer, config
+    from fixtures import DOCUMENTS, bearer, config, query
     from deploy.single_container.applications import app_platform
     import httpx
 
@@ -371,6 +390,25 @@ async def model_roundtrip(host, public, root, token, provider_token, upstream):
         "X-Tianshu-Workload": "companion.text",
     }
     public_origin = json.loads((root / "platform.json").read_bytes())["web"]["origin"]
+    async with httpx.AsyncClient(
+        verify=ssl.create_default_context(cafile=root / "tls/ca.pem"), trust_env=False
+    ) as fresh:
+        assert not fresh.cookies
+        snapshot = await fresh.post(
+            public_origin + "/internal/v1/model-config/snapshot",
+            json=query(origin),
+            headers={"Authorization": bearer("GATEWAY")},
+        )
+        assert snapshot.status_code == 200, snapshot.text
+        assert snapshot.json()["config_version"] == 7, snapshot.text
+        denied = await fresh.post(
+            public_origin + "/internal/v1/model-config/snapshot", json=query(origin)
+        )
+        assert denied.status_code == 401, denied.text
+        assert not fresh.cookies
+    print(
+        "public TLS SDK snapshot with original token200 / missing token401", flush=True
+    )
     for streaming in (False, True):
         identity = "synthetic-stream" if streaming else "synthetic-json"
         body = {**DOCUMENTS["native_request"], "stream": streaming}
@@ -568,18 +606,18 @@ async def run(options):
         async def owned_rpc(app):
             adapters = app_platform(app).bot_adapters
             assert instance in adapters.owned_adapter_instances
-            return await adapters._plugin(
-                {
-                    "id": "synthetic-owned-connection",
-                    "instance_id": instance,
-                    "address": settings["modules"]["onebot"]["origin"],
-                    "access_key": key,
-                    "pins": None,
-                    "ca_pem": None,
-                },
-                "/capabilities",
-                {},
-            )
+            row = {
+                "id": "synthetic-owned-connection",
+                "instance_id": instance,
+                "address": "http://192.0.2.10:18765",
+                "access_key": key,
+                "pins": None,
+                "ca_pem": None,
+            }
+            before = dict(row)
+            capabilities = await adapters._plugin(row, "/capabilities", {})
+            assert row == before
+            return capabilities
 
         async with asyncio.timeout(5):
             while True:
@@ -617,6 +655,10 @@ async def run(options):
             synthetic_websocket=True,
             real_platform_snapshot=True,
             json_and_stream_receipts=True,
+            public_sdk_snapshot_authorized=200,
+            public_sdk_snapshot_unauthorized=401,
+            web_access=options.web_access,
+            owned_onebot_network_alias=True,
         )
     finally:
         try:
