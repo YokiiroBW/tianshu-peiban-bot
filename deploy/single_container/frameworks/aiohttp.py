@@ -412,12 +412,15 @@ class Session:
         headers=None,
         trust_env=False,
         raise_for_status=False,
+        auto_decompress=False,
         **unsupported,
     ):
         if unsupported or trust_env:
             raise TypeError(
                 "Unsupported local session options: " + ",".join(unsupported)
             )
+        if auto_decompress is not False:
+            raise ValueError("Local sessions return application bytes without decompression")
         self.exchange, self.target = exchange, target
         self.timeout = timeout or aiohttp.ClientTimeout(total=300)
         self.headers = CIMultiDict(headers or {})

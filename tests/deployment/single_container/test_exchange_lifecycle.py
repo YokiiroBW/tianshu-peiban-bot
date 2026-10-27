@@ -1,4 +1,5 @@
 import asyncio
+import gzip
 from contextlib import asynccontextmanager
 
 import aiohttp
@@ -10,6 +11,33 @@ from starlette.responses import StreamingResponse
 from starlette.routing import Route
 
 from deploy.single_container.exchange import LocalExchange
+
+
+def test_local_session_explicit_raw_compressed_bytes():
+    async def scenario():
+        exchange = LocalExchange()
+        payload = gzip.compress(b"application-owned-compression" * 100)
+
+        async def handler(request):
+            return web.Response(body=payload, headers={"Content-Encoding": "gzip"})
+
+        app = web.Application()
+        app.router.add_get("/raw", handler)
+        exchange.register("module", app, "aiohttp", "https://module:8443")
+        await exchange.open()
+        try:
+            with pytest.raises(ValueError, match="without decompression"):
+                exchange.session_factory("module")(auto_decompress=True)
+            async with (
+                exchange.session_factory("module")(auto_decompress=False) as client,
+                client.get("https://module:8443/raw") as response,
+            ):
+                assert response.headers["Content-Encoding"] == "gzip"
+                assert await response.read() == payload
+        finally:
+            await exchange.close()
+
+    asyncio.run(scenario())
 
 
 @pytest.mark.parametrize("framework", ["aiohttp", "asgi"])
