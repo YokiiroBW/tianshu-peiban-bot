@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import tempfile
 import time
+import sys
 import unittest
 from unittest.mock import patch
 
@@ -318,6 +319,82 @@ class LogResetTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "owner_cold_epoch_changed"):
             self.reset(inspect=inspect)
         self.assert_untouched()
+
+
+@unittest.skipUnless(
+    sys.platform == "linux" and getattr(os, "geteuid", lambda: -1)() == 0,
+    "real UID10001 fixture requires an isolated Linux root test process",
+)
+class LokiNfsUidTests(unittest.TestCase):
+    def setUp(self):
+        self.original = (os.getresuid(), os.getresgid(), os.getgroups())
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.addCleanup(self.restore)
+        self.base = Path(temporary.name).resolve()
+        self.base.chmod(0o755)  # Only this synthetic ancestor, never a NAS path.
+        self.root = self.base / "loki-chunks"
+        self.root.mkdir(mode=0o755)
+        self.root.chmod(0o755)
+        (self.root / "nested").mkdir(mode=0o755)
+        (self.root / "nested").chmod(0o755)
+        (self.root / "nested" / "old").write_bytes(b"old-log")
+        for path in (self.root, self.root / "nested", self.root / "nested" / "old"):
+            os.chown(path, 10001, 10001)
+        private = self.base / "private"
+        private.mkdir(mode=0o700)
+        self.private = private / "root-only"
+        self.private.write_bytes(b"private-fixture")
+        self.metadata = tool.metadata(self.root)
+        setting = patch.object(tool, "LOKI_NFS_ROOT", str(self.root))
+        setting.start()
+        self.addCleanup(setting.stop)
+
+    def restore(self):
+        os.setresuid(*self.original[0])
+        os.setresgid(*self.original[1])
+        os.setgroups(self.original[2])
+
+    def assert_restored(self):
+        self.assertEqual(
+            (os.getresuid(), os.getresgid(), os.getgroups()), self.original
+        )
+        self.assertEqual(tool.metadata(self.root), self.metadata)
+        self.assertEqual(self.private.read_bytes(), b"private-fixture")
+
+    def test_actual_owner_inventory_clear_and_metadata_preserved(self):
+        with tool._log_root_access(self.root):
+            self.assertEqual(os.getresuid(), (10001, 10001, 0))
+            self.assertEqual(os.getresgid(), (10001, 10001, 0))
+            self.assertEqual(os.getgroups(), [])
+            with self.assertRaises(PermissionError):
+                self.private.read_bytes()
+            self.assertEqual(tool.inventory(self.root, set())["bytes"], 7)
+            tool.clear_children(self.root, self.metadata)
+            self.assertEqual(list(self.root.iterdir()), [])
+            self.assertEqual(tool.metadata(self.root), self.metadata)
+        self.assert_restored()
+
+    def test_exception_inside_target_owner_restores_original_identity(self):
+        with self.assertRaisesRegex(RuntimeError, "synthetic-nfs-failure"):
+            with tool._log_root_access(self.root):
+                self.assertEqual(os.getuid(), 10001)
+                raise RuntimeError("synthetic-nfs-failure")
+        self.assert_restored()
+
+    def test_partial_uid_transition_failure_also_restores_gid_and_groups(self):
+        original_setresuid = os.setresuid
+
+        def fail_drop(*values):
+            if values == (10001, 10001, 0):
+                raise OSError("synthetic-transition-failure")
+            original_setresuid(*values)
+
+        with patch.object(tool.os, "setresuid", side_effect=fail_drop):
+            with self.assertRaisesRegex(OSError, "synthetic-transition-failure"):
+                with tool._log_root_access(self.root):
+                    self.fail("UID transition must fail before entering the body")
+        self.assert_restored()
 
 
 if __name__ == "__main__":

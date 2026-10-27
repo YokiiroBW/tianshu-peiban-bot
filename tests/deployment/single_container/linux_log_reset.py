@@ -5,6 +5,7 @@ The coordinator calls reset with the final cold stage and stopped-owner snapshot
 """
 
 import hashlib
+from contextlib import contextmanager
 import json
 import os
 from pathlib import Path
@@ -12,6 +13,8 @@ import re
 import shutil
 import stat
 import subprocess
+import sys
+import threading
 import time
 from datetime import datetime
 
@@ -27,13 +30,14 @@ CORE_OWNERS = set(PRODUCERS) | {
 AUX_OWNERS = {"onebot", "inputs", "publisher"}
 AUX_COVERAGE = {"onebot", "comic-inputs", "comic-publisher"}
 VECTOR_BUFFER_ROOT = "/srv/tianshu/observability/external/vector-buffer"
+LOKI_NFS_ROOT = "/mnt/tianshu-nas/loki-chunks"
 ROOTS = (
     {f"/srv/tianshu/logs/{name}": name for name in PRODUCERS}
     | {
         f"/srv/tianshu/observability/data/{name}": "obs-" + name
         for name in ("guard", "vector", "loki")
     }
-    | {VECTOR_BUFFER_ROOT: "obs-vector", "/mnt/tianshu-nas/loki-chunks": "obs-loki"}
+    | {VECTOR_BUFFER_ROOT: "obs-vector", LOKI_NFS_ROOT: "obs-loki"}
 )
 
 
@@ -212,6 +216,44 @@ def metadata(path):
         info.st_gid,
         stat.S_IMODE(info.st_mode),
     )
+
+
+@contextmanager
+def _log_root_access(root):
+    """Use only Loki's existing NFS owner; never change filesystem permissions."""
+    if root != Path(LOKI_NFS_ROOT):
+        yield
+        return
+    info = root.lstat()
+    require(
+        stat.S_ISDIR(info.st_mode) and info.st_uid == info.st_gid == 10001,
+        "original_loki_nfs_owner_required",
+    )
+    require(
+        sys.platform == "linux" and os.getresuid() == (0, 0, 0),
+        "nfs_access_root_linux_required",
+    )
+    require(
+        threading.active_count() == 1
+        and len(list(Path("/proc/self/task").iterdir())) == 1,
+        "nfs_access_single_thread_required",
+    )
+    original_uid, original_gid, original_groups = (
+        os.getresuid(),
+        os.getresgid(),
+        os.getgroups(),
+    )
+    try:
+        os.setgroups([])
+        os.setresgid(10001, 10001, 0)
+        os.setresuid(10001, 10001, 0)
+        yield
+    finally:
+        # Regain our saved root identity before restoring group credentials.
+        # This also restores partial transitions or an exception from inventory/unlink.
+        os.setresuid(*original_uid)
+        os.setresgid(*original_gid)
+        os.setgroups(original_groups)
 
 
 def clear_children(root, expected_metadata):
@@ -398,10 +440,11 @@ def reset(
     records = []
     for row in roots:
         root = safe_directory(row["source"])
-        counts = inventory(root, mounts)  # All ten preflight before any deletion.
-        records.append(
-            {"root": str(root), "before": counts, "metadata": metadata(root)}
-        )
+        with _log_root_access(root):
+            counts = inventory(root, mounts)  # All ten preflight before any deletion.
+            records.append(
+                {"root": str(root), "before": counts, "metadata": metadata(root)}
+            )
     require(not (stage / "log-reset-started.json").exists(), "new_log_reset_required")
     check_owners(expected, inspect)
     receipt = {
@@ -415,15 +458,18 @@ def reset(
     try:
         for record in records:
             root = safe_directory(record["root"])
-            require(
-                metadata(root) == tuple(record["metadata"]), "log_root_identity_changed"
-            )
-            inventory(root, mountpoints())
-            clear_children(root, tuple(record["metadata"]))
-            require(
-                not any(root.iterdir()) and metadata(root) == tuple(record["metadata"]),
-                "log_root_not_empty_or_metadata_changed",
-            )
+            with _log_root_access(root):
+                require(
+                    metadata(root) == tuple(record["metadata"]),
+                    "log_root_identity_changed",
+                )
+                inventory(root, mountpoints())
+                clear_children(root, tuple(record["metadata"]))
+                require(
+                    not any(root.iterdir())
+                    and metadata(root) == tuple(record["metadata"]),
+                    "log_root_not_empty_or_metadata_changed",
+                )
             record["deleted"] = record["before"]
         check_owners(expected, inspect)
         receipt.update(
