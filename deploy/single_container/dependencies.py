@@ -64,7 +64,7 @@ def run(argv, *, cwd):
     subprocess.run([str(value) for value in argv], cwd=cwd, check=True)
 
 
-def lock(wheels, output, *, uv="uv", python=sys.executable):
+def lock(wheels, output, *, uv="uv", python=sys.executable, constraints=None):
     """Use wheel METADATA (including Companion's NoneBot extra), then verify binaries.
 
     Resolution is explicitly Linux. The download's --no-deps prevents pip from
@@ -115,11 +115,19 @@ def lock(wheels, output, *, uv="uv", python=sys.executable):
     # machine-specific file:// URLs out of the final, hash-locked context.
     for metadata in inventory.values():
         command.extend(["--no-emit-package", metadata["name"]])
+    constraint_hash = None
+    if constraints is not None:
+        raw = Path(constraints).read_bytes()
+        (root / "constraints.txt").write_bytes(raw)
+        constraint_hash = sha256(root / "constraints.txt")
+        command.extend(["--constraint", "constraints.txt"])
     run(command, cwd=root)
     path = root / "runtime.lock"
     public = path.read_text(encoding="utf-8")
     if "file:" in public or re.search(r"[A-Za-z]:[/\\]", public) or " @ " in public:
         raise ValueError("nonportable_dependency_lock")
+    if constraint_hash is not None:
+        public = f"# constraints-sha256: {constraint_hash}\n" + public
     local = ["\n# Products and the one coordinator-supplied storage artifact.\n"]
     for requirement, metadata in zip(inputs, inventory.values(), strict=True):
         local.append(f"{requirement} --hash=sha256:{metadata['sha256']}\n")
@@ -168,6 +176,7 @@ def lock(wheels, output, *, uv="uv", python=sys.executable):
         "products": inventory,
         "wheels": all_wheels,
         "lock_sha256": sha256(path),
+        "constraints_sha256": constraint_hash,
     }
     (root / "dependencies.json").write_text(
         json.dumps(receipt, indent=2) + "\n", encoding="utf-8"

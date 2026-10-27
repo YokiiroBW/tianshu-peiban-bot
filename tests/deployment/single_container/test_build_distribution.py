@@ -91,6 +91,11 @@ class DistributionTests(unittest.TestCase):
                 "deploy/single_container/runtime.py": "runtime",
                 "deploy/single_container/process.py": "process",
                 "deploy/single_container/health.py": "health",
+                "deploy/single_container/host.py": "host",
+                "deploy/single_container/applications.py": "apps",
+                "deploy/single_container/threaded_exchange.py": "threads",
+                "deploy/single_container/host_settings.py": "settings",
+                "deploy/single_container/edge.py": "edge",
                 "deploy/tianshu/runtime_guard.py": "guard",
                 "deploy/observability/guard.py": "observer",
                 "deploy/observability/runtime-identity.schema.json": "{}",
@@ -105,6 +110,9 @@ class DistributionTests(unittest.TestCase):
             self.assertIn("deploy/observability/runtime-identity.schema.json", result)
             self.assertFalse((output / "deploy/observability/private.env").exists())
             self.assertFalse((output / ".runtime").exists())
+            (source / "deploy/single_container/host.py").unlink()
+            with self.assertRaisesRegex(ValueError, "runtime_source_incomplete"):
+                application_files(source, root / "incomplete")
 
     def test_image_has_five_pinned_inputs_one_clean_environment_and_original_runtime(
         self,
@@ -170,7 +178,15 @@ class DistributionTests(unittest.TestCase):
                     (root / "runtime.lock").write_text("", encoding="utf-8")
 
             with patch.object(dependencies, "run", resolver):
-                result = lock(wheels, root, uv="explicit-uv", python="explicit-python")
+                constraints = root / "validated.constraints"
+                constraints.write_text("starlette==1.6.0\n", encoding="utf-8")
+                result = lock(
+                    wheels,
+                    root,
+                    uv="explicit-uv",
+                    python="explicit-python",
+                    constraints=constraints,
+                )
             raw = (root / "runtime.lock").read_text()
             for path in wheels.values():
                 self.assertIn("./wheels/" + path.name, raw)
@@ -179,6 +195,13 @@ class DistributionTests(unittest.TestCase):
             self.assertNotIn(str(root), raw)
             self.assertIn("x86_64-manylinux_2_36", commands[0])
             self.assertIn("--generate-hashes", commands[0])
+            self.assertIn("--constraint", commands[0])
+            self.assertIn("constraints.txt", commands[0])
+            self.assertNotIn(str(constraints), commands[0])
+            self.assertEqual(
+                result["constraints_sha256"], sha256(root / "constraints.txt")
+            )
+            self.assertIn("# constraints-sha256: " + result["constraints_sha256"], raw)
             self.assertIn("--no-deps", commands[1])
             self.assertIn("--require-hashes", commands[1])
             self.assertIn("manylinux_2_36_x86_64", commands[1])

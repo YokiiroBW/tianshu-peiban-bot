@@ -67,6 +67,11 @@ def application_files(source, target):
         "deploy/single_container/runtime.py",
         "deploy/single_container/process.py",
         "deploy/single_container/health.py",
+        "deploy/single_container/host.py",
+        "deploy/single_container/applications.py",
+        "deploy/single_container/threaded_exchange.py",
+        "deploy/single_container/host_settings.py",
+        "deploy/single_container/edge.py",
         "deploy/observability/guard.py",
     }
     if not required <= exported.keys():
@@ -74,7 +79,7 @@ def application_files(source, target):
     return exported
 
 
-def prepare(release, output, *, uv="uv", python=sys.executable):
+def prepare(release, output, *, uv="uv", python=sys.executable, constraints=None):
     definition = dockerfile(release)
     if set(release.get("sources", {})) != set(PRODUCTS):
         raise ValueError("release_product_source_set_invalid")
@@ -131,7 +136,7 @@ def prepare(release, output, *, uv="uv", python=sys.executable):
             release.get("application"), scratch / "application"
         )
         files = application_files(scratch / "application", target)
-    dependencies = lock(wheels, target, uv=uv, python=python)
+    dependencies = lock(wheels, target, uv=uv, python=python, constraints=constraints)
     receipt = {
         "version": release["version"],
         "status": "prepared_not_built_on_linux",
@@ -140,6 +145,7 @@ def prepare(release, output, *, uv="uv", python=sys.executable):
         "files": files,
         "dependencies_sha256": sha256(target / "dependencies.json"),
         "runtime_lock_sha256": dependencies["lock_sha256"],
+        "constraints_sha256": dependencies["constraints_sha256"],
         "dockerfile_sha256": hashlib.sha256(definition.encode()).hexdigest(),
         "build_constraints": BUILD_CONSTRAINTS.splitlines(),
         "uv_version": subprocess.check_output([uv, "--version"], text=True).strip(),
@@ -161,12 +167,14 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--uv", default="uv")
     parser.add_argument("--python", default=sys.executable)
+    parser.add_argument("--constraints", type=Path)
     args = parser.parse_args()
     result = prepare(
         json.loads(args.release.read_bytes()),
         args.output,
         uv=args.uv,
         python=args.python,
+        constraints=args.constraints,
     )
     print(json.dumps({"status": result["status"], "version": result["version"]}))
 
