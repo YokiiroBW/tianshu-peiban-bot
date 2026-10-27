@@ -3,11 +3,11 @@
 import copy
 import json
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 from deploy.observability import configs
@@ -15,7 +15,6 @@ from deploy.single_container.compose import compose
 from deploy.single_container.installation import export, file_bytes
 from deploy.single_container.plan import make_installation
 from deploy.single_container.profile import MODULES, OBSERVABILITY, PYTHON, adapt
-
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -550,6 +549,42 @@ class DistributionTests(unittest.TestCase):
             raw.replace(
                 b'"database_path":"/data/', b'"database_path":"/data/modules/companion/'
             ),
+        )
+
+    def test_prometheus_authorization_file_relocates_but_authentication_bytes_do_not(
+        self,
+    ):
+        value = configs.prometheus()
+        for job in value["scrape_configs"]:
+            if "authorization" in job:
+                job["authorization"].update(
+                    credentials="/run/secrets/literal-credential",
+                    type="/run/tls/literal-type",
+                )
+        expected = adapt(value, "obs-guard")
+        for job in expected["scrape_configs"]:
+            if "authorization" in job:
+                self.assertEqual(
+                    job["authorization"],
+                    {
+                        "credentials_file": "/config/observability/secrets/metrics_token",
+                        "credentials": "/run/secrets/literal-credential",
+                        "type": "/run/tls/literal-type",
+                    },
+                )
+        raw = json.dumps(value, indent=2).replace("\n", "\r\n").encode() + b"\r\n"
+        relocated = file_bytes("observability/prometheus.json", raw)
+        self.assertEqual(json.loads(relocated), expected)
+        self.assertEqual(relocated.count(b"\r\n"), raw.count(b"\r\n"))
+        self.assertIn(b'"credentials": "/run/secrets/literal-credential"', relocated)
+        self.assertIn(b'"type": "/run/tls/literal-type"', relocated)
+        headers = {
+            "headers": {"Authorization": {"credentials_file": "/run/secrets/identity"}}
+        }
+        self.assertEqual(adapt(headers, "obs-guard"), headers)
+        self.assertEqual(
+            file_bytes("observability/headers.json", json.dumps(headers).encode()),
+            json.dumps(headers).encode(),
         )
 
     def test_reviewed_module_data_binds_remain_external_and_shared_root_is_locked_once(

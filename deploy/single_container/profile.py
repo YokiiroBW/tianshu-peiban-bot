@@ -3,7 +3,6 @@
 import json
 import re
 
-
 MODULES = ("platform", "gateway", "memory", "knowledge", "companion")
 PORTS = {
     "platform": 8443,
@@ -101,7 +100,18 @@ def adapt(value, name):
     """Only native path literals and the relocated guard listener change."""
     if isinstance(value, dict):
         return {
-            key: item if identity_field(key, item) else adapt(item, name)
+            key: (
+                {
+                    field: adapt(content, name)
+                    if field == "credentials_file"
+                    else content
+                    for field, content in item.items()
+                }
+                if key.lower() == "authorization" and isinstance(item, dict)
+                else item
+                if identity_field(key, item)
+                else adapt(item, name)
+            )
             for key, item in value.items()
         }
     if isinstance(value, list):
@@ -158,11 +168,22 @@ def relocate_json(value, name):
     # Pair order retains even duplicate JSON keys and distinguishes keys from values.
     parsed = json.loads(text, object_pairs_hook=ObjectPairs)
 
-    def strings(item, protected=False):
+    def strings(item, protected=False, authorization=False):
         if isinstance(item, ObjectPairs):
             for key, field in item:
                 yield key
-                yield from strings(field, protected or identity_field(key, field))
+                # Prometheus credentials_file is a path, while credentials and
+                # every other authorization value retain their literal bytes.
+                if authorization:
+                    yield from strings(field, protected or key != "credentials_file")
+                elif (
+                    not protected
+                    and key.lower() == "authorization"
+                    and isinstance(field, ObjectPairs)
+                ):
+                    yield from strings(field, authorization=True)
+                else:
+                    yield from strings(field, protected or identity_field(key, field))
         elif isinstance(item, list):
             for field in item:
                 yield from strings(field, protected)
