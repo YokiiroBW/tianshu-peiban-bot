@@ -1,0 +1,171 @@
+{
+  "recorded_at_utc": "2026-10-27T06:24:10.877734+00:00",
+  "task": "TS-328",
+  "state": "deployed_runtime_verified_real_qq_deferred_by_user",
+  "pushed": true,
+  "product_integrated": true,
+  "deployed": true,
+  "window_authority_commit": "890010546c2129bc8608dbe27767de9b48771421",
+  "products": {
+    "platform": "f4bbdb23795e0f9d89345aed98c09906fb24031f",
+    "companion": "677fcb1f1392c134084d6e2be0d61f1a49f757b4",
+    "memory": "110a41bf851163901f7fc4a8f13cc19817285a3a"
+  },
+  "images": {
+    "companion": {
+      "revision": "677fcb1f1392c134084d6e2be0d61f1a49f757b4",
+      "image": "sha256:367ecafce3335852d01ad1a52d9d46ac9ccb50a0e7796a8f51e27d3168f75178"
+    },
+    "memory": {
+      "revision": "110a41bf851163901f7fc4a8f13cc19817285a3a",
+      "image": "sha256:e5d852ea6a8536807328ce8c9389ab3ec1c7d9f63b372a229dc163e23c6bd0f9"
+    },
+    "onebot": {
+      "revision": "677fcb1f1392c134084d6e2be0d61f1a49f757b4",
+      "image": "sha256:d212032ff6ff547a455d024c02db89a785ad6f784b0a5a6f8cfacf9b79b43005"
+    },
+    "platform": {
+      "revision": "f4bbdb23795e0f9d89345aed98c09906fb24031f",
+      "image": "sha256:657c89780410e4e4ac386a1ad5cee3d02696f56f11266ddd089006bf37c7e95e"
+    }
+  },
+  "runtime": {
+    "full_profile": "passed",
+    "services": 13,
+    "compose_projects": 4,
+    "nas_mounts": 13,
+    "core_verified_tls_live_ready": 5,
+    "native_logical_sources": 25,
+    "memory_guards": 3,
+    "guard": "ready",
+    "onebot_connected": true,
+    "installed_source_files": {
+      "companion": 109,
+      "memory": 142,
+      "onebot": 16,
+      "platform": 331
+    },
+    "independent_lan_files": 3,
+    "actual_companion_processing_http": 200
+  },
+  "data": {
+    "native_pg_databases": 6,
+    "cold_logical_sources": 25,
+    "cold_guards": 3,
+    "sqlite_verified": 39,
+    "onebot_sqlite_verified": 1,
+    "cold_manifest_sha256": "75472ca26b42b842e8490cc7568987c9dc7f15b1b3db2844829ec583f75e4c42",
+    "native_pg_restore_verification_reused": true,
+    "production_database_restore": false,
+    "historical_rows_unchanged": true,
+    "other_constraints_unchanged": true,
+    "target_legacy_unique_constraints_removed": 1,
+    "bindings_and_guards_unchanged_before_start": true,
+    "memory_or_actor_reinitialized": false,
+    "scratch_databases_and_clients_removed": true
+  },
+  "configuration": {
+    "fresh_current_files_patched": true,
+    "original_raw_files_backed_up": 3,
+    "companion_config_changes": 0,
+    "platform_delta": "Append observation.verify only to the existing matching Companion service principal",
+    "memory_delta": "Set allow_runtime_groups=true only on the existing legitimate reader template",
+    "gateway_origin": "Normal lease renewal, same existing entry/routes/owner/TTL; no additional permissions",
+    "other_env_mounts_and_creation_policy_preserved": true,
+    "test_policy_updates": 0,
+    "old_credential_candidates_replayed": false,
+    "all_service_credential_http_positive_claimed": false
+  },
+  "preservation": {
+    "root_head_and_index_unchanged": true,
+    "original_worktrees_and_branches_retained": true,
+    "inputs_publisher_ids_and_start_times_unchanged": true,
+    "knowledge_and_observability_ids_and_images_preserved": true,
+    "gateway_image_unchanged": true,
+    "shared_pg_redis_mysql_servers_restarted": false,
+    "chat_backups_media_snowluma_modified": false
+  },
+  "validation": {
+    "postgres_focused": {
+      "passed": 2,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "earlier_local_results": "See group-modes-delivery-2026-10-27.json; original broad failures retained, not a second all-green full suite",
+    "real_qq_four_modes": "deferred_by_user",
+    "real_qq_group_private_ingress": "deferred_by_user",
+    "production_policy_switching_tested": false,
+    "actual_http_status_read_only": true
+  },
+  "deferred": {
+    "user_direction": "实机我再配置吧，先将别的收尾",
+    "real_qq_messages_sent": 0,
+    "test_policy_changes": 0,
+    "group_observed_status": {
+      "mode": "observe",
+      "code": "actor_unbound",
+      "processing_enabled": false
+    },
+    "private_observed_status": {
+      "mode": "reply",
+      "code": null,
+      "processing_enabled": true
+    },
+    "browser": "Login page loads; actual administrator password login and bot-management unlock not exercised"
+  },
+  "limitations": [
+    "Actual four-state transitions and group/private QQ input/send were deferred by the user; deployment/runtime acceptance does not certify them.",
+    "The designated group currently has no bound actor; observe mode does not yet permit automatic organization.",
+    "Chat history/statistics/relationship/cloud require actual unique Chat binding; this release did not fabricate mappings or published group profiles.",
+    "Model quality is not re-evaluated by this zero-model runtime acceptance.",
+    "Original cold-tail failure retained; only the pinned generated Python cache additions were accepted, not arbitrary control drift."
+  ],
+  "adverse_evidence_retained": [
+    "PG2 R1 1F1E, fixed in exact Platform f4bb and R2 2P; both owned databases/roles confirmed absent.",
+    "Readonly contracts fixture triggered foreign-deployment guard latch; original evidence retained.",
+    "Existing shared-prefix guard-generation name did not match installed shutdown contract; corrected only generation paths to supported generic form.",
+    "Native cold backup completed database verification, then failed on generated Python cache control additions; exact continuation reused original PG proof and reran file/SQLite verification.",
+    "Full-input collector expected 3 Compose projects; original and current baseline both have 4. R2 additionally checks every owner project identity.",
+    "Full R1 compared raw legacy catalog policy to v2 API projection. Two stable reads proved only this difference; R2 uses the actual owner projection and retains all other comparisons."
+  ],
+  "model_budget": {
+    "used": 17540,
+    "cap": 18000,
+    "this_release_test_calls": 0
+  },
+  "local_private_evidence": {
+    "product-push-receipt.json": "c7ad332409bc165edc754d1f4776efe1f539e6efceb7949cb7125cd6d1050750",
+    "platform-fix-push-receipt.json": "c4e0dc38d1d184b68117bdec7c14f8077f2fc6b08ba4a16650b146df6668c793",
+    "coordinator-integration.json": "2b6a51542e2255b2c9588994f97335c7ec6359ddbea0853bdcf7ec49258ff38c",
+    "platform-fix-coordinator-integration.json": "b7701841ff696d831bfcf7d77b211be2408d7bb2b3f09d24389bc3fc942d0ed3",
+    "image-build-result.json": "6c5a66134a2c2acb8c04207e6803a4ccb81de4dfcfcbfa5a4015ecac25be0dbf",
+    "pg2-remote-r1.json": "c455d321c106a46a7c51264fa69b0e49bdf7212df4c585c9c75e8d8ab75b13fe",
+    "pg2-remote-r2.json": "0597b142448da7835b2af6e8770f38d22b45d23ab89052b557fc30497b0c2e2b",
+    "pg-owned-r1/cleanup.json": "97747669b95831a459609c3a33a1d4af839c408a2195a7c3224340a7bec627a1",
+    "pg-owned-r2/cleanup.json": "97747669b95831a459609c3a33a1d4af839c408a2195a7c3224340a7bec627a1",
+    "config-apply-r1.json": "3b8148c77cb9844c8363ac9ec2f8d90b8d53ae9425be59e15fb3e7b83026ca02",
+    "shutdown-state-correction-r2.json": "1e42e0916e54d92a69c0742b093542e221fa944e4bf59a2e1d359fd884c1f380",
+    "cold-continuation-r1.json": "7a28f15d99879d2c924c4da69ff32c55f008089a331319194c6748421fb1494d",
+    "full-input-capture-r2.json": "bb2e25dfc4dbd888dbaa1a88f99bbc403663f213db70db45373c1bfbc44c9d7e",
+    "authority-projection-diagnosis-r1.json": "22dc4cc63c3e7b757ccf6660b5f7a4d7f5961e5db144ecd9e2bcaf6bb679cb92",
+    "full-runtime-r1.json": "83e4034d486b14e4e521487c3842631897926d989f1e56259e3430e76edcc1b2",
+    "full-runtime-r2.json": "7ee8e82b6bc9f189e68cf75cc1171239ce0f7d0df78441482357ea62022e25d6",
+    "source-actor-guard-r1.json": "8bca47801bdfdc55ac100523bf22d6ca63258169ab85e4e24d07ea3b8dc04a97",
+    "processing-http-r1.json": "92d34794075c435fd1e28e66a944ef420b1a68125844ee279cc7e9f2aa147cda",
+    "lan-web-r1.json": "2cc821a0a68de33ed3efd800ecb73a7495fd42783e4f31ec953f1c926a92bfa6",
+    "collected-release-r1.private.json": "2cd6947f4a5a9517ba9b0c7002cad62923061bfec24a8b7e38e2bfb4cae4967b"
+  },
+  "remote_stage_receipt_sha256": {
+    "plan.json": "c5aee5f8c02b91e1d601f13ad556ec28814a186e45a05a7fcde8db264a893110",
+    "execution-manifest.json": "5c0f335fc302c4d2cd3dc6816cfc69a6305a0d61d915d421ec9d6c37bcdc5796",
+    "cold-before.json": "953c808f2a296b191c4c22062bad470bf5b2c43d4def0c379ab8a5efe1294c7e",
+    "onebot-cold.json": "1de6a441f77b0b5a381fd740ad0651a242838f17a972b186856c6248e906970d",
+    "platform-initialized.json": "bc88545cecb558f6dae84ac2bae8421541016f55c1e5b3cbd713efdbaba37a49",
+    "post-init.json": "fc252fd703f5a20eeeb9448f80f3427c6eb7cb59f76a423f3b4cd73e4886b25d",
+    "new-generation.private.json": "1da092f3b0eb2a51213b90309c59a4cabc9bafc87eaa2ed22e02cde11db39f66",
+    "activated.private.json": "2f1d3bc19a33b6d0a135ef2a2d1ccb51422729515df4f252c69ec6129cd367bd",
+    "credential-acceptance.json": "a9f12142bd211ee19755212b8444a17e53a5f709d2829da5b977184b6549f44e"
+  },
+  "shared_publication_branch": "codex/group-modes-release-20261027"
+}

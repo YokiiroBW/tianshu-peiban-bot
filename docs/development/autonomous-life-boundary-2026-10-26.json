@@ -119,5 +119,107 @@
       "future_acceptance_calls_owner": "single release coordinator, same original ledger"
     },
     "production_deployed_not_claimed": true
+  },
+  "group_modes_followup": {
+    "state": "deployed_runtime_verified_real_qq_deferred_by_user",
+    "tasks": [
+      {
+        "task": "TS-325",
+        "project": "platform",
+        "worktree": "worktrees/TS-311/tianshu-platform",
+        "branch": "codex/group-modes-20261027",
+        "baseline": "620b1e0b0a6c76ac69f538a13e00c9c6d53b112d",
+        "old_head": "3e2cc412c676450a90dc0cbd3c3387d1c945e5e2",
+        "old_branch": "codex/memory-extensions-20261026",
+        "assignee": "qa_takeover"
+      },
+      {
+        "task": "TS-326",
+        "project": "companion",
+        "worktree": "worktrees/TS-307/tianshu-companion",
+        "branch": "codex/group-modes-20261027",
+        "baseline": "d416b68c2bf47f6a5675c8f170c5185062e66688",
+        "old_head": "671deeadb04301b42f56a3a2020548117698bbc0",
+        "old_branch": "codex/memory-extensions-20261026",
+        "assignee": "companion_prerequisites"
+      },
+      {
+        "task": "TS-327",
+        "worktree": "worktrees/TS-306/tianshu-memory",
+        "baseline": "a2de620c676a24d7c08bb33ef3f1be2488b71666",
+        "branch": "codex/group-modes-20261027",
+        "assignee": "memory_pressure",
+        "test_model_calls_allocated": 0
+      }
+    ],
+    "owner": "this_chat",
+    "platform_and_companion_single_writer": true,
+    "production_operations": "TS-328 sole released writer completed; maintenance window now closed",
+    "contract": "docs/development/group-modes-execution-2026-10-27.md",
+    "real_model_calls_allocated": 0,
+    "used": 17540,
+    "cap": 18000,
+    "products": [
+      {
+        "task": "TS-325",
+        "project": "platform",
+        "worktree": "worktrees/TS-311/tianshu-platform",
+        "commit": "f4bbdb23795e0f9d89345aed98c09906fb24031f",
+        "baseline": "620b1e0b0a6c76ac69f538a13e00c9c6d53b112d",
+        "branch": "codex/group-modes-20261027",
+        "clean": true,
+        "product_integrated": true,
+        "pushed": true,
+        "deployed": true
+      },
+      {
+        "task": "TS-326",
+        "project": "companion",
+        "worktree": "worktrees/TS-307/tianshu-companion",
+        "commit": "677fcb1f1392c134084d6e2be0d61f1a49f757b4",
+        "baseline": "d416b68c2bf47f6a5675c8f170c5185062e66688",
+        "branch": "codex/group-modes-20261027",
+        "clean": true,
+        "product_integrated": true,
+        "pushed": true,
+        "deployed": true
+      },
+      {
+        "task": "TS-327",
+        "project": "memory",
+        "worktree": "worktrees/TS-306/tianshu-memory",
+        "commit": "110a41bf851163901f7fc4a8f13cc19817285a3a",
+        "baseline": "a2de620c676a24d7c08bb33ef3f1be2488b71666",
+        "branch": "codex/group-modes-20261027",
+        "clean": true,
+        "product_integrated": true,
+        "pushed": true,
+        "deployed": true
+      }
+    ],
+    "delivery": "docs/development/group-modes-delivery-2026-10-27.json",
+    "joint_verified": true,
+    "pushed": true,
+    "deployed": true
+  },
+  "group_modes_release": {
+    "task": "TS-328",
+    "state": "deployed_runtime_verified_real_qq_deferred_by_user",
+    "user_authorized": true,
+    "coordination_authorized": true,
+    "production_window_released": true,
+    "current_production_owner": "none_release_window_closed",
+    "next_production_owner": "requires_serial_coordination",
+    "plan": "docs/development/group-modes-release-plan-2026-10-27.md",
+    "preparation": "completed",
+    "pushed": true,
+    "deployed": true,
+    "real_model_calls": 0,
+    "used": 17540,
+    "cap": 18000,
+    "window_authority_commit": "890010546c2129bc8608dbe27767de9b48771421",
+    "full_runtime_acceptance": true,
+    "real_qq_acceptance": "deferred_by_user",
+    "release_record": "docs/development/group-modes-release-2026-10-27.json"
   }
 }

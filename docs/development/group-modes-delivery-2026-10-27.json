@@ -1,0 +1,149 @@
+{
+  "recorded_at_utc": "2026-10-27T04:04:01.956871+00:00",
+  "state": "local_verified_not_integrated",
+  "products": [
+    {
+      "task": "TS-325",
+      "project": "platform",
+      "worktree": "worktrees/TS-311/tianshu-platform",
+      "commit": "1bb4d69c0b06db2faa972ecca1c23fef4307f721",
+      "baseline": "620b1e0b0a6c76ac69f538a13e00c9c6d53b112d",
+      "branch": "codex/group-modes-20261027",
+      "clean": true,
+      "product_integrated": false,
+      "pushed": false,
+      "deployed": false
+    },
+    {
+      "task": "TS-326",
+      "project": "companion",
+      "worktree": "worktrees/TS-307/tianshu-companion",
+      "commit": "677fcb1f1392c134084d6e2be0d61f1a49f757b4",
+      "baseline": "d416b68c2bf47f6a5675c8f170c5185062e66688",
+      "branch": "codex/group-modes-20261027",
+      "clean": true,
+      "product_integrated": false,
+      "pushed": false,
+      "deployed": false
+    },
+    {
+      "task": "TS-327",
+      "project": "memory",
+      "worktree": "worktrees/TS-306/tianshu-memory",
+      "commit": "110a41bf851163901f7fc4a8f13cc19817285a3a",
+      "baseline": "a2de620c676a24d7c08bb33ef3f1be2488b71666",
+      "branch": "codex/group-modes-20261027",
+      "clean": true,
+      "product_integrated": false,
+      "pushed": false,
+      "deployed": false
+    }
+  ],
+  "behavior": {
+    "modes": [
+      "disabled",
+      "observe",
+      "reply",
+      "active"
+    ],
+    "primary_gate": "group and private native entry before message normalization/queue/archive/Core/model; automatic stage selection before work",
+    "policy_owner": "existing Platform BotObservation",
+    "reused": [
+      "SDK canonical and release adapters",
+      "MemoryLearning durable stages",
+      "ModelSlots background",
+      "AL11 ownership/claim/register",
+      "original delivery ledger",
+      "original Memory browser/source authority"
+    ],
+    "history": "pause is not forget; disabled interval not backfilled; old replies do not revive"
+  },
+  "validation": {
+    "platform": {
+      "unique_parents": 141,
+      "passed": 132,
+      "skipped": 9,
+      "browser_passed": 14
+    },
+    "companion": {
+      "unique_parents": 1771,
+      "passed": 1723,
+      "skipped": 48
+    },
+    "memory": {
+      "nodes": 48,
+      "passed": 41,
+      "skipped": 7
+    },
+    "entry_and_dynamic_web_passed": 6,
+    "al12_fixed_consumer_scripts_passed": 2,
+    "new_function_gateway_passed": 1,
+    "original_failures_retained": true,
+    "not_a_second_green_full_run": true
+  },
+  "evidence": {
+    "memory": {
+      "path": ".runtime/group-modes-20261027/memory-acceptance.json",
+      "sha256": "1e1612a4e5e47a901ec80476cfddf5cd0b282eeed91c14e653e5b5eb9805e21d"
+    },
+    "platform_and_al12": {
+      "path": ".runtime/group-modes-20261027/qa-delivery-verification-v1/verification.json",
+      "sha256": "85948c2812a0e7c295073c8ea72738548594f8ae60f57dddb09669811366fbbc"
+    },
+    "companion_tests": {
+      "path": ".runtime/group-modes-20261027/qa-companion-verification-v1/verification.json",
+      "sha256": "1fa1fc21c94b91a9fb60b076003e8ccda3fa09c69c6d732a62291e3e5a49c0a8"
+    },
+    "companion_commit": {
+      "path": ".runtime/group-modes-20261027/companion-acceptance.json",
+      "sha256": "9c3122262814135b369f3fe01f8dd39b6b6b95959305c2cce4a9333d09e83594"
+    },
+    "entry_and_web": {
+      "path": ".runtime/group-modes-20261027/joint-acceptance.json",
+      "sha256": "258a2a0f83b64ba9a7a1731ec6b6ce064e66599da725c45a1ad1942b22f3e54e"
+    },
+    "entry_and_web_author": {
+      "path": ".runtime/group-modes-20261027/memory-joint-final-v1/receipt.json",
+      "sha256": "585b262c50b4bee5e97a67fc028706c357247c5fff27562121cbe3a244dc54b7"
+    },
+    "new_function_gateway": {
+      "path": ".runtime/group-modes-20261027/route-acceptance.json",
+      "sha256": "1be7aac5484fecf6bf9e4c8b74ae1cdda5330151d298a5fc98b71f683f8b998c"
+    }
+  },
+  "limits": [
+    "No real QQ/model semantics or production acceptance",
+    "PostgreSQL reply-connection constraint migration not executed in this maintenance window",
+    "Dynamic WEB needs allow_runtime_groups and existing Companion observation.verify grant; SDK must be updated on release",
+    "Chat statistics/relationships/history require real unique Chat registration; not configured by this batch",
+    "Group records endpoint reads explicitly published group profiles; actual WEB parent returns 200 empty correctly; nonempty published group profile not covered",
+    "Old opaque material without unique public mapping remains paused mapping_required; production count not inventoried",
+    "Platform early broad browser partial six failures retained; one baseline reproduced, five not individually classified; final affected 14 passed",
+    "Original four Companion whole-format failures and 51 old missing workspace paths retained"
+  ],
+  "model_budget": {
+    "used": 17540,
+    "cap": 18000,
+    "remaining": 460,
+    "this_batch_real_calls": 0
+  },
+  "production_write_owner": "other unified coordinator; maintenance respected",
+  "root_preservation": {
+    "head": "ab93be4e91b824008d387d71c80e77dfac7341b3",
+    "index_sha256": "bc8f3aa117deda30035922d0db358fe41bd7703853961e065d96310c85400351",
+    "cached_patch_sha256": "a6b2a98b826d6223fb0e91d3ef0e9cfde304fd01abf01220b9eb7efa4d275716",
+    "mixed_board_and_current_not_staged": true
+  },
+  "pushed": false,
+  "deployed": false,
+  "subsequent_release": {
+    "state": "deployed_runtime_verified_real_qq_deferred_by_user",
+    "record": "docs/development/group-modes-release-2026-10-27.json",
+    "products": {
+      "platform": "f4bbdb23795e0f9d89345aed98c09906fb24031f",
+      "companion": "677fcb1f1392c134084d6e2be0d61f1a49f757b4",
+      "memory": "110a41bf851163901f7fc4a8f13cc19817285a3a"
+    },
+    "original_local_stage_preserved": true
+  }
+}
