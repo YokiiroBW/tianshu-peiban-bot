@@ -3,7 +3,7 @@
   "products": {
     "platform": {
       "repo": "tianshu-platform",
-      "commit": "e2d4ffd90a1ae38514fb8d8fa1bd9c8c54689bf4",
+      "commit": "5b7ea997b3c0e2e7bd3f015c4856ed29b67eb6fa",
       "source_path": "services/platform/diagnostics.py",
       "source_sha256": "f70f15522063c92ad82cc99361a43e159d5eebd94e57de194d09363f87ecd74d",
       "events": [
@@ -71,7 +71,7 @@
     },
     "companion": {
       "repo": "tianshu-companion",
-      "commit": "be9df27b739701f0e204080367b02fc8d885810a",
+      "commit": "225f62a9c201acfc283bc029562f118f16d5e524",
       "source_path": "src/tianshu_companion/observability.py",
       "source_sha256": "f4a59c909002b287065031687c1242b28ee673f3e40afa1b6d7a1203d34b7d22",
       "events": [
@@ -157,7 +157,7 @@
     },
     "memory": {
       "repo": "tianshu-memory",
-      "commit": "81b006f0c6a7077eb17d87945aa91dd747a2da39",
+      "commit": "6ae7a1adfd8fb2ed5ee7d92a3ee5819e230678f9",
       "source_path": "src/tianshu_memory/diagnostics.py",
       "source_sha256": "9b6bb02d09cf1553a49eda40196fefb4f4a575faadb81144de66e7ab095e1a13",
       "events": [
