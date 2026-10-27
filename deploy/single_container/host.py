@@ -5,6 +5,7 @@ import asyncio
 import os
 import signal
 import time
+from uuid import UUID
 
 from .applications import NativeModule, app_platform
 from .host_settings import MODULES, load_settings, module_environment
@@ -18,10 +19,12 @@ class BusinessHost:
         self.exchange = ThreadedExchange()
         self.modules, self.environments = {}, {}
         self.pending_probes = {}
+        self.diagnostic_instances = {}
         self.stopping = False
         self.close_task = None
         self.previous_environment = None
         self.started = False
+        self.startup_complete = False
         self.results = {
             name: {"state": "starting", "health": {"ok": False, "code": "starting"}}
             for name in config["modules"]
@@ -70,15 +73,27 @@ class BusinessHost:
         ready = bool(self.results) and all(
             value["health"]["ok"] for value in self.results.values()
         )
+        status = status or (
+            "stopping" if self.stopping else "ready" if ready else "degraded"
+        )
+        complete = (
+            self.startup_complete
+            and not self.stopping
+            and status == "ready"
+            and set(self.diagnostic_instances) == set(MODULES)
+        )
         write_state(
             self.config["state_file"],
             {
                 "version": 1,
                 "pid": os.getpid(),
                 "updated_at": time.time(),
-                "status": status
-                or ("stopping" if self.stopping else "ready" if ready else "degraded"),
+                "status": status,
                 "modules": self.results,
+                "diagnostics": {
+                    "complete": complete,
+                    "instances": dict(self.diagnostic_instances) if complete else {},
+                },
             },
         )
 
@@ -105,6 +120,7 @@ class BusinessHost:
             await asyncio.gather(
                 *(self.invoke(name, "start_public") for name in self.modules)
             )
+            self.startup_complete = True
             await self.probe_once()
         except BaseException:
             if self.started:
@@ -119,7 +135,7 @@ class BusinessHost:
         for name in self.modules:
             if name not in self.pending_probes:
                 self.pending_probes[name] = asyncio.create_task(
-                    self.invoke(name, "health")
+                    self._probe_module(name)
                 )
         pending = set(self.pending_probes.values())
         if pending:
@@ -131,7 +147,12 @@ class BusinessHost:
             if task.done():
                 del self.pending_probes[name]
                 try:
-                    health = task.result()
+                    health, instance = task.result()
+                    if name in MODULES:
+                        if canonical_instance(instance):
+                            self.diagnostic_instances[name] = instance
+                        else:
+                            self.diagnostic_instances.pop(name, None)
                 except Exception:  # noqa: BLE001 - probes publish only a closed safe verdict
                     health = {"ok": False, "code": "probe_failed"}
             self.results[name] = {
@@ -139,6 +160,22 @@ class BusinessHost:
                 "health": health,
             }
         self.publish()
+
+    async def _probe_module(self, name):
+        module = self.modules[name]
+
+        async def probe(app):
+            health = await module.health(app)
+            operation = getattr(module, "diagnostic_instance", None)
+            try:
+                instance = operation(app) if operation is not None else None
+            except Exception:  # noqa: BLE001 - missing proof only disables old-tail cleanup
+                instance = None
+            if not isinstance(instance, str):
+                instance = None
+            return health, instance
+
+        return await self.exchange.invoke(name, probe)
 
     async def _phase(self, operation, **kwargs):
         results = await asyncio.gather(
@@ -198,6 +235,15 @@ class BusinessHost:
             timeout=self.config["shutdown_seconds"] if timeout is None else timeout,
         )
         return self.close_task.result() if done else False
+
+
+def canonical_instance(value):
+    if not isinstance(value, str):
+        return False
+    try:
+        return str(UUID(value)) == value
+    except ValueError:
+        return False
 
 
 async def run(config):

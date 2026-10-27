@@ -20,6 +20,7 @@ class NativeModule:
         self.api_listener = None
         self.probe_token = None
         self.assembly = None
+        self.diagnostics = None
         # Aiohttp caches its default TLS context at import time. Construct the
         # Gateway's external trust context before Platform becomes the process
         # environment, preserving this module's own explicit CA configuration.
@@ -49,6 +50,7 @@ class NativeModule:
                 internal_clients=ports,
                 environ=self.environment,
             )
+            self.diagnostics = self.app.state.log
             self.probe_token = self.environment.get(TOKEN_ENV)
         elif self.name == "onebot":
             self.app = self._onebot()
@@ -65,6 +67,7 @@ class NativeModule:
 
         settings = json.loads(Path(self.spec["settings"]).read_bytes())
         sink = build_sink(settings)
+        self.diagnostics = sink
         diagnostics.activate(sink)
         diagnostics.event("runtime.starting", "INFO", "started")
         platform = None
@@ -121,6 +124,7 @@ class NativeModule:
             self.probe_token = self.environment.get(
                 settings.observability.probe_token_env
             )
+        self.diagnostics = observation
         return create_app(
             settings,
             observation,
@@ -159,6 +163,7 @@ class NativeModule:
             contract_path=contract_path,
             environ=self.environment,
         )
+        self.diagnostics = diagnostics
         parsed = urlsplit(spec["origin"])
         port = parsed.port or (443 if parsed.scheme == "https" else 80)
         binding = Binding(
@@ -361,6 +366,11 @@ class NativeModule:
                 "ok": response.status == 200,
                 "code": "http_" + str(response.status),
             }
+
+    def diagnostic_instance(self, app):
+        """Project the native sink identity on its owner loop, without exposing it."""
+        value = getattr(self.diagnostics, "instance_id", None)
+        return value if isinstance(value, str) else None
 
 
 def app_platform(app):
