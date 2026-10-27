@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 from deploy.observability import configs
 from deploy.single_container.compose import compose
-from deploy.single_container.installation import export, file_bytes
+from deploy.single_container.installation import export, file_bytes, main
 from deploy.single_container.plan import make_installation
 from deploy.single_container.profile import MODULES, OBSERVABILITY, PYTHON, adapt
 
@@ -284,6 +284,153 @@ class DistributionTests(unittest.TestCase):
                 (root / "config/modules/platform/settings.json").read_bytes()
             )
             self.assertEqual(exported["web_access"], platform["web_access"])
+
+    def test_one_retention_value_projects_without_changing_native_sources_or_rules(
+        self,
+    ):
+        files = native_files()
+        files["observability/guard.json"]["retention_days"] = 7
+        before = copy.deepcopy(files)
+        value = installation(files)
+        self.assertEqual(files, before)
+        self.assertEqual(
+            value["files"]["observability/guard.json"]["retention_days"], 7
+        )
+        self.assertEqual(
+            value["files"]["observability/guard.json"]["host_state_path"],
+            value["files"]["host.json"]["state_file"],
+        )
+        limits = value["files"]["observability/loki.json"]["limits_config"]
+        self.assertEqual(limits["retention_period"], "168h")
+        self.assertEqual(limits["max_query_length"], "192h")
+        self.assertEqual(limits["reject_old_samples_max_age"], "720h")
+        for name in (
+            "observability/vector.json",
+            "observability/vocabulary.json",
+            "observability/provisioning/alerting/native.yaml",
+            *[f"modules/{module}/settings.json" for module in MODULES],
+        ):
+            self.assertEqual(value["files"][name], before[name])
+        # Editing the canonical guard setting is sufficient; export derives Loki.
+        value["files"]["observability/guard.json"]["retention_days"] = 2
+        value["files"]["observability/guard.json"]["host_state_path"] = "/obsolete.json"
+        original = copy.deepcopy(value)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "new"
+            export(value, root)
+            guard = json.loads((root / "config/observability/guard.json").read_bytes())
+            loki = json.loads((root / "config/observability/loki.json").read_bytes())
+            self.assertEqual(guard["retention_days"], 2)
+            self.assertEqual(
+                guard["host_state_path"], value["files"]["host.json"]["state_file"]
+            )
+            self.assertEqual(loki["limits_config"]["retention_period"], "48h")
+            self.assertEqual(
+                json.loads((root / "compose.yaml").read_bytes())["services"]["tianshu"][
+                    "logging"
+                ],
+                {"driver": "local", "options": {"max-size": "10m", "max-file": "3"}},
+            )
+        self.assertEqual(value, original)
+
+    def test_explicit_retention_overrides_default_and_rejects_invalid_before_export(
+        self,
+    ):
+        self.assertEqual(
+            installation()["files"]["observability/guard.json"]["retention_days"], 30
+        )
+        value = installation(retention_days=45)
+        self.assertEqual(
+            value["files"]["observability/guard.json"]["retention_days"], 45
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "new"
+            export(value, root, retention_days=1)
+            guard = json.loads((root / "config/observability/guard.json").read_bytes())
+            self.assertEqual(guard["retention_days"], 1)
+            source = Path(temporary) / "installation.json"
+            source.write_text(
+                json.dumps(value, default=lambda raw: raw.decode("utf-8"))
+            )
+            cli_root = Path(temporary) / "cli"
+            with patch("sys.stdout"):
+                main(
+                    [
+                        "--installation",
+                        str(source),
+                        "--output",
+                        str(cli_root),
+                        "--retention-days",
+                        "3",
+                    ]
+                )
+            cli_guard = json.loads(
+                (cli_root / "config/observability/guard.json").read_bytes()
+            )
+            self.assertEqual(cli_guard["retention_days"], 3)
+        for invalid in (0, -1, True, "7", 1.5):
+            with self.subTest(invalid=invalid):
+                with self.assertRaisesRegex(ValueError, "retention_days"):
+                    installation(retention_days=invalid)
+                with tempfile.TemporaryDirectory() as temporary:
+                    root = Path(temporary) / "bad"
+                    with self.assertRaisesRegex(ValueError, "retention_days"):
+                        export(value, root, retention_days=invalid)
+                    self.assertFalse(root.exists())
+
+    def test_observer_log_binds_become_producer_writable_without_widening_other_binds(
+        self,
+    ):
+        logs = [
+            {
+                "type": "bind",
+                "source": f"/existing/logs/{name}",
+                "target": f"/data/logs/{name}",
+                "read_only": True,
+            }
+            for name in MODULES
+        ]
+        unrelated = [
+            {
+                "type": "bind",
+                "source": f"/existing/{name}",
+                "target": target,
+                "read_only": True,
+            }
+            for name, target in (
+                ("media", "/media/ComicInputsOriginal"),
+                ("archive", "/data/logs/platform/archive"),
+                ("database", "/data/modules/platform"),
+            )
+        ]
+        mounts = logs + unrelated
+        before = copy.deepcopy(mounts)
+        value = installation(mounts=mounts)
+        self.assertEqual(mounts, before)
+        self.assertEqual(
+            value["mounts"],
+            [{**mount, "read_only": False} for mount in logs] + unrelated,
+        )
+        # Export also handles an existing captured installation with reader-only binds.
+        value["mounts"] = copy.deepcopy(before)
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "new"
+            export(value, root)
+            service = json.loads((root / "compose.yaml").read_bytes())["services"][
+                "tianshu"
+            ]
+            self.assertEqual(
+                service["volumes"][-len(mounts) :],
+                [
+                    {**mount, "read_only": False, "bind": {"create_host_path": False}}
+                    for mount in logs
+                ]
+                + [
+                    {**mount, "bind": {"create_host_path": False}}
+                    for mount in unrelated
+                ],
+            )
+            self.assertEqual(value["mounts"], before)
 
     def test_onebot_is_module_with_native_storage_and_token_not_another_process(self):
         files = native_files()

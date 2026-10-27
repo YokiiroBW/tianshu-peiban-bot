@@ -7,7 +7,9 @@ import os
 from pathlib import Path, PurePosixPath
 from urllib.parse import urlsplit
 
-from .compose import compose, port
+from deploy.observability.retention import apply_retention
+
+from .compose import compose, port, producer_log_mounts
 from .profile import (
     MODULES,
     OBSERVABILITY,
@@ -149,6 +151,7 @@ def export(
     api_port=None,
     onebot_port=18765,
     observability_ports=None,
+    retention_days=None,
 ):
     """Write one reviewed unit; all validation precedes creating its new directory."""
     if type(installation.get("version")) is not int or installation["version"] != 1:
@@ -166,9 +169,21 @@ def export(
     files = installation.get("files", {})
     if not isinstance(files, dict) or "runtime.json" in files:
         raise ValueError("runtime_configuration_is_generated")
+    files = copy.deepcopy(files)
+    host, frontend_port, api_frontend_port = validate_host(files)
+    guard_settings = document(files["observability/guard.json"])
+    files["observability/guard.json"], files["observability/loki.json"] = (
+        apply_retention(
+            guard_settings,
+            document(files["observability/loki.json"]),
+            retention_days=guard_settings.get("retention_days", 30)
+            if retention_days is None
+            else retention_days,
+        )
+    )
+    files["observability/guard.json"]["host_state_path"] = host["state_file"]
     paths = {name: relative(name) for name in files}
     contents = {name: file_bytes(name, value) for name, value in files.items()}
-    host, frontend_port, api_frontend_port = validate_host(files)
     if api_port is not None and api_frontend_port is None:
         raise ValueError("additional_tls_api_frontend_required")
     if business["health"].get("path") != host["state_file"]:
@@ -197,7 +212,7 @@ def export(
     )
     service = document_compose["services"]["tianshu"]
     service["extra_hosts"] = observer_hosts(processes, files)
-    for mount in installation.get("mounts", []):
+    for mount in producer_log_mounts(installation.get("mounts", [])):
         if not isinstance(mount, dict) or mount.get("type") != "bind":
             raise ValueError("installation_bind_mount_required")
         destination = mount.get("target", "")
@@ -279,6 +294,7 @@ def main(argv=None):
     parser.add_argument("--api-port", type=int)
     parser.add_argument("--onebot-port", type=int, default=18765)
     parser.add_argument("--observability-ports", type=Path)
+    parser.add_argument("--retention-days", type=int)
     args = parser.parse_args(argv)
     ports = (
         json.loads(args.observability_ports.read_bytes())
@@ -294,6 +310,7 @@ def main(argv=None):
                 api_port=args.api_port,
                 onebot_port=args.onebot_port,
                 observability_ports=ports,
+                retention_days=args.retention_days,
             )
         )
     )

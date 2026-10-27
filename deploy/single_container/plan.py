@@ -6,6 +6,9 @@ import ssl
 import tempfile
 from urllib.parse import urlsplit
 
+from deploy.observability.retention import apply_retention
+
+from .compose import producer_log_mounts
 from .exchange import authority
 from .profile import APPLICATION, MODULES, OBSERVABILITY, PORTS, PYTHON, adapt, document
 
@@ -165,6 +168,7 @@ def make_installation(
     observability_environment=None,
     native_origins=None,
     frontend=None,
+    retention_days=None,
 ):
     """Reuse reviewed native outputs; never generate credentials, models or storage."""
     if not isinstance(knowledge_client, str) or not knowledge_client.strip():
@@ -185,7 +189,17 @@ def make_installation(
     if not required <= set(files):
         raise ValueError("native_observability_configuration_required")
     files = copy.deepcopy(files)
-    mounts = copy.deepcopy(list(mounts))
+    mounts = producer_log_mounts(mounts)
+    guard_settings = document(files["observability/guard.json"])
+    files["observability/guard.json"], files["observability/loki.json"] = (
+        apply_retention(
+            guard_settings,
+            document(files["observability/loki.json"]),
+            retention_days=guard_settings.get("retention_days", 30)
+            if retention_days is None
+            else retention_days,
+        )
+    )
     native_environment = copy.deepcopy(observability_environment or {})
     if not isinstance(native_environment, dict) or set(native_environment) - set(
         OBSERVABILITY
@@ -277,6 +291,7 @@ def make_installation(
             "tls_keyfile": "/config/modules/platform/tls/server.key",
         }
     files["host.json"] = host
+    files["observability/guard.json"]["host_state_path"] = host["state_file"]
     guard = [PYTHON, "-B", APPLICATION + "/deploy/tianshu/runtime_guard.py"]
     state_mounts = {
         mount["target"]: mount["source"]

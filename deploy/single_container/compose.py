@@ -1,5 +1,23 @@
 """One public application, with explicit persistent roots and native observers."""
 
+import copy
+
+from .profile import MODULES
+
+
+def producer_log_mounts(mounts):
+    """The five shared log roots have native writers as well as observer readers."""
+    result = copy.deepcopy(list(mounts))
+    roots = {f"/data/logs/{name}" for name in MODULES}
+    for mount in result:
+        if (
+            isinstance(mount, dict)
+            and mount.get("type") == "bind"
+            and mount.get("target") in roots
+        ):
+            mount["read_only"] = False
+    return result
+
 
 def port(value):
     if type(value) is not int or not 1024 <= value <= 65535:
