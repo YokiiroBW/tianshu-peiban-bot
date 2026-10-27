@@ -274,14 +274,27 @@ class LifecycleTests(unittest.TestCase):
         with (
             patch.object(sys, "argv", ["guard.py", "--settings", str(path)]),
             patch.object(guard, "LokiClient", return_value=self.backend),
-            patch.object(guard, "Server", side_effect=OSError("PRIVATE_SENTINEL")),
+            patch.object(guard, "Server", side_effect=OSError("PRIVATE_SENTINEL")) as listener,
             redirect_stdout(output),
         ):
             result = guard.main()
         self.assertEqual(result, 2)
+        self.assertEqual(listener.call_args.args[0], ("0.0.0.0", 8443))
         self.assertTrue(self.backend.closed)
         self.assertNotIn("PRIVATE_SENTINEL", output.getvalue())
         self.assertEqual(json.loads(output.getvalue())["status"], "startup_failed")
+
+    def test_main_rejects_noninteger_port_before_opening_configuration(self):
+        import guard
+
+        with (
+            patch("sys.stderr", new=io.StringIO()),
+            patch.object(guard, "LokiClient") as backend,
+            self.assertRaises(SystemExit) as failure,
+        ):
+            guard.main(["--settings", str(self.root / "absent.json"), "--port", "invalid"])
+        self.assertEqual(failure.exception.code, 2)
+        backend.assert_not_called()
 
     def test_repeated_signal_only_sets_flag_and_restores_handlers(self):
         previous = signal.getsignal(signal.SIGINT)

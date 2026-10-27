@@ -1,6 +1,8 @@
 """Real loopback HTTPS/mTLS transport tests; Loki backend is an explicit synthetic substitute."""
 
+from contextlib import redirect_stdout
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import io
 import json
 import ssl
 import threading
@@ -93,6 +95,55 @@ class TransportTests(WorkspaceTest):
             self.root / "ca.pem",
             self.tokens.get(role),
         )
+
+    def test_cli_loopback_ephemeral_port_preserves_tls_roles(self):
+        import guard
+
+        settings = {
+            **self.state.settings,
+            "loki_url": f"https://127.0.0.1:{self.backend.server_port}",
+            "ca": str(self.root / "ca.pem"),
+            "client_cert": str(self.root / "client.pem"),
+            "client_key": str(self.root / "client.key"),
+            "server_cert": str(self.root / "guard.pem"),
+            "server_key": str(self.root / "guard.key"),
+        }
+        path = self.root / "cli-settings.json"
+        path.write_text(json.dumps(settings))
+
+        def exercise(server, state, backend, stop_requested):
+            self.assertEqual(server.server_address[0], "127.0.0.1")
+            self.assertNotEqual(server.server_port, 0)
+            self.start_server(server)
+
+            def call(role, route, method="GET", body=None):
+                client = LokiClient(
+                    f"https://127.0.0.1:{server.server_port}",
+                    self.root / "ca.pem", self.tokens.get(role),
+                )
+                try:
+                    return client.request(route, method, body)[0]
+                finally:
+                    client.close()
+
+            try:
+                self.assertEqual(call("query", "/loki/api/v1/query_range?query=test"), 200)
+                self.assertEqual(call("writer", "/loki/api/v1/query_range?query=test"), 401)
+                self.assertEqual(call("metrics", "/metrics"), 200)
+                self.assertEqual(call("query", "/metrics"), 401)
+                self.assertEqual(call("writer", "/loki/api/v1/push", "POST", b"{}"), 204)
+                self.assertEqual(call("query", "/loki/api/v1/delete", "POST", b"{}"), 404)
+            finally:
+                backend.close()
+            return 0
+
+        with patch("guard_lifecycle.run", side_effect=exercise), redirect_stdout(io.StringIO()):
+            self.assertEqual(
+                guard.main(
+                    ["--settings", str(path), "--host", "127.0.0.1", "--port", "0"]
+                ),
+                0,
+            )
 
     def test_query_roles_and_no_administrative_routes(self):
         path = "/loki/api/v1/query_range?query=test"

@@ -353,10 +353,12 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(503, b'{"error":"backend_unavailable"}')
 
 
-def main():
+def main(argv=None):
     p = argparse.ArgumentParser()
     p.add_argument("--settings", type=Path, required=True)
-    args = p.parse_args()
+    p.add_argument("--host", default="0.0.0.0")
+    p.add_argument("--port", type=int, default=8443)
+    args = p.parse_args(argv)
     settings = json.loads(args.settings.read_bytes())
     backend = LokiClient(
         settings["loki_url"],
@@ -371,7 +373,7 @@ def main():
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         context.minimum_version = ssl.TLSVersion.TLSv1_2
         context.load_cert_chain(settings["server_cert"], settings["server_key"])
-        server = Server(("0.0.0.0", 8443), state, context)
+        server = Server((args.host, args.port), state, context)
     except Exception:
         backend.close()
         print(json.dumps({"status": "startup_failed"}))

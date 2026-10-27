@@ -14,6 +14,8 @@ python deploy/observability/configure.py --deployment-root <显式部署根> --r
 
 输出 `observability/compose.yaml`（JSON为YAML的合法子集）、配置、运行代码和五个独占持久目录。不会启动Docker、签生产证书、改变既有日志权限或操作NAS。`--candidate`明确允许未核digest的固定版本标签；不带该参数会因未验证镜像或未关闭发布门槛拒绝，不会升格成生产证明。`binding.json`清单hash是有标注的语义摘要，不冒充DEP-A原始文件hash。
 
+守卫命令可选 `--host`、`--port`，默认仍为 `0.0.0.0:8443`，原Compose生成行为不变。单容器可传`--host 127.0.0.1 --port 8445`，将内部日志入口与其他服务端口分开；TLS证书与三角色鉴权继续生效。
+
 五服务UID/GID均10001:10001，分别写自己的data子目录，TLS/凭据和产品日志只读可达。生成器不chown/chmod/提权。产品日志可保持0600，同UID读取；最终镜像与挂载权限由DEP-A联验。主机需给Loki、Vector和产品日志配置独占空间/配额；Compose内存限额不是磁盘配额。
 
 固定版本官方来源及 `digest=null/unverified` 见 `versions.json`。原生二进制通过不等于Linux镜像digest/运行通过。更新TS104–106修复提交后必须重提词汇：
