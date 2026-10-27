@@ -4,7 +4,7 @@ import shutil
 import sqlite3
 import time
 
-from ledger_schema import initialize
+from ledger_schema import initialize, insert_summary
 from policy import digest_bytes, segments
 
 
@@ -30,7 +30,7 @@ class Ledger:
         partial, count = 0, self.db.execute(
             "SELECT landed FROM totals WHERE singleton=1"
         ).fetchone()[0]
-        with self.db:
+        with self.db, insert_summary(self.db) as inserted:
             for service, root in roots.items():
                 for path in segments(root):
                     if line_budget <= 0:
@@ -88,29 +88,41 @@ class Ledger:
                                     allowed = {service}
                                 if event["service"] not in allowed:
                                     raise ValueError()
-                                old = self.db.execute(
-                                    "SELECT hash FROM events WHERE id=?",
-                                    (event["event_id"],),
-                                ).fetchone()
-                                if old:
-                                    self.count("source_duplicates")
-                                    if old[0] != digest_bytes(event):
-                                        self.count("identity_conflicts")
+                                digest = digest_bytes(event)
+                                try:
+                                    written = self.db.execute(
+                                        "INSERT INTO events(id,service,instance,sequence,hash,first_seen) "
+                                        "VALUES (?,?,?,?,?,?) ON CONFLICT(id) DO NOTHING",
+                                        (
+                                            event["event_id"],
+                                            event["service"],
+                                            event["instance_id"],
+                                            event["sequence"],
+                                            digest,
+                                            time.time(),
+                                        ),
+                                    ).rowcount
+                                except sqlite3.IntegrityError:
+                                    written = 0
+                                if written:
+                                    inserted(
+                                        event["service"], event["instance_id"],
+                                        event["sequence"],
+                                    )
+                                    count += 1
                                 else:
-                                    try:
-                                        self.db.execute(
-                                            "INSERT INTO events(id,service,instance,sequence,hash,first_seen) VALUES (?,?,?,?,?,?)",
-                                            (
-                                                event["event_id"],
-                                                event["service"],
-                                                event["instance_id"],
-                                                event["sequence"],
-                                                digest_bytes(event),
-                                                time.time(),
-                                            ),
-                                        )
-                                        count += 1
-                                    except sqlite3.IntegrityError:
+                                    # Normal new events need only the INSERT's
+                                    # unique checks. On conflict, retain the
+                                    # original ID-before-sequence classification.
+                                    old = self.db.execute(
+                                        "SELECT hash FROM events WHERE id=?",
+                                        (event["event_id"],),
+                                    ).fetchone()
+                                    if old:
+                                        self.count("source_duplicates")
+                                        if old[0] != digest:
+                                            self.count("identity_conflicts")
+                                    else:
                                         self.count("identity_conflicts")
                             except ValueError:
                                 self.count("invalid_source_lines")

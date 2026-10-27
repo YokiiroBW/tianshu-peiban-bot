@@ -9,13 +9,14 @@ import argparse
 import hashlib
 import importlib.util
 import json
-from pathlib import Path
 import statistics
 import sys
 import time
 import uuid
+from pathlib import Path
 
 from helpers import SNAPSHOT, emit, event
+from ledger_schema import insert_summary
 from monitor import Ledger
 from policy import Policy
 
@@ -58,11 +59,14 @@ def seed(ledger, count, now, binary):
             value = hashlib.sha256(ident.encode()).digest()
             # Deterministic 5% pending, the rest due for hourly rechecking.
             pending = index % 20 == 0
-            yield (ident, "platform", str(uuid.UUID(int=stream + 1)), sequence,
+            instance = str(uuid.UUID(int=stream + 1))
+            yield (ident, "platform", instance, sequence,
                    value if binary else value.hex(), now - 86400 + index / count,
                    0 if pending else now - 7200, now - 7200 + (index % 3600))
+            if binary:
+                inserted("platform", instance, sequence, 0 if pending else now - 7200)
     started = time.perf_counter()
-    with ledger.db:
+    with ledger.db, insert_summary(ledger.db) as inserted:
         ledger.db.executemany("INSERT INTO events VALUES (?,?,?,?,?,?,?,?)", rows())
     return time.perf_counter() - started
 

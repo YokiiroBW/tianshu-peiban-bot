@@ -1,6 +1,8 @@
 """Lossless ledger evolution and transactionally maintained aggregate metadata."""
 
-VERSION = 1
+from contextlib import contextmanager
+
+VERSION = 2
 
 BASE = """
     CREATE TABLE IF NOT EXISTS files (name TEXT PRIMARY KEY, identity TEXT, offset INTEGER);
@@ -21,12 +23,6 @@ MIGRATION = """
     CREATE TABLE streams (service TEXT, instance TEXT, landed INTEGER, maximum INTEGER,
         PRIMARY KEY(service,instance)) WITHOUT ROWID;
     INSERT INTO streams SELECT service,instance,count(*),max(sequence) FROM events GROUP BY service,instance;
-    CREATE TRIGGER event_insert AFTER INSERT ON events BEGIN
-        UPDATE totals SET landed=landed+1,pending=pending+(NEW.verified=0) WHERE singleton=1;
-        INSERT INTO streams VALUES(NEW.service,NEW.instance,1,NEW.sequence)
-            ON CONFLICT(service,instance) DO UPDATE SET
-                landed=landed+1,maximum=max(maximum,excluded.maximum);
-    END;
     CREATE TRIGGER event_verified AFTER UPDATE OF verified ON events
         WHEN (OLD.verified=0)!=(NEW.verified=0) BEGIN
         UPDATE totals SET pending=pending+(NEW.verified=0)-(OLD.verified=0) WHERE singleton=1;
@@ -42,6 +38,42 @@ MIGRATION = """
 """
 
 
+@contextmanager
+def insert_summary(connection):
+    """Summarize accepted inserts once, before their owning transaction commits.
+
+    Call the yielded function only after a successful INSERT. The caller owns
+    the transaction and must not update/delete these rows inside this scope;
+    verified/deletion triggers continue to maintain those later changes. This
+    keeps source offsets, events and summaries atomic, including early returns.
+    """
+    streams = {}
+    landed = pending = 0
+
+    def accepted(service, instance, sequence, verified=0):
+        nonlocal landed, pending
+        landed += 1
+        pending += verified == 0
+        key = (service, instance)
+        count, maximum = streams.get(key, (0, sequence))
+        streams[key] = (count + 1, max(maximum, sequence))
+
+    yield accepted
+    if landed:
+        if not connection.in_transaction:
+            raise RuntimeError("ledger_insert_requires_transaction")
+        connection.execute(
+            "UPDATE totals SET landed=landed+?,pending=pending+? WHERE singleton=1",
+            (landed, pending),
+        )
+        connection.executemany(
+            "INSERT INTO streams VALUES (?,?,?,?) ON CONFLICT(service,instance) "
+            "DO UPDATE SET landed=landed+excluded.landed,maximum=max(maximum,excluded.maximum)",
+            [(service, instance, count, maximum)
+             for (service, instance), (count, maximum) in streams.items()],
+        )
+
+
 def initialize(connection):
     """Upgrade old text hashes without discarding events or vacuuming live files.
 
@@ -53,19 +85,25 @@ def initialize(connection):
     version = connection.execute("PRAGMA user_version").fetchone()[0]
     if version == VERSION:
         return
-    if version != 0:
+    if version not in (0, 1):
         raise ValueError("unsupported_ledger_schema")
     try:
-        connection.executescript(MIGRATION)
-        rows = connection.execute("SELECT rowid,hash FROM events WHERE typeof(hash)='text'")
-        while batch := rows.fetchmany(1000):
-            converted = []
-            for rowid, value in batch:
-                binary = bytes.fromhex(value)
-                if len(binary) != 32 or len(value) != 64:
-                    raise ValueError("invalid_ledger_digest")
-                converted.append((binary, rowid))
-            connection.executemany("UPDATE events SET hash=? WHERE rowid=?", converted)
+        if version == 0:
+            connection.executescript(MIGRATION)
+            rows = connection.execute("SELECT rowid,hash FROM events WHERE typeof(hash)='text'")
+            while batch := rows.fetchmany(1000):
+                converted = []
+                for rowid, value in batch:
+                    binary = bytes.fromhex(value)
+                    if len(binary) != 32 or len(value) != 64:
+                        raise ValueError("invalid_ledger_digest")
+                    converted.append((binary, rowid))
+                connection.executemany("UPDATE events SET hash=? WHERE rowid=?", converted)
+        else:
+            connection.execute("BEGIN IMMEDIATE")
+            # v1 already has lossless BLOBs, summaries and indexed revisit
+            # queues. Only its per-event insert maintenance is replaced.
+            connection.execute("DROP TRIGGER event_insert")
         connection.execute(f"PRAGMA user_version={VERSION}")
         connection.commit()
     except BaseException:

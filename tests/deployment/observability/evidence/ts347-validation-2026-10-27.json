@@ -1,0 +1,95 @@
+{
+  "boundary": "affected observability nodes only; per-key replacement, no additive counts",
+  "runs": [
+    {
+      "xml": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-log-optimization\\tianshu-peiban-bot\\.runtime\\ts347-tests.xml",
+      "sha256": "250c2f77fad8d7b30ebc61ef074b97efc745170a1be519f149ba731661ecb103",
+      "raw_counts": {
+        "passed": 40,
+        "skipped": 6,
+        "failed": 6
+      }
+    },
+    {
+      "xml": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-log-optimization\\tianshu-peiban-bot\\.runtime\\ts347-retry-contract.xml",
+      "sha256": "731154aa6701bb8618df468208664875362cbba29367082da281defc07262f23",
+      "raw_counts": {
+        "passed": 11
+      }
+    },
+    {
+      "xml": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-log-optimization\\tianshu-peiban-bot\\.runtime\\ts347-final-insert-tests.xml",
+      "sha256": "1f987b11886259867f0db396aca6a0c44fc76d8e5d7109c263de4585547ef1fe",
+      "raw_counts": {
+        "passed": 20
+      }
+    }
+  ],
+  "applicable_counts": {
+    "passed": 52,
+    "skipped": 1,
+    "failed": 0
+  },
+  "nodes": {
+    "tests.deployment.observability.test_ledger_storage.StorageTests::test_batch_summary_uses_actual_memory_service_and_instance": "passed",
+    "tests.deployment.observability.test_ledger_storage.StorageTests::test_binary_hashes_verify_retrieval_and_central_loss_updates_pending": "passed",
+    "tests.deployment.observability.test_ledger_storage.StorageTests::test_confirmed_and_pending_queues_remain_fair_and_indexed": "passed",
+    "tests.deployment.observability.test_ledger_storage.StorageTests::test_duplicate_conflict_and_out_of_order_gap_fill_do_not_inflate_totals": "passed",
+    "tests.deployment.observability.test_ledger_storage.StorageTests::test_early_scan_returns_commit_only_accepted_events_and_replay_offsets": "passed",
+    "tests.deployment.observability.test_ledger_storage.StorageTests::test_invalid_old_hash_rolls_back_entire_upgrade": "passed",
+    "tests.deployment.observability.test_ledger_storage.StorageTests::test_scan_rollback_does_not_publish_partial_aggregates": "passed",
+    "tests.deployment.observability.test_ledger_storage.StorageTests::test_summary_failure_rolls_back_events_offsets_and_counters_together": "passed",
+    "tests.deployment.observability.test_ledger_storage.StorageTests::test_upgrade_preserves_all_evidence_and_backfills_aggregates": "passed",
+    "tests.deployment.observability.test_ledger_storage.StorageTests::test_v1_upgrade_preserves_evidence_and_removes_old_insert_maintenance": "passed",
+    "tests.deployment.observability.test_observability.PolicyTests::test_all_registered_vocabulary": "passed",
+    "tests.deployment.observability.test_observability.PolicyTests::test_contract_original_bytes": "passed",
+    "tests.deployment.observability.test_observability.PolicyTests::test_duplicate_keys_crlf_oversize_and_partial_refused": "passed",
+    "tests.deployment.observability.test_observability.PolicyTests::test_published_contract_positive_and_negative_examples": "passed",
+    "tests.deployment.observability.test_observability.PolicyTests::test_secret_canaries_never_accepted": "passed",
+    "tests.deployment.observability.test_observability.PolicyTests::test_static_extraction_does_not_execute_product": "passed",
+    "tests.deployment.observability.test_observability.ReconciliationTests::test_full_numbered_rotation_restart_duplicates": "passed",
+    "tests.deployment.observability.test_observability.ReconciliationTests::test_loss_tail_sequence_identity_and_mutation_detected": "passed",
+    "tests.deployment.observability.test_observability.ReconciliationTests::test_partial_and_invalid_stay_unverified_without_secret_echo": "passed",
+    "tests.deployment.observability.test_observability.ReconciliationTests::test_query_splits_at_capacity_without_losing_equal_timestamps": "passed",
+    "tests.deployment.observability.test_observability.ReconciliationTests::test_saturated_query_bucket_refuses_false_completeness": "passed",
+    "tests.deployment.observability.test_observability.LedgerTests::test_capacity_rejection_and_alert_transitions_persist": "passed",
+    "tests.deployment.observability.test_observability.LedgerTests::test_dedicated_knowledge_root_accepts_only_memory_knowledge_events": "passed",
+    "tests.deployment.observability.test_observability.LedgerTests::test_durable_offsets_restart_replay_and_no_source_deletion": "passed",
+    "tests.deployment.observability.test_observability.LedgerTests::test_invalid_input_and_truncation_are_counted_without_payload": "passed",
+    "tests.deployment.observability.test_observability.LedgerTests::test_missing_old_event_does_not_starve_later_events": "passed",
+    "tests.deployment.observability.test_observability.LedgerTests::test_previously_verified_central_loss_becomes_pending": "passed",
+    "tests.deployment.observability.test_observability.LedgerTests::test_regular_rename_rotation_does_not_raise_mutation_alarm": "passed",
+    "tests.deployment.observability.test_observability.ConfigurationTests::test_bundle_binding_tls_missing_fields_wrong_commit_and_no_overwrite": "passed",
+    "tests.deployment.observability.test_observability.ConfigurationTests::test_confined_paths": "passed",
+    "tests.deployment.observability.test_observability.ConfigurationTests::test_generated_stack_invariants": "passed",
+    "tests.deployment.observability.test_observability.ConfigurationTests::test_production_does_not_accept_unverified_tags": "passed",
+    "tests.deployment.observability.test_guard_lifecycle.LifecycleTests::test_external_sigterm_process": "skipped",
+    "tests.deployment.observability.test_guard_lifecycle.LifecycleTests::test_main_listener_construction_failure_closes_backend_and_redacts": "passed",
+    "tests.deployment.observability.test_guard_lifecycle.LifecycleTests::test_main_rejects_noninteger_port_before_opening_configuration": "passed",
+    "tests.deployment.observability.test_guard_lifecycle.LifecycleTests::test_monitor_startup_failure_cannot_report_normal_stop": "passed",
+    "tests.deployment.observability.test_guard_lifecycle.LifecycleTests::test_real_monitor_closes_durable_ledger_before_backend": "passed",
+    "tests.deployment.observability.test_guard_lifecycle.LifecycleTests::test_real_process_sigint_gracefully_stops_lifecycle": "passed",
+    "tests.deployment.observability.test_guard_lifecycle.LifecycleTests::test_repeated_signal_only_sets_flag_and_restores_handlers": "passed",
+    "tests.deployment.observability.test_guard_lifecycle.LifecycleTests::test_second_thread_start_failure_joins_first": "passed",
+    "tests.deployment.observability.test_guard_lifecycle.LifecycleTests::test_slow_backend_cancellation_finishes_http_before_close": "passed",
+    "tests.deployment.observability.test_guard_lifecycle.LifecycleTests::test_slow_tls_cancel_joins_requests_before_backend_close": "passed",
+    "tests.deployment.observability.test_guard_lifecycle.LifecycleTests::test_stuck_http_returns_nonzero_without_backend_close": "passed",
+    "tests.deployment.observability.test_guard_lifecycle.LifecycleTests::test_stuck_monitor_returns_nonzero_without_closing_owned_backend": "passed",
+    "tests.deployment.observability.test_guard_ready.ReadinessTests::test_freshness_reuses_existing_alert_window_and_rejects_future": "passed",
+    "tests.deployment.observability.test_guard_ready.ReadinessTests::test_legacy_migration_failure_is_not_ready_or_destructive": "passed",
+    "tests.deployment.observability.test_guard_ready.ReadinessTests::test_local_monitor_does_not_replace_actual_loki_ready": "passed",
+    "tests.deployment.observability.test_guard_ready.ReadinessTests::test_metrics_failure_does_not_refresh_success_timestamp": "passed",
+    "tests.deployment.observability.test_guard_ready.ReadinessTests::test_metrics_values_cannot_fake_an_unstarted_monitor": "passed",
+    "tests.deployment.observability.test_guard_ready.ReadinessTests::test_monitor_exit_revokes_readiness_even_when_loki_stays_available": "passed",
+    "tests.deployment.observability.test_guard_ready.ReadinessTests::test_query_failure_recovers_without_fake_loki_readiness": "passed",
+    "tests.deployment.observability.test_guard_ready.ReadinessTests::test_ready_requires_completed_real_monitor_cycle_and_loki": "passed",
+    "tests.deployment.observability.test_ledger_storage.StorageTests::test_id_and_sequence_conflicts_keep_original_id_classification": "passed"
+  },
+  "checks": {
+    "ruff": "passed after import ordering and equivalent with-statement cleanup",
+    "compile": "passed",
+    "diff_check": "passed"
+  },
+  "original_setup_issue": "DEP_B_CONTRACT absent; original six ready failures and five contract skips rerun only with original authoritative diagnostics bytes",
+  "contract_path": "C:/YOKI/Codex/tianshu-peiban-bot/contracts/diagnostics/v1"
+}

@@ -1,0 +1,24 @@
+{
+  "old": {
+    "seconds": 3.6973735000938177,
+    "rows": 1020000,
+    "normalized_full_event_sha256": "b25540be303fa6aa4a3d659c73add662609ebc0f610e9dda43012963cd356ce3",
+    "files_unchanged": true,
+    "counters_unchanged": true,
+    "all_event_fields_unchanged_except_lossless_blob": true,
+    "integrity_check": "ok",
+    "schema_version": 2,
+    "freelist_pages": 4814
+  },
+  "candidate": {
+    "seconds": 0.0031786998733878136,
+    "rows": 1020000,
+    "normalized_full_event_sha256": "fa36bc2fa4582bc06b481db6cc97372c056eb22acdb4dee7d59964ce0d77c66f",
+    "files_unchanged": true,
+    "counters_unchanged": true,
+    "all_event_fields_unchanged_except_lossless_blob": true,
+    "integrity_check": "ok",
+    "schema_version": 2,
+    "freelist_pages": 0
+  }
+}
