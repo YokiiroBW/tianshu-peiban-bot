@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-27",
+  "status": "local_candidate_source_context_prepared_not_linux_image",
+  "application_code_commit": "faf85920e209ca412bb26991a856a584693992c0",
+  "product_commits": {
+    "platform": "d214ec237858f4e5c9e949f3999ec499864a6023",
+    "companion": "7f471aa7d76ea7d2922b761363b30cbf150356e0",
+    "memory": "0b25099a43b10238ad2de6e78d7b743acddb3562",
+    "gateway": "29098f060d5055e69b079222d4de4d41c2ed2f42"
+  },
+  "source_context": {
+    "path": ".runtime/unified-release-20261027-context",
+    "receipt_sha256": "ebc7082902fb6d12532556b79acc72ab83b867290e56d40e9ec9c134f8d38c50",
+    "dockerfile_sha256": "1535632de2b8ed54b1578093966bd10940280871b82293217732b3ff40569cfe",
+    "runtime_lock_sha256": "cb5e43d9307befbd6fdf67d41074ec404f56c10f1693280559bacb9c70fbdac6",
+    "constraints_sha256": "479fa7891bc72644e631d01eeddf99000c82d81e2f0b495f9366480753b30f3c",
+    "wheel_count": 66,
+    "wheel_bytes": 83008428,
+    "prepare_exit": 0
+  },
+  "image_inputs": {
+    "kind": "exact_existing_local_image_ids_from_readonly_2026-10-27_snapshot_not_registry_manifest_digests",
+    "references": {
+      "platform": "sha256:657c89780410e4e4ac386a1ad5cee3d02696f56f11266ddd089006bf37c7e95e",
+      "vector": "sha256:6c8b33f7f724be7b9735ddc22542963a00a4bd0eb00ea4980e460c58e112ec35",
+      "loki": "sha256:dfed65f45221528583ebaa1be2783e20eedb2ebd189d93c94bf4f9767d85e300",
+      "prometheus": "sha256:e9e8184591b23c5dd484ae710faa4f40cebb12a7f2b71c6071239d16394ec3f9",
+      "grafana": "sha256:71ab172d9b5916e602f3de354ad994c6716d1d05cffcca05e703e82627a45109"
+    },
+    "linux_builder_resolvability": "not_verified_no_docker"
+  },
+  "root_checks": {
+    "independent_passed": 108,
+    "skipped": 10,
+    "subtests_passed": 40,
+    "basis": "107 passed/10 skipped/1 new fixture failure; corrected fixture exact continuation 1 passed, unchanged successes reused",
+    "linux_permissions_flock_signals": "not_executed_on_windows"
+  },
+  "native_host_joint": {
+    "fixture_run": "ts345-native-portable-r5",
+    "summary_sha256": "80e7691b33aa444ef564e447d69c174b37702dc3454b8d660eb1164fada6a41c",
+    "public_web": 200,
+    "web_access": true,
+    "public_sdk_snapshot_authorized": 200,
+    "public_sdk_snapshot_unauthorized": 401,
+    "real_platform_snapshot": true,
+    "json_and_stream_receipts": true,
+    "owned_onebot_network_alias": true,
+    "single_onebot_lifespan": true,
+    "clean_shutdown": true,
+    "no_remote_model_or_qq": true
+  },
+  "memory_knowledge_complete_fixture": {
+    "fixture_run": "ts345-native-portable-r2",
+    "summary_sha256": "1322225ff6f043569d10146cec9657d8352ecb9e74d96926fbda24d1158cfbfc",
+    "memory_readiness": {
+      "status": "ready",
+      "service": "memory",
+      "checks": {
+        "configuration": "ok",
+        "contract": "ok",
+        "database": "ok",
+        "guard": "ok",
+        "mode": "ok",
+        "log": "ok",
+        "assembled": "ok",
+        "owner": "ok",
+        "remote": "not_verified"
+      }
+    },
+    "knowledge_readiness": {
+      "status": "ready",
+      "service": "memory-knowledge",
+      "checks": {
+        "configuration": "ok",
+        "contract": "ok",
+        "database": "ok",
+        "client": "ok",
+        "extensions": "ok",
+        "log": "ok",
+        "assembled": "ok",
+        "owner": "ok",
+        "remote": "not_verified"
+      }
+    },
+    "remote": "not_verified",
+    "source_database_hashes": "unchanged"
+  },
+  "log_ledger_sample": {
+    "before_bytes": 349147136,
+    "after_bytes": 293482496,
+    "reduction_percent": 15.94,
+    "million_insert_before_seconds": 17.06,
+    "million_insert_after_seconds": 33.64,
+    "automatic_vacuum_or_retention_reduction": false
+  },
+  "not_performed": [
+    "remote_push",
+    "product_main_integration",
+    "linux_image_build_or_runtime",
+    "linux_uid_capabilities_unix_ownership_acceptance",
+    "nas_deployment_or_production_migration",
+    "real_postgresql_redis_joint_acceptance",
+    "real_model_or_qq",
+    "whole_system_cpu_rss_or_final_image_size_comparison"
+  ],
+  "original_coordination_checkout": "preexisting mixed worktree and staged index preserved; only this batch own task-card status updates, no reset/clean/stash"
+}

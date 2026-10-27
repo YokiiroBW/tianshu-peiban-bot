@@ -1,0 +1,356 @@
+{
+  "scope": "Only current batch; original mixed global task board/index not copied or staged",
+  "tasks": [
+    {
+      "id": "TS-329",
+      "project": "workspace",
+      "title": "单容器统一构建与交付",
+      "status": "done",
+      "delivery_stage": "local_source_context_prepared_not_deployed",
+      "accepted_commit": "faf85920e209ca412bb26991a856a584693992c0",
+      "depends_on": [],
+      "assignee": "single_container_coordinator",
+      "allowed_paths": [
+        "deploy/single_container/",
+        "docs/development/single-container-execution-2026-10-27.md"
+      ],
+      "branch": "codex/single-container-20261027",
+      "isolated_checkout": "C:/Users/Administrator/.codex/worktrees/tianshu-single-container/tianshu-peiban-bot",
+      "task_card": "C:/Users/Administrator/.codex/worktrees/tianshu-single-container/tianshu-peiban-bot/docs/development/single-container-execution-2026-10-27.md",
+      "authorization": "2026-10-27 user explicitly authorized single-container implementation, modular reuse/refactoring and performance/log footprint optimization. Local implementation and verification; no production write/deploy/remote push/model/QQ.",
+      "allocation_note": "Managed isolated root checkouts preserve existing dirty coordinator work; product reuses a clean previously released isolated checkout on a new branch.",
+      "done_when": "Local implemented, scoped validation and integration; truthful unbuilt/unverified boundaries preserved."
+    },
+    {
+      "id": "TS-330",
+      "project": "workspace",
+      "title": "统一模块进程运行时",
+      "status": "done",
+      "delivery_stage": "local_integrated_not_deployed",
+      "accepted_commit": "faf85920e209ca412bb26991a856a584693992c0",
+      "depends_on": [],
+      "assignee": "service_rationale",
+      "allowed_paths": [
+        "deploy/single_container/runtime.py",
+        "deploy/single_container/process.py",
+        "deploy/single_container/health.py",
+        "deploy/single_container/comics_control.py",
+        "tests/deployment/single_container/"
+      ],
+      "branch": "codex/single-container-runtime-20261027",
+      "isolated_checkout": "C:/Users/Administrator/.codex/worktrees/tianshu-unified-runtime/tianshu-peiban-bot",
+      "task_card": "C:/Users/Administrator/.codex/worktrees/tianshu-single-container/tianshu-peiban-bot/docs/development/single-container-execution-2026-10-27.md",
+      "authorization": "2026-10-27 user explicitly authorized single-container implementation, modular reuse/refactoring and performance/log footprint optimization. Local implementation and verification; no production write/deploy/remote push/model/QQ.",
+      "allocation_note": "Managed isolated root checkouts preserve existing dirty coordinator work; product reuses a clean previously released isolated checkout on a new branch.",
+      "done_when": "Local implemented, scoped validation and integration; truthful unbuilt/unverified boundaries preserved."
+    },
+    {
+      "id": "TS-331",
+      "project": "workspace",
+      "title": "日志账本占用与重复扫描优化",
+      "status": "done",
+      "delivery_stage": "local_integrated_not_deployed",
+      "accepted_commit": "67dfa3c",
+      "depends_on": [],
+      "assignee": "consolidation_observability",
+      "allowed_paths": [
+        "deploy/observability/",
+        "tests/deployment/observability/"
+      ],
+      "branch": "codex/single-container-logs-20261027",
+      "isolated_checkout": "C:/Users/Administrator/.codex/worktrees/tianshu-log-optimization/tianshu-peiban-bot",
+      "task_card": "C:/Users/Administrator/.codex/worktrees/tianshu-single-container/tianshu-peiban-bot/docs/development/single-container-execution-2026-10-27.md",
+      "authorization": "2026-10-27 user explicitly authorized single-container implementation, modular reuse/refactoring and performance/log footprint optimization. Local implementation and verification; no production write/deploy/remote push/model/QQ.",
+      "allocation_note": "Managed isolated root checkouts preserve existing dirty coordinator work; product reuses a clean previously released isolated checkout on a new branch.",
+      "done_when": "Local implemented, scoped validation and integration; truthful unbuilt/unverified boundaries preserved."
+    },
+    {
+      "id": "TS-332",
+      "project": "platform",
+      "title": "漫画文件辅助内置插件",
+      "status": "done",
+      "delivery_stage": "local_verified_not_product_main",
+      "accepted_commit": "92991e222d1caf15a3b3022330a50b8890150995",
+      "depends_on": [],
+      "assignee": "consolidation_adapter_files",
+      "allowed_paths": [
+        "services/platform/plugins/",
+        "services/platform/media/comics/",
+        "services/platform/service.py",
+        "tests/backend/",
+        "docs/platform/",
+        "docs/handoffs/TS-332.md"
+      ],
+      "branch": "codex/single-container-comics-20261027",
+      "isolated_checkout": "worktrees/TS-311/tianshu-platform",
+      "task_card": "C:/Users/Administrator/.codex/worktrees/tianshu-single-container/tianshu-peiban-bot/docs/development/single-container-execution-2026-10-27.md",
+      "authorization": "2026-10-27 user explicitly authorized single-container implementation, modular reuse/refactoring and performance/log footprint optimization. Local implementation and verification; no production write/deploy/remote push/model/QQ.",
+      "allocation_note": "Managed isolated root checkouts preserve existing dirty coordinator work; product reuses a clean previously released isolated checkout on a new branch.",
+      "done_when": "Local implemented, scoped validation and integration; truthful unbuilt/unverified boundaries preserved."
+    },
+    {
+      "id": "TS-333",
+      "project": "workspace",
+      "title": "整体功能覆盖与单容器集成验收",
+      "status": "done",
+      "delivery_stage": "local_candidate_verified_not_linux_image",
+      "accepted_commit": "faf85920e209ca412bb26991a856a584693992c0",
+      "depends_on": [
+        "TS-329",
+        "TS-330",
+        "TS-331",
+        "TS-332"
+      ],
+      "assignee": "single_container_coordinator",
+      "allowed_paths": [
+        "docs/development/",
+        "docs/handoffs/TS-333.md"
+      ],
+      "done_when": "All first-party feature areas classified; applicable integration verification and remaining runtime gaps recorded."
+    },
+    {
+      "id": "TS-334",
+      "project": "workspace",
+      "title": "统一宿主进程内交换与流式生命周期",
+      "status": "done",
+      "delivery_stage": "local_integrated_not_deployed",
+      "accepted_commits": [
+        "feab414",
+        "99b1c4d"
+      ],
+      "depends_on": [],
+      "assignee": "consolidation_observability",
+      "branch": "codex/unified-exchange-20261027",
+      "isolated_checkout": "C:/Users/Administrator/.codex/worktrees/tianshu-log-optimization/tianshu-peiban-bot",
+      "task_card": "C:/Users/Administrator/.codex/worktrees/tianshu-single-container/tianshu-peiban-bot/docs/development/single-container-execution-2026-10-27.md",
+      "allowed_paths": [
+        "deploy/single_container/exchange.py",
+        "deploy/single_container/frameworks/",
+        "tests/deployment/single_container/test_exchange*.py",
+        "docs/handoffs/TS-334.md"
+      ],
+      "authorization": "User clarified unified business host, direct internal module exchange and full asynchronous interaction analysis; local implementation only, no production/deployment/model/QQ.",
+      "done_when": "No internal TCP; reentrant, bounded streaming, cancellation and drain verified on real framework adapters; explicit untested boundaries."
+    },
+    {
+      "id": "TS-335",
+      "project": "platform",
+      "title": "统一宿主Platform内部端口与生命周期装配",
+      "status": "done",
+      "delivery_stage": "local_verified_not_product_main",
+      "accepted_commit": "b9430e3849d3cca8d5e8329bf70dad9aa4e76e8d",
+      "depends_on": [
+        "TS-334",
+        "TS-338"
+      ],
+      "assignee": "consolidation_adapter_files",
+      "task_card": "C:/Users/Administrator/.codex/worktrees/tianshu-single-container/tianshu-peiban-bot/docs/development/single-container-execution-2026-10-27.md",
+      "done_when": "Existing first-party clients share explicit module transport; original auth/contracts/receipts and external network clients retained."
+    },
+    {
+      "id": "TS-336",
+      "project": "memory",
+      "title": "Memory与Knowledge显式宿主配置和回调端口",
+      "status": "done",
+      "delivery_stage": "local_verified_not_product_main",
+      "accepted_commit": "0b25099a43b10238ad2de6e78d7b743acddb3562",
+      "assignee": "consolidation_observability",
+      "branch": "codex/unified-memory-20261027",
+      "isolated_checkout": "worktrees/TS-306/tianshu-memory",
+      "depends_on": [
+        "TS-334"
+      ],
+      "task_card": "C:/Users/Administrator/.codex/worktrees/tianshu-single-container/tianshu-peiban-bot/docs/development/single-container-execution-2026-10-27.md",
+      "done_when": "Config/env/clients explicitly assembled; source authority and independent callback/identity capacities and storage ownership preserved."
+    },
+    {
+      "id": "TS-337",
+      "project": "model-gateway",
+      "title": "Gateway统一依赖与内部来源端口",
+      "status": "done",
+      "delivery_stage": "local_verified_not_product_main",
+      "accepted_commit": "29098f060d5055e69b079222d4de4d41c2ed2f42",
+      "assignee": "single_container_coordinator",
+      "branch": "codex/unified-gateway-20261027",
+      "isolated_checkout": "worktrees/TS-261/tianshu-model-gateway",
+      "depends_on": [
+        "TS-334"
+      ],
+      "task_card": "C:/Users/Administrator/.codex/worktrees/tianshu-single-container/tianshu-peiban-bot/docs/development/single-container-execution-2026-10-27.md",
+      "done_when": "Storage dependency aligned with relevant verification; Platform source transport injected; real external model TLS and stream receipts retained."
+    },
+    {
+      "id": "TS-338",
+      "project": "platform",
+      "title": "插件计划失败隔离与角色联动锁范围收敛",
+      "status": "done",
+      "delivery_stage": "local_verified_not_integrated",
+      "accepted_commit": "2035a008313f9fcd79977161288334c1588513fe",
+      "depends_on": [],
+      "assignee": "consolidation_adapter_files",
+      "branch": "codex/unified-platform-20261027",
+      "isolated_checkout": "worktrees/TS-311/tianshu-platform",
+      "task_card": "C:/Users/Administrator/.codex/worktrees/tianshu-single-container/tianshu-peiban-bot/docs/architecture/unified-host-interactions-2026-10-27.md",
+      "allowed_paths": [
+        "services/platform/plugins/scheduler.py",
+        "services/platform/role_runtime.py",
+        "services/platform/local_work.py",
+        "services/platform/media/music/",
+        "tests/backend/",
+        "docs/handoffs/TS-338.md"
+      ],
+      "authorization": "User explicitly requested efficient asynchronous interaction without unrelated work blocking, with necessary serial consistency; isolated local implementation only.",
+      "done_when": "Bad schedule cannot starve later items; unrelated roles can progress; same-role stages/cancel/replay remain ordered with original transactions/CAS."
+    },
+    {
+      "id": "TS-339",
+      "project": "companion",
+      "title": "后台学习与图像模型选择执行预算一致",
+      "status": "done",
+      "delivery_stage": "local_verified_not_integrated",
+      "accepted_commit": "63ef558e4edd65762f1c46638d06d689cd1bb4ad",
+      "depends_on": [],
+      "assignee": "service_rationale",
+      "branch": "codex/unified-companion-20261027",
+      "isolated_checkout": "worktrees/TS-307/tianshu-companion",
+      "task_card": "C:/Users/Administrator/.codex/worktrees/tianshu-single-container/tianshu-peiban-bot/docs/architecture/unified-host-interactions-2026-10-27.md",
+      "allowed_paths": [
+        "src/tianshu_companion/model_selection.py",
+        "src/tianshu_companion/life.py",
+        "src/tianshu_companion/memory_learning.py",
+        "src/tianshu_companion/image_catalog.py",
+        "src/tianshu_companion/runtime_execution.py",
+        "tests/",
+        "docs/handoffs/TS-339.md"
+      ],
+      "authorization": "User requested complete asynchronous interaction and resource isolation; preserve functional contracts and production configuration, local implementation only.",
+      "done_when": "Matched selector, execution identity and local slot for real foreground/background context; held-slot tools do not reacquire; legacy configuration boundary documented."
+    },
+    {
+      "id": "TS-340",
+      "project": "workspace",
+      "title": "统一业务宿主与单环境发行装配",
+      "status": "done",
+      "delivery_stage": "local_candidate_verified_not_linux_image",
+      "accepted_commit": "faf85920e209ca412bb26991a856a584693992c0",
+      "depends_on": [
+        "TS-335",
+        "TS-336",
+        "TS-337",
+        "TS-341",
+        "TS-342"
+      ],
+      "assignee": "single_container_coordinator",
+      "branch": "codex/single-container-20261027",
+      "isolated_checkout": "C:/Users/Administrator/.codex/worktrees/tianshu-single-container/tianshu-peiban-bot",
+      "allowed_paths": [
+        "deploy/single_container/",
+        "tests/deployment/single_container/",
+        "docs/development/single-container-execution-2026-10-27.md",
+        "docs/handoffs/TS-340.md"
+      ],
+      "authorization": "User explicitly authorized one container with modular internal calls, plugin comics, retained functions and resource optimization; local implementation and verification only.",
+      "done_when": "Five real product apps assembled without internal business TCP, one compatible dependency environment, bounded independent module execution, graceful roots/producers/workers drain, truthful Linux/image limits."
+    },
+    {
+      "id": "TS-341",
+      "project": "companion",
+      "title": "Companion显式宿主工厂与异步收尾",
+      "status": "done",
+      "delivery_stage": "local_verified_not_product_main",
+      "accepted_commit": "69bd5849d2c7e1242fd5d64d014c00efa7812000",
+      "depends_on": [
+        "TS-334",
+        "TS-339"
+      ],
+      "assignee": "service_rationale",
+      "branch": "codex/unified-companion-ports-20261027",
+      "isolated_checkout": "worktrees/TS-307/tianshu-companion",
+      "allowed_paths": [
+        "src/tianshu_companion/",
+        "tests/",
+        "docs/handoffs/TS-341.md"
+      ],
+      "authorization": "Current unified-host implementation authorization; module-owned clients, config, log and storage; no global environment mutation or real model/QQ.",
+      "done_when": "Explicit factories/transports preserve independent identities, external IO and callbacks; quiesce stops new roots/producers and drain waits actual owned tasks before storage closes."
+    },
+    {
+      "id": "TS-342",
+      "project": "workspace",
+      "title": "模块独立loop与有界跨线程内部交换",
+      "status": "done",
+      "delivery_stage": "local_integrated_not_deployed",
+      "accepted_commit": "94f936a0d965b1a1e54c0892e24e4ebee678ebbc",
+      "depends_on": [
+        "TS-334",
+        "TS-341"
+      ],
+      "assignee": "service_rationale",
+      "allowed_paths": [
+        "deploy/single_container/",
+        "tests/deployment/single_container/",
+        "docs/handoffs/TS-342.md"
+      ],
+      "authorization": "User requires asynchronous module isolation and correct necessary database locking; isolate synchronous stores on their owner threads without sharing connections or adding internal TCP.",
+      "done_when": "A slow synchronous module does not stall unrelated loops; bounded stream/backpressure/cancellation and A-to-B-to-A callback work, with original LocalExchange rules reused."
+    },
+    {
+      "id": "TS-343",
+      "project": "companion",
+      "title": "OneBot原生宿主与真实SDK工作排空",
+      "status": "done",
+      "delivery_stage": "local_verified_not_product_main",
+      "accepted_commit": "7f471aa7d76ea7d2922b761363b30cbf150356e0",
+      "depends_on": [
+        "TS-341"
+      ],
+      "assignee": "service_rationale",
+      "handoff": "worktrees/TS-307/tianshu-companion/docs/handoffs/TS-343.md"
+    },
+    {
+      "id": "TS-344",
+      "project": "platform",
+      "title": "显式owned SDK接线与已入数据库工作关闭",
+      "status": "done",
+      "delivery_stage": "local_verified_not_product_main",
+      "accepted_commit": "d214ec237858f4e5c9e949f3999ec499864a6023",
+      "depends_on": [
+        "TS-335",
+        "TS-343"
+      ],
+      "assignee": "single_container_coordinator",
+      "handoff": "worktrees/TS-311/tianshu-platform/docs/handoffs/TS-344.md"
+    },
+    {
+      "id": "TS-345",
+      "project": "workspace",
+      "title": "共享Linux依赖发行与真实wheel原生宿主联验",
+      "status": "done",
+      "delivery_stage": "local_source_context_prepared_not_linux_image",
+      "accepted_commit": "faf85920e209ca412bb26991a856a584693992c0",
+      "depends_on": [
+        "TS-335",
+        "TS-336",
+        "TS-337",
+        "TS-343",
+        "TS-344"
+      ],
+      "assignee": "consolidation_adapter_files",
+      "handoff": "C:/Users/Administrator/.codex/worktrees/tianshu-single-container/tianshu-peiban-bot/docs/handoffs/TS-345.md"
+    },
+    {
+      "id": "TS-346",
+      "project": "workspace",
+      "title": "单业务宿主及原生观测的一服务Compose导出",
+      "status": "done",
+      "delivery_stage": "local_integrated_not_deployed",
+      "accepted_commit": "7a0fa430efe43eb56bb14b3c55b929d29ede1ff7",
+      "depends_on": [
+        "TS-340",
+        "TS-345"
+      ],
+      "assignee": "service_rationale",
+      "handoff": "C:/Users/Administrator/.codex/worktrees/tianshu-single-container/tianshu-peiban-bot/docs/handoffs/TS-346.md"
+    }
+  ]
+}
