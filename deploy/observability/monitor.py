@@ -256,7 +256,13 @@ class Ledger:
         expected = dict(pending)
         selector = '{stack="tianshu"} | json | event_id=~"' + "|".join(expected) + '"'
         rows = client.range(
-            selector, int((now - retention_seconds) * 1e9), int(now * 1e9)
+            selector,
+            int((now - retention_seconds) * 1e9),
+            int(now * 1e9),
+            # One more than the known identities proves an unsaturated window.
+            # A full 1024-event batch otherwise exceeds range's default 1000
+            # and needlessly bisects the entire retention interval.
+            limit=max(1000, len(expected) + 1),
         )
         seen = set()
         with self.db:

@@ -175,7 +175,7 @@ class ReadinessTests(TransportFixture):
         entered, release = threading.Event(), threading.Event()
         blocked = False
 
-        def observed(selector, start, end):
+        def observed(selector, start, end, *, limit=1000):
             nonlocal blocked
             if not blocked:
                 blocked = True

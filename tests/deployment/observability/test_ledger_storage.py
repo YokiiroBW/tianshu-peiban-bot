@@ -1,5 +1,6 @@
 """Ledger upgrade, transactional aggregates and bounded indexed revisit queues."""
 
+import json
 import sqlite3
 import tempfile
 import time
@@ -7,11 +8,13 @@ import unittest
 from contextlib import closing
 from pathlib import Path
 from unittest.mock import Mock, patch
+from urllib.parse import parse_qs, urlsplit
 
 from helpers import SNAPSHOT, emit, event
 from ledger_schema import VERSION
 from monitor import Ledger
 from policy import Policy, canonical, digest, digest_bytes
+from query import LokiClient, QueryError
 
 LEGACY_SCHEMA = """
     CREATE TABLE files (name TEXT PRIMARY KEY, identity TEXT, offset INTEGER);
@@ -273,6 +276,59 @@ class StorageTests(unittest.TestCase):
             plan = " ".join(row[-1] for row in ledger.db.execute("EXPLAIN QUERY PLAN " + sql, parameters))
             self.assertIn(name, plan)
             self.assertNotIn("TEMP B-TREE", plan)
+
+    def test_full_reconcile_batch_uses_one_complete_page_and_keeps_integrity(self):
+        for count, case in ((1000, "complete"), (1024, "complete"),
+                            (1024, "missing_changed"), (1024, "saturated")):
+            with self.subTest(count=count, case=case):
+                root = self.root / (str(count) + case)
+                root.mkdir()
+                records = [event(index) for index in range(1, count + 1)]
+                emit(root / "source.jsonl", records)
+                ledger = Ledger(root / "state.sqlite", self.policy)
+                self.addCleanup(ledger.close)
+                ledger.scan({"platform": root})
+                now = time.time()
+                with ledger.db:
+                    ledger.db.execute(
+                        "UPDATE events SET verified=?,last_checked=? WHERE sequence>?",
+                        (now, now - 7200, count // 2),
+                    )
+                returned = list(records)
+                if case == "missing_changed":
+                    returned = [{**records[1], "outcome": "failed"}, *records[2:]]
+                elif case == "saturated":
+                    returned.append(records[0])
+                stamp = int((now - 1) * 1e9)
+                calls = []
+
+                def request(path, *, deadline):
+                    deadline.remaining()
+                    args = parse_qs(urlsplit(path).query)
+                    limit = int(args["limit"][0])
+                    calls.append(limit)
+                    in_window = int(args["start"][0]) <= stamp <= int(args["end"][0])
+                    values = [
+                        [str(stamp), canonical(record).decode()]
+                        for record in returned[:limit]
+                    ] if in_window else []
+                    body = {"status": "success", "data": {
+                        "resultType": "streams", "result": [{"values": values}],
+                    }}
+                    return 200, json.dumps(body).encode(), "application/json"
+
+                client = object.__new__(LokiClient)
+                client.request = request
+                if case == "saturated":
+                    with self.assertRaisesRegex(QueryError, "timestamp_bucket_saturated"):
+                        ledger.reconcile(client, batch=count)
+                    self.assertEqual(ledger.metrics()["pending_events"], count // 2)
+                    self.assertGreater(len(calls), 1)
+                else:
+                    ledger.reconcile(client, batch=count)
+                    self.assertEqual(calls, [count + 1])
+                    self.assertEqual(ledger.metrics()["pending_events"],
+                                     2 if case == "missing_changed" else 0)
 
 
 if __name__ == "__main__":
