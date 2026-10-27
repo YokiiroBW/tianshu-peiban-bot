@@ -13,7 +13,7 @@ import time
 from urllib.parse import urlsplit
 
 from monitor import Ledger, capacities
-from alerts import AlertStore
+from alerts import AlertStore, MONITOR_STALE_SECONDS
 from policy import Policy
 from query import LokiClient
 from transport import Deadline, accept_tls
@@ -68,6 +68,7 @@ class State:
             "last_push_success_timestamp": 0,
         }
         self.stop = threading.Event()
+        self.monitor_running = threading.Event()
         self.tokens = {
             role: Path(path).read_text().strip()
             for role, path in settings["tokens"].items()
@@ -110,8 +111,23 @@ class State:
                 for name, value in sorted(self.metrics.items())
             ).encode()
 
+    def monitor_ready(self, now=None):
+        if self.stop.is_set() or not self.monitor_running.is_set():
+            return False
+        with self.lock:
+            success = self.metrics["monitor_success"]
+            last_success = self.metrics["monitor_last_success_timestamp"]
+        now = time.time() if now is None else now
+        # Reuse IntegrityMonitorStale's existing window, four default 30s cycles.
+        return (
+            success == 1
+            and last_success > 0
+            and 0 <= now - last_success <= MONITOR_STALE_SECONDS
+        )
+
     def run_monitor(self):
         ledger, alerts = None, None
+        self.monitor_running.set()
         try:
             policy = Policy(json.loads(Path(self.settings["snapshot"]).read_bytes()))
             policy.verify_contract(Path(self.settings["contract"]))
@@ -124,6 +140,7 @@ class State:
                 str(Path(self.settings["ledger"]).with_name("alerts.sqlite"))
             )
             while not self.stop.is_set():
+                succeeded = True
                 try:
                     result = ledger.scan(self.settings["log_roots"])
                     cap = capacities(
@@ -139,11 +156,8 @@ class State:
                         extra[f"storage_{role}_ratio"] = 1 - disk.free / disk.total
                     self.update(**result, **extra)
                     ledger.reconcile(self.backend)
-                    self.update(
-                        monitor_success=1,
-                        monitor_last_success_timestamp=time.time(),
-                    )
                 except Exception:
+                    succeeded = False
                     self.add("query_failures_total")
                     self.update(monitor_success=0)
                 # Read one final snapshot, including newly landed events even if
@@ -151,8 +165,14 @@ class State:
                 try:
                     self.update(**ledger.metrics())
                 except Exception:
+                    succeeded = False
                     self.add("query_failures_total")
                     self.update(monitor_success=0)
+                if succeeded:
+                    self.update(
+                        monitor_success=1,
+                        monitor_last_success_timestamp=time.time(),
+                    )
                 with self.lock:
                     metrics = dict(self.metrics)
                 self.update(**alerts.update(metrics))
@@ -160,6 +180,8 @@ class State:
         except Exception:
             self.update(monitor_success=0)
         finally:
+            self.monitor_running.clear()
+            self.update(monitor_success=0)
             if ledger:
                 ledger.close()
             if alerts:
@@ -303,8 +325,10 @@ class Handler(BaseHTTPRequestHandler):
                 status, _, _ = state.backend.request(
                     "/ready", deadline=self.connection.deadline
                 )
+                ready = status == 200 and state.monitor_ready()
                 return self.reply(
-                    200 if status == 200 else 503, b'{"status":"observed"}'
+                    200 if ready else 503,
+                    b'{"status":"observed"}' if ready else b'{"status":"unavailable"}',
                 )
             except Exception:
                 return self.reply(503, b'{"status":"unavailable"}')

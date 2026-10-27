@@ -37,7 +37,7 @@ class BackendHandler(BaseHTTPRequestHandler):
         self.wfile.write(b"UPSTREAM_SECRET_CANARY")
 
 
-class TransportTests(WorkspaceTest):
+class TransportFixture(WorkspaceTest):
     def setUp(self):
         super().setUp()
         certificates(self.root)
@@ -96,6 +96,8 @@ class TransportTests(WorkspaceTest):
             self.tokens.get(role),
         )
 
+
+class TransportTests(TransportFixture):
     def test_cli_loopback_ephemeral_port_preserves_tls_roles(self):
         import guard
 

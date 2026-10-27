@@ -2,6 +2,7 @@
 
 import json
 
+from alerts import MONITOR_STALE_SECONDS
 from policy import FIELDS, LEVELS, OUTCOMES
 
 PRODUCTS = ("platform", "companion", "memory", "gateway")
@@ -207,7 +208,7 @@ def loki(retention_hours=720):
 ALERTS = {
     "PipelineTargetDown": ('max(1-up{job=~"guard|vector|loki"})', "1m"),
     "IntegrityMonitorStale": (
-        "time()-tianshu_obs_monitor_last_success_timestamp > bool 120",
+        f"time()-tianshu_obs_monitor_last_success_timestamp > bool {MONITOR_STALE_SECONDS}",
         "1m",
     ),
     "StorageQueryFailed": ("1-tianshu_obs_monitor_success", "1m"),

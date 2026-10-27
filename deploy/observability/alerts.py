@@ -4,6 +4,9 @@ import sqlite3
 import time
 
 
+MONITOR_STALE_SECONDS = 120
+
+
 def conditions(metrics):
     def high(pattern, threshold):
         return any(
