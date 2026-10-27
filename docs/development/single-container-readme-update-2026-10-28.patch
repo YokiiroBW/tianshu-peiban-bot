@@ -1,0 +1,10 @@
+--- a/deploy/single_container/README.md
++++ b/deploy/single_container/README.md
+@@ -5 +5 @@
+-镜像包含一个业务宿主、一个 Python 依赖环境及保留功能的 Vector/Loki/Prometheus/Grafana/guard 原生引擎。五业务模块无内部 TCP，OneBot 的端口用于外部 WebSocket/SDK；漫画文件助手按既有插件生命周期和独立 UID 按需运行。默认网页/API 公开18446，OneBot启用时18765；观测鉴权入口沿原策略仅主机环回发布。
++镜像包含一个业务宿主、一个 Python 依赖环境及保留功能的 Vector/Loki/Prometheus/Grafana/guard 原生引擎。五业务模块无内部 TCP，OneBot 的端口用于外部 WebSocket/SDK；漫画文件助手按既有插件生命周期和独立 UID 按需运行。新安装默认网页HTTP端口18446、外部TLS API端口18443，OneBot启用时18765；保留原WebAccess时以捕获的实际绑定/Origin为准，观测鉴权入口沿原策略仅主机环回发布。
+@@ -13 +13,3 @@
+-本轮本地结果、可移植联合验证及 Linux/生产未覆盖见 [TS-340](../../docs/handoffs/TS-340.md)。当前候选尚未提供已运行的 Linux 发布镜像；不能把 source context 或 Windows 联合结果称为 NAS 实机验收。
++运行日志默认五来源合计最多10000个逻辑事件、保留30天，数量或天数任一先到先清最旧的可安全退役日志。主设置为 `log_max_events` / `retention_days`，修改后重新导出并重启guard/Loki。容器内writer管理CLI可手动clear旧日志含pending，持久cutoff阻止旧raw/Vector缓冲重放回灌；query角色仍只读。活动段、持久buffer、Loki WAL/chunk/cache及Compactor异步回收不等于瞬时物理一万条。详见 [日志保留说明](../observability/RETENTION.md)。
++
++截至2026-10-28，R6镜像 `sha256:b10d4e38f5cd32cf159309857705f9a7b3d3e2ab45816444e01377903b32b784` 已在192.168.31.230构建（3.376GB、66个冻结Linux wheel），隔离完整候选六owner、25库检查、真实五观测引擎、日志保留及容量恢复均通过。候选已正常退出，旧13仍运行且保留冷备；**尚未清空生产日志、尚未切换生产**。两独立60秒窗口working set中位为旧1.737GiB/候选0.923GiB，因负载不同不作固定节省率或吞吐承诺。实际证据、限制及待生产记录见 [部署记录](../../docs/development/single-container-deployment-2026-10-27.md)；早期 [TS-340](../../docs/handoffs/TS-340.md) 的未构建表述仅描述当时状态。
