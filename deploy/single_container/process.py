@@ -84,6 +84,12 @@ def environment_for(spec):
             key, separator, value = line.partition("=")
             if not separator or not ENVIRONMENT_KEY.fullmatch(key) or "\0" in value:
                 raise ValueError("invalid env_file entry")
+            # The native bundle writes Compose's restricted single-quoted form.
+            # Unwrap that literal value without shell expansion or escape rules.
+            if value.startswith("'"):
+                if len(value) < 2 or not value.endswith("'") or "'" in value[1:-1] or "\\" in value[1:-1]:
+                    raise ValueError("invalid quoted env_file entry")
+                value = value[1:-1]
             environment[key] = value
     environment.update(spec["env"])
     return environment

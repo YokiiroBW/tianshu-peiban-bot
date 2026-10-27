@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import signal
 import socket
+import stat
 import subprocess
 import sys
 import tempfile
@@ -13,7 +14,7 @@ import unittest
 from unittest.mock import patch
 import uuid
 
-from deploy.single_container.comics_control import ComicsController, ControlError
+from deploy.single_container.comics_control import ComicsController, ControlError, prepare_worker_directories
 from deploy.single_container.health import check_state, probe, validate_probe
 from deploy.single_container.process import ProcessGroup, dependency_order, environment_for, validate_process
 from deploy.single_container.runtime import Runtime, load_config, write_state
@@ -114,6 +115,33 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(group.status(), "failed")
         self.assertIsNone(group.processes["memory"].child)
         self.assertNotIn("secret_fixture", json.dumps(group.snapshot()))
+
+    def test_native_bundle_quoted_env_reaches_real_worker_as_literal(self):
+        private = self.root / "native.env"
+        value = "native $HOME $(never-run) ; literal=unchanged"
+        # Exact native bundle format, including the single-quoted empty value.
+        private.write_text("".join(f"{key}='{field}'\n" for key, field in {
+            "FIXTURE_VALUE": value, "EMPTY": "", "SSL_CERT_FILE": "/config/tls/ca.pem",
+        }.items()), encoding="utf-8")
+        spec = self.specification(env_file=str(private))
+        environment = environment_for(spec)
+        self.assertEqual(environment["EMPTY"], "")
+        self.assertEqual(environment["SSL_CERT_FILE"], "/config/tls/ca.pem")
+        group = self.group(spec)
+        self.until(lambda: group.status() == "ready", group)
+        self.assertEqual(self.recorded()[0]["fixture"], value)
+        spec["env"]["FIXTURE_VALUE"] = "explicit"
+        self.assertEqual(environment_for(spec)["FIXTURE_VALUE"], "explicit")
+
+    def test_invalid_native_quotes_are_not_executed_or_disclosed(self):
+        private = self.root / "bad-native.env"
+        for field in ("'secret_fixture", "'secret_fixture'junk", "'secret_fixture\\x'", "'secret'fixture'"):
+            with self.subTest(field=field):
+                private.write_text("FIXTURE_VALUE=" + field + "\n", encoding="utf-8")
+                group = self.group(self.specification(env_file=str(private)))
+                group.tick()
+                self.assertIsNone(group.processes["memory"].child)
+                self.assertNotIn("secret_fixture", json.dumps(group.snapshot()))
 
     def test_child_exit_marks_failed_keeps_diagnostics_and_blocks_dependents(self):
         exiting = self.specification("memory", extra=("--exit-after", "0.4"))
@@ -316,6 +344,72 @@ class RuntimeTests(unittest.TestCase):
             self.until(lambda: (controller.tick() or controller.status()["state"]) == "ready")
         finally:
             self.assertTrue(controller.close())
+
+    def test_fixed_comics_layout_is_prepared_before_workers_and_failure_keeps_owner_free(self):
+        config = {"socket": str(self.root / "control.sock"), "client_uid": 10001,
+                  "processes": [self.specification("comic-inputs"), self.specification("comic-publisher")]}
+        controller = ComicsController(config)
+        owner = str(uuid.uuid4())
+        with patch("deploy.single_container.comics_control.CONTROL_SOCKET", config["socket"]):
+            with patch("deploy.single_container.comics_control.prepare_worker_directories", side_effect=ValueError("unsafe IPC")):
+                with self.assertRaises(ValueError):
+                    controller.action("start", owner)
+            self.assertIsNone(controller.owner)
+            self.assertIsNone(controller.group)
+            with patch("deploy.single_container.comics_control.prepare_worker_directories") as prepare:
+                controller.action("start", owner)
+                controller.action("start", owner)
+                prepare.assert_called_once_with()
+        self.assertFalse(self.events.exists())
+        self.assertTrue(controller.close())
+
+    @unittest.skipUnless(POSIX and os.geteuid() == 0, "Linux/root IPC ownership and worker socket access")
+    def test_fixed_ipc_directories_allow_both_worker_uids_without_chown(self):
+        self.root.chmod(0o755)
+        ipc = self.root / "comics"
+        previous_group = os.getegid()
+        previous_umask = os.umask(0o077)
+        try:
+            os.setegid(10001)
+            with patch("deploy.single_container.comics_control.IPC_DIRECTORY", ipc):
+                prepare_worker_directories()
+                prepare_worker_directories()
+            for role, uid in (("inputs", 1026), ("publisher", 1654)):
+                directory = ipc / role
+                entry = directory.stat()
+                self.assertEqual((entry.st_uid, entry.st_gid, stat.S_IMODE(entry.st_mode)), (0, 10001, 0o1770))
+                code = "import socket,sys; s=socket.socket(socket.AF_UNIX); s.bind(sys.argv[1]); s.close()"
+                subprocess.run([sys.executable, "-B", "-c", code, str(directory / "fixture.sock")],
+                               user=uid, group=10001, extra_groups=[], cwd=self.root, check=True)
+                self.assertEqual((directory / "fixture.sock").stat().st_uid, uid)
+        finally:
+            os.umask(previous_umask)
+            os.setegid(previous_group)
+
+    @unittest.skipUnless(POSIX and os.geteuid() == 0, "Linux/root IPC permission and symlink validation")
+    def test_existing_unsafe_ipc_is_rejected_without_changing_external_paths(self):
+        self.root.chmod(0o755)
+        ipc = self.root / "comics"
+        outside = self.root / "outside"
+        outside.mkdir()
+        previous_group = os.getegid()
+        try:
+            os.setegid(10001)
+            ipc.mkdir(mode=0o755)
+            (ipc / "inputs").symlink_to(outside, target_is_directory=True)
+            with patch("deploy.single_container.comics_control.IPC_DIRECTORY", ipc):
+                with self.assertRaises(ValueError):
+                    prepare_worker_directories()
+                self.assertEqual(list(outside.iterdir()), [])
+                (ipc / "inputs").unlink()
+                (ipc / "inputs").mkdir(mode=0o770)
+                (ipc / "inputs").chmod(0o770)
+                with self.assertRaises(ValueError):
+                    prepare_worker_directories()
+                self.assertEqual(stat.S_IMODE((ipc / "inputs").stat().st_mode), 0o770)
+                self.assertFalse((ipc / "publisher").exists())
+        finally:
+            os.setegid(previous_group)
 
     @unittest.skipUnless(LINUX_PEER, "Linux Unix socket peer credentials")
     def test_comics_http_checks_peer_and_preserves_exact_response(self):

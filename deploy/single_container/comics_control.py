@@ -15,6 +15,51 @@ from .process import ProcessGroup, validate_process
 
 
 ROLES = {"inputs": "comic-inputs", "publisher": "comic-publisher"}
+IPC_DIRECTORY = Path("/run/tianshu/comics")
+CONTROL_SOCKET = "/run/tianshu/comics/control.sock"
+
+
+def _checked_directory(path, *, group=None, mode=None):
+    entry = path.lstat()
+    permissions = stat.S_IMODE(entry.st_mode)
+    traverse = 0o010 if entry.st_gid == 10001 else 0o001
+    if (not stat.S_ISDIR(entry.st_mode) or entry.st_uid != 0
+            or not permissions & traverse
+            or (group is not None and entry.st_gid != group)
+            or (mode is not None and permissions != mode)
+            or (mode is None and permissions & 0o022)):
+        raise ValueError("unsafe comics IPC directory")
+
+
+def _prepare_ipc_parent():
+    # This fixed tree is the application's tmpfs, never a media/data mount.
+    # Its root may have tmpfs's group 0; the newly created children inherit
+    # the supervisor's primary group, so CAP_CHOWN is neither used nor needed.
+    if os.name != "posix" or os.geteuid() != 0 or os.getegid() != 10001:
+        raise ValueError("comics IPC requires supervisor identity 0:10001")
+    _checked_directory(IPC_DIRECTORY.parent)
+    try:
+        IPC_DIRECTORY.mkdir(mode=0o755)
+    except FileExistsError:
+        pass
+    else:
+        IPC_DIRECTORY.chmod(0o755)
+    _checked_directory(IPC_DIRECTORY, group=10001)
+
+
+def prepare_worker_directories():
+    _prepare_ipc_parent()
+    for role in ROLES:
+        path = IPC_DIRECTORY / role
+        try:
+            path.mkdir(mode=0o1770)
+        except FileExistsError:
+            pass
+        else:
+            # mkdir's mode is filtered by umask. Set the complete sticky/group
+            # mode only on directories just created in this root-owned tree.
+            path.chmod(0o1770)
+        _checked_directory(path, group=10001, mode=0o1770)
 
 
 class ControlError(Exception):
@@ -73,6 +118,8 @@ class ComicsController:
                 raise ControlError("comic_file_owner_conflict", 409)
             if operation == "start":
                 if self.group is None:
+                    if self.config["socket"] == CONTROL_SOCKET:
+                        prepare_worker_directories()
                     self.owner = owner
                     self.group = ProcessGroup(self.config["processes"])
                     self.group.start()
@@ -102,7 +149,10 @@ class ComicsController:
         if os.name != "posix" or not hasattr(socket, "SO_PEERCRED"):
             raise ValueError("comics controller requires Linux peer credentials")
         path = Path(self.config["socket"])
-        path.parent.mkdir(parents=True, exist_ok=True, mode=0o755)
+        if self.config["socket"] == CONTROL_SOCKET:
+            _prepare_ipc_parent()
+        else:
+            path.parent.mkdir(parents=True, exist_ok=True, mode=0o755)
         if path.exists():
             if not stat.S_ISSOCK(path.lstat().st_mode):
                 raise ValueError("comics control path is not a socket")
