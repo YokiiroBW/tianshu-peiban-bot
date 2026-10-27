@@ -58,6 +58,10 @@ def validate_probe(raw):
         allowed = common | {"path"}
         if not isinstance(raw.get("path"), str) or not Path(raw["path"]).is_absolute():
             raise ValueError("invalid health socket")
+    elif kind == "module_state":
+        allowed = common | {"path", "max_age_seconds"}
+        if not isinstance(raw.get("path"), str) or not Path(raw["path"]).is_absolute():
+            raise ValueError("invalid module state path")
     else:
         raise ValueError("unsupported health probe")
     if set(raw) - allowed:
@@ -65,6 +69,8 @@ def validate_probe(raw):
     result = dict(raw)
     result["timeout_seconds"] = positive_number(raw.get("timeout_seconds", 2), "probe timeout", 30)
     result["interval_seconds"] = positive_number(raw.get("interval_seconds", 5), "probe interval")
+    if kind == "module_state":
+        result["max_age_seconds"] = positive_number(raw.get("max_age_seconds", 10), "module state age")
     return result
 
 
@@ -77,6 +83,9 @@ def probe(check, environment):
     """Never include response bodies, request URLs, headers or exceptions in status."""
     timeout = check["timeout_seconds"]
     try:
+        if check["type"] == "module_state":
+            ok = check_module_state(check["path"], max_age=check["max_age_seconds"])
+            return {"ok": ok, "code": "module_ready" if ok else "module_unavailable"}
         if check["type"] == "tcp":
             with socket.create_connection((check["host"], check["port"]), timeout=timeout):
                 return {"ok": True, "code": "connected"}
@@ -153,6 +162,30 @@ def check_state(path, *, max_age=10, now=None):
             for value in processes.values()
         )
     except (OSError, ValueError, TypeError, KeyError, AttributeError):
+        return False
+
+
+def check_module_state(path, *, max_age=10, now=None):
+    """Read the host's atomic readiness snapshot without changing its lifecycle."""
+    try:
+        state = json.loads(Path(path).read_text(encoding="utf-8"))
+        updated_at = state["updated_at"]
+        if type(updated_at) not in (int, float) or not math.isfinite(updated_at):
+            return False
+        now = time.time() if now is None else now
+        if not 0 <= now - updated_at <= max_age:
+            return False
+        if type(state.get("version")) is not int or state["version"] != 1 or state.get("status") != "ready":
+            return False
+        if type(state.get("pid")) is not int or state["pid"] <= 0 or not process_alive(state["pid"]):
+            return False
+        modules = state["modules"]
+        return isinstance(modules, dict) and bool(modules) and all(
+            isinstance(module, dict) and module.get("state") == "ready"
+            and isinstance(module.get("health"), dict) and module["health"].get("ok") is True
+            for module in modules.values()
+        )
+    except (OSError, ValueError, TypeError, KeyError, AttributeError, OverflowError):
         return False
 
 
