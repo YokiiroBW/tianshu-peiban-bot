@@ -5,6 +5,7 @@ import queue
 import threading
 
 import httpx
+from ..loop_bridge import TargetUnavailable
 
 
 async def _read(response, timeout):
@@ -29,6 +30,8 @@ async def _start(exchange, target, request, body):
         raise httpx.ReadTimeout(
             "Local response headers timed out", request=request
         ) from error
+    except TargetUnavailable as error:
+        raise httpx.ConnectError("Local target unavailable", request=request) from error
 
 
 class _AsyncStream(httpx.AsyncByteStream):

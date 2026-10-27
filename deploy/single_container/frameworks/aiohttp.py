@@ -22,6 +22,7 @@ from aiohttp.http_parser import RawRequestMessage
 from aiohttp.streams import StreamReader
 from multidict import CIMultiDict, CIMultiDictProxy
 from yarl import URL
+from ..loop_bridge import TargetUnavailable
 
 LOG = logging.getLogger(__name__)
 SUPPORTED_VERSION = "3.14.1"
@@ -420,7 +421,9 @@ class Session:
                 "Unsupported local session options: " + ",".join(unsupported)
             )
         if auto_decompress is not False:
-            raise ValueError("Local sessions return application bytes without decompression")
+            raise ValueError(
+                "Local sessions return application bytes without decompression"
+            )
         self.exchange, self.target = exchange, target
         self.timeout = timeout or aiohttp.ClientTimeout(total=300)
         self.headers = CIMultiDict(headers or {})
@@ -502,10 +505,20 @@ class Session:
         if not isinstance(policy, aiohttp.ClientTimeout):
             raise TypeError("Local session timeout uses aiohttp.ClientTimeout")
         deadline = None if policy.total is None else time.monotonic() + policy.total
-        async with asyncio.timeout(policy.total):
-            local = await self.exchange.request(
-                self.target, method, str(url), wire_headers, body()
-            )
+        header_limits = [
+            value for value in (policy.total, policy.sock_read) if value is not None
+        ]
+        try:
+            async with asyncio.timeout(min(header_limits) if header_limits else None):
+                local = await self.exchange.request(
+                    self.target, method, str(url), wire_headers, body()
+                )
+        except TimeoutError as error:
+            raise aiohttp.ServerTimeoutError(
+                "Local response headers timed out"
+            ) from error
+        except TargetUnavailable as error:
+            raise aiohttp.ClientConnectionError("Local target unavailable") from error
         response = ClientResponse(
             local, self, method, url, merged, deadline, policy.sock_read
         )
