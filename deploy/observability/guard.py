@@ -137,13 +137,19 @@ class State:
                         disk = shutil.disk_usage(path)
                         extra[f"storage_{role}_free_bytes"] = disk.free
                         extra[f"storage_{role}_ratio"] = 1 - disk.free / disk.total
-                    self.update(**result, **extra, **ledger.metrics())
+                    self.update(**result, **extra)
                     ledger.reconcile(self.backend)
                     self.update(
                         monitor_success=1,
                         monitor_last_success_timestamp=time.time(),
-                        **ledger.metrics(),
                     )
+                except Exception:
+                    self.add("query_failures_total")
+                    self.update(monitor_success=0)
+                # Read one final snapshot, including newly landed events even if
+                # Loki was unavailable. Aggregate metadata needs no full scan.
+                try:
+                    self.update(**ledger.metrics())
                 except Exception:
                     self.add("query_failures_total")
                     self.update(monitor_success=0)

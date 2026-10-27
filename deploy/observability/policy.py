@@ -160,7 +160,11 @@ def canonical(event):
 
 
 def digest(event):
-    return hashlib.sha256(canonical(event)).hexdigest()
+    return digest_bytes(event).hex()
+
+
+def digest_bytes(event):
+    return hashlib.sha256(canonical(event)).digest()
 
 
 def segments(directory):

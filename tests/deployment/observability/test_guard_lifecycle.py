@@ -220,6 +220,9 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(self.results, [0])
         self.assertTrue(self.backend.closed)
         self.assertFalse(self.backend.closed_with_users)
+        self.assertEqual(self.state.metrics["landed_events"], 40)
+        self.assertEqual(self.state.metrics["pending_events"], 40)
+        self.assertEqual(self.state.metrics["monitor_success"], 0)
         with closing(sqlite3.connect(self.root / "ledger.sqlite")) as connection:
             self.assertEqual(
                 connection.execute("SELECT count(*) FROM events").fetchone()[0], 40

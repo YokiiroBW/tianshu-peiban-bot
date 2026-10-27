@@ -1,0 +1,67 @@
+{
+  "task": "TS-331",
+  "state": "local_verified_not_integrated",
+  "baseline": "ab93be4e91b824008d387d71c80e77dfac7341b3",
+  "merge_rule": "Exact unittest node key; later precise runs replace earlier outcomes, not added totals. No second complete run.",
+  "runs": [
+    {
+      "file": ".runtime\\ts331\\observability-tests-first.log",
+      "sha256": "85304eaa59bdde7424e7b8b7d4ec8171e58f42594096b084bf1d2e2c9c19d24c",
+      "nodes": 136,
+      "outcomes": {
+        "ok": 117,
+        "skipped": 16,
+        "FAIL": 1,
+        "ERROR": 2
+      }
+    },
+    {
+      "file": ".runtime\\ts331\\contract-tests.log",
+      "sha256": "1e1937689268ae1f498097a69eea51c7441e4eccf5eef1d3df3111dfca8f8941",
+      "nodes": 6,
+      "outcomes": {
+        "ok": 6,
+        "skipped": 0,
+        "FAIL": 0,
+        "ERROR": 0
+      }
+    },
+    {
+      "file": ".runtime\\ts331\\environment-and-assembly-tests.log",
+      "sha256": "d17fe5db2be37d533a094a4c1d9beb49afcd4ab9f7c807b90c9ac13b17788ba7",
+      "nodes": 4,
+      "outcomes": {
+        "ok": 4,
+        "skipped": 0,
+        "FAIL": 0,
+        "ERROR": 0
+      }
+    }
+  ],
+  "applicable_outcomes": {
+    "ok": 125,
+    "skipped": 11,
+    "FAIL": 0,
+    "ERROR": 0
+  },
+  "remaining_skipped": [
+    "test_guard_lifecycle.LifecycleTests.test_external_sigterm_process",
+    "test_linux_acceptance.AcceptanceBoundaryTests.test_shared_lease_same_inode_and_nonblocking_contention",
+    "test_nas_a2_followup_probe.NasA2FollowupBudgetTests.test_followup_vector_config_pins_full_buffer_and_unique_stream",
+    "test_nas_a2_followup_probe.NasA2FollowupBudgetTests.test_scope_archive_verifies_source_before_unmount",
+    "test_nas_a2_probe.NasA2LinuxOutputBoundaryTests.test_archive_output_refuses_swapped_parent",
+    "test_nas_a2_probe.NasA2LinuxOutputBoundaryTests.test_bound_loki_config_keeps_inode_across_mode_switch",
+    "test_nas_a2_probe.NasA2LinuxOutputBoundaryTests.test_checkpoint_and_final_report_refuse_swapped_parent",
+    "test_nas_a2_probe.NasA2LinuxOutputBoundaryTests.test_log_output_refuses_swapped_parent",
+    "test_nas_a2_probe.NasA2LinuxOutputBoundaryTests.test_open_parent_fd_stays_on_original_directory_after_swap",
+    "test_nas_a2_probe.NasA2OwnedContainerTests.test_existing_linked_output_file_is_rejected_before_write_or_append",
+    "test_nas_a2_probe.NasA2OwnedContainerTests.test_valid_scope_subdirectories_are_created_inside_root"
+  ],
+  "first_new_storage_tests": "Four passed, two Windows temporary DB handle cleanup errors. Test connections now explicitly close; subsequent six passed. Original result retained in tool history.",
+  "contract": "C:/YOKI/Codex/tianshu-peiban-bot/contracts/diagnostics/v1",
+  "limits": [
+    "Windows only; POSIX SIGTERM/flock/directory-fd probes remain skipped.",
+    "No Linux image, actual Loki/Vector/Grafana runtime, NAS, production migration, QQ or real model execution.",
+    "Synthetic performance timings do not prove end-to-end resource savings."
+  ]
+}

@@ -4,7 +4,8 @@ import shutil
 import sqlite3
 import time
 
-from policy import digest, segments
+from ledger_schema import initialize
+from policy import digest_bytes, segments
 
 
 class Ledger:
@@ -13,14 +14,11 @@ class Ledger:
         self.db = sqlite3.connect(path)
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("PRAGMA synchronous=FULL")
-        self.db.executescript("""
-            CREATE TABLE IF NOT EXISTS files (name TEXT PRIMARY KEY, identity TEXT, offset INTEGER);
-            CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, service TEXT, instance TEXT,
-                sequence INTEGER, hash TEXT, first_seen REAL, verified REAL DEFAULT 0, last_checked REAL DEFAULT 0);
-            CREATE INDEX IF NOT EXISTS event_pending ON events(verified, last_checked, first_seen);
-            CREATE UNIQUE INDEX IF NOT EXISTS event_sequence ON events(service,instance,sequence);
-            CREATE TABLE IF NOT EXISTS counters (name TEXT PRIMARY KEY, value INTEGER);
-        """)
+        try:
+            initialize(self.db)
+        except BaseException:
+            self.db.close()
+            raise
 
     def count(self, name, amount=1):
         self.db.execute(
@@ -29,7 +27,9 @@ class Ledger:
         )
 
     def scan(self, roots, line_budget=20000):
-        partial, count = 0, self.db.execute("SELECT count(*) FROM events").fetchone()[0]
+        partial, count = 0, self.db.execute(
+            "SELECT landed FROM totals WHERE singleton=1"
+        ).fetchone()[0]
         with self.db:
             for service, root in roots.items():
                 for path in segments(root):
@@ -94,7 +94,7 @@ class Ledger:
                                 ).fetchone()
                                 if old:
                                     self.count("source_duplicates")
-                                    if old[0] != digest(event):
+                                    if old[0] != digest_bytes(event):
                                         self.count("identity_conflicts")
                                 else:
                                     try:
@@ -105,7 +105,7 @@ class Ledger:
                                                 event["service"],
                                                 event["instance_id"],
                                                 event["sequence"],
-                                                digest(event),
+                                                digest_bytes(event),
                                                 time.time(),
                                             ),
                                         )
@@ -162,7 +162,7 @@ class Ledger:
                 try:
                     event = self.policy.line(line.encode() + b"\n")
                     ident = event["event_id"]
-                    if ident not in expected or digest(event) != expected[ident]:
+                    if ident not in expected or digest_bytes(event) != expected[ident]:
                         self.count("retrieval_conflicts")
                     else:
                         if ident in seen:
@@ -179,16 +179,19 @@ class Ledger:
             )
 
     def metrics(self):
-        total, pending, oldest = self.db.execute(
-            "SELECT count(*),sum(verified=0),min(CASE WHEN verified=0 THEN first_seen END) FROM events"
+        total, pending = self.db.execute(
+            "SELECT landed,pending FROM totals WHERE singleton=1"
+        ).fetchone()
+        oldest = self.db.execute(
+            "SELECT first_seen FROM events WHERE verified=0 ORDER BY first_seen LIMIT 1"
         ).fetchone()
         gaps = self.db.execute(
-            "SELECT coalesce(sum(gaps),0) FROM (SELECT max(sequence)-count(*) AS gaps FROM events GROUP BY service,instance)"
+            "SELECT coalesce(sum(maximum-landed),0) FROM streams"
         ).fetchone()[0]
         return {
             "landed_events": total,
             "pending_events": pending or 0,
-            "oldest_pending_seconds": time.time() - oldest if oldest else 0,
+            "oldest_pending_seconds": time.time() - oldest[0] if oldest else 0,
             "sequence_gaps": gaps,
             **{
                 name + "_total": value

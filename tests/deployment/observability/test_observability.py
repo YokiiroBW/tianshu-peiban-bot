@@ -369,6 +369,7 @@ class ConfigurationTests(WorkspaceTest):
         )
         generated = json.loads((bundle / "compose.yaml").read_bytes())
         self.assertTrue((bundle / "code/transport.py").is_file())
+        self.assertTrue((bundle / "code/ledger_schema.py").is_file())
         self.assertEqual(len(generated["services"]), 5)
         self.assertFalse(generated["networks"]["access"]["internal"])
         self.assertTrue(generated["networks"]["observe"]["internal"])

@@ -271,6 +271,7 @@ class Binding:
             "query.py",
             "transport.py",
             "monitor.py",
+            "ledger_schema.py",
             "policy.py",
             "alerts.py",
         ):

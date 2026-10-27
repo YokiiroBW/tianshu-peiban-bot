@@ -217,6 +217,7 @@ def prepare(root, settings, manifest, output_relative, snapshot, candidate=False
         "guard.py",
         "guard_lifecycle.py",
         "monitor.py",
+        "ledger_schema.py",
         "policy.py",
         "query.py",
         "transport.py",
