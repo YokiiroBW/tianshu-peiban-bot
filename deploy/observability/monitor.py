@@ -235,7 +235,10 @@ class Ledger:
     def reconcile(self, client, retention_seconds=30 * 86400, batch=128):
         now = time.time()
         pending = self.db.execute(
-            "SELECT id,hash FROM events WHERE verified=0 ORDER BY last_checked,first_seen LIMIT ?",
+            # Compare a never-checked event's first_seen with the last real
+            # check of an unmatched event, so continuous backfill cannot starve it.
+            "SELECT id,hash FROM events WHERE verified=0 "
+            "ORDER BY CASE WHEN last_checked=0 THEN first_seen ELSE last_checked END,first_seen LIMIT ?",
             (max(1, batch // 2),),
         ).fetchall()
         # A prior query hit is not permanent proof. Revisit confirmed events while

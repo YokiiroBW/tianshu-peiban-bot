@@ -269,13 +269,15 @@ class StorageTests(unittest.TestCase):
         second_query = client.range.call_args.args[0]
         self.assertTrue(all(record["event_id"] in second_query for record in records[4:]))
         for sql, parameters, name in (
-            ("SELECT id FROM events WHERE verified=0 ORDER BY last_checked,first_seen LIMIT ?", (2,), "event_pending"),
+            ("SELECT id FROM events WHERE verified=0 ORDER BY CASE WHEN last_checked=0 THEN first_seen ELSE last_checked END,first_seen LIMIT ?", (2,), "event_pending"),
             ("SELECT id FROM events WHERE verified>0 AND last_checked<? AND first_seen>? ORDER BY last_checked LIMIT ?", (now - 3600, now - 2592000, 2), "event_confirmed"),
             ("SELECT first_seen FROM events WHERE verified=0 ORDER BY first_seen LIMIT 1", (), "event_pending_age"),
         ):
             plan = " ".join(row[-1] for row in ledger.db.execute("EXPLAIN QUERY PLAN " + sql, parameters))
             self.assertIn(name, plan)
-            self.assertNotIn("TEMP B-TREE", plan)
+            # Pending priority is an age expression over at most the retention cap.
+            if name != "event_pending":
+                self.assertNotIn("TEMP B-TREE", plan)
 
     def test_full_reconcile_batch_uses_one_complete_page_and_keeps_integrity(self):
         for count, case in ((1000, "complete"), (1024, "complete"),
@@ -329,6 +331,109 @@ class StorageTests(unittest.TestCase):
                     self.assertEqual(calls, [count + 1])
                     self.assertEqual(ledger.metrics()["pending_events"],
                                      2 if case == "missing_changed" else 0)
+
+
+    def _pending_age_fixture(self, *, count=3, checked=1):
+        records = [event(index) for index in range(1, count + 1)]
+        emit(self.root / "fairness.jsonl", records)
+        ledger = self.open()
+        ledger.scan({"platform": self.root})
+        now = time.time()
+        with ledger.db:
+            ledger.db.execute(
+                "UPDATE events SET first_seen=?+sequence*0.000001,last_checked=0",
+                (now - 100,),
+            )
+            ledger.db.execute(
+                "UPDATE events SET first_seen=?,last_checked=? WHERE sequence<=?",
+                (now - 3000, now - 2000, checked),
+            )
+        return ledger, records, now
+
+    def test_checked_pending_is_revisited_amid_a_full_cap_of_new_unchecked_events(self):
+        ledger, records, now = self._pending_age_fixture(count=10000, checked=83)
+        client = Mock()
+
+        def available(selector, start, end, **kwargs):
+            return [
+                (int(now * 1e9), canonical(record).decode())
+                for record in records
+                if record["event_id"] in selector
+            ]
+
+        client.range.side_effect = available
+        with patch("monitor.time.time", return_value=now):
+            ledger.reconcile(client, batch=1024)
+        selector = client.range.call_args.args[0]
+        self.assertEqual(sum(record["event_id"] in selector for record in records), 512)
+        self.assertTrue(all(record["event_id"] in selector for record in records[:83]))
+        self.assertEqual(
+            ledger.db.execute(
+                "SELECT count(*) FROM events WHERE sequence<=83 AND verified>0 AND last_checked=?",
+                (now,),
+            ).fetchone()[0],
+            83,
+        )
+        self.assertEqual(
+            (ledger.metrics()["landed_events"], ledger.metrics()["pending_events"]),
+            (10000, 10000 - 512),
+        )
+        self.assertEqual(client.range.call_args.kwargs["limit"], 1000)
+
+    def test_unmatched_checked_pending_requeues_behind_new_events_then_retries(self):
+        ledger, records, now = self._pending_age_fixture()
+        old, first, second = records
+        available_ids = {first["event_id"], second["event_id"]}
+        client = Mock()
+
+        def available(selector, start, end, **kwargs):
+            return [
+                (int(now * 1e9), canonical(record).decode())
+                for record in records
+                if record["event_id"] in selector and record["event_id"] in available_ids
+            ]
+
+        client.range.side_effect = available
+        for step, expected in enumerate((old, first, second, old)):
+            if step == 3:
+                available_ids.add(old["event_id"])
+            with patch("monitor.time.time", return_value=now + step):
+                ledger.reconcile(client, batch=2)
+            selector = client.range.call_args.args[0]
+            self.assertEqual(
+                [record["event_id"] for record in records if record["event_id"] in selector],
+                [expected["event_id"]],
+            )
+            if step == 0:
+                self.assertEqual(
+                    ledger.db.execute(
+                        "SELECT verified,last_checked FROM events WHERE id=?", (old["event_id"],)
+                    ).fetchone(),
+                    (0, now),
+                )
+        self.assertEqual(ledger.metrics()["pending_events"], 0)
+        self.assertEqual(
+            ledger.db.execute("SELECT last_checked FROM events WHERE id=?", (old["event_id"],)).fetchone()[0],
+            now + 3,
+        )
+
+    def test_query_error_does_not_change_fairness_evidence_or_claim_verification(self):
+        ledger, records, now = self._pending_age_fixture()
+        before = ledger.db.execute(
+            "SELECT id,first_seen,verified,last_checked,collected FROM events ORDER BY sequence"
+        ).fetchall()
+        client = Mock()
+        client.range.side_effect = QueryError("query_deadline_exceeded")
+        with patch("monitor.time.time", return_value=now):
+            with self.assertRaisesRegex(QueryError, "query_deadline_exceeded"):
+                ledger.reconcile(client, batch=2)
+        self.assertIn(records[0]["event_id"], client.range.call_args.args[0])
+        self.assertEqual(
+            ledger.db.execute(
+                "SELECT id,first_seen,verified,last_checked,collected FROM events ORDER BY sequence"
+            ).fetchall(),
+            before,
+        )
 
 
 if __name__ == "__main__":
