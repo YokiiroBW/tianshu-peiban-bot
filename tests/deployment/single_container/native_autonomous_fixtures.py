@@ -36,6 +36,12 @@ OPERATIONS = [
     "withdraw_episode",
     "withdraw_memory",
     "apply_source_revision",
+    "interests",
+    "manage_list",
+    "memory_impact",
+    "revise_memory",
+    "forget_memory",
+    "maintain",
 ]
 
 

@@ -60,6 +60,7 @@ async def timeline_checks(host):
             if r["id"].startswith(SOURCE_PREFIX)
             and r.get("actor_id") == ACTOR
             and r.get("state") == "current"
+            and r.get("source", {}).get("object_id", "").startswith("reading-evidence:")
             and not r["fact"]["content_reads"]
         ]
         require(bool(rows), "original actual reading leaf is available")
@@ -274,7 +275,7 @@ async def knowledge_checks(host, helper, state, sources, diary_evidence, provide
     )
 
 
-async def run(options):
+async def run(options, *, before_knowledge=None, after_checks=None):
     sources_holder = {}
     original_provider = base.provider_fixture
 
@@ -330,6 +331,8 @@ async def run(options):
         from native_al13_diaries import private_diary
 
         al13["private_diary"] = await private_diary(host, al13["timeline"])
+        if before_knowledge is not None:
+            al13["core_completion"] = await before_knowledge(host, helper, state)
         al13["knowledge"] = await knowledge_checks(
             host,
             helper,
@@ -338,6 +341,8 @@ async def run(options):
             al13["private_diary"],
             sources_holder["provider"],
         )
+        if after_checks is not None:
+            al13["core_completion"] = await after_checks(host, helper, state)
         al13["ok"] = True
         return {"al13": al13, "multimedia_repeated": False}
 

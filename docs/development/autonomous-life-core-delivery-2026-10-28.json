@@ -1,0 +1,347 @@
+{
+  "schema_version": 1,
+  "scope": "AL01-13/16/17 current non-external core; AL14/15 deferred",
+  "state": "local_integrated_native_verified_release_in_progress",
+  "products": {
+    "memory": {
+      "runtime": "a2c539d88ec21b56daab724f38a227615936da5b",
+      "integrated": "0f1dbecbdc921b1b047412f916cbe51f13b389fc"
+    },
+    "companion": {
+      "runtime": "38c99b1e0b8586fa7e73a43b6dbe38cc2c4a14ee",
+      "integrated": "38c99b1e0b8586fa7e73a43b6dbe38cc2c4a14ee"
+    },
+    "platform": {
+      "runtime": "522c2c8cf6801b52cf3b72cdb1ea0ce5b86de642",
+      "integrated": "522c2c8cf6801b52cf3b72cdb1ea0ce5b86de642"
+    }
+  },
+  "candidate_inputs": {
+    "base_image": "sha256:f1d30d60e0b6afe43c0ae6a2cd9a24a01b7bbb47cd06c9fe7a71f6c06bc75288",
+    "coordination_commit": "ce7c723bbad865df29c62383c6ad201919d1f9fe",
+    "products": {
+      "memory": {
+        "commit": "a2c539d88ec21b56daab724f38a227615936da5b",
+        "archive_sha256": "eb5633bd0c787f5b0fc6d3c5f53ae2c080bd40a4e7b8b72affb6606ba1effb90",
+        "wheel": "tianshu_memory-0.1.0-py3-none-any.whl",
+        "wheel_sha256": "3d1f67d047e81a553e6b80ff5bb2b3fc21adbb3a583bae062c6380e8ca4fc50b",
+        "runtime_metadata_equal_R15": true
+      },
+      "companion": {
+        "commit": "38c99b1e0b8586fa7e73a43b6dbe38cc2c4a14ee",
+        "archive_sha256": "5fee4ab5f74ed234da991c0e0af3d9b28cd9670cc947c3e768155c128981530b",
+        "wheel": "tianshu_companion-0.1.0-py3-none-any.whl",
+        "wheel_sha256": "f1ed5a99f246d9c029e6df3c5664244c80808829bddc73b489ab7bbf34068a15",
+        "runtime_metadata_equal_R15": true
+      },
+      "platform": {
+        "commit": "522c2c8cf6801b52cf3b72cdb1ea0ce5b86de642",
+        "archive_sha256": "b5fe66c14f9198eb0e223135adbfe8750c91e4b48fdf886fec8d9c88b63c2105",
+        "wheel": "tianshu_platform_backend-0.1.0-py3-none-any.whl",
+        "wheel_sha256": "09e22c341320ef779c3cc51cf8dd0cbb4f5fdcab20b17a42944484950ac0f3a4",
+        "runtime_metadata_equal_R15": true
+      }
+    },
+    "build_tools": {
+      "setuptools": "80.9.0",
+      "wheel": "0.45.1"
+    },
+    "runtime_dependency_resolution": false
+  },
+  "native_evidence_index": [
+    {
+      "file": "sqlite-core--installed-candidates.json",
+      "sha256": "7693aa4e217de6acf0076e1ebf9257921d14a0b45ade91397891d8a4f8b09336",
+      "bytes": 1177
+    },
+    {
+      "file": "sqlite-core--core--native-al-core-validation.json",
+      "sha256": "ea5b6f02d387107cd2ca2e90fa084134251f09b19773111735da30a72cefb27a",
+      "bytes": 7827
+    },
+    {
+      "file": "sqlite-core--core--native-al13-validation.json",
+      "sha256": "2076deb30fa5e88c5bedb8da07b121581ab726b98dd0c55de7a36ed37b3b0f9d",
+      "bytes": 87819
+    },
+    {
+      "file": "sqlite-core--core--native-autonomous-validation.json",
+      "sha256": "d6c15a1b8a022217fb70364d05d8bbae844688539dea0710af603f3fe88a14f4",
+      "bytes": 243388
+    },
+    {
+      "file": "sqlite-core--migration--native-al-core-migration.json",
+      "sha256": "9c84e61c9e40b95933848af3201deb38af6d5da6ca3685fbddfc60a80b5f0b03",
+      "bytes": 628
+    },
+    {
+      "file": "pg-core--installed-candidates.json",
+      "sha256": "7693aa4e217de6acf0076e1ebf9257921d14a0b45ade91397891d8a4f8b09336",
+      "bytes": 1177
+    },
+    {
+      "file": "pg-core--core--native-al-core-validation.json",
+      "sha256": "41d81d5c518d2b44c1b8cd94c2bf402740a2757a4573ef92bf816d82001edd4b",
+      "bytes": 9341
+    },
+    {
+      "file": "pg-core--core--native-al13-validation.json",
+      "sha256": "f06ff3e3dd91734c1a48951a0d5cdd10d0c7cd11b694d3934e16b00a0fcd0f22",
+      "bytes": 89365
+    },
+    {
+      "file": "pg-core--core--native-autonomous-validation.json",
+      "sha256": "7c73acca0b9be207b5a3f561afe77048a2157e8bed6fa828a148ba08fa5e76b2",
+      "bytes": 248761
+    },
+    {
+      "file": "pg-core--migration--native-al-core-migration.json",
+      "sha256": "10fb0f1d26adafb65f4f389eff082a7e43ea57440134e4fd3889a5f109144b7b",
+      "bytes": 633
+    },
+    {
+      "file": "sqlite-scope--installed-candidates.json",
+      "sha256": "7693aa4e217de6acf0076e1ebf9257921d14a0b45ade91397891d8a4f8b09336",
+      "bytes": 1177
+    },
+    {
+      "file": "sqlite-scope--scope--native-al13-scope-validation.json",
+      "sha256": "6ee3b9b258a01493ef7c71d89efbd57463a1a54c988f28e6a28f4c13c2f346e1",
+      "bytes": 148985
+    },
+    {
+      "file": "pg-scope--installed-candidates.json",
+      "sha256": "7693aa4e217de6acf0076e1ebf9257921d14a0b45ade91397891d8a4f8b09336",
+      "bytes": 1177
+    },
+    {
+      "file": "pg-scope--scope--native-al13-scope-validation.json",
+      "sha256": "cd757882fb587a6b92a3ed12c5b9011d631d0a04b6e4e345bd692d948b279f18",
+      "bytes": 152777
+    },
+    {
+      "file": "sqlite-load-r2--installed-candidates.json",
+      "sha256": "7693aa4e217de6acf0076e1ebf9257921d14a0b45ade91397891d8a4f8b09336",
+      "bytes": 1177
+    },
+    {
+      "file": "sqlite-load-r2--load--native-al-core-load-validation.json",
+      "sha256": "b8e108a3f71afcb7500492285eb61a2c80214308af5f529cb0c4660094d3414d",
+      "bytes": 67321
+    },
+    {
+      "file": "pg-load--installed-candidates.json",
+      "sha256": "7693aa4e217de6acf0076e1ebf9257921d14a0b45ade91397891d8a4f8b09336",
+      "bytes": 1177
+    },
+    {
+      "file": "pg-load--load--native-al-core-load-validation.json",
+      "sha256": "6c62fa42bbddde3b57477de2fc723313ebab77c39970a2ea605aebd4d1f58f47",
+      "bytes": 71018
+    }
+  ],
+  "frontend": {
+    "producer_source_commit": "522c2c8cf6801b52cf3b72cdb1ea0ce5b86de642",
+    "release_platform_commit": "522c2c8cf6801b52cf3b72cdb1ea0ce5b86de642",
+    "source_inputs_match": true,
+    "manifest_sha256": "74c927b20c5aaf4d9461109850f239bd0262dc21ba5104713ce143f0c7bd5c67",
+    "inputs_sha256": "9e107b1315712b53bbfded6dfd9681617f2a41a19a86932c79578b6d08d66374",
+    "files_sha256": "17d4e3ba2687db41ebe812b3a5f654ce731ef9b2d269df80ea09c6f388f66d69",
+    "node_version": "v24.19.0",
+    "npm_version": "11.19.0",
+    "target": "/srv/tianshu/web"
+  },
+  "native": {
+    "sqlite-core": {
+      "ok": true,
+      "actor_schema": 3,
+      "user_tables_unchanged_before_after": 71,
+      "actual_interest_history": true,
+      "current_and_replaced_bodies_erased": true,
+      "late_old_basis_blocked": true,
+      "idle_cursor_preserved": true,
+      "actual_R15_schema2_to3_migration": {
+        "ok": true,
+        "backend": "sqlite",
+        "actual_released_schema": 2,
+        "candidate_schema": 3,
+        "explicit_backup_seven_tables": 7,
+        "snapshot_exact": true,
+        "old_negative_bodies_erased": true,
+        "active_bodies_preserved": true,
+        "rebuilt_index_terms": 8,
+        "actor_instance_preserved": true,
+        "sqlite_user_source_path_never_created": true,
+        "postgres_user_source_creation_checked": null,
+        "backup_bytes": 3660,
+        "backup_sha256": "8ad2acf718c29c0b629202e1b73db1ed05f2bd7fa7f0390b143ebaa2255d02ba",
+        "limitations": "Structural synthetic rows; this does not certify their source authority or restore later suppressions."
+      },
+      "core_receipt_sha256": "ea5b6f02d387107cd2ca2e90fa084134251f09b19773111735da30a72cefb27a"
+    },
+    "pg-core": {
+      "ok": true,
+      "actor_schema": 3,
+      "user_tables_unchanged_before_after": 87,
+      "actual_interest_history": true,
+      "current_and_replaced_bodies_erased": true,
+      "late_old_basis_blocked": true,
+      "idle_cursor_preserved": true,
+      "actual_R15_schema2_to3_migration": {
+        "ok": true,
+        "backend": "postgresql",
+        "actual_released_schema": 2,
+        "candidate_schema": 3,
+        "explicit_backup_seven_tables": 7,
+        "snapshot_exact": true,
+        "old_negative_bodies_erased": true,
+        "active_bodies_preserved": true,
+        "rebuilt_index_terms": 8,
+        "actor_instance_preserved": true,
+        "sqlite_user_source_path_never_created": true,
+        "postgres_user_source_creation_checked": false,
+        "backup_bytes": 3664,
+        "backup_sha256": "9dfc894c159f169d1af8efc5788e7457c176401e12936cd63b6bb2c56a912f1a",
+        "limitations": "Structural synthetic rows; this does not certify their source authority or restore later suppressions."
+      },
+      "core_receipt_sha256": "41d81d5c518d2b44c1b8cd94c2bf402740a2757a4573ef92bf816d82001edd4b"
+    },
+    "sqlite-scope": {
+      "ok": true,
+      "checks": [
+        "selected_skill_configuration",
+        "web_memory",
+        "ordinary_actor_skill",
+        "scope_diary",
+        "withdrawal"
+      ],
+      "receipt_sha256": "6ee3b9b258a01493ef7c71d89efbd57463a1a54c988f28e6a28f4c13c2f346e1"
+    },
+    "pg-scope": {
+      "ok": true,
+      "checks": [
+        "selected_skill_configuration",
+        "web_memory",
+        "ordinary_actor_skill",
+        "scope_diary",
+        "withdrawal"
+      ],
+      "receipt_sha256": "cd757882fb587a6b92a3ed12c5b9011d631d0a04b6e4e345bd692d948b279f18"
+    }
+  },
+  "load": {
+    "sqlite-load-r2": {
+      "ok": true,
+      "samples_per_mode": 3,
+      "modes": [
+        {
+          "mode": "no_background",
+          "successes": 3,
+          "errors": 0,
+          "minimum_ms": 123.03,
+          "median_ms": 126.507,
+          "maximum_ms": 129.446
+        },
+        {
+          "mode": "bounded_autonomy",
+          "successes": 3,
+          "errors": 0,
+          "minimum_ms": 119.109,
+          "median_ms": 120.475,
+          "maximum_ms": 133.587
+        },
+        {
+          "mode": "paused",
+          "successes": 3,
+          "errors": 0,
+          "minimum_ms": 121.323,
+          "median_ms": 123.158,
+          "maximum_ms": 135.094
+        }
+      ],
+      "active_overlap_confirmed": true,
+      "paused_drained": true,
+      "no_background_drained": true
+    },
+    "pg-load": {
+      "ok": true,
+      "samples_per_mode": 3,
+      "modes": [
+        {
+          "mode": "no_background",
+          "successes": 3,
+          "errors": 0,
+          "minimum_ms": 179.451,
+          "median_ms": 192.045,
+          "maximum_ms": 197.317
+        },
+        {
+          "mode": "bounded_autonomy",
+          "successes": 3,
+          "errors": 0,
+          "minimum_ms": 171.472,
+          "median_ms": 177.522,
+          "maximum_ms": 177.778
+        },
+        {
+          "mode": "paused",
+          "successes": 3,
+          "errors": 0,
+          "minimum_ms": 175.104,
+          "median_ms": 185.215,
+          "maximum_ms": 199.377
+        }
+      ],
+      "active_overlap_confirmed": true,
+      "paused_drained": true,
+      "no_background_drained": true
+    }
+  },
+  "component": {
+    "memory": {
+      "applicable_actor_nodes": 74,
+      "full_snapshot": {
+        "passed": 3869,
+        "failed": 4,
+        "skipped": 393,
+        "final_exact_sha_full_run_claimed": false,
+        "failures_reproduced_at_exact_baseline": true
+      },
+      "handoff": "projects/tianshu-memory/docs/handoffs/TS-394.md"
+    },
+    "companion": {
+      "final_targeted": 113,
+      "late_source_settlement_targeted": 34,
+      "counts_may_overlap": true,
+      "full_snapshot": {
+        "passed": 1812,
+        "failed": 3,
+        "skipped": 55,
+        "subtests_passed": 451,
+        "baseline_failures": 2,
+        "environment_node_subsequently_passed": 1,
+        "final_exact_sha_full_run_claimed": false
+      },
+      "handoff": "projects/tianshu-companion/docs/handoffs/TS-395.md"
+    },
+    "platform": {
+      "real_session_http_components": "original Cookie/CSRF/current operator/current role; synthetic Memory peer",
+      "browser": "desktop and mobile actual UI using declared service fixtures",
+      "handoff": "projects/tianshu-platform/docs/handoffs/TS-396.md"
+    }
+  },
+  "known_failed_attempts": [
+    "candidate1 SQLite fixture used reading after original AL13 withdrawal; migration itself passed",
+    "first load script upload had mode0600; no application executed; runtime UID read fixed to0644",
+    "Docker build first attempt used unavailable --cpus flag; second hit exclusive old log name; production remained unchanged; subsequent bounded build uses actual CLI quota flags"
+  ],
+  "limitations": [
+    "No real QQ/account/paid-model acceptance; existing user deferrals retained",
+    "No natural-language model quality or autonomous tool-choice claim from a recorded provider",
+    "Management client/native owner HTTP joint does not exercise real production browser login; component browser guards have separate evidence",
+    "Foreground load is three samples per mode/backend, real user context query, not full chat latency, PG lock waits or a statistical guarantee",
+    "User table fingerprints compare before/after stable state, not proof of every transient write",
+    "Forgetting erases current actor body/history/index; user originals, Knowledge originals, backups/WAL not claimed physically erased",
+    "1-2 weeks of real continuous operation remains pending actual time; no automation created"
+  ]
+}

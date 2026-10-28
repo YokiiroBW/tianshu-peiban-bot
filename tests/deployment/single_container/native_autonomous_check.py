@@ -318,7 +318,10 @@ async def run(options):
             concern["state"] == "completed", "goal completion follows actual activity"
         )
         delivered = [
-            row for row in current["outbox"] if row["state"] == "actor_memory_delivered"
+            row
+            for row in current["outbox"]
+            if row["state"] == "actor_memory_delivered"
+            and row.get("event", {}).get("kind") == "actor_read_observed"
         ]
         require(
             len(delivered) == 1 and delivered[0].get("receipt"),
