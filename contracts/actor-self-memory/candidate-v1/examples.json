@@ -860,6 +860,143 @@
           "kind": "public"
         }
       }
+    },
+    {
+      "id": "core-positive-1",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:394",
+        "actor_id": "actor:a",
+        "role_version": 1,
+        "operation": "interests",
+        "context": {
+          "purpose": "management",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "limit": 32,
+        "budget_bytes": 32768
+      }
+    },
+    {
+      "id": "core-positive-2",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:394",
+        "actor_id": "actor:a",
+        "role_version": 1,
+        "operation": "manage_list",
+        "context": {
+          "purpose": "management",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "states": [
+          "active",
+          "superseded"
+        ],
+        "kinds": [
+          "episode",
+          "preference"
+        ],
+        "cursor": null,
+        "limit": 32,
+        "budget_bytes": 32768
+      }
+    },
+    {
+      "id": "core-positive-3",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:394",
+        "actor_id": "actor:a",
+        "role_version": 1,
+        "operation": "memory_impact",
+        "context": {
+          "purpose": "management",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "ref": {
+          "kind": "derived",
+          "id": "derived:one",
+          "revision": 1
+        }
+      }
+    },
+    {
+      "id": "core-positive-4",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:394",
+        "actor_id": "actor:a",
+        "role_version": 1,
+        "operation": "revise_memory",
+        "context": {
+          "purpose": "management",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "idempotency_key": "correct:one",
+        "ref": {
+          "kind": "derived",
+          "id": "derived:one",
+          "revision": 1
+        },
+        "expected_domain_version": 3,
+        "text": "I now prefer quiet music.",
+        "importance": "high",
+        "retention": "long",
+        "interest": {
+          "topic": "music",
+          "stance": "like"
+        }
+      }
+    },
+    {
+      "id": "core-positive-5",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:394",
+        "actor_id": "actor:a",
+        "role_version": 1,
+        "operation": "forget_memory",
+        "context": {
+          "purpose": "management",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "idempotency_key": "forget:one",
+        "ref": {
+          "kind": "derived",
+          "id": "derived:one",
+          "revision": 1
+        },
+        "expected_domain_version": 3
+      }
+    },
+    {
+      "id": "core-positive-6",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:394",
+        "actor_id": "actor:a",
+        "role_version": 1,
+        "operation": "maintain",
+        "idempotency_key": "maintenance:one",
+        "limit": 128
+      }
     }
   ],
   "negative": [
@@ -1848,6 +1985,103 @@
         "purpose": "dialogue",
         "audience": {
           "kind": "public"
+        }
+      }
+    },
+    {
+      "id": "core-negative-1",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:394",
+        "actor_id": "actor:a",
+        "role_version": 1,
+        "operation": "forget_memory",
+        "context": {
+          "purpose": "management",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "idempotency_key": "forget:one",
+        "ref": {
+          "kind": "derived",
+          "id": "derived:one",
+          "revision": 1
+        },
+        "expected_domain_version": -1
+      }
+    },
+    {
+      "id": "core-negative-2",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:394",
+        "actor_id": "actor:a",
+        "role_version": 1,
+        "operation": "manage_list",
+        "context": {
+          "purpose": "management",
+          "audience": {
+            "kind": "group",
+            "group_id": "group:a"
+          }
+        },
+        "states": [
+          "active",
+          "superseded"
+        ],
+        "kinds": [
+          "episode",
+          "preference"
+        ],
+        "cursor": null,
+        "limit": 32,
+        "budget_bytes": 32768
+      }
+    },
+    {
+      "id": "core-negative-3",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:394",
+        "actor_id": "actor:a",
+        "role_version": 1,
+        "operation": "maintain",
+        "idempotency_key": "maintenance:one",
+        "limit": 129
+      }
+    },
+    {
+      "id": "core-negative-4",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:394",
+        "actor_id": "actor:a",
+        "role_version": 1,
+        "operation": "revise_memory",
+        "context": {
+          "purpose": "management",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "idempotency_key": "correct:one",
+        "ref": {
+          "kind": "derived",
+          "id": "derived:one",
+          "revision": 1
+        },
+        "expected_domain_version": 3,
+        "text": "I now prefer quiet music.",
+        "importance": "high",
+        "retention": "long",
+        "interest": {
+          "topic": "music",
+          "stance": "guessed"
         }
       }
     }

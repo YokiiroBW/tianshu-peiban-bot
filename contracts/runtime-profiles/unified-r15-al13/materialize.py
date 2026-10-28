@@ -19,9 +19,10 @@ def safe(base, relative):
     return result
 
 
-def materialize(root, profile, output):
-    bundle = Path(__file__).resolve().parent
-    manifest = json.loads((bundle / "manifest.json").read_text(encoding="utf-8"))
+def materialize(root, profile, output, *, manifest_path=None):
+    manifest_path = manifest_path or Path(__file__).resolve().parent / "manifest.json"
+    bundle = manifest_path.resolve().parent
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     records = dict(manifest["common"])
     records.update(manifest["profiles"][profile])
     if output.exists() and (not output.is_dir() or any(output.iterdir())):
@@ -52,5 +53,6 @@ if __name__ == "__main__":
     parser.add_argument("--root", type=Path, required=True, help="Git coordination root containing contracts/")
     parser.add_argument("--profile", choices=("cp", "memory"), required=True)
     parser.add_argument("--output", type=Path, required=True, help="New or empty contracts directory")
+    parser.add_argument("--manifest", type=Path, help="Explicit later owner-profile manifest; defaults to this bundle")
     args = parser.parse_args()
-    print(json.dumps(materialize(args.root.resolve(), args.profile, args.output.resolve())))
+    print(json.dumps(materialize(args.root.resolve(), args.profile, args.output.resolve(), manifest_path=args.manifest)))

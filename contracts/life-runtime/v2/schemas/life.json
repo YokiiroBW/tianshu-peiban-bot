@@ -1611,7 +1611,8 @@
             "reading.close",
             "image.backend.configure",
             "proactive.subscription.state",
-            "actor.image-reference.configure"
+            "actor.image-reference.configure",
+            "actor-memory.import"
           ]
         },
         "expected_version": {
@@ -2110,6 +2111,24 @@
                 "operation",
                 "value"
               ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "actor-memory.import"
+                },
+                "expected_version": {
+                  "const": 0
+                },
+                "value": {
+                  "$ref": "#/$defs/actor_memory_import_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value",
+                "expected_version"
+              ]
             }
           ]
         }
@@ -2144,7 +2163,8 @@
             "reading",
             "image_backend",
             "image_jobs",
-            "image_reference"
+            "image_reference",
+            "autonomy"
           ]
         },
         "object_id": {
@@ -2403,6 +2423,25 @@
         },
         "content_ref": {
           "$ref": "#/$defs/content_ref"
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "imported": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32
+        },
+        "skipped": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32
+        },
+        "complete": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -2464,7 +2503,8 @@
             "reading.close",
             "image.backend.configure",
             "proactive.subscription.state",
-            "actor.image-reference.configure"
+            "actor.image-reference.configure",
+            "actor-memory.import"
           ]
         },
         "result": {
@@ -2497,6 +2537,60 @@
                 "required": [
                   "content_ref"
                 ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "actor-memory.import"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "result": {
+                "required": [
+                  "next_cursor",
+                  "imported",
+                  "skipped",
+                  "complete"
+                ]
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "result": {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "next_cursor"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "imported"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "skipped"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "complete"
+                      ]
+                    }
+                  ]
+                }
               }
             }
           }
@@ -3585,7 +3679,8 @@
             "reading",
             "image_backend",
             "image_jobs",
-            "image_reference"
+            "image_reference",
+            "autonomy"
           ]
         },
         "items": {
@@ -3856,6 +3951,24 @@
                     "$ref": "#/$defs/image_reference_record"
                   },
                   "maxItems": 50
+                }
+              },
+              "required": [
+                "resource",
+                "items"
+              ]
+            },
+            {
+              "properties": {
+                "resource": {
+                  "const": "autonomy"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/autonomy_record"
+                  },
+                  "maxItems": 1
                 }
               },
               "required": [
@@ -4394,6 +4507,176 @@
         "content_ref",
         "scope",
         "state"
+      ],
+      "additionalProperties": false
+    },
+    "autonomy_record": {
+      "type": "object",
+      "properties": {
+        "goal_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 4000
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 4000
+        },
+        "step_state": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        },
+        "error_code": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "state": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "next_due_at": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "updated_at": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "current_step": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "step": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "position": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "unit": {
+                  "enum": [
+                    "step",
+                    "characters",
+                    "seconds",
+                    "pages"
+                  ]
+                },
+                "note": {
+                  "type": "string",
+                  "maxLength": 2000
+                }
+              },
+              "required": [
+                "step",
+                "position",
+                "unit",
+                "note"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_ref"
+          },
+          "maxItems": 64
+        }
+      },
+      "required": [
+        "goal_id",
+        "title",
+        "reason",
+        "step_state",
+        "error_code",
+        "id",
+        "actor_id",
+        "version",
+        "enabled",
+        "state",
+        "next_due_at",
+        "updated_at",
+        "current_step",
+        "sources"
+      ],
+      "additionalProperties": false
+    },
+    "actor_memory_import_value": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "enum": [
+            "activities",
+            "writing",
+            "images",
+            "contacts"
+          ]
+        },
+        "after": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        }
+      },
+      "required": [
+        "owner",
+        "after",
+        "limit"
       ],
       "additionalProperties": false
     }

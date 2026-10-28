@@ -2250,6 +2250,143 @@
       "delivery_state": "local_integrated_joint_verified_not_pushed_not_deployed",
       "plan": "docs/development/autonomous-life-al13-execution-2026-10-28.md",
       "delivery_record": "docs/development/autonomous-life-al13-delivery-2026-10-28.json"
+    },
+    {
+      "id": "TS-394",
+      "project": "memory",
+      "title": "角色自身记忆完整生命周期与管理端口",
+      "status": "in_progress",
+      "depends_on": [
+        "TS-390"
+      ],
+      "allowed_paths": [
+        "src/tianshu_memory/actor_memory/",
+        "src/tianshu_memory/app.py (actor-only thin assembly)",
+        "tests/test_actor*",
+        "tests/test_runtime* (actor domain only)",
+        "docs/actor-memory.md",
+        "docs/handoffs/TS-394.md"
+      ],
+      "done_when": "本轮非外站核心范围实际交付并据声明边界验证，用户记忆逻辑保持；开发/集成/推送/部署/连续使用分别记录。",
+      "plan": "docs/development/autonomous-life-core-completion-2026-10-28.md",
+      "delivery_state": "isolated_implementation",
+      "assignee": "al_core_memory",
+      "worktree": null,
+      "external_worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-al-core-memory/tianshu-memory",
+      "branch": "codex/al-core-memory-20261028",
+      "baseline_commit": "9459711d9eb0d12a2b93a0041d62712e8794b021"
+    },
+    {
+      "id": "TS-395",
+      "project": "companion",
+      "title": "真实经历生产者生活恢复与角色记忆消费者收口",
+      "status": "in_progress",
+      "depends_on": [
+        "TS-391"
+      ],
+      "allowed_paths": [
+        "src/tianshu_companion/actor_memory.py",
+        "src/tianshu_companion/actor_*.py",
+        "src/tianshu_companion/life*.py",
+        "src/tianshu_companion/autonomous*.py",
+        "src/tianshu_companion/diary*.py",
+        "src/tianshu_companion/runtime*.py",
+        "src/tianshu_companion/proactive*.py",
+        "src/tianshu_companion/writing*.py",
+        "src/tianshu_companion/images*.py",
+        "src/tianshu_companion/image_*.py",
+        "src/tianshu_companion/delivery*.py",
+        "src/tianshu_companion/clients.py (actor-only port)",
+        "src/tianshu_companion/app.py (thin assembly)",
+        "src/tianshu_companion/skills/actor_memory.py",
+        "tests/ (affected features)",
+        "docs/handoffs/TS-395.md",
+        "src/tianshu_companion/participation.py",
+        "src/tianshu_companion/core.py (thin actor owner assembly)"
+      ],
+      "done_when": "本轮非外站核心范围实际交付并据声明边界验证，用户记忆逻辑保持；开发/集成/推送/部署/连续使用分别记录。",
+      "plan": "docs/development/autonomous-life-core-completion-2026-10-28.md",
+      "delivery_state": "isolated_implementation",
+      "assignee": "al_core_companion",
+      "worktree": null,
+      "external_worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-al-core-companion/tianshu-companion",
+      "branch": "codex/al-core-companion-20261028",
+      "baseline_commit": "bba45091f504a1534d52343134b0fa59f39cfdd1"
+    },
+    {
+      "id": "TS-396",
+      "project": "platform",
+      "title": "完整生活与角色自身记忆界面及原owner接线",
+      "status": "in_progress",
+      "depends_on": [
+        "TS-392"
+      ],
+      "allowed_paths": [
+        "services/platform/web_life_management.py",
+        "services/platform/web_people_life.py",
+        "services/platform/actor_memory_authority.py",
+        "services/platform/web_actor_memory.py (new)",
+        "services/platform/server.py (thin routes)",
+        "services/platform/contracts.py (exact pins only)",
+        "apps/web/src/features/life/",
+        "apps/web/src/features/memory/",
+        "apps/web/src/features/companion/ (original life workspace)",
+        "apps/web/src/features/settings/ (original lifecycle panel)",
+        "apps/web/src/app/ (thin existing route only)",
+        "tests/backend/ (affected features)",
+        "apps/web/tests/",
+        "apps/web/playwright*.ts (existing test assembly)",
+        "docs/handoffs/TS-396.md"
+      ],
+      "done_when": "本轮非外站核心范围实际交付并据声明边界验证，用户记忆逻辑保持；开发/集成/推送/部署/连续使用分别记录。",
+      "plan": "docs/development/autonomous-life-core-completion-2026-10-28.md",
+      "delivery_state": "isolated_implementation",
+      "assignee": "al_core_platform",
+      "worktree": null,
+      "external_worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-al-core-platform/tianshu-platform",
+      "branch": "codex/al-core-platform-20261028",
+      "baseline_commit": "da70adf28ea20f4bf913114896092c4ec101e9aa"
+    },
+    {
+      "id": "TS-397",
+      "project": "workspace",
+      "title": "非外站核心合同集成与集中隔离负载验收",
+      "status": "planned",
+      "depends_on": [
+        "TS-394",
+        "TS-395",
+        "TS-396"
+      ],
+      "allowed_paths": [
+        "contracts/",
+        "tests/deployment/single_container/",
+        "scripts/ (scoped verification only)",
+        "docs/development/",
+        "docs/handoffs/TS-397.md",
+        "docs/architecture/actor-self-memory-design-2026-10-23.md"
+      ],
+      "done_when": "本轮非外站核心范围实际交付并据声明边界验证，用户记忆逻辑保持；开发/集成/推送/部署/连续使用分别记录。",
+      "plan": "docs/development/autonomous-life-core-completion-2026-10-28.md",
+      "delivery_state": "not_started",
+      "assignee": "coordinator"
+    },
+    {
+      "id": "TS-398",
+      "project": "workspace",
+      "title": "非外站核心串行发布与实机验收",
+      "status": "planned",
+      "depends_on": [
+        "TS-397"
+      ],
+      "allowed_paths": [
+        "deploy/ (release metadata only)",
+        "docs/development/",
+        "docs/handoffs/TS-398.md"
+      ],
+      "done_when": "本轮非外站核心范围实际交付并据声明边界验证，用户记忆逻辑保持；开发/集成/推送/部署/连续使用分别记录。",
+      "plan": "docs/development/autonomous-life-core-completion-2026-10-28.md",
+      "delivery_state": "not_started",
+      "assignee": "coordinator"
     }
   ],
   "dispatch_defaults": {

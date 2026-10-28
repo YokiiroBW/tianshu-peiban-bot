@@ -505,7 +505,10 @@
             "withdraw_episode",
             "apply_source_revision",
             "append_derived",
-            "withdraw_memory"
+            "withdraw_memory",
+            "revise_memory",
+            "forget_memory",
+            "maintain"
           ]
         }
       }
@@ -634,6 +637,24 @@
         },
         {
           "$ref": "#/$defs/timeline"
+        },
+        {
+          "$ref": "#/$defs/interests"
+        },
+        {
+          "$ref": "#/$defs/manage_list"
+        },
+        {
+          "$ref": "#/$defs/memory_impact"
+        },
+        {
+          "$ref": "#/$defs/revise_memory"
+        },
+        {
+          "$ref": "#/$defs/forget_memory"
+        },
+        {
+          "$ref": "#/$defs/maintain"
         }
       ]
     },
@@ -1424,6 +1445,18 @@
         },
         {
           "$ref": "#/$defs/timeline_result"
+        },
+        {
+          "$ref": "#/$defs/interests_result"
+        },
+        {
+          "$ref": "#/$defs/manage_list_result"
+        },
+        {
+          "$ref": "#/$defs/memory_impact_result"
+        },
+        {
+          "$ref": "#/$defs/maintenance_receipt"
         }
       ]
     },
@@ -1640,8 +1673,27 @@
             "medium",
             "long"
           ]
+        },
+        "interest": {
+          "$ref": "#/$defs/interest"
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "interest"
+            ]
+          },
+          "then": {
+            "properties": {
+              "kind": {
+                "const": "preference"
+              }
+            }
+          }
+        }
+      ]
     },
     "query": {
       "type": "object",
@@ -2053,7 +2105,9 @@
         "command": {
           "enum": [
             "append_derived",
-            "withdraw_memory"
+            "withdraw_memory",
+            "revise_memory",
+            "forget_memory"
           ]
         },
         "idempotency_key": {
@@ -2304,6 +2358,962 @@
         },
         "fact": {
           "$ref": "#/$defs/source_fact"
+        }
+      }
+    },
+    "interest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "topic",
+        "stance"
+      ],
+      "properties": {
+        "topic": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "stance": {
+          "enum": [
+            "like",
+            "dislike",
+            "mixed",
+            "curious"
+          ]
+        }
+      }
+    },
+    "interests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "context",
+        "limit",
+        "budget_bytes"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "interests"
+        },
+        "context": {
+          "$ref": "#/$defs/context"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "budget_bytes": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 262144
+        }
+      }
+    },
+    "interest_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ref",
+        "kind",
+        "text",
+        "episode_refs",
+        "source_refs",
+        "recorded_at",
+        "expires_at",
+        "topic",
+        "stance",
+        "support_count",
+        "history",
+        "history_omitted"
+      ],
+      "properties": {
+        "ref": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/memory_ref"
+            },
+            {
+              "properties": {
+                "kind": {
+                  "const": "derived"
+                }
+              }
+            }
+          ]
+        },
+        "kind": {
+          "const": "preference"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "episode_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/episode_ref"
+          },
+          "minItems": 1,
+          "maxItems": 64
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_ref"
+          },
+          "minItems": 1,
+          "maxItems": 64
+        },
+        "recorded_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "expires_at": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "topic": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stance": {
+          "enum": [
+            "like",
+            "dislike",
+            "mixed",
+            "curious",
+            "unspecified"
+          ]
+        },
+        "support_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "ref",
+              "stance",
+              "state",
+              "recorded_at"
+            ],
+            "properties": {
+              "ref": {
+                "$ref": "#/$defs/memory_ref"
+              },
+              "stance": {
+                "enum": [
+                  "like",
+                  "dislike",
+                  "mixed",
+                  "curious",
+                  "unspecified"
+                ]
+              },
+              "state": {
+                "enum": [
+                  "active",
+                  "superseded",
+                  "expired",
+                  "withdrawn",
+                  "unavailable"
+                ]
+              },
+              "recorded_at": {
+                "$ref": "#/$defs/timestamp"
+              }
+            }
+          },
+          "minItems": 0,
+          "maxItems": 64
+        },
+        "history_omitted": {
+          "type": "boolean"
+        }
+      }
+    },
+    "interests_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "domain_version",
+        "checked_at",
+        "context",
+        "items",
+        "omitted"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "interests"
+        },
+        "domain_version": {
+          "$ref": "#/$defs/version"
+        },
+        "checked_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "context": {
+          "$ref": "#/$defs/context"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/interest_item"
+          },
+          "minItems": 0,
+          "maxItems": 64
+        },
+        "omitted": {
+          "type": "boolean"
+        }
+      }
+    },
+    "manage_list": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "context",
+        "states",
+        "kinds",
+        "cursor",
+        "limit",
+        "budget_bytes"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "manage_list"
+        },
+        "context": {
+          "const": {
+            "purpose": "management",
+            "audience": {
+              "kind": "actor_only"
+            }
+          }
+        },
+        "states": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "active",
+              "superseded",
+              "expired",
+              "withdrawn",
+              "unavailable"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 5
+        },
+        "kinds": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "episode",
+              "understanding",
+              "preference",
+              "reflection",
+              "autobiography"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 5
+        },
+        "cursor": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "budget_bytes": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 262144
+        }
+      }
+    },
+    "managed_memory_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ref",
+        "kind",
+        "state",
+        "text",
+        "episode_refs",
+        "source_refs",
+        "recorded_at",
+        "expires_at",
+        "importance",
+        "retention",
+        "interest",
+        "occurred_at",
+        "editable",
+        "forgotten"
+      ],
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/memory_ref"
+        },
+        "kind": {
+          "oneOf": [
+            {
+              "enum": [
+                "episode",
+                "understanding",
+                "preference",
+                "reflection",
+                "autobiography"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "enum": [
+            "active",
+            "superseded",
+            "expired",
+            "withdrawn",
+            "unavailable"
+          ]
+        },
+        "text": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "episode_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/episode_ref"
+          },
+          "minItems": 0,
+          "maxItems": 64
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_ref"
+          },
+          "minItems": 0,
+          "maxItems": 64
+        },
+        "recorded_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "expires_at": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "importance": {
+          "oneOf": [
+            {
+              "enum": [
+                "low",
+                "normal",
+                "high"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "retention": {
+          "oneOf": [
+            {
+              "enum": [
+                "short",
+                "medium",
+                "long"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "interest": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/interest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "occurred_at": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "editable": {
+          "type": "boolean"
+        },
+        "forgotten": {
+          "type": "boolean"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "forgotten": {
+                "const": true
+              }
+            },
+            "required": [
+              "forgotten"
+            ]
+          },
+          "then": {
+            "properties": {
+              "kind": {
+                "const": null
+              },
+              "text": {
+                "const": null
+              },
+              "importance": {
+                "const": null
+              },
+              "retention": {
+                "const": null
+              },
+              "interest": {
+                "const": null
+              },
+              "occurred_at": {
+                "const": null
+              },
+              "episode_refs": {
+                "maxItems": 0
+              },
+              "source_refs": {
+                "maxItems": 0
+              },
+              "editable": {
+                "const": false
+              }
+            }
+          }
+        }
+      ]
+    },
+    "manage_list_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "domain_version",
+        "checked_at",
+        "context",
+        "items",
+        "next_cursor",
+        "omitted"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "manage_list"
+        },
+        "domain_version": {
+          "$ref": "#/$defs/version"
+        },
+        "checked_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "context": {
+          "const": {
+            "purpose": "management",
+            "audience": {
+              "kind": "actor_only"
+            }
+          }
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/managed_memory_item"
+          },
+          "minItems": 0,
+          "maxItems": 64
+        },
+        "next_cursor": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "omitted": {
+          "type": "boolean"
+        }
+      }
+    },
+    "memory_impact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "context",
+        "ref"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "memory_impact"
+        },
+        "context": {
+          "const": {
+            "purpose": "management",
+            "audience": {
+              "kind": "actor_only"
+            }
+          }
+        },
+        "ref": {
+          "$ref": "#/$defs/memory_ref"
+        }
+      }
+    },
+    "memory_impact_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "domain_version",
+        "checked_at",
+        "context",
+        "ref",
+        "dependent_refs",
+        "source_refs",
+        "owner_originals_affected",
+        "can_revise",
+        "can_forget",
+        "omitted"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "memory_impact"
+        },
+        "domain_version": {
+          "$ref": "#/$defs/version"
+        },
+        "checked_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "context": {
+          "const": {
+            "purpose": "management",
+            "audience": {
+              "kind": "actor_only"
+            }
+          }
+        },
+        "ref": {
+          "$ref": "#/$defs/memory_ref"
+        },
+        "dependent_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/memory_ref"
+          },
+          "minItems": 0,
+          "maxItems": 4096
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_ref"
+          },
+          "minItems": 0,
+          "maxItems": 4096
+        },
+        "owner_originals_affected": {
+          "const": false
+        },
+        "can_revise": {
+          "type": "boolean"
+        },
+        "can_forget": {
+          "type": "boolean"
+        },
+        "omitted": {
+          "type": "boolean"
+        }
+      }
+    },
+    "revise_memory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "context",
+        "idempotency_key",
+        "ref",
+        "expected_domain_version",
+        "text",
+        "importance",
+        "retention"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "revise_memory"
+        },
+        "context": {
+          "const": {
+            "purpose": "management",
+            "audience": {
+              "kind": "actor_only"
+            }
+          }
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "ref": {
+          "$ref": "#/$defs/memory_ref"
+        },
+        "expected_domain_version": {
+          "$ref": "#/$defs/version"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "importance": {
+          "enum": [
+            "low",
+            "normal",
+            "high"
+          ]
+        },
+        "retention": {
+          "enum": [
+            "short",
+            "medium",
+            "long"
+          ]
+        },
+        "interest": {
+          "$ref": "#/$defs/interest"
+        }
+      }
+    },
+    "forget_memory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "context",
+        "idempotency_key",
+        "ref",
+        "expected_domain_version"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "forget_memory"
+        },
+        "context": {
+          "const": {
+            "purpose": "management",
+            "audience": {
+              "kind": "actor_only"
+            }
+          }
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "ref": {
+          "$ref": "#/$defs/memory_ref"
+        },
+        "expected_domain_version": {
+          "$ref": "#/$defs/version"
+        }
+      }
+    },
+    "maintain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "idempotency_key",
+        "limit"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "maintain"
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 128
+        }
+      }
+    },
+    "maintenance_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "command",
+        "idempotency_key",
+        "state",
+        "domain_version",
+        "expired_count",
+        "compressed_count",
+        "remaining"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "command": {
+          "const": "maintain"
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "state": {
+          "const": "accepted"
+        },
+        "domain_version": {
+          "$ref": "#/$defs/version"
+        },
+        "expired_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "compressed_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "remaining": {
+          "type": "boolean"
         }
       }
     }

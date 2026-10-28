@@ -1,0 +1,94 @@
+{
+  "positive": [
+    {
+      "definition": "read_request",
+      "document": {
+        "schema_version": 2,
+        "query": {
+          "schema_version": 1,
+          "request_id": "read:private",
+          "origin": {
+            "assertion_ref": "origin:sample"
+          }
+        },
+        "actor_id": "actor:sample",
+        "resource": "autonomy",
+        "object_id": null,
+        "expected_version": null,
+        "limit": 20,
+        "after": null,
+        "scope": null
+      }
+    },
+    {
+      "definition": "manage_request",
+      "document": {
+        "schema_version": 2,
+        "request_id": "core-import-fixture",
+        "actor_id": "actor:sample",
+        "operation": "actor-memory.import",
+        "expected_version": 0,
+        "value": {
+          "owner": "activities",
+          "after": null,
+          "limit": 16
+        }
+      }
+    },
+    {
+      "definition": "manage_response",
+      "document": {
+        "schema_version": 2,
+        "request_id": "core-import-fixture",
+        "actor_id": "actor:sample",
+        "operation": "actor-memory.import",
+        "result": {
+          "id": "core-import-fixture",
+          "version": 1,
+          "state": "completed",
+          "operation_ref": "core-import-fixture",
+          "next_cursor": null,
+          "imported": 1,
+          "skipped": 0,
+          "complete": true
+        }
+      }
+    }
+  ],
+  "negative": [
+    {
+      "definition": "manage_request",
+      "document": {
+        "schema_version": 2,
+        "request_id": "core-import-fixture",
+        "actor_id": "actor:sample",
+        "operation": "actor-memory.import",
+        "expected_version": 0,
+        "value": {
+          "owner": "activities",
+          "after": null,
+          "limit": 33
+        }
+      }
+    },
+    {
+      "definition": "manage_response",
+      "document": {
+        "schema_version": 2,
+        "request_id": "core-import-fixture",
+        "actor_id": "actor:sample",
+        "operation": "activity.pause",
+        "result": {
+          "id": "core-import-fixture",
+          "version": 1,
+          "state": "completed",
+          "operation_ref": "core-import-fixture",
+          "next_cursor": null,
+          "imported": 1,
+          "skipped": 0,
+          "complete": true
+        }
+      }
+    }
+  ]
+}

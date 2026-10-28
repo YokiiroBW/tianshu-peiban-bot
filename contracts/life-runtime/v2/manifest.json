@@ -1,7 +1,7 @@
 {
   "package": "life-runtime/v2",
-  "version": "2.0.0",
-  "status": "published_implementation_baseline",
+  "version": "2.1.0",
+  "status": "core_completion_isolated_candidate",
   "runtime_joint": "not_run",
   "real_external": "not_run",
   "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
@@ -20,7 +20,9 @@
     "examples/requests.json": "e58526436aa6c86a9ae9c0af2bead5b252e8a1e9f812fb8bf77ce14f24f73302",
     "examples/semantic-cases.json": "1b3e179731289c6e8ef142333dab9d146a4b353741270b19f32ffad5a5757981",
     "README.md": "0fa5e54db353836345deed1417e8a59ac95e330ad05f50dc2f570bf4eaa07db0",
-    "schemas/life.json": "16fda5aa360b9cf7c78143ef6e0a8fab22d0e2c0ab781f2c7625710571aebcc8"
+    "schemas/life.json": "5160368c14fa84d36e257ccb097b96f5b43dc9a91de974b4859d8bfe07054530",
+    "core-completion.md": "f5bd67c8b90b2503200349b91d87998d93db435c73daddbc7cf97d87a245ec51",
+    "examples/core-completion.json": "38c68efa2fbd2f024bceb075ec4f7a4b21a4ed38657ce91f8517920ef5f324bb"
   },
   "schema_examples_checked": {
     "positive": 23,

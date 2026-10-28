@@ -1,11 +1,11 @@
 {
   "name": "actor-self-memory",
-  "version": "1.0.0-candidate.3",
+  "version": "1.0.0-candidate.4",
   "state": "isolated-development-candidate",
   "hash_basis": "UTF-8 LF-normalized",
   "sha256": {
-    "schema.json": "e7b5bccdddb160b3db241c7546c9721cfdde2c7e9e7fb545b3eceb675202195c",
-    "examples.json": "91ff826594e615df071c34929994a768cf4b67337bfd4604a094d4de2da5dc62",
-    "README.md": "5fc755ff6fdea0d3531c1ef0ddaf4e261922bf8f83a12c71a70012a5934c0265"
+    "schema.json": "c3ecae8963cfaeddd375901e6a09f2ad28f907637155dc28766c25372e3defa4",
+    "examples.json": "2aba069ad3dbbc5e12feea4acfa19b632526dc5298f9950b4fc55300c4ad8560",
+    "README.md": "2dfaef6d0ee1ba63c7c6e07866353ef338dc968d1abce0b844ec00a270680acd"
   }
 }

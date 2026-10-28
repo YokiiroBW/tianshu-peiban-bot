@@ -3,7 +3,7 @@
   "planning_id": "autonomous-life-2026-10-23",
   "date": "2026-10-23",
   "timezone": "Asia/Shanghai",
-  "state": "R15_deployed_AL13_local_integrated_joint_verified_not_deployed",
+  "state": "core_completion_in_progress_AL14_AL15_deferred_by_user",
   "canonical_plan": "docs/development/autonomous-life-development-queue-2026-10-23.md",
   "architecture": "docs/architecture/actor-self-memory-design-2026-10-23.md",
   "id_policy": "AL编号仅为本批规划身份，不是scripts/workspace.py运行任务；正式派发由根协调者登记新TS并维护AL到TS映射。",
@@ -108,9 +108,11 @@
         "TS-309"
       ],
       "delivery_commit": "1d5523e7c968d1deccc569ef396d953b8c1f2241",
-      "production_published": false,
       "state_before_20261028_reconciliation": "local_candidate_verified",
-      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion"
+      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion",
+      "historical_initial_delivery": {
+        "production_published": false
+      }
     },
     {
       "id": "AL-02",
@@ -138,7 +140,9 @@
       "external_delivery_commit": "a2de620c676a24d7c08bb33ef3f1be2488b71666",
       "external_task_state": "local_verified_not_integrated",
       "state_before_20261028_reconciliation": "external_candidate_delivered",
-      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion"
+      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion",
+      "current_core_task": "TS-394",
+      "current_core_state": "isolated_implementation_in_progress"
     },
     {
       "id": "AL-03",
@@ -168,7 +172,9 @@
       "external_delivery_commit": "671deeadb04301b42f56a3a2020548117698bbc0",
       "external_task_state": "local_verified_not_integrated",
       "state_before_20261028_reconciliation": "external_candidate_delivered",
-      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion"
+      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion",
+      "current_core_task": "TS-395",
+      "current_core_state": "isolated_implementation_in_progress"
     },
     {
       "id": "AL-04",
@@ -195,7 +201,9 @@
       "external_delivery_commit": "a2de620c676a24d7c08bb33ef3f1be2488b71666",
       "external_task_state": "local_verified_not_integrated",
       "state_before_20261028_reconciliation": "external_candidate_delivered",
-      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion"
+      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion",
+      "current_core_task": "TS-394",
+      "current_core_state": "isolated_implementation_in_progress"
     },
     {
       "id": "AL-05",
@@ -225,7 +233,9 @@
       "external_delivery_commit": "671deeadb04301b42f56a3a2020548117698bbc0",
       "external_task_state": "local_verified_not_integrated",
       "state_before_20261028_reconciliation": "external_candidate_delivered",
-      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion"
+      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion",
+      "current_core_task": "TS-395",
+      "current_core_state": "isolated_implementation_in_progress"
     },
     {
       "id": "AL-06",
@@ -264,7 +274,9 @@
       ],
       "previous_candidate_status": "R14_candidate_assembled_verified_not_deployed",
       "current_release_record": "docs/development/autonomous-life-wave3-release-2026-10-28.json",
-      "deployed_image": "sha256:f1d30d60e0b6afe43c0ae6a2cd9a24a01b7bbb47cd06c9fe7a71f6c06bc75288"
+      "deployed_image": "sha256:f1d30d60e0b6afe43c0ae6a2cd9a24a01b7bbb47cd06c9fe7a71f6c06bc75288",
+      "current_core_task": "TS-395",
+      "current_core_state": "isolated_implementation_in_progress"
     },
     {
       "id": "AL-07",
@@ -289,11 +301,13 @@
       "runtime_tasks": [
         "TS-310"
       ],
-      "production_published": false,
       "delivery_commit": "90c0d44fc5d244e91ea4665e59e18e18a607e3df",
-      "product_integrated": false,
       "state_before_20261028_reconciliation": "local_verified",
-      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion"
+      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion",
+      "historical_initial_delivery": {
+        "production_published": false,
+        "product_integrated": false
+      }
     },
     {
       "id": "AL-08",
@@ -408,7 +422,9 @@
       ],
       "previous_candidate_status": "R14_candidate_assembled_verified_not_deployed",
       "current_release_record": "docs/development/autonomous-life-wave3-release-2026-10-28.json",
-      "deployed_image": "sha256:f1d30d60e0b6afe43c0ae6a2cd9a24a01b7bbb47cd06c9fe7a71f6c06bc75288"
+      "deployed_image": "sha256:f1d30d60e0b6afe43c0ae6a2cd9a24a01b7bbb47cd06c9fe7a71f6c06bc75288",
+      "current_core_task": "TS-395",
+      "current_core_state": "isolated_implementation_in_progress"
     },
     {
       "id": "AL-11",
@@ -432,7 +448,6 @@
       ],
       "implementation_gate": "TS316 final committed delivery, shared entry point and task capacity release",
       "preparation": "docs/development/autonomous-life-wave2-execution-2026-10-26.md",
-      "gate": "Backend runtime deployed; external QQ login and full runtime acceptance pending; AL12 absent, ordinary candidates remain silent.",
       "runtime_tasks": [
         "TS-319",
         "TS-320",
@@ -447,7 +462,9 @@
       "production_published": true,
       "verification_record": "docs/development/autonomous-life-wave2-delivery-2026-10-26.json",
       "state_before_20261028_reconciliation": "runtime_deployed_external_qq_login_pending",
-      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion"
+      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion",
+      "historical_gate_before_AL12": "Backend runtime deployed; external QQ login and full runtime acceptance pending; AL12 absent, ordinary candidates remain silent.",
+      "gate": "R15 contains AL12 scoped native verification; real QQ acceptance remains deferred, not claimed."
     },
     {
       "id": "AL-12",
@@ -487,7 +504,9 @@
       "memory_delivery_commit": "9453e5e3fd43c80a41f9bd4601f0181e2e7c6db5",
       "previous_candidate_status": "R14_candidate_assembled_verified_not_deployed",
       "current_release_record": "docs/development/autonomous-life-wave3-release-2026-10-28.json",
-      "deployed_image": "sha256:f1d30d60e0b6afe43c0ae6a2cd9a24a01b7bbb47cd06c9fe7a71f6c06bc75288"
+      "deployed_image": "sha256:f1d30d60e0b6afe43c0ae6a2cd9a24a01b7bbb47cd06c9fe7a71f6c06bc75288",
+      "current_core_task": "TS-395",
+      "current_core_state": "isolated_implementation_in_progress"
     },
     {
       "id": "AL-13",
@@ -523,13 +542,15 @@
       ],
       "current_execution_record": "docs/development/autonomous-life-al13-execution-2026-10-28.md",
       "current_delivery_record": "docs/development/autonomous-life-al13-delivery-2026-10-28.json",
-      "real_qq_and_paid_model_acceptance": "not_claimed"
+      "real_qq_and_paid_model_acceptance": "not_claimed",
+      "current_core_task": "TS-395",
+      "current_core_state": "isolated_implementation_in_progress"
     },
     {
       "id": "AL-14",
       "title": "B站角色账号互动",
       "owner": "platform",
-      "status": "planned_real_bilibili_account_actions_pending",
+      "status": "deferred_by_user_later_version",
       "depends_on": [
         "AL-07",
         "AL-08"
@@ -547,13 +568,15 @@
       ],
       "runtime_dependency": "当前B站具体动作接入路径及角色账号验证；不可用动作仍待完成",
       "state_before_20261028_reconciliation": "planned",
-      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion"
+      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion",
+      "previous_status": "planned_real_bilibili_account_actions_pending",
+      "deferred_reason": "用户明确外接先放放，AL14/15后期再更新；保留完整需求，本轮不开发。"
     },
     {
       "id": "AL-15",
       "title": "小黑盒内容与角色账号互动",
       "owner": "platform",
-      "status": "planned_xiaoheihe_adapter_and_account_actions_pending",
+      "status": "deferred_by_user_later_version",
       "depends_on": [
         "AL-07",
         "AL-08"
@@ -570,7 +593,9 @@
       ],
       "runtime_dependency": "当前小黑盒具体动作接入路径及角色账号验证；不可用动作仍待完成",
       "state_before_20261028_reconciliation": "planned",
-      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion"
+      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion",
+      "previous_status": "planned_xiaoheihe_adapter_and_account_actions_pending",
+      "deferred_reason": "用户明确外接先放放，AL14/15后期再更新；保留完整需求，本轮不开发。"
     },
     {
       "id": "AL-16",
@@ -597,7 +622,9 @@
         "platform_verified_baseline_and_single_writer"
       ],
       "state_before_20261028_reconciliation": "planned",
-      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion"
+      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion",
+      "current_core_task": "TS-396",
+      "current_core_state": "isolated_implementation_in_progress"
     },
     {
       "id": "AL-17",
@@ -626,7 +653,18 @@
       "external_dependencies": [],
       "state_before_20261028_reconciliation": "planned",
       "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion",
-      "current_wave_subset_validation_record": "docs/development/autonomous-life-wave3-delivery-2026-10-28.json"
+      "current_wave_subset_validation_record": "docs/development/autonomous-life-wave3-delivery-2026-10-28.json",
+      "current_core_task": "TS-397",
+      "current_core_depends_on": [
+        "AL-03",
+        "AL-04",
+        "AL-06",
+        "AL-10",
+        "AL-12",
+        "AL-13",
+        "AL-16"
+      ],
+      "current_core_state": "planned_after_stable_function_blocks"
     },
     {
       "id": "AL-18",
@@ -644,23 +682,17 @@
       "deliverable": "当前230/210拓扑串行发布、独立角色源恢复、完整实机与连续使用结果",
       "detail_section": "AL-18",
       "external_dependencies": [],
-      "execution_dependency": "对应发布与实际账号动作授权；本轮已授权本地开发，尚未执行发布或真实账号动作",
       "state_before_20261028_reconciliation": "planned",
-      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion"
+      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion",
+      "current_core_task": "TS-398",
+      "continuous_acceptance": "real_one_to_two_week_observation_pending",
+      "historical_execution_dependency": "对应发布与实际账号动作授权；本轮已授权本地开发，尚未执行发布或真实账号动作",
+      "execution_dependency": "本轮核心稳定后串行发布；R15已发布不等于AL13及本轮新核心已发布。AL14/15用户延后，真实连续使用需实际时间。"
     }
   ],
   "execution_record": "docs/development/autonomous-life-execution-2026-10-23.md",
   "wave2_execution_record": "docs/development/autonomous-life-wave2-execution-2026-10-26.md",
   "coordination_boundary": "docs/development/autonomous-life-boundary-2026-10-26.json",
-  "coordination_observation": {
-    "date": "2026-10-27",
-    "state": "TS320_TS321_independent_products_in_progress",
-    "active_task_count": 3,
-    "available_task_slots": 2,
-    "platform_candidate": "3e2cc412c676450a90dc0cbd3c3387d1c945e5e2",
-    "companion_candidate": "671deeadb04301b42f56a3a2020548117698bbc0",
-    "AL11": "offline_protocol_preparation_only_no_product_code"
-  },
   "wave2_delivery_record": "docs/development/autonomous-life-wave2-delivery-2026-10-26.json",
   "release_authorization": {
     "date": "2026-10-27",
@@ -670,7 +702,7 @@
     "performed": true
   },
   "updated_at": "2026-10-28",
-  "current_execution_record": "docs/development/autonomous-life-al13-execution-2026-10-28.md",
+  "current_execution_record": "docs/development/autonomous-life-core-completion-2026-10-28.md",
   "current_baseline": {
     "architecture": "single_container_modular_in_process_exchange",
     "release": "R15",
@@ -740,5 +772,60 @@
     "same_thread_subagents": true,
     "production_operations": false,
     "record": "docs/development/autonomous-life-al13-delivery-2026-10-28.json"
+  },
+  "current_scope": {
+    "name": "autonomous_life_core_without_new_external_adapters",
+    "user_instruction_date": "2026-10-28",
+    "included": [
+      "AL-01",
+      "AL-02",
+      "AL-03",
+      "AL-04",
+      "AL-05",
+      "AL-06",
+      "AL-07",
+      "AL-08",
+      "AL-09",
+      "AL-10",
+      "AL-11",
+      "AL-12",
+      "AL-13",
+      "AL-16",
+      "AL-17",
+      "AL-18"
+    ],
+    "deferred": [
+      "AL-14",
+      "AL-15"
+    ],
+    "original_external_requirements_retained": true,
+    "user_memory_logic_change": false,
+    "core_acceptance_excludes_deferred_items": true,
+    "production_release": "R15",
+    "AL13": "local_integrated_not_pushed_not_deployed",
+    "continuous_use": "requires_real_elapsed_time_not_claimed"
+  },
+  "current_runtime_tasks": [
+    "TS-394",
+    "TS-395",
+    "TS-396",
+    "TS-397",
+    "TS-398"
+  ],
+  "historical_coordination_observation_20261027": {
+    "date": "2026-10-27",
+    "state": "TS320_TS321_independent_products_in_progress",
+    "active_task_count": 3,
+    "available_task_slots": 2,
+    "platform_candidate": "3e2cc412c676450a90dc0cbd3c3387d1c945e5e2",
+    "companion_candidate": "671deeadb04301b42f56a3a2020548117698bbc0",
+    "AL11": "offline_protocol_preparation_only_no_product_code"
+  },
+  "boundary_confirmation_core": {
+    "date": "2026-10-28",
+    "memory_thread": "01a169d4-bacb-74f2-b27e-136afb9c936c",
+    "single_container_thread": "01a17c1d-482b-7621-9281-e0354f0e7365",
+    "both_confirmed_no_post_AL13_writes": true,
+    "actor_and_product_writers_released": true
   }
 }

@@ -117,3 +117,57 @@ command_receipt 持久保存第一次成功提交的 request_id。get_receipt �
 replaces 仅同角色当前 derived 引用，不替换原始 episode。非 current check 一律 read_allowed/disclosure_allowed=false。importance/retention 是提议，Memory 使用本域既有周期配置并执行到期，不代表永久事实。query/check 的正态只在 checked_at 当前成立，发送前仍需按原 refs 复核。
 
 AL13 candidate.3 adds episodes-only query mode=timeline over a fixed UTC occurrence window, stable scoped version-bound cursors and explicit incomplete/omitted results. The default keyword query is unchanged. Public audience is restricted to diary/management; all basis and current owner disclosure checks still apply. Null occurrence times never become learned times.
+
+## Core completion candidate.4 (2026-10-28)
+
+All operations reuse /internal/v1/actor-self-memory/operate, caller operation and
+actor allowlists, current Platform actor_check and source/context double checks.
+Platform's existing role_runtime.memory service credentials and scoped role
+management mediation are sufficient; no Companion credentials are borrowed.
+Management reads/writes accept only actor_only/management context. interests
+accepts the existing scoped context and discloses only complete authorized basis.
+
+interests returns source-proven current preferences, grouped by explicit topic.
+Legacy untagged preferences remain individual entries with topic=null and
+stance=unspecified, never inferred sentiment. support_count counts independent
+original non-fictional digital-action or observation evidence, not repetition or derived count.
+history contains version references, not an extra copy of historic text; it is
+bounded and history_omitted reports incompleteness. Expired/forgotten records do
+not become current. Projection rebuilds from authoritative derived records.
+
+manage_list pages all requested states/kinds by recorded_at/id with a signed,
+actor/filter/domain-version bound cursor. next_cursor=null marks exhaustion;
+omitted preserves inability to prove complete readable results. Tombstones have
+kind/text/importance/retention/interest=null, empty source_refs, forgotten=true.
+Active episodes have occurred_at from the original fact. Derived revision is
+editable; factual episode summary is not edited into a fabricated source.
+get_episode remains the exact source/coverage detail port.
+
+memory_impact returns dependent refs and exact domain_version. Oversized impact
+is reported omitted=true; the write still computes and erases the full closure.
+revise_memory creates a new derived record replacing the exact old revision,
+preserving its original episode basis and validating it again. Omitted interest
+preserves an existing tag. expected_domain_version and ref revision protect
+concurrent changes. Its normal memory_command_receipt points to the replacement.
+
+forget_memory overwrites current actor fact/payload copies and removes derived
+search terms, including dependent derived records. It preserves body-free IDs,
+fingerprints, source version suppression and original command receipts. It does
+not delete original owner content, user conversation records or historical
+backups. The result is memory_command_receipt state=withdrawn and new revision.
+Forget of a derived record suppresses same-kind late proposals whose entire
+basis is a subset of the forgotten evidence set. New independent real evidence
+is required; changing wording, partitioning basis or model self-narration cannot
+resurrect it. Existing check APIs continue withdrawn/read_allowed=false.
+
+maintain is called by the existing bounded Companion background cycle. It expires
+and clears up to limit derived bodies and compresses genuinely redundant same
+basis/text items without inventing a summary or creating evidence. Existing
+append_derived(kind=autobiography,replaces=...) accepts semantic compression
+from the existing producer model, under unchanged full basis validation.
+Relevance fades with retention age; explicit episode timeline remains available.
+No extra model, scheduler, user memory logic or permissions are introduced.
+
+Storage schema2->3 explicitly backs up the independent actor domain before
+installing a rebuildable actor-only inverted term index. The seven authoritative
+tables and guard stay authoritative; startup never silently migrates schema2.

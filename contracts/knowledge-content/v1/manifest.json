@@ -7,7 +7,7 @@
   "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
   "dependencies": {
     "text-dialogue/v1": "90697e6ecbb587d3db8c8e4682f7f8f43a8b1a98f70d8835c8282b03828d2d3a",
-    "life-runtime/v2": "85aff438f91cb96876e259204b5a198e2fedaead56db64a2265aa520a59ea7e3"
+    "life-runtime/v2": "6c032c558d107615a19e49f1bde1c76f7a5994b14c484476f7a71aeab555cadf"
   },
   "sha256": {
     "examples.json": "4bfd163cf8265223f93ce0d53b25649f899ba5f030ca82643c22a84c98ba88a5",
