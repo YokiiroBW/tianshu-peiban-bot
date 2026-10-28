@@ -569,6 +569,7 @@ async def snapshot(host):
             "jobs": core.store.list("metadata", QUEUE),
             "activities": core.store.list("life_activities"),
             "user_learning": core.store.list("metadata", "memory:learning"),
+            "automatic_memory_candidates": core.automatic_memory_candidates,
             "reading": core.store.list("life_reading"),
         }
 

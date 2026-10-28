@@ -104,9 +104,16 @@ async def run(options):
             current = await fixtures.snapshot(host)
             require(
                 not current["turns"]
-                and not current["user_learning"]
-                and not current["reading"],
-                "observer does not create user turns, user learning or fake reading",
+                and not current["reading"]
+                and current["automatic_memory_candidates"] is False,
+                "observer is independent of explicitly disabled user extraction and creates no user turn or fake reading",
+            )
+            require(
+                all(
+                    row["state"] == "material_pending" and row["attempts"] == 0
+                    for row in current["user_learning"]
+                ),
+                "original passive archive handoff can be recorded but user extraction must not process it",
             )
             completed = [row for row in current["jobs"] if row["state"] == "completed"]
             first = [
@@ -179,7 +186,7 @@ async def run(options):
             return await app.state.core.actor_memory.query(
                 ACTOR,
                 {"purpose": "reflection", "audience": {"kind": "actor_only"}},
-                "乌龙茶",
+                "乌龙茶 焙火 清香",
                 kinds=["episode", "reflection", "preference"],
                 limit=8,
                 budget_bytes=16384,
@@ -256,6 +263,13 @@ async def run(options):
             == [{"source_ref": request["source_ref"], "archive_state": "archived"}],
             "original Companion durable archive handoff is acknowledged",
         )
+        require(
+            len(current["user_learning"]) == 1
+            and current["user_learning"][0]["source_ref"] == request["source_ref"]
+            and current["user_learning"][0]["state"] == "material_pending"
+            and current["user_learning"][0]["attempts"] == 0,
+            "the unchanged original user archive callback retains only its unprocessed receipt marker",
+        )
         policy = await fixtures.platform_policy(host, enrollment)
         require(
             policy["rule"]["mode"] == "observe"
@@ -283,6 +297,8 @@ async def run(options):
             "user_memory_unchanged": True,
             "hint_consumed_once": True,
             "qq_sends": 0,
+            "user_extraction_enabled": False,
+            "original_archive_handoff_marker": current["user_learning"][0],
         }
         rows = recorder.snapshot()
         for owner, path in (

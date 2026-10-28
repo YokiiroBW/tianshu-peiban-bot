@@ -336,7 +336,7 @@ async def run(options):
             return await app.state.core.actor_memory.query(
                 ACTOR,
                 {"purpose": "reflection", "audience": {"kind": "actor_only"}},
-                "乌龙茶",
+                "乌龙茶 焙火 香气",
                 limit=8,
                 budget_bytes=16384,
             )
