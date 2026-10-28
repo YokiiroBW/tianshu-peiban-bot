@@ -1,0 +1,8 @@
+{
+  "version": "infrastructure-control.v1",
+  "request_id": "synthetic-request",
+  "node_id": "fixture-nas",
+  "operation": "stack.list",
+  "params": {},
+  "timeout_ms": 10000
+}

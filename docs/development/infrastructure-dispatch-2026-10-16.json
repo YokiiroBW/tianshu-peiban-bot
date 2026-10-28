@@ -1,0 +1,141 @@
+{
+  "date": "2026-10-16",
+  "authorization": "User explicitly requested parallel development entirely delegated to gpt-6.1-sol/max with coordinator acceptance",
+  "status": "first_batch_accepted_local_integrated_not_deployed",
+  "plan": "docs/development/infrastructure-execution-2026-10-16.md",
+  "no_new_user_threads": true,
+  "workers": [
+    {
+      "task": "TS-175",
+      "agent": "/root/infra_guard",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "max",
+      "state": "accepted_local_integrated_not_deployed",
+      "worktree": "worktrees/TS-175/workspace",
+      "developer_checks": "30 scoped tests plus 2 added targeted tests passed; no failures/skips",
+      "coordinator_checks": "3 critical guard scenarios and 6 resident runner callers passed",
+      "implementation_commit": "04bc9eee22376337960eb1947b47477f16fa217b",
+      "delivered_commit": "2e72343f234a8ec8a08419e91ebf414a1a5d95f0",
+      "review_request": "Resolved: absolute cycle deadline includes wait, previous notify duration, Docker, capacity and state persistence",
+      "coordinator_timing": "4 additional run_cycle tests passed, no failures/skips",
+      "accepted_commit": "9dd749cc9d81bd3b2e9d7a288fa9b5de7348ee1d"
+    },
+    {
+      "task": "TS-176",
+      "agent": "/root/infra_node",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "max",
+      "state": "accepted_local_integrated_not_deployed",
+      "worktree": "worktrees/TS-176/workspace",
+      "implementation_commit": "172d20d37b12f88a15ec214bd6ee2ba8ea880339",
+      "delivered_commit": "483eca50b2378caedd0028cdbbfa57b8baaaa513",
+      "integration_commit": "14bc02a58cc3f94651a219bf3d98a32cd28ba931",
+      "developer_checks": "Latest process suite9/9 passed; unchanged observation22 and 3 schemas/22 examples reused (31 distinct applicable tests)",
+      "coordinator_checks": "Immutable export: 7 selected real-process/SSH/paging/OpenWrt/deadline tests passed, 0 failed/skipped; 3 schemas / 22 examples passed; scope and diff reviewed",
+      "new_related_concern": "Resolved by suspended creation -> Job registration -> resume; setup failure retires unstarted root",
+      "accepted_commit": "483eca50b2378caedd0028cdbbfa57b8baaaa513",
+      "coordinator_final_checks": "Independent immutable172d20d export: 2 new lifecycle tests passed; Platform3bcab2b HTTP/OpenSSH joint passed against this export in26.354s, 0fail/skip"
+    },
+    {
+      "task": "TS-177",
+      "agent": "/root/infra_platform",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "max",
+      "state": "accepted_local_integrated_not_deployed",
+      "worktree": "worktrees/TS-177/tianshu-platform",
+      "alignment_commit": "ec5671a686cb4b5c54f495dec8ed896b90466114",
+      "review_requests": [
+        "Preserve partial batches and earliest sample timestamp in metrics aggregation",
+        "Bind unsaved node form to its original configuration revision; do not advance it through polling"
+      ],
+      "review_fixes_reported": "All requests resolved: process birth/retirement, PROGRAMDATA, partial batches/earliest timestamp, unsaved form CAS, late cache revision, Compose label layout",
+      "related_regression": "Initial175: 15 diagnostics contract fixture failures, 160 pass; correct original-byte package yields runtime_health90/90; unaffected85 reused. Shell15 pass/4 existing failures/1skip; four room-heading failures reproduced on immutable ec5671a baseline",
+      "visual_review": "Coordinator inspected desktop light Docker and mobile dark Docker/OpenWrt; Compose label wrapping repaired and new screenshot inspected; shell unchanged",
+      "peer_diagnosis": {
+        "agent": "/root/infra_node",
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "max",
+        "scope": "Read-only Windows process lifetime diagnosis; original platform developer remains sole writer",
+        "finding": "Windows venv launcher starts base-python before post-spawn Job assignment; successful assignment does not retroactively include existing descendants. Suspend/register/resume repair required.",
+        "evidence": "worktrees/TS-176/workspace/tests/infrastructure/.output/ts177-process-tree-debug/evidence.json",
+        "result": "Resolved by original implementation owners; coordinator critical and end-to-end tests passed"
+      },
+      "implementation_commit": "3bcab2bde6611047c143560ce4bfc52663b56955",
+      "coordinator_checks": "5 critical regression tests passed on isolated integration checkout; 1 actual HTTP/OpenSSH joint passed against172d20d; desktop/mobile screenshots inspected",
+      "coordinator_evidence": [
+        ".runtime/infrastructure-20261016/platform-coordinator-core.txt",
+        ".runtime/infrastructure-20261016/platform-coordinator-joint-172d20d.txt"
+      ],
+      "final_node_input": "172d20d37b12f88a15ec214bd6ee2ba8ea880339",
+      "delivered_commit": "01a498d544c7e2287afaaa4686218bc1f99aa7b0",
+      "accepted_commit": "01a498d544c7e2287afaaa4686218bc1f99aa7b0",
+      "integration_commit": "01a498d544c7e2287afaaa4686218bc1f99aa7b0",
+      "developer_checks": "17 infrastructure tests plus1 added cache-revision test passed; new172d20d joint passed; related175 applicable backend pass via85+90; browser6 pass; lint/changed formatting/type/build pass"
+    },
+    {
+      "task": "TS-178",
+      "agent": "/root/infra_guard",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "max",
+      "state": "accepted_local_integrated_not_deployed",
+      "worktree": "worktrees/TS-178/workspace",
+      "implementation_commit": "a32041dd905306a21b6bd695b02413832c343ac4",
+      "delivered_commit": "e0a8638c1d64f9ee8bd3668c6f30b5f8498d70b9",
+      "accepted_commit": "e0a8638c1d64f9ee8bd3668c6f30b5f8498d70b9",
+      "integration_commit": "bdcb4ab3d41764b72faf4e08a2591f3544571b81",
+      "developer_checks": "12 package tests passed, then 2 relevant tests after literal Git fix (13 distinct applicable); 12 actual packaged process/SSH requests passed",
+      "coordinator_checks": "Final package reproduced and12 actual packaged process/loopback SSH requests passed independently from integration checkout in8.22s; previous13 package tests reusable",
+      "package_sha256": "6e674a3bd70a674a2d732982cba99da3162e388fa4a89ebb48d1b874149dd63f",
+      "evidence": ".runtime/infrastructure-20261016/package-coordinator-acceptance-172d20d.json",
+      "artifact_refresh": "Completed against172d20d; old12ccb1d artifacts retained as prior evidence",
+      "final_node_input": "172d20d37b12f88a15ec214bd6ee2ba8ea880339",
+      "package_file": "worktrees/TS-178/workspace/tests/deployment/infrastructure/.output/infrastructure-node-172d20d37b12.zip",
+      "package_bytes": 199782
+    }
+  ],
+  "verification": {
+    "production": "No deployment or device-state changes; the one read-only OpenWrt authentication attempt is recorded separately",
+    "allocation": "standard_start_refused_dirty_root; fixed_commit_git_worktrees_created",
+    "workspace_check": "blocked_by_existing_TS016_git_ownership"
+  },
+  "contract": {
+    "path": "contracts/infrastructure-node/candidate-v1",
+    "producer_commit": "18e4fe0476ce9cc0900de8d8e0731b4c1baa2d81",
+    "coordinator_validation": "3 schemas / 22 examples passed; original 18e4fe0 schemas unchanged, two OpenWrt examples added",
+    "consumer": "TS-177 accepted after full schema and sample read",
+    "state": "candidate_fixed_for_local_implementation",
+    "production_published": false,
+    "final_source_commit": "172d20d37b12f88a15ec214bd6ee2ba8ea880339"
+  },
+  "openwrt": {
+    "host": "192.168.31.1",
+    "port": 22,
+    "user": "root",
+    "credential_reference": "existing NAS-named SSH identity confirmed by user; private key not read",
+    "read_only_probe": "ssh strict host key, batch mode, one connection, ubus call system board",
+    "result": "authentication_rejected_publickey_password",
+    "device_data_read": false,
+    "state_changed": false
+  },
+  "integration_worktree": "C:/Users/Administrator/.codex/worktrees/infrastructure-integration/tianshu-peiban-bot",
+  "platform_integration_worktree": "C:/YOKI/Codex/tianshu-peiban-bot/worktrees/INFRA-INTEGRATION/tianshu-platform",
+  "platform_integration_baseline": "ec5671a686cb4b5c54f495dec8ed896b90466114",
+  "completed_date": "2026-10-17",
+  "integration_code_commit": "bdcb4ab3d41764b72faf4e08a2591f3544571b81",
+  "platform_integration_commit": "01a498d544c7e2287afaaa4686218bc1f99aa7b0",
+  "remaining": {
+    "next_development": [
+      "INF-04 history and alerts",
+      "INF-05 explicit container/stack operations with guard maintenance",
+      "INF-06 deployment plans and recovery",
+      "INF-07 additional real nodes and supported telemetry"
+    ],
+    "real_acceptance": [
+      "NAS and real Docker daemon",
+      "OpenWrt authentication and actual reads",
+      "Linux derived image and deployment mounts/budget"
+    ],
+    "unchanged_baseline_failures": "Shell4 room-heading failures reproduced on ec5671a;1 existing desktop skip; repository format41 Prettier+12 Ruff files unchanged"
+  },
+  "coordination_snapshot": "Own plan/cards/evidence committed separately in infrastructure integration; original mixed root board/CURRENT/AGENTS changes remain preserved in coordinator checkout"
+}

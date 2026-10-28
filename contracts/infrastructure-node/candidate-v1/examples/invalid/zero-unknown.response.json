@@ -1,0 +1,91 @@
+{
+  "version": "infrastructure-node.v1",
+  "request_id": "fixture-001",
+  "node_id": "fixture-nas",
+  "operation": "node.snapshot",
+  "status": "ok",
+  "reason_codes": [],
+  "observed_at": "2026-10-16T08:00:00Z",
+  "capabilities": [
+    "node.snapshot",
+    "docker.inventory",
+    "docker.stats",
+    "docker.logs",
+    "compose.inventory"
+  ],
+  "completeness": {
+    "state": "complete",
+    "returned": 1,
+    "total": 1,
+    "next_cursor": null
+  },
+  "data": {
+    "identity": {
+      "node_id": "fixture-nas",
+      "kind": "synology",
+      "hostname": "synthetic-nas",
+      "kernel": "Linux 6.1",
+      "boot_id": "synthetic-boot"
+    },
+    "system": {
+      "uptime_seconds": 3600,
+      "load_average": [
+        0.2,
+        0.3,
+        0.4
+      ],
+      "source": "proc"
+    },
+    "cpu": {
+      "usage_ratio": -1,
+      "basis": "host_total",
+      "total_ticks": 1000,
+      "idle_ticks": 800,
+      "state": "first_sample",
+      "reason_codes": [
+        "first_sample"
+      ],
+      "source": "proc_stat"
+    },
+    "memory": {
+      "total_bytes": 8388608,
+      "available_bytes": 4194304,
+      "used_bytes": 4194304,
+      "state": "ok",
+      "reason_codes": [],
+      "source": "proc_meminfo"
+    },
+    "filesystems": [
+      {
+        "id": "fs_cccccccccccccccccccccccc",
+        "device": "/dev/synthetic",
+        "mountpoint": "/data",
+        "total_bytes": 1000000,
+        "used_bytes": 250000,
+        "available_bytes": 700000,
+        "source": "df_posix_1k"
+      }
+    ],
+    "interfaces": [
+      {
+        "id": "if_dddddddddddddddddddddddd",
+        "name": "eth0",
+        "ifindex": 2,
+        "receive_bytes": 1000,
+        "transmit_bytes": 2000,
+        "receive_errors": 0,
+        "transmit_errors": 0,
+        "receive_drops": 0,
+        "transmit_drops": 0,
+        "receive_bytes_per_second": null,
+        "transmit_bytes_per_second": null,
+        "state": "first_sample",
+        "reason_codes": [
+          "first_sample"
+        ],
+        "source": "proc_net_dev"
+      }
+    ],
+    "openwrt": null
+  }
+}

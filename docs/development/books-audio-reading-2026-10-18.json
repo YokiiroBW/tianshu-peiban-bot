@@ -1,0 +1,683 @@
+{
+  "status": "pushed_deployed_production_verified",
+  "user_preferences": {
+    "normal_context": "private library catalog",
+    "reading_context": "explicit co-reading only",
+    "real_acceptance": "Edge",
+    "fish_requests": 0
+  },
+  "runtime": {
+    "companion": {
+      "image_id": "sha256:5a72d07537a5c9617ba4d0eb6a5c50aba56c71b7cc4c35c198160c7dc2dfe589",
+      "revision": "71adc238d4e40b64f917adf5e3f8492d6b392464"
+    },
+    "platform": {
+      "image_id": "sha256:7fa10e7c9ef1517a961274922f1135a9b84c1977bb5cd4fc3985dbeddae0e106",
+      "revision": "be28ba81920789f301fc74208e8ef92a877a3aa7"
+    }
+  },
+  "document_commits": {
+    "platform": "9944f7863b4764efd2c4eb15bb3fd70a6e5bfffb",
+    "companion": "2f326be2cb8c8189fbc5fc04935e6d7cac655052"
+  },
+  "contract": {
+    "revision": "67a2a2941765f14c928cdd53255fb4ae165149df",
+    "manifest_sha256": "2dc05bb8658988a46e286de6ef283d49bfb286e45141a4d2cfc0501d79bf1ebb",
+    "families": {
+      "companion": "/volume2/tianshu-v2-resident/contracts-books-audio-67a2a2941765/companion",
+      "platform": "/volume2/tianshu-v2-resident/contracts-books-audio-67a2a2941765/platform"
+    }
+  },
+  "nas_platform_tests": {
+    "status": "passed",
+    "suites": [
+      {
+        "pattern": "test_book*.py",
+        "run": 67,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "pattern": "test_media_standalone.py",
+        "run": 23,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "pattern": "test_music_library.py",
+        "run": 23,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "pattern": "test_media_background.py",
+        "run": 4,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "pattern": "test_music_foundation.py",
+        "run": 16,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ],
+    "uid": 10001,
+    "production_data_mounted": false,
+    "external_network": false,
+    "revision": "be28ba81920789f301fc74208e8ef92a877a3aa7"
+  },
+  "nas_companion_tests": {
+    "status": "passed",
+    "revision": "71adc238d4e40b64f917adf5e3f8492d6b392464",
+    "passed_initial": 170,
+    "initial_harness_failures": 10,
+    "rerun_passed": 11,
+    "subtests": 82,
+    "harness_correction": "Copied exact installed source for AST tests, added synthetic workspace-context, cleared image default app config only in test process.",
+    "initial_evidence": "companion-linux-initial-harness.json",
+    "rerun_evidence": "linux_progress.receipt.json",
+    "production_mounted": false,
+    "external_network": false
+  },
+  "local_tests": {
+    "platform_audio": 11,
+    "platform_reading_http": 5,
+    "browser_audio": 1,
+    "browser_existing_books": 3,
+    "typecheck_build": "passed",
+    "companion": {
+      "passed": 874,
+      "skipped": 16,
+      "subtests": 123,
+      "known_failures": 2,
+      "known_failure_names": [
+        "test_profile_joint existing profile fixture",
+        "test_source_https missing Platform QQ reader fixture"
+      ],
+      "additional_real_http_joint": 1
+    }
+  },
+  "edge_real_nas": {
+    "status": "passed",
+    "exit_code": 0,
+    "image_id": "sha256:ae76a7f36ef30f8963dd51d04904e878d33847f23a52b86bcfaeaebfd47824db",
+    "production_mounted": false,
+    "external_network": "Microsoft Edge TTS",
+    "speech": {
+      "provider": "edge",
+      "voice": "zh-CN-XiaoxiaoNeural",
+      "bytes": 51552,
+      "sha256": "711ab58d709bfb864f9e6999f106248ef99599f4796378ab6a9528a3be4cd80e",
+      "duration": 8.592,
+      "native_boundaries": 4,
+      "elapsed": 2.345715298783034,
+      "fish_calls": 0
+    }
+  },
+  "release": {
+    "all_existing_settings_preserved": true,
+    "backup": "/volume2/tianshu-v2-resident-updates/books-audio-20261018-be28ba8-release/cold-snapshot",
+    "contract_directory": "/volume2/tianshu-v2-resident/contracts-books-audio-67a2a2941765/platform",
+    "database_migration": "none_media_schema2_preserved",
+    "excluded_external_media": [
+      {
+        "read_only": false,
+        "source": "/volume1/Video/存储库/bilibili",
+        "target": "/media/Bilibili"
+      },
+      {
+        "read_only": true,
+        "source": "/volume1/Video/存储库",
+        "target": "/media/observe/emby-video"
+      },
+      {
+        "read_only": true,
+        "source": "/volume1/Music/音乐存档",
+        "target": "/media/observe/emby-music"
+      },
+      {
+        "read_only": false,
+        "source": "/volume1/Music/音乐存档",
+        "target": "/media/Music"
+      },
+      {
+        "read_only": false,
+        "source": "/volume1/Documents/天枢书库",
+        "target": "/media/Books"
+      },
+      {
+        "read_only": false,
+        "source": "/volume1/Documents/电子书",
+        "target": "/media/Ebooks"
+      }
+    ],
+    "gateway_origin_reissued": true,
+    "guard": "ready",
+    "health": [
+      {
+        "checks": {
+          "configuration": "ok",
+          "dependencies": "not_verified",
+          "logs": "ok",
+          "runtime": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "companion",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "configuration": "ok",
+          "contracts": "ok",
+          "ledger": "ok",
+          "logging": "ok",
+          "model": "not_verified",
+          "native": "not_configured",
+          "platform": "not_verified",
+          "runtime": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "gateway",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "config": "ok",
+          "contract": "ok",
+          "credentials": "ok",
+          "logging": "ok",
+          "runtime": "ok",
+          "sidecars": "ok",
+          "store": "ok",
+          "tls": "ok",
+          "web_static": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "platform",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "assembled": "ok",
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "guard": "ok",
+          "log": "ok",
+          "mode": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "memory",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "assembled": "ok",
+          "client": "ok",
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "extensions": "ok",
+          "log": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "knowledge",
+        "verified_tls": true
+      }
+    ],
+    "images": {
+      "companion": {
+        "image_id": "sha256:5a72d07537a5c9617ba4d0eb6a5c50aba56c71b7cc4c35c198160c7dc2dfe589",
+        "revision": "71adc238d4e40b64f917adf5e3f8492d6b392464"
+      },
+      "platform": {
+        "image_id": "sha256:7fa10e7c9ef1517a961274922f1135a9b84c1977bb5cd4fc3985dbeddae0e106",
+        "revision": "be28ba81920789f301fc74208e8ef92a877a3aa7"
+      }
+    },
+    "media_configuration_preserved": true,
+    "media_schema_version": 2,
+    "media_target_count": 1,
+    "original_ids_preserved_excluding_released_services_and_optional_gateway": true,
+    "real_qq_test_sent": false,
+    "sqlite_backups": 38,
+    "status": "deployed",
+    "subscriptions_and_other_features_preserved": true,
+    "untargeted_owner_ids_preserved": false,
+    "user_state_preserved": true
+  },
+  "preservation": {
+    "status": "verified",
+    "administrator_grants_preserved": true,
+    "owners": [
+      {
+        "service": "companion",
+        "id": "c9f2c875ce84fcd2cb2d415bf8a3e0ca84984cf54fb42c471a75770530ac59f3",
+        "image_id": "sha256:5a72d07537a5c9617ba4d0eb6a5c50aba56c71b7cc4c35c198160c7dc2dfe589",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "gateway",
+        "id": "3fc0a36be657c69450d7c1d9ef748b2bd40c9aa92bb8026c0106f80f94c08f01",
+        "image_id": "sha256:1826e2a52060d6c4545bf5ed5eaa616d3cce48fd63b49a0b1b01ee92dd835188",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "platform",
+        "id": "6f79c3b4d53244b729b894b89e3d385bd5a17ad1d2b581dfbcc627bbc997f1a5",
+        "image_id": "sha256:7fa10e7c9ef1517a961274922f1135a9b84c1977bb5cd4fc3985dbeddae0e106",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "memory",
+        "id": "63ba4dab7382d7446cd7112e8017adaf1284c028c9c2521893b19b9e0d6317fd",
+        "image_id": "sha256:28dd892bb12f1ad56265700b7c9baa1060cbeee96e44ba513d322f6022b053f7",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "knowledge",
+        "id": "0ec9ec0b3f5122e80ffdbdc7ed8a456d07c03b8abc618df5a71f29520fba1ebb",
+        "image_id": "sha256:7e3e94e13b095bdbd99801471bfc7b8ce1bd18bbcff2ee14d57b91d36acc7c44",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "obs-grafana",
+        "id": "15485f0886be8c33ccccdbf7828ad66f8e8ccbe2758d95a068e2956df9a83099",
+        "image_id": "sha256:747aaf291145d9a84a547f1fa4edf48697371db6ab386b81c95ad3a725c20f17",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "obs-vector",
+        "id": "07998dc157eb38ecfecc2daf4bd02c3f7fabad3f7087799bd6723bb26672e664",
+        "image_id": "sha256:92c275b73d880922a265918a7c3c4f2cc0dd87338447ff357809f2d18a64a48e",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "obs-guard",
+        "id": "ce6bb77866a9e1cb282e7557b1dadceb9847d15678afc3538ba1a42e1dd4a254",
+        "image_id": "sha256:febd0be41adb897a0ab8f1f1c693d8912669ea60c4940e076e9946b60e210ef0",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "obs-prometheus",
+        "id": "3a641b651b75adf7da6307b1e424de3fc93df9cb6fd0f0b580626c1d1cc6fe17",
+        "image_id": "sha256:7d467fbb6bbbd6a96d87a0e4b2ef53840ce11521af0a8c27b995daa82896a241",
+        "running": true,
+        "restart": "unless-stopped"
+      },
+      {
+        "service": "obs-loki",
+        "id": "48a4eac7a827e9c269f39b4664f9e59cb600ffa3398464023154d697ec50fcd9",
+        "image_id": "sha256:ceccdbc45e274f08eb23d6ca6e0b648921d580c592ab47b4304225c0f17a406a",
+        "running": true,
+        "restart": "unless-stopped"
+      }
+    ],
+    "owner_count": 10,
+    "guard": "ready",
+    "state_dir": "/volume2/tianshu-v2-resident-updates/books-audio-20261018-be28ba8-release/capacity-state-ad698dcc0a99446a84138ad95c2583f7",
+    "capacity_sha256": "b52527e4929a2a649645d4792d3788fbe4ca1c95f3c1e2f2a130532a4339ffb5",
+    "guard_code_sha256": "d9523e8fb5466f2336353d1258e7bdcf91b0e24a31d2ec455518cba945f1303c",
+    "cold_backup": "/volume2/tianshu-v2-resident-updates/books-audio-20261018-be28ba8-release/cold-snapshot",
+    "sqlite_databases_verified": 38,
+    "cold_manifest_sha256": "f4356c6a7b293ffb9f89cde1f06a798775b08555d55980b52d22b72b3d40af66",
+    "cold_backup_status": "offline_restore_verified",
+    "unreleased_owner_ids_preserved": false,
+    "gateway_origin": {
+      "gateway_id_after": "3fc0a36be657c69450d7c1d9ef748b2bd40c9aa92bb8026c0106f80f94c08f01",
+      "gateway_id_before": "0972012a210c796f50c6be20c4050427ab4a7cdd437842d70af2f5d31986672c",
+      "gateway_image_expected": true,
+      "new_permissions": 0,
+      "new_service_credentials": 0,
+      "origin_reissued": true,
+      "original_origin_preserved": true,
+      "same_existing_entry_owner_and_route": true
+    },
+    "user_state_preserved": true,
+    "role_configuration_preserved": true,
+    "role_configuration_count": 1,
+    "role_configuration_sha256": "de03d07d4dcb63611b6e2b33a083da221c62e621e7ec4710b825f52fe3b83190",
+    "weather_configuration_preserved": true,
+    "weather_record_present": true,
+    "weather_credential_decrypted": false,
+    "all_settings_unchanged": true,
+    "contract_existing_family_bytes_preserved": true,
+    "reading_contract_added": true,
+    "dockge_actual_semantic_match": true,
+    "dockge_hashes": {
+      "core": "ee4372a0d655ac229756ef7af61a297798b7fb6560d914823b5ef2ba11b582b1",
+      "obs": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530"
+    },
+    "database_migration": "none",
+    "media_target_count": 1,
+    "credential_values_output": false,
+    "weather_provider_called": false,
+    "model_called": false,
+    "gpu_submitted": false,
+    "qq_sent": false,
+    "unrelated_platform_settings_preserved": true,
+    "platform_settings_preserved": true,
+    "music_accounts_settings_and_key_preserved": true,
+    "navidrome_connection_and_credential_preserved": true,
+    "music_bind_and_acl_unchanged": true,
+    "music_maintenance_and_playlist_settings_preserved": true,
+    "music_summary": {
+      "playlists": 43,
+      "auto_download": 43,
+      "interval_seconds": [
+        43200
+      ],
+      "navidrome_links": 43,
+      "maintenance_enabled": true,
+      "maintenance_interval_seconds": 604800
+    },
+    "collector_policy": {
+      "delivery_reconcile_timeout_ms": 30000,
+      "max_active_turns": 2,
+      "max_collection_bytes": 262144,
+      "max_collection_messages": 256,
+      "max_collectors_per_conversation": 32,
+      "max_queued_turns": 8,
+      "max_wait_ms": null,
+      "silence_ms": 5000
+    },
+    "automatic_memory_candidates": true,
+    "provider_configuration_and_key_preserved": true,
+    "supplier_multi_model_schema_preserved": true,
+    "function_binding_table_present": true,
+    "pre_function_backup_present": true,
+    "video_music_configurations": {
+      "account": {
+        "count": 1,
+        "sha256": "f094acc0e85e8a516bb4eb40baa79566999e3b4bc39ef7336e049a753e0ba2c1"
+      },
+      "subscription": {
+        "count": 6,
+        "sha256": "18913b156c64f3fc591dcf4ae1ccc6274af41a8bb2168361505ba1e2964dde0c"
+      },
+      "media_target": {
+        "count": 1,
+        "sha256": "e330b40f8802c8c39cf22caa529a26ccabca89c071bdf29f56ff673901cfd035"
+      },
+      "music_account": {
+        "count": 3,
+        "sha256": "42c58f8cd9df00372198b05cca7265f9474ddfa6429d5020671aba56c036bab0"
+      },
+      "music_playlist": {
+        "count": 43,
+        "sha256": "1e6930a3042e7d23d63e7e471f33684a9b82d4055b92d0ac5221ed92e79cb8ea"
+      },
+      "music_navidrome_playlist": {
+        "count": 43,
+        "sha256": "9755fe81875785296999aa7f5b92c1d81a0c4a7023f24b4d94c6ef3a8c8b094f"
+      },
+      "music_maintenance": {
+        "count": 1,
+        "sha256": "7bfd59b409282e1af0f6707e83ffa4e34fe28e14f49414cfaed341f3f6ac0988"
+      },
+      "music_settings": {
+        "count": 1,
+        "sha256": "3fae80113a562e53a3b414f888eba4dd8ba67b9d5bf69bdcd02da49bf65ebd32"
+      },
+      "music_navidrome": {
+        "count": 1,
+        "sha256": "0678bd87dcf0e5a2bc8c6faa2fe90ff033aaf378d3f1fa89eff41d3aaea03687"
+      }
+    },
+    "existing_media_jobs": {
+      "audio": {
+        "before": 1957,
+        "after": 1957,
+        "all_previous_ids_preserved": true,
+        "states": {
+          "completed": 1601,
+          "failed": 248,
+          "retry_wait": 108
+        }
+      },
+      "video": {
+        "before": 9,
+        "after": 9,
+        "all_previous_ids_preserved": true,
+        "states": {
+          "completed": 6,
+          "failed": 3
+        }
+      }
+    },
+    "book_epub": {
+      "chapter_count": 848,
+      "path": "/volume1/Documents/电子书/玄幻奇幻/辰东/夜无疆 [e0557add]/book.epub",
+      "sha256": "f3f1fd6f1bb3c26ae3babda6dbe0ba9f3de859538773c721c252904c62a72727",
+      "bytes": 8789215,
+      "unchanged": true
+    },
+    "non_targets": {
+      "added": [],
+      "after": 122,
+      "before": 122,
+      "changed": [],
+      "preserved": true,
+      "removed": []
+    },
+    "contract_families": {
+      "companion": "/volume2/tianshu-v2-resident/contracts-books-audio-67a2a2941765/companion",
+      "platform": "/volume2/tianshu-v2-resident/contracts-books-audio-67a2a2941765/platform"
+    }
+  },
+  "web_assets": {
+    "status": "nas_public_static_verified",
+    "origin": "http://192.168.31.210:18446",
+    "candidate_image_id": "sha256:7fa10e7c9ef1517a961274922f1135a9b84c1977bb5cd4fc3985dbeddae0e106",
+    "revision": "be28ba81920789f301fc74208e8ef92a877a3aa7",
+    "expected_source": "immutable candidate /srv/tianshu/web-hashes.json",
+    "expected_manifest_sha256": "bd94215badd4523ec6fb79e346aa7b6d88de44bf22788b8b6ab9cdedb1b273d9",
+    "static_assets": 64,
+    "entry_index_sha256": "8c13bfb2478e305bc70ed6d7f9bd5dcc3ba9197114034a9dffbe06636068bcb0",
+    "public_health_checked": false,
+    "public_health_route": "not_exposed_by_public_listener",
+    "health_evidence": {
+      "reference": "resident-poll-result.json",
+      "checked_this_run": false,
+      "status": "reused_internal_tls_readback",
+      "sha256": "1bf92de9809fb477ab1e7c54ba77826a25247b68b75b8ab43d80e2d823b41d63",
+      "live": 200,
+      "ready": 200,
+      "verified_tls": true
+    },
+    "cache_no_store": true,
+    "login_session_requested": false,
+    "credentials_used_for_http": false,
+    "production_business_data_read": false,
+    "real_qq_or_model_called": false
+  },
+  "dockge": {
+    "applied": true,
+    "project_directory": "/volume2/tianshu-v2-resident",
+    "source_hashes": {
+      "/volume2/tianshu-v2-resident-updates/bots-20260928/core.compose.json": "9e7cba280ecb271c05f23df38589d4d2f529f232d1fe35ea24fabb8d641d5504",
+      "/volume2/tianshu-v2-resident-updates/bots-20260928/platform.compose.json": "46a77a368c3d9eed7f711bc49197682636553d2d2ce5b481c23cbe038873f641",
+      "/volume2/tianshu-v2-resident-updates/connections-20260928/obs.compose.json": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530"
+    },
+    "snapshots": [
+      {
+        "project": "tianshu-v2-resident",
+        "target": "/volume1/Download/dockge/stacks/tianshu-v2-resident/compose.yaml",
+        "old_sha256": "de4a6112d9d1cff86a272818274a830f9336a27ecec48a08152eef14ac47fd06",
+        "new_sha256": "ee4372a0d655ac229756ef7af61a297798b7fb6560d914823b5ef2ba11b582b1",
+        "images": {
+          "companion": "sha256:5a72d07537a5c9617ba4d0eb6a5c50aba56c71b7cc4c35c198160c7dc2dfe589",
+          "gateway": "sha256:1826e2a52060d6c4545bf5ed5eaa616d3cce48fd63b49a0b1b01ee92dd835188",
+          "knowledge": "sha256:7e3e94e13b095bdbd99801471bfc7b8ce1bd18bbcff2ee14d57b91d36acc7c44",
+          "memory": "sha256:28dd892bb12f1ad56265700b7c9baa1060cbeee96e44ba513d322f6022b053f7",
+          "platform": "sha256:7fa10e7c9ef1517a961274922f1135a9b84c1977bb5cd4fc3985dbeddae0e106"
+        }
+      },
+      {
+        "project": "tianshu-v2-resident-obs",
+        "target": "/volume1/Download/dockge/stacks/tianshu-v2-resident-obs/compose.yaml",
+        "old_sha256": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530",
+        "new_sha256": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530",
+        "images": {
+          "obs-grafana": "grafana/grafana:13.2.2@sha256:ac461fb352abc50da10a51c7d02462e9c05488f11f53f14b3ad79a8145f638a0",
+          "obs-guard": "python:3.12.14-slim-bookworm@sha256:392307d22300de8b5986851a12d9176dfc0fc073e65bf6523ebd7dcbeb23564e",
+          "obs-loki": "grafana/loki:3.7.8@sha256:1107dd5274e0ada47e42472b7a7e71f3b2a2fe878878108f3e2f9e51528f0193",
+          "obs-prometheus": "prom/prometheus:v3.13.3@sha256:6976aa8a60fec930796ce5772b8d12da7a318a5daa8d40d69c5c7819a05eeed7",
+          "obs-vector": "timberio/vector:0.58.0-debian@sha256:1c1ea358c617ea0b23003d5af87f7a678b30f8f7096437e680380c47fc13d2d9"
+        }
+      }
+    ],
+    "containers_recreated": false,
+    "credential_files_read": false,
+    "backup_directory": "/volume2/tianshu-v2-resident-updates/books-audio-20261018-be28ba8-release/dockge-backups/20261018T123131Z-cea01c5e"
+  },
+  "remaining": [],
+  "limits": [
+    "Fish/local provider protocols verified with real HTTP fixtures, not real Fish quota or local model.",
+    "No live model or QQ message was sent.",
+    "Auto-new tested with controlled new chapters; no natural author update claimed.",
+    "Two existing Companion full-suite failures and old TS016 Git ownership check remain.",
+    "Earlier Linux harness failures corrected and evidence retained.",
+    "An initial transient dependency_unavailable coincided with log_flush_timeout; subsequent acceptance passed without changing the shared logging policy."
+  ],
+  "evidence_directory": ".runtime/books-audio-20261018",
+  "production_web_acceptance": {
+    "status": "production_web_and_nas_verified",
+    "book": "夜无疆",
+    "author": "辰东",
+    "chapter": "第1章 永夜",
+    "job_id": "910bfda13a0a1947292c4472912363fb",
+    "source": "previously downloaded real novel chapter, not local TXT fixture",
+    "provider": "edge",
+    "voice": "zh-CN-XiaoxiaoNeural",
+    "parts": 4,
+    "synthesis_characters": 2716,
+    "text_characters": 2722,
+    "generation_seconds": 29.047,
+    "audio": {
+      "status": "nas_audio_verified",
+      "host_path": "/volume1/Documents/电子书/玄幻奇幻/辰东/夜无疆 [e0557add]/audio/e8167039b51d3ab9650debeb/d8ed925311c466b1c0e03b43.mp3",
+      "manifest_path": "/volume1/Documents/电子书/玄幻奇幻/辰东/夜无疆 [e0557add]/audio/e8167039b51d3ab9650debeb/d8ed925311c466b1c0e03b43.json",
+      "duration": 533.016,
+      "bytes": 3198333,
+      "sha256": "cc44073a0bdf082f9bc28bba4fdcc9d08b6f9d525c683779f078e17f0f130443",
+      "sync": "sentence",
+      "cues": 75,
+      "full_ffmpeg_decode": true,
+      "decode_warnings": false,
+      "writes": false
+    },
+    "cache_replay": {
+      "status": "cache_replay_verified",
+      "jobs": 1,
+      "segments": 4,
+      "additional_provider_attempts": 0,
+      "additional_characters": 0,
+      "file_hash_and_mtime_unchanged": true,
+      "auto_new": true,
+      "historical_chapter_checkpoint": 848,
+      "sharing_after_toggle": false,
+      "fish_calls": 0
+    },
+    "playback": {
+      "official_authenticated_page": true,
+      "played": true,
+      "sentence_highlight": true,
+      "text_follow": true,
+      "paragraph_seek": true,
+      "paused": true,
+      "resume_seconds": 170.348169,
+      "resume_offset": 902
+    },
+    "co_reading": {
+      "selected_role": "澄汐",
+      "explicit_on_verified": true,
+      "explicit_off_verified": true,
+      "active_reader_close_stops_sharing": true,
+      "reopen_defaults_off": true,
+      "current_sharing": false,
+      "live_model_or_qq_called": false
+    },
+    "auto_new": {
+      "enabled": true,
+      "historical_checkpoint": 848,
+      "ready_audio_chapters": 1,
+      "remaining_historical_chapters_not_queued": 847,
+      "natural_author_update_observed": false
+    },
+    "screenshot": ".runtime/books-audio-20261018/nas-audio-reading.png",
+    "initial_transient": {
+      "ui": "dependency_unavailable on initial estimate and reading sync",
+      "evidence": {
+        "window_event_count": 380,
+        "warnings_errors": [
+          {
+            "timestamp": "2026-10-18T15:24:42.950Z",
+            "event": "logging.recovered",
+            "level": "WARNING",
+            "error_code": null,
+            "outcome": "succeeded",
+            "duration_ms": null
+          },
+          {
+            "timestamp": "2026-10-18T15:24:42.988Z",
+            "event": "logging.unavailable",
+            "level": "ERROR",
+            "error_code": "log_flush_timeout",
+            "outcome": "failed",
+            "duration_ms": null
+          }
+        ],
+        "bounded_tail_read": true,
+        "writes": false
+      },
+      "assessment": "Same-window log_flush_timeout matches the existing diagnostic admission protection; read-only domain checks and subsequent real flow passed. No shared logging policy change or service restart.",
+      "resolved_for_acceptance": true
+    },
+    "final_player_seconds": 0.1,
+    "fish_calls": 0
+  },
+  "acceptance_document_commits": {
+    "platform": "f6f58b6020dd6102fa371ae46ca20ccf7f937a93",
+    "companion": "6d906a4904682e0bf345c0e449dd5a0b0a2fd7a3"
+  },
+  "production_window": "Book acceptance complete; explicitly release Platform/Companion to coordinated subsequent tasks after this record is pushed. Subsequent AS changes need a fresh baseline."
+}

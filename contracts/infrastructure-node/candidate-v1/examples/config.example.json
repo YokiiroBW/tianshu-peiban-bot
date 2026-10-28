@@ -1,0 +1,28 @@
+{
+  "version": "infrastructure-node.v1",
+  "state_dir": "/var/lib/tianshu-infrastructure",
+  "ssh_command": [
+    "ssh"
+  ],
+  "max_concurrency": 4,
+  "stale_after_seconds": 120,
+  "nodes": {
+    "fixture-nas": {
+      "label": "Synthetic NAS",
+      "kind": "synology",
+      "host": "nas.example.invalid",
+      "port": 2222,
+      "user": "observer",
+      "identity_file": "/run/infrastructure-secrets/synthetic_identity",
+      "known_hosts_file": "/run/infrastructure-secrets/synthetic_known_hosts",
+      "docker": {
+        "enabled": true,
+        "command": [
+          "docker"
+        ],
+        "socket_path": "/var/run/synthetic-docker.sock"
+      },
+      "stacks_root": "/srv/synthetic-stacks"
+    }
+  }
+}

@@ -1,0 +1,1097 @@
+{
+  "date": "2026-10-04",
+  "status": "github_integrated_nas_deployed_verified",
+  "objective": "Complete the full companion iteration, integrate and push GitHub, deploy and verify NAS",
+  "plan": "companion-complete-iteration-2026-10-04.md",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "xhigh",
+  "max_parallel_implementers": 3,
+  "coordinator": "architecture_contracts_dispatch_review_integration_acceptance",
+  "allocation_note": "Existing allocator targets dirty/stale projects HEAD. Exact reviewed release SHAs allocated with native git worktree; no original checkout/reset/stash. This record owns current batch allocations.",
+  "tasks": [
+    {
+      "id": "C1",
+      "product": "memory",
+      "agent": "iteration_memory_plan",
+      "status": "integrated_and_deployed_verified_with_recorded_limits",
+      "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\memory",
+      "baseline": "8415bc85bcad089a9e24461d5f3e88039754103c",
+      "exclusive_scope": "product source/tests/docs/own migrations and entrypoints; no other product or root contracts",
+      "public_interface_status": "published_implementation_baseline",
+      "verification": [
+        {
+          "suite": "C1 HTTP/TLS/migration/receipt",
+          "passed": 20
+        },
+        {
+          "suite": "affected contract-context runtime/probe/TLS",
+          "passed": 109
+        },
+        {
+          "suite": "initial broader regression",
+          "passed": 1118,
+          "reused": true,
+          "remaining_baseline_failure": "invalid QQ account schema returns 400 before expected 403; baseline reproduced",
+          "existing_format_failures": 4
+        }
+      ],
+      "commit": "20bf790c629604ebf177bd1bb5eed06ffb07b420",
+      "handoff": "memory/docs/handoffs/C1.md"
+    },
+    {
+      "id": "C2",
+      "product": "gateway",
+      "agent": "provider_test_fix",
+      "status": "integrated_and_deployed_verified_with_recorded_limits",
+      "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\gateway",
+      "baseline": "d1865da927bee8e266ac34bdc674dc36c1a513a8",
+      "exclusive_scope": "product source/tests/docs/own migrations and entrypoints; no other product or root contracts",
+      "public_interface_status": "published_implementation_baseline",
+      "verification": [
+        {
+          "suite": "concentrated regression",
+          "total": 382,
+          "passed_before_fix": 369,
+          "failures_before_fix": 2,
+          "skipped": 11,
+          "affected_retest_passed": 2,
+          "unresolved_failures": 0
+        },
+        {
+          "suite": "new loopback HTTP",
+          "passed": 13,
+          "real_provider": false
+        },
+        {
+          "suite": "final Platform actual TLS origin renewal joint",
+          "passed": 11,
+          "handoff": "platform/docs/handoffs/C4.md"
+        }
+      ],
+      "commit": "ea7f5924e80640d1289e66adb89541c52e037eaa",
+      "handoff": "gateway/docs/handoffs/C2-model-execution-2026-10-04.md",
+      "nas_candidate_image": {
+        "status": "built",
+        "image_id": "sha256:51c745d77e58640a2e3694dc710cd49eecfd3caed2f71c4a67ebb6fad50dc20a",
+        "revision": "ea7f5924e80640d1289e66adb89541c52e037eaa",
+        "base_image_id": "sha256:83c98217bac8a9b11d8d2f327a78077179a7e411ae9513951365974cde655475",
+        "dependency_inputs": "pyproject/uv.lock/tools.lock/Dockerfile byte-identical to deployed baseline",
+        "linux_cli_help": true,
+        "production_changed": false,
+        "stage": "/volume2/tianshu-v2-resident-updates/companion-complete-20261004-gateway-ea7f5924e806",
+        "installed_source_verification": {
+          "python_files": 20,
+          "method": "SHA256 after CRLF to LF normalization; names exactly match git tree",
+          "result": "passed",
+          "note": "Raw hash mismatch was archive line endings on all 20 files; normalized content identical."
+        }
+      }
+    },
+    {
+      "id": "C3",
+      "product": "companion",
+      "agent": "iteration_runtime_plan",
+      "status": "integrated_and_deployed_verified_with_recorded_limits",
+      "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\companion",
+      "baseline": "a5725d04aba00762d66306ae4821a40b70f7e2ed",
+      "exclusive_scope": "Companion product source/tests/docs/own migrations and entrypoints; integrations shared/nonebot/astrbot explicitly transferred to C4 adapter worktree",
+      "public_interface_status": "published_implementation_baseline",
+      "verification": [
+        {
+          "suite": "final component",
+          "passed": 731,
+          "skipped": 24,
+          "warnings": 2,
+          "subtests_passed": 101,
+          "evidence": "companion/.runtime/c3-full-final.txt"
+        },
+        {
+          "suite": "root final merged five-owner TLS HTTP",
+          "passed": 5,
+          "seconds": 78.946,
+          "evidence": ".runtime/companion-complete-20261004/merged-c3-joint.txt",
+          "companion": "91d82ddad9bb1f2eb140d0dc6615ee84dd6b4eb9",
+          "platform": "e2e4795f71729fdbfb03e48ae3a9247b3f382a6e",
+          "memory": "097ccfa55dfb5af541d24cfcb48ba6ccf02f1a3a",
+          "gateway": "ea7f5924e80640d1289e66adb89541c52e037eaa",
+          "real_external_provider_or_QQ": false
+        }
+      ],
+      "working_tree_verification_report": {
+        "source": "Implementer report; final retest pending",
+        "first_concentrated_passed": 82,
+        "first_concentrated_failed": 4,
+        "followup": "Superseded by fixed final regression and merged actual HTTP joint; deployment remains pending.",
+        "new_tests": "tests/test_runtime_v2.py",
+        "not_complete": false
+      },
+      "commit": "a22acfa6890072794d40442222bb2f4704b01292",
+      "handoff": "companion/docs/handoffs/C3.md",
+      "integration_commit": "91d82ddad9bb1f2eb140d0dc6615ee84dd6b4eb9"
+    },
+    {
+      "id": "C4",
+      "status": "integrated_and_deployed_verified_with_recorded_limits",
+      "verification": [],
+      "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\platform",
+      "baseline": "6a2ed3d0d6f6b3f0be6761c3b9cf61239ea5d2b4",
+      "task_card": "companion-complete-platform-task-2026-10-04.md",
+      "agent": "provider_test_fix",
+      "adapter_allocation": {
+        "agent": "provider_test_fix",
+        "status": "reviewed_fixed_candidate_pending_runtime_merge",
+        "worktree": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\companion-complete-20261004\\companion-adapters",
+        "branch": "codex/companion-complete-adapters-20261004",
+        "baseline": "a5725d04aba00762d66306ae4821a40b70f7e2ed",
+        "exclusive_scope": "integrations/shared, integrations/nonebot, integrations/astrbot and direct adapter tests/handoff",
+        "integration": {
+          "worktree": "worktrees/companion-complete-20261004/companion-release",
+          "branch": "codex/companion-complete-release-20261004",
+          "head": "91d82ddad9bb1f2eb140d0dc6615ee84dd6b4eb9",
+          "owner": "root",
+          "pending": "image build, push and deployment"
+        },
+        "handoff_verified": "C3 confirmed no uncommitted changes and no ongoing writes in transferred paths",
+        "commit": "f308c9af234573bf3bd342c89e8664afb9900f92",
+        "handoff": "companion-adapters/docs/handoffs/C4-adapters.md",
+        "verification": {
+          "pytest_passed": 29,
+          "ca_followup_passed": 1,
+          "real_sdk_host_scenarios_passed": 2,
+          "real_qq_sent": false
+        },
+        "review_finding": "Closed: pure media accepted in RPC regular/observation and SDK; both empty rejected. Real SDK PNG ACK/replay followup2 and affected pytest15 passed.",
+        "version": "0.5.0",
+        "artifacts": {
+          "astrbot_zip_sha256": "03f5e9d02091797b256c961ebbbd9f0c9858e83940992a02801f15c51470990b",
+          "nonebot_wheel_sha256": "b378de529d6da022e6e3c9c14b72bd84aa2951c2a153860e0649b97c9e450978"
+        }
+      },
+      "exclusive_scope": "services/** and allocated Companion integrations; all apps/web writes transferred to C4-UI",
+      "ui_allocation": {
+        "agent": "iteration_memory_plan",
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "xhigh",
+        "status": "merged_local_verified",
+        "worktree": "C:/YOKI/Codex/tianshu-peiban-bot/worktrees/companion-complete-20261004/platform-ui",
+        "branch": "codex/companion-complete-ui-20261004",
+        "baseline": "6a2ed3d0d6f6b3f0be6761c3b9cf61239ea5d2b4",
+        "exclusive_scope": "apps/web/** including existing browser tests; docs/handoffs/C4-UI.md; no services or locks",
+        "handoff": "platform-ui/docs/handoffs/C4-UI.md",
+        "integration": "Coordinator merges isolated UI candidate into final Platform backend candidate, preserving unique owner per path",
+        "commit": "72522a5298fb998e833f40c9a95287b29c1950ea",
+        "verification": {
+          "typecheck": true,
+          "build": true,
+          "actual_five_owner_browser": 6,
+          "image_presentation_followup": 4,
+          "coordinator_visual_review": "desktop room and mobile identity workspace; picture byte controls corrected afterward; prior owner-chain checks reused"
+        }
+      },
+      "working_tree_verification_report": {
+        "source": "Implementer report; fixed commit and coordinator final verification pending",
+        "http_proofs_credentials": 3,
+        "http_delivery": 6,
+        "actual_sdk_adapter_scenarios": 2,
+        "reused": true,
+        "joint": "Closed: five-owner first-no-chat content acquisition/restart/disable, existing active+disabled Knowledge enrollment, actual two-author association/revoke passed; see fixed C4 handoff."
+      },
+      "commit": "e2e4795f71729fdbfb03e48ae3a9247b3f382a6e",
+      "handoff": "platform/docs/handoffs/C4.md",
+      "integration": {
+        "worktree": "worktrees/companion-complete-20261004/platform-release",
+        "branch": "codex/companion-complete-platform-release-20261004",
+        "owner": "root",
+        "pending": "fixed image build, GitHub push and NAS migration/deployment",
+        "head": "b313a49aa83fe4697eb74a8b5e4a8a924643ce28"
+      },
+      "final_deployed_revision": "c87c53bcb7604d93f392cf1613049ac8567baa88",
+      "readiness_followup": "bots schema 2 accepted; other sidecar schema 2 still rejected; two actual TLS HTTP tests passed."
+    },
+    {
+      "id": "C5",
+      "status": "integrated_and_deployed_verified_with_recorded_limits",
+      "verification": [
+        {
+          "suite": "affected Knowledge/C1/HTTP/HTTPS/concurrency",
+          "passed": 201
+        },
+        {
+          "suite": "whole product",
+          "passed": 1153,
+          "loader_failures_during_contract_publication": 12,
+          "known_baseline_deselected": 1
+        },
+        {
+          "suite": "final content after pin update",
+          "passed": 13,
+          "covers": "loader failures, paired nonempty restore, low-budget decoded frames, disabled RoleGrants"
+        },
+        {
+          "suite": "isolated locked CPython3.12.14 wheel install",
+          "passed": true,
+          "platform": "Windows",
+          "linux_verified": false
+        }
+      ],
+      "product": "memory_knowledge",
+      "task_card": "companion-complete-content-task-2026-10-04.md",
+      "reason": "Existing owner only reads controlled UTF8/HTML; actual upload/image/video content path missing",
+      "agent": "iteration_memory_plan",
+      "worktree": "C:/YOKI/Codex/tianshu-peiban-bot/worktrees/companion-complete-20261004/memory",
+      "baseline": "20bf790c629604ebf177bd1bb5eed06ffb07b420",
+      "public_interface_status": "published_implementation_baseline",
+      "interface_review": [
+        "Add independent actor-owned reading without fabricated person or inbound message",
+        "Keep content ownership in Knowledge; life projection receives actual representations and gaps",
+        "Avoid bidirectional schema and manifest dependencies"
+      ],
+      "commit": "129ab8f651971fe5d50c01e05ecf605c0bb51e77",
+      "handoff": "memory/docs/handoffs/C5.md",
+      "pin_update_commit": "fe767774a580e8f3f17c6ceaf229770d5fc6b48d",
+      "entrypoint_fix": {
+        "commit": "097ccfa55dfb5af541d24cfcb48ba6ccf02f1a3a",
+        "handoff": "memory/docs/handoffs/C5-knowledge-entry.md",
+        "actual_cli_related_tests_passed": 52,
+        "additional_entry_constraint_tests_passed": 2,
+        "joint": "Passed with independent Memory and Knowledge databases: first no-chat upload/read/restart/disable, existing active+disabled enrollment; C4 fixed handoff."
+      }
+    },
+    {
+      "id": "C6",
+      "status": "integrated_and_deployed_verified_with_recorded_limits",
+      "verification": []
+    }
+  ],
+  "coverage": [
+    {
+      "scenario": 1,
+      "status": "isolated_runtime_verified",
+      "evidence": [],
+      "current_assessment": {
+        "evidence": "C3 test_runtime_v2: first no-chat ensure, cross-day checkpoint, restart and disabled role rejection.",
+        "supersedes_earlier_pending_notes": true,
+        "sources": [
+          "companion/docs/handoffs/C3.md",
+          "platform/docs/handoffs/C4.md",
+          "platform-ui/docs/handoffs/C4-UI.md",
+          ".runtime/companion-complete-20261004/merged-c3-joint.txt"
+        ]
+      },
+      "implementation_deployed_to_nas": true
+    },
+    {
+      "scenario": 2,
+      "status": "isolated_runtime_and_joint_verified",
+      "evidence": [],
+      "current_assessment": {
+        "evidence": "C3 runtime v2 activity checkpoints; final merged five-owner TLS joint actual current reading/draft context.",
+        "supersedes_earlier_pending_notes": true,
+        "sources": [
+          "companion/docs/handoffs/C3.md",
+          "platform/docs/handoffs/C4.md",
+          "platform-ui/docs/handoffs/C4-UI.md",
+          ".runtime/companion-complete-20261004/merged-c3-joint.txt"
+        ]
+      },
+      "implementation_deployed_to_nas": true
+    },
+    {
+      "scenario": 3,
+      "status": "isolated_runtime_and_joint_verified",
+      "evidence": [
+        {
+          "product": "memory",
+          "commit": "20bf790c629604ebf177bd1bb5eed06ffb07b420",
+          "source": "tests/test_memory_context.py; tests/test_memory_context_runtime.py",
+          "verified": "Natural bounded whole-group recall; atomic correction/rebuild; stale-revision and ACK recovery; reflection cannot restore corrected old evidence",
+          "not_verified": "Companion current-turn intent/expressions and real Platform proof issue/verify integration"
+        }
+      ],
+      "current_assessment": {
+        "evidence": "Final merged five-owner TLS native SSE natural context/correction path; exact old-origin source lookup and independent intent preservation.",
+        "supersedes_earlier_pending_notes": true,
+        "sources": [
+          "companion/docs/handoffs/C3.md",
+          "platform/docs/handoffs/C4.md",
+          "platform-ui/docs/handoffs/C4-UI.md",
+          ".runtime/companion-complete-20261004/merged-c3-joint.txt"
+        ]
+      },
+      "implementation_deployed_to_nas": true
+    },
+    {
+      "scenario": 4,
+      "status": "isolated_runtime_and_joint_verified",
+      "evidence": [
+        {
+          "product": "memory",
+          "commit": "20bf790c629604ebf177bd1bb5eed06ffb07b420",
+          "source": "tests/test_memory_context.py; tests/test_memory_context_runtime.py",
+          "verified": "Natural bounded whole-group recall; atomic correction/rebuild; stale-revision and ACK recovery; reflection cannot restore corrected old evidence",
+          "not_verified": "Companion current-turn intent/expressions and real Platform proof issue/verify integration"
+        }
+      ],
+      "current_assessment": {
+        "evidence": "Final merged five-owner TLS natural correction with Memory receipt plus negative cases; withdrawn source checks in runtime v2.",
+        "supersedes_earlier_pending_notes": true,
+        "sources": [
+          "companion/docs/handoffs/C3.md",
+          "platform/docs/handoffs/C4.md",
+          "platform-ui/docs/handoffs/C4-UI.md",
+          ".runtime/companion-complete-20261004/merged-c3-joint.txt"
+        ]
+      },
+      "implementation_deployed_to_nas": true
+    },
+    {
+      "scenario": 5,
+      "status": "isolated_runtime_and_joint_verified",
+      "evidence": [
+        {
+          "product": "platform",
+          "commit": "e2e4795f71729fdbfb03e48ae3a9247b3f382a6e",
+          "source": "tests/backend/test_c4_delivery.py",
+          "verified": "Fixed Platform tests cover three origins in one queue, ACK, cancel claimed/unknown/late ACK, media materialization and accumulated limit.",
+          "not_verified": "Final merged Core expression path and production adapter delivery.",
+          "handoff": "platform/docs/handoffs/C4.md"
+        }
+      ],
+      "current_assessment": {
+        "evidence": "C4 shared normal/direct/proactive queue and C3 actual HTTP synthetic SDK ACK; partial/unknown/cancel/late ACK and restart no replay. Real QQ not probed this iteration.",
+        "supersedes_earlier_pending_notes": true,
+        "sources": [
+          "companion/docs/handoffs/C3.md",
+          "platform/docs/handoffs/C4.md",
+          "platform-ui/docs/handoffs/C4-UI.md",
+          ".runtime/companion-complete-20261004/merged-c3-joint.txt"
+        ]
+      },
+      "implementation_deployed_to_nas": true
+    },
+    {
+      "scenario": 6,
+      "status": "isolated_runtime_verified",
+      "evidence": [],
+      "current_assessment": {
+        "evidence": "C3 confirmed contact to unanswered timeout once, private scoped affect, response recovery and durable restart; no relationship score loss.",
+        "supersedes_earlier_pending_notes": true,
+        "sources": [
+          "companion/docs/handoffs/C3.md",
+          "platform/docs/handoffs/C4.md",
+          "platform-ui/docs/handoffs/C4-UI.md",
+          ".runtime/companion-complete-20261004/merged-c3-joint.txt"
+        ]
+      },
+      "implementation_deployed_to_nas": true
+    },
+    {
+      "scenario": 7,
+      "status": "isolated_runtime_and_browser_verified",
+      "evidence": [],
+      "current_assessment": {
+        "evidence": "C3 outfit/reference lifecycle and first-save CAS; C4 browser identity references. External image backend remains unconfigured.",
+        "supersedes_earlier_pending_notes": true,
+        "sources": [
+          "companion/docs/handoffs/C3.md",
+          "platform/docs/handoffs/C4.md",
+          "platform-ui/docs/handoffs/C4-UI.md",
+          ".runtime/companion-complete-20261004/merged-c3-joint.txt"
+        ]
+      },
+      "implementation_deployed_to_nas": true
+    },
+    {
+      "scenario": 8,
+      "status": "isolated_runtime_and_browser_verified_external_pending",
+      "evidence": [],
+      "current_assessment": {
+        "evidence": "C3 image jobs/unknown reconciliation and existing album original hash adoption/restart; C4 album UI. Real ComfyUI generation not verified.",
+        "supersedes_earlier_pending_notes": true,
+        "sources": [
+          "companion/docs/handoffs/C3.md",
+          "platform/docs/handoffs/C4.md",
+          "platform-ui/docs/handoffs/C4-UI.md",
+          ".runtime/companion-complete-20261004/merged-c3-joint.txt"
+        ]
+      },
+      "implementation_deployed_to_nas": true
+    },
+    {
+      "scenario": 9,
+      "status": "isolated_runtime_joint_and_browser_verified",
+      "evidence": [
+        {
+          "product": "platform",
+          "commit": "e2e4795f71729fdbfb03e48ae3a9247b3f382a6e",
+          "source": "tests/backend/test_c4_joint.py::test_first_no_chat_upload_independent_knowledge_restart_disable",
+          "verified": "Actual five-owner HTTP first no-chat acquisition, original bytes/SHA, restart read and disabled Knowledge rejection.",
+          "not_verified": "Final Core media/reading coverage and UI fixed commit.",
+          "handoff": "platform/docs/handoffs/C4.md"
+        }
+      ],
+      "current_assessment": {
+        "evidence": "C5 actual Linux codecs, C4 independent Knowledge first no-chat upload/read/restart/disable; final C3 actual image bytes vision and reading joint; final UI image presentation 4 focused checks.",
+        "supersedes_earlier_pending_notes": true,
+        "sources": [
+          "companion/docs/handoffs/C3.md",
+          "platform/docs/handoffs/C4.md",
+          "platform-ui/docs/handoffs/C4-UI.md",
+          ".runtime/companion-complete-20261004/merged-c3-joint.txt"
+        ]
+      },
+      "implementation_deployed_to_nas": true
+    },
+    {
+      "scenario": 10,
+      "status": "isolated_runtime_and_joint_verified",
+      "evidence": [],
+      "current_assessment": {
+        "evidence": "C3 versioned original writing and diary/reflection paths; final merged actual five-owner current draft/reading joint; C4 writing lifecycle UI.",
+        "supersedes_earlier_pending_notes": true,
+        "sources": [
+          "companion/docs/handoffs/C3.md",
+          "platform/docs/handoffs/C4.md",
+          "platform-ui/docs/handoffs/C4-UI.md",
+          ".runtime/companion-complete-20261004/merged-c3-joint.txt"
+        ]
+      },
+      "implementation_deployed_to_nas": true
+    },
+    {
+      "scenario": 11,
+      "status": "isolated_runtime_and_joint_verified",
+      "evidence": [
+        {
+          "product": "gateway",
+          "commit": "ea7f5924e80640d1289e66adb89541c52e037eaa",
+          "source": "tests/test_model_execution_http.py",
+          "verified": "13 loopback HTTP tests cover native/chat streaming, owned cancellation, timeout/drop, partial progress, tool/image passthrough and restart without retry",
+          "not_verified": "Companion consumer, Platform Web/QQ output, trusted cross-channel context and real providers"
+        },
+        {
+          "product": "platform",
+          "commit": "e2e4795f71729fdbfb03e48ae3a9247b3f382a6e",
+          "source": "tests/backend/test_c4_joint.py::test_association_requires_actual_second_author_and_memory_receipt",
+          "verified": "Two actual synthetic authors, exact-source association proof, Memory linked receipt, pending recovery, replay and CAS revoke.",
+          "not_verified": "Final Core streaming cancellation and production channel verification.",
+          "handoff": "platform/docs/handoffs/C4.md"
+        }
+      ],
+      "current_assessment": {
+        "evidence": "Final held SSE first segment before end; Web cancel to Core/Gateway with unknown upstream outcome, ACK retained/restart no replay; actual two-author synthetic association/revoke. Real QQ/model external probe not performed.",
+        "supersedes_earlier_pending_notes": true,
+        "sources": [
+          "companion/docs/handoffs/C3.md",
+          "platform/docs/handoffs/C4.md",
+          "platform-ui/docs/handoffs/C4-UI.md",
+          ".runtime/companion-complete-20261004/merged-c3-joint.txt"
+        ]
+      },
+      "implementation_deployed_to_nas": true
+    },
+    {
+      "scenario": 12,
+      "status": "isolated_browser_verified_nas_static_and_health_verified",
+      "evidence": [],
+      "current_assessment": {
+        "evidence": "C4 fixed desktop/mobile and identity browser checks; room viewport no overflow. Room has limited state projection, not full walking/sleep/outfit animation.",
+        "supersedes_earlier_pending_notes": true,
+        "sources": [
+          "companion/docs/handoffs/C3.md",
+          "platform/docs/handoffs/C4.md",
+          "platform-ui/docs/handoffs/C4-UI.md",
+          ".runtime/companion-complete-20261004/merged-c3-joint.txt"
+        ],
+        "nas": "56 static assets and no-store verified; no new authenticated production browser session."
+      },
+      "implementation_deployed_to_nas": true
+    },
+    {
+      "scenario": 13,
+      "status": "nas_backup_migration_restore_and_deployment_verified",
+      "evidence": [
+        {
+          "product": "gateway",
+          "commit": "ea7f5924e80640d1289e66adb89541c52e037eaa",
+          "source": "tests/test_model_execution_http.py::test_restart_preserves_progress_and_usage_and_does_not_restart_request",
+          "verified": "Gateway in-flight restart remains unknown and retains progress/usage, no provider replay",
+          "not_verified": "Nonempty multi-product migrations, companion in-flight activities/images and final release rollback rehearsal"
+        },
+        {
+          "product": "memory",
+          "commit": "20bf790c629604ebf177bd1bb5eed06ffb07b420",
+          "source": "tests/test_memory_context.py::test_real_nonempty_upgrade_preserves_old_sources_accounts_records_and_checkpoint",
+          "verified": "Nonempty additive upgrade retains IDs and mapped applications; stale DB-only restore is rejected by guard",
+          "not_verified": "Successful multi-product restore rehearsal including post-upgrade writes"
+        },
+        {
+          "product": "platform",
+          "commit": "e2e4795f71729fdbfb03e48ae3a9247b3f382a6e",
+          "source": "tests/backend/test_c4_delivery.py::test_migrate_existing_queue_preserves_nonempty_receipts_once; test_c4_joint.py::test_upgrade_existing_active_and_disabled_knowledge_enrolment",
+          "verified": "Nonempty Platform queue receipts survive additive upgrade once; old active/disabled roles enroll in independent Knowledge on restart without enabling disabled roles.",
+          "not_verified": "Whole-product cold backup, migration and restore on NAS clone.",
+          "handoff": "platform/docs/handoffs/C4.md"
+        }
+      ],
+      "current_assessment": {
+        "evidence": "C1/C5 additive nonempty migrations; C3 v9 WAL backup, source retention and post-upgrade checkpoint restart; C4 nonempty queue migration. NAS cold migration/restore pending.",
+        "supersedes_earlier_pending_notes": true,
+        "sources": [
+          "companion/docs/handoffs/C3.md",
+          "platform/docs/handoffs/C4.md",
+          "platform-ui/docs/handoffs/C4-UI.md",
+          ".runtime/companion-complete-20261004/merged-c3-joint.txt"
+        ],
+        "nas": "27 cold DBs / 2 guard pairs; 32 offline migrated DBs with paired owner restore; 33 runtime clone DBs / 2 guards; clone stopped; production data/user configuration preserved; current new ledger retained across failed starts."
+      },
+      "implementation_deployed_to_nas": true
+    }
+  ],
+  "github": {
+    "status": "product_mains_pushed_and_readback_verified",
+    "products": {
+      "tianshu-memory": "097ccfa55dfb5af541d24cfcb48ba6ccf02f1a3a",
+      "tianshu-model-gateway": "ea7f5924e80640d1289e66adb89541c52e037eaa",
+      "tianshu-companion": "91d82ddad9bb1f2eb140d0dc6615ee84dd6b4eb9",
+      "tianshu-platform": "c87c53bcb7604d93f392cf1613049ac8567baa88"
+    },
+    "coordination": "edc254b includes deployed capacity guard fix; final deployment documentation committed afterward."
+  },
+  "nas": {
+    "status": "deployed_verified",
+    "baseline_readonly_verified": true,
+    "baseline_record": ".runtime/companion-complete-20261004/nas-baseline.json",
+    "memory_build": {
+      "recipe": "infra/container/Dockerfile",
+      "installer": "infra/container/build_install.py",
+      "platform": "linux/amd64",
+      "source": "129ab8f651971fe5d50c01e05ecf605c0bb51e77",
+      "local_install_evidence": "worktrees/companion-complete-20261004/memory/.runtime/c5-clean-install/installation-evidence.json",
+      "linux_image_build": "passed",
+      "reuse": "existing locked binary-wheel installer; no new build framework",
+      "stage": "/volume2/tianshu-v2-resident-updates/companion-complete-20261004-memory-129ab8f65197",
+      "first_attempt": "BuildKit stopped before compile: buildx missing; preserved logs, reuse existing classic Docker builder",
+      "receipt": ".runtime/companion-complete-20261004/memory-build-start.json",
+      "image_id": "sha256:9b5025858cab324e87a2199d8ebe9a1bad5c19dfe27f391ccb08bff414f5244a",
+      "linux_smoke": {
+        "status": "passed",
+        "evidence": ".runtime/companion-complete-20261004/memory-linux-smoke.json",
+        "runtime": "Python3.12.11 UID10001 read-only network-none container without production mounts",
+        "coverage": "real PNG decode, MP4 encode/decode four frames, PDF write/read, DOCX write/read",
+        "not_covered": "product HTTP integration and production migration"
+      },
+      "final_pin_candidate": {
+        "commit": "fe767774a580e8f3f17c6ceaf229770d5fc6b48d",
+        "image_id": "sha256:110c64935fce0a6125503bf89a4d0b666a0423b24ca34c86cf3426ff6eff8fcf",
+        "evidence": ".runtime/companion-complete-20261004/memory-final-pin-image.json",
+        "validation": "Exact git diff contains only contracts.py; installed bytes verified in network-disabled readonly Linux container. Reuse unchanged codec/dependency checks.",
+        "production_changed": false
+      },
+      "current_candidate": {
+        "status": "built",
+        "revision": "097ccfa55dfb5af541d24cfcb48ba6ccf02f1a3a",
+        "image_id": "sha256:7e3e94e13b095bdbd99801471bfc7b8ce1bd18bbcff2ee14d57b91d36acc7c44",
+        "base_image_id": "sha256:110c64935fce0a6125503bf89a4d0b666a0423b24ca34c86cf3426ff6eff8fcf",
+        "stage": "/volume2/tianshu-v2-resident-updates/companion-complete-20261004-memory-097ccfa55dfb",
+        "dependency_inputs_unchanged": true,
+        "linux_cli_help": [
+          "memory",
+          "knowledge"
+        ],
+        "production_changed": false,
+        "installed_source_verification": {
+          "python_files": 74,
+          "method": "LF-normalized SHA256 exact tree comparison",
+          "result": "passed"
+        },
+        "codecs": "Reused unchanged locked dependencies and prior actual Linux codec verification"
+      }
+    },
+    "configuration_shape": {
+      "evidence": ".runtime/companion-complete-20261004/config-shape-readonly.json",
+      "read_only": true,
+      "secrets_exported": false,
+      "finding": "Production knowledge_cli serve uses knowledge_http.create_app exposing legacy execute but not new C5 content/role-runtime endpoints. Platform synchronizes only Memory.",
+      "required": "C4 real joint must separate Memory and Knowledge; configure existing role grant synchronization for both owners and verify new/disabled actor content access. No shared DB assumption.",
+      "status": "Knowledge_entry_fixed_C4_role_sync_joint_pending",
+      "repair": {
+        "memory_owner": "iteration_memory_plan",
+        "scope": "Existing durable RoleRuntime stages synchronize independent configured Knowledge peer; two-service HTTP joint",
+        "platform_owner": "provider_test_fix",
+        "prior_memory_image": "candidate requires source overlay or rebuild after entrypoint fix; unchanged codecs reused"
+      }
+    },
+    "native_configuration": {
+      "evidence": ".runtime/companion-complete-20261004/native-config-readonly.json",
+      "read_only": true,
+      "native_enabled": false,
+      "native_clients": [],
+      "max_request_bytes": 1048576,
+      "required": "C3 consumes /v1/chat/completions with native messages/tools/image_url and SSE via existing ClientGrant/provider-self-service. Align bounded max_request_bytes to 4MiB and verify actual features. native_enabled controls separate /v1/responses and need not be enabled for this consumer.",
+      "status": "corrected_after_C2_owner_path_verification",
+      "correction": "Prior inference that disabled native_enabled blocks Companion streaming/tools/vision was incorrect. Do not invent Responses provider/version grants or enable unused entry. Production unchanged."
+    },
+    "nonebot_candidate": {
+      "image_id": "sha256:99af60082719ac582bd0db144fbce72c11c4d7c421c8266b596ec31453dc562d",
+      "revision": "f308c9af234573bf3bd342c89e8664afb9900f92",
+      "base_image_id": "sha256:9a376c27d0615a8f6939d686fac0fb3e1c933f8f73f715b301ea5a1dafbe7f60",
+      "wheel_sha256": "b378de529d6da022e6e3c9c14b72bd84aa2951c2a153860e0649b97c9e450978",
+      "stage": "/volume2/tianshu-v2-resident-updates/companion-complete-20261004-nonebot-f308c9af2345",
+      "verification": {
+        "adapter": "0.5.0",
+        "nonebot": "2.5.0",
+        "onebot": "2.4.6",
+        "source_files": 10
+      },
+      "production_changed": false
+    },
+    "migration_shape": {
+      "evidence": ".runtime/companion-complete-20261004/migration-shapes-readonly.json",
+      "companion_user_version": 9,
+      "memory_context_schema": null,
+      "knowledge_content_schema": null,
+      "read_only": true,
+      "required": "Three owner migrations plus Platform sidecar upgrade; cold paired backups, clone verification before production."
+    },
+    "configuration_upgrade": {
+      "helper": ".runtime/companion-complete-20261004/config_upgrade.py",
+      "dry_run": {
+        "status": "in_memory_dry_run_passed",
+        "changed_paths": [
+          "companion.life_readers.platform",
+          "companion.services.knowledge",
+          "gateway.max_request_bytes",
+          "knowledge.callers",
+          "knowledge.role_grants_database_path",
+          "memory.callers.companion.operations",
+          "memory.callers.platform.operations",
+          "memory.memory_context_proofs",
+          "platform.role_runtime.knowledge"
+        ],
+        "mount_isolation_verified": true,
+        "production_changed": false
+      },
+      "required": "Apply candidate only inside release cycle after cold paired backup and clone migration verification"
+    },
+    "contracts_staged": {
+      "stage": "/volume2/tianshu-v2-resident-updates/companion-complete-20261004-contracts-97c335d6eff4",
+      "revision": "97c335d6eff4a16a3fd178debfa9e5c2e11157b0",
+      "archive_sha256": "8b17a81ddff1c3a0d982670c4e6bc7c0a82527ddaa143ffc3cb0ceef8f4ae00c",
+      "pinned_manifests_verified": 18,
+      "production_changed": false
+    },
+    "companion_candidate": {
+      "status": "built",
+      "image_id": "sha256:1611e6f439b036bda1a7186ae6323143f200371a1dbe2d916d47a8a2ce85bfb3",
+      "tag": "tianshu/companion-complete-companion:91d82ddad9bb",
+      "revision": "91d82ddad9bb1f2eb140d0dc6615ee84dd6b4eb9",
+      "base_image_id": "sha256:e175b25c05ff39746f878eea5784dc943faa7601c9131ce4a2a1bd70693ecf86",
+      "base_revision": "a5725d04aba00762d66306ae4821a40b70f7e2ed",
+      "stage": "/volume2/tianshu-v2-resident-updates/companion-complete-20261004-companion-91d82ddad9bb",
+      "dependency_inputs": {
+        "unchanged": true,
+        "files": [
+          "Dockerfile",
+          "pyproject.toml",
+          "requirements-dev.txt",
+          "requirements-nonebot.txt",
+          ".dockerignore"
+        ]
+      },
+      "source_archive_sha256": "b1cf8b651864eadbc703e44c00234952430a5a512665d24e985ba21ec1f08ff2",
+      "source": "git archive fixed commit; no working-tree files",
+      "installed_package_root": "/usr/local/lib/python3.12/site-packages",
+      "source_file_count": 79,
+      "installed_source_verification": {
+        "method": "exact file set + SHA256 after CRLF to LF normalization",
+        "result": "passed",
+        "packages": {
+          "src/tianshu_companion": 52,
+          "integrations/nonebot/tianshu_nonebot": 10
+        }
+      },
+      "linux_checks": {
+        "network": "none",
+        "read_only": true,
+        "python": "3.12.14",
+        "runtime_modules_imported": 52,
+        "cli_help": true,
+        "pip_check": true
+      },
+      "inherited_runtime": {
+        "user": "10001:10001",
+        "entrypoint": [
+          "python",
+          "-m",
+          "tianshu_companion.runtime_cli"
+        ],
+        "working_dir": "/app",
+        "healthcheck_preserved": true,
+        "env_preserved": true
+      },
+      "production_changed": false,
+      "production_data_mounted": false
+    },
+    "platform_final_candidate": {
+      "status": "built",
+      "image_id": "sha256:537e829e5da6408c04251acb940387e840afc13097a57d115dcb456773714718",
+      "tag": "tianshu/companion-complete-platform:b313a49aa83f",
+      "stage": "/volume2/tianshu-v2-resident-updates/companion-complete-20261004-platform-b313a49aa83f",
+      "revision": "b313a49aa83fe4697eb74a8b5e4a8a924643ce28",
+      "base_image_id": "sha256:71dedc1618f8a6333fcb50fc71be708621636e0d0daaf468c0dd0e769b3d63e0",
+      "base_revision": "6a2ed3d0d6f6b3f0be6761c3b9cf61239ea5d2b4",
+      "contracts_revision": "11441e749cffd9422cd5731faf263fa9822fd774",
+      "source_archive_sha256": "13933b4a0f2c88ae66dd85c70ab988fb8140aa29d23479500b3aaead0c96055e",
+      "source": "git archive fixed commits; no working-tree files or local dist",
+      "dependency_inputs": {
+        "unchanged": true,
+        "files": [
+          "Dockerfile",
+          "package.json",
+          "package-lock.json",
+          "pyproject.toml",
+          ".dockerignore",
+          "scripts/build/runtime.lock",
+          "scripts/build/tools.lock",
+          "scripts/build/base-images.json"
+        ],
+        "sha256": {
+          "Dockerfile": "17144cfb6f8b53af3f5e4ef5e23533b4a21ec3bb7dbcb78f5a6cbc687c6b84f6",
+          "package.json": "98f081e5d9395d23c1f8da4328d400fe6cd368047827530e3608555e23689e21",
+          "package-lock.json": "c0fdf8e0a61841aa9b8290f42983042b93c3d7492c6d1fc653f27fd3400a92e2",
+          "pyproject.toml": "c567471c43ad58c773d3051c16cb036456cae78ba9445c9c53bf16b1548ec801",
+          ".dockerignore": "739e6828ac63065d1a88292b69a00a071d76ac3993495c1fcafa18421905e7f6",
+          "scripts/build/runtime.lock": "2177bffa661fcf91087d5efecca533c37cc107e8a831d5cf25a80de75a9009cd",
+          "scripts/build/tools.lock": "12d95d3f58681aa8e07423fd2bf2c164f8d41af73508cbc5bf093c3b6e790f4e",
+          "scripts/build/base-images.json": "99138bd3c0a27d416cae66d3e5e1029311b3bd37862d8d07de564108515b6e42"
+        }
+      },
+      "build": {
+        "platform": "linux/amd64",
+        "node": "24.19.0",
+        "npm": "11.6.2",
+        "network": "none",
+        "builder": "existing classic Docker",
+        "web": "original console stage npm ci + npm run build"
+      },
+      "linux_checks": {
+        "network": "none",
+        "read_only": true,
+        "python": "3.12.11",
+        "uid": 10001,
+        "installed_source_files": 74,
+        "contract_files": 165,
+        "contract_manifests": 18,
+        "runtime_packages": [
+          "bot-delivery/v2",
+          "knowledge-content/v1",
+          "life-runtime/v2",
+          "memory-context/v1"
+        ],
+        "runtime_modules_imported": 74,
+        "web_files": 56,
+        "html_assets": 3,
+        "final_image_ui": true,
+        "cli_help": true,
+        "pip_check": true
+      },
+      "inherited_runtime": {
+        "user": "10001:10001",
+        "entrypoint": [
+          "python",
+          "-I",
+          "-m",
+          "services.platform"
+        ],
+        "working_dir": "/srv/tianshu",
+        "cmd": [
+          "--settings",
+          "/etc/tianshu/settings.json",
+          "serve",
+          "--host",
+          "0.0.0.0",
+          "--port",
+          "8443"
+        ],
+        "healthcheck_preserved": true,
+        "env_preserved": true,
+        "volumes_preserved": true
+      },
+      "production_changed": false,
+      "production_data_mounted": false,
+      "production_service_started": false
+    },
+    "final_release": {
+      "date": "2026-10-05",
+      "status": "github_integrated_nas_deployed_verified",
+      "origin": "http://192.168.31.210:18446",
+      "release_sha256": "5e0558c12feadfb17890e7b69989d79855413cf37c299b0ef4c7128c3455e676",
+      "images": {
+        "platform": {
+          "image_id": "sha256:a1c8105bd7d8e22747970067d73d8c240e76d588923e2d29077db925088e9969",
+          "source_verified": true,
+          "revision": "c87c53bcb7604d93f392cf1613049ac8567baa88"
+        },
+        "memory": {
+          "image_id": "sha256:7e3e94e13b095bdbd99801471bfc7b8ce1bd18bbcff2ee14d57b91d36acc7c44",
+          "source_verified": true,
+          "revision": "097ccfa55dfb5af541d24cfcb48ba6ccf02f1a3a"
+        },
+        "gateway": {
+          "image_id": "sha256:51c745d77e58640a2e3694dc710cd49eecfd3caed2f71c4a67ebb6fad50dc20a",
+          "source_verified": true,
+          "revision": "ea7f5924e80640d1289e66adb89541c52e037eaa"
+        },
+        "knowledge": {
+          "image_id": "sha256:7e3e94e13b095bdbd99801471bfc7b8ce1bd18bbcff2ee14d57b91d36acc7c44",
+          "source_verified": true,
+          "revision": "097ccfa55dfb5af541d24cfcb48ba6ccf02f1a3a"
+        },
+        "companion": {
+          "image_id": "sha256:1611e6f439b036bda1a7186ae6323143f200371a1dbe2d916d47a8a2ce85bfb3",
+          "source_verified": true,
+          "revision": "91d82ddad9bb1f2eb140d0dc6615ee84dd6b4eb9"
+        }
+      },
+      "nonebot": {
+        "adapter_http": 200,
+        "automatic_ledger_restore": false,
+        "credentials_and_instance_preserved": true,
+        "image_id": "sha256:99af60082719ac582bd0db144fbce72c11c4d7c421c8266b596ec31453dc562d",
+        "no_model_or_qq_probe": true,
+        "observation_http": 200,
+        "policy_preserved": true,
+        "revision": "f308c9af234573bf3bd342c89e8664afb9900f92",
+        "source_files": 10,
+        "status": "deployed_verified",
+        "versions": {
+          "nonebot-adapter-onebot": "2.4.6",
+          "nonebot2": "2.5.0",
+          "tianshu-nonebot-adapter": "0.5.0"
+        },
+        "wheel_sha256": "b378de529d6da022e6e3c9c14b72bd84aa2951c2a153860e0649b97c9e450978"
+      },
+      "guard_fix_commit": "edc254b6a7904b6441454e1278c7745844c11375",
+      "cold_backup": {
+        "all_ten_stopped": true,
+        "executed_in_this_revision": false,
+        "guard_pairs": 2,
+        "inherited_from": "/volume2/tianshu-v2-resident-updates/companion-complete-20261004-release/cold_backup-receipt.json",
+        "parent_release_sha256": "1b15ad75137fb87165b8ee18c43c6ab16ef15da9f435fa3a1011fef64059143d",
+        "release_sha256": "5e0558c12feadfb17890e7b69989d79855413cf37c299b0ef4c7128c3455e676",
+        "source_receipt_sha256": "ffff6fd7637cf0baf2e2c90a3d670566e5c1ed3431b59b55bebe2ce76a37f47b",
+        "sqlite_databases": 27,
+        "status": "consistent_cold_backup_and_disabled_restore_verified"
+      },
+      "migration": {
+        "databases": {
+          "databases": 32,
+          "guard_pairs": 2
+        },
+        "executed_in_this_revision": false,
+        "inherited_from": "/volume2/tianshu-v2-resident-updates/companion-complete-20261004-release/migrate_clone-receipt.json",
+        "migrations": {
+          "companion": {
+            "version": 10
+          },
+          "knowledge": {
+            "guard_pair_verified": true
+          },
+          "memory": {
+            "guard_pair_verified": true
+          },
+          "platform": {
+            "delivery_version": 2,
+            "http_or_background_started": false,
+            "proof_challenge_tables": true
+          }
+        },
+        "parent_release_sha256": "1b15ad75137fb87165b8ee18c43c6ab16ef15da9f435fa3a1011fef64059143d",
+        "release_sha256": "5e0558c12feadfb17890e7b69989d79855413cf37c299b0ef4c7128c3455e676",
+        "runtime_ledger_copied_to_production": false,
+        "source_receipt_sha256": "b1cee103e86e2e985a7a38d16bef3b2be96c13023c1bf24282583b06051415ce",
+        "status": "offline_migration_and_owner_pair_restore_verified"
+      },
+      "clone": {
+        "databases": {
+          "databases": 33,
+          "guard_pairs": 2
+        },
+        "role_peers": {
+          "disabled_kept_disabled": true,
+          "independent_memory_and_knowledge": true,
+          "roles_verified": 1
+        },
+        "stopped": true,
+        "internal_network_only": true
+      },
+      "production": {
+        "five_core_tls_live_ready": 200,
+        "managed_owners": 10,
+        "guard_ready": true,
+        "user_state_preserved": true,
+        "runtime_clone_data_copied": false,
+        "old_ledger_restored": false
+      },
+      "web": {
+        "status": "nas_public_static_verified",
+        "origin": "http://192.168.31.210:18446",
+        "candidate_image_id": "sha256:a1c8105bd7d8e22747970067d73d8c240e76d588923e2d29077db925088e9969",
+        "revision": "c87c53bcb7604d93f392cf1613049ac8567baa88",
+        "expected_source": "immutable candidate /srv/tianshu/web-hashes.json",
+        "expected_manifest_sha256": "27003af289ac934f3f0b887e8f432def6caf1139e70c1deef19e740083164b5e",
+        "static_assets": 56,
+        "entry_index_sha256": "c4be871849ac43717d7448e216fe45fe17e6a7ff9ce5e57bde0b7322f762a59c",
+        "public_health_checked": false,
+        "public_health_route": "not_exposed_by_public_listener",
+        "health_evidence": {
+          "reference": "release-revision-poll-receipt.json",
+          "checked_this_run": false,
+          "status": "reused_internal_tls_readback",
+          "sha256": "44d6e5d43d1bdd31ac25287a064f334bdfe3f938d1b02cb0541532218c210cb0",
+          "live": 200,
+          "ready": 200,
+          "verified_tls": true
+        },
+        "cache_no_store": true,
+        "login_session_requested": false,
+        "credentials_used_for_http": false,
+        "production_business_data_read": false,
+        "real_qq_or_model_called": false
+      },
+      "dockge": {
+        "applied": true,
+        "backup_directory": "/volume2/tianshu-v2-resident-updates/companion-complete-20261004-release-platform-health/dockge-backups/20261004T162417Z-abad03a1",
+        "containers_recreated": false,
+        "credential_files_read": false,
+        "snapshots": [
+          {
+            "new_sha256": "188209560412455259401f6b0f576efe0037b7b42033972de15e26f77f6e32ed",
+            "old_sha256": "01811faef09be860c5f468d4e0ea0ba4dd2f8a1955f483c2e5ed8b36ac2ab0d4",
+            "project": "tianshu-v2-resident"
+          },
+          {
+            "new_sha256": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530",
+            "old_sha256": "48b1395ef4d707b8785ccc818fae9095097a6cf232c7f11c69fb333d72acf530",
+            "project": "tianshu-v2-resident-obs"
+          }
+        ]
+      },
+      "parent_provenance": {
+        "cold_manifest_sha256": "a3bb9fde0e09f656b922b4d32df0cd0d5fbe5dc63e26750b5ee338676769891b",
+        "new_migrations_run": false,
+        "offline_inventory_sha256": "9570652cc9b58213898b9c6f28a87f3ecfdc2a7ac57ba6589f045b774d03cda8",
+        "original_failed_jobs_preserved": true,
+        "parent_release_sha256": "1b15ad75137fb87165b8ee18c43c6ab16ef15da9f435fa3a1011fef64059143d",
+        "parent_stage": "/volume2/tianshu-v2-resident-updates/companion-complete-20261004-release",
+        "production_authority_written": false,
+        "source_receipt_sha256": {
+          "cold_backup": "ffff6fd7637cf0baf2e2c90a3d670566e5c1ed3431b59b55bebe2ce76a37f47b",
+          "migrate_clone": "b1cee103e86e2e985a7a38d16bef3b2be96c13023c1bf24282583b06051415ce"
+        }
+      },
+      "receipt_sha256": {
+        "cold_backup": "702c3f336ad16efcaad7aad299a5409589e15047e9f9fce7a8fe1f92d6f0f74b",
+        "migrate_clone": "64e36dde0ccf828092ce63b8dd1484ae4ad8e6e4282b7b8106a4c53e628f1993",
+        "nonebot": "20882aad80c92278d204393551869c9b1cb5c2b2678ef05e1198ad182f99b181",
+        "readback": "5f9202fbef6fdea1bb4fdcf17c9d5de12d6632aa5644ef6831f15a92d8235245",
+        "switch": "92f4a993237d928654c279e52a402f1d76baa4f5b3dcf146da51be28768ec5ae",
+        "verify_clone": "e3bb67e9f2d056881a00ee6766a3faed18f86c326d8ab745402544bfa73423e1"
+      },
+      "limitations": [
+        "真实生图后端尚未配置，未进行真实 ComfyUI/GPU 生图验收。",
+        "本轮发布未主动发送真实 QQ 消息或调用真实付费模型；SDK/模型联调使用隔离替身。",
+        "生产网页验证覆盖公开静态资源及内部 TLS 健康；未新建生产登录会话验证受保护页面。桌面/手机交互证据来自隔离浏览器联调。",
+        "小屋保留原画与有限活动状态投影，不声称实现完整走动、睡眠和换装动画。"
+      ]
+    }
+  },
+  "contracts": {
+    "status": "fixed_baselines_verified_in_merged_five_owner_joint",
+    "packages": [
+      "memory-context/v1",
+      "life-runtime/v2",
+      "bot-delivery/v2",
+      "text-dialogue/v1 model-execution extension",
+      "model-protocol/v1 execution extension",
+      "knowledge-content/v1"
+    ],
+    "pins_record": ".runtime/companion-complete-20261004/contract-pins.json",
+    "validation": {
+      "memory_positive": 11,
+      "memory_negative": 11,
+      "model_positive": 8,
+      "model_negative": 7,
+      "existing_chat": 62,
+      "existing_native": 21,
+      "life_positive": 23,
+      "life_negative": 16,
+      "bot_positive": 7,
+      "bot_negative": 7,
+      "existing_quality_extensions": 4,
+      "model_protocol_portable_validator": 9,
+      "knowledge_positive": 9,
+      "knowledge_negative": 6
+    },
+    "semantic_acceptance": "isolated_actual_http_joint_verified_external_provider_not_verified",
+    "release_artifact": {
+      "revision": "97c335d6eff4a16a3fd178debfa9e5c2e11157b0",
+      "artifact": ".runtime\\companion-complete-20261004\\contracts-97c335d6eff4.tar.gz",
+      "sha256": "8b17a81ddff1c3a0d982670c4e6bc7c0a82527ddaa143ffc3cb0ceef8f4ae00c",
+      "files": 165,
+      "pinned_manifests_verified": 18,
+      "manifest_members_verified": 106,
+      "production_changed": false,
+      "semantic_evidence": "Separate execution/handoff reports; fixed package status not rewritten"
+    }
+  },
+  "external_dependencies": {
+    "image_backend": {
+      "status": "awaiting_user_backend_location_or_service",
+      "question_sent": true,
+      "blocks": "real image generation verification only; implementation continues",
+      "evidence": ".runtime/companion-complete-20261004/external-capability-baseline.json"
+    }
+  },
+  "coordinator_review_open_items": [
+    {
+      "owner": "C3",
+      "file": "src/tianshu_companion/runtime_execution.py:offer_event",
+      "finding": "Fixed first 16 active subscriptions without pagination can permanently starve later subscribers",
+      "status": "closed_in_fixed_commit_runtime_v2_tests"
+    },
+    {
+      "owner": "C3",
+      "file": "src/tianshu_companion/life_affect.py:snapshot",
+      "finding": "Actor-wide LIMIT before scope filtering can evict current private-scope feelings due to other users feedback",
+      "status": "closed_in_fixed_commit_runtime_v2_tests"
+    },
+    {
+      "owner": "C3",
+      "scenario": 6,
+      "finding": "Need prove sent-contact / response-timeout feedback reaches short affect and next proactive context; only explicit affect tool and unanswered counter observed so far",
+      "status": "closed_in_fixed_commit_runtime_v2_tests"
+    },
+    {
+      "owner": "C4-UI",
+      "file": "apps/web/src/features/life/LifecyclePanel.tsx:ActivityPanel.edit",
+      "finding": "Editing another record does not replace due input, risking previous draft time applied to next activity",
+      "status": "closed_in_fixed_UI_targeted_browser_checks"
+    },
+    {
+      "owner": "C4-UI",
+      "file": "apps/web/src/features/life/useLifeRuntime.ts:more",
+      "finding": "Pagination auth/scope invalidation should clear items/cursor using same logic as initial read",
+      "status": "closed_in_fixed_UI_targeted_browser_checks"
+    }
+  ],
+  "deployment_record": "companion-complete-deployment-2026-10-05.json",
+  "current_status_note": "本条与各 current_assessment 为最终状态；前序阶段中的 pending/not_verified 记录保留为历史，不覆盖最终证据及外部限制。",
+  "final_limits": [
+    "真实生图后端尚未配置，未进行真实 ComfyUI/GPU 生图验收。",
+    "本轮发布未主动发送真实 QQ 消息或调用真实付费模型；SDK/模型联调使用隔离替身。",
+    "生产网页验证覆盖公开静态资源及内部 TLS 健康；未新建生产登录会话验证受保护页面。桌面/手机交互证据来自隔离浏览器联调。",
+    "小屋保留原画与有限活动状态投影，不声称实现完整走动、睡眠和换装动画。"
+  ]
+}

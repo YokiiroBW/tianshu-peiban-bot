@@ -1,0 +1,2401 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.tianshu.invalid/image-backend/v1/image-backend.json",
+  "$defs": {
+    "read_request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "resource": {
+          "enum": [
+            "status",
+            "workflows",
+            "workflow",
+            "actor"
+          ]
+        },
+        "workflow_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "resource",
+        "workflow_id"
+      ],
+      "additionalProperties": false
+    },
+    "manage_request": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "schema_version": {
+              "const": 1
+            },
+            "request_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "actor_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "operation": {
+              "const": "connection.configure"
+            },
+            "expected_version": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "value": {
+              "type": "object",
+              "properties": {
+                "base_url": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048
+                },
+                "credential_ref": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 240
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "enabled": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "base_url",
+                "credential_ref",
+                "enabled"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "schema_version",
+            "request_id",
+            "actor_id",
+            "operation",
+            "expected_version",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "schema_version": {
+              "const": 1
+            },
+            "request_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "actor_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "operation": {
+              "const": "workflow.select"
+            },
+            "expected_version": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "value": {
+              "type": "object",
+              "properties": {
+                "workflow_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 240
+                },
+                "bindings": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "character": {
+                          "type": "object",
+                          "properties": {
+                            "node": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "class_type": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "input": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "mode": {
+                              "enum": [
+                                "append",
+                                "replace"
+                              ]
+                            },
+                            "min": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            },
+                            "max": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            }
+                          },
+                          "required": [
+                            "node",
+                            "class_type",
+                            "input",
+                            "mode"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "outfit": {
+                          "type": "object",
+                          "properties": {
+                            "node": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "class_type": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "input": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "mode": {
+                              "enum": [
+                                "append",
+                                "replace"
+                              ]
+                            },
+                            "min": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            },
+                            "max": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            }
+                          },
+                          "required": [
+                            "node",
+                            "class_type",
+                            "input",
+                            "mode"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "pose": {
+                          "type": "object",
+                          "properties": {
+                            "node": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "class_type": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "input": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "mode": {
+                              "enum": [
+                                "append",
+                                "replace"
+                              ]
+                            },
+                            "min": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            },
+                            "max": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            }
+                          },
+                          "required": [
+                            "node",
+                            "class_type",
+                            "input",
+                            "mode"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "background": {
+                          "type": "object",
+                          "properties": {
+                            "node": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "class_type": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "input": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "mode": {
+                              "enum": [
+                                "append",
+                                "replace"
+                              ]
+                            },
+                            "min": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            },
+                            "max": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            }
+                          },
+                          "required": [
+                            "node",
+                            "class_type",
+                            "input",
+                            "mode"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "camera": {
+                          "type": "object",
+                          "properties": {
+                            "node": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "class_type": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "input": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "mode": {
+                              "enum": [
+                                "append",
+                                "replace"
+                              ]
+                            },
+                            "min": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            },
+                            "max": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            }
+                          },
+                          "required": [
+                            "node",
+                            "class_type",
+                            "input",
+                            "mode"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "positive": {
+                          "type": "object",
+                          "properties": {
+                            "node": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "class_type": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "input": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "mode": {
+                              "enum": [
+                                "append",
+                                "replace"
+                              ]
+                            },
+                            "min": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            },
+                            "max": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            }
+                          },
+                          "required": [
+                            "node",
+                            "class_type",
+                            "input",
+                            "mode"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "negative": {
+                          "type": "object",
+                          "properties": {
+                            "node": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "class_type": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "input": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "mode": {
+                              "enum": [
+                                "append",
+                                "replace"
+                              ]
+                            },
+                            "min": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            },
+                            "max": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            }
+                          },
+                          "required": [
+                            "node",
+                            "class_type",
+                            "input",
+                            "mode"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "width": {
+                          "type": "object",
+                          "properties": {
+                            "node": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "class_type": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "input": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "mode": {
+                              "enum": [
+                                "append",
+                                "replace"
+                              ]
+                            },
+                            "min": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            },
+                            "max": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            }
+                          },
+                          "required": [
+                            "node",
+                            "class_type",
+                            "input",
+                            "mode"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "height": {
+                          "type": "object",
+                          "properties": {
+                            "node": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "class_type": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "input": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "mode": {
+                              "enum": [
+                                "append",
+                                "replace"
+                              ]
+                            },
+                            "min": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            },
+                            "max": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            }
+                          },
+                          "required": [
+                            "node",
+                            "class_type",
+                            "input",
+                            "mode"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "seed": {
+                          "type": "object",
+                          "properties": {
+                            "node": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "class_type": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "input": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "mode": {
+                              "enum": [
+                                "append",
+                                "replace"
+                              ]
+                            },
+                            "min": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            },
+                            "max": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            }
+                          },
+                          "required": [
+                            "node",
+                            "class_type",
+                            "input",
+                            "mode"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "steps": {
+                          "type": "object",
+                          "properties": {
+                            "node": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "class_type": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "input": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "mode": {
+                              "enum": [
+                                "append",
+                                "replace"
+                              ]
+                            },
+                            "min": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            },
+                            "max": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            }
+                          },
+                          "required": [
+                            "node",
+                            "class_type",
+                            "input",
+                            "mode"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "reference": {
+                          "type": "object",
+                          "properties": {
+                            "node": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "class_type": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "input": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "mode": {
+                              "enum": [
+                                "append",
+                                "replace"
+                              ]
+                            },
+                            "min": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            },
+                            "max": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            }
+                          },
+                          "required": [
+                            "node",
+                            "class_type",
+                            "input",
+                            "mode"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "reference2": {
+                          "type": "object",
+                          "properties": {
+                            "node": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "class_type": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "input": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "mode": {
+                              "enum": [
+                                "append",
+                                "replace"
+                              ]
+                            },
+                            "min": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            },
+                            "max": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            }
+                          },
+                          "required": [
+                            "node",
+                            "class_type",
+                            "input",
+                            "mode"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "reference3": {
+                          "type": "object",
+                          "properties": {
+                            "node": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "class_type": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "input": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 240
+                            },
+                            "mode": {
+                              "enum": [
+                                "append",
+                                "replace"
+                              ]
+                            },
+                            "min": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            },
+                            "max": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9223372036854775807
+                            }
+                          },
+                          "required": [
+                            "node",
+                            "class_type",
+                            "input",
+                            "mode"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "workflow_id",
+                "bindings"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "schema_version",
+            "request_id",
+            "actor_id",
+            "operation",
+            "expected_version",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "schema_version": {
+              "const": 1
+            },
+            "request_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "actor_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "operation": {
+              "const": "bindings.update"
+            },
+            "expected_version": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "value": {
+              "type": "object",
+              "properties": {
+                "bindings": {
+                  "type": "object",
+                  "properties": {
+                    "character": {
+                      "type": "object",
+                      "properties": {
+                        "node": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "class_type": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "input": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "mode": {
+                          "enum": [
+                            "append",
+                            "replace"
+                          ]
+                        },
+                        "min": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        },
+                        "max": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        }
+                      },
+                      "required": [
+                        "node",
+                        "class_type",
+                        "input",
+                        "mode"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "outfit": {
+                      "type": "object",
+                      "properties": {
+                        "node": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "class_type": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "input": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "mode": {
+                          "enum": [
+                            "append",
+                            "replace"
+                          ]
+                        },
+                        "min": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        },
+                        "max": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        }
+                      },
+                      "required": [
+                        "node",
+                        "class_type",
+                        "input",
+                        "mode"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "pose": {
+                      "type": "object",
+                      "properties": {
+                        "node": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "class_type": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "input": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "mode": {
+                          "enum": [
+                            "append",
+                            "replace"
+                          ]
+                        },
+                        "min": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        },
+                        "max": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        }
+                      },
+                      "required": [
+                        "node",
+                        "class_type",
+                        "input",
+                        "mode"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "background": {
+                      "type": "object",
+                      "properties": {
+                        "node": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "class_type": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "input": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "mode": {
+                          "enum": [
+                            "append",
+                            "replace"
+                          ]
+                        },
+                        "min": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        },
+                        "max": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        }
+                      },
+                      "required": [
+                        "node",
+                        "class_type",
+                        "input",
+                        "mode"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "camera": {
+                      "type": "object",
+                      "properties": {
+                        "node": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "class_type": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "input": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "mode": {
+                          "enum": [
+                            "append",
+                            "replace"
+                          ]
+                        },
+                        "min": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        },
+                        "max": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        }
+                      },
+                      "required": [
+                        "node",
+                        "class_type",
+                        "input",
+                        "mode"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "positive": {
+                      "type": "object",
+                      "properties": {
+                        "node": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "class_type": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "input": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "mode": {
+                          "enum": [
+                            "append",
+                            "replace"
+                          ]
+                        },
+                        "min": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        },
+                        "max": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        }
+                      },
+                      "required": [
+                        "node",
+                        "class_type",
+                        "input",
+                        "mode"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "negative": {
+                      "type": "object",
+                      "properties": {
+                        "node": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "class_type": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "input": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "mode": {
+                          "enum": [
+                            "append",
+                            "replace"
+                          ]
+                        },
+                        "min": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        },
+                        "max": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        }
+                      },
+                      "required": [
+                        "node",
+                        "class_type",
+                        "input",
+                        "mode"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "width": {
+                      "type": "object",
+                      "properties": {
+                        "node": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "class_type": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "input": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "mode": {
+                          "enum": [
+                            "append",
+                            "replace"
+                          ]
+                        },
+                        "min": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        },
+                        "max": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        }
+                      },
+                      "required": [
+                        "node",
+                        "class_type",
+                        "input",
+                        "mode"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "height": {
+                      "type": "object",
+                      "properties": {
+                        "node": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "class_type": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "input": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "mode": {
+                          "enum": [
+                            "append",
+                            "replace"
+                          ]
+                        },
+                        "min": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        },
+                        "max": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        }
+                      },
+                      "required": [
+                        "node",
+                        "class_type",
+                        "input",
+                        "mode"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "seed": {
+                      "type": "object",
+                      "properties": {
+                        "node": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "class_type": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "input": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "mode": {
+                          "enum": [
+                            "append",
+                            "replace"
+                          ]
+                        },
+                        "min": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        },
+                        "max": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        }
+                      },
+                      "required": [
+                        "node",
+                        "class_type",
+                        "input",
+                        "mode"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "steps": {
+                      "type": "object",
+                      "properties": {
+                        "node": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "class_type": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "input": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "mode": {
+                          "enum": [
+                            "append",
+                            "replace"
+                          ]
+                        },
+                        "min": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        },
+                        "max": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        }
+                      },
+                      "required": [
+                        "node",
+                        "class_type",
+                        "input",
+                        "mode"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "reference": {
+                      "type": "object",
+                      "properties": {
+                        "node": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "class_type": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "input": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "mode": {
+                          "enum": [
+                            "append",
+                            "replace"
+                          ]
+                        },
+                        "min": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        },
+                        "max": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        }
+                      },
+                      "required": [
+                        "node",
+                        "class_type",
+                        "input",
+                        "mode"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "reference2": {
+                      "type": "object",
+                      "properties": {
+                        "node": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "class_type": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "input": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "mode": {
+                          "enum": [
+                            "append",
+                            "replace"
+                          ]
+                        },
+                        "min": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        },
+                        "max": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        }
+                      },
+                      "required": [
+                        "node",
+                        "class_type",
+                        "input",
+                        "mode"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "reference3": {
+                      "type": "object",
+                      "properties": {
+                        "node": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "class_type": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "input": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 240
+                        },
+                        "mode": {
+                          "enum": [
+                            "append",
+                            "replace"
+                          ]
+                        },
+                        "min": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        },
+                        "max": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9223372036854775807
+                        }
+                      },
+                      "required": [
+                        "node",
+                        "class_type",
+                        "input",
+                        "mode"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "bindings"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "schema_version",
+            "request_id",
+            "actor_id",
+            "operation",
+            "expected_version",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "schema_version": {
+              "const": 1
+            },
+            "request_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "actor_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "operation": {
+              "const": "actor.configure"
+            },
+            "expected_version": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "value": {
+              "type": "object",
+              "properties": {
+                "workflow_id": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 240
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "character_prompt": {
+                  "type": "string",
+                  "maxLength": 8000
+                },
+                "defaults": {
+                  "type": "object",
+                  "properties": {
+                    "character": {
+                      "type": "string",
+                      "maxLength": 8000
+                    },
+                    "outfit": {
+                      "type": "string",
+                      "maxLength": 8000
+                    },
+                    "pose": {
+                      "type": "string",
+                      "maxLength": 8000
+                    },
+                    "background": {
+                      "type": "string",
+                      "maxLength": 8000
+                    },
+                    "camera": {
+                      "type": "string",
+                      "maxLength": 8000
+                    },
+                    "positive": {
+                      "type": "string",
+                      "maxLength": 8000
+                    },
+                    "negative": {
+                      "type": "string",
+                      "maxLength": 8000
+                    },
+                    "width": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9223372036854775807
+                    },
+                    "height": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9223372036854775807
+                    },
+                    "seed": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9223372036854775807
+                    },
+                    "steps": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9223372036854775807
+                    }
+                  },
+                  "required": [],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "workflow_id",
+                "character_prompt",
+                "defaults"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "schema_version",
+            "request_id",
+            "actor_id",
+            "operation",
+            "expected_version",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "schema_version": {
+              "const": 1
+            },
+            "request_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "actor_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "operation": {
+              "const": "workflow.analyze"
+            },
+            "expected_version": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "value": {
+              "type": "object",
+              "properties": {
+                "workflow_id": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 240
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "goal": {
+                  "type": "string",
+                  "maxLength": 8000
+                },
+                "assist_model": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "workflow_id",
+                "goal",
+                "assist_model"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "schema_version",
+            "request_id",
+            "actor_id",
+            "operation",
+            "expected_version",
+            "value"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "compile_request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "intent": {
+          "$ref": "#/$defs/intent"
+        },
+        "parameters": {
+          "$ref": "#/$defs/parameters"
+        },
+        "assist_model": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "intent",
+        "parameters",
+        "assist_model"
+      ],
+      "additionalProperties": false
+    },
+    "response": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "result": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    "binding": {
+      "type": "object",
+      "properties": {
+        "node": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "class_type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "input": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "mode": {
+          "enum": [
+            "append",
+            "replace"
+          ]
+        },
+        "min": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9223372036854775807
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9223372036854775807
+        }
+      },
+      "required": [
+        "node",
+        "class_type",
+        "input",
+        "mode"
+      ],
+      "additionalProperties": false
+    },
+    "bindings": {
+      "type": "object",
+      "properties": {
+        "character": {
+          "type": "object",
+          "properties": {
+            "node": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "class_type": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "input": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "mode": {
+              "enum": [
+                "append",
+                "replace"
+              ]
+            },
+            "min": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            }
+          },
+          "required": [
+            "node",
+            "class_type",
+            "input",
+            "mode"
+          ],
+          "additionalProperties": false
+        },
+        "outfit": {
+          "type": "object",
+          "properties": {
+            "node": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "class_type": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "input": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "mode": {
+              "enum": [
+                "append",
+                "replace"
+              ]
+            },
+            "min": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            }
+          },
+          "required": [
+            "node",
+            "class_type",
+            "input",
+            "mode"
+          ],
+          "additionalProperties": false
+        },
+        "pose": {
+          "type": "object",
+          "properties": {
+            "node": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "class_type": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "input": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "mode": {
+              "enum": [
+                "append",
+                "replace"
+              ]
+            },
+            "min": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            }
+          },
+          "required": [
+            "node",
+            "class_type",
+            "input",
+            "mode"
+          ],
+          "additionalProperties": false
+        },
+        "background": {
+          "type": "object",
+          "properties": {
+            "node": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "class_type": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "input": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "mode": {
+              "enum": [
+                "append",
+                "replace"
+              ]
+            },
+            "min": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            }
+          },
+          "required": [
+            "node",
+            "class_type",
+            "input",
+            "mode"
+          ],
+          "additionalProperties": false
+        },
+        "camera": {
+          "type": "object",
+          "properties": {
+            "node": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "class_type": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "input": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "mode": {
+              "enum": [
+                "append",
+                "replace"
+              ]
+            },
+            "min": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            }
+          },
+          "required": [
+            "node",
+            "class_type",
+            "input",
+            "mode"
+          ],
+          "additionalProperties": false
+        },
+        "positive": {
+          "type": "object",
+          "properties": {
+            "node": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "class_type": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "input": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "mode": {
+              "enum": [
+                "append",
+                "replace"
+              ]
+            },
+            "min": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            }
+          },
+          "required": [
+            "node",
+            "class_type",
+            "input",
+            "mode"
+          ],
+          "additionalProperties": false
+        },
+        "negative": {
+          "type": "object",
+          "properties": {
+            "node": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "class_type": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "input": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "mode": {
+              "enum": [
+                "append",
+                "replace"
+              ]
+            },
+            "min": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            }
+          },
+          "required": [
+            "node",
+            "class_type",
+            "input",
+            "mode"
+          ],
+          "additionalProperties": false
+        },
+        "width": {
+          "type": "object",
+          "properties": {
+            "node": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "class_type": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "input": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "mode": {
+              "enum": [
+                "append",
+                "replace"
+              ]
+            },
+            "min": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            }
+          },
+          "required": [
+            "node",
+            "class_type",
+            "input",
+            "mode"
+          ],
+          "additionalProperties": false
+        },
+        "height": {
+          "type": "object",
+          "properties": {
+            "node": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "class_type": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "input": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "mode": {
+              "enum": [
+                "append",
+                "replace"
+              ]
+            },
+            "min": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            }
+          },
+          "required": [
+            "node",
+            "class_type",
+            "input",
+            "mode"
+          ],
+          "additionalProperties": false
+        },
+        "seed": {
+          "type": "object",
+          "properties": {
+            "node": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "class_type": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "input": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "mode": {
+              "enum": [
+                "append",
+                "replace"
+              ]
+            },
+            "min": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            }
+          },
+          "required": [
+            "node",
+            "class_type",
+            "input",
+            "mode"
+          ],
+          "additionalProperties": false
+        },
+        "steps": {
+          "type": "object",
+          "properties": {
+            "node": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "class_type": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "input": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "mode": {
+              "enum": [
+                "append",
+                "replace"
+              ]
+            },
+            "min": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            }
+          },
+          "required": [
+            "node",
+            "class_type",
+            "input",
+            "mode"
+          ],
+          "additionalProperties": false
+        },
+        "reference": {
+          "type": "object",
+          "properties": {
+            "node": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "class_type": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "input": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "mode": {
+              "enum": [
+                "append",
+                "replace"
+              ]
+            },
+            "min": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            }
+          },
+          "required": [
+            "node",
+            "class_type",
+            "input",
+            "mode"
+          ],
+          "additionalProperties": false
+        },
+        "reference2": {
+          "type": "object",
+          "properties": {
+            "node": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "class_type": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "input": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "mode": {
+              "enum": [
+                "append",
+                "replace"
+              ]
+            },
+            "min": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            }
+          },
+          "required": [
+            "node",
+            "class_type",
+            "input",
+            "mode"
+          ],
+          "additionalProperties": false
+        },
+        "reference3": {
+          "type": "object",
+          "properties": {
+            "node": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "class_type": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "input": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "mode": {
+              "enum": [
+                "append",
+                "replace"
+              ]
+            },
+            "min": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9223372036854775807
+            }
+          },
+          "required": [
+            "node",
+            "class_type",
+            "input",
+            "mode"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "intent": {
+      "type": "object",
+      "properties": {
+        "character": {
+          "type": "string",
+          "maxLength": 8000
+        },
+        "outfit": {
+          "type": "string",
+          "maxLength": 8000
+        },
+        "pose": {
+          "type": "string",
+          "maxLength": 8000
+        },
+        "background": {
+          "type": "string",
+          "maxLength": 8000
+        },
+        "camera": {
+          "type": "string",
+          "maxLength": 8000
+        },
+        "positive": {
+          "type": "string",
+          "maxLength": 8000
+        },
+        "negative": {
+          "type": "string",
+          "maxLength": 8000
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 64,
+          "maximum": 4096
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 64,
+          "maximum": 4096
+        },
+        "seed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9223372036854775807
+        },
+        "steps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 150
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    }
+  }
+}

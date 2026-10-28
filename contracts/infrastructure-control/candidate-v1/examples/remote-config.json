@@ -1,0 +1,41 @@
+{
+  "version": "infrastructure-control.remote.v1",
+  "node_id": "fixture-nas",
+  "state_dir": "/synthetic/persistent/control-node",
+  "stacks_root": "/synthetic/dockge/stacks",
+  "docker_command": [
+    "docker"
+  ],
+  "docker_socket": "/var/run/synthetic.sock",
+  "compose_command": [
+    "docker",
+    "--host",
+    "unix:///var/run/synthetic.sock",
+    "compose"
+  ],
+  "platform_stacks": [
+    "fixture-web"
+  ],
+  "protected_projects": {
+    "tianshu-v2-resident": {
+      "owner": "resident-update",
+      "reason": "capacity_guard_ownership",
+      "maintenance_ref": "resident-update"
+    }
+  },
+  "protected_container_names": {
+    "dockge": {
+      "owner": "dockge",
+      "reason": "control_execution_dependency",
+      "maintenance_ref": null
+    }
+  },
+  "operation_timeout_seconds": 1800,
+  "protected_bind_roots": [
+    {
+      "path": "/synthetic/resident-root",
+      "owner": "resident-update",
+      "reason": "capacity_guard_mount_ownership"
+    }
+  ]
+}

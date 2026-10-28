@@ -1,0 +1,359 @@
+{
+  "task": "TS-193",
+  "date": "2026-10-18",
+  "state": "pushed_deployed_production_verified",
+  "observed_at": "2026-10-18T10:36:11.332911+00:00",
+  "platform": {
+    "base": "ce4cd0cde141f011545e04a797edfe9d632c8e74",
+    "runtime_commit": "3890f223cc4410a2ee92dd720e239b928946412c",
+    "image_id": "sha256:f8b692877efcbe4cb75f60a925b5bf73c07ce5b5b581949d69e229426d7a9794",
+    "documentation_commit": "a5399c3bf73e587c4a97767e76bfc67f5604b684"
+  },
+  "production_acceptance": {
+    "status": "complete_novel_epub_verified",
+    "observed_at": 1792319689.077571,
+    "book_id": "e0557adddc8a6ef6d4b4c44b",
+    "title": "夜无疆",
+    "source": "书海阁（公开网页）",
+    "chapter_count": 848,
+    "cached_chapters": 848,
+    "spine_count": 848,
+    "paragraphs_matched": 124731,
+    "content_characters": 4539877,
+    "contiguous_chapter_numbers": true,
+    "distinct_chapter_texts": 848,
+    "duplicate_chapter_texts": [],
+    "chapters_under_500_characters": [],
+    "first_chapter": "第1章 永夜",
+    "last_chapter": "第848章 从未有之狂徒",
+    "category": "玄幻奇幻",
+    "root": "/media/Ebooks",
+    "relative_path": "玄幻奇幻/辰东/夜无疆 [e0557add]/book.epub",
+    "bytes": 8789215,
+    "sha256": "f3f1fd6f1bb3c26ae3babda6dbe0ba9f3de859538773c721c252904c62a72727",
+    "zip_crc_valid": true,
+    "all_xhtml_matches_cached_chapters": true,
+    "readability": {
+      "state": "complete",
+      "checked_at": 1792319458.613803,
+      "sample_count": 848
+    },
+    "subscription": {
+      "state": "active",
+      "interval_seconds": 3600,
+      "last_scan_at": 1792319429.5853186,
+      "next_scan_at": 1792323029.5853195,
+      "code": "ready"
+    },
+    "source_selection": {
+      "mode": "automatic",
+      "checked_at": 1792319429.4849815,
+      "preferred_book_id": "f90ec54437dd195b721b23b0",
+      "preferred_source_name": "速读谷",
+      "code": "book_source_selected",
+      "candidates": [
+        {
+          "book_id": "e0557adddc8a6ef6d4b4c44b",
+          "source_name": "书海阁（公开网页）",
+          "code": "ready",
+          "readable": true,
+          "latest_number": 835,
+          "matched_chapters": 835,
+          "body_anchors": 0
+        },
+        {
+          "book_id": "664a07947fa2926038d5d2eb",
+          "source_name": "🌙 得奇小说",
+          "code": "book_chapter_mapping_ambiguous",
+          "readable": false
+        },
+        {
+          "book_id": "f90ec54437dd195b721b23b0",
+          "source_name": "速读谷",
+          "code": "ready",
+          "readable": true,
+          "latest_number": 848,
+          "matched_chapters": 598,
+          "body_anchors": 3
+        }
+      ],
+      "added_chapters": 0,
+      "unmatched_chapters": 0,
+      "chapters_by_source": [
+        {
+          "source_name": "书海阁（公开网页）",
+          "chapters": 835
+        },
+        {
+          "source_name": "速读谷",
+          "chapters": 13
+        }
+      ],
+      "repaired_chapters": 13,
+      "last_repair": null
+    },
+    "old_ids_and_hashes_preserved": 835,
+    "writes": false,
+    "runtime_image": "sha256:f8b692877efcbe4cb75f60a925b5bf73c07ce5b5b581949d69e229426d7a9794",
+    "host_sha256_matches": true,
+    "host_path": "/volume1/Documents/电子书/玄幻奇幻/辰东/夜无疆 [e0557add]/book.epub",
+    "host_bytes": 8789215,
+    "official_workflow": {
+      "status": "official_source_selection_acceptance_passed",
+      "user_signed_in": true,
+      "first_catchup_trigger": "existing_hourly_background_subscription",
+      "first_catchup_manually_triggered": false,
+      "production_artifact_published_at": "2026-10-18T14:54:59+08:00",
+      "historical_chapters": 835,
+      "current_chapters": 848,
+      "chapters_added_from_sudugu": 13,
+      "original_ids_and_hashes_preserved": 835,
+      "manual_repeat_scan_via_official_ui": true,
+      "repeat_scan_at": "2026-10-18T18:30:29+08:00",
+      "repeat_job_completed_at": "2026-10-18T18:30:58+08:00",
+      "same_job_id": "cd2f432b-5bbb-4051-9292-83def3e9c485",
+      "same_epub_version": 2,
+      "same_epub_sha256": "f3f1fd6f1bb3c26ae3babda6dbe0ba9f3de859538773c721c252904c62a72727",
+      "same_epub_mtime": true,
+      "same_epub_path": true,
+      "repeat_artifact_reused": true,
+      "production_network_request_count_instrumented": false,
+      "isolated_repeat_body_requests": 0,
+      "credentials_or_cookies_exported": false,
+      "direct_production_database_writes": false,
+      "preview_chapter": 848,
+      "preview_source": "速读谷",
+      "preview_used_saved_content": true,
+      "screenshots": [
+        ".runtime/books-selection-20261018/production-source-selection.png",
+        ".runtime/books-selection-20261018/production-chapter-848.png"
+      ]
+    }
+  },
+  "isolated_real_source_catchup": {
+    "status": "real_source_selection_catchup_passed",
+    "historical_chapters": 835,
+    "current_chapters": 848,
+    "new_logical_chapters": 13,
+    "donor_body_requests": 18,
+    "primary_old_chapters_refetched": 0,
+    "repeat_body_requests": 0,
+    "old_chapter_ids_and_hashes_preserved": 835,
+    "spine_count": 848,
+    "sha256": "fb1c55a300f15edb170519aadc8e294acb04ac79d5f688820c326c77dd037e15",
+    "bytes": 8789291,
+    "background_scanner_used": true,
+    "isolated_clock_advanced": true,
+    "natural_author_update_claimed": false,
+    "production_data_mounted": false,
+    "elapsed_seconds": 234.66
+  },
+  "checks": {
+    "nas_suites": [
+      {
+        "pattern": "test_book*.py",
+        "run": 51,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "pattern": "test_media_standalone.py",
+        "run": 23,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "pattern": "test_music_library.py",
+        "run": 23,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "pattern": "test_media_background.py",
+        "run": 4,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "pattern": "test_music_foundation.py",
+        "run": 16,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ],
+    "http_browser_joint_passed": 3,
+    "ruff": "passed",
+    "typescript": "passed",
+    "vite": "passed_with_existing_chunk_warning"
+  },
+  "media_preservation": {
+    "status": "media_configuration_and_original_jobs_preserved",
+    "configuration_checks": {
+      "account": true,
+      "subscription": true,
+      "media_target": true,
+      "music_account": true,
+      "music_playlist": true,
+      "music_navidrome_playlist": true,
+      "music_maintenance": true,
+      "music_settings": true,
+      "music_navidrome": true
+    },
+    "jobs": {
+      "audio": {
+        "original_jobs": 1957,
+        "current_jobs": 1957,
+        "missing_original_jobs": 0,
+        "added_since_task_start": 0,
+        "current_states": {
+          "completed": 1602,
+          "failed": 247,
+          "retry_wait": 108
+        }
+      },
+      "video": {
+        "original_jobs": 9,
+        "current_jobs": 9,
+        "missing_original_jobs": 0,
+        "added_since_task_start": 0,
+        "current_states": {
+          "completed": 6,
+          "failed": 3
+        }
+      }
+    },
+    "note": "Existing background jobs continue to change state; pre-existing failures are not claimed fixed."
+  },
+  "deployment": {
+    "sqlite_backups": 38,
+    "database_restore": false,
+    "existing_settings_preserved": true,
+    "non_target_containers_preserved": true,
+    "health": [
+      {
+        "checks": {
+          "config": "ok",
+          "contract": "ok",
+          "credentials": "ok",
+          "logging": "ok",
+          "runtime": "ok",
+          "sidecars": "ok",
+          "store": "ok",
+          "tls": "ok",
+          "web_static": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "platform",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "configuration": "ok",
+          "contracts": "ok",
+          "ledger": "ok",
+          "logging": "ok",
+          "model": "not_verified",
+          "native": "not_configured",
+          "platform": "not_verified",
+          "runtime": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "gateway",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "configuration": "ok",
+          "dependencies": "not_verified",
+          "logs": "ok",
+          "runtime": "ok"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "companion",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "assembled": "ok",
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "guard": "ok",
+          "log": "ok",
+          "mode": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "memory",
+        "verified_tls": true
+      },
+      {
+        "checks": {
+          "assembled": "ok",
+          "client": "ok",
+          "configuration": "ok",
+          "contract": "ok",
+          "database": "ok",
+          "extensions": "ok",
+          "log": "ok",
+          "owner": "ok",
+          "remote": "not_verified"
+        },
+        "endpoint": "/health/ready",
+        "http_status": 200,
+        "live": 200,
+        "ready": 200,
+        "ready_state": "ready",
+        "service": "knowledge",
+        "verified_tls": true
+      }
+    ],
+    "guard": "ready",
+    "static_assets": 64,
+    "dockge_snapshots": 2,
+    "complete_backups_retained": 1,
+    "gateway_origin_reissued": false
+  },
+  "screenshot": ".runtime/books-selection-20261018/production-source-selection.png",
+  "limitations": [
+    "40 missing enabled sources searched and 8 same-work candidates assessed per scan",
+    "Ambiguous numbering/titles/order are not guessed; Deqi rejected in real acceptance",
+    "Initial donor identity samples require a few requests; established chapter content reused",
+    "Source login/paywalls/CAPTCHAs not bypassed; source-wide stability not claimed"
+  ],
+  "publication_recovery": {
+    "cause": "owned_test_exit_false_positive",
+    "original_failure_retained": true,
+    "unchanged_non_target_containers": 388,
+    "removed_owned_validation_container": "821122181f579a26bb2e08ae45fed640df3b979e6c81e8a1fbe8df8a0394648f",
+    "database_restore": false,
+    "followup": "Wait for all task-owned validation containers to exit before capturing the release baseline."
+  },
+  "harness_corrections": [
+    "isolated import feed identity differs from production; seed mapped by URL",
+    "initial last_scan_at may be null"
+  ],
+  "runtime_evidence_directory": ".runtime/books-selection-20261018"
+}

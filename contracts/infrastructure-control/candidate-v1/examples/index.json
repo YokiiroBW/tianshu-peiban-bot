@@ -1,0 +1,77 @@
+[
+  {
+    "path": "examples/list.json",
+    "schema": "request",
+    "valid": true
+  },
+  {
+    "path": "examples/plan-create.json",
+    "schema": "request",
+    "valid": true
+  },
+  {
+    "path": "examples/plan-update.json",
+    "schema": "request",
+    "valid": true
+  },
+  {
+    "path": "examples/plan-restore.json",
+    "schema": "request",
+    "valid": true
+  },
+  {
+    "path": "examples/container-restart.json",
+    "schema": "request",
+    "valid": true
+  },
+  {
+    "path": "examples/apply.json",
+    "schema": "request",
+    "valid": true
+  },
+  {
+    "path": "examples/reconcile.json",
+    "schema": "request",
+    "valid": true
+  },
+  {
+    "path": "examples/short-container-invalid.json",
+    "schema": "request",
+    "valid": false
+  },
+  {
+    "path": "examples/shell-invalid.json",
+    "schema": "request",
+    "valid": false
+  },
+  {
+    "path": "examples/unversioned-stack-invalid.json",
+    "schema": "request",
+    "valid": false
+  },
+  {
+    "path": "examples/config.json",
+    "schema": "config",
+    "valid": true
+  },
+  {
+    "path": "examples/remote-config.json",
+    "schema": "remote-config",
+    "valid": true
+  },
+  {
+    "path": "examples/receipt-success.json",
+    "schema": "response",
+    "valid": true
+  },
+  {
+    "path": "examples/receipt-unknown.json",
+    "schema": "response",
+    "valid": true
+  },
+  {
+    "path": "examples/plan-response.json",
+    "schema": "response",
+    "valid": true
+  }
+]

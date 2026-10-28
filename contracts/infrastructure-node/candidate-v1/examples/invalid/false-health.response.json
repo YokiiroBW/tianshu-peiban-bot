@@ -1,0 +1,63 @@
+{
+  "version": "infrastructure-node.v1",
+  "request_id": "fixture-001",
+  "node_id": "fixture-nas",
+  "operation": "docker.inventory",
+  "status": "ok",
+  "reason_codes": [],
+  "observed_at": "2026-10-16T08:00:00Z",
+  "capabilities": [
+    "node.snapshot",
+    "docker.inventory",
+    "docker.stats",
+    "docker.logs",
+    "compose.inventory"
+  ],
+  "completeness": {
+    "state": "complete",
+    "returned": 1,
+    "total": 1,
+    "next_cursor": null
+  },
+  "data": {
+    "containers": [
+      {
+        "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "name": "synthetic-web",
+        "image_reference": "nginx:alpine",
+        "image_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "created_at": "2026-10-16T08:00:00Z",
+        "started_at": "2026-10-16T08:00:00Z",
+        "state": "running",
+        "running": true,
+        "health": "not_configured",
+        "network_mode": "bridge",
+        "compose": {
+          "project": "synthetic",
+          "service": "web",
+          "working_dir": "/srv/synthetic-stacks/synthetic",
+          "config_files": "/srv/synthetic-stacks/synthetic/compose.yaml",
+          "oneoff": false
+        },
+        "ports": [
+          {
+            "container_port": 80,
+            "protocol": "tcp",
+            "host_ip": "127.0.0.1",
+            "host_port": 18080
+          }
+        ],
+        "mounts": [
+          {
+            "kind": "bind",
+            "source": "/srv/synthetic-stacks/synthetic/data",
+            "target": "/data",
+            "read_only": true
+          }
+        ],
+        "availability": "ok",
+        "reason_codes": []
+      }
+    ]
+  }
+}

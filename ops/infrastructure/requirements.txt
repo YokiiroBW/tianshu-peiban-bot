@@ -1,0 +1,2 @@
+# Restricted, non-constructing Compose YAML projection. No node-side Python.
+PyYAML==6.0.3

@@ -1,0 +1,76 @@
+[
+  {
+    "definition": "request",
+    "value": {
+      "query": {
+        "schema_version": 1,
+        "request_id": "request:history",
+        "origin": {
+          "assertion_ref": "origin:a"
+        }
+      },
+      "requested_scope": {
+        "actor_id": "actor:a",
+        "person_id": "person:a",
+        "audience": "self_private",
+        "conversation_id": "conversation:a"
+      },
+      "include_associated": false,
+      "expected_snapshot": null,
+      "known_snapshot": {
+        "association_version": 1,
+        "history_checks": [
+          {
+            "scope": {
+              "actor_id": "actor:a",
+              "person_id": "person:a",
+              "audience": "self_private",
+              "conversation_id": "conversation:a"
+            },
+            "history_version": 1,
+            "association_id": null,
+            "association_version": 1
+          }
+        ]
+      },
+      "extra_scope": {
+        "actor_id": "actor:a",
+        "person_id": "person:a",
+        "audience": "self_private",
+        "conversation_id": "conversation:a"
+      }
+    }
+  },
+  {
+    "definition": "response",
+    "value": {
+      "schema_version": 1,
+      "request_id": "request:history",
+      "effective_scope": {
+        "actor_id": "actor:a",
+        "person_id": "person:a",
+        "audience": "self_private",
+        "conversation_id": "conversation:a"
+      },
+      "scope_version": 0,
+      "snapshot": {
+        "association_version": 1,
+        "history_checks": [
+          {
+            "scope": {
+              "actor_id": "actor:a",
+              "person_id": "person:a",
+              "audience": "self_private",
+              "conversation_id": "conversation:a"
+            },
+            "history_version": 1,
+            "association_id": null,
+            "association_version": 1
+          }
+        ]
+      },
+      "verified_at": "2026-10-14T00:00:00Z",
+      "valid_until": "2026-10-14T00:00:30Z"
+    }
+  }
+]

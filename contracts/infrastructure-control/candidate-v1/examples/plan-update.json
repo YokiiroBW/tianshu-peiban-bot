@@ -1,0 +1,12 @@
+{
+  "version": "infrastructure-control.v1",
+  "request_id": "synthetic-request",
+  "node_id": "fixture-nas",
+  "operation": "stack.plan",
+  "params": {
+    "action": "update",
+    "stack_id": "stack_aaaaaaaaaaaaaaaaaaaaaaaa",
+    "expected_revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "timeout_ms": 10000
+}

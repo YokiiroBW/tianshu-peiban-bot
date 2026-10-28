@@ -1,0 +1,81 @@
+{
+  "date": "2026-10-11",
+  "state": "deployed_auto_memory_paused",
+  "integrated": true,
+  "pushed": true,
+  "deployed": true,
+  "real_model": false,
+  "real_qq": false,
+  "new_database_migration": false,
+  "products": {
+    "memory": {
+      "task": "TS-117",
+      "worktree": "worktrees/TS-117/tianshu-memory",
+      "branch": "work/ts-117",
+      "baseline": "097ccfa55dfb5af541d24cfcb48ba6ccf02f1a3a",
+      "commit": "165307f78664fe60ccad1c70b76ba26ad19d05f3",
+      "handoff": "worktrees/TS-117/tianshu-memory/docs/handoffs/TS-117.md"
+    },
+    "companion": {
+      "task": "TS-118",
+      "worktree": "worktrees/TS-118/tianshu-companion",
+      "branch": "work/ts-118",
+      "baseline": "fbb378b65d941201d9e65a52235b087f1b86d752",
+      "commit": "4e4fc8322661e0afaf91b3c67c139442c8d257eb",
+      "handoff": "worktrees/TS-118/tianshu-companion/docs/handoffs/TS-118.md"
+    }
+  },
+  "validation": {
+    "memory_candidate": {
+      "passed": 18
+    },
+    "memory_source_context": {
+      "passed": 110
+    },
+    "memory_full_initial": {
+      "passed": 1137,
+      "failed": 5,
+      "errors": 44,
+      "seconds": 489.19
+    },
+    "memory_probes_after_context_path_fix": {
+      "passed": 109
+    },
+    "companion_full": {
+      "passed": 780,
+      "skipped": 25,
+      "subtests_passed": 101,
+      "seconds": 170.71
+    },
+    "companion_targeted": {
+      "passed": 43,
+      "subtests_passed": 10
+    },
+    "companion_final_recovery_tls": {
+      "passed": 17,
+      "subtests_passed": 48
+    },
+    "four_product_https_restart_recall": {
+      "passed": 1,
+      "seconds": 6.81,
+      "synthetic_external_model_and_channel": true
+    },
+    "changed_python_ruff": "passed",
+    "diff_whitespace": "passed",
+    "workspace_check": "blocked by existing TS-016 checkout dubious ownership (CodexSandboxOffline vs Administrator); no global safe.directory changes"
+  },
+  "remaining_baseline_issues": [
+    "Memory knowledge-content dependency pin does not match current life-runtime/v2 package (11 setup errors and 3 failures); reproduced loading content on unchanged Memory baseline.",
+    "Memory legacy account-403 assertion gets invalid_input/400 for malformed QQ account; reproduced on unchanged baseline.",
+    "Companion older optional source_https fixture omits mandatory QQ administrator reader; reproduced on unchanged baseline."
+  ],
+  "limits": [
+    "Platform static memory connected label not updated; allocator refused dirty coordinator checkout. Functional memory model selector is supported and tested.",
+    "No real model quality, QQ, NAS or production rollout acceptance."
+  ],
+  "integration_order": [
+    "TS-117 memory",
+    "TS-118 companion"
+  ],
+  "deployment_record": "docs/development/memory-subscriptions-deployment-2026-10-12.json"
+}

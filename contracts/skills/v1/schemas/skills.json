@@ -1,0 +1,694 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.tianshu.invalid/skills/v1/schemas/skills.json",
+  "$defs": {
+    "definition": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "domain": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "handler_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "operations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "title",
+        "description",
+        "domain",
+        "handler_id",
+        "operations"
+      ],
+      "additionalProperties": false
+    },
+    "config": {
+      "type": "object",
+      "properties": {
+        "provider": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        },
+        "base_url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2048
+        },
+        "credential_ref": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        },
+        "options": {
+          "type": "object",
+          "maxProperties": 16
+        }
+      },
+      "required": [
+        "provider",
+        "base_url",
+        "credential_ref",
+        "options"
+      ],
+      "additionalProperties": false
+    },
+    "config_public": {
+      "type": "object",
+      "properties": {
+        "provider": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        },
+        "base_url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2048
+        },
+        "options": {
+          "type": "object"
+        },
+        "credential_configured": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "provider",
+        "base_url",
+        "options",
+        "credential_configured"
+      ],
+      "additionalProperties": false
+    },
+    "availability": {
+      "type": "object",
+      "properties": {
+        "state": {
+          "enum": [
+            "available",
+            "disabled",
+            "not_configured",
+            "unsupported",
+            "unavailable"
+          ]
+        },
+        "can_execute": {
+          "type": "boolean"
+        },
+        "reason_code": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "state",
+        "can_execute",
+        "reason_code"
+      ],
+      "additionalProperties": false
+    },
+    "skill": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "domain": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "operations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true
+        },
+        "definition": {
+          "$ref": "#/$defs/definition"
+        },
+        "source_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "installed": {
+          "type": "boolean"
+        },
+        "availability": {
+          "$ref": "#/$defs/availability"
+        },
+        "config": {
+          "$ref": "#/$defs/config_public"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "title",
+        "description",
+        "domain",
+        "operations",
+        "definition",
+        "source_id",
+        "enabled",
+        "installed",
+        "availability",
+        "config",
+        "revision"
+      ],
+      "additionalProperties": false
+    },
+    "source_config": {
+      "type": "object",
+      "properties": {
+        "source_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "manifest_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "credential_ref": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "expected_sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "source_id",
+        "name",
+        "manifest_url",
+        "credential_ref",
+        "enabled",
+        "expected_sha256"
+      ],
+      "additionalProperties": false
+    },
+    "source_public": {
+      "type": "object",
+      "properties": {
+        "source_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "manifest_url": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "expected_sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "credential_configured": {
+          "type": "boolean"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "state": {
+          "enum": [
+            "configured",
+            "disabled",
+            "ready",
+            "unreachable",
+            "invalid"
+          ]
+        },
+        "last_refreshed_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "content_sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "error_code": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "source_id",
+        "name",
+        "manifest_url",
+        "enabled",
+        "expected_sha256",
+        "credential_configured",
+        "version",
+        "state",
+        "last_refreshed_at",
+        "content_sha256",
+        "error_code"
+      ],
+      "additionalProperties": false
+    },
+    "manifest": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "source_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "skills": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/definition"
+          },
+          "maxItems": 100
+        }
+      },
+      "required": [
+        "schema_version",
+        "source_version",
+        "skills"
+      ],
+      "additionalProperties": false
+    },
+    "read_request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "resource": {
+          "enum": [
+            "list",
+            "detail",
+            "sources"
+          ]
+        },
+        "skill_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "resource"
+      ],
+      "additionalProperties": false
+    },
+    "manage_request": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "schema_version": {
+              "const": 1
+            },
+            "request_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "actor_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "expected_version": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "operation": {
+              "enum": [
+                "skill.enable",
+                "skill.disable"
+              ]
+            },
+            "value": {
+              "type": "object",
+              "properties": {
+                "skill_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              },
+              "required": [
+                "skill_id"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "schema_version",
+            "request_id",
+            "actor_id",
+            "expected_version",
+            "operation",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "schema_version": {
+              "const": 1
+            },
+            "request_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "actor_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "expected_version": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "operation": {
+              "enum": [
+                "skill.update"
+              ]
+            },
+            "value": {
+              "type": "object",
+              "properties": {
+                "definition": {
+                  "$ref": "#/$defs/definition"
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "config": {
+                  "$ref": "#/$defs/config"
+                }
+              },
+              "required": [
+                "definition",
+                "enabled",
+                "config"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "schema_version",
+            "request_id",
+            "actor_id",
+            "expected_version",
+            "operation",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "schema_version": {
+              "const": 1
+            },
+            "request_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "actor_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "expected_version": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "operation": {
+              "enum": [
+                "source.configure"
+              ]
+            },
+            "value": {
+              "$ref": "#/$defs/source_config"
+            }
+          },
+          "required": [
+            "schema_version",
+            "request_id",
+            "actor_id",
+            "expected_version",
+            "operation",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "schema_version": {
+              "const": 1
+            },
+            "request_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "actor_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "expected_version": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "operation": {
+              "enum": [
+                "source.refresh"
+              ]
+            },
+            "value": {
+              "type": "object",
+              "properties": {
+                "source_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              },
+              "required": [
+                "source_id"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "schema_version",
+            "request_id",
+            "actor_id",
+            "expected_version",
+            "operation",
+            "value"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "actor_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "catalog_version": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "skills": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/skill"
+          },
+          "maxItems": 100
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_public"
+          },
+          "maxItems": 32
+        }
+      },
+      "required": [
+        "actor_version",
+        "catalog_version",
+        "skills",
+        "sources"
+      ],
+      "additionalProperties": false
+    },
+    "response": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "result": {
+          "$ref": "#/$defs/result"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "result"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

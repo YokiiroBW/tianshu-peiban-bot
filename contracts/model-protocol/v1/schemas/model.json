@@ -66,7 +66,8 @@
               "text",
               "stream",
               "tools",
-              "reasoning"
+              "reasoning",
+              "vision"
             ]
           },
           "minItems": 0,
@@ -83,6 +84,20 @@
         },
         "state_references": {
           "const": "reject"
+        },
+        "unsupported_capabilities": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "text",
+              "stream",
+              "tools",
+              "vision",
+              "reasoning"
+            ]
+          },
+          "uniqueItems": true,
+          "maxItems": 5
         }
       },
       "required": [
@@ -349,6 +364,9 @@
             "null"
           ],
           "minLength": 1
+        },
+        "execution": {
+          "$ref": "#/$defs/execution"
         }
       },
       "required": [
@@ -625,7 +643,9 @@
             "queue_full",
             "dependency_unavailable",
             "timeout",
-            "result_unknown"
+            "result_unknown",
+            "capability_unsupported",
+            "request_cancelled"
           ]
         },
         "execution_state": {
@@ -672,6 +692,85 @@
           }
         }
       ]
+    },
+    "execution": {
+      "type": "object",
+      "properties": {
+        "state": {
+          "enum": [
+            "queued",
+            "running",
+            "completed",
+            "cancelled",
+            "failed",
+            "unknown"
+          ]
+        },
+        "received_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9223372036854775807
+        },
+        "forwarded_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9223372036854775807
+        },
+        "event_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9223372036854775807
+        },
+        "output_observed": {
+          "type": "boolean"
+        },
+        "finish_reasons": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "stop",
+              "length",
+              "tool_calls",
+              "function_call",
+              "content_filter",
+              "other"
+            ]
+          },
+          "maxItems": 128,
+          "uniqueItems": true
+        },
+        "cancel_requested": {
+          "type": "boolean"
+        },
+        "error_code": {
+          "enum": [
+            null,
+            "upstream_http_error",
+            "timeout",
+            "stream_incomplete",
+            "transport_error",
+            "cancelled",
+            "interrupted",
+            "invalid_response",
+            "capability_unsupported"
+          ]
+        },
+        "upstream_started": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "state",
+        "received_bytes",
+        "forwarded_bytes",
+        "event_count",
+        "output_observed",
+        "finish_reasons",
+        "cancel_requested",
+        "error_code",
+        "upstream_started"
+      ],
+      "additionalProperties": false
     }
   }
 }

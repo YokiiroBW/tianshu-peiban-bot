@@ -1,0 +1,11 @@
+{
+  "version": "infrastructure-control.v1",
+  "request_id": "synthetic-request",
+  "node_id": "fixture-nas",
+  "operation": "operation.get",
+  "params": {
+    "operation_id": "fixture:apply:1",
+    "reconcile": true
+  },
+  "timeout_ms": 10000
+}

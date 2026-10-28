@@ -1,0 +1,310 @@
+{
+  "task": "TS-191",
+  "date": "2026-10-18",
+  "state": "pushed_deployed_production_verified",
+  "observed_at": "2026-10-18T12:07:10.244435+08:00",
+  "authorization": "真实网文接入、长篇分页/全量EPUB及自动追更NAS验收；保留视频音乐，已获既有任务串行发布协调授权。",
+  "platform": {
+    "base": "7706360e7b9ac4c85d6a037788a93581f74edd19",
+    "runtime_commit": "da3539333ff3b799d1e177a4f594f7b6b8105972",
+    "image_id": "sha256:ea2f1d4169c78051ad3ff24e3d52aaa803fb72d43fdc383f2fa39e2d9a3c94c6",
+    "entry": "/#/subscriptions/8",
+    "documentation_commit": "ce4cd0cde141f011545e04a797edfe9d632c8e74"
+  },
+  "storage": {
+    "unc": "\\\\YokiiroNAS\\Documents\\电子书",
+    "host_root": "/volume1/Documents/电子书",
+    "container_root": "/media/Ebooks",
+    "old_books_mount_preserved": "/media/Books",
+    "category": "玄幻奇幻",
+    "relative_path": "玄幻奇幻/辰东/夜无疆 [e0557add]/book.epub"
+  },
+  "sources": [
+    {
+      "name": "书海阁（公开网页）",
+      "feed": "https://raw.githubusercontent.com/YokiiroBW/tianshu-platform/main/docs/platform/book-sources/verified-webfiction.json",
+      "directory_pages": 9,
+      "directory_chapters_at_start": 835,
+      "request_interval_ms": 5000,
+      "full_download_verified": true
+    },
+    {
+      "name": "速读谷",
+      "feed": "https://www.yckceo.com/yuedu/shuyuan/json/id/7933.json",
+      "directory_entries": 914,
+      "verified_chapter_pages": 4,
+      "full_download_verified": false,
+      "limitation": "连续试验19章后缺正文；最终搜索一度地址异常，随后恢复。"
+    },
+    {
+      "name": "🌙 得奇小说",
+      "feed": "https://www.yckceo.com/yuedu/shuyuan/json/id/7929.json",
+      "directory_entries": 1184,
+      "first_middle_last_preview_verified": true,
+      "full_download_verified": false,
+      "limitation": "正式首章曾为空，下一章及后续定点读取恢复；未证明整本稳定。"
+    }
+  ],
+  "production_acceptance": {
+    "user_signed_in": true,
+    "credentials_or_cookies_exported": false,
+    "created_subscription_through_ui": true,
+    "search_query": "夜无疆",
+    "search_groups": 21,
+    "novel_source_versions": 3,
+    "automatic_preflight_sample_count": 3,
+    "full_epub": {
+      "status": "complete_novel_epub_verified",
+      "observed_at": 1792296203.4996786,
+      "book_id": "e0557adddc8a6ef6d4b4c44b",
+      "title": "夜无疆",
+      "source": "书海阁（公开网页）",
+      "chapter_count": 835,
+      "cached_chapters": 835,
+      "spine_count": 835,
+      "paragraphs_matched": 122653,
+      "content_characters": 4468654,
+      "contiguous_chapter_numbers": true,
+      "distinct_chapter_texts": 835,
+      "duplicate_chapter_texts": [],
+      "chapters_under_500_characters": [],
+      "first_chapter": "第1章 永夜",
+      "last_chapter": "第835章 血月主场",
+      "category": "玄幻奇幻",
+      "root": "/media/Ebooks",
+      "relative_path": "玄幻奇幻/辰东/夜无疆 [e0557add]/book.epub",
+      "bytes": 8651314,
+      "sha256": "6d0d2cdab45c12f4eb3585fdba756d929c5e87703e7cce91661e92b0012b9a3a",
+      "zip_crc_valid": true,
+      "all_xhtml_matches_cached_chapters": true,
+      "readability": {
+        "state": "complete",
+        "checked_at": 1792296169.5944932,
+        "sample_count": 835
+      },
+      "subscription": {
+        "state": "active",
+        "interval_seconds": 3600,
+        "last_scan_at": 1792295393.681054,
+        "next_scan_at": 1792298993.6810548,
+        "code": "ready"
+      },
+      "writes": false,
+      "runtime_image": "sha256:ea2f1d4169c78051ad3ff24e3d52aaa803fb72d43fdc383f2fa39e2d9a3c94c6",
+      "host_sha256_matches": true,
+      "host_path": "/volume1/Documents/电子书/玄幻奇幻/辰东/夜无疆 [e0557add]/book.epub",
+      "host_bytes": 8651314
+    },
+    "download_job": {
+      "job_id": "cd2f432b-5bbb-4051-9292-83def3e9c485",
+      "state": "completed",
+      "stage": "book_published",
+      "code": "book_completed",
+      "progress": 1.0,
+      "book_chapters_done": 835,
+      "book_chapters_total": 835,
+      "book_reused": false,
+      "created_at": 1792291727.2871907,
+      "updated_at": 1792296169.5970073,
+      "attempts": 1,
+      "retry_delay": 120
+    },
+    "download_elapsed_seconds": 4442.31,
+    "transient_failure_resumed_automatically": {
+      "observed": true,
+      "first_failure": {
+        "state": "failed",
+        "code": "book_source_unavailable",
+        "checked_at": 1792295946.0277255,
+        "sample_count": 0,
+        "chapter_id": "8d9c79ace9c7291d50dfa494",
+        "chapter_title": "第821章 长生"
+      },
+      "retained_chapters_at_failure": 820,
+      "retry_delay_seconds": 120,
+      "final_attempt_failures": 1,
+      "manual_retry_clicked": false
+    },
+    "scheduled_scan": {
+      "interval_seconds": 3600,
+      "scheduled_for": 1792295330.7746913,
+      "observed_subscription": {
+        "book_id": "e0557adddc8a6ef6d4b4c44b",
+        "state": "active",
+        "interval_seconds": 3600,
+        "next_scan_at": 1792298993.6810548,
+        "last_scan_at": 1792295393.681054,
+        "code": "ready",
+        "revision": 3
+      },
+      "manual_scan_clicked": false,
+      "production_clock_modified": false,
+      "natural_author_update_observed": false
+    },
+    "screenshots": [
+      ".runtime/books-serial-20261018-readability/production-download-complete.png",
+      ".runtime/books-serial-20261018-readability/production-novel-library.png"
+    ],
+    "completed_at_local": "2026-10-18T12:02:49+08:00"
+  },
+  "isolated_real_source_catchup": {
+    "status": "real_source_background_catchup_passed",
+    "historical_chapters": 833,
+    "current_chapters": 835,
+    "new_chapters_fetched": 2,
+    "old_chapters_refetched": 0,
+    "spine_count": 835,
+    "bytes": 8651373,
+    "sha256": "ffdc52d19a243d3d85a7e719c9e522a0d93204ee83e5d95ac5e131d30b7df9ea",
+    "historical_epub_sha256": "e99f806a42c538f710a35d418eb7ce5da38fbbd3b64f4aa7643a1e7208b2ce99",
+    "production_seed_epub_sha256": "6d0d2cdab45c12f4eb3585fdba756d929c5e87703e7cce91661e92b0012b9a3a",
+    "public_real_chapter_cache_seeded": true,
+    "synthetic_historical_checkpoint": true,
+    "isolated_clock_advanced": true,
+    "natural_author_update_claimed": false,
+    "background_scanner_used": true,
+    "manual_scan_called": false,
+    "production_data_mounted": false,
+    "elapsed_seconds": 119.82
+  },
+  "checks": {
+    "nas_suites": [
+      {
+        "pattern": "test_book*.py",
+        "run": 41,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "pattern": "test_media_standalone.py",
+        "run": 23,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "pattern": "test_music_library.py",
+        "run": 23,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "pattern": "test_media_background.py",
+        "run": 4,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "pattern": "test_music_foundation.py",
+        "run": 16,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ],
+    "http_browser_joint_passed": 2,
+    "typescript": "passed",
+    "vite": "passed_with_existing_chunk_warning",
+    "ruff": "passed"
+  },
+  "deployment": {
+    "status": "deployed",
+    "sqlite_backups": 38,
+    "database_restore": false,
+    "existing_settings_preserved": true,
+    "music_media_configuration_preserved": true,
+    "non_target_containers_preserved": true,
+    "user_state_preserved": true,
+    "backup_offline_restore_verified": true,
+    "complete_backups_retained": 1,
+    "core_verified_tls_healthy": 5,
+    "guard_ready": true,
+    "static_assets_verified": 64,
+    "dockge_snapshots_synced": 2
+  },
+  "media_preservation": {
+    "status": "media_configuration_and_original_jobs_preserved",
+    "configuration_checks": {
+      "account": true,
+      "subscription": true,
+      "media_target": true,
+      "music_account": true,
+      "music_playlist": true,
+      "music_navidrome_playlist": true,
+      "music_maintenance": true,
+      "music_settings": true,
+      "music_navidrome": true
+    },
+    "jobs": {
+      "audio": {
+        "original_jobs": 1956,
+        "current_jobs": 1957,
+        "missing_original_jobs": 0,
+        "added_since_task_start": 1,
+        "ids_unchanged_during_final_release": true,
+        "current_states": {
+          "completed": 1484,
+          "downloading": 2,
+          "failed": 203,
+          "queued": 2,
+          "retry_wait": 266
+        }
+      },
+      "video": {
+        "original_jobs": 9,
+        "current_jobs": 9,
+        "missing_original_jobs": 0,
+        "added_since_task_start": 0,
+        "ids_unchanged_during_final_release": true,
+        "current_states": {
+          "completed": 6,
+          "failed": 3
+        }
+      }
+    },
+    "note": "配置摘要及原任务身份保持；后台状态自然变化，不宣称音乐视频无既有失败。当前49个在书籍验收时段更新的音乐失败任务均创建于本次书籍下载前，48个music_download_forbidden、1个music_audio_invalid；仅只读观察，未扩展修复音乐。",
+    "failure_code_observation": {
+      "status": "existing_audio_failure_codes_observed",
+      "groups": [
+        {
+          "code": "music_audio_invalid",
+          "stage": "validating",
+          "count": 1,
+          "minimum_attempts": 1,
+          "maximum_attempts": 1,
+          "created_before_book_acceptance": 1
+        },
+        {
+          "code": "music_download_forbidden",
+          "stage": "music_comparing",
+          "count": 48,
+          "minimum_attempts": 1,
+          "maximum_attempts": 1,
+          "created_before_book_acceptance": 48
+        }
+      ],
+      "writes": false,
+      "titles_urls_or_credentials_selected": false
+    }
+  },
+  "limitations": [
+    "完整下载以所选源当前目录为准，书海阁835章落后其他源847章，不能保证上游原作无缺漏。",
+    "搜索/目录成功不等于正文可读；抽查不等于全书保证，正文仍逐章逐页检查。",
+    "常见短登录/付费/验证码提示会报错，不自动登录、付费或完成验证码；不承诺识别所有反爬形态。",
+    "隔离追更使用真实小说正文的历史目录检查点并推进隔离时钟，不将其称为作者自然发布新章。",
+    "完整Android/Java/WebView书源、同URL上游正文修改自动识别、官方EPUBCheck和所有阅读器验收不在已证实范围。"
+  ],
+  "workspace_delivery": {
+    "remote_taskboard_updated": false,
+    "local_task_state": "done",
+    "root_publication_scope": [
+      "docs/development/CURRENT.md",
+      "docs/development/books-serial-2026-10-18.md",
+      "docs/development/books-serial-2026-10-18.json"
+    ],
+    "note": "远端旧任务板缺少前序TS189等卡，未把本地混合任务板整体推送；本地仅更新TS191为done，其他任务保留。"
+  }
+}

@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.tianshu.invalid/context-history/v1/schema.json",
+  "$defs": {
+    "history_check": {
+      "type": "object",
+      "properties": {
+        "scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "history_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "association_id": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "association_version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "scope",
+        "history_version",
+        "association_id",
+        "association_version"
+      ],
+      "additionalProperties": false
+    },
+    "snapshot": {
+      "type": "object",
+      "properties": {
+        "association_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "history_checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/history_check"
+          },
+          "minItems": 1,
+          "maxItems": 17
+        }
+      },
+      "required": [
+        "association_version",
+        "history_checks"
+      ],
+      "additionalProperties": false
+    },
+    "request": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/query"
+        },
+        "requested_scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "include_associated": {
+          "type": "boolean"
+        },
+        "expected_snapshot": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "scope_version": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "association_version": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "scope_checks": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "https://contracts.tianshu.invalid/memory-context/v1/schema.json#/$defs/scope_check"
+                  },
+                  "minItems": 1,
+                  "maxItems": 17
+                }
+              },
+              "required": [
+                "scope_version",
+                "association_version",
+                "scope_checks"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "known_snapshot": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/snapshot"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "query",
+        "requested_scope",
+        "include_associated",
+        "expected_snapshot",
+        "known_snapshot"
+      ],
+      "additionalProperties": false
+    },
+    "response": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "effective_scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "scope_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "snapshot": {
+          "$ref": "#/$defs/snapshot"
+        },
+        "verified_at": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "valid_until": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "Z$"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "effective_scope",
+        "scope_version",
+        "snapshot",
+        "verified_at",
+        "valid_until"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

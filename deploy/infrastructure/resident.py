@@ -1,0 +1,361 @@
+"""Render the existing resident stage/launch/poll mechanism for this release.
+
+All inputs are explicit local files. This module never imports nas_access or
+connects to a host; only the coordinator runs the rendered remote payloads.
+"""
+
+from __future__ import annotations
+
+import argparse
+import ast
+import base64
+import copy
+import json
+import re
+from pathlib import Path, PurePosixPath
+
+from .bundle import digest, git_files, json_bytes, require
+from .image import NODE_COMMIT, NODE_SHA256
+from . import control_install as control_inputs
+from .control_bundle import CONTRACT as CONTROL_CONTRACT, PROTOCOL as CONTROL_PROTOCOL
+from .recovery_input import current_recovery, FILES as RECOVERY_FILES
+from ops.recovery import resident_retention
+
+
+HERE = Path(__file__).resolve().parent
+GUARD_FILES = tuple("ops/resident_capacity/" + name for name in (
+    "__init__.py", "guard.py", "config.schema.json", "tianshu-resident-capacity.service.in",
+))
+BODY_FUNCTIONS = (
+    "network_view", "network_inventory", "network_definitions", "declared_addresses",
+    "verify_networks", "frozen", "paths_from", "resume_gateway_if_expired",
+)
+SAMPLE_STATE = "/var/lib/tianshu/infrastructure-sampling"
+CONTAINER_SSH = "/run/tianshu-infrastructure"
+
+
+def retention_runtime_source(*, install):
+    """Embed the public policy for immutable older recovery-code inputs too."""
+    raw = Path(resident_retention.__file__).read_bytes().replace(b"\r\n", b"\n")
+    source = ("\nimport base64,types,sys,hashlib\n"
+              + "from pathlib import Path\n"
+              + "_retention_raw=base64.b64decode(" + repr(base64.b64encode(raw).decode()) + ")\n"
+              + "assert hashlib.sha256(_retention_raw).hexdigest()==" + repr(digest(raw)) + "\n"
+              + "_retention=sys.modules.get('ops.recovery.resident_retention')\n"
+              + "_policy_sha=" + repr(digest(raw)) + "\n"
+              + "_loaded_sha=getattr(_retention,'_release_retention_sha256',None)\n"
+              + "if _loaded_sha is None and getattr(_retention,'__file__',None):\n"
+              + " _loaded_sha=hashlib.sha256(Path(_retention.__file__).read_bytes().replace(b'\\r\\n',b'\\n')).hexdigest()\n"
+              + "if _loaded_sha!=_policy_sha:\n"
+              + " _retention=types.ModuleType('ops.recovery.resident_retention')\n"
+              + " sys.modules[_retention.__name__]=_retention\n"
+              + " exec(compile(_retention_raw,'resident-retention-runtime.py','exec'),_retention.__dict__)\n"
+              + "_retention._release_retention_sha256=_policy_sha\n")
+    if install:
+        source += "_retention.install_snapshot_retention(snapshot,D)\n"
+    return source
+
+
+def patch_templates(templates, capacity, image, credential_binds, *, preserve_existing=False, media_binds=()):
+    """Change only Platform's image, two exact credential binds and bounded state."""
+    templates, capacity = copy.deepcopy(templates), copy.deepcopy(capacity)
+    for name in ("core", "platform"):
+        service = templates[name]["services"]["platform"]
+        service["image"] = image
+        targets = {volume["target"] for volume in service["volumes"]}
+        require(not targets.intersection(bind["target"] for bind in media_binds), "media_mount_already_present")
+        for bind in media_binds:
+            service["volumes"].append({"type": "bind", **bind, "bind": {"create_host_path": False}})
+        if preserve_existing:
+            require(not credential_binds, "update_cannot_replace_credentials")
+            continue
+        require(not targets.intersection(bind["target"] for bind in credential_binds), "credential_mount_already_present")
+        require(SAMPLE_STATE not in targets, "sampling_mount_already_present")
+        for bind in credential_binds:
+            service["volumes"].append({"type": "bind", **bind, "bind": {"create_host_path": False}})
+        tmpfs = service.setdefault("tmpfs", [])
+        require(isinstance(tmpfs, list) and all(SAMPLE_STATE != entry.split(":", 1)[0] for entry in tmpfs),
+                "sampling_tmpfs_already_present")
+        tmpfs.append(SAMPLE_STATE + ":rw,noexec,nosuid,nodev,size=128m,uid=10001,gid=10001,mode=0700")
+    capacity["images"]["platform"] = image
+    capacity["binds"]["platform"].extend(copy.deepcopy(credential_binds))
+    capacity["binds"]["platform"].extend(copy.deepcopy(list(media_binds)))
+    capacity.setdefault("external_media_binds", []).extend(copy.deepcopy(list(media_binds)))
+    return templates, capacity
+
+
+def merge_settings(settings, infrastructure, *, preserve_existing=False, control=None):
+    if preserve_existing:
+        require(settings.get("infrastructure") == infrastructure, "existing_infrastructure_changed")
+        result = copy.deepcopy(settings)
+    else:
+        require("infrastructure" not in settings, "infrastructure_settings_already_present")
+        require(settings["web_external"]["directory"] == infrastructure["directory"], "external_directory_mismatch")
+        result = {**settings, "infrastructure": copy.deepcopy(infrastructure)}
+    if control is not None:
+        result["infrastructure"]["control"] = copy.deepcopy(control)
+    return result
+
+
+def restore_control_settings(settings, installed, previous):
+    """Revert only our control reference while preserving later unrelated settings."""
+    result = copy.deepcopy(settings)
+    require(result.get("infrastructure", {}).get("control") == installed, "control_changed_after_release")
+    if "control" in previous:
+        result["infrastructure"]["control"] = copy.deepcopy(previous["control"])
+    else:
+        result["infrastructure"].pop("control")
+    return result
+
+
+def require_preserved_control(control, build):
+    """Preserved settings must still point at a verified control runtime in the image."""
+    package = build.get("control_package")
+    require(isinstance(package, dict), "existing_control_package_required")
+    source = package.get("source_commit")
+    contract = package.get("contract")
+    require(package.get("status") == "package_verified" and package.get("protocol_version") == CONTROL_PROTOCOL
+            and isinstance(source, str) and re.fullmatch(r"[0-9a-f]{40}", source)
+            and isinstance(package.get("package_sha256"), str) and re.fullmatch(r"[0-9a-f]{64}", package["package_sha256"])
+            and type(package.get("file_count")) is int and package["file_count"] > 1
+            and isinstance(contract, dict), "existing_control_package_invalid")
+    schemas = contract.get("schemas")
+    require(contract.get("source_commit") == source and contract.get("path") == CONTROL_CONTRACT
+            and isinstance(contract.get("files_sha256"), str) and re.fullmatch(r"[0-9a-f]{64}", contract["files_sha256"])
+            and isinstance(schemas, dict) and set(schemas) == {"request.schema.json", "response.schema.json", "config.schema.json", "remote-config.schema.json"}
+            and all(isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value) for value in schemas.values()),
+            "existing_control_package_invalid")
+    checks = build.get("linux_checks")
+    checked = checks.get("control") if isinstance(checks, dict) else None
+    require(isinstance(checked, dict) and checked.get("source_commit") == source
+            and checked.get("catalog_process_passed") is True and checked.get("both_absolute_launchers_passed") is True
+            and checked.get("file_count") == package["file_count"] - 1, "existing_control_package_unverified")
+    executor = control.get("executor") if isinstance(control, dict) else None
+    require(isinstance(executor, dict) and executor.get("directory") == "/opt/tianshu-infrastructure-control"
+            and control.get("contract_directory") == executor["directory"] + "/" + CONTROL_CONTRACT,
+            "existing_control_executor_mismatch")
+    command = executor.get("command")
+    require(isinstance(command, list) and len(command) == 6
+            and command[:5] == ["/opt/tianshu-infrastructure-venv/bin/python", "-I", "-B", executor["directory"] + "/run_control.py", "--config"]
+            and control_inputs.absolute(command[5]), "existing_control_executor_mismatch")
+
+
+def helpers_source(raw):
+    """Parameterize only the deployed helper's path assignments, before defaults bind."""
+    replacements = {
+        "R": "R=Path(RELEASE['paths']['root'])",
+        "D": "D=RELEASE['paths']['docker']",
+        "CAP": "CAP=Path(RELEASE['paths']['capacity'])",
+        "UNIT": "UNIT=Path(RELEASE['paths']['unit'])",
+        "TOOLING": "TOOLING=Path(RELEASE['paths']['tooling'])",
+        "PYTHON": "PYTHON=RELEASE['paths']['python']",
+    }
+    lines = raw.splitlines(keepends=True)
+    selected = {}
+    for node in ast.parse(raw).body:
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+            name = node.targets[0].id
+            if name in replacements:
+                selected[name] = node
+    require(set(selected) == set(replacements), "resident_helper_paths_changed")
+    for name, node in sorted(selected.items(), key=lambda pair: pair[1].lineno, reverse=True):
+        lines[node.lineno - 1:node.end_lineno] = [replacements[name] + "\n"]
+    return "".join(lines)
+
+
+def existing_functions(raw):
+    nodes = {node.name: node for node in ast.parse(raw).body if isinstance(node, ast.FunctionDef)}
+    require(set(BODY_FUNCTIONS) <= set(nodes), "resident_mechanism_functions_missing")
+    return "\n\n".join(ast.get_source_segment(raw, nodes[name]) for name in BODY_FUNCTIONS) + "\n"
+
+
+def existing_actions(raw):
+    result = {}
+    for node in ast.parse(raw).body:
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+            name = node.targets[0].id
+            if name in {"STAGE_BODY", "LAUNCH_BODY", "POLL_BODY"}:
+                result[name] = ast.literal_eval(node.value)
+    require(set(result) == {"STAGE_BODY", "LAUNCH_BODY", "POLL_BODY"}, "resident_actions_missing")
+    tree = ast.parse(result["STAGE_BODY"])
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Compare) and isinstance(node.left, ast.Name)
+                and node.left.id == "name" and len(node.ops) == 1
+                and isinstance(node.ops[0], ast.In) and isinstance(node.comparators[0], ast.Set)
+                and ast.literal_eval(node.comparators[0]) == RECOVERY_FILES - {"ops/recovery/resident_retention.py"}):
+            node.comparators[0].elts.append(ast.Constant(value="ops/recovery/resident_retention.py"))
+    result["STAGE_BODY"] = ast.unparse(tree) + "\n"
+    return result
+
+
+def rollback_source(stage, expected):
+    return "PARENT=" + repr(stage) + "\nEXPECTED=" + repr(expected) + "\n" + '''
+import ast,hashlib
+from pathlib import Path
+parent=Path(PARENT)
+raw=(parent/'resident-update.py').read_bytes()
+assert hashlib.sha256(raw).hexdigest()==EXPECTED,'release_script_changed'
+tree=ast.parse(raw)
+assert isinstance(tree.body[-1],ast.Try),'release_entry_changed'
+entry=tree.body.pop()
+exec(compile(tree,str(parent/'resident-update.py'),'exec'))
+entry.body=[ast.Expr(value=ast.Call(func=ast.Name(id='rollback_release',ctx=ast.Load()),args=[ast.Name(id='parent',ctx=ast.Load())],keywords=[]))]
+module=ast.fix_missing_locations(ast.Module(body=[entry],type_ignores=[]))
+exec(compile(module,str(parent/'rollback.py'),'exec'))
+print(json.dumps({'status':'rolled_back','stage':str(S),'database_restore':False,'later_ledgers_preserved':True,'dockge_sync_required':True}))
+'''
+
+
+def prepare(*, baseline, metadata, build_result, mechanism_directory, recovery,
+            executor_config, guard_repo, guard_commit, stage, output,
+            preserve_infrastructure=False, additional_media_binds=None, control_install=None):
+    output = Path(output)
+    require(output.is_absolute() and output.parent.is_dir() and not output.exists(), "new_output_required")
+    require(str(PurePosixPath(stage).parent) in {"/volume2/tianshu-v2-resident-updates", "/volume1/Download/Tianshu/updates", "/volume1/tianshu-v2-resident-updates"}, "resident_stage_invalid")
+    baseline = json.loads(Path(baseline).read_bytes())
+    metadata = json.loads(Path(metadata).read_bytes())
+    build = json.loads(Path(build_result).read_bytes())
+    executor = json.loads(Path(executor_config).read_bytes())
+    from ops.infrastructure.config import parse_config
+    parse_config(executor)
+    recovery_raw = Path(recovery).read_bytes()
+    recovery = current_recovery(json.loads(recovery_raw), base_sha256=digest(recovery_raw))
+    require(all(row["running"] for row in baseline["owners"]) and baseline["guard_status"]["status"] == "ready", "final_ready_baseline_required")
+    require(build["status"] == "built" and build["production_changed"] is False, "verified_candidate_required")
+    require(build["node_commit"] == NODE_COMMIT and build["node_package_sha256"] == NODE_SHA256, "accepted_node_package_required")
+    require(baseline["owner_runtime"]["platform"]["revision"] == build["base_revision"], "final_music_revision_mismatch")
+    platform = next(row for row in baseline["owners"] if row["service"] == "platform")
+    require(platform["image_id"] == build["base_image_id"], "final_music_image_mismatch")
+    require(set(executor["nodes"]) == {"nas-main"} and executor["nodes"]["nas-main"]["kind"] == "synology", "nas_only_registration_required")
+    require(executor["nodes"]["nas-main"]["label"] == "主 NAS", "nas_identity_mismatch")
+    require(executor["state_dir"] == SAMPLE_STATE and executor.get("ssh_command") == ["/usr/bin/ssh"], "executor_local_paths_mismatch")
+    node = executor["nodes"]["nas-main"]
+    require(node["identity_file"] == CONTAINER_SSH + "/identity" and node["known_hosts_file"] == CONTAINER_SSH + "/known_hosts", "executor_credential_paths_mismatch")
+    root = metadata["resident_root"]
+    require(root == "/volume2/tianshu-v2-resident" and metadata["external_directory"] == "/var/lib/tianshu/external", "resident_authority_mismatch")
+    require(metadata["infrastructure_configured"] is preserve_infrastructure, "infrastructure_installation_mode_mismatch")
+    credential_binds = [
+        {"source": root + "/config/infrastructure/ssh/" + name,
+         "target": CONTAINER_SSH + "/" + name, "read_only": True}
+        for name in ("identity", "known_hosts")
+    ]
+    settings = json.loads((HERE / "templates/platform-settings.fragment.json").read_bytes())["infrastructure"]
+    if preserve_infrastructure:
+        settings = metadata["infrastructure_settings"]
+        require(settings["directory"] == metadata["external_directory"], "external_directory_mismatch")
+        credential_binds = []
+    control = None
+    if control_install:
+        require(preserve_infrastructure, "control_requires_existing_infrastructure")
+        control = control_inputs.validate(json.loads(Path(control_install).read_bytes()), resident_root=root,
+                                          mounts=platform["mounts"], node_ids=executor["nodes"])
+        require(build.get("control_package") == control["package"], "control_image_package_mismatch")
+    elif preserve_infrastructure and settings.get("control") is not None:
+        require_preserved_control(settings["control"], build)
+    media_binds = json.loads(Path(additional_media_binds).read_bytes()) if additional_media_binds else []
+    require(isinstance(media_binds, list), "media_binds_invalid")
+    for bind in media_binds:
+        require(isinstance(bind, dict) and set(bind) == {"source", "target", "read_only"}, "media_bind_invalid")
+        require(type(bind["read_only"]) is bool, "media_bind_invalid")
+        for key in ("source", "target"):
+            require(isinstance(bind[key], str) and PurePosixPath(bind[key]).is_absolute()
+                    and ".." not in PurePosixPath(bind[key]).parts, "media_bind_invalid")
+        require(bind["target"].startswith("/media/") and not PurePosixPath(bind["source"]).is_relative_to(PurePosixPath(root)), "media_bind_invalid")
+    require(len({bind["target"] for bind in media_binds}) == len(media_binds), "media_bind_duplicate")
+    guard_files = git_files(guard_repo, guard_commit, GUARD_FILES)
+    mechanism = Path(mechanism_directory)
+    source_bytes = {name: (mechanism / name).read_bytes() for name in (
+        "resident_helpers.py.txt", "resident_update_body.py.txt", "resident_release_launcher.py",
+    )}
+    sources = {name: raw.decode("utf-8").replace("\r\n", "\n") for name, raw in source_bytes.items()}
+    for name, item in recovery["files"].items():
+        require(name in {"ops/__init__.py", "ops/recovery/__init__.py", "ops/recovery/resident_snapshot.py", "ops/recovery/resident_retention.py", "ops/recovery/safety.py"}, "recovery_file_invalid")
+        require(digest(base64.b64decode(item["base64"])) == item["sha256"], "recovery_source_changed")
+    require("ops/recovery/resident_snapshot.py" in recovery["files"], "recovery_source_missing")
+    contract_source = next(mount["Source"] for mount in platform["mounts"] if mount["Destination"] == "/contracts")
+    release = {
+        "stage": stage, "recovery": recovery,
+        "preserve_infrastructure": preserve_infrastructure, "media_binds": media_binds,
+        "paths": {"root": root, "docker": metadata["docker_path"], "capacity": metadata["capacity_path"],
+                  "unit": "/etc/systemd/system/tianshu-resident-capacity.service", "tooling": str(PurePosixPath(metadata["guard_code_path"]).parents[2]),
+                  "python": metadata["tool_python"]},
+        "images": {"platform": {"image_id": build["image_id"], "revision": build["revision"]}},
+        "previous_images": {"platform": {"image_id": platform["image_id"], "revision": build["base_revision"]}},
+        "contracts": contract_source, "contracts_revision": build["contracts_revision"],
+        "pins": baseline["owner_contract_pins"]["platform"], "baseline": baseline,
+        "guard_commit": guard_commit,
+        "guard_files": {name: {"sha256": digest(raw), "base64": base64.b64encode(raw).decode()} for name, raw in guard_files.items()},
+        "infrastructure": {"settings": settings, "executor_config": executor,
+                           "executor_host": root + "/config/platform/infrastructure/executor.json",
+                           "credential_binds": credential_binds},
+        "mechanism_sha256": {name: digest(raw) for name, raw in source_bytes.items()},
+        "retention_sha256": digest(Path(resident_retention.__file__).read_bytes().replace(b"\r\n", b"\n")),
+    }
+    if control:
+        release["control"] = control
+    functions = existing_functions(sources["resident_update_body.py.txt"])
+    helpers = helpers_source(sources["resident_helpers.py.txt"])
+    worker = (HERE / "resident_worker.py").read_text(encoding="utf-8")
+    inventory_source = (HERE / "resident_metadata.py").read_text(encoding="utf-8")
+    mountpoint_source = (HERE / "sampling_mountpoint.py").read_text(encoding="utf-8")
+    # The runtime gets the exact same tested patch rules; no second merge algorithm.
+    merge_source = "\n\n".join(ast.get_source_segment(Path(__file__).read_text(encoding="utf-8"), node)
+                                 for node in ast.parse(Path(__file__).read_text(encoding="utf-8")).body
+                                 if isinstance(node, ast.FunctionDef) and node.name in {"patch_templates", "merge_settings", "restore_control_settings"})
+    script = ("RELEASE=" + repr(release) + "\n" + helpers + "\n" + functions
+              + "\nSAMPLE_STATE=" + repr(SAMPLE_STATE) + "\n" + merge_source + "\n" + inventory_source
+              + "\n" + mountpoint_source + retention_runtime_source(install=True)
+              + ("\n" + control_inputs.runtime_source() if control else "") + "\n" + worker)
+    compile(script, "resident-update.py", "exec")
+    inputs = {"release": release, "script_sha256": digest(script.encode())}
+    rollback = rollback_source(stage, inputs["script_sha256"])
+    compile(rollback, "rollback.py", "exec")
+    actions = existing_actions(sources["resident_release_launcher.py"])
+    output.mkdir(mode=0o700)
+    (output / "resident-update.py").write_text(script, encoding="utf-8", newline="\n")
+    (output / "resident-release.json").write_bytes(json_bytes(inputs))
+    (output / "rollback.py").write_text(rollback, encoding="utf-8", newline="\n")
+    for action, body in actions.items():
+        body = body.replace("Path('/volume2/tianshu-v2-resident-updates')", "Path(" + repr(str(PurePosixPath(stage).parent)) + ")")
+        prefix = ("inputs=" + repr(inputs) + "\nREMOTE_STAGE=" + repr(stage)
+                  + "\nREMOTE_PYTHON=" + repr(metadata["tool_python"]) + "\n")
+        if action == "STAGE_BODY":
+            prefix += "DATA=" + repr(base64.b64encode(script.encode()).decode()) + "\n"
+            prefix += "ROLLBACK_DATA=" + repr(base64.b64encode(rollback.encode()).decode()) + "\n"
+            # Preserve the existing stage logic, writing the reviewed rollback
+            # beside the worker before its one final staged receipt.
+            parts = body.rsplit("\nprint(", 1)
+            require(len(parts) == 2, "resident_stage_receipt_changed")
+            extra = '''
+rollback=base64.b64decode(ROLLBACK_DATA)
+compile(rollback,str(stage/'rollback.py'),'exec')
+with (stage/'rollback.py').open('xb') as stream:
+ stream.write(rollback);stream.flush();os.fsync(stream.fileno())
+(stage/'rollback.py').chmod(0o600)
+'''
+            body = parts[0] + "\n" + extra + "\nprint(" + parts[1]
+        payload = prefix + body
+        compile(payload, "remote-" + action.lower(), "exec")
+        (output / ("remote-" + action.removesuffix("_BODY").lower() + ".py")).write_text(payload, encoding="utf-8", newline="\n")
+    receipt = {"status": "prepared_locally", "stage": stage, "script_sha256": inputs["script_sha256"],
+               "guard_commit": guard_commit, "node_commit": NODE_COMMIT, "image_id": build["image_id"],
+               "nas_changed": False, "node_ids": ["nas-main"], "output": str(output), "rollback_sha256": digest(rollback.encode())}
+    if control:
+        receipt["control_package"] = control["package"]
+    (output / "prepared.json").write_bytes(json_bytes(receipt))
+    return receipt
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    for name in ("baseline", "metadata", "build-result", "mechanism-directory", "recovery",
+                 "executor-config", "guard-repo", "guard-commit", "stage", "output"):
+        parser.add_argument("--" + name, required=True)
+    parser.add_argument("--preserve-infrastructure", action="store_true")
+    parser.add_argument("--additional-media-binds")
+    parser.add_argument("--control-install")
+    print(json.dumps(prepare(**vars(parser.parse_args())), sort_keys=True))
+
+
+if __name__ == "__main__":
+    main()

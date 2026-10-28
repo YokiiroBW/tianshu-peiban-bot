@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.tianshu.invalid/reading-state/v1/schema.json",
+  "$defs": {
+    "request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "query": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/query"
+        },
+        "scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "grant_id": {
+          "type": [
+            "null",
+            "string"
+          ],
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "schema_version",
+        "query",
+        "scope",
+        "grant_id"
+      ],
+      "additionalProperties": false
+    },
+    "response": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "catalog": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "book_id": {
+                "type": "string",
+                "maxLength": 24
+              },
+              "title": {
+                "type": "string",
+                "maxLength": 160
+              },
+              "author": {
+                "type": "string",
+                "maxLength": 100
+              },
+              "chapters": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "book_id",
+              "title",
+              "author",
+              "chapters"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 80
+        },
+        "catalog_total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "active": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "book_id": {
+                  "type": "string",
+                  "maxLength": 24
+                },
+                "title": {
+                  "type": "string",
+                  "maxLength": 512
+                },
+                "author": {
+                  "type": "string",
+                  "maxLength": 512
+                },
+                "chapter_id": {
+                  "type": "string",
+                  "maxLength": 24
+                },
+                "chapter_title": {
+                  "type": "string",
+                  "maxLength": 512
+                },
+                "content_hash": {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                "offset": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "seconds": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "excerpt": {
+                  "type": "string",
+                  "maxLength": 800
+                },
+                "excerpt_start": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "grant_id": {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                "updated_at": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "book_id",
+                "title",
+                "author",
+                "chapter_id",
+                "chapter_title",
+                "content_hash",
+                "offset",
+                "seconds",
+                "excerpt",
+                "excerpt_start",
+                "grant_id",
+                "updated_at"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "grant_current": {
+          "type": "boolean"
+        },
+        "observed_at": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "scope",
+        "catalog",
+        "catalog_total",
+        "active",
+        "grant_current",
+        "observed_at"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "version": "infrastructure-control.v1",
+  "request_id": "synthetic-request",
+  "node_id": "fixture-nas",
+  "operation": "operation.get",
+  "status": "partial",
+  "reason_codes": [
+    "transport_outcome_unknown"
+  ],
+  "observed_at": "2026-10-19T00:00:00.000Z",
+  "capabilities": [
+    "control.catalog",
+    "stack.list",
+    "stack.inspect",
+    "container.inspect",
+    "stack.plan",
+    "operation.submit",
+    "operation.get",
+    "operation.list",
+    "stack.versions"
+  ],
+  "completeness": {
+    "state": "partial",
+    "returned": 1,
+    "total": 1,
+    "next_cursor": null
+  },
+  "data": {
+    "operation": {
+      "operation_id": "fixture:restart:1",
+      "node_id": "fixture-nas",
+      "action": "container.restart",
+      "target": {
+        "container_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "state": "unknown",
+      "phase": "unknown",
+      "created_at": "2026-10-19T00:00:00.000Z",
+      "updated_at": "2026-10-19T00:00:00.000Z",
+      "execution_active": false,
+      "command": {
+        "state": "unknown",
+        "exit_code": null,
+        "reason_codes": [
+          "transport_outcome_unknown"
+        ]
+      },
+      "runtime": {
+        "state": "unknown",
+        "health": "unknown",
+        "containers": [],
+        "observed_at": "2026-10-19T00:00:00.000Z"
+      },
+      "reason_codes": [],
+      "version_id": null
+    },
+    "replayed": true
+  }
+}

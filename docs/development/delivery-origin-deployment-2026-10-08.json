@@ -1,0 +1,140 @@
+{
+  "status": "deployed_verified_original_image_sent",
+  "images": {
+    "companion": {
+      "image_id": "sha256:c5a692d07aa197bfdcc0f5f3294ae38f7fa645a9f44de1ff8d32cef7af9b3498",
+      "revision": "537ea036298a239b8dae29baf7dba1f7ea4e39c5"
+    },
+    "platform": {
+      "image_id": "sha256:f5fd643d7e6d46f7d33d4bc81921f891b2c8fc6f04e4f1d2cf3076659b8f1d73",
+      "revision": "cbd592b739450542b5667d9980cef0c2aaa7291d"
+    }
+  },
+  "contracts_revision": "f3c478962f3ae9a0219f2530dcff573ddb943ee7",
+  "contract_directory": "/volume2/tianshu-v2-resident/contracts-delivery-f3c478962f3a",
+  "cold_backup": "/volume2/tianshu-v2-resident-updates/delivery-media-20261008-release/cold-snapshot",
+  "sqlite_backups": 33,
+  "guard": "ready",
+  "state_dir": "/volume2/tianshu-v2-resident-updates/delivery-media-20261008-release/capacity-state-0c605bca6e4c47ec8ad8e952c54dec06",
+  "health": [
+    {
+      "checks": {
+        "config": "ok",
+        "contract": "ok",
+        "credentials": "ok",
+        "logging": "ok",
+        "runtime": "ok",
+        "sidecars": "ok",
+        "store": "ok",
+        "tls": "ok",
+        "web_static": "ok"
+      },
+      "endpoint": "/health/ready",
+      "http_status": 200,
+      "live": 200,
+      "ready": 200,
+      "ready_state": "ready",
+      "service": "platform",
+      "verified_tls": true
+    },
+    {
+      "checks": {
+        "configuration": "ok",
+        "dependencies": "not_verified",
+        "logs": "ok",
+        "runtime": "ok"
+      },
+      "endpoint": "/health/ready",
+      "http_status": 200,
+      "live": 200,
+      "ready": 200,
+      "ready_state": "ready",
+      "service": "companion",
+      "verified_tls": true
+    },
+    {
+      "checks": {
+        "configuration": "ok",
+        "contracts": "ok",
+        "ledger": "ok",
+        "logging": "ok",
+        "model": "not_verified",
+        "native": "not_configured",
+        "platform": "not_verified",
+        "runtime": "ok"
+      },
+      "endpoint": "/health/ready",
+      "http_status": 200,
+      "live": 200,
+      "ready": 200,
+      "ready_state": "ready",
+      "service": "gateway",
+      "verified_tls": true
+    },
+    {
+      "checks": {
+        "assembled": "ok",
+        "configuration": "ok",
+        "contract": "ok",
+        "database": "ok",
+        "guard": "ok",
+        "log": "ok",
+        "mode": "ok",
+        "owner": "ok",
+        "remote": "not_verified"
+      },
+      "endpoint": "/health/ready",
+      "http_status": 200,
+      "live": 200,
+      "ready": 200,
+      "ready_state": "ready",
+      "service": "memory",
+      "verified_tls": true
+    },
+    {
+      "checks": {
+        "assembled": "ok",
+        "client": "ok",
+        "configuration": "ok",
+        "contract": "ok",
+        "database": "ok",
+        "extensions": "ok",
+        "log": "ok",
+        "owner": "ok",
+        "remote": "not_verified"
+      },
+      "endpoint": "/health/ready",
+      "http_status": 200,
+      "live": 200,
+      "ready": 200,
+      "ready_state": "ready",
+      "service": "knowledge",
+      "verified_tls": true
+    }
+  ],
+  "original_image": {
+    "same_job": true,
+    "same_attempt": true,
+    "state": "sent",
+    "channel_receipt_confirmed": true,
+    "channel_message_count": 1,
+    "new_generation": false,
+    "observed_at": "2026-10-07T16:39:41.482368Z"
+  },
+  "configuration_preserved": {
+    "administrator_grants_preserved": true,
+    "user_state_preserved": true,
+    "role_configuration_preserved": true,
+    "weather_configuration_preserved": true,
+    "settings_unchanged": true,
+    "dockge_actual_bytes_match": true
+  },
+  "static_assets_verified": 57,
+  "database_migration": false,
+  "narrow_queue_recovery": {
+    "rows": 1,
+    "evidence": "prior deployed client rejected this payload before HTTP; host lookup not_found; exact request and attempt retained"
+  },
+  "additional_qq_test_messages": 0,
+  "full_suite_green": false
+}

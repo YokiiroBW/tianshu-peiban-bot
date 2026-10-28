@@ -1,0 +1,12 @@
+{
+  "version": "2026.10.02-rc.4",
+  "change": "Persona authoring UUID generation compatible with ordinary LAN HTTP",
+  "base_coordination": "1b4077ffe59e03069f2f4eb765acf87e07eca1d8",
+  "products": {
+    "platform": {"source_sha": "076ae1a11379945b881fbc069d930b335049a40c", "base_sha": "0d88f9a5eecdbbfb5bc5671a4d8f27a832ad0fbb"},
+    "companion": {"source_sha": "25778436a5e36895c60f0d7beb35fa5ba060fc30", "unchanged": true},
+    "memory": {"source_sha": "1f3121c9758faeb31fc9d0fe2a54974c72505d55", "unchanged": true}
+  },
+  "validation": {"typecheck": "passed", "vite_build": "passed", "offline_browser_nonsecure_http": "10320-byte create, lost-response same-ID retry, reopen/save and legacy role preservation passed"},
+  "deployment": {"status": "pending", "permissions": "unchanged", "credentials": "unchanged", "schema_migrations": false, "real_qq_or_model_calls": false}
+}

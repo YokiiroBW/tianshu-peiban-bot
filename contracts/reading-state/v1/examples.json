@@ -1,0 +1,49 @@
+[
+  {
+    "id": "catalog-only",
+    "schema": "response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request:reading",
+      "scope": {
+        "actor_id": "actor:reader",
+        "person_id": "person:owner",
+        "audience": "self_private",
+        "conversation_id": "conversation:reader"
+      },
+      "catalog": [
+        {
+          "book_id": "aaaaaaaaaaaaaaaaaaaaaaaa",
+          "title": "合成书目",
+          "author": "合成作者",
+          "chapters": 2
+        }
+      ],
+      "catalog_total": 1,
+      "active": null,
+      "grant_current": false,
+      "observed_at": 1800000000
+    }
+  },
+  {
+    "id": "read",
+    "schema": "request",
+    "document": {
+      "schema_version": 1,
+      "query": {
+        "schema_version": 1,
+        "request_id": "request:reading",
+        "origin": {
+          "assertion_ref": "origin:synthetic"
+        }
+      },
+      "scope": {
+        "actor_id": "actor:reader",
+        "person_id": "person:owner",
+        "audience": "self_private",
+        "conversation_id": "conversation:reader"
+      },
+      "grant_id": null
+    }
+  }
+]

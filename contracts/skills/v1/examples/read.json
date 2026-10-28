@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "request_id": "example:read",
+  "actor_id": "actor:example",
+  "resource": "list"
+}

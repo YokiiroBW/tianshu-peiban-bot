@@ -1,0 +1,14 @@
+{
+  "version": "infrastructure-control.v1",
+  "request_id": "synthetic-request",
+  "node_id": "fixture-nas",
+  "operation": "operation.submit",
+  "params": {
+    "operation_id": "fixture:restart:1",
+    "action": "container.restart",
+    "target": {
+      "container_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  "timeout_ms": 10000
+}

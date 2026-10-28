@@ -1,0 +1,10 @@
+{
+  "version": "infrastructure-node.v1",
+  "request_id": "fixture-001",
+  "node_id": "fixture-nas",
+  "operation": "compose.inventory",
+  "params": {
+    "limit": 100
+  },
+  "timeout_ms": 10000
+}
