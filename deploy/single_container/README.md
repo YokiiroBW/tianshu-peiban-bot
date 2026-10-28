@@ -14,8 +14,8 @@
 
 运行日志默认五来源合计最多10000个逻辑事件、保留30天，数量或天数任一先到先清最旧的可安全退役日志。主设置为 `log_max_events` / `retention_days`，修改后重新导出并重启guard/Loki。容器内writer管理CLI可手动clear旧日志含pending，持久cutoff阻止旧raw/Vector缓冲重放回灌；query角色仍只读。活动段、持久buffer、Loki WAL/chunk/cache及Compactor异步回收不等于瞬时物理一万条。详见 [日志保留说明](../observability/RETENTION.md)。
 
-2026-10-28，R11已正式运行于 **192.168.31.230**，镜像 `sha256:82dc69fd1b1a2404ac3c99c3bc9c8347a7fab52ec5e8b045c8effe4134795f11`（3.390GB、66个冻结Linux wheel）。六模块、五观测引擎、漫画插件和容量守护正常；旧13已停机、关闭自动重启，旧镜像/配置/冷备保留。原业务配置、数据、PG/Redis地址与namespace沿用，本批未恢复或迁移业务数据库。
+2026-10-28，R14已正式运行于 **192.168.31.230**，镜像`sha256:dd0cd89618a04a281717fc51aa81c10e3e552d8b2a8a5f0ef244141afb952611`（3.389GB、66个冻结Linux wheel）。六模块、五观测引擎、漫画插件和容量守护正常；旧13保持cold/restart=no。1126配置仅四项Loki参数及原scope网关租约引用更新，25逻辑存储绑定、37mount和业务数据保留，无业务PG恢复/迁移。
 
-本轮已修复并发就绪503、日志1024批次分页超时与旧pending饥饿，并优化音乐批读、回执轮转、请求内向量复用和网关读取锁。双图入口为[任务与设置→链路图](http://192.168.31.230:18446/#/settings/12)，分别展示账号/角色/会话关系和实际消息/记忆/日程观测；缺少事件的环节如实标示。
+陪伴、记忆、日程的原生SQLite/PG完整联动、音乐worker/去重/导出/同步及两项NCM验证通过；外部协议端点使用隔离录制服务。已修复多会话回流和Memory导入缺列。日志删除outbox按stream持久合并五分钟，Loki用原生SQLite主/Bolt备库及24小时split，原全30天查询、10秒期限、hash和10000逻辑保有上限保持。两次严格历史追赶通过，随后独立120秒working set中位1.4531GiB，CPU单核91.0240%（8核总量11.3780%）；该内存高于前轮，不冒称同负载节省率。
 
-正式20次并发ready全200、跨租期检查、25逻辑存储绑定及前端71文件HTTP字节核验通过。跨租期后60秒working set中位0.9983GiB、CPU单核126.8269%（8核总量15.8534%）；仍有历史日志追赶，不能与旧13或R7不同负载窗口计算固定节省率。真实QQ/付费模型/外部发布、正式带session浏览器JS未作实测结论。完整记录见[整体链路优化与R11验收](../../docs/development/chain-optimization-2026-10-28.md)，R7前次发布与清旧记录见[原单容器发布记录](../../docs/development/single-container-deployment-2026-10-27.md)。
+双图入口仍为[任务与设置→链路图](http://192.168.31.230:18446/#/settings/12)。20次并发ready均200、跨租期、真实只读绑定与71静态文件验证通过。真实QQ收发及正式网页登录按用户要求暂不测，真实付费模型/音乐外部账号未混称验证。详见[完整链路与R14验收](../../docs/development/chain-closure-validation-2026-10-28.md)；[R11优化](../../docs/development/chain-optimization-2026-10-28.md)与[R7首次发布](../../docs/development/single-container-deployment-2026-10-27.md)保留历史。

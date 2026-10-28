@@ -47,6 +47,10 @@ v3增加 `retired_streams`水位和`source_receipts`原字节前缀收据。收�
 
 先commit收据，再比较文件身份/长度/时间、unlink及同步目录。RO/I/O失败或中断保留原件/收据供重试。事件/位点/汇总/水位与轮转入口在原事务中更新，异常回滚。v0/v1/v2迁移保留原8字段，新增occurred/collected用于cutoff和精确Loki删除时间窗；不自动VACUUM，旧大文件释放的页只供后续复用，不立即缩小。
 
-持久outbox只派发本包固定tenant/stream/prefix，不接收调用者自选删除query。正常以实际collection时间为本批删除下界，避免从1970或每批重删整月；失败不推进submitted。磁盘回收受原Loki取消窗口、Compactor及2h删除延迟约束；guard逻辑窗口不等待磁盘收缩。`index/stats`仍表示物理索引，不能拿来证明逻辑上限。
+v4只为删除outbox增加`submitted_at`，升级事务保留v3的事件、hash、位点及退役水位。每个stream首批立即派发，后续退役意图持久合并五分钟再提交；正常以实际collection时间为本批下界，失败不推进submitted或时间，重启后继续重试。guard的逻辑保有窗口仍每轮更新，不等待物理派发。
+
+新生成的Loki配置使用原生SQLite删除请求主库及BoltDB双写备库。首次空SQLite由Loki导入原BoltDB，请求完成并经过原索引传播等待后退出查询过滤；备库同步新增、撤销及完成状态，不替代不可变冷备。取消期设为1分钟，实际处理另有1分钟竞态等待、Compactor周期和2小时chunk删除延迟。30天完整核对按24小时拆分，原10秒期限、hash、重复及冲突检查保持。已有安装通过正常发布应用这些参数；不能只换回v3镜像来读取v4账本。
+
+持久outbox只派发本包固定tenant/stream/prefix，不接收调用者自选删除query。guard逻辑窗口不等待磁盘收缩；`index/stats`仍表示物理索引，不能拿来证明逻辑上限。2026-10-28正式修复、原生迁移/双写回退及历史追赶证据见[完整链路验收](../../docs/development/chain-closure-validation-2026-10-28.md)。
 
 真实验证与未覆盖见 [TS-363](../../docs/handoffs/TS-363.md)。历史[回收提案](RECLAMATION-PROPOSAL.md)涉及更强冗余归档/跨世代恢复协议；本次不伪称建立了独立可恢复归档或永久完整历史。
