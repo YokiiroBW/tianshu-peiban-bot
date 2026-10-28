@@ -3,7 +3,7 @@
   "planning_id": "autonomous-life-2026-10-23",
   "date": "2026-10-23",
   "timezone": "Asia/Shanghai",
-  "state": "non_external_core_R16_deployed_physical_read_only_verified_continuous_use_pending",
+  "state": "non_external_core_R21_deployed_physical_read_only_verified_continuous_use_pending",
   "canonical_plan": "docs/development/autonomous-life-development-queue-2026-10-23.md",
   "architecture": "docs/architecture/actor-self-memory-design-2026-10-23.md",
   "id_policy": "AL编号仅为本批规划身份，不是scripts/workspace.py运行任务；正式派发由根协调者登记新TS并维护AL到TS映射。",
@@ -94,7 +94,7 @@
       "id": "AL-01",
       "title": "角色记忆与行动来源合同",
       "owner": "workspace",
-      "status": "current_non_external_core_integrated_pushed_R16_deployed_verified",
+      "status": "current_non_external_core_integrated_pushed_R21_deployed_verified",
       "depends_on": [],
       "size": "中",
       "path_scope": [
@@ -116,13 +116,13 @@
       "pre_core_completion_status": "contracts_consumed_deployed_full_item_not_closed",
       "current_core_delivery_record": "docs/development/autonomous-life-core-delivery-2026-10-28.json",
       "current_core_release_record": "docs/development/autonomous-life-core-release-2026-10-28.json",
-      "current_core_state": "current_core_done_deployed_R16"
+      "current_core_state": "current_core_done_deployed_R21"
     },
     {
       "id": "AL-02",
       "title": "独立角色记忆存储与应用接口",
       "owner": "memory",
-      "status": "current_non_external_core_integrated_pushed_R16_deployed_verified",
+      "status": "current_non_external_core_integrated_pushed_R21_deployed_verified",
       "depends_on": [
         "AL-01"
       ],
@@ -146,7 +146,7 @@
       "state_before_20261028_reconciliation": "external_candidate_delivered",
       "status_basis": "R16 exact source/runtime artifacts, native core acceptance and production read-only receipts; current core excludes user-deferred AL14/15",
       "current_core_task": "TS-394",
-      "current_core_state": "current_core_done_deployed_R16",
+      "current_core_state": "current_core_done_deployed_R21",
       "pre_core_completion_status": "actor_domain_foundation_deployed",
       "current_core_delivery_record": "docs/development/autonomous-life-core-delivery-2026-10-28.json",
       "current_core_release_record": "docs/development/autonomous-life-core-release-2026-10-28.json"
@@ -155,7 +155,7 @@
       "id": "AL-03",
       "title": "自身经历可靠写回与历史导入",
       "owner": "companion",
-      "status": "current_non_external_core_integrated_pushed_R16_deployed_verified",
+      "status": "current_non_external_core_integrated_pushed_R21_deployed_verified",
       "depends_on": [
         "AL-02"
       ],
@@ -181,7 +181,7 @@
       "state_before_20261028_reconciliation": "external_candidate_delivered",
       "status_basis": "R16 exact source/runtime artifacts, native core acceptance and production read-only receipts; current core excludes user-deferred AL14/15",
       "current_core_task": "TS-395",
-      "current_core_state": "current_core_done_deployed_R16",
+      "current_core_state": "current_core_done_deployed_R21",
       "pre_core_completion_status": "reading_and_observation_outboxes_deployed_other_producers_pending",
       "current_core_delivery_record": "docs/development/autonomous-life-core-delivery-2026-10-28.json",
       "current_core_release_record": "docs/development/autonomous-life-core-release-2026-10-28.json"
@@ -190,7 +190,7 @@
       "id": "AL-04",
       "title": "自我召回、长期兴趣与派生认识生命周期",
       "owner": "memory",
-      "status": "current_non_external_core_integrated_pushed_R16_deployed_verified",
+      "status": "current_non_external_core_integrated_pushed_R21_deployed_verified",
       "depends_on": [
         "AL-02"
       ],
@@ -213,7 +213,7 @@
       "state_before_20261028_reconciliation": "external_candidate_delivered",
       "status_basis": "R16 exact source/runtime artifacts, native core acceptance and production read-only receipts; current core excludes user-deferred AL14/15",
       "current_core_task": "TS-394",
-      "current_core_state": "current_core_done_deployed_R16",
+      "current_core_state": "current_core_done_deployed_R21",
       "pre_core_completion_status": "self_recall_and_derived_foundation_deployed",
       "current_core_delivery_record": "docs/development/autonomous-life-core-delivery-2026-10-28.json",
       "current_core_release_record": "docs/development/autonomous-life-core-release-2026-10-28.json"
@@ -222,7 +222,7 @@
       "id": "AL-05",
       "title": "生活后台调度与活动恢复",
       "owner": "companion",
-      "status": "current_non_external_core_integrated_pushed_R16_deployed_verified",
+      "status": "current_non_external_core_integrated_pushed_R21_deployed_verified",
       "depends_on": [
         "AL-01"
       ],
@@ -248,7 +248,7 @@
       "state_before_20261028_reconciliation": "external_candidate_delivered",
       "status_basis": "R16 exact source/runtime artifacts, native core acceptance and production read-only receipts; current core excludes user-deferred AL14/15",
       "current_core_task": "TS-395",
-      "current_core_state": "current_core_done_deployed_R16",
+      "current_core_state": "current_core_done_deployed_R21",
       "pre_core_completion_status": "background_foundation_deployed_continuous_use_pending",
       "current_core_delivery_record": "docs/development/autonomous-life-core-delivery-2026-10-28.json",
       "current_core_release_record": "docs/development/autonomous-life-core-release-2026-10-28.json"
@@ -257,7 +257,7 @@
       "id": "AL-06",
       "title": "兴趣驱动目标选择与滚动日程",
       "owner": "companion",
-      "status": "current_non_external_core_integrated_pushed_R16_deployed_verified",
+      "status": "current_non_external_core_integrated_pushed_R21_deployed_verified",
       "depends_on": [
         "AL-03",
         "AL-04",
@@ -292,7 +292,7 @@
       "current_release_record": "docs/development/autonomous-life-wave3-release-2026-10-28.json",
       "deployed_image": "sha256:f1d30d60e0b6afe43c0ae6a2cd9a24a01b7bbb47cd06c9fe7a71f6c06bc75288",
       "current_core_task": "TS-395",
-      "current_core_state": "current_core_done_deployed_R16",
+      "current_core_state": "current_core_done_deployed_R21",
       "pre_core_completion_status": "R15_deployed_scoped_native_verified_real_accounts_deferred",
       "current_core_delivery_record": "docs/development/autonomous-life-core-delivery-2026-10-28.json",
       "current_core_release_record": "docs/development/autonomous-life-core-release-2026-10-28.json"
@@ -301,7 +301,7 @@
       "id": "AL-07",
       "title": "角色能力执行与账号绑定",
       "owner": "platform",
-      "status": "current_non_external_core_integrated_pushed_R16_deployed_verified",
+      "status": "current_non_external_core_integrated_pushed_R21_deployed_verified",
       "depends_on": [
         "AL-01"
       ],
@@ -330,13 +330,13 @@
       "pre_core_completion_status": "capability_bridge_deployed_real_account_actions_pending",
       "current_core_delivery_record": "docs/development/autonomous-life-core-delivery-2026-10-28.json",
       "current_core_release_record": "docs/development/autonomous-life-core-release-2026-10-28.json",
-      "current_core_state": "current_core_done_deployed_R16"
+      "current_core_state": "current_core_done_deployed_R21"
     },
     {
       "id": "AL-08",
       "title": "网页与现有媒体的内容发现",
       "owner": "platform",
-      "status": "current_non_external_core_integrated_pushed_R16_deployed_verified",
+      "status": "current_non_external_core_integrated_pushed_R21_deployed_verified",
       "depends_on": [
         "AL-07"
       ],
@@ -370,13 +370,13 @@
       "pre_core_completion_status": "content_discovery_deployed_full_external_paths_pending",
       "current_core_delivery_record": "docs/development/autonomous-life-core-delivery-2026-10-28.json",
       "current_core_release_record": "docs/development/autonomous-life-core-release-2026-10-28.json",
-      "current_core_state": "current_core_done_deployed_R16"
+      "current_core_state": "current_core_done_deployed_R21"
     },
     {
       "id": "AL-09",
       "title": "多媒体真实阅读与覆盖",
       "owner": "memory",
-      "status": "current_non_external_core_integrated_pushed_R16_deployed_verified",
+      "status": "current_non_external_core_integrated_pushed_R21_deployed_verified",
       "depends_on": [
         "AL-01"
       ],
@@ -410,13 +410,13 @@
       "pre_core_completion_status": "R15_deployed_scoped_native_verified_real_accounts_deferred",
       "current_core_delivery_record": "docs/development/autonomous-life-core-delivery-2026-10-28.json",
       "current_core_release_record": "docs/development/autonomous-life-core-release-2026-10-28.json",
-      "current_core_state": "current_core_done_deployed_R16"
+      "current_core_state": "current_core_done_deployed_R21"
     },
     {
       "id": "AL-10",
       "title": "自主阅读到体验的完整闭环",
       "owner": "companion",
-      "status": "current_non_external_core_integrated_pushed_R16_deployed_verified",
+      "status": "current_non_external_core_integrated_pushed_R21_deployed_verified",
       "depends_on": [
         "AL-03",
         "AL-04",
@@ -455,7 +455,7 @@
       "current_release_record": "docs/development/autonomous-life-wave3-release-2026-10-28.json",
       "deployed_image": "sha256:f1d30d60e0b6afe43c0ae6a2cd9a24a01b7bbb47cd06c9fe7a71f6c06bc75288",
       "current_core_task": "TS-395",
-      "current_core_state": "current_core_done_deployed_R16",
+      "current_core_state": "current_core_done_deployed_R21",
       "pre_core_completion_status": "R15_deployed_scoped_native_verified_real_accounts_deferred",
       "current_core_delivery_record": "docs/development/autonomous-life-core-delivery-2026-10-28.json",
       "current_core_release_record": "docs/development/autonomous-life-core-release-2026-10-28.json"
@@ -464,7 +464,7 @@
       "id": "AL-11",
       "title": "普通群观察的参与请求与可靠出站",
       "owner": "platform",
-      "status": "current_non_external_core_integrated_pushed_R16_deployed_verified",
+      "status": "current_non_external_core_integrated_pushed_R21_deployed_verified",
       "depends_on": [
         "AL-01"
       ],
@@ -502,13 +502,13 @@
       "pre_core_completion_status": "group_bridge_deployed_real_QQ_acceptance_deferred",
       "current_core_delivery_record": "docs/development/autonomous-life-core-delivery-2026-10-28.json",
       "current_core_release_record": "docs/development/autonomous-life-core-release-2026-10-28.json",
-      "current_core_state": "current_core_done_deployed_R16"
+      "current_core_state": "current_core_done_deployed_R21"
     },
     {
       "id": "AL-12",
       "title": "人格与兴趣驱动的群聊参与",
       "owner": "companion",
-      "status": "current_non_external_core_integrated_pushed_R16_deployed_verified",
+      "status": "current_non_external_core_integrated_pushed_R21_deployed_verified",
       "depends_on": [
         "AL-03",
         "AL-04",
@@ -544,7 +544,7 @@
       "current_release_record": "docs/development/autonomous-life-wave3-release-2026-10-28.json",
       "deployed_image": "sha256:f1d30d60e0b6afe43c0ae6a2cd9a24a01b7bbb47cd06c9fe7a71f6c06bc75288",
       "current_core_task": "TS-395",
-      "current_core_state": "current_core_done_deployed_R16",
+      "current_core_state": "current_core_done_deployed_R21",
       "pre_core_completion_status": "R15_deployed_scoped_native_verified_real_accounts_deferred",
       "current_core_delivery_record": "docs/development/autonomous-life-core-delivery-2026-10-28.json",
       "current_core_release_record": "docs/development/autonomous-life-core-release-2026-10-28.json"
@@ -553,7 +553,7 @@
       "id": "AL-13",
       "title": "日记、反思、分享与对话自我召回",
       "owner": "companion",
-      "status": "current_non_external_core_integrated_pushed_R16_deployed_verified",
+      "status": "current_non_external_core_integrated_pushed_R21_deployed_verified",
       "depends_on": [
         "AL-04",
         "AL-06",
@@ -585,7 +585,7 @@
       "current_delivery_record": "docs/development/autonomous-life-al13-delivery-2026-10-28.json",
       "real_qq_and_paid_model_acceptance": "not_claimed",
       "current_core_task": "TS-395",
-      "current_core_state": "current_core_done_deployed_R16",
+      "current_core_state": "current_core_done_deployed_R21",
       "pre_core_completion_status": "local_integrated_sqlite_pg_joint_verified_not_pushed_not_deployed",
       "current_core_delivery_record": "docs/development/autonomous-life-core-delivery-2026-10-28.json",
       "current_core_release_record": "docs/development/autonomous-life-core-release-2026-10-28.json"
@@ -645,7 +645,7 @@
       "id": "AL-16",
       "title": "生活与自身记忆的完整界面",
       "owner": "platform",
-      "status": "current_non_external_core_integrated_pushed_R16_deployed_verified",
+      "status": "current_non_external_core_integrated_pushed_R21_deployed_verified",
       "depends_on": [
         "AL-02",
         "AL-04",
@@ -668,7 +668,7 @@
       "state_before_20261028_reconciliation": "planned",
       "status_basis": "R16 exact source/runtime artifacts, native core acceptance and production read-only receipts; current core excludes user-deferred AL14/15",
       "current_core_task": "TS-396",
-      "current_core_state": "current_core_done_deployed_R16",
+      "current_core_state": "current_core_done_deployed_R21",
       "pre_core_completion_status": "partial_existing_UI_unified_life_UI_pending",
       "current_core_delivery_record": "docs/development/autonomous-life-core-delivery-2026-10-28.json",
       "current_core_release_record": "docs/development/autonomous-life-core-release-2026-10-28.json"
@@ -677,7 +677,7 @@
       "id": "AL-17",
       "title": "全链路隔离与负载联合验收",
       "owner": "workspace",
-      "status": "current_non_external_core_integrated_pushed_R16_deployed_verified",
+      "status": "current_non_external_core_integrated_pushed_R21_deployed_verified",
       "depends_on": [
         "AL-03",
         "AL-04",
@@ -711,7 +711,7 @@
         "AL-13",
         "AL-16"
       ],
-      "current_core_state": "current_core_done_deployed_R16",
+      "current_core_state": "current_core_done_deployed_R21",
       "pre_core_completion_status": "partial_foundation_joints_verified_full_queue_pending",
       "current_core_delivery_record": "docs/development/autonomous-life-core-delivery-2026-10-28.json",
       "current_core_release_record": "docs/development/autonomous-life-core-release-2026-10-28.json"
@@ -720,7 +720,7 @@
       "id": "AL-18",
       "title": "串行发布、实机验收与连续使用",
       "owner": "workspace",
-      "status": "current_core_R16_released_physical_read_only_verified_continuous_use_pending",
+      "status": "current_core_R21_released_physical_read_only_verified_continuous_use_pending",
       "depends_on": [
         "AL-17"
       ],
@@ -753,20 +753,20 @@
     "record": "docs/development/autonomous-life-memory-release-2026-10-27.md",
     "performed": true
   },
-  "updated_at": "2026-10-28",
-  "current_execution_record": "docs/development/autonomous-life-core-completion-2026-10-28.md",
+  "updated_at": "2026-10-29",
+  "current_execution_record": "docs/development/chain-quality-execution-2026-10-29.md",
   "current_baseline": {
     "architecture": "single_container_modular_in_process_exchange",
-    "release": "R16",
-    "workspace": "506666834181ccaa8bcf8191f97fea71804c34ab",
+    "release": "R21",
+    "workspace": "5a9c3eefbb1a8d9abf7b14addfa94af4ab114893",
     "application": "48eee53d6ba97efae5c44385cb53a894ffa0c215",
-    "companion": "38c99b1e0b8586fa7e73a43b6dbe38cc2c4a14ee",
-    "memory_runtime": "a2c539d88ec21b56daab724f38a227615936da5b",
-    "memory_handoff": "0f1dbecbdc921b1b047412f916cbe51f13b389fc",
-    "platform_runtime": "522c2c8cf6801b52cf3b72cdb1ea0ce5b86de642",
-    "platform_handoff": "522c2c8cf6801b52cf3b72cdb1ea0ce5b86de642",
-    "gateway": "0f491be3573af9257703b7871aaa746598d66b9f",
-    "workspace_basis": "R16 runtime-input/coordination commit; later documentation-only rule and status commits are separately recorded"
+    "companion": "5b83948c507fba97a496cfda1acff882816aff7f",
+    "memory_runtime": "57a1a1468382641ea1d33cae9498c9ed170f6a7a",
+    "memory_handoff": "57a1a1468382641ea1d33cae9498c9ed170f6a7a",
+    "platform_runtime": "c591a5ddda34b31cd0e9e55f46cd7d50fae36dae",
+    "platform_handoff": "c591a5ddda34b31cd0e9e55f46cd7d50fae36dae",
+    "gateway": "ed631d8a6f26890628a9df833792210e9a09e31c",
+    "workspace_basis": "coordination baseline before R21 release record; installed application SHA separately unchanged"
   },
   "boundary_confirmation": {
     "date": "2026-10-28",
@@ -784,16 +784,19 @@
   },
   "current_delivery_record": "docs/development/autonomous-life-core-delivery-2026-10-28.json",
   "production_operations_this_wave": true,
-  "current_release_record": "docs/development/autonomous-life-core-release-2026-10-28.json",
+  "current_release_record": "docs/development/chain-quality-review-release-2026-10-29.json",
   "deployed_release": {
-    "release": "R16",
-    "image": "sha256:50fd946072fa88a99bcf270eeaf44d46e3b6c63301ca343ab67763176729e07c",
-    "companion": "38c99b1e0b8586fa7e73a43b6dbe38cc2c4a14ee",
-    "memory": "a2c539d88ec21b56daab724f38a227615936da5b",
-    "platform": "522c2c8cf6801b52cf3b72cdb1ea0ce5b86de642",
-    "physical_qq_acceptance": "deferred_by_user",
-    "new_guard": "r9",
-    "actor_schema": 3
+    "release": "R21",
+    "image": "sha256:1850b49ac5a489f4d8d2994446fcc1176c158319a8ccc1557220e6874bef97fe",
+    "owner": "2b420a404ffc81970bdd27deefb1482f3258a709fc7bd101553d1df42f8b8c94",
+    "memory": "57a1a1468382641ea1d33cae9498c9ed170f6a7a",
+    "companion": "5b83948c507fba97a496cfda1acff882816aff7f",
+    "platform": "c591a5ddda34b31cd0e9e55f46cd7d50fae36dae",
+    "gateway": "ed631d8a6f26890628a9df833792210e9a09e31c",
+    "new_guard": "r14",
+    "actor_schema": 3,
+    "user_memory_segment_schema": 2,
+    "physical_qq_acceptance": "deferred_by_user"
   },
   "previous_baseline_before_R15": {
     "architecture": "single_container_modular_in_process_exchange",
@@ -840,16 +843,16 @@
     "original_external_requirements_retained": true,
     "user_memory_logic_change": false,
     "core_acceptance_excludes_deferred_items": true,
-    "production_release": "R16",
+    "production_release": "R21",
     "AL13": "integrated_pushed_deployed_current_core",
     "continuous_use": "requires_real_elapsed_time_not_claimed"
   },
   "current_runtime_tasks": [
-    "TS-394",
-    "TS-395",
-    "TS-396",
-    "TS-397",
-    "TS-398"
+    "TS-402",
+    "TS-403",
+    "TS-404",
+    "TS-405",
+    "TS-406"
   ],
   "historical_coordination_observation_20261027": {
     "date": "2026-10-27",
@@ -867,31 +870,36 @@
     "both_confirmed_no_post_AL13_writes": true,
     "actor_and_product_writers_released": true
   },
-  "current_core_delivery_record": "docs/development/autonomous-life-core-delivery-2026-10-28.json",
+  "current_core_delivery_record": "docs/development/chain-quality-review-release-2026-10-29.json",
   "current_core_verification": {
-    "native_scenarios_passed": 6,
-    "SQLite": true,
-    "PostgreSQL": true,
+    "physical_read_only_acceptance_passed": true,
+    "release_activated": true,
     "user_dialogue_memory_original_logic_preserved": true,
     "real_continuous_use_pending": true,
-    "release_not_yet_activated": false,
-    "release_activated": true,
-    "physical_read_only_acceptance_passed": true,
-    "ready_http_200": 20,
-    "second_origin_age_seconds": 304.632
+    "current_patch": "necessary_targeted_checks_only",
+    "schema_migration": false,
+    "total_repeated_probe_or_wait": false,
+    "ready_authenticated_http": 200,
+    "full_prior_acceptance_reused": true,
+    "prior_evidence": "autonomous-life-core-release-2026-10-28.json",
+    "current_evidence": "chain-quality-review-release-2026-10-29.json"
   },
   "current_core_products": {
     "memory": {
-      "runtime": "a2c539d88ec21b56daab724f38a227615936da5b",
-      "integrated": "0f1dbecbdc921b1b047412f916cbe51f13b389fc"
+      "runtime": "57a1a1468382641ea1d33cae9498c9ed170f6a7a",
+      "integrated": "57a1a1468382641ea1d33cae9498c9ed170f6a7a"
     },
     "companion": {
-      "runtime": "38c99b1e0b8586fa7e73a43b6dbe38cc2c4a14ee",
-      "integrated": "38c99b1e0b8586fa7e73a43b6dbe38cc2c4a14ee"
+      "runtime": "5b83948c507fba97a496cfda1acff882816aff7f",
+      "integrated": "5b83948c507fba97a496cfda1acff882816aff7f"
     },
     "platform": {
-      "runtime": "522c2c8cf6801b52cf3b72cdb1ea0ce5b86de642",
-      "integrated": "522c2c8cf6801b52cf3b72cdb1ea0ce5b86de642"
+      "runtime": "c591a5ddda34b31cd0e9e55f46cd7d50fae36dae",
+      "integrated": "c591a5ddda34b31cd0e9e55f46cd7d50fae36dae"
+    },
+    "gateway": {
+      "runtime": "ed631d8a6f26890628a9df833792210e9a09e31c",
+      "integrated": "ed631d8a6f26890628a9df833792210e9a09e31c"
     }
   },
   "previous_baseline_before_R16": {
@@ -955,5 +963,69 @@
       "pushed": true,
       "runtime_changed": false
     }
+  },
+  "historical_core_snapshot_before_R21": {
+    "state": "non_external_core_R16_deployed_physical_read_only_verified_continuous_use_pending",
+    "current_baseline": {
+      "architecture": "single_container_modular_in_process_exchange",
+      "release": "R16",
+      "workspace": "506666834181ccaa8bcf8191f97fea71804c34ab",
+      "application": "48eee53d6ba97efae5c44385cb53a894ffa0c215",
+      "companion": "38c99b1e0b8586fa7e73a43b6dbe38cc2c4a14ee",
+      "memory_runtime": "a2c539d88ec21b56daab724f38a227615936da5b",
+      "memory_handoff": "0f1dbecbdc921b1b047412f916cbe51f13b389fc",
+      "platform_runtime": "522c2c8cf6801b52cf3b72cdb1ea0ce5b86de642",
+      "platform_handoff": "522c2c8cf6801b52cf3b72cdb1ea0ce5b86de642",
+      "gateway": "0f491be3573af9257703b7871aaa746598d66b9f",
+      "workspace_basis": "R16 runtime-input/coordination commit; later documentation-only rule and status commits are separately recorded"
+    },
+    "current_core_verification": {
+      "native_scenarios_passed": 6,
+      "SQLite": true,
+      "PostgreSQL": true,
+      "user_dialogue_memory_original_logic_preserved": true,
+      "real_continuous_use_pending": true,
+      "release_not_yet_activated": false,
+      "release_activated": true,
+      "physical_read_only_acceptance_passed": true,
+      "ready_http_200": 20,
+      "second_origin_age_seconds": 304.632
+    },
+    "current_core_products": {
+      "memory": {
+        "runtime": "a2c539d88ec21b56daab724f38a227615936da5b",
+        "integrated": "0f1dbecbdc921b1b047412f916cbe51f13b389fc"
+      },
+      "companion": {
+        "runtime": "38c99b1e0b8586fa7e73a43b6dbe38cc2c4a14ee",
+        "integrated": "38c99b1e0b8586fa7e73a43b6dbe38cc2c4a14ee"
+      },
+      "platform": {
+        "runtime": "522c2c8cf6801b52cf3b72cdb1ea0ce5b86de642",
+        "integrated": "522c2c8cf6801b52cf3b72cdb1ea0ce5b86de642"
+      }
+    },
+    "deployed_release": {
+      "release": "R16",
+      "image": "sha256:50fd946072fa88a99bcf270eeaf44d46e3b6c63301ca343ab67763176729e07c",
+      "companion": "38c99b1e0b8586fa7e73a43b6dbe38cc2c4a14ee",
+      "memory": "a2c539d88ec21b56daab724f38a227615936da5b",
+      "platform": "522c2c8cf6801b52cf3b72cdb1ea0ce5b86de642",
+      "physical_qq_acceptance": "deferred_by_user",
+      "new_guard": "r9",
+      "actor_schema": 3
+    }
+  },
+  "quality_followup": {
+    "tasks": [
+      "TS-402",
+      "TS-403",
+      "TS-404",
+      "TS-405",
+      "TS-406"
+    ],
+    "published": true,
+    "user_memory_semantics_changed": false,
+    "record": "docs/development/chain-quality-review-release-2026-10-29.json"
   }
 }

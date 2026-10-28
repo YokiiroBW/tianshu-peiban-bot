@@ -2400,6 +2400,132 @@
       "assignee": "coordinator",
       "release_record": "docs/development/autonomous-life-core-release-2026-10-28.json",
       "handoff": "docs/handoffs/TS-398.md"
+    },
+    {
+      "id": "TS-402",
+      "project": "memory",
+      "title": "用户与角色记忆全链审查和有证据修复",
+      "status": "done",
+      "depends_on": [
+        "TS-398"
+      ],
+      "allowed_paths": [
+        "src/tianshu_memory/",
+        "tests/ (affected behavior only)",
+        "docs/handoffs/TS-402.md"
+      ],
+      "baseline_commit": "9b900a6a35808cd9dd064f87564e42dc7b629620",
+      "external_worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-al-core-memory/tianshu-memory",
+      "branch": "codex/ts402-memory-chain-quality-20261029",
+      "assignee": "chain_memory",
+      "plan": "docs/development/chain-quality-execution-2026-10-29.md",
+      "done_when": "用户指定核心链路完整覆盖；仅有证据的问题修复及必要验证；正常推送串行部署、保留R20配置数据，真实QQ/付费模型延期边界单列。",
+      "delivery_state": "integrated_pushed_R21_deployed_physical_read_only_verified",
+      "release_record": "docs/development/chain-quality-review-release-2026-10-29.json",
+      "commit": "57a1a1468382641ea1d33cae9498c9ed170f6a7a",
+      "handoff": "docs/handoffs/TS-402.md"
+    },
+    {
+      "id": "TS-403",
+      "project": "companion",
+      "title": "陪伴回复日程自主生活与SDK审查修复",
+      "status": "done",
+      "depends_on": [
+        "TS-398"
+      ],
+      "allowed_paths": [
+        "src/tianshu_companion/",
+        "integrations/ (affected SDK boundary)",
+        "tests/ (affected behavior only)",
+        "docs/handoffs/TS-403.md"
+      ],
+      "baseline_commit": "a22924323a6b1b28ab166833df165cf96e351b6e",
+      "external_worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-al-core-companion/tianshu-companion",
+      "branch": "codex/ts403-companion-chain-quality-20261029",
+      "assignee": "chain_companion",
+      "plan": "docs/development/chain-quality-execution-2026-10-29.md",
+      "done_when": "用户指定核心链路完整覆盖；仅有证据的问题修复及必要验证；正常推送串行部署、保留R20配置数据，真实QQ/付费模型延期边界单列。",
+      "delivery_state": "integrated_pushed_R21_deployed_physical_read_only_verified",
+      "release_record": "docs/development/chain-quality-review-release-2026-10-29.json",
+      "commit": "5b83948c507fba97a496cfda1acff882816aff7f",
+      "handoff": "docs/handoffs/TS-403.md"
+    },
+    {
+      "id": "TS-404",
+      "project": "platform",
+      "title": "陪伴生活记忆前后端与来源边界审查修复",
+      "status": "done",
+      "depends_on": [
+        "TS-398"
+      ],
+      "allowed_paths": [
+        "services/platform/",
+        "apps/web/src/ (affected chain)",
+        "tests/ (affected behavior only)",
+        "apps/web/tests/ (affected behavior only)",
+        "docs/handoffs/TS-404.md"
+      ],
+      "baseline_commit": "82429137d9dd4f3c5d9ad922c418a41bbc9a0f6b",
+      "external_worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-al-core-platform/tianshu-platform",
+      "branch": "codex/ts404-platform-chain-quality-20261029",
+      "assignee": "chain_platform",
+      "plan": "docs/development/chain-quality-execution-2026-10-29.md",
+      "done_when": "用户指定核心链路完整覆盖；仅有证据的问题修复及必要验证；正常推送串行部署、保留R20配置数据，真实QQ/付费模型延期边界单列。",
+      "delivery_state": "integrated_pushed_R21_deployed_physical_read_only_verified",
+      "release_record": "docs/development/chain-quality-review-release-2026-10-29.json",
+      "commit": "c591a5ddda34b31cd0e9e55f46cd7d50fae36dae",
+      "handoff": "docs/handoffs/TS-404.md"
+    },
+    {
+      "id": "TS-405",
+      "project": "gateway",
+      "title": "网关准入执行与恢复及性能审查修复",
+      "status": "done",
+      "depends_on": [
+        "TS-398"
+      ],
+      "allowed_paths": [
+        "src/tianshu_gateway/",
+        "tests/ (affected behavior only)",
+        "docs/handoffs/TS-405.md"
+      ],
+      "baseline_commit": "e30c98a1df65808dc88cf6656ee0a75e5a27ef0a",
+      "external_worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-chain-quality-gateway\\tianshu-model-gateway",
+      "branch": "codex/ts405-gateway-chain-quality-20261029",
+      "assignee": "coordinator",
+      "plan": "docs/development/chain-quality-execution-2026-10-29.md",
+      "done_when": "用户指定核心链路完整覆盖；仅有证据的问题修复及必要验证；正常推送串行部署、保留R20配置数据，真实QQ/付费模型延期边界单列。",
+      "delivery_state": "integrated_pushed_R21_deployed_physical_read_only_verified",
+      "release_record": "docs/development/chain-quality-review-release-2026-10-29.json",
+      "commit": "ed631d8a6f26890628a9df833792210e9a09e31c",
+      "handoff": "docs/handoffs/TS-405.md"
+    },
+    {
+      "id": "TS-406",
+      "project": "workspace",
+      "title": "链路集中审查装配验证与串行部署",
+      "status": "done",
+      "depends_on": [
+        "TS-402",
+        "TS-403",
+        "TS-404",
+        "TS-405"
+      ],
+      "allowed_paths": [
+        "deploy/ (affected runtime and release)",
+        "docs/development/",
+        "docs/handoffs/TS-406.md",
+        "contracts/ (only if coordinated actual wire change)"
+      ],
+      "baseline_commit": "5a9c3eefbb1a8d9abf7b14addfa94af4ab114893",
+      "external_worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\al-autonomous-life-20261028\\tianshu-peiban-bot",
+      "branch": "codex/chain-quality-20261029",
+      "assignee": "coordinator",
+      "plan": "docs/development/chain-quality-execution-2026-10-29.md",
+      "done_when": "用户指定核心链路完整覆盖；仅有证据的问题修复及必要验证；正常推送串行部署、保留R20配置数据，真实QQ/付费模型延期边界单列。",
+      "delivery_state": "integrated_pushed_R21_deployed_physical_read_only_verified",
+      "release_record": "docs/development/chain-quality-review-release-2026-10-29.json",
+      "handoff": "docs/handoffs/TS-406.md"
     }
   ],
   "dispatch_defaults": {

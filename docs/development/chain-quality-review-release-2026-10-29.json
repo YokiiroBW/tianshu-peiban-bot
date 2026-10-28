@@ -1,0 +1,215 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-29",
+  "state": "integrated_pushed_R21_deployed_physical_read_only_verified",
+  "tasks": [
+    "TS-402",
+    "TS-403",
+    "TS-404",
+    "TS-405",
+    "TS-406"
+  ],
+  "production_host": "192.168.31.230",
+  "release": "2026.10.29-unified-linux-r21",
+  "image": "sha256:1850b49ac5a489f4d8d2994446fcc1176c158319a8ccc1557220e6874bef97fe",
+  "owner": "2b420a404ffc81970bdd27deefb1482f3258a709fc7bd101553d1df42f8b8c94",
+  "guard": "r14",
+  "sources": {
+    "platform": {
+      "commit": "c591a5ddda34b31cd0e9e55f46cd7d50fae36dae",
+      "archive_sha256": "84100f9fd40fa6b5e44fd02147f757aa7262b758f34c46895d66cf60a1040592"
+    },
+    "companion": {
+      "commit": "5b83948c507fba97a496cfda1acff882816aff7f",
+      "archive_sha256": "0cf837317a1f76447f6f15d211ca6fa13d050e0fab35457ece50ec65cd284e9e"
+    },
+    "memory": {
+      "commit": "57a1a1468382641ea1d33cae9498c9ed170f6a7a",
+      "archive_sha256": "02c94f3b2001ddf96805c54d491b8ed0e6d2a7353e4949a216ee11b17805ec4b"
+    },
+    "gateway": {
+      "commit": "ed631d8a6f26890628a9df833792210e9a09e31c",
+      "archive_sha256": "8f7fa3a112e9d290ae160ca09277134e5a2cf22a4d655ebec7448540aa1bb381"
+    },
+    "application": {
+      "commit": "48eee53d6ba97efae5c44385cb53a894ffa0c215",
+      "archive_sha256": "a3bbd9b1ce6630b985223f79b8d139e9a1578fbbf64ac0cfaa4fc71acd9c4478"
+    },
+    "platform_frontend": {
+      "commit": "c591a5ddda34b31cd0e9e55f46cd7d50fae36dae",
+      "archive_sha256": "84100f9fd40fa6b5e44fd02147f757aa7262b758f34c46895d66cf60a1040592"
+    }
+  },
+  "product_pushes": [
+    {
+      "product": "memory",
+      "coordinator_before": "9b900a6a35808cd9dd064f87564e42dc7b629620",
+      "remote_before": "9b900a6a35808cd9dd064f87564e42dc7b629620",
+      "commit": "57a1a1468382641ea1d33cae9498c9ed170f6a7a",
+      "fast_forward": true,
+      "pushed": true,
+      "original_untracked_preserved": true
+    },
+    {
+      "product": "companion",
+      "coordinator_before": "a22924323a6b1b28ab166833df165cf96e351b6e",
+      "remote_before": "a22924323a6b1b28ab166833df165cf96e351b6e",
+      "commit": "5b83948c507fba97a496cfda1acff882816aff7f",
+      "fast_forward": true,
+      "pushed": true,
+      "original_untracked_preserved": true
+    },
+    {
+      "product": "platform",
+      "coordinator_before": "940f93cedb5a9ea62f48c5f9bc2ef7d1e0d410a5",
+      "remote_before": "82429137d9dd4f3c5d9ad922c418a41bbc9a0f6b",
+      "commit": "c591a5ddda34b31cd0e9e55f46cd7d50fae36dae",
+      "fast_forward": true,
+      "pushed": true,
+      "original_untracked_preserved": true
+    },
+    {
+      "product": "gateway",
+      "coordinator_before": "e30c98a1df65808dc88cf6656ee0a75e5a27ef0a",
+      "remote_before": "e30c98a1df65808dc88cf6656ee0a75e5a27ef0a",
+      "commit": "ed631d8a6f26890628a9df833792210e9a09e31c",
+      "fast_forward": true,
+      "pushed": true,
+      "original_untracked_preserved": true
+    }
+  ],
+  "application_runtime_changed": false,
+  "database_migration": false,
+  "user_dialogue_memory_semantics_changed": false,
+  "dependency_graph_reused": true,
+  "unchanged_wheels": 62,
+  "total_wheels": 66,
+  "retired_modules": [],
+  "image_verification": {
+    "status": "exact_installed_payload_verified",
+    "image": "sha256:1850b49ac5a489f4d8d2994446fcc1176c158319a8ccc1557220e6874bef97fe",
+    "ok": true,
+    "payload_files": {
+      "memory": 145,
+      "companion": 120,
+      "platform": 339,
+      "gateway": 24
+    },
+    "removed_modules": 0,
+    "application_files_preserved": 56,
+    "frontend_files": 83
+  },
+  "production_acceptance": {
+    "status": "R21_deployed_physical_read_only_acceptance_passed",
+    "id": "2b420a404ffc81970bdd27deefb1482f3258a709fc7bd101553d1df42f8b8c94",
+    "image": "sha256:1850b49ac5a489f4d8d2994446fcc1176c158319a8ccc1557220e6874bef97fe",
+    "health": "healthy",
+    "restart_count": 0,
+    "oom": false,
+    "mounts": 37,
+    "ready": {
+      "ok": true,
+      "modules": {
+        "companion": "ready",
+        "gateway": "ready",
+        "knowledge": "ready",
+        "memory": "ready",
+        "onebot": "ready",
+        "platform": "ready"
+      },
+      "observations": {
+        "obs-grafana": "ready",
+        "obs-guard": "ready",
+        "obs-loki": "ready",
+        "obs-prometheus": "ready",
+        "obs-vector": "ready"
+      },
+      "authenticated_ready": 200,
+      "ready_check_count": 9,
+      "tls_ca_and_hostname_verified": true,
+      "companion_worker_readiness": true,
+      "window_defaults": {
+        "soft_percent": 70,
+        "hard_percent": 82,
+        "idle_seconds": 180,
+        "max_turns": 24,
+        "max_messages": 96
+      },
+      "model_or_qq_business_requested": false
+    },
+    "web_http": 200,
+    "capacity_guard": "r14_active_armed",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_heartbeat_age_seconds": 3.882,
+    "completed_at": 1793212074.1594164,
+    "schema_migration": "not_required_code_fixes_without_schema_change",
+    "real_model_summary_quality_tested": false,
+    "config_files_preserved": 1133,
+    "gateway_change": "same_scope_startup_lease_only",
+    "mounts_exactly_preserved": true,
+    "non_target_containers_preserved": 13,
+    "served_entry_assets_verified": 9,
+    "real_qq_acceptance": "deferred_by_user",
+    "platform_host_resources": "unbound_no_readonly_ssh_identity",
+    "new_model_test_calls": 0,
+    "guard_foreign_mount_incident_preserved": true
+  },
+  "timing": {
+    "stop": {
+      "systemctl_returncode": 0,
+      "elapsed_seconds": 123.96768045425415,
+      "old_finished_at": "2026-10-28T18:26:42.837260224Z",
+      "old_exit_code": 0,
+      "old_restart": "no"
+    },
+    "started": {
+      "status": "production_r21_started_guard_active",
+      "id": "2b420a404ffc81970bdd27deefb1482f3258a709fc7bd101553d1df42f8b8c94",
+      "image": "sha256:1850b49ac5a489f4d8d2994446fcc1176c158319a8ccc1557220e6874bef97fe",
+      "started_at": 1793212008.2291057,
+      "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261029-r14",
+      "mounts": 37,
+      "schema_migration": false,
+      "companion_settings_unchanged": true,
+      "host_settings_unchanged": true,
+      "capacity_limits_preserved": true,
+      "compose_change": "image_only",
+      "gateway_env_change": "same_owner_startup_lease_only"
+    },
+    "phases": {
+      "phase-starting-r21": 1793212006.9588578,
+      "phase-r20-stopped": 1793212004.7315693,
+      "phase-stopping-r20": 1793211880.7568893,
+      "phase-r21-created": 1793212005.168614,
+      "phase-started": 1793212008.2391574
+    },
+    "completed_at_utc": "2026-10-28T18:27:54.159416+00:00",
+    "completed_at_shanghai": "2026-10-29T02:27:54.159416+08:00",
+    "exit_to_acceptance_seconds": 71.322,
+    "exit_to_acceptance_is_upper_bound_for_service_interruption": true
+  },
+  "verification": {
+    "memory_nodes_passed": 12,
+    "memory_nodes_deselected": 11,
+    "companion_new_nodes_passed": 10,
+    "companion_unchanged_node_reused": 1,
+    "platform_backend_nodes_passed": 2,
+    "platform_browser_wrapper_passed": 1,
+    "platform_typecheck_and_build": true,
+    "gateway_scheduler_nodes_passed": 20,
+    "gateway_http_nodes_passed": 2,
+    "full_suite": false,
+    "double_backend_matrix": false,
+    "repeated_ready_probes": false,
+    "paid_model_calls": 0,
+    "real_qq_deferred": true
+  },
+  "limitations": [
+    "Existing erased replacement edges cannot be reconstructed precisely",
+    "Old generated proactive candidates lack retrospective recall proofs",
+    "Historical approximately 120-second shutdown wait remains unattributed",
+    "Natural model quality and real QQ messages not newly exercised",
+    "AL14 and AL15 deferred; AL18 real continuous-use time pending"
+  ],
+  "private_receipts_directory": "/srv/tianshu-tooling/chain-quality-release-20261029-e702478709d849cd9b06803d5d43655d"
+}
