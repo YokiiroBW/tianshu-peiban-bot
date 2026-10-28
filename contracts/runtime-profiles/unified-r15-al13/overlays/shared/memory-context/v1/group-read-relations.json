@@ -1,0 +1,233 @@
+{
+  "schema_version": 1,
+  "purpose": "declarative_semantic_examples_not_wire_authority",
+  "cases": [
+    {
+      "id": "same_group_other_owner",
+      "viewer": {
+        "actor_id": "actor:group-reader",
+        "audience": "group",
+        "conversation_id": "conversation:group",
+        "person_id": "person:viewer"
+      },
+      "owner": {
+        "actor_id": "actor:group-reader",
+        "audience": "group",
+        "conversation_id": "conversation:group",
+        "person_id": "person:owner"
+      },
+      "lineage_scopes": [
+        {
+          "actor_id": "actor:group-reader",
+          "audience": "group",
+          "conversation_id": "conversation:group",
+          "person_id": "person:owner"
+        }
+      ],
+      "visibility": "shared_projection",
+      "source_kinds": [
+        "shareable_projection"
+      ],
+      "viewer_current": true,
+      "owner_current": true,
+      "expected": "read_with_original_owner"
+    },
+    {
+      "id": "mixed_private_lineage",
+      "viewer": {
+        "actor_id": "actor:group-reader",
+        "audience": "group",
+        "conversation_id": "conversation:group",
+        "person_id": "person:viewer"
+      },
+      "owner": {
+        "actor_id": "actor:group-reader",
+        "audience": "group",
+        "conversation_id": "conversation:group",
+        "person_id": "person:owner"
+      },
+      "lineage_scopes": [
+        {
+          "actor_id": "actor:group-reader",
+          "audience": "group",
+          "conversation_id": "conversation:group",
+          "person_id": "person:owner"
+        },
+        {
+          "actor_id": "actor:group-reader",
+          "audience": "self_private",
+          "conversation_id": "conversation:group",
+          "person_id": "person:owner"
+        }
+      ],
+      "expected": "omit"
+    },
+    {
+      "id": "other_group",
+      "viewer": {
+        "actor_id": "actor:group-reader",
+        "audience": "group",
+        "conversation_id": "conversation:group",
+        "person_id": "person:viewer"
+      },
+      "owner": {
+        "actor_id": "actor:group-reader",
+        "audience": "group",
+        "conversation_id": "conversation:other",
+        "person_id": "person:owner"
+      },
+      "expected": "omit"
+    },
+    {
+      "id": "other_actor",
+      "viewer": {
+        "actor_id": "actor:group-reader",
+        "audience": "group",
+        "conversation_id": "conversation:group",
+        "person_id": "person:viewer"
+      },
+      "owner": {
+        "actor_id": "actor:other",
+        "audience": "group",
+        "conversation_id": "conversation:group",
+        "person_id": "person:owner"
+      },
+      "expected": "omit"
+    },
+    {
+      "id": "private_requester_no_group_expansion",
+      "viewer": {
+        "actor_id": "actor:group-reader",
+        "audience": "self_private",
+        "conversation_id": "conversation:group",
+        "person_id": "person:viewer"
+      },
+      "owner": {
+        "actor_id": "actor:group-reader",
+        "audience": "group",
+        "conversation_id": "conversation:group",
+        "person_id": "person:owner"
+      },
+      "expected": "no_implicit_cross_person_read"
+    },
+    {
+      "id": "owner_binding_or_source_revoked",
+      "viewer": {
+        "actor_id": "actor:group-reader",
+        "audience": "group",
+        "conversation_id": "conversation:group",
+        "person_id": "person:viewer"
+      },
+      "owner": {
+        "actor_id": "actor:group-reader",
+        "audience": "group",
+        "conversation_id": "conversation:group",
+        "person_id": "person:owner"
+      },
+      "owner_current": false,
+      "expected": "omit_and_reject_known_snapshot"
+    },
+    {
+      "id": "viewer_revoked",
+      "viewer": {
+        "actor_id": "actor:group-reader",
+        "audience": "group",
+        "conversation_id": "conversation:group",
+        "person_id": "person:viewer"
+      },
+      "owner": {
+        "actor_id": "actor:group-reader",
+        "audience": "group",
+        "conversation_id": "conversation:group",
+        "person_id": "person:owner"
+      },
+      "viewer_current": false,
+      "expected": "forbidden"
+    },
+    {
+      "id": "forged_known_owner_is_not_a_grant",
+      "viewer": {
+        "actor_id": "actor:group-reader",
+        "audience": "group",
+        "conversation_id": "conversation:group",
+        "person_id": "person:viewer"
+      },
+      "known_owner": {
+        "actor_id": "actor:group-reader",
+        "audience": "group",
+        "conversation_id": "conversation:group",
+        "person_id": "person:owner"
+      },
+      "current_authorized_group_exists": false,
+      "expected": "reject_known_snapshot"
+    },
+    {
+      "id": "owner_budget_whole_group",
+      "other_owner_candidates": 17,
+      "maximum_other_owner_checks": 16,
+      "maximum_total_checks": 17,
+      "expected": "omit_whole_groups_with_incomplete_budget"
+    },
+    {
+      "id": "self_reference",
+      "viewer": {
+        "actor_id": "actor:group-reader",
+        "audience": "group",
+        "conversation_id": "conversation:group",
+        "person_id": "person:viewer"
+      },
+      "owner": {
+        "actor_id": "actor:group-reader",
+        "audience": "group",
+        "conversation_id": "conversation:group",
+        "person_id": "person:owner"
+      },
+      "query": "我的猫叫什么",
+      "expected": "requester_only"
+    },
+    {
+      "id": "read_not_write_permission",
+      "viewer": {
+        "actor_id": "actor:group-reader",
+        "audience": "group",
+        "conversation_id": "conversation:group",
+        "person_id": "person:viewer"
+      },
+      "owner": {
+        "actor_id": "actor:group-reader",
+        "audience": "group",
+        "conversation_id": "conversation:group",
+        "person_id": "person:owner"
+      },
+      "expected": "read_only_original_proposal_scope_authorization_unchanged"
+    },
+    {
+      "id": "nickname_is_not_person_authority",
+      "viewer": {
+        "actor_id": "actor:group-reader",
+        "audience": "group",
+        "conversation_id": "conversation:group",
+        "person_id": "person:viewer"
+      },
+      "owners": [
+        {
+          "actor_id": "actor:group-reader",
+          "audience": "group",
+          "conversation_id": "conversation:group",
+          "person_id": "person:owner"
+        },
+        {
+          "actor_id": "actor:group-reader",
+          "audience": "group",
+          "conversation_id": "conversation:group",
+          "person_id": "person:another"
+        }
+      ],
+      "matching_display_names": [
+        "小禾",
+        "小禾"
+      ],
+      "expected": "do_not_guess_or_merge_person"
+    }
+  ]
+}

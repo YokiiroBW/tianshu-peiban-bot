@@ -210,5 +210,36 @@
       },
       "purpose": "read"
     }
+  },
+  {
+    "definition": "disclosure_request",
+    "document": {
+      "schema_version": 1,
+      "principal": {
+        "kind": "actor",
+        "actor_id": "actor:sample",
+        "request_id": "request:disclosure"
+      },
+      "content_ref": {
+        "owner": "memory",
+        "object_id": "document:1",
+        "version": 1,
+        "kind": "image",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sources": [
+          {
+            "owner": "memory",
+            "object_id": "source:1",
+            "version": 1
+          }
+        ],
+        "coverage": {
+          "unit": "bytes",
+          "start": 0,
+          "end": 64,
+          "total": 64
+        }
+      }
+    }
   }
 ]

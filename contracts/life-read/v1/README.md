@@ -31,3 +31,5 @@ schema 与实例的本地验证、Companion 生产者和 Platform 消费者的�
 `POST /internal/v1/life-generation/retry` 是独立管理端口，只接受既有 Platform 管理服务身份，生活只读凭据不能调用。请求为 actor_id、plan_id、phase_id 和 expected_version；phase_id 为 null 表示重试当日计划，否则只能指向当前阶段。expected_version 为最近 today 返回的 plan.version。当前角色须启用，目标须仍对应当前计划与内容版本，任务状态须可重试；过期选择不重放，客户端刷新后再操作。请求不能选择模型、修改时间或传入经历正文。
 
 成功响应为 schema_version=1、actor_id、plan_id、plan_version 和 state（queued 或 unavailable）。这表示持久重试意图已经受理，不表示模型已成功。后台仍沿同一任务生成、版本和过期回包检查落库。Platform 沿现有同源会话、CSRF、role.manage 与 life.read 权限处理 `/api/web/life/retry`，管理调用后使用原独立读凭据重新查询 today；不把管理令牌授予浏览器，也不绕过生活读取授权。
+
+AL13 explicitly defines the existing diaries/revision projections, preserving published-pointer reads when a newer draft exists. Legacy fictional=true documents may omit provenance. Actual/mixed entries require the bounded provenance marker and a real digital/observation source category; private refs and materials are never public response fields. Current source and original reader authorization remain required outside schema validation.

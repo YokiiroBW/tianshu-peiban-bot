@@ -66,5 +66,43 @@
     "plan_id": "life-plan:synthetic",
     "plan_version": 8,
     "state": "queued"
+  },
+  "diaries_response": {
+    "schema_version": 1,
+    "fictional": true,
+    "actor_id": "actor:sample",
+    "items": [
+      {
+        "diary_id": "diary:sample",
+        "actor_id": "actor:sample",
+        "day": "2026-10-27",
+        "state": "draft",
+        "version": 2,
+        "published_revision_id": "revision:published",
+        "fictional": true,
+        "captured": {
+          "recipe_id": "recipe:sample",
+          "recipe_version": 1,
+          "material_version": "material:sample"
+        }
+      }
+    ],
+    "next_after": null
+  },
+  "revision_response": {
+    "schema_version": 1,
+    "fictional": true,
+    "actor_id": "actor:sample",
+    "diary_id": "diary:sample",
+    "diary_version": 2,
+    "revision_id": "revision:published",
+    "content": "Published fictional text",
+    "created_at": 1793059200,
+    "captured": {
+      "recipe_id": "recipe:sample",
+      "recipe_version": 1,
+      "material_version": "material:sample",
+      "config_version": 1
+    }
   }
 }

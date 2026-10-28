@@ -563,6 +563,103 @@
           "additionalProperties": false
         }
       ]
+    },
+    "disclosure_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "principal",
+        "content_ref",
+        "audience"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "principal": {
+          "$ref": "#/$defs/principal"
+        },
+        "content_ref": {
+          "$ref": "https://contracts.tianshu.invalid/life-runtime/v2/life.json#/$defs/content_ref"
+        },
+        "audience": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "public"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "scope"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "user_scope"
+                },
+                "scope": {
+                  "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "disclosure_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "content_ref",
+        "read_allowed",
+        "disclosure_allowed",
+        "disclosure_version",
+        "classification",
+        "checked_at"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "content_ref": {
+          "$ref": "https://contracts.tianshu.invalid/life-runtime/v2/life.json#/$defs/content_ref"
+        },
+        "read_allowed": {
+          "type": "boolean"
+        },
+        "disclosure_allowed": {
+          "type": "boolean"
+        },
+        "disclosure_version": {
+          "type": "string"
+        },
+        "classification": {
+          "enum": [
+            "public_anonymous",
+            "private"
+          ]
+        },
+        "checked_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
     }
   }
 }

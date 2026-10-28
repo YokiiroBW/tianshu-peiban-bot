@@ -1,0 +1,18 @@
+{
+  "package": "source-sync-batch/v1",
+  "version": "1.0.0",
+  "schema_version": 1,
+  "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
+  "sha256": {
+    "README.md": "0ef8b145ffeaa6fd0c2200f8668e7344a1f575d866c46ca0bbd86b8fb218de5a",
+    "rules.py": "f54e302e74402805e17f9535a3045ad95706e80ec7239d35d8429864b5609987",
+    "schemas/batch.json": "148debf3221964695f51b6c2bbd632e8b4aecb3bf8eea7e3b2de588ed20b920f"
+  },
+  "dependencies": [
+    {
+      "package": "source-sync/v1",
+      "version": "1.0.0",
+      "manifest_sha256": "6d5c417c2e407aaf055151c1a3639d3b4e2ce4ad7da999f95273b6fcbf487370"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "package": "memory-context/v2",
+  "version": "2.0.0",
+  "status": "local_coordinated_implementation_candidate_not_deployed",
+  "producer": "TS-306",
+  "consumer": "TS-307",
+  "runtime_joint": "pending_reply_context_provenance_validation",
+  "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
+  "dependencies": {
+    "text-dialogue/v1": "90697e6ecbb587d3db8c8e4682f7f8f43a8b1a98f70d8835c8282b03828d2d3a",
+    "profile-memory/v1": "757b243a25945a75d55dafab9da94828e79a009a0a77ce2aeb43039e4c2565c9",
+    "memory-context/v1": "aaf25b4446c3915d48e46c6f0f687a26b57f30ac1c4494085266a586f67953e8",
+    "context-history/v1": "5db7d9223a8c9bb69dd8046355ed0bc0fff1f963290adf43566b529493624e6e",
+    "memory-extraction/v1": "205239730bf6aa5ff320cf9f300ae9c301c15559c0147aecd1fe001e8bfe5b82",
+    "source-sync/v1": "6d5c417c2e407aaf055151c1a3639d3b4e2ce4ad7da999f95273b6fcbf487370"
+  },
+  "sha256": {
+    "examples.json": "8b266cba3fca0b11cb8bdfe35e1fe6d514854d4c06368dbcab55ba5d25bb11d8",
+    "negative-examples.json": "ea5c16c2c5bc51adb5966ee0e89dfde1505ca4e563fd64f729bbad08e1bccec2",
+    "README.md": "43e39d6f71f9db8e7d1037fdbd7233524d1851b27083c5fd3ac94cc1e325b864",
+    "reply-provenance-negative-examples.json": "98a518a7ea3d4e65ee5718e2f47e89887b483aaa9a2bd073e125a93fdc902052",
+    "schema.json": "0939e8df7eddeb183c6ea83d2664ebd0b65a151c3fd34a934ff94ae1fb899ebe"
+  }
+}

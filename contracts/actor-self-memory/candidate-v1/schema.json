@@ -136,6 +136,18 @@
               "maxLength": 256
             }
           }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "public"
+            }
+          }
         }
       ]
     },
@@ -160,7 +172,32 @@
         "audience": {
           "$ref": "#/$defs/audience"
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "audience": {
+                "properties": {
+                  "kind": {
+                    "const": "public"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "purpose": {
+                "enum": [
+                  "diary",
+                  "management"
+                ]
+              }
+            }
+          }
+        }
+      ]
     },
     "coverage": {
       "type": "object",
@@ -594,6 +631,9 @@
         },
         {
           "$ref": "#/$defs/withdraw_memory"
+        },
+        {
+          "$ref": "#/$defs/timeline"
         }
       ]
     },
@@ -1381,6 +1421,9 @@
         },
         {
           "$ref": "#/$defs/memory_command_receipt"
+        },
+        {
+          "$ref": "#/$defs/timeline_result"
         }
       ]
     },
@@ -2031,6 +2074,236 @@
         },
         "domain_version": {
           "$ref": "#/$defs/version"
+        }
+      }
+    },
+    "timeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "context",
+        "kinds",
+        "limit",
+        "budget_bytes",
+        "mode",
+        "window",
+        "cursor"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "query"
+        },
+        "context": {
+          "$ref": "#/$defs/context"
+        },
+        "kinds": {
+          "const": [
+            "episode"
+          ]
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "budget_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32768
+        },
+        "mode": {
+          "const": "timeline"
+        },
+        "window": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "start",
+            "end"
+          ],
+          "properties": {
+            "start": {
+              "$ref": "#/$defs/timestamp"
+            },
+            "end": {
+              "$ref": "#/$defs/timestamp"
+            }
+          }
+        },
+        "cursor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 8192
+        }
+      }
+    },
+    "timeline_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "context",
+        "domain_version",
+        "checked_at",
+        "items",
+        "omitted",
+        "mode",
+        "window",
+        "next_cursor",
+        "complete"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "query"
+        },
+        "context": {
+          "$ref": "#/$defs/context"
+        },
+        "domain_version": {
+          "$ref": "#/$defs/version"
+        },
+        "checked_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/timeline_item"
+          },
+          "minItems": 0,
+          "maxItems": 32
+        },
+        "omitted": {
+          "type": "boolean"
+        },
+        "mode": {
+          "const": "timeline"
+        },
+        "window": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "start",
+            "end"
+          ],
+          "properties": {
+            "start": {
+              "$ref": "#/$defs/timestamp"
+            },
+            "end": {
+              "$ref": "#/$defs/timestamp"
+            }
+          }
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 8192
+        },
+        "complete": {
+          "type": "boolean"
+        }
+      }
+    },
+    "timeline_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ref",
+        "kind",
+        "text",
+        "episode_refs",
+        "source_refs",
+        "recorded_at",
+        "expires_at",
+        "fact"
+      ],
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/memory_ref"
+        },
+        "kind": {
+          "enum": [
+            "episode",
+            "understanding",
+            "preference",
+            "reflection",
+            "autobiography"
+          ]
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "episode_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/episode_ref"
+          },
+          "minItems": 1,
+          "maxItems": 64
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_ref"
+          },
+          "minItems": 1,
+          "maxItems": 64
+        },
+        "recorded_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "expires_at": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fact": {
+          "$ref": "#/$defs/source_fact"
         }
       }
     }

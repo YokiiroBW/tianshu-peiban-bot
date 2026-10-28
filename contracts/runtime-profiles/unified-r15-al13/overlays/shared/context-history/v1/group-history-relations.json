@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "purpose": "declarative_semantic_examples_not_wire_authority",
+  "cases": [
+    {
+      "id": "query_owner_set_preserved",
+      "expected_checks": [
+        {
+          "actor_id": "actor:group-reader",
+          "audience": "group",
+          "conversation_id": "conversation:group",
+          "person_id": "person:viewer"
+        },
+        {
+          "actor_id": "actor:group-reader",
+          "audience": "group",
+          "conversation_id": "conversation:group",
+          "person_id": "person:owner"
+        }
+      ],
+      "history_checks": [
+        {
+          "actor_id": "actor:group-reader",
+          "audience": "group",
+          "conversation_id": "conversation:group",
+          "person_id": "person:viewer"
+        },
+        {
+          "actor_id": "actor:group-reader",
+          "audience": "group",
+          "conversation_id": "conversation:group",
+          "person_id": "person:owner"
+        }
+      ],
+      "all_fresh_and_authorized": true,
+      "expected": "accept"
+    },
+    {
+      "id": "unknown_owner_not_authorized_by_expected",
+      "expected_checks": [
+        {
+          "actor_id": "actor:group-reader",
+          "audience": "group",
+          "conversation_id": "conversation:group",
+          "person_id": "person:viewer"
+        },
+        {
+          "actor_id": "actor:group-reader",
+          "audience": "group",
+          "conversation_id": "conversation:group",
+          "person_id": "person:owner"
+        }
+      ],
+      "owner_has_current_group_source": false,
+      "expected": "scope_changed"
+    },
+    {
+      "id": "owner_revoked_before_send",
+      "expected_checks": [
+        {
+          "actor_id": "actor:group-reader",
+          "audience": "group",
+          "conversation_id": "conversation:group",
+          "person_id": "person:viewer"
+        },
+        {
+          "actor_id": "actor:group-reader",
+          "audience": "group",
+          "conversation_id": "conversation:group",
+          "person_id": "person:owner"
+        }
+      ],
+      "owner_current": false,
+      "expected": "scope_changed"
+    },
+    {
+      "id": "private_association_unchanged",
+      "audience": "self_private",
+      "expected": "existing_explicit_consent_path_only"
+    },
+    {
+      "id": "owner_content_changed_expected_snapshot",
+      "checks": [
+        {
+          "actor_id": "actor:group-reader",
+          "audience": "group",
+          "conversation_id": "conversation:group",
+          "person_id": "person:viewer"
+        },
+        {
+          "actor_id": "actor:group-reader",
+          "audience": "group",
+          "conversation_id": "conversation:group",
+          "person_id": "person:owner"
+        }
+      ],
+      "expected_snapshot": "non_null",
+      "known_snapshot": null,
+      "expected_owner_content_version": 1,
+      "current_owner_content_version": 2,
+      "expected": "scope_changed"
+    },
+    {
+      "id": "owner_additive_content_retains_known_history",
+      "checks": [
+        {
+          "actor_id": "actor:group-reader",
+          "audience": "group",
+          "conversation_id": "conversation:group",
+          "person_id": "person:viewer"
+        },
+        {
+          "actor_id": "actor:group-reader",
+          "audience": "group",
+          "conversation_id": "conversation:group",
+          "person_id": "person:owner"
+        }
+      ],
+      "expected_snapshot": null,
+      "known_snapshot": "non_null",
+      "old_owner_content_version": 1,
+      "current_owner_content_version": 2,
+      "known_owner_history_version": 1,
+      "current_owner_history_version": 1,
+      "expected": "accept"
+    },
+    {
+      "id": "owner_history_changed_known_snapshot",
+      "checks": [
+        {
+          "actor_id": "actor:group-reader",
+          "audience": "group",
+          "conversation_id": "conversation:group",
+          "person_id": "person:viewer"
+        },
+        {
+          "actor_id": "actor:group-reader",
+          "audience": "group",
+          "conversation_id": "conversation:group",
+          "person_id": "person:owner"
+        }
+      ],
+      "expected_snapshot": null,
+      "known_snapshot": "non_null",
+      "known_owner_history_version": 1,
+      "current_owner_history_version": 2,
+      "expected": "scope_changed"
+    }
+  ]
+}

@@ -822,6 +822,44 @@
         },
         "domain_version": 1
       }
+    },
+    {
+      "id": "timeline-real-occurrence-window",
+      "definition": "timeline",
+      "document": {
+        "schema_version": 1,
+        "request_id": "al13:timeline",
+        "actor_id": "actor:a",
+        "role_version": 1,
+        "operation": "query",
+        "mode": "timeline",
+        "context": {
+          "purpose": "diary",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "window": {
+          "start": "2026-10-26T16:00:00Z",
+          "end": "2026-10-27T16:00:00Z"
+        },
+        "cursor": null,
+        "kinds": [
+          "episode"
+        ],
+        "limit": 32,
+        "budget_bytes": 32768
+      }
+    },
+    {
+      "id": "public-diary-context",
+      "definition": "context",
+      "document": {
+        "purpose": "diary",
+        "audience": {
+          "kind": "public"
+        }
+      }
     }
   ],
   "negative": [
@@ -1772,6 +1810,45 @@
         ],
         "importance": "normal",
         "retention": "medium"
+      }
+    },
+    {
+      "id": "timeline-is-not-keyword-query",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "al13:timeline",
+        "actor_id": "actor:a",
+        "role_version": 1,
+        "operation": "query",
+        "mode": "timeline",
+        "context": {
+          "purpose": "diary",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "window": {
+          "start": "2026-10-26T16:00:00Z",
+          "end": "2026-10-27T16:00:00Z"
+        },
+        "cursor": null,
+        "kinds": [
+          "episode"
+        ],
+        "limit": 32,
+        "budget_bytes": 32768,
+        "text": "昨天"
+      }
+    },
+    {
+      "id": "public-not-dialogue",
+      "definition": "context",
+      "document": {
+        "purpose": "dialogue",
+        "audience": {
+          "kind": "public"
+        }
       }
     }
   ]

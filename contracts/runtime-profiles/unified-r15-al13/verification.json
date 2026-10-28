@@ -1,0 +1,16 @@
+{
+  "cp": {
+    "inventory_files": 276,
+    "baseline_differences": [
+      "knowledge-content/v1/profiles/memory.manifest.json"
+    ],
+    "reason": "Nested unused profile normalized to the current root profile; runtime main manifests exactly match owner baseline."
+  },
+  "memory": {
+    "inventory_files": 103,
+    "baseline_differences": [
+      "knowledge-content/v1/profiles/memory.manifest.json"
+    ],
+    "reason": "Nested unused profile normalized to the current root profile; runtime main manifests exactly match owner baseline."
+  }
+}

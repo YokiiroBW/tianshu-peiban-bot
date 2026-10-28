@@ -115,3 +115,5 @@ command_receipt 持久保存第一次成功提交的 request_id。get_receipt �
 - No new scheduler/model step. Existing producer outbox owns delivery; Memory derived state belongs only to this domain.
 
 replaces 仅同角色当前 derived 引用，不替换原始 episode。非 current check 一律 read_allowed/disclosure_allowed=false。importance/retention 是提议，Memory 使用本域既有周期配置并执行到期，不代表永久事实。query/check 的正态只在 checked_at 当前成立，发送前仍需按原 refs 复核。
+
+AL13 candidate.3 adds episodes-only query mode=timeline over a fixed UTC occurrence window, stable scoped version-bound cursors and explicit incomplete/omitted results. The default keyword query is unchanged. Public audience is restricted to diary/management; all basis and current owner disclosure checks still apply. Null occurrence times never become learned times.

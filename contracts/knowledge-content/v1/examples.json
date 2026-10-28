@@ -310,5 +310,72 @@
         "operation_ref": "activity:real-persisted"
       }
     }
+  },
+  {
+    "definition": "disclosure_request",
+    "document": {
+      "schema_version": 1,
+      "principal": {
+        "kind": "actor",
+        "actor_id": "actor:sample",
+        "request_id": "request:disclosure",
+        "operation_ref": "activity:disclosure"
+      },
+      "content_ref": {
+        "owner": "memory",
+        "object_id": "document:1",
+        "version": 1,
+        "kind": "image",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sources": [
+          {
+            "owner": "memory",
+            "object_id": "source:1",
+            "version": 1
+          }
+        ],
+        "coverage": {
+          "unit": "bytes",
+          "start": 0,
+          "end": 64,
+          "total": 64
+        }
+      },
+      "audience": {
+        "kind": "public"
+      }
+    }
+  },
+  {
+    "definition": "disclosure_response",
+    "document": {
+      "schema_version": 1,
+      "request_id": "request:disclosure",
+      "content_ref": {
+        "owner": "memory",
+        "object_id": "document:1",
+        "version": 1,
+        "kind": "image",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sources": [
+          {
+            "owner": "memory",
+            "object_id": "source:1",
+            "version": 1
+          }
+        ],
+        "coverage": {
+          "unit": "bytes",
+          "start": 0,
+          "end": 64,
+          "total": 64
+        }
+      },
+      "read_allowed": true,
+      "disclosure_allowed": false,
+      "disclosure_version": "disclosure:sample",
+      "classification": "private",
+      "checked_at": "2026-10-28T00:00:00Z"
+    }
   }
 ]

@@ -1,0 +1,22 @@
+{
+  "package": "knowledge-content/v1",
+  "version": "1.0.0",
+  "status": "published_implementation_baseline",
+  "runtime_joint": "not_run",
+  "real_external": "not_run",
+  "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
+  "dependencies": {
+    "text-dialogue/v1": "90697e6ecbb587d3db8c8e4682f7f8f43a8b1a98f70d8835c8282b03828d2d3a",
+    "life-runtime/v2": "ff7cbaf5bb9cf1330a11821c0e5f0eefb728a934e9fb8698c9b644e09f43042c"
+  },
+  "sha256": {
+    "examples.json": "4bfd163cf8265223f93ce0d53b25649f899ba5f030ca82643c22a84c98ba88a5",
+    "negative-examples.json": "da46810c48128cb7bfd91dc6dee87d14b31ce91e3922e2417663c746da04d1ad",
+    "README.md": "705c692dd6f51a43afaf79c75f82bf979ba113f787c398036d2da2268eab9e82",
+    "schema.json": "0dacaaf84dcc4377df1641d6f4745f19443bc22671826e15acd5e40604360cfc"
+  },
+  "schema_examples_checked": {
+    "examples.json": 11,
+    "negative-examples.json": 7
+  }
+}

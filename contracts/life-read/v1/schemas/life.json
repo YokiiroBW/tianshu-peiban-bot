@@ -459,6 +459,492 @@
         "state"
       ],
       "additionalProperties": false
+    },
+    "diary_provenance": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "fictional",
+            "digital",
+            "mixed"
+          ]
+        },
+        "source_kinds": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "digital_experience",
+              "observation",
+              "interpretation",
+              "fictional"
+            ]
+          }
+        },
+        "selection_complete": {
+          "type": "boolean"
+        },
+        "timezone": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "occurred_from": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "(Z|\\+00:00)$"
+        },
+        "occurred_before": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "(Z|\\+00:00)$"
+        }
+      },
+      "required": [
+        "kind",
+        "source_kinds",
+        "selection_complete",
+        "timezone",
+        "occurred_from",
+        "occurred_before"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "fictional"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "source_kinds": {
+                "items": {
+                  "const": "fictional"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "digital"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "source_kinds": {
+                "contains": {
+                  "enum": [
+                    "digital_experience",
+                    "observation"
+                  ]
+                },
+                "not": {
+                  "contains": {
+                    "const": "fictional"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "mixed"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "source_kinds": {
+                "allOf": [
+                  {
+                    "contains": {
+                      "enum": [
+                        "digital_experience",
+                        "observation"
+                      ]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "const": "fictional"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "diary_entry": {
+      "type": "object",
+      "properties": {
+        "diary_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "day": {
+          "type": "string",
+          "format": "date"
+        },
+        "state": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "published_revision_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "fictional": {
+          "type": "boolean"
+        },
+        "captured": {
+          "type": "object",
+          "properties": {
+            "recipe_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "recipe_version": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "material_version": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          },
+          "required": [
+            "recipe_id",
+            "recipe_version",
+            "material_version"
+          ],
+          "additionalProperties": false
+        },
+        "provenance": {
+          "$ref": "#/$defs/diary_provenance"
+        }
+      },
+      "required": [
+        "diary_id",
+        "actor_id",
+        "day",
+        "state",
+        "version",
+        "published_revision_id",
+        "fictional",
+        "captured"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "fictional": {
+                "const": false
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "provenance"
+            ],
+            "properties": {
+              "provenance": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "digital",
+                      "mixed"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "fictional": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "provenance": {
+                "properties": {
+                  "kind": {
+                    "const": "fictional"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "diaries_response": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "fictional": {
+          "type": "boolean"
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/diary_entry"
+          }
+        },
+        "next_after": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "day": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "diary_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256
+                }
+              },
+              "required": [
+                "day",
+                "diary_id"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "fictional",
+        "actor_id",
+        "items",
+        "next_after"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "fictional": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "items": {
+                "items": {
+                  "properties": {
+                    "fictional": {
+                      "const": true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "fictional": {
+                "const": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "items": {
+                "contains": {
+                  "properties": {
+                    "fictional": {
+                      "const": false
+                    }
+                  },
+                  "required": [
+                    "fictional"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "revision_response": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "fictional": {
+          "type": "boolean"
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "diary_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "diary_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "revision_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "content": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "number"
+        },
+        "captured": {
+          "type": "object",
+          "properties": {
+            "recipe_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "recipe_version": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "material_version": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "config_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": [
+            "recipe_id",
+            "recipe_version",
+            "material_version",
+            "config_version"
+          ],
+          "additionalProperties": false
+        },
+        "provenance": {
+          "$ref": "#/$defs/diary_provenance"
+        }
+      },
+      "required": [
+        "schema_version",
+        "fictional",
+        "actor_id",
+        "diary_id",
+        "diary_version",
+        "revision_id",
+        "content",
+        "created_at",
+        "captured"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "fictional": {
+                "const": false
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "provenance"
+            ],
+            "properties": {
+              "provenance": {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "digital",
+                      "mixed"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "fictional": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "provenance": {
+                "properties": {
+                  "kind": {
+                    "const": "fictional"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }

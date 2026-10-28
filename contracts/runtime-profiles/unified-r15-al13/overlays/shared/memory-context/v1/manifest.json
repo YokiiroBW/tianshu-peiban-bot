@@ -1,0 +1,26 @@
+{
+  "package": "memory-context/v1",
+  "version": "1.1.0",
+  "status": "local_coordinated_semantic_upgrade_candidate",
+  "producer_confirmation": "implementation owner TS267; this source manifest does not attest completion",
+  "consumer_confirmation": "assembly owners TS266 and TS270; this source manifest does not attest completion",
+  "runtime_joint": "not asserted by source manifest; actual status is tracked in separate Q18 delivery",
+  "real_external": "not_run",
+  "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
+  "dependencies": {
+    "text-dialogue": "90697e6ecbb587d3db8c8e4682f7f8f43a8b1a98f70d8835c8282b03828d2d3a",
+    "source-sync": "6d5c417c2e407aaf055151c1a3639d3b4e2ce4ad7da999f95273b6fcbf487370"
+  },
+  "sha256": {
+    "examples.json": "a65a93848d948710eedcc54c0c6d01c9312f931319639905f044f680f3d2d529",
+    "negative-examples.json": "32f045ba9f7177b707a30091a870f1ff6e9dac331e9bc5f1b840ed6797d064f7",
+    "README.md": "cf5ab2b2d30b50e29d6e2ce16a3a5b6c89f5e9f4be27ed510748990b359c64dc",
+    "schema.json": "f17575dee2bd16fba18e7d1f2128f25e02c735ca801621775dbb503f15b84470",
+    "group-read-relations.json": "0614b771f2e4d785a3e73256b06583809697d77cea1c1d4175c1116f4bf60d81"
+  },
+  "examples_checked": {
+    "examples.json": 13,
+    "negative-examples.json": 11,
+    "group-read-relations.json": 12
+  }
+}
