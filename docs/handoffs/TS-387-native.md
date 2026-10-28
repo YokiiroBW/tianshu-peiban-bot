@@ -48,3 +48,28 @@ PG 使用相同参数，换一个全新 `--output`，增加：
 父级实际运行已经走到真实阅读和独立 actor episode delivered，但录制 provider 第 5 轮错误地把 `complete` 理解成整件已完成，断言失败。Knowledge 字符读取的 `complete=true` 表示请求区间完整提供；R4 真实原件 total=141、实际 Reading coverage=[0,64)，整件仍未读完。本工具改为同时检查收到 64 字符、精确 [0,64) 覆盖、区间 complete=true/无 gaps、原件 total>64 和实际正文 marker，不削弱原件实读或未读区间边界。另将 builtin 的真实 `read_locator.kind=webpage` 与 acquire 的 `source.kind=url` 分开核验。
 
 录制 provider 现在保存失败请求、已回传的真实 tool receipt 和异常类型/断言，主等待循环发现该失败立即结束，避免原 120 秒超时掩盖原始错误。R4 原失败证据由父级保留；此修正仍需新的原生运行，不能以静态检查冒称通过。
+
+## AL12 独立原生工具
+
+新增 `native_observer_check.py` 与 `native_observer_fixtures.py`。沿用相同参数、隔离和导入检查；改用 driver 路径，换全新 output 即可：
+
+```sh
+/opt/tianshu-venv/bin/python -B /validation/tools/native_observer_check.py \
+  --host-source /opt/tianshu/application \
+  --platform-fixtures /validation/platform/tests/backend \
+  --contracts /verification/contracts/text-dialogue/v1 \
+  --memory-contracts /verification/memory-fixture/contracts/text-dialogue/v1 \
+  --diagnostics-contracts /verification/contracts/diagnostics/v1 \
+  --memory-fixture /verification/memory-fixture \
+  --output /validation/results/observer-sqlite
+```
+
+PG 与前述相同，显式加专用 Unix-socket URL；所有 `native_*.py` 一起提供。CLI 说明复用增加了可选 description 参数，原自主阅读 CLI 行为不变。
+
+该工具额外注册独立 `companion_background` Gateway fixture 凭据与 background 分类，未借用前台凭据或修改产品。外部仅本地录制 provider 与反向 WS 合成 QQ 协议。真实 SDK 登录状态经 `/capabilities` 确认后，使用原 Platform observation enroll / policy 领域操作把群配置为 `observe + actor:a`，再发送一条合成群 WS 入站；原 SDK capture、Platform pump、Companion inbox/归档回调、Memory raw archive/source adapter、observer outbox、episode、reflection、下一目标全部必须真实运行。
+
+验收不造 source_ref，不直调 append_episode，不造用户 turn；源描述符须由实际归档的原件及群 generation 得出。观察模型仅选实际 source facts，不能把旁听改称参与/实读或永久偏好。第一目标仅通过原 activity checkpoint 登记待查证问题，不宣称已经研究原件；之后独立目标明确 `observation_inspired=false`，检验前一 hint 已一次性消费、旧公共 topic 不自动覆盖新目标。
+
+前后比较原用户记忆、material、segment、事实/记录、摘要、画像与 source 生命周期相关逻辑表的行/摘要，保持完全一致；原 raw observation/QQ 作者及别名登记单列允许，是原归档规则。断言零 user turn、零 user-learning、零假 reading、零回复 scope，WS 只允许 SDK `get_login_info`，任何 send/其他操作均失败。记录实际 Memory observer/reflection lineage 和受众，并要求精确群策略/generation 保持。
+
+本地 Ruff 和 `--help` 通过；没有运行真实六 owner/SQLite/PG，没有 SSH 或产品修改。需最终 TS-386（含 hint 单次消费/规划召回修正）与 TS-388 的安装 wheel，再由父级统一实际执行。真实运行未通过前不宣称 AL12 原生通过。没有覆盖实际 QQ、网页管理、跨日、强杀、A→B→A 策略循环或外站账号。

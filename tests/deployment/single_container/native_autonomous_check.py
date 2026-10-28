@@ -50,8 +50,8 @@ def load(path, name):
     return module
 
 
-def arguments():
-    parser = argparse.ArgumentParser(description=__doc__)
+def arguments(description=None):
+    parser = argparse.ArgumentParser(description=description or __doc__)
     parser.add_argument(
         "--host-source", type=Path, default=Path("/opt/tianshu/application")
     )
