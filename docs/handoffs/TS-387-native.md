@@ -82,4 +82,4 @@ PG 与前述相同，显式加专用 Unix-socket URL；所有 `native_*.py` 一�
 
 ### final3 未执行活动保持暂停
 
-父级 final3 已实际完成 raw source→observer episode→reflection→受启发目标。夹具却把没有 reads/actual_work 的研究活动标 completed，被产品原防伪完成守护正确拒绝；失败证据保留。现只请求 paused、checkpoint.step=0、next_due_at=null，不声称已完成探索。第一 new goal 请求原合法下限 delay_seconds=60，随后依靠实际调度产生独立目标，断言两次模型请求真实间隔至少 60 秒；不改 Core clock、store due 或产品守护。使用显式 `--timeout 240` 保持等待有界。当前核对的旧候选对 new goal 固定 1800 秒 review、未采用 choice.delay_seconds；已报父级原实现者，工具不代改产品，也不把本地静态通过说成真实 timer 已通过。
+父级 final3 已实际完成 raw source→observer episode→reflection→受启发目标。夹具却把没有 reads/actual_work 的研究活动标 completed，被产品原防伪完成守护正确拒绝；失败证据保留。现只请求 paused、checkpoint.step=0、next_due_at=null，不声称已完成探索。第一 new goal 请求原合法下限 delay_seconds=60，随后依靠实际调度产生独立目标，断言两次模型请求真实间隔至少 60 秒；不改 Core clock、store due 或产品守护。observer 默认 `--timeout 240` 保持等待有界，自主阅读原默认 120 秒不变。旧候选对 new goal 固定 1800 秒 review、未采用 choice.delay_seconds；父级已确认这是产品语义缺口并交原实现者修复，需安装其新 wheel 后集中实跑。工具不代改产品，也不把本地静态通过说成真实 timer 已通过。

@@ -437,4 +437,4 @@ async def run(options):
 
 
 if __name__ == "__main__":
-    asyncio.run(run(native.arguments(__doc__)))
+    asyncio.run(run(native.arguments(__doc__, default_timeout=240)))
