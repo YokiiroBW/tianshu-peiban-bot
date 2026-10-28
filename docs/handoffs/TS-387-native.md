@@ -61,7 +61,7 @@ PG 使用相同参数，换一个全新 `--output`，增加：
   --memory-contracts /verification/memory-fixture/contracts/text-dialogue/v1 \
   --diagnostics-contracts /verification/contracts/diagnostics/v1 \
   --memory-fixture /verification/memory-fixture \
-  --output /validation/results/observer-sqlite
+  --output /validation/results/observer-sqlite --timeout 240
 ```
 
 PG 与前述相同，显式加专用 Unix-socket URL；所有 `native_*.py` 一起提供。CLI 说明复用增加了可选 description 参数，原自主阅读 CLI 行为不变。
@@ -79,3 +79,7 @@ PG 与前述相同，显式加专用 Unix-socket URL；所有 `native_*.py` 一�
 父级 final2 自主阅读已实际走通后继目标；最后补查却只用“乌龙茶”，而 understanding 的实际文字是“焙火/香气”，正确词法召回无需返回该项。补查改用覆盖实际材料的“乌龙茶 焙火 香气”，保留 episode/understanding/preference 三种真实材料的断言；旁听补查相应使用“乌龙茶 焙火 清香”。
 
 旁听的合成配置原本已经明确 `automatic_memory_candidates=false`。原 `MemoryLearning.observation_archived` 仍合法登记 `material_pending` handoff，worker 才按该开关不处理；不能把这个原有回执 marker 当成已提取用户事实，也不能为测试删除它或改产品 callback。现同时断言实际 Core 开关确为 false、唯一原 marker 对应真实 source_ref 且 attempts=0/仍 material_pending、零用户 turn/假 reading、无用户 material/context 请求，以及原用户记忆/摘要画像逻辑表逐行摘要不变。允许原 handoff marker 保留，不声称 Core 运行 metadata 完全零写入。两项实际 final2 失败证据由父级保留，修正版仍需真实新运行。
+
+### final3 未执行活动保持暂停
+
+父级 final3 已实际完成 raw source→observer episode→reflection→受启发目标。夹具却把没有 reads/actual_work 的研究活动标 completed，被产品原防伪完成守护正确拒绝；失败证据保留。现只请求 paused、checkpoint.step=0、next_due_at=null，不声称已完成探索。第一 new goal 请求原合法下限 delay_seconds=60，随后依靠实际调度产生独立目标，断言两次模型请求真实间隔至少 60 秒；不改 Core clock、store due 或产品守护。observer 默认 `--timeout 240` 保持等待有界，自主阅读原默认 120 秒不变。旧候选对 new goal 固定 1800 秒 review、未采用 choice.delay_seconds；父级已确认这是产品语义缺口并交原实现者修复，需安装其新 wheel 后集中实跑。工具不代改产品，也不把本地静态通过说成真实 timer 已通过。

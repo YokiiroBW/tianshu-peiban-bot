@@ -50,7 +50,7 @@ def load(path, name):
     return module
 
 
-def arguments(description=None):
+def arguments(description=None, *, default_timeout=120):
     parser = argparse.ArgumentParser(description=description or __doc__)
     parser.add_argument(
         "--host-source", type=Path, default=Path("/opt/tianshu/application")
@@ -86,7 +86,10 @@ def arguments(description=None):
         "--output", type=Path, required=True, help="New isolated retained directory"
     )
     parser.add_argument(
-        "--timeout", type=float, default=120, help="Bounded per-stage deadline, seconds"
+        "--timeout",
+        type=float,
+        default=default_timeout,
+        help="Bounded per-stage deadline, seconds",
     )
     options = parser.parse_args()
     options.output = options.output.resolve()

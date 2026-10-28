@@ -119,7 +119,7 @@ async def run(options):
             first = [
                 row
                 for row in current["activities"]
-                if row["title"] == fixtures.FIRST_GOAL and row["state"] == "completed"
+                if row["title"] == fixtures.FIRST_GOAL and row["state"] == "paused"
             ]
             second = [
                 row
@@ -246,6 +246,12 @@ async def run(options):
             in json.dumps(inspired[0]["messages"], ensure_ascii=False),
             "actual first successor model input includes saved reflection exactly once",
         )
+        require(
+            first["state"] == "paused"
+            and first["checkpoint"]["step"] == 0
+            and independent[0]["started"] - inspired[0]["started"] >= 60,
+            "unexecuted first goal stays paused until the genuine 60-second review timer",
+        )
 
         from contextlib import closing
 
@@ -296,6 +302,8 @@ async def run(options):
             "user_turns": 0,
             "user_memory_unchanged": True,
             "hint_consumed_once": True,
+            "independent_goal_wait_seconds": independent[0]["started"]
+            - inspired[0]["started"],
             "qq_sends": 0,
             "user_extraction_enabled": False,
             "original_archive_handoff_marker": current["user_learning"][0],
@@ -429,4 +437,4 @@ async def run(options):
 
 
 if __name__ == "__main__":
-    asyncio.run(run(native.arguments(__doc__)))
+    asyncio.run(run(native.arguments(__doc__, default_timeout=240)))
