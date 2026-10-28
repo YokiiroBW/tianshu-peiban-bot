@@ -150,7 +150,7 @@ class LedgerRetentionTests(unittest.TestCase):
             self.ledger.db.execute("PRAGMA user_version=2")
         self.ledger.close()
         self.ledger = Ledger(self.path, Policy(SNAPSHOT))
-        self.assertEqual(self.ledger.db.execute("PRAGMA user_version").fetchone()[0], 3)
+        self.assertEqual(self.ledger.db.execute("PRAGMA user_version").fetchone()[0], 4)
         self.assertEqual(self.rows(), before)
         self.ledger.expire(1, now=86400 + 101)
         self.assertEqual(self.ledger.metrics()["retired_events"], 6)

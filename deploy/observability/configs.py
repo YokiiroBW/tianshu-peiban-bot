@@ -201,6 +201,11 @@ def loki(retention_hours=720, *, retention_days=None):
             "retention_delete_delay": "2h",
             "retention_delete_worker_count": 8,
             "delete_request_store": "filesystem",
+            # SQLite retires completed query-time filters after index propagation.
+            # Loki imports the existing BoltDB once and dual-writes it for rollback.
+            "delete_request_store_db_type": "sqlite",
+            "backup_delete_request_store_db_type": "boltdb",
+            "delete_request_cancel_period": "1m",
         },
         "limits_config": {
             "retention_period": f"{retention_hours}h",
@@ -211,6 +216,8 @@ def loki(retention_hours=720, *, retention_days=None):
             "per_stream_rate_limit": "2MB",
             "per_stream_rate_limit_burst": "4MB",
             "max_query_length": "744h",
+            # This is one local Loki, so 30 days need 31 splits rather than 721.
+            "split_queries_by_interval": "24h",
             "max_entries_limit_per_query": 5000,
             "allow_structured_metadata": False,
             "max_line_size": "4KB",

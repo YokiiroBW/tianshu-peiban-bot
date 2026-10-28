@@ -2,7 +2,7 @@
 
 from contextlib import contextmanager
 
-VERSION = 3
+VERSION = 4
 
 BASE = """
     CREATE TABLE IF NOT EXISTS files (name TEXT PRIMARY KEY, identity TEXT, offset INTEGER);
@@ -120,7 +120,7 @@ def initialize(connection):
     version = connection.execute("PRAGMA user_version").fetchone()[0]
     if version == VERSION:
         return
-    if version not in (0, 1, 2):
+    if version not in (0, 1, 2, 3):
         raise ValueError("unsupported_ledger_schema")
     try:
         if version == 0:
@@ -146,8 +146,12 @@ def initialize(connection):
                 connection.execute("DROP TRIGGER event_insert")
         # executescript would commit the earlier conversion before this step.
         # Keep all migration changes, including the version, in one transaction.
-        for statement in _statements(RETENTION):
-            connection.execute(statement)
+        if version < 3:
+            for statement in _statements(RETENTION):
+                connection.execute(statement)
+        connection.execute(
+            "ALTER TABLE retention_deletes ADD COLUMN submitted_at REAL NOT NULL DEFAULT 0"
+        )
         connection.execute(f"PRAGMA user_version={VERSION}")
         connection.commit()
     except BaseException:

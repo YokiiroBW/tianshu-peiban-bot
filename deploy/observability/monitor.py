@@ -501,13 +501,22 @@ class Ledger:
             (self.max_events,),
         ).fetchall()
 
-    def submit_deletions(self, client):
-        """Replay-safe outbox; never expose arbitrary deletion selectors to callers."""
+    def submit_deletions(self, client, *, now=None):
+        """Submit stable, coalesced batches without resetting their maturation time.
+
+        The retained query window changes immediately. Physical cleanup is an
+        asynchronous outbox: combine further retirements for five minutes rather
+        than create another overlapping Loki delete filter every monitor cycle.
+        A failed submission leaves both its watermark and submission time intact.
+        """
         from datetime import datetime, timezone
         from urllib.parse import urlencode
 
+        now = time.time() if now is None else now
         for service, instance, through, start, end in self.db.execute(
-            "SELECT service,instance,through,start,end FROM retention_deletes WHERE submitted<through LIMIT 32"
+            "SELECT service,instance,through,start,end FROM retention_deletes "
+            "WHERE submitted<through AND (submitted_at=0 OR submitted_at<=? OR submitted_at>?) LIMIT 32",
+            (now - 300, now),
         ).fetchall():
             selector = (
                 '{stack="tianshu",service="tianshu_' + service + '"} | json '
@@ -528,8 +537,8 @@ class Ledger:
                 raise RuntimeError("loki_retention_delete_failed")
             with self.db:
                 self.db.execute(
-                    "UPDATE retention_deletes SET submitted=? WHERE service=? AND instance=?",
-                    (through, service, instance),
+                    "UPDATE retention_deletes SET submitted=?,submitted_at=? WHERE service=? AND instance=?",
+                    (through, now, service, instance),
                 )
 
     def close(self):

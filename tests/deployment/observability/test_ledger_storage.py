@@ -94,6 +94,59 @@ class StorageTests(unittest.TestCase):
             self.assertIn("verified", db.execute(
                 "SELECT sql FROM sqlite_master WHERE name='event_pending'").fetchone()[0])
 
+    def test_v3_outbox_upgrade_preserves_offsets_hashes_and_pending_deletions(self):
+        records = [event(1), event(2)]
+        emit(self.root / "source.jsonl", records)
+        ledger = self.open()
+        ledger.scan({"platform": self.root})
+        with ledger.db:
+            ledger._retire("platform", records[0]["instance_id"], 1, 10, 20)
+            ledger.db.execute("UPDATE retention_deletes SET submitted=1")
+            ledger.db.execute("ALTER TABLE retention_deletes DROP COLUMN submitted_at")
+            ledger.db.execute("PRAGMA user_version=3")
+        before = {name: ledger.db.execute(f"SELECT * FROM {name}").fetchall()
+                  for name in ("events", "files", "totals", "streams", "retired_streams")}
+        ledger.close()
+        reopened = self.open()
+        for name, rows in before.items():
+            self.assertEqual(reopened.db.execute(f"SELECT * FROM {name}").fetchall(), rows)
+        self.assertEqual(reopened.db.execute(
+            "SELECT through,submitted,start,end,submitted_at FROM retention_deletes"
+        ).fetchall(), [(1, 1, 10, 20, 0)])
+
+    def test_delete_outbox_coalesces_across_restart_and_retries_failed_submission(self):
+        ledger = self.open()
+        instance = event(1)["instance_id"]
+        with ledger.db:
+            ledger._retire("platform", instance, 10, 100, 200)
+        client = Mock()
+        client.request.return_value = (204, b"", "application/json")
+        ledger.submit_deletions(client, now=1000)
+        first_query = parse_qs(urlsplit(client.request.call_args.args[0]).query)
+        self.assertIn("sequence<=10", first_query["query"][0])
+        client.reset_mock()
+        with ledger.db:
+            ledger._retire("platform", instance, 20, 180, 250)
+            ledger._retire("platform", instance, 30, 170, 300)
+        ledger.close()
+        ledger = self.open()
+        ledger.submit_deletions(client, now=1299)
+        client.request.assert_not_called()
+        client.request.return_value = (503, b"", "application/json")
+        with self.assertRaises(RuntimeError):
+            ledger.submit_deletions(client, now=1300)
+        self.assertEqual(ledger.db.execute(
+            "SELECT through,submitted,start,end,submitted_at FROM retention_deletes"
+        ).fetchall(), [(30, 10, 170, 300, 1000)])
+        client.request.return_value = (204, b"", "application/json")
+        ledger.submit_deletions(client, now=1301)
+        query = parse_qs(urlsplit(client.request.call_args.args[0]).query)
+        self.assertIn("sequence<=30", query["query"][0])
+        self.assertEqual(query["start"], ["169"])
+        self.assertEqual(ledger.db.execute(
+            "SELECT submitted,submitted_at FROM retention_deletes"
+        ).fetchall(), [(30, 1301)])
+
     def test_scan_rollback_does_not_publish_partial_aggregates(self):
         records = [event(2), event(4)]
         emit(self.root / "source.jsonl", records)
