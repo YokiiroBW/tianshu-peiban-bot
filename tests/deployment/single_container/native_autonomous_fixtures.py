@@ -493,6 +493,29 @@ def provider_fixture(schedule, token, sources):
 
     class Provider(schedule.Provider):
         async def serve(self, request):
+            try:
+                return await self.recorded_response(request)
+            except Exception as error:
+                body = await request.json()
+                self.calls.append(
+                    {
+                        "label": "provider-failure",
+                        "messages": body.get("messages"),
+                        "model": body.get("model"),
+                        "stream": body.get("stream"),
+                        "failure": {
+                            "type": type(error).__name__,
+                            "assertion": str(error)
+                            if isinstance(error, AssertionError)
+                            else None,
+                        },
+                        "started": time.time(),
+                        "finished": time.time(),
+                    }
+                )
+                raise
+
+        async def recorded_response(self, request):
             from aiohttp import web
 
             require(
@@ -640,7 +663,7 @@ def provider_fixture(schedule, token, sources):
                         len(candidates) == 1
                         and candidates[0]["source"] == "web"
                         and candidates[0]["read_locator"]["owner"] == "knowledge"
-                        and candidates[0]["read_locator"]["kind"] == "url"
+                        and candidates[0]["read_locator"]["kind"] == "webpage"
                         and candidates[0]["read_locator"]["url"]
                         == sources.origin + "/article",
                         "locator comes from actual discovered candidate",
@@ -701,10 +724,18 @@ def provider_fixture(schedule, token, sources):
                     ]
                 elif rounds == 5:
                     received = by_name["life_reading_read"]["actual_content"]
+                    reference = by_name["life_content_acquire"]["content_ref"]
+                    # complete describes this requested interval. The owner can
+                    # completely serve [0,64) while the 141-character original
+                    # still has unread material after position 64.
                     require(
                         MARKER in received["text"]
-                        and received["coverage"]["end"] == 64
-                        and not received["complete"],
+                        and len(received["text"]) == 64
+                        and received["coverage"]
+                        == {"unit": "characters", "start": 0, "end": 64}
+                        and received["complete"] is True
+                        and not received["gaps"]
+                        and reference["coverage"]["total"] > 64,
                         "real finite interval precedes self recall",
                     )
                     calls = [
