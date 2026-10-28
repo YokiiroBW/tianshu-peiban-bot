@@ -1,0 +1,400 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-28",
+  "state": "scoped_R14_candidate_assembled_verified_not_pushed_or_deployed",
+  "scope": [
+    "AL-06",
+    "AL-09",
+    "AL-10",
+    "AL-12"
+  ],
+  "root_baseline": "b930ef638b95b8d363fc889de8527bbf711987a9",
+  "production_R14_image": "sha256:dd0cd89618a04a281717fc51aa81c10e3e552d8b2a8a5f0ef244141afb952611",
+  "candidate_image": "sha256:82e46cafb79d43f44ec66f50652bb0a0deddb93c8f843e5f438f86a6f67e9795",
+  "candidate_build_inputs_sha256": "d1784e09b63861fe126936202c18b263ef76d945bed81a9f4c6d17d0f275a2d7",
+  "products": {
+    "companion": {
+      "commit": "16ca5a81490255a892d697d80b5be0fa43644688",
+      "archive_sha256": "b4355ab011ded05995f6441497c827910f20d4b7213b74a74111a8b353aab60b",
+      "wheel": "tianshu_companion-0.1.0-py3-none-any.whl",
+      "wheel_sha256": "60f624ccc5f52e950a03595aa2c8ee85b9750b4582900066d0525f7e680de70f",
+      "runtime_metadata_equal_R14": true
+    },
+    "memory": {
+      "commit": "9453e5e3fd43c80a41f9bd4601f0181e2e7c6db5",
+      "archive_sha256": "8177b66b72365644100d27bf784c7894a680ef33f0b371d818b35e6b3d667f6e",
+      "wheel": "tianshu_memory-0.1.0-py3-none-any.whl",
+      "wheel_sha256": "9b9c3dc97a92334de5d2b567d9ca0003e19d071ba1dd5ab7a8b1d5b68b66b790",
+      "runtime_metadata_equal_R14": true
+    }
+  },
+  "native_tool_commit": "d09b835afdba8f97e993093a38b35a03bc4bc41c",
+  "runtime_dependencies_unchanged": true,
+  "product_main_merged": false,
+  "pushed": false,
+  "deployed": false,
+  "memory_boundary": {
+    "coordinated_threads": [
+      "01a17c1d-482b-7621-9281-e0354f0e7365",
+      "01a169d4-bacb-74f2-b27e-136afb9c936c"
+    ],
+    "owners_confirmed_frozen_and_released": true,
+    "user_extraction_summary_profile_recall_algorithms_changed": false,
+    "user_or_actor_schema_changed": false,
+    "actor_source_owner": "original Observation owner; actor authority delegates read/check",
+    "observer_requires_user_extraction": false,
+    "original_user_archive_handoff_preserved": true,
+    "new_normal_dialogue_model_stage": false,
+    "model_slots_increased": false
+  },
+  "verification": {
+    "native": {
+      "autonomous-sqlite-final3": {
+        "ok": true,
+        "result_sha256": "385d1a1e4fb2bdede8a7fd9f66aa18b1e4086a75f08e1531babd1949fb681e97",
+        "result_bytes": 144614,
+        "all_pg_bindings_active": null,
+        "source_fixtures_unchanged": true,
+        "delivered_episode_count": 1,
+        "recalled_kinds": [
+          "episode",
+          "preference",
+          "understanding"
+        ],
+        "successor_uses_understanding_and_preference": true,
+        "user_turns": 0,
+        "multimedia": {
+          "caption": {
+            "coverage": {
+              "unit": "seconds",
+              "start": 0,
+              "end": 30
+            },
+            "complete": false,
+            "gaps": [
+              "audio_not_transcribed",
+              "range_truncated"
+            ]
+          },
+          "caption_continuation": {
+            "unit": "seconds",
+            "start": 30,
+            "end": 45
+          },
+          "video": {
+            "coverage": {
+              "unit": "seconds",
+              "start": 0.0,
+              "end": 4.0
+            },
+            "complete": false,
+            "gaps": [
+              "frames_sampled",
+              "audio_not_transcribed"
+            ]
+          },
+          "representation_kinds": [
+            "audio_clip",
+            "video_frame"
+          ],
+          "representation_count": 7
+        },
+        "native_dispatch": true,
+        "no_user_memory_route": true
+      },
+      "autonomous-pg-final4": {
+        "ok": true,
+        "result_sha256": "0d0c0133fb26ff95a30d943d3e0e09125a0c0db47cdab401b966ccce0488fc52",
+        "result_bytes": 148347,
+        "all_pg_bindings_active": true,
+        "source_fixtures_unchanged": true,
+        "delivered_episode_count": 1,
+        "recalled_kinds": [
+          "episode",
+          "preference",
+          "understanding"
+        ],
+        "successor_uses_understanding_and_preference": true,
+        "user_turns": 0,
+        "multimedia": {
+          "caption": {
+            "coverage": {
+              "unit": "seconds",
+              "start": 0,
+              "end": 30
+            },
+            "complete": false,
+            "gaps": [
+              "audio_not_transcribed",
+              "range_truncated"
+            ]
+          },
+          "caption_continuation": {
+            "unit": "seconds",
+            "start": 30,
+            "end": 45
+          },
+          "video": {
+            "coverage": {
+              "unit": "seconds",
+              "start": 0.0,
+              "end": 4.0
+            },
+            "complete": false,
+            "gaps": [
+              "frames_sampled",
+              "audio_not_transcribed"
+            ]
+          },
+          "representation_kinds": [
+            "audio_clip",
+            "video_frame"
+          ],
+          "representation_count": 7
+        },
+        "native_dispatch": true,
+        "no_user_memory_route": true
+      },
+      "observer-sqlite-final4": {
+        "ok": true,
+        "result_sha256": "f62315653ff80f0f126c9f848b3757dda5a5075af6b062a28431e2bd690ed363",
+        "result_bytes": 134776,
+        "all_pg_bindings_active": null,
+        "source_fixtures_unchanged": true,
+        "user_turns": 0,
+        "user_memory_unchanged": true,
+        "hint_consumed_once": true,
+        "independent_goal_wait_seconds": 62.52353835105896,
+        "qq_sends": 0,
+        "user_extraction_enabled": false,
+        "closed": true,
+        "owner_threads_remaining": []
+      },
+      "observer-pg-final4": {
+        "ok": true,
+        "result_sha256": "8fb2e869c93a7cb7c10a76615ec51715b94d6c542114d73133836974d4c81c29",
+        "result_bytes": 138493,
+        "all_pg_bindings_active": true,
+        "source_fixtures_unchanged": true,
+        "user_turns": 0,
+        "user_memory_unchanged": true,
+        "hint_consumed_once": true,
+        "independent_goal_wait_seconds": 62.818520069122314,
+        "qq_sends": 0,
+        "user_extraction_enabled": false,
+        "closed": true,
+        "owner_threads_remaining": []
+      },
+      "schedule-pg-r2": {
+        "ok": true,
+        "result_sha256": "2324eafc8f06ade02ff7a93ccbc2ce4deede4e004db85c188e08a7eec31fe134",
+        "result_bytes": 10104,
+        "all_pg_bindings_active": null,
+        "source_fixtures_unchanged": null,
+        "checks": [
+          "initial",
+          "restart"
+        ],
+        "restart_checks": {
+          "unknown_no_resend": true,
+          "cancelled_no_send": true
+        }
+      }
+    },
+    "components": {
+      "companion-affected-final2": {
+        "ok": true,
+        "returncode": 0,
+        "counts": {
+          "tests": 302,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 1
+        },
+        "result_sha256": "3d34ec0c4ec51f49d17de098b45cec57ed2cb92b012d5bd6cfdcbbec83a3e022",
+        "junit_sha256": "ef220761b68403e2b2f2d6bbf05f97feaae966ac81d55d35e05cc13351602289",
+        "skips": [
+          {
+            "classname": "tests.test_host_assembly",
+            "name": "test_real_exchange_drains_last_pass_and_sync_source_callback_without_sockets",
+            "time": "0.003",
+            "reason": "explicit TIANSHU_UNIFIED_RUNTIME_REPO required for the actual exchange"
+          }
+        ]
+      },
+      "companion-leaf-final4": {
+        "ok": true,
+        "returncode": 0,
+        "counts": {
+          "tests": 7,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "result_sha256": "0eb6ad4a6ae7d5db21a66f517c881a63c89c436be2209305a64e23e0f18f9611",
+        "junit_sha256": "a4cea25193d7d42110aaaece6e256bf9ac6ba45836f92c627ad9f2441f233ca7",
+        "skips": []
+      },
+      "companion-exchange-final4": {
+        "ok": true,
+        "returncode": 0,
+        "counts": {
+          "tests": 1,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0
+        },
+        "result_sha256": "2a986074fb3b403987deb1cdb83ce567fb42cff1d44ecc35ef9ac76d1eb6d6ef",
+        "junit_sha256": "f384776f46b3003c5ef66407743ee350c1753d9fba4be5550d77da55900b2fa8",
+        "skips": []
+      },
+      "memory-final1": {
+        "ok": false,
+        "returncode": 1,
+        "counts": {
+          "tests": 4233,
+          "failed": 14,
+          "errors": 2609,
+          "skipped": 112
+        },
+        "result_sha256": "17f8047838ec283838f4d4f0869c90ca549a1b8d2343f6979b401dfdcb60d0a1",
+        "junit_sha256": "e1f18ec5a9891e7f75c17508ce19b73b027e9a289a25a9c50373770f369f5930"
+      },
+      "memory-tls-final2": {
+        "ok": false,
+        "returncode": 2,
+        "counts": {
+          "tests": 652,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 58
+        },
+        "result_sha256": "efa97692ca8ba59e57ed2a1b06ca13af208b8530a2609e1fa52f529857cd9ad0",
+        "junit_sha256": "a89bf87a32bd9c510b729bdd178982e726885ca237a4ee4bc347dd5fe3e18ffb"
+      }
+    },
+    "applicable_distinct_component_results": {
+      "companion": {
+        "distinct_nodes": 308,
+        "passed": 308,
+        "failed": 0,
+        "setup_error": 0,
+        "skipped": 0
+      },
+      "memory": {
+        "distinct_nodes": 4233,
+        "passed": 2091,
+        "failed": 14,
+        "setup_error": 1958,
+        "skipped": 170
+      }
+    },
+    "production_unchanged_read_only_check": {
+      "name": "/tianshu-unified-tianshu-1",
+      "image": "sha256:dd0cd89618a04a281717fc51aa81c10e3e552d8b2a8a5f0ef244141afb952611",
+      "running": true,
+      "health": "healthy",
+      "restart_count": 0
+    }
+  },
+  "verification_applicability": {
+    "autonomous-sqlite-final3": "C1fdd0ac/M9453; later timer/PG-only delta covered by final seven nodes and final PG autonomous; no repeated unchanged whole check",
+    "autonomous-pg-final4": "final C16ca5a8/M9453 installed wheels; all PG bindings active",
+    "observer-sqlite-final4": "final installed wheels; actual SDK observe/archive/source/episode/reflection/timer/next goal",
+    "observer-pg-final4": "same final installed wheels with independent PG; all PG bindings active",
+    "schedule-pg-r2": "Cd099962/M9453; later Companion deltas are autonomous planning only, ordinary user extraction/recall/schedule and Memory unchanged"
+  },
+  "full_suite_limits": {
+    "companion": "Full run interrupted after prolonged no progress at 38%+19 nodes near existing life-read index/backup tests. Relevant source/test blobs unchanged; not reproduced on R14. 308 distinct applicable affected nodes and native chains pass; no whole-suite pass claimed.",
+    "memory": "4233 collected. First 1498 passed,14 failed,2609 TLS fixture setup errors,112 skipped. Correct checkout-local TLS temp mount retried only setup-error nodes; graceful partial stop yielded 651 named completed nodes (593 passed/58 skipped), plus one anonymous interrupted JUnit entry excluded from pass counts. Applicable unique total2091 passed,14 prior failures,170 skipped,1958 initial setup errors not retried; not a full-suite pass.",
+    "memory_existing_failures_static_history": [
+      "AST import cycle fact_labels/fact_entities existed on R14; no new runtime import failure claimed",
+      "recall_preparation old minimum fixture lacks scope column used by unchanged ranker",
+      "trusted_workflow QQ unknown-account is invalid400 before old expected403 binding failure"
+    ],
+    "memory_other_11_failures": "3 missing uv;4 git unavailable;1 Windows UNC path on Linux read-only fixture;1 missing role-relationship fixture contract;2 installed-layout checkout-pointer expectations. No unrelated product repair undertaken."
+  },
+  "resolved_implementation_findings": [
+    "planner filters open unscoped intentions before LIMIT and keeps current/due promises",
+    "abandon/defer another goal preserves current activity",
+    "actor recall and automatic outbox share original lock and reread",
+    "observation hint is one-time and explicit causal linkage to public topic",
+    "bounded planning recalls grounded conclusions before raw episodes",
+    "new/continue honors legal review delay; unknown backoff and actual-completion immediate review retained",
+    "Companion PG root expires_at numeric expression; nested ISO remains text"
+  ],
+  "historical_failed_attempts": [
+    "r1 missing fixture helper mount",
+    "r2 wrong builtin webpage locator expectation",
+    "r3 aborted stale test inputs",
+    "r4 wrong requested-range complete interpretation",
+    "final1 autonomous real planner budget starvation (fixed)",
+    "final2 native lexical recall terms and original passive handoff marker expectation",
+    "final3 observer fake completion rejected correctly; fixture now honestly pauses; real timer defect fixed",
+    "final3 PG real expiry text/numeric SQL mismatch fixed",
+    "PG bootstrap r1/r2 wrong custom init socket; default socket r3 verified"
+  ],
+  "cleanup": {
+    "owned_containers_removed": 24,
+    "owned_container_names": [
+      "tianshu-al-job-b20748787b29-companion-exchange-final4",
+      "tianshu-al-job-b20748787b29-observer-pg-final4",
+      "tianshu-al-job-b20748787b29-companion-leaf-final4",
+      "tianshu-al-job-b20748787b29-observer-sqlite-final4",
+      "tianshu-al-job-b20748787b29-autonomous-pg-final4",
+      "tianshu-al-job-b20748787b29-autonomous-pg-final3",
+      "tianshu-al-job-b20748787b29-companion-affected-final2",
+      "tianshu-al-job-b20748787b29-observer-sqlite-final3",
+      "tianshu-al-job-b20748787b29-autonomous-sqlite-final3",
+      "tianshu-al-job-b20748787b29-memory-tls-final2",
+      "tianshu-al-job-b20748787b29-observer-sqlite-final2",
+      "tianshu-al-job-b20748787b29-autonomous-sqlite-final2",
+      "tianshu-al-job-b20748787b29-schedule-pg-r2",
+      "tianshu-al-job-b20748787b29-pg3",
+      "tianshu-al-job-b20748787b29-pg2",
+      "tianshu-al-job-b20748787b29-schedule-pg-final1",
+      "tianshu-al-job-b20748787b29-memory-final1",
+      "tianshu-al-job-b20748787b29-autonomous-sqlite-final1",
+      "tianshu-al-job-b20748787b29-companion-final1",
+      "tianshu-al-job-b20748787b29-pg",
+      "tianshu-al-native-b20748787b29-sqlite-r4",
+      "tianshu-al-native-b20748787b29-sqlite-r3",
+      "tianshu-al-native-b20748787b29-sqlite-r2",
+      "tianshu-al-native-b20748787b29-r1"
+    ],
+    "owned_test_temp_directories_removed": [
+      "companion-final1/test-temp",
+      "memory-final1/test-temp",
+      "memory-tls-final2/memory-runtime/test-temp",
+      "companion-affected-final2/companion-runtime/test-temp",
+      "companion-leaf-final4/companion-runtime/test-temp",
+      "companion-exchange-final4/companion-runtime/test-temp"
+    ],
+    "intermediate_tags_removed": [
+      "tianshu-al-validation:b20748787b29-r3",
+      "tianshu-al-validation:b20748787b29-final1",
+      "tianshu-al-validation:b20748787b29-final2"
+    ],
+    "remaining_owned_containers": 0,
+    "dedicated_pg_tmpfs_removed": true,
+    "final_candidate_image_retained": "sha256:82e46cafb79d43f44ec66f50652bb0a0deddb93c8f843e5f438f86a6f67e9795",
+    "production_container_or_database_touched": false,
+    "evidence_preserved": true
+  },
+  "remaining_full_queue": [
+    "AL-13",
+    "AL-14",
+    "AL-15",
+    "AL-16",
+    "AL-17 complete range and load/continuous use",
+    "AL-18 release and sustained real use"
+  ],
+  "not_claimed": [
+    "real QQ account or paid model acceptance",
+    "real Bilibili/Xiaoheihe account actions",
+    "ASR/OCR not installed; supplied subtitle/audio/frame coverage is explicit",
+    "arbitrary whole-media comprehension or every memory always resident in model input",
+    "whole 18-item queue completed",
+    "production rollout of this candidate"
+  ]
+}

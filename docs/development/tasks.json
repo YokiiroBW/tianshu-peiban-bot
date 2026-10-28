@@ -1794,7 +1794,7 @@
       "id": "TS-384",
       "project": "companion",
       "title": "R14 AL06 rolling goals and AL10 autonomous reading loop",
-      "status": "in_progress",
+      "status": "done",
       "assignee": "codex_subagent",
       "depends_on": [],
       "allowed_paths": [
@@ -1817,13 +1817,18 @@
       "pushed": false,
       "deployed": false,
       "execution_plan": "docs/development/autonomous-life-wave3-execution-2026-10-28.md",
-      "allocation_note": "Exact R14 independent worktree; preserve mixed original root and old project main; namespace scopes and source authority retained."
+      "allocation_note": "Exact R14 independent worktree; preserve mixed original root and old project main; namespace scopes and source authority retained.",
+      "delivery_commit": "32fa17e746ef13eb6c0c9f388499d4f0b39ff380",
+      "delivery_state": "coordinator_accepted_in_isolated_R14_candidate_not_product_main_or_deployed",
+      "validation": "177 passed /0F/0S focused tests; no full Linux/native/production claim",
+      "delivery_record": "docs/development/autonomous-life-wave3-delivery-2026-10-28.json",
+      "final_assembled_commit": "16ca5a81490255a892d697d80b5be0fa43644688"
     },
     {
       "id": "TS-385",
       "project": "memory",
       "title": "R14 AL09 real subtitle audio video coverage and continuation",
-      "status": "in_progress",
+      "status": "done",
       "assignee": "codex_subagent",
       "depends_on": [],
       "allowed_paths": [
@@ -1833,7 +1838,8 @@
         "src/tianshu_memory/knowledge_subtitles.py",
         "tests/test_knowledge_content.py",
         "tests/test_knowledge_subtitles.py",
-        "docs/handoffs/TS-385.md"
+        "docs/handoffs/TS-385.md",
+        "tests/test_knowledge_multimedia.py"
       ],
       "worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-al-reading/tianshu-memory",
       "branch": "codex/al09-multimedia-20261028",
@@ -1843,14 +1849,19 @@
       "pushed": false,
       "deployed": false,
       "execution_plan": "docs/development/autonomous-life-wave3-execution-2026-10-28.md",
-      "allocation_note": "Exact R14 independent worktree; preserve mixed original root and old project main; namespace scopes and source authority retained."
+      "allocation_note": "Exact R14 independent worktree; preserve mixed original root and old project main; namespace scopes and source authority retained.",
+      "delivery_commit": "3f75fdf96e80221039e8204d9ffbb70cf5367dd0",
+      "delivery_state": "coordinator_accepted_in_isolated_R14_candidate_not_product_main_or_deployed",
+      "validation": "26 distinct local nodes passed; no Linux/PG/native/production claim",
+      "delivery_record": "docs/development/autonomous-life-wave3-delivery-2026-10-28.json",
+      "final_assembled_commit": "9453e5e3fd43c80a41f9bd4601f0181e2e7c6db5"
     },
     {
       "id": "TS-386",
       "project": "companion",
       "title": "R14 AL12 observer memory source and next exploration",
-      "status": "planned",
-      "assignee": "codex_coordinator",
+      "status": "done",
+      "assignee": "codex_subagent",
       "depends_on": [
         "TS-384",
         "TS-385"
@@ -1862,30 +1873,50 @@
         "src/tianshu_companion/observation.py",
         "src/tianshu_companion/app.py",
         "tests/",
-        "docs/handoffs/TS-386.md"
+        "docs/handoffs/TS-386.md",
+        "src/tianshu_companion/life_goals.py",
+        "src/tianshu_companion/life_concerns.py",
+        "src/tianshu_companion/runtime_execution.py",
+        "src/tianshu_companion/core.py",
+        "src/tianshu_companion/skills/",
+        "src/tianshu_companion/storage_postgres.py",
+        "src/tianshu_companion/life_work.py"
       ],
-      "allocation_note": "Memory Observation-owner source adapter is serial dependent after TS-385 and will have its own exact product scope before dispatch.",
+      "allocation_note": "AL12 Companion sole writer after TS384; includes two AL06 review fixes and outbox flush race regression. Memory adapter TS388 frozen separately.",
       "execution_model": "gpt-6.1-sol",
       "execution_reasoning_effort": "max",
       "pushed": false,
       "deployed": false,
-      "execution_plan": "docs/development/autonomous-life-wave3-execution-2026-10-28.md"
+      "execution_plan": "docs/development/autonomous-life-wave3-execution-2026-10-28.md",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-al-observer/tianshu-companion",
+      "branch": "codex/al12-observer-life-20261028",
+      "baseline_commit": "32fa17e746ef13eb6c0c9f388499d4f0b39ff380",
+      "delivery_commit": "16ca5a81490255a892d697d80b5be0fa43644688",
+      "delivery_state": "coordinator_accepted_in_isolated_R14_candidate_not_product_main_or_deployed",
+      "validation": "308 distinct applicable Linux nodes plus native SQLite/PG observer/autonomous chains; exact scopes and original failures in delivery record",
+      "delivery_record": "docs/development/autonomous-life-wave3-delivery-2026-10-28.json",
+      "final_assembled_commit": "16ca5a81490255a892d697d80b5be0fa43644688"
     },
     {
       "id": "TS-387",
       "project": "workspace",
       "title": "R14 autonomous life assembly native joints and queue reconciliation",
-      "status": "in_progress",
+      "status": "done",
       "assignee": "codex_coordinator",
       "depends_on": [
         "TS-384",
         "TS-385",
-        "TS-386"
+        "TS-386",
+        "TS-388"
       ],
       "allowed_paths": [
         "docs/development/",
         "docs/handoffs/TS-387-native.md",
-        "tests/deployment/single_container/native_autonomous_check.py"
+        "tests/deployment/single_container/native_autonomous_check.py",
+        "tests/deployment/single_container/native_autonomous_fixtures.py",
+        "tests/deployment/single_container/native_observer_check.py",
+        "tests/deployment/single_container/native_observer_fixtures.py",
+        "docs/handoffs/TS-387.md"
       ],
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\al-autonomous-life-20261028\\tianshu-peiban-bot",
       "branch": "codex/al-autonomous-life-20261028",
@@ -1895,7 +1926,44 @@
       "pushed": false,
       "deployed": false,
       "execution_plan": "docs/development/autonomous-life-wave3-execution-2026-10-28.md",
-      "allocation_note": "Exact R14 independent worktree; preserve mixed original root and old project main; namespace scopes and source authority retained."
+      "allocation_note": "Exact R14 independent worktree; preserve mixed original root and old project main; namespace scopes and source authority retained.",
+      "delivery_state": "coordinator_accepted_in_isolated_R14_candidate_not_product_main_or_deployed",
+      "delivery_record": "docs/development/autonomous-life-wave3-delivery-2026-10-28.json",
+      "validation": "Native SQLite/PG autonomous and observer chains; original PG user-memory/schedule regression; scoped component checks. Whole suite limitations retained.",
+      "candidate_image": "sha256:82e46cafb79d43f44ec66f50652bb0a0deddb93c8f843e5f438f86a6f67e9795"
+    },
+    {
+      "id": "TS-388",
+      "project": "memory",
+      "title": "AL12 Observation-owner actor source adapter",
+      "status": "done",
+      "assignee": "codex_subagent",
+      "depends_on": [
+        "TS-384",
+        "TS-385"
+      ],
+      "allowed_paths": [
+        "src/tianshu_memory/observation_actor_sources.py",
+        "src/tianshu_memory/observations.py",
+        "src/tianshu_memory/actor_memory/authority.py",
+        "src/tianshu_memory/actor_memory/http.py",
+        "src/tianshu_memory/app.py",
+        "tests/test_observation_actor_sources.py",
+        "docs/handoffs/TS-388.md"
+      ],
+      "execution_model": "gpt-6.1-sol",
+      "execution_reasoning_effort": "max",
+      "pushed": false,
+      "deployed": false,
+      "worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-al-observer/tianshu-memory",
+      "branch": "codex/al12-observer-sources-20261028",
+      "baseline_commit": "3f75fdf96e80221039e8204d9ffbb70cf5367dd0",
+      "allocation_note": "Prepared exact AL09 candidate worktree only; implementation starts after AL06/AL10 stable release. Observation-owner source facts/check only; no user extraction/profile/recall change.",
+      "delivery_commit": "9453e5e3fd43c80a41f9bd4601f0181e2e7c6db5",
+      "delivery_state": "coordinator_accepted_in_isolated_R14_candidate_not_product_main_or_deployed",
+      "validation": "14 new +56 original local nodes passed; 1 root-exchange skip pending complete environment",
+      "delivery_record": "docs/development/autonomous-life-wave3-delivery-2026-10-28.json",
+      "final_assembled_commit": "9453e5e3fd43c80a41f9bd4601f0181e2e7c6db5"
     }
   ],
   "dispatch_defaults": {

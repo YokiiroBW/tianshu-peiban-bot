@@ -3,7 +3,7 @@
   "planning_id": "autonomous-life-2026-10-23",
   "date": "2026-10-23",
   "timezone": "Asia/Shanghai",
-  "state": "wave3_R14_AL06_AL09_AL10_in_development_AL12_next",
+  "state": "wave3_R14_AL06_AL09_AL10_AL12_candidate_verified_not_deployed",
   "canonical_plan": "docs/development/autonomous-life-development-queue-2026-10-23.md",
   "architecture": "docs/architecture/actor-self-memory-design-2026-10-23.md",
   "id_policy": "AL编号仅为本批规划身份，不是scripts/workspace.py运行任务；正式派发由根协调者登记新TS并维护AL到TS映射。",
@@ -231,7 +231,7 @@
       "id": "AL-06",
       "title": "兴趣驱动目标选择与滚动日程",
       "owner": "companion",
-      "status": "in_development_TS384",
+      "status": "R14_candidate_assembled_verified_not_deployed",
       "depends_on": [
         "AL-03",
         "AL-04",
@@ -252,7 +252,16 @@
       ],
       "state_before_20261028_reconciliation": "planned",
       "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion",
-      "current_runtime_task": "TS-384"
+      "current_runtime_task": "TS-384",
+      "current_delivery_commit": "16ca5a81490255a892d697d80b5be0fa43644688",
+      "current_validation": "Scoped Linux applicable checks and real installed six-owner SQLite/PG chains passed; full-suite limits retained in delivery record",
+      "current_delivery_record": "docs/development/autonomous-life-wave3-delivery-2026-10-28.json",
+      "external_dependencies_resolved": "R14 latest frozen handoffs and writer release confirmed with both owners",
+      "current_runtime_tasks": [
+        "TS-384",
+        "TS-386",
+        "TS-387"
+      ]
     },
     {
       "id": "AL-07",
@@ -323,7 +332,7 @@
       "id": "AL-09",
       "title": "多媒体真实阅读与覆盖",
       "owner": "memory",
-      "status": "in_development_TS385",
+      "status": "R14_candidate_assembled_verified_not_deployed",
       "depends_on": [
         "AL-01"
       ],
@@ -341,13 +350,22 @@
       ],
       "state_before_20261028_reconciliation": "planned",
       "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion",
-      "current_runtime_task": "TS-385"
+      "current_runtime_task": "TS-385",
+      "current_delivery_commit": "9453e5e3fd43c80a41f9bd4601f0181e2e7c6db5",
+      "current_validation": "Scoped Linux applicable checks and real installed six-owner SQLite/PG chains passed; full-suite limits retained in delivery record",
+      "current_handoff": "C:/Users/Administrator/.codex/worktrees/tianshu-al-reading/tianshu-memory/docs/handoffs/TS-385.md",
+      "current_delivery_record": "docs/development/autonomous-life-wave3-delivery-2026-10-28.json",
+      "external_dependencies_resolved": "R14 latest frozen handoffs and writer release confirmed with both owners",
+      "current_runtime_tasks": [
+        "TS-385",
+        "TS-387"
+      ]
     },
     {
       "id": "AL-10",
       "title": "自主阅读到体验的完整闭环",
       "owner": "companion",
-      "status": "in_development_TS384",
+      "status": "R14_candidate_assembled_verified_not_deployed",
       "depends_on": [
         "AL-03",
         "AL-04",
@@ -372,7 +390,16 @@
       ],
       "state_before_20261028_reconciliation": "planned",
       "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion",
-      "current_runtime_task": "TS-384"
+      "current_runtime_task": "TS-384",
+      "current_delivery_commit": "16ca5a81490255a892d697d80b5be0fa43644688",
+      "current_validation": "Scoped Linux applicable checks and real installed six-owner SQLite/PG chains passed; full-suite limits retained in delivery record",
+      "current_delivery_record": "docs/development/autonomous-life-wave3-delivery-2026-10-28.json",
+      "external_dependencies_resolved": "R14 latest frozen handoffs and writer release confirmed with both owners",
+      "current_runtime_tasks": [
+        "TS-384",
+        "TS-386",
+        "TS-387"
+      ]
     },
     {
       "id": "AL-11",
@@ -417,7 +444,7 @@
       "id": "AL-12",
       "title": "人格与兴趣驱动的群聊参与",
       "owner": "companion",
-      "status": "participation_decision_deployed_observer_memory_next_TS386",
+      "status": "R14_candidate_assembled_verified_not_deployed",
       "depends_on": [
         "AL-03",
         "AL-04",
@@ -438,7 +465,17 @@
       ],
       "state_before_20261028_reconciliation": "planned",
       "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion",
-      "current_runtime_task": "TS-386"
+      "current_runtime_task": "TS-386/TS-388",
+      "current_delivery_commit": "16ca5a81490255a892d697d80b5be0fa43644688",
+      "current_validation": "Scoped Linux applicable checks and real installed six-owner SQLite/PG chains passed; full-suite limits retained in delivery record",
+      "current_delivery_record": "docs/development/autonomous-life-wave3-delivery-2026-10-28.json",
+      "external_dependencies_resolved": "R14 latest frozen handoffs and writer release confirmed with both owners",
+      "current_runtime_tasks": [
+        "TS-386",
+        "TS-388",
+        "TS-387"
+      ],
+      "memory_delivery_commit": "9453e5e3fd43c80a41f9bd4601f0181e2e7c6db5"
     },
     {
       "id": "AL-13",
@@ -567,7 +604,8 @@
       "detail_section": "AL-17",
       "external_dependencies": [],
       "state_before_20261028_reconciliation": "planned",
-      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion"
+      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion",
+      "current_wave_subset_validation_record": "docs/development/autonomous-life-wave3-delivery-2026-10-28.json"
     },
     {
       "id": "AL-18",
@@ -637,5 +675,12 @@
       "in-process exchange retained",
       "no production or real QQ/account acceptance inferred"
     ]
+  },
+  "current_delivery_record": "docs/development/autonomous-life-wave3-delivery-2026-10-28.json",
+  "production_operations_this_wave": false,
+  "verified_candidate": {
+    "companion": "16ca5a81490255a892d697d80b5be0fa43644688",
+    "memory": "9453e5e3fd43c80a41f9bd4601f0181e2e7c6db5",
+    "image": "sha256:82e46cafb79d43f44ec66f50652bb0a0deddb93c8f843e5f438f86a6f67e9795"
   }
 }

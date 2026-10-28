@@ -1,3 +1,9 @@
+## 2026-10-28 自主生活本批候选已隔离验收（未正式发布）
+
+AL06、AL09/10 与 AL12 旁听沉淀从最新单容器 R14 接续，Companion `16ca5a8`、Memory `9453e5e` 已集中审查并完成 SQLite/PG 安装包联合：自主发现/实读/独立经历/理解偏好/下一目标，以及旁听归档/observer/reflection/真实约63秒后的无关目标。用户记忆逻辑表保持，原 PG 用户记忆回流和日程重启/unknown不重发/取消零发送回归通过；相关组件308个不同节点适用通过，全套限制保留。
+
+本批候选未合产品 main、推送或部署。正式仍为下方 R14，healthy/0restart；24个专属验证容器和临时测试库已清理。18项未全部完成。[交付与限制](autonomous-life-wave3-delivery-2026-10-28.md) · [18项队列](autonomous-life-development-queue-2026-10-23.md)。
+
 ## 2026-10-28 .230完整联动与日志稳定性已验收（R14）
 
 当前正式R14镜像`sha256:dd0cd89618a04a281717fc51aa81c10e3e552d8b2a8a5f0ef244141afb952611`，application `48eee53d6ba97efae5c44385cb53a894ffa0c215`。原生SQLite/PG完整陪伴—记忆—召回—回复及日程串行/跨会话并发、正常重启/unknown不重发/取消零发送、音乐完整worker与两项NCM验证通过。真实QQ和网页登录按用户要求暂不测；外部账号及付费模型不混称通过。
