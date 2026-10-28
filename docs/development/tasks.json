@@ -2269,14 +2269,15 @@
       ],
       "done_when": "本轮非外站核心范围实际交付并据声明边界验证，用户记忆逻辑保持；开发/集成/推送/部署/连续使用分别记录。",
       "plan": "docs/development/autonomous-life-core-completion-2026-10-28.md",
-      "delivery_state": "local_integrated_native_verified_not_deployed",
+      "delivery_state": "integrated_pushed_R16_deployed_physical_read_only_verified",
       "assignee": "al_core_memory",
       "worktree": null,
       "external_worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-al-core-memory/tianshu-memory",
       "branch": "codex/al-core-memory-20261028",
       "baseline_commit": "9459711d9eb0d12a2b93a0041d62712e8794b021",
       "delivery_commit": "0f1dbecbdc921b1b047412f916cbe51f13b389fc",
-      "runtime_commit": "a2c539d88ec21b56daab724f38a227615936da5b"
+      "runtime_commit": "a2c539d88ec21b56daab724f38a227615936da5b",
+      "release_record": "docs/development/autonomous-life-core-release-2026-10-28.json"
     },
     {
       "id": "TS-395",
@@ -2309,14 +2310,15 @@
       ],
       "done_when": "本轮非外站核心范围实际交付并据声明边界验证，用户记忆逻辑保持；开发/集成/推送/部署/连续使用分别记录。",
       "plan": "docs/development/autonomous-life-core-completion-2026-10-28.md",
-      "delivery_state": "local_integrated_native_verified_not_deployed",
+      "delivery_state": "integrated_pushed_R16_deployed_physical_read_only_verified",
       "assignee": "al_core_companion",
       "worktree": null,
       "external_worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-al-core-companion/tianshu-companion",
       "branch": "codex/al-core-companion-20261028",
       "baseline_commit": "bba45091f504a1534d52343134b0fa59f39cfdd1",
       "delivery_commit": "38c99b1e0b8586fa7e73a43b6dbe38cc2c4a14ee",
-      "runtime_commit": "38c99b1e0b8586fa7e73a43b6dbe38cc2c4a14ee"
+      "runtime_commit": "38c99b1e0b8586fa7e73a43b6dbe38cc2c4a14ee",
+      "release_record": "docs/development/autonomous-life-core-release-2026-10-28.json"
     },
     {
       "id": "TS-396",
@@ -2345,14 +2347,15 @@
       ],
       "done_when": "本轮非外站核心范围实际交付并据声明边界验证，用户记忆逻辑保持；开发/集成/推送/部署/连续使用分别记录。",
       "plan": "docs/development/autonomous-life-core-completion-2026-10-28.md",
-      "delivery_state": "local_integrated_native_verified_not_deployed",
+      "delivery_state": "integrated_pushed_R16_deployed_physical_read_only_verified",
       "assignee": "al_core_platform",
       "worktree": null,
       "external_worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-al-core-platform/tianshu-platform",
       "branch": "codex/al-core-platform-20261028",
       "baseline_commit": "da70adf28ea20f4bf913114896092c4ec101e9aa",
       "delivery_commit": "522c2c8cf6801b52cf3b72cdb1ea0ce5b86de642",
-      "runtime_commit": "522c2c8cf6801b52cf3b72cdb1ea0ce5b86de642"
+      "runtime_commit": "522c2c8cf6801b52cf3b72cdb1ea0ce5b86de642",
+      "release_record": "docs/development/autonomous-life-core-release-2026-10-28.json"
     },
     {
       "id": "TS-397",
@@ -2382,7 +2385,7 @@
       "id": "TS-398",
       "project": "workspace",
       "title": "非外站核心串行发布与实机验收",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "TS-397"
       ],
@@ -2393,8 +2396,10 @@
       ],
       "done_when": "本轮非外站核心范围实际交付并据声明边界验证，用户记忆逻辑保持；开发/集成/推送/部署/连续使用分别记录。",
       "plan": "docs/development/autonomous-life-core-completion-2026-10-28.md",
-      "delivery_state": "release_preparation_current_R15_unchanged",
-      "assignee": "coordinator"
+      "delivery_state": "integrated_pushed_R16_deployed_physical_read_only_verified",
+      "assignee": "coordinator",
+      "release_record": "docs/development/autonomous-life-core-release-2026-10-28.json",
+      "handoff": "docs/handoffs/TS-398.md"
     }
   ],
   "dispatch_defaults": {

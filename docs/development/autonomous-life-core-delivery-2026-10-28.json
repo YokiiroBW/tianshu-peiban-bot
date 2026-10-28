@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scope": "AL01-13/16/17 current non-external core; AL14/15 deferred",
-  "state": "local_integrated_native_verified_release_in_progress",
+  "state": "integrated_pushed_R16_deployed_physical_read_only_verified_continuous_use_pending",
   "products": {
     "memory": {
       "runtime": "a2c539d88ec21b56daab724f38a227615936da5b",
@@ -343,5 +343,15 @@
     "User table fingerprints compare before/after stable state, not proof of every transient write",
     "Forgetting erases current actor body/history/index; user originals, Knowledge originals, backups/WAL not claimed physically erased",
     "1-2 weeks of real continuous operation remains pending actual time; no automation created"
-  ]
+  ],
+  "production_release_record": "docs/development/autonomous-life-core-release-2026-10-28.json",
+  "production": {
+    "release": "R16",
+    "image": "sha256:50fd946072fa88a99bcf270eeaf44d46e3b6c63301ca343ab67763176729e07c",
+    "actor_schema": 3,
+    "user_memory_logic_changed": false,
+    "physical_acceptance": true,
+    "real_qq_or_paid_model_acceptance": false,
+    "continuous_use_complete": false
+  }
 }

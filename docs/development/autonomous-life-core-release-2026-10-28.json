@@ -1,0 +1,300 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-28",
+  "release": "R16",
+  "state": "deployed_physical_read_only_acceptance_passed_continuous_use_pending",
+  "scope": "AL01-13/16/17 current non-external core; AL14/15 deferred",
+  "host": "192.168.31.230",
+  "installation": "/srv/tianshu/unified-20261027",
+  "image": "sha256:50fd946072fa88a99bcf270eeaf44d46e3b6c63301ca343ab67763176729e07c",
+  "container_id": "dd2ddde16beb0c572b6983e6e7924328b96b41c60732337b223ee13243697c37",
+  "source_coordination_commit": "506666834181ccaa8bcf8191f97fea71804c34ab",
+  "products": {
+    "memory": {
+      "runtime": "a2c539d88ec21b56daab724f38a227615936da5b",
+      "integrated": "0f1dbecbdc921b1b047412f916cbe51f13b389fc"
+    },
+    "companion": {
+      "runtime": "38c99b1e0b8586fa7e73a43b6dbe38cc2c4a14ee",
+      "integrated": "38c99b1e0b8586fa7e73a43b6dbe38cc2c4a14ee"
+    },
+    "platform": {
+      "runtime": "522c2c8cf6801b52cf3b72cdb1ea0ce5b86de642",
+      "integrated": "522c2c8cf6801b52cf3b72cdb1ea0ce5b86de642"
+    }
+  },
+  "products_and_coordination_normal_pushed_before_deployment": true,
+  "base_image": "sha256:f1d30d60e0b6afe43c0ae6a2cd9a24a01b7bbb47cd06c9fe7a71f6c06bc75288",
+  "base_layers_preserved": true,
+  "runtime_dependency_resolution": false,
+  "image_verification": {
+    "status": "R16_installed_payloads_verified_against_exact_candidate_and_R15_preservation",
+    "runtime_files": 56,
+    "wheels": 66,
+    "console_wrappers": 4,
+    "frontend_files": 71,
+    "pip_check": true,
+    "decoder_and_corresponding_source_preserved": true,
+    "product_modules_imported": false,
+    "proof_sha256": "01d9beb6dc41390a1e5869e5c39bd594a8b6b99918840ead55437e07ffbd7140"
+  },
+  "configuration": {
+    "ok": true,
+    "original_files": 1126,
+    "current_files": 1134,
+    "changed_files": 66,
+    "unchanged_original_files": 1068,
+    "semantic_paths": [
+      "memory.callers.platform.actor_memory_operations",
+      "memory.callers.companion.actor_memory_operations",
+      "companion.life_writing"
+    ],
+    "unrelated_bytes_preserved": true,
+    "later_gateway_origin_renewal": "one existing owner/entry/scope reference only",
+    "same_origin_scope": true,
+    "human_role_permissions_added": 0,
+    "new_credentials": 0,
+    "mounts_preserved": 37,
+    "logical_bindings_preserved": 25,
+    "capacity_floor_bytes": 21474836480,
+    "guard_generation": "r9",
+    "logs_cleared": false
+  },
+  "cold_backup": {
+    "status": "r16_current_logical_cold_backup_verified",
+    "logical_sources": 25,
+    "guards": 3,
+    "postgresql_namespaces": 6,
+    "postgresql_bytes": 16571061,
+    "config_files": 1126,
+    "config_bytes": 14812950,
+    "scratch_restore_verified": true,
+    "scratch_databases_removed": true,
+    "client_containers_removed": true,
+    "production_database_restore": false,
+    "media_or_knowledge_originals_copied": false,
+    "physical_or_media_scan_performed": false,
+    "not_a_full_physical_backup": true,
+    "unchanged_in_place_exclusions": [
+      "media libraries",
+      "downloads and staging",
+      "Knowledge originals",
+      "plugin environments",
+      "Loki chunks",
+      "auxiliary QQ/account state",
+      "other SQLite runtime files"
+    ]
+  },
+  "actor_migration": {
+    "ok": true,
+    "original_cli_returncode": 0,
+    "actor_schema": 3,
+    "backend": "postgresql",
+    "actor_instance_preserved": true,
+    "actor_recovery_preserved": true,
+    "guard_match": true,
+    "authoritative_tables": 7,
+    "actor_tables": 8,
+    "backup_columns_valid": true,
+    "backup_row_counts": {
+      "actor_metadata": 4,
+      "actor_episodes": 0,
+      "actor_dependencies": 0,
+      "actor_sources": 0,
+      "actor_receipts": 0,
+      "actor_derived": 0,
+      "actor_derived_basis": 0
+    },
+    "backup_bytes": 1115,
+    "backup_sha256": "7dfefc9ad14b2d3427a9ad254faf5a1b87f6e67b450b4b2333dfded0be736f77",
+    "retry_performed": false,
+    "restore_performed": false,
+    "user_store_opened": false,
+    "application_constructed": false
+  },
+  "production_user_memory_schema_migrated": false,
+  "user_dialogue_memory_logic_changed": false,
+  "availability": {
+    "old_normal_exit_utc": "2026-10-28T11:59:50.379657485Z",
+    "new_started_at": 1793190208.218132,
+    "first_verified_healthy_at": 1793190271.080835,
+    "old_exit_to_verified_healthy_seconds": 1480.701,
+    "old_exit_to_verified_healthy_minutes": 24.678,
+    "stop_request_to_verified_healthy_minutes": 26.706,
+    "zero_downtime_claimed": false
+  },
+  "postchecks": {
+    "waves": 2,
+    "authenticated_ready_http_200": 20,
+    "first_observed_at": 1793190466.2642136,
+    "last_completed_at": 1793190518.776485,
+    "second_origin_age_seconds": 304.632,
+    "business_modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observation_processes": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "diagnostics_complete": true,
+    "storage": {
+      "ok": true,
+      "actor_tables": 8,
+      "logical_sources": 25,
+      "postgresql_namespaces": 6
+    },
+    "lifecycle": {
+      "capacity_active_enabled": true,
+      "capacity_armed": true,
+      "capacity_failure_latch": false,
+      "capacity_heartbeat_age_seconds": 0.318,
+      "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261028-r9",
+      "legacy_capacity_disabled": true,
+      "new_healthy": true,
+      "old_containers": 13,
+      "old_restart": "no",
+      "old_running": 0,
+      "restart_count": 0,
+      "uptime_seconds": 310.558
+    },
+    "published_ports": {
+      "http": {
+        "sdk_listener": 200,
+        "tls_api_anonymous": 401,
+        "web": 200
+      },
+      "real_qq_send_or_login_tested": false,
+      "tls_ca_and_hostname_verified": true
+    },
+    "frontend_files_verified": 71,
+    "actor_guard_checkpoint_matches": true,
+    "five_sources_ack_verified": true,
+    "complete_historical_frontier_claimed": false,
+    "business_work_requested": false,
+    "database_writes_requested": false
+  },
+  "existing_receipt_hashes": {
+    "build-result.json": {
+      "sha256": "142f3059bf032ee5af9a9fba39ef25919e837fa31b526f13ec943b55a547c718",
+      "bytes": 512
+    },
+    "verify-image.json": {
+      "sha256": "bb83440367d22fa6cd73d15ff00ff2c1901c284c292d874cb821b14bdae95fd9",
+      "bytes": 1506
+    },
+    "cold-r16-r3/cold-backup.json": {
+      "sha256": "c62293369d99322063d6b7fa5f1b568915834d24228e0b01bbad6189335786c5",
+      "bytes": 102186
+    },
+    "config-applied.json": {
+      "sha256": "7ae319d3f2ef85d53a57d2a4cc057658bad29ca754e43c929d872ed2dabb21ab",
+      "bytes": 35337
+    },
+    "config-preservation.json": {
+      "sha256": "d75e2aab7de27fa3b80fbc18ec8f3ab732817255d8be7be4a31831426bfd2615",
+      "bytes": 331
+    },
+    "contract-preflight.json": {
+      "sha256": "05c01e57756f165db2f8a60f90f35484e3c1b4be493f645c19a0b787b7922de0",
+      "bytes": 215
+    },
+    "actor-migration.json": {
+      "sha256": "0954c5118507c5b76664772721d20ece132e18d281fae44c8e0e2b81f43f0e10",
+      "bytes": 720
+    },
+    "production-owner.json": {
+      "sha256": "e358bcd79ca3fbe2ff5399794511e35ce0b004eff22ed27b24b7dc94a67bb931",
+      "bytes": 2132
+    },
+    "origin-renewal.json": {
+      "sha256": "6015a9a5992df39b11f583924fc7204b473d383c83e1da67fd2089f6c0756c6b",
+      "bytes": 181
+    },
+    "production-start.json": {
+      "sha256": "1489bf9735115737851d376bd69a79cff5245a7ee704bf87fb68d2841883dad1",
+      "bytes": 1192
+    },
+    "postchecks-r1.json": {
+      "sha256": "5af4cfc1b7c71dfe4455636d188e61b416a11633a32de94ab52090b6ba635be8",
+      "bytes": 9248
+    },
+    "postchecks-r2.json": {
+      "sha256": "e3611f07fae3c80e3dad23e61c521a536517022db7a34b2418f35cb02260e057",
+      "bytes": 9254
+    },
+    "cli-wrapper-rehearsal.json": {
+      "sha256": "1aa3fc10a70d7047a63015ba79b4495d730a167e55e6675e7d1d405675a4199b",
+      "bytes": 1984
+    },
+    "contract-runtime-exclusions.json": {
+      "sha256": "6eed2296a73fb112ff8ab1d4d65b2d2f58cd90c3aedba6a1d9071a6f5ba7840e",
+      "bytes": 863
+    }
+  },
+  "known_failed_attempts": [
+    "candidate1 SQLite fixture used reading after original AL13 withdrawal; migration itself passed",
+    "first load script upload had mode0600; no application executed; runtime UID read fixed to0644",
+    "Docker build first attempt used unavailable --cpus flag; second hit exclusive old log name; production remained unchanged; subsequent bounded build uses actual CLI quota flags",
+    "cold preflight required restart=no while live owner was unless-stopped; stopped before mutation",
+    "authorized stop guard reached120s and recorded timeout; exact old owner shortly afterward confirmed normal Exit0/no OOM; fresh r3 cold point verified",
+    "contract preflight statistics attribute and one auxiliary path error stopped before actor DDL; corrected helpers resumed already verified config"
+  ],
+  "rollback": "Stop current writers and preserve later facts/suppression; coordinate matching actor schema, guards, contracts, config and restore point. R15 image alone cannot open schema3. No production database was restored.",
+  "policy_documentation_commits": {
+    "tianshu-memory": {
+      "before": "0f1dbecbdc921b1b047412f916cbe51f13b389fc",
+      "policy_commit": "ef194932a1a37ba5ac5d09095ba3f325c877c9b2",
+      "pushed": true,
+      "runtime_changed": false
+    },
+    "tianshu-companion": {
+      "before": "38c99b1e0b8586fa7e73a43b6dbe38cc2c4a14ee",
+      "policy_commit": "398803b3bad8ba267154576bcd7bf3cf793f2be0",
+      "pushed": true,
+      "runtime_changed": false
+    },
+    "tianshu-platform": {
+      "before": "522c2c8cf6801b52cf3b72cdb1ea0ce5b86de642",
+      "policy_commit": "c999fc219f4f31c70fbf4b21081dccf681d6aa33",
+      "pushed": true,
+      "runtime_changed": false
+    },
+    "tianshu-model-gateway": {
+      "before": "0f491be3573af9257703b7871aaa746598d66b9f",
+      "policy_commit": "e30c98a1df65808dc88cf6656ee0a75e5a27ef0a",
+      "pushed": true,
+      "runtime_changed": false
+    }
+  },
+  "policy_runtime_changed": false,
+  "application_tests_run_for_documentation_only_closeout": false,
+  "limitations": [
+    "No real QQ/account/paid-model acceptance; existing user deferrals retained",
+    "No natural-language model quality or autonomous tool-choice claim from a recorded provider",
+    "Management client/native owner HTTP joint does not exercise real production browser login; component browser guards have separate evidence",
+    "Foreground load is three samples per mode/backend, real user context query, not full chat latency, PG lock waits or a statistical guarantee",
+    "User table fingerprints compare before/after stable state, not proof of every transient write",
+    "Forgetting erases current actor body/history/index; user originals, Knowledge originals, backups/WAL not claimed physically erased",
+    "1-2 weeks of real continuous operation remains pending actual time; no automation created",
+    "real QQ account login or send",
+    "paid provider generation",
+    "external media account actions",
+    "browser authenticated business workflow",
+    "new business native replay",
+    "full physical disaster recovery backup",
+    "zero realtime log backlog or complete historical frontier"
+  ],
+  "AL14_15": "deferred_by_user_later_version",
+  "AL18": "R16_release_and_physical_read_only_acceptance_done_real_one_to_two_week_use_pending",
+  "automation_created": false,
+  "record": "docs/development/autonomous-life-core-release-2026-10-28.md",
+  "implementation_record": "docs/development/autonomous-life-core-delivery-2026-10-28.md"
+}
