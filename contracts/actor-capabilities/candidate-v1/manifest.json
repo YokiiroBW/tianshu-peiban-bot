@@ -1,0 +1,11 @@
+{
+  "name": "actor-capabilities",
+  "version": "1.0.0-candidate.1",
+  "state": "isolated-development-candidate",
+  "hash_basis": "UTF-8 LF-normalized",
+  "sha256": {
+    "schema.json": "871f9c8cb4d6203a321fad715426f506c39b2372ec2b682f41a713adf0b3cec1",
+    "examples.json": "72eee4a4e7cd8541596f89b328814481a24764dcb99116be4a451695bc1f82e6",
+    "README.md": "20c6cb7c3513552c5775c46e63c34e72ba2160376affeaccccc95ca07ec409d9"
+  }
+}

@@ -1,0 +1,141 @@
+{
+  "positive": [
+    {
+      "id": "fixed-group-request",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:topics-example",
+        "scope": {
+          "actor_id": "actor:example",
+          "person_id": "person:operator",
+          "audience": "group",
+          "conversation_id": "conv:group-example"
+        },
+        "origin": {
+          "assertion_ref": "origin:trusted-current-group"
+        },
+        "subject": {
+          "kind": "group",
+          "conversation_id": "conv:group-example"
+        },
+        "start_at": null,
+        "end_at": null,
+        "limit": 50,
+        "cursor": null
+      }
+    },
+    {
+      "id": "committed-author-topic",
+      "definition": "response",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:topics-example",
+        "scope": {
+          "actor_id": "actor:example",
+          "person_id": "person:operator",
+          "audience": "group",
+          "conversation_id": "conv:group-example"
+        },
+        "subject": {
+          "kind": "group",
+          "conversation_id": "conv:group-example"
+        },
+        "scope_version": 1,
+        "checked_at": "2026-10-26T00:00:00Z",
+        "items": [
+          {
+            "segment_id": "segment:example",
+            "window_id": "window:example",
+            "recorded_at": "2026-10-26T00:00:00Z",
+            "topics": [
+              {
+                "topic_id": "topic:local-one",
+                "summary": "A topic attributed in this committed segment.",
+                "person_ids": [
+                  "person:author"
+                ],
+                "member_refs": [
+                  {
+                    "member_id": "material:author-one",
+                    "role": "human",
+                    "person_id": "person:author",
+                    "actor_id": null,
+                    "observed_at": "2026-10-26T00:00:00Z",
+                    "reality": "real"
+                  }
+                ],
+                "memory_refs": [
+                  {
+                    "subject_person_id": "person:author",
+                    "record_id": "record:example",
+                    "record_version": 1
+                  }
+                ]
+              }
+            ],
+            "coverage": {
+              "complete_new": true,
+              "omitted_context": false,
+              "result_person_count": 1
+            }
+          }
+        ],
+        "next_cursor": null,
+        "omitted_invalidated": false
+      }
+    }
+  ],
+  "negative": [
+    {
+      "id": "self-private-is-not-group",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:topics-example",
+        "scope": {
+          "actor_id": "actor:example",
+          "person_id": "person:operator",
+          "audience": "self_private",
+          "conversation_id": "conv:group-example"
+        },
+        "origin": {
+          "assertion_ref": "origin:trusted-current-group"
+        },
+        "subject": {
+          "kind": "group",
+          "conversation_id": "conv:group-example"
+        },
+        "start_at": null,
+        "end_at": null,
+        "limit": 50,
+        "cursor": null
+      }
+    },
+    {
+      "id": "unbounded-page",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:topics-example",
+        "scope": {
+          "actor_id": "actor:example",
+          "person_id": "person:operator",
+          "audience": "group",
+          "conversation_id": "conv:group-example"
+        },
+        "origin": {
+          "assertion_ref": "origin:trusted-current-group"
+        },
+        "subject": {
+          "kind": "group",
+          "conversation_id": "conv:group-example"
+        },
+        "start_at": null,
+        "end_at": null,
+        "limit": 101,
+        "cursor": null
+      }
+    }
+  ]
+}

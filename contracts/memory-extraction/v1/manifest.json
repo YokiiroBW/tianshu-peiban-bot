@@ -1,0 +1,21 @@
+{
+  "package": "memory-extraction/v1",
+  "version": "1.0.0",
+  "status": "local_owner_bound_implementation_candidate_not_deployed",
+  "producer": "TS-306",
+  "consumer": "TS-307",
+  "runtime_joint": "pending_schema6_runtime_validation",
+  "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
+  "dependencies": {
+    "text-dialogue/v1": "90697e6ecbb587d3db8c8e4682f7f8f43a8b1a98f70d8835c8282b03828d2d3a"
+  },
+  "sha256": {
+    "consolidation-examples.json": "ce3a20488a763071eb96c5dd5be5c75ba222f0b7a125e018a3b7c8fea04146a8",
+    "examples.json": "a6f81e19c37272ef011cb75ad65a17d77bc4ab8f71c6250975264bbb5b04a155",
+    "negative-examples.json": "dc8c4d0f5bc0d92ebaf86cca7136fe6b2a274a486dab39a277dddb5749b9e211",
+    "README.md": "78b63695d67eea80d77bdbb9e1859248ca4f304f1811855786e5e07a5b00b359",
+    "schema.json": "9e4e8a29e616674b1d39304ed8429dfd5cd6b45a3d82cb076afa996d2f2b1586",
+    "segment-examples.json": "14edd700b11f5c3023fc0b9a504ce003575564bf5a88624858406b6c564448fa"
+  },
+  "ownership_binding": "persistent_job_and_window_scope_person_id"
+}

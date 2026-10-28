@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianshu.local/contracts/archive-memory-check/candidate-v1/schema.json",
+  "title": "Known-forget gate for exact archived native aliases",
+  "$defs": {
+    "native_alias": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "platform": {
+          "const": "qq"
+        },
+        "account_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^\\S+$"
+        },
+        "room_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^\\S+$"
+        },
+        "message_type": {
+          "enum": [
+            "group",
+            "private"
+          ]
+        },
+        "id_kind": {
+          "enum": [
+            "external",
+            "qqnt_source",
+            "qqnt_platform"
+          ]
+        },
+        "message_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^\\S+$"
+        },
+        "import_source_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^\\S+$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "platform",
+        "account_id",
+        "room_id",
+        "message_type",
+        "id_kind",
+        "message_id",
+        "import_source_id"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "id_kind": {
+                "const": "external"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "import_source_id": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "import_source_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128,
+                "pattern": "^\\S+$"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "evidence_id": {
+          "type": "string",
+          "maxLength": 512,
+          "pattern": "^audit-evidence:0:[a-f0-9]{64}:[A-Za-z0-9_-]{1,64}:[a-f0-9]{64}$"
+        },
+        "content_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "sender_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^\\S+$"
+        },
+        "alias": {
+          "$ref": "#/$defs/native_alias"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "content_hash",
+        "sender_id",
+        "alias"
+      ]
+    },
+    "result_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "evidence_id": {
+          "type": "string",
+          "maxLength": 512,
+          "pattern": "^audit-evidence:0:[a-f0-9]{64}:[A-Za-z0-9_-]{1,64}:[a-f0-9]{64}$"
+        },
+        "content_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "forget_state": {
+          "enum": [
+            "withdrawn",
+            "no_known_forget",
+            "unsupported"
+          ]
+        },
+        "mapping": {
+          "enum": [
+            "core",
+            "observation",
+            "unmapped"
+          ]
+        },
+        "checked_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "evidence_id",
+        "content_hash",
+        "forget_state",
+        "mapping",
+        "checked_at"
+      ]
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "origin": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/origin"
+        },
+        "mapping_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^\\S+$"
+        },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/item"
+          }
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "scope",
+        "origin",
+        "mapping_id",
+        "items"
+      ]
+    },
+    "response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/id"
+        },
+        "scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "mapping_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^\\S+$"
+        },
+        "checked_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "items": {
+            "$ref": "#/$defs/result_item"
+          }
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "scope",
+        "mapping_id",
+        "checked_at",
+        "items"
+      ]
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/request"
+    },
+    {
+      "$ref": "#/$defs/response"
+    }
+  ]
+}

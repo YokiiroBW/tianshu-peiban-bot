@@ -1,0 +1,478 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianshu.invalid/contracts/actor-capabilities/candidate-v1/schema.json",
+  "$defs": {
+    "actor_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^actor:[A-Za-z0-9._:-]+$"
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "uuid": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 36,
+      "format": "uuid"
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "format": "date-time"
+    },
+    "hash": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "binding_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding_id",
+        "binding_revision",
+        "instance_id",
+        "action_id"
+      ],
+      "properties": {
+        "binding_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "binding_revision": {
+          "$ref": "#/$defs/version"
+        },
+        "instance_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "action_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    },
+    "discover": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "operation"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "discover"
+        }
+      }
+    },
+    "invoke": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "binding",
+        "intent_key",
+        "arguments"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "invoke"
+        },
+        "binding": {
+          "$ref": "#/$defs/binding_ref"
+        },
+        "intent_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "arguments": {
+          "type": "object"
+        }
+      }
+    },
+    "get": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "invocation_id"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "get"
+        },
+        "invocation_id": {
+          "$ref": "#/$defs/uuid"
+        }
+      }
+    },
+    "reconcile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "invocation_id"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "reconcile"
+        },
+        "invocation_id": {
+          "$ref": "#/$defs/uuid"
+        }
+      }
+    },
+    "cancel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "invocation_id"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "cancel"
+        },
+        "invocation_id": {
+          "$ref": "#/$defs/uuid"
+        }
+      }
+    },
+    "request": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/discover"
+        },
+        {
+          "$ref": "#/$defs/invoke"
+        },
+        {
+          "$ref": "#/$defs/get"
+        },
+        {
+          "$ref": "#/$defs/reconcile"
+        },
+        {
+          "$ref": "#/$defs/cancel"
+        }
+      ]
+    },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding",
+        "title",
+        "description",
+        "effect",
+        "input_schema",
+        "output_schema",
+        "availability",
+        "reason"
+      ],
+      "properties": {
+        "binding": {
+          "$ref": "#/$defs/binding_ref"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "effect": {
+          "enum": [
+            "read",
+            "write"
+          ]
+        },
+        "input_schema": {
+          "type": "object"
+        },
+        "output_schema": {
+          "type": "object"
+        },
+        "availability": {
+          "enum": [
+            "ready",
+            "unavailable"
+          ]
+        },
+        "reason": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "discovery_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "capabilities"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/capability"
+          },
+          "minItems": 0,
+          "maxItems": 128
+        }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "invocation_id",
+        "binding",
+        "intent_key",
+        "revision",
+        "execution",
+        "effect",
+        "result",
+        "error_code"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "invocation_id": {
+          "$ref": "#/$defs/uuid"
+        },
+        "binding": {
+          "$ref": "#/$defs/binding_ref"
+        },
+        "intent_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "revision": {
+          "$ref": "#/$defs/version"
+        },
+        "execution": {
+          "enum": [
+            "accepted",
+            "queued",
+            "running",
+            "succeeded",
+            "failed",
+            "cancelled",
+            "interrupted"
+          ]
+        },
+        "effect": {
+          "enum": [
+            "none",
+            "applied",
+            "not_applied",
+            "unknown"
+          ]
+        },
+        "result": {},
+        "error_code": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "code",
+        "execution",
+        "retryable"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "code": {
+          "enum": [
+            "invalid_input",
+            "unauthorized",
+            "forbidden",
+            "not_found",
+            "version_conflict",
+            "idempotency_conflict",
+            "dependency_unavailable",
+            "capability_unavailable",
+            "capacity_exceeded",
+            "unknown"
+          ]
+        },
+        "execution": {
+          "enum": [
+            "not_started",
+            "completed",
+            "unknown"
+          ]
+        },
+        "retryable": {
+          "type": "boolean"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "execution": {
+                "const": "unknown"
+              }
+            },
+            "required": [
+              "execution"
+            ]
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": false
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

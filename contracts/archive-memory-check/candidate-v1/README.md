@@ -1,0 +1,9 @@
+# 已知遗忘来源过滤候选
+
+固定 POST /internal/v1/memory/browser/archive-check，沿原browser的当前服务reader、完整scope/origin、guard与当前角色授权。mapping_id只选择服务器登记的精确映射，模型不能选择账号/群/actor。读取者仍需在自身使用前执行Chat当前locator/hash核验；本接口不把归档记录伪装为Core当前来源。
+
+每次≤100项，按原顺序一一返回相同evidence_id/content_hash。alias为实际Chat完整7键；alias.account_id是bot/self，sender_id才是原作者，不得互换。只把已登记external namespace按原OneBot生产转换映射到真实channel/native message_id，其他未知QQNT命名空间明确unsupported。无可信映射不得自动使用。已登记映射但无Core/observation历史是unmapped/no_known_forget，可查询真实导入历史，不能称Core-current。
+
+Core-only路径沿既有domain.source_key(channel,native message_id)定位真实physical_sources，核保存的author及channel，逐actor查source_admissions→sources/suppression。旁听路径按真实instance/self/conversation/author/event取所有实际revision，再用既有equivalent_keys闭包。任何known suppression或withdrawn优先；不得因为没有旁听材料而漏掉Core-only明确删除。存储不可读/权限失效不当作no_known_forget。
+
+当前映射必须绑定实际actor、群私范围和当前scope，不按昵称、正文或主题推导。这里仅查已知精确来源的遗忘，不创建admission、不发accept、不建表、不触发模型/队列，也不宣称从所有审计归档物理擦除。同一批任何缺项/乱序/locator/hash不符均不可消费。

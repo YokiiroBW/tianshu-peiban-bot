@@ -1,0 +1,1726 @@
+{
+  "positive": [
+    {
+      "id": "exact-registered-onebot",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:archive-check",
+        "scope": {
+          "actor_id": "actor:example",
+          "person_id": "person:operator",
+          "audience": "group",
+          "conversation_id": "conv:group-example"
+        },
+        "origin": {
+          "assertion_ref": "origin:trusted-current-group"
+        },
+        "mapping_id": "onebot:registered-group",
+        "items": [
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "withdrawn-core",
+      "definition": "response",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:archive-check",
+        "scope": {
+          "actor_id": "actor:example",
+          "person_id": "person:operator",
+          "audience": "group",
+          "conversation_id": "conv:group-example"
+        },
+        "mapping_id": "onebot:registered-group",
+        "checked_at": "2026-10-26T00:00:00Z",
+        "items": [
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "forget_state": "withdrawn",
+            "mapping": "core",
+            "checked_at": "2026-10-26T00:00:00Z"
+          }
+        ]
+      }
+    },
+    {
+      "id": "withdrawn-observation",
+      "definition": "response",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:archive-check",
+        "scope": {
+          "actor_id": "actor:example",
+          "person_id": "person:operator",
+          "audience": "group",
+          "conversation_id": "conv:group-example"
+        },
+        "mapping_id": "onebot:registered-group",
+        "checked_at": "2026-10-26T00:00:00Z",
+        "items": [
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "forget_state": "withdrawn",
+            "mapping": "observation",
+            "checked_at": "2026-10-26T00:00:00Z"
+          }
+        ]
+      }
+    },
+    {
+      "id": "no_known_forget-core",
+      "definition": "response",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:archive-check",
+        "scope": {
+          "actor_id": "actor:example",
+          "person_id": "person:operator",
+          "audience": "group",
+          "conversation_id": "conv:group-example"
+        },
+        "mapping_id": "onebot:registered-group",
+        "checked_at": "2026-10-26T00:00:00Z",
+        "items": [
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "forget_state": "no_known_forget",
+            "mapping": "core",
+            "checked_at": "2026-10-26T00:00:00Z"
+          }
+        ]
+      }
+    },
+    {
+      "id": "no_known_forget-unmapped",
+      "definition": "response",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:archive-check",
+        "scope": {
+          "actor_id": "actor:example",
+          "person_id": "person:operator",
+          "audience": "group",
+          "conversation_id": "conv:group-example"
+        },
+        "mapping_id": "onebot:registered-group",
+        "checked_at": "2026-10-26T00:00:00Z",
+        "items": [
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "forget_state": "no_known_forget",
+            "mapping": "unmapped",
+            "checked_at": "2026-10-26T00:00:00Z"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-unmapped",
+      "definition": "response",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:archive-check",
+        "scope": {
+          "actor_id": "actor:example",
+          "person_id": "person:operator",
+          "audience": "group",
+          "conversation_id": "conv:group-example"
+        },
+        "mapping_id": "onebot:registered-group",
+        "checked_at": "2026-10-26T00:00:00Z",
+        "items": [
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "forget_state": "unsupported",
+            "mapping": "unmapped",
+            "checked_at": "2026-10-26T00:00:00Z"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-alias-valid-request",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:archive-check",
+        "scope": {
+          "actor_id": "actor:example",
+          "person_id": "person:operator",
+          "audience": "group",
+          "conversation_id": "conv:group-example"
+        },
+        "origin": {
+          "assertion_ref": "origin:trusted-current-group"
+        },
+        "mapping_id": "onebot:registered-group",
+        "items": [
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "qqnt_source",
+              "message_id": "12345",
+              "import_source_id": "import:one"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "negative": [
+    {
+      "id": "missing-sender_id",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:archive-check",
+        "scope": {
+          "actor_id": "actor:example",
+          "person_id": "person:operator",
+          "audience": "group",
+          "conversation_id": "conv:group-example"
+        },
+        "origin": {
+          "assertion_ref": "origin:trusted-current-group"
+        },
+        "mapping_id": "onebot:registered-group",
+        "items": [
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "missing-alias",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:archive-check",
+        "scope": {
+          "actor_id": "actor:example",
+          "person_id": "person:operator",
+          "audience": "group",
+          "conversation_id": "conv:group-example"
+        },
+        "origin": {
+          "assertion_ref": "origin:trusted-current-group"
+        },
+        "mapping_id": "onebot:registered-group",
+        "items": [
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ambiguous-source-property",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:archive-check",
+        "scope": {
+          "actor_id": "actor:example",
+          "person_id": "person:operator",
+          "audience": "group",
+          "conversation_id": "conv:group-example"
+        },
+        "origin": {
+          "assertion_ref": "origin:trusted-current-group"
+        },
+        "mapping_id": "onebot:registered-group",
+        "items": [
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null,
+              "source": "ambiguous"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "over-100-items",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:archive-check",
+        "scope": {
+          "actor_id": "actor:example",
+          "person_id": "person:operator",
+          "audience": "group",
+          "conversation_id": "conv:group-example"
+        },
+        "origin": {
+          "assertion_ref": "origin:trusted-current-group"
+        },
+        "mapping_id": "onebot:registered-group",
+        "items": [
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          },
+          {
+            "evidence_id": "audit-evidence:0:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:archive:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "content_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "sender_id": "10001",
+            "alias": {
+              "platform": "qq",
+              "account_id": "90001",
+              "room_id": "30001",
+              "message_type": "group",
+              "id_kind": "external",
+              "message_id": "12345",
+              "import_source_id": null
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

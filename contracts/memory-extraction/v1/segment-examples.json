@@ -1,0 +1,2831 @@
+{
+  "positive": [
+    {
+      "definition": "segment_observation_check_request",
+      "document": {
+        "operation": "segment",
+        "actor_id": null,
+        "instance_id": "instance:example",
+        "self_id": "90000",
+        "conversation_id": "group:90001",
+        "sources": [
+          {
+            "source_ref": "observation:example",
+            "source_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "scope_version": 1,
+            "archive_epoch": 1
+          }
+        ]
+      }
+    },
+    {
+      "definition": "segment_observation_check_response",
+      "document": {
+        "valid": true,
+        "actor_id": "actor:segment-example",
+        "instance_id": "instance:example",
+        "self_id": "90000",
+        "conversation_id": "group:90001",
+        "channel": {
+          "namespace": "qq",
+          "binding_id": "binding:segment-example",
+          "channel_conversation_id": "group:90001",
+          "thread_id": null
+        },
+        "delivery_channel": {
+          "namespace": "qq",
+          "binding_id": "binding:delivery-example",
+          "channel_conversation_id": "group:90001",
+          "thread_id": null
+        },
+        "authority": {
+          "owner_id": "observation:catalog",
+          "epoch": 1,
+          "revision": 1,
+          "digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
+        "sources": [
+          {
+            "source_ref": "observation:example",
+            "source_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "scope_version": 1,
+            "archive_epoch": 1,
+            "physical_key": {
+              "platform_id": "instance:example",
+              "self_id": "90000",
+              "conversation_id": "group:90001",
+              "account_id": "10001",
+              "event_id": "_original-event",
+              "revision": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "definition": "segment_observation_resolve_request",
+      "document": {
+        "operation": "segment_resolve",
+        "actor_id": "actor:segment-example",
+        "sources": [
+          {
+            "source": {
+              "message_key": {
+                "channel": {
+                  "namespace": "qq",
+                  "binding_id": "binding:delivery-example",
+                  "channel_conversation_id": "group:90001",
+                  "thread_id": null
+                },
+                "message_id": "message:example",
+                "revision": 1
+              },
+              "receipt_id": "receipt:example",
+              "archive_state": "pending",
+              "locator": null
+            },
+            "scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:A"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "definition": "segment_observation_resolve_response",
+      "document": {
+        "valid": true,
+        "actor_id": "actor:segment-example",
+        "sources": [
+          {
+            "source": {
+              "message_key": {
+                "channel": {
+                  "namespace": "qq",
+                  "binding_id": "binding:delivery-example",
+                  "channel_conversation_id": "group:90001",
+                  "thread_id": null
+                },
+                "message_id": "message:example",
+                "revision": 1
+              },
+              "receipt_id": "receipt:example",
+              "archive_state": "pending",
+              "locator": null
+            },
+            "scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:A"
+            },
+            "observation": {
+              "instance_id": "instance:example",
+              "self_id": "90000",
+              "conversation_id": "group:90001",
+              "source_ref": "observation:example",
+              "source_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "scope_version": 1,
+              "archive_epoch": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "definition": "segment_observation_resolve_response",
+      "document": {
+        "valid": true,
+        "actor_id": "actor:segment-example",
+        "sources": [
+          {
+            "source": {
+              "message_key": {
+                "channel": {
+                  "namespace": "qq",
+                  "binding_id": "binding:delivery-example",
+                  "channel_conversation_id": "group:90001",
+                  "thread_id": null
+                },
+                "message_id": "message:example",
+                "revision": 1
+              },
+              "receipt_id": "receipt:example",
+              "archive_state": "pending",
+              "locator": null
+            },
+            "scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:A"
+            },
+            "observation": null
+          }
+        ]
+      },
+      "name": "legacy-manual-adapter-without-proven-native-mapping"
+    },
+    {
+      "definition": "segment_frame_request",
+      "document": {
+        "schema_version": 1,
+        "actor_id": "actor:segment-example",
+        "channel": {
+          "namespace": "qq",
+          "binding_id": "binding:segment-example",
+          "channel_conversation_id": "group:90001",
+          "thread_id": null
+        },
+        "delivery_channel": {
+          "namespace": "qq",
+          "binding_id": "binding:delivery-example",
+          "channel_conversation_id": "group:90001",
+          "thread_id": null
+        },
+        "conversation_id": null
+      }
+    },
+    {
+      "definition": "segment_frame_response",
+      "document": {
+        "schema_version": 1,
+        "valid": true,
+        "frame": {
+          "actor_id": "actor:segment-example",
+          "audience": "group",
+          "conversation_id": "conversation:segment-example"
+        },
+        "channel": {
+          "namespace": "qq",
+          "binding_id": "binding:segment-example",
+          "channel_conversation_id": "group:90001",
+          "thread_id": null
+        },
+        "delivery_channel": {
+          "namespace": "qq",
+          "binding_id": "binding:delivery-example",
+          "channel_conversation_id": "group:90001",
+          "thread_id": null
+        }
+      }
+    },
+    {
+      "definition": "segment_material_observation_request",
+      "document": {
+        "schema_version": 1,
+        "observation_refs": [
+          "observation:example"
+        ]
+      }
+    },
+    {
+      "definition": "segment_material_response",
+      "document": {
+        "schema_version": 1,
+        "candidate_job_ref": null,
+        "materials": [
+          {
+            "material_ref": "material:A1",
+            "frame": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example"
+            },
+            "person_id": "person:A",
+            "text_bytes": 43,
+            "member_count": 1,
+            "source_key": "physical-source:example:A1"
+          }
+        ]
+      }
+    },
+    {
+      "definition": "segment_seal_request",
+      "document": {
+        "schema_version": 1,
+        "segment_id": "segment:ABCD",
+        "frame": {
+          "actor_id": "actor:segment-example",
+          "audience": "group",
+          "conversation_id": "conversation:segment-example"
+        },
+        "material_refs": [
+          "material:A1",
+          "material:C1",
+          "material:B1",
+          "material:D1",
+          "material:A2"
+        ],
+        "context_refs": [],
+        "context_windows": [],
+        "omitted_context": false
+      }
+    },
+    {
+      "definition": "segment_seal_response",
+      "document": {
+        "schema_version": 1,
+        "segment_id": "segment:ABCD",
+        "job_id": "job:ABCD",
+        "state": "pending",
+        "candidate_job_ref": "job:ABCD"
+      }
+    },
+    {
+      "definition": "segment_seal_response",
+      "document": {
+        "schema_version": 1,
+        "segment_id": "segment:withdrawn",
+        "job_id": "job:withdrawn",
+        "state": "invalidated",
+        "candidate_job_ref": "job:withdrawn"
+      },
+      "name": "preseal-confirmed-source-invalidation-has-a-real-terminal-job"
+    },
+    {
+      "definition": "process_request",
+      "document": {
+        "extraction_schema": 6,
+        "job_id": "job:ABCD",
+        "batch_ref": null,
+        "output": null
+      }
+    },
+    {
+      "definition": "segment_pending_response",
+      "document": {
+        "state": "pending",
+        "extraction_schema": 6,
+        "job_id": "job:ABCD",
+        "batch_ref": "batch:ABCD",
+        "segment_window": {
+          "segment_id": "segment:ABCD",
+          "frame": {
+            "actor_id": "actor:segment-example",
+            "audience": "group",
+            "conversation_id": "conversation:segment-example"
+          },
+          "members": [
+            {
+              "member_id": "member:A1",
+              "kind": "observation",
+              "role": "human",
+              "speaker": {
+                "kind": "person",
+                "person_id": "person:A",
+                "account": {
+                  "namespace": "qq",
+                  "immutable_account_id": "10001"
+                }
+              },
+              "source_scope": {
+                "actor_id": "actor:segment-example",
+                "audience": "group",
+                "conversation_id": "conversation:segment-example",
+                "person_id": "person:A"
+              },
+              "binding_version": 1,
+              "reality": "real",
+              "observed_at": "2026-10-25T12:00:00Z",
+              "text": "我周六想骑车去河边，B有空吗？",
+              "content_sha256": "a87871a16493478be7b57c0703f6f64375c815109a9ba9990b7bdafbefe254c3",
+              "reply_refs": [],
+              "mentioned_accounts": []
+            },
+            {
+              "member_id": "member:C1",
+              "kind": "observation",
+              "role": "human",
+              "speaker": {
+                "kind": "person",
+                "person_id": "person:C",
+                "account": {
+                  "namespace": "qq",
+                  "immutable_account_id": "10003"
+                }
+              },
+              "source_scope": {
+                "actor_id": "actor:segment-example",
+                "audience": "group",
+                "conversation_id": "conversation:segment-example",
+                "person_id": "person:C"
+              },
+              "binding_version": 1,
+              "reality": "real",
+              "observed_at": "2026-10-25T12:00:00Z",
+              "text": "D，《星图》我已经借给你了，周一还我就好。",
+              "content_sha256": "6159a4279652ead96e013679764ba96a064e47f5fc7678514adef021e285e779",
+              "reply_refs": [],
+              "mentioned_accounts": []
+            },
+            {
+              "member_id": "member:B1",
+              "kind": "observation",
+              "role": "human",
+              "speaker": {
+                "kind": "person",
+                "person_id": "person:B",
+                "account": {
+                  "namespace": "qq",
+                  "immutable_account_id": "10002"
+                }
+              },
+              "source_scope": {
+                "actor_id": "actor:segment-example",
+                "audience": "group",
+                "conversation_id": "conversation:segment-example",
+                "person_id": "person:B"
+              },
+              "binding_version": 1,
+              "reality": "real",
+              "observed_at": "2026-10-25T12:00:00Z",
+              "text": "A，周六九点可以，我会去河边。",
+              "content_sha256": "dabc14c38f5fdbeb9448fb07cbf773eb3021baef154e1df332f56666d5d4997f",
+              "reply_refs": [],
+              "mentioned_accounts": []
+            },
+            {
+              "member_id": "member:D1",
+              "kind": "observation",
+              "role": "human",
+              "speaker": {
+                "kind": "person",
+                "person_id": "person:D",
+                "account": {
+                  "namespace": "qq",
+                  "immutable_account_id": "10004"
+                }
+              },
+              "source_scope": {
+                "actor_id": "actor:segment-example",
+                "audience": "group",
+                "conversation_id": "conversation:segment-example",
+                "person_id": "person:D"
+              },
+              "binding_version": 1,
+              "reality": "real",
+              "observed_at": "2026-10-25T12:00:00Z",
+              "text": "收到C的《星图》，我周一还你。",
+              "content_sha256": "a7e14682eb3fc523f41d926da1e2d275e901ce046b342213f5cdaa55d1144208",
+              "reply_refs": [],
+              "mentioned_accounts": []
+            },
+            {
+              "member_id": "member:A2",
+              "kind": "observation",
+              "role": "human",
+              "speaker": {
+                "kind": "person",
+                "person_id": "person:A",
+                "account": {
+                  "namespace": "qq",
+                  "immutable_account_id": "10001"
+                }
+              },
+              "source_scope": {
+                "actor_id": "actor:segment-example",
+                "audience": "group",
+                "conversation_id": "conversation:segment-example",
+                "person_id": "person:A"
+              },
+              "binding_version": 1,
+              "reality": "real",
+              "observed_at": "2026-10-25T12:00:00Z",
+              "text": "那就周六九点见。",
+              "content_sha256": "38d28e5f14ed5a5963b5f69a8125d212ce25237c7cf5690cf20dcd3cf5e28de3",
+              "reply_refs": [],
+              "mentioned_accounts": []
+            }
+          ],
+          "targets": [
+            {
+              "scope": {
+                "actor_id": "actor:segment-example",
+                "audience": "group",
+                "conversation_id": "conversation:segment-example",
+                "person_id": "person:A"
+              },
+              "new_member_ids": [
+                "member:A1",
+                "member:A2"
+              ],
+              "portrait_input": null,
+              "known_memories": []
+            },
+            {
+              "scope": {
+                "actor_id": "actor:segment-example",
+                "audience": "group",
+                "conversation_id": "conversation:segment-example",
+                "person_id": "person:B"
+              },
+              "new_member_ids": [
+                "member:B1"
+              ],
+              "portrait_input": null,
+              "known_memories": []
+            },
+            {
+              "scope": {
+                "actor_id": "actor:segment-example",
+                "audience": "group",
+                "conversation_id": "conversation:segment-example",
+                "person_id": "person:C"
+              },
+              "new_member_ids": [
+                "member:C1"
+              ],
+              "portrait_input": null,
+              "known_memories": []
+            },
+            {
+              "scope": {
+                "actor_id": "actor:segment-example",
+                "audience": "group",
+                "conversation_id": "conversation:segment-example",
+                "person_id": "person:D"
+              },
+              "new_member_ids": [
+                "member:D1"
+              ],
+              "portrait_input": null,
+              "known_memories": []
+            }
+          ],
+          "coverage": {
+            "complete_new": true,
+            "omitted_context": false
+          },
+          "window_id": "885cd825b94f27e17644e3982385c6b33a5ac923512174d358744a15ba716e87"
+        }
+      }
+    },
+    {
+      "definition": "segment_output",
+      "document": {
+        "extraction_schema": 6,
+        "topics": [
+          {
+            "topic_id": "topic:ride",
+            "summary": "A与B约定周六九点去河边骑行。",
+            "person_ids": [
+              "person:A",
+              "person:B"
+            ],
+            "member_ids": [
+              "member:A1",
+              "member:B1",
+              "member:A2"
+            ]
+          },
+          {
+            "topic_id": "topic:book",
+            "summary": "C已将《星图》借给D，D答应周一归还。",
+            "person_ids": [
+              "person:C",
+              "person:D"
+            ],
+            "member_ids": [
+              "member:C1",
+              "member:D1"
+            ]
+          }
+        ],
+        "results": [
+          {
+            "subject_person_id": "person:A",
+            "covered_member_ids": [
+              "member:A1",
+              "member:A2"
+            ],
+            "memories": [
+              {
+                "text": "与B约定周六九点在河边骑行。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:A1",
+                  "member:B1",
+                  "member:A2"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          },
+          {
+            "subject_person_id": "person:B",
+            "covered_member_ids": [
+              "member:B1"
+            ],
+            "memories": [
+              {
+                "text": "答应A周六九点去河边骑行。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:A1",
+                  "member:B1",
+                  "member:A2"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          },
+          {
+            "subject_person_id": "person:C",
+            "covered_member_ids": [
+              "member:C1"
+            ],
+            "memories": [
+              {
+                "text": "已将《星图》借给D，约定周一收回。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:C1",
+                  "member:D1"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          },
+          {
+            "subject_person_id": "person:D",
+            "covered_member_ids": [
+              "member:D1"
+            ],
+            "memories": [
+              {
+                "text": "已收到C借出的《星图》，答应周一归还。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:C1",
+                  "member:D1"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          }
+        ]
+      }
+    },
+    {
+      "definition": "process_request",
+      "document": {
+        "extraction_schema": 6,
+        "job_id": "job:ABCD",
+        "batch_ref": "batch:ABCD",
+        "output": {
+          "extraction_schema": 6,
+          "topics": [
+            {
+              "topic_id": "topic:ride",
+              "summary": "A与B约定周六九点去河边骑行。",
+              "person_ids": [
+                "person:A",
+                "person:B"
+              ],
+              "member_ids": [
+                "member:A1",
+                "member:B1",
+                "member:A2"
+              ]
+            },
+            {
+              "topic_id": "topic:book",
+              "summary": "C已将《星图》借给D，D答应周一归还。",
+              "person_ids": [
+                "person:C",
+                "person:D"
+              ],
+              "member_ids": [
+                "member:C1",
+                "member:D1"
+              ]
+            }
+          ],
+          "results": [
+            {
+              "subject_person_id": "person:A",
+              "covered_member_ids": [
+                "member:A1",
+                "member:A2"
+              ],
+              "memories": [
+                {
+                  "text": "与B约定周六九点在河边骑行。",
+                  "kind": "agreement",
+                  "state": "confirmed",
+                  "valid_until": null,
+                  "source_member_ids": [
+                    "member:A1",
+                    "member:B1",
+                    "member:A2"
+                  ],
+                  "prior_refs": [],
+                  "operation": "append",
+                  "importance": "normal",
+                  "retention": "short"
+                }
+              ],
+              "portrait": null
+            },
+            {
+              "subject_person_id": "person:B",
+              "covered_member_ids": [
+                "member:B1"
+              ],
+              "memories": [
+                {
+                  "text": "答应A周六九点去河边骑行。",
+                  "kind": "agreement",
+                  "state": "confirmed",
+                  "valid_until": null,
+                  "source_member_ids": [
+                    "member:A1",
+                    "member:B1",
+                    "member:A2"
+                  ],
+                  "prior_refs": [],
+                  "operation": "append",
+                  "importance": "normal",
+                  "retention": "short"
+                }
+              ],
+              "portrait": null
+            },
+            {
+              "subject_person_id": "person:C",
+              "covered_member_ids": [
+                "member:C1"
+              ],
+              "memories": [
+                {
+                  "text": "已将《星图》借给D，约定周一收回。",
+                  "kind": "agreement",
+                  "state": "confirmed",
+                  "valid_until": null,
+                  "source_member_ids": [
+                    "member:C1",
+                    "member:D1"
+                  ],
+                  "prior_refs": [],
+                  "operation": "append",
+                  "importance": "normal",
+                  "retention": "short"
+                }
+              ],
+              "portrait": null
+            },
+            {
+              "subject_person_id": "person:D",
+              "covered_member_ids": [
+                "member:D1"
+              ],
+              "memories": [
+                {
+                  "text": "已收到C借出的《星图》，答应周一归还。",
+                  "kind": "agreement",
+                  "state": "confirmed",
+                  "valid_until": null,
+                  "source_member_ids": [
+                    "member:C1",
+                    "member:D1"
+                  ],
+                  "prior_refs": [],
+                  "operation": "append",
+                  "importance": "normal",
+                  "retention": "short"
+                }
+              ],
+              "portrait": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "definition": "segment_receipt",
+      "document": {
+        "state": "completed",
+        "extraction_schema": 6,
+        "job_id": "job:ABCD",
+        "batch_ref": "batch:ABCD",
+        "segment_id": "segment:ABCD",
+        "results": [
+          {
+            "subject_person_id": "person:A",
+            "scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:A"
+            },
+            "covered_member_ids": [
+              "member:A1",
+              "member:A2"
+            ],
+            "memory_refs": [
+              {
+                "record_id": "record:A",
+                "record_version": 1
+              }
+            ],
+            "portrait_state": "not_requested",
+            "portrait_refs": []
+          },
+          {
+            "subject_person_id": "person:B",
+            "scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:B"
+            },
+            "covered_member_ids": [
+              "member:B1"
+            ],
+            "memory_refs": [
+              {
+                "record_id": "record:B",
+                "record_version": 1
+              }
+            ],
+            "portrait_state": "not_requested",
+            "portrait_refs": []
+          },
+          {
+            "subject_person_id": "person:C",
+            "scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:C"
+            },
+            "covered_member_ids": [
+              "member:C1"
+            ],
+            "memory_refs": [
+              {
+                "record_id": "record:C",
+                "record_version": 1
+              }
+            ],
+            "portrait_state": "not_requested",
+            "portrait_refs": []
+          },
+          {
+            "subject_person_id": "person:D",
+            "scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:D"
+            },
+            "covered_member_ids": [
+              "member:D1"
+            ],
+            "memory_refs": [
+              {
+                "record_id": "record:D",
+                "record_version": 1
+              }
+            ],
+            "portrait_state": "not_requested",
+            "portrait_refs": []
+          }
+        ],
+        "topics": [
+          {
+            "topic_id": "topic:ride",
+            "summary": "A与B约定周六九点去河边骑行。",
+            "person_ids": [
+              "person:A",
+              "person:B"
+            ],
+            "member_ids": [
+              "member:A1",
+              "member:B1",
+              "member:A2"
+            ]
+          },
+          {
+            "topic_id": "topic:book",
+            "summary": "C已将《星图》借给D，D答应周一归还。",
+            "person_ids": [
+              "person:C",
+              "person:D"
+            ],
+            "member_ids": [
+              "member:C1",
+              "member:D1"
+            ]
+          }
+        ],
+        "receipt_cursor": 1
+      }
+    },
+    {
+      "definition": "segment_invalidated_response",
+      "document": {
+        "state": "invalidated",
+        "extraction_schema": 6,
+        "job_id": "job:ABCD",
+        "batch_ref": null,
+        "result": null
+      }
+    },
+    {
+      "definition": "segment_portrait_input",
+      "document": {
+        "expected_revision": 0,
+        "summary_refs": [],
+        "summaries": [],
+        "current_text": "",
+        "subject_person_id": "person:A"
+      }
+    },
+    {
+      "definition": "segment_output",
+      "document": {
+        "extraction_schema": 6,
+        "topics": [
+          {
+            "topic_id": "topic:ride",
+            "summary": "A与B约定周六九点去河边骑行。",
+            "person_ids": [
+              "person:A",
+              "person:B"
+            ],
+            "member_ids": [
+              "member:A1",
+              "member:B1",
+              "member:A2"
+            ]
+          },
+          {
+            "topic_id": "topic:book",
+            "summary": "C已将《星图》借给D，D答应周一归还。",
+            "person_ids": [
+              "person:C",
+              "person:D"
+            ],
+            "member_ids": [
+              "member:C1",
+              "member:D1"
+            ]
+          }
+        ],
+        "results": [
+          {
+            "subject_person_id": "person:A",
+            "covered_member_ids": [
+              "member:A1",
+              "member:A2"
+            ],
+            "memories": [
+              {
+                "text": "与B约定周六九点在河边骑行。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:A1",
+                  "member:B1",
+                  "member:A2"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          },
+          {
+            "subject_person_id": "person:B",
+            "covered_member_ids": [
+              "member:B1"
+            ],
+            "memories": [
+              {
+                "text": "答应A周六九点去河边骑行。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:A1",
+                  "member:B1",
+                  "member:A2"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          },
+          {
+            "subject_person_id": "person:C",
+            "covered_member_ids": [
+              "member:C1"
+            ],
+            "memories": [
+              {
+                "text": "已将《星图》借给D，约定周一收回。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:C1",
+                  "member:D1"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          },
+          {
+            "subject_person_id": "person:D",
+            "covered_member_ids": [
+              "member:D1"
+            ],
+            "memories": [],
+            "portrait": null
+          }
+        ]
+      },
+      "name": "explicit-empty-person-is-covered"
+    },
+    {
+      "definition": "segment_unit",
+      "document": {
+        "record_id": "record:private-observation",
+        "record_version": 1,
+        "semantic_group_id": "group:private-observation",
+        "subject_person_id": "person:A",
+        "statement": "提到自己想在周六骑行。",
+        "conditions": [],
+        "negations": [],
+        "valid_time": "未说明有效时间",
+        "uncertainty": "inferred",
+        "reality": "real",
+        "visibility": "self_private",
+        "sources": [
+          {
+            "kind": "observation",
+            "owner": "platform",
+            "source_ref": "observation:example",
+            "source_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "scope_version": 1,
+            "archive_epoch": 1
+          }
+        ]
+      }
+    },
+    {
+      "schema": "memory-context-v2",
+      "definition": "summary_evidence",
+      "document": {
+        "evidence_id": "evidence:private-observation",
+        "subject_person_id": "person:A",
+        "owner_scope": {
+          "actor_id": "actor:segment-example",
+          "audience": "self_private",
+          "conversation_id": "conversation:segment-example",
+          "person_id": "person:A"
+        },
+        "source_refs": [
+          {
+            "kind": "observation",
+            "owner": "platform",
+            "source_ref": "observation:example",
+            "source_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "scope_version": 1,
+            "archive_epoch": 1
+          }
+        ],
+        "observed_at": "2026-10-25T12:00:00Z",
+        "valid_from": null,
+        "valid_to": null,
+        "kind": "summary",
+        "unit": {
+          "record_id": "record:private-observation",
+          "record_version": 1,
+          "semantic_group_id": "group:private-observation",
+          "subject_person_id": "person:A",
+          "statement": "提到自己想在周六骑行。",
+          "conditions": [],
+          "negations": [],
+          "valid_time": "未说明有效时间",
+          "uncertainty": "inferred",
+          "reality": "real",
+          "visibility": "self_private",
+          "sources": [
+            {
+              "kind": "observation",
+              "owner": "platform",
+              "source_ref": "observation:example",
+              "source_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "scope_version": 1,
+              "archive_epoch": 1
+            }
+          ]
+        },
+        "importance": "normal",
+        "expires_at": "2026-11-24T12:00:00Z",
+        "memory_kind": "thought",
+        "state": "considering",
+        "valid_until": null
+      }
+    }
+  ],
+  "negative_structure": [
+    {
+      "definition": "segment_output",
+      "document": {
+        "extraction_schema": 6,
+        "topics": [
+          {
+            "topic_id": "topic:ride",
+            "summary": "A与B约定周六九点去河边骑行。",
+            "person_ids": [
+              "person:A",
+              "person:B"
+            ],
+            "member_ids": [
+              "member:A1",
+              "member:B1",
+              "member:A2"
+            ]
+          },
+          {
+            "topic_id": "topic:book",
+            "summary": "C已将《星图》借给D，D答应周一归还。",
+            "person_ids": [
+              "person:C",
+              "person:D"
+            ],
+            "member_ids": [
+              "member:C1",
+              "member:D1"
+            ]
+          }
+        ],
+        "results": [
+          {
+            "covered_member_ids": [
+              "member:A1",
+              "member:A2"
+            ],
+            "memories": [
+              {
+                "text": "与B约定周六九点在河边骑行。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:A1",
+                  "member:B1",
+                  "member:A2"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          },
+          {
+            "subject_person_id": "person:B",
+            "covered_member_ids": [
+              "member:B1"
+            ],
+            "memories": [
+              {
+                "text": "答应A周六九点去河边骑行。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:A1",
+                  "member:B1",
+                  "member:A2"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          },
+          {
+            "subject_person_id": "person:C",
+            "covered_member_ids": [
+              "member:C1"
+            ],
+            "memories": [
+              {
+                "text": "已将《星图》借给D，约定周一收回。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:C1",
+                  "member:D1"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          },
+          {
+            "subject_person_id": "person:D",
+            "covered_member_ids": [
+              "member:D1"
+            ],
+            "memories": [
+              {
+                "text": "已收到C借出的《星图》，答应周一归还。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:C1",
+                  "member:D1"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          }
+        ]
+      },
+      "name": "missing-person-binding"
+    },
+    {
+      "definition": "segment_output",
+      "document": {
+        "extraction_schema": 6,
+        "topics": [
+          {
+            "topic_id": "topic:ride",
+            "summary": "A与B约定周六九点去河边骑行。",
+            "person_ids": [
+              "person:A",
+              "person:B"
+            ],
+            "member_ids": [
+              "member:A1",
+              "member:B1",
+              "member:A2"
+            ]
+          },
+          {
+            "topic_id": "topic:book",
+            "summary": "C已将《星图》借给D，D答应周一归还。",
+            "person_ids": [
+              "person:C",
+              "person:D"
+            ],
+            "member_ids": [
+              "member:C1",
+              "member:D1"
+            ]
+          }
+        ],
+        "results": [
+          {
+            "subject_person_id": "person:A",
+            "covered_member_ids": [
+              "member:A1",
+              "member:A2"
+            ],
+            "memories": [
+              {
+                "text": "与B约定周六九点在河边骑行。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:A1",
+                  "member:B1",
+                  "member:A2"
+                ],
+                "prior_refs": [],
+                "operation": "replace",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          },
+          {
+            "subject_person_id": "person:B",
+            "covered_member_ids": [
+              "member:B1"
+            ],
+            "memories": [
+              {
+                "text": "答应A周六九点去河边骑行。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:A1",
+                  "member:B1",
+                  "member:A2"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          },
+          {
+            "subject_person_id": "person:C",
+            "covered_member_ids": [
+              "member:C1"
+            ],
+            "memories": [
+              {
+                "text": "已将《星图》借给D，约定周一收回。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:C1",
+                  "member:D1"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          },
+          {
+            "subject_person_id": "person:D",
+            "covered_member_ids": [
+              "member:D1"
+            ],
+            "memories": [
+              {
+                "text": "已收到C借出的《星图》，答应周一归还。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:C1",
+                  "member:D1"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          }
+        ]
+      },
+      "name": "replace-needs-a-genuine-prior-reference"
+    },
+    {
+      "definition": "segment_observation_check_request",
+      "document": {
+        "operation": "segment",
+        "actor_id": null,
+        "instance_id": "instance:example",
+        "self_id": "90000",
+        "conversation_id": "unrelated:90001",
+        "sources": [
+          {
+            "source_ref": "observation:example",
+            "source_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "scope_version": 1,
+            "archive_epoch": 1
+          }
+        ]
+      },
+      "name": "physical-conversation-format"
+    },
+    {
+      "definition": "segment_output",
+      "document": {
+        "extraction_schema": 6,
+        "topics": [
+          {
+            "topic_id": "topic:ride",
+            "summary": "A与B约定周六九点去河边骑行。",
+            "person_ids": [
+              "person:A",
+              "person:B"
+            ],
+            "member_ids": [
+              "member:A1",
+              "member:B1",
+              "member:A2"
+            ]
+          },
+          {
+            "topic_id": "topic:book",
+            "summary": "C已将《星图》借给D，D答应周一归还。",
+            "person_ids": [
+              "person:C",
+              "person:D"
+            ],
+            "member_ids": [
+              "member:C1",
+              "member:D1"
+            ]
+          }
+        ],
+        "results": [
+          {
+            "subject_person_id": "person:A",
+            "covered_member_ids": [
+              "member:A1",
+              "member:A2"
+            ],
+            "memories": [
+              {
+                "text": "与B约定周六九点在河边骑行。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:A1",
+                  "member:B1",
+                  "member:A2"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null,
+            "scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:C"
+            }
+          },
+          {
+            "subject_person_id": "person:B",
+            "covered_member_ids": [
+              "member:B1"
+            ],
+            "memories": [
+              {
+                "text": "答应A周六九点去河边骑行。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:A1",
+                  "member:B1",
+                  "member:A2"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          },
+          {
+            "subject_person_id": "person:C",
+            "covered_member_ids": [
+              "member:C1"
+            ],
+            "memories": [
+              {
+                "text": "已将《星图》借给D，约定周一收回。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:C1",
+                  "member:D1"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          },
+          {
+            "subject_person_id": "person:D",
+            "covered_member_ids": [
+              "member:D1"
+            ],
+            "memories": [
+              {
+                "text": "已收到C借出的《星图》，答应周一归还。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:C1",
+                  "member:D1"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          }
+        ]
+      },
+      "name": "model-cannot-supply-write-scope"
+    }
+  ],
+  "negative_relations": [
+    {
+      "name": "missing-target-is-not-an-empty-result",
+      "window": {
+        "segment_id": "segment:ABCD",
+        "frame": {
+          "actor_id": "actor:segment-example",
+          "audience": "group",
+          "conversation_id": "conversation:segment-example"
+        },
+        "members": [
+          {
+            "member_id": "member:A1",
+            "kind": "observation",
+            "role": "human",
+            "speaker": {
+              "kind": "person",
+              "person_id": "person:A",
+              "account": {
+                "namespace": "qq",
+                "immutable_account_id": "10001"
+              }
+            },
+            "source_scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:A"
+            },
+            "binding_version": 1,
+            "reality": "real",
+            "observed_at": "2026-10-25T12:00:00Z",
+            "text": "我周六想骑车去河边，B有空吗？",
+            "content_sha256": "a87871a16493478be7b57c0703f6f64375c815109a9ba9990b7bdafbefe254c3",
+            "reply_refs": [],
+            "mentioned_accounts": []
+          },
+          {
+            "member_id": "member:C1",
+            "kind": "observation",
+            "role": "human",
+            "speaker": {
+              "kind": "person",
+              "person_id": "person:C",
+              "account": {
+                "namespace": "qq",
+                "immutable_account_id": "10003"
+              }
+            },
+            "source_scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:C"
+            },
+            "binding_version": 1,
+            "reality": "real",
+            "observed_at": "2026-10-25T12:00:00Z",
+            "text": "D，《星图》我已经借给你了，周一还我就好。",
+            "content_sha256": "6159a4279652ead96e013679764ba96a064e47f5fc7678514adef021e285e779",
+            "reply_refs": [],
+            "mentioned_accounts": []
+          },
+          {
+            "member_id": "member:B1",
+            "kind": "observation",
+            "role": "human",
+            "speaker": {
+              "kind": "person",
+              "person_id": "person:B",
+              "account": {
+                "namespace": "qq",
+                "immutable_account_id": "10002"
+              }
+            },
+            "source_scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:B"
+            },
+            "binding_version": 1,
+            "reality": "real",
+            "observed_at": "2026-10-25T12:00:00Z",
+            "text": "A，周六九点可以，我会去河边。",
+            "content_sha256": "dabc14c38f5fdbeb9448fb07cbf773eb3021baef154e1df332f56666d5d4997f",
+            "reply_refs": [],
+            "mentioned_accounts": []
+          },
+          {
+            "member_id": "member:D1",
+            "kind": "observation",
+            "role": "human",
+            "speaker": {
+              "kind": "person",
+              "person_id": "person:D",
+              "account": {
+                "namespace": "qq",
+                "immutable_account_id": "10004"
+              }
+            },
+            "source_scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:D"
+            },
+            "binding_version": 1,
+            "reality": "real",
+            "observed_at": "2026-10-25T12:00:00Z",
+            "text": "收到C的《星图》，我周一还你。",
+            "content_sha256": "a7e14682eb3fc523f41d926da1e2d275e901ce046b342213f5cdaa55d1144208",
+            "reply_refs": [],
+            "mentioned_accounts": []
+          },
+          {
+            "member_id": "member:A2",
+            "kind": "observation",
+            "role": "human",
+            "speaker": {
+              "kind": "person",
+              "person_id": "person:A",
+              "account": {
+                "namespace": "qq",
+                "immutable_account_id": "10001"
+              }
+            },
+            "source_scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:A"
+            },
+            "binding_version": 1,
+            "reality": "real",
+            "observed_at": "2026-10-25T12:00:00Z",
+            "text": "那就周六九点见。",
+            "content_sha256": "38d28e5f14ed5a5963b5f69a8125d212ce25237c7cf5690cf20dcd3cf5e28de3",
+            "reply_refs": [],
+            "mentioned_accounts": []
+          }
+        ],
+        "targets": [
+          {
+            "scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:A"
+            },
+            "new_member_ids": [
+              "member:A1",
+              "member:A2"
+            ],
+            "portrait_input": null,
+            "known_memories": []
+          },
+          {
+            "scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:B"
+            },
+            "new_member_ids": [
+              "member:B1"
+            ],
+            "portrait_input": null,
+            "known_memories": []
+          },
+          {
+            "scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:C"
+            },
+            "new_member_ids": [
+              "member:C1"
+            ],
+            "portrait_input": null,
+            "known_memories": []
+          },
+          {
+            "scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:D"
+            },
+            "new_member_ids": [
+              "member:D1"
+            ],
+            "portrait_input": null,
+            "known_memories": []
+          }
+        ],
+        "coverage": {
+          "complete_new": true,
+          "omitted_context": false
+        },
+        "window_id": "885cd825b94f27e17644e3982385c6b33a5ac923512174d358744a15ba716e87"
+      },
+      "output": {
+        "extraction_schema": 6,
+        "topics": [
+          {
+            "topic_id": "topic:ride",
+            "summary": "A与B约定周六九点去河边骑行。",
+            "person_ids": [
+              "person:A",
+              "person:B"
+            ],
+            "member_ids": [
+              "member:A1",
+              "member:B1",
+              "member:A2"
+            ]
+          },
+          {
+            "topic_id": "topic:book",
+            "summary": "C已将《星图》借给D，D答应周一归还。",
+            "person_ids": [
+              "person:C",
+              "person:D"
+            ],
+            "member_ids": [
+              "member:C1",
+              "member:D1"
+            ]
+          }
+        ],
+        "results": [
+          {
+            "subject_person_id": "person:A",
+            "covered_member_ids": [
+              "member:A1",
+              "member:A2"
+            ],
+            "memories": [
+              {
+                "text": "与B约定周六九点在河边骑行。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:A1",
+                  "member:B1",
+                  "member:A2"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          },
+          {
+            "subject_person_id": "person:B",
+            "covered_member_ids": [
+              "member:B1"
+            ],
+            "memories": [
+              {
+                "text": "答应A周六九点去河边骑行。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:A1",
+                  "member:B1",
+                  "member:A2"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          },
+          {
+            "subject_person_id": "person:C",
+            "covered_member_ids": [
+              "member:C1"
+            ],
+            "memories": [
+              {
+                "text": "已将《星图》借给D，约定周一收回。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:C1",
+                  "member:D1"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          }
+        ]
+      },
+      "expected": "relation_rejected_by_product_not_schema"
+    },
+    {
+      "name": "foreign-person-is-not-a-target",
+      "window": {
+        "segment_id": "segment:ABCD",
+        "frame": {
+          "actor_id": "actor:segment-example",
+          "audience": "group",
+          "conversation_id": "conversation:segment-example"
+        },
+        "members": [
+          {
+            "member_id": "member:A1",
+            "kind": "observation",
+            "role": "human",
+            "speaker": {
+              "kind": "person",
+              "person_id": "person:A",
+              "account": {
+                "namespace": "qq",
+                "immutable_account_id": "10001"
+              }
+            },
+            "source_scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:A"
+            },
+            "binding_version": 1,
+            "reality": "real",
+            "observed_at": "2026-10-25T12:00:00Z",
+            "text": "我周六想骑车去河边，B有空吗？",
+            "content_sha256": "a87871a16493478be7b57c0703f6f64375c815109a9ba9990b7bdafbefe254c3",
+            "reply_refs": [],
+            "mentioned_accounts": []
+          },
+          {
+            "member_id": "member:C1",
+            "kind": "observation",
+            "role": "human",
+            "speaker": {
+              "kind": "person",
+              "person_id": "person:C",
+              "account": {
+                "namespace": "qq",
+                "immutable_account_id": "10003"
+              }
+            },
+            "source_scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:C"
+            },
+            "binding_version": 1,
+            "reality": "real",
+            "observed_at": "2026-10-25T12:00:00Z",
+            "text": "D，《星图》我已经借给你了，周一还我就好。",
+            "content_sha256": "6159a4279652ead96e013679764ba96a064e47f5fc7678514adef021e285e779",
+            "reply_refs": [],
+            "mentioned_accounts": []
+          },
+          {
+            "member_id": "member:B1",
+            "kind": "observation",
+            "role": "human",
+            "speaker": {
+              "kind": "person",
+              "person_id": "person:B",
+              "account": {
+                "namespace": "qq",
+                "immutable_account_id": "10002"
+              }
+            },
+            "source_scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:B"
+            },
+            "binding_version": 1,
+            "reality": "real",
+            "observed_at": "2026-10-25T12:00:00Z",
+            "text": "A，周六九点可以，我会去河边。",
+            "content_sha256": "dabc14c38f5fdbeb9448fb07cbf773eb3021baef154e1df332f56666d5d4997f",
+            "reply_refs": [],
+            "mentioned_accounts": []
+          },
+          {
+            "member_id": "member:D1",
+            "kind": "observation",
+            "role": "human",
+            "speaker": {
+              "kind": "person",
+              "person_id": "person:D",
+              "account": {
+                "namespace": "qq",
+                "immutable_account_id": "10004"
+              }
+            },
+            "source_scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:D"
+            },
+            "binding_version": 1,
+            "reality": "real",
+            "observed_at": "2026-10-25T12:00:00Z",
+            "text": "收到C的《星图》，我周一还你。",
+            "content_sha256": "a7e14682eb3fc523f41d926da1e2d275e901ce046b342213f5cdaa55d1144208",
+            "reply_refs": [],
+            "mentioned_accounts": []
+          },
+          {
+            "member_id": "member:A2",
+            "kind": "observation",
+            "role": "human",
+            "speaker": {
+              "kind": "person",
+              "person_id": "person:A",
+              "account": {
+                "namespace": "qq",
+                "immutable_account_id": "10001"
+              }
+            },
+            "source_scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:A"
+            },
+            "binding_version": 1,
+            "reality": "real",
+            "observed_at": "2026-10-25T12:00:00Z",
+            "text": "那就周六九点见。",
+            "content_sha256": "38d28e5f14ed5a5963b5f69a8125d212ce25237c7cf5690cf20dcd3cf5e28de3",
+            "reply_refs": [],
+            "mentioned_accounts": []
+          }
+        ],
+        "targets": [
+          {
+            "scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:A"
+            },
+            "new_member_ids": [
+              "member:A1",
+              "member:A2"
+            ],
+            "portrait_input": null,
+            "known_memories": []
+          },
+          {
+            "scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:B"
+            },
+            "new_member_ids": [
+              "member:B1"
+            ],
+            "portrait_input": null,
+            "known_memories": []
+          },
+          {
+            "scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:C"
+            },
+            "new_member_ids": [
+              "member:C1"
+            ],
+            "portrait_input": null,
+            "known_memories": []
+          },
+          {
+            "scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:D"
+            },
+            "new_member_ids": [
+              "member:D1"
+            ],
+            "portrait_input": null,
+            "known_memories": []
+          }
+        ],
+        "coverage": {
+          "complete_new": true,
+          "omitted_context": false
+        },
+        "window_id": "885cd825b94f27e17644e3982385c6b33a5ac923512174d358744a15ba716e87"
+      },
+      "output": {
+        "extraction_schema": 6,
+        "topics": [
+          {
+            "topic_id": "topic:ride",
+            "summary": "A与B约定周六九点去河边骑行。",
+            "person_ids": [
+              "person:A",
+              "person:B"
+            ],
+            "member_ids": [
+              "member:A1",
+              "member:B1",
+              "member:A2"
+            ]
+          },
+          {
+            "topic_id": "topic:book",
+            "summary": "C已将《星图》借给D，D答应周一归还。",
+            "person_ids": [
+              "person:C",
+              "person:D"
+            ],
+            "member_ids": [
+              "member:C1",
+              "member:D1"
+            ]
+          }
+        ],
+        "results": [
+          {
+            "subject_person_id": "person:outsider",
+            "covered_member_ids": [
+              "member:A1",
+              "member:A2"
+            ],
+            "memories": [
+              {
+                "text": "与B约定周六九点在河边骑行。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:A1",
+                  "member:B1",
+                  "member:A2"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          },
+          {
+            "subject_person_id": "person:B",
+            "covered_member_ids": [
+              "member:B1"
+            ],
+            "memories": [
+              {
+                "text": "答应A周六九点去河边骑行。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:A1",
+                  "member:B1",
+                  "member:A2"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          },
+          {
+            "subject_person_id": "person:C",
+            "covered_member_ids": [
+              "member:C1"
+            ],
+            "memories": [
+              {
+                "text": "已将《星图》借给D，约定周一收回。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:C1",
+                  "member:D1"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          },
+          {
+            "subject_person_id": "person:D",
+            "covered_member_ids": [
+              "member:D1"
+            ],
+            "memories": [
+              {
+                "text": "已收到C借出的《星图》，答应周一归还。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:C1",
+                  "member:D1"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          }
+        ]
+      },
+      "expected": "relation_rejected_by_product_not_schema"
+    },
+    {
+      "name": "covering-other-person-is-invalid",
+      "window": {
+        "segment_id": "segment:ABCD",
+        "frame": {
+          "actor_id": "actor:segment-example",
+          "audience": "group",
+          "conversation_id": "conversation:segment-example"
+        },
+        "members": [
+          {
+            "member_id": "member:A1",
+            "kind": "observation",
+            "role": "human",
+            "speaker": {
+              "kind": "person",
+              "person_id": "person:A",
+              "account": {
+                "namespace": "qq",
+                "immutable_account_id": "10001"
+              }
+            },
+            "source_scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:A"
+            },
+            "binding_version": 1,
+            "reality": "real",
+            "observed_at": "2026-10-25T12:00:00Z",
+            "text": "我周六想骑车去河边，B有空吗？",
+            "content_sha256": "a87871a16493478be7b57c0703f6f64375c815109a9ba9990b7bdafbefe254c3",
+            "reply_refs": [],
+            "mentioned_accounts": []
+          },
+          {
+            "member_id": "member:C1",
+            "kind": "observation",
+            "role": "human",
+            "speaker": {
+              "kind": "person",
+              "person_id": "person:C",
+              "account": {
+                "namespace": "qq",
+                "immutable_account_id": "10003"
+              }
+            },
+            "source_scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:C"
+            },
+            "binding_version": 1,
+            "reality": "real",
+            "observed_at": "2026-10-25T12:00:00Z",
+            "text": "D，《星图》我已经借给你了，周一还我就好。",
+            "content_sha256": "6159a4279652ead96e013679764ba96a064e47f5fc7678514adef021e285e779",
+            "reply_refs": [],
+            "mentioned_accounts": []
+          },
+          {
+            "member_id": "member:B1",
+            "kind": "observation",
+            "role": "human",
+            "speaker": {
+              "kind": "person",
+              "person_id": "person:B",
+              "account": {
+                "namespace": "qq",
+                "immutable_account_id": "10002"
+              }
+            },
+            "source_scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:B"
+            },
+            "binding_version": 1,
+            "reality": "real",
+            "observed_at": "2026-10-25T12:00:00Z",
+            "text": "A，周六九点可以，我会去河边。",
+            "content_sha256": "dabc14c38f5fdbeb9448fb07cbf773eb3021baef154e1df332f56666d5d4997f",
+            "reply_refs": [],
+            "mentioned_accounts": []
+          },
+          {
+            "member_id": "member:D1",
+            "kind": "observation",
+            "role": "human",
+            "speaker": {
+              "kind": "person",
+              "person_id": "person:D",
+              "account": {
+                "namespace": "qq",
+                "immutable_account_id": "10004"
+              }
+            },
+            "source_scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:D"
+            },
+            "binding_version": 1,
+            "reality": "real",
+            "observed_at": "2026-10-25T12:00:00Z",
+            "text": "收到C的《星图》，我周一还你。",
+            "content_sha256": "a7e14682eb3fc523f41d926da1e2d275e901ce046b342213f5cdaa55d1144208",
+            "reply_refs": [],
+            "mentioned_accounts": []
+          },
+          {
+            "member_id": "member:A2",
+            "kind": "observation",
+            "role": "human",
+            "speaker": {
+              "kind": "person",
+              "person_id": "person:A",
+              "account": {
+                "namespace": "qq",
+                "immutable_account_id": "10001"
+              }
+            },
+            "source_scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:A"
+            },
+            "binding_version": 1,
+            "reality": "real",
+            "observed_at": "2026-10-25T12:00:00Z",
+            "text": "那就周六九点见。",
+            "content_sha256": "38d28e5f14ed5a5963b5f69a8125d212ce25237c7cf5690cf20dcd3cf5e28de3",
+            "reply_refs": [],
+            "mentioned_accounts": []
+          }
+        ],
+        "targets": [
+          {
+            "scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:A"
+            },
+            "new_member_ids": [
+              "member:A1",
+              "member:A2"
+            ],
+            "portrait_input": null,
+            "known_memories": []
+          },
+          {
+            "scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:B"
+            },
+            "new_member_ids": [
+              "member:B1"
+            ],
+            "portrait_input": null,
+            "known_memories": []
+          },
+          {
+            "scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:C"
+            },
+            "new_member_ids": [
+              "member:C1"
+            ],
+            "portrait_input": null,
+            "known_memories": []
+          },
+          {
+            "scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:D"
+            },
+            "new_member_ids": [
+              "member:D1"
+            ],
+            "portrait_input": null,
+            "known_memories": []
+          }
+        ],
+        "coverage": {
+          "complete_new": true,
+          "omitted_context": false
+        },
+        "window_id": "885cd825b94f27e17644e3982385c6b33a5ac923512174d358744a15ba716e87"
+      },
+      "output": {
+        "extraction_schema": 6,
+        "topics": [
+          {
+            "topic_id": "topic:ride",
+            "summary": "A与B约定周六九点去河边骑行。",
+            "person_ids": [
+              "person:A",
+              "person:B"
+            ],
+            "member_ids": [
+              "member:A1",
+              "member:B1",
+              "member:A2"
+            ]
+          },
+          {
+            "topic_id": "topic:book",
+            "summary": "C已将《星图》借给D，D答应周一归还。",
+            "person_ids": [
+              "person:C",
+              "person:D"
+            ],
+            "member_ids": [
+              "member:C1",
+              "member:D1"
+            ]
+          }
+        ],
+        "results": [
+          {
+            "subject_person_id": "person:A",
+            "covered_member_ids": [
+              "member:C1"
+            ],
+            "memories": [
+              {
+                "text": "与B约定周六九点在河边骑行。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:A1",
+                  "member:B1",
+                  "member:A2"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          },
+          {
+            "subject_person_id": "person:B",
+            "covered_member_ids": [
+              "member:B1"
+            ],
+            "memories": [
+              {
+                "text": "答应A周六九点去河边骑行。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:A1",
+                  "member:B1",
+                  "member:A2"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          },
+          {
+            "subject_person_id": "person:C",
+            "covered_member_ids": [
+              "member:C1"
+            ],
+            "memories": [
+              {
+                "text": "已将《星图》借给D，约定周一收回。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:C1",
+                  "member:D1"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          },
+          {
+            "subject_person_id": "person:D",
+            "covered_member_ids": [
+              "member:D1"
+            ],
+            "memories": [
+              {
+                "text": "已收到C借出的《星图》，答应周一归还。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:C1",
+                  "member:D1"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          }
+        ]
+      },
+      "expected": "relation_rejected_by_product_not_schema"
+    },
+    {
+      "name": "unprovided-reference-is-invalid",
+      "window": {
+        "segment_id": "segment:ABCD",
+        "frame": {
+          "actor_id": "actor:segment-example",
+          "audience": "group",
+          "conversation_id": "conversation:segment-example"
+        },
+        "members": [
+          {
+            "member_id": "member:A1",
+            "kind": "observation",
+            "role": "human",
+            "speaker": {
+              "kind": "person",
+              "person_id": "person:A",
+              "account": {
+                "namespace": "qq",
+                "immutable_account_id": "10001"
+              }
+            },
+            "source_scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:A"
+            },
+            "binding_version": 1,
+            "reality": "real",
+            "observed_at": "2026-10-25T12:00:00Z",
+            "text": "我周六想骑车去河边，B有空吗？",
+            "content_sha256": "a87871a16493478be7b57c0703f6f64375c815109a9ba9990b7bdafbefe254c3",
+            "reply_refs": [],
+            "mentioned_accounts": []
+          },
+          {
+            "member_id": "member:C1",
+            "kind": "observation",
+            "role": "human",
+            "speaker": {
+              "kind": "person",
+              "person_id": "person:C",
+              "account": {
+                "namespace": "qq",
+                "immutable_account_id": "10003"
+              }
+            },
+            "source_scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:C"
+            },
+            "binding_version": 1,
+            "reality": "real",
+            "observed_at": "2026-10-25T12:00:00Z",
+            "text": "D，《星图》我已经借给你了，周一还我就好。",
+            "content_sha256": "6159a4279652ead96e013679764ba96a064e47f5fc7678514adef021e285e779",
+            "reply_refs": [],
+            "mentioned_accounts": []
+          },
+          {
+            "member_id": "member:B1",
+            "kind": "observation",
+            "role": "human",
+            "speaker": {
+              "kind": "person",
+              "person_id": "person:B",
+              "account": {
+                "namespace": "qq",
+                "immutable_account_id": "10002"
+              }
+            },
+            "source_scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:B"
+            },
+            "binding_version": 1,
+            "reality": "real",
+            "observed_at": "2026-10-25T12:00:00Z",
+            "text": "A，周六九点可以，我会去河边。",
+            "content_sha256": "dabc14c38f5fdbeb9448fb07cbf773eb3021baef154e1df332f56666d5d4997f",
+            "reply_refs": [],
+            "mentioned_accounts": []
+          },
+          {
+            "member_id": "member:D1",
+            "kind": "observation",
+            "role": "human",
+            "speaker": {
+              "kind": "person",
+              "person_id": "person:D",
+              "account": {
+                "namespace": "qq",
+                "immutable_account_id": "10004"
+              }
+            },
+            "source_scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:D"
+            },
+            "binding_version": 1,
+            "reality": "real",
+            "observed_at": "2026-10-25T12:00:00Z",
+            "text": "收到C的《星图》，我周一还你。",
+            "content_sha256": "a7e14682eb3fc523f41d926da1e2d275e901ce046b342213f5cdaa55d1144208",
+            "reply_refs": [],
+            "mentioned_accounts": []
+          },
+          {
+            "member_id": "member:A2",
+            "kind": "observation",
+            "role": "human",
+            "speaker": {
+              "kind": "person",
+              "person_id": "person:A",
+              "account": {
+                "namespace": "qq",
+                "immutable_account_id": "10001"
+              }
+            },
+            "source_scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:A"
+            },
+            "binding_version": 1,
+            "reality": "real",
+            "observed_at": "2026-10-25T12:00:00Z",
+            "text": "那就周六九点见。",
+            "content_sha256": "38d28e5f14ed5a5963b5f69a8125d212ce25237c7cf5690cf20dcd3cf5e28de3",
+            "reply_refs": [],
+            "mentioned_accounts": []
+          }
+        ],
+        "targets": [
+          {
+            "scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:A"
+            },
+            "new_member_ids": [
+              "member:A1",
+              "member:A2"
+            ],
+            "portrait_input": null,
+            "known_memories": []
+          },
+          {
+            "scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:B"
+            },
+            "new_member_ids": [
+              "member:B1"
+            ],
+            "portrait_input": null,
+            "known_memories": []
+          },
+          {
+            "scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:C"
+            },
+            "new_member_ids": [
+              "member:C1"
+            ],
+            "portrait_input": null,
+            "known_memories": []
+          },
+          {
+            "scope": {
+              "actor_id": "actor:segment-example",
+              "audience": "group",
+              "conversation_id": "conversation:segment-example",
+              "person_id": "person:D"
+            },
+            "new_member_ids": [
+              "member:D1"
+            ],
+            "portrait_input": null,
+            "known_memories": []
+          }
+        ],
+        "coverage": {
+          "complete_new": true,
+          "omitted_context": false
+        },
+        "window_id": "885cd825b94f27e17644e3982385c6b33a5ac923512174d358744a15ba716e87"
+      },
+      "output": {
+        "extraction_schema": 6,
+        "topics": [
+          {
+            "topic_id": "topic:ride",
+            "summary": "A与B约定周六九点去河边骑行。",
+            "person_ids": [
+              "person:A",
+              "person:B"
+            ],
+            "member_ids": [
+              "member:A1",
+              "member:B1",
+              "member:A2"
+            ]
+          },
+          {
+            "topic_id": "topic:book",
+            "summary": "C已将《星图》借给D，D答应周一归还。",
+            "person_ids": [
+              "person:C",
+              "person:D"
+            ],
+            "member_ids": [
+              "member:C1",
+              "member:D1"
+            ]
+          }
+        ],
+        "results": [
+          {
+            "subject_person_id": "person:A",
+            "covered_member_ids": [
+              "member:A1",
+              "member:A2"
+            ],
+            "memories": [
+              {
+                "text": "与B约定周六九点在河边骑行。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:unprovided"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          },
+          {
+            "subject_person_id": "person:B",
+            "covered_member_ids": [
+              "member:B1"
+            ],
+            "memories": [
+              {
+                "text": "答应A周六九点去河边骑行。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:A1",
+                  "member:B1",
+                  "member:A2"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          },
+          {
+            "subject_person_id": "person:C",
+            "covered_member_ids": [
+              "member:C1"
+            ],
+            "memories": [
+              {
+                "text": "已将《星图》借给D，约定周一收回。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:C1",
+                  "member:D1"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          },
+          {
+            "subject_person_id": "person:D",
+            "covered_member_ids": [
+              "member:D1"
+            ],
+            "memories": [
+              {
+                "text": "已收到C借出的《星图》，答应周一归还。",
+                "kind": "agreement",
+                "state": "confirmed",
+                "valid_until": null,
+                "source_member_ids": [
+                  "member:C1",
+                  "member:D1"
+                ],
+                "prior_refs": [],
+                "operation": "append",
+                "importance": "normal",
+                "retention": "short"
+              }
+            ],
+            "portrait": null
+          }
+        ]
+      },
+      "expected": "relation_rejected_by_product_not_schema"
+    }
+  ]
+}

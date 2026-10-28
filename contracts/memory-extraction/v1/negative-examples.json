@@ -1,0 +1,443 @@
+[
+  {
+    "name": "extraction-negative-retract-cross-modality",
+    "case": {
+      "read_request": {
+        "job_id": "job:q21",
+        "output": null,
+        "supported_extraction_schemas": [
+          3,
+          4
+        ]
+      },
+      "pending_response": {
+        "state": "pending",
+        "result": null,
+        "content": [
+          {
+            "index": 0,
+            "text": "撤回我的玻璃杯在玄关柜那项记录。",
+            "sent_at": "2026-10-23T10:00:00Z"
+          }
+        ],
+        "extraction_schema": 4,
+        "known_facts": [
+          {
+            "conditions": [],
+            "negations": [],
+            "valid_time": "未说明有效时间",
+            "representation": "canonical",
+            "fact": {
+              "subject": {
+                "kind": "entity",
+                "id": "entity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "type": "cup",
+                "mention": "我的玻璃杯"
+              },
+              "predicate": "object.location",
+              "value": "玄关柜",
+              "cardinality": "single",
+              "modality": "asserted",
+              "state": "current",
+              "valid_from": null,
+              "valid_to": null,
+              "keywords": [
+                "杯子",
+                "位置"
+              ]
+            },
+            "legacy_fact": null,
+            "legacy_statement": null,
+            "target_refs": [
+              {
+                "group_id": "group:old-location",
+                "record_id": "record:old-location",
+                "record_version": 1
+              }
+            ],
+            "superseded": false
+          }
+        ]
+      },
+      "submit_request": {
+        "job_id": "job:q21",
+        "extraction_schema": 4,
+        "output": {
+          "memories": [
+            {
+              "conditions": [],
+              "negations": [],
+              "valid_time": "未说明有效时间",
+              "evidence": [
+                {
+                  "source_index": 0,
+                  "quote": "撤回我的玻璃杯在玄关柜那项记录。"
+                }
+              ],
+              "fact": {
+                "subject": {
+                  "kind": "entity",
+                  "id": "entity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "type": "cup",
+                  "mention": "我的玻璃杯"
+                },
+                "predicate": "object.location",
+                "value": "玄关柜",
+                "cardinality": "single",
+                "modality": "planned",
+                "state": "current",
+                "valid_from": null,
+                "valid_to": null,
+                "keywords": [
+                  "杯子",
+                  "位置"
+                ],
+                "operation": "retract",
+                "target_refs": [
+                  {
+                    "group_id": "group:old-location",
+                    "record_id": "record:old-location",
+                    "record_version": 1
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "completed_response": {
+        "state": "completed",
+        "result": {
+          "state": "committed",
+          "record_ids": [
+            "record:new-location"
+          ],
+          "group_ids": [
+            "group:new-location"
+          ]
+        },
+        "content": [],
+        "extraction_schema": 4
+      },
+      "fixture_authority": {
+        "job_schema": 4,
+        "scope": {
+          "actor_id": "actor:q21",
+          "person_id": "person:lin",
+          "audience": "group",
+          "conversation_id": "room:q21"
+        },
+        "target_owner_scope": {
+          "actor_id": "actor:q21",
+          "person_id": "person:lin",
+          "audience": "group",
+          "conversation_id": "room:q21"
+        }
+      }
+    },
+    "expected": "semantic_rejected",
+    "rule": "retract_must_preserve_exact_target_modality"
+  },
+  {
+    "name": "extraction-negative-confirm-cross-modality",
+    "case": {
+      "read_request": {
+        "job_id": "job:q21",
+        "output": null,
+        "supported_extraction_schemas": [
+          3,
+          4
+        ]
+      },
+      "pending_response": {
+        "state": "pending",
+        "result": null,
+        "content": [
+          {
+            "index": 0,
+            "text": "我确认我的玻璃杯仍在玄关柜。",
+            "sent_at": "2026-10-23T10:00:00Z"
+          }
+        ],
+        "extraction_schema": 4,
+        "known_facts": [
+          {
+            "conditions": [],
+            "negations": [],
+            "valid_time": "未说明有效时间",
+            "representation": "canonical",
+            "fact": {
+              "subject": {
+                "kind": "entity",
+                "id": "entity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "type": "cup",
+                "mention": "我的玻璃杯"
+              },
+              "predicate": "object.location",
+              "value": "玄关柜",
+              "cardinality": "single",
+              "modality": "asserted",
+              "state": "current",
+              "valid_from": null,
+              "valid_to": null,
+              "keywords": [
+                "杯子",
+                "位置"
+              ]
+            },
+            "legacy_fact": null,
+            "legacy_statement": null,
+            "target_refs": [
+              {
+                "group_id": "group:old-location",
+                "record_id": "record:old-location",
+                "record_version": 1
+              }
+            ],
+            "superseded": false
+          }
+        ]
+      },
+      "submit_request": {
+        "job_id": "job:q21",
+        "extraction_schema": 4,
+        "output": {
+          "memories": [
+            {
+              "conditions": [],
+              "negations": [],
+              "valid_time": "未说明有效时间",
+              "evidence": [
+                {
+                  "source_index": 0,
+                  "quote": "我确认我的玻璃杯仍在玄关柜。"
+                }
+              ],
+              "fact": {
+                "subject": {
+                  "kind": "entity",
+                  "id": "entity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "type": "cup",
+                  "mention": "我的玻璃杯"
+                },
+                "predicate": "object.location",
+                "value": "玄关柜",
+                "cardinality": "single",
+                "modality": "planned",
+                "state": "current",
+                "valid_from": null,
+                "valid_to": null,
+                "keywords": [
+                  "杯子",
+                  "位置"
+                ],
+                "operation": "confirm",
+                "target_refs": [
+                  {
+                    "group_id": "group:old-location",
+                    "record_id": "record:old-location",
+                    "record_version": 1
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "completed_response": {
+        "state": "completed",
+        "result": {
+          "state": "committed",
+          "record_ids": [
+            "record:new-location"
+          ],
+          "group_ids": [
+            "group:new-location"
+          ]
+        },
+        "content": [],
+        "extraction_schema": 4
+      },
+      "fixture_authority": {
+        "job_schema": 4,
+        "scope": {
+          "actor_id": "actor:q21",
+          "person_id": "person:lin",
+          "audience": "group",
+          "conversation_id": "room:q21"
+        },
+        "target_owner_scope": {
+          "actor_id": "actor:q21",
+          "person_id": "person:lin",
+          "audience": "group",
+          "conversation_id": "room:q21"
+        }
+      }
+    },
+    "expected": "semantic_rejected",
+    "rule": "confirm_must_preserve_exact_target_modality"
+  },
+  {
+    "name": "extraction-negative-cross-owner",
+    "case": {
+      "read_request": {
+        "job_id": "job:q21",
+        "output": null,
+        "supported_extraction_schemas": [
+          3,
+          4
+        ]
+      },
+      "pending_response": {
+        "state": "pending",
+        "result": null,
+        "content": [
+          {
+            "index": 0,
+            "text": "我的玻璃杯现在放餐桌。",
+            "sent_at": "2026-10-23T10:00:00Z"
+          }
+        ],
+        "extraction_schema": 4,
+        "known_facts": [
+          {
+            "conditions": [],
+            "negations": [],
+            "valid_time": "未说明有效时间",
+            "representation": "canonical",
+            "fact": {
+              "subject": {
+                "kind": "entity",
+                "id": "entity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "type": "cup",
+                "mention": "我的玻璃杯"
+              },
+              "predicate": "object.location",
+              "value": "玄关柜",
+              "cardinality": "single",
+              "modality": "asserted",
+              "state": "current",
+              "valid_from": null,
+              "valid_to": null,
+              "keywords": [
+                "杯子",
+                "位置"
+              ]
+            },
+            "legacy_fact": null,
+            "legacy_statement": null,
+            "target_refs": [
+              {
+                "group_id": "group:old-location",
+                "record_id": "record:old-location",
+                "record_version": 1
+              }
+            ],
+            "superseded": false
+          }
+        ]
+      },
+      "submit_request": {
+        "job_id": "job:q21",
+        "extraction_schema": 4,
+        "output": {
+          "memories": [
+            {
+              "conditions": [],
+              "negations": [],
+              "valid_time": "未说明有效时间",
+              "evidence": [
+                {
+                  "source_index": 0,
+                  "quote": "我的玻璃杯现在放餐桌。"
+                }
+              ],
+              "fact": {
+                "subject": {
+                  "kind": "entity",
+                  "id": "entity:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "type": "cup",
+                  "mention": "我的玻璃杯"
+                },
+                "predicate": "object.location",
+                "value": "餐桌",
+                "cardinality": "single",
+                "modality": "asserted",
+                "state": "current",
+                "valid_from": null,
+                "valid_to": null,
+                "keywords": [
+                  "杯子",
+                  "位置"
+                ],
+                "operation": "replace",
+                "target_refs": [
+                  {
+                    "group_id": "group:old-location",
+                    "record_id": "record:old-location",
+                    "record_version": 1
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "completed_response": {
+        "state": "completed",
+        "result": {
+          "state": "committed",
+          "record_ids": [
+            "record:new-location"
+          ],
+          "group_ids": [
+            "group:new-location"
+          ]
+        },
+        "content": [],
+        "extraction_schema": 4
+      },
+      "fixture_authority": {
+        "job_schema": 4,
+        "scope": {
+          "actor_id": "actor:q21",
+          "person_id": "person:lin",
+          "audience": "group",
+          "conversation_id": "room:q21"
+        },
+        "target_owner_scope": {
+          "actor_id": "actor:q21",
+          "person_id": "person:lin",
+          "audience": "group",
+          "conversation_id": "room:foreign"
+        }
+      }
+    },
+    "expected": "semantic_rejected",
+    "rule": "targets_same_owner_subject_predicate"
+  },
+  {
+    "name": "extraction-negative-missing-fact",
+    "definition": "submit_request",
+    "document": {
+      "job_id": "job:q21",
+      "extraction_schema": 4,
+      "output": {
+        "memories": [
+          {
+            "conditions": [],
+            "negations": [],
+            "valid_time": "未说明有效时间",
+            "evidence": [
+              {
+                "source_index": 0,
+                "quote": "我的玻璃杯现在放餐桌。"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "expected": "schema_rejected"
+  }
+]
