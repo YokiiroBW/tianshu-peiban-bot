@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-28",
+  "status": "pushed_deployed_production_verified_with_explicit_limits",
+  "image": "sha256:f1d30d60e0b6afe43c0ae6a2cd9a24a01b7bbb47cd06c9fe7a71f6c06bc75288",
+  "container": "bdb1f876044f8d3536c53c2448437b2aa9e3148c8d2a1c42ca36be8278f7decf",
+  "application": "48eee53d6ba97efae5c44385cb53a894ffa0c215",
+  "products": {
+    "memory": "9453e5e3fd43c80a41f9bd4601f0181e2e7c6db5",
+    "companion": "16ca5a81490255a892d697d80b5be0fa43644688",
+    "platform_runtime": "177e2eb25a104a9d58bfb71f53040baa481ddbf6",
+    "platform_main": "4ef6edb922e14b66d5a252e70f518c4bc70ff907",
+    "gateway": "0f491be3573af9257703b7871aaa746598d66b9f"
+  },
+  "root_history_merge": "75a815f888f216adaf3a19051060f288eb62e973",
+  "root_frozen_contract_snapshot": "82f9feba5fb654b40ea7f14de0db1bd4b22a9dea",
+  "push_method": "ordinary_non_force_fast_forward_main",
+  "runtime_contract_baseline": "R15 actual per-owner frozen trees, not stale coordinator contract directories",
+  "config": {
+    "status": "r15_configuration_preserved",
+    "config_files": 1126,
+    "changed_config_files": [
+      "private/gateway.env"
+    ],
+    "gateway_env_changed_lines": 1,
+    "scope_and_permissions_unchanged": true,
+    "compose_change": "immutable_image_only",
+    "original_guard_failure_preserved": true,
+    "production_database_restore_or_migration": false,
+    "logs_cleared": false,
+    "observed_at": 1793175360.8230793
+  },
+  "backup": {
+    "coverage": "current logical PostgreSQL, three source guards, exact bindings, config, compose, systemd and prior guard controls",
+    "logical_sources": 25,
+    "namespaces": 6,
+    "guards": 3,
+    "postgresql_bytes": 16512054,
+    "config_files": 1126,
+    "config_bytes": 14812950,
+    "scratch_restore_verified": true,
+    "scratch_removed": true,
+    "source_unchanged": true,
+    "physical_backup": false,
+    "media_copied": false
+  },
+  "validation": {
+    "accepted_module_bytes_reused": true,
+    "unchanged_wheels": 64,
+    "unchanged_application_files": 56,
+    "unchanged_frontend_files": 71,
+    "ready_http_200_total": 20,
+    "namespace_readonly": 25,
+    "actor_guard": true,
+    "origin_age_second_wave": 312.083,
+    "six_modules": true,
+    "five_observation_engines": true,
+    "comic_plugin": true,
+    "old13_cold": true,
+    "new_guard_generation": "/srv/tianshu-tooling/unified-capacity-20261028-r8"
+  },
+  "incident": {
+    "reason": "host_free_floor_reached",
+    "floor_bytes": 21474836480,
+    "old_guard_failure_preserved": true,
+    "original_owner_exit_code": 0,
+    "oom": false,
+    "business_mutation_by_first_backup": false,
+    "duplicate_build_input_bytes_removed": 946505883,
+    "normal_stop_finished_at": "2026-10-28T07:41:15.748596815Z",
+    "new_start_at": 1793175060.9035528,
+    "downtime_seconds": 1785.155,
+    "no_threshold_reduction": true
+  },
+  "tool_failures": [
+    {
+      "stage": "cold-first-attempt",
+      "reason": "healthy_r14_required after pre-existing capacity normal stop",
+      "production_backup_or_stop_started": false
+    },
+    {
+      "stage": "postchecks-r1",
+      "reason": "UID10001 cannot signal root PID1; aligned runtime check with native Docker health UID0"
+    },
+    {
+      "stage": "postchecks-r1b",
+      "reason": "auxiliary graph user variable replacement; passed ready/namespace reused in completed first receipt"
+    }
+  ],
+  "limits": [
+    "No real QQ login/send or paid model acceptance",
+    "No external media/account action or authenticated browser business flow",
+    "No new full business replay; exact installed bytes reuse accepted SQLite/PG joint results",
+    "No full physical/media disaster recovery snapshot",
+    "No claim all 18 items complete or all component suites green; prior wave3 limitations retained"
+  ],
+  "evidence": [
+    {
+      "file": "build-result.json",
+      "sha256": "6fdbb90d10855aa499c9f16ecb43d81a1700bcdf9c55fec2616200c40a72293f"
+    },
+    {
+      "file": "cold-r15-r2--cold-backup.json",
+      "sha256": "94759611888df9ca80749a4058a43200a694f6ed77ff77a7a0695e2416b79b32"
+    },
+    {
+      "file": "config-preserved.json",
+      "sha256": "2a4949279fb672b66bafbcfe9b9596218262cd92d5806b56e84a6e3067127b7f"
+    },
+    {
+      "file": "old-build-image-cleanup-5381590fabd24ca6a46d8abba8dfe73f.json",
+      "sha256": "a50c97959de69ea1a5c9eeac7c2e2fe6fc7ba6ac0cd9948ab62170aacbed71bc"
+    },
+    {
+      "file": "origin-renewal.json",
+      "sha256": "47b13a64ece64750243d2b28124afe332ff867fcee3360b3d75dfa8b00d91001"
+    },
+    {
+      "file": "postchecks-r1-complete.json",
+      "sha256": "7d875b7cc29e6296fd2dc6af4c675768250ce15b20159d26123e484815818361"
+    },
+    {
+      "file": "postchecks-r1.json",
+      "sha256": "c2ef48e2e080fafcf127cd76380aac23afbd1acc34241f694193410729888096"
+    },
+    {
+      "file": "postchecks-r1b.json",
+      "sha256": "d1f38572636dcd445f8f71c5f9fa0663c3d46820a76c20785fe57872a3a47bc7"
+    },
+    {
+      "file": "postchecks-r2.json",
+      "sha256": "6749b0eaedfab84302d1177a65d9f6dd84dd24846581505af3f685f11e9cdd3a"
+    },
+    {
+      "file": "production-owner.json",
+      "sha256": "35aaf4f314b29a582aee851519a83f74bf176d7b1a47634ca72c49fb9316e8fc"
+    },
+    {
+      "file": "production-start.json",
+      "sha256": "b867b148a12306cbafe26ce09934a4697a225d9fae7da3e540ed103fc184742e"
+    },
+    {
+      "file": "reclaimed-build-inputs.json",
+      "sha256": "28ddb9853969c1f1c2b6da0f1759ec9abcef8f0dd6e518da8508ce5a2adc5a14"
+    },
+    {
+      "file": "verify-image.json",
+      "sha256": "cab9b813e8cae284cdb5cf9b68b58da390672598c0a2c10d12b4f72948f85127"
+    }
+  ]
+}

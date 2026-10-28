@@ -2125,6 +2125,124 @@
       "baseline_commit": "cf36ba33984cac04c86df884cf092b9bd062df26",
       "delivery_state": "pushed_deployed_production_verified",
       "delivery_record": "docs/development/books-audio-reading-2026-10-18.json"
+    },
+    {
+      "id": "TS-389",
+      "project": "workspace",
+      "title": "自主生活已验收批次R15正式发布",
+      "depends_on": [
+        "TS-387"
+      ],
+      "status": "done",
+      "allowed_paths": [
+        "deploy/single_container/",
+        "docs/development/",
+        "docs/handoffs/TS-389.md"
+      ],
+      "done_when": "已验收自主生活批次普通非强推送、精确单容器发行，保留配置数据并完成跨租期实机验收。",
+      "worktree": null,
+      "branch": null,
+      "delivery_state": "pushed_deployed_production_verified",
+      "plan": "docs/development/autonomous-life-al13-execution-2026-10-28.md",
+      "delivery_record": "docs/development/autonomous-life-wave3-release-2026-10-28.json"
+    },
+    {
+      "id": "TS-390",
+      "project": "memory",
+      "title": "AL13角色时间线与原件披露证明",
+      "depends_on": [
+        "TS-389"
+      ],
+      "status": "in_progress",
+      "allowed_paths": [
+        "src/tianshu_memory/actor_memory/",
+        "src/tianshu_memory/knowledge_content.py",
+        "src/tianshu_memory/knowledge_sources.py",
+        "src/tianshu_memory/knowledge_http.py",
+        "src/tianshu_memory/knowledge_content_runtime.py",
+        "src/tianshu_memory/contract_releases.py",
+        "tests/",
+        "docs/handoffs/TS-390.md",
+        "src/tianshu_memory/knowledge_disclosure.py",
+        "src/tianshu_memory/knowledge_contracts.py",
+        "src/tianshu_memory/actor_memory/contracts.py"
+      ],
+      "done_when": "按自主生活AL13精确执行卡和实际原生验证交付；用户记忆逻辑保持。",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-al13-memory/tianshu-memory",
+      "branch": "codex/al13-memory-20261028",
+      "delivery_state": "local_verified_review_fix_native_pg_pending",
+      "plan": "docs/development/autonomous-life-al13-execution-2026-10-28.md",
+      "assignee": "gpt-6-astra/medium",
+      "candidate_commit": "9459711d9eb0d12a2b93a0041d62712e8794b021"
+    },
+    {
+      "id": "TS-391",
+      "project": "companion",
+      "title": "AL13日记反思分享和对话自我召回",
+      "depends_on": [
+        "TS-389"
+      ],
+      "status": "in_progress",
+      "allowed_paths": [
+        "src/tianshu_companion/",
+        "tests/",
+        "docs/",
+        "docs/handoffs/TS-391.md"
+      ],
+      "done_when": "按自主生活AL13精确执行卡和实际原生验证交付；用户记忆逻辑保持。",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-al13-companion/tianshu-companion",
+      "branch": "codex/al13-companion-20261028",
+      "delivery_state": "development_in_progress_not_integrated_not_deployed",
+      "plan": "docs/development/autonomous-life-al13-execution-2026-10-28.md",
+      "assignee": "gpt-6-astra/medium"
+    },
+    {
+      "id": "TS-392",
+      "project": "platform",
+      "title": "AL13原日记投影与公开受众核验",
+      "depends_on": [
+        "TS-389"
+      ],
+      "status": "in_progress",
+      "allowed_paths": [
+        "services/platform/web_readers.py",
+        "services/platform/actor_memory_authority.py",
+        "services/platform/contracts.py",
+        "services/platform/contract_releases.py",
+        "tests/backend/",
+        "docs/handoffs/TS-392.md",
+        "apps/web/src/features/life/",
+        "apps/web/tests/integration-pages.spec.ts"
+      ],
+      "done_when": "按自主生活AL13精确执行卡和实际原生验证交付；用户记忆逻辑保持。",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-al13-platform/tianshu-platform",
+      "branch": "codex/al13-platform-20261028",
+      "delivery_state": "local_verified_reviewed_not_integrated_not_deployed",
+      "plan": "docs/development/autonomous-life-al13-execution-2026-10-28.md",
+      "assignee": "gpt-6-astra/medium",
+      "candidate_commit": "da70adf28ea20f4bf913114896092c4ec101e9aa"
+    },
+    {
+      "id": "TS-393",
+      "project": "workspace",
+      "title": "AL13合同冻结与集中联合验收",
+      "depends_on": [
+        "TS-390",
+        "TS-391",
+        "TS-392"
+      ],
+      "status": "planned",
+      "allowed_paths": [
+        "contracts/",
+        "tests/deployment/single_container/",
+        "docs/development/",
+        "docs/handoffs/TS-393.md"
+      ],
+      "done_when": "按自主生活AL13精确执行卡和实际原生验证交付；用户记忆逻辑保持。",
+      "worktree": null,
+      "branch": null,
+      "delivery_state": "not_started",
+      "plan": "docs/development/autonomous-life-al13-execution-2026-10-28.md"
     }
   ],
   "dispatch_defaults": {
