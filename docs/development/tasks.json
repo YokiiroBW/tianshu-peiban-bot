@@ -2153,7 +2153,7 @@
       "depends_on": [
         "TS-389"
       ],
-      "status": "in_progress",
+      "status": "done",
       "allowed_paths": [
         "src/tianshu_memory/actor_memory/",
         "src/tianshu_memory/knowledge_content.py",
@@ -2165,15 +2165,18 @@
         "docs/handoffs/TS-390.md",
         "src/tianshu_memory/knowledge_disclosure.py",
         "src/tianshu_memory/knowledge_contracts.py",
-        "src/tianshu_memory/actor_memory/contracts.py"
+        "src/tianshu_memory/actor_memory/contracts.py",
+        "src/tianshu_memory/knowledge_content_http.py",
+        "src/tianshu_memory/contracts.py"
       ],
       "done_when": "按自主生活AL13精确执行卡和实际原生验证交付；用户记忆逻辑保持。",
       "worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-al13-memory/tianshu-memory",
       "branch": "codex/al13-memory-20261028",
-      "delivery_state": "local_verified_review_fix_native_pg_pending",
+      "delivery_state": "local_integrated_joint_verified_not_pushed_not_deployed",
       "plan": "docs/development/autonomous-life-al13-execution-2026-10-28.md",
       "assignee": "gpt-6-astra/medium",
-      "candidate_commit": "9459711d9eb0d12a2b93a0041d62712e8794b021"
+      "candidate_commit": "9459711d9eb0d12a2b93a0041d62712e8794b021",
+      "delivery_record": "docs/development/autonomous-life-al13-delivery-2026-10-28.json"
     },
     {
       "id": "TS-391",
@@ -2182,7 +2185,7 @@
       "depends_on": [
         "TS-389"
       ],
-      "status": "in_progress",
+      "status": "done",
       "allowed_paths": [
         "src/tianshu_companion/",
         "tests/",
@@ -2192,9 +2195,11 @@
       "done_when": "按自主生活AL13精确执行卡和实际原生验证交付；用户记忆逻辑保持。",
       "worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-al13-companion/tianshu-companion",
       "branch": "codex/al13-companion-20261028",
-      "delivery_state": "development_in_progress_not_integrated_not_deployed",
+      "delivery_state": "local_integrated_joint_verified_not_pushed_not_deployed",
       "plan": "docs/development/autonomous-life-al13-execution-2026-10-28.md",
-      "assignee": "gpt-6-astra/medium"
+      "assignee": "gpt-6-astra/medium",
+      "delivery_record": "docs/development/autonomous-life-al13-delivery-2026-10-28.json",
+      "candidate_commit": "bba45091f504a1534d52343134b0fa59f39cfdd1"
     },
     {
       "id": "TS-392",
@@ -2203,7 +2208,7 @@
       "depends_on": [
         "TS-389"
       ],
-      "status": "in_progress",
+      "status": "done",
       "allowed_paths": [
         "services/platform/web_readers.py",
         "services/platform/actor_memory_authority.py",
@@ -2217,10 +2222,11 @@
       "done_when": "按自主生活AL13精确执行卡和实际原生验证交付；用户记忆逻辑保持。",
       "worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-al13-platform/tianshu-platform",
       "branch": "codex/al13-platform-20261028",
-      "delivery_state": "local_verified_reviewed_not_integrated_not_deployed",
+      "delivery_state": "local_integrated_joint_verified_not_pushed_not_deployed",
       "plan": "docs/development/autonomous-life-al13-execution-2026-10-28.md",
       "assignee": "gpt-6-astra/medium",
-      "candidate_commit": "da70adf28ea20f4bf913114896092c4ec101e9aa"
+      "candidate_commit": "da70adf28ea20f4bf913114896092c4ec101e9aa",
+      "delivery_record": "docs/development/autonomous-life-al13-delivery-2026-10-28.json"
     },
     {
       "id": "TS-393",
@@ -2231,7 +2237,7 @@
         "TS-391",
         "TS-392"
       ],
-      "status": "planned",
+      "status": "done",
       "allowed_paths": [
         "contracts/",
         "tests/deployment/single_container/",
@@ -2241,8 +2247,9 @@
       "done_when": "按自主生活AL13精确执行卡和实际原生验证交付；用户记忆逻辑保持。",
       "worktree": null,
       "branch": null,
-      "delivery_state": "not_started",
-      "plan": "docs/development/autonomous-life-al13-execution-2026-10-28.md"
+      "delivery_state": "local_integrated_joint_verified_not_pushed_not_deployed",
+      "plan": "docs/development/autonomous-life-al13-execution-2026-10-28.md",
+      "delivery_record": "docs/development/autonomous-life-al13-delivery-2026-10-28.json"
     }
   ],
   "dispatch_defaults": {

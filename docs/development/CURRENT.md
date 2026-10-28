@@ -1,10 +1,10 @@
-## 2026-10-28 自主生活R15已正式发布，AL13开发中
+## 2026-10-28 R15已发布，AL13已本地集成验收
 
-已协调记忆与单容器线程、正常合入推送四产品及根历史；正式R15镜像`sha256:f1d30d60e0b6afe43c0ae6a2cd9a24a01b7bbb47cd06c9fe7a71f6c06bc75288`，C16ca/M9453，application48eee及P/G保R14。20次ready、跨312秒租期、六模块/五观测/漫画、25逻辑源、actor guard、71静态和HTTP/TLS/SDKlistener通过。37mount、1126配置保留，仅原同scope网关租约一行更新，无生产DB恢复/迁移。
+已验收AL06、AL09/10与AL12批次已合入、正常推送并在.230正式运行R15：image `f1d30d60…`，C16ca/M9453；20次ready、跨312秒租期、25逻辑源/actor guard/六模块实机通过。配置数据保留；构建曾触原20GiB容量保护，约29.8分钟后经新逻辑备份/r8恢复，非无中断发布。[正式发布与回退](autonomous-life-wave3-release-2026-10-28.md)。
 
-构建曾触发原20GiB空间保护正常停R14；保留failure、清有本地哈希副本的构建输入后，沿停写点新备25逻辑源/3guard（PG导出16.5MB，未扫媒体），scratch恢复/指纹通过，以新r8启动。中断约29.8分钟；未降阈值，不称无中断。真实QQ/外站账号/付费模型不冒称通过。[完整发布与回退](autonomous-life-wave3-release-2026-10-28.md)。
+AL13的TS390–393已独立审查、完成SQLite/PG主场景和scope四次安装包原生联合，并串行FF本地产品main：M9459711/Cbba45091/Pda70adf。包括真实时间窗日记、反思/concern、公开与原群独立分享稿、原ActorMemorySkill日期与偏好召回；用户记忆原逻辑保持。根合同及可复现owner profiles已本地冻结，所有本批测试容器/临时PG清理，生产保持R15 healthy/0 restart。**AL13尚未推送或部署，18项没有全部完成。** [交付与严格边界](autonomous-life-al13-delivery-2026-10-28.md) · [完整队列](autonomous-life-development-queue-2026-10-23.md)。
 
-AL13从正式精确基线以TS390/391/392独占Memory/Companion/Platform并行，根TS393统一合同/联合验收；用户记忆原逻辑保持。真实日记反思分享仍开发中，未集成/部署；18项未全部完成。[执行边界](autonomous-life-al13-execution-2026-10-28.md) · [队列](autonomous-life-development-queue-2026-10-23.md)。下方候选/R14记录保留阶段历史。
+合成模型/QQ peer和公共DNS seam不冒称真实外网或付费模型；普通工具由fixture执行，未验模型自主选择和同一prompt矛盾偏好自然表达。Scope日记沿原quiet策略deferred、未实号发送；群turn closed_unknown不计送达成功，unknown恢复复用未变证明。下方旧R14/候选条目保留阶段历史。
 
 ## 2026-10-28 自主生活本批候选隔离验收（阶段历史，随后已发布R15）
 

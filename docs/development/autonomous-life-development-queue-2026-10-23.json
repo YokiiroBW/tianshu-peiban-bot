@@ -3,7 +3,7 @@
   "planning_id": "autonomous-life-2026-10-23",
   "date": "2026-10-23",
   "timezone": "Asia/Shanghai",
-  "state": "wave3_R15_deployed_AL13_in_progress",
+  "state": "R15_deployed_AL13_local_integrated_joint_verified_not_deployed",
   "canonical_plan": "docs/development/autonomous-life-development-queue-2026-10-23.md",
   "architecture": "docs/architecture/actor-self-memory-design-2026-10-23.md",
   "id_policy": "AL编号仅为本批规划身份，不是scripts/workspace.py运行任务；正式派发由根协调者登记新TS并维护AL到TS映射。",
@@ -251,7 +251,7 @@
         "q21_companion_verified_and_writer_released_or_explicit_partition"
       ],
       "state_before_20261028_reconciliation": "planned",
-      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion",
+      "status_basis": "R15 deployed: docs/development/autonomous-life-wave3-release-2026-10-28.json",
       "current_runtime_task": "TS-384",
       "current_delivery_commit": "16ca5a81490255a892d697d80b5be0fa43644688",
       "current_validation": "Scoped Linux applicable checks and real installed six-owner SQLite/PG chains passed; full-suite limits retained in delivery record",
@@ -352,7 +352,7 @@
         "q21_memory_verified_and_writer_released_or_explicit_partition"
       ],
       "state_before_20261028_reconciliation": "planned",
-      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion",
+      "status_basis": "R15 deployed: docs/development/autonomous-life-wave3-release-2026-10-28.json",
       "current_runtime_task": "TS-385",
       "current_delivery_commit": "9453e5e3fd43c80a41f9bd4601f0181e2e7c6db5",
       "current_validation": "Scoped Linux applicable checks and real installed six-owner SQLite/PG chains passed; full-suite limits retained in delivery record",
@@ -395,7 +395,7 @@
         "q21_companion_verified_and_writer_released_or_explicit_partition"
       ],
       "state_before_20261028_reconciliation": "planned",
-      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion",
+      "status_basis": "R15 deployed: docs/development/autonomous-life-wave3-release-2026-10-28.json",
       "current_runtime_task": "TS-384",
       "current_delivery_commit": "16ca5a81490255a892d697d80b5be0fa43644688",
       "current_validation": "Scoped Linux applicable checks and real installed six-owner SQLite/PG chains passed; full-suite limits retained in delivery record",
@@ -473,7 +473,7 @@
         "q21_companion_verified_and_writer_released_or_explicit_partition"
       ],
       "state_before_20261028_reconciliation": "planned",
-      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion",
+      "status_basis": "R15 deployed: docs/development/autonomous-life-wave3-release-2026-10-28.json",
       "current_runtime_task": "TS-386/TS-388",
       "current_delivery_commit": "16ca5a81490255a892d697d80b5be0fa43644688",
       "current_validation": "Scoped Linux applicable checks and real installed six-owner SQLite/PG chains passed; full-suite limits retained in delivery record",
@@ -493,7 +493,7 @@
       "id": "AL-13",
       "title": "日记、反思、分享与对话自我召回",
       "owner": "companion",
-      "status": "R15_based_parallel_development_in_progress",
+      "status": "local_integrated_sqlite_pg_joint_verified_not_pushed_not_deployed",
       "depends_on": [
         "AL-04",
         "AL-06",
@@ -514,14 +514,16 @@
         "q21_companion_verified_and_writer_released_or_explicit_partition"
       ],
       "state_before_20261028_reconciliation": "planned",
-      "status_basis": "R14 actual source plus latest group-modes and chain-closure release records; historical fields retained as history, not current completion",
+      "status_basis": "docs/development/autonomous-life-al13-delivery-2026-10-28.json",
       "current_runtime_tasks": [
         "TS-390",
         "TS-391",
         "TS-392",
         "TS-393"
       ],
-      "current_execution_record": "docs/development/autonomous-life-al13-execution-2026-10-28.md"
+      "current_execution_record": "docs/development/autonomous-life-al13-execution-2026-10-28.md",
+      "current_delivery_record": "docs/development/autonomous-life-al13-delivery-2026-10-28.json",
+      "real_qq_and_paid_model_acceptance": "not_claimed"
     },
     {
       "id": "AL-14",
@@ -671,15 +673,16 @@
   "current_execution_record": "docs/development/autonomous-life-al13-execution-2026-10-28.md",
   "current_baseline": {
     "architecture": "single_container_modular_in_process_exchange",
-    "release": "R14",
-    "workspace": "b930ef638b95b8d363fc889de8527bbf711987a9",
+    "release": "R15",
+    "workspace": "0f63c638c76f595cca04cdfc591163444ddb1e76",
     "application": "48eee53d6ba97efae5c44385cb53a894ffa0c215",
-    "companion": "225f62a9c201acfc283bc029562f118f16d5e524",
-    "memory_runtime": "8d01f9d9d39fba33b6ca8dca9d2599730c9c7e1e",
-    "memory_handoff": "34d3175a07f853613680d76bf815611489a9edec",
+    "companion": "16ca5a81490255a892d697d80b5be0fa43644688",
+    "memory_runtime": "9453e5e3fd43c80a41f9bd4601f0181e2e7c6db5",
+    "memory_handoff": "9453e5e3fd43c80a41f9bd4601f0181e2e7c6db5",
     "platform_runtime": "177e2eb25a104a9d58bfb71f53040baa481ddbf6",
     "platform_handoff": "4ef6edb922e14b66d5a252e70f518c4bc70ff907",
-    "gateway": "0f491be3573af9257703b7871aaa746598d66b9f"
+    "gateway": "0f491be3573af9257703b7871aaa746598d66b9f",
+    "workspace_basis": "R15 coordination release record; application runtime SHA is separately recorded"
   },
   "boundary_confirmation": {
     "date": "2026-10-28",
@@ -695,12 +698,16 @@
       "no production or real QQ/account acceptance inferred"
     ]
   },
-  "current_delivery_record": "docs/development/autonomous-life-wave3-delivery-2026-10-28.json",
-  "production_operations_this_wave": false,
+  "current_delivery_record": "docs/development/autonomous-life-al13-delivery-2026-10-28.json",
+  "production_operations_this_wave": true,
   "verified_candidate": {
-    "companion": "16ca5a81490255a892d697d80b5be0fa43644688",
-    "memory": "9453e5e3fd43c80a41f9bd4601f0181e2e7c6db5",
-    "image": "sha256:82e46cafb79d43f44ec66f50652bb0a0deddb93c8f843e5f438f86a6f67e9795"
+    "memory": "9459711d9eb0d12a2b93a0041d62712e8794b021",
+    "companion": "bba45091f504a1534d52343134b0fa59f39cfdd1",
+    "platform": "da70adf28ea20f4bf913114896092c4ec101e9aa",
+    "base_image": "sha256:f1d30d60e0b6afe43c0ae6a2cd9a24a01b7bbb47cd06c9fe7a71f6c06bc75288",
+    "validation": "installed three wheels on independent R15 containers, not a new full release image",
+    "pushed": false,
+    "deployed": false
   },
   "current_release_record": "docs/development/autonomous-life-wave3-release-2026-10-28.json",
   "deployed_release": {
@@ -709,5 +716,29 @@
     "memory": "9453e5e3fd43c80a41f9bd4601f0181e2e7c6db5",
     "physical_qq_acceptance": "deferred_by_user",
     "new_guard": "r8"
+  },
+  "previous_baseline_before_R15": {
+    "architecture": "single_container_modular_in_process_exchange",
+    "release": "R14",
+    "workspace": "b930ef638b95b8d363fc889de8527bbf711987a9",
+    "application": "48eee53d6ba97efae5c44385cb53a894ffa0c215",
+    "companion": "225f62a9c201acfc283bc029562f118f16d5e524",
+    "memory_runtime": "8d01f9d9d39fba33b6ca8dca9d2599730c9c7e1e",
+    "memory_handoff": "34d3175a07f853613680d76bf815611489a9edec",
+    "platform_runtime": "177e2eb25a104a9d58bfb71f53040baa481ddbf6",
+    "platform_handoff": "4ef6edb922e14b66d5a252e70f518c4bc70ff907",
+    "gateway": "0f491be3573af9257703b7871aaa746598d66b9f"
+  },
+  "previous_wave3_candidate": {
+    "companion": "16ca5a81490255a892d697d80b5be0fa43644688",
+    "memory": "9453e5e3fd43c80a41f9bd4601f0181e2e7c6db5",
+    "image": "sha256:82e46cafb79d43f44ec66f50652bb0a0deddb93c8f843e5f438f86a6f67e9795"
+  },
+  "AL13_boundary": {
+    "baseline": "exact released R15 products",
+    "user_memory_logic_changed": false,
+    "same_thread_subagents": true,
+    "production_operations": false,
+    "record": "docs/development/autonomous-life-al13-delivery-2026-10-28.json"
   }
 }

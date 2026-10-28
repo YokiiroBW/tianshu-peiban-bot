@@ -1,0 +1,347 @@
+{
+  "format": "al13-local-delivery/v1",
+  "date": "2026-10-28",
+  "draft": false,
+  "status": "local_integrated_native_main_and_scope_passed_not_pushed_not_deployed",
+  "integrated": true,
+  "pushed": false,
+  "deployed": false,
+  "previous_production": {
+    "release": "R15",
+    "already_pushed_and_deployed": true,
+    "record_commit": "0f63c63",
+    "not_this_al13_candidate": true
+  },
+  "commits": {
+    "memory": "9459711d9eb0d12a2b93a0041d62712e8794b021",
+    "companion": "bba45091f504a1534d52343134b0fa59f39cfdd1",
+    "platform": "da70adf28ea20f4bf913114896092c4ec101e9aa",
+    "root_contracts": "6b7c7aeed602124601af906b02a77b71a7f5a3ed"
+  },
+  "reuse": [
+    "Actor isolated episode/basis/proof/query/append_derived; explicit timeline only, original user memory algorithms/API/schema untouched.",
+    "Knowledge acquisition and original version/provenance; additive disclosure proof, no DDL or historical read access_version upgrade.",
+    "Life diaries/materials/revisions and published pointer; original concerns/activities and on-demand ActorMemorySkill.",
+    "Existing Proactive subscriptions/current audience/quiet/cooldown/quota/unknown receipts; no new per-turn model.",
+    "Original LifeRead HTTP and Platform projection/callers; old fictional diaries retain their meaning and authorization."
+  ],
+  "closed_review_findings": [
+    {
+      "id": "timeline-submicrosecond",
+      "fix": "PG truncates fractional digits before timestamptz to match SQLite/cursor; no duplicate page or day-boundary rounding.",
+      "evidence": "Memory timeline unit regression and candidate2 SQLite/PG native timeline."
+    },
+    {
+      "id": "withdrawn-concern-planner",
+      "fix": "Filter/verify source-backed concerns and current/previous activities before planner/model slot and after output; durable activity concern proof protects resumed cache.",
+      "evidence": "Read-only final review and native private_diary_withdrawal.revoked_question_not_in_model."
+    },
+    {
+      "id": "admin-revision-source-check",
+      "fix": "Sync admin revision port refuses source-backed diaries; async verified port checks source before cached prose; old fictional behavior retained.",
+      "evidence": "Final review, component admin node, native admin_read_blocked."
+    }
+  ],
+  "components": {
+    "memory": {
+      "distinct_passed": 82
+    },
+    "companion": {
+      "passed": 213,
+      "skipped": 3,
+      "admin_node_rerun_additional_distinct": 0
+    },
+    "platform": {
+      "backend_passed": 16,
+      "browser_passed": 4,
+      "build": "passed",
+      "typecheck": "passed"
+    },
+    "aggregation": "Do not sum reruns or claim a full-product all-green suite."
+  },
+  "native_main": {
+    "candidate": "candidate2",
+    "runs": {
+      "sqlite-main": {
+        "exit_code": 0,
+        "ok": true
+      },
+      "pg-main2": {
+        "exit_code": 0,
+        "ok": true
+      }
+    },
+    "installation": "Independent R15-image test containers install the same three candidate wheels; pip check and installed payload verified; execution uid 10001 with six native owners.",
+    "proved": [
+      "UTC occurrence window and pagination, including >6 digit fractions",
+      "Source-backed private diary and sourced reflection into existing concern flow",
+      "Public anonymous original eligibility, clean public projection and separately generated public diary",
+      "Original LifeRead HTTP, private draft hidden",
+      "Withdrawal blocks admin/read and prevents revoked question entering actual planner model",
+      "Actual native owner dispatch and PG bindings; main scenario intentionally no user turn/user-memory route"
+    ],
+    "evidence": [
+      {
+        "run": "sqlite-main",
+        "file": "sqlite-main--installed-candidates.json",
+        "sha256": "9f7e9036a1a9d4b70b8d3ea1999dcb09453b230b569d59d08900363cfe96e676",
+        "path": ".runtime/al13-verification/evidence/candidate2-main/sqlite-main--installed-candidates.json",
+        "ok": true
+      },
+      {
+        "run": "sqlite-main",
+        "file": "sqlite-main--autonomous--native-autonomous-validation.json",
+        "sha256": "172566c4e121b37f2898ff8737dccc604aaed0911c1d5d312484815f209d9c6e",
+        "path": ".runtime/al13-verification/evidence/candidate2-main/sqlite-main--autonomous--native-autonomous-validation.json",
+        "ok": true
+      },
+      {
+        "run": "sqlite-main",
+        "file": "sqlite-main--autonomous--native-al13-validation.json",
+        "sha256": "02a99a68985fd4d42b7d60a5b185b1b2ceef084a269135ac0299a22952cf0b23",
+        "path": ".runtime/al13-verification/evidence/candidate2-main/sqlite-main--autonomous--native-al13-validation.json",
+        "ok": true
+      },
+      {
+        "run": "pg-main2",
+        "file": "pg-main2--installed-candidates.json",
+        "sha256": "9f7e9036a1a9d4b70b8d3ea1999dcb09453b230b569d59d08900363cfe96e676",
+        "path": ".runtime/al13-verification/evidence/candidate2-main/pg-main2--installed-candidates.json",
+        "ok": true
+      },
+      {
+        "run": "pg-main2",
+        "file": "pg-main2--autonomous--native-autonomous-validation.json",
+        "sha256": "1e4cbb27e6d71a086fdcd91abdd40fbd9e2fa850a59638efb8ab3ce4668b9062",
+        "path": ".runtime/al13-verification/evidence/candidate2-main/pg-main2--autonomous--native-autonomous-validation.json",
+        "ok": true
+      },
+      {
+        "run": "pg-main2",
+        "file": "pg-main2--autonomous--native-al13-validation.json",
+        "sha256": "095099e8966227143faa117ed2c05e476843615673e27856a372e3897550b8c6",
+        "path": ".runtime/al13-verification/evidence/candidate2-main/pg-main2--autonomous--native-al13-validation.json",
+        "ok": true
+      }
+    ]
+  },
+  "native_scope": {
+    "status": "passed",
+    "script": ".runtime/al13-verification/platform-validator/native_al13_scope_check.py",
+    "script_sha256": "9cdb2e0ed815d78d52ffb46340d494b59bf10b84f0d7c09edfa30fe1b3bf03bc",
+    "runs": {
+      "sqlite-scope2": {
+        "exit_code": 0,
+        "ok": true,
+        "closed": true,
+        "close_task_done": true,
+        "owner_threads_remaining": [],
+        "group_turn_phase": "closed_unknown",
+        "bounded_read_recovery": [],
+        "original_user_memory_recalled": true,
+        "ordinary_tool_execution": true,
+        "withdrawal": {
+          "actual_memory_withdrawal": true,
+          "presend_source_blocked": true,
+          "cached_admin_read_blocked": true,
+          "no_new_attempt": true
+        }
+      },
+      "pg-scope2": {
+        "exit_code": 0,
+        "ok": true,
+        "closed": true,
+        "close_task_done": true,
+        "owner_threads_remaining": [],
+        "group_turn_phase": "closed_unknown",
+        "bounded_read_recovery": [],
+        "original_user_memory_recalled": true,
+        "ordinary_tool_execution": true,
+        "withdrawal": {
+          "actual_memory_withdrawal": true,
+          "presend_source_blocked": true,
+          "cached_admin_read_blocked": true,
+          "no_new_attempt": true
+        }
+      }
+    },
+    "evidence": [
+      {
+        "run": "sqlite-scope2",
+        "file": "sqlite-scope2--installed-candidates.json",
+        "sha256": "9f7e9036a1a9d4b70b8d3ea1999dcb09453b230b569d59d08900363cfe96e676",
+        "path": ".runtime/al13-verification/evidence/candidate2-scope/sqlite-scope2--installed-candidates.json",
+        "ok": true
+      },
+      {
+        "run": "sqlite-scope2",
+        "file": "sqlite-scope2--scope--native-al13-scope-validation.json",
+        "sha256": "dfcd0dee889fb0d5bcc343e067b7dffd7fb48f3f274a0bfd18cbd193a117decf",
+        "path": ".runtime/al13-verification/evidence/candidate2-scope/sqlite-scope2--scope--native-al13-scope-validation.json",
+        "ok": true
+      },
+      {
+        "run": "pg-scope2",
+        "file": "pg-scope2--installed-candidates.json",
+        "sha256": "9f7e9036a1a9d4b70b8d3ea1999dcb09453b230b569d59d08900363cfe96e676",
+        "path": ".runtime/al13-verification/evidence/candidate2-scope/pg-scope2--installed-candidates.json",
+        "ok": true
+      },
+      {
+        "run": "pg-scope2",
+        "file": "pg-scope2--scope--native-al13-scope-validation.json",
+        "sha256": "53519b30b2f60a7ba0fe72782f8988aa864b4844122a9b46cfcd26ccb64a4c29",
+        "path": ".runtime/al13-verification/evidence/candidate2-scope/pg-scope2--scope--native-al13-scope-validation.json",
+        "ok": true
+      }
+    ],
+    "proved": [
+      "Original web user-memory actual material receipt and recall in self_private scope",
+      "Original selected ActorMemorySkill day timeline and preference calls on an actually admitted group turn; no hand-written turn",
+      "Actor evidence is distinct from original user private dislike in another scope",
+      "Original group audience assertion, separately generated diary and neutral intent/motive; no public pointer",
+      "Quiet gate keeps candidate deferred with zero send attempt",
+      "Actual episode withdrawal blocks presend source check and cached admin prose; no new attempt"
+    ]
+  },
+  "evidence_limits": [
+    "Deterministic model provider and synthetic identities/materials are declared substitutes, not real paid-model or real-user evidence.",
+    "Public original test uses declared one-host DNS/connect seam and real loopback bytes/Knowledge owner HTTP; no actual external-site account validation.",
+    "No AL13 real QQ/user account send or production deployment claim.",
+    "Earlier candidate failures are not overwritten by candidate2 success; retain coordinator receipts.",
+    "User and actor preference evidence comes from different scopes; same-prompt contradictory preference expression was not tested.",
+    "Fixture invokes the original selected tool registry; model autonomous tool choice and final natural-language wording were not tested.",
+    "Scope candidates remain quiet-deferred; no real-account send was tested. Original group turns settled closed_unknown, not delivered-success.",
+    "Unknown-send recovery reuses unchanged earlier native evidence; the AL13 scope run does not rerun it."
+  ],
+  "contract_profiles": {
+    "status": "tracked_owner_materialization_verified",
+    "path": "contracts/runtime-profiles/unified-r15-al13",
+    "cp_files": 276,
+    "memory_files": 103,
+    "common_mappings": 100,
+    "overlay_files": 19,
+    "overlay_bytes_lf": 886641,
+    "note": "AL13 packages reference current root; Memory Knowledge main manifest maps root profiles/memory.manifest.json. Preserve per-owner R15 legacy differences. Auxiliary stale nested profile in source test trees intentionally replaced with current root."
+  },
+  "configuration": {
+    "life_writing": "Existing setting, enabled only in isolated native test fixture here; preserve deployed setting and document user-selected production enablement separately.",
+    "new_feature_gate": false
+  },
+  "task_validation": {
+    "current_closure": {
+      "tasks": "TS-389 through TS-393 and prerequisites",
+      "count": 10,
+      "result": "passed"
+    },
+    "whole_task_board": {
+      "result": "failed_existing_history",
+      "example": "TS-265 references missing TS-256/TS-257",
+      "modified_to_bypass": false,
+      "affected_historical_tasks": 12,
+      "missing_dependency_ids": [
+        "TS-193",
+        "TS-237",
+        "TS-246",
+        "TS-255",
+        "TS-256",
+        "TS-257",
+        "TS-267",
+        "TS-284",
+        "TS-287"
+      ]
+    }
+  },
+  "next_steps": [
+    "Coordinator finalizes official root delivery/queue/task records for completed local integration.",
+    "Retain all ten successful report hashes across four native runs plus earlier failure and setup evidence.",
+    "AL13 push/deployment and production configuration acceptance remain distinct authorized coordinator work."
+  ],
+  "local_declared_scope_acceptance": "passed",
+  "production_acceptance": false,
+  "fixture_history": {
+    "scope_r1": {
+      "script_sha256": "367eb42793e600895fd01f5fcc365232512fa704185bc80f1ceeeca6735ef161",
+      "sqlite": "dependency_unavailable at original actor skill check; failure receipt retained",
+      "postgres": "business checks reached withdrawal, but closed=false/ok=false; not counted as pass",
+      "logging": "Platform seq1534 logging.recovered succeeded at 09:34:09.417Z; seq1535 logging.unavailable at .420Z is a post-recovery historical log_flush_timeout record, not a second outage. No duration or CPU/I/O cause inferred."
+    },
+    "scope_r2": {
+      "script_sha256": "9cdb2e0ed815d78d52ffb46340d494b59bf10b84f0d7c09edfa30fe1b3bf03bc",
+      "changes": [
+        "Wait for original admitted group turn terminal settlement before extra tool checks",
+        "Use existing bounded read_retry for fixture-invoked read tools",
+        "Observe owner shutdown and assert closed/no remaining owner threads"
+      ],
+      "actual_retry_arrays_empty": true,
+      "product_wheels_unchanged": true
+    },
+    "retained_evidence": ".runtime/al13-verification/evidence/candidate2-scope-failure",
+    "earlier_setup": [
+      {
+        "issue": "Controller nested vendor mount lacked an empty mount point",
+        "boundary": "Product not executed; only two created containers cleared and mount point added."
+      },
+      {
+        "issue": "Initial PG start preceded socket readiness",
+        "boundary": "Product not started; bounded readiness now checks final PID1=postgres and pg_isready; no product change."
+      },
+      {
+        "issue": "Candidate1 main did not enable existing life_writing",
+        "boundary": "Both backends generated unavailable diary; candidate2 explicitly enabled fixture setting and both main runs passed; wheels unchanged."
+      }
+    ]
+  },
+  "cleanup": {
+    "reported_by_coordinator": true,
+    "all_owned_test_containers_and_pg_tmpfs_cleaned_by_label": true,
+    "production": "R15 healthy, 0 restarts; unchanged"
+  },
+  "integration": {
+    "method": "coordinator serial fast-forward of local product main",
+    "commits": {
+      "memory": "9459711d9eb0d12a2b93a0041d62712e8794b021",
+      "companion": "bba45091f504a1534d52343134b0fa59f39cfdd1",
+      "platform": "da70adf28ea20f4bf913114896092c4ec101e9aa"
+    },
+    "existing_platform_build_preserved": true,
+    "reported_by_coordinator": true
+  },
+  "wheel_build": {
+    "base_image": "sha256:f1d30d60e0b6afe43c0ae6a2cd9a24a01b7bbb47cd06c9fe7a71f6c06bc75288",
+    "coordination_commit": "6b7c7aeed602124601af906b02a77b71a7f5a3ed",
+    "products": {
+      "memory": {
+        "commit": "9459711d9eb0d12a2b93a0041d62712e8794b021",
+        "archive_sha256": "8e085b6f35e99c124e30c5b468c34eabb6a1b7f81ea0204b86b59a6e71c52a98",
+        "wheel": "tianshu_memory-0.1.0-py3-none-any.whl",
+        "wheel_sha256": "1a60049a5a9f0c15290bfa90616ca2bfceeeba5458d8f842bfa50092adf2c07e",
+        "runtime_metadata_equal_R15": true
+      },
+      "companion": {
+        "commit": "bba45091f504a1534d52343134b0fa59f39cfdd1",
+        "archive_sha256": "989dd8efd0e84c2f9523e17c4ff0f7936ca9c3b83cbd5683f1c850fa13aadfdd",
+        "wheel": "tianshu_companion-0.1.0-py3-none-any.whl",
+        "wheel_sha256": "d37ae3544a5705e9919669da95f6cbc06ea6417c963dab816e57304d441ed8cc",
+        "runtime_metadata_equal_R15": true
+      },
+      "platform": {
+        "commit": "da70adf28ea20f4bf913114896092c4ec101e9aa",
+        "archive_sha256": "bb2efaff285269b2ff51626e4df235475b343668539b69d6d64f7edfd525748c",
+        "wheel": "tianshu_platform_backend-0.1.0-py3-none-any.whl",
+        "wheel_sha256": "f477fdf4deaaa697f093643e2ff9c2e3afd599bf8988a5c6454d4e6053305b04",
+        "runtime_metadata_equal_R15": true
+      }
+    },
+    "build_tools": {
+      "setuptools": "80.9.0",
+      "wheel": "0.45.1"
+    },
+    "runtime_dependency_resolution": false
+  },
+  "native_scripts": [
+    "tests/deployment/single_container/native_al13_check.py",
+    "tests/deployment/single_container/native_al13_diaries.py",
+    "tests/deployment/single_container/native_al13_scope_check.py"
+  ]
+}
