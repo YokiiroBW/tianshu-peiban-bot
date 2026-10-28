@@ -1789,6 +1789,113 @@
       "branch": "work/ts-294",
       "baseline_commit": "afb5efade9d243ba406f754deff46abed0b74543",
       "allocation_note": "Standard allocator refused foreign mixed root or existing Platform build/. Reviewed committed baseline worktree preserves original bytes; Platform starts from current deployed afb5efa."
+    },
+    {
+      "id": "TS-384",
+      "project": "companion",
+      "title": "R14 AL06 rolling goals and AL10 autonomous reading loop",
+      "status": "in_progress",
+      "assignee": "codex_subagent",
+      "depends_on": [],
+      "allowed_paths": [
+        "src/tianshu_companion/life*.py",
+        "src/tianshu_companion/autonomous*.py",
+        "src/tianshu_companion/skills/",
+        "src/tianshu_companion/runtime_execution.py",
+        "src/tianshu_companion/role_actions.py",
+        "src/tianshu_companion/actor_memory.py",
+        "src/tianshu_companion/reading.py",
+        "src/tianshu_companion/core.py",
+        "tests/",
+        "docs/handoffs/TS-384.md"
+      ],
+      "worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-al-life/tianshu-companion",
+      "branch": "codex/al06-al10-autonomy-20261028",
+      "baseline_commit": "225f62a9c201acfc283bc029562f118f16d5e524",
+      "execution_model": "gpt-6.1-sol",
+      "execution_reasoning_effort": "max",
+      "pushed": false,
+      "deployed": false,
+      "execution_plan": "docs/development/autonomous-life-wave3-execution-2026-10-28.md",
+      "allocation_note": "Exact R14 independent worktree; preserve mixed original root and old project main; namespace scopes and source authority retained."
+    },
+    {
+      "id": "TS-385",
+      "project": "memory",
+      "title": "R14 AL09 real subtitle audio video coverage and continuation",
+      "status": "in_progress",
+      "assignee": "codex_subagent",
+      "depends_on": [],
+      "allowed_paths": [
+        "src/tianshu_memory/knowledge_content.py",
+        "src/tianshu_memory/knowledge_sources.py",
+        "src/tianshu_memory/knowledge_media.py",
+        "src/tianshu_memory/knowledge_subtitles.py",
+        "tests/test_knowledge_content.py",
+        "tests/test_knowledge_subtitles.py",
+        "docs/handoffs/TS-385.md"
+      ],
+      "worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-al-reading/tianshu-memory",
+      "branch": "codex/al09-multimedia-20261028",
+      "baseline_commit": "34d3175a07f853613680d76bf815611489a9edec",
+      "execution_model": "gpt-6.1-sol",
+      "execution_reasoning_effort": "max",
+      "pushed": false,
+      "deployed": false,
+      "execution_plan": "docs/development/autonomous-life-wave3-execution-2026-10-28.md",
+      "allocation_note": "Exact R14 independent worktree; preserve mixed original root and old project main; namespace scopes and source authority retained."
+    },
+    {
+      "id": "TS-386",
+      "project": "companion",
+      "title": "R14 AL12 observer memory source and next exploration",
+      "status": "planned",
+      "assignee": "codex_coordinator",
+      "depends_on": [
+        "TS-384",
+        "TS-385"
+      ],
+      "allowed_paths": [
+        "src/tianshu_companion/actor_memory.py",
+        "src/tianshu_companion/actor_observation.py",
+        "src/tianshu_companion/participation.py",
+        "src/tianshu_companion/observation.py",
+        "src/tianshu_companion/app.py",
+        "tests/",
+        "docs/handoffs/TS-386.md"
+      ],
+      "allocation_note": "Memory Observation-owner source adapter is serial dependent after TS-385 and will have its own exact product scope before dispatch.",
+      "execution_model": "gpt-6.1-sol",
+      "execution_reasoning_effort": "max",
+      "pushed": false,
+      "deployed": false,
+      "execution_plan": "docs/development/autonomous-life-wave3-execution-2026-10-28.md"
+    },
+    {
+      "id": "TS-387",
+      "project": "workspace",
+      "title": "R14 autonomous life assembly native joints and queue reconciliation",
+      "status": "in_progress",
+      "assignee": "codex_coordinator",
+      "depends_on": [
+        "TS-384",
+        "TS-385",
+        "TS-386"
+      ],
+      "allowed_paths": [
+        "docs/development/",
+        "docs/handoffs/TS-387-native.md",
+        "tests/deployment/single_container/native_autonomous_check.py"
+      ],
+      "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\al-autonomous-life-20261028\\tianshu-peiban-bot",
+      "branch": "codex/al-autonomous-life-20261028",
+      "baseline_commit": "b930ef638b95b8d363fc889de8527bbf711987a9",
+      "execution_model": "gpt-6.1-sol",
+      "execution_reasoning_effort": "max",
+      "pushed": false,
+      "deployed": false,
+      "execution_plan": "docs/development/autonomous-life-wave3-execution-2026-10-28.md",
+      "allocation_note": "Exact R14 independent worktree; preserve mixed original root and old project main; namespace scopes and source authority retained."
     }
   ],
   "dispatch_defaults": {
