@@ -640,7 +640,7 @@ def provider_fixture(schedule, token, sources):
                         len(candidates) == 1
                         and candidates[0]["source"] == "web"
                         and candidates[0]["read_locator"]["owner"] == "knowledge"
-                        and candidates[0]["read_locator"]["kind"] == "url"
+                        and candidates[0]["read_locator"]["kind"] == "webpage"
                         and candidates[0]["read_locator"]["url"]
                         == sources.origin + "/article",
                         "locator comes from actual discovered candidate",
