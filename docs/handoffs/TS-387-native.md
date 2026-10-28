@@ -15,7 +15,7 @@
 在安装完整候选 wheel 的新隔离 Linux 环境运行。下列路径为显式验证夹具目录，不挂载生产目录；脚本及同目录 fixture helper 必须同时提供。`--output` 必须是尚不存在的目录。
 
 ```sh
-/opt/tianshu/venv/bin/python -B /validation/tools/native_autonomous_check.py \
+/opt/tianshu-venv/bin/python -B /validation/tools/native_autonomous_check.py \
   --host-source /opt/tianshu/application \
   --platform-fixtures /validation/platform/tests/backend \
   --contracts /verification/contracts/text-dialogue/v1 \
@@ -42,3 +42,9 @@ PG 使用相同参数，换一个全新 `--output`，增加：
 - **尚未执行候选 wheel 的六 owner SQLite 或 PG 验收**。当前本机该 venv 没有完整 Platform/Companion/NoneBot 发行依赖，不能用源代码补包冒称原生通过。父级应在候选稳定后统一运行；实际业务通过必须以结果 JSON `ok=true` 为准。
 - 此工具不重复普通用户对话的提取/分段/学习/召回整链。保持并复用已存在的 `native_schedule_check.py`，本工具单独断言零用户 turn、无用户记忆 material/learning/context 请求。
 - AL12 真实旁听 producer、跨日持续使用、异常进程强杀恢复、真实 QQ/网页登录和外部账号写操作均不在本次工具完成口径内。
+
+## 原生 SQLite R4 夹具修正
+
+父级实际运行已经走到真实阅读和独立 actor episode delivered，但录制 provider 第 5 轮错误地把 `complete` 理解成整件已完成，断言失败。Knowledge 字符读取的 `complete=true` 表示请求区间完整提供；R4 真实原件 total=141、实际 Reading coverage=[0,64)，整件仍未读完。本工具改为同时检查收到 64 字符、精确 [0,64) 覆盖、区间 complete=true/无 gaps、原件 total>64 和实际正文 marker，不削弱原件实读或未读区间边界。另将 builtin 的真实 `read_locator.kind=webpage` 与 acquire 的 `source.kind=url` 分开核验。
+
+录制 provider 现在保存失败请求、已回传的真实 tool receipt 和异常类型/断言，主等待循环发现该失败立即结束，避免原 120 秒超时掩盖原始错误。R4 原失败证据由父级保留；此修正仍需新的原生运行，不能以静态检查冒称通过。

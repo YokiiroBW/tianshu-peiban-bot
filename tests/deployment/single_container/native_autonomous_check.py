@@ -266,6 +266,14 @@ async def run(options):
         recorder.stage("zero-input-autonomous-loop")
 
         async def closed_loop():
+            failures = [
+                row for row in provider.calls if row["label"] == "provider-failure"
+            ]
+            require(
+                not failures,
+                "recorded provider failed: "
+                + str(failures[-1]["failure"] if failures else None),
+            )
             current = await snapshot(host)
             require(
                 not current["turns"],
