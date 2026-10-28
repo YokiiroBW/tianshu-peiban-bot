@@ -444,7 +444,7 @@ def provider_fixture(schedule, token):
                         "title": FIRST_GOAL,
                         "goal": "把实际旁听后仍需查证的问题登记为自己的后续探索事项；不声称已经阅读资料。",
                         "reason": "来自真实旁听及已保存反思",
-                        "delay_seconds": 600,
+                        "delay_seconds": 60,
                         "observation_inspired": True,
                     }
                     self.observation_goal_chosen = True
@@ -484,12 +484,11 @@ def provider_fixture(schedule, token):
                     key: activity[key]
                     for key in ("id", "title", "resume_condition", "result_refs")
                 }
-                first = activity["title"] == FIRST_GOAL
                 value.update(
-                    state="completed" if first else "paused",
-                    next_due_at=None if first else time.time() + 3600,
+                    state="paused",
+                    next_due_at=None,
                     checkpoint={
-                        "step": 1 if first else 0,
+                        "step": 0,
                         "position": 0,
                         "unit": "step",
                         "note": "已登记待查证问题；没有阅读新资料或完成外部探索。",
@@ -515,7 +514,11 @@ def provider_fixture(schedule, token):
                         }
                     ],
                 }
-                label = "register-observer-plan" if first else "pause-independent-plan"
+                label = (
+                    "pause-observer-plan"
+                    if activity["title"] == FIRST_GOAL
+                    else "pause-independent-plan"
+                )
             else:
                 return await super().serve(request)
             self.calls.append(
