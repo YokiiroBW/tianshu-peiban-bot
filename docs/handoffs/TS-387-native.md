@@ -73,3 +73,9 @@ PG 与前述相同，显式加专用 Unix-socket URL；所有 `native_*.py` 一�
 前后比较原用户记忆、material、segment、事实/记录、摘要、画像与 source 生命周期相关逻辑表的行/摘要，保持完全一致；原 raw observation/QQ 作者及别名登记单列允许，是原归档规则。断言零 user turn、零 user-learning、零假 reading、零回复 scope，WS 只允许 SDK `get_login_info`，任何 send/其他操作均失败。记录实际 Memory observer/reflection lineage 和受众，并要求精确群策略/generation 保持。
 
 本地 Ruff 和 `--help` 通过；没有运行真实六 owner/SQLite/PG，没有 SSH 或产品修改。需最终 TS-386（含 hint 单次消费/规划召回修正）与 TS-388 的安装 wheel，再由父级统一实际执行。真实运行未通过前不宣称 AL12 原生通过。没有覆盖实际 QQ、网页管理、跨日、强杀、A→B→A 策略循环或外站账号。
+
+### final2 夹具语义修正
+
+父级 final2 自主阅读已实际走通后继目标；最后补查却只用“乌龙茶”，而 understanding 的实际文字是“焙火/香气”，正确词法召回无需返回该项。补查改用覆盖实际材料的“乌龙茶 焙火 香气”，保留 episode/understanding/preference 三种真实材料的断言；旁听补查相应使用“乌龙茶 焙火 清香”。
+
+旁听的合成配置原本已经明确 `automatic_memory_candidates=false`。原 `MemoryLearning.observation_archived` 仍合法登记 `material_pending` handoff，worker 才按该开关不处理；不能把这个原有回执 marker 当成已提取用户事实，也不能为测试删除它或改产品 callback。现同时断言实际 Core 开关确为 false、唯一原 marker 对应真实 source_ref 且 attempts=0/仍 material_pending、零用户 turn/假 reading、无用户 material/context 请求，以及原用户记忆/摘要画像逻辑表逐行摘要不变。允许原 handoff marker 保留，不声称 Core 运行 metadata 完全零写入。两项实际 final2 失败证据由父级保留，修正版仍需真实新运行。
