@@ -2,9 +2,11 @@
 
 import sqlite3
 import tempfile
+import time
 import unittest
 from contextlib import closing
 from pathlib import Path
+from unittest.mock import patch
 
 from helpers import SNAPSHOT, emit, event
 
@@ -157,6 +159,59 @@ class CapacityTests(unittest.TestCase):
             )
         )
         self.assertEqual(self.ledger.metrics()["landed_events"], 3)
+
+    def test_pending_search_pages_collection_time_and_preserves_unseen_records(self):
+        now = (int(time.time() // 3600) + 0.75) * 3600
+        collected = int((now - 3 * 3600) * 1e9)
+        calls = []
+
+        class Backend:
+            def range(inner, selector, start, end, *, limit, deadline):
+                calls.append((selector, start, end))
+                self.assertLessEqual(end - start, 3602 * 10**9)
+                self.assertIn('service="tianshu_platform"', selector)
+                self.assertLessEqual(deadline.remaining(), 10)
+                return [
+                    (collected, canonical(item).decode())
+                    for item in (self.first, self.second)
+                    if start <= collected <= end and item["event_id"] in selector
+                ]
+
+        with patch("monitor.time.time", return_value=now):
+            backend = Backend()
+            self.ledger.reconcile(backend)
+            self.assertEqual(self.ledger.metrics()["pending_events"], 2)
+            self.assertEqual(self.ledger.metrics()["landed_events"], 2)
+            for _ in range(20):
+                self.ledger.reconcile(backend)
+                if self.ledger.metrics()["pending_events"] == 0:
+                    break
+            self.assertEqual(self.ledger.metrics()["pending_events"], 0)
+        self.assertTrue(any(start <= collected <= end for _, start, end in calls))
+        self.assertEqual(self.ledger.db.execute(
+            "SELECT count(*) FROM retired_streams"
+        ).fetchone()[0], 0)
+
+    def test_confirmed_recheck_uses_recorded_collection_and_missing_becomes_pending(self):
+        now = time.time()
+        collected = now - 20 * 86400
+        with self.ledger.db:
+            self.ledger.db.execute(
+                "UPDATE events SET verified=?,collected=?,last_checked=0", (now - 7200, collected)
+            )
+        calls = []
+
+        class Backend:
+            def range(inner, selector, start, end, **kwargs):
+                calls.append((start, end))
+                return []
+
+        with patch("monitor.time.time", return_value=now):
+            self.ledger.reconcile(Backend())
+        self.assertTrue(all(start <= int(collected * 1e9) <= end for start, end in calls))
+        self.assertTrue(all(end - start <= 3602 * 10**9 for start, end in calls))
+        self.assertEqual(self.ledger.metrics()["pending_events"], 2)
+        self.assertEqual(self.ledger.metrics()["landed_events"], 2)
 
 
 class CapacityAlertTests(unittest.TestCase):

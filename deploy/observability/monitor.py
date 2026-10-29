@@ -1,6 +1,7 @@
 """Local durable hash ledger and external observations, independent of product databases."""
 
 import heapq
+import json
 import shutil
 import sqlite3
 import time
@@ -8,6 +9,10 @@ from contextlib import contextmanager
 
 from ledger_schema import initialize, insert_summary
 from policy import digest_bytes, event_time, segments
+from transport import Deadline
+
+RECONCILE_BATCH = 64
+RECONCILE_WINDOW_SECONDS = 3600
 
 
 class Ledger:
@@ -17,6 +22,10 @@ class Ledger:
         self.capacity_rejected_current = 0
         self.clear_before = 0
         self.scan_cursor = None
+        # Transient query progress is never proof. Restart simply searches again;
+        # only verified original hashes in the durable ledger authorize retirement.
+        self.reconcile_windows = {}
+        self.reconcile_cursor = 0
         self.db = sqlite3.connect(path)
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("PRAGMA synchronous=FULL")
@@ -234,17 +243,18 @@ class Ledger:
 
     def reconcile(self, client, retention_seconds=30 * 86400, batch=128):
         now = time.time()
+        batch = min(batch, RECONCILE_BATCH)
         pending = self.db.execute(
             # Compare a never-checked event's first_seen with the last real
             # check of an unmatched event, so continuous backfill cannot starve it.
-            "SELECT id,hash FROM events WHERE verified=0 "
+            "SELECT id,hash,service,collected,verified FROM events WHERE verified=0 "
             "ORDER BY CASE WHEN last_checked=0 THEN first_seen ELSE last_checked END,first_seen LIMIT ?",
             (max(1, batch // 2),),
         ).fetchall()
         # A prior query hit is not permanent proof. Revisit confirmed events while
         # they are inside retention so an empty/restored central store cannot go green.
         confirmed = self.db.execute(
-            "SELECT id,hash FROM events WHERE verified>0 AND last_checked<? AND first_seen>? ORDER BY last_checked LIMIT ?",
+            "SELECT id,hash,service,collected,verified FROM events WHERE verified>0 AND last_checked<? AND first_seen>? ORDER BY last_checked LIMIT ?",
             (now - 3600, now - retention_seconds, max(0, batch - len(pending))),
         ).fetchall()
         pending += confirmed
@@ -256,17 +266,60 @@ class Ledger:
                 int(now * 1e9),
             )
             return
-        expected = dict(pending)
-        selector = '{stack="tianshu"} | json | event_id=~"' + "|".join(expected) + '"'
-        rows = client.range(
-            selector,
-            int((now - retention_seconds) * 1e9),
-            int(now * 1e9),
-            # One more than the known identities proves an unsaturated window.
-            # A full 1024-event batch otherwise exceeds range's default 1000
-            # and needlessly bisects the entire retention interval.
-            limit=max(1000, len(expected) + 1),
-        )
+        window = RECONCILE_WINDOW_SECONDS
+        latest = int(now // window)
+        oldest = now - retention_seconds
+        groups = {}
+        for ident, fingerprint, service, collected, verified in pending:
+            if verified > 0 and collected is not None:
+                # Re-prove the actual previously observed collection position.
+                # Its absence conservatively makes the record pending again.
+                bucket = int(collected // window) if oldest <= collected <= now else latest
+                recent = False
+            else:
+                history, recent = self.reconcile_windows.get(ident, (latest, False))
+                if (history + 1) * window < oldest:
+                    history = latest
+                bucket = latest if recent else history
+            groups.setdefault((service, bucket, verified > 0), []).append(
+                (ident, fingerprint, recent)
+            )
+        groups = list(groups.items())
+        start = self.reconcile_cursor % len(groups)
+        groups = groups[start:] + groups[:start]
+        # One failed source/page cannot permanently monopolize the next cycle.
+        self.reconcile_cursor += 1
+        deadline = Deadline()
+        for (service, bucket, previously_verified), records in groups:
+            expected = {ident: fingerprint for ident, fingerprint, _ in records}
+            selector = (
+                '{stack="tianshu",service=' + json.dumps("tianshu_" + service)
+                + '} | json | event_id=~"' + "|".join(expected) + '"'
+            )
+            # Original event timestamps/first_seen are not collection bounds.
+            # Unknown records search the entire original retention window a page
+            # at a time, alternating the current hour with older pages so late
+            # delivery is found without restarting every historical search.
+            lower = max(oldest, bucket * window - 1)
+            upper = min(now, (bucket + 1) * window + 1)
+            rows = client.range(
+                selector, int(lower * 1e9), int(upper * 1e9),
+                limit=max(1000, len(expected) + 1), deadline=deadline,
+            )
+            seen = self._confirm_query(expected, rows, now, previously_verified)
+            for ident, _, recent in records:
+                if ident in seen:
+                    self.reconcile_windows.pop(ident, None)
+                    continue
+                if ident not in self.reconcile_windows and len(self.reconcile_windows) >= self.max_events:
+                    self.reconcile_windows.pop(next(iter(self.reconcile_windows)))
+                history = self.reconcile_windows.get(ident, (latest, False))[0]
+                self.reconcile_windows[ident] = (
+                    history if recent else bucket - 1,
+                    not recent and bucket != latest,
+                )
+
+    def _confirm_query(self, expected, rows, now, previously_verified):
         seen = set()
         with self.db:
             self.db.executemany(
@@ -290,10 +343,12 @@ class Ledger:
                         )
                 except ValueError:
                     self.count("invalid_retrieved_lines")
-            self.db.executemany(
-                "UPDATE events SET verified=0 WHERE id=?",
-                [(ident,) for ident in expected.keys() - seen],
-            )
+            if previously_verified:
+                self.db.executemany(
+                    "UPDATE events SET verified=0 WHERE id=?",
+                    [(ident,) for ident in expected.keys() - seen],
+                )
+        return seen
 
     def metrics(self):
         total, pending = self.db.execute(

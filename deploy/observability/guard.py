@@ -17,7 +17,7 @@ from urllib.parse import urlsplit
 from alerts import MONITOR_STALE_SECONDS, AlertStore
 from monitor import Ledger, capacities
 from policy import Policy
-from query import LokiClient
+from query import LokiClient, QueryError
 from retained_query import query_path, window_filter
 from retention import days, max_events
 from source_retention import prune_sources
@@ -32,6 +32,20 @@ QUERY_PATHS = {
     "/loki/api/v1/detected_fields",
     "/loki/api/v1/detected_labels",
 }
+
+MONITOR_FAILURE_STAGES = (
+    "startup", "source_scan", "capacity", "reconcile", "source_retention",
+    "expiration", "refill", "retained_window", "deletions", "metrics", "alerts",
+)
+MONITOR_QUERY_REASONS = (
+    "query_response_over_budget", "redirect_refused", "query_deadline_exceeded",
+    "backend_unavailable", "query_request_budget_exceeded", "query_failed",
+    "invalid_query_response", "timestamp_bucket_saturated",
+)
+MONITOR_FAILURE_REASONS = (
+    *MONITOR_QUERY_REASONS, "sqlite_busy", "sqlite_error", "io_error",
+    "invalid_state", "unexpected",
+)
 
 
 def route(method, raw_path):
@@ -73,6 +87,7 @@ class State:
             "push_rejected_total": 0,
             "proxy_auth_rejected_total": 0,
             "last_push_success_timestamp": 0,
+            **self.monitor_failure_values(),
         }
         self.stop = threading.Event()
         self.monitor_running = threading.Event()
@@ -99,6 +114,36 @@ class State:
     def update(self, **values):
         with self.lock:
             self.metrics.update(values)
+
+    @staticmethod
+    def monitor_failure_values(stage=None, reason=None):
+        # Fixed metric names only. Never expose exception text, SQL, source paths,
+        # selectors, credentials or log bodies through the diagnostics endpoint.
+        return {
+            **{f"monitor_failure_stage_{name}_current": int(name == stage)
+               for name in MONITOR_FAILURE_STAGES},
+            **{f"monitor_failure_reason_{name}_current": int(name == reason)
+               for name in MONITOR_FAILURE_REASONS},
+        }
+
+    def monitor_failed(self, stage, error):
+        if isinstance(error, QueryError) and str(error) in MONITOR_QUERY_REASONS:
+            reason = str(error)
+        elif isinstance(error, sqlite3.Error):
+            reason = (
+                "sqlite_busy"
+                if getattr(error, "sqlite_errorcode", 0) & 0xFF in {
+                    sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED
+                }
+                else "sqlite_error"
+            )
+        elif isinstance(error, OSError):
+            reason = "io_error"
+        elif isinstance(error, (ValueError, KeyError, TypeError)):
+            reason = "invalid_state"
+        else:
+            reason = "unexpected"
+        self.update(monitor_success=0, **self.monitor_failure_values(stage, reason))
 
     def authenticated(self, role, header):
         if role == "manage":
@@ -160,6 +205,7 @@ class State:
 
     def run_monitor(self):
         ledger, alerts = None, None
+        stage = "startup"
         self.monitor_running.set()
         try:
             policy = Policy(json.loads(Path(self.settings["snapshot"]).read_bytes()))
@@ -183,7 +229,9 @@ class State:
             while not self.stop.is_set():
                 succeeded = True
                 try:
+                    stage = "source_scan"
                     result = ledger.scan(self.settings["log_roots"])
+                    stage = "capacity"
                     cap = capacities(
                         self.settings["log_roots"], self.settings["log_budgets"]
                     )
@@ -196,17 +244,20 @@ class State:
                         extra[f"storage_{role}_free_bytes"] = disk.free
                         extra[f"storage_{role}_ratio"] = 1 - disk.free / disk.total
                     self.update(**result, **extra)
+                    stage = "reconcile"
                     ledger.reconcile(
                         self.backend,
                         retention_seconds=retention_days * 86400,
                         batch=min(1024, maximum),
                     )
+                    stage = "source_retention"
                     cleanup, coverage = prune_sources(
                         ledger,
                         self.settings["log_roots"],
                         retention_days,
                         host_state_path=self.settings.get("host_state_path"),
                     )
+                    stage = "expiration"
                     self.update(
                         **cleanup,
                         **ledger.expire(
@@ -224,6 +275,7 @@ class State:
                         ).fetchone()[0]
                     )
                     if ledger.capacity_rejected_current and free > 0:
+                        stage = "refill"
                         # Fill only proven free slots now. The read budget stops
                         # before another full-capacity rejection, while keeping
                         # every new unconsumed source byte for the next cycle.
@@ -232,6 +284,7 @@ class State:
                         )
                     if free > 0:
                         ledger.capacity_rejected_current = 0
+                    stage = "retained_window"
                     with self.lock:
                         # An operator clear may arrive during the backend query.
                         # Publish under the same lock used to hide its old window;
@@ -242,22 +295,23 @@ class State:
                         self.metrics["retained_events"] = len(window)
                     self.update(retention_delete_failures_current=0)
                     try:
+                        stage = "deletions"
                         ledger.submit_deletions(self.backend)
                     except Exception:
                         self.update(retention_delete_failures_current=1)
                         raise
-                except Exception:
+                except Exception as error:
                     succeeded = False
                     self.add("query_failures_total")
-                    self.update(monitor_success=0)
+                    self.monitor_failed(stage, error)
                 # Read one final snapshot, including newly landed events even if
                 # Loki was unavailable. Aggregate metadata needs no full scan.
                 try:
                     self.update(**ledger.metrics())
-                except Exception:
+                except Exception as error:
                     succeeded = False
                     self.add("query_failures_total")
-                    self.update(monitor_success=0)
+                    self.monitor_failed("metrics", error)
                 if succeeded:
                     self.update(
                         monitor_success=1,
@@ -265,10 +319,13 @@ class State:
                     )
                 with self.lock:
                     metrics = dict(self.metrics)
+                stage = "alerts"
                 self.update(**alerts.update(metrics))
+                if succeeded:
+                    self.update(**self.monitor_failure_values())
                 self.stop.wait(self.settings.get("interval_seconds", 30))
-        except Exception:
-            self.update(monitor_success=0)
+        except Exception as error:
+            self.monitor_failed(stage, error)
         finally:
             self.monitor_running.clear()
             self.update(monitor_success=0)

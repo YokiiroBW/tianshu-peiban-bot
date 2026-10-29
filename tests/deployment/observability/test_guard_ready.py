@@ -106,12 +106,80 @@ class ReadinessTests(TransportFixture):
         self.until(self.state.monitor_ready)
         self.assertEqual(self.ready_status(), 200)
         with patch.object(
-            self.state.backend, "range", side_effect=QueryError("synthetic unavailable")
+            self.state.backend, "range", side_effect=QueryError("query_failed")
         ):
             self.until(lambda: self.state.metrics["monitor_success"] == 0)
             self.assertEqual(self.ready_status(), 503)
-        self.until(self.state.monitor_ready)
+            self.assertEqual(
+                self.state.metrics["monitor_failure_stage_reconcile_current"], 1
+            )
+            self.assertEqual(
+                self.state.metrics["monitor_failure_reason_query_failed_current"], 1
+            )
+        self.until(lambda: self.state.monitor_ready() and not any(
+            value for name, value in self.state.metrics.items()
+            if name.startswith("monitor_failure_")
+        ))
         self.assertEqual(self.ready_status(), 200)
+
+    def test_failure_projection_never_exposes_unclassified_exception_text(self):
+        self.state.monitor_failed(
+            "reconcile", QueryError("SYNTHETIC_PRIVATE_QUERY_OR_CREDENTIAL_CANARY")
+        )
+        self.assertEqual(self.ready_status(), 503)
+        self.assertEqual(
+            self.state.metrics["monitor_failure_stage_reconcile_current"], 1
+        )
+        self.assertEqual(
+            self.state.metrics["monitor_failure_reason_unexpected_current"], 1
+        )
+        self.assertNotIn(b"SYNTHETIC_PRIVATE", self.state.render_metrics())
+
+    def test_full_ledger_query_failure_recovers_with_original_proof_and_refill(self):
+        records = [event(sequence) for sequence in range(1, 5)]
+        path = self.logs / f"platform-{records[0]['instance_id']}-0000.jsonl"
+        emit(path, records)
+        original = path.read_bytes()
+        self.state.settings["log_max_events"] = 3
+        available = threading.Event()
+
+        # A fixed collection instant can be compared with the original query's
+        # end; the substitute never fabricates a hit outside its requested page.
+        collected = time.time_ns()
+
+        def retained(selector, start, end, **kwargs):
+            if not available.is_set():
+                raise QueryError("query_deadline_exceeded")
+            return [
+                (collected, canonical(item).decode()) for item in records
+                if item["event_id"] in selector and start <= collected <= end
+            ]
+
+        with patch.object(self.state.backend, "range", retained):
+            self.start_monitor()
+            self.until(lambda: self.state.metrics.get(
+                "monitor_failure_reason_query_deadline_exceeded_current"
+            ) == 1)
+            self.assertEqual(self.ready_status(), 503)
+            self.assertEqual(self.state.metrics["landed_events"], 3)
+            self.assertEqual(self.state.metrics["ledger_capacity_rejected_current"], 1)
+            self.assertEqual(path.read_bytes(), original)
+            available.set()
+            self.until(lambda: self.state.monitor_ready()
+                       and self.state.metrics.get("pending_events") == 0
+                       and self.state.metrics.get("expired_events_total", 0) > 0)
+            self.assertEqual(self.ready_status(), 200)
+            with closing(sqlite3.connect(
+                (self.root / "ledger.sqlite").as_uri() + "?mode=ro", uri=True
+            )) as db:
+                self.assertIsNotNone(db.execute(
+                    "SELECT 1 FROM events WHERE id=?", (records[-1]["event_id"],)
+                ).fetchone())
+                self.assertLessEqual(db.execute("SELECT count(*) FROM events").fetchone()[0], 3)
+                self.assertEqual(db.execute(
+                    "SELECT clear_before FROM retention_control"
+                ).fetchone()[0], 0)
+            self.assertEqual(path.read_bytes(), original)
 
     def test_metrics_failure_does_not_refresh_success_timestamp(self):
         self.start_monitor()
@@ -175,7 +243,7 @@ class ReadinessTests(TransportFixture):
         entered, release = threading.Event(), threading.Event()
         blocked = False
 
-        def observed(selector, start, end, *, limit=1000):
+        def observed(selector, start, end, *, limit=1000, deadline=None):
             nonlocal blocked
             if not blocked:
                 blocked = True

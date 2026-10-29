@@ -316,10 +316,11 @@ class StorageTests(unittest.TestCase):
         client = Mock()
         client.range.return_value = []
         ledger.reconcile(client, batch=4)
-        first_query = client.range.call_args.args[0]
+        first_query = " ".join(call.args[0] for call in client.range.call_args_list)
         self.assertTrue(all(record["event_id"] in first_query for record in records[:4]))
+        client.reset_mock()
         ledger.reconcile(client, batch=4)
-        second_query = client.range.call_args.args[0]
+        second_query = " ".join(call.args[0] for call in client.range.call_args_list)
         self.assertTrue(all(record["event_id"] in second_query for record in records[4:]))
         for sql, parameters, name in (
             ("SELECT id FROM events WHERE verified=0 ORDER BY CASE WHEN last_checked=0 THEN first_seen ELSE last_checked END,first_seen LIMIT ?", (2,), "event_pending"),
@@ -332,7 +333,7 @@ class StorageTests(unittest.TestCase):
             if name != "event_pending":
                 self.assertNotIn("TEMP B-TREE", plan)
 
-    def test_full_reconcile_batch_uses_one_complete_page_and_keeps_integrity(self):
+    def test_full_reconcile_batch_makes_bounded_progress_and_keeps_integrity(self):
         for count, case in ((1000, "complete"), (1024, "complete"),
                             (1024, "missing_changed"), (1024, "saturated")):
             with self.subTest(count=count, case=case):
@@ -353,7 +354,7 @@ class StorageTests(unittest.TestCase):
                 if case == "missing_changed":
                     returned = [{**records[1], "outcome": "failed"}, *records[2:]]
                 elif case == "saturated":
-                    returned.append(records[0])
+                    returned = [records[0]] * 1000
                 stamp = int((now - 1) * 1e9)
                 calls = []
 
@@ -361,12 +362,15 @@ class StorageTests(unittest.TestCase):
                     deadline.remaining()
                     args = parse_qs(urlsplit(path).query)
                     limit = int(args["limit"][0])
-                    calls.append(limit)
+                    selected = args["query"][0].split('event_id=~"', 1)[1][:-1].split("|")
+                    calls.append((limit, len(selected)))
+                    self.assertIn('service="tianshu_platform"', args["query"][0])
+                    self.assertLessEqual(int(args["end"][0]) - int(args["start"][0]), 3602 * 10**9)
                     in_window = int(args["start"][0]) <= stamp <= int(args["end"][0])
                     values = [
                         [str(stamp), canonical(record).decode()]
-                        for record in returned[:limit]
-                    ] if in_window else []
+                        for record in returned if record["event_id"] in selected
+                    ][:limit] if in_window else []
                     body = {"status": "success", "data": {
                         "resultType": "streams", "result": [{"values": values}],
                     }}
@@ -380,8 +384,15 @@ class StorageTests(unittest.TestCase):
                     self.assertEqual(ledger.metrics()["pending_events"], count // 2)
                     self.assertGreater(len(calls), 1)
                 else:
-                    ledger.reconcile(client, batch=count)
-                    self.assertEqual(calls, [count + 1])
+                    for _ in range(count // 32 + 4):
+                        ledger.reconcile(client, batch=count)
+                        checked = ledger.db.execute(
+                            "SELECT count(*) FROM events WHERE last_checked>=?", (now,)
+                        ).fetchone()[0]
+                        if checked == count:
+                            break
+                    self.assertEqual(checked, count)
+                    self.assertTrue(all(limit == 1000 and size <= 64 for limit, size in calls))
                     self.assertEqual(ledger.metrics()["pending_events"],
                                      2 if case == "missing_changed" else 0)
 
@@ -416,10 +427,14 @@ class StorageTests(unittest.TestCase):
 
         client.range.side_effect = available
         with patch("monitor.time.time", return_value=now):
-            ledger.reconcile(client, batch=1024)
-        selector = client.range.call_args.args[0]
-        self.assertEqual(sum(record["event_id"] in selector for record in records), 512)
-        self.assertTrue(all(record["event_id"] in selector for record in records[:83]))
+            for _ in range(3):
+                ledger.reconcile(client, batch=1024)
+        selectors = [call.args[0] for call in client.range.call_args_list]
+        self.assertTrue(all(
+            sum(record["event_id"] in selector for record in records) <= 32
+            for selector in selectors
+        ))
+        self.assertTrue(all(record["event_id"] in " ".join(selectors) for record in records[:83]))
         self.assertEqual(
             ledger.db.execute(
                 "SELECT count(*) FROM events WHERE sequence<=83 AND verified>0 AND last_checked=?",
@@ -429,7 +444,7 @@ class StorageTests(unittest.TestCase):
         )
         self.assertEqual(
             (ledger.metrics()["landed_events"], ledger.metrics()["pending_events"]),
-            (10000, 10000 - 512),
+            (10000, 10000 - 96),
         )
         self.assertEqual(client.range.call_args.kwargs["limit"], 1000)
 
