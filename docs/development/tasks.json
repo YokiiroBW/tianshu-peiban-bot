@@ -2746,7 +2746,7 @@
       "id": "TS-416",
       "project": "companion",
       "title": "持续生活与记忆总结统一采用既有OpenCode DS分流",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "TS-415"
       ],
@@ -2759,7 +2759,14 @@
         "docs/handoffs/TS-416.md"
       ],
       "assignee": "window_memory_routing",
-      "plan": "docs/development/runtime-recovery-execution-2026-10-29.md"
+      "plan": "docs/development/runtime-recovery-execution-2026-10-29.md",
+      "delivery_state": "R25_pushed_deployed_live_binding_verified",
+      "integrated_commit": "07f85f9741f29100dc7e6d0ceb28afb8a52954a5",
+      "production_image": "sha256:dc6af17c2dc2a1cb14554c529d5351e5467f27fdf02ff0ddfe653312a71c7c7d",
+      "production_guard": "r18",
+      "targeted_selector_tests": 2,
+      "model": "opencode/deepseek-v4.1-flash",
+      "function_bindings_unchanged": true
     }
   ],
   "dispatch_defaults": {

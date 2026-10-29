@@ -1,3 +1,11 @@
+## 2026-10-29 持续后台与窗口摘要统一使用 OpenCode DS（R25）
+
+用户指定日程、自主阅读与记忆总结用 `opencode / deepseek-v4.1-flash`。正式核对 writing/memory 原配置已明确绑定该 provider revision3、binding revision1，无需写重复配置；分别覆盖生活生成/日记反思/自主目标与活动阅读、自动记忆提取和分段总结。TS416将唯一遗漏的窗口空闲/阈值摘要显式归现有 memory 分流，普通聊天、搜索/工具/代码、群聊参与和Qwen嵌入重排保持；原在途任务的模型、身份与回执不重定向。
+
+已正常推送并部署R25 `sha256:dc6af17c2dc2a1cb14554c529d5351e5467f27fdf02ff0ddfe653312a71c7c7d`，C07f85f9、application9facd5c；M57a1a14/P73c4f09/Ged631d8及56 root runtime、83前端、65未变wheel继承。两项selector回归通过并复用，生产容器healthy/0restart/无OOM、六业务及原鉴权ready200，37挂载/1133配置文件/13其他容器/20GiB floor保持、guardr18；仅原scope启动租约例行续期。未重跑全套/UI/静态资产请求，无DDL/全库备份、额外模型或QQ测试。首次激活在停服前因旧观测不健康退出，恢复后按完全相同流程重试，原失败记录保留；没有放宽生产容量、鉴权或数据保护。日志追赶期间obs-guard仍有健康波动，收口时4观测ready/guard unhealthy；本批只验受影响业务入口并如实记录，不冒称整体稳定或五观测全通过。
+
+本批只调整模型分流：原始输入核验导致摘要未生成、当日日程interrupted及自主八轮预算触顶仍是独立待收口项，不能因选模改动宣称已解决。[任务和验证边界](runtime-recovery-execution-2026-10-29.md)。
+
 ## 2026-10-29 真实运行四项恢复已发布 R24
 
 记忆系统线程已释放边界，由本窗口串行集成、正常推送并部署。正式R24 `sha256:b6253b79b8572eed9c57f86bd62145654f9511c3b798ca5fad2cdf49d45642bd`，application40b36d4、Ccc00312、P73c4f09，M57a1a14/Ged631d8保持。TS407–415完成本轮修复交付；用户对话记忆语义、独立角色记忆域、配置和数据保留，无DDL。
