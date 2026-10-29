@@ -56,3 +56,9 @@ R23正式 imagee92689a、application7caccbd、P a35eb0d、Ccc00312，guardr16。
 - 检索：用户现有external rev7、hybrid/rerank、candidates40、两个Qwen3模型及密钥保持。TS415原MemoryRetrieval.execute→ProviderManagement有界读到EOF，延迟分块4096维JSON和1MiB/多1字节边界2项真实loopback用例通过；不改变parser/依赖/权限。真实P测试只接受原网页登录session，没有可等价替代的operator内部测试入口；本轮不重置密码、伪造session、新建旁路或手改旧unknown回执，因此不宣称真实嵌入测试通过。重排既有成功记录保持。
 
 验证复用：TS407的28、TS408的10个不同节点、TS409首批22和后续必要3节点、TS412的6、TS413的4、TS414的1、TS415的2均按各交接保留；存在重复节点，不汇总成夸大总数。根只补装配差异、真实1024哈希只读probe、原任务准确一次和正式受影响入口；没有全套、双后端矩阵、重复浏览器、固定20探针/300秒等待或维护QQ消息。真实QQ收发、完整阅读完成、长期自然体验未冒称本轮已验。精确记录见[runtime-recovery-release-2026-10-29.json](runtime-recovery-release-2026-10-29.json)。
+
+## 持续后台模型分流：TS416
+
+用户要求角色日程、自主阅读等持续后台生成，以及记忆总结使用OpenCode的DeepSeek。生产配置已实读：writing与memory均明确绑定provider-5b81fcd733ea4df6be6646fc8c2532ec/revision3，即opencode/deepseek-v4.1-flash，绑定revision1；不重复写同值或复制密钥。writing覆盖日程/自主目标/活动阅读/日记反思/生活影响与主动分享；memory覆盖自动记忆提取、分段总结。普通聊天、群聊参与、工具/代码/搜索和Qwen嵌入重排绑定保持。
+
+唯一缺口是对话窗口压缩摘要的SelectionRequest未显式function_id，继承chat；TS416仅将该新摘要任务归现有memory功能。idle与threshold共用同一入口。已经固定的旧turn/task仍使用原授权、原request_id和回执，不重指派、不重放；当前窗口未进入模型，原raw_input核验失败、日程interrupted及八轮预算问题不因模型分流冒称修复。独立C worktree、最小已有selector回归，C-only离线增量发布，其他模块/前端/配置和数据保留；不全测或为验收发QQ/额外模型请求。

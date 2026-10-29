@@ -2741,6 +2741,25 @@
       "delivery_record": "docs/development/runtime-recovery-release-2026-10-29.json",
       "integrated_commit": "73c4f09",
       "external_worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-provider-response/tianshu-platform"
+    },
+    {
+      "id": "TS-416",
+      "project": "companion",
+      "title": "持续生活与记忆总结统一采用既有OpenCode DS分流",
+      "status": "in_progress",
+      "depends_on": [
+        "TS-415"
+      ],
+      "baseline_commit": "cc0031285c126f4e0208e0d8efb6d1feeb357ec9",
+      "branch": "codex/ts416-window-memory-model-20261029",
+      "external_worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-window-model/tianshu-companion",
+      "allowed_paths": [
+        "src/tianshu_companion/conversation_window_compaction.py",
+        "tests/ (affected selector regression)",
+        "docs/handoffs/TS-416.md"
+      ],
+      "assignee": "window_memory_routing",
+      "plan": "docs/development/runtime-recovery-execution-2026-10-29.md"
     }
   ],
   "dispatch_defaults": {
