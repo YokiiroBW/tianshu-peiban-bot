@@ -26,6 +26,8 @@
 
 ## 基线与不利项
 
+上述五条请求已按 correlation_id 与生产 Platform 原生日志逐条关联，得到 15 条 started/finished/auth 事件。household 的同一角色发现拒绝被记录为 `http.auth.rejected`；另外四条请求记录为 `http.auth.succeeded`。线上 `_terminal_events` 也明确将拒绝或无鉴权处置标记的 401/403 计入拒绝。因此这个计数不能单独证明 token 失效，不能仅凭计数去轮换或放宽服务身份。此核对没有新增 HTTP 请求，证据为主工作区 `PC-02-auth-classification.json`。
+
 PG 基线：历史决策 15/69；最近 24h 为 15/45。6 条 paused，5 条无恢复时间；主动八表全空。03:16 的五分钟日志窗中 Platform 拒绝率约 19.6/分钟，主服务 peer 属性覆盖率仍为 0%。与最初 193/分钟的窗口不同，**此间未执行修复，不能把差异称为修复效果**。
 
 首次独立进程直连配置中的 SDK URL 得到三条 ConnectError，已保留为 `PC-02-isolated-direct-transport-failed.json`。统一宿主内部 SDK 使用进程内传输，旧 URL 不是可用的独立进程监听器；该失败不能证明生产链路网络故障。改用真实本机 TLS 入口后取得上表五条有效请求。
