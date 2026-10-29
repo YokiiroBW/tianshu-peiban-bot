@@ -1,0 +1,146 @@
+{
+  "version": "2026.10.29-unified-linux-r24",
+  "delivery_state": "pushed_deployed_live_targeted_verified",
+  "sources": {
+    "application": "40b36d4487a8dbf5719297736102146ea6499f16",
+    "platform": "73c4f09bb074ae36582364edd02f1122fd76f5cf",
+    "companion": "cc0031285c126f4e0208e0d8efb6d1feeb357ec9",
+    "memory": "57a1a1468382641ea1d33cae9498c9ed170f6a7a",
+    "gateway": "ed631d8a6f26890628a9df833792210e9a09e31c"
+  },
+  "production": {
+    "owner": "8d48ed5b8da46bfd80da9a3a74a9e27003beab13c8a8f0fa59e8524a0c3ef3a7",
+    "image": "sha256:b6253b79b8572eed9c57f86bd62145654f9511c3b798ca5fad2cdf49d45642bd",
+    "guard": "r17",
+    "health": "healthy",
+    "restarts": 0,
+    "oom": false,
+    "authenticated_ready": 200
+  },
+  "preserved": {
+    "user_dialogue_memory_semantics": true,
+    "actor_memory_domain": true,
+    "database_schema": true,
+    "config_files": 1133,
+    "mounts": 37,
+    "non_target_containers": 13,
+    "capacity_floor_bytes": 21474836480,
+    "config_delta_r24": "original_same_scope_gateway_startup_lease_only",
+    "retrieval_revision": 7,
+    "retrieval_credentials_and_models": true,
+    "dirty_root_and_ts306_ts307": true
+  },
+  "memory_recovery": {
+    "original_jobs": 4,
+    "completed_original_jobs": 4,
+    "committed_jobs": 4,
+    "write_ledger_rows": 4,
+    "committed_without_ledger": 0,
+    "new_jobs_created": 0,
+    "original_batch_turn_preserved": true,
+    "previous_failure_count_per_job": 6,
+    "attempt_count_after_single_explicit_recovery": 7
+  },
+  "window": {
+    "generation": 9080,
+    "version": 9079,
+    "turns": 10,
+    "messages": 22,
+    "text_bytes": 2933,
+    "reset_loop_stopped": true,
+    "summary_generation_quality_tested": false
+  },
+  "autonomous": {
+    "successful_actual_planning": true,
+    "successful_activity_tool_calls": 2,
+    "activity_paused_by_explicit_model_tool": true,
+    "step_round": 2,
+    "step_receipts": 2,
+    "pending_is_saved_continuation": true,
+    "latest_unknown": {
+      "reason": "upstream_stream_timeout",
+      "gateway_reason": "timeout_unknown",
+      "elapsed_ms": 30001,
+      "upstream_status": 200,
+      "automatic_replay": false,
+      "next_decision_at": 1793260885.9291754
+    },
+    "reading_completion_tested": false
+  },
+  "logging": {
+    "read_only_candidate_probe": {
+      "after_verified": 1024,
+      "before_verified": 0,
+      "deadline_seconds": 10,
+      "elapsed_ms": 2827,
+      "machine_code": "ok",
+      "query_id_count_max": 64,
+      "query_id_count_total": 1024,
+      "query_requests": 17,
+      "read_only": true,
+      "reconcile_acks": 1024,
+      "selected": 1024,
+      "selected_confirmed": 0,
+      "selected_pending": 1024,
+      "true_hash_acks": 1024
+    },
+    "r23_unconsumed_source_bytes": 305521194,
+    "r24_first_unconsumed_source_bytes": 306139707,
+    "r24_current": {
+      "landed": 10000,
+      "verified": 9488,
+      "collection_positions": 9488,
+      "oldest_pending_first_seen": 1793260514.133241,
+      "latest_verified": 1793260512.219492,
+      "expired": 1054465,
+      "query_interval": 30,
+      "unconsumed_source_bytes": 292163519,
+      "source_bytes": 425878904,
+      "source_files": 18
+    },
+    "history_fully_drained": false,
+    "retention_events": 10000,
+    "retention_days": 30,
+    "whole_round_query_deadline_seconds": 10,
+    "max_ids_per_http": 64,
+    "max_events_per_round": 1024,
+    "catchup_wait_seconds": 1,
+    "idle_or_failed_wait_seconds": 30,
+    "no_manual_clear": true
+  },
+  "retrieval": {
+    "existing_user_bindings_retained": true,
+    "hybrid": true,
+    "rerank": true,
+    "candidates": 40,
+    "embedding": "Qwen/Qwen3-Embedding-8B",
+    "reranker": "Qwen/Qwen3-Reranker-8B",
+    "platform_large_response_read_fixed": true,
+    "delayed_4096_vector_and_1MiB_limit_regressions_passed": 2,
+    "real_provider_test_not_rerun": "requires original authenticated web session; no password reset, session forgery or receipt rewrite",
+    "historical_embedding_test": "unknown/upstream_invalid",
+    "historical_rerank_test": "succeeded"
+  },
+  "validation": {
+    "mode": "minimum_affected_targeted_only",
+    "reused_subagent_results": true,
+    "ddl": false,
+    "full_suite": false,
+    "dual_backend_matrix": false,
+    "browser_suite_repeated": false,
+    "full_backup_restore": false,
+    "payload_files": {
+      "platform": 340
+    },
+    "runtime_files": 56,
+    "frontend_files_inherited": 83,
+    "unchanged_wheels": 65,
+    "real_qq_messages_sent_by_maintenance": 0
+  },
+  "limitations": [
+    "Historical raw log sources continue bounded catchup; no claim of full drain.",
+    "One actual autonomous model stream exceeded 30 seconds and remains unknown until the original next decision; not rewritten or replayed.",
+    "Real embedding provider test was not rerun without its original web session.",
+    "No new real QQ reply, autonomous reading completion or long-term natural experience acceptance."
+  ]
+}

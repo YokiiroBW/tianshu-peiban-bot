@@ -2545,8 +2545,9 @@
       "external_worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-window-recovery\\tianshu-companion",
       "branch": "codex/ts407-runtime-recovery-20261029",
       "plan": "docs/development/runtime-recovery-execution-2026-10-29.md",
-      "delivery_state": "R22_deployed_window_stable",
-      "integrated_commit": "9272bad"
+      "delivery_state": "R24_pushed_deployed_live_targeted_verified",
+      "integrated_commit": "9272bad",
+      "delivery_record": "docs/development/runtime-recovery-release-2026-10-29.json"
     },
     {
       "id": "TS-408",
@@ -2568,8 +2569,9 @@
       "external_worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-background-recovery\\tianshu-companion",
       "branch": "codex/ts408-runtime-recovery-20261029",
       "plan": "docs/development/runtime-recovery-execution-2026-10-29.md",
-      "delivery_state": "R23_deployed_four_original_jobs_committed_once",
-      "integrated_commit": "cc00312"
+      "delivery_state": "R24_pushed_deployed_live_targeted_verified",
+      "integrated_commit": "cc00312",
+      "delivery_record": "docs/development/runtime-recovery-release-2026-10-29.json"
     },
     {
       "id": "TS-409",
@@ -2590,7 +2592,7 @@
       "external_worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-log-recovery\\tianshu-peiban-bot",
       "branch": "codex/ts409-runtime-recovery-20261029",
       "plan": "docs/development/runtime-recovery-execution-2026-10-29.md",
-      "delivery_state": "R23_deployed_R24_throughput_integrated",
+      "delivery_state": "R24_pushed_deployed_live_targeted_verified",
       "integrated_commit": "f6055e2",
       "followup_commits": [
         "061dce6",
@@ -2603,13 +2605,14 @@
         "elapsed_ms": 2827,
         "query_ids_max": 64,
         "deadline_seconds": 10
-      }
+      },
+      "delivery_record": "docs/development/runtime-recovery-release-2026-10-29.json"
     },
     {
       "id": "TS-410",
       "project": "workspace",
       "title": "既有嵌入重排模型与Memory实际绑定收口",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "TS-406"
       ],
@@ -2621,13 +2624,15 @@
       ],
       "baseline_commit": "d9e645a01d94b2b896718242dbfc8d6e4070439d",
       "assignee": "coordinator",
-      "plan": "docs/development/runtime-recovery-execution-2026-10-29.md"
+      "plan": "docs/development/runtime-recovery-execution-2026-10-29.md",
+      "delivery_state": "R24_pushed_deployed_live_targeted_verified",
+      "delivery_record": "docs/development/runtime-recovery-release-2026-10-29.json"
     },
     {
       "id": "TS-411",
       "project": "workspace",
       "title": "四项恢复集成与串行推送部署实机确认",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "TS-407",
         "TS-408",
@@ -2646,7 +2651,9 @@
       ],
       "baseline_commit": "d9e645a01d94b2b896718242dbfc8d6e4070439d",
       "assignee": "coordinator",
-      "plan": "docs/development/runtime-recovery-execution-2026-10-29.md"
+      "plan": "docs/development/runtime-recovery-execution-2026-10-29.md",
+      "delivery_state": "R24_pushed_deployed_live_targeted_verified",
+      "delivery_record": "docs/development/runtime-recovery-release-2026-10-29.json"
     },
     {
       "id": "TS-412",
@@ -2665,15 +2672,16 @@
         "docs/handoffs/TS-412.md"
       ],
       "plan": "docs/development/runtime-recovery-execution-2026-10-29.md",
-      "delivery_state": "R23_deployed_original_turn_recovery_succeeded",
-      "integrated_commit": "aff6345"
+      "delivery_state": "R24_pushed_deployed_live_targeted_verified",
+      "integrated_commit": "aff6345",
+      "delivery_record": "docs/development/runtime-recovery-release-2026-10-29.json"
     },
     {
       "id": "TS-413",
       "project": "platform",
       "title": "原记忆恢复平台管理入口",
       "status": "done",
-      "delivery_state": "R23_deployed_live_affected_entry_passed",
+      "delivery_state": "R24_pushed_deployed_live_targeted_verified",
       "depends_on": [
         "TS-412"
       ],
@@ -2688,14 +2696,15 @@
         "tests/backend/test_memory_learning_management.py",
         "docs/handoffs/TS-413.md"
       ],
-      "plan": "docs/development/runtime-recovery-execution-2026-10-29.md"
+      "plan": "docs/development/runtime-recovery-execution-2026-10-29.md",
+      "delivery_record": "docs/development/runtime-recovery-release-2026-10-29.json"
     },
     {
       "id": "TS-414",
       "project": "platform",
       "title": "失败模型测试时间PG数值适配",
       "status": "done",
-      "delivery_state": "R23_deployed_live_affected_entry_passed",
+      "delivery_state": "R24_pushed_deployed_live_targeted_verified",
       "depends_on": [
         "TS-412"
       ],
@@ -2708,13 +2717,14 @@
         "tests/backend/test_postgres_dialect.py",
         "docs/handoffs/TS-414.md"
       ],
-      "plan": "docs/development/runtime-recovery-execution-2026-10-29.md"
+      "plan": "docs/development/runtime-recovery-execution-2026-10-29.md",
+      "delivery_record": "docs/development/runtime-recovery-release-2026-10-29.json"
     },
     {
       "id": "TS-415",
       "project": "platform",
       "title": "大嵌入响应完整有界读取",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "TS-414"
       ],
@@ -2726,7 +2736,11 @@
         "docs/handoffs/TS-415.md"
       ],
       "assignee": "al_core_platform",
-      "plan": "docs/development/runtime-recovery-execution-2026-10-29.md"
+      "plan": "docs/development/runtime-recovery-execution-2026-10-29.md",
+      "delivery_state": "R24_pushed_deployed_live_targeted_verified",
+      "delivery_record": "docs/development/runtime-recovery-release-2026-10-29.json",
+      "integrated_commit": "73c4f09",
+      "external_worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-provider-response/tianshu-platform"
     }
   ],
   "dispatch_defaults": {
