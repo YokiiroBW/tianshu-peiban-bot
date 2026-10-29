@@ -254,7 +254,8 @@ class Ledger:
         # A prior query hit is not permanent proof. Revisit confirmed events while
         # they are inside retention so an empty/restored central store cannot go green.
         confirmed = self.db.execute(
-            "SELECT id,hash,service,collected,verified FROM events WHERE verified>0 AND last_checked<? AND first_seen>? ORDER BY last_checked LIMIT ?",
+            "SELECT id,hash,service,collected,verified FROM events WHERE verified>0 "
+            "AND (last_checked<? OR collected IS NULL) AND first_seen>? ORDER BY last_checked LIMIT ?",
             (now - 3600, now - retention_seconds, max(0, batch - len(pending))),
         ).fetchall()
         pending += confirmed
@@ -281,7 +282,12 @@ class Ledger:
                 if (history + 1) * window < oldest:
                     history = latest
                 bucket = latest if recent else history
-            groups.setdefault((service, bucket, verified > 0), []).append(
+            # Legacy confirmations may have no recorded collection position.
+            # A partial page cannot disprove their earlier full-window receipt;
+            # keep it unchanged until a hit or completion of the original window.
+            complete = not recent and bucket * window - 1 <= oldest
+            disprove_missing = verified > 0 and (collected is not None or complete)
+            groups.setdefault((service, bucket, disprove_missing), []).append(
                 (ident, fingerprint, recent)
             )
         groups = list(groups.items())

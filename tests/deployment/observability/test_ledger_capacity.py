@@ -213,6 +213,54 @@ class CapacityTests(unittest.TestCase):
         self.assertEqual(self.ledger.metrics()["pending_events"], 2)
         self.assertEqual(self.ledger.metrics()["landed_events"], 2)
 
+    def test_legacy_confirmation_survives_partial_misses_and_restart_until_window_complete(self):
+        now = (int(time.time() // 3600) + 0.75) * 3600
+        verified = now - 7200
+        collected = int((now - 2 * 3600) * 1e9)
+        with self.ledger.db:
+            self.ledger.db.execute(
+                "UPDATE events SET first_seen=?,verified=?,collected=NULL,last_checked=0",
+                (now - 100, verified),
+            )
+        calls = []
+
+        class Backend:
+            def range(inner, selector, start, end, **kwargs):
+                calls.append((start, end))
+                self.assertLessEqual(end - start, 3602 * 10**9)
+                # One old confirmation exists in Loki, the other's whole window
+                # is absent. Neither partial miss is evidence of central loss.
+                return [(collected, canonical(self.first).decode())] if (
+                    start <= collected <= end and self.first["event_id"] in selector
+                ) else []
+
+        with patch("monitor.time.time", return_value=now):
+            self.ledger.reconcile(Backend(), retention_seconds=3 * 3600)
+            self.assertEqual(self.ledger.metrics()["pending_events"], 0)
+            self.assertEqual(self.ledger.db.execute(
+                "SELECT verified,collected FROM events ORDER BY sequence"
+            ).fetchall(), [(verified, None), (verified, None)])
+            self.ledger.close()
+            self.ledger = Ledger(self.root / "ledger.sqlite", Policy(SNAPSHOT), max_events=2)
+            self.addCleanup(self.ledger.close)
+            self.ledger.reconcile(Backend(), retention_seconds=3 * 3600)
+            self.assertEqual(self.ledger.metrics()["pending_events"], 0)
+            for _ in range(10):
+                self.ledger.reconcile(Backend(), retention_seconds=3 * 3600)
+                if self.ledger.metrics()["pending_events"] == 1:
+                    break
+            self.assertEqual(self.ledger.metrics()["pending_events"], 1)
+            rows = self.ledger.db.execute(
+                "SELECT verified,collected FROM events ORDER BY sequence"
+            ).fetchall()
+            self.assertEqual(rows, [(now, collected / 1e9), (0, None)])
+            self.assertTrue(any(start <= int((now - 3 * 3600) * 1e9) <= end
+                                for start, end in calls))
+            self.assertEqual(self.ledger.metrics()["landed_events"], 2)
+            self.assertEqual(self.ledger.db.execute(
+                "SELECT count(*) FROM retired_streams"
+            ).fetchone()[0], 0)
+
 
 class CapacityAlertTests(unittest.TestCase):
     def test_configured_ratio_and_current_rejection_resolve_without_resetting_history(
