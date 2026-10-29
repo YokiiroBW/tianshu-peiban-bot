@@ -1,5 +1,5 @@
 {
-  "status": "integrated_image_verified_not_activated",
+  "status": "R29_deployed_recovery_partially_confirmed",
   "release": "2026.10.29-unified-linux-r29",
   "image": "sha256:86ce0487a390f6004d5f730b060d2192c157383f0473ee61da412f1895f7d654",
   "parent_image": "sha256:6d777fefab004de926bad3cce4f7ba1e581eb76cd5e83077692e0ba13f9d35fa",
@@ -39,10 +39,87 @@
     "old_worktrees_and_root_index": "preserved",
     "unknown_model_or_tool_executions": "not replayed"
   },
-  "production_acceptance": "pending serial activation and original-business recovery observation",
+  "production_acceptance": {
+    "id": "3f0183f9eff3918cf4469ad0ae55f436380d7ea02030a555907284aa3b793009",
+    "image": "sha256:86ce0487a390f6004d5f730b060d2192c157383f0473ee61da412f1895f7d654",
+    "health": "healthy",
+    "restart_count": 0,
+    "oom": false,
+    "mounts": 37,
+    "config_files_preserved": 1133,
+    "config_change": "same_scope_startup_lease_only",
+    "non_target_containers_preserved": 14,
+    "capacity_guard": "r25_active_armed",
+    "capacity_floor_bytes": 21474836480,
+    "completed_at": 1793289610.636795,
+    "authenticated_ready": 200,
+    "business_modules_ready": 6,
+    "observability_modules_ready": 5
+  },
   "limits": [
     "No real QQ acceptance or artificial paid-model quality tests.",
     "Old unknown life requests and missing rejected output cannot be reconstructed or blindly replayed.",
     "Legacy household role authorization stays denied until legitimately configured; no permission expansion."
-  ]
+  ],
+  "original_business_recovery": {
+    "known_original_jobs": 16,
+    "resumed_receipts": 10,
+    "completed_with_one_ledger_each": 9,
+    "proposal_rejected": 1,
+    "receipt_503_unconfirmed": 6,
+    "model_tests": 0,
+    "qq_test_messages": 0,
+    "original_natural_gateway_requests": 10,
+    "gateway_requests_completed": 10,
+    "duplicate_gateway_rows": 0,
+    "duplicate_memory_ledgers": 0,
+    "source_ids_preserved": true,
+    "first_capture_without_job_id": "still under investigation, no fabricated identity"
+  },
+  "observation_acceptance": {
+    "old_pending_200_cleared": true,
+    "source_positions_advancing": true,
+    "ledger_capacity_alert": "cleared",
+    "delivery_backlog_alert": "cleared",
+    "source_scan_behind": "active historical catch-up",
+    "query_failures": 0,
+    "retention_policy_unchanged": true
+  },
+  "diagnostic_followup": {
+    "status": "R30_image_verified_not_activated",
+    "date": "2026-10-30",
+    "memory": "2d98b7078333210aad4f35cf649095bf8baf5309",
+    "companion": "f36621423ee2b7017f362b5d30cab4113cf47ed2",
+    "purpose": "retain machine failure site and proposal field paths without changing acceptance or retrying unknown models",
+    "validation": "Memory 4 passed; Companion 7 distinct nodes plus 15 subtests passed",
+    "frontend_rebuilt": false,
+    "root_runtime_changed": false,
+    "configuration_changed": false,
+    "version": "2026.10.30-unified-linux-r30",
+    "image": "sha256:1f2f110b62d8d1afe64d01927646a625003238dc37892bb6bb7e04d9df55b8b3",
+    "layer_rebase": {
+      "status": "flat_runtime_and_files_verified",
+      "image": "sha256:f3f7748a736adc5d629262d0c0af3df38fcef48c2b9a6d9a2cc4b24cbd435977",
+      "tag": "tianshu/unified-flat-base:20261030-r29",
+      "original_image": "sha256:86ce0487a390f6004d5f730b060d2192c157383f0473ee61da412f1895f7d654",
+      "original_layers": 124,
+      "flat_layers": 1,
+      "runtime_config_exact": true,
+      "production_mounts": 0,
+      "production_owner_unchanged": true,
+      "free_bytes": 50803167232,
+      "payload_files": 607,
+      "application_files": 56,
+      "frontend_files": 87,
+      "critical_permissions_and_symlinks": 14
+    },
+    "old_layer_depth_failure_preserved": true
+  },
+  "queued_prompt_release": {
+    "original_candidate": "61cecb2ae98d2834b6df0887daf3c8c9e07e6700",
+    "integrated_companion": "b0bcc5af63423a148cda0504f36b601d9d268e18",
+    "status": "local_integrated_for_R31_not_pushed_or_deployed",
+    "authorization": "verified user requested publication and unified writer in prompt-assembly chat",
+    "validation": "180 existing cases/19 subtests reused; 7 assembly cases passed against R30 diagnostics"
+  }
 }
