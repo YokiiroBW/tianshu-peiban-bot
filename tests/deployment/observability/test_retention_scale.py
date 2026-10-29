@@ -4,8 +4,10 @@ import tempfile
 import time
 import unittest
 import uuid
+from contextlib import ExitStack, closing
+from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, urlsplit
 
 from helpers import SNAPSHOT, emit, event
@@ -13,12 +15,69 @@ from helpers import SNAPSHOT, emit, event
 # isort: split
 from alerts import conditions
 from monitor import Ledger
-from policy import Policy
+from policy import Policy, canonical
 from retained_query import window_filter
 from source_retention import prune_sources
 
 
 class GlobalWindowTests(unittest.TestCase):
+    def test_late_confirmation_unblocks_full_ledger_without_deleting_active_source(self):
+        now = (int(time.time() // 3600) + 0.75) * 3600
+        stamp = now - 4 * 3600
+        with tempfile.TemporaryDirectory() as temporary, ExitStack() as resources:
+            root = Path(temporary)
+            source = root / "platform"
+            source.mkdir()
+            instance = str(uuid.uuid4())
+            path = source / f"platform-{instance}-0000.jsonl"
+            records = [event(number, "platform", instance) for number in range(1, 5)]
+            for record in records:
+                record["timestamp"] = datetime.fromtimestamp(
+                    stamp, timezone.utc
+                ).isoformat()
+            emit(path, records[:3])
+            ledger = resources.enter_context(
+                closing(Ledger(root / "ledger.sqlite", Policy(SNAPSHOT), max_events=3))
+            )
+            ledger.scan({"platform": source})
+            emit(path, records[3:])
+            original = path.read_bytes()
+            ledger.scan({"platform": source})
+            self.assertEqual(ledger.metrics()["ledger_capacity_rejected_current"], 1)
+
+            class Backend:
+                available = False
+
+                def range(inner, selector, start, end, **kwargs):
+                    return [
+                        (int(stamp * 1e9), canonical(record).decode())
+                        for record in records[:3]
+                        if record["event_id"] in selector
+                        and (inner.available or record is not records[0])
+                        and start <= int(stamp * 1e9) <= end
+                    ]
+
+            backend = Backend()
+            with patch("monitor.time.time", return_value=now):
+                ledger.reconcile(backend)
+                self.assertEqual(ledger.metrics()["pending_events"], 1)
+                _, coverage = prune_sources(ledger, {"platform": source}, now=now)
+                result = ledger.expire(now=now, coverage=coverage, reserve=1)
+                self.assertEqual(result["retention_expired_events"], 0)
+                backend.available = True
+                for _ in range(5):
+                    ledger.reconcile(backend)
+                    if ledger.metrics()["pending_events"] == 0:
+                        break
+                self.assertEqual(ledger.metrics()["pending_events"], 0)
+                _, coverage = prune_sources(ledger, {"platform": source}, now=now)
+                result = ledger.expire(now=now, coverage=coverage, reserve=1)
+                self.assertEqual(result["retention_expired_events"], 1)
+                ledger.scan({"platform": source}, line_budget=1)
+            self.assertEqual(ledger.metrics()["landed_events"], 3)
+            self.assertEqual(ledger.metrics()["pending_events"], 1)
+            self.assertEqual(path.read_bytes(), original)
+
     def test_full_primary_scan_and_refill_do_not_starve_other_sources(self):
         for count in (2, 5):
             with (
