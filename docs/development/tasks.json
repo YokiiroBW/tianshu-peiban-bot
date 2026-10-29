@@ -2526,6 +2526,130 @@
       "delivery_state": "integrated_pushed_R21_deployed_physical_read_only_verified",
       "release_record": "docs/development/chain-quality-review-release-2026-10-29.json",
       "handoff": "docs/handoffs/TS-406.md"
+    },
+    {
+      "id": "TS-407",
+      "project": "companion",
+      "title": "会话窗口来源核验与重复重置修复",
+      "status": "done",
+      "depends_on": [
+        "TS-406"
+      ],
+      "allowed_paths": [
+        "src/tianshu_companion/conversation_windows.py",
+        "src/tianshu_companion/conversation_window_compaction.py",
+        "tests/ (window affected only)",
+        "docs/handoffs/TS-407.md"
+      ],
+      "baseline_commit": "5b83948c507fba97a496cfda1acff882816aff7f",
+      "external_worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-window-recovery\\tianshu-companion",
+      "branch": "codex/ts407-runtime-recovery-20261029",
+      "plan": "docs/development/runtime-recovery-execution-2026-10-29.md",
+      "delivery_state": "local_integrated_not_deployed",
+      "integrated_commit": "9272bad"
+    },
+    {
+      "id": "TS-408",
+      "project": "companion",
+      "title": "后台记忆自主执行修复与原任务幂等恢复",
+      "status": "done",
+      "depends_on": [
+        "TS-406"
+      ],
+      "allowed_paths": [
+        "src/tianshu_companion/memory_*.py",
+        "src/tianshu_companion/group_processing.py",
+        "src/tianshu_companion/model_selection.py",
+        "src/tianshu_companion/autonomy.py (as needed)",
+        "tests/ (affected background and recovery)",
+        "docs/handoffs/TS-408.md"
+      ],
+      "baseline_commit": "5b83948c507fba97a496cfda1acff882816aff7f",
+      "external_worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-background-recovery\\tianshu-companion",
+      "branch": "codex/ts408-runtime-recovery-20261029",
+      "plan": "docs/development/runtime-recovery-execution-2026-10-29.md",
+      "delivery_state": "local_integrated_not_deployed",
+      "integrated_commit": "cc00312"
+    },
+    {
+      "id": "TS-409",
+      "project": "workspace",
+      "title": "观测台账积压与安全自动回收修复",
+      "status": "done",
+      "depends_on": [
+        "TS-406"
+      ],
+      "allowed_paths": [
+        "deploy/observability/guard.py",
+        "deploy/observability/monitor.py",
+        "deploy/observability/query.py",
+        "tests/deployment/observability/ (affected only)",
+        "docs/handoffs/TS-409.md"
+      ],
+      "baseline_commit": "d9e645a01d94b2b896718242dbfc8d6e4070439d",
+      "external_worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-log-recovery\\tianshu-peiban-bot",
+      "branch": "codex/ts409-runtime-recovery-20261029",
+      "plan": "docs/development/runtime-recovery-execution-2026-10-29.md",
+      "delivery_state": "local_integrated_not_deployed",
+      "integrated_commit": "f6055e2"
+    },
+    {
+      "id": "TS-410",
+      "project": "workspace",
+      "title": "既有嵌入重排模型与Memory实际绑定收口",
+      "status": "in_progress",
+      "depends_on": [
+        "TS-406"
+      ],
+      "allowed_paths": [
+        "docs/development/",
+        "docs/handoffs/TS-410.md",
+        "deploy/ (affected root integration)",
+        "projects/ (coordinator integration only)"
+      ],
+      "baseline_commit": "d9e645a01d94b2b896718242dbfc8d6e4070439d",
+      "assignee": "coordinator",
+      "plan": "docs/development/runtime-recovery-execution-2026-10-29.md"
+    },
+    {
+      "id": "TS-411",
+      "project": "workspace",
+      "title": "四项恢复集成与串行推送部署实机确认",
+      "status": "in_progress",
+      "depends_on": [
+        "TS-407",
+        "TS-408",
+        "TS-409",
+        "TS-410",
+        "TS-412"
+      ],
+      "allowed_paths": [
+        "docs/development/",
+        "docs/handoffs/TS-411.md",
+        "deploy/ (affected root integration)",
+        "projects/ (coordinator integration only)"
+      ],
+      "baseline_commit": "d9e645a01d94b2b896718242dbfc8d6e4070439d",
+      "assignee": "coordinator",
+      "plan": "docs/development/runtime-recovery-execution-2026-10-29.md"
+    },
+    {
+      "id": "TS-412",
+      "project": "platform",
+      "title": "过期后台原turn模型授权精确续期",
+      "status": "in_progress",
+      "depends_on": [
+        "TS-406"
+      ],
+      "baseline_commit": "c591a5ddda34b31cd0e9e55f46cd7d50fae36dae",
+      "branch": "codex/ts412-original-grant-renewal-20261029",
+      "external_worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-grant-recovery/tianshu-platform",
+      "allowed_paths": [
+        "services/platform/provider_authority.py",
+        "tests/backend/test_model_functions.py",
+        "docs/handoffs/TS-412.md"
+      ],
+      "plan": "docs/development/runtime-recovery-execution-2026-10-29.md"
     }
   ],
   "dispatch_defaults": {

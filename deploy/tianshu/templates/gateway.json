@@ -44,7 +44,7 @@
   "scheduling": {
     "max_in_flight": 16,
     "max_provider_in_flight": 4,
-    "interactive_reserve": 4,
+    "interactive_reserve": 3,
     "max_queue_length": 256,
     "wait_timeout_ms": 30000
   },
