@@ -1,11 +1,11 @@
 {
-  "status": "R29_deployed_recovery_partially_confirmed",
-  "release": "2026.10.29-unified-linux-r29",
-  "image": "sha256:86ce0487a390f6004d5f730b060d2192c157383f0473ee61da412f1895f7d654",
-  "parent_image": "sha256:6d777fefab004de926bad3cce4f7ba1e581eb76cd5e83077692e0ba13f9d35fa",
+  "status": "R32_deployed_memory_recovery_partial",
+  "release": "2026.10.30-unified-linux-r32",
+  "image": "sha256:eb8bc685deab238a925b21961f31251d40087364e894a339143d2b0eee482f5b",
+  "parent_image": "sha256:c1b3d15e3cc477b1c9c551ca97b47b72426690f5139201e714f6d71b43e8e404",
   "sources": {
-    "memory": "959c5a483790a6b36189637b2a839e537d2c2f1e",
-    "companion": "11bd84ebbe09581aa537537ce3fc49d41bf8763e",
+    "memory": "2d98b7078333210aad4f35cf649095bf8baf5309",
+    "companion": "c05a54167e863de9e8e9a7334b0d8e34a168f763",
     "life_candidate_in_companion": "f9e0f7b9a38cce640aeb7f32556a1331381bd4cb",
     "platform": "0fe987583103fec5d0ee952637d401710d07777c",
     "observability": "bcb594a2f7e3d9d4e1afcb627f0d618cfae51c58",
@@ -25,10 +25,12 @@
     "life_distinct_targeted_cases": "18 passed, reused",
     "platform_existing_http_management_file": "6 passed on isolated R28 Linux image, no production mount or dependency installation",
     "observability_targeted_cases": "63 passed, 1 environment skip, reused",
-    "image_payload": "342 platform, 145 memory, 120 companion files exact; 56 application and 87 frontend files verified",
+    "image_payload": "R32 Companion 121 files exact; unchanged root 56 and frontend 87 verified; R30 Memory/Platform payload evidence reused",
     "dependency_resolution": false,
     "new_model_tests": 0,
-    "new_qq_test_messages": 0
+    "new_qq_test_messages": 0,
+    "prompt_assembly": "180 existing cases and 19 subtests reused; 7 integrated assembly cases passed",
+    "unknown_write_diagnostics": "4 nodes and 22 subtests passed"
   },
   "preservation": {
     "schema_migration": false,
@@ -40,8 +42,8 @@
     "unknown_model_or_tool_executions": "not replayed"
   },
   "production_acceptance": {
-    "id": "3f0183f9eff3918cf4469ad0ae55f436380d7ea02030a555907284aa3b793009",
-    "image": "sha256:86ce0487a390f6004d5f730b060d2192c157383f0473ee61da412f1895f7d654",
+    "id": "e981e841a064c94e673ae168761352c380300f126574fb0f2be959d72cf8ff35",
+    "image": "sha256:eb8bc685deab238a925b21961f31251d40087364e894a339143d2b0eee482f5b",
     "health": "healthy",
     "restart_count": 0,
     "oom": false,
@@ -49,9 +51,9 @@
     "config_files_preserved": 1133,
     "config_change": "same_scope_startup_lease_only",
     "non_target_containers_preserved": 14,
-    "capacity_guard": "r25_active_armed",
+    "capacity_guard": "r28_active_armed",
     "capacity_floor_bytes": 21474836480,
-    "completed_at": 1793289610.636795,
+    "completed_at": 1793293113.0989358,
     "authenticated_ready": 200,
     "business_modules_ready": 6,
     "observability_modules_ready": 5
@@ -59,7 +61,8 @@
   "limits": [
     "No real QQ acceptance or artificial paid-model quality tests.",
     "Old unknown life requests and missing rejected output cannot be reconstructed or blindly replayed.",
-    "Legacy household role authorization stays denied until legitimately configured; no permission expansion."
+    "Legacy household role authorization stays denied until legitimately configured; no permission expansion.",
+    "Remaining candidate 503 and original proposal rejection are not declared restored by diagnostic releases; unknown work remains protected."
   ],
   "original_business_recovery": {
     "known_original_jobs": 16,
@@ -86,7 +89,7 @@
     "retention_policy_unchanged": true
   },
   "diagnostic_followup": {
-    "status": "R30_image_verified_not_activated",
+    "status": "R30_deployed_postchecks_passed",
     "date": "2026-10-30",
     "memory": "2d98b7078333210aad4f35cf649095bf8baf5309",
     "companion": "f36621423ee2b7017f362b5d30cab4113cf47ed2",
@@ -113,13 +116,171 @@
       "frontend_files": 87,
       "critical_permissions_and_symlinks": 14
     },
-    "old_layer_depth_failure_preserved": true
+    "old_layer_depth_failure_preserved": true,
+    "production_acceptance": {
+      "id": "f86918f25e9c39aded83e395f3a3069d0f3cbf637281c8f35ee018e467b0346e",
+      "image": "sha256:1f2f110b62d8d1afe64d01927646a625003238dc37892bb6bb7e04d9df55b8b3",
+      "health": "healthy",
+      "restart_count": 0,
+      "oom": false,
+      "mounts": 37,
+      "config_files_preserved": 1133,
+      "config_change": "same_scope_startup_lease_only",
+      "non_target_containers_preserved": 14,
+      "capacity_guard": "r26_active_armed",
+      "capacity_floor_bytes": 21474836480,
+      "completed_at": 1793292356.8378842,
+      "authenticated_ready": 200,
+      "business_modules_ready": 6,
+      "observability_modules_ready": 5
+    }
   },
-  "queued_prompt_release": {
+  "release_history": [
+    {
+      "release": "2026.10.29-unified-linux-r29",
+      "image": "sha256:86ce0487a390f6004d5f730b060d2192c157383f0473ee61da412f1895f7d654",
+      "sources": {
+        "memory": "959c5a483790a6b36189637b2a839e537d2c2f1e",
+        "companion": "11bd84ebbe09581aa537537ce3fc49d41bf8763e",
+        "life_candidate_in_companion": "f9e0f7b9a38cce640aeb7f32556a1331381bd4cb",
+        "platform": "0fe987583103fec5d0ee952637d401710d07777c",
+        "observability": "bcb594a2f7e3d9d4e1afcb627f0d618cfae51c58",
+        "gateway_unchanged": "ed631d8a6f26890628a9df833792210e9a09e31c",
+        "frontend_unchanged": "519d5f03a99231ecf8b150052e8aa3bbe2f6d91e"
+      },
+      "production_acceptance": {
+        "id": "3f0183f9eff3918cf4469ad0ae55f436380d7ea02030a555907284aa3b793009",
+        "image": "sha256:86ce0487a390f6004d5f730b060d2192c157383f0473ee61da412f1895f7d654",
+        "health": "healthy",
+        "restart_count": 0,
+        "oom": false,
+        "mounts": 37,
+        "config_files_preserved": 1133,
+        "config_change": "same_scope_startup_lease_only",
+        "non_target_containers_preserved": 14,
+        "capacity_guard": "r25_active_armed",
+        "capacity_floor_bytes": 21474836480,
+        "completed_at": 1793289610.636795,
+        "authenticated_ready": 200,
+        "business_modules_ready": 6,
+        "observability_modules_ready": 5
+      }
+    },
+    {
+      "release": "2026.10.30-unified-linux-r30",
+      "image": "sha256:1f2f110b62d8d1afe64d01927646a625003238dc37892bb6bb7e04d9df55b8b3",
+      "sources": {
+        "platform": "0fe987583103fec5d0ee952637d401710d07777c",
+        "companion": "f36621423ee2b7017f362b5d30cab4113cf47ed2",
+        "memory": "2d98b7078333210aad4f35cf649095bf8baf5309",
+        "gateway": "ed631d8a6f26890628a9df833792210e9a09e31c",
+        "application": "bcb594a2f7e3d9d4e1afcb627f0d618cfae51c58",
+        "platform_frontend": "519d5f03a99231ecf8b150052e8aa3bbe2f6d91e"
+      },
+      "production_acceptance": {
+        "id": "f86918f25e9c39aded83e395f3a3069d0f3cbf637281c8f35ee018e467b0346e",
+        "image": "sha256:1f2f110b62d8d1afe64d01927646a625003238dc37892bb6bb7e04d9df55b8b3",
+        "health": "healthy",
+        "restart_count": 0,
+        "oom": false,
+        "mounts": 37,
+        "config_files_preserved": 1133,
+        "config_change": "same_scope_startup_lease_only",
+        "non_target_containers_preserved": 14,
+        "capacity_guard": "r26_active_armed",
+        "capacity_floor_bytes": 21474836480,
+        "completed_at": 1793292356.8378842,
+        "authenticated_ready": 200,
+        "business_modules_ready": 6,
+        "observability_modules_ready": 5
+      }
+    },
+    {
+      "release": "2026.10.30-unified-linux-r31",
+      "image": "sha256:c1b3d15e3cc477b1c9c551ca97b47b72426690f5139201e714f6d71b43e8e404",
+      "sources": {
+        "platform": "0fe987583103fec5d0ee952637d401710d07777c",
+        "companion": "b0bcc5af63423a148cda0504f36b601d9d268e18",
+        "memory": "2d98b7078333210aad4f35cf649095bf8baf5309",
+        "gateway": "ed631d8a6f26890628a9df833792210e9a09e31c",
+        "application": "bcb594a2f7e3d9d4e1afcb627f0d618cfae51c58",
+        "platform_frontend": "519d5f03a99231ecf8b150052e8aa3bbe2f6d91e"
+      },
+      "production_acceptance": {
+        "id": "8ca27ecd7c9736aa9676dbaf82920c4bc9ce5fb5e287334a96e1347155e9f7ae",
+        "image": "sha256:c1b3d15e3cc477b1c9c551ca97b47b72426690f5139201e714f6d71b43e8e404",
+        "health": "healthy",
+        "restart_count": 0,
+        "oom": false,
+        "mounts": 37,
+        "config_files_preserved": 1133,
+        "config_change": "same_scope_startup_lease_only",
+        "non_target_containers_preserved": 14,
+        "capacity_guard": "r27_active_armed",
+        "capacity_floor_bytes": 21474836480,
+        "completed_at": 1793292774.9901211,
+        "authenticated_ready": 200,
+        "business_modules_ready": 6,
+        "observability_modules_ready": 5
+      }
+    }
+  ],
+  "prompt_release": {
     "original_candidate": "61cecb2ae98d2834b6df0887daf3c8c9e07e6700",
     "integrated_companion": "b0bcc5af63423a148cda0504f36b601d9d268e18",
-    "status": "local_integrated_for_R31_not_pushed_or_deployed",
+    "status": "R31_pushed_deployed_postchecks_passed",
     "authorization": "verified user requested publication and unified writer in prompt-assembly chat",
-    "validation": "180 existing cases/19 subtests reused; 7 assembly cases passed against R30 diagnostics"
+    "validation": "180 existing cases/19 subtests reused; 7 assembly cases passed against R30 diagnostics",
+    "image": "sha256:c1b3d15e3cc477b1c9c551ca97b47b72426690f5139201e714f6d71b43e8e404",
+    "production_acceptance": {
+      "id": "8ca27ecd7c9736aa9676dbaf82920c4bc9ce5fb5e287334a96e1347155e9f7ae",
+      "image": "sha256:c1b3d15e3cc477b1c9c551ca97b47b72426690f5139201e714f6d71b43e8e404",
+      "health": "healthy",
+      "restart_count": 0,
+      "oom": false,
+      "mounts": 37,
+      "config_files_preserved": 1133,
+      "config_change": "same_scope_startup_lease_only",
+      "non_target_containers_preserved": 14,
+      "capacity_guard": "r27_active_armed",
+      "capacity_floor_bytes": 21474836480,
+      "completed_at": 1793292774.9901211,
+      "authenticated_ready": 200,
+      "business_modules_ready": 6,
+      "observability_modules_ready": 5
+    },
+    "real_model_cache_or_injection_acceptance": false
+  },
+  "unknown_write_diagnostic_fix": {
+    "status": "R32_pushed_deployed_postchecks_passed",
+    "companion": "c05a54167e863de9e8e9a7334b0d8e34a168f763",
+    "cause": "unknown-write wrapper used pre-hook cause, dropping candidate machine diagnostics",
+    "behavior": "retain enriched error.cause; unknown and no-replay semantics unchanged",
+    "validation": "reproduced failing write subcase, then 4 nodes and 22 subtests passed",
+    "model_test_calls": 0,
+    "qq_test_messages": 0
+  },
+  "source_verification_diagnosis": {
+    "status": "R32_natural_failure_location_and_original_read_proofs_confirmed",
+    "failure_site": "tianshu_memory.observations:__call__:65",
+    "component": "PlatformVerifier response status/type/size check",
+    "original_pending_source_read_results": [
+      {
+        "http_status": 403,
+        "code": "forbidden"
+      },
+      {
+        "http_status": 200,
+        "valid": true
+      },
+      {
+        "http_status": 403,
+        "code": "forbidden"
+      }
+    ],
+    "content_type": "application/json",
+    "largest_observed_body_bytes": 1121,
+    "interpretation": "Forbidden discovery with actor_id=null has no current configured role for that scope. Configuration and authority are preserved; these sources are not declared learned or restored.",
+    "retry_replay_or_permission_change": false
   }
 }
