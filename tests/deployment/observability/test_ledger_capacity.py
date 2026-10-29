@@ -5,6 +5,7 @@ import tempfile
 import time
 import unittest
 from contextlib import closing
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -191,6 +192,49 @@ class CapacityTests(unittest.TestCase):
         self.assertEqual(self.ledger.db.execute(
             "SELECT count(*) FROM retired_streams"
         ).fetchone()[0], 0)
+
+    def test_pending_timestamp_hint_finds_backfill_but_miss_still_searches_late_collection(self):
+        now = (int(time.time() // 3600) + 0.75) * 3600
+        records = [
+            {**item, "timestamp": datetime.fromtimestamp(now - hours * 3600, timezone.utc).isoformat()}
+            for item, hours in ((self.first, 12), (self.second, 10))
+        ]
+        root = self.root / "hint"
+        root.mkdir()
+        emit(root / "source.jsonl", records)
+        stamps = [int((now - 12 * 3600 + 1) * 1e9), int((now - 2 * 3600) * 1e9)]
+        calls = []
+
+        class Backend:
+            def range(inner, selector, start, end, **kwargs):
+                calls.append((selector, start, end))
+                self.assertLessEqual(end - start, 3602 * 10**9)
+                return [(stamp, canonical(record).decode()) for record, stamp in zip(records, stamps)
+                        if start <= stamp <= end and record["event_id"] in selector]
+
+        with closing(Ledger(root / "ledger.sqlite", Policy(SNAPSHOT), max_events=2)) as ledger:
+            ledger.scan({"platform": root})
+            with ledger.db:
+                # Legacy records without an occurred timestamp may use first_seen
+                # as the same optional hint, without narrowing their real search.
+                ledger.db.execute("UPDATE events SET occurred=NULL,first_seen=? WHERE sequence=2",
+                                  (now - 10 * 3600,))
+            with patch("monitor.time.time", return_value=now):
+                ledger.reconcile(Backend())
+                self.assertEqual(ledger.metrics()["pending_events"], 1)
+                self.assertEqual(len(calls), 2)
+                self.assertTrue(any(start <= stamps[0] <= end for _, start, end in calls))
+                self.assertTrue(any(start <= int((now - 10 * 3600) * 1e9) <= end
+                                    for _, start, end in calls))
+                for _ in range(10):
+                    ledger.reconcile(Backend())
+                    if ledger.metrics()["pending_events"] == 0:
+                        break
+                self.assertEqual(ledger.metrics()["pending_events"], 0)
+                self.assertEqual(ledger.metrics()["landed_events"], 2)
+                self.assertEqual(ledger.db.execute(
+                    "SELECT count(*) FROM retired_streams"
+                ).fetchone()[0], 0)
 
     def test_confirmed_recheck_uses_recorded_collection_and_missing_becomes_pending(self):
         now = time.time()

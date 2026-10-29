@@ -247,14 +247,14 @@ class Ledger:
         pending = self.db.execute(
             # Compare a never-checked event's first_seen with the last real
             # check of an unmatched event, so continuous backfill cannot starve it.
-            "SELECT id,hash,service,collected,verified FROM events WHERE verified=0 "
+            "SELECT id,hash,service,collected,verified,occurred,first_seen FROM events WHERE verified=0 "
             "ORDER BY CASE WHEN last_checked=0 THEN first_seen ELSE last_checked END,first_seen LIMIT ?",
             (max(1, batch // 2),),
         ).fetchall()
         # A prior query hit is not permanent proof. Revisit confirmed events while
         # they are inside retention so an empty/restored central store cannot go green.
         confirmed = self.db.execute(
-            "SELECT id,hash,service,collected,verified FROM events WHERE verified>0 "
+            "SELECT id,hash,service,collected,verified,occurred,first_seen FROM events WHERE verified>0 "
             "AND (last_checked<? OR collected IS NULL) AND first_seen>? ORDER BY last_checked LIMIT ?",
             (now - 3600, now - retention_seconds, max(0, batch - len(pending))),
         ).fetchall()
@@ -271,17 +271,25 @@ class Ledger:
         latest = int(now // window)
         oldest = now - retention_seconds
         groups = {}
-        for ident, fingerprint, service, collected, verified in pending:
+        for ident, fingerprint, service, collected, verified, occurred, first_seen in pending:
             if verified > 0 and collected is not None:
                 # Re-prove the actual previously observed collection position.
                 # Its absence conservatively makes the record pending again.
                 bucket = int(collected // window) if oldest <= collected <= now else latest
                 recent = False
             else:
-                history, recent = self.reconcile_windows.get(ident, (latest, False))
-                if (history + 1) * window < oldest:
-                    history = latest
-                bucket = latest if recent else history
+                progress = self.reconcile_windows.get(ident)
+                if progress is None:
+                    # Backfilled source timestamps are a useful first lookup,
+                    # never a bound: a miss resumes the full collection window.
+                    hint = occurred if occurred is not None and oldest <= occurred <= now else first_seen
+                    bucket = int(hint // window) if oldest <= hint <= now else latest
+                    recent = bucket != latest
+                else:
+                    history, recent = progress
+                    if (history + 1) * window < oldest:
+                        history = latest
+                    bucket = latest if recent else history
             # Legacy confirmations may have no recorded collection position.
             # A partial page cannot disprove their earlier full-window receipt;
             # keep it unchanged until a hit or completion of the original window.
@@ -303,9 +311,9 @@ class Ledger:
                 + '} | json | event_id=~"' + "|".join(expected) + '"'
             )
             # Original event timestamps/first_seen are not collection bounds.
-            # Unknown records search the entire original retention window a page
-            # at a time, alternating the current hour with older pages so late
-            # delivery is found without restarting every historical search.
+            # Unknown records try their timestamp hint, then search the entire
+            # original collection window one page at a time, alternating the
+            # current hour with older pages to find late delivery as well.
             lower = max(oldest, bucket * window - 1)
             upper = min(now, (bucket + 1) * window + 1)
             rows = client.range(
