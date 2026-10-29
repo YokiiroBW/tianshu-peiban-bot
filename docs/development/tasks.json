@@ -2780,12 +2780,17 @@
       ],
       "assignee": "daily_recovery",
       "project": "companion",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "TS-416"
       ],
       "baseline_commit": "07f85f9741f29100dc7e6d0ceb28afb8a52954a5",
-      "plan": "docs/development/life-recovery-2026-10-29.md"
+      "plan": "docs/development/life-recovery-2026-10-29.md",
+      "integrated_commit": "5430300bc37e1ff17002c25e764acdd4689b9f24",
+      "delivery_state": "R27a_pushed_deployed_targeted_verified",
+      "production_image": "sha256:3f15d359d8320bf5cc96aa3d21be211335185ad6cc99eb6ed032b484e76aa700",
+      "production_guard": "r23",
+      "delivery_record": "docs/development/life-recovery-2026-10-29.md"
     },
     {
       "id": "TS-418",
@@ -2804,18 +2809,23 @@
       ],
       "assignee": "activity_recovery",
       "project": "companion",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "TS-416"
       ],
       "baseline_commit": "07f85f9741f29100dc7e6d0ceb28afb8a52954a5",
-      "plan": "docs/development/life-recovery-2026-10-29.md"
+      "plan": "docs/development/life-recovery-2026-10-29.md",
+      "integrated_commit": "c4af05e495423d652d979c21ac251d1968c7d4d4",
+      "delivery_state": "R27a_pushed_deployed_targeted_verified",
+      "production_image": "sha256:3f15d359d8320bf5cc96aa3d21be211335185ad6cc99eb6ed032b484e76aa700",
+      "production_guard": "r23",
+      "delivery_record": "docs/development/life-recovery-2026-10-29.md"
     },
     {
       "id": "TS-419",
       "project": "platform",
       "title": "自主目标复用已授权生活读取通道",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "TS-418"
       ],
@@ -2824,12 +2834,16 @@
       "external_worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-life-reader/tianshu-platform",
       "allowed_paths": [
         "services/platform/web_life_management.py",
-        "tests/test_web_life_runtime.py",
-        "tests/test_web_actor_memory.py",
+        "tests/backend/test_web_actor_memory.py",
         "docs/handoffs/TS-419.md"
       ],
       "assignee": "life_reader",
-      "plan": "docs/development/life-recovery-2026-10-29.md"
+      "plan": "docs/development/life-recovery-2026-10-29.md",
+      "integrated_commit": "6645d642faa2fae34447f9a0f951a2dcbf0926cf",
+      "delivery_state": "R27a_pushed_deployed_targeted_verified",
+      "production_image": "sha256:3f15d359d8320bf5cc96aa3d21be211335185ad6cc99eb6ed032b484e76aa700",
+      "production_guard": "r23",
+      "delivery_record": "docs/development/life-recovery-2026-10-29.md"
     }
   ],
   "dispatch_defaults": {

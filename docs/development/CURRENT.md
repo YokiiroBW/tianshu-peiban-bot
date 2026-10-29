@@ -1,3 +1,9 @@
+## 2026-10-29 日程与自主目标读取修复已部署 R27a
+
+TS417–419 已集中审查、定向验证、正常推送并在 .230 单容器部署 R27a `sha256:3f15d359d8320bf5cc96aa3d21be211335185ad6cc99eb6ed032b484e76aa700`，C5430300/P6645d64；M57a1a14、Ged631d8、application5badd01 和既有 OneBot/前端继承。记忆系统线程已协调释放；用户对话记忆、独立角色域、配置和数据保持，无 DDL。原网页自主目标 invalid_upstream 已消除；澄汐原当日日程沿既有按钮重试一次后实际 completed，DS flash 真实回执 200/17.98 秒，两条失败历史保留；智乃原 completed 日程未重发。
+
+最终 healthy/0restart/无OOM，六业务/五观测及原鉴权 ready200，37 挂载、1133 配置及其他已有容器保持，另一配置仅原 scope 启动租约例行续期；r23 armed、20GiB floor 保持。只做必要定向验证并复用结果。智乃旧无请求编号的活动仍按 unknown 保护暂停，未清进度或强制重放；澄汐当前目标按作息暂停，其最近模型规划 invalid_input 保留，未冒称全部自主活动恢复。AL14/15 延期、AL18 长期体验仍待真实时间。[修改、实机结果与限制](life-recovery-2026-10-29.md)。下方是历史发布截面。
+
 ## 2026-10-29 OneBot 自助接入已部署 R26a
 
 用户授权直接部署。192.168.31.230 当前镜像 `sha256:999cb29f49b6969f5d9e1cd096ec3269ea4200ea9354402b2c5b9d9e17edf458`，Platform `31f7bcc`、application `5badd01`，容量守护 r21；候选保存在隔离 worktree，尚未合主线或推送。已有 PostgreSQL 机器人目录及密钥已备份，增建 `onebot_servers`，原账号记录和收据保留。真实网页新版表单可见、六业务 ready、鉴权 ready 200、旧 1200/9091 WS 已重新连接；新地址尚未切换真实客户端。首次 R26 因增量打包目录权限导致业务宿主未能启动，修正为 R26a 并以运行身份验证。最终容器 healthy、原 37 挂载和其他 13 容器保持，20 GiB 容量底线未变；原有 obs-guard 对账超时仍波动、底线以上空余较少。[交付详情](../handoffs/onebot-server-onboarding-2026-10-29.md)。

@@ -3,7 +3,7 @@
   "planning_id": "autonomous-life-2026-10-23",
   "date": "2026-10-23",
   "timezone": "Asia/Shanghai",
-  "state": "non_external_core_R21_deployed_physical_read_only_verified_continuous_use_pending",
+  "state": "non_external_core_R27a_deployed_targeted_verified_continuous_use_pending",
   "canonical_plan": "docs/development/autonomous-life-development-queue-2026-10-23.md",
   "architecture": "docs/architecture/actor-self-memory-design-2026-10-23.md",
   "id_policy": "AL编号仅为本批规划身份，不是scripts/workspace.py运行任务；正式派发由根协调者登记新TS并维护AL到TS映射。",
@@ -754,19 +754,20 @@
     "performed": true
   },
   "updated_at": "2026-10-29",
-  "current_execution_record": "docs/development/chain-quality-execution-2026-10-29.md",
+  "current_execution_record": "docs/development/life-recovery-2026-10-29.md",
   "current_baseline": {
     "architecture": "single_container_modular_in_process_exchange",
-    "release": "R21",
-    "workspace": "5a9c3eefbb1a8d9abf7b14addfa94af4ab114893",
-    "application": "48eee53d6ba97efae5c44385cb53a894ffa0c215",
-    "companion": "5b83948c507fba97a496cfda1acff882816aff7f",
+    "release": "R27a",
+    "workspace": "a9f6c8a4ca12f196304b41d4e0b8fc3ba7ebc407",
+    "application": "5badd018e23d89fb89d0778375aaa3c7e69436ba",
+    "companion": "5430300bc37e1ff17002c25e764acdd4689b9f24",
     "memory_runtime": "57a1a1468382641ea1d33cae9498c9ed170f6a7a",
     "memory_handoff": "57a1a1468382641ea1d33cae9498c9ed170f6a7a",
-    "platform_runtime": "c591a5ddda34b31cd0e9e55f46cd7d50fae36dae",
-    "platform_handoff": "c591a5ddda34b31cd0e9e55f46cd7d50fae36dae",
+    "platform_runtime": "6645d642faa2fae34447f9a0f951a2dcbf0926cf",
+    "platform_handoff": "6645d642faa2fae34447f9a0f951a2dcbf0926cf",
     "gateway": "ed631d8a6f26890628a9df833792210e9a09e31c",
-    "workspace_basis": "coordination baseline before R21 release record; installed application SHA separately unchanged"
+    "workspace_basis": "coordination commit before R27a final release record; installed application SHA separately inherited",
+    "production_image": "sha256:3f15d359d8320bf5cc96aa3d21be211335185ad6cc99eb6ed032b484e76aa700"
   },
   "boundary_confirmation": {
     "date": "2026-10-28",
@@ -784,19 +785,19 @@
   },
   "current_delivery_record": "docs/development/autonomous-life-core-delivery-2026-10-28.json",
   "production_operations_this_wave": true,
-  "current_release_record": "docs/development/chain-quality-review-release-2026-10-29.json",
+  "current_release_record": "docs/development/life-recovery-2026-10-29.md",
   "deployed_release": {
-    "release": "R21",
-    "image": "sha256:1850b49ac5a489f4d8d2994446fcc1176c158319a8ccc1557220e6874bef97fe",
-    "owner": "2b420a404ffc81970bdd27deefb1482f3258a709fc7bd101553d1df42f8b8c94",
+    "release": "R27a",
+    "image": "sha256:3f15d359d8320bf5cc96aa3d21be211335185ad6cc99eb6ed032b484e76aa700",
+    "owner": "0389cc5885c522b25c1ea85e9e2cb95cc79db06f5bcfba92a37f927ce7a0481e",
     "memory": "57a1a1468382641ea1d33cae9498c9ed170f6a7a",
-    "companion": "5b83948c507fba97a496cfda1acff882816aff7f",
-    "platform": "c591a5ddda34b31cd0e9e55f46cd7d50fae36dae",
+    "companion": "5430300bc37e1ff17002c25e764acdd4689b9f24",
+    "platform": "6645d642faa2fae34447f9a0f951a2dcbf0926cf",
     "gateway": "ed631d8a6f26890628a9df833792210e9a09e31c",
-    "new_guard": "r14",
+    "new_guard": "r23",
     "actor_schema": 3,
     "user_memory_segment_schema": 2,
-    "physical_qq_acceptance": "deferred_by_user"
+    "physical_qq_acceptance": "not_repeated_for_current_patch_prior_evidence_retained"
   },
   "previous_baseline_before_R15": {
     "architecture": "single_container_modular_in_process_exchange",
@@ -843,16 +844,14 @@
     "original_external_requirements_retained": true,
     "user_memory_logic_change": false,
     "core_acceptance_excludes_deferred_items": true,
-    "production_release": "R21",
+    "production_release": "R27a",
     "AL13": "integrated_pushed_deployed_current_core",
     "continuous_use": "requires_real_elapsed_time_not_claimed"
   },
   "current_runtime_tasks": [
-    "TS-402",
-    "TS-403",
-    "TS-404",
-    "TS-405",
-    "TS-406"
+    "TS-417",
+    "TS-418",
+    "TS-419"
   ],
   "historical_coordination_observation_20261027": {
     "date": "2026-10-27",
@@ -870,7 +869,7 @@
     "both_confirmed_no_post_AL13_writes": true,
     "actor_and_product_writers_released": true
   },
-  "current_core_delivery_record": "docs/development/chain-quality-review-release-2026-10-29.json",
+  "current_core_delivery_record": "docs/development/life-recovery-2026-10-29.md",
   "current_core_verification": {
     "physical_read_only_acceptance_passed": true,
     "release_activated": true,
@@ -881,8 +880,12 @@
     "total_repeated_probe_or_wait": false,
     "ready_authenticated_http": 200,
     "full_prior_acceptance_reused": true,
-    "prior_evidence": "autonomous-life-core-release-2026-10-28.json",
-    "current_evidence": "chain-quality-review-release-2026-10-29.json"
+    "prior_evidence": "chain-quality-review-release-2026-10-29.json",
+    "current_evidence": "life-recovery-2026-10-29.md",
+    "daily_real_model_restore_verified": true,
+    "current_goal_browser_read_verified": true,
+    "legacy_unknown_activity_preserved": true,
+    "all_autonomous_activities_recovered": false
   },
   "current_core_products": {
     "memory": {
@@ -890,12 +893,12 @@
       "integrated": "57a1a1468382641ea1d33cae9498c9ed170f6a7a"
     },
     "companion": {
-      "runtime": "5b83948c507fba97a496cfda1acff882816aff7f",
-      "integrated": "5b83948c507fba97a496cfda1acff882816aff7f"
+      "runtime": "5430300bc37e1ff17002c25e764acdd4689b9f24",
+      "integrated": "5430300bc37e1ff17002c25e764acdd4689b9f24"
     },
     "platform": {
-      "runtime": "c591a5ddda34b31cd0e9e55f46cd7d50fae36dae",
-      "integrated": "c591a5ddda34b31cd0e9e55f46cd7d50fae36dae"
+      "runtime": "6645d642faa2fae34447f9a0f951a2dcbf0926cf",
+      "integrated": "6645d642faa2fae34447f9a0f951a2dcbf0926cf"
     },
     "gateway": {
       "runtime": "ed631d8a6f26890628a9df833792210e9a09e31c",
@@ -1027,5 +1030,18 @@
     "published": true,
     "user_memory_semantics_changed": false,
     "record": "docs/development/chain-quality-review-release-2026-10-29.json"
+  },
+  "previous_deployed_release_before_R27a": {
+    "release": "R21",
+    "image": "sha256:1850b49ac5a489f4d8d2994446fcc1176c158319a8ccc1557220e6874bef97fe",
+    "owner": "2b420a404ffc81970bdd27deefb1482f3258a709fc7bd101553d1df42f8b8c94",
+    "memory": "57a1a1468382641ea1d33cae9498c9ed170f6a7a",
+    "companion": "5b83948c507fba97a496cfda1acff882816aff7f",
+    "platform": "c591a5ddda34b31cd0e9e55f46cd7d50fae36dae",
+    "gateway": "ed631d8a6f26890628a9df833792210e9a09e31c",
+    "new_guard": "r14",
+    "actor_schema": 3,
+    "user_memory_segment_schema": 2,
+    "physical_qq_acceptance": "deferred_by_user"
   }
 }
