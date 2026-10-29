@@ -2545,7 +2545,7 @@
       "external_worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-window-recovery\\tianshu-companion",
       "branch": "codex/ts407-runtime-recovery-20261029",
       "plan": "docs/development/runtime-recovery-execution-2026-10-29.md",
-      "delivery_state": "local_integrated_not_deployed",
+      "delivery_state": "R22_deployed_window_stable",
       "integrated_commit": "9272bad"
     },
     {
@@ -2568,7 +2568,7 @@
       "external_worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-background-recovery\\tianshu-companion",
       "branch": "codex/ts408-runtime-recovery-20261029",
       "plan": "docs/development/runtime-recovery-execution-2026-10-29.md",
-      "delivery_state": "local_integrated_not_deployed",
+      "delivery_state": "R22_deployed_original_recovery_pending_platform_entry",
       "integrated_commit": "cc00312"
     },
     {
@@ -2590,8 +2590,12 @@
       "external_worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-log-recovery\\tianshu-peiban-bot",
       "branch": "codex/ts409-runtime-recovery-20261029",
       "plan": "docs/development/runtime-recovery-execution-2026-10-29.md",
-      "delivery_state": "local_integrated_not_deployed",
-      "integrated_commit": "f6055e2"
+      "delivery_state": "R22_deployed_R23_backfill_followup_integrated",
+      "integrated_commit": "f6055e2",
+      "followup_commits": [
+        "061dce6",
+        "8a47c09"
+      ]
     },
     {
       "id": "TS-410",
@@ -2621,7 +2625,9 @@
         "TS-408",
         "TS-409",
         "TS-410",
-        "TS-412"
+        "TS-412",
+        "TS-413",
+        "TS-414"
       ],
       "allowed_paths": [
         "docs/development/",
@@ -2637,7 +2643,7 @@
       "id": "TS-412",
       "project": "platform",
       "title": "过期后台原turn模型授权精确续期",
-      "status": "in_progress",
+      "status": "done",
       "depends_on": [
         "TS-406"
       ],
@@ -2648,6 +2654,50 @@
         "services/platform/provider_authority.py",
         "tests/backend/test_model_functions.py",
         "docs/handoffs/TS-412.md"
+      ],
+      "plan": "docs/development/runtime-recovery-execution-2026-10-29.md",
+      "delivery_state": "R22_deployed_live_recovery_pending",
+      "integrated_commit": "aff6345"
+    },
+    {
+      "id": "TS-413",
+      "project": "platform",
+      "title": "原记忆恢复平台管理入口",
+      "status": "done",
+      "delivery_state": "local_integrated_not_deployed",
+      "depends_on": [
+        "TS-412"
+      ],
+      "baseline_commit": "aff6345",
+      "external_worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-recovery-management/tianshu-platform",
+      "branch": "codex/ts413-recovery-management-20261029",
+      "integrated_commit": "5ccea3b",
+      "allowed_paths": [
+        "services/platform/memory_learning_management.py",
+        "services/platform/server.py",
+        "services/platform/transport.py",
+        "tests/backend/test_memory_learning_management.py",
+        "docs/handoffs/TS-413.md"
+      ],
+      "plan": "docs/development/runtime-recovery-execution-2026-10-29.md"
+    },
+    {
+      "id": "TS-414",
+      "project": "platform",
+      "title": "失败模型测试时间PG数值适配",
+      "status": "done",
+      "delivery_state": "local_integrated_not_deployed",
+      "depends_on": [
+        "TS-412"
+      ],
+      "baseline_commit": "47b503e",
+      "external_worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-provider-test-recovery/tianshu-platform",
+      "branch": "codex/ts414-provider-test-pg-20261029",
+      "integrated_commit": "a35eb0d",
+      "allowed_paths": [
+        "services/platform/postgres.py",
+        "tests/backend/test_postgres_dialect.py",
+        "docs/handoffs/TS-414.md"
       ],
       "plan": "docs/development/runtime-recovery-execution-2026-10-29.md"
     }
