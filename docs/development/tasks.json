@@ -2767,6 +2767,69 @@
       "targeted_selector_tests": 2,
       "model": "opencode/deepseek-v4.1-flash",
       "function_bindings_unchanged": true
+    },
+    {
+      "id": "TS-417",
+      "title": "日程中断任务的有界恢复与诊断",
+      "branch": "codex/ts417-daily-recovery-20261029",
+      "external_worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-daily-recovery/tianshu-companion",
+      "allowed_paths": [
+        "src/tianshu_companion/life_daily.py",
+        "tests/test_daily_life.py",
+        "docs/handoffs/TS-417.md"
+      ],
+      "assignee": "daily_recovery",
+      "project": "companion",
+      "status": "in_progress",
+      "depends_on": [
+        "TS-416"
+      ],
+      "baseline_commit": "07f85f9741f29100dc7e6d0ceb28afb8a52954a5",
+      "plan": "docs/development/life-recovery-2026-10-29.md"
+    },
+    {
+      "id": "TS-418",
+      "title": "生活读取错误透传与自主活动安全恢复",
+      "branch": "codex/ts418-activity-recovery-20261029",
+      "external_worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-activity-recovery/tianshu-companion",
+      "allowed_paths": [
+        "src/tianshu_companion/app.py",
+        "src/tianshu_companion/life_activities.py",
+        "src/tianshu_companion/runtime_execution.py",
+        "src/tianshu_companion/runtime.py",
+        "tests/test_runtime_v2.py",
+        "tests/test_autonomous_life.py",
+        "tests/test_actor_actions.py",
+        "docs/handoffs/TS-418.md"
+      ],
+      "assignee": "activity_recovery",
+      "project": "companion",
+      "status": "in_progress",
+      "depends_on": [
+        "TS-416"
+      ],
+      "baseline_commit": "07f85f9741f29100dc7e6d0ceb28afb8a52954a5",
+      "plan": "docs/development/life-recovery-2026-10-29.md"
+    },
+    {
+      "id": "TS-419",
+      "project": "platform",
+      "title": "自主目标复用已授权生活读取通道",
+      "status": "in_progress",
+      "depends_on": [
+        "TS-418"
+      ],
+      "baseline_commit": "31f7bcc41e1a6097b566d0da2ae27aef34a1b06f",
+      "branch": "codex/ts419-life-reader-20261029",
+      "external_worktree": "C:/Users/Administrator/.codex/worktrees/tianshu-life-reader/tianshu-platform",
+      "allowed_paths": [
+        "services/platform/web_life_management.py",
+        "tests/test_web_life_runtime.py",
+        "tests/test_web_actor_memory.py",
+        "docs/handoffs/TS-419.md"
+      ],
+      "assignee": "life_reader",
+      "plan": "docs/development/life-recovery-2026-10-29.md"
     }
   ],
   "dispatch_defaults": {
