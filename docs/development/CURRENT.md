@@ -1,3 +1,7 @@
+## 2026-10-29 OneBot 自助接入已部署 R26a
+
+用户授权直接部署。192.168.31.230 当前镜像 `sha256:999cb29f49b6969f5d9e1cd096ec3269ea4200ea9354402b2c5b9d9e17edf458`，Platform `31f7bcc`、application `5badd01`，容量守护 r21；候选保存在隔离 worktree，尚未合主线或推送。已有 PostgreSQL 机器人目录及密钥已备份，增建 `onebot_servers`，原账号记录和收据保留。真实网页新版表单可见、六业务 ready、鉴权 ready 200、旧 1200/9091 WS 已重新连接；新地址尚未切换真实客户端。首次 R26 因增量打包目录权限导致业务宿主未能启动，修正为 R26a 并以运行身份验证。最终容器 healthy、原 37 挂载和其他 13 容器保持，20 GiB 容量底线未变；原有 obs-guard 对账超时仍波动、底线以上空余较少。[交付详情](../handoffs/onebot-server-onboarding-2026-10-29.md)。
+
 ## 2026-10-29 持续后台与窗口摘要统一使用 OpenCode DS（R25）
 
 用户指定日程、自主阅读与记忆总结用 `opencode / deepseek-v4.1-flash`。正式核对 writing/memory 原配置已明确绑定该 provider revision3、binding revision1，无需写重复配置；分别覆盖生活生成/日记反思/自主目标与活动阅读、自动记忆提取和分段总结。TS416将唯一遗漏的窗口空闲/阈值摘要显式归现有 memory 分流，普通聊天、搜索/工具/代码、群聊参与和Qwen嵌入重排保持；原在途任务的模型、身份与回执不重定向。
