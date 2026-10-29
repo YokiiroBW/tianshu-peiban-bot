@@ -1,6 +1,7 @@
 """Producer/collector joint fixtures for the optional Companion event extension."""
 
 import copy
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -56,6 +57,10 @@ class PeerAttributesTests(unittest.TestCase):
                 / "contracts/diagnostics/v1.1/event.schema.json"
             ).read_text("utf-8")
         )
+        directory = Path(__file__).resolve().parents[3] / "contracts/diagnostics/v1.1"
+        manifest = json.loads((directory / "manifest.json").read_text("utf-8"))
+        for name, expected in manifest["files"].items():
+            self.assertEqual(hashlib.sha256((directory / name).read_bytes()).hexdigest(), expected)
         from jsonschema import Draft202012Validator
 
         Draft202012Validator(schema).validate(value)

@@ -2,9 +2,9 @@
   "version": "1.1.0",
   "status": "local_joint_verified_not_deployed",
   "files": {
-    "event.schema.json": "fa428a01700bdaaec421a38e56bae9f38c574b655ad72c365725fc6d57cfdde1",
-    "examples.json": "b7c6833b50a9ad27787fd90d45b1972790bb18a3b3c36205919ecb705c343671",
-    "negative-examples.json": "db77b0babee055f52870583bc89571ed8158dbbe724b16cb3d33bf4946c264fd",
-    "README.md": "a5d4c72dcde2d50ad3cc901b65949ed2abe48639988ad9cd44e7782f228312a7"
+    "event.schema.json": "8151a60aed39b763438317caf4c779bb1a55806857c64345ef57e3c559a64c5c",
+    "examples.json": "1bd78e565bdca9dcabd0e93fb75e82cb12e7a7941590b6e6fda6c1e57fbe70fa",
+    "negative-examples.json": "a3aba43a332a04bbdccfd010c0f18ba620a181b1f33af7a8a1206336f61e75f6",
+    "README.md": "757a4a343ce2799dc7be614acdc45398a10b2e75c879ae890e0b8915cfba34a0"
   }
 }
