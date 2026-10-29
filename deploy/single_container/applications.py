@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import re
 import ssl
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -12,6 +13,29 @@ import aiohttp
 from .edge import Ingress, Listener
 
 
+def onebot_token(spec, environment):
+    """Read the same configured SDK credential used by the OneBot listener."""
+    if "token_file" in spec:
+        return Path(spec["token_file"]).read_text(encoding="utf-8").strip()
+    return environment.get(spec["token_env"])
+
+
+def onebot_onboarding(spec, environment):
+    """Read the owned adapter identity without exposing its key to the browser."""
+    from tianshu_nonebot.storage import read_access_key
+
+    settings = json.loads(Path(spec["settings"]).read_bytes())
+    access_key = read_access_key(
+        Path(spec["data_directory"]) / "adapter.sqlite3",
+        settings.get("storage_backends", {}),
+        environ=environment,
+    )
+    return {
+        "access_key": access_key,
+        "ws_port": urlsplit(spec["origin"]).port or 18765,
+    }
+
+
 class NativeModule:
     def __init__(self, name, spec, environment, *, frontend=None, gateway_origin=None):
         self.name, self.spec, self.environment = name, spec, environment
@@ -19,6 +43,7 @@ class NativeModule:
         self.ports = self.app = self.listener = self.ingress = None
         self.api_listener = None
         self.probe_token = None
+        self.onebot_access_token = None
         self.assembly = None
         self.diagnostics = None
         self.flow_reader = None
@@ -238,11 +263,8 @@ class NativeModule:
 
         spec = self.spec
         raw = json.loads(Path(spec["settings"]).read_bytes())
-        token = (
-            Path(spec["token_file"]).read_text(encoding="utf-8").strip()
-            if "token_file" in spec
-            else self.environment.get(spec["token_env"])
-        )
+        token = onebot_token(spec, self.environment)
+        self.onebot_access_token = token
         port = urlsplit(spec["origin"]).port or 18765
         return create_host(
             host=spec.get("listen_host", "0.0.0.0"),
@@ -288,12 +310,37 @@ class NativeModule:
                 self.api_listener = self.tls_listener(app)
                 await self.api_listener.start()
         elif self.name == "onebot":
+
+            async def server_call(operation, *arguments):
+                return await self.ports.router.invoke(
+                    "platform",
+                    lambda target: getattr(
+                        app_platform(target).bot_adapters.onebot_servers, operation
+                    )(*arguments),
+                )
+
             self.listener = OneBotListener(
                 app,
                 urlsplit(self.spec["origin"]).port or 18765,
                 host=self.spec.get("listen_host", "0.0.0.0"),
+                token=self.onebot_access_token,
+                authorize=lambda server_id, token, account: server_call(
+                    "authorize", server_id, token, account
+                ),
+                reserve=lambda server_id, token, account: server_call(
+                    "reserve", server_id, token, account
+                ),
+                claim=lambda server_id, token, account, reservation: server_call(
+                    "claim", server_id, token, account, reservation
+                ),
+                release=lambda server_id, reservation: server_call(
+                    "release", server_id, reservation
+                ),
             )
             await self.listener.start()
+
+    def onebot_server_status(self):
+        return self.listener.connected_status() if self.listener else {}
 
     def tls_listener(self, app):
         tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
@@ -394,10 +441,27 @@ def app_platform(app):
 class OneBotListener:
     """External OneBot WebSocket; exchange alone owns the native ASGI lifespan."""
 
-    def __init__(self, app, port, *, host="0.0.0.0"):
+    def __init__(
+        self,
+        app,
+        port,
+        *,
+        host="0.0.0.0",
+        token=None,
+        authorize=None,
+        reserve=None,
+        claim=None,
+        release=None,
+    ):
         self.app, self.port, self.host = app, port, host
         self.server = self.task = None
         self.stopping = False
+        self.token, self.authorize = token, authorize
+        self.reserve, self.claim, self.release = reserve, claim, release
+        self.connected = {}
+
+    def connected_status(self):
+        return {server_id: value[0] for server_id, value in self.connected.items()}
 
     async def __call__(self, scope, receive, send):
         if self.stopping:
@@ -409,7 +473,88 @@ class OneBotListener:
                 )
                 await send({"type": "http.response.body", "body": b""})
             return
-        await self.app(scope, receive, send)
+        prefix = "/onebot/v11/ws/"
+        if scope["type"] != "websocket" or not scope.get("path", "").startswith(prefix):
+            await self.app(scope, receive, send)
+            return
+
+        suffix = scope["path"].removeprefix(prefix)
+        headers = scope.get("headers", [])
+        auth = [value for key, value in headers if key.lower() == b"authorization"]
+        accounts = [value for key, value in headers if key.lower() == b"x-self-id"]
+        if (
+            not re.fullmatch(r"[0-9a-f]{32}", suffix)
+            or len(auth) != 1
+            or len(accounts) != 1
+            or self.authorize is None
+            or self.reserve is None
+            or self.claim is None
+            or self.release is None
+            or not self.token
+        ):
+            await send({"type": "websocket.close", "code": 1008})
+            return
+        try:
+            scheme, _, token = auth[0].decode("ascii").partition(" ")
+            account = accounts[0].decode("ascii")
+            server_id = "onebot:" + suffix
+            allowed = scheme.lower() == "bearer" and await self.authorize(
+                server_id, token, account
+            )
+        except Exception:
+            allowed = False
+        if not allowed:
+            await send({"type": "websocket.close", "code": 1008})
+            return
+
+        forwarded = dict(scope)
+        forwarded["path"] = "/onebot/v11/ws"
+        forwarded["raw_path"] = b"/onebot/v11/ws"
+        forwarded["headers"] = [
+            (key, value) for key, value in headers if key.lower() != b"authorization"
+        ] + [(b"authorization", b"Bearer " + self.token.encode("ascii"))]
+        marker = object()
+        accepted = False
+
+        async def forward(message):
+            nonlocal accepted
+            if message["type"] == "websocket.accept":
+                try:
+                    reservation = await self.reserve(server_id, token, account)
+                except Exception:
+                    reservation = None
+                if not reservation:
+                    await send({"type": "websocket.close", "code": 1008})
+                    raise ConnectionAbortedError("OneBot server identity changed")
+                try:
+                    await send(message)
+                    try:
+                        claimed = await self.claim(
+                            server_id, token, account, reservation
+                        )
+                    except Exception:
+                        claimed = False
+                    if not claimed:
+                        await send({"type": "websocket.close", "code": 1008})
+                        raise ConnectionAbortedError("OneBot server identity changed")
+                finally:
+                    try:
+                        await self.release(server_id, reservation)
+                    except Exception:
+                        # A lost release expires automatically in the owner.
+                        pass
+                self.connected[server_id] = (account, marker)
+                accepted = True
+            else:
+                await send(message)
+
+        try:
+            await self.app(forwarded, receive, forward)
+        except ConnectionAbortedError:
+            pass
+        finally:
+            if accepted and self.connected.get(server_id) == (account, marker):
+                self.connected.pop(server_id, None)
 
     async def start(self):
         import uvicorn

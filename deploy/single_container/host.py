@@ -7,7 +7,7 @@ import signal
 import time
 from uuid import UUID
 
-from .applications import NativeModule, app_platform
+from .applications import NativeModule, app_platform, onebot_onboarding
 from .host_settings import MODULES, load_settings, module_environment
 from .runtime import write_state
 from .threaded_exchange import ThreadedExchange
@@ -59,6 +59,14 @@ class BusinessHost:
                         instance,
                         ports.session_factory("onebot"),
                         origin=self.config["modules"]["onebot"]["origin"].rstrip("/"),
+                        onboarding=lambda: onebot_onboarding(
+                            self.config["modules"]["onebot"],
+                            self.environments["onebot"],
+                        ),
+                        server_status=lambda: self.exchange.invoke(
+                            "onebot",
+                            lambda app: self.modules["onebot"].onebot_server_status(),
+                        ),
                     )
                 return app
 
