@@ -9,11 +9,12 @@ from contextlib import contextmanager
 
 from ledger_schema import initialize, insert_summary
 from policy import digest_bytes, event_time, segments
-from transport import Deadline
+from transport import Deadline, DeadlineExceeded
 
 RECONCILE_BATCH = 1024
 RECONCILE_QUERY_BATCH = 64
 RECONCILE_WINDOW_SECONDS = 3600
+RECONCILE_MIN_REMAINING_SECONDS = 2
 
 
 class Ledger:
@@ -281,6 +282,7 @@ class Ledger:
         oldest = now - retention_seconds
         groups = {}
         for ident, fingerprint, service, collected, verified, occurred, first_seen in pending:
+            hint_retry = False
             if verified > 0 and collected is not None:
                 # Re-prove the actual previously observed collection position.
                 # Its absence conservatively makes the record pending again.
@@ -291,21 +293,38 @@ class Ledger:
                 if progress is None:
                     # Backfilled source timestamps are a useful first lookup,
                     # never a bound: a miss resumes the full collection window.
-                    hint = occurred if occurred is not None and oldest <= occurred <= now else first_seen
+                    hint = (
+                        occurred
+                        if occurred is not None and oldest <= occurred <= now
+                        else first_seen
+                    )
                     bucket = int(hint // window) if oldest <= hint <= now else latest
                     recent = bucket != latest
                 else:
-                    history, recent = progress
+                    history, recent, attempts = progress
                     if (history + 1) * window < oldest:
                         history = latest
                     bucket = latest if recent else history
+                    # Loki may first expose an event in its original timestamp
+                    # window after our initial miss. Revisit that hint regularly
+                    # while still advancing the complete historical search.
+                    hint = (
+                        occurred
+                        if occurred is not None and oldest <= occurred <= now
+                        else first_seen
+                    )
+                    if verified == 0 and attempts % 4 == 0 and oldest <= hint <= now:
+                        hint_bucket = int(hint // window)
+                        if hint_bucket != bucket:
+                            bucket = hint_bucket
+                            hint_retry = True
             # Legacy confirmations may have no recorded collection position.
             # A partial page cannot disprove their earlier full-window receipt;
             # keep it unchanged until a hit or completion of the original window.
             complete = not recent and bucket * window - 1 <= oldest
             disprove_missing = verified > 0 and (collected is not None or complete)
             groups.setdefault((service, bucket, disprove_missing), []).append(
-                (ident, fingerprint, recent)
+                (ident, fingerprint, recent, hint_retry)
             )
         groups = [
             (key, records[offset:offset + RECONCILE_QUERY_BATCH])
@@ -318,8 +337,18 @@ class Ledger:
         self.reconcile_cursor += 1
         deadline = Deadline()
         acknowledged = 0
-        for (service, bucket, previously_verified), records in groups:
-            expected = {ident: fingerprint for ident, fingerprint, _ in records}
+        for index, ((service, bucket, previously_verified), records) in enumerate(groups):
+            if index:
+                # Completed pages are durable. Avoid starting another backend
+                # query when the shared deadline is nearly spent; unchecked
+                # pages remain pending and are selected again in a later cycle.
+                try:
+                    remaining = deadline.remaining()
+                except DeadlineExceeded:
+                    break
+                if remaining <= RECONCILE_MIN_REMAINING_SECONDS:
+                    break
+            expected = {ident: fingerprint for ident, fingerprint, _, _ in records}
             selector = (
                 '{stack="tianshu",service=' + json.dumps("tianshu_" + service)
                 + '} | json | event_id=~"' + "|".join(expected) + '"'
@@ -336,16 +365,19 @@ class Ledger:
             )
             seen = self._confirm_query(expected, rows, now, previously_verified)
             acknowledged += len(seen)
-            for ident, _, recent in records:
+            for ident, _, recent, hint_retry in records:
                 if ident in seen:
                     self.reconcile_windows.pop(ident, None)
                     continue
                 if ident not in self.reconcile_windows and len(self.reconcile_windows) >= self.max_events:
                     self.reconcile_windows.pop(next(iter(self.reconcile_windows)))
-                history = self.reconcile_windows.get(ident, (latest, False))[0]
+                history, previous_recent, attempts = self.reconcile_windows.get(
+                    ident, (latest, False, 0)
+                )
                 self.reconcile_windows[ident] = (
-                    history if recent else bucket - 1,
-                    not recent and bucket != latest,
+                    history if hint_retry or recent else bucket - 1,
+                    previous_recent if hint_retry else not recent and bucket != latest,
+                    attempts + 1,
                 )
         return acknowledged
 

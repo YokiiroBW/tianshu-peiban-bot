@@ -236,6 +236,97 @@ class CapacityTests(unittest.TestCase):
                     "SELECT count(*) FROM retired_streams"
                 ).fetchone()[0], 0)
 
+    def test_late_visibility_rechecks_hint_while_other_history_advances(self):
+        now = (int(time.time() // 3600) + 0.75) * 3600
+        hint = now - 4 * 3600
+        older_collection = now - 2 * 3600
+        with self.ledger.db:
+            self.ledger.db.execute(
+                "UPDATE events SET occurred=? WHERE sequence=1", (hint,)
+            )
+            self.ledger.db.execute(
+                "UPDATE events SET occurred=? WHERE sequence=2", (now - 8 * 3600,)
+            )
+        calls = []
+
+        class Backend:
+            def range(inner, selector, start, end, **kwargs):
+                calls.append((selector, start, end))
+                result = []
+                # The first lookup missed; Loki exposed the event later at the
+                # same old timestamp, not the current collection window.
+                first_stamp = int(hint * 1e9)
+                if (
+                    len(calls) > 2
+                    and self.first["event_id"] in selector
+                    and start <= first_stamp <= end
+                ):
+                    result.append((first_stamp, canonical(self.first).decode()))
+                second_stamp = int(older_collection * 1e9)
+                if (
+                    self.second["event_id"] in selector
+                    and start <= second_stamp <= end
+                ):
+                    result.append((second_stamp, canonical(self.second).decode()))
+                return result
+
+        with patch("monitor.time.time", return_value=now):
+            for _ in range(5):
+                self.ledger.reconcile(Backend())
+            verified = self.ledger.db.execute(
+                "SELECT verified FROM events WHERE id=?", (self.first["event_id"],)
+            ).fetchone()[0]
+            self.assertGreater(verified, 0)
+            for _ in range(12):
+                self.ledger.reconcile(Backend())
+                if self.ledger.metrics()["pending_events"] == 0:
+                    break
+        self.assertEqual(self.ledger.metrics()["pending_events"], 0)
+        self.assertEqual(self.ledger.metrics()["landed_events"], 2)
+        retired = self.ledger.db.execute("SELECT count(*) FROM retired_streams").fetchone()[0]
+        self.assertEqual(retired, 0)
+        self.assertTrue(
+            any(start <= int(hint * 1e9) <= end for _, start, end in calls[2:])
+        )
+        self.assertTrue(
+            any(start <= int(older_collection * 1e9) <= end for _, start, end in calls)
+        )
+
+    def test_reconcile_yields_before_starting_a_page_with_little_time_left(self):
+        now = (int(time.time() // 3600) + 0.75) * 3600
+        stamps = {self.first["event_id"]: now - 4 * 3600,
+                  self.second["event_id"]: now - 2 * 3600}
+        with self.ledger.db:
+            for ident, stamp in stamps.items():
+                self.ledger.db.execute(
+                    "UPDATE events SET occurred=? WHERE id=?", (stamp, ident)
+                )
+        calls = []
+
+        class NearlySpentDeadline:
+            def remaining(inner):
+                return 1
+
+        class Backend:
+            def range(inner, selector, start, end, **kwargs):
+                calls.append(selector)
+                return [
+                    (int(stamps[record["event_id"]] * 1e9), canonical(record).decode())
+                    for record in (self.first, self.second)
+                    if record["event_id"] in selector
+                    and start <= int(stamps[record["event_id"]] * 1e9) <= end
+                ]
+
+        with patch("monitor.time.time", return_value=now), patch(
+            "monitor.Deadline", NearlySpentDeadline
+        ):
+            self.assertEqual(self.ledger.reconcile(Backend()), 1)
+            self.assertEqual(len(calls), 1)
+            self.assertEqual(self.ledger.metrics()["pending_events"], 1)
+            self.assertEqual(self.ledger.reconcile(Backend()), 1)
+        self.assertEqual(self.ledger.metrics()["pending_events"], 0)
+        self.assertEqual(self.ledger.metrics()["landed_events"], 2)
+
     def test_confirmed_recheck_uses_recorded_collection_and_missing_becomes_pending(self):
         now = time.time()
         collected = now - 20 * 86400

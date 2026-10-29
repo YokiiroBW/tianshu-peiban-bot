@@ -462,23 +462,35 @@ class StorageTests(unittest.TestCase):
             ]
 
         client.range.side_effect = available
-        for step, expected in enumerate((old, first, second, old)):
+        for step in range(4):
             if step == 3:
                 available_ids.add(old["event_id"])
+            client.reset_mock()
             with patch("monitor.time.time", return_value=now + step):
                 ledger.reconcile(client, batch=2)
-            selector = client.range.call_args.args[0]
-            self.assertEqual(
-                [record["event_id"] for record in records if record["event_id"] in selector],
-                [expected["event_id"]],
-            )
+            selectors = " ".join(call.args[0] for call in client.range.call_args_list)
             if step == 0:
+                self.assertIn(old["event_id"], selectors)
+                self.assertIn(first["event_id"], selectors)
                 self.assertEqual(
                     ledger.db.execute(
                         "SELECT verified,last_checked FROM events WHERE id=?", (old["event_id"],)
                     ).fetchone(),
                     (0, now),
                 )
+                self.assertGreater(ledger.db.execute(
+                    "SELECT verified FROM events WHERE id=?", (first["event_id"],)
+                ).fetchone()[0], 0)
+            if step == 1:
+                self.assertIn(second["event_id"], selectors)
+                self.assertGreater(ledger.db.execute(
+                    "SELECT verified FROM events WHERE id=?", (second["event_id"],)
+                ).fetchone()[0], 0)
+            if step == 2:
+                self.assertIn(old["event_id"], selectors)
+                self.assertEqual(ledger.metrics()["pending_events"], 1)
+            if step == 3:
+                self.assertIn(old["event_id"], selectors)
         self.assertEqual(ledger.metrics()["pending_events"], 0)
         self.assertEqual(
             ledger.db.execute("SELECT last_checked FROM events WHERE id=?", (old["event_id"],)).fetchone()[0],
