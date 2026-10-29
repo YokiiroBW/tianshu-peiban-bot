@@ -11,7 +11,8 @@ from ledger_schema import initialize, insert_summary
 from policy import digest_bytes, event_time, segments
 from transport import Deadline
 
-RECONCILE_BATCH = 64
+RECONCILE_BATCH = 1024
+RECONCILE_QUERY_BATCH = 64
 RECONCILE_WINDOW_SECONDS = 3600
 
 
@@ -244,11 +245,14 @@ class Ledger:
     def reconcile(self, client, retention_seconds=30 * 86400, batch=128):
         now = time.time()
         batch = min(batch, RECONCILE_BATCH)
-        pending = self.db.execute(
-            # Compare a never-checked event's first_seen with the last real
-            # check of an unmatched event, so continuous backfill cannot starve it.
+        # Compare a never-checked event's first_seen with the last real check of
+        # an unmatched event, so continuous backfill cannot starve it.
+        pending_query = (
             "SELECT id,hash,service,collected,verified,occurred,first_seen FROM events WHERE verified=0 "
-            "ORDER BY CASE WHEN last_checked=0 THEN first_seen ELSE last_checked END,first_seen LIMIT ?",
+            "ORDER BY CASE WHEN last_checked=0 THEN first_seen ELSE last_checked END,first_seen LIMIT ?"
+        )
+        pending = self.db.execute(
+            pending_query,
             (max(1, batch // 2),),
         ).fetchall()
         # A prior query hit is not permanent proof. Revisit confirmed events while
@@ -258,6 +262,11 @@ class Ledger:
             "AND (last_checked<? OR collected IS NULL) AND first_seen>? ORDER BY last_checked LIMIT ?",
             (now - 3600, now - retention_seconds, max(0, batch - len(pending))),
         ).fetchall()
+        remaining = batch - len(pending) - len(confirmed)
+        if remaining > 0 and pending:
+            pending += self.db.execute(
+                pending_query + " OFFSET ?", (remaining, len(pending))
+            ).fetchall()
         pending += confirmed
         if not pending:
             # Query even while idle so storage failure cannot look like an empty healthy log.
@@ -266,7 +275,7 @@ class Ledger:
                 int((now - 60) * 1e9),
                 int(now * 1e9),
             )
-            return
+            return 0
         window = RECONCILE_WINDOW_SECONDS
         latest = int(now // window)
         oldest = now - retention_seconds
@@ -298,12 +307,17 @@ class Ledger:
             groups.setdefault((service, bucket, disprove_missing), []).append(
                 (ident, fingerprint, recent)
             )
-        groups = list(groups.items())
+        groups = [
+            (key, records[offset:offset + RECONCILE_QUERY_BATCH])
+            for key, records in groups.items()
+            for offset in range(0, len(records), RECONCILE_QUERY_BATCH)
+        ]
         start = self.reconcile_cursor % len(groups)
         groups = groups[start:] + groups[:start]
         # One failed source/page cannot permanently monopolize the next cycle.
         self.reconcile_cursor += 1
         deadline = Deadline()
+        acknowledged = 0
         for (service, bucket, previously_verified), records in groups:
             expected = {ident: fingerprint for ident, fingerprint, _ in records}
             selector = (
@@ -321,6 +335,7 @@ class Ledger:
                 limit=max(1000, len(expected) + 1), deadline=deadline,
             )
             seen = self._confirm_query(expected, rows, now, previously_verified)
+            acknowledged += len(seen)
             for ident, _, recent in records:
                 if ident in seen:
                     self.reconcile_windows.pop(ident, None)
@@ -332,6 +347,7 @@ class Ledger:
                     history if recent else bucket - 1,
                     not recent and bucket != latest,
                 )
+        return acknowledged
 
     def _confirm_query(self, expected, rows, now, previously_verified):
         seen = set()

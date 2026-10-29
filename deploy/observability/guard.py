@@ -228,9 +228,11 @@ class State:
             )
             while not self.stop.is_set():
                 succeeded = True
+                backlogged, acknowledged = False, 0
                 try:
                     stage = "source_scan"
                     result = ledger.scan(self.settings["log_roots"])
+                    backlogged = bool(result.get("scan_budget_exhausted"))
                     stage = "capacity"
                     cap = capacities(
                         self.settings["log_roots"], self.settings["log_budgets"]
@@ -245,7 +247,7 @@ class State:
                         extra[f"storage_{role}_ratio"] = 1 - disk.free / disk.total
                     self.update(**result, **extra)
                     stage = "reconcile"
-                    ledger.reconcile(
+                    acknowledged = ledger.reconcile(
                         self.backend,
                         retention_seconds=retention_days * 86400,
                         batch=min(1024, maximum),
@@ -323,7 +325,10 @@ class State:
                 self.update(**alerts.update(metrics))
                 if succeeded:
                     self.update(**self.monitor_failure_values())
-                self.stop.wait(self.settings.get("interval_seconds", 30))
+                interval = self.settings.get("interval_seconds", 30)
+                if succeeded and backlogged and acknowledged > 0:
+                    interval = min(interval, 1)
+                self.stop.wait(interval)
         except Exception as error:
             self.monitor_failed(stage, error)
         finally:

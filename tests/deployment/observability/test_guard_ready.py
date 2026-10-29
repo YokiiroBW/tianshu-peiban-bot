@@ -181,6 +181,49 @@ class ReadinessTests(TransportFixture):
                 ).fetchone()[0], 0)
             self.assertEqual(path.read_bytes(), original)
 
+    def test_backlog_chunks_original_events_and_only_successful_progress_retries_fast(self):
+        records = [event(sequence) for sequence in range(1, 1026)]
+        path = self.logs / f"platform-{records[0]['instance_id']}-0000.jsonl"
+        emit(path, records)
+        original = path.read_bytes()
+        self.state.settings.update(log_max_events=1024, interval_seconds=30)
+        collected = time.time_ns()
+        calls, waits = [], []
+
+        def retained(selector, start, end, *, limit, deadline):
+            selected = selector.split('event_id=~"', 1)[1][:-1].split("|")
+            self.assertLessEqual(len(selected), 64)
+            self.assertLessEqual(end - start, 3602 * 10**9)
+            self.assertLessEqual(deadline.remaining(), 10)
+            calls.append((len(selected), deadline))
+            if len(calls) == 2:
+                # A completed first page is real progress, but a later failure
+                # must still keep the original interval for this entire cycle.
+                raise QueryError("query_deadline_exceeded")
+            return [(collected, canonical(item).decode()) for item in records
+                    if item["event_id"] in selected and start <= collected <= end]
+
+        def wait(interval):
+            waits.append(interval)
+            if len(waits) == 1:
+                self.assertEqual(self.state.metrics["monitor_success"], 0)
+                self.assertEqual(self.state.metrics["pending_events"], 1024 - 64)
+            if len(waits) == 3:
+                self.state.stop.set()
+
+        with patch.object(self.state.backend, "range", retained), patch.object(self.state.stop, "wait", wait):
+            self.state.run_monitor()
+        self.assertEqual(waits, [30, 1, 30])
+        self.assertIs(calls[0][1], calls[1][1])
+        self.assertIs(calls[2][1], calls[3][1])
+        self.assertEqual(self.state.metrics["query_failures_total"], 1)
+        self.assertEqual(self.state.metrics["pending_events"], 0)
+        self.assertGreater(self.state.metrics.get("expired_events_total", 0), 0)
+        self.assertEqual(path.read_bytes(), original)
+        with closing(sqlite3.connect((self.root / "ledger.sqlite").as_uri() + "?mode=ro", uri=True)) as db:
+            self.assertLessEqual(db.execute("SELECT count(*) FROM events").fetchone()[0], 1024)
+            self.assertEqual(db.execute("SELECT clear_before FROM retention_control").fetchone()[0], 0)
+
     def test_metrics_failure_does_not_refresh_success_timestamp(self):
         self.start_monitor()
         self.until(self.state.monitor_ready)

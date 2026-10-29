@@ -431,7 +431,7 @@ class StorageTests(unittest.TestCase):
                 ledger.reconcile(client, batch=1024)
         selectors = [call.args[0] for call in client.range.call_args_list]
         self.assertTrue(all(
-            sum(record["event_id"] in selector for record in records) <= 32
+            sum(record["event_id"] in selector for record in records) <= 64
             for selector in selectors
         ))
         self.assertTrue(all(record["event_id"] in " ".join(selectors) for record in records[:83]))
@@ -444,7 +444,7 @@ class StorageTests(unittest.TestCase):
         )
         self.assertEqual(
             (ledger.metrics()["landed_events"], ledger.metrics()["pending_events"]),
-            (10000, 10000 - 96),
+            (10000, 10000 - 3 * 1024),
         )
         self.assertEqual(client.range.call_args.kwargs["limit"], 1000)
 
