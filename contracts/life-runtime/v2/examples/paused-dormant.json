@@ -1,0 +1,321 @@
+{
+  "valid": [
+    {
+      "id": "paused_save_has_due",
+      "definition": "activity_save_value",
+      "value": {
+        "id": "activity:synthetic-pc04",
+        "title": "等待再次选择的阅读",
+        "state": "paused",
+        "checkpoint": {
+          "step": 0,
+          "position": 0,
+          "unit": "step",
+          "note": ""
+        },
+        "next_due_at": 2000,
+        "resume_condition": "retry_later",
+        "sources": [],
+        "result_refs": [],
+        "scope": null
+      }
+    },
+    {
+      "id": "paused_projection_has_due",
+      "definition": "activities_record",
+      "value": {
+        "id": "activity:synthetic-pc04",
+        "title": "等待再次选择的阅读",
+        "state": "paused",
+        "checkpoint": {
+          "step": 0,
+          "position": 0,
+          "unit": "step",
+          "note": ""
+        },
+        "next_due_at": 2000,
+        "resume_condition": "retry_later",
+        "sources": [],
+        "result_refs": [],
+        "scope": null,
+        "version": 2,
+        "actor_id": "actor:synthetic-pc04",
+        "started_at": 1000,
+        "updated_at": 1500
+      }
+    },
+    {
+      "id": "dormant_save_has_reason",
+      "definition": "activity_save_value",
+      "value": {
+        "id": "activity:synthetic-pc04",
+        "title": "等待再次选择的阅读",
+        "state": "dormant",
+        "checkpoint": {
+          "step": 0,
+          "position": 0,
+          "unit": "step",
+          "note": ""
+        },
+        "next_due_at": null,
+        "resume_condition": "explicit_goal_choice_required",
+        "sources": [],
+        "result_refs": [],
+        "scope": null
+      }
+    },
+    {
+      "id": "dormant_projection_has_timestamp",
+      "definition": "activities_record",
+      "value": {
+        "id": "activity:synthetic-pc04",
+        "title": "等待再次选择的阅读",
+        "state": "dormant",
+        "checkpoint": {
+          "step": 0,
+          "position": 0,
+          "unit": "step",
+          "note": ""
+        },
+        "next_due_at": null,
+        "resume_condition": "explicit_goal_choice_required",
+        "sources": [],
+        "result_refs": [],
+        "scope": null,
+        "version": 2,
+        "actor_id": "actor:synthetic-pc04",
+        "started_at": 1000,
+        "updated_at": 1500,
+        "dormant_since": 1500
+      }
+    },
+    {
+      "id": "running_unchanged",
+      "definition": "activities_record",
+      "value": {
+        "id": "activity:synthetic-pc04",
+        "title": "等待再次选择的阅读",
+        "state": "running",
+        "checkpoint": {
+          "step": 0,
+          "position": 0,
+          "unit": "step",
+          "note": ""
+        },
+        "next_due_at": 2000,
+        "resume_condition": "retry_later",
+        "sources": [],
+        "result_refs": [],
+        "scope": null,
+        "version": 2,
+        "actor_id": "actor:synthetic-pc04",
+        "started_at": 1000,
+        "updated_at": 1500
+      }
+    },
+    {
+      "id": "completed_unchanged",
+      "definition": "activities_record",
+      "value": {
+        "id": "activity:synthetic-pc04",
+        "title": "等待再次选择的阅读",
+        "state": "completed",
+        "checkpoint": {
+          "step": 0,
+          "position": 0,
+          "unit": "step",
+          "note": ""
+        },
+        "next_due_at": null,
+        "resume_condition": "retry_later",
+        "sources": [],
+        "result_refs": [],
+        "scope": null,
+        "version": 2,
+        "actor_id": "actor:synthetic-pc04",
+        "started_at": 1000,
+        "updated_at": 1500
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "id": "paused_save_null_due",
+      "definition": "activity_save_value",
+      "value": {
+        "id": "activity:synthetic-pc04",
+        "title": "等待再次选择的阅读",
+        "state": "paused",
+        "checkpoint": {
+          "step": 0,
+          "position": 0,
+          "unit": "step",
+          "note": ""
+        },
+        "next_due_at": null,
+        "resume_condition": "retry_later",
+        "sources": [],
+        "result_refs": [],
+        "scope": null
+      }
+    },
+    {
+      "id": "paused_projection_null_due",
+      "definition": "activities_record",
+      "value": {
+        "id": "activity:synthetic-pc04",
+        "title": "等待再次选择的阅读",
+        "state": "paused",
+        "checkpoint": {
+          "step": 0,
+          "position": 0,
+          "unit": "step",
+          "note": ""
+        },
+        "next_due_at": null,
+        "resume_condition": "retry_later",
+        "sources": [],
+        "result_refs": [],
+        "scope": null,
+        "version": 2,
+        "actor_id": "actor:synthetic-pc04",
+        "started_at": 1000,
+        "updated_at": 1500
+      }
+    },
+    {
+      "id": "dormant_save_null_reason",
+      "definition": "activity_save_value",
+      "value": {
+        "id": "activity:synthetic-pc04",
+        "title": "等待再次选择的阅读",
+        "state": "dormant",
+        "checkpoint": {
+          "step": 0,
+          "position": 0,
+          "unit": "step",
+          "note": ""
+        },
+        "next_due_at": 2000,
+        "resume_condition": null,
+        "sources": [],
+        "result_refs": [],
+        "scope": null
+      }
+    },
+    {
+      "id": "dormant_save_empty_reason",
+      "definition": "activity_save_value",
+      "value": {
+        "id": "activity:synthetic-pc04",
+        "title": "等待再次选择的阅读",
+        "state": "dormant",
+        "checkpoint": {
+          "step": 0,
+          "position": 0,
+          "unit": "step",
+          "note": ""
+        },
+        "next_due_at": 2000,
+        "resume_condition": "",
+        "sources": [],
+        "result_refs": [],
+        "scope": null
+      }
+    },
+    {
+      "id": "dormant_projection_missing_timestamp",
+      "definition": "activities_record",
+      "value": {
+        "id": "activity:synthetic-pc04",
+        "title": "等待再次选择的阅读",
+        "state": "dormant",
+        "checkpoint": {
+          "step": 0,
+          "position": 0,
+          "unit": "step",
+          "note": ""
+        },
+        "next_due_at": 2000,
+        "resume_condition": "retry_later",
+        "sources": [],
+        "result_refs": [],
+        "scope": null,
+        "version": 2,
+        "actor_id": "actor:synthetic-pc04",
+        "started_at": 1000,
+        "updated_at": 1500
+      }
+    },
+    {
+      "id": "dormant_projection_bool_timestamp",
+      "definition": "activities_record",
+      "value": {
+        "id": "activity:synthetic-pc04",
+        "title": "等待再次选择的阅读",
+        "state": "dormant",
+        "checkpoint": {
+          "step": 0,
+          "position": 0,
+          "unit": "step",
+          "note": ""
+        },
+        "next_due_at": 2000,
+        "resume_condition": "retry_later",
+        "sources": [],
+        "result_refs": [],
+        "scope": null,
+        "version": 2,
+        "actor_id": "actor:synthetic-pc04",
+        "started_at": 1000,
+        "updated_at": 1500,
+        "dormant_since": true
+      }
+    },
+    {
+      "id": "client_cannot_supply_dormant_since",
+      "definition": "activity_save_value",
+      "value": {
+        "id": "activity:synthetic-pc04",
+        "title": "等待再次选择的阅读",
+        "state": "dormant",
+        "checkpoint": {
+          "step": 0,
+          "position": 0,
+          "unit": "step",
+          "note": ""
+        },
+        "next_due_at": 2000,
+        "resume_condition": "retry_later",
+        "sources": [],
+        "result_refs": [],
+        "scope": null,
+        "dormant_since": 1500
+      }
+    },
+    {
+      "id": "unregistered_activity_state",
+      "definition": "activities_record",
+      "value": {
+        "id": "activity:synthetic-pc04",
+        "title": "等待再次选择的阅读",
+        "state": "dormancy",
+        "checkpoint": {
+          "step": 0,
+          "position": 0,
+          "unit": "step",
+          "note": ""
+        },
+        "next_due_at": 2000,
+        "resume_condition": "retry_later",
+        "sources": [],
+        "result_refs": [],
+        "scope": null,
+        "version": 2,
+        "actor_id": "actor:synthetic-pc04",
+        "started_at": 1000,
+        "updated_at": 1500
+      }
+    }
+  ]
+}

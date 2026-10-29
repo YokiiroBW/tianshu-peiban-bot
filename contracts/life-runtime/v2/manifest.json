@@ -1,7 +1,7 @@
 {
   "package": "life-runtime/v2",
-  "version": "2.1.0",
-  "status": "core_completion_isolated_candidate",
+  "version": "2.2.0",
+  "status": "pc04_contract_candidate_not_integrated",
   "runtime_joint": "not_run",
   "real_external": "not_run",
   "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
@@ -20,13 +20,23 @@
     "examples/requests.json": "e58526436aa6c86a9ae9c0af2bead5b252e8a1e9f812fb8bf77ce14f24f73302",
     "examples/semantic-cases.json": "1b3e179731289c6e8ef142333dab9d146a4b353741270b19f32ffad5a5757981",
     "README.md": "0fa5e54db353836345deed1417e8a59ac95e330ad05f50dc2f570bf4eaa07db0",
-    "schemas/life.json": "5160368c14fa84d36e257ccb097b96f5b43dc9a91de974b4859d8bfe07054530",
+    "schemas/life.json": "53359019c3d7a9b328f4b7e5f3641e3bc4dd65c413618369acfd96dba9b646fe",
     "core-completion.md": "f5bd67c8b90b2503200349b91d87998d93db435c73daddbc7cf97d87a245ec51",
-    "examples/core-completion.json": "38c68efa2fbd2f024bceb075ec4f7a4b21a4ed38657ce91f8517920ef5f324bb"
+    "examples/core-completion.json": "38c68efa2fbd2f024bceb075ec4f7a4b21a4ed38657ce91f8517920ef5f324bb",
+    "examples/paused-dormant.json": "39f95dff4419922de685b7dc74c485d20a92e17d917a048804ca989d7344a8e1",
+    "paused-dormant.md": "133679c952634725f970a2e393c81d1a6f67b63006b735e294078f47217b7370"
   },
   "schema_examples_checked": {
     "positive": 23,
     "negative": 16
   },
-  "semantic_cases": "specified_not_run"
+  "semantic_cases": "specified_not_run",
+  "parent_manifest_sha256": "6c032c558d107615a19e49f1bde1c76f7a5994b14c484476f7a71aeab555cadf",
+  "pc04_scope": "Paused recovery points and explicit dormant projection only; runtime transition semantics remain to be implemented.",
+  "pc04_contract_checks": {
+    "positive": 6,
+    "negative": 8,
+    "original_pin_rejects_dormant": true,
+    "runtime_transition_validation": "not_run"
+  }
 }
