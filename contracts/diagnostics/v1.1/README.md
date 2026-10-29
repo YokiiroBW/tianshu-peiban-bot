@@ -1,0 +1,3 @@
+# Diagnostics v1.1 peer attributes
+
+Optional Companion peer events add a closed attributes object to the v1 envelope. Existing events keep diagnostics/v1 unchanged. Attributes contain fixed service and route labels, a SHA-256 fingerprint of the presented service credential, operation, HTTP status, registered error code and transport attempt. They never contain request or response bodies, raw identities, URLs, tokens or cookies. Dynamic model request IDs become a fixed route template. Producer vocabulary extraction supplies the exact attribute rules to the collector; unsupported collectors reject the extension. Deploy the collector and Companion producer together.

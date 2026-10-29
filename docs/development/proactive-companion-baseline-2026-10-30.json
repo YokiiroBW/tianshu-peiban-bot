@@ -1,0 +1,684 @@
+{
+  "schema_version": 1,
+  "collected_at": "2026-10-29T19:15:58.976963+00:00",
+  "database": {
+    "transaction": {
+      "read_only": "on",
+      "isolation": "repeatable read",
+      "snapshot": "27491080:27491080:",
+      "schema": "ts_tianshu_companion_main_0c6bf7a49daf"
+    },
+    "goal_choice": {
+      "all_states": {
+        "unknown": 18,
+        "completed": 15,
+        "failed": 35,
+        "interrupted": 1
+      },
+      "all_success_rate": 0.21739130434782608,
+      "window_hours": 24,
+      "window_states": {
+        "completed": 15,
+        "failed": 19,
+        "interrupted": 1,
+        "unknown": 10
+      },
+      "window_total": 45,
+      "window_success_rate": 0.3333333333333333,
+      "by_actor": [
+        {
+          "actor_id": "actor:household",
+          "state": "failed",
+          "count": 25
+        },
+        {
+          "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+          "state": "failed",
+          "count": 10
+        },
+        {
+          "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+          "state": "interrupted",
+          "count": 1
+        },
+        {
+          "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+          "state": "unknown",
+          "count": 18
+        },
+        {
+          "actor_id": "actor:role-84e36c92a52e40dd8edf50228465bcf9",
+          "state": "completed",
+          "count": 3
+        },
+        {
+          "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+          "state": "completed",
+          "count": 12
+        }
+      ],
+      "failures": [
+        {
+          "peer": null,
+          "route": null,
+          "code": null,
+          "stage": null,
+          "count": 54
+        }
+      ]
+    },
+    "activities": {
+      "states": {
+        "completed": 3,
+        "paused": 6
+      },
+      "paused_null_next_due": 5,
+      "paused_null_rate": 0.8333333333333334,
+      "oldest_paused_null_updated_at": 1791129317.2940595,
+      "stalled_over_24h": 2
+    },
+    "actors": [
+      {
+        "actor_id": "actor:household",
+        "cursor": null,
+        "changed_at": "1791130918.845066",
+        "mood": "calm",
+        "interest_count": 0,
+        "life_enabled": "true",
+        "autonomous": "true"
+      },
+      {
+        "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+        "cursor": "1:1:2026-10-29:840",
+        "changed_at": "1793267959.4520311",
+        "mood": "calm",
+        "interest_count": 0,
+        "life_enabled": "true",
+        "autonomous": "true"
+      },
+      {
+        "actor_id": "actor:role-84e36c92a52e40dd8edf50228465bcf9",
+        "cursor": "1:1:2026-10-29:1200",
+        "changed_at": "1793278165.6496086",
+        "mood": "calm",
+        "interest_count": 0,
+        "life_enabled": "true",
+        "autonomous": "true"
+      }
+    ],
+    "diaries": {
+      "states": {
+        "skipped": 51,
+        "failed": 1,
+        "material_overflow": 1,
+        "unavailable": 9
+      },
+      "days": [
+        {
+          "day": "2026-10-29",
+          "state": "failed",
+          "count": 1
+        },
+        {
+          "day": "2026-10-29",
+          "state": "skipped",
+          "count": 1
+        },
+        {
+          "day": "2026-10-28",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-27",
+          "state": "skipped",
+          "count": 3
+        },
+        {
+          "day": "2026-10-26",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-25",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-24",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-23",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-22",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-21",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-20",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-19",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-18",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-17",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-16",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-15",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-14",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-13",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-12",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-11",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-10",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-09",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-08",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-07",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-06",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-05",
+          "state": "skipped",
+          "count": 1
+        },
+        {
+          "day": "2026-10-05",
+          "state": "unavailable",
+          "count": 1
+        },
+        {
+          "day": "2026-10-04",
+          "state": "material_overflow",
+          "count": 1
+        },
+        {
+          "day": "2026-10-04",
+          "state": "unavailable",
+          "count": 1
+        },
+        {
+          "day": "2026-10-03",
+          "state": "unavailable",
+          "count": 2
+        },
+        {
+          "day": "2026-10-02",
+          "state": "skipped",
+          "count": 1
+        },
+        {
+          "day": "2026-10-02",
+          "state": "unavailable",
+          "count": 1
+        },
+        {
+          "day": "2026-10-01",
+          "state": "unavailable",
+          "count": 1
+        },
+        {
+          "day": "2026-09-30",
+          "state": "unavailable",
+          "count": 1
+        },
+        {
+          "day": "2026-09-29",
+          "state": "unavailable",
+          "count": 1
+        },
+        {
+          "day": "2026-09-28",
+          "state": "unavailable",
+          "count": 1
+        },
+        {
+          "day": "2026-09-27",
+          "state": "skipped",
+          "count": 1
+        }
+      ]
+    },
+    "proactive": {
+      "table_rows": {
+        "proactive_reminders": 0,
+        "proactive_candidates": 0,
+        "proactive_attempts": 0,
+        "proactive_goals": 0,
+        "proactive_motives": 0,
+        "proactive_quota": 0,
+        "proactive_subscriptions": 0,
+        "proactive_templates": 0
+      },
+      "all_tables_empty": true,
+      "event_markers": 1
+    },
+    "concerns": {
+      "total": 7,
+      "autonomy_prefixed": 7,
+      "null_next_due": 7
+    },
+    "events": {
+      "total": 320,
+      "by_kind": {
+        "stage_experience": 17,
+        "schedule_reconciliation": 23,
+        "reading_progress": 47,
+        "image_completed": 1,
+        "activity_boundary": 232
+      }
+    },
+    "generation": [
+      {
+        "scope": "life:generation:plan",
+        "state": "completed",
+        "count": 56
+      },
+      {
+        "scope": "life:generation:plan",
+        "state": "failed",
+        "count": 1
+      },
+      {
+        "scope": "life:generation:plan",
+        "state": "interrupted",
+        "count": 6
+      },
+      {
+        "scope": "life:generation:plan",
+        "state": "superseded",
+        "count": 1
+      },
+      {
+        "scope": "life:generation:stage",
+        "state": "completed",
+        "count": 17
+      },
+      {
+        "scope": "life:generation:stage",
+        "state": "superseded",
+        "count": 1
+      }
+    ],
+    "receipt_usage": {
+      "generation": [
+        {
+          "scope": "life:generation:plan",
+          "measured_receipts": 56,
+          "input_tokens": 155969,
+          "output_tokens": 71018
+        },
+        {
+          "scope": "life:generation:stage",
+          "measured_receipts": 17,
+          "input_tokens": 53998,
+          "output_tokens": 7578
+        }
+      ],
+      "goal_choice": {
+        "measured_receipts": 15,
+        "mean_input_tokens": 11723.8
+      },
+      "basis": "Persisted original receipts only; absent usage remains unknown, never zero."
+    },
+    "queries": [
+      {
+        "name": "goal_choice_all",
+        "sql": "SELECT status, count(*) FROM metadata WHERE id LIKE 'goal-choice:%' GROUP BY status",
+        "parameters": []
+      },
+      {
+        "name": "goal_choice_24h",
+        "sql": "SELECT status, count(*) FROM metadata WHERE id LIKE 'goal-choice:%%' AND (body::jsonb->>'created_at')::double precision >= %s GROUP BY status",
+        "parameters": [
+          1793214958.9769628
+        ]
+      },
+      {
+        "name": "goal_choice_by_actor",
+        "sql": "SELECT body::jsonb->>'actor_id', status, count(*) FROM metadata WHERE id LIKE 'goal-choice:%' GROUP BY 1, 2",
+        "parameters": []
+      },
+      {
+        "name": "goal_choice_failures",
+        "sql": "SELECT body::jsonb->'failure_diagnostic'->>'peer', body::jsonb->'failure_diagnostic'->>'route', body::jsonb->'failure_diagnostic'->>'code', body::jsonb->'failure_diagnostic'->>'stage', count(*) FROM metadata WHERE id LIKE 'goal-choice:%' AND status <> 'completed' GROUP BY 1, 2, 3, 4",
+        "parameters": []
+      },
+      {
+        "name": "activities",
+        "sql": "SELECT status, count(*) FROM life_activities GROUP BY status",
+        "parameters": []
+      },
+      {
+        "name": "paused_null_due",
+        "sql": "SELECT count(*), min((body::jsonb->>'updated_at')::double precision) FROM life_activities WHERE status='paused' AND body::jsonb->>'next_due_at' IS NULL",
+        "parameters": []
+      },
+      {
+        "name": "activity_stalls",
+        "sql": "SELECT count(*) FROM life_activities WHERE status IN ('paused','dormant') AND COALESCE((body::jsonb->>'dormant_since')::double precision, (body::jsonb->>'updated_at')::double precision, (body::jsonb->>'created_at')::double precision) < %s",
+        "parameters": [
+          1793214958.9769628
+        ]
+      },
+      {
+        "name": "actors",
+        "sql": "SELECT id, body::jsonb->>'cursor', body::jsonb->>'changed_at', body::jsonb->>'mood', jsonb_array_length(COALESCE(body::jsonb->'life_interests','[]'::jsonb)), body::jsonb->>'life_enabled', body::jsonb->>'autonomous' FROM life_actors ORDER BY id",
+        "parameters": []
+      },
+      {
+        "name": "diaries",
+        "sql": "SELECT status, count(*) FROM life_diaries GROUP BY status",
+        "parameters": []
+      },
+      {
+        "name": "diary_days",
+        "sql": "SELECT body::jsonb->>'day', status, count(*) FROM life_diaries GROUP BY 1, 2 ORDER BY 1 DESC LIMIT 120",
+        "parameters": []
+      },
+      {
+        "name": "concerns",
+        "sql": "SELECT count(*), count(*) FILTER (WHERE id LIKE 'autonomy:%'), count(*) FILTER (WHERE body::jsonb->>'next_due_at' IS NULL) FROM life_concerns",
+        "parameters": []
+      },
+      {
+        "name": "events",
+        "sql": "SELECT body::jsonb->>'kind', count(*) FROM life_events GROUP BY 1",
+        "parameters": []
+      },
+      {
+        "name": "proactive_reminders",
+        "sql": "SELECT count(*) FROM proactive_reminders",
+        "parameters": []
+      },
+      {
+        "name": "proactive_candidates",
+        "sql": "SELECT count(*) FROM proactive_candidates",
+        "parameters": []
+      },
+      {
+        "name": "proactive_attempts",
+        "sql": "SELECT count(*) FROM proactive_attempts",
+        "parameters": []
+      },
+      {
+        "name": "proactive_goals",
+        "sql": "SELECT count(*) FROM proactive_goals",
+        "parameters": []
+      },
+      {
+        "name": "proactive_motives",
+        "sql": "SELECT count(*) FROM proactive_motives",
+        "parameters": []
+      },
+      {
+        "name": "proactive_quota",
+        "sql": "SELECT count(*) FROM proactive_quota",
+        "parameters": []
+      },
+      {
+        "name": "proactive_subscriptions",
+        "sql": "SELECT count(*) FROM proactive_subscriptions",
+        "parameters": []
+      },
+      {
+        "name": "proactive_templates",
+        "sql": "SELECT count(*) FROM proactive_templates",
+        "parameters": []
+      },
+      {
+        "name": "daily_generation",
+        "sql": "SELECT conversation_id, status, count(*) FROM metadata WHERE conversation_id LIKE 'life:generation:%' GROUP BY 1, 2",
+        "parameters": []
+      },
+      {
+        "name": "generation_receipt_usage",
+        "sql": "SELECT conversation_id, count(*) FILTER (WHERE body::jsonb#>>'{receipt,usage,input_tokens}' IS NOT NULL), sum((body::jsonb#>>'{receipt,usage,input_tokens}')::bigint), sum((body::jsonb#>>'{receipt,usage,output_tokens}')::bigint) FROM metadata WHERE conversation_id LIKE 'life:generation:%' GROUP BY 1",
+        "parameters": []
+      },
+      {
+        "name": "choice_receipt_usage",
+        "sql": "SELECT count(*) FILTER (WHERE body::jsonb#>>'{receipt,usage,input_tokens}' IS NOT NULL), avg((body::jsonb#>>'{receipt,usage,input_tokens}')::bigint) FROM metadata WHERE id LIKE 'goal-choice:%'",
+        "parameters": []
+      },
+      {
+        "name": "proactive_events",
+        "sql": "SELECT count(*) FROM metadata WHERE conversation_id='proactive:event'",
+        "parameters": []
+      }
+    ]
+  },
+  "logs": {
+    "companion": {
+      "window_minutes": 5,
+      "interval_start": 1793301058.9769628,
+      "interval_end": 1793301358.9769628,
+      "files": [
+        "companion.jsonl.29"
+      ],
+      "bytes_read": 16751118,
+      "within_byte_budget": true,
+      "malformed_lines": 0,
+      "first_event": 1793301059.181,
+      "last_event": 1793301358.796,
+      "event_counts": {
+        "runtime.background_work": 552,
+        "peer.call.started": 501,
+        "peer.call.finished": 492,
+        "runtime.background_failed": 97,
+        "memory.phase.started": 9,
+        "service.request.started": 27,
+        "service.request.finished": 27,
+        "memory.phase.finished": 9,
+        "turn.knowledge.started": 76,
+        "turn.knowledge.finished": 76
+      },
+      "errors": [
+        {
+          "event": "peer.call.finished",
+          "code": "dependency_unavailable",
+          "count": 18
+        },
+        {
+          "event": "peer.call.finished",
+          "code": "forbidden",
+          "count": 97
+        },
+        {
+          "event": "runtime.background_failed",
+          "code": "fault",
+          "count": 97
+        },
+        {
+          "event": "service.request.finished",
+          "code": "cancelled",
+          "count": 9
+        }
+      ],
+      "auth_rejected_per_minute": 0.0,
+      "background_failure_per_work": 0.17572463768115942,
+      "background_failure_per_pass": 0.14946070878274267,
+      "background_work_per_minute": 110.4,
+      "idle_tick_per_minute": null,
+      "idle_tick_note": "Idle passes are intentionally not logged; work events do not prove idle ticks.",
+      "peer_finished": 492,
+      "peer_attributed": 0,
+      "attribution_rate": 0.0,
+      "failure_traces": [
+        {
+          "timestamp": "2026-10-29T19:11:02.259Z",
+          "correlation_id": "fa9583041b521fd72414e0376677434f",
+          "error_code": "forbidden"
+        },
+        {
+          "timestamp": "2026-10-29T19:11:04.266Z",
+          "correlation_id": "8b2b03fa504ffc02695dfbbf60757a8d",
+          "error_code": "forbidden"
+        },
+        {
+          "timestamp": "2026-10-29T19:11:07.786Z",
+          "correlation_id": "24ea953ef8dfb4232eba472429066f12",
+          "error_code": "dependency_unavailable"
+        },
+        {
+          "timestamp": "2026-10-29T19:11:08.313Z",
+          "correlation_id": "37b70aa406695dd127ace01cdb0972c8",
+          "error_code": "forbidden"
+        },
+        {
+          "timestamp": "2026-10-29T19:11:10.373Z",
+          "correlation_id": "9473a2da63ce62514a4c08bb37defc13",
+          "error_code": "forbidden"
+        },
+        {
+          "timestamp": "2026-10-29T19:11:12.940Z",
+          "correlation_id": "24ea953ef8dfb4232eba472429066f12",
+          "error_code": "dependency_unavailable"
+        },
+        {
+          "timestamp": "2026-10-29T19:11:14.439Z",
+          "correlation_id": "a453c10341dcc5a53719471d580cff5e",
+          "error_code": "forbidden"
+        },
+        {
+          "timestamp": "2026-10-29T19:11:16.471Z",
+          "correlation_id": "2b8176dea4bc36439d63c4fa4e7aa243",
+          "error_code": "forbidden"
+        },
+        {
+          "timestamp": "2026-10-29T19:11:20.558Z",
+          "correlation_id": "427c770f42cf7c4e416e05bc8c1f8ad8",
+          "error_code": "forbidden"
+        },
+        {
+          "timestamp": "2026-10-29T19:11:22.617Z",
+          "correlation_id": "122d0f51ab14a659fb70eafec1f2b5a2",
+          "error_code": "forbidden"
+        },
+        {
+          "timestamp": "2026-10-29T19:11:26.693Z",
+          "correlation_id": "9d87043c7d12d632d2ab045335a5d6a3",
+          "error_code": "forbidden"
+        },
+        {
+          "timestamp": "2026-10-29T19:11:28.722Z",
+          "correlation_id": "72c2dd51654ed732623d782764bc5603",
+          "error_code": "forbidden"
+        }
+      ]
+    },
+    "platform": {
+      "window_minutes": 5,
+      "interval_start": 1793301058.9769628,
+      "interval_end": 1793301358.9769628,
+      "files": [
+        "platform-4d8e8484-ee55-4db3-ba18-6a7f6ee63002-0000.jsonl"
+      ],
+      "bytes_read": 13806556,
+      "within_byte_budget": true,
+      "malformed_lines": 0,
+      "first_event": 1793301059.992,
+      "last_event": 1793301358.73,
+      "event_counts": {
+        "http.request.started": 508,
+        "http.request.finished": 508,
+        "http.auth.succeeded": 410,
+        "http.auth.rejected": 98
+      },
+      "errors": [
+        {
+          "event": "http.auth.rejected",
+          "code": "forbidden",
+          "count": 98
+        },
+        {
+          "event": "http.request.finished",
+          "code": "forbidden",
+          "count": 98
+        }
+      ],
+      "auth_rejected_per_minute": 19.6,
+      "background_failure_per_work": null,
+      "background_failure_per_pass": null,
+      "background_work_per_minute": 0.0,
+      "idle_tick_per_minute": null,
+      "idle_tick_note": "Idle passes are intentionally not logged; work events do not prove idle ticks.",
+      "peer_finished": 0,
+      "peer_attributed": 0,
+      "attribution_rate": null,
+      "failure_traces": []
+    }
+  },
+  "limitations": [
+    "Database metrics are one PostgreSQL snapshot; file log windows are sampled separately.",
+    "No idle-tick counter exists in persisted logs.",
+    "Historical all-attempt rates and the 24-hour decision rate are reported separately."
+  ],
+  "runtime": {
+    "image": "sha256:bb3545d9a9ee7698f99fff35f87eee10834ac315cead71fe77c30075f977d853",
+    "container_id": "1051c0c1861c08fa0879d4754b6766861383aaa5b0efac61f11591ae80426745",
+    "health": "healthy"
+  }
+}

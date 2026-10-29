@@ -86,8 +86,27 @@ class Policy:
 
     def validate(self, event):
         try:
-            require(isinstance(event, dict) and set(event) == FIELDS)
-            require(event["schema_version"] == "1.0.0" and event["service"] in SERVICES)
+            require(isinstance(event, dict))
+            attributed = event.get("schema_version") == "1.1.0"
+            expected = FIELDS | {"attributes"} if attributed else FIELDS
+            require(set(event) == expected)
+            require(
+                event["schema_version"] in {"1.0.0", "1.1.0"}
+                and event["service"] in SERVICES
+            )
+            if attributed:
+                require(event["service"] == "companion")
+                require(
+                    event["event"]
+                    in {
+                        "peer.call.started",
+                        "peer.call.finished",
+                        "runtime.background_failed",
+                    }
+                )
+                schema = self.snapshot["products"]["companion"]["peer_attribute_schema"]
+                self.peer_attributes(event["attributes"], schema)
+                require(event["attributes"]["error_code"] == event["error_code"])
             require(type(event["sequence"]) is int and event["sequence"] >= 1)
             require(event["level"] in LEVELS and event["outcome"] in OUTCOMES)
             for key in ("instance_id", "event_id"):
@@ -139,6 +158,25 @@ class Policy:
         except (ValueError, TypeError, KeyError, OverflowError):
             raise InvalidEvent() from None
         return event
+
+    def peer_attributes(self, attributes, schema):
+        require(
+            isinstance(attributes, dict) and set(attributes) == set(schema["required"])
+        )
+        for key, rule in schema["properties"].items():
+            value = attributes[key]
+            kinds = rule["type"] if isinstance(rule["type"], list) else [rule["type"]]
+            if value is None and "null" in kinds:
+                continue
+            require(
+                type(value) is int if "integer" in kinds else isinstance(value, str)
+            )
+            if "enum" in rule:
+                require(value in rule["enum"])
+            if "pattern" in rule:
+                require(re.fullmatch(rule["pattern"], value))
+            if "minimum" in rule:
+                require(rule["minimum"] <= value <= rule["maximum"])
 
     def line(self, raw):
         try:

@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TianShu safe Companion peer runtime event v1.1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "timestamp",
+    "service",
+    "instance_id",
+    "sequence",
+    "event_id",
+    "level",
+    "event",
+    "outcome",
+    "correlation_id",
+    "duration_ms",
+    "error_code",
+    "attributes"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.1.0"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "service": {
+      "const": "companion"
+    },
+    "instance_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "event_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "level": {
+      "enum": [
+        "DEBUG",
+        "INFO",
+        "WARNING",
+        "ERROR",
+        "CRITICAL"
+      ]
+    },
+    "event": {
+      "enum": [
+        "peer.call.started",
+        "peer.call.finished",
+        "runtime.background_failed"
+      ]
+    },
+    "outcome": {
+      "enum": [
+        "started",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "unknown",
+        "rejected",
+        "degraded"
+      ]
+    },
+    "correlation_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "duration_ms": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "error_code": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-z][a-z0-9_]{0,63}$"
+    },
+    "attributes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target",
+        "route",
+        "principal",
+        "operation",
+        "http_status",
+        "error_code",
+        "attempt"
+      ],
+      "properties": {
+        "target": {
+          "type": "string",
+          "enum": [
+            "platform",
+            "memory",
+            "knowledge",
+            "gateway",
+            "chat",
+            "channel",
+            "images",
+            "unknown"
+          ]
+        },
+        "route": {
+          "type": "string",
+          "enum": [
+            "unknown",
+            "/internal/v1/actor-capabilities/operate",
+            "/internal/v1/actor-self-memory/authority",
+            "/internal/v1/actor-self-memory/operate",
+            "/internal/v1/books/reading",
+            "/internal/v1/conversation/reply-status",
+            "/internal/v1/conversation/send",
+            "/internal/v1/identity/register",
+            "/internal/v1/identity/resolve",
+            "/internal/v1/knowledge/content/disclosure",
+            "/internal/v1/knowledge/content/original",
+            "/internal/v1/memory/browser/archive-check",
+            "/internal/v1/memory/candidates/materials",
+            "/internal/v1/memory/candidates/process",
+            "/internal/v1/memory/candidates/segments",
+            "/internal/v1/memory/context/query",
+            "/internal/v1/memory/context/receipt",
+            "/internal/v1/memory/context/history",
+            "/internal/v1/memory/context/input-history",
+            "/internal/v1/memory/profiles/select",
+            "/internal/v1/memory/source-sync/check",
+            "/internal/v1/model-capabilities",
+            "/internal/v1/model-requests/{request_id}",
+            "/internal/v1/model-requests/{request_id}/cancel",
+            "/internal/v1/origins/resolve",
+            "/internal/v1/provider-self-service/select",
+            "/internal/v1/qq-admin/check",
+            "/internal/v1/relationships/read",
+            "/internal/v1/relationships/check",
+            "/internal/v1/service-credentials/resolve",
+            "/internal/v1/source-access/read",
+            "/internal/v2/bot-delivery/cancel",
+            "/internal/v2/bot-delivery/context",
+            "/internal/v2/bot-delivery/finalize",
+            "/internal/v2/bot-delivery/query",
+            "/internal/v2/bot-delivery/send",
+            "/internal/v2/memory/context/prepare",
+            "/internal/v2/memory/context/profiles",
+            "/internal/v2/memory/context/query",
+            "/internal/v2/memory/context/verify",
+            "/internal/v2/memory/observations",
+            "/internal/v2/memory/observations/query",
+            "/internal/evidence/search",
+            "/internal/evidence/read-locator",
+            "/internal/evidence/check",
+            "/v1/chat/completions"
+          ]
+        },
+        "principal": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "operation": {
+          "type": "string",
+          "enum": [
+            "query",
+            "command",
+            "stream",
+            "binary"
+          ]
+        },
+        "http_status": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 100,
+          "maximum": 599
+        },
+        "error_code": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-z][a-z0-9_]{0,63}$"
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8
+        }
+      }
+    }
+  }
+}

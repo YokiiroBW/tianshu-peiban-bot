@@ -28,7 +28,7 @@ def extract(source, service):
     for node in tree.body:
         if isinstance(node, ast.Assign):
             names = [n.id for n in node.targets if isinstance(n, ast.Name)]
-            for key in ("EVENTS", "ERROR_CODES"):
+            for key in ("EVENTS", "ERROR_CODES", "PEER_ATTRIBUTE_SCHEMA"):
                 if key in names:
                     value = node.value
                     if (
@@ -37,7 +37,11 @@ def extract(source, service):
                         and value.func.id == "frozenset"
                     ):
                         value = value.args[0]
-                    result[key.lower()] = sorted(literal(value))
+                    result[key.lower()] = (
+                        literal(value)
+                        if key == "PEER_ATTRIBUTE_SCHEMA"
+                        else sorted(literal(value))
+                    )
     if service == "gateway":
         result["events"] = sorted(
             {
@@ -50,7 +54,7 @@ def extract(source, service):
                 and isinstance(n.args[0], ast.Constant)
             }
         )
-    if set(result) != {"events", "error_codes"} or not all(result.values()):
+    if not {"events", "error_codes"} <= set(result) or not all(result.values()):
         raise ValueError("unsupported_static_registry")
     return result
 

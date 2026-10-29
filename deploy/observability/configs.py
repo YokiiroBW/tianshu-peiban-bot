@@ -48,10 +48,10 @@ def vector(snapshot, buffer_bytes=4 * 1024**3, *, include_knowledge=False):
             'assert!(length(raw) <= 4095, "invalid_safe_event")',
             'assert!(!contains(raw, "\\r"), "invalid_safe_event")',
             ". = object!(parse_json!(raw))",
-            "assert!(length(keys(.)) == 12 && "
+            'assert!((length(keys(.)) == 12 || (.schema_version == "1.1.0" && .service == "companion" && length(keys(.)) == 13 && exists(.attributes))) && '
             + " && ".join("exists(." + field + ")" for field in sorted(FIELDS))
             + ', "invalid_safe_event")',
-            'assert!(.schema_version == "1.0.0", "invalid_safe_event")',
+            'assert!(.schema_version == "1.0.0" || (.schema_version == "1.1.0" && .service == "companion" && exists(.attributes)), "invalid_safe_event")',
             f'assert!(includes({json.dumps(allowed)}, .service), "invalid_safe_event")',
             "sequence = int!(.sequence)",
             'assert!(sequence >= 1, "invalid_safe_event")',
@@ -67,6 +67,42 @@ def vector(snapshot, buffer_bytes=4 * 1024**3, *, include_knowledge=False):
             # Transport timestamp is ingestion time. Old backlog retains its original field.
             "._collected_at = now()",
         ]
+        if service == "companion" and "peer_attribute_schema" in registry:
+            schema = registry["peer_attribute_schema"]
+            checks = [
+                'assert!(includes(["peer.call.started", "peer.call.finished", "runtime.background_failed"], .event), "invalid_peer_event")',
+                f'assert!(length(keys(object!(.attributes))) == {len(schema["required"])}, "invalid_peer_attributes")',
+                'assert!(.attributes.error_code == .error_code, "invalid_peer_attributes")',
+            ]
+            for key, rule in schema["properties"].items():
+                path = ".attributes." + key
+                checks.append(f'assert!(exists({path}), "invalid_peer_attributes")')
+                kinds = (
+                    rule["type"] if isinstance(rule["type"], list) else [rule["type"]]
+                )
+                expressions = [
+                    f"is_integer({path})"
+                    if "integer" in kinds
+                    else f"is_string({path})"
+                ]
+                if "enum" in rule:
+                    expressions.append(f"includes({json.dumps(rule['enum'])}, {path})")
+                if "pattern" in rule:
+                    expressions.append(f"match(string!({path}), r'{rule['pattern']}')")
+                if "minimum" in rule:
+                    expressions.append(
+                        f"int!({path}) >= {rule['minimum']} && int!({path}) <= {rule['maximum']}"
+                    )
+                expression = " && ".join(expressions)
+                if "null" in kinds:
+                    expression = f"is_null({path}) || ({expression})"
+                checks.append(f'assert!({expression}, "invalid_peer_attributes")')
+            code.append('if .schema_version == "1.1.0" {\n' + "\n".join(checks) + "\n}")
+        else:
+            # An old vocabulary cannot admit an unvalidated extension.
+            code.append(
+                'assert!(.schema_version == "1.0.0" && !exists(.attributes), "invalid_safe_event")'
+            )
         transforms[service + "_safe"] = {
             "type": "remap",
             "inputs": [service],
