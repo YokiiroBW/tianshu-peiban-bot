@@ -1,0 +1,48 @@
+{
+  "status": "integrated_image_verified_not_activated",
+  "release": "2026.10.29-unified-linux-r29",
+  "image": "sha256:86ce0487a390f6004d5f730b060d2192c157383f0473ee61da412f1895f7d654",
+  "parent_image": "sha256:6d777fefab004de926bad3cce4f7ba1e581eb76cd5e83077692e0ba13f9d35fa",
+  "sources": {
+    "memory": "959c5a483790a6b36189637b2a839e537d2c2f1e",
+    "companion": "11bd84ebbe09581aa537537ce3fc49d41bf8763e",
+    "life_candidate_in_companion": "f9e0f7b9a38cce640aeb7f32556a1331381bd4cb",
+    "platform": "0fe987583103fec5d0ee952637d401710d07777c",
+    "observability": "bcb594a2f7e3d9d4e1afcb627f0d618cfae51c58",
+    "gateway_unchanged": "ed631d8a6f26890628a9df833792210e9a09e31c",
+    "frontend_unchanged": "519d5f03a99231ecf8b150052e8aa3bbe2f6d91e"
+  },
+  "changes": [
+    "Keep original observation archives, skip empty nontext learning materials and optional context, prune only empty optional members before the first valid batch is frozen.",
+    "Recover original blocked receipt-stage jobs proven never to have submitted a model request, using the existing Platform operator entry and Companion CAS/idempotent recovery owner.",
+    "Persist life decision request/receipt/stage and rejected-field diagnostics; non-new choices do not require a new goal title; legacy unknown executions stay protected.",
+    "Recheck timestamp gaps while scanning retained history; stop at the shared remaining deadline and retain completed acknowledgements and pending work."
+  ],
+  "validation": {
+    "memory_new_private_group_cases": "6 passed",
+    "memory_related_existing_cases": "7 passed, 1 scope skip",
+    "companion_new_and_original_recovery_cases": "4 passed plus 1 actor/CAS/receipt case; unchanged cancellation/HTTP cases reused",
+    "life_distinct_targeted_cases": "18 passed, reused",
+    "platform_existing_http_management_file": "6 passed on isolated R28 Linux image, no production mount or dependency installation",
+    "observability_targeted_cases": "63 passed, 1 environment skip, reused",
+    "image_payload": "342 platform, 145 memory, 120 companion files exact; 56 application and 87 frontend files verified",
+    "dependency_resolution": false,
+    "new_model_tests": 0,
+    "new_qq_test_messages": 0
+  },
+  "preservation": {
+    "schema_migration": false,
+    "frontend_rebuilt": false,
+    "unchanged_runtime_files": 55,
+    "unchanged_effective_wheels": 63,
+    "retention_policy": "original 10000 events and 30 days, protect active and unconfirmed sources",
+    "old_worktrees_and_root_index": "preserved",
+    "unknown_model_or_tool_executions": "not replayed"
+  },
+  "production_acceptance": "pending serial activation and original-business recovery observation",
+  "limits": [
+    "No real QQ acceptance or artificial paid-model quality tests.",
+    "Old unknown life requests and missing rejected output cannot be reconstructed or blindly replayed.",
+    "Legacy household role authorization stays denied until legitimately configured; no permission expansion."
+  ]
+}
