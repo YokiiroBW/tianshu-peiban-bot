@@ -38,3 +38,9 @@ R22已正常推送并运行 imagee12b932。旧进程正常退出约124秒，无�
 日志R22查询已恢复，但旧confirmed缺collection位置的部分页miss会错误降pending；后续修复保留旧确认直到完整窗口确证缺失。实机Vector仅2488B缓冲且正常送达，Loki最新事件不在尚满的历史台账，积压来自旧回填。原pending的occurred小时查询174ms、HTTP200、原hash完全一致；优先该小时仅作查找提示，miss继续完整原30天，不缩短证明范围。相关两次修正各3项必要定向通过（含重合，不重复计数），待R23实际追赶。
 
 用户另窗口已授权交接Platform 5c529d7，根已合47b503e：检索设置复用现requestId()，修LAN HTTP缺crypto.randomUUID导致保存前报错。复用该窗口TypeScript/4个浏览器定向有效结果；完整集成P a35eb0d已重新Vite构建成功，未重跑全UI。当前绑定实读rev7，hybrid/rerank及用户两模型已存在，维护命令rev7→7、无新增写；重排已有成功测试，嵌入旧unknown/upstream_invalid502不冒称成功或直接归为上游502。
+
+R23正式 imagee92689a、application7caccbd、P a35eb0d、Ccc00312，guardr16。原四个记忆job均已completed，原batch/turn不变，原六次失败历史保留；M四笔committed各有一笔写入账本，没有无账本提交。自主目标规划已有真实模型200并创建concern/activity，活动后续执行仍单列核对。窗口generation9080及原10轮22消息保持。
+
+日志真实确认恢复，但30秒/32条实际吞吐仍不足。追加有界追赶：每轮最多1024条、每个HTTP最多64ID、原10秒共同截止，只有成功且真实ACK前进且来源仍积压时下一轮1秒；失败/空闲保持原30秒。独立3项定向通过；原生产只读元数据快照复制到:memory:，单轮17次GET、2.827秒确认1024/1024原hash，无生产台账写入。R24候选根a1caa2e，未冒称已部署或积压清空。
+
+追加TS415核对大嵌入响应：Platform的StreamReader.read(n)只承诺最多n字节，现调用会把首网络chunk直接JSON解析；单容器实现同样如此。只在原owner修完整有界读取，不改用户模型/密钥、向量校验、用户记忆语义或依赖图。与日志追赶合并同一次R24发布，避免重复重建。

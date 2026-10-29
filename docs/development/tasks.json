@@ -2568,7 +2568,7 @@
       "external_worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-background-recovery\\tianshu-companion",
       "branch": "codex/ts408-runtime-recovery-20261029",
       "plan": "docs/development/runtime-recovery-execution-2026-10-29.md",
-      "delivery_state": "R22_deployed_original_recovery_pending_platform_entry",
+      "delivery_state": "R23_deployed_four_original_jobs_committed_once",
       "integrated_commit": "cc00312"
     },
     {
@@ -2590,12 +2590,20 @@
       "external_worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-log-recovery\\tianshu-peiban-bot",
       "branch": "codex/ts409-runtime-recovery-20261029",
       "plan": "docs/development/runtime-recovery-execution-2026-10-29.md",
-      "delivery_state": "R22_deployed_R23_backfill_followup_integrated",
+      "delivery_state": "R23_deployed_R24_throughput_integrated",
       "integrated_commit": "f6055e2",
       "followup_commits": [
         "061dce6",
         "8a47c09"
-      ]
+      ],
+      "throughput_commit": "a1caa2e",
+      "read_only_actual_probe": {
+        "selected": 1024,
+        "true_hash_acks": 1024,
+        "elapsed_ms": 2827,
+        "query_ids_max": 64,
+        "deadline_seconds": 10
+      }
     },
     {
       "id": "TS-410",
@@ -2627,7 +2635,8 @@
         "TS-410",
         "TS-412",
         "TS-413",
-        "TS-414"
+        "TS-414",
+        "TS-415"
       ],
       "allowed_paths": [
         "docs/development/",
@@ -2656,7 +2665,7 @@
         "docs/handoffs/TS-412.md"
       ],
       "plan": "docs/development/runtime-recovery-execution-2026-10-29.md",
-      "delivery_state": "R22_deployed_live_recovery_pending",
+      "delivery_state": "R23_deployed_original_turn_recovery_succeeded",
       "integrated_commit": "aff6345"
     },
     {
@@ -2664,7 +2673,7 @@
       "project": "platform",
       "title": "原记忆恢复平台管理入口",
       "status": "done",
-      "delivery_state": "local_integrated_not_deployed",
+      "delivery_state": "R23_deployed_live_affected_entry_passed",
       "depends_on": [
         "TS-412"
       ],
@@ -2686,7 +2695,7 @@
       "project": "platform",
       "title": "失败模型测试时间PG数值适配",
       "status": "done",
-      "delivery_state": "local_integrated_not_deployed",
+      "delivery_state": "R23_deployed_live_affected_entry_passed",
       "depends_on": [
         "TS-412"
       ],
@@ -2699,6 +2708,24 @@
         "tests/backend/test_postgres_dialect.py",
         "docs/handoffs/TS-414.md"
       ],
+      "plan": "docs/development/runtime-recovery-execution-2026-10-29.md"
+    },
+    {
+      "id": "TS-415",
+      "project": "platform",
+      "title": "大嵌入响应完整有界读取",
+      "status": "in_progress",
+      "depends_on": [
+        "TS-414"
+      ],
+      "baseline_commit": "a35eb0d165584d67d3402bce87fd36ba84d6f557",
+      "branch": "codex/ts415-provider-response-20261029",
+      "allowed_paths": [
+        "services/platform/provider_management.py",
+        "tests/backend/ (affected provider response tests)",
+        "docs/handoffs/TS-415.md"
+      ],
+      "assignee": "al_core_platform",
       "plan": "docs/development/runtime-recovery-execution-2026-10-29.md"
     }
   ],
