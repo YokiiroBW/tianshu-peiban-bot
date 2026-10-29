@@ -1,3 +1,11 @@
+## 2026-10-30 R35 批量来源与原队列恢复已部署
+
+正式 `2026.10.30-unified-linux-r35`，image `sha256:bb3545d9a9ee7698f99fff35f87eee10834ac315cead71fe77c30075f977d853`，M49df7e5/C9eb19c2/P8c59a8d；保留提示词、生活和观测修复。根因是Platform批量来源证明仍走旧4KiB边界，原20来源集合真实413→200；仅segment/segment_resolve按原256KiB合同接收，单条及其他端点、鉴权/来源数量/绑定不变。定向HTTP5场景、C恢复12节点、P管理7项通过，复用原有效检查。
+
+原16个有job任务15各提交一条、1个旧proposal拒绝保留；另11个原分段均经原请求摘要/actor/CAS/Memory幂等seal核对后取得resumed回执，按原队列分批运行。01:31:08验收抽样时，这11条状态 `{'blocked': 2, 'completed': 3, 'pending': 6}`，各一条账本 3，无重复；pending不当作完成，模型timeout/unknown不重发。材料仅剩2条真实disabled来源暂停，原反复503材料已正常交接。同次抽样Gateway累计请求行 3004，没有模型或QQ测试。
+
+生产healthy/0restart/无OOM，6业务/5观测和原鉴权TLS ready200/9项；37挂载、1133配置、14其他容器、20GiB及r31守护保持。无DDL，56宿主/87前端未变，旧worktree与根索引保留；source_scan_behind仍历史追赶、真实QQ验收仍待用户配置。截图中的chat_not_configured属于独立Chat互动统计接入配置，并非没有Memory话题，本批未改该配置。[精确发布和实际队列结果](observation-memory-recovery-release-2026-10-29.json)。下方为历史截面。
+
 ## 2026-10-30 R32 已部署，记忆余项继续定位
 
 当前正式 `2026.10.30-unified-linux-r32`，镜像 `sha256:eb8bc685deab238a925b21961f31251d40087364e894a339143d2b0eee482f5b`，Companion `c05a54167e863de9e8e9a7334b0d8e34a168f763`、Memory `2d98b70`。R30 固定机器位置/字段路径诊断、R31 完整人格和提示词装配补丁、R32 未知写入异常诊断保留已串行推送部署；既有记忆、生活、观测修复全部继承。提示词原180项验证复用，当前装配7项通过；诊断包装先复现再修复，4节点/22子用例通过。
