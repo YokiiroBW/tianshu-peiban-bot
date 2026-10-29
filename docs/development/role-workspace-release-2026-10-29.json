@@ -1,0 +1,186 @@
+{
+  "version": "2026.10.29-unified-linux-r28",
+  "delivery_state": "pushed_deployed_live_targeted_verified",
+  "production": {
+    "id": "0a21e7276ef8b37d95773db32d38674dc6a97ee2eb28b20ae09085f28e8945e9",
+    "image": "sha256:6d777fefab004de926bad3cce4f7ba1e581eb76cd5e83077692e0ba13f9d35fa",
+    "health": "healthy",
+    "restart_count": 0,
+    "oom": false,
+    "capacity_guard": "r24_active_armed",
+    "capacity_floor_bytes": 21474836480
+  },
+  "sources": {
+    "platform": {
+      "commit": "519d5f03a99231ecf8b150052e8aa3bbe2f6d91e",
+      "archive_sha256": "cd558d5e555ccf7f2f3ea01d45e8a7b666a008e0d1e2f78416752109b2aa0149"
+    },
+    "companion": {
+      "commit": "5430300bc37e1ff17002c25e764acdd4689b9f24",
+      "archive_sha256": "2be2ef5afd21b082e8cdc2a8a60f4257b7126d9d9545c3d20fc471d19eef9160"
+    },
+    "memory": {
+      "commit": "57a1a1468382641ea1d33cae9498c9ed170f6a7a",
+      "archive_sha256": "02c94f3b2001ddf96805c54d491b8ed0e6d2a7353e4949a216ee11b17805ec4b"
+    },
+    "gateway": {
+      "commit": "ed631d8a6f26890628a9df833792210e9a09e31c",
+      "archive_sha256": "8f7fa3a112e9d290ae160ca09277134e5a2cf22a4d655ebec7448540aa1bb381"
+    },
+    "application": {
+      "commit": "5badd018e23d89fb89d0778375aaa3c7e69436ba",
+      "archive_sha256": "ba0c1177f8cd2139f466934f788241c9ee9f9d35abec214dd37d21b6fe634975"
+    },
+    "platform_frontend": {
+      "commit": "519d5f03a99231ecf8b150052e8aa3bbe2f6d91e",
+      "archive_sha256": "cd558d5e555ccf7f2f3ea01d45e8a7b666a008e0d1e2f78416752109b2aa0149"
+    }
+  },
+  "product_main_document_commit": "0a691eb",
+  "root_parent": "93668afda769efa4c0221a2704e6df64a8bbcb6f",
+  "preserved": {
+    "mounts": 37,
+    "mounts_exactly_preserved": true,
+    "config_files_preserved": 1133,
+    "gateway_change": "same_scope_startup_lease_only",
+    "non_target_containers_preserved": 14
+  },
+  "database_migration": false,
+  "ready": {
+    "ok": true,
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "observation_health": {
+      "obs-vector": true,
+      "obs-guard": true,
+      "obs-grafana": true,
+      "obs-loki": true,
+      "obs-prometheus": true
+    },
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "tls_ca_and_hostname_verified": true,
+    "companion_worker_readiness": true,
+    "window_defaults": {
+      "soft_percent": 70,
+      "hard_percent": 82,
+      "idle_seconds": 180,
+      "max_turns": 24,
+      "max_messages": 96
+    },
+    "model_or_qq_business_requested": false
+  },
+  "image_verification": {
+    "image": "sha256:6d777fefab004de926bad3cce4f7ba1e581eb76cd5e83077692e0ba13f9d35fa",
+    "ok": true,
+    "uid": 10001,
+    "payloads": {
+      "platform": 342,
+      "companion": 120
+    },
+    "application_files": 56,
+    "frontend_files": 87,
+    "imports": true
+  },
+  "frontend": {
+    "http": 200,
+    "index_hash_verified": true,
+    "assets_hash_verified": 8,
+    "paths": [
+      "assets/index-D9F7uPZ9.js",
+      "assets/jsx-runtime-jO97T933.js",
+      "assets/StatePanel-C301gtLN.js",
+      "assets/index-Rx--pofE.css",
+      "assets/CompanionPage-CrNjcN7t.js",
+      "assets/ResourcesPage-CyKE_gn7.js",
+      "assets/RoleSettings-B50SnDrU.js",
+      "assets/SettingsPage-BxfDOUJV.js"
+    ]
+  },
+  "connections": {
+    "owner": "0a21e7276ef8b37d95773db32d38674dc6a97ee2eb28b20ae09085f28e8945e9",
+    "image": "sha256:6d777fefab004de926bad3cce4f7ba1e581eb76cd5e83077692e0ba13f9d35fa",
+    "namespace": "production_container",
+    "onebot_established_sockets": 2,
+    "client_ui_confirmed": {
+      "1200": "TIANSHU connected",
+      "9091": "tianshu-direct connected"
+    },
+    "client_config_modified": false
+  },
+  "build": {
+    "status": "linux_image_built_not_activated",
+    "image_id": "sha256:6d777fefab004de926bad3cce4f7ba1e581eb76cd5e83077692e0ba13f9d35fa",
+    "parent_image": "sha256:3f15d359d8320bf5cc96aa3d21be211335185ad6cc99eb6ed032b484e76aa700",
+    "layer_base_image": "sha256:999cb29f49b6969f5d9e1cd096ec3269ea4200ea9354402b2c5b9d9e17edf458",
+    "production_owner_unchanged": true,
+    "unchanged_effective_wheels": 65,
+    "free_bytes": 21654978560,
+    "layer_count": 119
+  },
+  "stop": {
+    "systemctl_returncode": 0,
+    "elapsed_seconds": 124.19349265098572,
+    "old_finished_at": "2026-10-29T13:52:54.183120909Z",
+    "old_exit_code": 0,
+    "old_restart": "no"
+  },
+  "browser": {
+    "real_production_login_confirmed": true,
+    "read_only_pages": [
+      "role_directory",
+      "role_detail_delete_control",
+      "role_models",
+      "web_chat",
+      "published_diary_empty",
+      "life_overview",
+      "life_activity_projection",
+      "bot_account_cards"
+    ],
+    "diary_data": "no_published_entries_for_chengxi",
+    "admin_connection_detail": "existing_secondary_unlock_preserved",
+    "real_role_deleted": false,
+    "model_binding_changed": false,
+    "screenshot_sha256": "7e743e49f68edb55204b8019da8534b0682402d8c499194cd13a33fd00df3dab"
+  },
+  "validation_reused": {
+    "role_and_models_targeted": 20,
+    "ts419_linux_http_targeted": 4,
+    "frontend_typecheck_and_build": true,
+    "changed_python_ruff": true,
+    "frontend_inputs_unchanged_after_backend_merge": true,
+    "full_suite_repeated": false
+  },
+  "manual_business_test_calls": {
+    "qq": 0,
+    "model": 0
+  },
+  "limits": [
+    "historical_paused_activity_preserved",
+    "no_real_role_deletion",
+    "no_mobile_acceptance",
+    "no_new_real_resource_import",
+    "small_remaining_disk_margin"
+  ],
+  "rollback": {
+    "image": "sha256:3f15d359d8320bf5cc96aa3d21be211335185ad6cc99eb6ed032b484e76aa700",
+    "version": "2026.10.29-unified-linux-r27a",
+    "config_and_guard_captured": true,
+    "script_prepared": true,
+    "rollback_executed": false
+  },
+  "remote_stage": "/srv/tianshu-tooling/role-workspace-r28-20261029-f36373152928420b8ee7619533f92883"
+}
