@@ -1,0 +1,390 @@
+{
+  "release": "2026.10.30-unified-linux-r53",
+  "status": "deployed_healthy",
+  "whole_goal_complete": false,
+  "image": "sha256:acc68e555133babff5313acd24afbc682b975d59866e2e5b12e98a4d49b5975f",
+  "container": "45be42654fc9b279c8858599c6356ede68cac2a02271d1bc847aa10237d65ee3",
+  "source_commits": {
+    "platform": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+    "companion": "3aa022fab8062863e93d38640e90a8618301449f",
+    "memory": "c4752304c8f561cd464daff3525a7d3c63e164ff",
+    "gateway": "1af59a30b698c6d114e927f941de5dc33d1762af",
+    "application": "f4a91771f9f9737f4c51a5fc504e1c47ccf13052",
+    "platform_frontend": "911a1dc60318abad76287013a05afacd1e63f9f3"
+  },
+  "changes": {
+    "bounded_idle_queries": {
+      "companion_commit": "3aa022fab8062863e93d38640e90a8618301449f",
+      "original_idle_work_round_trips": 6,
+      "new_idle_work_round_trips": 1,
+      "each_source_page_limit_preserved": true,
+      "python_merge_order_and_cursor_wrap_preserved": true,
+      "SQLite_partial_index_ranges_preserved": true,
+      "no_new_queue_or_scheduler": true
+    },
+    "authority_failure_diagnostics": {
+      "memory_commit": "c4752304c8f561cd464daff3525a7d3c63e164ff",
+      "event_names": [
+        "authority.deadline.exceeded",
+        "authority.transport.timed_out",
+        "authority.transport.failed",
+        "authority.response.invalid",
+        "authority.source.unavailable"
+      ],
+      "record_fields": "existing closed twelve fields only",
+      "success_path_additional_events": 0,
+      "five_second_proof_deadline_and_fifteen_second_query_budget_unchanged": true,
+      "source_validation_auth_and_unknown_receipts_unchanged": true,
+      "original_business_wire_verdict_unchanged": true
+    }
+  },
+  "validation": {
+    "companion_related_checks": 40,
+    "memory_targeted_checks": 11,
+    "collector_policy_and_configuration_checks": 3,
+    "native_Vector_isolated": {
+      "ok": true,
+      "changed_application_files_verified": [
+        "deploy/observability/vocabulary.json"
+      ],
+      "payload_files": {
+        "companion": 123,
+        "memory": 157
+      },
+      "business_uid_imports": true,
+      "inherited_frontend_gateway_platform_and_native_binaries": true,
+      "native_Vector_proof_events": [
+        {
+          "transform": "memory_safe",
+          "valid_events": 5,
+          "unknown_field_rejected": true
+        },
+        {
+          "transform": "knowledge_safe",
+          "valid_events": 5,
+          "unknown_field_rejected": true
+        }
+      ],
+      "vector_version": "vector 0.58.0 (x86_64-unknown-linux-gnu 2bcad9b 2026-08-26 13:37:07.557544670)",
+      "production_mounts": 0,
+      "external_calls": 0,
+      "status": "exact_work_ranges_proof_failure_image_verified",
+      "image": "sha256:acc68e555133babff5313acd24afbc682b975d59866e2e5b12e98a4d49b5975f",
+      "parent_image": "sha256:6d4aeb7f99644cd7a9ad43bcdf2aaef835a4ab05f6656491bd3edd07eecf7857",
+      "version": "2026.10.30-unified-linux-r53"
+    },
+    "native_PG_comparison": {
+      "at": 1793367523.947035,
+      "transaction_read_only": "on",
+      "cases": [
+        {
+          "mode": "existing",
+          "after": "",
+          "limit": 64,
+          "rows": 0,
+          "same": true,
+          "page_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "old_ms": 27.296115993522108,
+          "new_ms": 9.076441056095064
+        },
+        {
+          "mode": "existing",
+          "after": "room:077",
+          "limit": 7,
+          "rows": 0,
+          "same": true,
+          "page_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "old_ms": 26.784181012772024,
+          "new_ms": 8.944957051426172
+        },
+        {
+          "mode": "existing",
+          "after": "room:156",
+          "limit": 7,
+          "rows": 0,
+          "same": true,
+          "page_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "old_ms": 26.71092003583908,
+          "new_ms": 8.941916050389409
+        },
+        {
+          "mode": "existing",
+          "after": "room:999",
+          "limit": 7,
+          "rows": 0,
+          "same": true,
+          "page_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "old_ms": 26.69089601840824,
+          "new_ms": 8.893543970771134
+        },
+        {
+          "mode": "synthetic_values",
+          "after": "",
+          "limit": 64,
+          "rows": 64,
+          "same": true,
+          "page_sha256": "d2a5e2835acc9eb1b5d959a6f85c1694906b2281561537cb10afb86d87420f77",
+          "old_ms": 35.63855995889753,
+          "new_ms": 8.920999011024833
+        },
+        {
+          "mode": "synthetic_values",
+          "after": "room:077",
+          "limit": 7,
+          "rows": 7,
+          "same": true,
+          "page_sha256": "d4b24346412e322268f4fe5c81947742f4a815b0806e358faafc42581ad741d6",
+          "old_ms": 26.378319947980344,
+          "new_ms": 9.004974970594049
+        },
+        {
+          "mode": "synthetic_values",
+          "after": "room:156",
+          "limit": 7,
+          "rows": 3,
+          "same": true,
+          "page_sha256": "d1c64ff8c51f93a31a8f9d24c9f0e119eae946be37907174f22ebb94db307385",
+          "old_ms": 26.35123603977263,
+          "new_ms": 9.009588975459337
+        },
+        {
+          "mode": "synthetic_values",
+          "after": "room:999",
+          "limit": 7,
+          "rows": 0,
+          "same": true,
+          "page_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "old_ms": 26.557089993730187,
+          "new_ms": 8.902614004909992
+        }
+      ],
+      "round_trips_per_page": {
+        "old": 3,
+        "new": 1
+      },
+      "persistent_writes": 0,
+      "model_calls": 0,
+      "QQ_sends": 0,
+      "image": "sha256:6d4aeb7f99644cd7a9ad43bcdf2aaef835a4ab05f6656491bd3edd07eecf7857",
+      "container": "9304ae455aaf2dc1a5ff81545cc63de0e45bbb5578ad9139ee262a01b0939358"
+    },
+    "static": "Ruff and complete diff checks passed for changed code.",
+    "full_product_suite_rerun": false,
+    "frontend_rebuilt": false,
+    "native_stack_sample": {
+      "private_metadata": ".runtime\\proactive-companion-repair-20261030\\native-owner-profile-1793367206488366600.json",
+      "remote_directory": "/srv/tianshu-tooling/pc-native-stack-0a8c8e9954bf453c954a8602670f10be",
+      "profile_sha256": "cc909153c9289a2acae4d08c2fb0f26f02d4bbbaf417baf65407c0eff8e3a7ea",
+      "nonblocking": true,
+      "locals": false,
+      "twenty_seconds_only": true,
+      "observation": "Original Companion owner loop was sampled waiting synchronously in PostgreSQL, including core.tick/work_conversations. This later sample does not prove causality for the earlier ccb503.",
+      "sampler_source": "https://github.com/benfred/py-spy"
+    }
+  },
+  "production_checks": {
+    "ok": true,
+    "version": "2026.10.30-unified-linux-r53",
+    "sources": {
+      "platform": {
+        "commit": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+        "archive_sha256": "52b2798f412226b4ee588dc69640695629bd396bddb70aa853b45875f21dee2f"
+      },
+      "companion": {
+        "commit": "3aa022fab8062863e93d38640e90a8618301449f",
+        "archive_sha256": "4ba4393eeef2bee8e60e183dd9b4d80921d6670d049dbb08c17035546eacf4ba"
+      },
+      "memory": {
+        "commit": "c4752304c8f561cd464daff3525a7d3c63e164ff",
+        "archive_sha256": "36aa862115af9b9ae75fda2668c27eb0c4724a341fca24d9073c417244bb73c7"
+      },
+      "gateway": {
+        "commit": "1af59a30b698c6d114e927f941de5dc33d1762af",
+        "archive_sha256": "b46e7bb45713d9a2f3c29a547c9cf1bfc299e548f289ab8d25e1e9a95717f450"
+      },
+      "application": {
+        "commit": "f4a91771f9f9737f4c51a5fc504e1c47ccf13052",
+        "archive_sha256": "f8818a1818ff802db06bb986d9d8867ba30cd75fa8e2b2d0bc5194fe6ec172c0"
+      },
+      "platform_frontend": {
+        "commit": "911a1dc60318abad76287013a05afacd1e63f9f3",
+        "archive_sha256": "2b0f65ee789feeef51514c6151eca911f49ef7d3309c125ef8e347898ac8a4cd"
+      }
+    },
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "tls_ca_and_hostname_verified": true,
+    "served_affected_assets": {
+      "/index.html": "a3e9b14959ec05c6c2e7559cba0aabf1503c38751de8644099c31c5959de2099"
+    },
+    "probe_generated_model_or_qq": false,
+    "no_owner_store_opened": true,
+    "peer_encoding": {
+      "safe_peer_events_sampled": 10,
+      "whole_window_complete": false,
+      "closed_sample_events_and_attributes_validated": true,
+      "attribute_fields": [
+        "attempt",
+        "error_code",
+        "http_status",
+        "operation",
+        "principal",
+        "route",
+        "target"
+      ],
+      "collector_output_fields": [
+        "attributes",
+        "correlation_id",
+        "duration_ms",
+        "error_code",
+        "event",
+        "event_id",
+        "instance_id",
+        "level",
+        "outcome",
+        "schema_version",
+        "sequence",
+        "service",
+        "timestamp"
+      ],
+      "real_Loki_query": true,
+      "synthetic_production_event_written": false,
+      "historical_lost_attributes_recovered": false,
+      "Vector_source_checkpoint_contract_compatible": true,
+      "changed_wheel_source_files_verified": 5,
+      "native_proof_failure_events_installed": 5
+    },
+    "at": 1793368400.0356321,
+    "image": "sha256:acc68e555133babff5313acd24afbc682b975d59866e2e5b12e98a4d49b5975f",
+    "id": "45be42654fc9b279c8858599c6356ede68cac2a02271d1bc847aa10237d65ee3",
+    "health": "healthy",
+    "restarts": 0,
+    "mounts_preserved": 37,
+    "config_files_preserved": 1165,
+    "configuration_changed": [
+      "observability/vocabulary.json",
+      "observability/vector.json",
+      "private/gateway.env"
+    ],
+    "added_contract_files": 0,
+    "non_target_containers_preserved": 14,
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r53",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_free_bytes": 35203534848,
+    "completed_at": 1793368400.5047443
+  },
+  "previous_owner_drain": {
+    "systemctl_returncode": 0,
+    "elapsed_seconds": 124.10446190834045,
+    "old_finished_at": "2026-10-30T13:52:22.115366242Z",
+    "old_exit_code": 0,
+    "old_restart": "no"
+  },
+  "pc02_original_fixed_cohort": {
+    "at": 1793368435.6554236,
+    "start": 1793326100.1223843,
+    "planned_end": 1793412500.1223843,
+    "observed_until": 1793368435.6554236,
+    "complete_24h": false,
+    "states": {
+      "completed": 23,
+      "failed": 6,
+      "interrupted": 1,
+      "unknown": 6
+    },
+    "total": 36,
+    "success_rate": 0.6388888888888888,
+    "transaction_read_only": "on"
+  },
+  "pc06": {
+    "real_draft_rows": 0,
+    "latest_material_audit_at": 1793368434.7157667,
+    "new_confirmed_same_day_sources_by_enabled_actor": [
+      0,
+      0
+    ],
+    "three_consecutive_actual_dates_verified": false
+  },
+  "first_native_failure_observation": {
+    "at": 1793368451.6836953,
+    "since": 1793368349.0675142,
+    "authority_failure_events": 0,
+    "actor_error_events": 0,
+    "bounded_sample": true,
+    "whole_window_complete": false,
+    "no_503_resolution_claimed": true
+  },
+  "original_503_trace": {
+    "release": "R52",
+    "correlation_id": "ccb8294461b981e12a905dcc2c6b5e30",
+    "evidence": "native-actor-503-trace-r52-1793366416098045900.json",
+    "source_callback_and_Knowledge_returned200": true,
+    "original_request_replayed": false,
+    "cause_still_unresolved": true
+  },
+  "new_model_or_QQ_or_search_tests": 0,
+  "business_data_migration": false,
+  "new_permissions": 0,
+  "cards": {
+    "verified_production": [
+      "PC-01",
+      "PC-03",
+      "PC-04",
+      "PC-05",
+      "PC-07"
+    ],
+    "deployed": [
+      "PC-08",
+      "PC-09",
+      "PC-10",
+      "PC-11"
+    ],
+    "in_progress": [
+      "PC-02",
+      "PC-06"
+    ],
+    "planned": [
+      "PC-12",
+      "PC-13",
+      "PC-14",
+      "PC-15",
+      "PC-16",
+      "PC-17",
+      "PC-18"
+    ]
+  },
+  "rollback": {
+    "material": "/srv/tianshu-tooling/proactive-companion-r53-508460aa64ce49d287c74976561fb7ce/rollback-r53-to-r52/rollback-compatible.py",
+    "executed": false,
+    "full_restore_tested": false,
+    "preserve_additive_R53_collector_admission_for_pending_original_source_lines": true,
+    "original_exact_Vector_and_vocabulary_bytes_retained": true
+  },
+  "original_probe_failures_retained": [
+    "First Memory test invocation used the current root contract rather than the installed frozen candidate; eleven setup errors occurred before business code. Correct frozen contracts yielded eleven passes.",
+    "Initial isolated image check compared raw CRLF wheel source with an LF Git blob; exact wheel bytes passed, then the Git pin comparison correctly normalized line endings. Original log retained.",
+    "First native authority query had a LogQL regex escape error; corrected fixed regex and retained original failure log. No product failure inferred."
+  ],
+  "unverified": [
+    "Original PC02 complete24h new decision cohort >=80%, all original failures and unknowns retained.",
+    "PC06 genuine drafts for every enabled actor on three consecutive actual dates.",
+    "Exact cause of the original R52 native Memory503; no new R53 failure event had yet been captured in the first bounded sample.",
+    "PC12-PC18 remain planned; original W3 entry prohibited.",
+    "Selected code rollback is prepared, not executed or claimed as a full restoration proof."
+  ]
+}
