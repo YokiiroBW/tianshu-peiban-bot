@@ -1,0 +1,204 @@
+{
+  "schema_version": 1,
+  "status": "deployed_material_intake_proof_candidate_process_latency_remains",
+  "production": {
+    "version": "2026.10.31-unified-linux-r60",
+    "image": "sha256:e2a83759cf4bf9e2caffa93bffab03a45b7b17cddbd13e77b47fb28cf8f2c41d",
+    "container": "277dffb0641a2bcf378e132f31e08b8d70c69c86f5031d6a811c37108fd4d375",
+    "guard": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r60",
+    "application_commit": "d352b921cd341b17278c372b6d7f870e685f8011",
+    "companion_commit": "1447b50a8bf38d9b6d4f6b1843be18d425bd7357",
+    "memory_commit": "0efbb8241110fe2402dba2d6752a1c3603971cd3",
+    "gateway_commit": "1af59a30b698c6d114e927f941de5dc33d1762af",
+    "frontend_commit": "911a1dc60318abad76287013a05afacd1e63f9f3",
+    "health_at_last_observation": "healthy",
+    "observed_at": 1793391683.5475779
+  },
+  "checks": {
+    "ok": true,
+    "version": "2026.10.31-unified-linux-r60",
+    "sources": {
+      "platform": {
+        "commit": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+        "archive_sha256": "52b2798f412226b4ee588dc69640695629bd396bddb70aa853b45875f21dee2f"
+      },
+      "companion": {
+        "commit": "1447b50a8bf38d9b6d4f6b1843be18d425bd7357",
+        "archive_sha256": "39a27cbbe09d004e51c3ac5a1882041acf42622862c9a54bc93551ecf6860259"
+      },
+      "memory": {
+        "commit": "0efbb8241110fe2402dba2d6752a1c3603971cd3",
+        "archive_sha256": "61999a0ad01b9f49a015c62495c11ed99c4addd77af2f55d30e80331e2848f75"
+      },
+      "gateway": {
+        "commit": "1af59a30b698c6d114e927f941de5dc33d1762af",
+        "archive_sha256": "b46e7bb45713d9a2f3c29a547c9cf1bfc299e548f289ab8d25e1e9a95717f450"
+      },
+      "application": {
+        "commit": "d352b921cd341b17278c372b6d7f870e685f8011",
+        "archive_sha256": "b64b4dce9a3d6b5fbd5e1e06a9c82ecf36cd92a9d6a95094b3f9574dd86bba04"
+      },
+      "platform_frontend": {
+        "commit": "911a1dc60318abad76287013a05afacd1e63f9f3",
+        "archive_sha256": "2b0f65ee789feeef51514c6151eca911f49ef7d3309c125ef8e347898ac8a4cd"
+      }
+    },
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "tls_ca_and_hostname_verified": true,
+    "served_affected_assets": {
+      "/index.html": "a3e9b14959ec05c6c2e7559cba0aabf1503c38751de8644099c31c5959de2099"
+    },
+    "probe_generated_model_or_qq": false,
+    "no_owner_store_opened": true,
+    "installed_affected_source_checks_verified": true,
+    "at": 1793391683.2586558,
+    "image": "sha256:e2a83759cf4bf9e2caffa93bffab03a45b7b17cddbd13e77b47fb28cf8f2c41d",
+    "id": "277dffb0641a2bcf378e132f31e08b8d70c69c86f5031d6a811c37108fd4d375",
+    "health": "healthy",
+    "restarts": 0,
+    "mounts_preserved": 37,
+    "config_files_preserved": 1175,
+    "configuration_changed": [
+      "private/gateway.env"
+    ],
+    "added_contract_files": 0,
+    "non_target_containers_preserved": 15,
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r60",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_free_bytes": 31724224512,
+    "completed_at": 1793391683.5475779
+  },
+  "stop": {
+    "systemctl_returncode": 0,
+    "elapsed_seconds": 123.938649892807,
+    "old_finished_at": "2026-10-30T20:19:58.951444921Z",
+    "old_exit_code": 0,
+    "old_restart": "no"
+  },
+  "validation": {
+    "applicable_passed": 30,
+    "scope_skipped": 18,
+    "candidate_result": {
+      "pytest_exit": 0,
+      "cases": 48,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 18,
+      "module": "/opt/tianshu-venv/lib/python3.12/site-packages/tianshu_memory/__init__.py",
+      "failure_messages": [],
+      "installed_hashes": {
+        "segment_materials.py": "b554093152bfbee1b3257e595a2d2f543a5a9cfba7aa2cfbabd94e8259e7ce32",
+        "source_authority.py": "06643d7069f17f1a55bcb13deba44ddae16cce4b41e6660db55ee0e58cb0625c"
+      },
+      "stage": "/srv/tianshu-tooling/pc-material-checkpoint-candidate-34624e9b95b74503a1901a9795a0572b",
+      "image": "sha256:abeb680fd0745aa9763b77a06984f6d8c212f1a1b3c3a9d37f90cf19c465bfd1",
+      "mode": "candidate",
+      "at": 1793391278.8293543,
+      "duration": 38.03467798233032,
+      "production_mounts": 0,
+      "new_model_QQ_or_search_calls": 0,
+      "plan": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\proactive-companion-repair-20261030\\material-checkpoint-candidate-34624e9b95b74503a1901a9795a0572b-plan.json"
+    },
+    "installed_assembly_passed": 3,
+    "installed_scope_skipped": 3,
+    "installed_result": {
+      "pytest_exit": 0,
+      "cases": 6,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 3,
+      "module": "/opt/tianshu-venv/lib/python3.12/site-packages/tianshu_memory/__init__.py",
+      "failure_messages": [],
+      "installed_hashes": {
+        "segment_materials.py": "b554093152bfbee1b3257e595a2d2f543a5a9cfba7aa2cfbabd94e8259e7ce32",
+        "source_authority.py": "06643d7069f17f1a55bcb13deba44ddae16cce4b41e6660db55ee0e58cb0625c"
+      },
+      "stage": "/srv/tianshu-tooling/pc-material-checkpoint-installed-69d3c2f874f74774b3a929c260a4a363",
+      "image": "sha256:e2a83759cf4bf9e2caffa93bffab03a45b7b17cddbd13e77b47fb28cf8f2c41d",
+      "mode": "installed",
+      "at": 1793391419.5663807,
+      "duration": 8.287412166595459,
+      "production_mounts": 0,
+      "new_model_QQ_or_search_calls": 0,
+      "plan": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\proactive-companion-repair-20261030\\material-checkpoint-installed-69d3c2f874f74774b3a929c260a4a363-plan.json"
+    },
+    "installed_assembly_not_added_to_case_total": true
+  },
+  "natural_evidence": {
+    "phase_sample": "native-latest-read-phases-r60-1793391699759756700.json",
+    "correlation_trace": "native-read-delay-correlations-r60-1793391754667210200.json",
+    "material_peer_ms": 259.426,
+    "material_barrier_ms": 143.891,
+    "candidate_process_peer_ms": [
+      5202.007,
+      7581.756
+    ],
+    "candidate_process_barrier_ms": [
+      5078.807,
+      5393.767
+    ],
+    "startup_sample": true,
+    "whole_window_complete": false,
+    "trace_limit_reached": true,
+    "original_incident_causality_proven": false
+  },
+  "fixed_cohort": {
+    "evidence": "fixed-cohort-r60-1793391699922312900.json",
+    "start": 1793326100.1223843,
+    "planned_end": 1793412500.1223843,
+    "observed_at": 1793391699.7867968,
+    "complete_24h": false,
+    "states": {
+      "completed": 25,
+      "failed": 7,
+      "interrupted": 1,
+      "unknown": 6
+    },
+    "total": 39,
+    "success_rate": 0.6410256410256411
+  },
+  "cards": {
+    "PC-01": "verified_production",
+    "PC-03": "verified_production",
+    "PC-04": "verified_production",
+    "PC-05": "verified_production",
+    "PC-07": "verified_production",
+    "PC-02": "in_progress",
+    "PC-06": "in_progress",
+    "PC-08": "verified_production",
+    "PC-09": "verified_production",
+    "PC-10": "verified_production",
+    "PC-11": "verified_production",
+    "PC-12": "deployed",
+    "PC-13": "deployed",
+    "PC-14": "deployed",
+    "PC-15": "deployed",
+    "PC-16": "deployed",
+    "PC-17": "deployed",
+    "PC-18": "in_progress"
+  },
+  "card_counts": {
+    "verified_production": 9,
+    "in_progress": 3,
+    "deployed": 6
+  },
+  "no_data_migration": true,
+  "new_test_model_QQ_search_calls": 0,
+  "rollback_executed": false
+}
