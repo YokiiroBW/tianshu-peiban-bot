@@ -1,0 +1,442 @@
+{
+  "status": "R35_deployed_original_queue_resumed_remaining_results_explicit",
+  "release": "2026.10.30-unified-linux-r35",
+  "image": "sha256:bb3545d9a9ee7698f99fff35f87eee10834ac315cead71fe77c30075f977d853",
+  "parent_image": "sha256:03e4c1003c8e1d4ebb0c84295b4d1f0f587509821bcb7434c9c9d6715486b6ee",
+  "sources": {
+    "memory": "49df7e59206e95fe9fed9948d203bf0f808bcf0f",
+    "companion": "9eb19c2cd82976a0faa8f9107afc144eac3220f2",
+    "life_candidate_in_companion": "f9e0f7b9a38cce640aeb7f32556a1331381bd4cb",
+    "platform": "8c59a8db2b31e7d8689e5803baf15800c2eaa342",
+    "observability": "bcb594a2f7e3d9d4e1afcb627f0d618cfae51c58",
+    "gateway_unchanged": "ed631d8a6f26890628a9df833792210e9a09e31c",
+    "frontend_unchanged": "519d5f03a99231ecf8b150052e8aa3bbe2f6d91e"
+  },
+  "changes": [
+    "Keep original observation archives, skip empty nontext learning materials and optional context, prune only empty optional members before the first valid batch is frozen.",
+    "Recover original blocked receipt-stage jobs proven never to have submitted a model request, using the existing Platform operator entry and Companion CAS/idempotent recovery owner.",
+    "Persist life decision request/receipt/stage and rejected-field diagnostics; non-new choices do not require a new goal title; legacy unknown executions stay protected.",
+    "Recheck timestamp gaps while scanning retained history; stop at the shared remaining deadline and retain completed acknowledgements and pending work.",
+    "Align only existing segment and segment_resolve observation verification requests with the original 262144-byte Memory envelope; keep old single-operation and other endpoint budgets.",
+    "Recover unacknowledged seals by the original durable segment_id and unchanged create_request through the same operator API; recheck actor/CAS after remote receipt reads, retain unknown models and contradictory committed evidence."
+  ],
+  "validation": {
+    "memory_new_private_group_cases": "6 passed",
+    "memory_related_existing_cases": "7 passed, 1 scope skip",
+    "companion_new_and_original_recovery_cases": "4 passed plus 1 actor/CAS/receipt case; unchanged cancellation/HTTP cases reused",
+    "life_distinct_targeted_cases": "18 passed, reused",
+    "platform_existing_http_management_file": "6 passed on isolated R28 Linux image, no production mount or dependency installation",
+    "observability_targeted_cases": "63 passed, 1 environment skip, reused",
+    "image_payload": "R35 Platform342 and Companion121 exact; unchanged application56/frontend87; R33 Memory145 evidence reused",
+    "dependency_resolution": false,
+    "new_model_tests": 0,
+    "new_qq_test_messages": 0,
+    "prompt_assembly": "180 existing cases and 19 subtests reused; 7 integrated assembly cases passed",
+    "unknown_write_diagnostics": "4 nodes and 22 subtests passed",
+    "observation_verifier_diagnostics": "6 existing TLS boundary cases passed",
+    "observation_batch_http_budget": "Original HTTP reproduced413; one focused test covering five routing/budget/authentication scenarios passed",
+    "original_segment_recovery": "Companion12 distinct recovery nodes and Platform7 native HTTP cases passed; unchanged results reused"
+  },
+  "preservation": {
+    "schema_migration": false,
+    "frontend_rebuilt": false,
+    "unchanged_runtime_files": 55,
+    "unchanged_effective_wheels": 63,
+    "retention_policy": "original 10000 events and 30 days, protect active and unconfirmed sources",
+    "old_worktrees_and_root_index": "preserved",
+    "unknown_model_or_tool_executions": "not replayed"
+  },
+  "production_acceptance": {
+    "id": "1051c0c1861c08fa0879d4754b6766861383aaa5b0efac61f11591ae80426745",
+    "image": "sha256:bb3545d9a9ee7698f99fff35f87eee10834ac315cead71fe77c30075f977d853",
+    "health": "healthy",
+    "restart_count": 0,
+    "oom": false,
+    "mounts": 37,
+    "config_files_preserved": 1133,
+    "config_change": "same_scope_startup_lease_only",
+    "non_target_containers_preserved": 14,
+    "capacity_guard": "r31_active_armed",
+    "capacity_floor_bytes": 21474836480,
+    "completed_at": 1793294916.2294407,
+    "authenticated_ready": 200,
+    "business_modules_ready": 6,
+    "observability_modules_ready": 5
+  },
+  "limits": [
+    "No real QQ acceptance or artificial paid-model quality tests.",
+    "Old unknown life requests and missing rejected output cannot be reconstructed or blindly replayed.",
+    "Legacy household role authorization stays denied until legitimately configured; no permission expansion.",
+    "One old proposal rejection has no recoverable raw output. Any new model timeout/cancelled_unknown remains protected; ordinary pending summaries are not claimed completed."
+  ],
+  "original_business_recovery": {
+    "known_original_jobs": 16,
+    "resumed_receipts": 16,
+    "completed_with_one_ledger_each": 15,
+    "proposal_rejected": 1,
+    "receipt_503_unconfirmed": 0,
+    "model_tests": 0,
+    "qq_test_messages": 0,
+    "original_natural_gateway_requests": 16,
+    "gateway_requests_completed": 16,
+    "duplicate_gateway_rows": 0,
+    "duplicate_memory_ledgers": 0,
+    "source_ids_preserved": true,
+    "first_capture_without_job_id": "11 original segments reconciled through their unchanged idempotent seals and explicit owner receipts"
+  },
+  "observation_acceptance": {
+    "old_pending_200_cleared": true,
+    "source_positions_advancing": true,
+    "ledger_capacity_alert": "cleared",
+    "delivery_backlog_alert": "cleared",
+    "source_scan_behind": "active historical catch-up",
+    "query_failures": 0,
+    "retention_policy_unchanged": true
+  },
+  "diagnostic_followup": {
+    "status": "R30_deployed_postchecks_passed",
+    "date": "2026-10-30",
+    "memory": "2d98b7078333210aad4f35cf649095bf8baf5309",
+    "companion": "f36621423ee2b7017f362b5d30cab4113cf47ed2",
+    "purpose": "retain machine failure site and proposal field paths without changing acceptance or retrying unknown models",
+    "validation": "Memory 4 passed; Companion 7 distinct nodes plus 15 subtests passed",
+    "frontend_rebuilt": false,
+    "root_runtime_changed": false,
+    "configuration_changed": false,
+    "version": "2026.10.30-unified-linux-r30",
+    "image": "sha256:1f2f110b62d8d1afe64d01927646a625003238dc37892bb6bb7e04d9df55b8b3",
+    "layer_rebase": {
+      "status": "flat_runtime_and_files_verified",
+      "image": "sha256:f3f7748a736adc5d629262d0c0af3df38fcef48c2b9a6d9a2cc4b24cbd435977",
+      "tag": "tianshu/unified-flat-base:20261030-r29",
+      "original_image": "sha256:86ce0487a390f6004d5f730b060d2192c157383f0473ee61da412f1895f7d654",
+      "original_layers": 124,
+      "flat_layers": 1,
+      "runtime_config_exact": true,
+      "production_mounts": 0,
+      "production_owner_unchanged": true,
+      "free_bytes": 50803167232,
+      "payload_files": 607,
+      "application_files": 56,
+      "frontend_files": 87,
+      "critical_permissions_and_symlinks": 14
+    },
+    "old_layer_depth_failure_preserved": true,
+    "production_acceptance": {
+      "id": "f86918f25e9c39aded83e395f3a3069d0f3cbf637281c8f35ee018e467b0346e",
+      "image": "sha256:1f2f110b62d8d1afe64d01927646a625003238dc37892bb6bb7e04d9df55b8b3",
+      "health": "healthy",
+      "restart_count": 0,
+      "oom": false,
+      "mounts": 37,
+      "config_files_preserved": 1133,
+      "config_change": "same_scope_startup_lease_only",
+      "non_target_containers_preserved": 14,
+      "capacity_guard": "r26_active_armed",
+      "capacity_floor_bytes": 21474836480,
+      "completed_at": 1793292356.8378842,
+      "authenticated_ready": 200,
+      "business_modules_ready": 6,
+      "observability_modules_ready": 5
+    }
+  },
+  "release_history": [
+    {
+      "release": "2026.10.29-unified-linux-r29",
+      "image": "sha256:86ce0487a390f6004d5f730b060d2192c157383f0473ee61da412f1895f7d654",
+      "sources": {
+        "memory": "959c5a483790a6b36189637b2a839e537d2c2f1e",
+        "companion": "11bd84ebbe09581aa537537ce3fc49d41bf8763e",
+        "life_candidate_in_companion": "f9e0f7b9a38cce640aeb7f32556a1331381bd4cb",
+        "platform": "0fe987583103fec5d0ee952637d401710d07777c",
+        "observability": "bcb594a2f7e3d9d4e1afcb627f0d618cfae51c58",
+        "gateway_unchanged": "ed631d8a6f26890628a9df833792210e9a09e31c",
+        "frontend_unchanged": "519d5f03a99231ecf8b150052e8aa3bbe2f6d91e"
+      },
+      "production_acceptance": {
+        "id": "3f0183f9eff3918cf4469ad0ae55f436380d7ea02030a555907284aa3b793009",
+        "image": "sha256:86ce0487a390f6004d5f730b060d2192c157383f0473ee61da412f1895f7d654",
+        "health": "healthy",
+        "restart_count": 0,
+        "oom": false,
+        "mounts": 37,
+        "config_files_preserved": 1133,
+        "config_change": "same_scope_startup_lease_only",
+        "non_target_containers_preserved": 14,
+        "capacity_guard": "r25_active_armed",
+        "capacity_floor_bytes": 21474836480,
+        "completed_at": 1793289610.636795,
+        "authenticated_ready": 200,
+        "business_modules_ready": 6,
+        "observability_modules_ready": 5
+      }
+    },
+    {
+      "release": "2026.10.30-unified-linux-r30",
+      "image": "sha256:1f2f110b62d8d1afe64d01927646a625003238dc37892bb6bb7e04d9df55b8b3",
+      "sources": {
+        "platform": "0fe987583103fec5d0ee952637d401710d07777c",
+        "companion": "f36621423ee2b7017f362b5d30cab4113cf47ed2",
+        "memory": "2d98b7078333210aad4f35cf649095bf8baf5309",
+        "gateway": "ed631d8a6f26890628a9df833792210e9a09e31c",
+        "application": "bcb594a2f7e3d9d4e1afcb627f0d618cfae51c58",
+        "platform_frontend": "519d5f03a99231ecf8b150052e8aa3bbe2f6d91e"
+      },
+      "production_acceptance": {
+        "id": "f86918f25e9c39aded83e395f3a3069d0f3cbf637281c8f35ee018e467b0346e",
+        "image": "sha256:1f2f110b62d8d1afe64d01927646a625003238dc37892bb6bb7e04d9df55b8b3",
+        "health": "healthy",
+        "restart_count": 0,
+        "oom": false,
+        "mounts": 37,
+        "config_files_preserved": 1133,
+        "config_change": "same_scope_startup_lease_only",
+        "non_target_containers_preserved": 14,
+        "capacity_guard": "r26_active_armed",
+        "capacity_floor_bytes": 21474836480,
+        "completed_at": 1793292356.8378842,
+        "authenticated_ready": 200,
+        "business_modules_ready": 6,
+        "observability_modules_ready": 5
+      }
+    },
+    {
+      "release": "2026.10.30-unified-linux-r31",
+      "image": "sha256:c1b3d15e3cc477b1c9c551ca97b47b72426690f5139201e714f6d71b43e8e404",
+      "sources": {
+        "platform": "0fe987583103fec5d0ee952637d401710d07777c",
+        "companion": "b0bcc5af63423a148cda0504f36b601d9d268e18",
+        "memory": "2d98b7078333210aad4f35cf649095bf8baf5309",
+        "gateway": "ed631d8a6f26890628a9df833792210e9a09e31c",
+        "application": "bcb594a2f7e3d9d4e1afcb627f0d618cfae51c58",
+        "platform_frontend": "519d5f03a99231ecf8b150052e8aa3bbe2f6d91e"
+      },
+      "production_acceptance": {
+        "id": "8ca27ecd7c9736aa9676dbaf82920c4bc9ce5fb5e287334a96e1347155e9f7ae",
+        "image": "sha256:c1b3d15e3cc477b1c9c551ca97b47b72426690f5139201e714f6d71b43e8e404",
+        "health": "healthy",
+        "restart_count": 0,
+        "oom": false,
+        "mounts": 37,
+        "config_files_preserved": 1133,
+        "config_change": "same_scope_startup_lease_only",
+        "non_target_containers_preserved": 14,
+        "capacity_guard": "r27_active_armed",
+        "capacity_floor_bytes": 21474836480,
+        "completed_at": 1793292774.9901211,
+        "authenticated_ready": 200,
+        "business_modules_ready": 6,
+        "observability_modules_ready": 5
+      }
+    },
+    {
+      "release": "2026.10.30-unified-linux-r32",
+      "image": "sha256:eb8bc685deab238a925b21961f31251d40087364e894a339143d2b0eee482f5b",
+      "sources": {
+        "memory": "2d98b7078333210aad4f35cf649095bf8baf5309",
+        "companion": "c05a54167e863de9e8e9a7334b0d8e34a168f763",
+        "life_candidate_in_companion": "f9e0f7b9a38cce640aeb7f32556a1331381bd4cb",
+        "platform": "0fe987583103fec5d0ee952637d401710d07777c",
+        "observability": "bcb594a2f7e3d9d4e1afcb627f0d618cfae51c58",
+        "gateway_unchanged": "ed631d8a6f26890628a9df833792210e9a09e31c",
+        "frontend_unchanged": "519d5f03a99231ecf8b150052e8aa3bbe2f6d91e"
+      },
+      "production_acceptance": {
+        "id": "e981e841a064c94e673ae168761352c380300f126574fb0f2be959d72cf8ff35",
+        "image": "sha256:eb8bc685deab238a925b21961f31251d40087364e894a339143d2b0eee482f5b",
+        "health": "healthy",
+        "restart_count": 0,
+        "oom": false,
+        "mounts": 37,
+        "config_files_preserved": 1133,
+        "config_change": "same_scope_startup_lease_only",
+        "non_target_containers_preserved": 14,
+        "capacity_guard": "r28_active_armed",
+        "capacity_floor_bytes": 21474836480,
+        "completed_at": 1793293113.0989358,
+        "authenticated_ready": 200,
+        "business_modules_ready": 6,
+        "observability_modules_ready": 5
+      }
+    },
+    {
+      "release": "2026.10.30-unified-linux-r33",
+      "image": "sha256:6518d602ef4a7adb7e4d2edfba6625a94cba54a8200f07e0fc233044c9885443",
+      "sources": {
+        "platform": "0fe987583103fec5d0ee952637d401710d07777c",
+        "companion": "c05a54167e863de9e8e9a7334b0d8e34a168f763",
+        "memory": "49df7e59206e95fe9fed9948d203bf0f808bcf0f",
+        "gateway": "ed631d8a6f26890628a9df833792210e9a09e31c",
+        "application": "bcb594a2f7e3d9d4e1afcb627f0d618cfae51c58",
+        "platform_frontend": "519d5f03a99231ecf8b150052e8aa3bbe2f6d91e"
+      },
+      "production_acceptance": {
+        "id": "a0173e8f9f75188409e0a6eca254627b8a0120ffe3b1ada47895c13a747fba21",
+        "image": "sha256:6518d602ef4a7adb7e4d2edfba6625a94cba54a8200f07e0fc233044c9885443",
+        "health": "healthy",
+        "restart_count": 0,
+        "oom": false,
+        "mounts": 37,
+        "config_files_preserved": 1133,
+        "config_change": "same_scope_startup_lease_only",
+        "non_target_containers_preserved": 14,
+        "capacity_guard": "r29_active_armed",
+        "capacity_floor_bytes": 21474836480,
+        "completed_at": 1793293876.440982,
+        "authenticated_ready": 200,
+        "business_modules_ready": 6,
+        "observability_modules_ready": 5
+      }
+    },
+    {
+      "release": "2026.10.30-unified-linux-r34",
+      "image": "sha256:03e4c1003c8e1d4ebb0c84295b4d1f0f587509821bcb7434c9c9d6715486b6ee",
+      "sources": {
+        "platform": "fc6250fbff4631f6016f492ccf40485ac76e1c89",
+        "companion": "c05a54167e863de9e8e9a7334b0d8e34a168f763",
+        "memory": "49df7e59206e95fe9fed9948d203bf0f808bcf0f",
+        "gateway": "ed631d8a6f26890628a9df833792210e9a09e31c",
+        "application": "bcb594a2f7e3d9d4e1afcb627f0d618cfae51c58",
+        "platform_frontend": "519d5f03a99231ecf8b150052e8aa3bbe2f6d91e"
+      },
+      "production_acceptance": {
+        "id": "ba6a64ac60d9cbcd8a7bd671c8826e7b9fcabd032ea6d44ea857214cea2caadd",
+        "image": "sha256:03e4c1003c8e1d4ebb0c84295b4d1f0f587509821bcb7434c9c9d6715486b6ee",
+        "health": "healthy",
+        "restart_count": 0,
+        "oom": false,
+        "mounts": 37,
+        "config_files_preserved": 1133,
+        "config_change": "same_scope_startup_lease_only",
+        "non_target_containers_preserved": 14,
+        "capacity_guard": "r30_active_armed",
+        "capacity_floor_bytes": 21474836480,
+        "completed_at": 1793294216.0361466,
+        "authenticated_ready": 200,
+        "business_modules_ready": 6,
+        "observability_modules_ready": 5
+      }
+    }
+  ],
+  "prompt_release": {
+    "original_candidate": "61cecb2ae98d2834b6df0887daf3c8c9e07e6700",
+    "integrated_companion": "b0bcc5af63423a148cda0504f36b601d9d268e18",
+    "status": "R31_pushed_deployed_postchecks_passed",
+    "authorization": "verified user requested publication and unified writer in prompt-assembly chat",
+    "validation": "180 existing cases/19 subtests reused; 7 assembly cases passed against R30 diagnostics",
+    "image": "sha256:c1b3d15e3cc477b1c9c551ca97b47b72426690f5139201e714f6d71b43e8e404",
+    "production_acceptance": {
+      "id": "8ca27ecd7c9736aa9676dbaf82920c4bc9ce5fb5e287334a96e1347155e9f7ae",
+      "image": "sha256:c1b3d15e3cc477b1c9c551ca97b47b72426690f5139201e714f6d71b43e8e404",
+      "health": "healthy",
+      "restart_count": 0,
+      "oom": false,
+      "mounts": 37,
+      "config_files_preserved": 1133,
+      "config_change": "same_scope_startup_lease_only",
+      "non_target_containers_preserved": 14,
+      "capacity_guard": "r27_active_armed",
+      "capacity_floor_bytes": 21474836480,
+      "completed_at": 1793292774.9901211,
+      "authenticated_ready": 200,
+      "business_modules_ready": 6,
+      "observability_modules_ready": 5
+    },
+    "real_model_cache_or_injection_acceptance": false
+  },
+  "unknown_write_diagnostic_fix": {
+    "status": "R32_pushed_deployed_postchecks_passed",
+    "companion": "c05a54167e863de9e8e9a7334b0d8e34a168f763",
+    "cause": "unknown-write wrapper used pre-hook cause, dropping candidate machine diagnostics",
+    "behavior": "retain enriched error.cause; unknown and no-replay semantics unchanged",
+    "validation": "reproduced failing write subcase, then 4 nodes and 22 subtests passed",
+    "model_test_calls": 0,
+    "qq_test_messages": 0
+  },
+  "source_verification_diagnosis": {
+    "status": "R34_original_20_source_batch_413_to_200_verified",
+    "failure_site": "tianshu_memory.observations:__call__:65",
+    "component": "PlatformVerifier response status/type/size check",
+    "original_pending_source_read_results": [
+      {
+        "http_status": 403,
+        "code": "forbidden"
+      },
+      {
+        "http_status": 200,
+        "valid": true
+      },
+      {
+        "http_status": 403,
+        "code": "forbidden"
+      }
+    ],
+    "content_type": "application/json",
+    "largest_observed_body_bytes": 1121,
+    "interpretation": "Forbidden discovery with actor_id=null has no current configured role for that scope. Configuration and authority are preserved; these sources are not declared learned or restored.",
+    "retry_replay_or_permission_change": false,
+    "cause": "OBSERVATION_VERIFY still applied its old4096-byte single-operation ceiling to valid batched source proofs",
+    "original_complete_batch_sources": 20,
+    "duplicate_source_refs": 0,
+    "before_http": 413,
+    "after_http": 200,
+    "configured_batch_body_bytes": 262144,
+    "single_operation_body_bytes": 4096,
+    "disabled_source_interpretation": "The two403 samples were disabled and already paused by GroupProcessing; they were not the repeated material failure. The enabled scope had a valid role binding.",
+    "configuration_change": false,
+    "authority_change": false
+  },
+  "observation_verifier_diagnostics": {
+    "status": "R33_deployed_verified",
+    "memory": "49df7e59206e95fe9fed9948d203bf0f808bcf0f",
+    "accepted_business_rules_changed": false
+  },
+  "original_segment_recovery": {
+    "status": "original11_resumed_with_authoritative_job_receipts",
+    "resumed": 11,
+    "states": {
+      "blocked": 2,
+      "completed": 3,
+      "pending": 6
+    },
+    "with_one_ledger": 3,
+    "duplicate_ledgers": 0,
+    "gateway_receipts": {
+      "cancelled_unknown": 1,
+      "completed": 4,
+      "in_flight": 1
+    },
+    "duplicate_gateway_rows": 0,
+    "original_materials_and_segment_ids_preserved": true,
+    "original_create_request_digests_verified": true,
+    "model_tests": 0,
+    "qq_test_messages": 0,
+    "observed_at": 1793295068.0369258,
+    "known_proposal_rejection_fields": [
+      {
+        "path": [
+          "topics",
+          6,
+          "person_ids"
+        ],
+        "keyword": "minItems"
+      }
+    ]
+  },
+  "current_queue_observation": {
+    "handoff_states": {
+      "material_pending": 2,
+      "material_accepted": 287
+    },
+    "learning_states": {
+      "blocked": 3,
+      "collecting": 1,
+      "completed": 37,
+      "pending": 6
+    },
+    "gateway_total_request_rows": 3004,
+    "user_model_call_ceiling": 18000,
+    "pending_means_completed": false,
+    "disabled_materials": "2 original disabled sources remain paused, not failures or completed learning"
+  }
+}

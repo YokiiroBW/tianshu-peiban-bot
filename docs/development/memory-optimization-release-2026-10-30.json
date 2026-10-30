@@ -1,0 +1,465 @@
+{
+  "status": "implemented_pushed_deployed_verified",
+  "version": "2026.10.30-unified-linux-r36",
+  "completed_at": "2026-10-30T04:18:00.512698+08:00",
+  "input": {
+    "path": "C:\\YOKI\\Claude\\Tianshu\\天枢记忆系统优化_开发实施文档.md",
+    "sha256": "f449b4ef292b9529dd1c640c215162391548a51a8b34462b4925320c73c08ea8",
+    "authorization": "User explicitly requested full document implementation, push and deployment. Attachment sample staging prompts are reference material."
+  },
+  "sources": {
+    "platform": {
+      "commit": "8c59a8db2b31e7d8689e5803baf15800c2eaa342",
+      "archive_sha256": "a31825766bdcd98589626c817b739825666acfc5f0d786d0b065e78aa1e2bb93"
+    },
+    "companion": {
+      "commit": "2ed42563aabb74713744b81fcd86d0f9cd6bfa18",
+      "archive_sha256": "a9bfd60872a251be91eae59e2b6c022ae3d71122e4ba626333c32eb2b2ad3d9e"
+    },
+    "memory": {
+      "commit": "78b9f913a8ac405776336fd18f6a6b21d41b013b",
+      "archive_sha256": "b2072666c3bbcad4b04f40d6b7dbfdd9702ebf826dc3be15c8657ed0dfd864e2"
+    },
+    "gateway": {
+      "commit": "ed631d8a6f26890628a9df833792210e9a09e31c",
+      "archive_sha256": "8f7fa3a112e9d290ae160ca09277134e5a2cf22a4d655ebec7448540aa1bb381"
+    },
+    "application": {
+      "commit": "bcb594a2f7e3d9d4e1afcb627f0d618cfae51c58",
+      "archive_sha256": "c22aad667f692d90fc98634f95d59fa406999271051a6d9fd258f80a1c707be0"
+    },
+    "platform_frontend": {
+      "commit": "519d5f03a99231ecf8b150052e8aa3bbe2f6d91e",
+      "archive_sha256": "cd558d5e555ccf7f2f3ea01d45e8a7b666a008e0d1e2f78416752109b2aa0149"
+    }
+  },
+  "product_commits": {
+    "memory": "78b9f913a8ac405776336fd18f6a6b21d41b013b",
+    "companion": "2ed42563aabb74713744b81fcd86d0f9cd6bfa18"
+  },
+  "github_main_pushes": {
+    "memory": "78b9f913a8ac405776336fd18f6a6b21d41b013b",
+    "companion": "2ed42563aabb74713744b81fcd86d0f9cd6bfa18"
+  },
+  "image": "sha256:8d561e27ef9dca8836205222898f648e131ce882f822aee794a1cabf27ef94aa",
+  "previous": {
+    "version": "2026.10.30-unified-linux-r35",
+    "id": "1051c0c1861c08fa0879d4754b6766861383aaa5b0efac61f11591ae80426745",
+    "image": "sha256:bb3545d9a9ee7698f99fff35f87eee10834ac315cead71fe77c30075f977d853"
+  },
+  "cards": {
+    "M0": "implemented: bounded opt-in recall trace, offline replay and retention inventory helper",
+    "M1-1": "implemented: float32 little-endian copy, JSON dual write/fallback, explicit paired-backup migration",
+    "M1-2": "conditionally skipped: no independently labelled evidence for safe Matryoshka truncation; original model, dimensions and revision retained",
+    "M1-3": "implemented: 1.0 relevance + 0.3 importance + 0.2 recency; candidate min/max, 30-day half-life",
+    "M1-4": "implemented: structured server retention/importance policy; existing raw sources retain 30-day default; no historical expiry rewrite",
+    "M2-1": "implemented: complete owner-scoped lexical/vector candidates, derived lexical terms and shared query vector",
+    "M2-2": "implemented: owner quota/MMR over complete selection units, final type budgets, one combined rerank of at most 80 documents",
+    "M2-3": "implemented in Memory and Companion: receipt-based real material coverage rotation, original <=8-target batches",
+    "M2-4": "implemented in Memory and Companion: >0.92 same-owner/revision/hash top-5 hints, frozen known-record whitelist, no automatic delete/replace",
+    "M3-1": "implemented: explicit same-owner references, participant/dispute slots, three clocks, whole-basis source invalidation and complete cross-window selection",
+    "M3-2": "conditionally skipped: no new day/week/month model-generated summary queue without actual need"
+  },
+  "reuse": [
+    "existing SourceAuthority, source_recovery, consolidation_sources and published contracts unchanged",
+    "existing Store transaction/backup/checkpoint, retrieval adapter, segment/receipt pipeline and Companion metadata",
+    "existing unified deployment, unchanged capacity guard logic and same-scope startup origin lease procedure"
+  ],
+  "validation": {
+    "changed_python": "43 files static/format checks and src compilation passed; no new dependency",
+    "offline_replay": {
+      "cases": 22,
+      "evidence_recall_at_8": 1.0,
+      "complete_set_recall": 1.0,
+      "oracle_accuracy": null,
+      "external_calls": 0
+    },
+    "owner_candidate_microbenchmark": {
+      "fixed_documents": 600,
+      "owners": [
+        10,
+        50,
+        200
+      ],
+      "p95_ms": [
+        1.69,
+        1.642,
+        1.945
+      ],
+      "all_owner_candidates_covered": true,
+      "end_to_end_production_performance": false
+    },
+    "targeted_checks": [
+      "binary mixed read and actual SQLite migration/idempotence 3 passed; query vector boundary 50 passed",
+      "scoring/context and affected boundaries 93 passed, 5 existing scope skips",
+      "retention/lifecycle/review 30 passed, 1 skip; expiry/forgetting 27 passed, 1 skip; four adjusted intended behavior instances passed; final retention 7 passed",
+      "owner partition/context 75 passed, 5 skips; partition + query boundary 54 passed",
+      "quota/MMR/atomic units 3 passed; source/rerank/budget 50 passed; native window/h03 23 passed, 1 skip",
+      "rotation Memory 46 passed, 14 scope skips; Companion 62 passed and 36 subtests passed",
+      "duplicate hints Memory 11 passed; Companion segments 61 passed and 36 subtests passed; whitelist/owner/version/score 4 passed",
+      "events/native selections 29 passed, 1 skip; additional complete cross-window 2 passed",
+      "final trace/query boundary 53 passed; binary old-writer rollback/reapply 2 passed"
+    ],
+    "results_reused_not_aggregate": true,
+    "known_existing_fixture_limits": [
+      "legacy manual seed test_recall: 5 failures before ranking",
+      "retired typed-fact/known_facts test_memory_v2 expectations: 21 failures; six representative instances reproduced against original baseline",
+      "legacy group-context fixture failures kept outside current behavior scope",
+      "stale contract pins in root test copies: used exact exported current per-module shipped contracts; no contract modification"
+    ],
+    "isolated_postgresql": {
+      "ok": true,
+      "backend": "postgresql",
+      "synthetic_namespace": "tsmemopta76a9a94aa0742a98eecb846068791f5",
+      "production_mounts": 0,
+      "production_data_accessed": false,
+      "new_install": true,
+      "legacy_binary_migration": true,
+      "paired_backups": 5,
+      "binary_json_mixed_read": true,
+      "derived_source_triggers": 0,
+      "authority_rows_preserved": true,
+      "event_withdrawal_invalidates_whole": true,
+      "old_positional_writer_rollback": true,
+      "reapply": true,
+      "json_backup_vectors_preserved": true,
+      "guard_identity_and_reopen": true,
+      "model_calls": 0,
+      "synthetic_schema_removed": true
+    },
+    "image_payload": {
+      "status": "exact_installed_payload_verified",
+      "image": "sha256:8d561e27ef9dca8836205222898f648e131ce882f822aee794a1cabf27ef94aa",
+      "ok": true,
+      "payload_files": {
+        "memory": 157,
+        "companion": 122
+      },
+      "removed_modules": 0,
+      "application_files_preserved": 56,
+      "frontend_files": 87
+    },
+    "production": {
+      "status": "R36_deployed_startup_and_memory_migration_verified",
+      "id": "28ea3d615d60754cd4697d8b62b0622de3e67736e5c02de294c90ac8e257f5c3",
+      "image": "sha256:8d561e27ef9dca8836205222898f648e131ce882f822aee794a1cabf27ef94aa",
+      "health": "healthy",
+      "restart_count": 0,
+      "oom": false,
+      "mounts": 37,
+      "ready": {
+        "ok": true,
+        "version": "2026.10.30-unified-linux-r36",
+        "sources": {
+          "platform": {
+            "commit": "8c59a8db2b31e7d8689e5803baf15800c2eaa342",
+            "archive_sha256": "a31825766bdcd98589626c817b739825666acfc5f0d786d0b065e78aa1e2bb93"
+          },
+          "companion": {
+            "commit": "2ed42563aabb74713744b81fcd86d0f9cd6bfa18",
+            "archive_sha256": "a9bfd60872a251be91eae59e2b6c022ae3d71122e4ba626333c32eb2b2ad3d9e"
+          },
+          "memory": {
+            "commit": "78b9f913a8ac405776336fd18f6a6b21d41b013b",
+            "archive_sha256": "b2072666c3bbcad4b04f40d6b7dbfdd9702ebf826dc3be15c8657ed0dfd864e2"
+          },
+          "gateway": {
+            "commit": "ed631d8a6f26890628a9df833792210e9a09e31c",
+            "archive_sha256": "8f7fa3a112e9d290ae160ca09277134e5a2cf22a4d655ebec7448540aa1bb381"
+          },
+          "application": {
+            "commit": "bcb594a2f7e3d9d4e1afcb627f0d618cfae51c58",
+            "archive_sha256": "c22aad667f692d90fc98634f95d59fa406999271051a6d9fd258f80a1c707be0"
+          },
+          "platform_frontend": {
+            "commit": "519d5f03a99231ecf8b150052e8aa3bbe2f6d91e",
+            "archive_sha256": "cd558d5e555ccf7f2f3ea01d45e8a7b666a008e0d1e2f78416752109b2aa0149"
+          }
+        },
+        "modules": {
+          "companion": "ready",
+          "gateway": "ready",
+          "knowledge": "ready",
+          "memory": "ready",
+          "onebot": "ready",
+          "platform": "ready"
+        },
+        "observations": {
+          "obs-grafana": "ready",
+          "obs-guard": "ready",
+          "obs-loki": "ready",
+          "obs-prometheus": "ready",
+          "obs-vector": "ready"
+        },
+        "authenticated_ready": 200,
+        "ready_check_count": 9,
+        "tls_ca_and_hostname_verified": true,
+        "new_model_or_qq_test": false,
+        "memory_migration_markers": {
+          "memory_event_schema": "1",
+          "memory_merge_schema": "1",
+          "memory_partition_schema": "1",
+          "memory_retrieval_schema": "1",
+          "memory_rotation_schema": "1"
+        },
+        "source_guard_consistent": true,
+        "private_endpoint_unit_and_adapter_checks_reused": true
+      },
+      "web_http": "not_repeated_frontend_unchanged",
+      "capacity_guard": "r34_active_armed",
+      "capacity_floor_bytes": 21474836480,
+      "capacity_free_bytes": 50660573184,
+      "completed_at": 1793305080.5126977,
+      "config_files_preserved": 1133,
+      "config_change": "same_scope_startup_lease_only",
+      "mounts_exactly_preserved": true,
+      "non_target_containers_preserved": 14,
+      "served_entry_assets_verified": 0,
+      "unchanged_frontend_evidence_reused": true,
+      "new_model_test_calls": 0,
+      "new_qq_test_messages": 0,
+      "schema_migration": "memory_only_five_additive_steps",
+      "real_qq_acceptance": "deferred_by_user"
+    },
+    "full_suite_run": false,
+    "browser_suite_run": false,
+    "new_real_model_test_calls": 0,
+    "new_qq_test_messages": 0
+  },
+  "production_migration": {
+    "status": "memory_optimization_migrated",
+    "backend": "postgresql",
+    "migrations": [
+      {
+        "memory_retrieval_schema": 1,
+        "backup": "/deployment-private/retrieval.backup",
+        "backup_guard": "/deployment-private/retrieval.backup.source-guard.json",
+        "vectors_converted": 343
+      },
+      {
+        "memory_partition_schema": 1,
+        "backup": "/deployment-private/partitions.backup",
+        "backup_guard": "/deployment-private/partitions.backup.source-guard.json",
+        "indexed_groups": 111
+      },
+      {
+        "memory_rotation_schema": 1,
+        "backup": "/deployment-private/rotation.backup",
+        "backup_guard": "/deployment-private/rotation.backup.source-guard.json"
+      },
+      {
+        "memory_merge_schema": 1,
+        "backup": "/deployment-private/merge_candidates.backup",
+        "backup_guard": "/deployment-private/merge_candidates.backup.source-guard.json"
+      },
+      {
+        "memory_event_schema": 1,
+        "backup": "/deployment-private/events.backup",
+        "backup_guard": "/deployment-private/events.backup.source-guard.json"
+      }
+    ],
+    "paired_backups": [
+      {
+        "name": "retrieval.backup",
+        "bytes": 36732240,
+        "sha256": "f54e639ca7da7418cae34240bd686ed3b0fb1147346cccf23cc053c5aac53b1b",
+        "guard_sha256": "56265452edd1605f8252518db3127f9784d89a5f8caf362c775160967e583958"
+      },
+      {
+        "name": "partitions.backup",
+        "bytes": 36734002,
+        "sha256": "a3d7ed601c73074a964defe7c9a07f4585fc289740a8fb4f5ef0ecb5d7604a1b",
+        "guard_sha256": "ac9859be8b42265cf38f358bfa6d455809e89b51bf1509fc02ab93e9a3223bd5"
+      },
+      {
+        "name": "rotation.backup",
+        "bytes": 36756527,
+        "sha256": "718894f919f3b9b55ecff545e59b58d8788a33d8af4e55afdd402af78b650304",
+        "guard_sha256": "c29a3205fb4fffd0973a2fde6f3c09fb00115a7da0e5408a36c61be15ecd5c06"
+      },
+      {
+        "name": "merge_candidates.backup",
+        "bytes": 36756661,
+        "sha256": "85f13847922bdbe89d8984d39ef61b4882c700cc1d2b7014d0fb30b97d377541",
+        "guard_sha256": "fcc46928e0bb7092bffd81c019b3415eae3b3a68b1648d632dbcf32dfca2c6ba"
+      },
+      {
+        "name": "events.backup",
+        "bytes": 36756837,
+        "sha256": "6aab2bf7a80e86bd9c92eef948107735983721866c7aa5a3a8fed732ef9d6689",
+        "guard_sha256": "cf465c725559a506de9b0f6f90b54d981d391c3190e330a2f2925a31f8f0a590"
+      }
+    ],
+    "original_rows_preserved": {
+      "accounts": 55,
+      "aggregate_events": 5,
+      "automatic_evidence": 0,
+      "automatic_facts": 0,
+      "confirmations": 0,
+      "conflicts": 0,
+      "context_applications": 0,
+      "context_associations": 0,
+      "context_identity_epochs": 0,
+      "context_operations": 0,
+      "experience_entries": 0,
+      "experience_history": 0,
+      "experience_index": 0,
+      "experience_lesson_refs": 0,
+      "fact_subjects": 0,
+      "groups": 112,
+      "history": 112,
+      "inbox": 5,
+      "jobs": 51,
+      "knowledge_blocks": 0,
+      "knowledge_content_documents": 0,
+      "knowledge_content_grants": 0,
+      "knowledge_content_operations": 0,
+      "knowledge_content_uploads": 0,
+      "knowledge_documents": 0,
+      "knowledge_imports": 0,
+      "knowledge_index": 0,
+      "knowledge_operations": 0,
+      "knowledge_plans": 0,
+      "knowledge_projects": 0,
+      "knowledge_state_history": 0,
+      "knowledge_states": 0,
+      "knowledge_versions": 0,
+      "lesson_history": 0,
+      "lesson_index": 0,
+      "lessons": 0,
+      "lineage": 177,
+      "memory_batches": 51,
+      "memory_documents": 343,
+      "memory_episode_index": 232,
+      "memory_material_aliases": 5,
+      "memory_materials": 291,
+      "memory_observation_heads": 2,
+      "memory_portraits": 11,
+      "memory_segment_claims": 224,
+      "memory_segment_items": 112,
+      "memory_segments": 51,
+      "memory_source_lifecycle": 164,
+      "memory_summaries": 112,
+      "memory_summary_sources": 2867,
+      "memory_vectors": 343,
+      "metadata": 54,
+      "observation_payloads": 334,
+      "observation_sources": 347,
+      "outbox": 98,
+      "owner_heads": 2,
+      "people": 55,
+      "physical_sources": 10,
+      "profile_approval_authorities": 0,
+      "profile_approvals": 0,
+      "profile_shares": 0,
+      "projections": 107,
+      "qq_alias_events": 345,
+      "qq_aliases": 73,
+      "records": 112,
+      "relationship_commands": 0,
+      "relationship_entries": 0,
+      "relationship_events": 5,
+      "relationship_freezes": 0,
+      "relationship_legacy": 0,
+      "relationship_pairs": 2,
+      "relationship_sources": 2,
+      "requests": 1,
+      "research_note_citations": 0,
+      "research_note_history": 0,
+      "research_note_index": 0,
+      "research_notes": 0,
+      "scopes": 38,
+      "search_index": 111,
+      "source_admissions": 10,
+      "source_observations": 40,
+      "source_writes": 159,
+      "sources": 301,
+      "suppression": 0,
+      "turn_inputs": 5,
+      "write_ledger": 47
+    },
+    "vector_rows": 343,
+    "binary_vector_rows": 343,
+    "indexed_groups": 111,
+    "derived_source_triggers": 0,
+    "schema_markers": {
+      "memory_event_schema": "1",
+      "memory_merge_schema": "1",
+      "memory_partition_schema": "1",
+      "memory_retrieval_schema": "1",
+      "memory_rotation_schema": "1"
+    },
+    "source_instance_preserved": true,
+    "revision_delta": 5,
+    "authority_snapshot_restored": false,
+    "other_domains_migrated": false,
+    "model_calls": 0,
+    "guard_identity_and_reopen": true
+  },
+  "operations": {
+    "stage": "/srv/tianshu-tooling/memory-ui-release-20261029-27674b1d48444542b71ae2af6fc3b66c",
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-r34",
+    "activation": "/srv/tianshu-tooling/memory-ui-release-20261029-27674b1d48444542b71ae2af6fc3b66c/activate.py",
+    "migration": "/srv/tianshu-tooling/memory-ui-release-20261029-27674b1d48444542b71ae2af6fc3b66c/migrate_production_final.py",
+    "rollback": "/srv/tianshu-tooling/memory-ui-release-20261029-27674b1d48444542b71ae2af6fc3b66c/rollback_final.py",
+    "private_backup_directory": "/srv/tianshu-tooling/memory-ui-release-20261029-27674b1d48444542b71ae2af6fc3b66c/memory-domain-backups",
+    "old_image_retained": true,
+    "original_dirty_root_and_worktrees_preserved": true
+  },
+  "resolved_startup_issue": {
+    "cause": "Root-run Store initialization/migration replaced source checkpoint and storage binding marker ownership with UID 0; business UID 10001 could not read mode 0600.",
+    "fix": "Restored only these two files UID/GID to 10001 preserving their exact bytes and mode 0600, verified Store opens with business UID, corrected migration/rollback preservation before Store initialization, rendered fresh r34 guard, restarted same immutable image.",
+    "native_startup_failures": 2,
+    "controlled_container_restarts": 2,
+    "business_uid_probe": {
+      "business_uid_store_open": true,
+      "source_guard_consistent": true,
+      "storage_binding_bytes_unchanged": true,
+      "storage_binding_sha256": "9f7ea6fc37af1d9f04e681daac1c5af1e0d31fca9a09faecc2ee093996d1e1be",
+      "uid": 10001,
+      "gid": 10001,
+      "mode": "0600",
+      "business_host_stopped": true
+    },
+    "receipt": {
+      "status": "r36_restarted_checkpoint_permissions_restored",
+      "id": "28ea3d615d60754cd4697d8b62b0622de3e67736e5c02de294c90ac8e257f5c3",
+      "image": "sha256:8d561e27ef9dca8836205222898f648e131ce882f822aee794a1cabf27ef94aa",
+      "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-r34",
+      "source_guard_bytes_unchanged": true,
+      "storage_binding_bytes_unchanged": true,
+      "business_uid_store_probe": true,
+      "uid": 10001,
+      "gid": 10001,
+      "mode": "0600",
+      "capacity_limits_preserved": true,
+      "started_at": 1793304922.7185955
+    }
+  },
+  "rollback": {
+    "prepared": true,
+    "executed_in_production": false,
+    "isolated_postgresql_verified": true,
+    "procedure": "Stop writes with the original guard, take a new paired backup, rollback_binary to the five-column JSON layout, restore R35 image and exact mounts, render a fresh guard generation, renew only the same startup origin lease. Never restore an old authority snapshot or edit its guard."
+  },
+  "limits": [
+    "Production end-to-end T1 latency including authorised source I/O and actual answer quality not accepted by the synthetic candidate benchmark.",
+    "No independent answer oracle labels; no real QQ or new paid-model acceptance call.",
+    "No invented silent-person material, automatic natural-language event/person inference, historical vector-pair sweep or historical retention rewrite.",
+    "Public 17-owner and facts/episodes budgets remain; more owners than available slots cannot all fit in one bundle.",
+    "Paraphrase duplicate hints become available only after existing asynchronous vector indexing; exact text can use existing vectors immediately.",
+    "Trace defaults off and is module-private through existing local exchange; adapter/auth checks reused, not exposed as a new public console API."
+  ],
+  "evidence_sha256": {
+    "pg-probe.json": "7f1a35fd1cb0171949a8184e1da149a25e82619d25c5866c0cf60c3a21c34182",
+    "image-verification.json": "df995fbd81713bcd7fa29591fb2c19f848f44a75de3f03d3450fcfce10c1f265",
+    "postchecks.json": "3fc586e041b8e1760ef8b72b6c9a65134c174d5328e67c4c85d34f44be038a93",
+    "migrate_production.py": "318ffb031023888e4fa2b81fa6b1f3591a43901091642c1e4c69a9a0e657c8ee",
+    "activate.remote.py": "091eab253b7daebbc323c1715f1326d99d6591ca461159f37acd95e40f5782fc",
+    "recover_permissions.remote.py": "81c38a851863fa0bd1d5a10f939b454a630bd52bd56c35b55fbe242f14364496",
+    "resume-permissions.remote.py": "e361ef6a523f44b9b6c818be0fdfd0cc0920cc25cb0cc83380beff994f6f7a86",
+    "final-recovery.remote.py": "7d5751bc16701b82e4091feaa244073a3efe81de6ee5d64c86c9320b863ca7ac",
+    "rollback-final.remote.py": "c4e3f83c09057edcac99538bb2056e84b5a45cfabeaf845d6bd92f41d53990fa",
+    "binding-permission-fix.json": "eddd20dd5a1fc9b1d60668b0640684c1eaa7c832098d7ee54c7af72119c80ba7"
+  }
+}

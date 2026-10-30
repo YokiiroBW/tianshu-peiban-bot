@@ -1,3 +1,31 @@
+## 2026-10-30 记忆系统优化 R36 已推送部署
+
+用户文档全部必做卡完成，Memory `78b9f91` / Companion `2ed4256` 已推送 main；正式 `2026.10.30-unified-linux-r36`，image `sha256:8d561e27ef9dca8836205222898f648e131ce882f822aee794a1cabf27ef94aa`，其余模块和前端继承 R35。包含二进制向量/多因子保留期、owner 候选/配额/MMR、真实材料轮转、重复提示和明确引用事件投影。可选维度截断与分层模型摘要按条件跳过。
+
+五项 Memory PG 迁移在停写和成对备份后完成，原表原列逐行保持，原 guard 正常推进并重开通过；隔离 PG 回退/再迁移已验。迁移工具引起的 checkpoint/存储绑定文件归属问题已保持原内容修复，工具已补权限保留，业务 UID Store 打开通过。六业务/五观测、TLS 鉴权 ready200/9项、healthy/自动重启0/无OOM；37挂载、1133配置、14非目标容器、r34容量守护及20GiB底线保持。定向验证复用，无全量套件和新增模型/QQ测试；合成候选微基准不代表生产端到端性能或真实回答质量。[发布与限制](memory-optimization-release-2026-10-30.md)、[精确收据](memory-optimization-release-2026-10-30.json)。下方为历史截面。
+
+## 2026-10-30 R35 批量来源与原队列恢复已部署
+
+正式 `2026.10.30-unified-linux-r35`，image `sha256:bb3545d9a9ee7698f99fff35f87eee10834ac315cead71fe77c30075f977d853`，M49df7e5/C9eb19c2/P8c59a8d；保留提示词、生活和观测修复。根因是Platform批量来源证明仍走旧4KiB边界，原20来源集合真实413→200；仅segment/segment_resolve按原256KiB合同接收，单条及其他端点、鉴权/来源数量/绑定不变。定向HTTP5场景、C恢复12节点、P管理7项通过，复用原有效检查。
+
+原16个有job任务15各提交一条、1个旧proposal拒绝保留；另11个原分段均经原请求摘要/actor/CAS/Memory幂等seal核对后取得resumed回执，按原队列分批运行。01:31:08验收抽样时，这11条状态 `{'blocked': 2, 'completed': 3, 'pending': 6}`，各一条账本 3，无重复；pending不当作完成，模型timeout/unknown不重发。材料仅剩2条真实disabled来源暂停，原反复503材料已正常交接。同次抽样Gateway累计请求行 3004，没有模型或QQ测试。
+
+生产healthy/0restart/无OOM，6业务/5观测和原鉴权TLS ready200/9项；37挂载、1133配置、14其他容器、20GiB及r31守护保持。无DDL，56宿主/87前端未变，旧worktree与根索引保留；source_scan_behind仍历史追赶、真实QQ验收仍待用户配置。截图中的chat_not_configured属于独立Chat互动统计接入配置，并非没有Memory话题，本批未改该配置。[精确发布和实际队列结果](observation-memory-recovery-release-2026-10-29.json)。下方为历史截面。
+
+## 2026-10-30 R32 已部署，记忆余项继续定位
+
+当前正式 `2026.10.30-unified-linux-r32`，镜像 `sha256:eb8bc685deab238a925b21961f31251d40087364e894a339143d2b0eee482f5b`，Companion `c05a54167e863de9e8e9a7334b0d8e34a168f763`、Memory `2d98b70`。R30 固定机器位置/字段路径诊断、R31 完整人格和提示词装配补丁、R32 未知写入异常诊断保留已串行推送部署；既有记忆、生活、观测修复全部继承。提示词原180项验证复用，当前装配7项通过；诊断包装先复现再修复，4节点/22子用例通过。
+
+生产 healthy/0restart/无OOM，六业务/五观测和原鉴权TLS ready200/9项通过；37挂载、1133配置、其他14容器、20GiB底线及r28容量守护保持。87前端及56宿主运行文件未变，不重复未变检查。无DDL、额外模型/QQ测试；真实QQ验收仍由用户后续配置。原503、无job建段和旧proposal拒绝仍未全部闭合，unknown未重放、计数未清，诊断上线不等于业务全部恢复。[精确发布与限制](observation-memory-recovery-release-2026-10-29.json)。
+
+下方为历史发布截面。
+
+## 2026-10-30 R29 已发布，剩余记忆故障继续定位
+
+R29 `86ce0487` 已串行推送部署，M959c5a4/C11bd84e/P0fe9875，root观测bcb594a2，87前端及原配置/数据保持。六业务、五观测、九项原鉴权ready200，37挂载/1133配置文件/其他14容器/20GiB floor与守护r25通过。原材料empty invalid_input告警已解除；16原job中10确认恢复，9各提交一条，Gateway10个原自然请求均completed，无重复账本，无额外模型/QQ测试。其余receipt503/无job capture/1个proposal拒绝仍未闭合，不冒称全部恢复。
+
+观测旧200 pending已清，历史位点持续推进，容量/投递积压两告警已解除，source_scan_behind仍追赶。R30诊断增量已部署：复用既有错误响应/语义钩子/原job失败记录保留固定机器位置和字段路径；接受标准、未知提交保护、配置数据及前端不变。[精确发布和限制](observation-memory-recovery-release-2026-10-29.json)。
+
 ## 2026-10-29 角色工作区已部署 R28
 
 用户授权推送部署。Platform `519d5f0` 已合入 TS419 并推送 main，正式镜像 `sha256:6d777fefab004de926bad3cce4f7ba1e581eb76cd5e83077692e0ba13f9d35fa`；保留 R27a Companion `5430300`、Memory/Gateway/宿主及既有配置数据。新版角色侧栏、Web 聊天、生活分类、书架、机器人卡片、角色删除及角色模型分配已部署。
