@@ -1,0 +1,883 @@
+{
+  "schema_version": 1,
+  "collected_at": "2026-10-30T08:25:53.034647+00:00",
+  "database": {
+    "transaction": {
+      "read_only": "on",
+      "isolation": "repeatable read",
+      "snapshot": "27885899:27885899:",
+      "schema": "ts_tianshu_companion_main_0c6bf7a49daf"
+    },
+    "goal_choice": {
+      "all_states": {
+        "unknown": 22,
+        "completed": 30,
+        "failed": 39,
+        "interrupted": 2
+      },
+      "all_success_rate": 0.3225806451612903,
+      "window_hours": 24,
+      "window_states": {
+        "completed": 23,
+        "failed": 18,
+        "interrupted": 2,
+        "unknown": 6
+      },
+      "window_total": 49,
+      "window_success_rate": 0.46938775510204084,
+      "by_actor": [
+        {
+          "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+          "state": "interrupted",
+          "count": 2
+        },
+        {
+          "actor_id": "actor:role-84e36c92a52e40dd8edf50228465bcf9",
+          "state": "completed",
+          "count": 11
+        },
+        {
+          "actor_id": "actor:role-84e36c92a52e40dd8edf50228465bcf9",
+          "state": "unknown",
+          "count": 2
+        },
+        {
+          "actor_id": "actor:role-84e36c92a52e40dd8edf50228465bcf9",
+          "state": "failed",
+          "count": 1
+        },
+        {
+          "actor_id": "actor:household",
+          "state": "failed",
+          "count": 26
+        },
+        {
+          "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+          "state": "failed",
+          "count": 12
+        },
+        {
+          "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+          "state": "unknown",
+          "count": 20
+        },
+        {
+          "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+          "state": "completed",
+          "count": 19
+        }
+      ],
+      "failures": [
+        {
+          "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+          "peer": null,
+          "route": null,
+          "code": "result_unknown",
+          "stage": "application",
+          "operation": null,
+          "count": 1
+        },
+        {
+          "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+          "peer": "unknown",
+          "route": null,
+          "code": "forbidden",
+          "stage": "preparation",
+          "operation": "query",
+          "count": 1
+        },
+        {
+          "actor_id": "actor:role-84e36c92a52e40dd8edf50228465bcf9",
+          "peer": null,
+          "route": null,
+          "code": "result_unknown",
+          "stage": "application",
+          "operation": null,
+          "count": 1
+        },
+        {
+          "actor_id": "actor:household",
+          "peer": null,
+          "route": null,
+          "code": null,
+          "stage": null,
+          "operation": null,
+          "count": 14
+        },
+        {
+          "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+          "peer": "gateway",
+          "route": "/v1/chat/completions",
+          "code": "dependency_unavailable",
+          "stage": "model",
+          "operation": "stream",
+          "count": 2
+        },
+        {
+          "actor_id": "actor:role-84e36c92a52e40dd8edf50228465bcf9",
+          "peer": null,
+          "route": null,
+          "code": null,
+          "stage": null,
+          "operation": null,
+          "count": 1
+        },
+        {
+          "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+          "peer": "gateway",
+          "route": null,
+          "code": "dependency_unavailable",
+          "stage": "model",
+          "operation": "stream",
+          "count": 3
+        },
+        {
+          "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+          "peer": null,
+          "route": null,
+          "code": null,
+          "stage": null,
+          "operation": null,
+          "count": 20
+        },
+        {
+          "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+          "peer": "memory",
+          "route": "/internal/v1/actor-self-memory/operate",
+          "code": "internal_error",
+          "stage": "preparation",
+          "operation": "query",
+          "count": 1
+        },
+        {
+          "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+          "peer": null,
+          "route": null,
+          "code": "invalid_input",
+          "stage": "model",
+          "operation": null,
+          "count": 6
+        },
+        {
+          "actor_id": "actor:household",
+          "peer": "unknown",
+          "route": null,
+          "code": "forbidden",
+          "stage": "preparation",
+          "operation": "query",
+          "count": 12
+        },
+        {
+          "actor_id": "actor:role-84e36c92a52e40dd8edf50228465bcf9",
+          "peer": "gateway",
+          "route": "/v1/chat/completions",
+          "code": "dependency_unavailable",
+          "stage": "model",
+          "operation": "stream",
+          "count": 1
+        }
+      ]
+    },
+    "activities": {
+      "states": {
+        "completed": 3,
+        "cancelled": 2,
+        "dormant": 7
+      },
+      "paused_null_next_due": 0,
+      "paused_null_rate": null,
+      "oldest_paused_null_updated_at": null,
+      "stalled_over_24h": 0
+    },
+    "actors": [
+      {
+        "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+        "cursor": "1:1:2026-10-30:840",
+        "changed_at": "1793348332.2384076",
+        "mood": "calm",
+        "interest_count": 0,
+        "life_enabled": "true",
+        "autonomous": "true"
+      },
+      {
+        "actor_id": "actor:role-84e36c92a52e40dd8edf50228465bcf9",
+        "cursor": "1:1:2026-10-30:840",
+        "changed_at": "1793340000.7238257",
+        "mood": "calm",
+        "interest_count": 3,
+        "life_enabled": "true",
+        "autonomous": "true"
+      }
+    ],
+    "diaries": {
+      "states": {
+        "skipped": 51,
+        "failed": 2,
+        "material_overflow": 1,
+        "unavailable": 11
+      },
+      "days": [
+        {
+          "day": "2026-10-30",
+          "state": "unavailable",
+          "count": 2
+        },
+        {
+          "day": "2026-10-29",
+          "state": "failed",
+          "count": 2
+        },
+        {
+          "day": "2026-10-29",
+          "state": "skipped",
+          "count": 1
+        },
+        {
+          "day": "2026-10-28",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-27",
+          "state": "skipped",
+          "count": 3
+        },
+        {
+          "day": "2026-10-26",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-25",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-24",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-23",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-22",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-21",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-20",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-19",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-18",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-17",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-16",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-15",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-14",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-13",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-12",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-11",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-10",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-09",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-08",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-07",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-06",
+          "state": "skipped",
+          "count": 2
+        },
+        {
+          "day": "2026-10-05",
+          "state": "skipped",
+          "count": 1
+        },
+        {
+          "day": "2026-10-05",
+          "state": "unavailable",
+          "count": 1
+        },
+        {
+          "day": "2026-10-04",
+          "state": "material_overflow",
+          "count": 1
+        },
+        {
+          "day": "2026-10-04",
+          "state": "unavailable",
+          "count": 1
+        },
+        {
+          "day": "2026-10-03",
+          "state": "unavailable",
+          "count": 2
+        },
+        {
+          "day": "2026-10-02",
+          "state": "skipped",
+          "count": 1
+        },
+        {
+          "day": "2026-10-02",
+          "state": "unavailable",
+          "count": 1
+        },
+        {
+          "day": "2026-10-01",
+          "state": "unavailable",
+          "count": 1
+        },
+        {
+          "day": "2026-09-30",
+          "state": "unavailable",
+          "count": 1
+        },
+        {
+          "day": "2026-09-29",
+          "state": "unavailable",
+          "count": 1
+        },
+        {
+          "day": "2026-09-28",
+          "state": "unavailable",
+          "count": 1
+        },
+        {
+          "day": "2026-09-27",
+          "state": "skipped",
+          "count": 1
+        }
+      ]
+    },
+    "proactive": {
+      "table_rows": {
+        "proactive_reminders": 0,
+        "proactive_candidates": 3,
+        "proactive_attempts": 1,
+        "proactive_goals": 0,
+        "proactive_motives": 3,
+        "proactive_quota": 1,
+        "proactive_subscriptions": 1,
+        "proactive_templates": 0
+      },
+      "all_tables_empty": false,
+      "event_markers": 1
+    },
+    "concerns": {
+      "total": 10,
+      "autonomy_prefixed": 10,
+      "null_next_due": 8
+    },
+    "events": {
+      "total": 358,
+      "by_kind": {
+        "stage_experience": 17,
+        "schedule_reconciliation": 29,
+        "reading_progress": 60,
+        "image_completed": 1,
+        "activity_boundary": 251
+      }
+    },
+    "generation": [
+      {
+        "scope": "life:generation:plan",
+        "state": "completed",
+        "count": 58
+      },
+      {
+        "scope": "life:generation:plan",
+        "state": "failed",
+        "count": 1
+      },
+      {
+        "scope": "life:generation:plan",
+        "state": "interrupted",
+        "count": 7
+      },
+      {
+        "scope": "life:generation:plan",
+        "state": "superseded",
+        "count": 1
+      },
+      {
+        "scope": "life:generation:stage",
+        "state": "completed",
+        "count": 17
+      },
+      {
+        "scope": "life:generation:stage",
+        "state": "superseded",
+        "count": 1
+      }
+    ],
+    "generation_failures": [
+      {
+        "scope": "life:generation:plan",
+        "peer": null,
+        "route": null,
+        "code": null,
+        "stage": null,
+        "count": 8
+      },
+      {
+        "scope": "life:generation:plan",
+        "peer": "gateway",
+        "route": "/v1/chat/completions",
+        "code": "dependency_unavailable",
+        "stage": "submitted",
+        "count": 1
+      },
+      {
+        "scope": "life:generation:stage",
+        "peer": null,
+        "route": null,
+        "code": null,
+        "stage": null,
+        "count": 1
+      }
+    ],
+    "receipt_usage": {
+      "generation": [
+        {
+          "scope": "life:generation:plan",
+          "measured_receipts": 58,
+          "input_tokens": 163481,
+          "output_tokens": 73943
+        },
+        {
+          "scope": "life:generation:stage",
+          "measured_receipts": 17,
+          "input_tokens": 53998,
+          "output_tokens": 7578
+        }
+      ],
+      "goal_choice": {
+        "measured_receipts": 32,
+        "mean_input_tokens": 13244.3125
+      },
+      "basis": "Persisted original receipts only; absent usage remains unknown, never zero."
+    },
+    "queries": [
+      {
+        "name": "goal_choice_all",
+        "sql": "SELECT status, count(*) FROM metadata WHERE id LIKE 'goal-choice:%' GROUP BY status",
+        "parameters": []
+      },
+      {
+        "name": "goal_choice_24h",
+        "sql": "SELECT status, count(*) FROM metadata WHERE id LIKE 'goal-choice:%%' AND (body::jsonb->>'created_at')::double precision >= %s GROUP BY status",
+        "parameters": [
+          1793262353.0346465
+        ]
+      },
+      {
+        "name": "goal_choice_by_actor",
+        "sql": "SELECT body::jsonb->>'actor_id', status, count(*) FROM metadata WHERE id LIKE 'goal-choice:%' GROUP BY 1, 2",
+        "parameters": []
+      },
+      {
+        "name": "goal_choice_failures",
+        "sql": "SELECT body::jsonb->>'actor_id',\n        COALESCE(body::jsonb#>>'{last_failure,peer}',body::jsonb#>>'{failure_diagnostic,peer}'),\n        COALESCE(body::jsonb#>>'{last_failure,route}',body::jsonb#>>'{failure_diagnostic,route}'),\n        COALESCE(body::jsonb#>>'{last_failure,code}',body::jsonb#>>'{failure_diagnostic,code}'),\n        COALESCE(body::jsonb#>>'{last_failure,stage}',body::jsonb#>>'{failure_diagnostic,stage}'),\n        COALESCE(body::jsonb#>>'{last_failure,operation}',body::jsonb#>>'{failure_diagnostic,operation}'),\n        count(*) FROM metadata WHERE id LIKE 'goal-choice:%' AND status <> 'completed'\n        GROUP BY 1, 2, 3, 4, 5, 6",
+        "parameters": []
+      },
+      {
+        "name": "activities",
+        "sql": "SELECT status, count(*) FROM life_activities GROUP BY status",
+        "parameters": []
+      },
+      {
+        "name": "paused_null_due",
+        "sql": "SELECT count(*), min((body::jsonb->>'updated_at')::double precision) FROM life_activities WHERE status='paused' AND body::jsonb->>'next_due_at' IS NULL",
+        "parameters": []
+      },
+      {
+        "name": "activity_stalls",
+        "sql": "SELECT count(*) FROM life_activities WHERE status IN ('paused','dormant') AND COALESCE((body::jsonb->>'dormant_since')::double precision, (body::jsonb->>'updated_at')::double precision, (body::jsonb->>'created_at')::double precision) < %s",
+        "parameters": [
+          1793262353.0346465
+        ]
+      },
+      {
+        "name": "actors",
+        "sql": "SELECT id, body::jsonb->>'cursor', body::jsonb->>'changed_at', body::jsonb->>'mood', jsonb_array_length(COALESCE(body::jsonb->'life_interests','[]'::jsonb)), body::jsonb->>'life_enabled', body::jsonb->>'autonomous' FROM life_actors ORDER BY id",
+        "parameters": []
+      },
+      {
+        "name": "diaries",
+        "sql": "SELECT status, count(*) FROM life_diaries GROUP BY status",
+        "parameters": []
+      },
+      {
+        "name": "diary_days",
+        "sql": "SELECT body::jsonb->>'day', status, count(*) FROM life_diaries GROUP BY 1, 2 ORDER BY 1 DESC LIMIT 120",
+        "parameters": []
+      },
+      {
+        "name": "concerns",
+        "sql": "SELECT count(*), count(*) FILTER (WHERE id LIKE 'autonomy:%'), count(*) FILTER (WHERE body::jsonb->>'next_due_at' IS NULL) FROM life_concerns",
+        "parameters": []
+      },
+      {
+        "name": "events",
+        "sql": "SELECT body::jsonb->>'kind', count(*) FROM life_events GROUP BY 1",
+        "parameters": []
+      },
+      {
+        "name": "proactive_reminders",
+        "sql": "SELECT count(*) FROM proactive_reminders",
+        "parameters": []
+      },
+      {
+        "name": "proactive_candidates",
+        "sql": "SELECT count(*) FROM proactive_candidates",
+        "parameters": []
+      },
+      {
+        "name": "proactive_attempts",
+        "sql": "SELECT count(*) FROM proactive_attempts",
+        "parameters": []
+      },
+      {
+        "name": "proactive_goals",
+        "sql": "SELECT count(*) FROM proactive_goals",
+        "parameters": []
+      },
+      {
+        "name": "proactive_motives",
+        "sql": "SELECT count(*) FROM proactive_motives",
+        "parameters": []
+      },
+      {
+        "name": "proactive_quota",
+        "sql": "SELECT count(*) FROM proactive_quota",
+        "parameters": []
+      },
+      {
+        "name": "proactive_subscriptions",
+        "sql": "SELECT count(*) FROM proactive_subscriptions",
+        "parameters": []
+      },
+      {
+        "name": "proactive_templates",
+        "sql": "SELECT count(*) FROM proactive_templates",
+        "parameters": []
+      },
+      {
+        "name": "daily_generation",
+        "sql": "SELECT conversation_id, status, count(*) FROM metadata WHERE conversation_id LIKE 'life:generation:%' GROUP BY 1, 2",
+        "parameters": []
+      },
+      {
+        "name": "daily_generation_failures",
+        "sql": "SELECT conversation_id, body::jsonb#>>'{failure_diagnostic,peer}', body::jsonb#>>'{failure_diagnostic,route}', body::jsonb#>>'{failure_diagnostic,code}', body::jsonb#>>'{failure_diagnostic,stage}', count(*) FROM metadata WHERE conversation_id LIKE 'life:generation:%' AND status <> 'completed' GROUP BY 1, 2, 3, 4, 5",
+        "parameters": []
+      },
+      {
+        "name": "generation_receipt_usage",
+        "sql": "SELECT conversation_id, count(*) FILTER (WHERE body::jsonb#>>'{receipt,usage,input_tokens}' IS NOT NULL), sum((body::jsonb#>>'{receipt,usage,input_tokens}')::bigint), sum((body::jsonb#>>'{receipt,usage,output_tokens}')::bigint) FROM metadata WHERE conversation_id LIKE 'life:generation:%' GROUP BY 1",
+        "parameters": []
+      },
+      {
+        "name": "choice_receipt_usage",
+        "sql": "SELECT count(*) FILTER (WHERE body::jsonb#>>'{receipt,usage,input_tokens}' IS NOT NULL), avg((body::jsonb#>>'{receipt,usage,input_tokens}')::bigint) FROM metadata WHERE id LIKE 'goal-choice:%'",
+        "parameters": []
+      },
+      {
+        "name": "proactive_events",
+        "sql": "SELECT count(*) FROM metadata WHERE conversation_id='proactive:event'",
+        "parameters": []
+      }
+    ]
+  },
+  "collection_finished_at": "2026-10-30T08:25:53.478431+00:00",
+  "logs": {
+    "companion": {
+      "window_minutes": 5,
+      "interval_start": 1793348453.0346465,
+      "interval_end": 1793348753.0346465,
+      "files": [
+        "companion.jsonl.40",
+        "companion.jsonl.39"
+      ],
+      "bytes_read": 3400768,
+      "within_byte_budget": true,
+      "malformed_lines": 0,
+      "first_event": 1793348453.19,
+      "last_event": 1793348752.64,
+      "event_counts": {
+        "runtime.started": 1,
+        "runtime.background_work": 391,
+        "peer.call.started": 188,
+        "service.request.started": 570,
+        "service.request.finished": 570,
+        "peer.call.finished": 187,
+        "memory.phase.started": 47,
+        "memory.phase.finished": 46
+      },
+      "errors": [
+        {
+          "event": "peer.call.finished",
+          "code": "cancelled",
+          "count": 3
+        }
+      ],
+      "auth_rejected_per_minute": 0.0,
+      "background_failure_per_work": 0.0,
+      "background_failure_per_pass": 0.0,
+      "background_work_per_minute": 78.2,
+      "idle_tick_per_minute": null,
+      "idle_tick_note": "Idle passes are intentionally not logged; work events do not prove idle ticks.",
+      "peer_finished": 187,
+      "peer_attributed": 182,
+      "attribution_rate": 0.9732620320855615,
+      "failure_traces": [
+        {
+          "timestamp": "2026-10-30T08:24:11.568Z",
+          "correlation_id": "ebaca37a38dd4922fc156bc55c41cb77",
+          "error_code": "cancelled",
+          "target": "gateway",
+          "route": "/v1/chat/completions",
+          "principal": "sha256:daa02ce3da41bc19de7610315bbdcfc4a962122d57ccf1062a18fc51c77e7be8",
+          "http_status": 200,
+          "attempt": 1
+        },
+        {
+          "timestamp": "2026-10-30T08:25:11.444Z",
+          "correlation_id": "c14d0a5098cc1aa35da3276b67526388",
+          "error_code": "cancelled",
+          "target": "gateway",
+          "route": "/v1/chat/completions",
+          "principal": "sha256:daa02ce3da41bc19de7610315bbdcfc4a962122d57ccf1062a18fc51c77e7be8",
+          "http_status": 200,
+          "attempt": 1
+        },
+        {
+          "timestamp": "2026-10-30T08:21:54.694Z",
+          "correlation_id": "6c8462fb6014f52b84be1b771b83b110",
+          "error_code": "cancelled",
+          "target": "gateway",
+          "route": "/v1/chat/completions",
+          "principal": "sha256:daa02ce3da41bc19de7610315bbdcfc4a962122d57ccf1062a18fc51c77e7be8",
+          "http_status": 200,
+          "attempt": 1
+        }
+      ]
+    },
+    "platform": {
+      "window_minutes": 5,
+      "interval_start": 1793348453.0346465,
+      "interval_end": 1793348753.0346465,
+      "files": [
+        "platform-4f97caac-3bc3-4b28-9465-2ac1c3758140-0000.jsonl",
+        "platform-551a3251-8f9c-4cf0-b3d8-4ca9abfa3fff-0000.jsonl"
+      ],
+      "bytes_read": 2787884,
+      "within_byte_budget": true,
+      "malformed_lines": 0,
+      "first_event": 1793348453.155,
+      "last_event": 1793348752.99,
+      "event_counts": {
+        "runtime.starting": 1,
+        "runtime.started": 1,
+        "http.request.started": 716,
+        "http.request.finished": 716,
+        "http.auth.succeeded": 715
+      },
+      "errors": [],
+      "auth_rejected_per_minute": 0.0,
+      "background_failure_per_work": null,
+      "background_failure_per_pass": null,
+      "background_work_per_minute": 0.0,
+      "idle_tick_per_minute": null,
+      "idle_tick_note": "Idle passes are intentionally not logged; work events do not prove idle ticks.",
+      "peer_finished": 0,
+      "peer_attributed": 0,
+      "attribution_rate": null,
+      "failure_traces": []
+    }
+  },
+  "background_workers": {
+    "status": "measured",
+    "source": "native_owner_worker_health",
+    "observed_at": 1793348749.1231732,
+    "diagnostic_instance": "b177cf2a-681e-4ca6-a4c9-d0978f600e6b",
+    "workers": {
+      "core.tick": {
+        "window_start": 1793348689.1811557,
+        "window_end": 1793348749.1231732,
+        "window_seconds": 59.94201748003252,
+        "counts": {
+          "worked": 3,
+          "idle": 783,
+          "failed": 0,
+          "unmeasured": 0
+        },
+        "idle_tick_per_minute": 783.7574038219461
+      },
+      "conversation_window.work": {
+        "window_start": 1793348689.1811557,
+        "window_end": 1793348749.1231732,
+        "window_seconds": 59.94201748003252,
+        "counts": {
+          "worked": 29,
+          "idle": 0,
+          "failed": 0,
+          "unmeasured": 0
+        },
+        "idle_tick_per_minute": 0.0
+      },
+      "memory.work": {
+        "window_start": 1793348689.1811557,
+        "window_end": 1793348749.1231732,
+        "window_seconds": 59.94201748003252,
+        "counts": {
+          "worked": 0,
+          "idle": 54,
+          "failed": 0,
+          "unmeasured": 0
+        },
+        "idle_tick_per_minute": 54.052234746341114
+      },
+      "life.work": {
+        "window_start": 1793348689.1811557,
+        "window_end": 1793348749.1231732,
+        "window_seconds": 59.94201748003252,
+        "counts": {
+          "worked": 0,
+          "idle": 29,
+          "failed": 0,
+          "unmeasured": 0
+        },
+        "idle_tick_per_minute": 29.028051993405413
+      },
+      "images.work": {
+        "window_start": 1793348689.1811557,
+        "window_end": 1793348749.1231732,
+        "window_seconds": 59.94201748003252,
+        "counts": {
+          "worked": 0,
+          "idle": 29,
+          "failed": 0,
+          "unmeasured": 0
+        },
+        "idle_tick_per_minute": 29.028051993405413
+      },
+      "writing.work": {
+        "window_start": 1793348689.1811557,
+        "window_end": 1793348749.1231732,
+        "window_seconds": 59.94201748003252,
+        "counts": {
+          "worked": 0,
+          "idle": 12,
+          "failed": 0,
+          "unmeasured": 0
+        },
+        "idle_tick_per_minute": 12.011607721409137
+      },
+      "proactive.work": {
+        "window_start": 1793348689.1811557,
+        "window_end": 1793348749.1231732,
+        "window_seconds": 59.94201748003252,
+        "counts": {
+          "worked": 29,
+          "idle": 0,
+          "failed": 0,
+          "unmeasured": 0
+        },
+        "idle_tick_per_minute": 0.0
+      },
+      "direct.work": {
+        "window_start": 1793348689.1811557,
+        "window_end": 1793348749.1231732,
+        "window_seconds": 59.94201748003252,
+        "counts": {
+          "worked": 0,
+          "idle": 111,
+          "failed": 0,
+          "unmeasured": 0
+        },
+        "idle_tick_per_minute": 111.10737142303451
+      }
+    },
+    "counts": {
+      "worked": 61,
+      "idle": 1018,
+      "failed": 0,
+      "unmeasured": 0
+    },
+    "idle_tick_per_minute": 1018.9847216995418,
+    "failure_per_pass": 0.0,
+    "basis": "Completed loop passes only; ephemeral counters, no business writes or idle log events. Each worker has its own explicit rolling interval."
+  },
+  "limitations": [
+    "All metric reads occur within one read-only PostgreSQL transaction lifetime. File logs and owner diagnostics are separate observations, not PostgreSQL-atomic resources.",
+    "Idle ticks come only from the supplied live owner projection; absent or stale metrics stay unknown. Persisted work logs are not idle ticks.",
+    "Historical all-attempt rates and the 24-hour decision rate are reported separately."
+  ],
+  "runtime": {
+    "image": "sha256:f71edb94b2b7383c2c796fba9406a3b538b2d86c46fab9bc70c500a97de5c8f3",
+    "container": "fd4a69c2e8d5c1a691e2414fdda0680ffd3e179aeca9cc605b2efc58e9da6d92",
+    "health": "healthy",
+    "restarts": 0
+  }
+}

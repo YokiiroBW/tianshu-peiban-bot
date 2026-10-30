@@ -1,0 +1,453 @@
+{
+  "release": "2026.10.30-unified-linux-r46",
+  "status": "deployed",
+  "whole_goal_complete": false,
+  "image": "sha256:f71edb94b2b7383c2c796fba9406a3b538b2d86c46fab9bc70c500a97de5c8f3",
+  "container": "fd4a69c2e8d5c1a691e2414fdda0680ffd3e179aeca9cc605b2efc58e9da6d92",
+  "source_commits": {
+    "platform": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+    "companion": "042c537f906ea6f39cd09e3ff220787f00736c9d",
+    "memory": "3aee6394fda1ea6f8bf0ed0644a8fafdd5bc4933",
+    "gateway": "ed631d8a6f26890628a9df833792210e9a09e31c",
+    "application": "f834763c967afb3baae40cc34e970064428db643",
+    "platform_frontend": "7f5e837593c8119e8c80e40c7f498314b730306e"
+  },
+  "changes": [
+    "R45: bounded owner worker projection and one read-only baseline transaction lifetime; explicit conversation-window progress",
+    "R46: per-pass storage-change baseline instead of global cumulative total; wire direct.work into existing observer"
+  ],
+  "validation": {
+    "r45_companion_targeted_passed": 22,
+    "r46_counter_targeted_passed": 8,
+    "host_targeted_passed": 18,
+    "host_optional_gateway_test_skipped": 1,
+    "host_subtests_passed": 29,
+    "unchanged_results_reused": true,
+    "ruff_and_format_and_diff": true,
+    "full_suite": false,
+    "model_or_qq_test_requests": 0
+  },
+  "production_checks": {
+    "health": "healthy",
+    "restarts": 0,
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "tls_ca_and_hostname_verified": true,
+    "mounts_preserved": 37,
+    "non_target_containers_preserved": 14,
+    "config_files_preserved": 1167,
+    "configuration_changed": [
+      "private/gateway.env"
+    ],
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r46",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_free_bytes": 50196324352,
+    "completed_at": 1793348752.0145988
+  },
+  "old_owner_drain": {
+    "systemctl_returncode": 0,
+    "elapsed_seconds": 124.32344174385071,
+    "old_finished_at": "2026-10-30T08:22:24.32581145Z",
+    "old_exit_code": 0,
+    "old_restart": "no"
+  },
+  "image_verification": {
+    "ok": true,
+    "payload_files": {
+      "companion": 123
+    },
+    "application_files": 56,
+    "frontend_files": 87,
+    "business_uid_imports_and_public_modes": true,
+    "status": "exact_per_pass_progress_image_verified",
+    "image": "sha256:f71edb94b2b7383c2c796fba9406a3b538b2d86c46fab9bc70c500a97de5c8f3",
+    "parent_image": "sha256:a19de6672f375d4054727660be0d186db56ed0698fbae7cc77cd21886e25ed34",
+    "version": "2026.10.30-unified-linux-r46",
+    "production_mounts": 0,
+    "external_calls": 0,
+    "payload_collector_hash_verified": true,
+    "application_delta_from_R44": [
+      "deploy/single_container/applications.py",
+      "deploy/single_container/host.py"
+    ],
+    "r46_changed_installed_files": [
+      "tianshu_companion/core.py"
+    ]
+  },
+  "pc01": {
+    "status": "verified_production",
+    "whole_card_accepted": true,
+    "attribution": {
+      "at": 1793348752.8162382,
+      "consecutive_existing_completions": 100,
+      "attributed": 98,
+      "threshold": 90,
+      "accepted": true,
+      "records_in_window": 142,
+      "window_start": 1793348551.19231,
+      "within_byte_budget": true,
+      "malformed_lines": 0,
+      "new_business_requests": 0
+    },
+    "baseline_snapshot": "proactive-companion-baseline-r46-2026-10-30.json",
+    "transaction": {
+      "read_only": "on",
+      "isolation": "repeatable read",
+      "snapshot": "27885899:27885899:",
+      "schema": "ts_tianshu_companion_main_0c6bf7a49daf"
+    },
+    "all_reads_inside_one_read_only_transaction_lifetime": true,
+    "filesystem_and_pg_globally_atomic": false,
+    "live_workers": {
+      "status": "measured",
+      "source": "native_owner_worker_health",
+      "observed_at": 1793348749.1231732,
+      "diagnostic_instance": "b177cf2a-681e-4ca6-a4c9-d0978f600e6b",
+      "workers": {
+        "core.tick": {
+          "window_start": 1793348689.1811557,
+          "window_end": 1793348749.1231732,
+          "window_seconds": 59.94201748003252,
+          "counts": {
+            "worked": 3,
+            "idle": 783,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 783.7574038219461
+        },
+        "conversation_window.work": {
+          "window_start": 1793348689.1811557,
+          "window_end": 1793348749.1231732,
+          "window_seconds": 59.94201748003252,
+          "counts": {
+            "worked": 29,
+            "idle": 0,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 0.0
+        },
+        "memory.work": {
+          "window_start": 1793348689.1811557,
+          "window_end": 1793348749.1231732,
+          "window_seconds": 59.94201748003252,
+          "counts": {
+            "worked": 0,
+            "idle": 54,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 54.052234746341114
+        },
+        "life.work": {
+          "window_start": 1793348689.1811557,
+          "window_end": 1793348749.1231732,
+          "window_seconds": 59.94201748003252,
+          "counts": {
+            "worked": 0,
+            "idle": 29,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 29.028051993405413
+        },
+        "images.work": {
+          "window_start": 1793348689.1811557,
+          "window_end": 1793348749.1231732,
+          "window_seconds": 59.94201748003252,
+          "counts": {
+            "worked": 0,
+            "idle": 29,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 29.028051993405413
+        },
+        "writing.work": {
+          "window_start": 1793348689.1811557,
+          "window_end": 1793348749.1231732,
+          "window_seconds": 59.94201748003252,
+          "counts": {
+            "worked": 0,
+            "idle": 12,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 12.011607721409137
+        },
+        "proactive.work": {
+          "window_start": 1793348689.1811557,
+          "window_end": 1793348749.1231732,
+          "window_seconds": 59.94201748003252,
+          "counts": {
+            "worked": 29,
+            "idle": 0,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 0.0
+        },
+        "direct.work": {
+          "window_start": 1793348689.1811557,
+          "window_end": 1793348749.1231732,
+          "window_seconds": 59.94201748003252,
+          "counts": {
+            "worked": 0,
+            "idle": 111,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 111.10737142303451
+        }
+      },
+      "counts": {
+        "worked": 61,
+        "idle": 1018,
+        "failed": 0,
+        "unmeasured": 0
+      },
+      "idle_tick_per_minute": 1018.9847216995418,
+      "failure_per_pass": 0.0,
+      "basis": "Completed loop passes only; ephemeral counters, no business writes or idle log events. Each worker has its own explicit rolling interval."
+    },
+    "native_read_only_cli": [
+      "docker",
+      "exec",
+      "--user",
+      "10001:10001",
+      "tianshu-unified-tianshu-1",
+      "/opt/tianshu-venv/bin/python",
+      "-B",
+      "/opt/tianshu/distribution/proactive_baseline.py",
+      "--settings",
+      "/config/modules/companion/settings.json",
+      "--runtime-state",
+      "/run/tianshu/host/business-host.json",
+      "--companion-logs",
+      "/data/logs/companion",
+      "--platform-logs",
+      "/data/logs/platform",
+      "--log-minutes",
+      "5"
+    ]
+  },
+  "metrics_scope": "Loop progress signals: existing observed storage writes or an explicit boolean. Async jobs can outlive a pass. These counts are not model executions or completed business operations, and are not comparable with the old unscoped 110/minute figure.",
+  "pc02_fixed_original_cohort": {
+    "at": 1793348753.0575213,
+    "start": 1793326100.1223843,
+    "planned_end": 1793412500.1223843,
+    "observed_until": 1793348753.0575213,
+    "complete_24h": false,
+    "states": {
+      "completed": 14,
+      "failed": 3,
+      "interrupted": 1,
+      "unknown": 4
+    },
+    "total": 22,
+    "success_rate": 0.6363636363636364,
+    "query": "SELECT status,count(*) FROM metadata WHERE id LIKE 'goal-choice:%%' AND (body::jsonb->>'created_at')::double precision >= %s AND (body::jsonb->>'created_at')::double precision < %s GROUP BY status",
+    "parameters": [
+      1793326100.1223843,
+      1793348753.0575213
+    ],
+    "transaction_read_only": "on",
+    "drafts_by_actor_day": []
+  },
+  "pc06_real_draft_rows": 0,
+  "pc07": "Original real QQ, idempotence and unanswered suppression acceptance retained; no additional messages requested or sent by these checks.",
+  "schema_migration": false,
+  "new_permissions": 0,
+  "business_policy_changes": false,
+  "model_or_timeout_changes": false,
+  "rollback": "/srv/tianshu-tooling/proactive-companion-r46-6a149d65551a44798be207ee3f21035b/rollback-r46-to-r45/rollback.py",
+  "historical_r45": {
+    "release": "2026.10.30-unified-linux-r45",
+    "image": "sha256:a19de6672f375d4054727660be0d186db56ed0698fbae7cc77cd21886e25ed34",
+    "container": "a279a98affe7a4ef9d1426ada9b89088755c819c402c5c063100637a87df6903",
+    "source_commits": {
+      "platform": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+      "companion": "a97ab6a472a8a5e43944966370b19ce4149d8fa9",
+      "memory": "3aee6394fda1ea6f8bf0ed0644a8fafdd5bc4933",
+      "gateway": "ed631d8a6f26890628a9df833792210e9a09e31c",
+      "application": "f834763c967afb3baae40cc34e970064428db643",
+      "platform_frontend": "7f5e837593c8119e8c80e40c7f498314b730306e"
+    },
+    "production_checks": {
+      "health": "healthy",
+      "restarts": 0,
+      "modules": {
+        "companion": "ready",
+        "gateway": "ready",
+        "knowledge": "ready",
+        "memory": "ready",
+        "onebot": "ready",
+        "platform": "ready"
+      },
+      "observations": {
+        "obs-grafana": "ready",
+        "obs-guard": "ready",
+        "obs-loki": "ready",
+        "obs-prometheus": "ready",
+        "obs-vector": "ready"
+      },
+      "authenticated_ready": 200,
+      "ready_check_count": 9,
+      "tls_ca_and_hostname_verified": true,
+      "mounts_preserved": 37,
+      "non_target_containers_preserved": 14,
+      "config_files_preserved": 1167,
+      "configuration_changed": [
+        "private/gateway.env"
+      ],
+      "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r45",
+      "capacity_floor_bytes": 21474836480,
+      "capacity_free_bytes": 50208182272,
+      "completed_at": 1793347899.7099063
+    },
+    "pc01_whole_card_accepted": false,
+    "limitation": "Initial raw worker observations exposed an inherited false-work counter; preserved as history and corrected in R46.",
+    "raw_worker_observation": {
+      "status": "measured",
+      "source": "native_owner_worker_health",
+      "observed_at": 1793347929.540624,
+      "diagnostic_instance": "256302e2-7fad-4f7d-bebb-eaec8cd70531",
+      "workers": {
+        "core.tick": {
+          "window_start": 1793347870.1811554,
+          "window_end": 1793347929.540624,
+          "window_seconds": 59.35946852294728,
+          "counts": {
+            "worked": 0,
+            "idle": 863,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 872.3123924194638
+        },
+        "conversation_window.work": {
+          "window_start": 1793347870.1811554,
+          "window_end": 1793347929.540624,
+          "window_seconds": 59.35946852294728,
+          "counts": {
+            "worked": 29,
+            "idle": 0,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 0.0
+        },
+        "memory.work": {
+          "window_start": 1793347870.1811554,
+          "window_end": 1793347929.540624,
+          "window_seconds": 59.35946852294728,
+          "counts": {
+            "worked": 0,
+            "idle": 58,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 58.62586183120383
+        },
+        "life.work": {
+          "window_start": 1793347870.1811554,
+          "window_end": 1793347929.540624,
+          "window_seconds": 59.35946852294728,
+          "counts": {
+            "worked": 29,
+            "idle": 0,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 0.0
+        },
+        "images.work": {
+          "window_start": 1793347870.1811554,
+          "window_end": 1793347929.540624,
+          "window_seconds": 59.35946852294728,
+          "counts": {
+            "worked": 29,
+            "idle": 0,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 0.0
+        },
+        "writing.work": {
+          "window_start": 1793347870.1811554,
+          "window_end": 1793347929.540624,
+          "window_seconds": 59.35946852294728,
+          "counts": {
+            "worked": 12,
+            "idle": 0,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 0.0
+        },
+        "proactive.work": {
+          "window_start": 1793347870.1811554,
+          "window_end": 1793347929.540624,
+          "window_seconds": 59.35946852294728,
+          "counts": {
+            "worked": 29,
+            "idle": 0,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 0.0
+        },
+        "direct.work": {
+          "window_start": 1793347870.1811554,
+          "window_end": 1793347929.540624,
+          "window_seconds": 59.35946852294728,
+          "counts": {
+            "worked": 0,
+            "idle": 112,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 113.20856077749704
+        }
+      },
+      "counts": {
+        "worked": 128,
+        "idle": 1033,
+        "failed": 0,
+        "unmeasured": 0
+      },
+      "idle_tick_per_minute": 1044.1468150281646,
+      "failure_per_pass": 0.0,
+      "basis": "Completed loop passes only; ephemeral counters, no business writes or idle log events. Each worker has its own explicit rolling interval."
+    }
+  },
+  "unverified": [
+    "Historical missing failure fields/logs cannot be reconstructed.",
+    "A worker interval is not proof of diary output or long-term life quality.",
+    "PC02 original full 24h/80% and PC06 three real consecutive diary dates remain open; W1 incomplete and W3 not released."
+  ],
+  "pc07_after_R46_read_only": {
+    "at": 1793348826.1727178,
+    "sent_proactive_attempts": 1,
+    "final_proactive_native_messages": 1,
+    "original_unknown_preserved": true,
+    "observer_expired_without_expression_or_delivery": true,
+    "new_test_messages": 0
+  }
+}
