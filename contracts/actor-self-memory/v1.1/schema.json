@@ -1,0 +1,3659 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.tianshu.invalid/actor-self-memory/v1.1/schema.json",
+  "$defs": {
+    "actor_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^actor:[A-Za-z0-9._:-]+$"
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "uuid": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 36,
+      "format": "uuid"
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01])[Tt](?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\\.[0-9]+)?(?:[Zz]|[+-](?:[01][0-9]|2[0-3]):[0-5][0-9])$"
+    },
+    "hash": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "source_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "producer",
+        "object_id",
+        "revision",
+        "content_hash"
+      ],
+      "properties": {
+        "producer": {
+          "enum": [
+            "companion",
+            "knowledge",
+            "platform",
+            "observation"
+          ]
+        },
+        "object_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "content_hash": {
+          "$ref": "#/$defs/hash"
+        }
+      }
+    },
+    "audience": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "actor_only"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "conversation_id",
+            "assertion_ref"
+          ],
+          "properties": {
+            "kind": {
+              "const": "group"
+            },
+            "conversation_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "assertion_ref": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "person_id",
+            "conversation_id",
+            "assertion_ref"
+          ],
+          "properties": {
+            "kind": {
+              "const": "private"
+            },
+            "person_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "conversation_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "assertion_ref": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "public"
+            }
+          }
+        }
+      ]
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "purpose",
+        "audience"
+      ],
+      "properties": {
+        "purpose": {
+          "enum": [
+            "plan",
+            "reflection",
+            "diary",
+            "dialogue",
+            "proactive",
+            "management"
+          ]
+        },
+        "audience": {
+          "$ref": "#/$defs/audience"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "audience": {
+                "properties": {
+                  "kind": {
+                    "const": "public"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "purpose": {
+                "enum": [
+                  "diary",
+                  "management"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unit",
+        "start",
+        "end",
+        "complete",
+        "gaps"
+      ],
+      "properties": {
+        "unit": {
+          "enum": [
+            "characters",
+            "pages",
+            "seconds",
+            "items"
+          ]
+        },
+        "start": {
+          "type": "number",
+          "minimum": 0
+        },
+        "end": {
+          "type": "number",
+          "minimum": 0
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "gaps": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "minItems": 0,
+          "maxItems": 32
+        }
+      }
+    },
+    "source_fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "actor_id",
+        "relation",
+        "provenance",
+        "occurred_at",
+        "learned_at",
+        "outcome",
+        "summary",
+        "source_generation",
+        "source_sequence",
+        "access_version",
+        "source_constraints",
+        "content_reads"
+      ],
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source_ref"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "relation": {
+          "enum": [
+            "participant",
+            "observer",
+            "informed"
+          ]
+        },
+        "provenance": {
+          "enum": [
+            "digital_action",
+            "observation",
+            "reported",
+            "fictional"
+          ]
+        },
+        "occurred_at": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "learned_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "outcome": {
+          "enum": [
+            "planned",
+            "running",
+            "completed",
+            "failed",
+            "unknown",
+            "cancelled",
+            "observed"
+          ]
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "source_generation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "source_sequence": {
+          "$ref": "#/$defs/version"
+        },
+        "access_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "source_constraints": {
+          "$ref": "#/$defs/source_constraints"
+        },
+        "content_reads": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/content_read"
+          },
+          "minItems": 0,
+          "maxItems": 32
+        }
+      }
+    },
+    "append_episode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "idempotency_key",
+        "source",
+        "perspective"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "append_episode"
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "source": {
+          "$ref": "#/$defs/source_ref"
+        },
+        "perspective": {
+          "enum": [
+            "participant",
+            "observer",
+            "informed"
+          ]
+        }
+      }
+    },
+    "get_episode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "episode_id",
+        "expected_revision",
+        "context"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "get_episode"
+        },
+        "episode_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/version"
+        },
+        "context": {
+          "$ref": "#/$defs/context"
+        }
+      }
+    },
+    "check_episode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "episodes",
+        "context"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "check_episode"
+        },
+        "context": {
+          "$ref": "#/$defs/context"
+        },
+        "episodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/episode_ref"
+          },
+          "minItems": 1,
+          "maxItems": 64,
+          "uniqueItems": true
+        }
+      }
+    },
+    "get_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "idempotency_key",
+        "command"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "get_receipt"
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "command": {
+          "enum": [
+            "append_episode",
+            "withdraw_episode",
+            "apply_source_revision",
+            "append_derived",
+            "withdraw_memory",
+            "revise_memory",
+            "forget_memory",
+            "maintain"
+          ]
+        }
+      }
+    },
+    "withdraw_episode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "idempotency_key",
+        "episode_id",
+        "expected_revision",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "withdraw_episode"
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "episode_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/version"
+        },
+        "reason": {
+          "enum": [
+            "forgotten",
+            "incorrect",
+            "retired"
+          ]
+        }
+      }
+    },
+    "apply_source_revision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "idempotency_key",
+        "source"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "apply_source_revision"
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "source": {
+          "$ref": "#/$defs/source_ref"
+        }
+      }
+    },
+    "request": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/append_episode"
+        },
+        {
+          "$ref": "#/$defs/get_episode"
+        },
+        {
+          "$ref": "#/$defs/check_episode"
+        },
+        {
+          "$ref": "#/$defs/get_receipt"
+        },
+        {
+          "$ref": "#/$defs/withdraw_episode"
+        },
+        {
+          "$ref": "#/$defs/apply_source_revision"
+        },
+        {
+          "$ref": "#/$defs/append_derived"
+        },
+        {
+          "$ref": "#/$defs/query"
+        },
+        {
+          "$ref": "#/$defs/check_memory"
+        },
+        {
+          "$ref": "#/$defs/withdraw_memory"
+        },
+        {
+          "$ref": "#/$defs/timeline"
+        },
+        {
+          "$ref": "#/$defs/interests"
+        },
+        {
+          "$ref": "#/$defs/manage_list"
+        },
+        {
+          "$ref": "#/$defs/memory_impact"
+        },
+        {
+          "$ref": "#/$defs/revise_memory"
+        },
+        {
+          "$ref": "#/$defs/forget_memory"
+        },
+        {
+          "$ref": "#/$defs/maintain"
+        }
+      ]
+    },
+    "episode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "episode_id",
+        "revision",
+        "actor_id",
+        "state",
+        "fact",
+        "recorded_at"
+      ],
+      "properties": {
+        "episode_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "revision": {
+          "$ref": "#/$defs/version"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "state": {
+          "enum": [
+            "active",
+            "withdrawn",
+            "superseded",
+            "unavailable"
+          ]
+        },
+        "fact": {
+          "$ref": "#/$defs/source_fact"
+        },
+        "recorded_at": {
+          "$ref": "#/$defs/timestamp"
+        }
+      }
+    },
+    "command_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "command",
+        "idempotency_key",
+        "state",
+        "episode_id",
+        "revision",
+        "domain_version"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "command": {
+          "enum": [
+            "append_episode",
+            "withdraw_episode",
+            "apply_source_revision"
+          ]
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "state": {
+          "enum": [
+            "accepted",
+            "duplicate",
+            "withdrawn",
+            "invalidated"
+          ]
+        },
+        "episode_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "revision": {
+          "$ref": "#/$defs/version"
+        },
+        "domain_version": {
+          "$ref": "#/$defs/version"
+        }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "code",
+        "retryable",
+        "execution"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "code": {
+          "enum": [
+            "invalid_input",
+            "unauthorized",
+            "forbidden",
+            "not_found",
+            "version_conflict",
+            "idempotency_conflict",
+            "source_changed",
+            "source_withdrawn",
+            "unsupported_source",
+            "dependency_unavailable",
+            "capacity_exceeded",
+            "unknown"
+          ]
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "execution": {
+          "enum": [
+            "not_started",
+            "completed",
+            "unknown"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "anyOf": [
+              {
+                "properties": {
+                  "code": {
+                    "const": "unknown"
+                  }
+                },
+                "required": [
+                  "code"
+                ]
+              },
+              {
+                "properties": {
+                  "execution": {
+                    "const": "unknown"
+                  }
+                },
+                "required": [
+                  "execution"
+                ]
+              }
+            ]
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": false
+              }
+            }
+          }
+        }
+      ]
+    },
+    "actor_check_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "requested_operation"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "actor_check"
+        },
+        "requested_operation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        }
+      }
+    },
+    "actor_check_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "state",
+        "allowed_operations",
+        "policy_version"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "state": {
+          "enum": [
+            "enabled",
+            "disabled",
+            "missing"
+          ]
+        },
+        "allowed_operations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "minItems": 0,
+          "maxItems": 32
+        },
+        "policy_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    },
+    "source_facts_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "refs"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "source_facts"
+        },
+        "refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_ref"
+          },
+          "minItems": 1,
+          "maxItems": 64
+        },
+        "evidence_details": {
+          "const": true
+        }
+      }
+    },
+    "source_facts_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "facts"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "facts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_fact"
+          },
+          "minItems": 0,
+          "maxItems": 64
+        },
+        "evidence_details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_evidence_detail"
+          },
+          "maxItems": 64
+        }
+      }
+    },
+    "source_check_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "refs",
+        "context"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "source_check"
+        },
+        "refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_ref"
+          },
+          "minItems": 1,
+          "maxItems": 64
+        },
+        "context": {
+          "$ref": "#/$defs/context"
+        }
+      }
+    },
+    "source_check_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "state",
+        "actor_known",
+        "read_allowed",
+        "disclosure_allowed",
+        "source_generation",
+        "source_sequence",
+        "access_version"
+      ],
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source_ref"
+        },
+        "state": {
+          "enum": [
+            "current",
+            "superseded",
+            "withdrawn",
+            "missing",
+            "unavailable"
+          ]
+        },
+        "actor_known": {
+          "type": "boolean"
+        },
+        "read_allowed": {
+          "type": "boolean"
+        },
+        "disclosure_allowed": {
+          "type": "boolean"
+        },
+        "source_generation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "source_sequence": {
+          "$ref": "#/$defs/version"
+        },
+        "access_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    },
+    "source_check_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "items"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_check_item"
+          },
+          "minItems": 0,
+          "maxItems": 64
+        }
+      }
+    },
+    "source_constraints": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "actor_only"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "public"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "conversation_id"
+          ],
+          "properties": {
+            "kind": {
+              "const": "group"
+            },
+            "conversation_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "person_id",
+            "conversation_id"
+          ],
+          "properties": {
+            "kind": {
+              "const": "private"
+            },
+            "person_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "conversation_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            }
+          }
+        }
+      ]
+    },
+    "content_read": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "content_ref",
+        "coverage"
+      ],
+      "properties": {
+        "content_ref": {
+          "$ref": "#/$defs/source_ref"
+        },
+        "coverage": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/coverage"
+          },
+          "minItems": 1,
+          "maxItems": 32
+        }
+      }
+    },
+    "episode_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "episode_id",
+        "expected_revision"
+      ],
+      "properties": {
+        "episode_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/version"
+        }
+      }
+    },
+    "get_episode_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "context",
+        "domain_version",
+        "episode"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "get_episode"
+        },
+        "context": {
+          "$ref": "#/$defs/context"
+        },
+        "domain_version": {
+          "$ref": "#/$defs/version"
+        },
+        "episode": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/episode"
+            },
+            {
+              "properties": {
+                "state": {
+                  "const": "active"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "episode_check_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "episode_id",
+        "expected_revision",
+        "current_revision",
+        "state",
+        "read_allowed",
+        "disclosure_allowed"
+      ],
+      "properties": {
+        "episode_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/version"
+        },
+        "current_revision": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/version"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "enum": [
+            "current",
+            "changed",
+            "withdrawn",
+            "forbidden",
+            "not_found",
+            "unavailable"
+          ]
+        },
+        "read_allowed": {
+          "type": "boolean"
+        },
+        "disclosure_allowed": {
+          "type": "boolean"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "current"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "current_revision": {
+                "$ref": "#/$defs/version"
+              },
+              "read_allowed": {
+                "const": true
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "read_allowed": {
+                "const": false
+              },
+              "disclosure_allowed": {
+                "const": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "changed"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "current_revision": {
+                "$ref": "#/$defs/version"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "check_episode_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "context",
+        "domain_version",
+        "checked_at",
+        "items"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "check_episode"
+        },
+        "context": {
+          "$ref": "#/$defs/context"
+        },
+        "domain_version": {
+          "$ref": "#/$defs/version"
+        },
+        "checked_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/episode_check_item"
+          },
+          "minItems": 1,
+          "maxItems": 64
+        }
+      }
+    },
+    "response": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/command_receipt"
+        },
+        {
+          "$ref": "#/$defs/get_episode_result"
+        },
+        {
+          "$ref": "#/$defs/check_episode_result"
+        },
+        {
+          "$ref": "#/$defs/error"
+        },
+        {
+          "$ref": "#/$defs/query_result"
+        },
+        {
+          "$ref": "#/$defs/check_memory_result"
+        },
+        {
+          "$ref": "#/$defs/memory_command_receipt"
+        },
+        {
+          "$ref": "#/$defs/timeline_result"
+        },
+        {
+          "$ref": "#/$defs/interests_result"
+        },
+        {
+          "$ref": "#/$defs/manage_list_result"
+        },
+        {
+          "$ref": "#/$defs/memory_impact_result"
+        },
+        {
+          "$ref": "#/$defs/maintenance_receipt"
+        }
+      ]
+    },
+    "context_check_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "context"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "context_check"
+        },
+        "context": {
+          "$ref": "#/$defs/context"
+        }
+      }
+    },
+    "context_check_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "context",
+        "allowed",
+        "access_version"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "context": {
+          "$ref": "#/$defs/context"
+        },
+        "allowed": {
+          "type": "boolean"
+        },
+        "access_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      }
+    },
+    "authority_request": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/actor_check_request"
+        },
+        {
+          "$ref": "#/$defs/context_check_request"
+        }
+      ]
+    },
+    "authority_response": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/actor_check_result"
+        },
+        {
+          "$ref": "#/$defs/context_check_result"
+        },
+        {
+          "$ref": "#/$defs/error"
+        }
+      ]
+    },
+    "memory_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "id",
+        "revision"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "episode",
+            "derived"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "revision": {
+          "$ref": "#/$defs/version"
+        }
+      }
+    },
+    "derived_kind": {
+      "enum": [
+        "understanding",
+        "preference",
+        "reflection",
+        "autobiography"
+      ]
+    },
+    "append_derived": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "idempotency_key",
+        "kind",
+        "text",
+        "episode_refs",
+        "replaces",
+        "importance",
+        "retention"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "append_derived"
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "kind": {
+          "$ref": "#/$defs/derived_kind"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "episode_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/episode_ref"
+          },
+          "minItems": 1,
+          "maxItems": 64,
+          "uniqueItems": true
+        },
+        "replaces": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/memory_ref"
+              },
+              {
+                "properties": {
+                  "kind": {
+                    "const": "derived"
+                  }
+                }
+              }
+            ]
+          },
+          "minItems": 0,
+          "maxItems": 32
+        },
+        "importance": {
+          "enum": [
+            "low",
+            "normal",
+            "high"
+          ]
+        },
+        "retention": {
+          "enum": [
+            "short",
+            "medium",
+            "long"
+          ]
+        },
+        "interest": {
+          "$ref": "#/$defs/interest"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "interest"
+            ]
+          },
+          "then": {
+            "properties": {
+              "kind": {
+                "const": "preference"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "query": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "text",
+        "context",
+        "kinds",
+        "limit",
+        "budget_bytes"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "query"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "context": {
+          "$ref": "#/$defs/context"
+        },
+        "kinds": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "episode",
+              "understanding",
+              "preference",
+              "reflection",
+              "autobiography"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 5,
+          "uniqueItems": true
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "budget_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32768
+        }
+      }
+    },
+    "memory_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ref",
+        "kind",
+        "text",
+        "episode_refs",
+        "source_refs",
+        "recorded_at",
+        "expires_at"
+      ],
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/memory_ref"
+        },
+        "kind": {
+          "enum": [
+            "episode",
+            "understanding",
+            "preference",
+            "reflection",
+            "autobiography"
+          ]
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "episode_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/episode_ref"
+          },
+          "minItems": 1,
+          "maxItems": 64
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_ref"
+          },
+          "minItems": 1,
+          "maxItems": 64
+        },
+        "recorded_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "expires_at": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "query_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "context",
+        "domain_version",
+        "checked_at",
+        "items",
+        "omitted"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "query"
+        },
+        "context": {
+          "$ref": "#/$defs/context"
+        },
+        "domain_version": {
+          "$ref": "#/$defs/version"
+        },
+        "checked_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/memory_item"
+          },
+          "minItems": 0,
+          "maxItems": 32
+        },
+        "omitted": {
+          "type": "boolean"
+        }
+      }
+    },
+    "check_memory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "memories",
+        "context"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "check_memory"
+        },
+        "memories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/memory_ref"
+          },
+          "minItems": 1,
+          "maxItems": 64
+        },
+        "context": {
+          "$ref": "#/$defs/context"
+        }
+      }
+    },
+    "memory_check_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ref",
+        "current_revision",
+        "state",
+        "read_allowed",
+        "disclosure_allowed"
+      ],
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/memory_ref"
+        },
+        "current_revision": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/version"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "enum": [
+            "current",
+            "changed",
+            "withdrawn",
+            "forbidden",
+            "not_found",
+            "unavailable"
+          ]
+        },
+        "read_allowed": {
+          "type": "boolean"
+        },
+        "disclosure_allowed": {
+          "type": "boolean"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "not": {
+                  "const": "current"
+                }
+              }
+            },
+            "required": [
+              "state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "read_allowed": {
+                "const": false
+              },
+              "disclosure_allowed": {
+                "const": false
+              }
+            }
+          }
+        }
+      ]
+    },
+    "check_memory_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "context",
+        "domain_version",
+        "checked_at",
+        "items"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "check_memory"
+        },
+        "context": {
+          "$ref": "#/$defs/context"
+        },
+        "domain_version": {
+          "$ref": "#/$defs/version"
+        },
+        "checked_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/memory_check_item"
+          },
+          "minItems": 1,
+          "maxItems": 64
+        }
+      }
+    },
+    "withdraw_memory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "idempotency_key",
+        "ref",
+        "reason"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "withdraw_memory"
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "ref": {
+          "$ref": "#/$defs/memory_ref"
+        },
+        "reason": {
+          "enum": [
+            "forgotten",
+            "incorrect",
+            "retired"
+          ]
+        }
+      }
+    },
+    "memory_command_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "command",
+        "idempotency_key",
+        "state",
+        "ref",
+        "domain_version"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "command": {
+          "enum": [
+            "append_derived",
+            "withdraw_memory",
+            "revise_memory",
+            "forget_memory"
+          ]
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "state": {
+          "enum": [
+            "accepted",
+            "duplicate",
+            "withdrawn",
+            "invalidated"
+          ]
+        },
+        "ref": {
+          "$ref": "#/$defs/memory_ref"
+        },
+        "domain_version": {
+          "$ref": "#/$defs/version"
+        }
+      }
+    },
+    "timeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "context",
+        "kinds",
+        "limit",
+        "budget_bytes",
+        "mode",
+        "window",
+        "cursor"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "query"
+        },
+        "context": {
+          "$ref": "#/$defs/context"
+        },
+        "kinds": {
+          "const": [
+            "episode"
+          ]
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "budget_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32768
+        },
+        "mode": {
+          "const": "timeline"
+        },
+        "window": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "start",
+            "end"
+          ],
+          "properties": {
+            "start": {
+              "$ref": "#/$defs/timestamp"
+            },
+            "end": {
+              "$ref": "#/$defs/timestamp"
+            }
+          }
+        },
+        "cursor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 8192
+        }
+      }
+    },
+    "timeline_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "context",
+        "domain_version",
+        "checked_at",
+        "items",
+        "omitted",
+        "mode",
+        "window",
+        "next_cursor",
+        "complete"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "query"
+        },
+        "context": {
+          "$ref": "#/$defs/context"
+        },
+        "domain_version": {
+          "$ref": "#/$defs/version"
+        },
+        "checked_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/timeline_item"
+          },
+          "minItems": 0,
+          "maxItems": 32
+        },
+        "omitted": {
+          "type": "boolean"
+        },
+        "mode": {
+          "const": "timeline"
+        },
+        "window": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "start",
+            "end"
+          ],
+          "properties": {
+            "start": {
+              "$ref": "#/$defs/timestamp"
+            },
+            "end": {
+              "$ref": "#/$defs/timestamp"
+            }
+          }
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 8192
+        },
+        "complete": {
+          "type": "boolean"
+        }
+      }
+    },
+    "timeline_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ref",
+        "kind",
+        "text",
+        "episode_refs",
+        "source_refs",
+        "recorded_at",
+        "expires_at",
+        "fact"
+      ],
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/memory_ref"
+        },
+        "kind": {
+          "enum": [
+            "episode",
+            "understanding",
+            "preference",
+            "reflection",
+            "autobiography"
+          ]
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "episode_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/episode_ref"
+          },
+          "minItems": 1,
+          "maxItems": 64
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_ref"
+          },
+          "minItems": 1,
+          "maxItems": 64
+        },
+        "recorded_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "expires_at": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fact": {
+          "$ref": "#/$defs/source_fact"
+        }
+      }
+    },
+    "interest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "topic",
+        "stance"
+      ],
+      "properties": {
+        "topic": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "stance": {
+          "enum": [
+            "like",
+            "dislike",
+            "mixed",
+            "curious"
+          ]
+        }
+      }
+    },
+    "interests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "context",
+        "limit",
+        "budget_bytes"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "interests"
+        },
+        "context": {
+          "$ref": "#/$defs/context"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "budget_bytes": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 262144
+        },
+        "projection": {
+          "const": "ledger"
+        }
+      }
+    },
+    "interest_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ref",
+        "kind",
+        "text",
+        "episode_refs",
+        "source_refs",
+        "recorded_at",
+        "expires_at",
+        "topic",
+        "stance",
+        "support_count",
+        "history",
+        "history_omitted"
+      ],
+      "properties": {
+        "ref": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/memory_ref"
+            },
+            {
+              "properties": {
+                "kind": {
+                  "const": "derived"
+                }
+              }
+            }
+          ]
+        },
+        "kind": {
+          "const": "preference"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "episode_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/episode_ref"
+          },
+          "minItems": 1,
+          "maxItems": 64
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_ref"
+          },
+          "minItems": 1,
+          "maxItems": 64
+        },
+        "recorded_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "expires_at": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "topic": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stance": {
+          "enum": [
+            "like",
+            "dislike",
+            "mixed",
+            "curious",
+            "unspecified"
+          ]
+        },
+        "support_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "ref",
+              "stance",
+              "state",
+              "recorded_at"
+            ],
+            "properties": {
+              "ref": {
+                "$ref": "#/$defs/memory_ref"
+              },
+              "stance": {
+                "enum": [
+                  "like",
+                  "dislike",
+                  "mixed",
+                  "curious",
+                  "unspecified"
+                ]
+              },
+              "state": {
+                "enum": [
+                  "active",
+                  "superseded",
+                  "expired",
+                  "withdrawn",
+                  "unavailable"
+                ]
+              },
+              "recorded_at": {
+                "$ref": "#/$defs/timestamp"
+              }
+            }
+          },
+          "minItems": 0,
+          "maxItems": 64
+        },
+        "history_omitted": {
+          "type": "boolean"
+        }
+      }
+    },
+    "interests_result": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/legacy_interests_result"
+        },
+        {
+          "$ref": "#/$defs/interest_ledger_result"
+        }
+      ]
+    },
+    "manage_list": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "context",
+        "states",
+        "kinds",
+        "cursor",
+        "limit",
+        "budget_bytes"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "manage_list"
+        },
+        "context": {
+          "const": {
+            "purpose": "management",
+            "audience": {
+              "kind": "actor_only"
+            }
+          }
+        },
+        "states": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "active",
+              "superseded",
+              "expired",
+              "withdrawn",
+              "unavailable"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 5
+        },
+        "kinds": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "episode",
+              "understanding",
+              "preference",
+              "reflection",
+              "autobiography"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 5
+        },
+        "cursor": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "budget_bytes": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 262144
+        }
+      }
+    },
+    "managed_memory_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ref",
+        "kind",
+        "state",
+        "text",
+        "episode_refs",
+        "source_refs",
+        "recorded_at",
+        "expires_at",
+        "importance",
+        "retention",
+        "interest",
+        "occurred_at",
+        "editable",
+        "forgotten"
+      ],
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/memory_ref"
+        },
+        "kind": {
+          "oneOf": [
+            {
+              "enum": [
+                "episode",
+                "understanding",
+                "preference",
+                "reflection",
+                "autobiography"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "enum": [
+            "active",
+            "superseded",
+            "expired",
+            "withdrawn",
+            "unavailable"
+          ]
+        },
+        "text": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "episode_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/episode_ref"
+          },
+          "minItems": 0,
+          "maxItems": 64
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_ref"
+          },
+          "minItems": 0,
+          "maxItems": 64
+        },
+        "recorded_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "expires_at": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "importance": {
+          "oneOf": [
+            {
+              "enum": [
+                "low",
+                "normal",
+                "high"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "retention": {
+          "oneOf": [
+            {
+              "enum": [
+                "short",
+                "medium",
+                "long"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "interest": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/interest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "occurred_at": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "editable": {
+          "type": "boolean"
+        },
+        "forgotten": {
+          "type": "boolean"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "forgotten": {
+                "const": true
+              }
+            },
+            "required": [
+              "forgotten"
+            ]
+          },
+          "then": {
+            "properties": {
+              "kind": {
+                "const": null
+              },
+              "text": {
+                "const": null
+              },
+              "importance": {
+                "const": null
+              },
+              "retention": {
+                "const": null
+              },
+              "interest": {
+                "const": null
+              },
+              "occurred_at": {
+                "const": null
+              },
+              "episode_refs": {
+                "maxItems": 0
+              },
+              "source_refs": {
+                "maxItems": 0
+              },
+              "editable": {
+                "const": false
+              }
+            }
+          }
+        }
+      ]
+    },
+    "manage_list_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "domain_version",
+        "checked_at",
+        "context",
+        "items",
+        "next_cursor",
+        "omitted"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "manage_list"
+        },
+        "domain_version": {
+          "$ref": "#/$defs/version"
+        },
+        "checked_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "context": {
+          "const": {
+            "purpose": "management",
+            "audience": {
+              "kind": "actor_only"
+            }
+          }
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/managed_memory_item"
+          },
+          "minItems": 0,
+          "maxItems": 64
+        },
+        "next_cursor": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "omitted": {
+          "type": "boolean"
+        }
+      }
+    },
+    "memory_impact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "context",
+        "ref"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "memory_impact"
+        },
+        "context": {
+          "const": {
+            "purpose": "management",
+            "audience": {
+              "kind": "actor_only"
+            }
+          }
+        },
+        "ref": {
+          "$ref": "#/$defs/memory_ref"
+        }
+      }
+    },
+    "memory_impact_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "domain_version",
+        "checked_at",
+        "context",
+        "ref",
+        "dependent_refs",
+        "source_refs",
+        "owner_originals_affected",
+        "can_revise",
+        "can_forget",
+        "omitted"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "memory_impact"
+        },
+        "domain_version": {
+          "$ref": "#/$defs/version"
+        },
+        "checked_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "context": {
+          "const": {
+            "purpose": "management",
+            "audience": {
+              "kind": "actor_only"
+            }
+          }
+        },
+        "ref": {
+          "$ref": "#/$defs/memory_ref"
+        },
+        "dependent_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/memory_ref"
+          },
+          "minItems": 0,
+          "maxItems": 4096
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_ref"
+          },
+          "minItems": 0,
+          "maxItems": 4096
+        },
+        "owner_originals_affected": {
+          "const": false
+        },
+        "can_revise": {
+          "type": "boolean"
+        },
+        "can_forget": {
+          "type": "boolean"
+        },
+        "omitted": {
+          "type": "boolean"
+        }
+      }
+    },
+    "revise_memory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "context",
+        "idempotency_key",
+        "ref",
+        "expected_domain_version",
+        "text",
+        "importance",
+        "retention"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "revise_memory"
+        },
+        "context": {
+          "const": {
+            "purpose": "management",
+            "audience": {
+              "kind": "actor_only"
+            }
+          }
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "ref": {
+          "$ref": "#/$defs/memory_ref"
+        },
+        "expected_domain_version": {
+          "$ref": "#/$defs/version"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "importance": {
+          "enum": [
+            "low",
+            "normal",
+            "high"
+          ]
+        },
+        "retention": {
+          "enum": [
+            "short",
+            "medium",
+            "long"
+          ]
+        },
+        "interest": {
+          "$ref": "#/$defs/interest"
+        }
+      }
+    },
+    "forget_memory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "context",
+        "idempotency_key",
+        "ref",
+        "expected_domain_version"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "forget_memory"
+        },
+        "context": {
+          "const": {
+            "purpose": "management",
+            "audience": {
+              "kind": "actor_only"
+            }
+          }
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "ref": {
+          "$ref": "#/$defs/memory_ref"
+        },
+        "expected_domain_version": {
+          "$ref": "#/$defs/version"
+        }
+      }
+    },
+    "maintain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "idempotency_key",
+        "limit"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "maintain"
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 128
+        }
+      }
+    },
+    "maintenance_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "command",
+        "idempotency_key",
+        "state",
+        "domain_version",
+        "expired_count",
+        "compressed_count",
+        "remaining"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "command": {
+          "const": "maintain"
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "state": {
+          "const": "accepted"
+        },
+        "domain_version": {
+          "$ref": "#/$defs/version"
+        },
+        "expired_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "compressed_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "remaining": {
+          "type": "boolean"
+        }
+      }
+    },
+    "source_evidence_detail": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "content_identity",
+        "excerpt",
+        "valence"
+      ],
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source_ref"
+        },
+        "content_identity": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "owner",
+                "object_id",
+                "sha256"
+              ],
+              "properties": {
+                "owner": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                },
+                "object_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 512
+                },
+                "sha256": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "excerpt": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "maxLength": 4000
+            }
+          ]
+        },
+        "valence": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "number",
+              "minimum": -1,
+              "maximum": 1
+            }
+          ]
+        }
+      }
+    },
+    "legacy_interests_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "domain_version",
+        "checked_at",
+        "context",
+        "items",
+        "omitted"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "interests"
+        },
+        "domain_version": {
+          "$ref": "#/$defs/version"
+        },
+        "checked_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "context": {
+          "$ref": "#/$defs/context"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/interest_item"
+          },
+          "minItems": 0,
+          "maxItems": 64
+        },
+        "omitted": {
+          "type": "boolean"
+        }
+      }
+    },
+    "interest_ledger_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ref",
+        "kind",
+        "text",
+        "episode_refs",
+        "source_refs",
+        "recorded_at",
+        "expires_at",
+        "topic",
+        "stance",
+        "support_count",
+        "history",
+        "history_omitted",
+        "strength",
+        "evidence_count",
+        "last_touch",
+        "valence",
+        "memory_refs",
+        "evidence_incomplete"
+      ],
+      "properties": {
+        "ref": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/memory_ref"
+            },
+            {
+              "properties": {
+                "kind": {
+                  "const": "derived"
+                }
+              }
+            }
+          ]
+        },
+        "kind": {
+          "const": "preference"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "episode_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/episode_ref"
+          },
+          "minItems": 1,
+          "maxItems": 4096
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_ref"
+          },
+          "minItems": 1,
+          "maxItems": 8192
+        },
+        "recorded_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "expires_at": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "topic": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "stance": {
+          "enum": [
+            "like",
+            "dislike",
+            "mixed",
+            "curious",
+            "unspecified"
+          ]
+        },
+        "support_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "ref",
+              "stance",
+              "state",
+              "recorded_at"
+            ],
+            "properties": {
+              "ref": {
+                "$ref": "#/$defs/memory_ref"
+              },
+              "stance": {
+                "enum": [
+                  "like",
+                  "dislike",
+                  "mixed",
+                  "curious",
+                  "unspecified"
+                ]
+              },
+              "state": {
+                "enum": [
+                  "active",
+                  "superseded",
+                  "expired",
+                  "withdrawn",
+                  "unavailable"
+                ]
+              },
+              "recorded_at": {
+                "$ref": "#/$defs/timestamp"
+              }
+            }
+          },
+          "minItems": 0,
+          "maxItems": 64
+        },
+        "history_omitted": {
+          "type": "boolean"
+        },
+        "strength": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "evidence_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "last_touch": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/timestamp"
+            }
+          ]
+        },
+        "valence": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "memory_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/memory_ref"
+          },
+          "minItems": 1,
+          "maxItems": 256
+        },
+        "evidence_incomplete": {
+          "type": "boolean"
+        }
+      }
+    },
+    "interest_ledger_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "role_version",
+        "operation",
+        "domain_version",
+        "checked_at",
+        "context",
+        "items",
+        "omitted",
+        "projection"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "request_id": {
+          "$ref": "#/$defs/request_id"
+        },
+        "actor_id": {
+          "$ref": "#/$defs/actor_id"
+        },
+        "role_version": {
+          "$ref": "#/$defs/version"
+        },
+        "operation": {
+          "const": "interests"
+        },
+        "domain_version": {
+          "$ref": "#/$defs/version"
+        },
+        "checked_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "context": {
+          "$ref": "#/$defs/context"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/interest_ledger_item"
+          },
+          "minItems": 0,
+          "maxItems": 64
+        },
+        "omitted": {
+          "type": "boolean"
+        },
+        "projection": {
+          "const": "ledger"
+        }
+      }
+    }
+  }
+}

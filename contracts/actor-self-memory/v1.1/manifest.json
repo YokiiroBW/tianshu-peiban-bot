@@ -1,0 +1,11 @@
+{
+  "name": "actor-self-memory",
+  "version": "1.1.0",
+  "state": "frozen",
+  "hash_basis": "UTF-8 LF-normalized",
+  "sha256": {
+    "schema.json": "f114b0d939b610aeccc142a12d7d60b895cc1f7ed8df4cd6b522b367a77c2f22",
+    "examples.json": "11405318c2f12804e8e089bc4f2b4bb7850bd66ebc6d2a3588c8ec3f9006cff5",
+    "README.md": "735c1a05470df0ca9f8548c18bd1c15365f85f60b1684db1856ff8faf6cb677f"
+  }
+}

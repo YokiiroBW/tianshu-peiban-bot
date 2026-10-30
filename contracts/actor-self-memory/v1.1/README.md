@@ -1,0 +1,9 @@
+# Actor self-memory 1.1
+
+Separate opt-in minor package; candidate.4 and its manifest remain unchanged. Existing operations, schema_version=1, actor/source/context authority and default response shapes are preserved.
+
+`interests` may request `projection: "ledger"`. Only this form returns projection=ledger and items with strength, evidence_count, last_touch, valence, memory_refs and evidence_incomplete. The current readable original basis is recomputed; no new store, service, daily reset or permission cache exists. Duplicate original identities, content hashes and bounded text fingerprints do not add independent support. Strength grows only on independent actual encounters and decays with a seven-day half-life. A repeated encounter may update last_touch but cannot replay growth. Source withdrawal removes the current contribution. memory_refs names every supporting derived record for the consumer's subsequent revalidation.
+
+Memory may request `evidence_details:true` on Companion's existing source_facts callback. Its extra evidence_details list is bound to exactly the requested refs. The producer supplies original content identity, an actually received excerpt (at most4000characters), and its captured affect association, or explicit null when unavailable. These are data, not authority or instructions; source checks and audience revalidation remain required. Default callbacks return their original exact shape. Details do not rewrite historical SourceRefs or unknown requests. Old facts, results and consumers remain valid under the default form.
+
+Fingerprints, deduplication, growth and decay belong to Memory. Companion only supplies its own original reading evidence and consumes the guarded projection. User profiles, planned actions, failed/unconfirmed reads and another actor's experiences cannot grow this ledger.

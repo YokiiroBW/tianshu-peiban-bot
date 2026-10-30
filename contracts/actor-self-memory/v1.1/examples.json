@@ -1,0 +1,2394 @@
+{
+  "positive": [
+    {
+      "id": "append-real-reading",
+      "definition": "append_episode",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "append_episode",
+        "idempotency_key": "episode-intent-1",
+        "source": {
+          "producer": "companion",
+          "object_id": "synthetic-reading-event-1",
+          "revision": "1",
+          "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "perspective": "participant"
+      }
+    },
+    {
+      "id": "read-own-episode",
+      "definition": "get_episode",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "get_episode",
+        "episode_id": "episode:fixture-1",
+        "expected_revision": 1,
+        "context": {
+          "purpose": "plan",
+          "audience": {
+            "kind": "actor_only"
+          }
+        }
+      }
+    },
+    {
+      "id": "check-before-share",
+      "definition": "check_episode",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "check_episode",
+        "context": {
+          "purpose": "proactive",
+          "audience": {
+            "kind": "group",
+            "conversation_id": "group:fixture",
+            "assertion_ref": "synthetic-origin-1"
+          }
+        },
+        "episodes": [
+          {
+            "episode_id": "episode:fixture-1",
+            "expected_revision": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "receipt-after-lost-ack",
+      "definition": "get_receipt",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "get_receipt",
+        "idempotency_key": "episode-intent-1",
+        "command": "append_episode"
+      }
+    },
+    {
+      "id": "forget-own-record-only",
+      "definition": "withdraw_episode",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "withdraw_episode",
+        "idempotency_key": "forget-1",
+        "episode_id": "episode:fixture-1",
+        "expected_revision": 1,
+        "reason": "forgotten"
+      }
+    },
+    {
+      "id": "source-revision",
+      "definition": "apply_source_revision",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "apply_source_revision",
+        "idempotency_key": "source-revision-1",
+        "source": {
+          "producer": "companion",
+          "object_id": "synthetic-reading-event-1",
+          "revision": "1",
+          "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+        }
+      }
+    },
+    {
+      "id": "authority-partial-reading",
+      "definition": "source_fact",
+      "document": {
+        "source": {
+          "producer": "companion",
+          "object_id": "synthetic-reading-event-1",
+          "revision": "1",
+          "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "actor_id": "actor:fixture-a",
+        "relation": "participant",
+        "provenance": "digital_action",
+        "occurred_at": "2026-10-23T06:00:00Z",
+        "learned_at": "2026-10-23T06:00:00Z",
+        "outcome": "completed",
+        "summary": "实际阅读字幕120至150秒；并非完整观看视频。",
+        "source_generation": "synthetic-generation-1",
+        "source_sequence": 1,
+        "access_version": "1",
+        "source_constraints": {
+          "kind": "public"
+        },
+        "content_reads": [
+          {
+            "content_ref": {
+              "producer": "knowledge",
+              "object_id": "synthetic-video-1",
+              "revision": "1",
+              "content_hash": "2222222222222222222222222222222222222222222222222222222222222222"
+            },
+            "coverage": [
+              {
+                "unit": "seconds",
+                "start": 120,
+                "end": 150,
+                "complete": false,
+                "gaps": [
+                  "frames_sampled",
+                  "audio_not_transcribed"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "source-facts",
+      "definition": "source_facts_request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "source_facts",
+        "refs": [
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          }
+        ]
+      }
+    },
+    {
+      "id": "source-facts-result",
+      "definition": "source_facts_result",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "facts": [
+          {
+            "source": {
+              "producer": "companion",
+              "object_id": "synthetic-reading-event-1",
+              "revision": "1",
+              "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "actor_id": "actor:fixture-a",
+            "relation": "participant",
+            "provenance": "digital_action",
+            "occurred_at": "2026-10-23T06:00:00Z",
+            "learned_at": "2026-10-23T06:00:00Z",
+            "outcome": "completed",
+            "summary": "实际阅读字幕120至150秒；并非完整观看视频。",
+            "source_generation": "synthetic-generation-1",
+            "source_sequence": 1,
+            "access_version": "1",
+            "source_constraints": {
+              "kind": "public"
+            },
+            "content_reads": [
+              {
+                "content_ref": {
+                  "producer": "knowledge",
+                  "object_id": "synthetic-video-1",
+                  "revision": "1",
+                  "content_hash": "2222222222222222222222222222222222222222222222222222222222222222"
+                },
+                "coverage": [
+                  {
+                    "unit": "seconds",
+                    "start": 120,
+                    "end": 150,
+                    "complete": false,
+                    "gaps": [
+                      "frames_sampled",
+                      "audio_not_transcribed"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "source-check",
+      "definition": "source_check_request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "source_check",
+        "refs": [
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          }
+        ],
+        "context": {
+          "purpose": "plan",
+          "audience": {
+            "kind": "actor_only"
+          }
+        }
+      }
+    },
+    {
+      "id": "source-check-result",
+      "definition": "source_check_result",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "items": [
+          {
+            "source": {
+              "producer": "companion",
+              "object_id": "synthetic-reading-event-1",
+              "revision": "1",
+              "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "state": "current",
+            "actor_known": true,
+            "read_allowed": true,
+            "disclosure_allowed": true,
+            "source_generation": "synthetic-generation-1",
+            "source_sequence": 1,
+            "access_version": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "actor-check",
+      "definition": "actor_check_request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "actor_check",
+        "requested_operation": "append_episode"
+      }
+    },
+    {
+      "id": "actor-check-result",
+      "definition": "actor_check_result",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "state": "enabled",
+        "allowed_operations": [
+          "append_episode"
+        ],
+        "policy_version": "synthetic-policy-1"
+      }
+    },
+    {
+      "id": "stored-episode",
+      "definition": "episode",
+      "document": {
+        "episode_id": "episode:fixture-1",
+        "revision": 1,
+        "actor_id": "actor:fixture-a",
+        "state": "active",
+        "fact": {
+          "source": {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "actor_id": "actor:fixture-a",
+          "relation": "participant",
+          "provenance": "digital_action",
+          "occurred_at": "2026-10-23T06:00:00Z",
+          "learned_at": "2026-10-23T06:00:00Z",
+          "outcome": "completed",
+          "summary": "实际阅读字幕120至150秒；并非完整观看视频。",
+          "source_generation": "synthetic-generation-1",
+          "source_sequence": 1,
+          "access_version": "1",
+          "source_constraints": {
+            "kind": "public"
+          },
+          "content_reads": [
+            {
+              "content_ref": {
+                "producer": "knowledge",
+                "object_id": "synthetic-video-1",
+                "revision": "1",
+                "content_hash": "2222222222222222222222222222222222222222222222222222222222222222"
+              },
+              "coverage": [
+                {
+                  "unit": "seconds",
+                  "start": 120,
+                  "end": 150,
+                  "complete": false,
+                  "gaps": [
+                    "frames_sampled",
+                    "audio_not_transcribed"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "recorded_at": "2026-10-23T06:00:01Z"
+      }
+    },
+    {
+      "id": "command-receipt",
+      "definition": "command_receipt",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "command": "append_episode",
+        "idempotency_key": "episode-intent-1",
+        "state": "accepted",
+        "episode_id": "episode:fixture-1",
+        "revision": 1,
+        "domain_version": 1
+      }
+    },
+    {
+      "id": "authority-unavailable",
+      "definition": "error",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "code": "dependency_unavailable",
+        "retryable": true,
+        "execution": "not_started"
+      }
+    },
+    {
+      "id": "silently-observed",
+      "definition": "source_fact",
+      "document": {
+        "source": {
+          "producer": "companion",
+          "object_id": "synthetic-reading-event-1",
+          "revision": "1",
+          "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "actor_id": "actor:fixture-a",
+        "relation": "observer",
+        "provenance": "observation",
+        "occurred_at": "2026-10-23T06:00:00Z",
+        "learned_at": "2026-10-23T06:00:00Z",
+        "outcome": "observed",
+        "summary": "旁听到群内讨论配乐；未参与发言。",
+        "source_generation": "synthetic-generation-1",
+        "source_sequence": 1,
+        "access_version": "1",
+        "source_constraints": {
+          "kind": "group",
+          "conversation_id": "group:fixture"
+        },
+        "content_reads": []
+      }
+    },
+    {
+      "id": "unknown-action",
+      "definition": "source_fact",
+      "document": {
+        "source": {
+          "producer": "companion",
+          "object_id": "synthetic-reading-event-1",
+          "revision": "1",
+          "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "actor_id": "actor:fixture-a",
+        "relation": "participant",
+        "provenance": "digital_action",
+        "occurred_at": "2026-10-23T06:00:00Z",
+        "learned_at": "2026-10-23T06:00:00Z",
+        "outcome": "unknown",
+        "summary": "动作已提交，尚无成功证明。",
+        "source_generation": "synthetic-generation-1",
+        "source_sequence": 1,
+        "access_version": "1",
+        "source_constraints": {
+          "kind": "actor_only"
+        },
+        "content_reads": []
+      }
+    },
+    {
+      "id": "fictional-diary",
+      "definition": "source_fact",
+      "document": {
+        "source": {
+          "producer": "companion",
+          "object_id": "synthetic-reading-event-1",
+          "revision": "1",
+          "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "actor_id": "actor:fixture-a",
+        "relation": "participant",
+        "provenance": "fictional",
+        "occurred_at": "2026-10-23T06:00:00Z",
+        "learned_at": "2026-10-23T06:00:00Z",
+        "outcome": "completed",
+        "summary": "虚构小屋中的活动，不是真实用户经历。",
+        "source_generation": "synthetic-generation-1",
+        "source_sequence": 1,
+        "access_version": "1",
+        "source_constraints": {
+          "kind": "actor_only"
+        },
+        "content_reads": []
+      }
+    },
+    {
+      "id": "episode-get-result",
+      "definition": "get_episode_result",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "get_episode",
+        "context": {
+          "purpose": "plan",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "domain_version": 1,
+        "episode": {
+          "episode_id": "episode:fixture-1",
+          "revision": 1,
+          "actor_id": "actor:fixture-a",
+          "state": "active",
+          "fact": {
+            "source": {
+              "producer": "companion",
+              "object_id": "synthetic-reading-event-1",
+              "revision": "1",
+              "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "actor_id": "actor:fixture-a",
+            "relation": "participant",
+            "provenance": "digital_action",
+            "occurred_at": "2026-10-23T06:00:00Z",
+            "learned_at": "2026-10-23T06:00:00Z",
+            "outcome": "completed",
+            "summary": "实际阅读字幕120至150秒；并非完整观看视频。",
+            "source_generation": "synthetic-generation-1",
+            "source_sequence": 1,
+            "access_version": "1",
+            "source_constraints": {
+              "kind": "public"
+            },
+            "content_reads": [
+              {
+                "content_ref": {
+                  "producer": "knowledge",
+                  "object_id": "synthetic-video-1",
+                  "revision": "1",
+                  "content_hash": "2222222222222222222222222222222222222222222222222222222222222222"
+                },
+                "coverage": [
+                  {
+                    "unit": "seconds",
+                    "start": 120,
+                    "end": 150,
+                    "complete": false,
+                    "gaps": [
+                      "frames_sampled",
+                      "audio_not_transcribed"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "recorded_at": "2026-10-23T06:00:01Z"
+        }
+      }
+    },
+    {
+      "id": "episode-check-current",
+      "definition": "check_episode_result",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "check_episode",
+        "context": {
+          "purpose": "proactive",
+          "audience": {
+            "kind": "group",
+            "conversation_id": "group:fixture",
+            "assertion_ref": "synthetic-origin-1"
+          }
+        },
+        "domain_version": 1,
+        "checked_at": "2026-10-23T06:01:00Z",
+        "items": [
+          {
+            "episode_id": "episode:fixture-1",
+            "expected_revision": 1,
+            "current_revision": 1,
+            "state": "current",
+            "read_allowed": true,
+            "disclosure_allowed": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "episode-check-changed",
+      "definition": "check_episode_result",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "check_episode",
+        "context": {
+          "purpose": "proactive",
+          "audience": {
+            "kind": "group",
+            "conversation_id": "group:fixture",
+            "assertion_ref": "synthetic-origin-1"
+          }
+        },
+        "domain_version": 2,
+        "checked_at": "2026-10-23T06:01:00Z",
+        "items": [
+          {
+            "episode_id": "episode:fixture-1",
+            "expected_revision": 1,
+            "current_revision": 2,
+            "state": "changed",
+            "read_allowed": false,
+            "disclosure_allowed": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-write-reconcile-first",
+      "definition": "error",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "code": "unknown",
+        "retryable": false,
+        "execution": "unknown"
+      }
+    },
+    {
+      "id": "stable-private-source",
+      "definition": "source_constraints",
+      "document": {
+        "kind": "private",
+        "person_id": "person:fixture",
+        "conversation_id": "private:fixture"
+      }
+    },
+    {
+      "id": "stable-group-source",
+      "definition": "source_constraints",
+      "document": {
+        "kind": "group",
+        "conversation_id": "group:fixture"
+      }
+    },
+    {
+      "id": "context-current-group",
+      "definition": "context_check_request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "context-check-fixture",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "context_check",
+        "context": {
+          "purpose": "dialogue",
+          "audience": {
+            "kind": "group",
+            "conversation_id": "conversation:fixture-group",
+            "assertion_ref": "origin:fixture"
+          }
+        }
+      }
+    },
+    {
+      "id": "context-current-allowed",
+      "definition": "context_check_result",
+      "document": {
+        "schema_version": 1,
+        "request_id": "context-check-fixture",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "context": {
+          "purpose": "dialogue",
+          "audience": {
+            "kind": "group",
+            "conversation_id": "conversation:fixture-group",
+            "assertion_ref": "origin:fixture"
+          }
+        },
+        "allowed": true,
+        "access_version": "fixture-policy-v1"
+      }
+    },
+    {
+      "id": "extension-append_derived",
+      "definition": "append_derived",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:actor-example",
+        "actor_id": "actor:example",
+        "role_version": 1,
+        "operation": "append_derived",
+        "idempotency_key": "derive:reading-1",
+        "kind": "understanding",
+        "text": "I still have one question about this argument.",
+        "episode_refs": [
+          {
+            "episode_id": "episode:read-1",
+            "expected_revision": 1
+          }
+        ],
+        "replaces": [],
+        "importance": "normal",
+        "retention": "medium"
+      }
+    },
+    {
+      "id": "extension-query",
+      "definition": "query",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:actor-example",
+        "actor_id": "actor:example",
+        "role_version": 1,
+        "operation": "query",
+        "text": "What have I read and what did I think?",
+        "context": {
+          "purpose": "reflection",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "kinds": [
+          "episode",
+          "understanding"
+        ],
+        "limit": 8,
+        "budget_bytes": 8192
+      }
+    },
+    {
+      "id": "extension-check_memory",
+      "definition": "check_memory",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:actor-example",
+        "actor_id": "actor:example",
+        "role_version": 1,
+        "operation": "check_memory",
+        "memories": [
+          {
+            "kind": "derived",
+            "id": "memory:example",
+            "revision": 1
+          }
+        ],
+        "context": {
+          "purpose": "reflection",
+          "audience": {
+            "kind": "actor_only"
+          }
+        }
+      }
+    },
+    {
+      "id": "extension-withdraw_memory",
+      "definition": "withdraw_memory",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:actor-example",
+        "actor_id": "actor:example",
+        "role_version": 1,
+        "operation": "withdraw_memory",
+        "idempotency_key": "withdraw:example",
+        "ref": {
+          "kind": "derived",
+          "id": "memory:example",
+          "revision": 1
+        },
+        "reason": "retired"
+      }
+    },
+    {
+      "id": "extension-query_result",
+      "definition": "query_result",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:actor-example",
+        "actor_id": "actor:example",
+        "role_version": 1,
+        "operation": "query",
+        "context": {
+          "purpose": "reflection",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "domain_version": 1,
+        "checked_at": "2026-10-26T00:00:00Z",
+        "items": [],
+        "omitted": false
+      }
+    },
+    {
+      "id": "extension-check_memory_result",
+      "definition": "check_memory_result",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:actor-example",
+        "actor_id": "actor:example",
+        "role_version": 1,
+        "operation": "check_memory",
+        "context": {
+          "purpose": "reflection",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "domain_version": 1,
+        "checked_at": "2026-10-26T00:00:00Z",
+        "items": [
+          {
+            "ref": {
+              "kind": "derived",
+              "id": "memory:example",
+              "revision": 1
+            },
+            "current_revision": 1,
+            "state": "withdrawn",
+            "read_allowed": false,
+            "disclosure_allowed": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "extension-memory_command_receipt",
+      "definition": "memory_command_receipt",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:actor-example",
+        "actor_id": "actor:example",
+        "command": "append_derived",
+        "idempotency_key": "derive:reading-1",
+        "state": "accepted",
+        "ref": {
+          "kind": "derived",
+          "id": "memory:example",
+          "revision": 1
+        },
+        "domain_version": 1
+      }
+    },
+    {
+      "id": "timeline-real-occurrence-window",
+      "definition": "timeline",
+      "document": {
+        "schema_version": 1,
+        "request_id": "al13:timeline",
+        "actor_id": "actor:a",
+        "role_version": 1,
+        "operation": "query",
+        "mode": "timeline",
+        "context": {
+          "purpose": "diary",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "window": {
+          "start": "2026-10-26T16:00:00Z",
+          "end": "2026-10-27T16:00:00Z"
+        },
+        "cursor": null,
+        "kinds": [
+          "episode"
+        ],
+        "limit": 32,
+        "budget_bytes": 32768
+      }
+    },
+    {
+      "id": "public-diary-context",
+      "definition": "context",
+      "document": {
+        "purpose": "diary",
+        "audience": {
+          "kind": "public"
+        }
+      }
+    },
+    {
+      "id": "core-positive-1",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:394",
+        "actor_id": "actor:a",
+        "role_version": 1,
+        "operation": "interests",
+        "context": {
+          "purpose": "management",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "limit": 32,
+        "budget_bytes": 32768
+      }
+    },
+    {
+      "id": "core-positive-2",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:394",
+        "actor_id": "actor:a",
+        "role_version": 1,
+        "operation": "manage_list",
+        "context": {
+          "purpose": "management",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "states": [
+          "active",
+          "superseded"
+        ],
+        "kinds": [
+          "episode",
+          "preference"
+        ],
+        "cursor": null,
+        "limit": 32,
+        "budget_bytes": 32768
+      }
+    },
+    {
+      "id": "core-positive-3",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:394",
+        "actor_id": "actor:a",
+        "role_version": 1,
+        "operation": "memory_impact",
+        "context": {
+          "purpose": "management",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "ref": {
+          "kind": "derived",
+          "id": "derived:one",
+          "revision": 1
+        }
+      }
+    },
+    {
+      "id": "core-positive-4",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:394",
+        "actor_id": "actor:a",
+        "role_version": 1,
+        "operation": "revise_memory",
+        "context": {
+          "purpose": "management",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "idempotency_key": "correct:one",
+        "ref": {
+          "kind": "derived",
+          "id": "derived:one",
+          "revision": 1
+        },
+        "expected_domain_version": 3,
+        "text": "I now prefer quiet music.",
+        "importance": "high",
+        "retention": "long",
+        "interest": {
+          "topic": "music",
+          "stance": "like"
+        }
+      }
+    },
+    {
+      "id": "core-positive-5",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:394",
+        "actor_id": "actor:a",
+        "role_version": 1,
+        "operation": "forget_memory",
+        "context": {
+          "purpose": "management",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "idempotency_key": "forget:one",
+        "ref": {
+          "kind": "derived",
+          "id": "derived:one",
+          "revision": 1
+        },
+        "expected_domain_version": 3
+      }
+    },
+    {
+      "id": "core-positive-6",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:394",
+        "actor_id": "actor:a",
+        "role_version": 1,
+        "operation": "maintain",
+        "idempotency_key": "maintenance:one",
+        "limit": 128
+      }
+    },
+    {
+      "id": "interest-ledger-request",
+      "definition": "interests",
+      "document": {
+        "schema_version": 1,
+        "request_id": "interest:synthetic",
+        "actor_id": "actor:fixture-a",
+        "role_version": 1,
+        "operation": "interests",
+        "context": {
+          "purpose": "plan",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "limit": 8,
+        "budget_bytes": 8192,
+        "projection": "ledger"
+      }
+    },
+    {
+      "id": "interest-ledger",
+      "definition": "interests_result",
+      "document": {
+        "schema_version": 1,
+        "request_id": "interest:synthetic",
+        "actor_id": "actor:fixture-a",
+        "role_version": 1,
+        "operation": "interests",
+        "context": {
+          "purpose": "plan",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "projection": "ledger",
+        "domain_version": 1,
+        "checked_at": "2026-10-30T00:00:00Z",
+        "items": [
+          {
+            "ref": {
+              "kind": "derived",
+              "id": "preference:synthetic",
+              "revision": 1
+            },
+            "kind": "preference",
+            "text": "A grounded interest in stellar evolution.",
+            "episode_refs": [
+              {
+                "episode_id": "episode:synthetic",
+                "expected_revision": 1
+              }
+            ],
+            "source_refs": [
+              {
+                "producer": "companion",
+                "object_id": "reading:synthetic",
+                "revision": "1",
+                "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              }
+            ],
+            "recorded_at": "2026-10-30T00:00:00Z",
+            "expires_at": null,
+            "topic": "astronomy",
+            "stance": "curious",
+            "support_count": 1,
+            "history": [],
+            "history_omitted": false,
+            "strength": 0.2,
+            "evidence_count": 1,
+            "last_touch": "2026-10-30T00:00:00Z",
+            "valence": 0.6,
+            "memory_refs": [
+              {
+                "kind": "derived",
+                "id": "preference:synthetic",
+                "revision": 1
+              }
+            ],
+            "evidence_incomplete": false
+          }
+        ],
+        "omitted": false
+      }
+    },
+    {
+      "id": "source-evidence-request",
+      "definition": "source_facts_request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "source_facts",
+        "refs": [
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          }
+        ],
+        "evidence_details": true
+      }
+    },
+    {
+      "id": "source-evidence-result",
+      "definition": "source_facts_result",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "facts": [
+          {
+            "source": {
+              "producer": "companion",
+              "object_id": "synthetic-reading-event-1",
+              "revision": "1",
+              "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "actor_id": "actor:fixture-a",
+            "relation": "participant",
+            "provenance": "digital_action",
+            "occurred_at": "2026-10-23T06:00:00Z",
+            "learned_at": "2026-10-23T06:00:00Z",
+            "outcome": "completed",
+            "summary": "实际阅读字幕120至150秒；并非完整观看视频。",
+            "source_generation": "synthetic-generation-1",
+            "source_sequence": 1,
+            "access_version": "1",
+            "source_constraints": {
+              "kind": "public"
+            },
+            "content_reads": [
+              {
+                "content_ref": {
+                  "producer": "knowledge",
+                  "object_id": "synthetic-video-1",
+                  "revision": "1",
+                  "content_hash": "2222222222222222222222222222222222222222222222222222222222222222"
+                },
+                "coverage": [
+                  {
+                    "unit": "seconds",
+                    "start": 120,
+                    "end": 150,
+                    "complete": false,
+                    "gaps": [
+                      "frames_sampled",
+                      "audio_not_transcribed"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "evidence_details": [
+          {
+            "source": {
+              "producer": "companion",
+              "object_id": "synthetic-reading-event-1",
+              "revision": "1",
+              "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "content_identity": {
+              "owner": "knowledge",
+              "object_id": "article:synthetic",
+              "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+            },
+            "excerpt": "Actually received synthetic excerpt.",
+            "valence": null
+          }
+        ]
+      }
+    }
+  ],
+  "negative": [
+    {
+      "id": "fake-person-owner",
+      "definition": "append_episode",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "person:bot",
+        "role_version": 7,
+        "operation": "append_episode",
+        "idempotency_key": "episode-intent-1",
+        "source": {
+          "producer": "companion",
+          "object_id": "synthetic-reading-event-1",
+          "revision": "1",
+          "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "perspective": "participant"
+      }
+    },
+    {
+      "id": "client-forged-success",
+      "definition": "append_episode",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "append_episode",
+        "idempotency_key": "episode-intent-1",
+        "source": {
+          "producer": "companion",
+          "object_id": "synthetic-reading-event-1",
+          "revision": "1",
+          "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "perspective": "participant",
+        "outcome": "completed"
+      }
+    },
+    {
+      "id": "client-forged-scope",
+      "definition": "append_episode",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "append_episode",
+        "idempotency_key": "episode-intent-1",
+        "source": {
+          "producer": "companion",
+          "object_id": "synthetic-reading-event-1",
+          "revision": "1",
+          "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "perspective": "participant",
+        "audience": {
+          "kind": "actor_only"
+        }
+      }
+    },
+    {
+      "id": "missing-source",
+      "definition": "append_episode",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "append_episode",
+        "idempotency_key": "episode-intent-1",
+        "perspective": "participant"
+      }
+    },
+    {
+      "id": "boolean-version",
+      "definition": "append_episode",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": true,
+        "operation": "append_episode",
+        "idempotency_key": "episode-intent-1",
+        "source": {
+          "producer": "companion",
+          "object_id": "synthetic-reading-event-1",
+          "revision": "1",
+          "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "perspective": "participant"
+      }
+    },
+    {
+      "id": "remote-source-url",
+      "definition": "append_episode",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "append_episode",
+        "idempotency_key": "episode-intent-1",
+        "source": {
+          "producer": "companion",
+          "object_id": "synthetic-reading-event-1",
+          "revision": "1",
+          "content_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+          "url": "https://example.invalid/"
+        },
+        "perspective": "participant"
+      }
+    },
+    {
+      "id": "private-no-assertion",
+      "definition": "context",
+      "document": {
+        "purpose": "plan",
+        "audience": {
+          "kind": "private",
+          "person_id": "person:fixture",
+          "conversation_id": "private:fixture"
+        }
+      }
+    },
+    {
+      "id": "invalid-time",
+      "definition": "source_fact",
+      "document": {
+        "source": {
+          "producer": "companion",
+          "object_id": "synthetic-reading-event-1",
+          "revision": "1",
+          "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "actor_id": "actor:fixture-a",
+        "relation": "participant",
+        "provenance": "digital_action",
+        "occurred_at": "2026-10-23T06:00:00Z",
+        "learned_at": "yesterday",
+        "outcome": "completed",
+        "summary": "实际阅读字幕120至150秒；并非完整观看视频。",
+        "source_generation": "synthetic-generation-1",
+        "source_sequence": 1,
+        "access_version": "1",
+        "source_constraints": {
+          "kind": "public"
+        },
+        "content_reads": [
+          {
+            "content_ref": {
+              "producer": "knowledge",
+              "object_id": "synthetic-video-1",
+              "revision": "1",
+              "content_hash": "2222222222222222222222222222222222222222222222222222222222222222"
+            },
+            "coverage": [
+              {
+                "unit": "seconds",
+                "start": 120,
+                "end": 150,
+                "complete": false,
+                "gaps": [
+                  "frames_sampled",
+                  "audio_not_transcribed"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unbounded-source-batch",
+      "definition": "source_facts_request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "source_facts",
+        "refs": [
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          {
+            "producer": "companion",
+            "object_id": "synthetic-reading-event-1",
+            "revision": "1",
+            "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+          }
+        ]
+      }
+    },
+    {
+      "id": "durable-source-cannot-carry-proof",
+      "definition": "source_constraints",
+      "document": {
+        "kind": "private",
+        "person_id": "person:fixture",
+        "conversation_id": "private:fixture",
+        "assertion_ref": "expired-request-proof"
+      }
+    },
+    {
+      "id": "episode-check-missing-revision",
+      "definition": "check_episode",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "check_episode",
+        "context": {
+          "purpose": "proactive",
+          "audience": {
+            "kind": "group",
+            "conversation_id": "group:fixture",
+            "assertion_ref": "synthetic-origin-1"
+          }
+        },
+        "episodes": [
+          {
+            "episode_id": "episode:fixture-1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "changed-episode-cannot-disclose",
+      "definition": "check_episode_result",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "check_episode",
+        "context": {
+          "purpose": "proactive",
+          "audience": {
+            "kind": "group",
+            "conversation_id": "group:fixture",
+            "assertion_ref": "synthetic-origin-1"
+          }
+        },
+        "domain_version": 2,
+        "checked_at": "2026-10-23T06:01:00Z",
+        "items": [
+          {
+            "episode_id": "episode:fixture-1",
+            "expected_revision": 1,
+            "current_revision": 2,
+            "state": "changed",
+            "read_allowed": false,
+            "disclosure_allowed": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "get-cannot-return-withdrawn-body",
+      "definition": "get_episode_result",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "get_episode",
+        "context": {
+          "purpose": "plan",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "domain_version": 1,
+        "episode": {
+          "episode_id": "episode:fixture-1",
+          "revision": 1,
+          "actor_id": "actor:fixture-a",
+          "state": "withdrawn",
+          "fact": {
+            "source": {
+              "producer": "companion",
+              "object_id": "synthetic-reading-event-1",
+              "revision": "1",
+              "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+            },
+            "actor_id": "actor:fixture-a",
+            "relation": "participant",
+            "provenance": "digital_action",
+            "occurred_at": "2026-10-23T06:00:00Z",
+            "learned_at": "2026-10-23T06:00:00Z",
+            "outcome": "completed",
+            "summary": "实际阅读字幕120至150秒；并非完整观看视频。",
+            "source_generation": "synthetic-generation-1",
+            "source_sequence": 1,
+            "access_version": "1",
+            "source_constraints": {
+              "kind": "public"
+            },
+            "content_reads": [
+              {
+                "content_ref": {
+                  "producer": "knowledge",
+                  "object_id": "synthetic-video-1",
+                  "revision": "1",
+                  "content_hash": "2222222222222222222222222222222222222222222222222222222222222222"
+                },
+                "coverage": [
+                  {
+                    "unit": "seconds",
+                    "start": 120,
+                    "end": 150,
+                    "complete": false,
+                    "gaps": [
+                      "frames_sampled",
+                      "audio_not_transcribed"
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "recorded_at": "2026-10-23T06:00:01Z"
+        }
+      }
+    },
+    {
+      "id": "reading-range-without-content",
+      "definition": "source_fact",
+      "document": {
+        "source": {
+          "producer": "companion",
+          "object_id": "synthetic-reading-event-1",
+          "revision": "1",
+          "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "actor_id": "actor:fixture-a",
+        "relation": "participant",
+        "provenance": "digital_action",
+        "occurred_at": "2026-10-23T06:00:00Z",
+        "learned_at": "2026-10-23T06:00:00Z",
+        "outcome": "completed",
+        "summary": "实际阅读字幕120至150秒；并非完整观看视频。",
+        "source_generation": "synthetic-generation-1",
+        "source_sequence": 1,
+        "access_version": "1",
+        "source_constraints": {
+          "kind": "public"
+        },
+        "content_reads": [
+          {
+            "coverage": [
+              {
+                "unit": "seconds",
+                "start": 120,
+                "end": 150,
+                "complete": false,
+                "gaps": [
+                  "frames_sampled",
+                  "audio_not_transcribed"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "reading-range-without-content-hash",
+      "definition": "source_fact",
+      "document": {
+        "source": {
+          "producer": "companion",
+          "object_id": "synthetic-reading-event-1",
+          "revision": "1",
+          "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "actor_id": "actor:fixture-a",
+        "relation": "participant",
+        "provenance": "digital_action",
+        "occurred_at": "2026-10-23T06:00:00Z",
+        "learned_at": "2026-10-23T06:00:00Z",
+        "outcome": "completed",
+        "summary": "实际阅读字幕120至150秒；并非完整观看视频。",
+        "source_generation": "synthetic-generation-1",
+        "source_sequence": 1,
+        "access_version": "1",
+        "source_constraints": {
+          "kind": "public"
+        },
+        "content_reads": [
+          {
+            "content_ref": {
+              "producer": "knowledge",
+              "object_id": "synthetic-video-1",
+              "revision": "1"
+            },
+            "coverage": [
+              {
+                "unit": "seconds",
+                "start": 120,
+                "end": 150,
+                "complete": false,
+                "gaps": [
+                  "frames_sampled",
+                  "audio_not_transcribed"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "invalid-calendar-date",
+      "definition": "source_fact",
+      "document": {
+        "source": {
+          "producer": "companion",
+          "object_id": "synthetic-reading-event-1",
+          "revision": "1",
+          "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "actor_id": "actor:fixture-a",
+        "relation": "participant",
+        "provenance": "digital_action",
+        "occurred_at": "2026-10-23T06:00:00Z",
+        "learned_at": "2026-02-30T12:00:00Z",
+        "outcome": "completed",
+        "summary": "实际阅读字幕120至150秒；并非完整观看视频。",
+        "source_generation": "synthetic-generation-1",
+        "source_sequence": 1,
+        "access_version": "1",
+        "source_constraints": {
+          "kind": "public"
+        },
+        "content_reads": [
+          {
+            "content_ref": {
+              "producer": "knowledge",
+              "object_id": "synthetic-video-1",
+              "revision": "1",
+              "content_hash": "2222222222222222222222222222222222222222222222222222222222222222"
+            },
+            "coverage": [
+              {
+                "unit": "seconds",
+                "start": 120,
+                "end": 150,
+                "complete": false,
+                "gaps": [
+                  "frames_sampled",
+                  "audio_not_transcribed"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "timestamp-missing-timezone",
+      "definition": "source_fact",
+      "document": {
+        "source": {
+          "producer": "companion",
+          "object_id": "synthetic-reading-event-1",
+          "revision": "1",
+          "content_hash": "1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "actor_id": "actor:fixture-a",
+        "relation": "participant",
+        "provenance": "digital_action",
+        "occurred_at": "2026-10-23T06:00:00Z",
+        "learned_at": "2026-10-23T12:00:00",
+        "outcome": "completed",
+        "summary": "实际阅读字幕120至150秒；并非完整观看视频。",
+        "source_generation": "synthetic-generation-1",
+        "source_sequence": 1,
+        "access_version": "1",
+        "source_constraints": {
+          "kind": "public"
+        },
+        "content_reads": [
+          {
+            "content_ref": {
+              "producer": "knowledge",
+              "object_id": "synthetic-video-1",
+              "revision": "1",
+              "content_hash": "2222222222222222222222222222222222222222222222222222222222222222"
+            },
+            "coverage": [
+              {
+                "unit": "seconds",
+                "start": 120,
+                "end": 150,
+                "complete": false,
+                "gaps": [
+                  "frames_sampled",
+                  "audio_not_transcribed"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unknown-write-cannot-retry",
+      "definition": "error",
+      "document": {
+        "schema_version": 1,
+        "request_id": "synthetic-request-1",
+        "code": "unknown",
+        "retryable": true,
+        "execution": "unknown"
+      }
+    },
+    {
+      "id": "context-cannot-assert-service",
+      "definition": "context_check_request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "context-check-fixture",
+        "actor_id": "actor:fixture-a",
+        "role_version": 7,
+        "operation": "context_check",
+        "context": {
+          "purpose": "dialogue",
+          "audience": {
+            "kind": "group",
+            "conversation_id": "conversation:fixture-group",
+            "assertion_ref": "origin:fixture"
+          }
+        },
+        "authenticated_service": "admin"
+      }
+    },
+    {
+      "id": "extension-cannot-replace-episode",
+      "definition": "append_derived",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:actor-example",
+        "actor_id": "actor:example",
+        "role_version": 1,
+        "operation": "append_derived",
+        "idempotency_key": "derive:reading-1",
+        "kind": "understanding",
+        "text": "I still have one question about this argument.",
+        "episode_refs": [
+          {
+            "episode_id": "episode:read-1",
+            "expected_revision": 1
+          }
+        ],
+        "replaces": [
+          {
+            "kind": "episode",
+            "id": "episode:read-1",
+            "revision": 1
+          }
+        ],
+        "importance": "normal",
+        "retention": "medium"
+      }
+    },
+    {
+      "id": "timeline-is-not-keyword-query",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "al13:timeline",
+        "actor_id": "actor:a",
+        "role_version": 1,
+        "operation": "query",
+        "mode": "timeline",
+        "context": {
+          "purpose": "diary",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "window": {
+          "start": "2026-10-26T16:00:00Z",
+          "end": "2026-10-27T16:00:00Z"
+        },
+        "cursor": null,
+        "kinds": [
+          "episode"
+        ],
+        "limit": 32,
+        "budget_bytes": 32768,
+        "text": "昨天"
+      }
+    },
+    {
+      "id": "public-not-dialogue",
+      "definition": "context",
+      "document": {
+        "purpose": "dialogue",
+        "audience": {
+          "kind": "public"
+        }
+      }
+    },
+    {
+      "id": "core-negative-1",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:394",
+        "actor_id": "actor:a",
+        "role_version": 1,
+        "operation": "forget_memory",
+        "context": {
+          "purpose": "management",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "idempotency_key": "forget:one",
+        "ref": {
+          "kind": "derived",
+          "id": "derived:one",
+          "revision": 1
+        },
+        "expected_domain_version": -1
+      }
+    },
+    {
+      "id": "core-negative-2",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:394",
+        "actor_id": "actor:a",
+        "role_version": 1,
+        "operation": "manage_list",
+        "context": {
+          "purpose": "management",
+          "audience": {
+            "kind": "group",
+            "group_id": "group:a"
+          }
+        },
+        "states": [
+          "active",
+          "superseded"
+        ],
+        "kinds": [
+          "episode",
+          "preference"
+        ],
+        "cursor": null,
+        "limit": 32,
+        "budget_bytes": 32768
+      }
+    },
+    {
+      "id": "core-negative-3",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:394",
+        "actor_id": "actor:a",
+        "role_version": 1,
+        "operation": "maintain",
+        "idempotency_key": "maintenance:one",
+        "limit": 129
+      }
+    },
+    {
+      "id": "core-negative-4",
+      "definition": "request",
+      "document": {
+        "schema_version": 1,
+        "request_id": "req:394",
+        "actor_id": "actor:a",
+        "role_version": 1,
+        "operation": "revise_memory",
+        "context": {
+          "purpose": "management",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "idempotency_key": "correct:one",
+        "ref": {
+          "kind": "derived",
+          "id": "derived:one",
+          "revision": 1
+        },
+        "expected_domain_version": 3,
+        "text": "I now prefer quiet music.",
+        "importance": "high",
+        "retention": "long",
+        "interest": {
+          "topic": "music",
+          "stance": "guessed"
+        }
+      }
+    },
+    {
+      "id": "ledger-fields-without-opt-in",
+      "definition": "interests_result",
+      "document": {
+        "schema_version": 1,
+        "request_id": "interest:synthetic",
+        "actor_id": "actor:fixture-a",
+        "role_version": 1,
+        "operation": "interests",
+        "context": {
+          "purpose": "plan",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "domain_version": 1,
+        "checked_at": "2026-10-30T00:00:00Z",
+        "items": [
+          {
+            "ref": {
+              "kind": "derived",
+              "id": "preference:synthetic",
+              "revision": 1
+            },
+            "kind": "preference",
+            "text": "A grounded interest in stellar evolution.",
+            "episode_refs": [
+              {
+                "episode_id": "episode:synthetic",
+                "expected_revision": 1
+              }
+            ],
+            "source_refs": [
+              {
+                "producer": "companion",
+                "object_id": "reading:synthetic",
+                "revision": "1",
+                "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              }
+            ],
+            "recorded_at": "2026-10-30T00:00:00Z",
+            "expires_at": null,
+            "topic": "astronomy",
+            "stance": "curious",
+            "support_count": 1,
+            "history": [],
+            "history_omitted": false,
+            "strength": 0.2,
+            "evidence_count": 1,
+            "last_touch": "2026-10-30T00:00:00Z",
+            "valence": 0.6,
+            "memory_refs": [
+              {
+                "kind": "derived",
+                "id": "preference:synthetic",
+                "revision": 1
+              }
+            ],
+            "evidence_incomplete": false
+          }
+        ],
+        "omitted": false
+      }
+    },
+    {
+      "id": "interest-strength-out-of-range",
+      "definition": "interests_result",
+      "document": {
+        "schema_version": 1,
+        "request_id": "interest:synthetic",
+        "actor_id": "actor:fixture-a",
+        "role_version": 1,
+        "operation": "interests",
+        "context": {
+          "purpose": "plan",
+          "audience": {
+            "kind": "actor_only"
+          }
+        },
+        "projection": "ledger",
+        "domain_version": 1,
+        "checked_at": "2026-10-30T00:00:00Z",
+        "items": [
+          {
+            "ref": {
+              "kind": "derived",
+              "id": "preference:synthetic",
+              "revision": 1
+            },
+            "kind": "preference",
+            "text": "A grounded interest in stellar evolution.",
+            "episode_refs": [
+              {
+                "episode_id": "episode:synthetic",
+                "expected_revision": 1
+              }
+            ],
+            "source_refs": [
+              {
+                "producer": "companion",
+                "object_id": "reading:synthetic",
+                "revision": "1",
+                "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              }
+            ],
+            "recorded_at": "2026-10-30T00:00:00Z",
+            "expires_at": null,
+            "topic": "astronomy",
+            "stance": "curious",
+            "support_count": 1,
+            "history": [],
+            "history_omitted": false,
+            "strength": 1.01,
+            "evidence_count": 1,
+            "last_touch": "2026-10-30T00:00:00Z",
+            "valence": 0.6,
+            "memory_refs": [
+              {
+                "kind": "derived",
+                "id": "preference:synthetic",
+                "revision": 1
+              }
+            ],
+            "evidence_incomplete": false
+          }
+        ],
+        "omitted": false
+      }
+    }
+  ]
+}
