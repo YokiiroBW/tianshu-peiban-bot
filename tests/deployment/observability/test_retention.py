@@ -192,7 +192,7 @@ class PolicyRetentionTests(unittest.TestCase):
         self.assertNotIn("retention_days", guard)
         self.assertEqual(central, loki())
         self.assertEqual(rules, alert_rules())
-        self.assertEqual(len(rules["groups"][0]["rules"]), 15)
+        self.assertEqual(len(rules["groups"][0]["rules"]), 10)
         self.assertNotIn("remove_after_secs", json.dumps(vector(SNAPSHOT)))
         for bad in (0, -1, 1.5, "7", True, None):
             with self.subTest(bad=bad), self.assertRaises(ValueError):

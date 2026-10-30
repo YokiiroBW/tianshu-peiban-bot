@@ -58,8 +58,8 @@ def compose(
         add(name, tokens[token], "/run/secrets/" + token)
 
     for service, path in log_roots.items():
-        for collector in ("vector", "guard"):
-            add(collector, path, "/sources/" + service)
+        add("vector", path, "/sources/" + service)
+        add("guard", path, "/sources/" + service, False)
     for name in ("vector", "loki", "prometheus"):
         add(
             name, bundle / "config" / (name + ".json"), "/etc/tianshu/" + name + ".json"
@@ -77,6 +77,7 @@ def compose(
     add("guard", contract, "/contracts/diagnostics/v1")
     add("guard", bundle / "code", "/opt/observability")
     add("guard", bundle / "config/guard.json", "/etc/tianshu/guard.json")
+    add("guard", bundle / "config/vector.json", "/etc/tianshu/vector.json")
     for role in ("vector", "loki"):
         add("guard", bundle / "data" / role, "/capacity/" + role)
     services["obs-guard"]["command"] = [

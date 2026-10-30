@@ -8,6 +8,7 @@ from pathlib import Path, PurePosixPath
 from urllib.parse import urlsplit
 
 from deploy.observability.retention import apply_retention
+from deploy.observability.configs import project_existing
 
 from .compose import compose, port, producer_log_mounts
 from .profile import (
@@ -152,7 +153,6 @@ def export(
     onebot_port=18765,
     observability_ports=None,
     retention_days=None,
-    log_max_events=None,
 ):
     """Write one reviewed unit; all validation precedes creating its new directory."""
     if type(installation.get("version")) is not int or installation["version"] != 1:
@@ -171,6 +171,7 @@ def export(
     if not isinstance(files, dict) or "runtime.json" in files:
         raise ValueError("runtime_configuration_is_generated")
     files = copy.deepcopy(files)
+    project_existing(files)
     host, frontend_port, api_frontend_port = validate_host(files)
     guard_settings = document(files["observability/guard.json"])
     files["observability/guard.json"], files["observability/loki.json"] = (
@@ -180,12 +181,10 @@ def export(
             retention_days=guard_settings.get("retention_days", 30)
             if retention_days is None
             else retention_days,
-            log_max_events=guard_settings.get("log_max_events", 10000)
-            if log_max_events is None
-            else log_max_events,
         )
     )
     files["observability/guard.json"]["host_state_path"] = host["state_file"]
+    files["observability/guard.json"]["vector_config"] = "/config/observability/vector.json"
     paths = {name: relative(name) for name in files}
     contents = {name: file_bytes(name, value) for name, value in files.items()}
     if api_port is not None and api_frontend_port is None:
@@ -299,7 +298,6 @@ def main(argv=None):
     parser.add_argument("--onebot-port", type=int, default=18765)
     parser.add_argument("--observability-ports", type=Path)
     parser.add_argument("--retention-days", type=int)
-    parser.add_argument("--max-events", type=int)
     args = parser.parse_args(argv)
     ports = (
         json.loads(args.observability_ports.read_bytes())
@@ -316,7 +314,6 @@ def main(argv=None):
                 onebot_port=args.onebot_port,
                 observability_ports=ports,
                 retention_days=args.retention_days,
-                log_max_events=args.max_events,
             )
         )
     )

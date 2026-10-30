@@ -369,7 +369,8 @@ class ConfigurationTests(WorkspaceTest):
         )
         generated = json.loads((bundle / "compose.yaml").read_bytes())
         self.assertTrue((bundle / "code/transport.py").is_file())
-        self.assertTrue((bundle / "code/ledger_schema.py").is_file())
+        self.assertTrue((bundle / "code/vector_source_retention.py").is_file())
+        self.assertFalse((bundle / "code/ledger_schema.py").exists())
         self.assertEqual(len(generated["services"]), 5)
         self.assertFalse(generated["networks"]["access"]["internal"])
         self.assertTrue(generated["networks"]["observe"]["internal"])
@@ -389,11 +390,11 @@ class ConfigurationTests(WorkspaceTest):
             prometheus_service["tmpfs"],
         )
         self.assertNotIn("docker.sock", json.dumps(generated))
-        for service in generated["services"].values():
+        for name, service in generated["services"].items():
             self.assertNotEqual(service["user"], "0")
             for mount in service["volumes"]:
                 if mount["target"].startswith("/sources/"):
-                    self.assertTrue(mount["read_only"])
+                    self.assertEqual(mount["read_only"], name != "obs-guard")
         with self.assertRaisesRegex(ValueError, "new_bundle_directory_required"):
             prepare(self.root, settings, manifest, "bundle", SNAPSHOT, candidate=True)
         manifest["products"]["platform"]["source"]["commit"] = "0" * 40

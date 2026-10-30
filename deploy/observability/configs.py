@@ -268,23 +268,13 @@ def loki(retention_hours=720, *, retention_days=None):
 
 ALERTS = {
     "PipelineTargetDown": ('max(1-up{job=~"guard|vector|loki"})', "1m"),
-    "IntegrityMonitorStale": (
+    "PipelineMonitorStale": (
         f"time()-tianshu_obs_monitor_last_success_timestamp > bool {MONITOR_STALE_SECONDS}",
         "1m",
     ),
-    "StorageQueryFailed": ("1-tianshu_obs_monitor_success", "1m"),
-    "PendingDelivery": ("tianshu_obs_oldest_pending_seconds > bool 120", "1m"),
-    "SequenceGap": ("tianshu_obs_sequence_gaps", "2m"),
-    "InvalidOrChangedSource": (
-        'sum({__name__=~"tianshu_obs_(invalid_source_lines|identity_conflicts|source_changed)_total"}) or vector(0)',
-        "0s",
-    ),
-    "RetrievalConflict": (
-        'sum({__name__=~"tianshu_obs_(retrieval_conflicts|invalid_retrieved_lines)_total"}) or vector(0)',
-        "0s",
-    ),
+    "LocalMonitorFailed": ("1-tianshu_obs_monitor_success", "1m"),
     "CollectorDiscardOrError": (
-        "(sum(increase(vector_component_discarded_events_total[5m])) or vector(0)) + (sum(increase(vector_component_errors_total[5m])) or vector(0))",
+        "sum(increase(vector_component_discarded_events_total[5m])) + sum(increase(vector_component_errors_total[5m]))",
         "0s",
     ),
     "StorageReject": ("increase(tianshu_obs_push_rejected_total[5m])", "0s"),
@@ -300,11 +290,10 @@ ALERTS = {
         'min(predict_linear(label_replace({__name__=~"tianshu_obs_storage_.*_free_bytes"}, "storage_metric", "$1", "__name__", "(.*)")[1h:1m],86400)) < bool 1073741824',
         "10m",
     ),
-    "LedgerCapacity": (
-        "(tianshu_obs_ledger_capacity_rejected_current > bool 0) + (tianshu_obs_source_retention_failures > bool 0) + (tianshu_obs_retention_delete_failures_current > bool 0)",
+    "RetentionFailure": (
+        "(tianshu_obs_source_retention_failures > bool 0) + (tianshu_obs_retention_delete_failures_current > bool 0)",
         "1m",
     ),
-    "ScanBehind": ("tianshu_obs_scan_budget_exhausted", "5m"),
     "VectorBufferHigh": (
         'sum(vector_buffer_size_bytes{component_id="loki"}) / sum(vector_buffer_max_size_bytes{component_id="loki"}) > bool 0.8',
         "1m",
@@ -368,13 +357,68 @@ def alert_rules():
         "groups": [
             {
                 "orgId": 1,
-                "name": "TianShu log integrity",
+                "name": "TianShu log pipeline",
                 "folder": "TianShu",
                 "interval": "30s",
                 "rules": rules,
             }
         ],
     }
+
+
+def project_existing(files):
+    """Update our provisioned rules/panels while preserving unrelated entries."""
+    retired = {
+        "obs-integritymonitorstale", "obs-pendingdelivery", "obs-sequencegap",
+        "obs-invalidorchangedsource", "obs-retrievalconflict", "obs-ledgercapacity",
+        "obs-scanbehind", "obs-storagequeryfailed",
+    }
+    wanted = {rule["uid"]: rule for rule in alert_rules()["groups"][0]["rules"]}
+    for name, value in list(files.items()):
+        if name.startswith("observability/provisioning/alerting/"):
+            try:
+                item = json.loads(value) if isinstance(value, (str, bytes)) else value
+            except (ValueError, TypeError):
+                continue
+            if not isinstance(item, dict):
+                continue
+            for group in item.get("groups", []):
+                old = group.get("rules", [])
+                if not any(r.get("uid") in retired | set(wanted) for r in old):
+                    continue
+                group["rules"] = [r for r in old if r.get("uid") not in retired]
+                by_uid = {r.get("uid"): r for r in group["rules"]}
+                for uid in ("obs-pipelinemonitorstale", "obs-retentionfailure", "obs-localmonitorfailed"):
+                    if uid not in by_uid:
+                        group["rules"].append(wanted[uid])
+                discard = by_uid.get("obs-collectordiscardorerror")
+                if discard:
+                    for entry in discard.get("data", []):
+                        if entry.get("refId") == "A":
+                            entry["model"]["expr"] = ALERTS["CollectorDiscardOrError"][0]
+                deletions = item.setdefault("deleteRules", [])
+                existing = {(d.get("orgId"), d.get("uid")) for d in deletions}
+                for uid in sorted(retired):
+                    if (group.get("orgId", 1), uid) not in existing:
+                        deletions.append({"orgId": group.get("orgId", 1), "uid": uid})
+                files[name] = item
+        elif name.startswith("observability/dashboards/"):
+            try:
+                item = json.loads(value) if isinstance(value, (str, bytes)) else value
+            except (ValueError, TypeError):
+                continue
+            if isinstance(item, dict) and item.get("uid") == "tianshu-logs":
+                replacement = {p["id"]: p for p in dashboard()["panels"][:4]}
+                retired_metrics = ("pending_events", "sequence_gaps", "landed_events", "oldest_pending_seconds")
+                item["panels"] = [
+                    replacement[p["id"]] if p.get("id") in replacement and any(
+                        metric in str(p.get("targets", [])) for metric in retired_metrics
+                    ) else p for p in item.get("panels", [])
+                ]
+                if item.get("title") == "TianShu runtime and log integrity":
+                    item["title"] = "TianShu runtime and log pipeline"
+                files[name] = item
+    return files
 
 
 def datasources(ca):
@@ -438,10 +482,10 @@ def prometheus():
 def dashboard():
     panels = []
     queries = [
-        ("Pending events", "tianshu_obs_pending_events"),
-        ("Sequence gaps", "tianshu_obs_sequence_gaps"),
-        ("Landed events", "tianshu_obs_landed_events"),
-        ("Oldest pending (seconds)", "tianshu_obs_oldest_pending_seconds"),
+        ("Vector buffer bytes", 'sum(vector_buffer_size_bytes{component_id="loki"})'),
+        ("Rejected pushes", "increase(tianshu_obs_push_rejected_total[5m])"),
+        ("Monitor healthy", "tianshu_obs_monitor_success"),
+        ("Lowest storage free bytes", 'min({__name__=~"tianshu_obs_storage_.*_free_bytes"})'),
     ]
     for n, (title, expr) in enumerate(queries):
         panels.append(
@@ -466,7 +510,7 @@ def dashboard():
     )
     return {
         "uid": "tianshu-logs",
-        "title": "TianShu runtime and log integrity",
+        "title": "TianShu runtime and log pipeline",
         "schemaVersion": 39,
         "version": 1,
         "refresh": "30s",

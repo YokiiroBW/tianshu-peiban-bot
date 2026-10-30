@@ -7,6 +7,7 @@ import tempfile
 from urllib.parse import urlsplit
 
 from deploy.observability.retention import apply_retention
+from deploy.observability.configs import project_existing
 
 from .compose import producer_log_mounts
 from .exchange import authority
@@ -169,7 +170,6 @@ def make_installation(
     native_origins=None,
     frontend=None,
     retention_days=None,
-    log_max_events=None,
 ):
     """Reuse reviewed native outputs; never generate credentials, models or storage."""
     if not isinstance(knowledge_client, str) or not knowledge_client.strip():
@@ -190,6 +190,7 @@ def make_installation(
     if not required <= set(files):
         raise ValueError("native_observability_configuration_required")
     files = copy.deepcopy(files)
+    project_existing(files)
     mounts = producer_log_mounts(mounts)
     guard_settings = document(files["observability/guard.json"])
     files["observability/guard.json"], files["observability/loki.json"] = (
@@ -199,9 +200,6 @@ def make_installation(
             retention_days=guard_settings.get("retention_days", 30)
             if retention_days is None
             else retention_days,
-            log_max_events=guard_settings.get("log_max_events", 10000)
-            if log_max_events is None
-            else log_max_events,
         )
     )
     native_environment = copy.deepcopy(observability_environment or {})
@@ -300,6 +298,7 @@ def make_installation(
         }
     files["host.json"] = host
     files["observability/guard.json"]["host_state_path"] = host["state_file"]
+    files["observability/guard.json"]["vector_config"] = "/config/observability/vector.json"
     guard = [PYTHON, "-B", APPLICATION + "/deploy/tianshu/runtime_guard.py"]
     state_mounts = {
         mount["target"]: mount["source"]

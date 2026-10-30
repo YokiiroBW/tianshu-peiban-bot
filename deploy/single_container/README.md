@@ -12,7 +12,7 @@
 
 `host.json` 每个模块拥有原 settings、独立 env 与固定逻辑 origin；常规原生成器使用 `*.internal` 地址。自定义部署时应由发布者使这些明确目标与原第一方调用地址一致，不能靠 DNS/URL 猜测或关闭 origin 检查。外部 AstrBot 等适配器继续使用正式服务协议与原 token。
 
-运行日志默认五来源合计最多10000个逻辑事件、保留30天，数量或天数任一先到先清最旧的可安全退役日志。主设置为 `log_max_events` / `retention_days`，修改后重新导出并重启guard/Loki。容器内writer管理CLI可手动clear旧日志含pending，持久cutoff阻止旧raw/Vector缓冲重放回灌；query角色仍只读。活动段、持久buffer、Loki WAL/chunk/cache及Compactor异步回收不等于瞬时物理一万条。详见 [日志保留说明](../observability/RETENTION.md)。
+运行日志由 Vector 采集、Loki 存储并按 `retention_days` 留存，默认 30 天；旧日志账本 10,000 条准入与排序限制已退役。手动清空、原生持久缓冲与安全源段回收见 [日志保留说明](../observability/RETENTION.md)。
 
 2026-10-28，R14已正式运行于 **192.168.31.230**，镜像`sha256:dd0cd89618a04a281717fc51aa81c10e3e552d8b2a8a5f0ef244141afb952611`（3.389GB、66个冻结Linux wheel）。六模块、五观测引擎、漫画插件和容量守护正常；旧13保持cold/restart=no。1126配置仅四项Loki参数及原scope网关租约引用更新，25逻辑存储绑定、37mount和业务数据保留，无业务PG恢复/迁移。
 

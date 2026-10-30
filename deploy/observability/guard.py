@@ -1,4 +1,4 @@
-"""TLS role gateway plus bounded integrity monitor. No Docker API, product imports or raw logging."""
+"""TLS role gateway and native logging health monitor."""
 
 import argparse
 import hmac
@@ -9,19 +9,19 @@ import sqlite3
 import ssl
 import threading
 import time
-from contextlib import closing
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
 
 from alerts import MONITOR_STALE_SECONDS, AlertStore
-from monitor import Ledger, capacities
-from policy import Policy
+from source_capacity import capacities
+from clear_retention import ClearControl
 from query import LokiClient, QueryError
-from retained_query import query_path, window_filter
-from retention import days, max_events
-from source_retention import prune_sources
+from logql_filter import query_path
+from retention import days
+from vector_source_retention import prune_sources
 from transport import Deadline, accept_tls
+from vector_checkpoints import compatible_configuration
 
 QUERY_PATHS = {
     "/loki/api/v1/query",
@@ -34,8 +34,7 @@ QUERY_PATHS = {
 }
 
 MONITOR_FAILURE_STAGES = (
-    "startup", "source_scan", "capacity", "reconcile", "source_retention",
-    "expiration", "refill", "retained_window", "deletions", "metrics", "alerts",
+    "startup", "capacity", "source_retention", "deletions", "alerts",
 )
 MONITOR_QUERY_REASONS = (
     "query_response_over_budget", "redirect_refused", "query_deadline_exceeded",
@@ -83,7 +82,6 @@ class State:
         self.metrics = {
             "monitor_success": 0,
             "monitor_last_success_timestamp": 0,
-            "query_failures_total": 0,
             "push_rejected_total": 0,
             "proxy_auth_rejected_total": 0,
             "last_push_success_timestamp": 0,
@@ -91,7 +89,7 @@ class State:
         }
         self.stop = threading.Event()
         self.monitor_running = threading.Event()
-        self.retained_filter = window_filter([])
+        self.clear_control = ClearControl(settings["storage_roots"]["guard"])
         self.tokens = {
             role: Path(path).read_text().strip()
             for role, path in settings["tokens"].items()
@@ -155,26 +153,9 @@ class State:
 
     def clear_logs(self):
         """Persist one operator action; caller-supplied deletion queries are absent."""
-        before = time.time()
-        with closing(sqlite3.connect(self.settings["ledger"], timeout=3)) as db, db:
-            db.execute("BEGIN IMMEDIATE")
-            known, pending = db.execute(
-                "SELECT count(*),coalesce(sum(verified=0),0) FROM events "
-                "WHERE first_seen<=? OR occurred<=?",
-                (before, before),
-            ).fetchone()
-            db.execute(
-                "UPDATE retention_control SET clear_before=max(clear_before,?) WHERE singleton=1",
-                (before,),
-            )
         with self.lock:
-            self.retained_filter = window_filter([])
-            self.metrics["retained_events"] = 0
-        return {
-            "before": before,
-            "known_events": known,
-            "known_pending_events": pending,
-        }
+            before = self.clear_control.clear() / 1000
+        return {"before": before}
 
     def space_available(self):
         return all(
@@ -204,39 +185,19 @@ class State:
         )
 
     def run_monitor(self):
-        ledger, alerts = None, None
+        alerts = None
         stage = "startup"
         self.monitor_running.set()
         try:
-            policy = Policy(json.loads(Path(self.settings["snapshot"]).read_bytes()))
-            policy.verify_contract(Path(self.settings["contract"]))
             retention_days = days(self.settings.get("retention_days", 30))
-            maximum = max_events(
-                self.settings.get(
-                    "log_max_events", self.settings.get("ledger_max_events", 10000)
-                )
-            )
-            ledger = Ledger(
-                self.settings["ledger"],
-                policy,
-                maximum,
-                retention_days,
-            )
             alerts = AlertStore(
-                str(Path(self.settings["ledger"]).with_name("alerts.sqlite")),
+                str(Path(self.settings["storage_roots"]["guard"]) / "alerts.sqlite"),
                 retention_days,
             )
             while not self.stop.is_set():
-                succeeded = True
-                backlogged, acknowledged = False, 0
                 try:
-                    stage = "source_scan"
-                    result = ledger.scan(self.settings["log_roots"])
-                    backlogged = bool(result.get("scan_budget_exhausted"))
                     stage = "capacity"
-                    cap = capacities(
-                        self.settings["log_roots"], self.settings["log_budgets"]
-                    )
+                    cap = capacities(self.settings["log_roots"], self.settings["log_budgets"])
                     extra = {}
                     for service, capacity in cap.items():
                         for metric, value in capacity.items():
@@ -245,97 +206,40 @@ class State:
                         disk = shutil.disk_usage(path)
                         extra[f"storage_{role}_free_bytes"] = disk.free
                         extra[f"storage_{role}_ratio"] = 1 - disk.free / disk.total
-                    self.update(**result, **extra)
-                    stage = "reconcile"
-                    acknowledged = ledger.reconcile(
-                        self.backend,
-                        retention_seconds=retention_days * 86400,
-                        batch=min(1024, maximum),
-                    )
+                    self.update(**extra)
                     stage = "source_retention"
-                    cleanup, coverage = prune_sources(
-                        ledger,
-                        self.settings["log_roots"],
-                        retention_days,
-                        host_state_path=self.settings.get("host_state_path"),
-                    )
-                    stage = "expiration"
-                    self.update(
-                        **cleanup,
-                        **ledger.expire(
-                            retention_days,
-                            coverage=coverage,
-                            reserve=min(512, max(1, maximum // 10))
-                            if ledger.capacity_rejected_current
-                            else 0,
-                        ),
-                    )
-                    free = (
-                        maximum
-                        - ledger.db.execute(
-                            "SELECT landed FROM totals WHERE singleton=1"
-                        ).fetchone()[0]
-                    )
-                    if ledger.capacity_rejected_current and free > 0:
-                        stage = "refill"
-                        # Fill only proven free slots now. The read budget stops
-                        # before another full-capacity rejection, while keeping
-                        # every new unconsumed source byte for the next cycle.
-                        self.update(
-                            **ledger.scan(self.settings["log_roots"], line_budget=free)
-                        )
-                    if free > 0:
-                        ledger.capacity_rejected_current = 0
-                    stage = "retained_window"
-                    with self.lock:
-                        # An operator clear may arrive during the backend query.
-                        # Publish under the same lock used to hide its old window;
-                        # a completed clear cannot be overwritten by stale IDs.
-                        ledger.apply_clear()
-                        window = ledger.retained_window()
-                        self.retained_filter = window_filter(window)
-                        self.metrics["retained_events"] = len(window)
-                    self.update(retention_delete_failures_current=0)
+                    vector_data = self.settings.get("vector_data", self.settings["storage_roots"].get("vector"))
+                    vector_config = self.settings.get("vector_config")
+                    if vector_data and vector_config and compatible_configuration(vector_config, self.settings["log_roots"]):
+                        self.update(**prune_sources(
+                            self.settings["log_roots"], vector_data,
+                            host_state_path=self.settings.get("host_state_path"),
+                        ))
+                    elif vector_data:
+                        self.update(source_retention_failures=1)
+                    stage = "deletions"
                     try:
-                        stage = "deletions"
-                        ledger.submit_deletions(self.backend)
+                        self.clear_control.submit(self.backend, self.lock, retention_days)
+                        self.update(retention_delete_failures_current=0)
                     except Exception:
                         self.update(retention_delete_failures_current=1)
-                        raise
+                    self.update(monitor_success=1, monitor_last_success_timestamp=time.time())
+                    self.update(**self.monitor_failure_values())
                 except Exception as error:
-                    succeeded = False
-                    self.add("query_failures_total")
                     self.monitor_failed(stage, error)
-                # Read one final snapshot, including newly landed events even if
-                # Loki was unavailable. Aggregate metadata needs no full scan.
-                try:
-                    self.update(**ledger.metrics())
-                except Exception as error:
-                    succeeded = False
-                    self.add("query_failures_total")
-                    self.monitor_failed("metrics", error)
-                if succeeded:
-                    self.update(
-                        monitor_success=1,
-                        monitor_last_success_timestamp=time.time(),
-                    )
                 with self.lock:
                     metrics = dict(self.metrics)
-                stage = "alerts"
-                self.update(**alerts.update(metrics))
-                if succeeded:
-                    self.update(**self.monitor_failure_values())
-                interval = self.settings.get("interval_seconds", 30)
-                if succeeded and backlogged and acknowledged > 0:
-                    interval = min(interval, 1)
-                self.stop.wait(interval)
+                try:
+                    stage = "alerts"
+                    self.update(**alerts.update(metrics))
+                except Exception as error:
+                    self.monitor_failed(stage, error)
+                self.stop.wait(self.settings.get("interval_seconds", 30))
         except Exception as error:
             self.monitor_failed(stage, error)
         finally:
             self.monitor_running.clear()
             self.update(monitor_success=0)
-            if ledger:
-                ledger.close()
             if alerts:
                 alerts.close()
 
@@ -521,8 +425,9 @@ class Handler(BaseHTTPRequestHandler):
             path = self.path
             if role == "query":
                 with state.lock:
-                    expression = state.retained_filter
-                path = query_path(path, expression)
+                    expression = state.clear_control.filter()
+                if expression:
+                    path = query_path(path, expression)
             status, data, content_type = state.backend.request(
                 path,
                 self.command,

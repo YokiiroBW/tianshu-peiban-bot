@@ -190,10 +190,7 @@ class LifecycleTests(unittest.TestCase):
         caller.join(1)
         self.assertTrue(self.server.join_requests(1))
 
-    @unittest.skipUnless(
-        os.environ.get("DEP_B_CONTRACT"), "authoritative diagnostics contract required"
-    )
-    def test_real_monitor_closes_durable_ledger_before_backend(self):
+    def test_real_monitor_closes_alert_store_before_backend(self):
         roots = {}
         for service in ("platform", "companion", "memory", "gateway"):
             directory = self.root / (service + "-logs")
@@ -205,7 +202,6 @@ class LifecycleTests(unittest.TestCase):
         self.state.settings.update(
             {
                 "snapshot": str(PACKAGE / "vocabulary.json"),
-                "contract": os.environ["DEP_B_CONTRACT"],
                 "ledger": str(self.root / "ledger.sqlite"),
                 "log_roots": roots,
                 "log_budgets": {p: 1024**3 for p in roots},
@@ -214,22 +210,18 @@ class LifecycleTests(unittest.TestCase):
         )
         self.state.run_monitor = State.run_monitor.__get__(self.state, State)
         worker = self.start(budget=1)
-        self.assertTrue(self.backend.entered.wait(1))
+        deadline = time.monotonic() + 2
+        while not self.state.monitor_ready() and time.monotonic() < deadline:
+            time.sleep(0.01)
+        self.assertTrue(self.state.monitor_ready())
         self.stop.set()
         worker.join(1.5)
         self.assertEqual(self.results, [0])
         self.assertTrue(self.backend.closed)
         self.assertFalse(self.backend.closed_with_users)
-        self.assertEqual(self.state.metrics["landed_events"], 40)
-        self.assertEqual(self.state.metrics["pending_events"], 40)
+        self.assertNotIn("pending_events", self.state.metrics)
         self.assertEqual(self.state.metrics["monitor_success"], 0)
-        with closing(sqlite3.connect(self.root / "ledger.sqlite")) as connection:
-            self.assertEqual(
-                connection.execute("SELECT count(*) FROM events").fetchone()[0], 40
-            )
-            self.assertEqual(
-                connection.execute("PRAGMA integrity_check").fetchone()[0], "ok"
-            )
+        self.assertFalse((self.root / "ledger.sqlite").exists())
         with closing(sqlite3.connect(self.root / "alerts.sqlite")) as connection:
             self.assertGreater(
                 connection.execute("SELECT count(*) FROM history").fetchone()[0], 0

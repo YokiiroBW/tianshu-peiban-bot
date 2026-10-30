@@ -1,9 +1,7 @@
 """Real TLS operator authorization and durable clear/restart/replay behavior."""
 
 import json
-import sqlite3
 import time
-from contextlib import closing
 
 from helpers import SNAPSHOT, emit, event
 from test_guard_tls import TransportFixture
@@ -16,10 +14,6 @@ from source_retention import prune_sources
 
 class RetentionControlTests(TransportFixture):
     def test_operator_clear_is_writer_only_and_durable(self):
-        path = self.root / "ledger.sqlite"
-        ledger = Ledger(path, Policy(SNAPSHOT))
-        ledger.close()
-        self.state.settings["ledger"] = str(path)
         for role in ("query", "metrics"):
             self.assertEqual(
                 self.client(role).request("/retention/clear", "POST", body=b"")[0], 401
@@ -33,11 +27,8 @@ class RetentionControlTests(TransportFixture):
         )
         self.assertEqual(status, 202)
         cutoff = json.loads(body)["before"]
-        with closing(sqlite3.connect(path)) as db:
-            self.assertEqual(
-                db.execute("SELECT clear_before FROM retention_control").fetchone()[0],
-                cutoff,
-            )
+        state = json.loads((self.root / "clear-control.json").read_text())
+        self.assertEqual(state["cutoff_ms"], int(cutoff * 1000))
 
     def test_clear_pending_old_unscanned_and_replayed_records_do_not_return_after_restart(
         self,

@@ -198,7 +198,7 @@ class DistributionTests(unittest.TestCase):
             )
             self.assertTrue((root / "data/legacy-state").is_dir())
 
-    def test_observability_retains_sources_integrity_retention_tls_and_true_readiness(
+    def test_observability_retains_sources_retention_tls_and_true_readiness(
         self,
     ):
         value = installation()
@@ -226,10 +226,10 @@ class DistributionTests(unittest.TestCase):
                 "720h",
             )
             guard = json.loads((config / "guard.json").read_bytes())
-            self.assertEqual(
-                guard["ledger"], "/data/observability/guard/integrity.sqlite"
-            )
-            self.assertEqual(guard["ledger_max_events"], 10000)
+            self.assertNotIn("ledger", guard)
+            self.assertNotIn("ledger_max_events", guard)
+            self.assertEqual(guard["storage_roots"]["guard"], "/data/observability/guard")
+            self.assertEqual(guard["vector_config"], "/config/observability/vector.json")
             self.assertEqual(guard["snapshot"], "/config/observability/vocabulary.json")
             self.assertEqual(set(guard["log_roots"]), set(MODULES))
         processes = {p["name"]: p for p in value["processes"]}
@@ -297,12 +297,8 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual(
             value["files"]["observability/guard.json"]["retention_days"], 7
         )
-        self.assertEqual(
-            value["files"]["observability/guard.json"]["log_max_events"], 4321
-        )
-        self.assertEqual(
-            value["files"]["observability/guard.json"]["ledger_max_events"], 4321
-        )
+        self.assertNotIn("log_max_events", value["files"]["observability/guard.json"])
+        self.assertNotIn("ledger_max_events", value["files"]["observability/guard.json"])
         self.assertEqual(
             value["files"]["observability/guard.json"]["host_state_path"],
             value["files"]["host.json"]["state_file"],
@@ -314,7 +310,6 @@ class DistributionTests(unittest.TestCase):
         for name in (
             "observability/vector.json",
             "observability/vocabulary.json",
-            "observability/provisioning/alerting/native.yaml",
             *[f"modules/{module}/settings.json" for module in MODULES],
         ):
             self.assertEqual(value["files"][name], before[name])
@@ -346,10 +341,8 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual(
             installation()["files"]["observability/guard.json"]["retention_days"], 30
         )
-        self.assertEqual(
-            installation()["files"]["observability/guard.json"]["log_max_events"], 10000
-        )
-        value = installation(retention_days=45, log_max_events=1234)
+        self.assertNotIn("log_max_events", installation()["files"]["observability/guard.json"])
+        value = installation(retention_days=45)
         self.assertEqual(
             value["files"]["observability/guard.json"]["retention_days"], 45
         )
@@ -358,7 +351,7 @@ class DistributionTests(unittest.TestCase):
             export(value, root, retention_days=1)
             guard = json.loads((root / "config/observability/guard.json").read_bytes())
             self.assertEqual(guard["retention_days"], 1)
-            self.assertEqual(guard["log_max_events"], 1234)
+            self.assertNotIn("log_max_events", guard)
             source = Path(temporary) / "installation.json"
             source.write_text(
                 json.dumps(value, default=lambda raw: raw.decode("utf-8"))
@@ -373,15 +366,13 @@ class DistributionTests(unittest.TestCase):
                         str(cli_root),
                         "--retention-days",
                         "3",
-                        "--max-events",
-                        "321",
                     ]
                 )
             cli_guard = json.loads(
                 (cli_root / "config/observability/guard.json").read_bytes()
             )
             self.assertEqual(cli_guard["retention_days"], 3)
-            self.assertEqual(cli_guard["log_max_events"], 321)
+            self.assertNotIn("log_max_events", cli_guard)
         for invalid in (0, -1, True, "7", 1.5):
             with self.subTest(invalid=invalid):
                 with self.assertRaisesRegex(ValueError, "retention_days"):
@@ -390,13 +381,6 @@ class DistributionTests(unittest.TestCase):
                     root = Path(temporary) / "bad"
                     with self.assertRaisesRegex(ValueError, "retention_days"):
                         export(value, root, retention_days=invalid)
-                    self.assertFalse(root.exists())
-                with self.assertRaisesRegex(ValueError, "log_max_events"):
-                    installation(log_max_events=invalid)
-                with tempfile.TemporaryDirectory() as temporary:
-                    root = Path(temporary) / "bad-max-events"
-                    with self.assertRaisesRegex(ValueError, "log_max_events"):
-                        export(value, root, log_max_events=invalid)
                     self.assertFalse(root.exists())
 
     def test_observer_log_binds_become_producer_writable_without_widening_other_binds(

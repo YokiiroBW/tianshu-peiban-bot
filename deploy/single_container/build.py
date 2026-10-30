@@ -52,6 +52,10 @@ def application_files(source, target):
         for path in sorted((source / "deploy" / package).rglob("*")):
             if not path.is_file() or path.is_symlink() or "__pycache__" in path.parts:
                 continue
+            if package == "observability" and path.name in {
+                "monitor.py", "ledger_schema.py", "source_retention.py", "retained_query.py"
+            }:
+                continue
             if path.suffix not in {".py", ".sh", ".json"}:
                 continue
             relative = path.relative_to(source)
@@ -73,6 +77,12 @@ def application_files(source, target):
         "deploy/single_container/host_settings.py",
         "deploy/single_container/edge.py",
         "deploy/observability/guard.py",
+        "deploy/observability/clear_retention.py",
+        "deploy/observability/logql_filter.py",
+        "deploy/observability/source_capacity.py",
+        "deploy/observability/source_segments.py",
+        "deploy/observability/vector_checkpoints.py",
+        "deploy/observability/vector_source_retention.py",
     }
     if not required <= exported.keys():
         raise ValueError("application_runtime_source_incomplete")

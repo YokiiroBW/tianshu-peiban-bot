@@ -30,9 +30,6 @@ def main(argv=None):
                 {
                     "status": response["status"],
                     "before": response["before"],
-                    "known_events": response["known_events"],
-                    "known_pending_events": response["known_pending_events"],
-                    "old_pending_destroyed_by_operator": True,
                     "physical_reclamation": "asynchronous",
                 }
             )

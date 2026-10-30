@@ -14,25 +14,6 @@ def conditions(metrics):
 
     return {
         "monitor_unavailable": metrics.get("monitor_success", 0) != 1,
-        "delivery_backlog": metrics.get("oldest_pending_seconds", 0) > 120,
-        "sequence_gap": metrics.get("sequence_gaps", 0) > 0,
-        "source_invalid": high(
-            lambda k: (
-                k
-                in {
-                    "invalid_source_lines_total",
-                    "identity_conflicts_total",
-                    "source_changed_total",
-                }
-            ),
-            0,
-        ),
-        "retrieval_invalid": high(
-            lambda k: (
-                k in {"retrieval_conflicts_total", "invalid_retrieved_lines_total"}
-            ),
-            0,
-        ),
         "application_capacity": high(
             lambda k: (
                 k.startswith("source_")
@@ -47,15 +28,13 @@ def conditions(metrics):
             ),
             0.85,
         ),
-        "ledger_capacity": any(
+        "retention_failure": any(
             metrics.get(name, 0) > 0
             for name in (
-                "ledger_capacity_rejected_current",
                 "source_retention_failures",
                 "retention_delete_failures_current",
             )
         ),
-        "source_scan_behind": metrics.get("scan_budget_exhausted", 0) > 0,
     }
 
 
@@ -78,6 +57,12 @@ class AlertStore:
         now = time.time() if now is None else now
         desired = conditions(metrics)
         with self.db:
+            # Retired metrics cease being current alerts; preserve history without
+            # presenting their disappearance as a resolved delivery incident.
+            obsolete = {"delivery_backlog", "sequence_gap", "source_invalid",
+                        "retrieval_invalid", "ledger_capacity", "source_scan_behind"}
+            for name in obsolete:
+                self.db.execute("DELETE FROM current WHERE name=?", (name,))
             for name, active in desired.items():
                 old = self.db.execute(
                     "SELECT active FROM current WHERE name=?", (name,)

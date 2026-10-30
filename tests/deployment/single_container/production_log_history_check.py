@@ -315,6 +315,38 @@ def snapshot(options, cfg, host_cfg, vector_cfg, policy):
     return {"public": public, "state": state, "files": files, "instances": instances, "finished": finished}
 
 
+def native_snapshot(cfg, host_cfg, vector_cfg):
+    """Two-window health for the new pipeline; retired metrics are unavailable."""
+    started = time.time()
+    sources = {}
+    for name, root in cfg["log_roots"].items():
+        try:
+            files = [item for item in Path(root).iterdir() if item.is_file() and not item.is_symlink()
+                     and (item.name.endswith(".jsonl") or ".jsonl." in item.name)]
+            sources[name] = {"file_count": len(files), "source_bytes": sum(p.stat().st_size for p in files)}
+        except OSError as error:
+            sources[name] = {"error_type": type(error).__name__}
+    return {"started_utc": utc(started), "finished_utc": utc(time.time()),
+            "sources": sources, "observations": observations(cfg, host_cfg, vector_cfg),
+            "integrity_ledger_status": "retired"}
+
+
+def native_comparison(first, second):
+    before = first["observations"].get("vector", {})
+    after = second["observations"].get("vector", {})
+    deltas = {}
+    for key in ("sink_sent_events", "discarded_events", "buffer_discarded_events", "component_errors"):
+        a, b = before.get(key), after.get(key)
+        deltas[key] = b - a if a is not None and b is not None and b >= a else None
+    guard = second["observations"].get("guard", {})
+    return {"ready_http": second["observations"].get("ready_http"),
+            "monitor_success": guard.get("monitor_success"),
+            "vector_ack_enabled": after.get("acknowledgements_enabled"),
+            "vector_buffer_bytes": after.get("buffer_bytes"),
+            "vector_counter_deltas": deltas,
+            "historical_integrity": "not_available_ledger_retired"}
+
+
 def comparison(first, second, cfg):
     old, new = first["state"], second["state"]
     current = {event[0]: event for event in new["events"]}
@@ -427,6 +459,15 @@ def main():
     cfg = read(options.guard_config)
     host_cfg = read(options.host_config)
     vector_cfg = read(options.guard_config.with_name("vector.json"))
+    if "ledger" not in cfg:
+        first = native_snapshot(cfg, host_cfg, vector_cfg)
+        time.sleep(options.interval_seconds)
+        second = native_snapshot(cfg, host_cfg, vector_cfg)
+        print(json.dumps({"diagnostic": "read_only_two_window_log_pipeline",
+            "configured_retention_days": cfg.get("retention_days", 30),
+            "windows": [first, second], "comparison": native_comparison(first, second)},
+            ensure_ascii=False, indent=2, allow_nan=False))
+        return
     policy = Policy(read(cfg["snapshot"]))
     policy.verify_contract(Path(cfg["contract"]))
     first = snapshot(options, cfg, host_cfg, vector_cfg, policy)

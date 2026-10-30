@@ -229,7 +229,7 @@ class Binding:
                     any(
                         v["target"] == "/sources/" + product
                         and Path(v["source"]) == path
-                        and v.get("read_only") is True
+                        and v.get("read_only") is (role == "vector")
                         for v in mounts
                     ),
                     "source_mount_mismatch",
@@ -270,8 +270,13 @@ class Binding:
             "guard_lifecycle.py",
             "query.py",
             "transport.py",
-            "monitor.py",
-            "ledger_schema.py",
+            "source_capacity.py",
+            "clear_retention.py",
+            "vector_checkpoints.py",
+            "vector_source_retention.py",
+            "source_segments.py",
+            "logql_filter.py",
+            "retention.py",
             "policy.py",
             "alerts.py",
         ):

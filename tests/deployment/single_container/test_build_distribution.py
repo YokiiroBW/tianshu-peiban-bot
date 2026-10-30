@@ -210,6 +210,16 @@ class DistributionTests(unittest.TestCase):
                 "deploy/single_container/edge.py": "edge",
                 "deploy/tianshu/runtime_guard.py": "guard",
                 "deploy/observability/guard.py": "observer",
+                "deploy/observability/clear_retention.py": "clear",
+                "deploy/observability/logql_filter.py": "filter",
+                "deploy/observability/source_capacity.py": "capacity",
+                "deploy/observability/source_segments.py": "segments",
+                "deploy/observability/vector_checkpoints.py": "checkpoints",
+                "deploy/observability/vector_source_retention.py": "retention",
+                "deploy/observability/monitor.py": "retired",
+                "deploy/observability/ledger_schema.py": "retired",
+                "deploy/observability/source_retention.py": "retired",
+                "deploy/observability/retained_query.py": "retired",
                 "deploy/observability/runtime-identity.schema.json": "{}",
                 "deploy/observability/private.env": "SYNTHETIC=excluded",
                 ".runtime/database.sqlite": "excluded",
@@ -220,6 +230,8 @@ class DistributionTests(unittest.TestCase):
                 path.write_text(body, encoding="utf-8")
             result = application_files(source, output)
             self.assertIn("deploy/observability/runtime-identity.schema.json", result)
+            for name in ("monitor.py", "ledger_schema.py", "source_retention.py", "retained_query.py"):
+                self.assertFalse((output / "deploy/observability" / name).exists())
             self.assertFalse((output / "deploy/observability/private.env").exists())
             self.assertFalse((output / ".runtime").exists())
             (source / "deploy/single_container/host.py").unlink()

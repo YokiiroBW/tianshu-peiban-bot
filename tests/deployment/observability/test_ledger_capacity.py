@@ -86,7 +86,7 @@ class CapacityTests(unittest.TestCase):
             ).fetchone()[0],
             path.stat().st_size,
         )
-        self.assertFalse(conditions(values)["ledger_capacity"])
+        self.assertFalse(conditions(values)["retention_failure"])
 
     def test_full_duplicate_replay_is_budgeted_and_survives_reopen(self):
         path = self.root / "z.jsonl"
@@ -408,38 +408,38 @@ class CapacityAlertTests(unittest.TestCase):
             "ledger_capacity_rejected_total": 36116,
             "ledger_capacity_rejected_current": 0,
         }
-        self.assertFalse(conditions(values)["ledger_capacity"])
+        self.assertFalse(conditions(values)["retention_failure"])
         self.assertFalse(
-            conditions({**values, "landed_events": 4_500_000})["ledger_capacity"]
+            conditions({**values, "landed_events": 4_500_000})["retention_failure"]
         )
         self.assertFalse(
-            conditions({**values, "landed_events": 4_499_999})["ledger_capacity"]
+            conditions({**values, "landed_events": 4_499_999})["retention_failure"]
         )
         with (
             tempfile.TemporaryDirectory() as temporary,
             closing(AlertStore(Path(temporary) / "alerts.sqlite")) as store,
         ):
             self.assertEqual(
-                store.update({**values, "ledger_capacity_rejected_current": 1})[
-                    "alert_ledger_capacity"
+                store.update({**values, "source_retention_failures": 1})[
+                    "alert_retention_failure"
                 ],
                 1,
             )
-            self.assertEqual(store.update(values)["alert_ledger_capacity"], 0)
+            self.assertEqual(store.update(values)["alert_retention_failure"], 0)
         self.assertEqual(values["ledger_capacity_rejected_total"], 36116)
 
     def test_original_fifteen_rules_keep_capacity_identity_and_use_live_budget(self):
         rules = alert_rules()["groups"][0]["rules"]
-        self.assertEqual(len(rules), 15)
-        rule = next(row for row in rules if row["title"] == "LedgerCapacity")
-        expression = ALERTS["LedgerCapacity"][0]
+        self.assertEqual(len(rules), 10)
+        rule = next(row for row in rules if row["title"] == "RetentionFailure")
+        expression = ALERTS["RetentionFailure"][0]
         self.assertNotIn("tianshu_obs_ledger_max_events", expression)
         self.assertIn("tianshu_obs_source_retention_failures", expression)
         self.assertIn("tianshu_obs_retention_delete_failures_current", expression)
-        self.assertIn("tianshu_obs_ledger_capacity_rejected_current", expression)
+        self.assertNotIn("tianshu_obs_ledger_capacity_rejected_current", expression)
         self.assertNotIn("900000", expression)
         self.assertNotIn("ledger_capacity_rejected_total", expression)
-        self.assertEqual(rule["uid"], "obs-ledgercapacity")
+        self.assertEqual(rule["uid"], "obs-retentionfailure")
         self.assertEqual(rule["noDataState"], "Alerting")
 
 

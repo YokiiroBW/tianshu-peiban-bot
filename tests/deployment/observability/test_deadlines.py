@@ -26,6 +26,10 @@ class DeadlineTests(unittest.TestCase):
         self.fixture = fixtures.TransportTests("test_noncanonical_route_refused")
         self.fixture.setUp()
         self.addCleanup(self.fixture.doCleanups)
+        # The transport fixture does not run a monitor; these cases isolate the
+        # network deadline while readiness remains valid for the whole test.
+        self.fixture.state.monitor_running.set()
+        self.fixture.state.update(monitor_success=1, monitor_last_success_timestamp=time.time())
         self.stop = threading.Event()
         self.addCleanup(self.stop.set)
 

@@ -11,7 +11,7 @@ from pathlib import Path, PurePosixPath
 import configs
 from compose import compose
 from policy import Policy
-from retention import days, max_events
+from retention import days
 
 HERE = Path(__file__).resolve().parent
 TLS_FILES = (
@@ -181,7 +181,6 @@ def prepare(root, settings, manifest, output_relative, snapshot, candidate=False
         )
     budgets = settings["log_budgets"]
     retention_days = days(settings.get("retention_days", 30))
-    log_max_events = max_events(settings.get("log_max_events", 10000))
     if set(budgets) != set(configs.PRODUCTS) or any(
         type(n) is not int or not 32 * 1024**2 <= n <= 64 * 1024**3
         for n in budgets.values()
@@ -219,15 +218,17 @@ def prepare(root, settings, manifest, output_relative, snapshot, candidate=False
     for name in (
         "guard.py",
         "guard_lifecycle.py",
-        "monitor.py",
-        "ledger_schema.py",
+        "source_capacity.py",
+        "clear_retention.py",
+        "vector_checkpoints.py",
+        "vector_source_retention.py",
         "policy.py",
         "query.py",
         "transport.py",
         "alerts.py",
         "retention.py",
-        "source_retention.py",
-        "retained_query.py",
+        "source_segments.py",
+        "logql_filter.py",
         "manage_logs.py",
         "grafana-entrypoint.sh",
     ):
@@ -266,8 +267,8 @@ def prepare(root, settings, manifest, output_relative, snapshot, candidate=False
             "client_key": "/run/tls/client.key",
             "server_cert": "/run/tls/guard.pem",
             "server_key": "/run/tls/guard.key",
-            "ledger": "/var/lib/guard/integrity.sqlite",
             "snapshot": "/opt/observability/vocabulary.json",
+            "vector_config": "/etc/tianshu/vector.json",
             "contract": "/contracts/diagnostics/v1",
             "tokens": {
                 role: "/run/secrets/" + role + "_token"
@@ -282,8 +283,6 @@ def prepare(root, settings, manifest, output_relative, snapshot, candidate=False
             },
             "reserve_bytes": 1024**3,
             "interval_seconds": 30,
-            "ledger_max_events": log_max_events,
-            "log_max_events": log_max_events,
             "retention_days": retention_days,
         },
     )

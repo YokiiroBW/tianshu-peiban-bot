@@ -228,10 +228,10 @@ class GlobalWindowTests(unittest.TestCase):
                     (10000, 1000, 0, 0),
                 )
                 self.assertEqual(values["ledger_capacity_rejected_total"], 1)
-                self.assertFalse(conditions(values)["ledger_capacity"])
+                self.assertFalse(conditions(values)["retention_failure"])
                 self.assertTrue(
                     conditions({**values, "source_retention_failures": 1})[
-                        "ledger_capacity"
+                        "retention_failure"
                     ]
                 )
                 self.assertEqual(
