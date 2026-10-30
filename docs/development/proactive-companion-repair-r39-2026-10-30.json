@@ -1,0 +1,227 @@
+{
+  "status": "partial_queue_deployed_and_startup_verified",
+  "version": "2026.10.30-unified-linux-r39",
+  "goal_complete": false,
+  "completed_at": 1793330276.0734575,
+  "sources": {
+    "platform": {
+      "commit": "73cea0b6bcb782b5a8ff03d81248c20000ca1c12",
+      "archive_sha256": "8cb23f99c777a4fee48374bc63b2141d75ef3acbf100e6db76116f78a345e4f9"
+    },
+    "companion": {
+      "commit": "c9754029a32eb63134ffca18879de4d90a04e366",
+      "archive_sha256": "7d386fb18a0fd40d958fd9793b7bfddba3868aebc0f3afcf8bfd23e381217ed3"
+    },
+    "memory": {
+      "commit": "7bf1200dad37dc894576fe63ca1292d297163275",
+      "archive_sha256": "3bfb588840f28e1ee4d49030b9605c36af1427fe901731faaf6ae1537bc637a2"
+    },
+    "gateway": {
+      "commit": "ed631d8a6f26890628a9df833792210e9a09e31c",
+      "archive_sha256": "8f7fa3a112e9d290ae160ca09277134e5a2cf22a4d655ebec7448540aa1bb381"
+    },
+    "application": {
+      "commit": "a800f47e3a57700a9548daa7f70828d8aa9a2765",
+      "archive_sha256": "8acf5c63ead1f6a375ca3e9d02b922313dfbca9366df112468408beab980962f"
+    },
+    "platform_frontend": {
+      "commit": "73cea0b6bcb782b5a8ff03d81248c20000ca1c12",
+      "archive_sha256": "8cb23f99c777a4fee48374bc63b2141d75ef3acbf100e6db76116f78a345e4f9"
+    }
+  },
+  "image": "sha256:c7b0e50c9ae3d415121b4ffe96eb9c75324c5b66dcbf4272c39d0365b8f95b21",
+  "container_id": "5d4d83ea98317aae83f8b4c8392d3d14dd4fb39455b5928e4f722c57d2c7e5e4",
+  "previous_version": "2026.10.30-unified-linux-r38",
+  "production_writer": "this_chat",
+  "checks": {
+    "ok": true,
+    "version": "2026.10.30-unified-linux-r39",
+    "sources": {
+      "platform": {
+        "commit": "73cea0b6bcb782b5a8ff03d81248c20000ca1c12",
+        "archive_sha256": "8cb23f99c777a4fee48374bc63b2141d75ef3acbf100e6db76116f78a345e4f9"
+      },
+      "companion": {
+        "commit": "c9754029a32eb63134ffca18879de4d90a04e366",
+        "archive_sha256": "7d386fb18a0fd40d958fd9793b7bfddba3868aebc0f3afcf8bfd23e381217ed3"
+      },
+      "memory": {
+        "commit": "7bf1200dad37dc894576fe63ca1292d297163275",
+        "archive_sha256": "3bfb588840f28e1ee4d49030b9605c36af1427fe901731faaf6ae1537bc637a2"
+      },
+      "gateway": {
+        "commit": "ed631d8a6f26890628a9df833792210e9a09e31c",
+        "archive_sha256": "8f7fa3a112e9d290ae160ca09277134e5a2cf22a4d655ebec7448540aa1bb381"
+      },
+      "application": {
+        "commit": "a800f47e3a57700a9548daa7f70828d8aa9a2765",
+        "archive_sha256": "8acf5c63ead1f6a375ca3e9d02b922313dfbca9366df112468408beab980962f"
+      },
+      "platform_frontend": {
+        "commit": "73cea0b6bcb782b5a8ff03d81248c20000ca1c12",
+        "archive_sha256": "8cb23f99c777a4fee48374bc63b2141d75ef3acbf100e6db76116f78a345e4f9"
+      }
+    },
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "tls_ca_and_hostname_verified": true,
+    "served_affected_assets": {
+      "/index.html": "84a2d650907230593e7ffa413deb98837445805418f7cfcc0329a6e68d6ac71b",
+      "/assets/LifePage-BjL2GtTy.js": "621027fbcd66ac76981e8c280ec75286f647ecae08bd834f1c166b305d12f1ea",
+      "/assets/runtimeApi-o-2jxbWR.js": "7baf2fddbfa1a9db4c15c61568d9ac8e882ef0acc402ed71d554685a43c7480e"
+    },
+    "placeholder_active_registration_and_actor_row_absent": true,
+    "active_actors": 2,
+    "paused_null_remaining": 0,
+    "activity_states": {
+      "completed": 3,
+      "dormant": 7
+    },
+    "diary_states": {
+      "skipped": 51,
+      "failed": 1,
+      "material_overflow": 1,
+      "unavailable": 9
+    },
+    "probe_generated_model_or_qq": false,
+    "no_owner_store_opened": true,
+    "at": 1793330275.7268882,
+    "image": "sha256:c7b0e50c9ae3d415121b4ffe96eb9c75324c5b66dcbf4272c39d0365b8f95b21",
+    "id": "5d4d83ea98317aae83f8b4c8392d3d14dd4fb39455b5928e4f722c57d2c7e5e4",
+    "health": "healthy",
+    "restarts": 0,
+    "mounts_preserved": 37,
+    "config_files_preserved": 1165,
+    "configuration_changed": [
+      "observability/vocabulary.json",
+      "observability/vector.json",
+      "private/gateway.env"
+    ],
+    "added_contract_files": 0,
+    "non_target_containers_preserved": 14,
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r39",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_free_bytes": 50577907712,
+    "completed_at": 1793330276.0734575
+  },
+  "publication": {
+    "old_exit_code": 0,
+    "old_stop_seconds": 123.33430194854736,
+    "database_schema_migrations": 0,
+    "fact_convergence_repeated": false,
+    "configuration_changes": [
+      "observability/vocabulary.json",
+      "observability/vector.json",
+      "private/gateway.env"
+    ],
+    "rollback_prepared": "code and observation configuration only; runtime facts retained"
+  },
+  "cards": {
+    "PC-01": "deployed; remaining unregistered Memory route observations not accepted as 100 percent",
+    "PC-02": "bootstrap deleted; R38 thirty-minute no-rejection window passed; new-decision twenty-four-hour quality pending",
+    "PC-03": "deployed; validated missing receipt is not a service failure",
+    "PC-04": "deployed; legacy running unknowns parked dormant and unresolved resumes rejected",
+    "PC-05": "verified_production in R38; not repeated",
+    "PC-06": "code deployed; no new real draft and no three-day acceptance yet",
+    "PC-07": "awaiting existing QQ administrator unlock; no subscription or test message yet"
+  },
+  "real_observations": {
+    "r38_platform_auth_rejected_30_minutes": 0,
+    "r38_window_end": 1793328321.2135892,
+    "r39_peer_window_minutes": 1,
+    "r39_peer_window_end": 1793330333.158633,
+    "r39_peer_finished": 116,
+    "r39_peer_attributed": 113,
+    "r39_peer_attribution_rate": 0.9741379310344828,
+    "r39_decisions_since_deployment": [
+      {
+        "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+        "state": "unknown",
+        "stage": "model",
+        "code": "dependency_unavailable",
+        "field": null,
+        "peer": "gateway",
+        "route": "/v1/chat/completions",
+        "count": 1
+      },
+      {
+        "actor_id": "actor:role-84e36c92a52e40dd8edf50228465bcf9",
+        "state": "completed",
+        "stage": null,
+        "code": null,
+        "field": null,
+        "peer": null,
+        "route": null,
+        "count": 2
+      }
+    ],
+    "unresolved_original_steps": 2,
+    "diaries_still_unchanged": true,
+    "proactive_all_tables_empty": true,
+    "controlled_qq_test_messages_sent": 0,
+    "explicit_paid_model_test_calls": 0,
+    "natural_background_model_work_is_separate": true
+  },
+  "validation": {
+    "companion_targeted": "applicable earlier results reused; six receipt cases and three activity cases passed; final unresolved query case passed",
+    "memory_timeline": 10,
+    "actual_producer_consumer_joint": 1,
+    "collector": "three applicable parents passed with eight negative subtests; explicit legacy fixture repaired",
+    "native_vector": "registered new route and legacy accepted; secret route rejected",
+    "installed_image": {
+      "ok": true,
+      "payload_files": {
+        "companion": 123,
+        "memory": 157
+      },
+      "application_files": 56,
+      "frontend_files": 87,
+      "business_uid_imports_and_public_modes": true,
+      "status": "exact_diary_delta_image_verified",
+      "image": "sha256:c7b0e50c9ae3d415121b4ffe96eb9c75324c5b66dcbf4272c39d0365b8f95b21",
+      "parent_image": "sha256:4a8b2376dc7c01616d6c77326b84b54d3166a8d4f76394f918e92431c64ef057",
+      "version": "2026.10.30-unified-linux-r39",
+      "production_mounts": 0,
+      "external_calls": 0
+    },
+    "full_suite_run": false,
+    "retained_setup_failures": [
+      "incorrect contracts directory",
+      "test selector typo",
+      "missing new temporary parent directory",
+      "collector source unset",
+      "legacy snapshot fixture followed current registry"
+    ],
+    "existing_static_limitation": "original E731 lambda in diary_materials.py retained"
+  },
+  "observation_automation": {
+    "id": "automation-2",
+    "status": "ACTIVE",
+    "interval": "hourly",
+    "notify_only_meaningful_changes": true
+  },
+  "remaining": [
+    "finish PC-01 route attribution",
+    "PC-02 new decision quality",
+    "PC-06 actual diary re-preparation and three real days",
+    "PC-07 controlled destination chain and administrator unlock",
+    "W2-W4"
+  ],
+  "do_not_enter_W3": true,
+  "previous_release_record": "proactive-companion-repair-release-2026-10-30.json"
+}
