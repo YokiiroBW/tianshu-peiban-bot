@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "stage": "W3_local_implementation",
+  "status": "local_verified_not_integrated_not_deployed",
+  "user_order_override": "Implement all remaining cards now; original observation and semantic criteria retained",
+  "companion_head": "c8a644b56bbee9bb615b2ab772e85fbec0964161",
+  "memory_head": "152d7c8cb457bb04eb748a864626634aa7fe9ad4",
+  "contract_commit": "e4bd7d9a243198f49a72d3d66a12b6402c731c28",
+  "cards": {
+    "PC-12": {
+      "title": "跨日兴趣投影",
+      "commit": "75ebfa0315173cd1023ce32cd8fa88eec8ff5e60",
+      "other_commits": {
+        "memory": "a8ea6daa893901432251a51f99fa8da891353751",
+        "joint_test": "152d7c8cb457bb04eb748a864626634aa7fe9ad4",
+        "contract": "e4bd7d9a243198f49a72d3d66a12b6402c731c28"
+      },
+      "changes": "复用 Memory actor_derived/interests，按独立实际经历计算饱和增长、七日半衰期、原内容/片段去重和当前来源撤回；Companion 保留实际原件身份并分别提供长期兴趣与当天注意。",
+      "checks": [
+        "Companion 29 passed",
+        "Memory 24 passed",
+        "Contract 4 passed plus 74 subtests passed",
+        "Actual Memory producer/Companion consumer joint fixture 1 passed"
+      ],
+      "unverified": [
+        "连续五个真实日期尚未达到；本地五日为受控时钟。",
+        "尚未发布新合同目录及 Memory 配置指针；原 candidate.4 字节保持。",
+        "本地 SQLite/替身通过不代表生产 PG、真实语义或性能验收。"
+      ]
+    },
+    "PC-13": {
+      "title": "同一情绪口径",
+      "commit": "47c206fed125708915f1b954911046f28814ff3f",
+      "changes": "目标选择与分享复用 affect.material，最多三条完整可见 feelings；mood 由 valence 派生，活动类型仅增加偏好提示，不更改权限、关系或承诺规则。",
+      "checks": [
+        "5 passed: mood/decay, scoped feelings and +/-0.8 planning inputs"
+      ],
+      "unverified": [
+        "真实主模型在两组情绪下的活动类型差异尚未实测；替身只验证输入接通。",
+        "用户已删除占位 household，生产适用对象为两个正式角色；不得重建占位角色凑三人。"
+      ]
+    },
+    "PC-14": {
+      "title": "内容显著性与发送前重算",
+      "commit": "b92c38259d32cc7536706fc0ed1aa008a555c91d",
+      "changes": "沿用 proactive 候选和真实 contact，纯函数输出六分项、支持/反对理由及双阈值；少量候选读取当前兴趣，表达前及提交前重算，变化的会话和重复内容取消。内容指纹的直接索引附着现有 metadata/contact，不新增服务、队列或 DDL。",
+      "checks": [
+        "47 passed shared with PC-15: score, expiry/quota/cooldown, expression recovery, context append, repeated content after restart/65 newer contacts"
+      ],
+      "unverified": [
+        "真实消息频率的长期稳定性尚未观察。",
+        "上下文撤销已构造验证 Core 已接收的会话变化；外部尚未传入的群消息与已提交渠道副作用不由此用例证明。"
+      ]
+    },
+    "PC-15": {
+      "title": "订阅回应率与打扰阈值",
+      "commit": "b92c38259d32cc7536706fc0ed1aa008a555c91d",
+      "changes": "subscription 持久 responsiveness，默认0.5、EMA eta0.1；每 contact 仅一个样本，迟到回应修正原位置。只改变 engage 阈值，不改内容排序，日限额和未回应保护保持。运维读视图输出数值和样本数。",
+      "checks": [
+        "Shared 47 passed; simulated ten unanswered ->0 sends, ten responded ->2 sends within unchanged daily_limit=2; restart retained values; late reply was not an extra sample"
+      ],
+      "unverified": [
+        "十次反馈与发送均为隔离合成渠道；真实频率与用户感受仍待自然运行。"
+      ]
+    },
+    "PC-16": {
+      "title": "带强度的群参与",
+      "commit": "6c45edd24b66272d19cba686246d911a9e29a641",
+      "other_commits": {
+        "history_source_correction": "c8a644b56bbee9bb615b2ab772e85fbec0964161"
+      },
+      "changes": "内部模型判定要求 outcome/strength/new_information/already_said；程序按有效强度>=0.55和重复选择过滤。长期兴趣和当天注意分列，兴趣引用保留于内部 marker。原 AL11 对外格式和原@/关键词/命令路由不改。过去选择仅保留指纹/计数，不把未重新验证的旧原文放回模型，也不冒称已发言。",
+      "checks": [
+        "18 passed: strength boundaries, repeats, source revocation, privacy, unknown decision recovery and pinned existing AL11 protocol; corrected history input 6 of these cases rerun passed"
+      ],
+      "unverified": [
+        "自然群聊参与质量与重复率未实测。",
+        "当前阶段未重跑 Native NoneBot 的实际 SDK 入口；适配器和原直接入口代码未变。",
+        "参与状态接口新增进程内计数，重启会重置；每个判定的详细 marker 为持久记录。"
+      ]
+    },
+    "PC-17": {
+      "title": "目标选择输入与变化门控",
+      "commit": "89fde2fa7760b23293ae1301fb5a789cbc921cea",
+      "changes": "完整人格、每 concern 最近三条完整片段、原 Memory 事实保留；只向模型给可执行技能 ID，移除证明/账本的重复投影。无变化且无到期工作时延后、不建新模型请求；保留模型原 delay。持久跳过计数和判定原因，usage 直接取模型回执，缺失字段保持 null。",
+      "checks": [
+        "17 passed: new context gate/input/usage plus goal-edge cases",
+        "Related goal/choice selection 30 passed; two unchanged old assertions failed both before and after",
+        "Three additional related pipeline cases passed; one old observation assertion failed both before and after"
+      ],
+      "unverified": [
+        "真实同场景 input token 下降>=40%尚未测得；合成材料字节减少不能代替 token 验收。",
+        "同场景真实主模型 goal 具体性人工抽检尚未完成。",
+        "三个旧用例失败保留，已用 R56 精确源码复现，未改失败预期来凑通过。"
+      ]
+    }
+  },
+  "pc18": {
+    "status": "in_progress",
+    "executable_joint_case_passed": 1,
+    "observation_days_required": 7,
+    "actual_cross_day_choice_cases_required": 3,
+    "actual_self_recovery_required": 1,
+    "actual_initiated_and_responded_chain_required": 1,
+    "criteria_not_relabelled": true
+  },
+  "existing_failure_baseline": {
+    "commit": "488e2fd590159bf9dbb4d33d6f2b01c39d2c5136",
+    "cases": [
+      "tests/test_autonomous_life.py::test_existing_goal_or_rest_needs_no_new_intention[defer-unused2]",
+      "tests/test_autonomous_life.py::test_unknown_platform_does_not_issue_another_invoke_or_roll_a_new_goal",
+      "tests/test_actor_observation.py::test_observe_only_archive_silent_interest_episode_reflection_and_next_goal"
+    ],
+    "verdict": "All three fail unchanged against the exact prior deployed source",
+    "private_evidence": "pc18-existing-failures-r56.json/.log"
+  },
+  "production": "Last confirmed R56; this local stage did not change production",
+  "real_model_QQ_search_test_calls": 0,
+  "new_dependencies": 0,
+  "ddl_changes": 0
+}
