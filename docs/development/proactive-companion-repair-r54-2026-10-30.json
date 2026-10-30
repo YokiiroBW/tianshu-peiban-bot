@@ -1,0 +1,258 @@
+{
+  "release": "2026.10.30-unified-linux-r54",
+  "status": "deployed_healthy",
+  "whole_goal_complete": false,
+  "image": "sha256:8e015699b3e1e01576f39af617a6955f9edf47ea36bd0d0527c7ec308be3157b",
+  "container": "e7c85c7c8f0cd406fa0fb2dc8900e7fb7ab2e43fb5cbd2400e51404df855bed9",
+  "source_commits": {
+    "platform": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+    "companion": "c69fa2ee585b37b56cac9c5eb3d6a840e0ee89f6",
+    "memory": "c4752304c8f561cd464daff3525a7d3c63e164ff",
+    "gateway": "1af59a30b698c6d114e927f941de5dc33d1762af",
+    "application": "f4a91771f9f9737f4c51a5fc504e1c47ccf13052",
+    "platform_frontend": "911a1dc60318abad76287013a05afacd1e63f9f3"
+  },
+  "changes": {
+    "stream_budget": {
+      "httpx_read_seconds": 120,
+      "existing_network_budget_seconds": 120,
+      "connect_write_pool_seconds": 30,
+      "outer_life_budget_seconds": 60,
+      "gateway_capacity_and_admission_policy_unchanged": true
+    },
+    "bound_pre_admission_refusal": {
+      "status": 408,
+      "schema": "existing common#error",
+      "exact_request_id_required": true,
+      "code": "timeout",
+      "execution_state": "not_started",
+      "complete_validated_bounded_body_required": true,
+      "retry_enabled": false,
+      "partial_unrecognized_or_mismatched_errors_remain_unknown": true
+    }
+  },
+  "validation": {
+    "companion_commit": "c69fa2ee585b37b56cac9c5eb3d6a840e0ee89f6",
+    "applicable_unique_cases": 59,
+    "initial_group": {
+      "passed": 52,
+      "failed_old_cause_field_expectations": 5,
+      "deselected_native": 1
+    },
+    "corrected_cause_expectations": {
+      "passed": 5,
+      "production_behavior_changed": false
+    },
+    "original_daily_request_identity": {
+      "passed": 1
+    },
+    "native_threaded_transport": {
+      "before": "ReadTimeout at 30.44 seconds",
+      "after": "1 passed in 31.29 seconds",
+      "real_network_provider_calls": 0
+    },
+    "new_bound_refusal_cases": 6,
+    "ruff_and_format_and_diff": "passed",
+    "whole_product_suite_rerun": false,
+    "outer_life_timeout_seconds": 60,
+    "existing_stream_network_budget_seconds": 120,
+    "original_unknown_requests_replayed": 0
+  },
+  "image_verification": {
+    "ok": true,
+    "payload_files": {
+      "companion": 123
+    },
+    "application_files": 58,
+    "frontend_files": 87,
+    "business_uid_imports_and_public_modes": true,
+    "status": "exact_stream_budget_image_verified",
+    "image": "sha256:8e015699b3e1e01576f39af617a6955f9edf47ea36bd0d0527c7ec308be3157b",
+    "parent_image": "sha256:acc68e555133babff5313acd24afbc682b975d59866e2e5b12e98a4d49b5975f",
+    "version": "2026.10.30-unified-linux-r54",
+    "production_mounts": 0,
+    "external_calls": 0
+  },
+  "production_checks": {
+    "ok": true,
+    "version": "2026.10.30-unified-linux-r54",
+    "sources": {
+      "platform": {
+        "commit": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+        "archive_sha256": "52b2798f412226b4ee588dc69640695629bd396bddb70aa853b45875f21dee2f"
+      },
+      "companion": {
+        "commit": "c69fa2ee585b37b56cac9c5eb3d6a840e0ee89f6",
+        "archive_sha256": "0be815c712cda54520da70acea4cebff26a7c393d5cb68b952d27fa587f36f14"
+      },
+      "memory": {
+        "commit": "c4752304c8f561cd464daff3525a7d3c63e164ff",
+        "archive_sha256": "36aa862115af9b9ae75fda2668c27eb0c4724a341fca24d9073c417244bb73c7"
+      },
+      "gateway": {
+        "commit": "1af59a30b698c6d114e927f941de5dc33d1762af",
+        "archive_sha256": "b46e7bb45713d9a2f3c29a547c9cf1bfc299e548f289ab8d25e1e9a95717f450"
+      },
+      "application": {
+        "commit": "f4a91771f9f9737f4c51a5fc504e1c47ccf13052",
+        "archive_sha256": "f8818a1818ff802db06bb986d9d8867ba30cd75fa8e2b2d0bc5194fe6ec172c0"
+      },
+      "platform_frontend": {
+        "commit": "911a1dc60318abad76287013a05afacd1e63f9f3",
+        "archive_sha256": "2b0f65ee789feeef51514c6151eca911f49ef7d3309c125ef8e347898ac8a4cd"
+      }
+    },
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "tls_ca_and_hostname_verified": true,
+    "served_affected_assets": {
+      "/index.html": "a3e9b14959ec05c6c2e7559cba0aabf1503c38751de8644099c31c5959de2099"
+    },
+    "probe_generated_model_or_qq": false,
+    "no_owner_store_opened": true,
+    "installed_affected_client_verified": true,
+    "at": 1793371133.6084263,
+    "image": "sha256:8e015699b3e1e01576f39af617a6955f9edf47ea36bd0d0527c7ec308be3157b",
+    "id": "e7c85c7c8f0cd406fa0fb2dc8900e7fb7ab2e43fb5cbd2400e51404df855bed9",
+    "health": "healthy",
+    "restarts": 0,
+    "mounts_preserved": 37,
+    "config_files_preserved": 1167,
+    "configuration_changed": [
+      "private/gateway.env"
+    ],
+    "added_contract_files": 0,
+    "non_target_containers_preserved": 14,
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r54",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_free_bytes": 35166298112,
+    "completed_at": 1793371134.1919591
+  },
+  "previous_owner_drain": {
+    "systemctl_returncode": 0,
+    "elapsed_seconds": 124.15891790390015,
+    "old_finished_at": "2026-10-30T14:36:47.523076907Z",
+    "old_exit_code": 0,
+    "old_restart": "no"
+  },
+  "original_model_queue_failure": {
+    "request_id": "model:c2c5d22386d142099289ea6ea5294704",
+    "correlation_id": "f3d885c374e5f92a34b2482ad380e0f1",
+    "client_stream_ms": 30526.409,
+    "gateway_original_admission_outcome": "deadline_exceeded",
+    "admission_wait_ms": null,
+    "receipt_absent": true,
+    "original_unknown_preserved": true,
+    "evidence": [
+      "latest-original-unknown-receipt-r53-1793369245435025500.json",
+      "original-stream-correlation-r53-1793369460381207100.json"
+    ],
+    "trace_is_bounded_sample": true,
+    "late_request_queued_event_not_treated_as_queue_entry": true,
+    "memory_query_for_this_request_succeeded": true,
+    "original_request_replayed": false
+  },
+  "original_memory_503": {
+    "correlation_id": "ccb8294461b981e12a905dcc2c6b5e30",
+    "cause_still_open": true,
+    "separate_from_model_admission_timeout": true,
+    "proof_deadline_and_validation_unchanged": true
+  },
+  "native_failure_sample": {
+    "at": 1793371132.6523087,
+    "since": 1793371013.7215378,
+    "authority_failure_events": 0,
+    "actor_error_events": 0,
+    "whole_window_complete": false,
+    "proves_503_resolved": false
+  },
+  "pc02_original_fixed_cohort": {
+    "at": 1793371132.8818128,
+    "start": 1793326100.1223843,
+    "planned_end": 1793412500.1223843,
+    "observed_until": 1793371132.8818128,
+    "complete_24h": false,
+    "states": {
+      "completed": 25,
+      "failed": 6,
+      "interrupted": 1,
+      "unknown": 6
+    },
+    "total": 38,
+    "success_rate": 0.6578947368421053,
+    "transaction_read_only": "on"
+  },
+  "pc06": {
+    "real_draft_rows": 0,
+    "new_confirmed_same_day_sources_by_enabled_actor": [
+      0,
+      0
+    ],
+    "three_consecutive_actual_dates_verified": false
+  },
+  "cards": {
+    "verified_production": [
+      "PC-01",
+      "PC-03",
+      "PC-04",
+      "PC-05",
+      "PC-07",
+      "PC-08",
+      "PC-10"
+    ],
+    "deployed": [
+      "PC-09",
+      "PC-11"
+    ],
+    "in_progress": [
+      "PC-02",
+      "PC-06"
+    ],
+    "planned": [
+      "PC-12",
+      "PC-13",
+      "PC-14",
+      "PC-15",
+      "PC-16",
+      "PC-17",
+      "PC-18"
+    ]
+  },
+  "new_model_QQ_or_search_test_calls": 0,
+  "business_data_migration": false,
+  "new_permissions": 0,
+  "rollback": {
+    "material": "/srv/tianshu-tooling/proactive-companion-r54-cbd8d44090b34a0fbd8439207c96e805/rollback-r54-to-r53/rollback.py",
+    "executed": false,
+    "full_restore_tested": false,
+    "R53_collector_admission_retained": true
+  },
+  "initial_tool_and_fixture_failures_retained": [
+    "Five existing cause assertions omitted route/principal/attempt; corrected only the fixture expectation and passed those five cases.",
+    "The initial one-wheel packaging helper omitted the existing integrations/nonebot source root; reused the built wheel and checked all 123 payload files against the same Git archive.",
+    "Initial status-record helpers assumed every task had a prohibited field and acceptance was an object; corrected the private recorder without changing card criteria.",
+    "An overstrict postcheck-generator assertion rejected its own legacy placeholder; corrected the generator before activation."
+  ],
+  "unverified": [
+    "PC02 original complete 24-hour new-decision success >=80% and continuous 30-minute zero auth rejection.",
+    "PC06 genuine drafts for every enabled actor on three consecutive actual dates.",
+    "The original Memory503 root cause and natural production outcome of this model-stream fix.",
+    "PC09/11 native combinations and PC12-PC18 original work remain open.",
+    "Rollback prepared but not executed."
+  ]
+}
