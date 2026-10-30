@@ -274,7 +274,12 @@ ALERTS = {
     ),
     "LocalMonitorFailed": ("1-tianshu_obs_monitor_success", "1m"),
     "CollectorDiscardOrError": (
-        "sum(increase(vector_component_discarded_events_total[5m])) + sum(increase(vector_component_errors_total[5m]))",
+        # A missing family must not hide observed errors in the other family.
+        # No observed counter at all still yields no data, rather than a false zero.
+        "(sum(increase(vector_component_discarded_events_total[5m])) + "
+        "sum(increase(vector_component_errors_total[5m]))) or "
+        "sum(increase(vector_component_discarded_events_total[5m])) or "
+        "sum(increase(vector_component_errors_total[5m]))",
         "0s",
     ),
     "StorageReject": ("increase(tianshu_obs_push_rejected_total[5m])", "0s"),
