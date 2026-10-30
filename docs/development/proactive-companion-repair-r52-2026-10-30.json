@@ -1,0 +1,255 @@
+{
+  "release": "2026.10.30-unified-linux-r52",
+  "status": "deployed_healthy",
+  "whole_goal_complete": false,
+  "image": "sha256:6d4aeb7f99644cd7a9ad43bcdf2aaef835a4ab05f6656491bd3edd07eecf7857",
+  "container": "9304ae455aaf2dc1a5ff81545cc63de0e45bbb5578ad9139ee262a01b0939358",
+  "source_commits": {
+    "platform": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+    "companion": "55797e5a14cf8fb666bb26769612835b34bbe51a",
+    "memory": "3aee6394fda1ea6f8bf0ed0644a8fafdd5bc4933",
+    "gateway": "1af59a30b698c6d114e927f941de5dc33d1762af",
+    "application": "fe6e43ee56704156a9383aa93cf7fe97215ba3df",
+    "platform_frontend": "911a1dc60318abad76287013a05afacd1e63f9f3"
+  },
+  "peer_encoding": {
+    "status": "verified_production",
+    "code_commit": "fe6e43ee56704156a9383aa93cf7fe97215ba3df",
+    "root_cause": "The remap accepted validated optional attributes, but the final Loki encoding only_fields still retained twelve legacy fields and removed attributes.",
+    "implementation": "Retain attributes only when the closed producer peer schema exists; existing transforms still reject unknown fields, arbitrary routes, cleartext principals and wrong versions.",
+    "native_Vector_version": "vector 0.58.0 (x86_64-unknown-linux-gnu 2bcad9b 2026-08-26 13:37:07.557544670)",
+    "regression_before": "Native wire assertion failed because validated attributes were missing.",
+    "native_wire_after": "One current extended event and one legacy event retained exactly; a secret-canary extra field rejected.",
+    "related_focused_checks_passed": 4,
+    "static": "Ruff check and diff/whitespace passed; pre-existing unrelated formatting restored.",
+    "production": {
+      "safe_peer_events_sampled": 10,
+      "whole_window_complete": false,
+      "closed_sample_events_and_attributes_validated": true,
+      "attribute_fields": [
+        "attempt",
+        "error_code",
+        "http_status",
+        "operation",
+        "principal",
+        "route",
+        "target"
+      ],
+      "collector_output_fields": [
+        "attributes",
+        "correlation_id",
+        "duration_ms",
+        "error_code",
+        "event",
+        "event_id",
+        "instance_id",
+        "level",
+        "outcome",
+        "schema_version",
+        "sequence",
+        "service",
+        "timestamp"
+      ],
+      "real_Loki_query": true,
+      "synthetic_production_event_written": false,
+      "historical_lost_attributes_recovered": false,
+      "Vector_source_checkpoint_contract_compatible": true,
+      "original_full_window_probe_budget_error_preserved": true
+    },
+    "historical_lost_attributes_recoverable": false,
+    "original_full_window_probe": "Failed at the existing eight-request query budget; retained original log, then used one bounded latest-ten sample instead of requiring a new full-window census."
+  },
+  "production_checks": {
+    "ok": true,
+    "version": "2026.10.30-unified-linux-r52",
+    "sources": {
+      "platform": {
+        "commit": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+        "archive_sha256": "52b2798f412226b4ee588dc69640695629bd396bddb70aa853b45875f21dee2f"
+      },
+      "companion": {
+        "commit": "55797e5a14cf8fb666bb26769612835b34bbe51a",
+        "archive_sha256": "5b0851b891a22101b5c3ff5e86f53ed179169ac995b7e38960c1c534ecbfabfc"
+      },
+      "memory": {
+        "commit": "3aee6394fda1ea6f8bf0ed0644a8fafdd5bc4933",
+        "archive_sha256": "4010664123e5803473fe41249c0d7d028ba43487f0827f5ac6411dbd44437569"
+      },
+      "gateway": {
+        "commit": "1af59a30b698c6d114e927f941de5dc33d1762af",
+        "archive_sha256": "b46e7bb45713d9a2f3c29a547c9cf1bfc299e548f289ab8d25e1e9a95717f450"
+      },
+      "application": {
+        "commit": "fe6e43ee56704156a9383aa93cf7fe97215ba3df",
+        "archive_sha256": "1eca8d5d2546c65b65bf6e110cdf007efe3309aca0979a06f1881252bf9e1dd4"
+      },
+      "platform_frontend": {
+        "commit": "911a1dc60318abad76287013a05afacd1e63f9f3",
+        "archive_sha256": "2b0f65ee789feeef51514c6151eca911f49ef7d3309c125ef8e347898ac8a4cd"
+      }
+    },
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "tls_ca_and_hostname_verified": true,
+    "served_affected_assets": {
+      "/index.html": "a3e9b14959ec05c6c2e7559cba0aabf1503c38751de8644099c31c5959de2099"
+    },
+    "probe_generated_model_or_qq": false,
+    "no_owner_store_opened": true,
+    "peer_encoding": {
+      "safe_peer_events_sampled": 10,
+      "whole_window_complete": false,
+      "closed_sample_events_and_attributes_validated": true,
+      "attribute_fields": [
+        "attempt",
+        "error_code",
+        "http_status",
+        "operation",
+        "principal",
+        "route",
+        "target"
+      ],
+      "collector_output_fields": [
+        "attributes",
+        "correlation_id",
+        "duration_ms",
+        "error_code",
+        "event",
+        "event_id",
+        "instance_id",
+        "level",
+        "outcome",
+        "schema_version",
+        "sequence",
+        "service",
+        "timestamp"
+      ],
+      "real_Loki_query": true,
+      "synthetic_production_event_written": false,
+      "historical_lost_attributes_recovered": false,
+      "Vector_source_checkpoint_contract_compatible": true,
+      "original_full_window_probe_budget_error_preserved": true
+    },
+    "at": 1793366139.3114984,
+    "image": "sha256:6d4aeb7f99644cd7a9ad43bcdf2aaef835a4ab05f6656491bd3edd07eecf7857",
+    "id": "9304ae455aaf2dc1a5ff81545cc63de0e45bbb5578ad9139ee262a01b0939358",
+    "health": "healthy",
+    "restarts": 0,
+    "mounts_preserved": 37,
+    "config_files_preserved": 1166,
+    "configuration_changed": [
+      "observability/vector.json",
+      "private/gateway.env"
+    ],
+    "added_contract_files": 0,
+    "non_target_containers_preserved": 14,
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r52",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_free_bytes": 35245096960,
+    "completed_at": 1793366139.8368495
+  },
+  "previous_owner_drain": {
+    "systemctl_returncode": 0,
+    "elapsed_seconds": 124.11318063735962,
+    "old_finished_at": "2026-10-30T13:12:17.408964866Z",
+    "old_exit_code": 0,
+    "old_restart": "no"
+  },
+  "pc02_original_fixed_cohort": {
+    "at": 1793366552.5937958,
+    "start": 1793326100.1223843,
+    "planned_end": 1793412500.1223843,
+    "observed_until": 1793366552.5937958,
+    "complete_24h": false,
+    "states": {
+      "completed": 22,
+      "failed": 6,
+      "interrupted": 1,
+      "unknown": 5
+    },
+    "total": 34,
+    "success_rate": 0.6470588235294118,
+    "transaction_read_only": "on"
+  },
+  "pc06": {
+    "real_draft_rows": 0,
+    "latest_material_audit_at": 1793366162.8588803,
+    "new_confirmed_same_day_sources_by_enabled_actor": [
+      0,
+      0
+    ],
+    "three_consecutive_actual_dates_verified": false
+  },
+  "native_actor503_trace": {
+    "correlation_id": "ccb8294461b981e12a905dcc2c6b5e30",
+    "real_original_request": true,
+    "observation": "The original Companion source callback and two Knowledge reads returned200, but the original Memory actor query still returned503. This is not an auth denial; response delivery/deadline timing remains unresolved.",
+    "business_request_replayed": false
+  },
+  "diagnostic_probe": {
+    "platform_discovery_http": 200,
+    "memory_query_reached_service": false,
+    "result": "Independent client tried a non-public Memory TLS name at the public Platform/Gateway edge and failed to connect; retained as a fixture limitation, not a production Memory failure.",
+    "new_public_endpoint": false,
+    "core_or_store_owners_created": 0
+  },
+  "new_model_or_QQ_or_search_calls": 0,
+  "business_data_migration": false,
+  "new_permissions": 0,
+  "cards": {
+    "verified_production": [
+      "PC-01",
+      "PC-03",
+      "PC-04",
+      "PC-05",
+      "PC-07"
+    ],
+    "deployed": [
+      "PC-08",
+      "PC-09",
+      "PC-10",
+      "PC-11"
+    ],
+    "in_progress": [
+      "PC-02",
+      "PC-06"
+    ],
+    "planned": [
+      "PC-12",
+      "PC-13",
+      "PC-14",
+      "PC-15",
+      "PC-16",
+      "PC-17",
+      "PC-18"
+    ]
+  },
+  "rollback": {
+    "material": "/srv/tianshu-tooling/proactive-companion-r52-f667084c749f482b9001adec0dea9795/rollback-r52-to-r51/rollback.py",
+    "old_image_and_exact_Vector_bytes_retained": true,
+    "executed": false,
+    "full_restore_tested": false
+  },
+  "unverified": [
+    "PC02 original complete24h decision rate>=80%.",
+    "PC06 genuinely sourced drafts for each enabled actor on three consecutive actual dates.",
+    "Exact cause of the native Memory actor-query503 response/deadline interval, despite successful source callback/Knowledge reads.",
+    "Historical fields already removed by old Vector encoding cannot be reconstructed.",
+    "PC12-PC18 remain planned; W3 entry prohibited."
+  ]
+}
