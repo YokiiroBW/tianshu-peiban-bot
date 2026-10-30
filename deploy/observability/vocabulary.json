@@ -71,7 +71,7 @@
     },
     "companion": {
       "repo": "tianshu-companion",
-      "commit": "908d9a8988fbb27b65281aca2ef6bf1e00a8c5f2",
+      "commit": "3aa022fab8062863e93d38640e90a8618301449f",
       "source_path": "src/tianshu_companion/observability.py",
       "source_sha256": "f4e09bb2a4170b7a6c1ebf1a370ec11ee33667fe78e7862d26464f3573bf45e4",
       "events": [
@@ -276,10 +276,15 @@
     },
     "memory": {
       "repo": "tianshu-memory",
-      "commit": "7bf1200dad37dc894576fe63ca1292d297163275",
+      "commit": "c4752304c8f561cd464daff3525a7d3c63e164ff",
       "source_path": "src/tianshu_memory/diagnostics.py",
-      "source_sha256": "a06c5d4a23e138c8f78c758582bb9feb7c17f432b8e8f695e98221a883980a1b",
+      "source_sha256": "df031eff5fb6a894d257a609c1c4c3854d62e0a8bb74238d34ce99a999523ec0",
       "events": [
+        "authority.deadline.exceeded",
+        "authority.response.invalid",
+        "authority.source.unavailable",
+        "authority.transport.failed",
+        "authority.transport.timed_out",
         "log.sink_failed",
         "request.authenticated",
         "request.completed",
