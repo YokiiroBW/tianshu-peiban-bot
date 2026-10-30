@@ -1,0 +1,48 @@
+{
+  "status": "verified_production",
+  "release": "2026.10.30-unified-linux-r53",
+  "cards": [
+    "PC-08",
+    "PC-10"
+  ],
+  "original_completion_criteria_unchanged": true,
+  "evidence": {
+    "at": 1793369928.0235298,
+    "transaction_read_only": "on",
+    "PC08": {
+      "stage_writer_absent": true,
+      "history_event_rows": 17,
+      "history_task_rows": 18,
+      "historic_hashes_unchanged": true,
+      "current_plan_kinds": {
+        "plan": 67
+      },
+      "experience_contract_retained_as_historical_readonly_projection": true,
+      "real_activity_step_owner_installed": true
+    },
+    "PC10": {
+      "web_search_declaration_and_effective_definitions_absent": true,
+      "existing_platform_bridge_retained": true,
+      "actual_actor_catalogs_checked": 2,
+      "external_search_test_required_by_selected_removal_option": false
+    },
+    "unchanged_source_files_verified": 5,
+    "new_model_QQ_or_search_calls": 0,
+    "new_Core_or_Store_owners": 0,
+    "persistent_writes": 0,
+    "image": "sha256:acc68e555133babff5313acd24afbc682b975d59866e2e5b12e98a4d49b5975f",
+    "container": "45be42654fc9b279c8858599c6356ede68cac2a02271d1bc847aa10237d65ee3"
+  },
+  "whole_goal_complete": false,
+  "unverified": [
+    "PC02 and PC06 original acceptance remains open.",
+    "Removal of an unavailable search declaration does not enable external search.",
+    "Long-term autonomous-life quality and PC09/11 native combinations remain unverified."
+  ],
+  "original_18_card_status_counts": {
+    "verified_production": 7,
+    "in_progress": 2,
+    "deployed": 2,
+    "planned": 7
+  }
+}
