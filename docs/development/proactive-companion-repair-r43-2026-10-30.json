@@ -1,0 +1,150 @@
+{
+  "release": "2026.10.30-unified-linux-r43",
+  "status": "deployed",
+  "whole_goal_complete": false,
+  "image": "sha256:5211dfa3fcd60d2750d95ff434726fe71595df55eba6a4c217460dcab86ac570",
+  "container": "7eba25aabd828bf0ba9dd15cea24c5045c9e27cc334e0e00ddd3554531469f69",
+  "source_commits": {
+    "platform": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+    "companion": "3c6d047b2a358a6d46be66015027d0e410ac04f3",
+    "memory": "3aee6394fda1ea6f8bf0ed0644a8fafdd5bc4933",
+    "gateway": "ed631d8a6f26890628a9df833792210e9a09e31c",
+    "application": "a800f47e3a57700a9548daa7f70828d8aa9a2765",
+    "platform_frontend": "7f5e837593c8119e8c80e40c7f498314b730306e"
+  },
+  "product_remote_push": "Companion and Platform have no configured remote; exact local archives used",
+  "validation": {
+    "diary_targeted_checks_passed": 21,
+    "proactive_context_checks_passed": 30,
+    "proactive_context_subtests_passed": 15,
+    "diary_browser_passed": 1,
+    "people_browser_passed": 2,
+    "typecheck": true,
+    "vite_build": true,
+    "format": true,
+    "ruff_no_new_issues": true,
+    "existing_ruff_E731_preserved": true,
+    "diff": true,
+    "full_product_run": false
+  },
+  "image_verification": {
+    "companion_files": 123,
+    "application_files": 56,
+    "frontend_files": 87,
+    "business_uid_imports_and_public_modes": true,
+    "dependency_graph_reused": true,
+    "platform_backend_unchanged": true,
+    "memory_unchanged": true,
+    "gateway_unchanged": true
+  },
+  "production_checks": {
+    "health": "healthy",
+    "restarts": 0,
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "tls_ca_and_hostname_verified": true,
+    "mounts_preserved": 37,
+    "non_target_containers_preserved": 14,
+    "config_files_preserved": 1167,
+    "configuration_changed": [
+      "private/gateway.env"
+    ],
+    "added_contract_files": 0,
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r43",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_free_bytes": 50282135552,
+    "completed_at": 1793340139.0815642,
+    "served_affected_assets": {
+      "/index.html": "efddfe68d1d511c70d1d40c176f5d9e0a8d86fd9905d0a2f8db28df505cb26b0",
+      "/assets/LifePage-CqxDe_2D.js": "1a12fbbaa5633714d2bb892237d8dd08887dff7adbe495ac363fe750d814c4ec",
+      "/assets/PeoplePage-BPksBxAL.js": "40fb98864325cf4776ecf60aabb0fed1a13381c886481865c44a375474e70e79",
+      "/assets/PeoplePage-CjwRUKy8.css": "fa9e5eb0aaf64ac825578477c614c26ec9096f05f36b52ee4a84c9e1a32b9e83"
+    }
+  },
+  "schema_migration": false,
+  "new_permissions": 0,
+  "serial_owner_handoff": true,
+  "old_owner_drain_seconds": 124.2552285194397,
+  "old_owner_exit_code": 0,
+  "pc06": {
+    "output_contract_commit": "a9db63f9f7d4db1f1d34c54897cbf0a3104a3482",
+    "native_preparation_ui_commit": "e96ea9b3c2d517a8c380833a03c0a52c72e9b5f0",
+    "actual_prior_R42_state": "failed",
+    "actual_prior_R42_stage": "result_validation",
+    "actual_prior_material_count": 25,
+    "actual_prior_selection_complete": true,
+    "original_actual_invalid_field_unknown": true,
+    "original_failed_output_stored": false,
+    "new_code_preserves_returned_receipt": true,
+    "R43_real_draft_verified": false,
+    "three_real_dates_verified": false,
+    "automatic_failed_or_unknown_retry_added": false
+  },
+  "pc07": {
+    "context_runtime_commit": "3c6d047b2a358a6d46be66015027d0e410ac04f3",
+    "pagination_ui_commit": "7f5e837593c8119e8c80e40c7f498314b730306e",
+    "R42_authenticated_motives": 1,
+    "R42_candidates": 1,
+    "R42_candidate_state": "unknown",
+    "R42_expression_attempts": 1,
+    "R42_actual_delivery_attempts": 0,
+    "actual_proactive_messages_sent": 0,
+    "original_creation_replay_verified": true,
+    "delivery_idempotence_verified": false,
+    "unanswered_suppression_verified": false,
+    "automatic_actual_event_verified": false,
+    "original_unknown_preserved": true,
+    "R43_real_model_and_delivery_verified": false
+  },
+  "initial_postcheck": {
+    "result": "before_first_healthy_probe",
+    "owner_state": "starting",
+    "assertion": "container health must be healthy",
+    "production_mutated_by_check": false
+  },
+  "rollback": {
+    "path": "/srv/tianshu-tooling/proactive-companion-r43-92fe911285134209b64bc79dda8ca63d/rollback-r43-to-r42/rollback.py",
+    "executed": false,
+    "target_release": "2026.10.30-unified-linux-r42",
+    "target_image": "sha256:cda1178f6a3ac1635be5b1611f7db782d39b413bd465f9b610f2f75931c86000",
+    "scope": "code and image only; preserve data and unknown executions"
+  },
+  "unverified": [
+    "R43 authenticated native diary preparation and actual draft",
+    "R43 actual v2 proactive model and QQ delivery",
+    "delivery idempotence and unanswered suppression",
+    "automatic actual event",
+    "PC02 actual 24h cohort and PC06 three real dates"
+  ],
+  "W3_allowed": false,
+  "post_restart_business_metadata": {
+    "original_unknown_candidates": 1,
+    "original_candidate_version": 4,
+    "original_expression_attempts": 1,
+    "delivery_attempts": 0,
+    "proactive_contacts": 0,
+    "automatic_replay_observed": false,
+    "latest_diary_states": [
+      "failed",
+      "skipped"
+    ],
+    "new_drafts": 0,
+    "browser_session_valid": false,
+    "restoration_requested_once": true
+  }
+}
