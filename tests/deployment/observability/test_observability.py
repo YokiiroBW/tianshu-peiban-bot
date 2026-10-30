@@ -348,7 +348,8 @@ class ConfigurationTests(WorkspaceTest):
         self.assertEqual(cfg["sinks"]["loki"]["buffer"]["when_full"], "block")
         self.assertTrue(cfg["sinks"]["loki"]["acknowledgements"]["enabled"])
         self.assertEqual(
-            cfg["sinks"]["loki"]["encoding"]["only_fields"], sorted(event())
+            cfg["sinks"]["loki"]["encoding"]["only_fields"],
+            sorted({*event(), "attributes"}),
         )
         self.assertNotIn("remove_after_secs", json.dumps(cfg))
         self.assertEqual(loki()["limits_config"]["retention_period"], "720h")

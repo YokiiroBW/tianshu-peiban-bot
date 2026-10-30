@@ -5,6 +5,8 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import subprocess
+import tempfile
 import unittest
 
 from helpers import SNAPSHOT, event
@@ -62,7 +64,9 @@ class PeerAttributesTests(unittest.TestCase):
         directory = Path(__file__).resolve().parents[3] / "contracts/diagnostics/v1.1"
         manifest = json.loads((directory / "manifest.json").read_text("utf-8"))
         for name, expected in manifest["files"].items():
-            self.assertEqual(hashlib.sha256((directory / name).read_bytes()).hexdigest(), expected)
+            self.assertEqual(
+                hashlib.sha256((directory / name).read_bytes()).hexdigest(), expected
+            )
         from jsonschema import Draft202012Validator
 
         Draft202012Validator(schema).validate(value)
@@ -99,6 +103,52 @@ class PeerAttributesTests(unittest.TestCase):
         self.assertIn("sha256:", generated)
         old = vector(self.legacy_snapshot)["transforms"]["companion_safe"]["source"]
         self.assertIn("!exists(.attributes)", old)
+
+    def test_native_vector_wire_retains_validated_attributes_and_drops_unknown_fields(
+        self,
+    ):
+        binary = os.environ.get("VECTOR_BIN")
+        if not binary:
+            self.skipTest("VECTOR_BIN required for native output encoding")
+        generated = vector(self.snapshot)
+        valid = self.sample()
+        legacy = event(seq=2, service="companion")
+        invalid = copy.deepcopy(valid)
+        invalid["sequence"] = 3
+        invalid["attributes"]["body"] = "secret-canary"
+        with tempfile.TemporaryDirectory(prefix="peer-wire-") as directory:
+            config = dict(
+                data_dir=directory,
+                sources={"companion": {"type": "stdin"}},
+                transforms={
+                    "companion_safe": generated["transforms"]["companion_safe"]
+                },
+                sinks={
+                    "wire": dict(
+                        type="console",
+                        inputs=["companion_safe"],
+                        target="stdout",
+                        encoding=generated["sinks"]["loki"]["encoding"],
+                    )
+                },
+            )
+            path = Path(directory) / "vector.json"
+            path.write_text(json.dumps(config), encoding="utf-8")
+            process = subprocess.run(
+                [binary, "--config-json", str(path)],
+                input=b"".join(
+                    json.dumps(row).encode() + b"\n" for row in (valid, legacy, invalid)
+                ),
+                capture_output=True,
+                timeout=15,
+                env={**os.environ, "VECTOR_LOG": "error"},
+            )
+        self.assertEqual(process.returncode, 0, process.stderr.decode(errors="replace"))
+        encoded = [json.loads(line) for line in process.stdout.splitlines()]
+        self.assertEqual(len(encoded), 2)
+        self.assertEqual(encoded[0], valid)
+        self.assertEqual(encoded[1], legacy)
+        self.assertNotIn(b"secret-canary", process.stdout)
 
 
 if __name__ == "__main__":

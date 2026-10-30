@@ -16,6 +16,11 @@ PRODUCTS = ("platform", "companion", "memory", "gateway")
 
 def vector(snapshot, buffer_bytes=4 * 1024**3, *, include_knowledge=False):
     """Use Memory's vocabulary for an optional dedicated Knowledge log source."""
+    output_fields = set(FIELDS)
+    if "peer_attribute_schema" in snapshot["products"]["companion"]:
+        # The transform validates this closed extension before output encoding.
+        # Filtering it out here would erase the producer's peer/route diagnosis.
+        output_fields.add("attributes")
     services = (
         (*PRODUCTS[:3], "knowledge", PRODUCTS[3]) if include_knowledge else PRODUCTS
     )
@@ -144,7 +149,7 @@ def vector(snapshot, buffer_bytes=4 * 1024**3, *, include_knowledge=False):
                     "level": "level_{{ level }}",
                 },
                 "tenant_id": "tianshu",
-                "encoding": {"codec": "json", "only_fields": sorted(FIELDS)},
+                "encoding": {"codec": "json", "only_fields": sorted(output_fields)},
                 "remove_timestamp": True,
                 "remove_label_fields": False,
                 "out_of_order_action": "accept",
