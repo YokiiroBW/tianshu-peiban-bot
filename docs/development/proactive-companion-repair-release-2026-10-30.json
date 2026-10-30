@@ -1,0 +1,361 @@
+{
+  "status": "partial_queue_deployed_startup_and_affected_domain_verified",
+  "version": "2026.10.30-unified-linux-r38",
+  "completed_at": 1793326547.7268136,
+  "goal_complete": false,
+  "remaining_wave": "W1 diaries and real proactive chain; W2-W4 pending",
+  "authorization": {
+    "single_production_writer": "this_chat",
+    "placeholder": "Human explicitly requested deletion of installation placeholder",
+    "publication": "Human explicitly allowed publication from this window after the other chat completed R36"
+  },
+  "sources": {
+    "platform": {
+      "commit": "73cea0b6bcb782b5a8ff03d81248c20000ca1c12",
+      "archive_sha256": "8cb23f99c777a4fee48374bc63b2141d75ef3acbf100e6db76116f78a345e4f9"
+    },
+    "companion": {
+      "commit": "57879c62d5549dfde6043c3a06d1e68beaec4655",
+      "archive_sha256": "18e83edb92491cb0664d187cd6ff648500c74b94d8560a30adcc13158c00fad3"
+    },
+    "memory": {
+      "commit": "78b9f913a8ac405776336fd18f6a6b21d41b013b",
+      "archive_sha256": "b2072666c3bbcad4b04f40d6b7dbfdd9702ebf826dc3be15c8657ed0dfd864e2"
+    },
+    "gateway": {
+      "commit": "ed631d8a6f26890628a9df833792210e9a09e31c",
+      "archive_sha256": "8f7fa3a112e9d290ae160ca09277134e5a2cf22a4d655ebec7448540aa1bb381"
+    },
+    "application": {
+      "commit": "ed128f3fede0e693c97366ab1c08fb6641be1ea1",
+      "archive_sha256": "9231e7d76d79f674b961a467e0610d567dd033b9c196de1c39166edbba29b420"
+    },
+    "platform_frontend": {
+      "commit": "73cea0b6bcb782b5a8ff03d81248c20000ca1c12",
+      "archive_sha256": "8cb23f99c777a4fee48374bc63b2141d75ef3acbf100e6db76116f78a345e4f9"
+    }
+  },
+  "main_pushes": {
+    "companion": "1e0bfe2",
+    "platform": "73cea0b6bcb782b5a8ff03d81248c20000ca1c12",
+    "workspace_integration": "22e7fef54943efd7a10bc19120b3c5243ed07038"
+  },
+  "image": "sha256:4a8b2376dc7c01616d6c77326b84b54d3166a8d4f76394f918e92431c64ef057",
+  "previous_healthy_version": "2026.10.30-unified-linux-r36",
+  "cards": {
+    "PC-01": "deployed; real attribution observation continuing",
+    "PC-02": "bootstrap cause established and deleted; 30-minute zero-rejection and new-decision quality not accepted",
+    "PC-03": "deployed; simulated admission bounds passed",
+    "PC-04": "deployed; original unknowns retained",
+    "PC-05": "verified_production within affected data scope",
+    "PC-06": "in_progress; no draft acceptance",
+    "PC-07": "in_progress; controlled recipient and sender authorized, not yet sent"
+  },
+  "production": {
+    "ok": true,
+    "version": "2026.10.30-unified-linux-r38",
+    "sources": {
+      "platform": {
+        "commit": "73cea0b6bcb782b5a8ff03d81248c20000ca1c12",
+        "archive_sha256": "8cb23f99c777a4fee48374bc63b2141d75ef3acbf100e6db76116f78a345e4f9"
+      },
+      "companion": {
+        "commit": "57879c62d5549dfde6043c3a06d1e68beaec4655",
+        "archive_sha256": "18e83edb92491cb0664d187cd6ff648500c74b94d8560a30adcc13158c00fad3"
+      },
+      "memory": {
+        "commit": "78b9f913a8ac405776336fd18f6a6b21d41b013b",
+        "archive_sha256": "b2072666c3bbcad4b04f40d6b7dbfdd9702ebf826dc3be15c8657ed0dfd864e2"
+      },
+      "gateway": {
+        "commit": "ed631d8a6f26890628a9df833792210e9a09e31c",
+        "archive_sha256": "8f7fa3a112e9d290ae160ca09277134e5a2cf22a4d655ebec7448540aa1bb381"
+      },
+      "application": {
+        "commit": "ed128f3fede0e693c97366ab1c08fb6641be1ea1",
+        "archive_sha256": "9231e7d76d79f674b961a467e0610d567dd033b9c196de1c39166edbba29b420"
+      },
+      "platform_frontend": {
+        "commit": "73cea0b6bcb782b5a8ff03d81248c20000ca1c12",
+        "archive_sha256": "8cb23f99c777a4fee48374bc63b2141d75ef3acbf100e6db76116f78a345e4f9"
+      }
+    },
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "tls_ca_and_hostname_verified": true,
+    "served_affected_assets": {
+      "/index.html": "84a2d650907230593e7ffa413deb98837445805418f7cfcc0329a6e68d6ac71b",
+      "/assets/LifePage-BjL2GtTy.js": "621027fbcd66ac76981e8c280ec75286f647ecae08bd834f1c166b305d12f1ea",
+      "/assets/runtimeApi-o-2jxbWR.js": "7baf2fddbfa1a9db4c15c61568d9ac8e882ef0acc402ed71d554685a43c7480e"
+    },
+    "placeholder_active_registration_and_actor_row_absent": true,
+    "active_actors": 2,
+    "paused_null_remaining": 0,
+    "activity_states": {
+      "completed": 3,
+      "dormant": 7
+    },
+    "diary_states": {
+      "skipped": 51,
+      "failed": 1,
+      "material_overflow": 1,
+      "unavailable": 9
+    },
+    "new_model_or_qq_test": false,
+    "no_owner_store_opened": true,
+    "at": 1793326547.1952057,
+    "image": "sha256:4a8b2376dc7c01616d6c77326b84b54d3166a8d4f76394f918e92431c64ef057",
+    "id": "352031f4481edd3da9ada52789f49d8af0b5f377556448515e2271da0a427f8e",
+    "health": "healthy",
+    "restarts": 0,
+    "mounts_preserved": 37,
+    "config_files_preserved": 1167,
+    "configuration_changed": [
+      "private/gateway.env"
+    ],
+    "added_contract_files": 0,
+    "non_target_containers_preserved": 14,
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r38",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_free_bytes": 50551336960,
+    "completed_at": 1793326547.7268136
+  },
+  "preservation_from_r36": {
+    "configuration_files_preserved_from_r36": 1130,
+    "modified": [
+      "observability/vocabulary.json",
+      "observability/vector.json",
+      "private/gateway.env",
+      "modules/companion/settings.json"
+    ],
+    "added_contract_files": 34,
+    "convergence": {
+      "schema": "ts_tianshu_companion_main_0c6bf7a49daf",
+      "dry_run": false,
+      "changes": [
+        {
+          "table": "life_activities",
+          "id": "goal-activity:10e0928cf8cb43a525134dc54fab0bccc631dbe9ae5e0c725411e04969009ff4",
+          "from_state": "paused",
+          "to_state": "dormant",
+          "deleted": false
+        },
+        {
+          "table": "life_activities",
+          "id": "goal-activity:5a73ecbc71680482bbaa9283322f7bab8dedf2fe9994022ed6aa580a9f668c20",
+          "from_state": "paused",
+          "to_state": "dormant",
+          "deleted": false
+        },
+        {
+          "table": "life_activities",
+          "id": "goal-activity:707c0a2abbca03948e51c4594b775ec7be0b61c7e12729f0ac35ccc4249dd278",
+          "from_state": "paused",
+          "to_state": "dormant",
+          "deleted": false
+        },
+        {
+          "table": "life_activities",
+          "id": "goal-activity:a6670e84bf75e281d20a18b739b10475e57a4ccdf22c192062efd86e59d783e2",
+          "from_state": "paused",
+          "to_state": "dormant",
+          "deleted": false
+        },
+        {
+          "table": "life_activities",
+          "id": "goal-activity:ffd9babd92f3f1652f2ada6b58b8ec949cbaea2a37da633478340d89fec0225a",
+          "from_state": "paused",
+          "to_state": "dormant",
+          "deleted": false
+        },
+        {
+          "table": "life_activities",
+          "id": "routine:20eb051d094315b6c455b854e729ac412946ad4f1e427f59cdf69e90e5ef4fe9",
+          "from_state": "paused",
+          "to_state": "dormant",
+          "deleted": false
+        },
+        {
+          "table": "life_activities",
+          "id": "routine:7160b00f1d2942e9fc3693468b6a3df1510d7c5db0e8a50ec56001e35531c773",
+          "from_state": "paused",
+          "to_state": "dormant",
+          "deleted": false
+        },
+        {
+          "table": "life_actors",
+          "id": "actor:household",
+          "from_state": null,
+          "to_state": null,
+          "deleted": true
+        },
+        {
+          "table": "life_actors",
+          "id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+          "from_state": null,
+          "to_state": null,
+          "deleted": false
+        },
+        {
+          "table": "life_actors",
+          "id": "actor:role-84e36c92a52e40dd8edf50228465bcf9",
+          "from_state": null,
+          "to_state": null,
+          "deleted": false
+        }
+      ],
+      "activity_count": 10,
+      "actor_count": 3,
+      "historical_activity_deletions": 0,
+      "model_calls": 0,
+      "messages_sent": 0,
+      "status": "converged",
+      "paused_null_remaining": 0,
+      "backup_sha256": {
+        "life_activities.copy": "0f75781b40812dec51237c1bae95e0f1b9acd8b0bb35bffb71e54fbb0e0ca5af",
+        "life_actors.copy": "0b45d0842235af4d5fa1a56e916e42f2058ad6e05dbf1d24ed3f3efd939eb276",
+        "changes.private.json": "aaf126a0229aa0d7acfb4a0bad5ac49aede45ca554933a6d5f6de69224c43198"
+      }
+    },
+    "placeholder": {
+      "actor_id": "actor:household",
+      "static_role_removed": true,
+      "persona_registration_removed": true,
+      "life_actor_row_deleted": true,
+      "legacy_activities_and_diaries_preserved": true,
+      "permissions_widened": false,
+      "internal_source_control_template_identifiers_retained": true
+    },
+    "r37_stop": {
+      "systemctl_returncode": 0,
+      "elapsed_seconds": 124.14677929878235,
+      "old_finished_at": "2026-10-30T01:55:51.134544132Z",
+      "old_exit_code": 0,
+      "old_restart": "no"
+    },
+    "r37_start": {
+      "status": "production_r37_started_guard_active",
+      "id": "5dae672536c017e6a21cfdcb4dfe5545d6aa7c5677e639f9de96fabf3844d9a2",
+      "image": "sha256:3fcc75ecceac84b0e05d4708e45c4ee38cbb0cdf7e4713fb712c5c81ca8ae557",
+      "started_at": 1793325359.7780197,
+      "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r37",
+      "mounts": 37,
+      "schema_migration": false,
+      "companion_data_convergence": true,
+      "companion_settings_unchanged": false,
+      "placeholder_character_deleted": true,
+      "host_settings_unchanged": true,
+      "capacity_limits_preserved": true,
+      "compose_change": "image_only",
+      "gateway_env_change": "same_owner_startup_lease_only"
+    },
+    "r38_start": {
+      "status": "production_r38_started_guard_active",
+      "id": "352031f4481edd3da9ada52789f49d8af0b5f377556448515e2271da0a427f8e",
+      "image": "sha256:4a8b2376dc7c01616d6c77326b84b54d3166a8d4f76394f918e92431c64ef057",
+      "started_at": 1793326100.1223843,
+      "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r38",
+      "mounts": 37,
+      "schema_migration": false,
+      "companion_data_convergence": false,
+      "permission_repair": true,
+      "companion_settings_unchanged": true,
+      "placeholder_character_deleted": true,
+      "host_settings_unchanged": true,
+      "capacity_limits_preserved": true,
+      "compose_change": "image_only",
+      "gateway_env_change": "same_owner_startup_lease_only"
+    }
+  },
+  "validation": {
+    "reused_scoped_results": true,
+    "full_suite": false,
+    "pg_temp_table_convergence": {
+      "status": "isolated_postgresql_temp_tables_passed",
+      "tables": 2,
+      "changes": 3,
+      "copy_backup_and_exact_rollback": true,
+      "idempotent": true,
+      "unknown_checkpoint_and_results_retained": true,
+      "permanent_database_objects_created": 0,
+      "production_rows_read_or_changed": 0,
+      "model_calls": 0,
+      "messages_sent": 0
+    },
+    "r37_exact_payload": {
+      "ok": true,
+      "payload_files": {
+        "companion": 123,
+        "platform": 342
+      },
+      "application_files": 56,
+      "frontend_files": 87,
+      "producer_consumer_valid_cases": 6,
+      "postgres_join_translated": true,
+      "production_mounts": 0,
+      "external_calls": 0,
+      "status": "exact_installed_repair_payload_verified",
+      "image": "sha256:3fcc75ecceac84b0e05d4708e45c4ee38cbb0cdf7e4713fb712c5c81ca8ae557",
+      "business_uid_contracts": true,
+      "original_root_owned_host_files_read_as_root": true
+    },
+    "r38_permission_repair": {
+      "business_uid_native_owner_guard_execution": true,
+      "business_uid_observation_guard_cli": true,
+      "public_modes_restored": true,
+      "uid": 10001,
+      "source_payload_verification_reused": true,
+      "production_mounts": 0,
+      "external_calls": 0,
+      "status": "R38_permission_repair_built_verified",
+      "image": "sha256:4a8b2376dc7c01616d6c77326b84b54d3166a8d4f76394f918e92431c64ef057",
+      "parent_image": "sha256:3fcc75ecceac84b0e05d4708e45c4ee38cbb0cdf7e4713fb712c5c81ca8ae557",
+      "version": "2026.10.30-unified-linux-r38",
+      "initial_unsupported_help_probe_retained": true,
+      "at": 1793326048.6212006
+    },
+    "new_real_model_test_calls": 0,
+    "new_qq_test_messages": 0
+  },
+  "resolved_failed_startup": {
+    "version": "R37",
+    "cause": "Build extraction inherited 077 umask in implicit public source directories; COPY carried 0700 into three public image paths",
+    "evidence": "r37-mode-comparison.json",
+    "fix": "R38 restores those exact public directories to the R36 0755 mode; source/dependency bytes unchanged; native owner and observation guards run under business UID",
+    "production_failed_startups": 1,
+    "r37_started_at": 1793325359.7780197,
+    "r38_started_at": 1793326100.1223843,
+    "data_convergence_repeated": false,
+    "future_build_extraction_fixed": true
+  },
+  "operations": {
+    "stage": "/srv/tianshu-tooling/proactive-companion-r37-be6ea511ae5049719721f515e4848715",
+    "active_guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r38",
+    "convergence_backup": "/srv/tianshu-tooling/proactive-companion-r37-be6ea511ae5049719721f515e4848715/companion-domain-backups/convergence",
+    "active_switch": "/srv/tianshu-tooling/proactive-companion-r37-be6ea511ae5049719721f515e4848715/r38-switch/activate.py",
+    "rollback": "/srv/tianshu-tooling/proactive-companion-r37-be6ea511ae5049719721f515e4848715/rollback-r38-to-r36.py",
+    "rollback_executed": false,
+    "rollback_limit": "Scoped before/after CAS refuses to overwrite any facts changed since apply; COPY exports retained"
+  },
+  "limits": [
+    "Real controlled QQ chain has not been sent or accepted.",
+    "Diaries remain 51 skipped, 9 unavailable, 1 failed and 1 material_overflow at this check; no three-day draft acceptance.",
+    "W1 is incomplete; W3 remains forbidden.",
+    "Unknown original steps and source/control template identifiers remain; role deletion does not assert original external outcomes."
+  ]
+}
