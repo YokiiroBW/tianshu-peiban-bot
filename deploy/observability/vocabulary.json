@@ -71,9 +71,9 @@
     },
     "companion": {
       "repo": "tianshu-companion",
-      "commit": "c9754029a32eb63134ffca18879de4d90a04e366",
+      "commit": "908d9a8988fbb27b65281aca2ef6bf1e00a8c5f2",
       "source_path": "src/tianshu_companion/observability.py",
-      "source_sha256": "4908f3362427048c79d0cc2da6ea2d970d6cd2ce83fa4c21897c4d22567bfb84",
+      "source_sha256": "f4e09bb2a4170b7a6c1ebf1a370ec11ee33667fe78e7862d26464f3573bf45e4",
       "events": [
         "direct.attempt.finished",
         "direct.attempt.started",
@@ -145,6 +145,7 @@
         "resource_limit",
         "result_unknown",
         "scope_changed",
+        "source_changed",
         "source_edited",
         "source_retracted",
         "timeout",
