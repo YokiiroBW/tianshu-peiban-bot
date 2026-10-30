@@ -1,0 +1,87 @@
+{
+  "status": "verified_production",
+  "cards": [
+    "PC-09",
+    "PC-11"
+  ],
+  "release": "2026.10.30-unified-linux-r54",
+  "original_criteria_unchanged": true,
+  "completion_map": {
+    "PC-09": {
+      "three_injected_messages": "All three future activity/detail pairs survive each of three synthetic native ingests: 100%, above the original 2/3 threshold.",
+      "personality_version": "Personality change resets the future plan; schedule reset regression also passed.",
+      "evidence_kind": "Installed R54 Linux wheel scenarios with synthetic ingress and recorded model responses; no real QQ/model-quality claim."
+    },
+    "PC-11": {
+      "promises": "21 promises plus20 discretionary concerns preserve20 ordinary candidates and the earliest compulsory promise; legal recorded choice validates, applies and starts the original activity.",
+      "hint": "Unrelated rest/continue/new preserve the hint; inspired new consumes it; expiry remains bounded.",
+      "protected_slots": "Renamed0/420/720/1080/1380 civil-minute slots and explicitly protected custom550 remain protected.",
+      "postgres_reused": "Same unchanged life_work.py method; existing real read-only PG41-row VALUES comparison retained.",
+      "evidence_kind": "Installed R54 Linux wheel scenarios with synthetic observations/promises and recorded model responses; no real QQ/model-quality claim."
+    }
+  },
+  "native_installed_evidence": {
+    "pytest_exit": 0,
+    "cases": 14,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "case_names": [
+      "test_three_conversations_preserve_future_intentions_until_regeneration",
+      "test_personality_and_schedule_changes_still_reset_future_intentions[personality]",
+      "test_personality_and_schedule_changes_still_reset_future_intentions[schedule]",
+      "test_twenty_one_promises_do_not_consume_discretionary_candidate_budget",
+      "test_unrelated_choice_keeps_observation_until_an_inspired_new_goal[rest]",
+      "test_unrelated_choice_keeps_observation_until_an_inspired_new_goal[continue]",
+      "test_unrelated_choice_keeps_observation_until_an_inspired_new_goal[new]",
+      "test_observation_opportunity_expires_before_the_next_days_goal",
+      "test_renamed_routine_and_explicit_custom_slots_remain_protected[0]",
+      "test_renamed_routine_and_explicit_custom_slots_remain_protected[420]",
+      "test_renamed_routine_and_explicit_custom_slots_remain_protected[720]",
+      "test_renamed_routine_and_explicit_custom_slots_remain_protected[1080]",
+      "test_renamed_routine_and_explicit_custom_slots_remain_protected[1380]",
+      "test_renamed_routine_and_explicit_custom_slots_remain_protected[550]"
+    ],
+    "runtime_module": "/opt/tianshu-venv/lib/python3.12/site-packages/tianshu_companion/__init__.py",
+    "installed_scope_files_verified": 6,
+    "pytest_version": "9.0.2",
+    "python_flags": {
+      "isolated": 0,
+      "ignore_environment": 0,
+      "original_sys_path": [
+        "",
+        "/acceptance/test-tools",
+        "/acceptance/tests",
+        "/opt/tianshu/application",
+        "/usr/local/lib/python312.zip",
+        "/usr/local/lib/python3.12",
+        "/usr/local/lib/python3.12/lib-dynload",
+        "/opt/tianshu-venv/lib/python3.12/site-packages"
+      ],
+      "fixture_PYTHONPATH": "/acceptance/test-tools:/acceptance/tests:/opt/tianshu/application"
+    },
+    "real_model_QQ_or_search_calls": 0,
+    "synthetic_inputs_only": true,
+    "image": "sha256:8e015699b3e1e01576f39af617a6955f9edf47ea36bd0d0527c7ec308be3157b",
+    "container": "e7c85c7c8f0cd406fa0fb2dc8900e7fb7ab2e43fb5cbd2400e51404df855bed9",
+    "stage": "/srv/tianshu-tooling/pc-w2-installed-r54-d7346616308245e0bb6c323731bc3aea",
+    "at": 1793372075.4406564,
+    "fixture_network": "none",
+    "production_mounts": 0,
+    "persistent_production_writes": 0,
+    "live_installed": {
+      "live_installed_scope_files_verified": 6
+    },
+    "fixtures_inventory_files": 848,
+    "tool_input_source": "existing pytest pure-Python packages; not installed into runtime image"
+  },
+  "real_model_or_QQ_or_search_tests": 0,
+  "whole_goal_complete": false,
+  "unverified": [
+    "Natural external-channel and model quality, PC02/06 original acceptance and PC18 joint operation remain unverified."
+  ],
+  "fixture_setup_failures_retained": [
+    "Fixture inputs root inherited0700 from private staging umask; corrected only the public fixture directory mode.",
+    "Existing pytest py.py shim was omitted from the copied tool package; added the original installed shim. Product image and production permissions were unchanged."
+  ]
+}
