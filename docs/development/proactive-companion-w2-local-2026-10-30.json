@@ -1,24 +1,84 @@
 {
-  "status": "local_verified_not_deployed",
+  "status": "integrated_deployed",
   "goal_complete": false,
   "current_production": {
-    "version": "2026.10.30-unified-linux-r50",
-    "image": "sha256:75b5e2fb396549ba4ea0df7c0cca1181b63107615adf68968af6e18ddd847ea4",
-    "container": "ec6220d28b0a2c870e9549195dea53ff1493d3f55ac4761141a93a224ed86626",
-    "guard": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r50",
+    "version": "2026.10.30-unified-linux-r51",
+    "image": "sha256:1109e67bdd536389ef2cb88fcf954f4757eb2ed49c19b78c00130eda67aa057d",
+    "container": "e90e3f4c51ce56e8bb983f56dbcca2edde54097f1c9f820557507b2a415776ca",
+    "guard": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r51",
     "application_commit": "3d61b3539a3964f5c80601cf638a5a730c6fb3ad",
-    "companion_commit": "3836d0b8bf4ed96d6cc4411dd2fb7d6891b73b70",
+    "companion_commit": "55797e5a14cf8fb666bb26769612835b34bbe51a",
     "gateway_commit": "1af59a30b698c6d114e927f941de5dc33d1762af",
+    "frontend_commit": "911a1dc60318abad76287013a05afacd1e63f9f3",
     "health_at_last_observation": "healthy"
   },
-  "companion_candidate_commit": "ffd9f6606763d9fa1ff304927e21af0f18271a5d",
+  "companion_candidate_commit": "55797e5a14cf8fb666bb26769612835b34bbe51a",
   "cards": {
+    "PC-08": {
+      "card": "PC-08",
+      "status": "deployed",
+      "option": "A: remove redundant stage generation",
+      "code_commit": "440e7fe7521da77edc46d7ec3e6e129d1d451792",
+      "baseline": "ffd9f6606763d9fa1ff304927e21af0f18271a5d",
+      "frontend_commit": "45fe307157f55e231a289e0d20a02b5e202e1b78",
+      "frontend_baseline": "0c4217df5044848af730e3afe40aa210c26d1a1d",
+      "production_changed": true,
+      "reason": "Core installs RuntimeExecution.activity_step as LifeActivities.executor; completed activity steps and their receipts feed ActorMemory.actions.activity. A separate prose generator cannot prove an action occurred.",
+      "removed": [
+        "stage task creation, work dispatch and recovery scan",
+        "stage prose prompt and stage_experience event writer",
+        "phase-specific retry path and its frontend button"
+      ],
+      "preserved": [
+        "Daily plan digest shape and original request/receipt/CAS/unknown handling",
+        "Historical stage task/event rows, without bulk rewriting",
+        "Historical actor experience field and optional life.summary projection",
+        "Plan retry authorization/CAS, clock, ordinary activity executor and sourced materials"
+      ],
+      "status_projection": "Current/future phase generation states follow the plan task. A completed plan detail is still an intention and is cleared when its source is withdrawn; actual historical events remain untouched.",
+      "validation": {
+        "before": "3 focused no-stage/history/phase-retry regressions failed.",
+        "applicable_companion_cases": 44,
+        "scope": "Plan-only regressions, entire affected DailyLife lifecycle file, PC09 integration and one ActorMemory plan consumer.",
+        "reuse": "42 valid cases from the final affected run, the corrected rollover/diary fixture case, and the ActorMemory consumer; three final changed-path cases were checked individually.",
+        "lifecycle": "Lease, source withdrawal, actual plan model request header, cancellation, restart, terminal receipt recovery and unresolved/manual recovery remain covered; obsolete stage-generation assertions were replaced by supported plan behavior, not skipped.",
+        "browser": "One desktop native Playwright case passed: phase retry absent, plan retry sends phase_id=null, history paging and role switch race preserved.",
+        "browser_original_failure": "Existing fixture lacked the current RoleWorkspace roles/view endpoint; updated only this case and its current role selector. Original failure retained.",
+        "frontend": "TypeScript and production Vite build passed; existing large-chunk advisory retained.",
+        "static": "Targeted Ruff/Prettier and full semantic diff/whitespace review passed.",
+        "model_or_qq_external_test_calls": 0
+      },
+      "unverified": [
+        "No forced or new paid model/QQ run; long-term natural plan/activity quality is not established by startup checks.",
+        "Only the affected desktop flow was checked; no full browser or backend matrix.",
+        "PC02/PC06 original real-world acceptance and W3/W4 remain open."
+      ],
+      "release": "2026.10.30-unified-linux-r51",
+      "integration_proof": "w2-main-integrations.json",
+      "release_receipt": "proactive-companion-repair-r51-2026-10-30.json",
+      "production_verification": {
+        "web_search_placeholder_absent": true,
+        "existing_platform_bridge_installed": true,
+        "stage_writer_absent": true,
+        "plan_task_kinds": {
+          "plan": 67
+        },
+        "effective_actor_catalogs_checked": 2,
+        "effective_catalog_search_absent": true,
+        "history_transaction_read_only": "on",
+        "model_or_qq_calls": 0,
+        "core_or_store_owners_created": 0,
+        "historic_stage_event_count": 17,
+        "historic_stage_task_count": 18,
+        "historic_rows_unchanged": true
+      }
+    },
     "PC-09": {
       "card": "PC-09",
-      "status": "local_verified",
+      "status": "deployed",
       "code_commit": "96158d343f897ff695353b0e995c4cecf9c778c0",
       "baseline": "d8ccef1b2c9cac29ffb4a89a975b7630541c2023",
-      "production_changed": false,
+      "production_changed": true,
       "regression_before": "One accepted dialogue cleared all three future activity/detail entries; assertion failed.",
       "focused_checks_passed": 7,
       "covered": [
@@ -31,18 +91,70 @@
       "implementation": "Keep content_version for stale generation/CAS; use a separate plan reset revision for persona and source withdrawal. Schedule/world versions still determine the plan identity.",
       "migration": "No DDL; legacy rows default the reset revision to zero and are not rewritten in bulk.",
       "unverified": [
-        "Not deployed; actual production interaction with a generated future plan is unverified.",
-        "W1 PC02/PC06 metrics and W3 entry remain open."
+        "The exact candidate is installed and healthy; no additional real-user dialogue, promise or observation was injected for this release.",
+        "Original PC02 fixed cohort and PC06 sourced diary/date requirements remain open."
       ],
       "tests": "pytest tests/test_life_plan_intentions.py tests/test_daily_life.py::test_withdrawal_clears_generated_future_details_even_without_a_new_plan tests/test_daily_life.py::test_source_withdrawn_during_day_plan_cannot_return_via_planned_detail -q",
-      "static": "Ruff check passed; targeted formatting applied; full diff and whitespace checked."
+      "static": "Ruff check passed; targeted formatting applied; full diff and whitespace checked.",
+      "pc08_integration": {
+        "commit": "440e7fe7521da77edc46d7ec3e6e129d1d451792",
+        "current_derived_intention_cleared_on_withdrawal": true,
+        "historical_events_preserved": true,
+        "relevant_checks_applicable": true,
+        "deployed": false
+      },
+      "release": "2026.10.30-unified-linux-r51",
+      "integration_proof": "w2-main-integrations.json",
+      "release_receipt": "proactive-companion-repair-r51-2026-10-30.json"
+    },
+    "PC-10": {
+      "card": "PC-10",
+      "status": "deployed",
+      "code_commit": "cdde6299910980208632be400b81c1ddce92d171",
+      "baseline": "161fbd1a92a6afa4a1e358857b7654d48c6f8ab1",
+      "option": "Remove the uninstalled standalone web.search declaration; retain the existing Platform capability bridge.",
+      "live_before": {
+        "at": 1793363237.434226,
+        "read_only": true,
+        "companion_web_search_declared": true,
+        "companion_web_search_handler_installed": false,
+        "platform_actions_handler_installed": true,
+        "discovery_instances": [],
+        "provider_calls": 0,
+        "core_or_store_owners_created": 0,
+        "installed_discovery_packages": 0,
+        "transaction_read_only": "on"
+      },
+      "validation": {
+        "before": "Native catalog regression failed because it advertised the missing adapter.",
+        "focused_checks_passed": 3,
+        "scope": "Built-in catalog/detail and existing skills HTTP shape/auth/CAS/source boundaries.",
+        "source_residual_references": 0,
+        "external_search_model_or_qq_test_calls": 0,
+        "production_changed": false,
+        "static": "Ruff format/check, complete diff and whitespace review passed."
+      },
+      "truth_boundary": "Platform source includes a real Searx content-discovery adapter, but production has no installed content-discovery package or instance. Code existence does not mean an active search service. No plugin installation, binding, permission or empty-success fallback was added.",
+      "unverified": [
+        "No real external search is enabled or tested; this implements the allowed declaration-removal option."
+      ],
+      "production_changed": true,
+      "release": "2026.10.30-unified-linux-r51",
+      "integration_proof": "w2-main-integrations.json",
+      "release_receipt": "proactive-companion-repair-r51-2026-10-30.json",
+      "production_verification": {
+        "web_search_placeholder_absent": true,
+        "existing_platform_bridge_installed": true,
+        "effective_actor_catalogs_checked": 2,
+        "effective_catalog_search_absent": true
+      }
     },
     "PC-11": {
       "card": "PC-11",
-      "status": "local_verified",
+      "status": "deployed",
       "code_commit": "25d231d65114ff7397469922bc9a294a9fcfa211",
       "baseline": "40c33ca5219555b09f78c13e39057724540bba83",
-      "production_changed": false,
+      "production_changed": true,
       "original_diagnosis_correction": "Existing SQL already retained the earliest due promise. The demonstrated defect is promises consuming the ordinary candidate page; do not claim 21 promises inevitably made a valid choice impossible.",
       "implementation": {
         "11a": "Keep the earliest compulsory due promise outside the ordinary LIMIT; retain exact current goal independently; bounded output <= limit+2.",
@@ -71,10 +183,13 @@
         "static": "Targeted Ruff formatting/check and complete diff/whitespace review passed."
       },
       "unverified": [
-        "Not deployed; production behavior with real future observations/promises remains unverified.",
-        "This does not satisfy PC02 original 24h metric or PC06 three actual diary dates."
+        "The exact candidate is installed and healthy; no additional real-user dialogue, promise or observation was injected for this release.",
+        "Original PC02 fixed cohort and PC06 sourced diary/date requirements remain open."
       ],
-      "new_model_or_qq_test_calls": 0
+      "new_model_or_qq_test_calls": 0,
+      "release": "2026.10.30-unified-linux-r51",
+      "integration_proof": "w2-main-integrations.json",
+      "release_receipt": "proactive-companion-repair-r51-2026-10-30.json"
     }
   },
   "entry": {
@@ -93,16 +208,38 @@
   },
   "card_counts": {
     "verified_production": 5,
-    "local_verified": 2,
-    "in_progress_W1": 2,
-    "planned": 9
+    "in_progress": 2,
+    "deployed": 4,
+    "planned": 7
   },
   "next": [
-    "PC08 stage branch adjudication, including actual consumers and historical records.",
-    "PC10 truthful web search capability: inspect existing Platform discovery and installed configuration before selecting adapter reuse or placeholder removal.",
-    "Serial integration and release of the stable W2 block; no W3 entry."
+    "Continue original W1 decision and diary/date requirements; do not enter W3."
   ],
   "real_model_or_qq_test_calls": 0,
   "root_original_index_preserved": true,
-  "at": 1793361362.755416
+  "at": 1793364655.4337683,
+  "frontend_commit": "911a1dc60318abad76287013a05afacd1e63f9f3",
+  "release_receipt": "proactive-companion-repair-r51-2026-10-30.json",
+  "integration_evidence": {
+    "at": 1793363869.0620737,
+    "rows": [
+      {
+        "product": "tianshu-companion",
+        "old": "d8ccef1b2c9cac29ffb4a89a975b7630541c2023",
+        "integrated": "55797e5a14cf8fb666bb26769612835b34bbe51a",
+        "original_untracked_preserved": [],
+        "exit_code": 0
+      },
+      {
+        "product": "tianshu-platform",
+        "old": "0c4217df5044848af730e3afe40aa210c26d1a1d",
+        "integrated": "911a1dc60318abad76287013a05afacd1e63f9f3",
+        "original_untracked_preserved": [
+          "?? build/"
+        ],
+        "exit_code": 0
+      }
+    ],
+    "production_changed": false
+  }
 }

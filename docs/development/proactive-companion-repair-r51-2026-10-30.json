@@ -1,0 +1,360 @@
+{
+  "release": "2026.10.30-unified-linux-r51",
+  "status": "deployed_healthy",
+  "whole_goal_complete": false,
+  "image": "sha256:1109e67bdd536389ef2cb88fcf954f4757eb2ed49c19b78c00130eda67aa057d",
+  "container": "e90e3f4c51ce56e8bb983f56dbcca2edde54097f1c9f820557507b2a415776ca",
+  "source_commits": {
+    "platform": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+    "companion": "55797e5a14cf8fb666bb26769612835b34bbe51a",
+    "memory": "3aee6394fda1ea6f8bf0ed0644a8fafdd5bc4933",
+    "gateway": "1af59a30b698c6d114e927f941de5dc33d1762af",
+    "application": "3d61b3539a3964f5c80601cf638a5a730c6fb3ad",
+    "platform_frontend": "911a1dc60318abad76287013a05afacd1e63f9f3"
+  },
+  "cards": {
+    "PC-01": "verified_production",
+    "PC-03": "verified_production",
+    "PC-04": "verified_production",
+    "PC-05": "verified_production",
+    "PC-07": "verified_production",
+    "PC-02": "in_progress",
+    "PC-06": "in_progress",
+    "PC-08": "deployed",
+    "PC-09": "deployed",
+    "PC-10": "deployed",
+    "PC-11": "deployed",
+    "PC-12": "planned",
+    "PC-13": "planned",
+    "PC-14": "planned",
+    "PC-15": "planned",
+    "PC-16": "planned",
+    "PC-17": "planned",
+    "PC-18": "planned"
+  },
+  "W2_cards": {
+    "PC-08": {
+      "card": "PC-08",
+      "status": "deployed",
+      "option": "A: remove redundant stage generation",
+      "code_commit": "440e7fe7521da77edc46d7ec3e6e129d1d451792",
+      "baseline": "ffd9f6606763d9fa1ff304927e21af0f18271a5d",
+      "frontend_commit": "45fe307157f55e231a289e0d20a02b5e202e1b78",
+      "frontend_baseline": "0c4217df5044848af730e3afe40aa210c26d1a1d",
+      "production_changed": true,
+      "reason": "Core installs RuntimeExecution.activity_step as LifeActivities.executor; completed activity steps and their receipts feed ActorMemory.actions.activity. A separate prose generator cannot prove an action occurred.",
+      "removed": [
+        "stage task creation, work dispatch and recovery scan",
+        "stage prose prompt and stage_experience event writer",
+        "phase-specific retry path and its frontend button"
+      ],
+      "preserved": [
+        "Daily plan digest shape and original request/receipt/CAS/unknown handling",
+        "Historical stage task/event rows, without bulk rewriting",
+        "Historical actor experience field and optional life.summary projection",
+        "Plan retry authorization/CAS, clock, ordinary activity executor and sourced materials"
+      ],
+      "status_projection": "Current/future phase generation states follow the plan task. A completed plan detail is still an intention and is cleared when its source is withdrawn; actual historical events remain untouched.",
+      "validation": {
+        "before": "3 focused no-stage/history/phase-retry regressions failed.",
+        "applicable_companion_cases": 44,
+        "scope": "Plan-only regressions, entire affected DailyLife lifecycle file, PC09 integration and one ActorMemory plan consumer.",
+        "reuse": "42 valid cases from the final affected run, the corrected rollover/diary fixture case, and the ActorMemory consumer; three final changed-path cases were checked individually.",
+        "lifecycle": "Lease, source withdrawal, actual plan model request header, cancellation, restart, terminal receipt recovery and unresolved/manual recovery remain covered; obsolete stage-generation assertions were replaced by supported plan behavior, not skipped.",
+        "browser": "One desktop native Playwright case passed: phase retry absent, plan retry sends phase_id=null, history paging and role switch race preserved.",
+        "browser_original_failure": "Existing fixture lacked the current RoleWorkspace roles/view endpoint; updated only this case and its current role selector. Original failure retained.",
+        "frontend": "TypeScript and production Vite build passed; existing large-chunk advisory retained.",
+        "static": "Targeted Ruff/Prettier and full semantic diff/whitespace review passed.",
+        "model_or_qq_external_test_calls": 0
+      },
+      "unverified": [
+        "No forced or new paid model/QQ run; long-term natural plan/activity quality is not established by startup checks.",
+        "Only the affected desktop flow was checked; no full browser or backend matrix.",
+        "PC02/PC06 original real-world acceptance and W3/W4 remain open."
+      ],
+      "release": "2026.10.30-unified-linux-r51",
+      "integration_proof": "w2-main-integrations.json",
+      "release_receipt": "proactive-companion-repair-r51-2026-10-30.json",
+      "production_verification": {
+        "web_search_placeholder_absent": true,
+        "existing_platform_bridge_installed": true,
+        "stage_writer_absent": true,
+        "plan_task_kinds": {
+          "plan": 67
+        },
+        "effective_actor_catalogs_checked": 2,
+        "effective_catalog_search_absent": true,
+        "history_transaction_read_only": "on",
+        "model_or_qq_calls": 0,
+        "core_or_store_owners_created": 0,
+        "historic_stage_event_count": 17,
+        "historic_stage_task_count": 18,
+        "historic_rows_unchanged": true
+      }
+    },
+    "PC-09": {
+      "card": "PC-09",
+      "status": "deployed",
+      "code_commit": "96158d343f897ff695353b0e995c4cecf9c778c0",
+      "baseline": "d8ccef1b2c9cac29ffb4a89a975b7630541c2023",
+      "production_changed": true,
+      "regression_before": "One accepted dialogue cleared all three future activity/detail entries; assertion failed.",
+      "focused_checks_passed": 7,
+      "covered": [
+        "Three actual synthetic ingests and extracted intentions retain future activity/detail until a replacement plan is applied.",
+        "Failed regeneration retains existing details; later successful regeneration updates them.",
+        "Persona and schedule changes reset future plans.",
+        "A stale asynchronous plan cannot overwrite newer intentions.",
+        "Source withdrawal clears derived future details even when regeneration is failed/unavailable; late source-withdrawn plan remains rejected."
+      ],
+      "implementation": "Keep content_version for stale generation/CAS; use a separate plan reset revision for persona and source withdrawal. Schedule/world versions still determine the plan identity.",
+      "migration": "No DDL; legacy rows default the reset revision to zero and are not rewritten in bulk.",
+      "unverified": [
+        "The exact candidate is installed and healthy; no additional real-user dialogue, promise or observation was injected for this release.",
+        "Original PC02 fixed cohort and PC06 sourced diary/date requirements remain open."
+      ],
+      "tests": "pytest tests/test_life_plan_intentions.py tests/test_daily_life.py::test_withdrawal_clears_generated_future_details_even_without_a_new_plan tests/test_daily_life.py::test_source_withdrawn_during_day_plan_cannot_return_via_planned_detail -q",
+      "static": "Ruff check passed; targeted formatting applied; full diff and whitespace checked.",
+      "pc08_integration": {
+        "commit": "440e7fe7521da77edc46d7ec3e6e129d1d451792",
+        "current_derived_intention_cleared_on_withdrawal": true,
+        "historical_events_preserved": true,
+        "relevant_checks_applicable": true,
+        "deployed": false
+      },
+      "release": "2026.10.30-unified-linux-r51",
+      "integration_proof": "w2-main-integrations.json",
+      "release_receipt": "proactive-companion-repair-r51-2026-10-30.json"
+    },
+    "PC-10": {
+      "card": "PC-10",
+      "status": "deployed",
+      "code_commit": "cdde6299910980208632be400b81c1ddce92d171",
+      "baseline": "161fbd1a92a6afa4a1e358857b7654d48c6f8ab1",
+      "option": "Remove the uninstalled standalone web.search declaration; retain the existing Platform capability bridge.",
+      "live_before": {
+        "at": 1793363237.434226,
+        "read_only": true,
+        "companion_web_search_declared": true,
+        "companion_web_search_handler_installed": false,
+        "platform_actions_handler_installed": true,
+        "discovery_instances": [],
+        "provider_calls": 0,
+        "core_or_store_owners_created": 0,
+        "installed_discovery_packages": 0,
+        "transaction_read_only": "on"
+      },
+      "validation": {
+        "before": "Native catalog regression failed because it advertised the missing adapter.",
+        "focused_checks_passed": 3,
+        "scope": "Built-in catalog/detail and existing skills HTTP shape/auth/CAS/source boundaries.",
+        "source_residual_references": 0,
+        "external_search_model_or_qq_test_calls": 0,
+        "production_changed": false,
+        "static": "Ruff format/check, complete diff and whitespace review passed."
+      },
+      "truth_boundary": "Platform source includes a real Searx content-discovery adapter, but production has no installed content-discovery package or instance. Code existence does not mean an active search service. No plugin installation, binding, permission or empty-success fallback was added.",
+      "unverified": [
+        "No real external search is enabled or tested; this implements the allowed declaration-removal option."
+      ],
+      "production_changed": true,
+      "release": "2026.10.30-unified-linux-r51",
+      "integration_proof": "w2-main-integrations.json",
+      "release_receipt": "proactive-companion-repair-r51-2026-10-30.json",
+      "production_verification": {
+        "web_search_placeholder_absent": true,
+        "existing_platform_bridge_installed": true,
+        "effective_actor_catalogs_checked": 2,
+        "effective_catalog_search_absent": true
+      }
+    },
+    "PC-11": {
+      "card": "PC-11",
+      "status": "deployed",
+      "code_commit": "25d231d65114ff7397469922bc9a294a9fcfa211",
+      "baseline": "40c33ca5219555b09f78c13e39057724540bba83",
+      "production_changed": true,
+      "original_diagnosis_correction": "Existing SQL already retained the earliest due promise. The demonstrated defect is promises consuming the ordinary candidate page; do not claim 21 promises inevitably made a valid choice impossible.",
+      "implementation": {
+        "11a": "Keep the earliest compulsory due promise outside the ordinary LIMIT; retain exact current goal independently; bounded output <= limit+2.",
+        "11b": "Only a new observation_inspired goal consumes a live hint. A hint expires at the next midnight in the actor world timezone; expired or legacy undated hints do not bias choices. Original source proof and commit checks remain.",
+        "11c": "Canonical civil minutes remain protected regardless of activity labels; custom schedule entries retain a validated protected boolean. No new API or permission was introduced."
+      },
+      "validation": {
+        "before": "11 focused cases failed on the original behavior.",
+        "applicable_unique_checks_passed": 19,
+        "updated_minute_protection_cases_rechecked": 6,
+        "native_choice_path": "21 promises + 20 discretionary concerns; recorded model selects the first promise, native goal owner completes and starts its activity.",
+        "native_postgres": {
+          "read_only": true,
+          "synthetic_cte_rows": 41,
+          "selected": 21,
+          "ordinary_candidates": 20,
+          "mandatory_promise_retained": true,
+          "native_queries": 2,
+          "persistent_tables_written": 0,
+          "core_or_store_owners_created": 0,
+          "at": 1793361009.7924335
+        },
+        "native_pg_scope": "Exact candidate method and installed translator execute two queries over 41 VALUES rows in a read-only real PostgreSQL transaction; no persistent tables or owner Store are created.",
+        "pg_fixture_failure_retained": "Fixture initially omitted qmark binding conversion; corrected fixture passed without a product translator change.",
+        "test_source_sha256": "b42933c71f1039095d7890e40ba5da747a178d455bc1b315000aa76e3c5e1ae4",
+        "static": "Targeted Ruff formatting/check and complete diff/whitespace review passed."
+      },
+      "unverified": [
+        "The exact candidate is installed and healthy; no additional real-user dialogue, promise or observation was injected for this release.",
+        "Original PC02 fixed cohort and PC06 sourced diary/date requirements remain open."
+      ],
+      "new_model_or_qq_test_calls": 0,
+      "release": "2026.10.30-unified-linux-r51",
+      "integration_proof": "w2-main-integrations.json",
+      "release_receipt": "proactive-companion-repair-r51-2026-10-30.json"
+    }
+  },
+  "validation": {
+    "companion_affected_checks_reused": 44,
+    "PC09_checks_reused": 7,
+    "PC11_checks_reused": 19,
+    "PC10_checks_reused": 3,
+    "counts_overlap_not_additive": true,
+    "frontend_typecheck_and_desktop_case_reused": true,
+    "frontend_provenance_build": "Exact Git archive; Node directly invokes existing Vite; no npm/dependency install; manifest binds every tracked frontend input.",
+    "offline_companion_payload_files": 123,
+    "offline_application_files": 58,
+    "offline_frontend_files": 87,
+    "external_model_search_or_qq_calls": 0
+  },
+  "production_checks": {
+    "ok": true,
+    "version": "2026.10.30-unified-linux-r51",
+    "sources": {
+      "platform": {
+        "commit": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+        "archive_sha256": "52b2798f412226b4ee588dc69640695629bd396bddb70aa853b45875f21dee2f"
+      },
+      "companion": {
+        "commit": "55797e5a14cf8fb666bb26769612835b34bbe51a",
+        "archive_sha256": "5b0851b891a22101b5c3ff5e86f53ed179169ac995b7e38960c1c534ecbfabfc"
+      },
+      "memory": {
+        "commit": "3aee6394fda1ea6f8bf0ed0644a8fafdd5bc4933",
+        "archive_sha256": "4010664123e5803473fe41249c0d7d028ba43487f0827f5ac6411dbd44437569"
+      },
+      "gateway": {
+        "commit": "1af59a30b698c6d114e927f941de5dc33d1762af",
+        "archive_sha256": "b46e7bb45713d9a2f3c29a547c9cf1bfc299e548f289ab8d25e1e9a95717f450"
+      },
+      "application": {
+        "commit": "3d61b3539a3964f5c80601cf638a5a730c6fb3ad",
+        "archive_sha256": "6b1550eaddd16fa193b9faaeec55159b3a2a2c47c80c5f6d0274df70ca34f433"
+      },
+      "platform_frontend": {
+        "commit": "911a1dc60318abad76287013a05afacd1e63f9f3",
+        "archive_sha256": "2b0f65ee789feeef51514c6151eca911f49ef7d3309c125ef8e347898ac8a4cd"
+      }
+    },
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "tls_ca_and_hostname_verified": true,
+    "served_affected_assets": {
+      "/index.html": "a3e9b14959ec05c6c2e7559cba0aabf1503c38751de8644099c31c5959de2099",
+      "/assets/LifePage-DBFh3tke.js": "c0c1698d27914e9133b3b6c8735991d5045c01c8cc156353a74b68a8079f5e83"
+    },
+    "probe_generated_model_or_qq": false,
+    "no_owner_store_opened": true,
+    "W2": {
+      "web_search_placeholder_absent": true,
+      "existing_platform_bridge_installed": true,
+      "stage_writer_absent": true,
+      "plan_task_kinds": {
+        "plan": 67
+      },
+      "effective_actor_catalogs_checked": 2,
+      "effective_catalog_search_absent": true,
+      "history_transaction_read_only": "on",
+      "model_or_qq_calls": 0,
+      "core_or_store_owners_created": 0,
+      "historic_stage_event_count": 17,
+      "historic_stage_task_count": 18,
+      "historic_rows_unchanged": true
+    },
+    "at": 1793364624.174442,
+    "image": "sha256:1109e67bdd536389ef2cb88fcf954f4757eb2ed49c19b78c00130eda67aa057d",
+    "id": "e90e3f4c51ce56e8bb983f56dbcca2edde54097f1c9f820557507b2a415776ca",
+    "health": "healthy",
+    "restarts": 0,
+    "mounts_preserved": 37,
+    "config_files_preserved": 1167,
+    "configuration_changed": [
+      "private/gateway.env"
+    ],
+    "added_contract_files": 0,
+    "non_target_containers_preserved": 14,
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r51",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_free_bytes": 35118436352,
+    "completed_at": 1793364624.7195883
+  },
+  "previous_owner_drain": {
+    "systemctl_returncode": 0,
+    "elapsed_seconds": 124.25677514076233,
+    "old_finished_at": "2026-10-30T12:49:11.691873599Z",
+    "old_exit_code": 0,
+    "old_restart": "no"
+  },
+  "pc02_original_fixed_cohort": {
+    "at": 1793364630.8385324,
+    "start": 1793326100.1223843,
+    "planned_end": 1793412500.1223843,
+    "observed_until": 1793364630.8385324,
+    "complete_24h": false,
+    "states": {
+      "completed": 20,
+      "failed": 5,
+      "interrupted": 1,
+      "unknown": 5
+    },
+    "total": 31,
+    "success_rate": 0.6451612903225806,
+    "transaction_read_only": "on"
+  },
+  "pc06": {
+    "real_draft_rows": 0,
+    "latest_material_audit_at": 1793364629.7870963,
+    "new_confirmed_same_day_sources_by_enabled_actor": [
+      0,
+      0
+    ],
+    "three_consecutive_actual_dates_verified": false
+  },
+  "business_data_migration": false,
+  "new_permissions": 0,
+  "native_logging_configuration_unchanged": true,
+  "rollback": {
+    "material": "/srv/tianshu-tooling/proactive-companion-r51-28d36e53bf0340fd9c5e72b24f74b2ef/rollback-r51-to-r50/rollback.py",
+    "code_only_to_R50": true,
+    "executed": false,
+    "full_restore_tested": false
+  },
+  "unverified": [
+    "PC02 original complete24h >=80% decision acceptance.",
+    "PC06 sourced draft output for every enabled actor on three consecutive actual dates.",
+    "W2 actual natural dialogue/goal behavior beyond reused focused evidence and installed/projection checks.",
+    "PC12-PC18 not implemented; W3 entry remains prohibited."
+  ]
+}
