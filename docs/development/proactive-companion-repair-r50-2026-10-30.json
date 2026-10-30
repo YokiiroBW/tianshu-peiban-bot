@@ -1,0 +1,229 @@
+{
+  "release": "2026.10.30-unified-linux-r50",
+  "status": "deployed_healthy",
+  "whole_goal_complete": false,
+  "image": "sha256:75b5e2fb396549ba4ea0df7c0cca1181b63107615adf68968af6e18ddd847ea4",
+  "container": "ec6220d28b0a2c870e9549195dea53ff1493d3f55ac4761141a93a224ed86626",
+  "source_commits": {
+    "platform": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+    "companion": "3836d0b8bf4ed96d6cc4411dd2fb7d6891b73b70",
+    "memory": "3aee6394fda1ea6f8bf0ed0644a8fafdd5bc4933",
+    "gateway": "1af59a30b698c6d114e927f941de5dc33d1762af",
+    "application": "3d61b3539a3964f5c80601cf638a5a730c6fb3ad",
+    "platform_frontend": "7f5e837593c8119e8c80e40c7f498314b730306e"
+  },
+  "log_simplification": {
+    "candidate_commit": "6051eaabfcf4663d2297bbf7b17d689f3cb7974a",
+    "integration_commit": "a9b7ecf90e04ed4d7720eac3270751b89d43bd53",
+    "alert_followup_commit": "3d61b3539a3964f5c80601cf638a5a730c6fb3ad",
+    "runtime_ledger_modules_removed": true,
+    "legacy_ledger_preserved": true,
+    "legacy_log_cutoff_preserved": true,
+    "business_receipts_or_unknowns_modified": false
+  },
+  "validation": {
+    "author_focused_checks_reused": true,
+    "author_observability_original": "212 passed, 12 skipped, 9 fixture failures retained; 13 affected deadline/lifecycle checks then passed",
+    "author_linux_recovery": "isolated actual Vector 0.58.0 SIGKILL, buffer recovery and actual Loki 3.7.8 clear/TLS; not host power loss",
+    "integration_assembly_checks_passed": 3,
+    "native_prometheus_semantic_cases_passed": 5,
+    "native_alert_original_failure_retained": true,
+    "offline_application_files": 58,
+    "offline_frontend_files": 87,
+    "wheels_native_binaries_frontend_rebuilt": false,
+    "initial_import_fixture_errors_retained": [
+      "standalone guard import path",
+      "compatibility function belongs to vector_checkpoints"
+    ],
+    "production_model_or_qq_test_calls": 0,
+    "production_clear_invoked": false
+  },
+  "production_checks": {
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "tls_ca_and_hostname_verified": true,
+    "gateway_dynamic_deadline_ms": 180000,
+    "source_changed_producer_and_collector_match": true,
+    "native_log_collection": {
+      "ordinary_logs_collected_since_start": 8249.0,
+      "query_window_seconds": 93,
+      "guard_tls_query_status": 200,
+      "guard_tls_metrics_status": 200,
+      "monitor_success": 1,
+      "last_push_success_timestamp": 1793359726.6480474,
+      "retired_metrics_absent": [
+        "landed_events",
+        "pending_events",
+        "sequence_gaps",
+        "oldest_pending_seconds",
+        "retrieval_conflicts",
+        "ledger_capacity_ratio"
+      ],
+      "grafana_loaded_rule_count": 10,
+      "grafana_retired_rules_absent": [
+        "obs-integritymonitorstale",
+        "obs-invalidorchangedsource",
+        "obs-ledgercapacity",
+        "obs-pendingdelivery",
+        "obs-retrievalconflict",
+        "obs-scanbehind",
+        "obs-sequencegap",
+        "obs-storagequeryfailed"
+      ],
+      "grafana_current_rules_loaded": [
+        "obs-applicationlogbudget",
+        "obs-collectordiscardorerror",
+        "obs-diskforecast",
+        "obs-diskhighwater",
+        "obs-localmonitorfailed",
+        "obs-pipelinemonitorstale",
+        "obs-pipelinetargetdown",
+        "obs-retentionfailure",
+        "obs-storagereject",
+        "obs-vectorbufferhigh"
+      ],
+      "source_retention": {
+        "tianshu_obs_source_companion_budget": 1073741824.0,
+        "tianshu_obs_source_companion_bytes": 635040.0,
+        "tianshu_obs_source_companion_filesystem_ratio": 0.7160382162818077,
+        "tianshu_obs_source_companion_free": 35300306944.0,
+        "tianshu_obs_source_companion_ratio": 0.0005914270877838135,
+        "tianshu_obs_source_gateway_budget": 1073741824.0,
+        "tianshu_obs_source_gateway_bytes": 11662.0,
+        "tianshu_obs_source_gateway_filesystem_ratio": 0.7160382162818077,
+        "tianshu_obs_source_gateway_free": 35300306944.0,
+        "tianshu_obs_source_gateway_ratio": 1.086108386516571e-05,
+        "tianshu_obs_source_knowledge_budget": 1073741824.0,
+        "tianshu_obs_source_knowledge_bytes": 318389.0,
+        "tianshu_obs_source_knowledge_filesystem_ratio": 0.7160382162818077,
+        "tianshu_obs_source_knowledge_free": 35300306944.0,
+        "tianshu_obs_source_knowledge_ratio": 0.0002965228632092476,
+        "tianshu_obs_source_memory_budget": 1073741824.0,
+        "tianshu_obs_source_memory_bytes": 39088.0,
+        "tianshu_obs_source_memory_filesystem_ratio": 0.7160382162818077,
+        "tianshu_obs_source_memory_free": 35300306944.0,
+        "tianshu_obs_source_memory_ratio": 3.6403536796569824e-05,
+        "tianshu_obs_source_platform_budget": 1073741824.0,
+        "tianshu_obs_source_platform_bytes": 276500.0,
+        "tianshu_obs_source_platform_filesystem_ratio": 0.7160382162818077,
+        "tianshu_obs_source_platform_free": 35300306944.0,
+        "tianshu_obs_source_platform_ratio": 0.0002575106918811798,
+        "tianshu_obs_source_retention_deleted_bytes": 0.0,
+        "tianshu_obs_source_retention_deleted_segments": 0.0,
+        "tianshu_obs_source_retention_failures": 0.0
+      },
+      "retention_delete_failures_current": 0.0,
+      "clear_cutoff_ms": 0,
+      "production_clear_invoked": false,
+      "ledger_modules_absent": [
+        "monitor.py",
+        "ledger_schema.py",
+        "source_retention.py",
+        "retained_query.py"
+      ],
+      "vector_configuration_compatible": true,
+      "log_bodies_exported": 0
+    },
+    "mounts_preserved": 37,
+    "config_files_preserved": 1164,
+    "configuration_changed": [
+      "observability/guard.json",
+      "private/gateway.env",
+      "observability/dashboards/tianshu.json",
+      "observability/provisioning/alerting/tianshu.yaml"
+    ],
+    "non_target_containers_preserved": 14,
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r50",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_free_bytes": 35299614720,
+    "completed_at": 1793359728.1177185
+  },
+  "native_log_count_scope": "Collected log entries in the post-start 93s window, possibly including native buffer catch-up; not a count of new business actions or proof of exactly-once history.",
+  "previous_owner_drain": {
+    "systemctl_returncode": 0,
+    "elapsed_seconds": 123.38921236991882,
+    "old_finished_at": "2026-10-30T11:27:06.279490576Z",
+    "old_exit_code": 0,
+    "old_restart": "no"
+  },
+  "pc02_original_fixed_cohort": {
+    "at": 1793359774.6611872,
+    "start": 1793326100.1223843,
+    "planned_end": 1793412500.1223843,
+    "observed_until": 1793359774.6611872,
+    "complete_24h": false,
+    "states": {
+      "completed": 18,
+      "failed": 3,
+      "interrupted": 1,
+      "unknown": 5
+    },
+    "total": 27,
+    "success_rate": 0.6666666666666666,
+    "transaction_read_only": "on"
+  },
+  "pc06": {
+    "real_draft_rows": 0,
+    "latest_material_audit_at": 1793359773.7427285,
+    "new_confirmed_same_day_sources_by_enabled_actor": [
+      0,
+      0
+    ],
+    "three_consecutive_real_dates_verified": false
+  },
+  "cards": {
+    "verified_production": [
+      "PC-01",
+      "PC-03",
+      "PC-04",
+      "PC-05",
+      "PC-07"
+    ],
+    "in_progress": [
+      "PC-02",
+      "PC-06"
+    ],
+    "planned": [
+      "PC-08",
+      "PC-09",
+      "PC-10",
+      "PC-11",
+      "PC-12",
+      "PC-13",
+      "PC-14",
+      "PC-15",
+      "PC-16",
+      "PC-17",
+      "PC-18"
+    ]
+  },
+  "business_data_migration": false,
+  "new_permissions": 0,
+  "rollback": {
+    "material": "/srv/tianshu-tooling/proactive-companion-r50-760e90cb29874604a6a27f5c74d64fcb/ROLLBACK-LIMITS.txt",
+    "old_image_and_configuration_and_log_domain_backup_retained": true,
+    "lossless_old_guard_rollback_verified": false,
+    "restriction": "After R50 receives logs, validate visibility in an isolated copy before restoring old ledger guard; preserve new source/Vector/Loki/clear control and map any later manual clear cutoff."
+  },
+  "unverified": [
+    "PC02 original complete 24h decision success >=80% and historical normalized Memory409 subcause.",
+    "PC06 sourced draft success and each enabled actor on three consecutive actual dates; original unknowns are not replayed.",
+    "W2-W4 work and long-term natural initiative quality.",
+    "Full-stack lossless old-guard rollback, host power loss and NAS filesystem durability. Production log clear and forced source deletion were not performed."
+  ]
+}
