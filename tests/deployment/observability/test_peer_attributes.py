@@ -25,6 +25,8 @@ class PeerAttributesTests(unittest.TestCase):
         cls.snapshot["products"]["companion"].update(
             extract(Path(source).read_text("utf-8"), "companion")
         )
+        cls.legacy_snapshot = copy.deepcopy(SNAPSHOT)
+        cls.legacy_snapshot["products"]["companion"].pop("peer_attribute_schema", None)
 
     def sample(self):
         value = event(service="companion")
@@ -86,7 +88,7 @@ class PeerAttributesTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(InvalidEvent):
                 Policy(self.snapshot).validate(value)
         with self.assertRaises(InvalidEvent):
-            Policy(SNAPSHOT).validate(self.sample())
+            Policy(self.legacy_snapshot).validate(self.sample())
 
     def test_vector_uses_producer_attribute_registry_and_denies_old_unknown_extensions(
         self,
@@ -95,7 +97,7 @@ class PeerAttributesTests(unittest.TestCase):
         self.assertIn("exists(.attributes.route)", generated)
         self.assertIn("/internal/v1/actor-self-memory/authority", generated)
         self.assertIn("sha256:", generated)
-        old = vector(SNAPSHOT)["transforms"]["companion_safe"]["source"]
+        old = vector(self.legacy_snapshot)["transforms"]["companion_safe"]["source"]
         self.assertIn("!exists(.attributes)", old)
 
 
