@@ -1,0 +1,208 @@
+{
+  "release": "2026.10.30-unified-linux-r48",
+  "status": "deployed",
+  "whole_goal_complete": false,
+  "image": "sha256:b59999d4c41926c174a5a0ec9dd409a74b40cedd1cca039462d72d305a6b12ef",
+  "container": "4cd575de1e6e7d92e9a04846acb8f920847db46dfcb46d315941cbf82cf8284f",
+  "source_commits": {
+    "platform": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+    "companion": "a19ea7d56906661d6be164b33f60456972ce20c6",
+    "memory": "3aee6394fda1ea6f8bf0ed0644a8fafdd5bc4933",
+    "gateway": "ed631d8a6f26890628a9df833792210e9a09e31c",
+    "application": "267408cba78c6eabe7c311baeac76d9229ffb2d5",
+    "platform_frontend": "7f5e837593c8119e8c80e40c7f498314b730306e"
+  },
+  "changes": [
+    "R47 skips identical contact-feedback cursor writes; R48 also skips identical ready-sender photo cursor writes; deadline feedback, bounded rotation and original photo ownership remain.",
+    "Project existing circuit cooldowns through the native owner callback and current host state; no new network endpoint or authority."
+  ],
+  "validation": {
+    "companion_targeted_passed": 9,
+    "host_owner_projection_passed": 1,
+    "native_idle_regression_before_fix": "two unavailable-sender feedback and two explicitly available-sender photo failures, each with four extra writes/false progress increments",
+    "original_persistent_403_and_recovery_http_tests_reused": 2,
+    "transport_sources_and_original_tests_unchanged_from_validated_R39": true,
+    "full_suite": false,
+    "static_and_format_and_diff": true,
+    "new_model_or_qq_test_requests": 0,
+    "ready_sender_cases_passed": 2,
+    "ready_sender_availability_explicitly_asserted": true,
+    "synthetic_original_photo_restart_case_passed": true,
+    "initial_fixture_pass_without_available_flag_discarded": true,
+    "prior_unchanged_results_reused": true
+  },
+  "image_verification": {
+    "ok": true,
+    "payload_files": {
+      "companion": 123
+    },
+    "application_files": 56,
+    "frontend_files": 87,
+    "business_uid_imports_and_public_modes": true,
+    "status": "exact_native_photo_idle_image_verified",
+    "image": "sha256:b59999d4c41926c174a5a0ec9dd409a74b40cedd1cca039462d72d305a6b12ef",
+    "parent_image": "sha256:4e9f978e1c1ad63c8f194b407ef9ee2fdf8511455fd4fc01d31a998a67907101",
+    "version": "2026.10.30-unified-linux-r48",
+    "production_mounts": 0,
+    "external_calls": 0
+  },
+  "production_checks": {
+    "health": "healthy",
+    "restarts": 0,
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "tls_ca_and_hostname_verified": true,
+    "mounts_preserved": 37,
+    "non_target_containers_preserved": 14,
+    "config_files_preserved": 1167,
+    "configuration_changed": [
+      "private/gateway.env"
+    ],
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r48",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_free_bytes": 48475979776,
+    "completed_at": 1793353644.5075998
+  },
+  "previous_owner_drain": {
+    "systemctl_returncode": 0,
+    "elapsed_seconds": 124.29720640182495,
+    "old_finished_at": "2026-10-30T09:43:32.8056894Z",
+    "old_exit_code": 0,
+    "old_restart": "no"
+  },
+  "pc03": {
+    "status": "verified_production",
+    "whole_card_accepted": true,
+    "original_condition_evidence": {
+      "ten_minute_fake_403_at_most_20": "existing test_persistent_rejection_is_bounded_and_success_resets_without_foreground_delay; unchanged source/test reused",
+      "successful_probe_resets_and_foreground_unchanged": "same original real synthetic-HTTP test; no production fault injection",
+      "normal_no_failure_throughput": "original zero-delay transport checks retained; no model-slot or business scheduling change",
+      "idle_no_log_or_business_progress": "native empty/waiting contact regression and existing loop contract passed; actual PG xmin stable and native idle observed",
+      "cooldown_observable": "native owner host state plus existing collector; synthetic 30s cooldown/reset passed and current list is readable"
+    },
+    "live_observation": {
+      "first_at": 1793353645.4514027,
+      "second_at": 1793353653.4695709,
+      "independent_read_only_snapshots": true,
+      "marker_xmin_unchanged": true,
+      "first_markers_xmin": {
+        "contact-feedback:cursor": "27912980",
+        "photo-waiting:cursor": "27928926"
+      },
+      "second_markers_xmin": {
+        "contact-feedback:cursor": "27912980",
+        "photo-waiting:cursor": "27928926"
+      },
+      "contact_feedback_unchanged": true,
+      "proactive_worker": {
+        "window_start": 1793353593.1811557,
+        "window_end": 1793353652.995715,
+        "window_seconds": 59.81455931602977,
+        "counts": {
+          "worked": 0,
+          "idle": 29,
+          "failed": 0,
+          "unmeasured": 0
+        },
+        "idle_tick_per_minute": 29.089907539178267
+      },
+      "background_peer_circuits": [],
+      "owner_instance": "ebb6193a-7fa1-4766-85a7-1bd1962eb422",
+      "business_calls": 0,
+      "private_evidence": ".runtime\\proactive-companion-repair-20261030\\proactive-idle-r48-1793353653673114900.json"
+    }
+  },
+  "pc04": {
+    "status": "verified_production",
+    "receipt": "proactive-companion-pc04-acceptance-2026-10-30.json",
+    "original_four_conditions_only": true,
+    "migration_repeated": false
+  },
+  "pc02_original_fixed_cohort": {
+    "at": 1793353645.4545465,
+    "start": 1793326100.1223843,
+    "planned_end": 1793412500.1223843,
+    "observed_until": 1793353645.4545465,
+    "complete_24h": false,
+    "states": {
+      "completed": 18,
+      "failed": 3,
+      "interrupted": 1,
+      "unknown": 5
+    },
+    "total": 27,
+    "success_rate": 0.6666666666666666,
+    "query": "SELECT status,count(*) FROM metadata WHERE id LIKE 'goal-choice:%%' AND (body::jsonb->>'created_at')::double precision >= %s AND (body::jsonb->>'created_at')::double precision < %s GROUP BY status",
+    "parameters": [
+      1793326100.1223843,
+      1793353645.4545465
+    ],
+    "transaction_read_only": "on",
+    "drafts_by_actor_day": []
+  },
+  "pc06_real_draft_rows": 0,
+  "schema_migration": false,
+  "new_permissions": 0,
+  "model_or_timeout_changes": false,
+  "subscription_policy_changes": false,
+  "rollback": "/srv/tianshu-tooling/proactive-companion-r48-63452f932f5e4b858924406a6dc062c6/rollback-r48-to-r47/rollback.py",
+  "unverified": [
+    "PC02 original 24h/80% success and the Memory409 underlying cause remain open; no failed/unknown records are retried or removed.",
+    "PC06 real draft and three consecutive real dates remain unverified.",
+    "This idle evidence does not redefine the old unscoped 110/minute figure or prove overall life quality; W1 incomplete, W2 planned, W3 prohibited."
+  ],
+  "R47_partial_history": {
+    "version": "2026.10.30-unified-linux-r47",
+    "image": "sha256:4e9f978e1c1ad63c8f194b407ef9ee2fdf8511455fd4fc01d31a998a67907101",
+    "production_health": "healthy",
+    "source_commits": {
+      "platform": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+      "companion": "69ecdc141f081acfdc626b222545712dbe449552",
+      "memory": "3aee6394fda1ea6f8bf0ed0644a8fafdd5bc4933",
+      "gateway": "ed631d8a6f26890628a9df833792210e9a09e31c",
+      "application": "267408cba78c6eabe7c311baeac76d9229ffb2d5",
+      "platform_frontend": "7f5e837593c8119e8c80e40c7f498314b730306e"
+    },
+    "native_idle_accepted": false,
+    "old_contact_marker_xmin_unchanged": true,
+    "proactive_worker": {
+      "window_start": 1793351878.1811552,
+      "window_end": 1793351937.7180715,
+      "window_seconds": 59.536916212993674,
+      "counts": {
+        "worked": 29,
+        "idle": 0,
+        "failed": 0,
+        "unmeasured": 0
+      },
+      "idle_tick_per_minute": 0.0
+    },
+    "bounded_owner_write_evidence": {
+      "tracked_rows": 16,
+      "only_changed_row": "metadata:photo-waiting:cursor",
+      "independent_read_only_snapshots": true
+    },
+    "private_evidence": ".runtime\\proactive-companion-repair-20261030\\proactive-idle-r47-1793351942336254300.json"
+  },
+  "R48_delta": {
+    "only_changed_installed_companion_file": "tianshu_companion/runtime_photo.py",
+    "runtime_and_frontend_unchanged_from_R47": true,
+    "shared_storage_unchanged": true,
+    "whole_card_accepted_only_after_R48_native_idle": true
+  }
+}
