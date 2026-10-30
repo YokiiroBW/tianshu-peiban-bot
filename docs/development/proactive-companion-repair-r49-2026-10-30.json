@@ -1,0 +1,194 @@
+{
+  "release": "2026.10.30-unified-linux-r49",
+  "status": "deployed_healthy",
+  "whole_goal_complete": false,
+  "image": "sha256:e80cdeb51968e424d709bcb9a5565f0d6f524bd2ace4da330f8d503fe4cdfe22",
+  "container": "16588c238e440614469db38347a2b581df32b6c9ba5f640d4fa0a58bfa83fe98",
+  "source_commits": {
+    "platform": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+    "companion": "3836d0b8bf4ed96d6cc4411dd2fb7d6891b73b70",
+    "memory": "3aee6394fda1ea6f8bf0ed0644a8fafdd5bc4933",
+    "gateway": "1af59a30b698c6d114e927f941de5dc33d1762af",
+    "application": "0a831f63f74707382f4a673cf72ac929c95bc183",
+    "platform_frontend": "7f5e837593c8119e8c80e40c7f498314b730306e"
+  },
+  "implementation_commits": {
+    "companion": "908d9a8988fbb27b65281aca2ef6bf1e00a8c5f2",
+    "gateway": "6028874e2bf3bdbc885ad71344c4e7b8f9b172c8"
+  },
+  "root_cause": {
+    "original_streams_cut_at_30002ms": 4,
+    "goal_choice_streams": 3,
+    "diary_streams": 1,
+    "upstream_200_and_output_observed": true,
+    "terminal_not_observed_and_usage_unknown": true,
+    "dynamic_route_had_literal_30000ms": true,
+    "installed_source_matches_original_git_archive": true,
+    "configured_gateway_max_timeout_ms": 180000,
+    "companion_goal_and_diary_caller_seconds": 60,
+    "another_original_diary_cancelled_unknown_not_explained_by_this_fix": true
+  },
+  "changes": [
+    "Dynamic Models routes use the existing deployment timeout bound; static binding deadlines still use their original minimum with that bound.",
+    "Retain the published fixed AL01 source_changed code in Companion peer and durable preparation diagnostics; existing source validation and business state decisions remain.",
+    "Synchronize the existing collector snapshot and the one Companion Vector enum; all other deployed pipeline fields remain."
+  ],
+  "validation": {
+    "gateway_real_loopback_tests_passed": 2,
+    "gateway_configured_deadline_subtests_passed": 2,
+    "companion_tests_passed": 2,
+    "producer_collector_joint_check_passed": true,
+    "before_fix_dynamic_transport_remained_30s_under_45s_and_180s_configuration": true,
+    "before_fix_known_conflict_diagnostic_became_internal_error": true,
+    "100ms_timeout_keeps_unknown_no_retry_and_releases_capacity": true,
+    "arbitrary_error_text_still_rejected": true,
+    "full_suite": false,
+    "ruff_format_and_diff": true,
+    "real_model_or_qq_test_calls": 0,
+    "historical_unknown_replays": 0,
+    "initial_fixture_contract_hash_error_retained": true
+  },
+  "image_verification": {
+    "ok": true,
+    "payload_files": {
+      "companion": 123,
+      "gateway": 24
+    },
+    "application_files": 56,
+    "frontend_files": 87,
+    "business_uid_imports_and_public_modes": true,
+    "status": "exact_dynamic_deadline_registry_image_verified",
+    "image": "sha256:e80cdeb51968e424d709bcb9a5565f0d6f524bd2ace4da330f8d503fe4cdfe22",
+    "parent_image": "sha256:b59999d4c41926c174a5a0ec9dd409a74b40cedd1cca039462d72d305a6b12ef",
+    "version": "2026.10.30-unified-linux-r49",
+    "production_mounts": 0,
+    "external_calls": 0
+  },
+  "production_checks": {
+    "health": "healthy",
+    "restarts": 0,
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "tls_ca_and_hostname_verified": true,
+    "gateway_dynamic_deadline_ms": 180000,
+    "source_changed_producer_and_collector_match": true,
+    "mounts_preserved": 37,
+    "config_files_preserved": 1165,
+    "configuration_changed": [
+      "observability/vocabulary.json",
+      "observability/vector.json",
+      "private/gateway.env"
+    ],
+    "non_target_container_candidates_before": 15,
+    "non_target_containers_preserved": 14,
+    "native_checks_reused_from_at": 1793356112.307953,
+    "native_http_checks_repeated": false,
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r49",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_free_bytes": 34879455232,
+    "completed_at": 1793356420.535281,
+    "effective_deadline_proof": "installed dynamic routing function with the actual deployment setting; no provider request or second owner"
+  },
+  "initial_protection_check_resolution": {
+    "original_failure_retained": true,
+    "independent_fixture_name": "codex-log-simplify-synthetic-20261030",
+    "owner_chat_explicit_autoremove_run_and_stop_command_verified": true,
+    "observed_exit_code": 137,
+    "observed_destroy": true,
+    "protected_non_target_containers": 14,
+    "successful_native_http_checks_reused_without_repeat": true
+  },
+  "previous_owner_drain": {
+    "systemctl_returncode": 0,
+    "elapsed_seconds": 124.7231879234314,
+    "old_finished_at": "2026-10-30T10:27:18.656720328Z",
+    "old_exit_code": 0,
+    "old_restart": "no"
+  },
+  "pc02_original_fixed_cohort": {
+    "at": 1793356290.449188,
+    "start": 1793326100.1223843,
+    "planned_end": 1793412500.1223843,
+    "observed_until": 1793356290.449188,
+    "complete_24h": false,
+    "states": {
+      "completed": 18,
+      "failed": 3,
+      "interrupted": 1,
+      "unknown": 5
+    },
+    "total": 27,
+    "success_rate": 0.6666666666666666,
+    "transaction_read_only": "on"
+  },
+  "pc06": {
+    "real_draft_rows": 0,
+    "latest_material_audit_at": 1793356291.56997,
+    "new_confirmed_same_day_sources_by_enabled_actor": [
+      0,
+      0
+    ],
+    "memory_revision_increase_not_treated_as_new_source": true,
+    "three_consecutive_real_dates_verified": false
+  },
+  "cards": {
+    "verified_production": [
+      "PC-01",
+      "PC-03",
+      "PC-04",
+      "PC-05",
+      "PC-07"
+    ],
+    "in_progress": [
+      "PC-02",
+      "PC-06"
+    ],
+    "planned": [
+      "PC-08",
+      "PC-09",
+      "PC-10",
+      "PC-11",
+      "PC-12",
+      "PC-13",
+      "PC-14",
+      "PC-15",
+      "PC-16",
+      "PC-17",
+      "PC-18"
+    ]
+  },
+  "schema_migration": false,
+  "new_permissions": 0,
+  "model_changed": false,
+  "runtime_timeout_setting_value_changed": false,
+  "dynamic_route_timeout_binding_changed": true,
+  "caller_generation_deadline_changed": false,
+  "subscription_policy_changed": false,
+  "rollback": "/srv/tianshu-tooling/proactive-companion-r49-cee1e2225ea5438d95dbc6ef73e5f90d/rollback-r49-to-r48/rollback.py",
+  "log_simplification": {
+    "included_in_this_release": false,
+    "state": "prototype_incomplete_continuation_dispatched",
+    "implementation_chat_owns_candidate": true
+  },
+  "unverified": [
+    "PC02 original complete 24h decision success >=80%; original failed/unknown/interrupted outcomes remain in the denominator.",
+    "Historical Memory409 subcause was normalized away in both original logs; this fix preserves future known codes but cannot reconstruct that missing cause.",
+    "PC06 real draft success and three consecutive actual dates for each enabled actor; both original current-day requests remain unavailable/unknown and are not replayed.",
+    "Long-term natural initiative and all W2-W4 work remain; W1 incomplete and W3 prohibited."
+  ]
+}
