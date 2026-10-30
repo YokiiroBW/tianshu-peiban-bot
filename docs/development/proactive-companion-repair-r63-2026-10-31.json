@@ -1,0 +1,302 @@
+{
+  "version": "2026.10.31-unified-linux-r63",
+  "status": "deployed_healthy",
+  "whole_goal_complete": false,
+  "image": "sha256:3f6d4c428894e95b1536d7d3dd942d3fee34589655553e2a4b1ffbde32624906",
+  "container": "acfbc9e09a9508d34a0aa663f833a189e31bc986c3e93733b975ddd7ffd66df0",
+  "companion_commit": "d6a02b5e8e8ff72a33e4b79672eb39a414327068",
+  "memory_commit": "874b911a0004d652f4f86ad21912b6e80dae03b3",
+  "postchecks": {
+    "ok": true,
+    "version": "2026.10.31-unified-linux-r63",
+    "sources": {
+      "platform": {
+        "commit": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+        "archive_sha256": "52b2798f412226b4ee588dc69640695629bd396bddb70aa853b45875f21dee2f"
+      },
+      "companion": {
+        "commit": "d6a02b5e8e8ff72a33e4b79672eb39a414327068",
+        "archive_sha256": "965baa75ac68af5c29d7b58cd7c57c61e2e06d1b307290a5ba66006d03ab44ac"
+      },
+      "memory": {
+        "commit": "874b911a0004d652f4f86ad21912b6e80dae03b3",
+        "archive_sha256": "1aae2fa0ff981ee390657faa3502c8bbbd7ec029e7b274696b329b1b41f705e1"
+      },
+      "gateway": {
+        "commit": "1af59a30b698c6d114e927f941de5dc33d1762af",
+        "archive_sha256": "b46e7bb45713d9a2f3c29a547c9cf1bfc299e548f289ab8d25e1e9a95717f450"
+      },
+      "application": {
+        "commit": "d352b921cd341b17278c372b6d7f870e685f8011",
+        "archive_sha256": "b64b4dce9a3d6b5fbd5e1e06a9c82ecf36cd92a9d6a95094b3f9574dd86bba04"
+      },
+      "platform_frontend": {
+        "commit": "911a1dc60318abad76287013a05afacd1e63f9f3",
+        "archive_sha256": "2b0f65ee789feeef51514c6151eca911f49ef7d3309c125ef8e347898ac8a4cd"
+      }
+    },
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "tls_ca_and_hostname_verified": true,
+    "served_affected_assets": {
+      "/index.html": "a3e9b14959ec05c6c2e7559cba0aabf1503c38751de8644099c31c5959de2099"
+    },
+    "probe_generated_model_or_qq": false,
+    "no_owner_store_opened": true,
+    "installed_affected_source_checks_verified": true,
+    "at": 1793398809.5765193,
+    "image": "sha256:3f6d4c428894e95b1536d7d3dd942d3fee34589655553e2a4b1ffbde32624906",
+    "id": "acfbc9e09a9508d34a0aa663f833a189e31bc986c3e93733b975ddd7ffd66df0",
+    "health": "healthy",
+    "restarts": 0,
+    "mounts_preserved": 37,
+    "config_files_preserved": 1175,
+    "configuration_changed": [
+      "private/gateway.env"
+    ],
+    "added_contract_files": 0,
+    "non_target_containers_preserved": 15,
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r63",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_free_bytes": 31708545024,
+    "completed_at": 1793398809.8836963
+  },
+  "stop_result": {
+    "systemctl_returncode": 0,
+    "elapsed_seconds": 124.1611557006836,
+    "old_finished_at": "2026-10-30T22:18:57.733305515Z",
+    "old_exit_code": 0,
+    "old_restart": "no"
+  },
+  "activation_terminal": {
+    "pid": 383953,
+    "live": false,
+    "state": "absent"
+  },
+  "validation": {
+    "r62_windows_effective_passed": 20,
+    "r62_linux_passed": 19,
+    "r62_installed_overlap": 3,
+    "r63_linux_effective_passed": 14,
+    "r63_installed_overlap": 2,
+    "postgres_query_cases_reused": 5,
+    "full_suite": false
+  },
+  "native_idle": {
+    "before_r61": 1312.4044014289561,
+    "r62_startup": 2331.81534077823,
+    "r62_steady": 2458.8603323505367,
+    "r63": 16.071624511165314,
+    "r63_window": {
+      "status": "measured",
+      "source": "native_owner_worker_health",
+      "observed_at": 1793398863.9137602,
+      "diagnostic_instance": "3c936738-53ce-4569-9ca6-e34ff36ea895",
+      "background_peer_circuits": [],
+      "workers": {
+        "core.tick": {
+          "window_start": 1793398804.1811552,
+          "window_end": 1793398863.9137602,
+          "window_seconds": 59.73260508500971,
+          "counts": {
+            "worked": 0,
+            "idle": 2,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 2.0089530638956643
+        },
+        "conversation_window.work": {
+          "window_start": 1793398804.1811552,
+          "window_end": 1793398863.9137602,
+          "window_seconds": 59.73260508500971,
+          "counts": {
+            "worked": 0,
+            "idle": 2,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 2.0089530638956643
+        },
+        "memory.work": {
+          "window_start": 1793398804.1811552,
+          "window_end": 1793398863.9137602,
+          "window_seconds": 59.73260508500971,
+          "counts": {
+            "worked": 0,
+            "idle": 2,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 2.0089530638956643
+        },
+        "life.work": {
+          "window_start": 1793398804.1811552,
+          "window_end": 1793398863.9137602,
+          "window_seconds": 59.73260508500971,
+          "counts": {
+            "worked": 0,
+            "idle": 2,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 2.0089530638956643
+        },
+        "images.work": {
+          "window_start": 1793398804.1811552,
+          "window_end": 1793398863.9137602,
+          "window_seconds": 59.73260508500971,
+          "counts": {
+            "worked": 0,
+            "idle": 2,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 2.0089530638956643
+        },
+        "writing.work": {
+          "window_start": 1793398804.1811552,
+          "window_end": 1793398863.9137602,
+          "window_seconds": 59.73260508500971,
+          "counts": {
+            "worked": 0,
+            "idle": 2,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 2.0089530638956643
+        },
+        "proactive.work": {
+          "window_start": 1793398804.1811552,
+          "window_end": 1793398863.9137602,
+          "window_seconds": 59.73260508500971,
+          "counts": {
+            "worked": 0,
+            "idle": 2,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 2.0089530638956643
+        },
+        "direct.work": {
+          "window_start": 1793398804.1811552,
+          "window_end": 1793398863.9137602,
+          "window_seconds": 59.73260508500971,
+          "counts": {
+            "worked": 0,
+            "idle": 2,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 2.0089530638956643
+        }
+      },
+      "counts": {
+        "worked": 0,
+        "idle": 16,
+        "failed": 0,
+        "unmeasured": 0
+      },
+      "idle_tick_per_minute": 16.071624511165314,
+      "failure_per_pass": 0.0,
+      "basis": "Completed loop passes only; ephemeral counters, no business writes or idle log events. Each worker has its own explicit rolling interval."
+    },
+    "idle_target_met_in_this_window": true,
+    "evidence": "native-idle-r63-1793398865405407900.json",
+    "uptime_seconds": 121.15079379081726,
+    "steady_window_after_first_minute": true
+  },
+  "original_fixed_cohort": {
+    "at": 1793398810.145946,
+    "start": 1793326100.1223843,
+    "planned_end": 1793412500.1223843,
+    "observed_until": 1793398810.145946,
+    "complete_24h": false,
+    "states": {
+      "completed": 25,
+      "failed": 7,
+      "interrupted": 1,
+      "unknown": 6
+    },
+    "total": 39,
+    "success_rate": 0.6410256410256411,
+    "query": "SELECT status,count(*) FROM metadata WHERE id LIKE 'goal-choice:%%' AND (body::jsonb->>'created_at')::double precision >= %s AND (body::jsonb->>'created_at')::double precision < %s GROUP BY status",
+    "parameters": [
+      1793326100.1223843,
+      1793398810.145946
+    ],
+    "transaction_read_only": "on",
+    "drafts_by_actor_day": [
+      {
+        "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+        "day": "2026-10-30",
+        "rows": 1
+      },
+      {
+        "actor_id": "actor:role-84e36c92a52e40dd8edf50228465bcf9",
+        "day": "2026-10-30",
+        "rows": 2
+      }
+    ],
+    "draft_actor_day_count": 2,
+    "revision_rows_by_actor_day_state": [
+      {
+        "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+        "day": "2026-10-30",
+        "state": "draft",
+        "rows": 1
+      },
+      {
+        "actor_id": "actor:role-84e36c92a52e40dd8edf50228465bcf9",
+        "day": "2026-10-30",
+        "state": "draft",
+        "rows": 2
+      }
+    ]
+  },
+  "card_states": {
+    "PC-01": "verified_production",
+    "PC-02": "in_progress",
+    "PC-03": "verified_production",
+    "PC-04": "verified_production",
+    "PC-05": "verified_production",
+    "PC-06": "in_progress",
+    "PC-07": "verified_production",
+    "PC-08": "verified_production",
+    "PC-09": "verified_production",
+    "PC-10": "verified_production",
+    "PC-11": "verified_production",
+    "PC-12": "deployed",
+    "PC-13": "deployed",
+    "PC-14": "deployed",
+    "PC-15": "deployed",
+    "PC-16": "deployed",
+    "PC-17": "deployed",
+    "PC-18": "in_progress"
+  },
+  "new_manual_model_QQ_search_calls": 0,
+  "no_data_migration": true,
+  "rollback_executed": false,
+  "unverified": [
+    "continuous_real_days",
+    "same_scene_actual_token_reduction_and_goal_quality",
+    "cross_day_causal_cases",
+    "actual_self_recovery",
+    "natural_sharing_and_group_quality"
+  ]
+}
