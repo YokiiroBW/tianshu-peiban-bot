@@ -1,0 +1,141 @@
+{
+  "schema_version": 1,
+  "status": "deployed_original_latency_investigation_continues",
+  "production": {
+    "version": "2026.10.31-unified-linux-r58",
+    "image": "sha256:a084415514f8dadd700b71b12783580d81eeee82f0886bd304608f228410d940",
+    "container": "f83d95392e07f8b28374d5d988be09f8a57bfd4f7c454dec1f2d3dccd4ff1ef7",
+    "guard": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r58",
+    "application_commit": "f4a91771f9f9737f4c51a5fc504e1c47ccf13052",
+    "companion_commit": "1447b50a8bf38d9b6d4f6b1843be18d425bd7357",
+    "memory_commit": "3e3cf504b611e004443907307dc3d3c2b26e2af3",
+    "gateway_commit": "1af59a30b698c6d114e927f941de5dc33d1762af",
+    "frontend_commit": "911a1dc60318abad76287013a05afacd1e63f9f3",
+    "health_at_last_observation": "healthy",
+    "observed_at": 1793387433.6261947
+  },
+  "checks": {
+    "ok": true,
+    "version": "2026.10.31-unified-linux-r58",
+    "sources": {
+      "platform": {
+        "commit": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+        "archive_sha256": "52b2798f412226b4ee588dc69640695629bd396bddb70aa853b45875f21dee2f"
+      },
+      "companion": {
+        "commit": "1447b50a8bf38d9b6d4f6b1843be18d425bd7357",
+        "archive_sha256": "39a27cbbe09d004e51c3ac5a1882041acf42622862c9a54bc93551ecf6860259"
+      },
+      "memory": {
+        "commit": "3e3cf504b611e004443907307dc3d3c2b26e2af3",
+        "archive_sha256": "1ff06ce3b2dfd9714163ccf2bbdc1bb768d28f679b8e632d1eaf4168bf18a5c6"
+      },
+      "gateway": {
+        "commit": "1af59a30b698c6d114e927f941de5dc33d1762af",
+        "archive_sha256": "b46e7bb45713d9a2f3c29a547c9cf1bfc299e548f289ab8d25e1e9a95717f450"
+      },
+      "application": {
+        "commit": "f4a91771f9f9737f4c51a5fc504e1c47ccf13052",
+        "archive_sha256": "f8818a1818ff802db06bb986d9d8867ba30cd75fa8e2b2d0bc5194fe6ec172c0"
+      },
+      "platform_frontend": {
+        "commit": "911a1dc60318abad76287013a05afacd1e63f9f3",
+        "archive_sha256": "2b0f65ee789feeef51514c6151eca911f49ef7d3309c125ef8e347898ac8a4cd"
+      }
+    },
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "tls_ca_and_hostname_verified": true,
+    "served_affected_assets": {
+      "/index.html": "a3e9b14959ec05c6c2e7559cba0aabf1503c38751de8644099c31c5959de2099"
+    },
+    "probe_generated_model_or_qq": false,
+    "no_owner_store_opened": true,
+    "installed_affected_source_checks_verified": true,
+    "at": 1793387433.3137417,
+    "image": "sha256:a084415514f8dadd700b71b12783580d81eeee82f0886bd304608f228410d940",
+    "id": "f83d95392e07f8b28374d5d988be09f8a57bfd4f7c454dec1f2d3dccd4ff1ef7",
+    "health": "healthy",
+    "restarts": 0,
+    "mounts_preserved": 37,
+    "config_files_preserved": 1175,
+    "configuration_changed": [
+      "private/gateway.env"
+    ],
+    "added_contract_files": 0,
+    "non_target_containers_preserved": 15,
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r58",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_free_bytes": 31804878848,
+    "completed_at": 1793387433.6261947
+  },
+  "stop": {
+    "systemctl_returncode": 0,
+    "elapsed_seconds": 124.00357103347778,
+    "old_finished_at": "2026-10-30T19:09:31.239969877Z",
+    "old_exit_code": 0,
+    "old_restart": "no"
+  },
+  "verification": {
+    "affected_passed": 10,
+    "existing_failures": 4,
+    "original_regression_cases": 2,
+    "original_regression_failures": 2,
+    "native_pg": {
+      "at": 1793387050.9165232,
+      "exact_statement": "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY",
+      "isolation": "repeatable read",
+      "transaction_read_only": "on",
+      "writer_advisory_locks": 0,
+      "new_owner_Store_or_Core": 0,
+      "persistent_production_writes": 0
+    },
+    "installed_image": "sha256:a084415514f8dadd700b71b12783580d81eeee82f0886bd304608f228410d940",
+    "no_skips": true,
+    "no_full_suite_claim": true
+  },
+  "cards": {
+    "PC-01": "verified_production",
+    "PC-03": "verified_production",
+    "PC-04": "verified_production",
+    "PC-05": "verified_production",
+    "PC-07": "verified_production",
+    "PC-02": "in_progress",
+    "PC-06": "in_progress",
+    "PC-08": "verified_production",
+    "PC-09": "verified_production",
+    "PC-10": "verified_production",
+    "PC-11": "verified_production",
+    "PC-12": "deployed",
+    "PC-13": "deployed",
+    "PC-14": "deployed",
+    "PC-15": "deployed",
+    "PC-16": "deployed",
+    "PC-17": "deployed",
+    "PC-18": "in_progress"
+  },
+  "card_counts": {
+    "verified_production": 9,
+    "in_progress": 3,
+    "deployed": 6
+  },
+  "original_thirty_second_query_root_cause_proven": false,
+  "new_real_model_QQ_search_tests": 0,
+  "no_data_migration": true,
+  "source_authority_order_and_proofs_unchanged": true
+}
