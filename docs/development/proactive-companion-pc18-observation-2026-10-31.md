@@ -1,3 +1,5 @@
+最新R64自然运行核对及阅读时段补充见[proactive-companion-pc18-r64-observation-2026-10-31.md](proactive-companion-pc18-r64-observation-2026-10-31.md)。下文保留原完整截面。
+
 ## R64 补充：受控同场景 token 已测得
 
 三个受控合成场景通过正式主模型测得，PC-17 改造前平均 9565.67 → 3803.67 input token，减少60.24%；均保留完整人格。最终6输出通过原校验，但首轮约定defer失败、阅读理由“晨间”疑点与人工抽检待完成均保留。此组不计入自然 goal-choice 分母，不代替后文自然运行平均或真实日数。[R64证据与范围](proactive-companion-repair-r64-2026-10-31.md)。

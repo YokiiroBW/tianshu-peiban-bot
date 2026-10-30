@@ -1158,8 +1158,9 @@
         "paired_actual_token_threshold": "verified_3_synthetic_scenes",
         "goal_specificity": "human_review_pending",
         "quality_flags": [
-          "After-reading reason says morning without support in scene; human review pending."
-        ]
+          "Original reading fixture time context ambiguous; corrected pair appended, human specificity pending."
+        ],
+        "reading_time_supplement": "pc17-reading-time-supplement-r64-summary.json"
       }
     },
     {
@@ -1264,12 +1265,14 @@
     "whole_goal_complete": false
   },
   "latest_PC18_observation": {
-    "report": "docs/development/proactive-companion-pc18-observation-2026-10-31.md",
-    "private_evidence": "pc18-observation-r61-1793395667244898600.json",
-    "at": 1793395653.4804814,
-    "human_response_chain_count": 1,
+    "record": "proactive-companion-pc18-r64-observation-2026-10-31.json",
+    "at": 1793402259.4125881,
     "whole_goal_complete": false,
-    "idle_target_met": false,
-    "next": "Fix existing loop idle waits with prompt real-work and deadline wakeups; retain all original real-day and semantic criteria."
+    "report": "docs/development/proactive-companion-pc18-r64-observation-2026-10-31.md",
+    "private_evidence": "pc18-observation-r64-1793402259412588100.json",
+    "human_response_chain_count": 1,
+    "idle_target_met": true,
+    "idle_target_basis": "one native rolling window only",
+    "next": "Observe the original 09:00 free phase and 10:08:20 fixed-window end; retain real-day and human specificity requirements."
   }
 }

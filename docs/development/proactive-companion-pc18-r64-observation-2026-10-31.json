@@ -1,0 +1,261 @@
+{
+  "card": "PC-18",
+  "status": "in_progress",
+  "whole_goal_complete": false,
+  "at": 1793402259.4125881,
+  "runtime": {
+    "image": "sha256:1e0756703f4a9e973534f9bd6e6e1a4db933f9b8df24e39a3d9744adcbe6a3c5",
+    "container": "cd1f48172fc372b4430c964daf4d9790e43b3c6a0d384dea4074e4f2f01c6735",
+    "health": "healthy",
+    "restarts": 0,
+    "started_at": "2026-10-30T23:12:49.809681126Z"
+  },
+  "metrics": [
+    {
+      "id": "goal_choice_success",
+      "before": {
+        "completed": 15,
+        "total": 69
+      },
+      "after": {
+        "completed": 25,
+        "total": 39,
+        "rate": 0.6410256410256411,
+        "complete_24h": false,
+        "fixed_start": 1793326100.1223843,
+        "fixed_end": 1793412500.1223843
+      },
+      "accepted": false
+    },
+    {
+      "id": "platform_auth_rejected_per_minute",
+      "before": 193,
+      "after": 0.0,
+      "complete_30m": false,
+      "post_start_seconds": 289.60290718078613,
+      "accepted": null
+    },
+    {
+      "id": "background_failure_per_work",
+      "before": 0.175,
+      "after": {
+        "failed": 0,
+        "worked": 3,
+        "rate": 0.0
+      },
+      "complete_30m": false,
+      "accepted": null
+    },
+    {
+      "id": "idle_tick_per_minute",
+      "before_original_approximate": 110,
+      "after": 28.450153451041743,
+      "after_counts": {
+        "worked": 2,
+        "idle": 28,
+        "failed": 0,
+        "unmeasured": 0
+      },
+      "source": "native owner rolling counters",
+      "startup_first_minute_excluded": true,
+      "one_window_target_met": true,
+      "accepted": null
+    },
+    {
+      "id": "activity_stall_rate",
+      "before": {
+        "stalled": 5,
+        "total": 6
+      },
+      "after": {
+        "stalled": 0,
+        "total": 14,
+        "rate": 0.0
+      },
+      "accepted": null
+    },
+    {
+      "id": "diary_actor_days",
+      "before": {
+        "draft_days": 0,
+        "expected_days": 11
+      },
+      "after": {
+        "actor_days": 2,
+        "draft_rows": 3,
+        "actual_dates": 1
+      },
+      "three_real_days_complete": false,
+      "accepted": false
+    },
+    {
+      "id": "proactive_deliveries_per_day",
+      "before": 0,
+      "after": {
+        "confirmed_sent": 1,
+        "dates": {
+          "2026-10-30": 1,
+          "2026-10-31_through_observation": 0
+        }
+      },
+      "controlled_sample": true,
+      "accepted": null
+    },
+    {
+      "id": "human_response_rate",
+      "before": {
+        "responded": 0,
+        "delivered": 0,
+        "rate": null
+      },
+      "after": {
+        "responded": 1,
+        "delivered": 1,
+        "rate": 1.0
+      },
+      "controlled_sample": true,
+      "accepted": null
+    },
+    {
+      "id": "qualified_interest_count",
+      "before": 0,
+      "after": null,
+      "stored_candidate_upper_bound": 2,
+      "current_source_rechecked": false,
+      "target_min": 5,
+      "target_max": 20,
+      "accepted": false
+    },
+    {
+      "id": "cross_day_causal_reference_rate",
+      "before": null,
+      "after": null,
+      "verified_post_W3_semantic_cases": 0,
+      "accepted": false
+    },
+    {
+      "id": "goal_choice_input_tokens",
+      "before": {
+        "attempts": 110,
+        "states": {
+          "failed": 43,
+          "completed": 41,
+          "unknown": 24,
+          "interrupted": 2
+        },
+        "known_input_samples": 43,
+        "complete_usage_samples": 43,
+        "mean_known_input_tokens": 13060.627906976744
+      },
+      "after": {
+        "attempts": 0,
+        "states": {},
+        "known_input_samples": 0,
+        "complete_usage_samples": 0,
+        "mean_known_input_tokens": null
+      },
+      "controlled_same_scene": {
+        "mean_before": 9565.666666666666,
+        "mean_after": 3803.6666666666665,
+        "reduction": 0.6023626163013556,
+        "original_pairs": 3,
+        "time_consistent_supplement": {
+          "at": 1793402960.9009387,
+          "status": "time_consistent_reading_pair_measured_human_review_pending",
+          "production_version": "2026.10.31-unified-linux-r64",
+          "production_code_changed": false,
+          "baseline_commit": "6c45edd24b66272d19cba686246d911a9e29a641",
+          "candidate_commit": "beb4a0df287d0214bba29eb154909a7958ed9af1",
+          "input_before": 9508,
+          "input_after": 3766,
+          "reduction": 0.6039124947412705,
+          "before_request_id": "pc17:model:cbf98851f0854ab0a7a3868ad5e18e34:reading-time-consistent:before",
+          "after_request_id": "pc17:model:cbf98851f0854ab0a7a3868ad5e18e34:reading-time-consistent:after",
+          "input_hashes": {
+            "before": "544bea235d6a575c42e6ab63e4c74ac48284da793a2bd87657eb10e5d86b177e",
+            "after": "02a6fd1e9927940d6847d991bcdd1e86b27298089d7f6cace28383b789caac9b"
+          },
+          "model": {
+            "provider_id": "provider-5b81fcd733ea4df6be6646fc8c2532ec",
+            "resolved_model": "deepseek-v4.1-flash",
+            "protocol": "openai-chat-completions",
+            "config_version": 1000000130,
+            "effective_reasoning": {}
+          },
+          "routine": {
+            "phase": {
+              "minute": 900,
+              "activity": "下午自由阅读",
+              "controls": {},
+              "protected": false
+            },
+            "available_until": 1793431800.0,
+            "available_seconds": 1800.0
+          },
+          "fixture_timezone": "+08:00",
+          "fixture_local_time": "15:00",
+          "additional_model_calls": 2,
+          "total_pc17_diagnostic_model_calls": 9,
+          "total_not_started_initial_refusals": 1,
+          "both_contract_valid": true,
+          "human_specificity_review": "pending",
+          "original_outputs_and_initial_failures_retained": true,
+          "original_fixture_limitation": "UTC07 with no native routine.phase and an unexplained dinner boundary; morning wording alone cannot establish a production timezone defect.",
+          "no_business_memory_or_schedule_writes": true,
+          "no_QQ_tools_search": true
+        }
+      },
+      "human_specificity": "pending",
+      "accepted": false
+    },
+    {
+      "id": "repeated_share_rate",
+      "before": {
+        "repeated": 0,
+        "delivered": 0,
+        "rate": null
+      },
+      "after": {
+        "repeated": 0,
+        "delivered": 1,
+        "rate": 0.0
+      },
+      "single_controlled_sample": true,
+      "accepted": null
+    }
+  ],
+  "all_original_requirements_retained": true,
+  "observation_new_model_QQ_search_calls": 0,
+  "quality_supplement_additional_model_calls": 2,
+  "no_production_code_change_or_deployment": true,
+  "original_fixed_window": {
+    "start": 1793326100.1223843,
+    "end": 1793412500.1223843,
+    "complete": false
+  },
+  "protected_phases": [
+    {
+      "id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+      "local_time": "07:17:39",
+      "phase_minute": 420,
+      "protected_phase": true,
+      "next_schedule_minute": 540
+    },
+    {
+      "id": "actor:role-84e36c92a52e40dd8edf50228465bcf9",
+      "local_time": "07:17:39",
+      "phase_minute": 420,
+      "protected_phase": true,
+      "next_schedule_minute": 540
+    }
+  ],
+  "source_proof_limitation": "Independent read-only collector has not rechecked the interests through the current in-process source owner; stored rows are only an upper bound.",
+  "source_evidence": {
+    "pc18-metadata-r64-1793402260904218200.json": "c874294c08d550a6b69994561c0416d28c601b98def81f4b2f312ea31ebe4e25",
+    "pc18-baseline-r64-1793402259819752700.json": "73cda4f257b2687d85deea33cc4b572fd614f401337793029428e308ad80635a",
+    "fixed-cohort-r64-1793402229119523100.json": "74e3ab480bcf44b6717ce0a8777b82652ca3ad60f16bc95be3e346fed02e24b1"
+  },
+  "seven_day_lower_bound": 1793990566.2047968,
+  "verified_self_recovery_cases": 0,
+  "manual_restart_not_counted": true
+}

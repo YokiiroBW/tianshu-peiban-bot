@@ -175,7 +175,7 @@
     ],
     "private_review_file": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\proactive-companion-repair-20261030\\pc17-quality-review-r64.md",
     "qualitative_flags": [
-      "After-reading reason says morning without support in scene; human review pending."
+      "Original reading fixture time context ambiguous; corrected pair appended, human specificity still pending."
     ]
   },
   "new_manual_upstream_model_calls": 7,
@@ -188,5 +188,50 @@
     "cross_day_causal_cases",
     "actual_self_recovery",
     "natural_sharing_and_group_quality"
-  ]
+  ],
+  "reading_time_supplement": {
+    "at": 1793402960.9009387,
+    "status": "time_consistent_reading_pair_measured_human_review_pending",
+    "production_version": "2026.10.31-unified-linux-r64",
+    "production_code_changed": false,
+    "baseline_commit": "6c45edd24b66272d19cba686246d911a9e29a641",
+    "candidate_commit": "beb4a0df287d0214bba29eb154909a7958ed9af1",
+    "input_before": 9508,
+    "input_after": 3766,
+    "reduction": 0.6039124947412705,
+    "before_request_id": "pc17:model:cbf98851f0854ab0a7a3868ad5e18e34:reading-time-consistent:before",
+    "after_request_id": "pc17:model:cbf98851f0854ab0a7a3868ad5e18e34:reading-time-consistent:after",
+    "input_hashes": {
+      "before": "544bea235d6a575c42e6ab63e4c74ac48284da793a2bd87657eb10e5d86b177e",
+      "after": "02a6fd1e9927940d6847d991bcdd1e86b27298089d7f6cace28383b789caac9b"
+    },
+    "model": {
+      "provider_id": "provider-5b81fcd733ea4df6be6646fc8c2532ec",
+      "resolved_model": "deepseek-v4.1-flash",
+      "protocol": "openai-chat-completions",
+      "config_version": 1000000130,
+      "effective_reasoning": {}
+    },
+    "routine": {
+      "phase": {
+        "minute": 900,
+        "activity": "下午自由阅读",
+        "controls": {},
+        "protected": false
+      },
+      "available_until": 1793431800.0,
+      "available_seconds": 1800.0
+    },
+    "fixture_timezone": "+08:00",
+    "fixture_local_time": "15:00",
+    "additional_model_calls": 2,
+    "total_pc17_diagnostic_model_calls": 9,
+    "total_not_started_initial_refusals": 1,
+    "both_contract_valid": true,
+    "human_specificity_review": "pending",
+    "original_outputs_and_initial_failures_retained": true,
+    "original_fixture_limitation": "UTC07 with no native routine.phase and an unexplained dinner boundary; morning wording alone cannot establish a production timezone defect.",
+    "no_business_memory_or_schedule_writes": true,
+    "no_QQ_tools_search": true
+  }
 }
