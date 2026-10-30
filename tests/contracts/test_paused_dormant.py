@@ -11,7 +11,7 @@ from referencing import Registry, Resource
 
 
 ROOT = Path(__file__).resolve().parents[2]
-PACKAGE = ROOT / "contracts/life-runtime/v2"
+PACKAGE = ROOT / "contracts/life-runtime/v2.2"
 
 
 def read(path):
@@ -76,7 +76,9 @@ class PausedDormantContractTests(unittest.TestCase):
             if case["id"] == "dormant_projection_has_timestamp"
         )
         with self.assertRaises(ValidationError):
-            self.validator("activities_record", registry).validate(dormant["value"])
+            Draft202012Validator(
+                {"$ref": old["$id"] + "#/$defs/activities_record"}, registry=registry
+            ).validate(dormant["value"])
 
     def test_candidate_manifest_lf_files_are_complete_and_current(self):
         manifest = read(PACKAGE / "manifest.json")
@@ -86,7 +88,10 @@ class PausedDormantContractTests(unittest.TestCase):
                     (PACKAGE / relative).read_bytes().replace(b"\r\n", b"\n")
                 ).hexdigest()
                 self.assertEqual(actual, expected)
-        self.assertEqual(manifest["runtime_joint"], "not_run")
+        self.assertEqual(
+            manifest["runtime_joint"],
+            "synthetic_http_producer_platform_schema_consumer_passed",
+        )
 
 
 if __name__ == "__main__":

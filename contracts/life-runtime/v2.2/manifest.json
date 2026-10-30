@@ -1,0 +1,42 @@
+{
+  "package": "life-runtime/v2.2",
+  "version": "2.2.0",
+  "status": "coordinator_published_local_verified",
+  "runtime_joint": "synthetic_http_producer_platform_schema_consumer_passed",
+  "real_external": "not_run",
+  "hash_basis": "UTF-8 text bytes with CRLF normalized to LF",
+  "dependencies": {
+    "text-dialogue/v1": "90697e6ecbb587d3db8c8e4682f7f8f43a8b1a98f70d8835c8282b03828d2d3a"
+  },
+  "sha256": {
+    "dependencies/platform-credential.json": "e4c5c0c3c0f35d03458277f12e59dcc2a2b2c87f7a115456a8ee456e0e3f2354",
+    "examples/content-projection.json": "ac3d7ced7ff904fe74553d7ee1e0ecb37acc2b07272aee5d8a3c51e25d631f74",
+    "examples/conversation-image-jobs.json": "6f56420cc4bb054cc3e97835412cba48b6f6815d94f6f1c28e1f215ff7dd77d5",
+    "examples/extensions.json": "99909929d186a0dda1c977bd9f55abc571d366e106b316dedf5472290a18a19a",
+    "examples/image-references.json": "a424b75ec05d1290adb9f4ab53f92c09e6c7d79d1c05e4561956afc099debc34",
+    "examples/management-continuation.json": "a22e4861af6007627924ae59b92c7bb5a9a18b9a529a06411039f1a0180de717",
+    "examples/proactive-control.json": "a85f9f2d150d1c676c845a2b581abca0dca79d98961b5c143b0ba51f42178a67",
+    "examples/reads.json": "a3bf5c0f8f8f5593b9150f077a28eabf2b3171f7c3848d9c16d0ade2742b89d3",
+    "examples/requests.json": "e58526436aa6c86a9ae9c0af2bead5b252e8a1e9f812fb8bf77ce14f24f73302",
+    "examples/semantic-cases.json": "1b3e179731289c6e8ef142333dab9d146a4b353741270b19f32ffad5a5757981",
+    "README.md": "0fa5e54db353836345deed1417e8a59ac95e330ad05f50dc2f570bf4eaa07db0",
+    "schemas/life.json": "e0d1245433cd8160a95b4474c09292bef3e47f6b9ae655d81cba7a34f99873d6",
+    "core-completion.md": "f5bd67c8b90b2503200349b91d87998d93db435c73daddbc7cf97d87a245ec51",
+    "examples/core-completion.json": "38c68efa2fbd2f024bceb075ec4f7a4b21a4ed38657ce91f8517920ef5f324bb",
+    "examples/paused-dormant.json": "39f95dff4419922de685b7dc74c485d20a92e17d917a048804ca989d7344a8e1",
+    "paused-dormant.md": "20f9f5c81e7486a362ace2fa706ae197654e632366d71293afd19632c7965f6c"
+  },
+  "schema_examples_checked": {
+    "positive": 23,
+    "negative": 16
+  },
+  "semantic_cases": "specified_not_run",
+  "parent_manifest_sha256": "6c032c558d107615a19e49f1bde1c76f7a5994b14c484476f7a71aeab555cadf",
+  "pc04_scope": "Separate minor package for paused recovery and dormant lifecycle; existing v2 2.1.0 and its consumers remain pinned.",
+  "pc04_contract_checks": {
+    "positive": 6,
+    "negative": 8,
+    "original_pin_rejects_dormant": true,
+    "runtime_transition_validation": "targeted_activity_and_original_unknown_receipt_cases_passed"
+  }
+}

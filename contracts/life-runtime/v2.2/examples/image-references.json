@@ -1,0 +1,352 @@
+{
+  "positive": [
+    {
+      "definition": "manage_request",
+      "document": {
+        "schema_version": 2,
+        "request_id": "reference:sample",
+        "actor_id": "actor:sample",
+        "operation": "actor.image-reference.configure",
+        "expected_version": 0,
+        "value": {
+          "content_ref": {
+            "owner": "memory",
+            "object_id": "document:reference",
+            "version": 1,
+            "kind": "image",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "sources": [],
+            "coverage": {
+              "unit": "bytes",
+              "start": 0,
+              "end": 100,
+              "total": 100
+            }
+          },
+          "scope": {
+            "actor_id": "actor:sample",
+            "person_id": "person:owner",
+            "audience": "self_private",
+            "conversation_id": "conversation:owner"
+          },
+          "query": {
+            "schema_version": 1,
+            "request_id": "read:private",
+            "origin": {
+              "assertion_ref": "origin:sample"
+            }
+          }
+        }
+      }
+    },
+    {
+      "definition": "manage_request",
+      "document": {
+        "schema_version": 2,
+        "request_id": "reference:sample",
+        "actor_id": "actor:sample",
+        "operation": "outfit.put",
+        "expected_version": 0,
+        "value": {
+          "id": "outfit:sample",
+          "description": "reference outfit",
+          "prompt": "reference outfit",
+          "reference": {
+            "owner": "memory",
+            "object_id": "document:reference",
+            "version": 1,
+            "kind": "image",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "sources": [],
+            "coverage": {
+              "unit": "bytes",
+              "start": 0,
+              "end": 100,
+              "total": 100
+            }
+          },
+          "activities": [],
+          "source_scope": {
+            "actor_id": "actor:sample",
+            "person_id": "person:owner",
+            "audience": "self_private",
+            "conversation_id": "conversation:owner"
+          },
+          "query": {
+            "schema_version": 1,
+            "request_id": "read:private",
+            "origin": {
+              "assertion_ref": "origin:sample"
+            }
+          }
+        }
+      }
+    },
+    {
+      "definition": "manage_request",
+      "document": {
+        "schema_version": 2,
+        "request_id": "reference:sample",
+        "actor_id": "actor:sample",
+        "operation": "image.request",
+        "expected_version": 0,
+        "value": {
+          "id": "image:sample",
+          "activity_id": null,
+          "outfit_id": null,
+          "scene": "reading",
+          "edit_source_id": null,
+          "scope": {
+            "actor_id": "actor:sample",
+            "person_id": "person:owner",
+            "audience": "self_private",
+            "conversation_id": "conversation:owner"
+          },
+          "parameters": {},
+          "edit_source_ref": {
+            "owner": "memory",
+            "object_id": "document:reference",
+            "version": 1,
+            "kind": "image",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "sources": [],
+            "coverage": {
+              "unit": "bytes",
+              "start": 0,
+              "end": 100,
+              "total": 100
+            }
+          },
+          "query": {
+            "schema_version": 1,
+            "request_id": "read:private",
+            "origin": {
+              "assertion_ref": "origin:sample"
+            }
+          }
+        }
+      }
+    },
+    {
+      "definition": "read_response",
+      "document": {
+        "schema_version": 2,
+        "request_id": "reference:read",
+        "actor_id": "actor:sample",
+        "resource": "image_reference",
+        "items": [
+          {
+            "id": "reference:sample",
+            "version": 1,
+            "actor_id": "actor:sample",
+            "content_ref": {
+              "owner": "memory",
+              "object_id": "document:reference",
+              "version": 1,
+              "kind": "image",
+              "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "sources": [],
+              "coverage": {
+                "unit": "bytes",
+                "start": 0,
+                "end": 100,
+                "total": 100
+              }
+            },
+            "scope": {
+              "actor_id": "actor:sample",
+              "person_id": "person:owner",
+              "audience": "self_private",
+              "conversation_id": "conversation:owner"
+            },
+            "state": "configured"
+          }
+        ],
+        "next_cursor": null
+      }
+    },
+    {
+      "definition": "manage_request",
+      "document": {
+        "schema_version": 2,
+        "request_id": "reference:sample",
+        "actor_id": "actor:sample",
+        "operation": "actor.image-reference.configure",
+        "expected_version": 0,
+        "value": {
+          "content_ref": null,
+          "scope": null,
+          "query": null
+        }
+      }
+    }
+  ],
+  "negative": [
+    {
+      "definition": "manage_request",
+      "document": {
+        "schema_version": 2,
+        "request_id": "reference:sample",
+        "actor_id": "actor:sample",
+        "operation": "image.request",
+        "expected_version": 0,
+        "value": {
+          "id": "image:sample",
+          "activity_id": null,
+          "outfit_id": null,
+          "scene": "reading",
+          "edit_source_id": "media:existing",
+          "scope": {
+            "actor_id": "actor:sample",
+            "person_id": "person:owner",
+            "audience": "self_private",
+            "conversation_id": "conversation:owner"
+          },
+          "parameters": {},
+          "edit_source_ref": {
+            "owner": "memory",
+            "object_id": "document:reference",
+            "version": 1,
+            "kind": "image",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "sources": [],
+            "coverage": {
+              "unit": "bytes",
+              "start": 0,
+              "end": 100,
+              "total": 100
+            }
+          },
+          "query": {
+            "schema_version": 1,
+            "request_id": "read:private",
+            "origin": {
+              "assertion_ref": "origin:sample"
+            }
+          }
+        }
+      }
+    },
+    {
+      "definition": "manage_request",
+      "document": {
+        "schema_version": 2,
+        "request_id": "reference:sample",
+        "actor_id": "actor:sample",
+        "operation": "actor.image-reference.configure",
+        "expected_version": 0,
+        "value": {
+          "content_ref": {
+            "owner": "memory",
+            "object_id": "document:reference",
+            "version": 1,
+            "kind": "text",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "sources": [],
+            "coverage": {
+              "unit": "bytes",
+              "start": 0,
+              "end": 100,
+              "total": 100
+            }
+          },
+          "scope": {
+            "actor_id": "actor:sample",
+            "person_id": "person:owner",
+            "audience": "self_private",
+            "conversation_id": "conversation:owner"
+          },
+          "query": {
+            "schema_version": 1,
+            "request_id": "read:private",
+            "origin": {
+              "assertion_ref": "origin:sample"
+            }
+          }
+        }
+      }
+    },
+    {
+      "definition": "manage_request",
+      "document": {
+        "schema_version": 2,
+        "request_id": "reference:sample",
+        "actor_id": "actor:sample",
+        "operation": "outfit.put",
+        "expected_version": 0,
+        "value": {
+          "id": "outfit:sample",
+          "description": "reference outfit",
+          "prompt": "reference outfit",
+          "reference": {
+            "owner": "memory",
+            "object_id": "document:reference",
+            "version": 1,
+            "kind": "image",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "sources": [],
+            "coverage": {
+              "unit": "bytes",
+              "start": 0,
+              "end": 100,
+              "total": 100
+            }
+          },
+          "activities": [],
+          "query": {
+            "schema_version": 1,
+            "request_id": "read:private",
+            "origin": {
+              "assertion_ref": "origin:sample"
+            }
+          }
+        }
+      }
+    },
+    {
+      "definition": "read_response",
+      "document": {
+        "schema_version": 2,
+        "request_id": "reference:read",
+        "actor_id": "actor:sample",
+        "resource": "image_reference",
+        "items": [
+          {
+            "id": "reference:sample",
+            "version": 1,
+            "actor_id": "actor:sample",
+            "content_ref": {
+              "owner": "memory",
+              "object_id": "document:reference",
+              "version": 1,
+              "kind": "image",
+              "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "sources": [],
+              "coverage": {
+                "unit": "bytes",
+                "start": 0,
+                "end": 100,
+                "total": 100
+              }
+            },
+            "scope": {
+              "actor_id": "actor:sample",
+              "person_id": "person:owner",
+              "audience": "self_private",
+              "conversation_id": "conversation:owner"
+            },
+            "state": "configured",
+            "query": {
+              "schema_version": 1,
+              "request_id": "read:private",
+              "origin": {
+                "assertion_ref": "origin:sample"
+              }
+            }
+          }
+        ],
+        "next_cursor": null
+      }
+    }
+  ]
+}

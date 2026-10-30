@@ -365,8 +365,7 @@
             "running",
             "paused",
             "completed",
-            "cancelled",
-            "dormant"
+            "cancelled"
           ]
         },
         "checkpoint": {
@@ -451,50 +450,7 @@
         "result_refs",
         "scope"
       ],
-      "additionalProperties": false,
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "state": {
-                "const": "paused"
-              }
-            },
-            "required": [
-              "state"
-            ]
-          },
-          "then": {
-            "properties": {
-              "next_due_at": {
-                "type": "number",
-                "minimum": 0
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "state": {
-                "const": "dormant"
-              }
-            },
-            "required": [
-              "state"
-            ]
-          },
-          "then": {
-            "properties": {
-              "resume_condition": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 1000
-              }
-            }
-          }
-        }
-      ]
+      "additionalProperties": false
     },
     "activity_pause_value": {
       "type": "object",
@@ -2738,8 +2694,7 @@
             "running",
             "paused",
             "completed",
-            "cancelled",
-            "dormant"
+            "cancelled"
           ]
         },
         "checkpoint": {
@@ -2830,14 +2785,6 @@
             "null"
           ],
           "minimum": 0
-        },
-        "dormant_since": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "minimum": 0,
-          "readOnly": true
         }
       },
       "required": [
@@ -2855,57 +2802,7 @@
         "started_at",
         "updated_at"
       ],
-      "additionalProperties": false,
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "state": {
-                "const": "paused"
-              }
-            },
-            "required": [
-              "state"
-            ]
-          },
-          "then": {
-            "properties": {
-              "next_due_at": {
-                "type": "number",
-                "minimum": 0
-              }
-            }
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "state": {
-                "const": "dormant"
-              }
-            },
-            "required": [
-              "state"
-            ]
-          },
-          "then": {
-            "properties": {
-              "resume_condition": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 1000
-              },
-              "dormant_since": {
-                "type": "number",
-                "minimum": 0
-              }
-            },
-            "required": [
-              "dormant_since"
-            ]
-          }
-        }
-      ]
+      "additionalProperties": false
     },
     "open_work_record": {
       "type": "object",

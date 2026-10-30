@@ -1,0 +1,4787 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.tianshu.invalid/life-runtime/v2.2/life.json",
+  "$defs": {
+    "source_ref": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "enum": [
+            "companion",
+            "memory",
+            "platform",
+            "assetlibrary"
+          ]
+        },
+        "object_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "owner",
+        "object_id",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "content_ref": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "enum": [
+            "companion",
+            "memory",
+            "assetlibrary"
+          ]
+        },
+        "object_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "kind": {
+          "enum": [
+            "image",
+            "text",
+            "article",
+            "video",
+            "audio"
+          ]
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_ref"
+          },
+          "maxItems": 64
+        },
+        "coverage": {
+          "type": "object",
+          "properties": {
+            "unit": {
+              "enum": [
+                "bytes",
+                "characters",
+                "seconds",
+                "pages"
+              ]
+            },
+            "start": {
+              "type": "number",
+              "minimum": 0
+            },
+            "end": {
+              "type": "number",
+              "minimum": 0
+            },
+            "total": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          },
+          "required": [
+            "unit",
+            "start",
+            "end",
+            "total"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "owner",
+        "object_id",
+        "version",
+        "kind",
+        "sha256",
+        "sources",
+        "coverage"
+      ],
+      "additionalProperties": false
+    },
+    "range": {
+      "type": "object",
+      "properties": {
+        "unit": {
+          "enum": [
+            "bytes",
+            "characters",
+            "seconds",
+            "pages"
+          ]
+        },
+        "start": {
+          "type": "number",
+          "minimum": 0
+        },
+        "end": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "unit",
+        "start",
+        "end"
+      ],
+      "additionalProperties": false
+    },
+    "fragment_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "expected_version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_ref"
+          },
+          "maxItems": 64
+        },
+        "expires_at": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "certainty": {
+          "enum": [
+            "observed",
+            "reported",
+            "inferred",
+            "uncertain"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "expected_version",
+        "text",
+        "sources",
+        "expires_at",
+        "certainty"
+      ],
+      "additionalProperties": false
+    },
+    "concern_save_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "goal": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "state": {
+          "enum": [
+            "open",
+            "paused",
+            "completed",
+            "cancelled"
+          ]
+        },
+        "scope": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_ref"
+          },
+          "maxItems": 64
+        },
+        "fragments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "expected_version": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4000
+              },
+              "sources": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/source_ref"
+                },
+                "maxItems": 64
+              },
+              "expires_at": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "certainty": {
+                "enum": [
+                  "observed",
+                  "reported",
+                  "inferred",
+                  "uncertain"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "expected_version",
+              "text",
+              "sources",
+              "expires_at",
+              "certainty"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 32
+        },
+        "next_due_at": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "expires_at": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "result_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/content_ref"
+          },
+          "maxItems": 64
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "goal",
+        "state",
+        "scope",
+        "sources",
+        "fragments",
+        "next_due_at",
+        "expires_at",
+        "result_refs"
+      ],
+      "additionalProperties": false
+    },
+    "concern_close_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        }
+      },
+      "required": [
+        "id",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "activity_save_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "state": {
+          "enum": [
+            "planned",
+            "running",
+            "paused",
+            "completed",
+            "cancelled",
+            "dormant"
+          ]
+        },
+        "checkpoint": {
+          "type": "object",
+          "properties": {
+            "step": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "position": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "enum": [
+                "step",
+                "characters",
+                "seconds",
+                "pages"
+              ]
+            },
+            "note": {
+              "type": "string",
+              "maxLength": 2000
+            }
+          },
+          "required": [
+            "step",
+            "position",
+            "unit",
+            "note"
+          ],
+          "additionalProperties": false
+        },
+        "next_due_at": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "resume_condition": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 1000
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_ref"
+          },
+          "maxItems": 64
+        },
+        "result_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/content_ref"
+          },
+          "maxItems": 64
+        },
+        "scope": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "state",
+        "checkpoint",
+        "next_due_at",
+        "resume_condition",
+        "sources",
+        "result_refs",
+        "scope"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "paused"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "next_due_at": {
+                "type": "number",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "dormant"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "resume_condition": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              }
+            }
+          }
+        }
+      ]
+    },
+    "activity_pause_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        }
+      },
+      "required": [
+        "id",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "activity_resume_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "activity_cancel_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        }
+      },
+      "required": [
+        "id",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "affect_feedback_value": {
+      "type": "object",
+      "properties": {
+        "scope": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "event_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "kind": {
+          "enum": [
+            "warm",
+            "neutral",
+            "dislike",
+            "distress",
+            "recovery"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_ref"
+          },
+          "maxItems": 64
+        },
+        "half_life_seconds": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 604800
+        }
+      },
+      "required": [
+        "scope",
+        "event_id",
+        "kind",
+        "reason",
+        "sources",
+        "half_life_seconds"
+      ],
+      "additionalProperties": false
+    },
+    "outfit_put_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "prompt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "reference": {
+          "anyOf": [
+            {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[A-Za-z0-9_-]+\\.(png|jpg|webp)$"
+            },
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/content_ref"
+                },
+                {
+                  "properties": {
+                    "kind": {
+                      "const": "image"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "activities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "maxItems": 32
+        },
+        "source_scope": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "query": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/query"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "description",
+        "prompt",
+        "reference",
+        "activities"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "reference": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "reference"
+            ]
+          },
+          "then": {
+            "required": [
+              "source_scope",
+              "query"
+            ]
+          }
+        }
+      ]
+    },
+    "outfit_select_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "image_request_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "activity_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "outfit_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scene": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2000
+        },
+        "edit_source_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scope": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "seed": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "width": {
+              "type": "integer",
+              "minimum": 64,
+              "maximum": 4096
+            },
+            "height": {
+              "type": "integer",
+              "minimum": 64,
+              "maximum": 4096
+            },
+            "steps": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 150
+            },
+            "negative": {
+              "type": "string",
+              "maxLength": 4000
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        },
+        "edit_source_ref": {
+          "anyOf": [
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/content_ref"
+                },
+                {
+                  "properties": {
+                    "kind": {
+                      "const": "image"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "query": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/query"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "intent": {
+          "type": "object",
+          "properties": {
+            "character": {
+              "type": "string",
+              "maxLength": 8000
+            },
+            "outfit": {
+              "type": "string",
+              "maxLength": 8000
+            },
+            "pose": {
+              "type": "string",
+              "maxLength": 8000
+            },
+            "background": {
+              "type": "string",
+              "maxLength": 8000
+            },
+            "camera": {
+              "type": "string",
+              "maxLength": 8000
+            },
+            "positive": {
+              "type": "string",
+              "maxLength": 8000
+            },
+            "negative": {
+              "type": "string",
+              "maxLength": 8000
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        },
+        "assist_model": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "activity_id",
+        "outfit_id",
+        "scene",
+        "edit_source_id",
+        "scope",
+        "parameters"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "not": {
+            "properties": {
+              "edit_source_id": {
+                "type": "string"
+              },
+              "edit_source_ref": {
+                "$ref": "#/$defs/content_ref"
+              }
+            },
+            "required": [
+              "edit_source_id",
+              "edit_source_ref"
+            ]
+          }
+        }
+      ]
+    },
+    "image_cancel_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "album_attach_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "job_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "artifact_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "activity_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "caption": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "scope": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "job_id",
+        "artifact_index",
+        "activity_id",
+        "caption",
+        "scope"
+      ],
+      "additionalProperties": false
+    },
+    "album_remove_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        }
+      },
+      "required": [
+        "id",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "diary_request_value": {
+      "type": "object",
+      "properties": {
+        "day": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "required": [
+        "day"
+      ],
+      "additionalProperties": false
+    },
+    "diary_revise_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100000
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        }
+      },
+      "required": [
+        "id",
+        "content",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "diary_publish_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "writing_create_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "outline": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "characters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4000
+              }
+            },
+            "required": [
+              "name",
+              "description"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 32
+        },
+        "recipe": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "outline",
+        "characters",
+        "recipe"
+      ],
+      "additionalProperties": false
+    },
+    "chapter_add_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "work_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "goal": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "order": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      },
+      "required": [
+        "id",
+        "work_id",
+        "title",
+        "goal",
+        "order"
+      ],
+      "additionalProperties": false
+    },
+    "chapter_generate_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "chapter_revise_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100000
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        }
+      },
+      "required": [
+        "id",
+        "content",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "chapter_review_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "decision": {
+          "enum": [
+            "approved",
+            "changes_requested",
+            "rejected"
+          ]
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "acknowledge_drift": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "decision",
+        "notes",
+        "acknowledge_drift"
+      ],
+      "additionalProperties": false
+    },
+    "chapter_publish_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "proactive_subscription_value": {
+      "type": "object",
+      "properties": {
+        "person_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "audience": {
+          "enum": [
+            "self_private",
+            "group"
+          ]
+        },
+        "conversation_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "channel": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/channel_key"
+        },
+        "timezone_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "quiet_start": {
+          "type": "string",
+          "pattern": "^\\d{2}:\\d{2}$"
+        },
+        "quiet_end": {
+          "type": "string",
+          "pattern": "^\\d{2}:\\d{2}$"
+        },
+        "cooldown_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "daily_quota": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "unanswered_limit": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "expiry_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "consent_basis": {
+          "enum": [
+            "explicit_user_request",
+            "explicit_admin_registration"
+          ]
+        },
+        "consent_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "person_id",
+        "audience",
+        "conversation_id",
+        "channel",
+        "timezone_name",
+        "quiet_start",
+        "quiet_end",
+        "cooldown_seconds",
+        "daily_quota",
+        "unanswered_limit",
+        "expiry_seconds",
+        "consent_basis",
+        "consent_ref"
+      ],
+      "additionalProperties": false
+    },
+    "proactive_motive_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "subscription_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_ref"
+          },
+          "maxItems": 64
+        },
+        "content_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/content_ref"
+          },
+          "maxItems": 4
+        },
+        "due_at": {
+          "type": "number",
+          "minimum": 0
+        },
+        "expires_at": {
+          "type": "number",
+          "minimum": 0
+        },
+        "weight": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 3
+        }
+      },
+      "required": [
+        "id",
+        "subscription_id",
+        "summary",
+        "sources",
+        "content_refs",
+        "due_at",
+        "expires_at",
+        "weight"
+      ],
+      "additionalProperties": false
+    },
+    "proactive_cancel_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        }
+      },
+      "required": [
+        "id",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "content_acquire_value": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/query"
+        },
+        "scope": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "url"
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "maxLength": 4096
+                }
+              },
+              "required": [
+                "kind",
+                "url"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "upload"
+                },
+                "upload_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              },
+              "required": [
+                "kind",
+                "upload_id"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "purpose": {
+          "enum": [
+            "read",
+            "save"
+          ]
+        }
+      },
+      "required": [
+        "query",
+        "scope",
+        "source",
+        "purpose"
+      ],
+      "additionalProperties": false
+    },
+    "reading_open_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "query": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/query"
+        },
+        "scope": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "content_ref": {
+          "$ref": "#/$defs/content_ref"
+        },
+        "mode": {
+          "enum": [
+            "solo",
+            "together"
+          ]
+        },
+        "participants": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "maxItems": 16
+        }
+      },
+      "required": [
+        "id",
+        "query",
+        "scope",
+        "content_ref",
+        "mode",
+        "participants"
+      ],
+      "additionalProperties": false
+    },
+    "reading_read_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "query": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/query"
+        },
+        "range": {
+          "$ref": "#/$defs/range"
+        }
+      },
+      "required": [
+        "id",
+        "query",
+        "range"
+      ],
+      "additionalProperties": false
+    },
+    "reading_pause_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        }
+      },
+      "required": [
+        "id",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "reading_resume_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "reading_close_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        }
+      },
+      "required": [
+        "id",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "image_backend_configure_value": {
+      "type": "object",
+      "properties": {
+        "base_url": {
+          "type": "string",
+          "format": "uri",
+          "maxLength": 2048
+        },
+        "credential_ref": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 256
+        },
+        "profile": {
+          "const": "standard_sd"
+        },
+        "checkpoint": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "enabled": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "base_url",
+        "credential_ref",
+        "profile",
+        "checkpoint",
+        "enabled"
+      ],
+      "additionalProperties": false
+    },
+    "manage_request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "operation": {
+          "enum": [
+            "concern.save",
+            "concern.close",
+            "activity.save",
+            "activity.pause",
+            "activity.resume",
+            "activity.cancel",
+            "affect.feedback",
+            "outfit.put",
+            "outfit.select",
+            "image.request",
+            "image.cancel",
+            "album.attach",
+            "album.remove",
+            "diary.request",
+            "diary.revise",
+            "diary.publish",
+            "writing.create",
+            "chapter.add",
+            "chapter.generate",
+            "chapter.revise",
+            "chapter.review",
+            "chapter.publish",
+            "proactive.subscription",
+            "proactive.motive",
+            "proactive.cancel",
+            "content.acquire",
+            "reading.open",
+            "reading.read",
+            "reading.pause",
+            "reading.resume",
+            "reading.close",
+            "image.backend.configure",
+            "proactive.subscription.state",
+            "actor.image-reference.configure",
+            "actor-memory.import"
+          ]
+        },
+        "expected_version": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "value": {}
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "operation",
+        "expected_version",
+        "value"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "operation": {
+                  "const": "concern.save"
+                },
+                "value": {
+                  "$ref": "#/$defs/concern_save_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "concern.close"
+                },
+                "value": {
+                  "$ref": "#/$defs/concern_close_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "activity.save"
+                },
+                "value": {
+                  "$ref": "#/$defs/activity_save_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "activity.pause"
+                },
+                "value": {
+                  "$ref": "#/$defs/activity_pause_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "activity.resume"
+                },
+                "value": {
+                  "$ref": "#/$defs/activity_resume_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "activity.cancel"
+                },
+                "value": {
+                  "$ref": "#/$defs/activity_cancel_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "affect.feedback"
+                },
+                "value": {
+                  "$ref": "#/$defs/affect_feedback_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "outfit.put"
+                },
+                "value": {
+                  "$ref": "#/$defs/outfit_put_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "outfit.select"
+                },
+                "value": {
+                  "$ref": "#/$defs/outfit_select_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "image.request"
+                },
+                "value": {
+                  "$ref": "#/$defs/image_request_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "image.cancel"
+                },
+                "value": {
+                  "$ref": "#/$defs/image_cancel_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "album.attach"
+                },
+                "value": {
+                  "$ref": "#/$defs/album_attach_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "album.remove"
+                },
+                "value": {
+                  "$ref": "#/$defs/album_remove_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "diary.request"
+                },
+                "value": {
+                  "$ref": "#/$defs/diary_request_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "diary.revise"
+                },
+                "value": {
+                  "$ref": "#/$defs/diary_revise_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "diary.publish"
+                },
+                "value": {
+                  "$ref": "#/$defs/diary_publish_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "writing.create"
+                },
+                "value": {
+                  "$ref": "#/$defs/writing_create_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "chapter.add"
+                },
+                "value": {
+                  "$ref": "#/$defs/chapter_add_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "chapter.generate"
+                },
+                "value": {
+                  "$ref": "#/$defs/chapter_generate_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "chapter.revise"
+                },
+                "value": {
+                  "$ref": "#/$defs/chapter_revise_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "chapter.review"
+                },
+                "value": {
+                  "$ref": "#/$defs/chapter_review_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "chapter.publish"
+                },
+                "value": {
+                  "$ref": "#/$defs/chapter_publish_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "proactive.subscription"
+                },
+                "value": {
+                  "$ref": "#/$defs/proactive_subscription_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "proactive.motive"
+                },
+                "value": {
+                  "$ref": "#/$defs/proactive_motive_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "proactive.cancel"
+                },
+                "value": {
+                  "$ref": "#/$defs/proactive_cancel_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "content.acquire"
+                },
+                "value": {
+                  "$ref": "#/$defs/content_acquire_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "reading.open"
+                },
+                "value": {
+                  "$ref": "#/$defs/reading_open_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "reading.read"
+                },
+                "value": {
+                  "$ref": "#/$defs/reading_read_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "reading.pause"
+                },
+                "value": {
+                  "$ref": "#/$defs/reading_pause_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "reading.resume"
+                },
+                "value": {
+                  "$ref": "#/$defs/reading_resume_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "reading.close"
+                },
+                "value": {
+                  "$ref": "#/$defs/reading_close_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "image.backend.configure"
+                },
+                "value": {
+                  "$ref": "#/$defs/image_backend_configure_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "proactive.subscription.state"
+                },
+                "value": {
+                  "$ref": "#/$defs/proactive_subscription_state_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "actor.image-reference.configure"
+                },
+                "value": {
+                  "$ref": "#/$defs/actor_image_reference_configure_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value"
+              ]
+            },
+            {
+              "properties": {
+                "operation": {
+                  "const": "actor-memory.import"
+                },
+                "expected_version": {
+                  "const": 0
+                },
+                "value": {
+                  "$ref": "#/$defs/actor_memory_import_value"
+                }
+              },
+              "required": [
+                "operation",
+                "value",
+                "expected_version"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "read_request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "query": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/query"
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "resource": {
+          "enum": [
+            "state",
+            "activities",
+            "open_work",
+            "affect",
+            "outfits",
+            "album",
+            "media",
+            "works",
+            "chapter",
+            "proactive",
+            "reading",
+            "image_backend",
+            "image_jobs",
+            "image_reference",
+            "autonomy"
+          ]
+        },
+        "object_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "expected_version": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        },
+        "after": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scope": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "chapter_view": {
+          "enum": [
+            "published",
+            "current"
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "query",
+        "actor_id",
+        "resource",
+        "object_id",
+        "expected_version",
+        "limit",
+        "after",
+        "scope"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "chapter_view"
+            ]
+          },
+          "then": {
+            "properties": {
+              "resource": {
+                "const": "chapter"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "media_request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "query": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/query"
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "media_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "scope": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "query",
+        "actor_id",
+        "media_id",
+        "scope"
+      ],
+      "additionalProperties": false
+    },
+    "content_read_request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "query": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/query"
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "scope": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "content_ref": {
+          "$ref": "#/$defs/content_ref"
+        },
+        "reading_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "range": {
+          "$ref": "#/$defs/range"
+        }
+      },
+      "required": [
+        "schema_version",
+        "query",
+        "actor_id",
+        "scope",
+        "content_ref",
+        "reading_id",
+        "range"
+      ],
+      "additionalProperties": false
+    },
+    "content_read_response": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "reading_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "content_ref": {
+          "$ref": "#/$defs/content_ref"
+        },
+        "text": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 100000
+        },
+        "media_url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 8192
+        },
+        "coverage": {
+          "$ref": "#/$defs/range"
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "representations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/content_representation"
+          },
+          "maxItems": 8
+        },
+        "gaps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/content_gap"
+          },
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "reading_id",
+        "content_ref",
+        "text",
+        "media_url",
+        "coverage",
+        "complete",
+        "representations",
+        "gaps"
+      ],
+      "additionalProperties": false
+    },
+    "operation_result": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "state": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "operation_ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "content_ref": {
+          "$ref": "#/$defs/content_ref"
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "imported": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32
+        },
+        "skipped": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32
+        },
+        "complete": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "state",
+        "operation_ref"
+      ],
+      "additionalProperties": false
+    },
+    "manage_response": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "operation": {
+          "enum": [
+            "concern.save",
+            "concern.close",
+            "activity.save",
+            "activity.pause",
+            "activity.resume",
+            "activity.cancel",
+            "affect.feedback",
+            "outfit.put",
+            "outfit.select",
+            "image.request",
+            "image.cancel",
+            "album.attach",
+            "album.remove",
+            "diary.request",
+            "diary.revise",
+            "diary.publish",
+            "writing.create",
+            "chapter.add",
+            "chapter.generate",
+            "chapter.revise",
+            "chapter.review",
+            "chapter.publish",
+            "proactive.subscription",
+            "proactive.motive",
+            "proactive.cancel",
+            "content.acquire",
+            "reading.open",
+            "reading.read",
+            "reading.pause",
+            "reading.resume",
+            "reading.close",
+            "image.backend.configure",
+            "proactive.subscription.state",
+            "actor.image-reference.configure",
+            "actor-memory.import"
+          ]
+        },
+        "result": {
+          "$ref": "#/$defs/operation_result"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "operation",
+        "result"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "content.acquire"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "result": {
+                "required": [
+                  "content_ref"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "operation": {
+                "const": "actor-memory.import"
+              }
+            },
+            "required": [
+              "operation"
+            ]
+          },
+          "then": {
+            "properties": {
+              "result": {
+                "required": [
+                  "next_cursor",
+                  "imported",
+                  "skipped",
+                  "complete"
+                ]
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "result": {
+                "not": {
+                  "anyOf": [
+                    {
+                      "required": [
+                        "next_cursor"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "imported"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "skipped"
+                      ]
+                    },
+                    {
+                      "required": [
+                        "complete"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "state_record": {
+      "type": "object",
+      "properties": {
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "actor_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "activity": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 4000
+        },
+        "activity_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "timezone": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "mood": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 4000
+        },
+        "outfit_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "plan_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "changed_at": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "fictional": {
+          "const": true
+        }
+      },
+      "required": [
+        "actor_id",
+        "actor_version",
+        "activity",
+        "activity_id",
+        "timezone",
+        "mood",
+        "outfit_ref",
+        "plan_id",
+        "changed_at",
+        "fictional"
+      ],
+      "additionalProperties": false
+    },
+    "activities_record": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "state": {
+          "enum": [
+            "planned",
+            "running",
+            "paused",
+            "completed",
+            "cancelled",
+            "dormant"
+          ]
+        },
+        "checkpoint": {
+          "type": "object",
+          "properties": {
+            "step": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "position": {
+              "type": "number",
+              "minimum": 0
+            },
+            "unit": {
+              "enum": [
+                "step",
+                "characters",
+                "seconds",
+                "pages"
+              ]
+            },
+            "note": {
+              "type": "string",
+              "maxLength": 2000
+            }
+          },
+          "required": [
+            "step",
+            "position",
+            "unit",
+            "note"
+          ],
+          "additionalProperties": false
+        },
+        "next_due_at": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "resume_condition": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 1000
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_ref"
+          },
+          "maxItems": 64
+        },
+        "result_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/content_ref"
+          },
+          "maxItems": 64
+        },
+        "scope": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "started_at": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "updated_at": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "dormant_since": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "readOnly": true
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "title",
+        "state",
+        "checkpoint",
+        "next_due_at",
+        "resume_condition",
+        "sources",
+        "result_refs",
+        "scope",
+        "actor_id",
+        "started_at",
+        "updated_at"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "paused"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "next_due_at": {
+                "type": "number",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "dormant"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          },
+          "then": {
+            "properties": {
+              "resume_condition": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              "dormant_since": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "dormant_since"
+            ]
+          }
+        }
+      ]
+    },
+    "open_work_record": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "goal": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "state": {
+          "enum": [
+            "open",
+            "paused",
+            "completed",
+            "cancelled"
+          ]
+        },
+        "scope": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_ref"
+          },
+          "maxItems": 64
+        },
+        "fragments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4000
+              },
+              "sources": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/source_ref"
+                },
+                "maxItems": 64
+              },
+              "expires_at": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "certainty": {
+                "enum": [
+                  "observed",
+                  "reported",
+                  "inferred",
+                  "uncertain"
+                ]
+              },
+              "version": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "valid": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "text",
+              "sources",
+              "expires_at",
+              "certainty",
+              "version",
+              "valid"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 32
+        },
+        "next_due_at": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "expires_at": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "result_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/content_ref"
+          },
+          "maxItems": 64
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "intent_valid": {
+          "type": "boolean"
+        },
+        "updated_at": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "title",
+        "goal",
+        "state",
+        "scope",
+        "sources",
+        "fragments",
+        "next_due_at",
+        "expires_at",
+        "result_refs",
+        "actor_id",
+        "intent_valid",
+        "updated_at"
+      ],
+      "additionalProperties": false
+    },
+    "affect_record": {
+      "type": "object",
+      "properties": {
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "valence": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "feelings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "kind": {
+                "enum": [
+                  "warm",
+                  "neutral",
+                  "dislike",
+                  "distress",
+                  "recovery"
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4000
+              },
+              "intensity": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "sources": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/source_ref"
+                },
+                "maxItems": 64
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "reason",
+              "intensity",
+              "sources"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 32
+        },
+        "observed_at": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "relationship_effect": {
+          "const": "none"
+        }
+      },
+      "required": [
+        "actor_id",
+        "valence",
+        "feelings",
+        "observed_at",
+        "relationship_effect"
+      ],
+      "additionalProperties": false
+    },
+    "outfits_record": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "prompt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "reference": {
+          "anyOf": [
+            {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[A-Za-z0-9_-]+\\.(png|jpg|webp)$"
+            },
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/content_ref"
+                },
+                {
+                  "properties": {
+                    "kind": {
+                      "const": "image"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "activities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "maxItems": 32
+        },
+        "source_scope": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "description",
+        "prompt",
+        "reference",
+        "activities"
+      ],
+      "additionalProperties": false
+    },
+    "album_record": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "media_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "activity_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "caption": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "scope": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scene_at": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "completed_at": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "state": {
+          "enum": [
+            "available",
+            "unavailable",
+            "removed"
+          ]
+        },
+        "content_ref": {
+          "$ref": "#/$defs/content_ref"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "actor_id",
+        "media_id",
+        "activity_id",
+        "caption",
+        "scope",
+        "scene_at",
+        "completed_at",
+        "state",
+        "content_ref"
+      ],
+      "additionalProperties": false
+    },
+    "media_record": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "state": {
+          "enum": [
+            "available",
+            "unavailable",
+            "removed"
+          ]
+        },
+        "media_type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "content_ref": {
+          "$ref": "#/$defs/content_ref"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "actor_id",
+        "state",
+        "media_type",
+        "size",
+        "content_ref"
+      ],
+      "additionalProperties": false
+    },
+    "works_record": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "outline": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "state": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "characters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4000
+              }
+            },
+            "required": [
+              "name",
+              "description"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 32
+        },
+        "chapter_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "maxItems": 2000
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "actor_id",
+        "title",
+        "outline",
+        "state",
+        "characters",
+        "chapter_ids"
+      ],
+      "additionalProperties": false
+    },
+    "chapter_record": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "work_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "goal": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "state": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "revision_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "content": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 100000
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "work_id",
+        "title",
+        "goal",
+        "state",
+        "revision_id",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "proactive_record": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "person_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "audience": {
+          "enum": [
+            "self_private",
+            "group"
+          ]
+        },
+        "conversation_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "state": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "due_at": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "expires_at": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "delivered": {
+          "type": "boolean"
+        },
+        "content_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/content_ref"
+          },
+          "maxItems": 4
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "actor_id",
+        "person_id",
+        "audience",
+        "conversation_id",
+        "state",
+        "summary",
+        "due_at",
+        "expires_at",
+        "delivered",
+        "content_refs"
+      ],
+      "additionalProperties": false
+    },
+    "reading_record": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "scope": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "content_ref": {
+          "$ref": "#/$defs/content_ref"
+        },
+        "state": {
+          "enum": [
+            "open",
+            "reading",
+            "paused",
+            "completed",
+            "closed",
+            "unavailable"
+          ]
+        },
+        "mode": {
+          "enum": [
+            "solo",
+            "together"
+          ]
+        },
+        "participants": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "maxItems": 16
+        },
+        "coverage": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/range"
+          },
+          "maxItems": 64
+        },
+        "position": {
+          "$ref": "#/$defs/range"
+        },
+        "updated_at": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "actor_id",
+        "scope",
+        "content_ref",
+        "state",
+        "mode",
+        "participants",
+        "coverage",
+        "position",
+        "updated_at"
+      ],
+      "additionalProperties": false
+    },
+    "image_backend_record": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "state": {
+          "enum": [
+            "not_configured",
+            "configured",
+            "disabled",
+            "unreachable"
+          ]
+        },
+        "base_url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2048
+        },
+        "credential_ref": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 256
+        },
+        "profile": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "standard_sd",
+            null
+          ]
+        },
+        "checkpoint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "models": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "maxItems": 1000
+        },
+        "checked_at": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "error_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "state",
+        "base_url",
+        "credential_ref",
+        "profile",
+        "checkpoint",
+        "models",
+        "checked_at",
+        "error_code"
+      ],
+      "additionalProperties": false
+    },
+    "read_response": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "resource": {
+          "enum": [
+            "state",
+            "activities",
+            "open_work",
+            "affect",
+            "outfits",
+            "album",
+            "media",
+            "works",
+            "chapter",
+            "proactive",
+            "reading",
+            "image_backend",
+            "image_jobs",
+            "image_reference",
+            "autonomy"
+          ]
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 50
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "resource",
+        "items",
+        "next_cursor"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "oneOf": [
+            {
+              "properties": {
+                "resource": {
+                  "const": "state"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/state_record"
+                  },
+                  "maxItems": 50
+                }
+              },
+              "required": [
+                "resource",
+                "items"
+              ]
+            },
+            {
+              "properties": {
+                "resource": {
+                  "const": "activities"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/activities_record"
+                  },
+                  "maxItems": 50
+                }
+              },
+              "required": [
+                "resource",
+                "items"
+              ]
+            },
+            {
+              "properties": {
+                "resource": {
+                  "const": "open_work"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/open_work_record"
+                  },
+                  "maxItems": 50
+                }
+              },
+              "required": [
+                "resource",
+                "items"
+              ]
+            },
+            {
+              "properties": {
+                "resource": {
+                  "const": "affect"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/affect_record"
+                  },
+                  "maxItems": 50
+                }
+              },
+              "required": [
+                "resource",
+                "items"
+              ]
+            },
+            {
+              "properties": {
+                "resource": {
+                  "const": "outfits"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/outfits_record"
+                  },
+                  "maxItems": 50
+                }
+              },
+              "required": [
+                "resource",
+                "items"
+              ]
+            },
+            {
+              "properties": {
+                "resource": {
+                  "const": "album"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/album_record"
+                  },
+                  "maxItems": 50
+                }
+              },
+              "required": [
+                "resource",
+                "items"
+              ]
+            },
+            {
+              "properties": {
+                "resource": {
+                  "const": "media"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/media_record"
+                  },
+                  "maxItems": 50
+                }
+              },
+              "required": [
+                "resource",
+                "items"
+              ]
+            },
+            {
+              "properties": {
+                "resource": {
+                  "const": "works"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/works_record"
+                  },
+                  "maxItems": 50
+                }
+              },
+              "required": [
+                "resource",
+                "items"
+              ]
+            },
+            {
+              "properties": {
+                "resource": {
+                  "const": "chapter"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/chapter_record"
+                  },
+                  "maxItems": 50
+                }
+              },
+              "required": [
+                "resource",
+                "items"
+              ]
+            },
+            {
+              "properties": {
+                "resource": {
+                  "const": "proactive"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/proactive_record"
+                  },
+                  "maxItems": 50
+                }
+              },
+              "required": [
+                "resource",
+                "items"
+              ]
+            },
+            {
+              "properties": {
+                "resource": {
+                  "const": "reading"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/reading_record"
+                  },
+                  "maxItems": 50
+                }
+              },
+              "required": [
+                "resource",
+                "items"
+              ]
+            },
+            {
+              "properties": {
+                "resource": {
+                  "const": "image_backend"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/image_backend_record"
+                  },
+                  "maxItems": 50
+                }
+              },
+              "required": [
+                "resource",
+                "items"
+              ]
+            },
+            {
+              "properties": {
+                "resource": {
+                  "const": "image_jobs"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/image_jobs_record"
+                  },
+                  "maxItems": 50
+                }
+              },
+              "required": [
+                "resource",
+                "items"
+              ]
+            },
+            {
+              "properties": {
+                "resource": {
+                  "const": "image_reference"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/image_reference_record"
+                  },
+                  "maxItems": 50
+                }
+              },
+              "required": [
+                "resource",
+                "items"
+              ]
+            },
+            {
+              "properties": {
+                "resource": {
+                  "const": "autonomy"
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/autonomy_record"
+                  },
+                  "maxItems": 1
+                }
+              },
+              "required": [
+                "resource",
+                "items"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "content_representation": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "image",
+            "video_frame",
+            "audio_clip"
+          ]
+        },
+        "media_type": {
+          "type": "string",
+          "maxLength": 4096
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "source_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "data_base64": {
+          "type": "string",
+          "maxLength": 2796208
+        },
+        "at_seconds": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "media_type",
+        "sha256",
+        "source_sha256",
+        "data_base64",
+        "at_seconds"
+      ],
+      "additionalProperties": false
+    },
+    "content_gap": {
+      "enum": [
+        "frames_sampled",
+        "audio_not_transcribed",
+        "image_resized",
+        "page_images_not_extracted",
+        "no_text_layer",
+        "range_truncated"
+      ]
+    },
+    "control_read_request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "person_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "channel": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/channel_key"
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "person_id",
+        "channel"
+      ],
+      "additionalProperties": false
+    },
+    "control_read_response": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "person_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "channel": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/channel_key"
+        },
+        "subscriptions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "timezone_name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "quiet_start": {
+                "type": "string",
+                "pattern": "^\\d{2}:\\d{2}$"
+              },
+              "quiet_end": {
+                "type": "string",
+                "pattern": "^\\d{2}:\\d{2}$"
+              },
+              "cooldown_seconds": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "daily_quota": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "unanswered_limit": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "expiry_seconds": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "consent_basis": {
+                "enum": [
+                  "explicit_user_request",
+                  "explicit_admin_registration"
+                ]
+              },
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "version": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "state": {
+                "enum": [
+                  "active",
+                  "paused",
+                  "revoked"
+                ]
+              }
+            },
+            "required": [
+              "timezone_name",
+              "quiet_start",
+              "quiet_end",
+              "cooldown_seconds",
+              "daily_quota",
+              "unanswered_limit",
+              "expiry_seconds",
+              "consent_basis",
+              "id",
+              "version",
+              "state"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 50
+        },
+        "deliveries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "subscription_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "state": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "created_at": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "updated_at": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              }
+            },
+            "required": [
+              "id",
+              "subscription_id",
+              "state",
+              "created_at",
+              "updated_at"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 50
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "person_id",
+        "channel",
+        "subscriptions",
+        "deliveries"
+      ],
+      "additionalProperties": false
+    },
+    "proactive_subscription_state_value": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "state": {
+          "enum": [
+            "active",
+            "paused",
+            "revoked"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "state"
+      ],
+      "additionalProperties": false
+    },
+    "conversation_ensure_request": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "query": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/query"
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "required": [
+        "schema_version",
+        "query",
+        "actor_id"
+      ],
+      "additionalProperties": false
+    },
+    "conversation_ensure_response": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "scope": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+        },
+        "channel": {
+          "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/channel_key"
+        },
+        "binding_version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "schema_version",
+        "request_id",
+        "actor_id",
+        "scope",
+        "channel",
+        "binding_version"
+      ],
+      "additionalProperties": false
+    },
+    "image_jobs_record": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "state": {
+          "enum": [
+            "queued",
+            "running",
+            "completed",
+            "failed",
+            "unknown",
+            "cancelled",
+            "unavailable"
+          ]
+        },
+        "error_code": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        },
+        "created_at": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "completed_at": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "media_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "content_ref": {
+                "$ref": "#/$defs/content_ref"
+              }
+            },
+            "required": [
+              "media_id",
+              "content_ref"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 16
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "actor_id",
+        "state",
+        "error_code",
+        "created_at",
+        "completed_at",
+        "artifacts"
+      ],
+      "additionalProperties": false
+    },
+    "actor_image_reference_configure_value": {
+      "type": "object",
+      "properties": {
+        "content_ref": {
+          "anyOf": [
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/content_ref"
+                },
+                {
+                  "properties": {
+                    "kind": {
+                      "const": "image"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scope": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "query": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/query"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "content_ref",
+        "scope",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "image_reference_record": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "content_ref": {
+          "anyOf": [
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/content_ref"
+                },
+                {
+                  "properties": {
+                    "kind": {
+                      "const": "image"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scope": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.tianshu.invalid/text-dialogue/v1/common.json#/$defs/scope"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "enum": [
+            "configured",
+            "not_configured"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "actor_id",
+        "content_ref",
+        "scope",
+        "state"
+      ],
+      "additionalProperties": false
+    },
+    "autonomy_record": {
+      "type": "object",
+      "properties": {
+        "goal_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 4000
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 4000
+        },
+        "step_state": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        },
+        "error_code": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "actor_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "state": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "next_due_at": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "updated_at": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "current_step": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "step": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "position": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "unit": {
+                  "enum": [
+                    "step",
+                    "characters",
+                    "seconds",
+                    "pages"
+                  ]
+                },
+                "note": {
+                  "type": "string",
+                  "maxLength": 2000
+                }
+              },
+              "required": [
+                "step",
+                "position",
+                "unit",
+                "note"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source_ref"
+          },
+          "maxItems": 64
+        }
+      },
+      "required": [
+        "goal_id",
+        "title",
+        "reason",
+        "step_state",
+        "error_code",
+        "id",
+        "actor_id",
+        "version",
+        "enabled",
+        "state",
+        "next_due_at",
+        "updated_at",
+        "current_step",
+        "sources"
+      ],
+      "additionalProperties": false
+    },
+    "actor_memory_import_value": {
+      "type": "object",
+      "properties": {
+        "owner": {
+          "enum": [
+            "activities",
+            "writing",
+            "images",
+            "contacts"
+          ]
+        },
+        "after": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 128
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        }
+      },
+      "required": [
+        "owner",
+        "after",
+        "limit"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
