@@ -1,0 +1,133 @@
+{
+  "release": "2026.10.30-unified-linux-r44",
+  "status": "deployed",
+  "whole_goal_complete": false,
+  "image": "sha256:65a7ba82c3f533fefcc68dbc8d0bb709ce359887803ea9467152c4e735d1cc4f",
+  "container": "8729c40c86490306f92df019b81dc3250a76861a02425f968be5ab58ce27fb70",
+  "source_commits": {
+    "platform": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+    "companion": "c8b1c10cbea19c4b964bdd5456c40edc5d70c288",
+    "memory": "3aee6394fda1ea6f8bf0ed0644a8fafdd5bc4933",
+    "gateway": "ed631d8a6f26890628a9df833792210e9a09e31c",
+    "application": "a800f47e3a57700a9548daa7f70828d8aa9a2765",
+    "platform_frontend": "7f5e837593c8119e8c80e40c7f498314b730306e"
+  },
+  "change": "sourced diary composition uses existing native output budget; unchanged model choice, route timeout, source proof and retry policy",
+  "validation": {
+    "targeted_checks_passed": 5,
+    "native_budget_cases": [
+      "default recipe",
+      "4000-character recipe",
+      "truncated completion has no draft or automatic replay"
+    ],
+    "existing_result_contract_variants": 7,
+    "legacy_gateway_case": true,
+    "ruff_no_new_issues": true,
+    "existing_E731_preserved": true,
+    "format": true,
+    "diff": true,
+    "full_product_run": false,
+    "frontend_checks_reused": true
+  },
+  "image_verification": {
+    "companion_files": 123,
+    "application_files": 56,
+    "frontend_files": 87,
+    "business_uid_imports_and_public_modes": true,
+    "dependency_graph_reused": true,
+    "only_companion_wheel_changed": true
+  },
+  "production_checks": {
+    "health": "healthy",
+    "restarts": 0,
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "tls_ca_and_hostname_verified": true,
+    "mounts_preserved": 37,
+    "non_target_containers_preserved": 14,
+    "config_files_preserved": 1167,
+    "configuration_changed": [
+      "private/gateway.env"
+    ],
+    "added_contract_files": 0,
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r44",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_free_bytes": 50315325440,
+    "completed_at": 1793342456.514039,
+    "served_affected_assets": {
+      "/index.html": "efddfe68d1d511c70d1d40c176f5d9e0a8d86fd9905d0a2f8db28df505cb26b0"
+    }
+  },
+  "old_owner_drain_seconds": 123.9427764415741,
+  "old_owner_exit_code": 0,
+  "schema_migration": false,
+  "new_permissions": 0,
+  "model_or_timeout_reconfigured": false,
+  "pc06": {
+    "code_commit": "c8b1c10cbea19c4b964bdd5456c40edc5d70c288",
+    "source_recipe_budget": "max(4096, 2 * recipe.max_chars + 2048) model output tokens; reasoning_effort=none",
+    "same_material_failed_or_unknown_replayed": false,
+    "two_current_day_unknown_records_preserved": true,
+    "new_confirmed_material_in_same_day_at_audit": 0,
+    "real_budgeted_new_draft_verified": false,
+    "three_real_dates_verified": false
+  },
+  "pc07": {
+    "actual_proactive_messages_sent": 1,
+    "origin_release": "R43",
+    "real_receipt_observed_at": "2026-10-30T06:09:12.253852Z",
+    "creation_and_delivery_idempotence_verified": true,
+    "after_R44_native_message_count": 1,
+    "after_R44_sent_expression_attempts": 1,
+    "old_unknown_original_identity_preserved": true,
+    "suppression_observation_state": "deferred/cooldown",
+    "suppression_expression_attempts": 0,
+    "unanswered_count": 1,
+    "feedback_state": "waiting",
+    "response_deadline": 1793344152.2994761,
+    "finite_read_only_deadline_observer_started": true,
+    "unanswered_suppression_verified": false,
+    "automatic_actual_event_verified": false
+  },
+  "pc02": {
+    "prior_R43_full_30m_zero_rejection": true,
+    "current_R44_full_30m_not_yet_elapsed": true,
+    "original_cohort_anchor_preserved": true,
+    "latest_full_cohort_not_complete": true,
+    "last_R43_cohort_completed": 9,
+    "last_R43_cohort_total": 15,
+    "prior_unauthorized_window_preserved": true
+  },
+  "rollback": {
+    "path": "/srv/tianshu-tooling/proactive-companion-r44-54d4a36235cc44f58e7be34c73908d64/rollback-r44-to-r43/rollback.py",
+    "executed": false,
+    "target_release": "2026.10.30-unified-linux-r43",
+    "target_image": "sha256:5211dfa3fcd60d2750d95ff434726fe71595df55eba6a4c217460dcab86ac570",
+    "scope": "code and image only; preserve data and unknown executions"
+  },
+  "unverified": [
+    "real new sourced diary using the budgeted request",
+    "each enabled role produces a draft on three consecutive real dates",
+    "actual unanswered feedback and suppressed at the real deadline",
+    "actual eligible automatic-event chain",
+    "fixed PC02 24h cohort with success rate at least 0.8",
+    "route/principal of prior unauthorized request",
+    "invalid field of the discarded original R42 model body"
+  ],
+  "W3_allowed": false
+}
