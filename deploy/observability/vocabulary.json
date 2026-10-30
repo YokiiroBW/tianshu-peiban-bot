@@ -3,7 +3,7 @@
   "products": {
     "platform": {
       "repo": "tianshu-platform",
-      "commit": "5b7ea997b3c0e2e7bd3f015c4856ed29b67eb6fa",
+      "commit": "73cea0b6bcb782b5a8ff03d81248c20000ca1c12",
       "source_path": "services/platform/diagnostics.py",
       "source_sha256": "f70f15522063c92ad82cc99361a43e159d5eebd94e57de194d09363f87ecd74d",
       "events": [
@@ -71,9 +71,9 @@
     },
     "companion": {
       "repo": "tianshu-companion",
-      "commit": "225f62a9c201acfc283bc029562f118f16d5e524",
+      "commit": "57879c62d5549dfde6043c3a06d1e68beaec4655",
       "source_path": "src/tianshu_companion/observability.py",
-      "source_sha256": "f4a59c909002b287065031687c1242b28ee673f3e40afa1b6d7a1203d34b7d22",
+      "source_sha256": "7a48bd3b25848723581a5d962c9790a28c94dee88f803427d0120ab53938e6bd",
       "events": [
         "direct.attempt.finished",
         "direct.attempt.started",
@@ -153,13 +153,125 @@
         "unknown",
         "version_conflict",
         "write_error"
-      ]
+      ],
+      "peer_attribute_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "target",
+          "route",
+          "principal",
+          "operation",
+          "http_status",
+          "error_code",
+          "attempt"
+        ],
+        "properties": {
+          "target": {
+            "type": "string",
+            "enum": [
+              "platform",
+              "memory",
+              "knowledge",
+              "gateway",
+              "chat",
+              "channel",
+              "images",
+              "unknown"
+            ]
+          },
+          "route": {
+            "type": "string",
+            "enum": [
+              "unknown",
+              "/internal/v1/actor-capabilities/operate",
+              "/internal/v1/actor-self-memory/authority",
+              "/internal/v1/actor-self-memory/operate",
+              "/internal/v1/books/reading",
+              "/internal/v1/conversation/reply-status",
+              "/internal/v1/conversation/send",
+              "/internal/v1/identity/register",
+              "/internal/v1/identity/resolve",
+              "/internal/v1/knowledge/content/disclosure",
+              "/internal/v1/knowledge/content/original",
+              "/internal/v1/memory/browser/archive-check",
+              "/internal/v1/memory/candidates/materials",
+              "/internal/v1/memory/candidates/process",
+              "/internal/v1/memory/candidates/segments",
+              "/internal/v1/memory/context/query",
+              "/internal/v1/memory/context/receipt",
+              "/internal/v1/memory/context/history",
+              "/internal/v1/memory/context/input-history",
+              "/internal/v1/memory/profiles/select",
+              "/internal/v1/memory/source-sync/check",
+              "/internal/v1/model-capabilities",
+              "/internal/v1/model-requests/{request_id}",
+              "/internal/v1/model-requests/{request_id}/cancel",
+              "/internal/v1/origins/resolve",
+              "/internal/v1/provider-self-service/select",
+              "/internal/v1/qq-admin/check",
+              "/internal/v1/relationships/read",
+              "/internal/v1/relationships/check",
+              "/internal/v1/service-credentials/resolve",
+              "/internal/v1/source-access/read",
+              "/internal/v2/bot-delivery/cancel",
+              "/internal/v2/bot-delivery/context",
+              "/internal/v2/bot-delivery/finalize",
+              "/internal/v2/bot-delivery/query",
+              "/internal/v2/bot-delivery/send",
+              "/internal/v2/memory/context/prepare",
+              "/internal/v2/memory/context/profiles",
+              "/internal/v2/memory/context/query",
+              "/internal/v2/memory/context/verify",
+              "/internal/v2/memory/observations",
+              "/internal/v2/memory/observations/query",
+              "/internal/evidence/search",
+              "/internal/evidence/read-locator",
+              "/internal/evidence/check",
+              "/v1/chat/completions"
+            ]
+          },
+          "principal": {
+            "type": "string",
+            "pattern": "^sha256:[a-f0-9]{64}$"
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "query",
+              "command",
+              "stream",
+              "binary"
+            ]
+          },
+          "http_status": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 100,
+            "maximum": 599
+          },
+          "error_code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "attempt": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 8
+          }
+        }
+      }
     },
     "memory": {
       "repo": "tianshu-memory",
-      "commit": "6ae7a1adfd8fb2ed5ee7d92a3ee5819e230678f9",
+      "commit": "78b9f913a8ac405776336fd18f6a6b21d41b013b",
       "source_path": "src/tianshu_memory/diagnostics.py",
-      "source_sha256": "9b6bb02d09cf1553a49eda40196fefb4f4a575faadb81144de66e7ab095e1a13",
+      "source_sha256": "a06c5d4a23e138c8f78c758582bb9feb7c17f432b8e8f695e98221a883980a1b",
       "events": [
         "log.sink_failed",
         "request.authenticated",
@@ -203,7 +315,7 @@
     },
     "gateway": {
       "repo": "tianshu-model-gateway",
-      "commit": "0f491be3573af9257703b7871aaa746598d66b9f",
+      "commit": "ed631d8a6f26890628a9df833792210e9a09e31c",
       "source_path": "src/tianshu_gateway/observability/events.py",
       "source_sha256": "acac2377b9f0d6864985f47b8be761688f94ddb6cfde4b632238b55d58fef2f9",
       "error_codes": [
