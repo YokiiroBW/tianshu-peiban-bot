@@ -152,10 +152,11 @@ class BusinessHost:
             await asyncio.wait(pending, timeout=timeout)
         for name, task in tuple(self.pending_probes.items()):
             health = {"ok": False, "code": "probe_timeout"}
+            instance, metrics = None, None
             if task.done():
                 del self.pending_probes[name]
                 try:
-                    health, instance = task.result()
+                    health, instance, metrics = task.result()
                     if name in MODULES:
                         if canonical_instance(instance):
                             self.diagnostic_instances[name] = instance
@@ -167,6 +168,11 @@ class BusinessHost:
                 "state": "ready" if health["ok"] else "degraded",
                 "health": health,
             }
+            if metrics is not None and canonical_instance(instance):
+                self.results[name]["metrics"] = {
+                    "diagnostic_instance": instance,
+                    "values": metrics,
+                }
         self.publish()
 
     async def _probe_module(self, name):
@@ -181,7 +187,12 @@ class BusinessHost:
                 instance = None
             if not isinstance(instance, str):
                 instance = None
-            return health, instance
+            operation = getattr(module, "runtime_metrics", None)
+            try:
+                metrics = operation(app) if operation is not None else None
+            except Exception:  # noqa: BLE001 - metrics cannot change readiness
+                metrics = None
+            return health, instance, metrics
 
         return await self.exchange.invoke(name, probe)
 
