@@ -1,0 +1,195 @@
+{
+  "schema_version": 1,
+  "status": "deployed_timing_observed_original_latency_investigation_continues",
+  "production": {
+    "version": "2026.10.31-unified-linux-r59",
+    "image": "sha256:abeb680fd0745aa9763b77a06984f6d8c212f1a1b3c3a9d37f90cf19c465bfd1",
+    "container": "f844754a13cd3dc91be9d15e495c22a9fc9c84d51b8e188cfeb7d4a0ebacae62",
+    "guard": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r59",
+    "application_commit": "d352b921cd341b17278c372b6d7f870e685f8011",
+    "companion_commit": "1447b50a8bf38d9b6d4f6b1843be18d425bd7357",
+    "memory_commit": "dfc9c69e7806429d37e8bc6fd02afb06bf5fcebe",
+    "gateway_commit": "1af59a30b698c6d114e927f941de5dc33d1762af",
+    "frontend_commit": "911a1dc60318abad76287013a05afacd1e63f9f3",
+    "health_at_last_observation": "healthy",
+    "observed_at": 1793389251.4484262
+  },
+  "checks": {
+    "ok": true,
+    "version": "2026.10.31-unified-linux-r59",
+    "sources": {
+      "platform": {
+        "commit": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+        "archive_sha256": "52b2798f412226b4ee588dc69640695629bd396bddb70aa853b45875f21dee2f"
+      },
+      "companion": {
+        "commit": "1447b50a8bf38d9b6d4f6b1843be18d425bd7357",
+        "archive_sha256": "39a27cbbe09d004e51c3ac5a1882041acf42622862c9a54bc93551ecf6860259"
+      },
+      "memory": {
+        "commit": "dfc9c69e7806429d37e8bc6fd02afb06bf5fcebe",
+        "archive_sha256": "41f38fdc7b93a8475e55ef56d7a4e2f6a14b814e3aacf3a7005ba80a31d83372"
+      },
+      "gateway": {
+        "commit": "1af59a30b698c6d114e927f941de5dc33d1762af",
+        "archive_sha256": "b46e7bb45713d9a2f3c29a547c9cf1bfc299e548f289ab8d25e1e9a95717f450"
+      },
+      "application": {
+        "commit": "d352b921cd341b17278c372b6d7f870e685f8011",
+        "archive_sha256": "b64b4dce9a3d6b5fbd5e1e06a9c82ecf36cd92a9d6a95094b3f9574dd86bba04"
+      },
+      "platform_frontend": {
+        "commit": "911a1dc60318abad76287013a05afacd1e63f9f3",
+        "archive_sha256": "2b0f65ee789feeef51514c6151eca911f49ef7d3309c125ef8e347898ac8a4cd"
+      }
+    },
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "tls_ca_and_hostname_verified": true,
+    "served_affected_assets": {
+      "/index.html": "a3e9b14959ec05c6c2e7559cba0aabf1503c38751de8644099c31c5959de2099"
+    },
+    "probe_generated_model_or_qq": false,
+    "no_owner_store_opened": true,
+    "installed_affected_source_checks_verified": true,
+    "at": 1793389251.071737,
+    "image": "sha256:abeb680fd0745aa9763b77a06984f6d8c212f1a1b3c3a9d37f90cf19c465bfd1",
+    "id": "f844754a13cd3dc91be9d15e495c22a9fc9c84d51b8e188cfeb7d4a0ebacae62",
+    "health": "healthy",
+    "restarts": 0,
+    "mounts_preserved": 37,
+    "config_files_preserved": 1173,
+    "configuration_changed": [
+      "observability/vocabulary.json",
+      "observability/vector.json",
+      "private/gateway.env"
+    ],
+    "added_contract_files": 0,
+    "non_target_containers_preserved": 15,
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r59",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_free_bytes": 31765016576,
+    "completed_at": 1793389251.4484262
+  },
+  "stop": {
+    "systemctl_returncode": 0,
+    "elapsed_seconds": 124.01133418083191,
+    "old_finished_at": "2026-10-30T19:36:59.409351918Z",
+    "old_exit_code": 0,
+    "old_restart": "no"
+  },
+  "verification": {
+    "effective_passed": 30,
+    "initial_passed": 28,
+    "two_trace_fixture_cases_fixed_and_passed": 2,
+    "initial_result": {
+      "pytest_exit": 1,
+      "cases": 30,
+      "failed": 2,
+      "errors": 0,
+      "skipped": 0,
+      "module": "/opt/tianshu-venv/lib/python3.12/site-packages/tianshu_memory/__init__.py",
+      "failure_messages": [
+        "AttributeError: 'types.SimpleNamespace' object has no attribute 'correlation_id'",
+        "AttributeError: 'types.SimpleNamespace' object has no attribute 'correlation_id'"
+      ],
+      "stage": "/srv/tianshu-tooling/pc-context-timing-r59-5506f151ba8e4e07b09e6991022c041e",
+      "image": "sha256:abeb680fd0745aa9763b77a06984f6d8c212f1a1b3c3a9d37f90cf19c465bfd1",
+      "mode": "context-timing-r59",
+      "at": 1793388681.6834633,
+      "production_mounts": 0,
+      "new_model_QQ_or_search_calls": 0
+    },
+    "fixed_result": {
+      "pytest_exit": 0,
+      "cases": 2,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "module": "/opt/tianshu-venv/lib/python3.12/site-packages/tianshu_memory/__init__.py",
+      "failure_messages": [],
+      "stage": "/srv/tianshu-tooling/pc-context-timing-r59-f5e91fbe36f74c6d87d3e1c2e918e771",
+      "image": "sha256:abeb680fd0745aa9763b77a06984f6d8c212f1a1b3c3a9d37f90cf19c465bfd1",
+      "mode": "context-timing-http-fixed-r59",
+      "at": 1793388807.9319904,
+      "production_mounts": 0,
+      "new_model_QQ_or_search_calls": 0
+    },
+    "no_reexecution_of_unchanged_passes": true,
+    "product_source_commit": "dfc9c69e7806429d37e8bc6fd02afb06bf5fcebe",
+    "fixture_fix_commit": "949b906a4d4a4c531ca33d41e27cfbb62034d721"
+  },
+  "native_vector": [
+    {
+      "transform": "memory_safe",
+      "valid_events": 5,
+      "unknown_field_rejected": true
+    },
+    {
+      "transform": "knowledge_safe",
+      "valid_events": 5,
+      "unknown_field_rejected": true
+    }
+  ],
+  "first_natural_timing_sample": {
+    "events": 19,
+    "by_event": {
+      "source.barrier.completed": {
+        "count": 12,
+        "maximum_ms": 4964.042
+      },
+      "source.order.wait.completed": {
+        "count": 7,
+        "maximum_ms": 5756.425
+      }
+    },
+    "whole_window_complete": false,
+    "query_sample_limit": 64,
+    "startup_phase_sample": true,
+    "original_incident_causality_proven": false
+  },
+  "cards": {
+    "PC-01": "verified_production",
+    "PC-03": "verified_production",
+    "PC-04": "verified_production",
+    "PC-05": "verified_production",
+    "PC-07": "verified_production",
+    "PC-02": "in_progress",
+    "PC-06": "in_progress",
+    "PC-08": "verified_production",
+    "PC-09": "verified_production",
+    "PC-10": "verified_production",
+    "PC-11": "verified_production",
+    "PC-12": "deployed",
+    "PC-13": "deployed",
+    "PC-14": "deployed",
+    "PC-15": "deployed",
+    "PC-16": "deployed",
+    "PC-17": "deployed",
+    "PC-18": "in_progress"
+  },
+  "card_counts": {
+    "verified_production": 9,
+    "in_progress": 3,
+    "deployed": 6
+  },
+  "diagnostic_fields": 12,
+  "budget_retry_and_source_rules_changed": false,
+  "new_test_model_QQ_search_calls": 0,
+  "no_data_migration": true
+}
