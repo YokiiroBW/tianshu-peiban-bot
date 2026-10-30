@@ -1,0 +1,152 @@
+{
+  "recorded_at": "2026-10-30T06:29:10.195409+00:00",
+  "record_kind": "business_acceptance_after_release",
+  "release": "2026.10.30-unified-linux-r43",
+  "image": "sha256:5211dfa3fcd60d2750d95ff434726fe71595df55eba6a4c217460dcab86ac570",
+  "whole_goal_complete": false,
+  "cards": {
+    "PC-02": "in_progress",
+    "PC-06": "in_progress",
+    "PC-07": "in_progress"
+  },
+  "pc07": {
+    "human_authorized_controlled_account": true,
+    "real_receipt_observed_at": "2026-10-30T06:09:12.253852Z",
+    "active_subscription": true,
+    "sent_candidates": 1,
+    "expression_attempts": 1,
+    "delivery_attempts": 1,
+    "native_channel_message_count": 1,
+    "source_proof": "Memory v2 context bundle, exact scope, verified before model and send",
+    "model_usage": {
+      "input_tokens": 7128,
+      "output_tokens": 522
+    },
+    "replayed_same_command_before_and_after_send": true,
+    "duplicate_send_observed": false,
+    "unanswered_count": 1,
+    "unanswered_limit": 1,
+    "daily_limit": 1,
+    "feedback_state": "waiting",
+    "response_deadline": 1793344152.2994761,
+    "new_native_suppression_observation": {
+      "state": "deferred",
+      "decision": "cooldown",
+      "expression_attempts": 0
+    },
+    "original_R42_unknown_preserved": true,
+    "whole_card_accepted": false,
+    "unverified": [
+      "actual unanswered feedback and suppressed",
+      "actual eligible automatic-event path"
+    ]
+  },
+  "pc06": {
+    "native_current_day_requests": 2,
+    "date": "2026-10-30",
+    "each_role_complete_material_count": 2,
+    "selection_complete": true,
+    "drafts": 0,
+    "failures": [
+      {
+        "role": 1,
+        "state": "unavailable",
+        "code": "dependency_unavailable",
+        "stage": "generation",
+        "exception_type": "ReadTimeout",
+        "unknown": true
+      },
+      {
+        "role": 2,
+        "state": "unavailable",
+        "code": "dependency_unavailable",
+        "stage": "generation",
+        "exception_type": "ReadError",
+        "unknown": true
+      }
+    ],
+    "original_gateway_receipt_outcomes": [
+      "cancelled_unknown",
+      "timeout_unknown"
+    ],
+    "timeout_elapsed_ms": 30002,
+    "missing_usage_is_unknown": true,
+    "old_results_replayed": false,
+    "unverified": [
+      "successful new sourced draft",
+      "each enabled role produces a draft on three consecutive real dates"
+    ]
+  },
+  "pc02": {
+    "household_user_decision": "delete installation placeholder, preserving history and guards",
+    "household_retired_in": "R38",
+    "authorization_widened": false,
+    "post_repair_new_decision_cohort": {
+      "start": 1793326100.1223843,
+      "planned_end": 1793412500.1223843,
+      "observed_until": 1793341947.49938,
+      "complete_24h": false,
+      "states": {
+        "completed": 9,
+        "failed": 2,
+        "interrupted": 1,
+        "unknown": 3
+      },
+      "total": 15,
+      "success_rate": 0.6,
+      "query": "SELECT status,count(*) FROM metadata WHERE id LIKE 'goal-choice:%%' AND (body::jsonb->>'created_at')::double precision >= %s AND (body::jsonb->>'created_at')::double precision < %s GROUP BY status",
+      "parameters": [
+        1793326100.1223843,
+        1793341947.49938
+      ],
+      "transaction_read_only": "on"
+    },
+    "before_R43_drain_30m": {
+      "rejected": 1,
+      "per_minute": 0.03333333333333333,
+      "classification": "unauthorized; exact route/principal unproven",
+      "full_log_byte_budget": true,
+      "malformed_lines": 0
+    },
+    "unverified": [
+      "full original 24h cohort with success rate at least 0.8",
+      "route/principal of prior unauthorized request"
+    ],
+    "prior_14_09_cohort": {
+      "start": 1793326100.1223843,
+      "planned_end": 1793412500.1223843,
+      "observed_until": 1793340577.5583282,
+      "complete_24h": false,
+      "states": {
+        "completed": 8,
+        "failed": 2,
+        "interrupted": 1,
+        "unknown": 2
+      },
+      "total": 13,
+      "success_rate": 0.6153846153846154,
+      "query": "SELECT status,count(*) FROM metadata WHERE id LIKE 'goal-choice:%%' AND (body::jsonb->>'created_at')::double precision >= %s AND (body::jsonb->>'created_at')::double precision < %s GROUP BY status",
+      "parameters": [
+        1793326100.1223843,
+        1793340577.5583282
+      ],
+      "transaction_read_only": "on"
+    },
+    "current_R43_platform_30m": {
+      "interval_start": 1793340146.2417924,
+      "interval_end": 1793341946.2417924,
+      "within_byte_budget": true,
+      "malformed_lines": 0,
+      "first_event": 1793340147.864,
+      "last_event": 1793341945.983,
+      "auth_rejected_per_minute": 0.0,
+      "event_counts": {
+        "http.request.started": 6012,
+        "http.request.finished": 6012,
+        "http.auth.succeeded": 5972
+      }
+    }
+  },
+  "W3_allowed": false,
+  "private_evidence": ".runtime/proactive-companion-repair-20261030; no prose, credentials or contact identifiers in this record"
+}
