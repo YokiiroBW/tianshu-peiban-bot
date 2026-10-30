@@ -1,0 +1,267 @@
+{
+  "release": "2026.10.30-unified-linux-r55",
+  "status": "deployed_healthy",
+  "whole_goal_complete": false,
+  "image": "sha256:190ac7a678a185c265a97214efd364e88e2a53117398cb1ec35c1c809abeeed6",
+  "container": "4ddb3ca408e51021649d8c6a476c8060eb2dabf012ae59de97956e66dff0aa84",
+  "source_commits": {
+    "platform": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+    "companion": "407332ceae8d83b9828ce06f0211fa4516bbd9c7",
+    "memory": "c4752304c8f561cd464daff3525a7d3c63e164ff",
+    "gateway": "1af59a30b698c6d114e927f941de5dc33d1762af",
+    "application": "f4a91771f9f9737f4c51a5fc504e1c47ccf13052",
+    "platform_frontend": "911a1dc60318abad76287013a05afacd1e63f9f3"
+  },
+  "changes": {
+    "owner": "existing Observations physical frame lookup and GroupProcessing refresh",
+    "lookup": "One connection per refresh page; distinct opaque source refs queried in chunks of100.",
+    "missing_frames": "Preserved as None; no decoding or inference from source identifiers.",
+    "policy": "Original policy call and every actual stage check remain fresh; no physical-frame or permission cache added.",
+    "source_or_authorization_or_five_second_proof_budget_weakened": false,
+    "persistent_data_or_schema_migration": false
+  },
+  "validation": {
+    "companion_commit": "407332ceae8d83b9828ce06f0211fa4516bbd9c7",
+    "related_unique_cases_passed": 15,
+    "new_subtest_sizes": [
+      32,
+      105
+    ],
+    "old_refresh_connections": [
+      34,
+      107
+    ],
+    "new_refresh_connections": [
+      1,
+      1
+    ],
+    "source_disappearance_still_blocks": true,
+    "policy_and_source_proof_or_timeout_unchanged": true,
+    "native_pg_evidence": "native-frame-batch-pg-r55-1793373430265802600.json",
+    "original_baseline_failure": "Existing in-flight model test omitted the request_id keyword; failed against original R54 too. Only fixture signature corrected, then exact test passed.",
+    "initial_fixture_cleanup_failure": "SQLite context manager commits but does not close; corrected synthetic fixture to close its connection.",
+    "full_product_suite_rerun": false,
+    "static": "Ruff check/format and complete diff passed",
+    "new_real_model_QQ_or_search_tests": 0
+  },
+  "native_linux_changed_path": {
+    "pytest_exit": 0,
+    "cases": 6,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "installed_module": "/opt/tianshu-venv/lib/python3.12/site-packages/tianshu_companion/__init__.py",
+    "installed_changed_files_verified": 2,
+    "synthetic_inputs_only": true,
+    "production_mounts": 0,
+    "real_model_QQ_or_search_calls": 0,
+    "image": "sha256:190ac7a678a185c265a97214efd364e88e2a53117398cb1ec35c1c809abeeed6",
+    "at": 1793373788.5440936,
+    "fixture_network": "none",
+    "test_tooling_reused": true
+  },
+  "native_pg_readonly_comparison": {
+    "at": 1793373430.1193597,
+    "read_only": true,
+    "synthetic_values_rows": 105,
+    "requested_refs": 107,
+    "unique_refs": 106,
+    "old_connections": 107,
+    "old_queries": 107,
+    "new_connections": 1,
+    "new_queries": 2,
+    "results_identical": true,
+    "missing_mapping_preserved": true,
+    "empty_lookup_connections": 0,
+    "persistent_production_writes": 0,
+    "new_owner_Store_or_Core": 0,
+    "new_model_QQ_or_search_calls": 0
+  },
+  "image_verification": {
+    "ok": true,
+    "payload_files": {
+      "companion": 123
+    },
+    "application_files": 58,
+    "frontend_files": 87,
+    "business_uid_imports_and_public_modes": true,
+    "status": "exact_frame_batch_image_verified",
+    "image": "sha256:190ac7a678a185c265a97214efd364e88e2a53117398cb1ec35c1c809abeeed6",
+    "parent_image": "sha256:8e015699b3e1e01576f39af617a6955f9edf47ea36bd0d0527c7ec308be3157b",
+    "version": "2026.10.30-unified-linux-r55",
+    "production_mounts": 0,
+    "external_calls": 0
+  },
+  "production_checks": {
+    "ok": true,
+    "version": "2026.10.30-unified-linux-r55",
+    "sources": {
+      "platform": {
+        "commit": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+        "archive_sha256": "52b2798f412226b4ee588dc69640695629bd396bddb70aa853b45875f21dee2f"
+      },
+      "companion": {
+        "commit": "407332ceae8d83b9828ce06f0211fa4516bbd9c7",
+        "archive_sha256": "d2b59ba7239cfa252ce1b657d6ee0fec88d9aaea81eb5ec0e23fefe028eae7f0"
+      },
+      "memory": {
+        "commit": "c4752304c8f561cd464daff3525a7d3c63e164ff",
+        "archive_sha256": "36aa862115af9b9ae75fda2668c27eb0c4724a341fca24d9073c417244bb73c7"
+      },
+      "gateway": {
+        "commit": "1af59a30b698c6d114e927f941de5dc33d1762af",
+        "archive_sha256": "b46e7bb45713d9a2f3c29a547c9cf1bfc299e548f289ab8d25e1e9a95717f450"
+      },
+      "application": {
+        "commit": "f4a91771f9f9737f4c51a5fc504e1c47ccf13052",
+        "archive_sha256": "f8818a1818ff802db06bb986d9d8867ba30cd75fa8e2b2d0bc5194fe6ec172c0"
+      },
+      "platform_frontend": {
+        "commit": "911a1dc60318abad76287013a05afacd1e63f9f3",
+        "archive_sha256": "2b0f65ee789feeef51514c6151eca911f49ef7d3309c125ef8e347898ac8a4cd"
+      }
+    },
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "tls_ca_and_hostname_verified": true,
+    "served_affected_assets": {
+      "/index.html": "a3e9b14959ec05c6c2e7559cba0aabf1503c38751de8644099c31c5959de2099"
+    },
+    "probe_generated_model_or_qq": false,
+    "no_owner_store_opened": true,
+    "installed_affected_frame_batch_verified": true,
+    "at": 1793374073.5297117,
+    "image": "sha256:190ac7a678a185c265a97214efd364e88e2a53117398cb1ec35c1c809abeeed6",
+    "id": "4ddb3ca408e51021649d8c6a476c8060eb2dabf012ae59de97956e66dff0aa84",
+    "health": "healthy",
+    "restarts": 0,
+    "mounts_preserved": 37,
+    "config_files_preserved": 1167,
+    "configuration_changed": [
+      "private/gateway.env"
+    ],
+    "added_contract_files": 0,
+    "non_target_containers_preserved": 14,
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r55",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_free_bytes": 35124142080,
+    "completed_at": 1793374074.1095302
+  },
+  "previous_owner_drain": {
+    "systemctl_returncode": 0,
+    "elapsed_seconds": 121.36290311813354,
+    "old_finished_at": "2026-10-30T15:25:22.238578474Z",
+    "old_exit_code": 0,
+    "old_restart": "no"
+  },
+  "original_native_503": {
+    "release": "R54",
+    "correlation_id": "abf262a2a3552d2503b56aedd4871836",
+    "original_goal": "goal-choice:73b596ede0c53d023c25ba11d75fb9601e0f98da0e1e3a3606d0cb529b1f44e1",
+    "stage": "preparation",
+    "model_request_started": false,
+    "Memory_authority_transport_timeout_ms": 5024.995,
+    "Companion_source_callback_cancelled_ms": 5019.595,
+    "Companion_platform_call_ms": 4444.678,
+    "Platform_own_request_ms": 671.881,
+    "Platform_finish_to_Companion_resume_gap_ms": 3755,
+    "trace": "native-actor-503-trace-r54-1793372394281894500.json",
+    "trace_is_bounded_sample": true,
+    "original_request_replayed": false,
+    "root_cause_fully_closed": false
+  },
+  "later_frame_only_profile": {
+    "private_evidence": "native-owner-profile-r54-1793372723716674900.json",
+    "remote_directory": "/srv/tianshu-tooling/pc-native-stack-r54-62e1e35982eb4b1b9822d452defb8810",
+    "profile_sha256": "632eaf5cf233dbb3b910c19d6cedc1780faf4a2aaadd6effa5426b4897e1e70e",
+    "sampler": "existing py-spy0.4.1",
+    "duration_seconds": 20,
+    "nonblocking": true,
+    "locals": false,
+    "sampled_group_processing_refresh_opening_PG_for_each_source": true,
+    "direct_causality_for_prior_failure_proven": false
+  },
+  "pc02_original_fixed_cohort": {
+    "at": 1793374072.4001799,
+    "start": 1793326100.1223843,
+    "planned_end": 1793412500.1223843,
+    "observed_until": 1793374072.4001799,
+    "complete_24h": false,
+    "states": {
+      "completed": 25,
+      "failed": 7,
+      "interrupted": 1,
+      "unknown": 6
+    },
+    "total": 39,
+    "success_rate": 0.6410256410256411,
+    "transaction_read_only": "on"
+  },
+  "pc06": {
+    "real_draft_rows": 0,
+    "new_confirmed_same_day_sources_by_enabled_actor": [
+      0,
+      0
+    ],
+    "three_consecutive_actual_dates_verified": false
+  },
+  "first_native_failure_sample": {
+    "at": 1793374072.2354312,
+    "since": 1793373926.7627437,
+    "authority": 0,
+    "actor_errors": 0,
+    "whole_window_complete": false,
+    "proves_503_resolved": false
+  },
+  "cards": {
+    "PC-01": "verified_production",
+    "PC-03": "verified_production",
+    "PC-04": "verified_production",
+    "PC-05": "verified_production",
+    "PC-07": "verified_production",
+    "PC-02": "in_progress",
+    "PC-06": "in_progress",
+    "PC-08": "verified_production",
+    "PC-09": "verified_production",
+    "PC-10": "verified_production",
+    "PC-11": "verified_production",
+    "PC-12": "planned",
+    "PC-13": "planned",
+    "PC-14": "planned",
+    "PC-15": "planned",
+    "PC-16": "planned",
+    "PC-17": "planned",
+    "PC-18": "planned"
+  },
+  "W2_acceptance": "proactive-companion-w2-acceptance-r54-2026-10-30.json",
+  "W2_evidence_boundary": "PC09/11 original constructed scenarios use installed runtime with synthetic inputs and recorded model output; external quality and PC18 joint operation remain unverified.",
+  "new_real_model_QQ_or_search_tests": 0,
+  "new_permissions": 0,
+  "rollback": {
+    "material": "/srv/tianshu-tooling/proactive-companion-r55-fff905df95b44638a19304cd99d495ec/rollback-r55-to-r54/rollback.py",
+    "executed": false,
+    "full_restore_tested": false,
+    "inherited_R53_collector_admission_retained": true
+  },
+  "unverified": [
+    "Natural effect of this lookup repair on original Memory503; later sampling is not proof of the prior exact blocking call.",
+    "Original PC02 complete24h >=80% and continuous30-minute zero auth rejection.",
+    "Every enabled actor has a genuine draft on three consecutive actual dates; old outputs/unknowns remain unreplayed.",
+    "PC12-PC18 original work and gates, plus real external/model quality not established by constructed W2 scenarios."
+  ]
+}
