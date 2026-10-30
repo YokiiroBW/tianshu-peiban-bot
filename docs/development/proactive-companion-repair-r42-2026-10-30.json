@@ -1,0 +1,140 @@
+{
+  "release": "2026.10.30-unified-linux-r42",
+  "status": "deployed",
+  "whole_goal_complete": false,
+  "image": "sha256:cda1178f6a3ac1635be5b1611f7db782d39b413bd465f9b610f2f75931c86000",
+  "container": "cc713af30d655f727cbfe72347513770298838bfcd0efeccf91946bc812d0399",
+  "source_commits": {
+    "platform": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+    "companion": "68001b32c83c54d5c3f605da8d57ba40872c21ff",
+    "memory": "3aee6394fda1ea6f8bf0ed0644a8fafdd5bc4933",
+    "gateway": "ed631d8a6f26890628a9df833792210e9a09e31c",
+    "application": "a800f47e3a57700a9548daa7f70828d8aa9a2765",
+    "platform_frontend": "bbd1e63abf8138d108f1e0d13304edbf25d71b97"
+  },
+  "companion_remote_push": "no_remote_configured; exact local commit archive deployed",
+  "validation": {
+    "before_expected_failure": 1,
+    "after_first_passed": 18,
+    "after_fixture_failure": 1,
+    "corrected_fixture_targeted_passed": 1,
+    "applicable_passed": 19,
+    "new_cases": 3,
+    "ruff": true,
+    "format": true,
+    "diff_check": true,
+    "exact_readonly_pg_query": true,
+    "full_product_run": false
+  },
+  "image_verification": {
+    "companion_files": 123,
+    "application_files": 56,
+    "frontend_files": 87,
+    "business_uid_imports_and_public_modes": true
+  },
+  "production_checks": {
+    "health": "healthy",
+    "restarts": 0,
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "tls_ca_and_hostname_verified": true,
+    "mounts_preserved": 37,
+    "non_target_containers_preserved": 14,
+    "config_files_preserved": 1167,
+    "configuration_changed": [
+      "private/gateway.env"
+    ],
+    "added_contract_files": 0,
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r42",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_free_bytes": 50372120576,
+    "completed_at": 1793337378.8230102
+  },
+  "schema_migration": false,
+  "new_permissions": 0,
+  "old_owner_drain_seconds": 124.34853076934814,
+  "old_owner_exit_code": 0,
+  "serial_owner_handoff": true,
+  "pc06": {
+    "business_accepted": false,
+    "late_material_refresh_verified": true,
+    "prepared_confirmed_revisions": [
+      224,
+      226
+    ],
+    "frozen_capture_before_revision": 208,
+    "late_receipt_versions": [
+      222,
+      224
+    ],
+    "old_material_count": 17,
+    "new_material_count": 25,
+    "selection_complete": true,
+    "both_late_episodes_in_capture": true,
+    "generated_draft": false,
+    "latest_generation_state": "failed",
+    "failure_type": "Fault",
+    "failure_code": "invalid_input",
+    "failure_stage": "result_validation",
+    "other_actor_prior_day_no_material": true,
+    "original_unknown_activity_steps_preserved": 1,
+    "three_actual_days_verified": false
+  },
+  "pc07": {
+    "real_private_binding": true,
+    "active_subscriptions": 1,
+    "daily_limit": 1,
+    "unanswered_limit": 1,
+    "motives": 0,
+    "candidates": 0,
+    "attempts": 0,
+    "proactive_messages_sent": 0,
+    "human_web_session_restoration_pending": true,
+    "real_idempotence_verified": false,
+    "unanswered_suppression_verified": false
+  },
+  "preparation_failures": [
+    {
+      "stage": "source_archive_validation",
+      "cause": "existing Nonebot source prefix omitted from build verifier",
+      "production_changed": false,
+      "wheel_rebuilt": false
+    },
+    {
+      "stage": "activation_preparation",
+      "cause": "previous guard generation alias mapping rejected before activation",
+      "production_changed": false
+    }
+  ],
+  "rollback": {
+    "prepared": true,
+    "executed": false,
+    "target": "R41",
+    "scope": "image only; original facts and unknowns retained"
+  },
+  "w1_accepted": false,
+  "w3_prohibited": true,
+  "private_evidence_committed": false,
+  "unverified": [
+    "exact model result validation branch; original completion text not retained on this failure",
+    "actual valid diary draft and three actual days for each enabled actor",
+    "authorized actual proactive send and original-request replay",
+    "unanswered suppression and actual automatic event chain",
+    "PC-02 full observation window"
+  ]
+}
