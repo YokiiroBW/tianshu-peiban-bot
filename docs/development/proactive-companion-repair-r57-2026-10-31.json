@@ -245,7 +245,14 @@
     "subtests_passed": 46,
     "baseline_failure_reproduced": true,
     "natural_new_message_acceptance": false,
-    "memory_context_timeout_root_cause_proven": false
+    "memory_context_timeout_root_cause_proven": false,
+    "context_timeout_additional_trace": {
+      "events": 286,
+      "first_sync_worker_ms": 30166.666,
+      "second_sync_worker_ms": 12728.7,
+      "read_workers_overlap": true,
+      "slow_stage_proven": false
+    }
   },
   "original_observation_criteria_retained": true,
   "new_test_calls": {
@@ -259,5 +266,13 @@
     "executed": false,
     "restore_memory_contract_pointer": true,
     "old_candidate_and_added_contracts_retained": true
+  },
+  "fixed_cohort_after_release": {
+    "at": 1793385914.31632,
+    "completed": 25,
+    "total": 39,
+    "complete_24h": false,
+    "draft_actor_days": 2,
+    "distinct_draft_dates": 1
   }
 }
