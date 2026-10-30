@@ -1,0 +1,263 @@
+{
+  "schema_version": 1,
+  "version": "2026.10.31-unified-linux-r57",
+  "status": "deployed_real_semantic_acceptance_in_progress",
+  "production": {
+    "version": "2026.10.31-unified-linux-r57",
+    "image": "sha256:014d488316fd78e9326c9d54f6ec221efac5e9e3602165f58f0efe2f9471fe4a",
+    "container": "a73b4e19f872d463e6dfd84ff3720b5c89a1fcada56a40c3eee64596702c1285",
+    "guard": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r57",
+    "application_commit": "f4a91771f9f9737f4c51a5fc504e1c47ccf13052",
+    "companion_commit": "1447b50a8bf38d9b6d4f6b1843be18d425bd7357",
+    "memory_commit": "152d7c8cb457bb04eb748a864626634aa7fe9ad4",
+    "gateway_commit": "1af59a30b698c6d114e927f941de5dc33d1762af",
+    "frontend_commit": "911a1dc60318abad76287013a05afacd1e63f9f3",
+    "health_at_last_observation": "healthy",
+    "observed_at": 1793385832.683231
+  },
+  "cards": {
+    "PC-01": "verified_production",
+    "PC-03": "verified_production",
+    "PC-04": "verified_production",
+    "PC-05": "verified_production",
+    "PC-07": "verified_production",
+    "PC-02": "in_progress",
+    "PC-06": "in_progress",
+    "PC-08": "verified_production",
+    "PC-09": "verified_production",
+    "PC-10": "verified_production",
+    "PC-11": "verified_production",
+    "PC-12": "deployed",
+    "PC-13": "deployed",
+    "PC-14": "deployed",
+    "PC-15": "deployed",
+    "PC-16": "deployed",
+    "PC-17": "deployed",
+    "PC-18": "in_progress"
+  },
+  "card_counts": {
+    "verified_production": 9,
+    "in_progress": 3,
+    "deployed": 6
+  },
+  "checks": {
+    "ok": true,
+    "version": "2026.10.31-unified-linux-r57",
+    "sources": {
+      "platform": {
+        "commit": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+        "archive_sha256": "52b2798f412226b4ee588dc69640695629bd396bddb70aa853b45875f21dee2f"
+      },
+      "companion": {
+        "commit": "1447b50a8bf38d9b6d4f6b1843be18d425bd7357",
+        "archive_sha256": "39a27cbbe09d004e51c3ac5a1882041acf42622862c9a54bc93551ecf6860259"
+      },
+      "memory": {
+        "commit": "152d7c8cb457bb04eb748a864626634aa7fe9ad4",
+        "archive_sha256": "02b259ea1c5ce121b81ad56be05c111903104562b955cc07c7a3110fe95b569f"
+      },
+      "gateway": {
+        "commit": "1af59a30b698c6d114e927f941de5dc33d1762af",
+        "archive_sha256": "b46e7bb45713d9a2f3c29a547c9cf1bfc299e548f289ab8d25e1e9a95717f450"
+      },
+      "application": {
+        "commit": "f4a91771f9f9737f4c51a5fc504e1c47ccf13052",
+        "archive_sha256": "f8818a1818ff802db06bb986d9d8867ba30cd75fa8e2b2d0bc5194fe6ec172c0"
+      },
+      "platform_frontend": {
+        "commit": "911a1dc60318abad76287013a05afacd1e63f9f3",
+        "archive_sha256": "2b0f65ee789feeef51514c6151eca911f49ef7d3309c125ef8e347898ac8a4cd"
+      }
+    },
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "tls_ca_and_hostname_verified": true,
+    "served_affected_assets": {
+      "/index.html": "a3e9b14959ec05c6c2e7559cba0aabf1503c38751de8644099c31c5959de2099"
+    },
+    "probe_generated_model_or_qq": false,
+    "no_owner_store_opened": true,
+    "installed_affected_source_checks_verified": true,
+    "at": 1793385832.399857,
+    "image": "sha256:014d488316fd78e9326c9d54f6ec221efac5e9e3602165f58f0efe2f9471fe4a",
+    "id": "a73b4e19f872d463e6dfd84ff3720b5c89a1fcada56a40c3eee64596702c1285",
+    "health": "healthy",
+    "restarts": 0,
+    "mounts_preserved": 37,
+    "config_files_preserved": 1166,
+    "configuration_changed": [
+      "private/gateway.env",
+      "modules/memory/settings.json"
+    ],
+    "added_contract_files": 8,
+    "non_target_containers_preserved": 15,
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r57",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_free_bytes": 31816851456,
+    "completed_at": 1793385832.683231
+  },
+  "serial_stop": {
+    "systemctl_returncode": 0,
+    "elapsed_seconds": 124.14031600952148,
+    "old_finished_at": "2026-10-30T18:42:39.994311424Z",
+    "old_exit_code": 0,
+    "old_restart": "no"
+  },
+  "configuration_delta": {
+    "modified": [
+      "modules/memory/settings.json"
+    ],
+    "added_contract_files": [
+      "contracts/companion/actor-self-memory/v1.1/manifest.json",
+      "contracts/companion/actor-self-memory/v1.1/schema.json",
+      "contracts/companion/actor-self-memory/v1.1/examples.json",
+      "contracts/companion/actor-self-memory/v1.1/README.md",
+      "contracts/memory/actor-self-memory/v1.1/manifest.json",
+      "contracts/memory/actor-self-memory/v1.1/schema.json",
+      "contracts/memory/actor-self-memory/v1.1/examples.json",
+      "contracts/memory/actor-self-memory/v1.1/README.md"
+    ],
+    "memory_pointer_before": "/config/contracts/memory/actor-self-memory/candidate-v1",
+    "memory_pointer_after": "/config/contracts/memory/actor-self-memory/v1.1",
+    "memory_settings_before_sha256": "cab5a00a8ae0d7b6684e379823d4bb385aa65aa90e0a68ffb0bf68d7a7671ff8",
+    "memory_settings_after_sha256": "ad429833997d5ae427a684456da55eab69b0fa77d350ba6b76d760e64ca1fc9c",
+    "old_candidate_preserved": true,
+    "schema_migration": false
+  },
+  "installed_verification_reuse": {
+    "status": "unchanged_functional_results_reused",
+    "installed_test_result": {
+      "status": "passed",
+      "image": "sha256:12fab3a92ece4af448b5e25e152f9822369f477d6750fe8321b039875d33432d",
+      "stage": "/srv/tianshu-tooling/pc-w3-installed-r57-a9cabe3e69a5461b85743f101b245a59/attempt-2",
+      "results": [
+        {
+          "owner": "companion",
+          "pytest_exit": 0,
+          "cases": 14,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0,
+          "installed_companion": "/opt/tianshu-venv/lib/python3.12/site-packages/tianshu_companion/__init__.py",
+          "installed_memory": "/opt/tianshu-venv/lib/python3.12/site-packages/tianshu_memory/__init__.py",
+          "synthetic_inputs_only": true,
+          "real_model_QQ_or_search_calls": 0
+        },
+        {
+          "owner": "memory",
+          "pytest_exit": 0,
+          "cases": 4,
+          "failed": 0,
+          "errors": 0,
+          "skipped": 0,
+          "installed_companion": "/opt/tianshu-venv/lib/python3.12/site-packages/tianshu_companion/__init__.py",
+          "installed_memory": "/opt/tianshu-venv/lib/python3.12/site-packages/tianshu_memory/__init__.py",
+          "synthetic_inputs_only": true,
+          "real_model_QQ_or_search_calls": 0
+        }
+      ],
+      "production_mounts": 0,
+      "fixture_network": "none",
+      "persistent_production_writes": 0,
+      "at": 1793385439.664514
+    },
+    "final_image": "sha256:014d488316fd78e9326c9d54f6ec221efac5e9e3602165f58f0efe2f9471fe4a",
+    "code_delta_since_installed_cases": {
+      "companion": [
+        "tianshu_companion/storage_postgres.py"
+      ],
+      "memory": []
+    },
+    "delta_covered_by_native_readonly_postgresql": {
+      "read_only": true,
+      "exact_source_query": true,
+      "synthetic_values_rows": 6,
+      "cases": [
+        {
+          "now": 600,
+          "selected": "missing"
+        },
+        {
+          "now": 1000,
+          "selected": "old"
+        },
+        {
+          "now": 1250,
+          "selected": "recent"
+        }
+      ],
+      "persistent_production_writes": 0,
+      "new_owner_Store_or_Core": 0,
+      "real_model_QQ_or_search_calls": 0,
+      "at": 1793385403.695619
+    },
+    "translator_sha256": "7f1ca3f3260215e7e7ca111090d88ecf3c35e2519eedd49e6a6f9d486e276d50",
+    "no_claim_all_18_reexecuted_on_final_image": true
+  },
+  "image_verification": {
+    "ok": true,
+    "payload_files": {
+      "companion": 126,
+      "memory": 158
+    },
+    "application_files": 58,
+    "frontend_files": 87,
+    "business_uid_imports_and_public_modes": true,
+    "status": "exact_W3_image_verified",
+    "image": "sha256:014d488316fd78e9326c9d54f6ec221efac5e9e3602165f58f0efe2f9471fe4a",
+    "parent_image": "sha256:8669f4f293935012bd8246c71d30136d2ef67cb4b92f6a1de820a01dc29826e3",
+    "version": "2026.10.31-unified-linux-r57",
+    "production_mounts": 0,
+    "external_calls": 0
+  },
+  "layer_rebase": {
+    "status": "flat_R56_base_built_not_activated",
+    "image": "sha256:8669f4f293935012bd8246c71d30136d2ef67cb4b92f6a1de820a01dc29826e3",
+    "tag": "tianshu/unified-flat-base:20261031-r56-for-r57",
+    "original_image": "sha256:af9aee4bbb3a777fa23784e3cc1a6ec2ca0309ebaecf30a2e10a337619d71fd6",
+    "original_layers": 123,
+    "flat_layers": 1,
+    "runtime_config_exact": true,
+    "production_mounts": 0,
+    "production_owner_unchanged": true,
+    "free_bytes": 31853232128
+  },
+  "critical_filesystem": "critical_filesystem_preserved",
+  "qq_repair": {
+    "code_commit": "077eedc0ab15c744839b0bf9cef22098cb80048b",
+    "delivery_head": "1447b50a8bf38d9b6d4f6b1843be18d425bd7357",
+    "tests_passed": 89,
+    "subtests_passed": 46,
+    "baseline_failure_reproduced": true,
+    "natural_new_message_acceptance": false,
+    "memory_context_timeout_root_cause_proven": false
+  },
+  "original_observation_criteria_retained": true,
+  "new_test_calls": {
+    "real_qq": 0,
+    "main_model": 0,
+    "search": 0
+  },
+  "database_migration": false,
+  "rollback": {
+    "prepared": true,
+    "executed": false,
+    "restore_memory_contract_pointer": true,
+    "old_candidate_and_added_contracts_retained": true
+  }
+}
