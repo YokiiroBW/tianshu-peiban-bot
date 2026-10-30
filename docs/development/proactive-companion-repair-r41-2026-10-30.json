@@ -1,0 +1,53 @@
+{
+  "release": "2026.10.30-unified-linux-r41",
+  "status": "deployed",
+  "whole_goal_complete": false,
+  "image": "sha256:87229dbcd9edcb988ddb6d3be769a1d56a4b959265b1166ea53ac85da31df817",
+  "container": "bd985e8ae7712d8ce32045cff70cb3683486409ebe43c3d0544945aca876b884",
+  "source_commits": {
+    "platform": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+    "platform_frontend": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+    "companion": "c9754029a32eb63134ffca18879de4d90a04e366",
+    "memory": "3aee6394fda1ea6f8bf0ed0644a8fafdd5bc4933",
+    "gateway": "ed631d8a6f26890628a9df833792210e9a09e31c",
+    "application": "a800f47e3a57700a9548daa7f70828d8aa9a2765"
+  },
+  "platform_main_integrated": true,
+  "platform_remote_push": "no_remote_configured; exact local commit archive deployed",
+  "validation": {"backend_new": 5, "backend_existing": 2, "browser_targeted_desktop": 2, "typecheck": true, "build": true, "ruff": true, "diff_check": true, "full_product_run": false},
+  "image_verification": {"platform_files": 342, "application_files": 56, "frontend_files": 87, "business_uid_imports_and_public_modes": true, "production_mounts": 0},
+  "production_checks": {
+    "healthy": true, "restarts": 0, "oom": false,
+    "business_modules_ready": 6, "observation_components_ready": 5,
+    "authenticated_ready_http": 200, "ready_checks_ok": 9,
+    "served_people_assets_match_release": true,
+    "mounts_preserved": 37, "non_target_containers_preserved": 14,
+    "config_files_preserved": 1167,
+    "configuration_delta": ["same-owner same-entry same-scope Gateway startup lease only"],
+    "schema_migration": false, "new_permissions": 0,
+    "capacity_floor_bytes": 21474836480, "capacity_free_bytes": 50405535744,
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r41",
+    "old_owner_drain_seconds": 123.30436873435974, "old_owner_exit_code": 0,
+    "old_owner_stopped_before_new_owner_started": true,
+    "completed_at": 1793335963.9082074
+  },
+  "pc07": {
+    "controlled_account_human_authorized": true,
+    "real_private_binding_verified": true, "active_subscriptions": 1,
+    "ordinary_response_channel_confirmed": true,
+    "ordinary_response_is_proactive_acceptance": false,
+    "motives": 0, "candidates": 0, "attempts": 0, "proactive_messages_sent": 0,
+    "actor_event_kinds": {"actor_only_activity_boundary": 63, "schedule_reconciliation": 3},
+    "eligible_actor_proactive_event_markers": 0,
+    "browser_login_after_restart_required_observed": true,
+    "human_session_restoration_requested": true,
+    "idempotence_real_channel_verified": false,
+    "unanswered_suppression_verified": false, "automatic_actual_event_verified": false
+  },
+  "pc06": {"draft_observed": false, "three_actual_days_verified": false, "original_unknown_activity_steps_preserved": 1, "actor_memory_delivered_at_checkpoint": 55},
+  "w1_accepted": false, "w3_prohibited": true,
+  "rollback": {"prepared": true, "executed": false, "target": "R40", "scope": "image code only; preserve original facts and unknown results"},
+  "evidence_directory": ".runtime/proactive-companion-repair-20261030",
+  "private_evidence_committed": false,
+  "unverified": ["authenticated live manual motive action", "actual proactive expression and channel receipt", "original request real replay", "unanswered suppression", "automatic sourced event chain", "PC-02 full observation window", "PC-06 three actual diary days"]
+}
