@@ -1,0 +1,417 @@
+{
+  "release": "2026.10.31-unified-linux-r56",
+  "state": "deployed_healthy_business_observation_continues",
+  "image": "sha256:af9aee4bbb3a777fa23784e3cc1a6ec2ca0309ebaecf30a2e10a337619d71fd6",
+  "container": "8777f06dfdcb4f7754c18a77c84e70d8d7219209b7b6b0c83f6da22be1f357b5",
+  "guard": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r56",
+  "source_commits": {
+    "platform": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+    "companion": "dc38709d744f4b8243247c27c107d46b38e18df3",
+    "memory": "1e603286766122afb93e6ef717bba95bcfdb4370",
+    "gateway": "1af59a30b698c6d114e927f941de5dc33d1762af",
+    "application": "f4a91771f9f9737f4c51a5fc504e1c47ccf13052",
+    "platform_frontend": "911a1dc60318abad76287013a05afacd1e63f9f3"
+  },
+  "cause": {
+    "correlation_id": "0274f49c41f60bd9a167d5fe3843faba",
+    "original_event_date": "2026-10-31 Asia/Shanghai",
+    "source_request_started": "00:11:15.026",
+    "source_request_cancelled": "00:11:20.052",
+    "source_request_duration_ms": 5026.451,
+    "Memory_transport_timeout_ms": 5031.075,
+    "first_three_serial_original_read_ms": [
+      446.793,
+      1818.762,
+      992.08
+    ],
+    "fourth_cancelled_after_ms": 1441.085,
+    "role_lookup_succeeded": true,
+    "trace": "native-actor-503-trace-r55-1793376926794817900.json",
+    "sample_limit": 64,
+    "whole_window_complete": false
+  },
+  "change": {
+    "owner_checks_parallel_limit": 4,
+    "reused": "context_checks.read_parallel",
+    "fresh_original_check_for_every_ref": true,
+    "result_order_preserved": true,
+    "cancel_and_drain_on_failure": true,
+    "actor_and_context_and_source_epoch_closing_checks_retained": true,
+    "source_batch_budget_before_seconds": 5,
+    "source_batch_budget_after_seconds": 10,
+    "actor_lookup_budget_seconds": 5,
+    "outer_query_budget_seconds": 15,
+    "connect_write_pool_seconds": 5,
+    "source_authorization_weakened": false,
+    "unknown_replayed": false,
+    "new_service_queue_cache_or_dependency": false
+  },
+  "validation": {
+    "companion_commit": "dc38709d744f4b8243247c27c107d46b38e18df3",
+    "memory_commit": "1e603286766122afb93e6ef717bba95bcfdb4370",
+    "windows_unique_related_cases": 40,
+    "companion_unique_related_cases": 27,
+    "memory_related_cases": 13,
+    "linux_exact_image_related_cases": 16,
+    "native_six_second_transport_evidence": "r56-native-source-fixture.json",
+    "source_concurrency": 4,
+    "source_budget_seconds": 10,
+    "actor_lookup_budget_seconds": 5,
+    "outer_query_budget_seconds": 15,
+    "full_product_suite_rerun": false,
+    "real_model_QQ_or_search_test_calls": 0,
+    "static": "Ruff check, format and complete diff passed",
+    "initial_test_setup_failures": [
+      "New source fixture incorrectly treated the shared reading operation id as unique; fixed to exact observation digest.",
+      "New source_facts fixture incorrectly included a source_check-only context; removed it.",
+      "First Memory invocation pointed at changed root candidate; original frozen candidate.4 then used and 13 cases passed.",
+      "Native fixture script placeholder collision and new file bind into a read-only parent failed before running tests; corrected before all16 passed."
+    ]
+  },
+  "native": {
+    "at": 1793377655.485821,
+    "image": "sha256:af9aee4bbb3a777fa23784e3cc1a6ec2ca0309ebaecf30a2e10a337619d71fd6",
+    "companion_cases": 7,
+    "memory_cases": 9,
+    "pytest_failed": 0,
+    "fixture_network": "none",
+    "production_mounts": 0,
+    "real_model_QQ_or_search_calls": 0,
+    "native_six_second_response": {
+      "elapsed_seconds": 6.019717497052625,
+      "source_budget_seconds": 10,
+      "actor_budget_seconds": 5,
+      "transport": "ThreadedExchange",
+      "synthetic_source_only": true,
+      "production_mounts": 0,
+      "real_model_QQ_or_search_calls": 0
+    },
+    "test_tooling_reused": true
+  },
+  "production": {
+    "ok": true,
+    "version": "2026.10.31-unified-linux-r56",
+    "sources": {
+      "platform": {
+        "commit": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+        "archive_sha256": "52b2798f412226b4ee588dc69640695629bd396bddb70aa853b45875f21dee2f"
+      },
+      "companion": {
+        "commit": "dc38709d744f4b8243247c27c107d46b38e18df3",
+        "archive_sha256": "fdcd768b1aca2fc3f90f601109bbf0adf3346bb7fdcbfe0c16afa31d10e6ac56"
+      },
+      "memory": {
+        "commit": "1e603286766122afb93e6ef717bba95bcfdb4370",
+        "archive_sha256": "1acf743211ddf03679443226ee46d61ee682eebcc1c161faaaa9c52b3d9a0eb5"
+      },
+      "gateway": {
+        "commit": "1af59a30b698c6d114e927f941de5dc33d1762af",
+        "archive_sha256": "b46e7bb45713d9a2f3c29a547c9cf1bfc299e548f289ab8d25e1e9a95717f450"
+      },
+      "application": {
+        "commit": "f4a91771f9f9737f4c51a5fc504e1c47ccf13052",
+        "archive_sha256": "f8818a1818ff802db06bb986d9d8867ba30cd75fa8e2b2d0bc5194fe6ec172c0"
+      },
+      "platform_frontend": {
+        "commit": "911a1dc60318abad76287013a05afacd1e63f9f3",
+        "archive_sha256": "2b0f65ee789feeef51514c6151eca911f49ef7d3309c125ef8e347898ac8a4cd"
+      }
+    },
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "tls_ca_and_hostname_verified": true,
+    "served_affected_assets": {
+      "/index.html": "a3e9b14959ec05c6c2e7559cba0aabf1503c38751de8644099c31c5959de2099"
+    },
+    "probe_generated_model_or_qq": false,
+    "no_owner_store_opened": true,
+    "installed_affected_source_checks_verified": true,
+    "at": 1793377895.358842,
+    "image": "sha256:af9aee4bbb3a777fa23784e3cc1a6ec2ca0309ebaecf30a2e10a337619d71fd6",
+    "id": "8777f06dfdcb4f7754c18a77c84e70d8d7219209b7b6b0c83f6da22be1f357b5",
+    "health": "healthy",
+    "restarts": 0,
+    "mounts_preserved": 37,
+    "config_files_preserved": 1167,
+    "configuration_changed": [
+      "private/gateway.env"
+    ],
+    "added_contract_files": 0,
+    "non_target_containers_preserved": 14,
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r56",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_free_bytes": 35017203712,
+    "completed_at": 1793377895.8909514
+  },
+  "stop": {
+    "systemctl_returncode": 0,
+    "elapsed_seconds": 124.24651098251343,
+    "old_finished_at": "2026-10-30T16:30:14.831753591Z",
+    "old_exit_code": 0,
+    "old_restart": "no"
+  },
+  "activation_worker": {
+    "pid": 170669,
+    "live": false,
+    "state": "absent"
+  },
+  "PC02": {
+    "status": "in_progress",
+    "original_cohort": {
+      "at": 1793377990.0504627,
+      "start": 1793326100.1223843,
+      "planned_end": 1793412500.1223843,
+      "observed_until": 1793377990.0504627,
+      "complete_24h": false,
+      "states": {
+        "completed": 25,
+        "failed": 7,
+        "interrupted": 1,
+        "unknown": 6
+      },
+      "total": 39,
+      "success_rate": 0.6410256410256411,
+      "query": "SELECT status,count(*) FROM metadata WHERE id LIKE 'goal-choice:%%' AND (body::jsonb->>'created_at')::double precision >= %s AND (body::jsonb->>'created_at')::double precision < %s GROUP BY status",
+      "parameters": [
+        1793326100.1223843,
+        1793377990.0504627
+      ],
+      "transaction_read_only": "on",
+      "drafts_by_actor_day": [
+        {
+          "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+          "day": "2026-10-30",
+          "rows": 1
+        },
+        {
+          "actor_id": "actor:role-84e36c92a52e40dd8edf50228465bcf9",
+          "day": "2026-10-30",
+          "rows": 2
+        }
+      ],
+      "draft_actor_day_count": 2,
+      "revision_rows_by_actor_day_state": [
+        {
+          "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+          "day": "2026-10-30",
+          "state": "draft",
+          "rows": 1
+        },
+        {
+          "actor_id": "actor:role-84e36c92a52e40dd8edf50228465bcf9",
+          "day": "2026-10-30",
+          "state": "draft",
+          "rows": 2
+        }
+      ]
+    },
+    "R55_complete30m_auth_receipt": "proactive-companion-observation-correction-2026-10-31.json"
+  },
+  "PC06": {
+    "status": "in_progress",
+    "draft_rows": 3,
+    "distinct_actor_days": 2,
+    "drafts_by_actor_day": [
+      {
+        "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+        "day": "2026-10-30",
+        "rows": 1
+      },
+      {
+        "actor_id": "actor:role-84e36c92a52e40dd8edf50228465bcf9",
+        "day": "2026-10-30",
+        "rows": 2
+      }
+    ],
+    "drafts": [
+      {
+        "id": "ddd149b531b44953698dc6ccf5b8badf3aa70efdf00c536c6e4775ce2a62ac29",
+        "actor_id": "actor:role-84e36c92a52e40dd8edf50228465bcf9",
+        "state": "draft",
+        "version": 7,
+        "current_revision": "8b7800bff2f1761917d9f0cb3744d4dbaea1f3b936398f7931e15ef73ddce849",
+        "material_count": 4,
+        "generation_receipt": {
+          "request_id": "model:ecb2f5ff5e9d4f5ab7c3e58607f3bef8",
+          "outcome": "succeeded",
+          "caller_service": "companion_background",
+          "config_version": 1000000118,
+          "resolved_model": "deepseek-v4.1-flash",
+          "usage": {
+            "input_tokens": 7389,
+            "output_tokens": 287
+          },
+          "usage_complete": true
+        },
+        "revision": {
+          "id": "8b7800bff2f1761917d9f0cb3744d4dbaea1f3b936398f7931e15ef73ddce849",
+          "chars": 144,
+          "sha256": "b4b0303ce71eb96c94845c71a08429ffdfabd8472b6b5d10ea82f910330a906a",
+          "source_kind": "gateway",
+          "source_request_id": "model:ecb2f5ff5e9d4f5ab7c3e58607f3bef8"
+        }
+      },
+      {
+        "id": "36f2f78ee5825ce3f71f97efaf7ea55b665e06651708c24d79cc58894d194b45",
+        "actor_id": "actor:role-84e36c92a52e40dd8edf50228465bcf9",
+        "state": "draft",
+        "version": 7,
+        "current_revision": "d0cb53ab5c29bf29e13fc78123755e4aea2efb3f22c031cd1f3c794debf4b2f7",
+        "material_count": 4,
+        "generation_receipt": {
+          "request_id": "model:36acd925134d48a1813a875e0c818625",
+          "outcome": "succeeded",
+          "caller_service": "companion_background",
+          "config_version": 1000000118,
+          "resolved_model": "deepseek-v4.1-flash",
+          "usage": {
+            "input_tokens": 7466,
+            "output_tokens": 326
+          },
+          "usage_complete": true
+        },
+        "revision": {
+          "id": "d0cb53ab5c29bf29e13fc78123755e4aea2efb3f22c031cd1f3c794debf4b2f7",
+          "chars": 211,
+          "sha256": "f418d053fa593355f61dac10958596b55483d7fbbaf294b920b84bdc2519f4b7",
+          "source_kind": "gateway",
+          "source_request_id": "model:36acd925134d48a1813a875e0c818625"
+        }
+      },
+      {
+        "id": "cbb86a6fc512743cab1e2e8a88d86bfac1f19bcd7f6880347ed1a956863d18b8",
+        "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+        "state": "draft",
+        "version": 94,
+        "current_revision": "5f3a5656228396dd52af7b642f9db4bdea5c6bddaab604e77a951ac63490b862",
+        "material_count": 18,
+        "generation_receipt": {
+          "request_id": "model:31677b03e95c4b41af3b265aa1bfe5a8",
+          "outcome": "succeeded",
+          "caller_service": "companion_background",
+          "config_version": 1000000118,
+          "resolved_model": "deepseek-v4.1-flash",
+          "usage": {
+            "input_tokens": 13667,
+            "output_tokens": 570
+          },
+          "usage_complete": true
+        },
+        "revision": {
+          "id": "5f3a5656228396dd52af7b642f9db4bdea5c6bddaab604e77a951ac63490b862",
+          "chars": 327,
+          "sha256": "fa17b0fee1594d02b7782e615165e4660e5897fb261b9fac16d0786dcc2dc4a9",
+          "source_kind": "gateway",
+          "source_request_id": "model:31677b03e95c4b41af3b265aa1bfe5a8"
+        }
+      }
+    ],
+    "old_unknowns": [
+      {
+        "id": "f3f99efd6b9b4cdb76389f867532b02a3bd0bf07db2af06994c084f6f3263af9",
+        "state": "unavailable",
+        "version": 4
+      },
+      {
+        "id": "2addf4d59dbe54e9c558e4b94dc20169848743df82868fda6188802fb1e2332a",
+        "state": "unavailable",
+        "version": 4
+      }
+    ],
+    "three_consecutive_dates_verified": false,
+    "existing_postprocessing_body_finished_without_new_model_request": true
+  },
+  "bounded_native_failure_sample": {
+    "file": "native-authority-failure-sample-r56-1793377989130238000-producer-filtered.json",
+    "at": 1793377988.9439096,
+    "new_authority_events": 0,
+    "new_actor_error_events": 1,
+    "excluded_pre_release_producer_events": {
+      "authority": 5,
+      "actor_errors": 5
+    },
+    "whole_window_complete": false,
+    "remaining_new_error": [
+      {
+        "timestamp": "2026-10-30T16:30:31.732Z",
+        "service": "companion",
+        "event": "peer.call.finished",
+        "outcome": "failed",
+        "duration_ms": 640.836,
+        "error_code": "forbidden",
+        "correlation_id": "75cbe8613f8bc3617bf398adf1480196",
+        "attributes": {
+          "attempt": 1,
+          "error_code": "forbidden",
+          "http_status": 403,
+          "operation": "query",
+          "route": "/internal/v1/actor-self-memory/operate",
+          "target": "memory"
+        }
+      }
+    ]
+  },
+  "observation_erratum": "proactive-companion-observation-correction-2026-10-31.json",
+  "cards": {
+    "PC-01": "verified_production",
+    "PC-03": "verified_production",
+    "PC-04": "verified_production",
+    "PC-05": "verified_production",
+    "PC-07": "verified_production",
+    "PC-02": "in_progress",
+    "PC-06": "in_progress",
+    "PC-08": "verified_production",
+    "PC-09": "verified_production",
+    "PC-10": "verified_production",
+    "PC-11": "verified_production",
+    "PC-12": "planned",
+    "PC-13": "planned",
+    "PC-14": "planned",
+    "PC-15": "planned",
+    "PC-16": "planned",
+    "PC-17": "planned",
+    "PC-18": "planned"
+  },
+  "latest_user_order": {
+    "instruction": "先将剩余需要改造的，全部改造完成吧",
+    "W3_implementation_entry_override": true,
+    "remaining_scope": [
+      "PC-12",
+      "PC-13",
+      "PC-14",
+      "PC-15",
+      "PC-16",
+      "PC-17",
+      "PC-18"
+    ],
+    "original_acceptance_conditions_retained": true,
+    "single_writer": true
+  },
+  "rollback": {
+    "material": "/srv/tianshu-tooling/proactive-companion-r56-0be88da80c51436b87b65bfdc5779fdb/rollback-r56-to-r55/rollback.py",
+    "executed": false,
+    "full_restore_tested": false,
+    "inherited_R53_collector_admission_retained": true
+  },
+  "unverified": [
+    "PC02 original complete24h decisions >=80%.",
+    "PC06 each enabled actor drafts on three consecutive actual dates.",
+    "R56 long-run failure absence; bounded sample still contains one distinct new640ms Memory503, not established as source transport timeout.",
+    "PC12-PC17 remaining implementation and PC18 seven-day real observation/real cases."
+  ]
+}

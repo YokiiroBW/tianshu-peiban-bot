@@ -1,0 +1,183 @@
+{
+  "state": "observation_corrected_not_full_business_acceptance",
+  "source_observer_bug": {
+    "incorrect_field": "provenance.window",
+    "actual_fields": [
+      "provenance.occurred_from",
+      "provenance.occurred_before"
+    ],
+    "query_was_skipped": true,
+    "previous_zero_was_not_measured": true,
+    "product_window_is_full_civil_day": true,
+    "private_raw_evidence_retained": true,
+    "corrected_observer": "audit_late_diary_material.py"
+  },
+  "source_evidence": {
+    "at": 1793375553.2928195,
+    "file": "actor-source-delivery-r55-1793375553366982200.json",
+    "confirmed_source_pairs": 74,
+    "actors": [
+      {
+        "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+        "original_diary_id": "f3f99efd6b9b4cdb76389f867532b02a3bd0bf07db2af06994c084f6f3263af9",
+        "original_state": "unavailable",
+        "original_version": 4,
+        "original_frozen_window": {
+          "start": "2026-10-29T16:00:00.000Z",
+          "end": "2026-10-30T16:00:00.000Z"
+        },
+        "current_civil_day_window": {
+          "start": "2026-10-29T16:00:00.000Z",
+          "end": "2026-10-30T16:00:00.000Z"
+        },
+        "original_captured_sources": 2,
+        "confirmed_episode_ids_in_current_window": 18,
+        "new_confirmed_source_refs_in_current_window": 16,
+        "new_confirmed_source_refs_inside_original_frozen_window": 16,
+        "new_confirmed_source_refs_after_original_cutoff": 0,
+        "fresh_Memory_source_authorization_not_replayed": true,
+        "original_unknown_not_retried": true,
+        "confirmed_contacts_today": 4,
+        "confirmed_contacts_without_source": 0
+      },
+      {
+        "actor_id": "actor:role-84e36c92a52e40dd8edf50228465bcf9",
+        "original_diary_id": "2addf4d59dbe54e9c558e4b94dc20169848743df82868fda6188802fb1e2332a",
+        "original_state": "unavailable",
+        "original_version": 4,
+        "original_frozen_window": {
+          "start": "2026-10-29T16:00:00.000Z",
+          "end": "2026-10-30T16:00:00.000Z"
+        },
+        "current_civil_day_window": {
+          "start": "2026-10-29T16:00:00.000Z",
+          "end": "2026-10-30T16:00:00.000Z"
+        },
+        "original_captured_sources": 2,
+        "confirmed_episode_ids_in_current_window": 4,
+        "new_confirmed_source_refs_in_current_window": 2,
+        "new_confirmed_source_refs_inside_original_frozen_window": 2,
+        "new_confirmed_source_refs_after_original_cutoff": 0,
+        "fresh_Memory_source_authorization_not_replayed": true,
+        "original_unknown_not_retried": true,
+        "confirmed_contacts_today": 4,
+        "confirmed_contacts_without_source": 0
+      }
+    ]
+  },
+  "natural_diary_evidence": {
+    "at": 1793376532.5844023,
+    "file": "native-diary-inputs-r55-1793376532632892400.json",
+    "drafts": [
+      {
+        "id": "ddd149b531b44953698dc6ccf5b8badf3aa70efdf00c536c6e4775ce2a62ac29",
+        "actor_id": "actor:role-84e36c92a52e40dd8edf50228465bcf9",
+        "state": "draft",
+        "current_revision": "8b7800bff2f1761917d9f0cb3744d4dbaea1f3b936398f7931e15ef73ddce849",
+        "material_count": 4,
+        "generation_receipt": {
+          "request_id": "model:ecb2f5ff5e9d4f5ab7c3e58607f3bef8",
+          "outcome": "succeeded",
+          "caller_service": "companion_background",
+          "config_version": 1000000118,
+          "resolved_model": "deepseek-v4.1-flash",
+          "usage": {
+            "input_tokens": 7389,
+            "output_tokens": 287
+          },
+          "usage_complete": true
+        }
+      },
+      {
+        "id": "36f2f78ee5825ce3f71f97efaf7ea55b665e06651708c24d79cc58894d194b45",
+        "actor_id": "actor:role-84e36c92a52e40dd8edf50228465bcf9",
+        "state": "draft",
+        "current_revision": "d0cb53ab5c29bf29e13fc78123755e4aea2efb3f22c031cd1f3c794debf4b2f7",
+        "material_count": 4,
+        "generation_receipt": {
+          "request_id": "model:36acd925134d48a1813a875e0c818625",
+          "outcome": "succeeded",
+          "caller_service": "companion_background",
+          "config_version": 1000000118,
+          "resolved_model": "deepseek-v4.1-flash",
+          "usage": {
+            "input_tokens": 7466,
+            "output_tokens": 326
+          },
+          "usage_complete": true
+        }
+      }
+    ],
+    "pending_postprocessing": [
+      {
+        "id": "cbb86a6fc512743cab1e2e8a88d86bfac1f19bcd7f6880347ed1a956863d18b8",
+        "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+        "state": "postprocessing",
+        "current_revision": "5f3a5656228396dd52af7b642f9db4bdea5c6bddaab604e77a951ac63490b862",
+        "material_count": 18,
+        "generation_receipt": {
+          "request_id": "model:31677b03e95c4b41af3b265aa1bfe5a8",
+          "outcome": "succeeded",
+          "caller_service": "companion_background",
+          "config_version": 1000000118,
+          "resolved_model": "deepseek-v4.1-flash",
+          "usage": {
+            "input_tokens": 13667,
+            "output_tokens": 570
+          },
+          "usage_complete": true
+        }
+      }
+    ],
+    "draft_day": "2026-10-30",
+    "distinct_actor_days_at_that_read": 1,
+    "two_drafts_are_distinct_actor_only_and_private_audiences": true,
+    "changed_material_paths": [
+      ".context.audience.assertion_ref",
+      ".context.audience.conversation_id",
+      ".context.audience.kind",
+      ".context.audience.person_id"
+    ],
+    "old_unknowns_replayed": false,
+    "three_consecutive_dates_verified": false
+  },
+  "draft_observer_correction": {
+    "previous_predicate": "current_revision IS NOT NULL",
+    "new_predicate": "state = draft AND current_revision IS NOT NULL",
+    "postprocessing_counted_separately": true,
+    "distinct_actor_day_not_number_of_rows": true
+  },
+  "PC02_auth_subcriterion": {
+    "release": "2026.10.30-unified-linux-r55",
+    "complete_30m": true,
+    "metrics": {
+      "interval_start": 1793373926.7627437,
+      "interval_end": 1793375726.7627437,
+      "within_byte_budget": true,
+      "malformed_lines": 0,
+      "first_event": 1793373927.401,
+      "last_event": 1793375726.224,
+      "auth_rejected_per_minute": 0.0,
+      "event_counts": {
+        "runtime.starting": 1,
+        "runtime.started": 1,
+        "http.request.started": 4385,
+        "http.request.finished": 4384,
+        "http.auth.succeeded": 4377
+      },
+      "bytes_read": 5296397,
+      "files": [
+        "platform-4372f83d-dcf6-416a-920c-aef499236584-0000.jsonl"
+      ]
+    },
+    "source": "original native platform JSONL reader; not a bounded Loki sample",
+    "card_status": "in_progress"
+  },
+  "code_or_production_data_changed_by_observer": false,
+  "new_injected_real_model_QQ_or_search_calls": 0,
+  "remaining": [
+    "PC02 original complete24h decisions >=80%; preserve original denominator and failures.",
+    "PC06 each enabled actor has drafts on three consecutive actual dates.",
+    "PC12-PC18 original work; W3 still prohibited."
+  ]
+}

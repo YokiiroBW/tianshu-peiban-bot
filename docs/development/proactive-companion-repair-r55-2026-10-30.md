@@ -1,5 +1,7 @@
 # R55：批量读取来源映射，减少后台阻塞
 
+> 后续观察更正：原“新增当日确认素材为0”的检查没有执行实际查询，不能据此判定没有素材；跨日后已出现真实草稿。详见[更正与原始边界](proactive-companion-observation-correction-2026-10-31.md)。本发布的版本、代码和保护核对仍有效。
+
 R55 已串行发布并健康，Companion `407332ceae8d83b9828ce06f0211fa4516bbd9c7`，镜像 `sha256:190ac7a678a185c265a97214efd364e88e2a53117398cb1ec35c1c809abeeed6`。Memory、Platform、Gateway、前端及采集配置继承 R54。
 
 R54 的真实新失败已明确为来源证明传输超时：Memory 在 5024.995ms 超时，Companion 来源回调在 5019.595ms 取消，尚未开始模型请求。同一关联号中，Platform 自身用 671.881ms 成功处理，但 Companion 的调用经历 4444.678ms，在 Platform 完成后约3755ms才继续。另一次20秒非阻塞、无locals调用栈采样显示，后台群处理刷新逐来源打开 PostgreSQL 连接；该较晚采样不能证明此前那一请求的具体阻塞函数。

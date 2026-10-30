@@ -263,5 +263,10 @@
     "Original PC02 complete24h >=80% and continuous30-minute zero auth rejection.",
     "Every enabled actor has a genuine draft on three consecutive actual dates; old outputs/unknowns remain unreplayed.",
     "PC12-PC18 original work and gates, plus real external/model quality not established by constructed W2 scenarios."
-  ]
+  ],
+  "later_observation_erratum": {
+    "receipt": "proactive-companion-observation-correction-2026-10-31.json",
+    "previous_no_new_source_zero_unmeasured": true,
+    "production_release_checks_still_valid": true
+  }
 }
