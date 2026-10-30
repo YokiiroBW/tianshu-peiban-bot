@@ -1,0 +1,107 @@
+{
+  "card": "PC-07",
+  "delivery_state": "verified_production",
+  "whole_card_accepted": true,
+  "whole_goal_complete": false,
+  "recorded_at": 1793344209.3243196,
+  "release": "2026.10.30-unified-linux-r44",
+  "image": "sha256:65a7ba82c3f533fefcc68dbc8d0bb709ce359887803ea9467152c4e735d1cc4f",
+  "code_commits": {
+    "companion_context": "3c6d047b2a358a6d46be66015027d0e410ac04f3",
+    "platform_control": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+    "platform_pagination": "7f5e837593c8119e8c80e40c7f498314b730306e",
+    "running_companion": "c8b1c10cbea19c4b964bdd5456c40edc5d70c288"
+  },
+  "requirements": {
+    "active_subscription": true,
+    "native_motive": true,
+    "sent_candidate": true,
+    "true_native_receipt": true,
+    "same_content_creation_and_delivery_idempotence": true,
+    "unanswered_count_and_suppressed": true,
+    "authenticated_registration_entry_reachable": true,
+    "single_historical_event_marker_diagnosed": true
+  },
+  "actual_proactive_messages": 1,
+  "delivery_attempts": 1,
+  "expression_attempts": 1,
+  "original_delivery_observed_at": "2026-10-30T06:09:12.253852Z",
+  "source_proof": "actual Memory v2 exact-scope context bundle and revalidation",
+  "model_usage": {
+    "input_tokens": 7128,
+    "output_tokens": 522
+  },
+  "unanswered_evidence": {
+    "captured_at": "2026-10-30T07:09:27.695262+00:00",
+    "response_deadline": 1793344152.2994761,
+    "contact_feedback": "unanswered",
+    "unanswered_count": 1,
+    "unanswered_limit": 1,
+    "candidate_state": "suppressed",
+    "decision": "unanswered_limit",
+    "suppressed_candidate_expression_attempts": 0,
+    "suppressed_candidate_delivered": false,
+    "daily_limit": 1,
+    "cooldown_seconds": 3600,
+    "policy_changes": 0,
+    "finite_observer_completed": true
+  },
+  "event_path_diagnosis": {
+    "historical_marker_count": 1,
+    "historical_marker_state": "completed",
+    "historical_marker_kind": "image_completed",
+    "current_sender_private_boundaries": 63,
+    "current_sender_reconciliation_events": 4,
+    "current_sender_eligible_marker_count": 0,
+    "current_pending_marker_blocked_by_403": false,
+    "historical_creation_time_subscription_set_unproven": true,
+    "observed_at": 1793343688.6665287
+  },
+  "original_unknown_preserved": true,
+  "additional_test_messages_sent": 0,
+  "actual_new_eligible_automatic_event_verified": false,
+  "unverified": [
+    "natural eligible automatic-event experience and long-term message quality remain for later cards",
+    "historical image marker creation-time subscription set cannot be recovered from current state"
+  ],
+  "W1_complete": false,
+  "W3_allowed": false,
+  "other_W1_observation": {
+    "current_R44_platform_30m": {
+      "interval_start": 1793342495.7482018,
+      "interval_end": 1793344295.7482018,
+      "within_byte_budget": true,
+      "malformed_lines": 0,
+      "first_event": 1793342495.768,
+      "last_event": 1793344295.731,
+      "auth_rejected_per_minute": 0.0,
+      "event_counts": {
+        "http.request.finished": 8268,
+        "http.auth.succeeded": 8264,
+        "http.request.started": 8269
+      }
+    },
+    "post_repair_new_decision_cohort": {
+      "start": 1793326100.1223843,
+      "planned_end": 1793412500.1223843,
+      "observed_until": 1793344298.2410333,
+      "complete_24h": false,
+      "states": {
+        "completed": 12,
+        "failed": 2,
+        "interrupted": 1,
+        "unknown": 3
+      },
+      "total": 18,
+      "success_rate": 0.6666666666666666,
+      "query": "SELECT status,count(*) FROM metadata WHERE id LIKE 'goal-choice:%%' AND (body::jsonb->>'created_at')::double precision >= %s AND (body::jsonb->>'created_at')::double precision < %s GROUP BY status",
+      "parameters": [
+        1793326100.1223843,
+        1793344298.2410333
+      ],
+      "transaction_read_only": "on"
+    },
+    "PC02_whole_card_accepted": false,
+    "PC06_whole_card_accepted": false
+  }
+}
