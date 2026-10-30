@@ -433,7 +433,7 @@ class NativeModule:
 
     def runtime_metrics(self, app):
         """Read the product's safe projection on its existing owner loop."""
-        return app.state.worker_metrics() if self.name == "companion" else None
+        return app.state.runtime_metrics() if self.name == "companion" else None
 
 
 def app_platform(app):

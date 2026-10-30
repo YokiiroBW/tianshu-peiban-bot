@@ -1,0 +1,205 @@
+{
+  "card": "PC-04",
+  "status": "verified_production",
+  "whole_card_accepted": true,
+  "whole_goal_complete": false,
+  "at": 1793350118.996451,
+  "current_image": "sha256:f71edb94b2b7383c2c796fba9406a3b538b2d86c46fab9bc70c500a97de5c8f3",
+  "code_commit": "57879c62d5549dfde6043c3a06d1e68beaec4655",
+  "protection_followup_commit": "c9754029a32eb63134ffca18879de4d90a04e366",
+  "platform_commit": "73cea0b6bcb782b5a8ff03d81248c20000ca1c12",
+  "contract": {
+    "package": "life-runtime/v2.2",
+    "manifest_sha256": "3bc11ce63e134c68f20d2e6202cb7161482844d70b045971b1346fdd41b424c9"
+  },
+  "original_conditions": [
+    {
+      "requirement": "第三次失败恢复点非NULL且在未来六小时内",
+      "evidence": "test_activity_recovery.py::test_third_failure_retains_a_future_recovery_point_without_claiming_progress",
+      "scope": "original unit condition; applicable passed result reused"
+    },
+    {
+      "requirement": "dormant不阻止日程且不自动重开",
+      "evidence": "test_activity_recovery.py::test_dormant_releases_the_actor_and_is_visible_to_goal_selection_but_never_auto_restarts; unchanged DailyLife running-only condition",
+      "scope": "original unit condition; source unchanged from validated R39"
+    },
+    {
+      "requirement": "goal-selection material可见dormant",
+      "evidence": "same existing test asserts snapshot.dormant.resume_condition",
+      "scope": "original unit condition; source and test unchanged"
+    },
+    {
+      "requirement": "已有六条僵尸可一次性收敛",
+      "evidence": "original R38 dry-run/apply converted seven of ten retained rows; original migration idempotence/COPY/CAS rollback proof retained",
+      "scope": "real production apply already verified under PC05; not repeated"
+    }
+  ],
+  "current_read_only_proof": {
+    "at": 1793350118.996451,
+    "transaction_read_only": "on",
+    "source_files_unchanged_from_validated_R39": {
+      "life_activities.py": "98de12424f8a52502b020f98b9770629d23eb893be24e446cce95171c4fb5318",
+      "life_daily.py": "c03609f7dfa192a72f7cd26dd8427f986fb32c41d086b2ccaf2422f20b2186e5",
+      "life_goals.py": "4b97d1096f1952d1edf3137d6614ba7c8e4b2d39a9c41ebde2038985c9ce1b64"
+    },
+    "platform_consumer_unchanged_from_validated_R38": true,
+    "activities": [
+      {
+        "id": "goal-activity:10e0928cf8cb43a525134dc54fab0bccc631dbe9ae5e0c725411e04969009ff4",
+        "state": "dormant",
+        "next_due_at": null,
+        "step_operation": "activity-step:f3b09cb1437e77fca01a0384f4a64853476b5faf49cdb5aaa89e5983a168a9de",
+        "result_ref_count": 0,
+        "dormant_since": "1793325355.4097476"
+      },
+      {
+        "id": "goal-activity:18824c01a6bfc5f519eaf8d19b546a9a8370b648708b98a080e92de1fbd535a5",
+        "state": "completed",
+        "next_due_at": null,
+        "step_operation": "activity-step:01fb49f57efbed3964284505442e18da7893cc6dfebccc16e9f7b0f3288b8767",
+        "result_ref_count": 0,
+        "dormant_since": null
+      },
+      {
+        "id": "goal-activity:4cb93d184fe69b6eb010e635f6e4ed8de9163f94816a2f7efadcf0cf9f8f8b99",
+        "state": "dormant",
+        "next_due_at": null,
+        "step_operation": null,
+        "result_ref_count": 0,
+        "dormant_since": "1793348332.0933034"
+      },
+      {
+        "id": "goal-activity:4dade0c96b44f9f1aea87a0248c4594f653672edfccc91a4781d1ad5c40af61c",
+        "state": "paused",
+        "next_due_at": 1793349661.3511045,
+        "step_operation": "activity-step:289bea861d3e0a6cd5b5c0ad899abfd538178be8488c9e47820ef1c0dc2d8198",
+        "result_ref_count": 0,
+        "dormant_since": null
+      },
+      {
+        "id": "goal-activity:5a73ecbc71680482bbaa9283322f7bab8dedf2fe9994022ed6aa580a9f668c20",
+        "state": "cancelled",
+        "next_due_at": null,
+        "step_operation": "activity-step:d4719d62d91b993702171bb8c5fbba3b9fe54a76782e1789bf62e1901e40673a",
+        "result_ref_count": 0,
+        "dormant_since": null
+      },
+      {
+        "id": "goal-activity:5bcd490e2926ba6f39d30a04afbc02f0657eac72e2249516a8a0db0166bbbbf1",
+        "state": "cancelled",
+        "next_due_at": null,
+        "step_operation": "activity-step:3a5b7053ab89ddecc8e78598f26adb482bb7dfba2f854d91c81ff7cba9987747",
+        "result_ref_count": 0,
+        "dormant_since": null
+      },
+      {
+        "id": "goal-activity:707c0a2abbca03948e51c4594b775ec7be0b61c7e12729f0ac35ccc4249dd278",
+        "state": "dormant",
+        "next_due_at": null,
+        "step_operation": null,
+        "result_ref_count": 0,
+        "dormant_since": "1793325355.4097476"
+      },
+      {
+        "id": "goal-activity:a6670e84bf75e281d20a18b739b10475e57a4ccdf22c192062efd86e59d783e2",
+        "state": "dormant",
+        "next_due_at": null,
+        "step_operation": null,
+        "result_ref_count": 0,
+        "dormant_since": "1793325355.4097476"
+      },
+      {
+        "id": "goal-activity:bd7d9375f7347b3de8647bfef61c85c05d024e2445fb9cf2c218b0d2d73be425",
+        "state": "completed",
+        "next_due_at": null,
+        "step_operation": "activity-step:ec5eff7bf5bcd192ad93b88bf14cae74b0a63e23ed665fb6d7386878e48b297a",
+        "result_ref_count": 0,
+        "dormant_since": null
+      },
+      {
+        "id": "goal-activity:e758a925a45573eaf2f61b12d9bc05d6aca1e24cb6f521df195bd51af69f32d9",
+        "state": "completed",
+        "next_due_at": null,
+        "step_operation": "activity-step:b1c172bfcaaeec13417c5cb77c1b91740b442bd36b72f18e9ce4943121576ee7",
+        "result_ref_count": 0,
+        "dormant_since": null
+      },
+      {
+        "id": "goal-activity:ffd9babd92f3f1652f2ada6b58b8ec949cbaea2a37da633478340d89fec0225a",
+        "state": "cancelled",
+        "next_due_at": null,
+        "step_operation": "activity-step:7d053accca9432de46a10fa0d735cad778b668f4a5a647d15e335175e9f9a16a",
+        "result_ref_count": 0,
+        "dormant_since": null
+      },
+      {
+        "id": "routine:20eb051d094315b6c455b854e729ac412946ad4f1e427f59cdf69e90e5ef4fe9",
+        "state": "dormant",
+        "next_due_at": null,
+        "step_operation": null,
+        "result_ref_count": 0,
+        "dormant_since": "1793325355.4097476"
+      },
+      {
+        "id": "routine:7160b00f1d2942e9fc3693468b6a3df1510d7c5db0e8a50ec56001e35531c773",
+        "state": "dormant",
+        "next_due_at": null,
+        "step_operation": null,
+        "result_ref_count": 0,
+        "dormant_since": "1793325355.4097476"
+      }
+    ],
+    "paused_null_due": 0,
+    "image": "sha256:f71edb94b2b7383c2c796fba9406a3b538b2d86c46fab9bc70c500a97de5c8f3",
+    "current_unresolved_steps": [
+      {
+        "id": "activity-step:3a5b7053ab89ddecc8e78598f26adb482bb7dfba2f854d91c81ff7cba9987747",
+        "state": "unknown"
+      },
+      {
+        "id": "activity-step:4474c94d32f965171c378d7c9ef3664d47ce20a64a417569962af8485100f9ab",
+        "state": "submitted"
+      },
+      {
+        "id": "activity-step:7d053accca9432de46a10fa0d735cad778b668f4a5a647d15e335175e9f9a16a",
+        "state": "unknown"
+      },
+      {
+        "id": "activity-step:d4719d62d91b993702171bb8c5fbba3b9fe54a76782e1789bf62e1901e40673a",
+        "state": "unknown"
+      },
+      {
+        "id": "activity-step:e2203afe105fc03b0848e10adc2e560621ab9e55f6407601d8db3829f9b2562b",
+        "state": "submitted"
+      }
+    ]
+  },
+  "private_proof": ".runtime\\proactive-companion-repair-20261030\\pc04-completion-r46-1793350118979045000.json",
+  "original_production_apply": {
+    "version": "2026.10.30-unified-linux-r38",
+    "image": "sha256:4a8b2376dc7c01616d6c77326b84b54d3166a8d4f76394f918e92431c64ef057",
+    "paused_null_remaining": 0,
+    "activity_states": {
+      "completed": 3,
+      "dormant": 7
+    },
+    "backup": "/srv/tianshu-tooling/proactive-companion-r37-be6ea511ae5049719721f515e4848715/companion-domain-backups/convergence",
+    "rollback_limit": "Scoped before/after CAS refuses to overwrite any facts changed since apply; COPY exports retained"
+  },
+  "validation_reused": {
+    "targeted_activity_and_original_receipt_cases": "passed_applicable_results_reused",
+    "synthetic_http_producer_platform_consumer": "passed",
+    "contract_tests": 4,
+    "contract_subtests": 30,
+    "frontend_type_and_build": "passed",
+    "static_and_diff": "passed"
+  },
+  "new_tests_run": 0,
+  "migration_repeated": false,
+  "business_rows_written": 0,
+  "model_or_qq_requests": 0,
+  "unverified": [
+    "This card does not prove long-term life quality or diary output.",
+    "Current unresolved step rows retain unknown/submitted states; no external outcome is inferred."
+  ]
+}

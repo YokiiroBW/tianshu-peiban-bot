@@ -153,9 +153,13 @@ def test_worker_metrics_use_owner_loop_and_do_not_reuse_failed_or_timed_out_samp
                     assert self.owner == threading.get_ident()
                     if self.broken:
                         raise RuntimeError("private failure must not affect readiness")
-                    return {"schema_version": 1, "workers": {"life.work": {"idle": 2}}}
+                    return {
+                        "schema_version": 1,
+                        "workers": {"life.work": {"idle": 2}},
+                        "background_peer_circuits": [],
+                    }
 
-                app.state.worker_metrics = metrics
+                app.state.runtime_metrics = metrics
             return app
 
         def runtime_metrics(self, app):
@@ -175,7 +179,11 @@ def test_worker_metrics_use_owner_loop_and_do_not_reuse_failed_or_timed_out_samp
             instance = state["diagnostics"]["instances"]["companion"]
             assert state["modules"]["companion"]["metrics"] == {
                 "diagnostic_instance": instance,
-                "values": {"schema_version": 1, "workers": {"life.work": {"idle": 2}}},
+                "values": {
+                    "schema_version": 1,
+                    "workers": {"life.work": {"idle": 2}},
+                    "background_peer_circuits": [],
+                },
             }
             assert all(
                 "metrics" not in row
