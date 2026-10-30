@@ -1,0 +1,686 @@
+{
+  "schema_version": 1,
+  "status": "deployed_complete_passive_pages_natural_latency_observation_continues",
+  "production": {
+    "version": "2026.10.31-unified-linux-r61",
+    "image": "sha256:6a1ac1145c9bf6fe746226cb722e17a14381d65a1015164cf807b907a8fe1021",
+    "container": "8ea1942acb73c88b1cd7aca6a809f86094fbb74ac50bf6356d34e9681277b87f",
+    "guard": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r61",
+    "application_commit": "d352b921cd341b17278c372b6d7f870e685f8011",
+    "companion_commit": "1447b50a8bf38d9b6d4f6b1843be18d425bd7357",
+    "memory_commit": "874b911a0004d652f4f86ad21912b6e80dae03b3",
+    "gateway_commit": "1af59a30b698c6d114e927f941de5dc33d1762af",
+    "frontend_commit": "911a1dc60318abad76287013a05afacd1e63f9f3",
+    "health_at_last_observation": "healthy",
+    "observed_at": 1793393844.4772828
+  },
+  "checks": {
+    "ok": true,
+    "version": "2026.10.31-unified-linux-r61",
+    "sources": {
+      "platform": {
+        "commit": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+        "archive_sha256": "52b2798f412226b4ee588dc69640695629bd396bddb70aa853b45875f21dee2f"
+      },
+      "companion": {
+        "commit": "1447b50a8bf38d9b6d4f6b1843be18d425bd7357",
+        "archive_sha256": "39a27cbbe09d004e51c3ac5a1882041acf42622862c9a54bc93551ecf6860259"
+      },
+      "memory": {
+        "commit": "874b911a0004d652f4f86ad21912b6e80dae03b3",
+        "archive_sha256": "1aae2fa0ff981ee390657faa3502c8bbbd7ec029e7b274696b329b1b41f705e1"
+      },
+      "gateway": {
+        "commit": "1af59a30b698c6d114e927f941de5dc33d1762af",
+        "archive_sha256": "b46e7bb45713d9a2f3c29a547c9cf1bfc299e548f289ab8d25e1e9a95717f450"
+      },
+      "application": {
+        "commit": "d352b921cd341b17278c372b6d7f870e685f8011",
+        "archive_sha256": "b64b4dce9a3d6b5fbd5e1e06a9c82ecf36cd92a9d6a95094b3f9574dd86bba04"
+      },
+      "platform_frontend": {
+        "commit": "911a1dc60318abad76287013a05afacd1e63f9f3",
+        "archive_sha256": "2b0f65ee789feeef51514c6151eca911f49ef7d3309c125ef8e347898ac8a4cd"
+      }
+    },
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "tls_ca_and_hostname_verified": true,
+    "served_affected_assets": {
+      "/index.html": "a3e9b14959ec05c6c2e7559cba0aabf1503c38751de8644099c31c5959de2099"
+    },
+    "probe_generated_model_or_qq": false,
+    "no_owner_store_opened": true,
+    "installed_affected_source_checks_verified": true,
+    "at": 1793393844.1262152,
+    "image": "sha256:6a1ac1145c9bf6fe746226cb722e17a14381d65a1015164cf807b907a8fe1021",
+    "id": "8ea1942acb73c88b1cd7aca6a809f86094fbb74ac50bf6356d34e9681277b87f",
+    "health": "healthy",
+    "restarts": 0,
+    "mounts_preserved": 37,
+    "config_files_preserved": 1175,
+    "configuration_changed": [
+      "private/gateway.env"
+    ],
+    "added_contract_files": 0,
+    "non_target_containers_preserved": 15,
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r61",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_free_bytes": 31675736064,
+    "completed_at": 1793393844.4772828
+  },
+  "stop": {
+    "systemctl_returncode": 0,
+    "elapsed_seconds": 123.99134969711304,
+    "old_finished_at": "2026-10-30T20:55:39.519408348Z",
+    "old_exit_code": 0,
+    "old_restart": "no"
+  },
+  "validation": {
+    "applicable_linux_passed": 59,
+    "scope_skipped": 6,
+    "original_failures_reproduced": 2,
+    "first_result": {
+      "pytest_exit": 1,
+      "cases": 65,
+      "failed": 2,
+      "errors": 0,
+      "skipped": 6,
+      "module": "/opt/tianshu-venv/lib/python3.12/site-packages/tianshu_memory/__init__.py",
+      "failure_messages": [
+        "AssertionError: {\"schema_version\":1,\"request_id\":\"event:self_private:1\",\"code\":\"dependency_unavailable\",\"execution_state\":\"not_started\",\"retryable\":true}\nassert (503 == 200)\n +  where 503 = <Response [503 Service Unavailable]>.status_code",
+        "AssertionError: {\"schema_version\":1,\"request_id\":\"event:group:1\",\"code\":\"dependency_unavailable\",\"execution_state\":\"not_started\",\"retryable\":true}\nassert (503 == 200)\n +  where 503 = <Response [503 Service Unavailable]>.status_code"
+      ],
+      "installed_hashes": {
+        "segment_sources.py": "e2e90a12eab4c2f4a23da71043e9f2f8a16c80f6b003efa74e145d3d658ef1be",
+        "source_authority.py": "e9177f758b0fd1c5aa825d2c662bfa855283f28243fec25a58c09a035b4e2af9"
+      },
+      "stage": "/srv/tianshu-tooling/pc-passive-pages-r61-candidate-0d6ddc99534546759ee0623b536cf36d",
+      "image": "sha256:e2a83759cf4bf9e2caffa93bffab03a45b7b17cddbd13e77b47fb28cf8f2c41d",
+      "mode": "candidate",
+      "at": 1793392879.3007324,
+      "duration": 44.25126314163208,
+      "production_mounts": 0,
+      "new_model_QQ_or_search_calls": 0,
+      "plan": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\proactive-companion-repair-20261030\\passive-pages-r61-candidate-0d6ddc99534546759ee0623b536cf36d-plan.json"
+    },
+    "baseline_result": {
+      "pytest_exit": 1,
+      "cases": 2,
+      "failed": 2,
+      "errors": 0,
+      "skipped": 0,
+      "module": "/opt/tianshu-venv/lib/python3.12/site-packages/tianshu_memory/__init__.py",
+      "failure_messages": [
+        "AssertionError: {\"schema_version\":1,\"request_id\":\"event:self_private:1\",\"code\":\"dependency_unavailable\",\"execution_state\":\"not_started\",\"retryable\":true}\nassert (503 == 200)\n +  where 503 = <Response [503 Service Unavailable]>.status_code",
+        "AssertionError: {\"schema_version\":1,\"request_id\":\"event:group:1\",\"code\":\"dependency_unavailable\",\"execution_state\":\"not_started\",\"retryable\":true}\nassert (503 == 200)\n +  where 503 = <Response [503 Service Unavailable]>.status_code"
+      ],
+      "installed_hashes": {
+        "segment_sources.py": "197e896142a63879e2afd8d5739d6f249a64fc6d2b511237f3011a3e54986d3e",
+        "source_authority.py": "06643d7069f17f1a55bcb13deba44ddae16cce4b41e6660db55ee0e58cb0625c"
+      },
+      "stage": "/srv/tianshu-tooling/pc-passive-pages-r61-baseline-8866b1af33a94fd1831d0ac9e0502213",
+      "image": "sha256:e2a83759cf4bf9e2caffa93bffab03a45b7b17cddbd13e77b47fb28cf8f2c41d",
+      "mode": "baseline",
+      "at": 1793392976.117611,
+      "duration": 6.024287939071655,
+      "production_mounts": 0,
+      "new_model_QQ_or_search_calls": 0,
+      "plan": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\proactive-companion-repair-20261030\\passive-pages-r61-baseline-8866b1af33a94fd1831d0ac9e0502213-plan.json"
+    },
+    "additional_integration_result": {
+      "pytest_exit": 0,
+      "cases": 2,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "module": "/opt/tianshu-venv/lib/python3.12/site-packages/tianshu_memory/__init__.py",
+      "failure_messages": [],
+      "installed_hashes": {
+        "segment_sources.py": "e2e90a12eab4c2f4a23da71043e9f2f8a16c80f6b003efa74e145d3d658ef1be",
+        "source_authority.py": "e9177f758b0fd1c5aa825d2c662bfa855283f28243fec25a58c09a035b4e2af9"
+      },
+      "stage": "/srv/tianshu-tooling/pc-passive-pages-r61-candidate-eff6ad3261f44618ac7f08cb40583211",
+      "image": "sha256:e2a83759cf4bf9e2caffa93bffab03a45b7b17cddbd13e77b47fb28cf8f2c41d",
+      "mode": "candidate",
+      "at": 1793393188.031195,
+      "duration": 9.545673847198486,
+      "production_mounts": 0,
+      "new_model_QQ_or_search_calls": 0,
+      "plan": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\proactive-companion-repair-20261030\\passive-pages-r61-candidate-eff6ad3261f44618ac7f08cb40583211-plan.json"
+    },
+    "installed_assembly_result": {
+      "pytest_exit": 0,
+      "cases": 9,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0,
+      "module": "/opt/tianshu-venv/lib/python3.12/site-packages/tianshu_memory/__init__.py",
+      "failure_messages": [],
+      "installed_hashes": {
+        "segment_sources.py": "e2e90a12eab4c2f4a23da71043e9f2f8a16c80f6b003efa74e145d3d658ef1be",
+        "source_authority.py": "e9177f758b0fd1c5aa825d2c662bfa855283f28243fec25a58c09a035b4e2af9"
+      },
+      "stage": "/srv/tianshu-tooling/pc-passive-pages-r61-installed-d901eb901db94d5aa8e2215f21207b4d",
+      "image": "sha256:6a1ac1145c9bf6fe746226cb722e17a14381d65a1015164cf807b907a8fe1021",
+      "mode": "installed",
+      "at": 1793393504.0990326,
+      "duration": 10.131304025650024,
+      "production_mounts": 0,
+      "new_model_QQ_or_search_calls": 0,
+      "plan": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\proactive-companion-repair-20261030\\passive-pages-r61-installed-d901eb901db94d5aa8e2215f21207b4d-plan.json"
+    },
+    "installed_assembly_overlaps": true,
+    "unchanged_passes_not_reexecuted": true
+  },
+  "footprint": {
+    "at": 1793392438.5624094,
+    "read_only": true,
+    "repeatable_read": true,
+    "jobs": [
+      {
+        "job_hash": "ac81cc97b174",
+        "batch_recorded_at": "2026-10-30T20:32:53.705375Z",
+        "target_count": 8,
+        "explicit_materials": 22,
+        "frozen_input_source_keys": 256,
+        "historical_material_rows": 2159,
+        "passive_groups": 1,
+        "passive_group_rows": [
+          2159
+        ],
+        "passive_pages_per_phase": 9,
+        "core_turn_checks": 0,
+        "all_windows": 0,
+        "local_read_queries": 53,
+        "local_read_elapsed_ms": 1537.7355969976634
+      },
+      {
+        "job_hash": "3773606102f6",
+        "batch_recorded_at": "2026-10-30T20:31:07.652809Z",
+        "target_count": 5,
+        "explicit_materials": 10,
+        "frozen_input_source_keys": 256,
+        "historical_material_rows": 469,
+        "passive_groups": 1,
+        "passive_group_rows": [
+          469
+        ],
+        "passive_pages_per_phase": 2,
+        "core_turn_checks": 0,
+        "all_windows": 0,
+        "local_read_queries": 27,
+        "local_read_elapsed_ms": 388.6292160023004
+      }
+    ],
+    "native_select_calls": 80,
+    "native_select_ms": 1045.2598652336746,
+    "native_row_counts": [
+      {
+        "rows": 1,
+        "source_key_projection": false
+      },
+      {
+        "rows": 135,
+        "source_key_projection": true
+      },
+      {
+        "rows": 28821,
+        "source_key_projection": true
+      },
+      {
+        "rows": 195,
+        "source_key_projection": true
+      },
+      {
+        "rows": 40024,
+        "source_key_projection": true
+      },
+      {
+        "rows": 13,
+        "source_key_projection": true
+      },
+      {
+        "rows": 2495,
+        "source_key_projection": true
+      },
+      {
+        "rows": 89,
+        "source_key_projection": true
+      },
+      {
+        "rows": 19161,
+        "source_key_projection": true
+      },
+      {
+        "rows": 136,
+        "source_key_projection": true
+      },
+      {
+        "rows": 30266,
+        "source_key_projection": true
+      },
+      {
+        "rows": 121,
+        "source_key_projection": true
+      },
+      {
+        "rows": 25176,
+        "source_key_projection": true
+      },
+      {
+        "rows": 165,
+        "source_key_projection": true
+      },
+      {
+        "rows": 32999,
+        "source_key_projection": true
+      },
+      {
+        "rows": 1,
+        "source_key_projection": true
+      },
+      {
+        "rows": 254,
+        "source_key_projection": true
+      },
+      {
+        "rows": 1,
+        "source_key_projection": false
+      },
+      {
+        "rows": 0,
+        "source_key_projection": false
+      },
+      {
+        "rows": 0,
+        "source_key_projection": false
+      },
+      {
+        "rows": 0,
+        "source_key_projection": false
+      },
+      {
+        "rows": 0,
+        "source_key_projection": false
+      },
+      {
+        "rows": 0,
+        "source_key_projection": false
+      },
+      {
+        "rows": 0,
+        "source_key_projection": false
+      },
+      {
+        "rows": 0,
+        "source_key_projection": false
+      },
+      {
+        "rows": 0,
+        "source_key_projection": false
+      },
+      {
+        "rows": 0,
+        "source_key_projection": false
+      },
+      {
+        "rows": 22,
+        "source_key_projection": false
+      },
+      {
+        "rows": 256,
+        "source_key_projection": false
+      },
+      {
+        "rows": 256,
+        "source_key_projection": false
+      },
+      {
+        "rows": 256,
+        "source_key_projection": false
+      },
+      {
+        "rows": 256,
+        "source_key_projection": false
+      },
+      {
+        "rows": 256,
+        "source_key_projection": false
+      },
+      {
+        "rows": 256,
+        "source_key_projection": false
+      },
+      {
+        "rows": 256,
+        "source_key_projection": false
+      },
+      {
+        "rows": 256,
+        "source_key_projection": false
+      },
+      {
+        "rows": 111,
+        "source_key_projection": false
+      },
+      {
+        "rows": 1,
+        "source_key_projection": false
+      },
+      {
+        "rows": 124,
+        "source_key_projection": false
+      },
+      {
+        "rows": 1,
+        "source_key_projection": false
+      },
+      {
+        "rows": 174,
+        "source_key_projection": false
+      },
+      {
+        "rows": 1,
+        "source_key_projection": false
+      },
+      {
+        "rows": 12,
+        "source_key_projection": false
+      },
+      {
+        "rows": 1,
+        "source_key_projection": false
+      },
+      {
+        "rows": 84,
+        "source_key_projection": false
+      },
+      {
+        "rows": 1,
+        "source_key_projection": false
+      },
+      {
+        "rows": 126,
+        "source_key_projection": false
+      },
+      {
+        "rows": 1,
+        "source_key_projection": false
+      },
+      {
+        "rows": 108,
+        "source_key_projection": false
+      },
+      {
+        "rows": 1,
+        "source_key_projection": false
+      },
+      {
+        "rows": 142,
+        "source_key_projection": false
+      },
+      {
+        "rows": 1,
+        "source_key_projection": false
+      },
+      {
+        "rows": 1,
+        "source_key_projection": false
+      },
+      {
+        "rows": 1,
+        "source_key_projection": false
+      },
+      {
+        "rows": 30,
+        "source_key_projection": true
+      },
+      {
+        "rows": 5378,
+        "source_key_projection": true
+      },
+      {
+        "rows": 5,
+        "source_key_projection": true
+      },
+      {
+        "rows": 1009,
+        "source_key_projection": true
+      },
+      {
+        "rows": 43,
+        "source_key_projection": true
+      },
+      {
+        "rows": 8097,
+        "source_key_projection": true
+      },
+      {
+        "rows": 86,
+        "source_key_projection": true
+      },
+      {
+        "rows": 14355,
+        "source_key_projection": true
+      },
+      {
+        "rows": 44,
+        "source_key_projection": true
+      },
+      {
+        "rows": 9481,
+        "source_key_projection": true
+      },
+      {
+        "rows": 1,
+        "source_key_projection": false
+      },
+      {
+        "rows": 0,
+        "source_key_projection": false
+      },
+      {
+        "rows": 0,
+        "source_key_projection": false
+      },
+      {
+        "rows": 10,
+        "source_key_projection": false
+      },
+      {
+        "rows": 256,
+        "source_key_projection": false
+      },
+      {
+        "rows": 213,
+        "source_key_projection": false
+      },
+      {
+        "rows": 1,
+        "source_key_projection": false
+      },
+      {
+        "rows": 27,
+        "source_key_projection": false
+      },
+      {
+        "rows": 1,
+        "source_key_projection": false
+      },
+      {
+        "rows": 5,
+        "source_key_projection": false
+      },
+      {
+        "rows": 1,
+        "source_key_projection": false
+      },
+      {
+        "rows": 39,
+        "source_key_projection": false
+      },
+      {
+        "rows": 1,
+        "source_key_projection": false
+      },
+      {
+        "rows": 79,
+        "source_key_projection": false
+      },
+      {
+        "rows": 1,
+        "source_key_projection": false
+      },
+      {
+        "rows": 44,
+        "source_key_projection": false
+      }
+    ],
+    "new_owner_Store_or_Core": 0,
+    "new_business_model_QQ_search_calls": 0,
+    "not_original_correlation_snapshot": true,
+    "image": "sha256:e2a83759cf4bf9e2caffa93bffab03a45b7b17cddbd13e77b47fb28cf8f2c41d",
+    "container": "277dffb0641a2bcf378e132f31e08b8d70c69c86f5031d6a811c37108fd4d375"
+  },
+  "native_readonly_projection": {
+    "at": 1793392911.25426,
+    "read_only": true,
+    "repeatable_read": true,
+    "job_hash": "e9efec73c352",
+    "results": [
+      {
+        "profile": false,
+        "material_rows": 2178,
+        "exact_rows_equal": true,
+        "output_sha256": "1516ebbbb40f319809b006a41f43fe43ca784d30f901341410f0365bca498a71",
+        "before": {
+          "native_select_calls": 37,
+          "source_key_rows": 155519,
+          "all_returned_rows": 157717,
+          "local_elapsed_ms": 592.8350699832663
+        },
+        "after": {
+          "native_select_calls": 37,
+          "source_key_rows": 10300,
+          "all_returned_rows": 12498,
+          "local_elapsed_ms": 378.5598750691861
+        }
+      },
+      {
+        "profile": true,
+        "material_rows": 2178,
+        "exact_rows_equal": true,
+        "output_sha256": "1516ebbbb40f319809b006a41f43fe43ca784d30f901341410f0365bca498a71",
+        "before": {
+          "native_select_calls": 38,
+          "source_key_rows": 155519,
+          "all_returned_rows": 157717,
+          "local_elapsed_ms": 590.1030480163172
+        },
+        "after": {
+          "native_select_calls": 38,
+          "source_key_rows": 10300,
+          "all_returned_rows": 12498,
+          "local_elapsed_ms": 352.01758495531976
+        }
+      }
+    ],
+    "new_owner_Store_or_Core": 0,
+    "new_model_QQ_search_calls": 0,
+    "not_end_to_end_latency_measurement": true,
+    "image": "sha256:e2a83759cf4bf9e2caffa93bffab03a45b7b17cddbd13e77b47fb28cf8f2c41d",
+    "container": "277dffb0641a2bcf378e132f31e08b8d70c69c86f5031d6a811c37108fd4d375"
+  },
+  "source_equivalence": {
+    "source_key_SQL_only_distinct_changes": 2,
+    "page_authority_and_failure_logic_AST_identical": true,
+    "page_return_shape_AST_identical": true
+  },
+  "natural_phase_sample": {
+    "evidence": "native-latest-read-phases-r61-1793393867742952800.json",
+    "events": 8,
+    "by_event": {
+      "source.barrier.completed": {
+        "count": 6,
+        "maximum_ms": 2469.962
+      },
+      "source.order.wait.completed": {
+        "count": 2,
+        "maximum_ms": 1845.22
+      }
+    },
+    "query_sample_limit": 64,
+    "whole_window_complete": false,
+    "startup_sample": true,
+    "original_incident_causality_proven": false
+  },
+  "fixed_cohort": {
+    "evidence": "fixed-cohort-r61-1793393866916699700.json",
+    "start": 1793326100.1223843,
+    "planned_end": 1793412500.1223843,
+    "complete_24h": false,
+    "states": {
+      "completed": 25,
+      "failed": 7,
+      "interrupted": 1,
+      "unknown": 6
+    },
+    "total": 39,
+    "success_rate": 0.6410256410256411
+  },
+  "cards": {
+    "PC-01": "verified_production",
+    "PC-03": "verified_production",
+    "PC-04": "verified_production",
+    "PC-05": "verified_production",
+    "PC-07": "verified_production",
+    "PC-02": "in_progress",
+    "PC-06": "in_progress",
+    "PC-08": "verified_production",
+    "PC-09": "verified_production",
+    "PC-10": "verified_production",
+    "PC-11": "verified_production",
+    "PC-12": "deployed",
+    "PC-13": "deployed",
+    "PC-14": "deployed",
+    "PC-15": "deployed",
+    "PC-16": "deployed",
+    "PC-17": "deployed",
+    "PC-18": "in_progress"
+  },
+  "card_counts": {
+    "verified_production": 9,
+    "in_progress": 3,
+    "deployed": 6
+  },
+  "no_data_migration": true,
+  "new_test_model_QQ_search_calls": 0,
+  "rollback_executed": false,
+  "natural_candidate_process_sample": {
+    "evidence": "native-read-delay-correlations-r61-1793393877711991400.json",
+    "correlation_id": "9e5c47ed5dd0104eaf5c0d48f5f80652",
+    "route": "/internal/v1/memory/candidates/process",
+    "operation": "query",
+    "peer_ms": 2575.979,
+    "barrier_ms": 2469.962,
+    "http_status": 200,
+    "early_natural_single_request": true,
+    "not_before_after_matched_load": true
+  }
+}
