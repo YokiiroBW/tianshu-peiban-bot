@@ -1,0 +1,192 @@
+{
+  "version": "2026.10.31-unified-linux-r64",
+  "status": "deployed_healthy",
+  "whole_goal_complete": false,
+  "image": "sha256:1e0756703f4a9e973534f9bd6e6e1a4db933f9b8df24e39a3d9744adcbe6a3c5",
+  "container": "cd1f48172fc372b4430c964daf4d9790e43b3c6a0d384dea4074e4f2f01c6735",
+  "companion_commit": "beb4a0df287d0214bba29eb154909a7958ed9af1",
+  "memory_commit": "874b911a0004d652f4f86ad21912b6e80dae03b3",
+  "postchecks": {
+    "ok": true,
+    "version": "2026.10.31-unified-linux-r64",
+    "sources": {
+      "platform": {
+        "commit": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+        "archive_sha256": "52b2798f412226b4ee588dc69640695629bd396bddb70aa853b45875f21dee2f"
+      },
+      "companion": {
+        "commit": "beb4a0df287d0214bba29eb154909a7958ed9af1",
+        "archive_sha256": "a1960a5d7ac4e237335beea4752338d2c2d50e18c7ffbc6e56db0a4c0f5be5a2"
+      },
+      "memory": {
+        "commit": "874b911a0004d652f4f86ad21912b6e80dae03b3",
+        "archive_sha256": "1aae2fa0ff981ee390657faa3502c8bbbd7ec029e7b274696b329b1b41f705e1"
+      },
+      "gateway": {
+        "commit": "1af59a30b698c6d114e927f941de5dc33d1762af",
+        "archive_sha256": "b46e7bb45713d9a2f3c29a547c9cf1bfc299e548f289ab8d25e1e9a95717f450"
+      },
+      "application": {
+        "commit": "d352b921cd341b17278c372b6d7f870e685f8011",
+        "archive_sha256": "b64b4dce9a3d6b5fbd5e1e06a9c82ecf36cd92a9d6a95094b3f9574dd86bba04"
+      },
+      "platform_frontend": {
+        "commit": "911a1dc60318abad76287013a05afacd1e63f9f3",
+        "archive_sha256": "2b0f65ee789feeef51514c6151eca911f49ef7d3309c125ef8e347898ac8a4cd"
+      }
+    },
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "tls_ca_and_hostname_verified": true,
+    "served_affected_assets": {
+      "/index.html": "a3e9b14959ec05c6c2e7559cba0aabf1503c38751de8644099c31c5959de2099"
+    },
+    "probe_generated_model_or_qq": false,
+    "no_owner_store_opened": true,
+    "installed_affected_source_checks_verified": true,
+    "at": 1793402012.0370827,
+    "image": "sha256:1e0756703f4a9e973534f9bd6e6e1a4db933f9b8df24e39a3d9744adcbe6a3c5",
+    "id": "cd1f48172fc372b4430c964daf4d9790e43b3c6a0d384dea4074e4f2f01c6735",
+    "health": "healthy",
+    "restarts": 0,
+    "mounts_preserved": 37,
+    "config_files_preserved": 1175,
+    "configuration_changed": [
+      "private/gateway.env"
+    ],
+    "added_contract_files": 0,
+    "non_target_containers_preserved": 15,
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r64",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_free_bytes": 31694155776,
+    "completed_at": 1793402012.322339
+  },
+  "stop_result": {
+    "systemctl_returncode": 0,
+    "elapsed_seconds": 123.74171996116638,
+    "old_finished_at": "2026-10-30T23:12:44.87124635Z",
+    "old_exit_code": 0,
+    "old_restart": "no"
+  },
+  "activation_terminal": {
+    "pid": 413783,
+    "live": false,
+    "state": "absent"
+  },
+  "validation": {
+    "windows_persona_projection": 5,
+    "windows_existing_commitment_cases": 2,
+    "linux_candidate_overlap": 2,
+    "linux_installed_overlap": 2,
+    "full_suite": false
+  },
+  "paired_tokens": {
+    "at": 1793401777.5981417,
+    "status": "paired_token_threshold_verified_human_review_pending",
+    "baseline_companion_commit": "6c45edd24b66272d19cba686246d911a9e29a641",
+    "candidate_companion_commit": "beb4a0df287d0214bba29eb154909a7958ed9af1",
+    "model": {
+      "provider_id": "provider-5b81fcd733ea4df6be6646fc8c2532ec",
+      "resolved_model": "deepseek-v4.1-flash",
+      "protocol": "openai-chat-completions",
+      "config_version": 1000000130,
+      "effective_reasoning": {}
+    },
+    "scenes": [
+      {
+        "scene": "promise",
+        "before_input_tokens": 9519,
+        "after_input_tokens": 3757,
+        "reduction": 0.6053156844206324,
+        "before_output_tokens": 1249,
+        "after_output_tokens": 895,
+        "before_request_id": "pc17:model:e4a5ed0ba8ac4be2b368cf4b4e50815f:promise:before:session",
+        "after_request_id": "pc17:model:e4a5ed0ba8ac4be2b368cf4b4e50815f:promise:after:prompt-v2",
+        "before_input_sha256": "5102c99c2710e415adfdfcbd73d8e8d77f9b2b6da7606bc7b6864ab2d476135e",
+        "after_input_sha256": "ebe78d5f9517e758d5fc3f9868c88e32301a4a93d436018f94aedf6507afd9b2",
+        "both_contract_valid": true
+      },
+      {
+        "scene": "reading",
+        "before_input_tokens": 9500,
+        "after_input_tokens": 3759,
+        "reduction": 0.6043157894736841,
+        "before_output_tokens": 387,
+        "after_output_tokens": 683,
+        "before_request_id": "pc17:model:e4a5ed0ba8ac4be2b368cf4b4e50815f:reading:before",
+        "after_request_id": "pc17:model:e4a5ed0ba8ac4be2b368cf4b4e50815f:reading:after",
+        "before_input_sha256": "00fb2423f28fe3d3dab11f35b204bba4aeb7306400eeff8d6c883a053198e3c2",
+        "after_input_sha256": "7468257a17fcc83c64453b2e984cd0b664fdf811a346bb7102a762a9c5ee7526",
+        "both_contract_valid": true
+      },
+      {
+        "scene": "unknown",
+        "before_input_tokens": 9678,
+        "after_input_tokens": 3895,
+        "reduction": 0.5975408142178136,
+        "before_output_tokens": 1295,
+        "after_output_tokens": 757,
+        "before_request_id": "pc17:model:e4a5ed0ba8ac4be2b368cf4b4e50815f:unknown:before",
+        "after_request_id": "pc17:model:e4a5ed0ba8ac4be2b368cf4b4e50815f:unknown:after",
+        "before_input_sha256": "519385c693d017f5818ba3276ccf815a2bf97568d6998172daff7a6e939b6da2",
+        "after_input_sha256": "9ceaf03ed69d57d107a8c655d5c61ac2206594f9fcf9dac3a01d2d340ee1f689",
+        "both_contract_valid": true
+      }
+    ],
+    "mean_before_input_tokens": 9565.666666666666,
+    "mean_after_input_tokens": 3803.6666666666665,
+    "aggregate_input_reduction": 0.6023626163013556,
+    "all_final_pairs_contract_valid": true,
+    "human_goal_specificity_review": "pending",
+    "upstream_model_calls": 7,
+    "initial_not_started_http_refusal": 1,
+    "initial_after_validation_refusal": {
+      "request_id": "pc17:model:e4a5ed0ba8ac4be2b368cf4b4e50815f:promise:after",
+      "input_tokens": 3691,
+      "output_tokens": 1295,
+      "cause": "defer on explicit non-autonomous commitment; existing validator refused",
+      "retained": true
+    },
+    "no_Companion_Memory_business_writes": true,
+    "new_QQ_tool_search_calls": 0,
+    "persona_complete_content_preserved": true,
+    "provider_sessions": "isolated diagnostics; same within each pair",
+    "max_output_tokens_per_call": 4096,
+    "limitations": [
+      "3 synthetic scenes and 1 current published persona; frozen original skill projection",
+      "Baseline is pre-PC17, not the R63 production input",
+      "No generalized live quality, latency, monetary cost, or long-term acceptance claim",
+      "Initial after failure retained; only changed commitment prompt was rechecked"
+    ],
+    "private_review_file": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\proactive-companion-repair-20261030\\pc17-quality-review-r64.md",
+    "qualitative_flags": [
+      "After-reading reason says morning without support in scene; human review pending."
+    ]
+  },
+  "new_manual_upstream_model_calls": 7,
+  "new_manual_QQ_tool_search_calls": 0,
+  "no_data_migration": true,
+  "rollback_executed": false,
+  "unverified": [
+    "human_goal_specificity_review",
+    "continuous_real_days",
+    "cross_day_causal_cases",
+    "actual_self_recovery",
+    "natural_sharing_and_group_quality"
+  ]
+}

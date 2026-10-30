@@ -1,0 +1,1275 @@
+{
+  "schema_version": 1,
+  "planning_id": "proactive-companion-repair-2026-10-30",
+  "date": "2026-10-30",
+  "timezone": "Asia/Shanghai",
+  "state": "W3_implementation_authorized_observation_continues",
+  "canonical_plan": "docs/development/proactive-companion-repair-queue-2026-10-30.md",
+  "research_record": "docs/research/proactive-companion-deep-dive-2026-10-30.md",
+  "predecessor_plan": "docs/development/autonomous-life-development-queue-2026-10-23.md",
+  "id_policy": "PC 编号为本批规划身份，与既有 AL-xx 功能族区分，不新增 AL 编号。正式派发由协调者按现有 TS 编号规则另开。",
+  "product_implementation_started": true,
+  "production_operations_performed": true,
+  "observation_only": false,
+  "baseline_snapshot": {
+    "observed_at": "2026-10-30T01:54:00+08:00",
+    "observed_until": "2026-10-30T02:20:00+08:00",
+    "container": "tianshu-unified-tianshu-1",
+    "host": "192.168.31.230",
+    "companion_package_version": "0.1.0",
+    "companion_package_built_at": "2026-10-29T17:24:00+08:00",
+    "package_path": "/opt/tianshu-venv/lib/python3.12/site-packages/tianshu_companion",
+    "storage_backend": "postgresql",
+    "storage_schemas": {
+      "main": "ts_tianshu_companion_main_0c6bf7a49daf",
+      "observations": "ts_tianshu_companion_observations_af0a741151ec"
+    },
+    "storage_note": "两个名字是 xinghai 库内的 schema，不是独立 database。盘上 companion.db 为迁移前遗留，不可作为数据源。",
+    "module_md5_online": {
+      "life_goals.py": "8573313031862543cb2a3921c52a1eb8",
+      "life_daily.py": "779b72fe8da648f9a07f71a771390fba",
+      "life_activities.py": "af02bf3a4efe6c2e5f26a12b3baa109e",
+      "life_affect.py": "f3cdb451a1e7cd216279e2b1d8289d45",
+      "proactive.py": "cd59448821875f135f38acfcfa97cdb0",
+      "participation.py": "74c7e2af521303d3ad3c50591b36a303",
+      "actor_memory.py": "7be8676171298a8eba515d47d43baaab",
+      "runtime_execution.py": "080bba269b73bfdfaa21c501d3ac7a72",
+      "life.py": "19ed8c29eb10e07bb1b89c7917f94f6a",
+      "core.py": "997e1e93730534f57fde7f90f6861955"
+    },
+    "module_diff_local": {
+      "identical_to_local": [
+        "life_activities.py",
+        "life_affect.py",
+        "proactive.py",
+        "participation.py",
+        "actor_memory.py",
+        "runtime_execution.py",
+        "life.py"
+      ],
+      "differ_from_local": {
+        "life_goals.py": "online 574 lines vs local 492",
+        "life_daily.py": "online 800 lines vs local 769",
+        "core.py": "assembly diff"
+      }
+    },
+    "metrics": {
+      "goal_choice_total": 69,
+      "goal_choice_completed": 15,
+      "goal_choice_failed": 35,
+      "goal_choice_unknown": 18,
+      "goal_choice_interrupted": 1,
+      "goal_choice_success_rate": 0.217,
+      "household_goal_choice_total": 25,
+      "household_goal_choice_failed": 25,
+      "household_failure_code": "forbidden",
+      "household_failure_http_status": 403,
+      "household_failure_stage": "preparation",
+      "life_activities_total": 9,
+      "life_activities_paused": 6,
+      "life_activities_completed": 3,
+      "life_activities_running": 0,
+      "life_activities_planned": 0,
+      "paused_with_null_next_due": 5,
+      "oldest_paused_at": "2026-10-04T23:55:00+08:00",
+      "household_stalled_since": "2026-10-05T00:21:00+08:00",
+      "household_stalled_days": 25,
+      "actor_interests_all_empty": true,
+      "actor_mood_all_calm": true,
+      "life_diaries_total": 62,
+      "life_diaries_skipped": 51,
+      "life_diaries_unavailable": 9,
+      "life_diaries_failed": 1,
+      "life_diaries_overflow": 1,
+      "life_diaries_success": 0,
+      "life_diaries_zero_success_days": 11,
+      "proactive_tables_all_empty": true,
+      "proactive_table_rows": {
+        "reminders": 0,
+        "candidates": 0,
+        "attempts": 0,
+        "goals": 0,
+        "motives": 0,
+        "quota": 0,
+        "subscriptions": 0,
+        "templates": 0
+      },
+      "life_concerns_total": 7,
+      "life_concerns_autonomy_prefixed": 7,
+      "life_events_total": 320,
+      "companion_log_forbidden": 4897,
+      "companion_log_background_failed": 4890,
+      "companion_log_dependency_unavailable": 1230,
+      "companion_background_failure_rate": 0.175,
+      "companion_background_idle_per_minute": 110,
+      "platform_auth_rejected": 14255,
+      "platform_auth_rejected_per_minute": 193
+    },
+    "ruled_out_hypotheses": [
+      "actor 未在配置中登记（household 在 companion/memory/platform 三份 settings 中分别出现 7/6/19 次）",
+      "时间基准或时区偏差（宿主 CST、容器 UTC、三个 world 均 +08:00）",
+      "本地未提交改动导致（已逐文件 MD5 比对）"
+    ],
+    "unresolved": [
+      "403 的具体被拒路由、peer 名、principal（日志 attributes/metadata 为空，last_failure.peer=unknown）",
+      "容器 2026-10-29T13:53 之前日志已轮转丢失",
+      "10-27 凭据轮换与 10-29 的 403 风暴是否存在因果（时间接近，无直接证据）"
+    ]
+  },
+  "waves": {
+    "W0": {
+      "goal": "能看见、能度量",
+      "tasks": [
+        "PC-01"
+      ],
+      "entry": []
+    },
+    "W1": {
+      "goal": "让底座真正跑起来",
+      "tasks": [
+        "PC-02",
+        "PC-03",
+        "PC-04",
+        "PC-05",
+        "PC-06",
+        "PC-07"
+      ],
+      "entry": [
+        "PC-01"
+      ]
+    },
+    "W2": {
+      "goal": "修结构性缺陷与小 bug",
+      "tasks": [
+        "PC-08",
+        "PC-09",
+        "PC-10",
+        "PC-11"
+      ],
+      "entry": [
+        "W1 major complete"
+      ]
+    },
+    "W3": {
+      "goal": "从执行日程到因为在意所以去做",
+      "tasks": [
+        "PC-12",
+        "PC-13",
+        "PC-14",
+        "PC-15",
+        "PC-16",
+        "PC-17"
+      ],
+      "entry": [
+        "W1 complete",
+        "goal-choice success >= 0.8",
+        "proactive_* has real data"
+      ],
+      "hard_gate": "W1 未完成前不得进入 W3"
+    },
+    "W4": {
+      "goal": "联合验收与连续观察",
+      "tasks": [
+        "PC-18"
+      ],
+      "entry": [
+        "W2",
+        "W3"
+      ]
+    }
+  },
+  "constraints": [
+    "单写者：同产品同一时间一个写者；core.py/store.py/clients.py/app.py 为共享入口",
+    "不新建平行队列、调度器、记忆服务或搜索服务",
+    "用户记忆域、actor 记忆域、Knowledge 内容域、Platform 账号域边界不动；不伪造 person_id",
+    "不伪造进度：离线不补进度，dormant 不等于完成，读片段不等于读完",
+    "未知副作用不重放：unknown 步骤必须查询原结果",
+    "失败保留原证据，不为全绿清除跳过或失败记录",
+    "不把本地工作树当作线上版本",
+    "DSN/token/cookie/真实聊天内容不进文档、日志或提交",
+    "只做受影响的定向测试，不跑全量（依据 AGENTS.md 2026-10-28）",
+    "不新增第三方依赖，不升级现有依赖"
+  ],
+  "code_quality_conventions": {
+    "change_shape": [
+      "优先改现有函数，其次新增函数，最后才新增模块",
+      "匹配周围注释风格：解释为什么，不解释做了什么",
+      "沿用 life_/proactive_/actor_ 前缀；状态词全小写单数",
+      "新字段同样要做输入校验，不因内部字段而跳过"
+    ],
+    "state_and_concurrency": [
+      "所有状态迁移走显式迁移表，save() 直调路径必须检查是否绕过",
+      "任何可并发修改的记录都要 expected 版本 + CAS",
+      "外部副作用必须有稳定幂等键",
+      "模型调用在锁外，提交时校验版本"
+    ],
+    "database": [
+      "有 DDL 变更就必须有备份与回退脚本",
+      "不假设 NULL 可比较：WHERE deadline <= ? 在 deadline 可为 NULL 时必须显式处理",
+      "新增查询要说明走哪个索引，不加全表扫描轮询"
+    ],
+    "testing": [
+      "状态迁移、衰减公式、指纹去重、阈值边界四类必须有测试",
+      "不写复述实现的测试",
+      "真实 PG 与 SQLite 分别记录，不以 SQLite 通过冒充 PG 通过"
+    ],
+    "observability": [
+      "每个新增决策点至少有一个计数或事件",
+      "日志字段要可检索：服务名、路由、错误码、attempt",
+      "禁止只打 exception 类名"
+    ]
+  },
+  "closure": {
+    "status_vocabulary": {
+      "planned": "已规划未动工",
+      "in_progress": "有活跃写者",
+      "local_verified": "本地提交且定向验证通过，未合入产品主线",
+      "integrated": "已合入产品协调检出，未部署",
+      "deployed": "镜像已在目标主机运行，未做语义验收",
+      "verified_production": "实机验收通过，含不利项记录",
+      "blocked": "被外部条件阻塞，写明依赖"
+    },
+    "forbidden_status": "不得单独使用 done；必须配合 delivery_state",
+    "per_task_deliverables": [
+      "代码提交（精确 SHA）",
+      "docs/handoffs/PC-xx.md（目标、变更范围、基线 SHA、交付 SHA、实际验证、未验证项、残留风险、下一步）",
+      "结构化结果 JSON（指标前后对比、测试输出摘要），放 .runtime/，不进 git"
+    ],
+    "local_verified_minimum": [
+      "定向测试通过",
+      "若改数据库：迁移与回退都试过",
+      "若改状态机：所有非法迁移被拒绝的负例通过",
+      "若改外部调用：幂等与 unknown 恢复的负例通过"
+    ],
+    "verified_production_minimum": [
+      "PC-01 指标脚本跑出该卡对应指标变化",
+      "有真实数据支撑，非替身",
+      "不利项已记录"
+    ],
+    "red_lines": [
+      "不把 local_verified 写成已完成",
+      "不因验证麻烦而跳过并含糊带过",
+      "不为让指标好看而改指标算法",
+      "不在未跑 dry-run 前对生产数据执行变更",
+      "不删除失败记录或标记环境问题而不给证据"
+    ]
+  },
+  "metrics_target": {
+    "goal_choice_success_rate": {
+      "baseline": 0.217,
+      "target": 0.8
+    },
+    "platform_auth_rejected_per_minute": {
+      "baseline": 193,
+      "target": 0
+    },
+    "background_failure_rate": {
+      "baseline": 0.175,
+      "target": 0.02
+    },
+    "background_idle_per_minute": {
+      "baseline": 110,
+      "target": 30
+    },
+    "activity_stall_rate": {
+      "baseline": 0.83,
+      "target": 0.1
+    },
+    "diary_success_days": {
+      "baseline": 0,
+      "target": "100%"
+    },
+    "proactive_delivery_per_day": {
+      "baseline": 0,
+      "target": "0.5-2"
+    },
+    "interest_ledger_entries": {
+      "baseline": 0,
+      "target": "5-20"
+    },
+    "goal_choice_input_token": {
+      "baseline": "unmeasured",
+      "target": "-40%"
+    },
+    "duplicate_share_rate": {
+      "baseline": "no data",
+      "target": 0
+    }
+  },
+  "al_mapping": {
+    "PC-02": [
+      "AL-05"
+    ],
+    "PC-03": [
+      "AL-05"
+    ],
+    "PC-04": [
+      "AL-05"
+    ],
+    "PC-05": [
+      "AL-05"
+    ],
+    "PC-06": [
+      "AL-13"
+    ],
+    "PC-07": [
+      "AL-13"
+    ],
+    "PC-08": [],
+    "PC-09": [
+      "AL-06"
+    ],
+    "PC-10": [],
+    "PC-11": [],
+    "PC-12": [
+      "AL-04"
+    ],
+    "PC-13": [],
+    "PC-14": [
+      "AL-13"
+    ],
+    "PC-15": [
+      "AL-13"
+    ],
+    "PC-16": [
+      "AL-12"
+    ],
+    "PC-17": [
+      "AL-06"
+    ],
+    "PC-18": [
+      "AL-17",
+      "AL-18"
+    ]
+  },
+  "first_three": {
+    "tasks": [
+      "PC-02",
+      "PC-04",
+      "PC-07"
+    ],
+    "rationale": "PC-02 同时解开日记、兴趣、决策三个故障；PC-04 的 25 天停摆是可见的用户损失；PC-07 是用户最核心的期待而它从未运行。"
+  },
+  "tasks": [
+    {
+      "id": "PC-01",
+      "title": "观测补齐与基线固化",
+      "owner": "companion",
+      "status": "verified_production",
+      "execution_task": "TS-419",
+      "companion_commit": "61307994f2af80b001ad4f5d4a73b2c697d942aa",
+      "collector_commit": "c910b22300a612318d2f6dd0ab136dc6950c9e94",
+      "deployed": true,
+      "result": ".runtime/proactive-companion-repair-20261030/PC-01-result.json",
+      "wave": "W0",
+      "depends_on": [],
+      "size": "small",
+      "path_scope": [
+        "src/tianshu_companion/observability.py",
+        "src/tianshu_companion/life_goals.py (failure diagnostics)",
+        "src/tianshu_companion/clients.py (peer call wrapper)",
+        "scripts/ (baseline collector, standalone)",
+        "docs/development/"
+      ],
+      "deliverable": "出站调用与后台失败补结构化字段（服务名、路由、脱敏 principal、HTTP 状态、错误码、attempt）；只读基线采集脚本；基线快照 JSON",
+      "completion": [
+        "连续 100 次出站调用中 >=90 次 attributes 能读到非空 target+route",
+        "基线脚本单事务内输出全部指标，不写库"
+      ],
+      "prohibited": [
+        "DSN/token/cookie 不进日志或文档；principal 只记哈希或角色名",
+        "不为可查而打印完整请求体"
+      ],
+      "detail_section": "PC-01",
+      "execution_receipt": "proactive-companion-repair-r39-2026-10-30.json",
+      "acceptance_record": ".runtime/proactive-companion-repair-20261030/PC-01-result.json",
+      "Loki_encoding_followup_R52": {
+        "status": "verified_production",
+        "code_commit": "fe6e43ee56704156a9383aa93cf7fe97215ba3df",
+        "root_cause": "The remap accepted validated optional attributes, but the final Loki encoding only_fields still retained twelve legacy fields and removed attributes.",
+        "implementation": "Retain attributes only when the closed producer peer schema exists; existing transforms still reject unknown fields, arbitrary routes, cleartext principals and wrong versions.",
+        "native_Vector_version": "vector 0.58.0 (x86_64-unknown-linux-gnu 2bcad9b 2026-08-26 13:37:07.557544670)",
+        "regression_before": "Native wire assertion failed because validated attributes were missing.",
+        "native_wire_after": "One current extended event and one legacy event retained exactly; a secret-canary extra field rejected.",
+        "related_focused_checks_passed": 4,
+        "static": "Ruff check and diff/whitespace passed; pre-existing unrelated formatting restored.",
+        "production": {
+          "safe_peer_events_sampled": 10,
+          "whole_window_complete": false,
+          "closed_sample_events_and_attributes_validated": true,
+          "attribute_fields": [
+            "attempt",
+            "error_code",
+            "http_status",
+            "operation",
+            "principal",
+            "route",
+            "target"
+          ],
+          "collector_output_fields": [
+            "attributes",
+            "correlation_id",
+            "duration_ms",
+            "error_code",
+            "event",
+            "event_id",
+            "instance_id",
+            "level",
+            "outcome",
+            "schema_version",
+            "sequence",
+            "service",
+            "timestamp"
+          ],
+          "real_Loki_query": true,
+          "synthetic_production_event_written": false,
+          "historical_lost_attributes_recovered": false,
+          "Vector_source_checkpoint_contract_compatible": true,
+          "original_full_window_probe_budget_error_preserved": true
+        },
+        "historical_lost_attributes_recoverable": false,
+        "original_full_window_probe": "Failed at the existing eight-request query budget; retained original log, then used one bounded latest-ten sample instead of requiring a new full-window census."
+      },
+      "latest_observation_receipt": "proactive-companion-repair-r52-2026-10-30.json"
+    },
+    {
+      "id": "PC-02",
+      "title": "403 鉴权风暴根因定位与修复",
+      "owner": "coordination",
+      "status": "in_progress",
+      "result": ".runtime/proactive-companion-repair-20261030/PC-02-result.json",
+      "wave": "W1",
+      "depends_on": [
+        "PC-01"
+      ],
+      "size": "medium",
+      "path_scope": [
+        "config/modules/*/settings.json (credential/registration sync only)",
+        "src/tianshu_companion/clients.py (only if auth logic is wrong)",
+        "docs/development/PC-02-403-root-cause.md"
+      ],
+      "deliverable": "定位记录（时间线、5+ 真实请求 trace、结论）；最小修复补丁；若涉凭据同步则给出同步脚本与校验方式",
+      "completion": [
+        "Platform http.auth.rejected 从 193/分钟降到 0（连续 30 分钟）",
+        "goal-choice 成功率 >=80%（24h 新增为分母）",
+        "actor:household 至少成功完成 1 次决策"
+      ],
+      "prohibited": [
+        "不用放宽授权消除 403；若结论是应放宽，须先说明原拒绝为何错并经用户确认",
+        "不加白名单绕过；本该有权则修登记"
+      ],
+      "unblocks": [
+        "PC-06",
+        "PC-07",
+        "PC-16"
+      ],
+      "detail_section": "PC-02",
+      "execution_receipt": "proactive-companion-repair-r44-2026-10-30.json",
+      "deployed": true,
+      "phase": "deployed_dynamic_deadline_followup",
+      "latest_observation_receipt": "proactive-companion-repair-r56-2026-10-31.json",
+      "additional_execution_scope": {
+        "gateway": [
+          "src/tianshu_gateway/server.py",
+          "tests/test_dynamic_deadline.py"
+        ],
+        "companion": [
+          "src/tianshu_companion/observability.py",
+          "tests/test_actor_memory.py"
+        ],
+        "application": [
+          "deploy/observability/vocabulary.json"
+        ],
+        "reason": "Original receipts prove active streams hit a hidden dynamic 30s limit; retain future fixed AL01 diagnostic code without relaxing authority."
+      },
+      "r53_followup": {
+        "status": "deployed_healthy_not_business_accepted",
+        "companion_commit": "3aa022fab8062863e93d38640e90a8618301449f",
+        "memory_commit": "c4752304c8f561cd464daff3525a7d3c63e164ff",
+        "application_commit": "f4a91771f9f9737f4c51a5fc504e1c47ccf13052",
+        "scope": "Batch the three original bounded indexed work ranges, avoid a duplicate empty-cursor read, and distinguish five closed actor proof failure causes.",
+        "source_proof_or_auth_or_deadline_weakened": false,
+        "read_repository_owner_changed": false,
+        "original_503_cause_closed": false,
+        "latest_native_authority_failures_sampled": 0,
+        "latest_native_actor_errors_sampled": 0,
+        "whole_window_absence_claimed": false,
+        "real_draft_rows": 0,
+        "receipt": "proactive-companion-repair-r53-2026-10-30.json"
+      }
+    },
+    {
+      "id": "PC-03",
+      "title": "后台空转与失败断路器",
+      "owner": "companion",
+      "status": "verified_production",
+      "wave": "W1",
+      "depends_on": [
+        "PC-01"
+      ],
+      "size": "small",
+      "path_scope": [
+        "src/tianshu_companion/clients.py",
+        "src/tianshu_companion/life.py (work loop)",
+        "src/tianshu_companion/observability.py"
+      ],
+      "deliverable": "同因连续失败熔断（N=5，退避 30s..30min 带 jitter，成功即复位）；熔断状态可观测；空轮不产生日志与计数；失败不在同 tick 重试",
+      "completion": [
+        "注入持续 403 的假 peer，10 分钟内该 peer 调用 <=20 次",
+        "熔断恢复后首次成功即复位，无残留",
+        "无失败时吞吐不下降"
+      ],
+      "prohibited": [
+        "断路器不缓存业务结果，只控制打不打",
+        "熔断状态不做持久业务状态，重启清零"
+      ],
+      "detail_section": "PC-03",
+      "execution_receipt": "proactive-companion-repair-r48-2026-10-30.json",
+      "deployed": true,
+      "phase": "verified_production",
+      "latest_observation_receipt": "proactive-companion-repair-r53-2026-10-30.json"
+    },
+    {
+      "id": "PC-04",
+      "title": "活动状态机：消灭 paused 黑洞",
+      "owner": "companion",
+      "status": "verified_production",
+      "execution_task": "TS-421",
+      "phase": "verified_production_original_conditions",
+      "contract_commit": "07b6bf41fb6095e692554d0a8c402dc54b13cd01",
+      "result": ".runtime/proactive-companion-repair-20261030/PC-04-result.json",
+      "wave": "W1",
+      "depends_on": [
+        "PC-01"
+      ],
+      "size": "large",
+      "path_scope": [
+        "src/tianshu_companion/life_activities.py",
+        "src/tianshu_companion/life_daily.py",
+        "src/tianshu_companion/life_goals.py",
+        "tests/"
+      ],
+      "deliverable": "paused 必带恢复点（不再置 NULL）；新增 dormant 终态与 resume_condition；日程层只把 running 视为占用；目标选择可见 dormant；迁移表与 save() 直调路径一并处理",
+      "completion": [
+        "第三次失败后 next_due_at 非 NULL 且在未来 6 小时内",
+        "dormant 后日程层不再因它而不开新活动",
+        "目标选择 material 能看到 dormant 活动",
+        "已有 6 条僵尸活动可通过一次性收敛进入 dormant"
+      ],
+      "prohibited": [
+        "不为看起来在动而自动重开 dormant；重开必须是目标选择的显式决定",
+        "dormant 不等于完成，result_refs 不得因 dormant 增加",
+        "不新增第二套调度器或队列"
+      ],
+      "detail_section": "PC-04",
+      "execution_receipt": "proactive-companion-pc04-acceptance-2026-10-30.json",
+      "deployed": true,
+      "contract_preparation_task": "TS-420"
+    },
+    {
+      "id": "PC-05",
+      "title": "僵尸数据清理与 household 恢复",
+      "owner": "companion",
+      "status": "verified_production",
+      "wave": "W1",
+      "depends_on": [
+        "PC-04"
+      ],
+      "size": "small",
+      "path_scope": [
+        "scripts/ (idempotent convergence, dry-run default)",
+        "docs/development/"
+      ],
+      "deliverable": "幂等收敛脚本（dry-run 默认，输出将变更行数与摘要）；household cursor 恢复核查；life_activities/life_actors 逻辑导出备份与回滚脚本",
+      "completion": [
+        "dry-run 输出与预期一致后才执行",
+        "执行后不存在 paused 且 next_due_at 为 NULL 的行",
+        "actor:household cursor 在 24 小时内至少推进一次",
+        "可回滚"
+      ],
+      "prohibited": [
+        "不删除历史活动；收敛改状态不删记录",
+        "不改 life_events / life_known / life_diaries",
+        "不在无 dry-run 结果时直接执行"
+      ],
+      "detail_section": "PC-05",
+      "execution_receipt": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\worktrees\\TS-421\\workspace\\docs\\development\\proactive-companion-repair-release-2026-10-30.json"
+    },
+    {
+      "id": "PC-06",
+      "title": "日记：从零产出到稳定产出",
+      "owner": "companion",
+      "status": "in_progress",
+      "wave": "W1",
+      "depends_on": [
+        "PC-02"
+      ],
+      "size": "medium",
+      "path_scope": [
+        "src/tianshu_companion/life.py (diary work)",
+        "src/tianshu_companion/diary_materials.py",
+        "tests/"
+      ],
+      "deliverable": "先测量后改码；skipped/unavailable 落结构化原因；修 material_overflow 预算；修 failure=Fault 的诊断粒度",
+      "completion": [
+        "连续 3 天每个启用角色每天至少 1 条 draft",
+        "失败记录带可读原因"
+      ],
+      "prohibited": [
+        "不放宽材料完整性校验；材料不全应 material_incomplete，不编造",
+        "不跳过 episode_refs 来源校验"
+      ],
+      "detail_section": "PC-06",
+      "execution_receipt": "proactive-companion-repair-r44-2026-10-30.json",
+      "deployed": true,
+      "latest_observation_receipt": "proactive-companion-repair-r56-2026-10-31.json"
+    },
+    {
+      "id": "PC-07",
+      "title": "主动分享：从从未运行到跑通一次",
+      "owner": "companion",
+      "status": "verified_production",
+      "wave": "W1",
+      "depends_on": [
+        "PC-02"
+      ],
+      "size": "medium",
+      "path_scope": [
+        "src/tianshu_companion/proactive.py",
+        "src/tianshu_companion/runtime.py (subscription admin entry)",
+        "src/tianshu_companion/runtime_execution.py (expression, offer_pending_events)",
+        "src/tianshu_companion/diary_sharing.py",
+        "tests/"
+      ],
+      "deliverable": "走通 subscription→motive→gate→expression→delivery→receipt→feedback 全链；端到端证据；核查 subscription 入口可达与鉴权；核查 proactive:event 仅 1 条的原因",
+      "completion": [
+        "线上存在 >=1 active subscription、>=1 motive、>=1 sent candidate、>=1 真实回执",
+        "同一内容不重复发送（幂等验证）",
+        "unanswered_count 正确累加并在超限后 suppressed"
+      ],
+      "prohibited": [
+        "不直接往表里插数据，必须走真实业务路径",
+        "不在用户未同意时对真实用户发起主动消息",
+        "不放宽 _gate 任何一道检查"
+      ],
+      "unblocks": [
+        "PC-14",
+        "PC-15"
+      ],
+      "detail_section": "PC-07",
+      "execution_receipt": "proactive-companion-pc07-acceptance-2026-10-30.json",
+      "deployed": true
+    },
+    {
+      "id": "PC-08",
+      "title": "stage 体验分支：裁决死代码",
+      "owner": "companion",
+      "status": "verified_production",
+      "wave": "W2",
+      "depends_on": [
+        "W1"
+      ],
+      "size": "small",
+      "path_scope": [
+        "src/tianshu_companion/life_daily.py",
+        "src/tianshu_companion/life.py (summary contract)",
+        "tests/"
+      ],
+      "deliverable": "二选一并写清理由：A 删除不可达分支与 stage 任务类型（推荐）；B 说明为何需要独立阶段体验并给出与活动 step 不重复的定义",
+      "completion": [
+        "不留不可达分支",
+        "life_events 不再出现指向不存在路径的 stage_experience（历史 17 条保留）",
+        "若删除，life.summary() 契约同步更新"
+      ],
+      "prohibited": [
+        "不为保留可能性而注释掉死代码"
+      ],
+      "detail_section": "PC-08",
+      "phase": "not_integrated_or_deployed",
+      "selected_option": "A: actual experiences belong to runtime activity execution; retain existing historical summary projection",
+      "additional_execution_scope": [
+        "apps/web/src/features/life/DailyLife.tsx (remove phase-generation retry consumer)",
+        "apps/web/tests/quality-platform.spec.ts"
+      ],
+      "code_commit": "440e7fe7521da77edc46d7ec3e6e129d1d451792",
+      "frontend_commit": "45fe307157f55e231a289e0d20a02b5e202e1b78",
+      "handoff": "worktrees/TS-422/tianshu-companion/docs/handoffs/PC-08.md",
+      "result": {
+        "card": "PC-08",
+        "status": "deployed",
+        "option": "A: remove redundant stage generation",
+        "code_commit": "440e7fe7521da77edc46d7ec3e6e129d1d451792",
+        "baseline": "ffd9f6606763d9fa1ff304927e21af0f18271a5d",
+        "frontend_commit": "45fe307157f55e231a289e0d20a02b5e202e1b78",
+        "frontend_baseline": "0c4217df5044848af730e3afe40aa210c26d1a1d",
+        "production_changed": true,
+        "reason": "Core installs RuntimeExecution.activity_step as LifeActivities.executor; completed activity steps and their receipts feed ActorMemory.actions.activity. A separate prose generator cannot prove an action occurred.",
+        "removed": [
+          "stage task creation, work dispatch and recovery scan",
+          "stage prose prompt and stage_experience event writer",
+          "phase-specific retry path and its frontend button"
+        ],
+        "preserved": [
+          "Daily plan digest shape and original request/receipt/CAS/unknown handling",
+          "Historical stage task/event rows, without bulk rewriting",
+          "Historical actor experience field and optional life.summary projection",
+          "Plan retry authorization/CAS, clock, ordinary activity executor and sourced materials"
+        ],
+        "status_projection": "Current/future phase generation states follow the plan task. A completed plan detail is still an intention and is cleared when its source is withdrawn; actual historical events remain untouched.",
+        "validation": {
+          "before": "3 focused no-stage/history/phase-retry regressions failed.",
+          "applicable_companion_cases": 44,
+          "scope": "Plan-only regressions, entire affected DailyLife lifecycle file, PC09 integration and one ActorMemory plan consumer.",
+          "reuse": "42 valid cases from the final affected run, the corrected rollover/diary fixture case, and the ActorMemory consumer; three final changed-path cases were checked individually.",
+          "lifecycle": "Lease, source withdrawal, actual plan model request header, cancellation, restart, terminal receipt recovery and unresolved/manual recovery remain covered; obsolete stage-generation assertions were replaced by supported plan behavior, not skipped.",
+          "browser": "One desktop native Playwright case passed: phase retry absent, plan retry sends phase_id=null, history paging and role switch race preserved.",
+          "browser_original_failure": "Existing fixture lacked the current RoleWorkspace roles/view endpoint; updated only this case and its current role selector. Original failure retained.",
+          "frontend": "TypeScript and production Vite build passed; existing large-chunk advisory retained.",
+          "static": "Targeted Ruff/Prettier and full semantic diff/whitespace review passed.",
+          "model_or_qq_external_test_calls": 0
+        },
+        "unverified": [
+          "No forced or new paid model/QQ run; long-term natural plan/activity quality is not established by startup checks.",
+          "Only the affected desktop flow was checked; no full browser or backend matrix.",
+          "PC02/PC06 original real-world acceptance and W3/W4 remain open."
+        ],
+        "release": "2026.10.30-unified-linux-r51",
+        "integration_proof": "w2-main-integrations.json",
+        "release_receipt": "proactive-companion-repair-r51-2026-10-30.json",
+        "production_verification": {
+          "web_search_placeholder_absent": true,
+          "existing_platform_bridge_installed": true,
+          "stage_writer_absent": true,
+          "plan_task_kinds": {
+            "plan": 67
+          },
+          "effective_actor_catalogs_checked": 2,
+          "effective_catalog_search_absent": true,
+          "history_transaction_read_only": "on",
+          "model_or_qq_calls": 0,
+          "core_or_store_owners_created": 0,
+          "historic_stage_event_count": 17,
+          "historic_stage_task_count": 18,
+          "historic_rows_unchanged": true
+        }
+      },
+      "release_receipt": "proactive-companion-repair-r51-2026-10-30.json",
+      "production_acceptance_receipt": "proactive-companion-pc08-pc10-acceptance-2026-10-30.json"
+    },
+    {
+      "id": "PC-09",
+      "title": "意图重算导致当天日程反复重置",
+      "owner": "companion",
+      "status": "verified_production",
+      "wave": "W2",
+      "depends_on": [
+        "W1"
+      ],
+      "size": "medium",
+      "path_scope": [
+        "src/tianshu_companion/life_influences.py",
+        "src/tianshu_companion/life_daily.py",
+        "tests/"
+      ],
+      "deliverable": "分离 content_version 与档位回退两个概念；意图变化只更新当前档 detail 与未来档活动名建议；只有人格/作息版本变化才回退 baseline；定向测试",
+      "completion": [
+        "连续注入 3 条消息，未来档 detail 保留率 >=2/3",
+        "人格版本变化时仍正确回退（原行为不回归）"
+      ],
+      "prohibited": [
+        "不取消版本校验"
+      ],
+      "detail_section": "PC-09",
+      "phase": "original_constructed_scenarios_verified_R54",
+      "additional_execution_scope": [
+        "src/tianshu_companion/life.py (retain the plan reset revision through existing actor configuration)"
+      ],
+      "code_commit": "96158d343f897ff695353b0e995c4cecf9c778c0",
+      "handoff": "worktrees/TS-422/tianshu-companion/docs/handoffs/PC-09.md",
+      "result": {
+        "card": "PC-09",
+        "status": "deployed",
+        "code_commit": "96158d343f897ff695353b0e995c4cecf9c778c0",
+        "baseline": "d8ccef1b2c9cac29ffb4a89a975b7630541c2023",
+        "production_changed": true,
+        "regression_before": "One accepted dialogue cleared all three future activity/detail entries; assertion failed.",
+        "focused_checks_passed": 7,
+        "covered": [
+          "Three actual synthetic ingests and extracted intentions retain future activity/detail until a replacement plan is applied.",
+          "Failed regeneration retains existing details; later successful regeneration updates them.",
+          "Persona and schedule changes reset future plans.",
+          "A stale asynchronous plan cannot overwrite newer intentions.",
+          "Source withdrawal clears derived future details even when regeneration is failed/unavailable; late source-withdrawn plan remains rejected."
+        ],
+        "implementation": "Keep content_version for stale generation/CAS; use a separate plan reset revision for persona and source withdrawal. Schedule/world versions still determine the plan identity.",
+        "migration": "No DDL; legacy rows default the reset revision to zero and are not rewritten in bulk.",
+        "unverified": [
+          "The exact candidate is installed and healthy; no additional real-user dialogue, promise or observation was injected for this release.",
+          "Original PC02 fixed cohort and PC06 sourced diary/date requirements remain open."
+        ],
+        "tests": "pytest tests/test_life_plan_intentions.py tests/test_daily_life.py::test_withdrawal_clears_generated_future_details_even_without_a_new_plan tests/test_daily_life.py::test_source_withdrawn_during_day_plan_cannot_return_via_planned_detail -q",
+        "static": "Ruff check passed; targeted formatting applied; full diff and whitespace checked.",
+        "pc08_integration": {
+          "commit": "440e7fe7521da77edc46d7ec3e6e129d1d451792",
+          "current_derived_intention_cleared_on_withdrawal": true,
+          "historical_events_preserved": true,
+          "relevant_checks_applicable": true,
+          "deployed": false
+        },
+        "release": "2026.10.30-unified-linux-r51",
+        "integration_proof": "w2-main-integrations.json",
+        "release_receipt": "proactive-companion-repair-r51-2026-10-30.json"
+      },
+      "release_receipt": "proactive-companion-repair-r51-2026-10-30.json",
+      "production_acceptance_receipt": "proactive-companion-w2-acceptance-r54-2026-10-30.json"
+    },
+    {
+      "id": "PC-10",
+      "title": "网页搜索执行端缺失",
+      "owner": "companion",
+      "status": "verified_production",
+      "wave": "W2",
+      "depends_on": [
+        "W1"
+      ],
+      "size": "medium",
+      "path_scope": [
+        "src/tianshu_companion/skills/native.py",
+        "src/tianshu_companion/skills/registry.py",
+        "src/tianshu_companion/skills/ (new web handler if implemented)",
+        "tests/"
+      ],
+      "deliverable": "实现 web.search handler（走真实搜索适配器，返回原始结果+来源 URL+抓取时间）；或移除该技能声明",
+      "completion": [
+        "要么有真实 handler 且一次真实搜索返回带来源结果；要么声明被移除且无残留引用",
+        "技能投影不再出现 skill_disabled 的 web.search"
+      ],
+      "prohibited": [
+        "不用模型生成搜索结果冒充真实搜索",
+        "不因没有适配器而返回空成功"
+      ],
+      "detail_section": "PC-10",
+      "phase": "not_integrated_or_deployed",
+      "selected_option": "Remove unsupported standalone declaration; preserve existing Platform bridge. Actual installed discovery package/instance counts are zero.",
+      "code_commit": "cdde6299910980208632be400b81c1ddce92d171",
+      "handoff": "worktrees/TS-422/tianshu-companion/docs/handoffs/PC-10.md",
+      "result": {
+        "card": "PC-10",
+        "status": "deployed",
+        "code_commit": "cdde6299910980208632be400b81c1ddce92d171",
+        "baseline": "161fbd1a92a6afa4a1e358857b7654d48c6f8ab1",
+        "option": "Remove the uninstalled standalone web.search declaration; retain the existing Platform capability bridge.",
+        "live_before": {
+          "at": 1793363237.434226,
+          "read_only": true,
+          "companion_web_search_declared": true,
+          "companion_web_search_handler_installed": false,
+          "platform_actions_handler_installed": true,
+          "discovery_instances": [],
+          "provider_calls": 0,
+          "core_or_store_owners_created": 0,
+          "installed_discovery_packages": 0,
+          "transaction_read_only": "on"
+        },
+        "validation": {
+          "before": "Native catalog regression failed because it advertised the missing adapter.",
+          "focused_checks_passed": 3,
+          "scope": "Built-in catalog/detail and existing skills HTTP shape/auth/CAS/source boundaries.",
+          "source_residual_references": 0,
+          "external_search_model_or_qq_test_calls": 0,
+          "production_changed": false,
+          "static": "Ruff format/check, complete diff and whitespace review passed."
+        },
+        "truth_boundary": "Platform source includes a real Searx content-discovery adapter, but production has no installed content-discovery package or instance. Code existence does not mean an active search service. No plugin installation, binding, permission or empty-success fallback was added.",
+        "unverified": [
+          "No real external search is enabled or tested; this implements the allowed declaration-removal option."
+        ],
+        "production_changed": true,
+        "release": "2026.10.30-unified-linux-r51",
+        "integration_proof": "w2-main-integrations.json",
+        "release_receipt": "proactive-companion-repair-r51-2026-10-30.json",
+        "production_verification": {
+          "web_search_placeholder_absent": true,
+          "existing_platform_bridge_installed": true,
+          "effective_actor_catalogs_checked": 2,
+          "effective_catalog_search_absent": true
+        }
+      },
+      "release_receipt": "proactive-companion-repair-r51-2026-10-30.json",
+      "production_acceptance_receipt": "proactive-companion-pc08-pc10-acceptance-2026-10-30.json"
+    },
+    {
+      "id": "PC-11",
+      "title": "三处小缺陷",
+      "owner": "companion",
+      "status": "verified_production",
+      "wave": "W2",
+      "depends_on": [
+        "W1"
+      ],
+      "size": "small",
+      "path_scope": [
+        "src/tianshu_companion/life_goals.py",
+        "src/tianshu_companion/life_work.py",
+        "tests/"
+      ],
+      "subitems": [
+        "11a: 承诺项不占 planning 的 LIMIT 名额（与 current_id 保留逻辑一致）",
+        "11b: observation hint 只在 observation_inspired=true 时消费，并有过期时间",
+        "11c: 日程保护改用 minute 集合，不依赖活动名字符串；自定义作息用 protected 标记"
+      ],
+      "completion": [
+        "11a: 构造 21 条承诺，模型仍能产出合法决策",
+        "11b: 与 hint 无关的决策后 hint 仍存在",
+        "11c: 改掉受保护档位的活动名后仍被保护"
+      ],
+      "detail_section": "PC-11",
+      "phase": "original_constructed_scenarios_verified_R54",
+      "additional_execution_scope": [
+        "src/tianshu_companion/life.py (schedule flag normalization)",
+        "src/tianshu_companion/actor_observation.py (hint expiry producer)"
+      ],
+      "code_commit": "25d231d65114ff7397469922bc9a294a9fcfa211",
+      "handoff": "worktrees/TS-422/tianshu-companion/docs/handoffs/PC-11.md",
+      "result": {
+        "card": "PC-11",
+        "status": "deployed",
+        "code_commit": "25d231d65114ff7397469922bc9a294a9fcfa211",
+        "baseline": "40c33ca5219555b09f78c13e39057724540bba83",
+        "production_changed": true,
+        "original_diagnosis_correction": "Existing SQL already retained the earliest due promise. The demonstrated defect is promises consuming the ordinary candidate page; do not claim 21 promises inevitably made a valid choice impossible.",
+        "implementation": {
+          "11a": "Keep the earliest compulsory due promise outside the ordinary LIMIT; retain exact current goal independently; bounded output <= limit+2.",
+          "11b": "Only a new observation_inspired goal consumes a live hint. A hint expires at the next midnight in the actor world timezone; expired or legacy undated hints do not bias choices. Original source proof and commit checks remain.",
+          "11c": "Canonical civil minutes remain protected regardless of activity labels; custom schedule entries retain a validated protected boolean. No new API or permission was introduced."
+        },
+        "validation": {
+          "before": "11 focused cases failed on the original behavior.",
+          "applicable_unique_checks_passed": 19,
+          "updated_minute_protection_cases_rechecked": 6,
+          "native_choice_path": "21 promises + 20 discretionary concerns; recorded model selects the first promise, native goal owner completes and starts its activity.",
+          "native_postgres": {
+            "read_only": true,
+            "synthetic_cte_rows": 41,
+            "selected": 21,
+            "ordinary_candidates": 20,
+            "mandatory_promise_retained": true,
+            "native_queries": 2,
+            "persistent_tables_written": 0,
+            "core_or_store_owners_created": 0,
+            "at": 1793361009.7924335
+          },
+          "native_pg_scope": "Exact candidate method and installed translator execute two queries over 41 VALUES rows in a read-only real PostgreSQL transaction; no persistent tables or owner Store are created.",
+          "pg_fixture_failure_retained": "Fixture initially omitted qmark binding conversion; corrected fixture passed without a product translator change.",
+          "test_source_sha256": "b42933c71f1039095d7890e40ba5da747a178d455bc1b315000aa76e3c5e1ae4",
+          "static": "Targeted Ruff formatting/check and complete diff/whitespace review passed."
+        },
+        "unverified": [
+          "The exact candidate is installed and healthy; no additional real-user dialogue, promise or observation was injected for this release.",
+          "Original PC02 fixed cohort and PC06 sourced diary/date requirements remain open."
+        ],
+        "new_model_or_qq_test_calls": 0,
+        "release": "2026.10.30-unified-linux-r51",
+        "integration_proof": "w2-main-integrations.json",
+        "release_receipt": "proactive-companion-repair-r51-2026-10-30.json"
+      },
+      "release_receipt": "proactive-companion-repair-r51-2026-10-30.json",
+      "production_acceptance_receipt": "proactive-companion-w2-acceptance-r54-2026-10-30.json"
+    },
+    {
+      "id": "PC-12",
+      "title": "跨日兴趣账本",
+      "owner": "companion",
+      "status": "deployed",
+      "wave": "W3",
+      "depends_on": [
+        "W1",
+        "PC-09"
+      ],
+      "size": "large",
+      "path_scope": [
+        "src/tianshu_companion/life_goals.py (material)",
+        "src/tianshu_companion/participation.py (material)",
+        "src/tianshu_companion/actor_observation.py (topic match)",
+        "src/tianshu_companion/ (new ledger module)",
+        "tests/"
+      ],
+      "deliverable": "轻量账本（topic/strength/evidence_count/last_touch/valence/source_refs）；对数增长 strength += α(1-strength)；7 天半衰期衰减；内容指纹独立证据门槛；接入目标选择、群参与、旁观",
+      "completion": [
+        "连续 5 天账本出现增长与衰减，而非每天重置",
+        "重复转载不增加 evidence_count",
+        "用户偏好不写进账本（负例）",
+        "撤回来源后相关条目降权或失效"
+      ],
+      "prohibited": [
+        "不用 LLM 判断主题是否相同，用指纹+阈值",
+        "不写入用户画像域，属 actor 域",
+        "不用上限淘汰最旧，衰减已解决自然淘汰"
+      ],
+      "detail_section": "PC-12"
+    },
+    {
+      "id": "PC-13",
+      "title": "让情绪真正进入决策",
+      "owner": "companion",
+      "status": "deployed",
+      "wave": "W3",
+      "depends_on": [
+        "W1"
+      ],
+      "size": "medium",
+      "path_scope": [
+        "src/tianshu_companion/life_goals.py",
+        "src/tianshu_companion/life.py (mood derivation)",
+        "src/tianshu_companion/life_affect.py (read only)",
+        "src/tianshu_companion/runtime_execution.py (expression material consistency)",
+        "tests/"
+      ],
+      "deliverable": "material 加 affect.snapshot 的 valence 与前 3 条 feelings；mood 由 affect 派生并每 tick 更新；valence<-0.3 时 prompt 增加活动类型偏好提示（不硬编码活动名）；确认分享表达与目标选择用同一口径",
+      "completion": [
+        "三个 actor 的 mood 不再恒定 calm 且与 valence 一致",
+        "valence=-0.8 与 +0.8 两组的活动类型有可观察差异",
+        "relationship_effect 仍为 none"
+      ],
+      "prohibited": [
+        "情绪绝不影响权限、关系分、承诺履行、投递门控",
+        "不做数值化心理模型",
+        "mood 不直接决定活动名"
+      ],
+      "detail_section": "PC-13"
+    },
+    {
+      "id": "PC-14",
+      "title": "显著性打分：给主动消息装上油门",
+      "owner": "companion",
+      "status": "deployed",
+      "wave": "W3",
+      "depends_on": [
+        "PC-07",
+        "PC-12",
+        "PC-13"
+      ],
+      "size": "large",
+      "path_scope": [
+        "src/tianshu_companion/proactive.py",
+        "src/tianshu_companion/runtime_execution.py (motive weight)",
+        "src/tianshu_companion/diary_sharing.py (motive weight)",
+        "src/tianshu_companion/ (new salience module)",
+        "tests/"
+      ],
+      "deliverable": "纯函数打分器：0.30 novelty + 0.25 interest_fit + 0.20 affect_pull + 0.15 recency_need - 0.20 social_cost - 0.15 repetition；双阈值 draft/engage；先写理由再打分的轻量评估；候选保存 salience_inputs 并在投递前重算",
+      "completion": [
+        "主动消息数量随时间下降或稳定，而非恒定打满日配额",
+        "同一内容不重复发送",
+        "上下文变化后候选被作废而非照发",
+        "每个候选有分项与理由明细"
+      ],
+      "prohibited": [
+        "不给每个念头加模型调用；打分主体是纯函数",
+        "不引入 bandit/RL",
+        "不以回复速度作为唯一奖励信号"
+      ],
+      "detail_section": "PC-14"
+    },
+    {
+      "id": "PC-15",
+      "title": "订阅敏感度：让打扰有记忆",
+      "owner": "companion",
+      "status": "deployed",
+      "wave": "W3",
+      "depends_on": [
+        "PC-07",
+        "PC-14"
+      ],
+      "size": "small",
+      "path_scope": [
+        "src/tianshu_companion/proactive.py",
+        "src/tianshu_companion/runtime_execution.py (feedback_for_contacts)",
+        "tests/"
+      ],
+      "deliverable": "每 subscription 的 responsiveness（0-1），由是否被回应指数平滑 η≈0.1；salience 阈值按 responsiveness 缩放；可运维查看",
+      "completion": [
+        "模拟 10 次发→不回后频率显著下降",
+        "模拟 10 次发→秒回后频率上升但不突破日配额",
+        "值在 [0,1] 且重启不丢"
+      ],
+      "prohibited": [
+        "不用多臂老虎机",
+        "responsiveness 只调阈值不调权重；重要事项不因对方冷淡被压掉"
+      ],
+      "detail_section": "PC-15"
+    },
+    {
+      "id": "PC-16",
+      "title": "群参与：从二元改为带强度",
+      "owner": "companion",
+      "status": "deployed",
+      "wave": "W3",
+      "depends_on": [
+        "PC-02",
+        "PC-12"
+      ],
+      "size": "large",
+      "path_scope": [
+        "src/tianshu_companion/participation.py",
+        "tests/"
+      ],
+      "deliverable": "输出扩展为 outcome/strength/new_information/already_said；程序侧用 strength×new_information×!already_said 过滤；material 的 interests 改为长期账本+当天注意分栏；保留 @/关键词/命令路径",
+      "completion": [
+        "群内重复已说过内容比例接近 0",
+        "无关话题下绝大多数静默",
+        "兴趣相关话题能参与且引用可对应账本条目",
+        "@ 与命令路径零回归"
+      ],
+      "prohibited": [
+        "不用关键词命中代替语义判断",
+        "参与判定不输出完整回复"
+      ],
+      "detail_section": "PC-16"
+    },
+    {
+      "id": "PC-17",
+      "title": "目标选择的成本与便宜门控",
+      "owner": "companion",
+      "status": "deployed",
+      "wave": "W3",
+      "depends_on": [
+        "W1"
+      ],
+      "size": "medium",
+      "path_scope": [
+        "src/tianshu_companion/life_goals.py",
+        "tests/"
+      ],
+      "deliverable": "移除 capabilities 全量投影（或压缩为技能名列表）；引入上下文变化检测的便宜门控（新阅读/新旁听/新承诺/情绪显著变化/dormant 到期，否则延后不调模型）；尊重模型给的长 delay_seconds；记录实际 token",
+      "completion": [
+        "单次决策 input token 下降 >=40%",
+        "上下文无变化的唤醒不产生模型调用",
+        "决策质量不降（goal 具体性抽检不低于改前）"
+      ],
+      "prohibited": [
+        "不削减 persona",
+        "不把 concerns fragments 削减到不可用",
+        "不以降低频率冒充降低成本"
+      ],
+      "detail_section": "PC-17",
+      "latest_acceptance": {
+        "record": "proactive-companion-repair-r64-2026-10-31.json",
+        "paired_actual_token_threshold": "verified_3_synthetic_scenes",
+        "goal_specificity": "human_review_pending",
+        "quality_flags": [
+          "After-reading reason says morning without support in scene; human review pending."
+        ]
+      }
+    },
+    {
+      "id": "PC-18",
+      "title": "联合验收与连续观察",
+      "owner": "coordination",
+      "status": "in_progress",
+      "wave": "W4",
+      "depends_on": [
+        "W2",
+        "W3"
+      ],
+      "size": "medium (plus observation window)",
+      "path_scope": [
+        "docs/development/ (acceptance record)",
+        ".runtime/ (evidence)"
+      ],
+      "deliverable": "指标前后对比；连续观察 7 天（建议 14 天）记录跨日引用、兴趣变化、主动消息合适度、卡死率、token 成本；验收报告明确写出未做到与未验证项",
+      "completion": [
+        "全部指标有前后两组数值",
+        ">=3 个因为昨天经历改变今天选择的真实案例（含来源引用）",
+        ">=1 个卡住后自己恢复的案例",
+        ">=1 次主动发起且被回应的完整链路"
+      ],
+      "prohibited": [
+        "不用一次演示顺畅就宣布完整生活",
+        "不隐去不利数据"
+      ],
+      "detail_section": "PC-18"
+    }
+  ],
+  "suggested_lanes": {
+    "companion": [
+      "PC-01",
+      "PC-03",
+      "PC-04",
+      "PC-05",
+      "PC-06",
+      "PC-07",
+      "PC-08",
+      "PC-09",
+      "PC-10",
+      "PC-11",
+      "PC-12",
+      "PC-13",
+      "PC-14",
+      "PC-15",
+      "PC-16",
+      "PC-17"
+    ],
+    "coordination": [
+      "PC-02",
+      "PC-18"
+    ]
+  },
+  "note_on_ownership": "PC-02 归协调而非 Companion，因为它可能涉及三份 settings 的凭据/登记同步，跨产品；若定位结论是纯 Companion 代码问题，再由 Companion 单写者接管。",
+  "user_decisions": {
+    "household": "delete installation placeholder, no authorization widening; replaces household-success/cursor acceptance only",
+    "coordination_message": "authorized and sent",
+    "production": "this window authorized to publish after R36"
+  },
+  "latest_release": "proactive-companion-repair-r56-2026-10-31.json",
+  "latest_business_acceptance": "proactive-companion-repair-r43-acceptance-2026-10-30.json",
+  "PC08_PC10_removal_acceptance": "proactive-companion-pc08-pc10-acceptance-2026-10-30.json",
+  "latest_W2_original_scenario_acceptance": "proactive-companion-w2-acceptance-r54-2026-10-30.json",
+  "latest_user_execution_override": {
+    "instruction": "先将剩余需要改造的，全部改造完成吧",
+    "W3_implementation_entry_override": true,
+    "remaining_scope": [
+      "PC-12",
+      "PC-13",
+      "PC-14",
+      "PC-15",
+      "PC-16",
+      "PC-17",
+      "PC-18"
+    ],
+    "original_acceptance_conditions_retained": true,
+    "single_writer": true
+  },
+  "latest_W3_local_implementation": {
+    "report": "docs/development/proactive-companion-w3-local-2026-10-31.md",
+    "companion_head": "c8a644b56bbee9bb615b2ab772e85fbec0964161",
+    "memory_head": "152d7c8cb457bb04eb748a864626634aa7fe9ad4",
+    "production_deployed": false
+  },
+  "latest_W3_release": {
+    "report": "docs/development/proactive-companion-repair-r57-2026-10-31.md",
+    "version": "2026.10.31-unified-linux-r57",
+    "companion_commit": "1447b50a8bf38d9b6d4f6b1843be18d425bd7357",
+    "memory_commit": "152d7c8cb457bb04eb748a864626634aa7fe9ad4",
+    "status": "deployed",
+    "original_acceptance_criteria_retained": true
+  },
+  "latest_runtime_release": {
+    "version": "2026.10.31-unified-linux-r64",
+    "record": "proactive-companion-repair-r64-2026-10-31.json",
+    "companion_commit": "beb4a0df287d0214bba29eb154909a7958ed9af1",
+    "memory_commit": "874b911a0004d652f4f86ad21912b6e80dae03b3",
+    "paired_input_token_reduction": 0.6023626163013556,
+    "human_goal_specificity_review": "pending",
+    "whole_goal_complete": false
+  },
+  "latest_PC18_observation": {
+    "report": "docs/development/proactive-companion-pc18-observation-2026-10-31.md",
+    "private_evidence": "pc18-observation-r61-1793395667244898600.json",
+    "at": 1793395653.4804814,
+    "human_response_chain_count": 1,
+    "whole_goal_complete": false,
+    "idle_target_met": false,
+    "next": "Fix existing loop idle waits with prompt real-work and deadline wakeups; retain all original real-day and semantic criteria."
+  }
+}
