@@ -1,0 +1,168 @@
+{
+  "schema_version": 1,
+  "state": "deployed_healthy_business_acceptance_in_progress",
+  "goal_complete": false,
+  "version": "2026.10.30-unified-linux-r40",
+  "sources": {
+    "platform": {
+      "commit": "73cea0b6bcb782b5a8ff03d81248c20000ca1c12",
+      "archive_sha256": "8cb23f99c777a4fee48374bc63b2141d75ef3acbf100e6db76116f78a345e4f9"
+    },
+    "companion": {
+      "commit": "c9754029a32eb63134ffca18879de4d90a04e366",
+      "archive_sha256": "7d386fb18a0fd40d958fd9793b7bfddba3868aebc0f3afcf8bfd23e381217ed3"
+    },
+    "memory": {
+      "commit": "3aee6394fda1ea6f8bf0ed0644a8fafdd5bc4933",
+      "archive_sha256": "4010664123e5803473fe41249c0d7d028ba43487f0827f5ac6411dbd44437569"
+    },
+    "gateway": {
+      "commit": "ed631d8a6f26890628a9df833792210e9a09e31c",
+      "archive_sha256": "8f7fa3a112e9d290ae160ca09277134e5a2cf22a4d655ebec7448540aa1bb381"
+    },
+    "application": {
+      "commit": "a800f47e3a57700a9548daa7f70828d8aa9a2765",
+      "archive_sha256": "8acf5c63ead1f6a375ca3e9d02b922313dfbca9366df112468408beab980962f"
+    },
+    "platform_frontend": {
+      "commit": "73cea0b6bcb782b5a8ff03d81248c20000ca1c12",
+      "archive_sha256": "8cb23f99c777a4fee48374bc63b2141d75ef3acbf100e6db76116f78a345e4f9"
+    }
+  },
+  "production": {
+    "image": "sha256:37a2a72061971560f21784eb43bbe20efb927b0f720b13b5bb5557d3d436ec8f",
+    "id": "ea04e5242473309a53093b3410b5fb18b9f9b85a578b38564db9ba23dec11b69",
+    "health": "healthy",
+    "restarts": 0,
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r40",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_free_bytes": 50488950784,
+    "mounts_preserved": 37,
+    "non_target_containers_preserved": 14,
+    "config_files_preserved": 1167,
+    "configuration_changed": [
+      "private/gateway.env"
+    ],
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "completed_at": 1793333975.1462371
+  },
+  "minimal_change": {
+    "updated_products": [
+      "memory"
+    ],
+    "frontend_unchanged": true,
+    "application_unchanged": true,
+    "configuration_unchanged_except_same_scope_startup_lease": true,
+    "ddl": false,
+    "pc05_convergence_repeated": false
+  },
+  "previous_shutdown": {
+    "systemctl_returncode": 0,
+    "elapsed_seconds": 124.38680291175842,
+    "old_finished_at": "2026-10-30T04:15:51.899570448Z",
+    "old_exit_code": 0,
+    "old_restart": "no"
+  },
+  "verification": {
+    "before_deadlock_test": "1 failed as expected",
+    "first_after": "28 passed, 1 failed, 2 deselected; existing 20ms timeout recovery test",
+    "original_timeout_baseline": "1 passed",
+    "related_callers": "38 passed, 8 deselected; includes exact formerly failing timeout test",
+    "final_receipts_and_concurrency": "9 passed, including 3 new cross-worker and race cases",
+    "ruff_and_format_and_diff": "passed",
+    "full_product_or_dual_backend_matrix": false,
+    "image_payload_files": 157,
+    "inherited_application_files": 56,
+    "inherited_frontend_files": 87,
+    "production_pg_recovery_verified": true
+  },
+  "original_outbox_recovery": {
+    "delivered_before": 52,
+    "delivered_after": 54,
+    "unresolved_after": 0,
+    "original_requests": [
+      {
+        "state": "actor_memory_delivered",
+        "attempts": 1019,
+        "request_identity_digest": "d0f0cb7bd0586bc12bacc6c35dab2025a2a0592d019b8815d7f6f4bc7076f632",
+        "original_role_version": 6,
+        "receipt_state": "accepted",
+        "original_request_id_matches": true
+      },
+      {
+        "state": "actor_memory_delivered",
+        "attempts": 1022,
+        "request_identity_digest": "da1ed7f85d08706a324d55811909a861d0151efb7a9ea073ed9658ccdc198ff4",
+        "original_role_version": 6,
+        "receipt_state": "accepted",
+        "original_request_id_matches": true
+      }
+    ],
+    "memory_receipts": [
+      {
+        "matches": 1,
+        "results": [
+          {
+            "state": "accepted",
+            "original_request_id_matches": true
+          }
+        ]
+      },
+      {
+        "matches": 1,
+        "results": [
+          {
+            "state": "accepted",
+            "original_request_id_matches": true
+          }
+        ]
+      }
+    ],
+    "manual_replay_of_activity_steps": false,
+    "original_keys_or_request_ids_changed": false
+  },
+  "git": {
+    "memory_main_integrated": true,
+    "memory_runtime_commit": "3aee6394fda1ea6f8bf0ed0644a8fafdd5bc4933",
+    "memory_remote_push": "not_configured; origin push failed; precise local archive used"
+  },
+  "controlled_qq": {
+    "human_authorized": true,
+    "sender_binding_verified": true,
+    "new_private_source_observed": true,
+    "target_reply_whitelist_count": 1,
+    "existing_web_and_qq_admin_session_usable_after_startup": true,
+    "subscription_registered": false,
+    "proactive_test_messages": 0,
+    "pending": "fresh inbound after reply whitelist activation establishes native binding; people-life view currently not_found"
+  },
+  "remaining": [
+    "PC-02 real twenty-four-hour new-decision quality",
+    "PC-06 three real calendar days with drafts per enabled actor",
+    "PC-07 subscription, motive, sent candidate, native delivery receipt, idempotence and unanswered suppression",
+    "W2-W4"
+  ],
+  "do_not_enter_W3": true,
+  "rollback": "/srv/tianshu-tooling/proactive-companion-r40-fd9c9835ffc84a718a0f0ff09743d396/rollback-r40-to-r39/rollback.py",
+  "observation_automation": {
+    "id": "automation-2",
+    "status": "ACTIVE",
+    "notify_only_meaningful_changes": true
+  }
+}
