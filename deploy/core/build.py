@@ -69,6 +69,7 @@ def build(checkout, source_sha, owned_root, output, images):
             "src",
             "web",
             "packages/tianshu-plugin",
+            "tools/music",
             "deploy/core",
         ],
         cwd=checkout,

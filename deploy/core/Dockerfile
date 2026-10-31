@@ -20,6 +20,11 @@ FROM ${VECTOR_IMAGE} AS vector
 FROM ${LOKI_IMAGE} AS loki
 FROM ${PROMETHEUS_IMAGE} AS prometheus
 FROM ${GRAFANA_IMAGE} AS grafana
+FROM ${PYTHON_IMAGE} AS music-tools
+WORKDIR /build
+# Fixed local tools change independently of the Python product and web sources.
+COPY tools/music/ ./tools/music/
+RUN python tools/music/build.py
 FROM ${PYTHON_IMAGE} AS python-build
 COPY --from=uv /uv /uvx /usr/local/bin/
 RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev && rm -rf /var/lib/apt/lists/*
@@ -61,6 +66,8 @@ RUN mkdir -p /opt/tianshu/image-manifest \
     && pg_dump --version > /opt/tianshu/image-manifest/postgres-client.txt \
     && vector --version > /opt/tianshu/image-manifest/vector.txt \
     && loki --version > /opt/tianshu/image-manifest/loki.txt 2>&1
+COPY --from=music-tools /build/music-tools/tianshu-musicbridge /build/music-tools/tianshu-musicdecode /usr/local/bin/
+COPY --from=music-tools /build/music-tools/corresponding-source.tar.gz /usr/share/tianshu-music-tools/corresponding-source.tar.gz
 # Source changes only replace product/static files and the small identity inventory.
 COPY --from=python-build /opt/tianshu/.venv /opt/tianshu/.venv
 COPY --from=web /build/web/dist /opt/tianshu/web/dist

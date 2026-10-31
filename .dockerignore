@@ -11,6 +11,9 @@
 !deploy/
 !deploy/core/
 !deploy/core/**
+!tools/
+!tools/music/
+!tools/music/**
 **/__pycache__
 **/node_modules
 **/.venv
