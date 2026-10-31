@@ -16,6 +16,7 @@ class Configuration:
             "content_provider",
             "device_connection",
             "game_connection",
+            "weather_connection",
         }
     )
 

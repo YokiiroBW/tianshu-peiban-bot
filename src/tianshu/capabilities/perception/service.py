@@ -306,19 +306,57 @@ class Perception:
     async def reconcile(self, action, attempt):
         async with self.database.transaction(read_only=True) as conn:
             cursor = await conn.execute(
-                "SELECT body FROM capabilities.consumptions WHERE action_id=%s ORDER BY id DESC LIMIT 1",
-                (action.action_id,),
+                "SELECT body FROM capabilities.consumptions WHERE action_id=%s AND id=%s",
+                (action.action_id, attempt.attempt_id),
             )
             row = await cursor.fetchone()
+        if not row:
+            return Receipt(
+                str(uuid4()),
+                action.action_id,
+                attempt.attempt_id,
+                "unknown",
+                "none",
+                "not_requested",
+                error_code="analysis_result_unknown",
+            )
+        consumption = row["body"]
+        identifier = consumption.get("analysis_artifact_id")
+        if not identifier:
+            return Receipt(
+                str(uuid4()),
+                action.action_id,
+                attempt.attempt_id,
+                "unknown",
+                "none",
+                "not_requested",
+                result={"consumption": consumption},
+                error_code="analysis_artifact_missing",
+            )
+        artifact = await self.artifacts.reference(action.context, "artifact:" + identifier)
+        raw, mime = await self.artifacts.get(action.context, artifact.media.media_id)
+        if not mime.startswith("text/"):
+            raise Fault("analysis_artifact_invalid", 502)
+        text = raw.decode("utf-8")
+        if not text or artifact.metadata.get("model_attempt_id") != consumption.get(
+            "model_attempt_id"
+        ):
+            raise Fault("analysis_artifact_mismatch", 409)
         return Receipt(
             str(uuid4()),
             action.action_id,
             attempt.attempt_id,
-            "succeeded" if row else "unknown",
+            "succeeded",
             "none",
             "not_requested",
-            result={"consumption": row["body"]} if row else {},
-            error_code=None if row else "analysis_result_unknown",
+            artifacts=(artifact,),
+            coverage=Coverage(
+                False,
+                missing=tuple(consumption.get("omitted", ())),
+                ranges=tuple(consumption.get("ranges", ())),
+                representation="sampled_frames_actual_audio",
+            ),
+            result={"analysis": text, "consumption": consumption},
         )
 
     async def cancel(self, action, attempt):

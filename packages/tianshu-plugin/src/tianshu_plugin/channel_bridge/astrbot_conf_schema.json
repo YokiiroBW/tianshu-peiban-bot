@@ -1,0 +1,37 @@
+{
+  "instance_id": {
+    "type": "string",
+    "description": "本宿主固定实例 ID",
+    "default": ""
+  },
+  "connection_id": {
+    "type": "string",
+    "description": "天枢已登记连接 ID",
+    "default": ""
+  },
+  "self_id": {
+    "type": "string",
+    "description": "此宿主固定 QQ 账号",
+    "default": ""
+  },
+  "token": {
+    "type": "string",
+    "description": "连接独立 Bearer 凭据（不填天枢主密钥）",
+    "default": ""
+  },
+  "core_url": {
+    "type": "string",
+    "description": "天枢 interactive HTTP 地址",
+    "default": ""
+  },
+  "listen_host": {
+    "type": "string",
+    "description": "SDK 回执 RPC 监听地址",
+    "default": "127.0.0.1"
+  },
+  "listen_port": {
+    "type": "int",
+    "description": "SDK 回执 RPC 端口",
+    "default": 18765
+  }
+}

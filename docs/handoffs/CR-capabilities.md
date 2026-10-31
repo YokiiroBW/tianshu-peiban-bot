@@ -135,3 +135,16 @@ Actions.get 返回 `{action:wire dict,attempt:wire dict,receipt:wire dict,result
 `content.read` 参数增加 `render:auto|http|browser` 与 `session_id?`。真实 Playwright Chromium 读取在 `content/browser.py`：只允许已核公开 URL 与配置精确 origin 的 GET/HEAD/OPTIONS，请求资源有界，独立临时 context 重用封存 storage_state，取消关闭真实 context/browser/Playwright。提取真实渲染DOM、登记 rendered_dom 来源；HTTP静态正文仍优先。跨origin资源须由browser_origins显式列出，写入型POST应用不冒称已读。缺包/缺Chromium分别明确 unavailable，运行时不下载安装。
 
 `content.providers.save` 支持 `browser_origins:[精确origin]`、`browser_selector?`、`browser_storage_state:{cookies,origins}`（秘密字段仅写），由已授权角色/范围/受众冻结访问。state密封到配置secret，Action仅保存sealed command引用；并发更新不会用旧浏览器会话覆盖新配置。根依赖锁Playwright，镜像构建执行匹配版本 `playwright install --with-deps chromium`。能力设置 `content.browser={enabled:true,contexts:1,timeout_seconds:35,chromium_sandbox:true,executable_path?:绝对路径}`。没有运行浏览器或任何测试。
+
+
+## C 同批能力收口与天气（implemented_not_tested）
+
+Browser公开静态CDN script/css/font/image可加载：独立DummyCookieJar客户端仅公开GET、去Cookie/Authorization、丢Set-Cookie后fulfill；文档导航和带账号请求仍只在明确origin。resources有数量/字节/时间边界，取消实际关闭全部I/O/进程。配置默认已能读取普通CDN脚本站，不要求新UI审批。
+
+content.read登记真实HTML/DOM原件，另以支持该原件的normalized_text来源登记规范正文；result.source为规范正文，original_source为原件，source_refs都保留，Sources.read后续是真实可读正文。content.continue请求requested={position,max_characters}、next_position=int|null；网页分页另以continuation={capability_id:content.read,arguments:{url:实际next_url,mode:continue,render,session_id?}}描述。视频继续仍唯一ConsumptionReceipt.next_position，未混成字符位置。VideoObservation.reconcile按原Attempt取消费记录并授权读回原analysis_artifact_id，恢复analysis/Artifacts/model_attempt_id与原范围，不调用第二次模型。
+
+WeatherService(runtime,*,authority,sources,configuration=None,models=None)可独立在Life前构造真实实例；caps.build_module新增weather=同实例并复用其唯一Configuration，构造时bind_actions真实登记weather.search/current。Life仍唯一保存weather_location，天气服务不复制角色绑定。观察真实QWeather Geo与/weather/v1/current坐标，专属Host/API-Key密封、128KiB/8秒、实际时区/归因/摄氏单位；所有外部QWeather读取经Broker.resource function=weather.search/weather.current、同Action/Attempt，已配置quota_group才提交。5分钟同一Action缓存复用，失败旧值明确stale且保留旧fetched/expires，observed_at始终null（v1未给观测时间）。Source.capture TOOL_RESULT保实际天气原JSON和源refs，天气事实需B并入Scene来源。
+
+正式读POST /api/v1/weather/view→{connection:{id:qweather,revision,host?,quota_group?,account_id?,configured,enabled},configured,reason,server_time}；search {query}→{items:[{id,name,adm1,adm2,country,tz,utc_offset,latitude,longitude}],source_refs}；current {location_id}→{location,weather:{temp,feels_like,text,icon,wind_scale,attributions,observed_at:null},description,observed_at:null,fetched_at,expires_at,stale,code,source_refs}。未配置observe返回None，缺实时数据weather=null/真实code。连接写POST /api/v1/weather/connections.save={client_request_id,host,api_key?只写,clear_credential?,quota_group,account_id?,expected_revision,enabled?}返回统一CommandResult，权限external.manage。小端口weather.observe(ctx,location_id)为同投影但时间返回aware datetime。测试材料未执行；无真实和风Key调用。
+
+HTTP全部actor/person/conversation selector只由A在query授权，body剥离，不误进工具schema，选择角色不附加config.publish。handler原permissions仍Actions实际复核。上传/原件/读取/命令使用同真实会话场景。

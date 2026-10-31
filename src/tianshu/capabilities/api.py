@@ -65,6 +65,8 @@ async def invoke(service, domain, operation, body, context, *, capability_id=Non
             "activity_id",
             "matter_id",
             "actor_id",
+            "person_id",
+            "conversation_id",
         }
     }
     if contains_secret(arguments):
@@ -151,14 +153,13 @@ def register_routes(app, service):
         if not isinstance(body, dict):
             raise Fault("invalid_input", 400)
         await service.authority.check(context)
-        if body.get("actor_id") and body["actor_id"] != context.actor_id:
-            if service.authorize_actor is None:
-                raise Fault("actor_authority_unavailable", 503)
-            context = await service.authorize_actor(
-                context,
-                body["actor_id"],
-                permission="config.publish" if op not in READ_OPERATIONS.get(domain, ()) else None,
-            )
+        # actor/person/conversation selectors are resolved by Identity middleware
+        # from the query. They are routing metadata, never model arguments.
+        body = {
+            key: value
+            for key, value in body.items()
+            if key not in {"actor_id", "person_id", "conversation_id", "current_input_refs"}
+        }
         if domain == "system":
             require_context(request, "config.publish")
             diagnostics = service.runtime.diagnostics
@@ -419,6 +420,6 @@ def register_routes(app, service):
     app.router.add_get("/api/v1/plugins/page/{ticket}", plugin_page)
     app.router.add_get("/api/v1/{domain:books|comics}/files/{path:.*}", library_file)
     app.router.add_post(
-        "/api/v1/{domain:capabilities|plugins|content|images|speech|reactions|media|books|music|comics|devices|infrastructure|game|system}/{operation:.*}",
+        "/api/v1/{domain:capabilities|plugins|content|images|speech|reactions|media|books|music|comics|devices|infrastructure|game|weather|system}/{operation:.*}",
         operation,
     )

@@ -9,8 +9,12 @@ description = "Native TianShu plugin SDK"
 requires-python = ">=3.12"
 dependencies = []
 
+[project.optional-dependencies]
+bridge = ["aiohttp>=3.10,<4"]
+nonebot = ["aiohttp>=3.10,<4", "nonebot2[fastapi]==2.5.0", "nonebot-adapter-onebot==2.4.0"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-tianshu_plugin = ["*.js"]
+tianshu_plugin = ["*.js", "channel_bridge/*.md", "channel_bridge/*.yaml", "channel_bridge/*.json"]

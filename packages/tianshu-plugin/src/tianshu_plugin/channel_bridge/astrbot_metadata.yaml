@@ -1,0 +1,8 @@
+name: astrbot_plugin_tianshu_channel_bridge
+display_name: 天枢原生渠道桥
+desc: 保留 AstrBot 命令归属，通过原 SDK 接收完整消息与恢复真实发送回执。
+version: 2.0.0
+author: tianshu
+astrbot_version: "==4.27.3"
+support_platforms:
+  - aiocqhttp

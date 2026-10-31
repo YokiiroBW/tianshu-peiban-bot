@@ -242,10 +242,22 @@ class Content:
             "published_at": content.get("published_at"),
             "posts": content["posts"],
         }
-        source = await self.sources.capture(
+        original = await self.sources.capture(
             action.context, locator=locator, raw=raw, mime_type=mime
         )
-        await self.authority.check(action.context, (source,))
+        source = await self.sources.capture(
+            action.context,
+            locator={
+                **locator,
+                "kind": "normalized_content",
+                "representation": "normalized_text",
+                "original_source": wire(original),
+                "support_groups": [[wire(original)]],
+            },
+            raw=content["text"].encode("utf-8"),
+            mime_type="text/plain",
+        )
+        await self.authority.check(action.context, (original, source))
         return Receipt(
             str(uuid4()),
             action.action_id,
@@ -260,11 +272,27 @@ class Content:
             ),
             result={
                 "source": wire(source),
-                "source_refs": wire((source,)),
+                "original_source": wire(original),
+                "source_refs": wire((original, source)),
                 "content": content,
                 "locator": locator,
                 "activity_mode": action.arguments.get("mode", "research"),
                 "read_basis": "actual_source_body",
+                "continuation": {
+                    "capability_id": "content.read",
+                    "arguments": {
+                        "url": content["next_url"],
+                        "mode": "continue",
+                        "render": action.arguments.get("render", "auto"),
+                        **(
+                            {"session_id": action.arguments["session_id"]}
+                            if action.arguments.get("session_id")
+                            else {}
+                        ),
+                    },
+                }
+                if content["next_url"]
+                else None,
             },
         )
 

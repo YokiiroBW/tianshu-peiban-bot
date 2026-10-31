@@ -166,6 +166,7 @@ class Capabilities:
         actor_directory=None,
         worker=None,
         artifacts=None,
+        weather=None,
     ):
         self.runtime, self.settings, self.authority, self.sources, self.life, self.expression = (
             runtime,
@@ -183,7 +184,11 @@ class Capabilities:
         if not state.is_absolute():
             raise Fault("capability_state_directory_required", 503)
         self.state_directory = state
-        self.configuration = Configuration(runtime.database, runtime.credentials)
+        self.configuration = (
+            weather.configuration
+            if weather is not None
+            else Configuration(runtime.database, runtime.credentials)
+        )
         self.catalog = Catalog()
         self.actions = Actions(
             runtime.database, runtime.jobs, self.catalog, authority, result_events
@@ -201,6 +206,16 @@ class Capabilities:
         )
         self.devices = Devices(self.configuration, authority)
         self.games = Games(self.configuration, self.artifacts, authority)
+        from .weather import WeatherService
+
+        self.weather = weather or WeatherService(
+            runtime,
+            authority=authority,
+            sources=sources,
+            configuration=self.configuration,
+            models=self.models,
+        )
+        self.weather.bind_actions(self.actions)
         from concurrent.futures import ThreadPoolExecutor
 
         self.file_executor = ThreadPoolExecutor(
@@ -412,6 +427,7 @@ class Capabilities:
             "devices": ("connections.save", "refresh"),
             "capabilities": ("upload",),
             "game": ("connections.save",),
+            "weather": ("connections.save",),
         }
         for domain, operations in {**MATURE_OPERATIONS, **extras}.items():
             for op in operations:
@@ -426,7 +442,7 @@ class Capabilities:
                     continue
                 permission = (
                     "external.manage"
-                    if domain == "infrastructure"
+                    if domain in {"infrastructure", "weather"}
                     else "config.publish"
                     if domain in {"plugins", "reactions"}
                     and op != "search"
@@ -511,6 +527,15 @@ class Capabilities:
         clean = {k: v for k, v in body.items() if k != "client_request_id"}
         if operation in CLIENT_ID_OPERATIONS.get(domain, ()):
             clean["client_request_id"] = client_id
+        if domain == "weather":
+            if operation == "view":
+                return await self.weather.view(context)
+            if operation == "search":
+                return await self.weather.search(context, clean["query"])
+            if operation == "current":
+                return await self.weather.observe(context, clean["location_id"])
+            if operation == "connections.save":
+                return await self.weather.save(context, clean)
         if domain == "plugins":
             if operation in {"install", "create", "invoke"}:
                 clean["client_request_id"] = client_id

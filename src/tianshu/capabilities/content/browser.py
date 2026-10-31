@@ -1,6 +1,7 @@
 """Actual controlled Chromium reading; a rendered DOM is a sourced representation."""
 
 import asyncio
+import aiohttp
 from urllib.parse import urlsplit
 from bs4 import BeautifulSoup
 from ..contracts import Fault
@@ -59,6 +60,12 @@ class Browser:
             playwright = await async_playwright().start()
             browser = None
             session = None
+            public_resources = aiohttp.ClientSession(
+                cookie_jar=aiohttp.DummyCookieJar(),
+                connector=aiohttp.TCPConnector(limit=4),
+                timeout=aiohttp.ClientTimeout(total=15),
+            )
+            resource_count = 0
             try:
                 try:
                     browser = await playwright.chromium.launch(**options)
@@ -69,20 +76,65 @@ class Browser:
                 )
 
                 async def route(request_route):
+                    nonlocal resource_count
                     request = request_route.request
                     address = request.url
                     try:
                         public_url(address)
                         origin = urlsplit(address).scheme + "://" + urlsplit(address).netloc
-                        if (
-                            origin not in allowed
-                            or request.resource_type in {"media", "websocket"}
-                            or request.method not in {"GET", "HEAD", "OPTIONS"}
-                        ):
+                        if request.method not in {"GET", "HEAD", "OPTIONS"}:
+                            await request_route.abort()
+                            return
+                        if origin not in allowed:
+                            # Public CDN assets use a separate cookie-free client.
+                            # route.continue_ cannot reliably remove browser Cookie
+                            # headers, so account state never enters this request.
+                            if request.method != "GET" or request.resource_type not in {
+                                "script",
+                                "stylesheet",
+                                "font",
+                                "image",
+                            }:
+                                await request_route.abort()
+                                return
+                            resource_count += 1
+                            if resource_count > 128:
+                                await request_route.abort()
+                                return
+                            async with public_resources.get(
+                                address,
+                                allow_redirects=False,
+                                headers={"Accept": request.headers.get("accept", "*/*")},
+                            ) as resource:
+                                if resource.status != 200:
+                                    await request_route.abort()
+                                    return
+                                body = bytearray()
+                                async for chunk in resource.content.iter_chunked(65536):
+                                    body.extend(chunk)
+                                    if len(body) > 8 * 1024 * 1024:
+                                        await request_route.abort()
+                                        return
+                                await request_route.fulfill(
+                                    status=200,
+                                    body=bytes(body),
+                                    headers={
+                                        key: value
+                                        for key, value in resource.headers.items()
+                                        if key.lower()
+                                        in {
+                                            "content-type",
+                                            "access-control-allow-origin",
+                                            "cache-control",
+                                        }
+                                    },
+                                )
+                            return
+                        if request.resource_type in {"media", "websocket"}:
                             await request_route.abort()
                             return
                         await request_route.continue_()
-                    except (Fault, ValueError):
+                    except (Fault, ValueError, aiohttp.ClientError, OSError, asyncio.TimeoutError):
                         await request_route.abort()
 
                 await session.route("**/*", route)
@@ -152,11 +204,18 @@ class Browser:
             finally:
 
                 async def close():
-                    if session is not None:
-                        await session.close()
-                    if browser is not None:
-                        await browser.close()
-                    await playwright.stop()
+                    try:
+                        if session is not None:
+                            await session.close()
+                    finally:
+                        try:
+                            if browser is not None:
+                                await browser.close()
+                        finally:
+                            try:
+                                await public_resources.close()
+                            finally:
+                                await playwright.stop()
 
                 closing = asyncio.create_task(close())
                 try:
