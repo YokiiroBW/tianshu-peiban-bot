@@ -705,10 +705,10 @@ class Capabilities:
     def bind_result_events(self, events):
         self.actions.events = events
 
-    async def withdraw_sources(self, connection, source_refs):
+    async def withdraw_sources(self, connection, source_refs, reason="source_revoked"):
         from .withdrawal import withdraw
 
-        return await withdraw(self, connection, source_refs)
+        return await withdraw(self, connection, source_refs, reason)
 
     async def close(self):
         if not self.initialized:

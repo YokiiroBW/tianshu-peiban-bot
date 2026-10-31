@@ -18,11 +18,18 @@ async def validate_sources(connection, context, refs, sources):
 
 
 async def depend(connection, kind, identifier, refs):
+    if not refs:
+        return
+    grouped = {}
     for ref in refs:
-        await connection.execute(
-            "INSERT INTO capabilities.source_dependencies(owner_kind,owner_id,source_id,source_revision) VALUES(%s,%s,%s,%s) ON CONFLICT DO NOTHING",
-            (kind, identifier, ref.source_id, ref.revision),
-        )
+        grouped.setdefault((ref.source_id, ref.revision), []).append(wire(ref))
+    payload = [
+        {"source_id": key[0], "revision": key[1], "refs": values} for key, values in grouped.items()
+    ]
+    await connection.execute(
+        "INSERT INTO capabilities.source_dependencies(owner_kind,owner_id,source_id,source_revision,refs) SELECT %s,%s,item->>'source_id',(item->>'revision')::bigint,item->'refs' FROM jsonb_array_elements(%s::jsonb) item ON CONFLICT(owner_kind,owner_id,source_id,source_revision) DO UPDATE SET refs=(SELECT jsonb_agg(DISTINCT value) FROM jsonb_array_elements(capabilities.source_dependencies.refs||excluded.refs))",
+        (kind, identifier, canonical(payload)),
+    )
 
 
 def redacted(receipt):
@@ -41,16 +48,30 @@ def redacted(receipt):
     )
 
 
-async def withdraw(owner, connection, refs):
+async def withdraw(owner, connection, refs, reason="source_revoked"):
     refs = tuple(refs)
-    identifiers = list({ref.source_id for ref in refs})
+    unique = sorted({(ref.source_id, ref.revision) for ref in refs})
+    identifiers = [key[0] for key in unique]
+    revisions = [key[1] for key in unique]
     if not identifiers:
         return {"actions": 0, "artifacts": 0}
-    # Match explicit SourceRefs only; arbitrary JSON identifiers are never sources.
+    from tianshu.sources.dependencies import changes_for, intersects
+
+    changes, _ = changes_for(refs)
+    dependencies = await (
+        await connection.execute(
+            "SELECT owner_kind,owner_id,refs FROM capabilities.source_dependencies WHERE (source_id,source_revision) IN (SELECT * FROM unnest(%s::text[],%s::bigint[]))",
+            (identifiers, revisions),
+        )
+    ).fetchall()
+    selected = {}
+    for dependency in dependencies:
+        if intersects(dependency["refs"], changes, reason):
+            selected.setdefault(dependency["owner_kind"], set()).add(dependency["owner_id"])
     rows = await (
         await connection.execute(
-            "SELECT id,media_id FROM capabilities.artifacts WHERE id IN (SELECT owner_id FROM capabilities.source_dependencies WHERE owner_kind='artifact' AND source_id=ANY(%s)) FOR UPDATE",
-            (identifiers,),
+            "SELECT id,media_id FROM capabilities.artifacts WHERE id=ANY(%s) ORDER BY id FOR UPDATE",
+            (sorted(selected.get("artifact", ())),),
         )
     ).fetchall()
     media_ids = [row["media_id"] for row in rows]
@@ -60,14 +81,14 @@ async def withdraw(owner, connection, refs):
         (media_ids,),
     )
     await connection.execute(
-        "DELETE FROM capabilities.speech_cache WHERE key IN (SELECT owner_id FROM capabilities.source_dependencies WHERE owner_kind='speech_cache' AND source_id=ANY(%s))",
-        (identifiers,),
+        "DELETE FROM capabilities.speech_cache WHERE key=ANY(%s)",
+        (sorted(selected.get("speech_cache", ())),),
     )
     await connection.execute("DELETE FROM capabilities.artifacts WHERE id=ANY(%s)", (artifact_ids,))
     actions = await (
         await connection.execute(
-            "SELECT id,action,attempt,receipt,document,result_revision FROM capabilities.actions WHERE id IN (SELECT owner_id FROM capabilities.source_dependencies WHERE owner_kind='action' AND source_id=ANY(%s)) FOR UPDATE",
-            (identifiers,),
+            "SELECT id,action,attempt,receipt,document,result_revision FROM capabilities.actions WHERE id=ANY(%s) ORDER BY id FOR UPDATE",
+            (sorted(selected.get("action", ())),),
         )
     ).fetchall()
     for row in actions:
@@ -109,10 +130,11 @@ async def withdraw(owner, connection, refs):
                 },
             )
     await connection.execute(
-        "DELETE FROM capabilities.consumptions WHERE source_id=ANY(%s)", (identifiers,)
+        "DELETE FROM capabilities.consumptions WHERE action_id=ANY(%s)",
+        ([row["id"] for row in actions],),
     )
     await connection.execute(
-        "DELETE FROM capabilities.plugin_consumptions WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(coalesce(event->'source_refs','[]'::jsonb)) ref WHERE ref->>'source_id'=ANY(%s))",
-        (identifiers,),
+        "DELETE FROM capabilities.plugin_consumptions WHERE id=ANY(%s)",
+        (sorted(selected.get("plugin_consumption", ())),),
     )
     return {"actions": len(actions), "artifacts": len(rows)}

@@ -120,3 +120,5 @@ Actions.get 返回 `{action:wire dict,attempt:wire dict,receipt:wire dict,result
 - `await capabilities.withdraw_sources(connection,refs)` 是 A 撤回事务内钩子：锁定来源派生写入、清理素材逻辑引用/语义索引/语音缓存/分析内容并标记未执行及进行中动作，晚到结果只能保留真实 effect/usage/身份。FileStore 共享字节不删除。所有 artifact 写入、语音缓存、分析与结果落账重新核来源；来源事务与派生写入统一使用 SourcePort.validate_persistence(conn,ctx,refs) 的权威 FOR SHARE/FOR UPDATE 顺序，不借第二连接或另建来源锁。按 source_dependencies 索引定向传播，不扫描全域正文。
 - 配置与 Plugin Vault 复用 runtime.credentials.seal_bytes/unseal_bytes，外置唯一 master + 精确 domain/reference AAD，不再生成本地 key 文件。无旧密文兼容。
 - 新编排源码以 formatter 展开为正常多行；未运行测试/build/typecheck/真实服务。
+
+- 撤回精确匹配 source_id/revision，并复用 sources.dependencies 的片段相交规则；dependants 用单次原生 JSON recordset 批写。register_dependant 可直接注入批量 withdraw_sources(conn,refs,reason)。语音表达的 profile_revision 在实际执行前精确核对。Actions.load_for_execution 仅给已登记可信执行器恢复原Action/Attempt；跨进程取消会读原dispatch证据，不能把远端已提交误记not_started。

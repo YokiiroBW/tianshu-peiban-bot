@@ -155,6 +155,10 @@ class Actions:
             receipt_from(row["receipt"]),
         )
 
+    async def load_for_execution(self, action_id):
+        """Trusted registered executors rehydrate the one original ledger identity."""
+        return await self._load(action_id)
+
     async def submitted(self, attempt, handle=None, dispatch="submitted"):
         async with self.database.transaction() as conn:
             await conn.execute(
@@ -221,6 +225,11 @@ class Actions:
             if not isinstance(receipt, Receipt):
                 raise TypeError("capability_receipt_required")
         except asyncio.CancelledError:
+            persisted = (await self._load(action_id))[1]
+            state["submitted"] = state["submitted"] or persisted.dispatch in {
+                "submitted",
+                "unknown",
+            }
             receipt = Receipt(
                 str(uuid4()),
                 action_id,
@@ -295,7 +304,7 @@ class Actions:
             original = action_from(snapshot["action"])
             refs = tuple(
                 {
-                    (ref.source_id, ref.revision): ref
+                    canonical(wire(ref)): ref
                     for ref in (*original.source_refs, *result_sources(receipt))
                 }.values()
             )
@@ -539,4 +548,4 @@ def result_sources(receipt):
     ):
         if isinstance(value, dict) and "source_id" in value:
             refs.append(SourceRef(**value))
-    return tuple({(ref.source_id, ref.revision): ref for ref in refs}.values())
+    return tuple({canonical(wire(ref)): ref for ref in refs}.values())

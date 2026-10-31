@@ -17,6 +17,7 @@ INPUT = {
     "properties": {
         "text": {"type": "string", "minLength": 1},
         "profile_id": {"type": "string"},
+        "profile_revision": {"type": "integer", "minimum": 1},
         "connection_id": {"type": "string"},
         "model": {"type": "string"},
         "voice_id": {"type": "string"},
@@ -193,6 +194,8 @@ class Speech:
         profile = (
             await self.config.get("voice_profile", args.get("profile_id", action.actor_id)) or {}
         )
+        if "profile_revision" in args and profile.get("revision") != args["profile_revision"]:
+            raise Fault("profile_revision_changed", 409)
         if profile.get("actor_id", action.actor_id) != action.actor_id:
             raise Fault("actor_mismatch", 403)
         connection = await self.config.get(

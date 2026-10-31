@@ -119,15 +119,13 @@ class Perception:
         if media.media_id.startswith("artifact:"):
             artifact = await self.artifacts.reference(context, media.media_id)
             source_refs = tuple(
-                {
-                    (x.source_id, x.revision): x for x in (*source_refs, *artifact.source_refs)
-                }.values()
+                {canonical(wire(x)): x for x in (*source_refs, *artifact.source_refs)}.values()
             )
         elif media.media_id.startswith("source:"):
             identifier, revision = media.media_id[7:].rsplit(":", 1)
             source_refs = tuple(
                 {
-                    (x.source_id, x.revision): x
+                    canonical(wire(x)): x
                     for x in (*source_refs, SourceRef(identifier, int(revision)))
                 }.values()
             )

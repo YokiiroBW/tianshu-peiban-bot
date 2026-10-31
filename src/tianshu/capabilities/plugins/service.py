@@ -557,6 +557,15 @@ async def consume_event(service, connection, event, context):
                         canonical(event),
                     ),
                 )
+                from ..withdrawal import depend
+                from tianshu.types import SourceRef
+
+                await depend(
+                    connection,
+                    "plugin_consumption",
+                    key,
+                    tuple(SourceRef(**ref) for ref in event.get("source_refs", [])),
+                )
                 if await cursor.fetchone():
                     await service.jobs.enqueue(
                         connection,

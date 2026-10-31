@@ -281,7 +281,7 @@ class Images:
                 refs.append(SourceRef(identifier, int(revision)))
             else:
                 raise Fault("reference_owner_required", 400)
-        refs = tuple({(x.source_id, x.revision): x for x in refs}.values())
+        refs = tuple({canonical(wire(x)): x for x in refs}.values())
         await self.authority.check(action.context, refs)
         weather = scene.get("weather")
         if (
