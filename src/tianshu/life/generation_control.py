@@ -45,7 +45,7 @@ class GenerationControl:
                 await self.life.jobs.enqueue(connection, JobSpec("life.generation_control",
                     f"generation-{operation}:{kind}:{row['generation_id']}:{current}",
                     {"kind":kind,"item_id":row["id"],"generation_id":row["generation_id"],"context":wire(context),"operation":operation},
-                    ServiceClass.CONTROL, subject_id=context.actor_id))
+                    ServiceClass.INTERACTIVE, subject_id=context.actor_id))
             else:
                 current = row["revision"]
             return CommandResult(body["client_request_id"], {"id":row["id"],"state":"cancelling" if operation=="cancel" and current!=row["revision"] else row["state"]},
@@ -96,4 +96,4 @@ class GenerationControl:
                         payload={"chapter_id" if kind=="chapter" else "diary_id":row["id"],"generation_id":row["generation_id"]}
                     else:
                         task,payload="life.generation_control",{"kind":kind,"item_id":row["id"],"generation_id":row["generation_id"],"context":row[context_column],"operation":"cancel" if row["state"]=="cancelling" else "reconcile"}
-                    await self.life.jobs.enqueue(connection,JobSpec(task,f"generation-recover:{kind}:{row['generation_id']}:{datetime.now(UTC).isoformat()}",payload,ServiceClass.CONTROL,subject_id=row.get("actor_id"))))
+                    await self.life.jobs.enqueue(connection,JobSpec(task,f"generation-recover:{kind}:{row['generation_id']}:{datetime.now(UTC).isoformat()}",payload,ServiceClass.INTERACTIVE,subject_id=row.get("actor_id"))))
