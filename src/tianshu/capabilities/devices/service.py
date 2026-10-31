@@ -150,6 +150,7 @@ class Devices:
                 ).fetchone()
                 observation = {
                     **entity,
+                    "connection_id": connection_id,
                     "revision": old["revision"] + 1 if old else 1,
                     "state": value.get("state") if value else None,
                     "attributes": {
@@ -185,12 +186,14 @@ class Devices:
         async with self.config.database.transaction(read_only=True) as conn:
             rows = await (
                 await conn.execute(
-                    "SELECT body FROM capabilities.device_readings ORDER BY connection_id,entity_id"
+                    "SELECT connection_id,body FROM capabilities.device_readings ORDER BY connection_id,entity_id"
                 )
             ).fetchall()
         return {
             "connections": await self.config.list("device_connection"),
-            "readings": [x["body"] for x in rows],
+            "readings": [{**x["body"], "connection_id": x["connection_id"]} for x in rows],
+            "can_manage": "*" in context.permissions or "config.publish" in context.permissions,
+            "can_control": "*" in context.permissions or "device.control" in context.permissions,
             "control_capability": "device.control",
         }
 
