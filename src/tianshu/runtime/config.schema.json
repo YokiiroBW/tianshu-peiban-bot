@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tianshu.core.v1",
+  "type": "object",
+  "required": ["schema_version", "database", "broker", "credentials", "identity", "artifacts"],
+  "properties": {
+    "schema_version": {"const": "tianshu.core.v1"},
+    "database": {"type": "object", "required": ["dsn_ref"], "properties": {
+      "dsn_ref": {"type": "string", "minLength": 1},
+      "connection_budget": {"type": "integer", "minimum": 1},
+      "roles": {"type": "object", "additionalProperties": {"type": "object", "properties": {
+        "max_connections": {"type": "integer", "minimum": 1},
+        "control_connections": {"type": "integer", "minimum": 1},
+        "sync_connections": {"type": "integer", "minimum": 1}
+      }}}
+    }},
+    "broker": {"type": "object", "required": ["token_ref", "url"], "properties": {
+      "host": {"enum": ["127.0.0.1", "::1", "localhost"]},
+      "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+      "url": {"type": "string", "pattern": "^http://(127\\.0\\.0\\.1|localhost|\\[::1\\]):[0-9]+$"},
+      "token_ref": {"type": "string", "minLength": 1},
+      "external_keys": {"type": "array", "items": {"type": "object"}}
+    }},
+    "credentials": {"type": "object", "required": ["master_key_ref"], "properties": {
+      "master_key_ref": {"type": "string", "minLength": 1}
+    }},
+    "identity": {"type": "object", "required": ["installation_seal", "setup_token_ref"], "properties": {
+      "installation_seal": {"type": "string", "minLength": 1},
+      "setup_token_ref": {"type": "string", "minLength": 1},
+      "cookie_secure": {"type": "boolean"}
+    }},
+    "http": {"type": "object", "properties": {
+      "host": {"type": "string"}, "port": {"type": ["integer", "null"], "minimum": 1, "maximum": 65535},
+      "max_body_bytes": {"type": "integer", "minimum": 2097152},
+      "static_directory": {"type": "string"},
+      "tls": {"type": "object", "properties": {"enabled": {"type": "boolean"}, "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+        "certificate_file": {"type": "string"}, "key_file": {"type": "string"}},
+        "if": {"properties": {"enabled": {"const": true}}, "required": ["enabled"]},
+        "then": {"required": ["port", "certificate_file", "key_file"]}}
+    }},
+    "worker": {"type": "object", "properties": {
+      "queue_connections": {"type": "integer", "minimum": 3},
+      "interactive_concurrency": {"type": "integer", "minimum": 1},
+      "due_concurrency": {"type": "integer", "minimum": 1},
+      "elastic_concurrency": {"type": "integer", "minimum": 1}
+    }},
+    "artifacts": {"type": "string", "minLength": 1},
+    "channels": {"type": "object", "properties": {
+      "owner_url": {"type": "string", "pattern": "^http://(127\\.0\\.0\\.1|localhost|\\[::1\\]):[0-9]+$"},
+      "owner_token_ref": {"type": "string", "minLength": 1}
+    }},
+    "capabilities": {"type": "object"}, "context": {"type": "object"}, "memory": {"type": "object"},
+    "conversation": {"type": "object"},
+    "observability": {"type": "object"}, "supervisor": {"type": "object"}
+  },
+  "additionalProperties": false
+}

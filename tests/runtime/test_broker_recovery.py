@@ -24,28 +24,41 @@ async def serve(app):
     await runner.setup()
     site = web.TCPSite(runner, "127.0.0.1", 0)
     await site.start()
-    return runner, "http://127.0.0.1:"+str(site._server.sockets[0].getsockname()[1])
+    return runner, "http://127.0.0.1:" + str(site._server.sockets[0].getsockname()[1])
 
 
 async def seed(database, base_url):
     async with database.transaction() as conn:
-        await conn.execute("INSERT INTO models.quota_groups(quota_group,concurrency,interactive_reserve,"
-            "background_max,unknown_hold_seconds) VALUES('fixture-account',2,1,1,30)")
-        await conn.execute("INSERT INTO models.providers(provider_id,name,base_url,credential_ref,protocol) "
-            "VALUES('fixture','fixture',%s,'FIXTURE_KEY','openai.chat')", (base_url,))
-        await conn.execute("INSERT INTO models.routes(route_id,provider_id,model,quota_group,"
-            "verified_capabilities) VALUES('fixture','fixture','fixture','fixture-account',ARRAY['text'])")
-        await conn.execute("INSERT INTO models.bindings(function,service_class,route_id) "
-                           "VALUES('chat','interactive','fixture')")
+        await conn.execute(
+            "INSERT INTO models.quota_groups(quota_group,concurrency,interactive_reserve,"
+            "background_max,unknown_hold_seconds) VALUES('fixture-account',2,1,1,30)"
+        )
+        await conn.execute(
+            "INSERT INTO models.providers(provider_id,name,base_url,credential_ref,protocol) "
+            "VALUES('fixture','fixture',%s,'FIXTURE_KEY','openai.chat')",
+            (base_url,),
+        )
+        await conn.execute(
+            "INSERT INTO models.routes(route_id,provider_id,model,quota_group,"
+            "verified_capabilities) VALUES('fixture','fixture','fixture','fixture-account',ARRAY['text'])"
+        )
+        await conn.execute(
+            "INSERT INTO models.bindings(function,service_class,route_id) "
+            "VALUES('chat','interactive','fixture')"
+        )
 
 
-async def test_timeout_and_broker_restart_do_not_replay_or_release_unknown_upstream(database, tmp_path):
+async def test_timeout_and_broker_restart_do_not_replay_or_release_unknown_upstream(
+    database, tmp_path
+):
     calls = []
 
     async def slow(_request):
         calls.append(1)
         await asyncio.sleep(1)
-        return web.json_response({"choices": [{"message": {"content": "late"}, "finish_reason": "stop"}]})
+        return web.json_response(
+            {"choices": [{"message": {"content": "late"}, "finish_reason": "stop"}]}
+        )
 
     app = web.Application()
     app.router.add_post("/chat/completions", slow)
@@ -54,9 +67,15 @@ async def test_timeout_and_broker_restart_do_not_replay_or_release_unknown_upstr
     broker = ModelBroker(database, FileStore(tmp_path), Secrets({"FIXTURE_KEY": "synthetic"}))
     await broker.open()
     try:
-        request = ModelRequest("intent", "original-attempt", "chat", ServiceClass.INTERACTIVE, context(),
-            RequestBudget(datetime.now(UTC)+timedelta(seconds=0.2)),
-            (ModelMessage("user", (ModelPart("text", text="fixture"),)),))
+        request = ModelRequest(
+            "intent",
+            "original-attempt",
+            "chat",
+            ServiceClass.INTERACTIVE,
+            context(),
+            RequestBudget(datetime.now(UTC) + timedelta(seconds=0.2)),
+            (ModelMessage("user", (ModelPart("text", text="fixture"),)),),
+        )
         with pytest.raises(TimeoutError):
             await broker.generate(request)
         assert (await broker.status("original-attempt")).status == "unknown"
@@ -74,7 +93,9 @@ async def test_timeout_and_broker_restart_do_not_replay_or_release_unknown_upstr
         await runner.cleanup()
 
 
-async def test_second_broker_cannot_own_capacity_and_control_cancels_external_owner(database, tmp_path):
+async def test_second_broker_cannot_own_capacity_and_control_cancels_external_owner(
+    database, tmp_path
+):
     await seed(database, "http://127.0.0.1:9")
     broker = ModelBroker(database, FileStore(tmp_path), Secrets({"FIXTURE_KEY": "synthetic"}))
     await broker.open()
@@ -87,9 +108,17 @@ async def test_second_broker_cannot_own_capacity_and_control_cancels_external_ow
     entered = asyncio.Event()
 
     async def external_owner():
-        request = ExternalRequest("intent", "external-attempt", context(),
-            RequestBudget(datetime.now(UTC)+timedelta(seconds=10)), "fixture-account", "tts",
-            ServiceClass.INTERACTIVE, "fixture", estimated_units={"utf8_bytes": 18})
+        request = ExternalRequest(
+            "intent",
+            "external-attempt",
+            context(),
+            RequestBudget(datetime.now(UTC) + timedelta(seconds=10)),
+            "fixture-account",
+            "tts",
+            ServiceClass.INTERACTIVE,
+            "fixture",
+            estimated_units={"utf8_bytes": 18},
+        )
         async with client.resource(request) as permit:
             await permit.submitted()
             entered.set()
@@ -110,19 +139,30 @@ async def test_second_broker_cannot_own_capacity_and_control_cancels_external_ow
         await broker.close()
 
 
-async def test_external_submit_and_terminal_transition_are_mutually_exclusive(database, tmp_path, monkeypatch):
+async def test_external_submit_and_terminal_transition_are_mutually_exclusive(
+    database, tmp_path, monkeypatch
+):
     await seed(database, "http://127.0.0.1:9")
     broker = ModelBroker(database, FileStore(tmp_path), Secrets({"FIXTURE_KEY": "synthetic"}))
     await broker.open()
-    request = ExternalRequest("race", "race-attempt", context(),
-        RequestBudget(datetime.now(UTC)+timedelta(seconds=10)), "fixture-account", "tts",
-        ServiceClass.INTERACTIVE, "fixture")
+    request = ExternalRequest(
+        "race",
+        "race-attempt",
+        context(),
+        RequestBudget(datetime.now(UTC) + timedelta(seconds=10)),
+        "fixture-account",
+        "tts",
+        ServiceClass.INTERACTIVE,
+        "fixture",
+    )
     entered, release = asyncio.Event(), asyncio.Event()
     original = broker.ledger.started
+
     async def paused_start(*args):
         entered.set()
         await release.wait()
         return await original(*args)
+
     monkeypatch.setattr(broker.ledger, "started", paused_start)
     try:
         permit = await broker.begin_external(request)
@@ -144,17 +184,25 @@ async def test_external_submit_and_terminal_transition_are_mutually_exclusive(da
 
 async def test_upstream_502_retains_unknown_effect(database, tmp_path):
     app = web.Application()
+
     async def failed(_request):
         return web.Response(status=502)
+
     app.router.add_post("/chat/completions", failed)
     runner, origin = await serve(app)
     await seed(database, origin)
     broker = ModelBroker(database, FileStore(tmp_path), Secrets({"FIXTURE_KEY": "synthetic"}))
     await broker.open()
     try:
-        request = ModelRequest("bad-gateway", "bad-gateway", "chat", ServiceClass.INTERACTIVE,
-            context(), RequestBudget(datetime.now(UTC)+timedelta(seconds=10)),
-            (ModelMessage("user", (ModelPart("text", text="fixture"),)),))
+        request = ModelRequest(
+            "bad-gateway",
+            "bad-gateway",
+            "chat",
+            ServiceClass.INTERACTIVE,
+            context(),
+            RequestBudget(datetime.now(UTC) + timedelta(seconds=10)),
+            (ModelMessage("user", (ModelPart("text", text="fixture"),)),),
+        )
         with pytest.raises(AppError, match="upstream_http_502"):
             await broker.generate(request)
         assert (await broker.status(request.attempt_id)).status == "unknown"
@@ -164,12 +212,71 @@ async def test_upstream_502_retains_unknown_effect(database, tmp_path):
         await runner.cleanup()
 
 
+async def test_absent_attempt_first_registration_is_unique_even_with_a_late_original_rpc(
+    database, tmp_path
+):
+    calls = []
+    entered, release = asyncio.Event(), asyncio.Event()
+
+    async def provider(_request):
+        calls.append(1)
+        entered.set()
+        await release.wait()
+        return web.json_response(
+            {"choices": [{"message": {"content": "one actual result"}, "finish_reason": "stop"}]}
+        )
+
+    app = web.Application()
+    app.router.add_post("/chat/completions", provider)
+    runner, origin = await serve(app)
+    await seed(database, origin)
+    broker = ModelBroker(database, FileStore(tmp_path), Secrets({"FIXTURE_KEY": "synthetic"}))
+    await broker.open()
+    request = ModelRequest(
+        "frozen-intent",
+        "same-original-attempt",
+        "chat",
+        ServiceClass.INTERACTIVE,
+        context(),
+        RequestBudget(datetime.now(UTC) + timedelta(seconds=10)),
+        (ModelMessage("user", (ModelPart("text", text="frozen original request"),)),),
+    )
+    try:
+        assert await broker.result(request.attempt_id, context=request.context) is None
+        original = asyncio.create_task(broker.generate(request))
+        await entered.wait()
+        observed = await broker.generate(request)
+        assert observed.receipt.status == "running" and observed.parts == ()
+        release.set()
+        actual = await original
+        recovered = await broker.result(request.attempt_id, context=request.context)
+        assert actual.receipt.attempt_id == recovered.receipt.attempt_id == request.attempt_id
+        assert recovered.parts[0].text == "one actual result" and len(calls) == 1
+    finally:
+        release.set()
+        await broker.close()
+        await runner.cleanup()
+
+
 async def test_native_continuation_cannot_cross_conversation_with_empty_sources(database, tmp_path):
     calls = []
+
     async def respond(_request):
         calls.append(1)
-        return web.json_response({"id": "native-state", "status": "completed", "output": [
-            {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "fixture"}]}]})
+        return web.json_response(
+            {
+                "id": "native-state",
+                "status": "completed",
+                "output": [
+                    {
+                        "type": "message",
+                        "role": "assistant",
+                        "content": [{"type": "output_text", "text": "fixture"}],
+                    }
+                ],
+            }
+        )
+
     app = web.Application()
     app.router.add_post("/responses", respond)
     runner, origin = await serve(app)
@@ -179,14 +286,29 @@ async def test_native_continuation_cannot_cross_conversation_with_empty_sources(
     broker = ModelBroker(database, FileStore(tmp_path), Secrets({"FIXTURE_KEY": "synthetic"}))
     await broker.open()
     try:
-        original = ModelRequest("first", "first", "chat", ServiceClass.INTERACTIVE,
-            replace(context(), actor_id="actor-a", conversation_id="private-a", conversation_kind="private"),
-            RequestBudget(datetime.now(UTC)+timedelta(seconds=10)),
-            (ModelMessage("user", (ModelPart("text", text="private material"),)),), persona_revision=1)
+        original = ModelRequest(
+            "first",
+            "first",
+            "chat",
+            ServiceClass.INTERACTIVE,
+            replace(
+                context(),
+                actor_id="actor-a",
+                conversation_id="private-a",
+                conversation_kind="private",
+            ),
+            RequestBudget(datetime.now(UTC) + timedelta(seconds=10)),
+            (ModelMessage("user", (ModelPart("text", text="private material"),)),),
+            persona_revision=1,
+        )
         assert (await broker.generate(original)).receipt.status == "succeeded"
-        later = replace(original, intent_id="second", attempt_id="second",
+        later = replace(
+            original,
+            intent_id="second",
+            attempt_id="second",
             context=replace(original.context, conversation_id="private-b"),
-            native_payload={"previous_response_id": "native-state", "input": "continue"})
+            native_payload={"previous_response_id": "native-state", "input": "continue"},
+        )
         with pytest.raises(AppError, match="state_reference_route_incompatible"):
             await broker.generate(later)
         assert len(calls) == 1

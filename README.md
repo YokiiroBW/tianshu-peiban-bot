@@ -32,6 +32,7 @@ master key 是部署生成并保管的 32 字节随机密钥的 base64url 编码
 
 ```json
 {
+  "schema_version": "tianshu.core.v1",
   "database": {
     "dsn_ref": "TIANSHU_DATABASE_URL",
     "connection_budget": 40,
@@ -45,15 +46,21 @@ master key 是部署生成并保管的 32 字节随机密钥的 base64url 编码
   "broker": {"host": "127.0.0.1", "port": 8071, "url": "http://127.0.0.1:8071", "token_ref": "TIANSHU_BROKER_TOKEN"},
   "worker": {"queue_connections": 8, "interactive_concurrency": 2, "due_concurrency": 1, "elastic_concurrency": 2},
   "artifacts": "data/artifacts",
-  "modules": [],
+  "credentials": {"master_key_ref": "TIANSHU_MASTER_KEY"},
+  "identity": {"installation_seal": "C:/Tianshu/data/state/installed", "setup_token_ref": "TIANSHU_SETUP_TOKEN"},
+  "channels": {"owner_url": "http://127.0.0.1:8070", "owner_token_ref": "TIANSHU_CHANNEL_OWNER_TOKEN"},
   "capabilities": {},
   "observability": {}
 }
 ```
 
-`modules` 由最终装配根注入已经构造好、依赖实际绑定的 DomainModule；空列表可启动基础进程，
-但整机 ready 会明确报告领域/任务未配置。不能用空对象把尚未接线的能力显示为可用。
+领域由 `runtime/product.py` 直接构造、注册，配置不能动态导入旧产品或空模块。
+`migrate` 从唯一总注册安装所有领域 schema，之后才启动任一角色；不在领域启动过程中临时迁移。
+设置 `TIANSHU_SETUP_TOKEN` 和 `TIANSHU_CHANNEL_OWNER_TOKEN` 两个独立随机值；前者保护首次创建管理员，
+后者只供固定回环频道 owner RPC，不代替网页会话鉴权。
 数据库总预算包括各角色 async/control/sync 池、队列连接和 Broker 所有者连接。
+此外包含三个实际 Procrastinate 消费者各自的 LISTEN 连接。interactive/due/elastic 消费份额分别有界；
+长下载、听书和生成进入 elastic，短前台工具进入 interactive，due 仅处理实际到期工作。
 
 ## 公共端口
 

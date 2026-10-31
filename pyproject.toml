@@ -35,6 +35,7 @@ dependencies = [
   "nonebot-adapter-onebot==2.4.0",
   "tiktoken>=0.12,<1",
   "tianshu-plugin",
+  "playwright==1.64.1",
 ]
 
 [project.optional-dependencies]
@@ -50,7 +51,7 @@ where = ["src"]
 tianshu-plugin = { path = "packages/tianshu-plugin" }
 
 [tool.setuptools.package-data]
-"tianshu.runtime" = ["*.sql"]
+"tianshu.runtime" = ["*.sql", "*.json"]
 "tianshu.models" = ["*.sql"]
 "tianshu.identity" = ["*.sql"]
 "tianshu.sources" = ["*.sql"]
@@ -59,6 +60,7 @@ tianshu-plugin = { path = "packages/tianshu-plugin" }
 "tianshu.companion" = ["*.sql", "data/*.json"]
 "tianshu.life" = ["*.sql"]
 "tianshu.conversation" = ["*.sql"]
+"tianshu.channels" = ["*.sql"]
 
 [tool.pytest.ini_options]
 testpaths = [

@@ -31,9 +31,20 @@ MAX_SSE_EVENT_BYTES = 2 * 1024 * 1024
 
 
 class ModelBroker:
-    def __init__(self, database, files, secrets, *, http_connections=32, events=None,
-                 validate_submission=None, validate_persistence=None, credential_store=None,
-                 native_principals=frozenset()):
+    def __init__(
+        self,
+        database,
+        files,
+        secrets,
+        *,
+        http_connections=32,
+        events=None,
+        validate_submission=None,
+        validate_persistence=None,
+        credential_store=None,
+        native_principals=frozenset(),
+        media_resolver=None,
+    ):
         self.database = database
         self.catalog = ModelCatalog(database)
         self.compiler = NativeCompiler(files, secrets)
@@ -54,12 +65,44 @@ class ModelBroker:
         self.prepare_pending = 0
         self.credential_store = credential_store
         self.native_principals = frozenset(native_principals)
+        self.media_resolver = media_resolver
+
+    async def prepare_media(self, request):
+        messages, dependencies, inline_bytes, count = [], list(request.source_refs), 0, 0
+        for message in request.messages:
+            parts = []
+            for part in message.parts:
+                if part.media:
+                    if self.media_resolver is None:
+                        raise AppError("media_authority_not_bound", status=503)
+                    actual, refs = await self.media_resolver(request.context, part.media)
+                    if actual.size_bytes is None:
+                        raise AppError("media_size_unknown", status=422)
+                    inline_bytes += actual.size_bytes
+                    count += 1
+                    if inline_bytes > 32 * 1024 * 1024 or count > 128:
+                        raise AppError("model_inline_media_budget_exceeded", status=413)
+                    dependencies.extend(refs)
+                    part = replace(part, media=actual)
+                parts.append(part)
+            messages.append(replace(message, parts=tuple(parts)))
+        return replace(
+            request,
+            messages=tuple(messages),
+            source_refs=tuple({digest(ref): ref for ref in dependencies}.values()),
+        )
 
     def native_grant(self, request):
         context = request.context
-        return (context.principal_id in self.native_principals and not request.source_refs
-            and context.actor_id is None and context.person_id is None and context.conversation_id is None
-            and not context.scope_ids and not context.audience)
+        return (
+            context.principal_id in self.native_principals
+            and not request.source_refs
+            and context.actor_id is None
+            and context.person_id is None
+            and context.conversation_id is None
+            and not context.scope_ids
+            and not context.audience
+        )
 
     async def event(self, name, outcome, attempt_id):
         if self.events:
@@ -82,15 +125,21 @@ class ModelBroker:
 
     async def embedding_profile(self):
         async with self.database.transaction(control=True, read_only=True) as conn:
-            row = await (await conn.execute("SELECT e.*,r.provider_id,r.model,r.revision AS route_revision "
-                "FROM models.embedding_profile e JOIN models.routes r USING(route_id) WHERE singleton")).fetchone()
+            row = await (
+                await conn.execute(
+                    "SELECT e.*,r.provider_id,r.model,r.revision AS route_revision "
+                    "FROM models.embedding_profile e JOIN models.routes r USING(route_id) WHERE singleton"
+                )
+            ).fetchone()
         if not row:
             raise AppError("embedding_profile_not_configured", status=503)
         return row
 
     async def open(self):
         try:
-            self.owner = await psycopg.AsyncConnection.connect(self.database.config.dsn, autocommit=True)
+            self.owner = await psycopg.AsyncConnection.connect(
+                self.database.config.dsn, autocommit=True
+            )
             cursor = await self.owner.execute("SELECT pg_try_advisory_lock(733104303)")
             if not (await cursor.fetchone())[0]:
                 raise AppError("broker_owner_already_active", status=503)
@@ -98,12 +147,18 @@ class ModelBroker:
             self.scheduler = QuotaScheduler(policies)
             self.scheduler.restore(await self.ledger.recover())
             await self.scheduler.start()
-            self.session = aiohttp.ClientSession(connector=aiohttp.TCPConnector(
-                limit=self.http_connections, limit_per_host=self.http_connections),
-                auto_decompress=False, timeout=aiohttp.ClientTimeout(total=None))
+            self.session = aiohttp.ClientSession(
+                connector=aiohttp.TCPConnector(
+                    limit=self.http_connections, limit_per_host=self.http_connections
+                ),
+                auto_decompress=False,
+                timeout=aiohttp.ClientTimeout(total=None),
+            )
             self.ready = True
             self.owner_watch = asyncio.create_task(self._watch_owner(), name="broker-owner")
-            self.external_watch = asyncio.create_task(self._watch_external(), name="external-attempts")
+            self.external_watch = asyncio.create_task(
+                self._watch_external(), name="external-attempts"
+            )
         except BaseException:
             await finish_cleanup(self.close())
             raise
@@ -143,8 +198,10 @@ class ModelBroker:
             await self.session.close()
         if self.owner:
             await self.owner.close()
-        await asyncio.gather(*(task for task in (self.owner_watch,
-            getattr(self, "external_watch", None)) if task), return_exceptions=True)
+        await asyncio.gather(
+            *(task for task in (self.owner_watch, getattr(self, "external_watch", None)) if task),
+            return_exceptions=True,
+        )
 
     async def status(self, attempt_id):
         row = await self.ledger.get(attempt_id)
@@ -152,10 +209,12 @@ class ModelBroker:
 
     async def result(self, attempt_id, *, context):
         from .results import read_result
+
         return await read_result(self, attempt_id, context=context)
 
     async def reload(self):
         from .scheduler import GroupState
+
         policies = await self.catalog.policies()
         async with self.scheduler.lock:
             for name in policies:
@@ -175,7 +234,9 @@ class ModelBroker:
         elif attempt_id in self.external and self.external[attempt_id].submitted_at is None:
             return await self.external[attempt_id].unknown("cancelled_before_external_submit")
         elif row["status"] == "queued":
-            row = await self.ledger.finish(attempt_id, "cancelled", error_code="cancelled_before_start")
+            row = await self.ledger.finish(
+                attempt_id, "cancelled", error_code="cancelled_before_start"
+            )
         # External domain I/O sees cancel_requested through its separate control watcher.
         return receipt(row)
 
@@ -198,29 +259,55 @@ class ModelBroker:
         if type(request.max_output_tokens) is not int or request.max_output_tokens < 0:
             raise AppError("invalid_output_token_budget")
         if request.estimated_input_tokens is not None and (
-            type(request.estimated_input_tokens) is not int or request.estimated_input_tokens < 0):
+            type(request.estimated_input_tokens) is not int or request.estimated_input_tokens < 0
+        ):
             raise AppError("invalid_input_token_estimate")
+        async with request.budget.timeout():
+            await self.recheck(request)
+            request = await self.prepare_media(request)
         request = replace(request, required_capabilities=requested_capabilities(request, stream))
         plan = await self.catalog.resolve(request)
-        api_key = await self.credential_store.resolve(plan.credential_ref) if self.credential_store else None
-        state_reference = (request.native_payload or {}).get("previous_response_id", 
-                           request.parameters.get("previous_response_id"))
+        api_key = (
+            await self.credential_store.resolve(plan.credential_ref)
+            if self.credential_store
+            else None
+        )
+        state_reference = (request.native_payload or {}).get(
+            "previous_response_id", request.parameters.get("previous_response_id")
+        )
         if state_reference:
             async with self.database.transaction(request.budget, read_only=True) as conn:
-                previous = await (await conn.execute("SELECT provider_id,model,protocol,source_refs,context_fingerprint,persona_revision "
-                    "FROM models.attempts "
-                    "WHERE principal_id=%s AND provider_handle=%s AND status='succeeded' LIMIT 1",
-                    (request.context.principal_id, state_reference))).fetchone()
-            if not previous or any(previous[key] != getattr(plan, key) for key in
-                                   ("provider_id", "model", "protocol")) or (
+                previous = await (
+                    await conn.execute(
+                        "SELECT provider_id,model,protocol,source_refs,context_fingerprint,persona_revision "
+                        "FROM models.attempts "
+                        "WHERE principal_id=%s AND provider_handle=%s AND status='succeeded' LIMIT 1",
+                        (request.context.principal_id, state_reference),
+                    )
+                ).fetchone()
+            if (
+                not previous
+                or any(
+                    previous[key] != getattr(plan, key)
+                    for key in ("provider_id", "model", "protocol")
+                )
+                or (
                     previous["context_fingerprint"] != context_fingerprint(request.context)
-                    or previous["persona_revision"] != request.persona_revision):
+                    or previous["persona_revision"] != request.persona_revision
+                )
+            ):
                 raise AppError("state_reference_route_incompatible", status=409)
             previous_refs = tuple(SourceRef(**ref) for ref in previous["source_refs"] or ())
             if previous_refs:
                 await self.recheck(replace(request, source_refs=previous_refs))
-                request = replace(request, source_refs=tuple({digest(ref): ref for ref in
-                    (*request.source_refs, *previous_refs)}.values()))
+                request = replace(
+                    request,
+                    source_refs=tuple(
+                        {
+                            digest(ref): ref for ref in (*request.source_refs, *previous_refs)
+                        }.values()
+                    ),
+                )
         # Compilation/file reading is preparation, before a scarce model permit is held.
         if self.prepare_pending >= 64:
             raise AppError("model_preparation_queue_full", status=429)
@@ -228,8 +315,11 @@ class ModelBroker:
         try:
             async with request.budget.timeout():
                 async with self.prepare_slots:
-                    prepare = asyncio.create_task(asyncio.to_thread(
-                        self.compiler.compile, plan, request, stream=stream, api_key=api_key))
+                    prepare = asyncio.create_task(
+                        asyncio.to_thread(
+                            self.compiler.compile, plan, request, stream=stream, api_key=api_key
+                        )
+                    )
                     try:
                         call = await asyncio.shield(prepare)
                     except asyncio.CancelledError:
@@ -269,8 +359,13 @@ class ModelBroker:
             submitted, started = True, time.monotonic()
             await self.event("model.submitted", "started", request.attempt_id)
             async with request.budget.timeout():
-                async with self.session.post(call.url, json=call.body, headers=call.headers,
-                    allow_redirects=False, timeout=aiohttp.ClientTimeout(total=request.budget.remaining())) as response:
+                async with self.session.post(
+                    call.url,
+                    json=call.body,
+                    headers=call.headers,
+                    allow_redirects=False,
+                    timeout=aiohttp.ClientTimeout(total=request.budget.remaining()),
+                ) as response:
                     if response.status >= 300:
                         # Provider error bodies may contain secrets or prompts; retain status only.
                         raise AppError("upstream_http_" + str(response.status), status=502)
@@ -278,24 +373,34 @@ class ModelBroker:
                         buffer = b""
                         first = True
                         async for chunk in response.content.iter_chunked(32768):
-                            yield ModelEvent("native", data={"chunk_b64": base64.b64encode(chunk).decode()})
-                            buffer = (buffer+chunk).replace(b"\r\n", b"\n")
+                            yield ModelEvent(
+                                "native", data={"chunk_b64": base64.b64encode(chunk).decode()}
+                            )
+                            buffer = (buffer + chunk).replace(b"\r\n", b"\n")
                             if len(buffer) > MAX_SSE_EVENT_BYTES:
                                 raise AppError("upstream_event_too_large", status=502)
                             while b"\n\n" in buffer:
                                 block, buffer = buffer.split(b"\n\n", 1)
-                                data = b"\n".join(line[5:].lstrip() for line in block.split(b"\n")
-                                                  if line.startswith(b"data:"))
+                                data = b"\n".join(
+                                    line[5:].lstrip()
+                                    for line in block.split(b"\n")
+                                    if line.startswith(b"data:")
+                                )
                                 if not data or data == b"[DONE]":
                                     continue
                                 value = json.loads(data)
                                 for part in collector.feed(value):
                                     if first:
-                                        await self.ledger.checkpoint(request.attempt_id,
-                                            first_output_ms=(time.monotonic()-started)*1000)
+                                        await self.ledger.checkpoint(
+                                            request.attempt_id,
+                                            first_output_ms=(time.monotonic() - started) * 1000,
+                                        )
                                         first = False
-                                    yield ModelEvent("text" if part.kind == "text" else "part",
-                                                     text=part.text, part=part)
+                                    yield ModelEvent(
+                                        "text" if part.kind == "text" else "part",
+                                        text=part.text,
+                                        part=part,
+                                    )
                         if buffer.strip():
                             raise AppError("incomplete_native_stream", status=502)
                         if not collector.completed:
@@ -312,34 +417,54 @@ class ModelBroker:
                             raise AppError("upstream_response_too_large", status=502)
                         value = json.loads(raw)
                         collector.feed(value)
-                        await self.ledger.checkpoint(request.attempt_id,
+                        await self.ledger.checkpoint(
+                            request.attempt_id,
                             provider_handle=value.get("id"),
-                            first_output_ms=(time.monotonic()-started)*1000)
+                            first_output_ms=(time.monotonic() - started) * 1000,
+                        )
                         if not collector.completed:
                             raise AppError("upstream_response_incomplete", status=502)
                         if plan.protocol == "openai.embedding":
                             vectors = value.get("data", [])
-                            if not vectors or any(len(item.get("embedding", [])) != 1024
-                                                   for item in vectors):
+                            if not vectors or any(
+                                len(item.get("embedding", [])) != 1024 for item in vectors
+                            ):
                                 raise AppError("embedding_dimension_mismatch", status=502)
             extra = collector.tool_parts()
             for part in extra:
                 yield ModelEvent("part", part=part)
             usage = normalize_usage(plan.protocol, collector.raw_usage, estimate)
-            charged = (usage.input_tokens + usage.output_tokens
-                       if usage.input_tokens is not None and usage.output_tokens is not None else units["tokens"])
-            result_data = {"parts": wire(tuple(collector.parts)+extra),
-                           "native_response": collector.native_response}
-            row = await self.ledger.finish(request.attempt_id, "succeeded", usage=usage,
-                result=result_data, charged_units={"tokens": charged}, provider_handle=(
-                    collector.native_response or {}).get("id", (collector.native_response or {}).get("responseId")),
-                validate_result=lambda connection: self.may_persist(connection, request))
+            charged = (
+                usage.input_tokens + usage.output_tokens
+                if usage.input_tokens is not None and usage.output_tokens is not None
+                else units["tokens"]
+            )
+            result_data = {
+                "parts": wire(tuple(collector.parts) + extra),
+                "native_response": collector.native_response,
+            }
+            row = await self.ledger.finish(
+                request.attempt_id,
+                "succeeded",
+                usage=usage,
+                result=result_data,
+                charged_units={"tokens": charged},
+                provider_handle=(collector.native_response or {}).get(
+                    "id", (collector.native_response or {}).get("responseId")
+                ),
+                validate_result=lambda connection: self.may_persist(connection, request),
+            )
             terminal = True
-            await self.scheduler.release(plan.quota_group, request.attempt_id, units={"tokens": charged})
+            await self.scheduler.release(
+                plan.quota_group, request.attempt_id, units={"tokens": charged}
+            )
             acquired = False
             saved = row["result"]
-            result = ModelResult(tuple(collector.parts)+extra if saved is not None else (), receipt(row),
-                                 collector.native_response if saved is not None else None)
+            result = ModelResult(
+                tuple(collector.parts) + extra if saved is not None else (),
+                receipt(row),
+                collector.native_response if saved is not None else None,
+            )
             try:
                 await self.event("model.finished", "succeeded", request.attempt_id)
             except AppError:
@@ -347,22 +472,56 @@ class ModelBroker:
             yield ModelEvent("receipt", receipt=result.receipt, data=result)
         except BaseException as exc:
             # A submitted request may have run even if the client saw no output.
-            status = "unknown" if submitted else "cancelled" if isinstance(
-                exc, (asyncio.CancelledError, TimeoutError)) else "failed"
-            if submitted and isinstance(exc, AppError) and exc.code in {
-                "upstream_http_400", "upstream_http_401", "upstream_http_402", "upstream_http_403",
-                "upstream_http_404", "upstream_http_405", "upstream_http_413", "upstream_http_415",
-                "upstream_http_422", "upstream_http_429"}:
+            status = (
+                "unknown"
+                if submitted
+                else "cancelled"
+                if isinstance(exc, (asyncio.CancelledError, TimeoutError))
+                else "failed"
+            )
+            if (
+                submitted
+                and isinstance(exc, AppError)
+                and exc.code
+                in {
+                    "upstream_http_400",
+                    "upstream_http_401",
+                    "upstream_http_402",
+                    "upstream_http_403",
+                    "upstream_http_404",
+                    "upstream_http_405",
+                    "upstream_http_413",
+                    "upstream_http_415",
+                    "upstream_http_422",
+                    "upstream_http_429",
+                }
+            ):
                 status = "failed"
-            code = exc.code if isinstance(exc, AppError) else (
-                "cancelled_unknown" if isinstance(exc, asyncio.CancelledError) else
-                "timeout_unknown" if isinstance(exc, TimeoutError) else "transport_unknown")
+            code = (
+                exc.code
+                if isinstance(exc, AppError)
+                else (
+                    "cancelled_unknown"
+                    if isinstance(exc, asyncio.CancelledError)
+                    else "timeout_unknown"
+                    if isinstance(exc, TimeoutError)
+                    else "transport_unknown"
+                )
+            )
             if not terminal:
-                row = await finish_cleanup(self.ledger.finish(request.attempt_id, status, error_code=code))
+                row = await finish_cleanup(
+                    self.ledger.finish(request.attempt_id, status, error_code=code)
+                )
                 if acquired:
                     hold = row["hold_until"] if status == "unknown" else None
-                    await finish_cleanup(self.scheduler.release(plan.quota_group, request.attempt_id,
-                        hold_until=hold, not_started=not submitted))
+                    await finish_cleanup(
+                        self.scheduler.release(
+                            plan.quota_group,
+                            request.attempt_id,
+                            hold_until=hold,
+                            not_started=not submitted,
+                        )
+                    )
                     acquired = False
                 try:
                     await finish_cleanup(self.event("model.finished", status, request.attempt_id))
@@ -389,11 +548,23 @@ class ModelBroker:
             raise AppError("broker_unavailable", status=503)
         if request.service_class == ServiceClass.CONTROL:
             raise AppError("control_does_not_generate")
-        if any(type(value) not in (int, float) or not math.isfinite(value) or value < 0
-               for value in request.estimated_units.values()):
+        if any(
+            type(value) not in (int, float) or not math.isfinite(value) or value < 0
+            for value in request.estimated_units.values()
+        ):
             raise AppError("invalid_resource_units")
-        plan = RoutePlan("external:"+request.provider_id, 1, request.provider_id,
-            request.function, "external", "", "", request.quota_group, frozenset(), {})
+        plan = RoutePlan(
+            "external:" + request.provider_id,
+            1,
+            request.provider_id,
+            request.function,
+            "external",
+            "",
+            "",
+            request.quota_group,
+            frozenset(),
+            {},
+        )
         await self.event("resource.queued", "started", request.attempt_id)
         row, created = await self.ledger.create(request, plan, request.estimated_units)
         if not created:
@@ -403,8 +574,11 @@ class ModelBroker:
         try:
             await self.scheduler.acquire(request, request.quota_group, request.estimated_units)
         except BaseException:
-            await finish_cleanup(self.ledger.finish(request.attempt_id, "cancelled",
-                                                    error_code="external_not_started"))
+            await finish_cleanup(
+                self.ledger.finish(
+                    request.attempt_id, "cancelled", error_code="external_not_started"
+                )
+            )
             raise
         permit = ExternalPermit(self, request)
         self.external[request.attempt_id] = permit
@@ -435,7 +609,9 @@ class ExternalPermit:
             self.request.budget.check()
             await self.broker.event("resource.submitted", "started", self.request.attempt_id)
         if provider_handle:
-            await self.broker.ledger.checkpoint(self.request.attempt_id, provider_handle=provider_handle)
+            await self.broker.ledger.checkpoint(
+                self.request.attempt_id, provider_handle=provider_handle
+            )
 
     async def finish(self, usage=None, result=None):
         if self.submitted_at is None:
@@ -443,12 +619,15 @@ class ExternalPermit:
         return await self._finish("succeeded", usage=usage, result=result)
 
     async def unknown(self, error_code="external_effect_unknown"):
-        return await self._finish("unknown" if self.submitted_at else "cancelled", error_code=error_code)
+        return await self._finish(
+            "unknown" if self.submitted_at else "cancelled", error_code=error_code
+        )
 
     async def rejected(self, error_code, usage=None):
         """Only a provider's confirmed no-effect rejection can release unknown occupancy."""
-        return await self._finish("failed" if self.submitted_at else "cancelled",
-                                  usage=usage, error_code=error_code)
+        return await self._finish(
+            "failed" if self.submitted_at else "cancelled", usage=usage, error_code=error_code
+        )
 
     async def _finish(self, status, *, usage=None, result=None, error_code=None):
         async with self.finish_lock:
@@ -457,18 +636,34 @@ class ExternalPermit:
             if usage is not None and not isinstance(usage, dict):
                 raise AppError("invalid_resource_usage")
             units = usage.get("units") if usage is not None else None
-            if units is not None and (not isinstance(units, dict) or any(
-                type(value) not in (int, float) or not math.isfinite(value) or value < 0
-                for value in units.values())):
+            if units is not None and (
+                not isinstance(units, dict)
+                or any(
+                    type(value) not in (int, float) or not math.isfinite(value) or value < 0
+                    for value in units.values()
+                )
+            ):
                 raise AppError("invalid_resource_usage")
-            row = await self.broker.ledger.finish(self.request.attempt_id, status, usage=ModelUsage(
-                raw=usage, metering="reported" if usage is not None else "unknown"), result=result,
-                error_code=error_code, charged_units=units,
-                validate_result=lambda connection: self.broker.may_persist(connection, self.request))
-            await self.broker.scheduler.release(self.request.quota_group, self.request.attempt_id,
+            row = await self.broker.ledger.finish(
+                self.request.attempt_id,
+                status,
+                usage=ModelUsage(
+                    raw=usage, metering="reported" if usage is not None else "unknown"
+                ),
+                result=result,
+                error_code=error_code,
+                charged_units=units,
+                validate_result=lambda connection: self.broker.may_persist(
+                    connection, self.request
+                ),
+            )
+            await self.broker.scheduler.release(
+                self.request.quota_group,
+                self.request.attempt_id,
                 units=units,
                 hold_until=row["hold_until"] if row["status"] == "unknown" else None,
-                not_started=self.submitted_at is None)
+                not_started=self.submitted_at is None,
+            )
             self.done = True
             self.broker.external.pop(self.request.attempt_id, None)
             try:
