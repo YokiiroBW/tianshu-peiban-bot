@@ -8,10 +8,10 @@
 `sha256:eaef93c3b0b1673e804c032336a7f04b5b447054d06b9bf27c4010c3c7404629`。
 整镜像在 Linux 实际启动通过，没有源码覆盖挂载。前端在该镜像构建中完成 typecheck/build。
 
-新应用位于 `.230:/srv/tianshu-core/app`，暂用 `http://192.168.31.230:28446`；
+新应用位于 `.230:/srv/tianshu-core/app`，已在临时端口 28446 完成启动及配置核对，随后正常停止（exit 0）待切换；
 专属 PostgreSQL 位于 NAS `/volume2/Dockers/tianshu-core-postgres`，端口 25018。
 原 R67 仍在 18446/18443/18765 运行。新旧容量守护均有效，没有降低原 20 GiB 空间下限。
-两个新版 QQ transport 尚未启用，也未发布新实例的 OneBot 端口。
+两个新版 QQ transport 尚未启用，也未发布新实例的 OneBot 端口。等待登录期间仅旧版继续运行，新库和配置保持持久化。
 
 CR01–CR19 及专项前端块的源码集成、集中验收和缺陷复验已完成。CR20 处于
 `staged_configuration_verified_cutover_pending`，不能标作正式发布完成。

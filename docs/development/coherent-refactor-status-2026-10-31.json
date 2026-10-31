@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "goal_thread": "01a18df4-9275-7411-b48b-32fd86889108",
-  "state": "configuration_migrated_staged_cutover_pending_peer_login",
+  "state": "configuration_verified_staged_stopped_pending_peer_login",
   "model": "gpt-6.1-sol",
   "reasoning_effort": "xhigh",
   "integration_root": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-unified-refactor\\tianshu-peiban-bot",
@@ -1310,7 +1310,7 @@
     "fresh_production_configuration_written": true
   },
   "deployment": {
-    "state": "staged_not_cutover",
+    "state": "configuration_verified_staged_stopped",
     "temporary_origin": "http://192.168.31.230:28446",
     "final_origin": "http://192.168.31.230:18446",
     "application_root": "/srv/tianshu-core/app",
@@ -1319,7 +1319,10 @@
     "old_application_running": true,
     "old_business_data_deleted": false,
     "transport_enabled": false,
-    "capacity_guards_active": true
+    "capacity_guards_active": true,
+    "new_application_running": false,
+    "new_stop_exit_code": 0,
+    "reason": "Keep only old live runtime while normal SnowLuma management login is pending."
   },
   "planning_commit": "e034276dfb757b7dd64cd2f56e952d81193a5248",
   "updated_at": "2026-11-01",
