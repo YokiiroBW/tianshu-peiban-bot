@@ -65,7 +65,7 @@ async def core(tmp_path,database):
 @pytest_asyncio.fixture
 async def ordinary_users(core):
     users=[]
-    permissions=["chat","companion.read","life.read","memory.read","memory.manage","memory.share"]
+    permissions=["chat","conversation.read","conversation.send","companion.read","life.read","life.published.read","memory.read","memory.manage","memory.share"]
     for username in ("alice","bobby"):
         granted=permissions+(["life.manage"] if username=="alice" else [])
         result=await core.management.execute(core.owner,"principals.save",{"username":username,"display_name":username,

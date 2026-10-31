@@ -95,7 +95,7 @@ CREATE TABLE identity.connections (
     self_external_id text NOT NULL,
     enabled boolean NOT NULL DEFAULT true,
     default_mode text NOT NULL DEFAULT 'ignore' CHECK(default_mode IN ('reply','observe','ignore')),
-    event_permissions text[] NOT NULL DEFAULT ARRAY['chat','companion.read','life.read','life.manage','memory.read','memory.manage','memory.share'],
+    event_permissions text[] NOT NULL DEFAULT ARRAY['chat','conversation.read','conversation.send','companion.read','life.read','life.manage','life.published.read','memory.read','memory.manage','memory.share'],
     revision bigint NOT NULL DEFAULT 1
 );
 CREATE TABLE identity.accounts (
