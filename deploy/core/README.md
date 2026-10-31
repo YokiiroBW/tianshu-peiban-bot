@@ -151,6 +151,10 @@ publisher 为 `{targets:{"comic-main":容器绝对成品根},socket:"/run/tiansh
 `backup.py` 先核新 guard 的精确容器身份且应用已停止，随后对**专属** DB 做 pg_dump custom，
 流式封存 config/data、唯一 master key 与安装 manifest。密码经临时 0600 pgpass 文件传给工具，
 不放命令行。只记录迁移、vector 版本与 attempt 状态计数，不输出聊天或凭据。
+`installation.json.config_files` 中实际审查过的所有 compose 文件也封存，保留叠加顺序；
+freeze/backup 共用相同逐路径组件验证，拒绝越出部署根、符号链接、缺失或重复配置。
+还原在数据库恢复前核归档必须包含全部已登记文件；原根内绝对配置引用改为新根相对引用，
+然后重新 freeze 新容器。执行这组工具时须保留同目录的 `installation.py` 公共安装清单实现。
 
 ```sh
 python backup.py backup --root /APPROVED/new-tianshu-core --destination /APPROVED/external-backups/NEW_ID

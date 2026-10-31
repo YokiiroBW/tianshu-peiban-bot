@@ -14,6 +14,7 @@ import psycopg
 from psycopg.conninfo import conninfo_to_dict
 
 from capacity import CapacityGuard, docker
+from installation import configuration_files, configuration_names
 
 
 PAYLOAD = (".env", "installation.json", "compose.yaml", "seccomp-chromium.json", "config", "data")
@@ -119,6 +120,7 @@ def backup(root, destination):
         raise ValueError("new_external_backup_directory_required")
     row = require_stopped(root)
     install = json.loads((root / "installation.json").read_text())
+    compose_names = configuration_files(root, install)
     values = environment(root / ".env")
     dsn = values["TIANSHU_DATABASE_URL"]
     params = database_parameters(dsn)
@@ -143,7 +145,11 @@ def backup(root, destination):
             temporary,
         )
     with tarfile.open(destination / "payload.tar", "w") as archive:
-        for name in PAYLOAD:
+        payload = list(PAYLOAD)
+        for name in compose_names:
+            if not any(PurePosixPath(name).is_relative_to(parent) for parent in payload):
+                payload.append(name)
+        for name in payload:
             archive.add(root / name, arcname=name, recursive=True)
     with tarfile.open(destination / "payload.tar", "r") as archive:
         validate_members(archive)
@@ -189,6 +195,18 @@ def backup(root, destination):
 
 def validate_members(archive):
     members = archive.getmembers()
+    try:
+        installation_member = archive.getmember("installation.json")
+        if not installation_member.isfile() or installation_member.size > 1048576:
+            raise ValueError()
+        with archive.extractfile(installation_member) as stream:
+            install = json.load(stream)
+        compose_names = configuration_names(Path(install["deployment_root"]), install)
+    except (KeyError, TypeError, ValueError):
+        raise ValueError("unsafe_backup_payload") from None
+    allowed_files = {PurePosixPath(name) for name in (*PAYLOAD, *compose_names)}
+    trees = {PurePosixPath("config"), PurePosixPath("data")}
+    parents = {parent for name in allowed_files for parent in name.parents if parent.parts}
     seen = set()
     for member in members:
         path = PurePosixPath(member.name)
@@ -197,13 +215,21 @@ def validate_members(archive):
             or path.is_absolute()
             or ".." in path.parts
             or not path.parts
-            or path.parts[0] not in PAYLOAD
+            or not (
+                any(path.is_relative_to(tree) for tree in trees)
+                or member.isfile()
+                and path in allowed_files
+                or member.isdir()
+                and path in parents
+            )
             or not (member.isfile() or member.isdir())
             or member.uid not in {0, 10001}
             or member.gid not in {0, 10001}
         ):
             raise ValueError("unsafe_backup_payload")
         seen.add(path)
+    if not allowed_files <= seen:
+        raise ValueError("unsafe_backup_payload")
     return members
 
 
@@ -287,6 +313,9 @@ def restore(bundle, root, dsn_file, manifest_sha256):
     )
     (root / ".env").chmod(0o600)
     install = json.loads((root / "installation.json").read_text())
+    # Absolute references inside the original installation relocate to the same
+    # reviewed relative files in the new root, preserving their Compose order.
+    install["config_files"] = list(configuration_names(Path(install["deployment_root"]), install))
     install["deployment_root"] = str(root)
     install["database"] = {
         "host": params["host"],
@@ -294,6 +323,7 @@ def restore(bundle, root, dsn_file, manifest_sha256):
         "name": params["dbname"],
         "user": params["user"],
     }
+    configuration_files(root, install)
     (root / "installation.json").write_text(json.dumps(install, indent=2) + "\n")
     (root / "RESTORE_INCOMPLETE").unlink()
     return {

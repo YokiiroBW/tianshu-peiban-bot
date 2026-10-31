@@ -194,6 +194,7 @@ def bootstrap(
             "user": "tianshu_core",
         },
         "external_binds": [],
+        "config_files": ["compose.yaml"],
         "created_at": datetime.now(UTC).isoformat(),
         "credential_anchor": ".env:TIANSHU_MASTER_KEY",
     }

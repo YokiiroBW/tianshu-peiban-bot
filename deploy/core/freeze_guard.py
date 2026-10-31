@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 
 from capacity import CapacityGuard, docker
+from installation import configuration_files
 
 
 def freeze(root, container):
@@ -21,9 +22,7 @@ def freeze(root, container):
         != install["source_sha"]
     ):
         raise ValueError("installation_image_mismatch")
-    files = [str((root / name).resolve()) for name in install.get("config_files", ["compose.yaml"])]
-    if any(not Path(name).is_relative_to(root) for name in files):
-        raise ValueError("foreign_compose_file")
+    files = [str(root / name) for name in configuration_files(root, install)]
     binds = [
         {"source": str(root / "config"), "target": "/config", "read_only": True},
         {"source": str(root / "data"), "target": "/data", "read_only": False},
