@@ -11,6 +11,11 @@ Prometheus、Grafana。监督器先完成唯一迁移总注册，成功后才启
 日志读取器退出都会终止容器，交给 Docker 重启策略。业务角色使用 UID/GID 10001；PID 1 只负责
 固定子进程、身份切换、日志和停止。受管插件、Chromium 和漫画文件服务仍在这个容器内。
 
+Compose 在 `cap_drop: ALL` 后只添加 SETUID/SETGID（切换业务身份）、CHOWN（数据属主）、
+FOWNER（PID 1 对已属 UID10001 的数据目录恢复750）、DAC_OVERRIDE（打开私有业务日志）和
+KILL（结束其他 UID 的受管子进程）。CHOWN/DAC_OVERRIDE 都不能代替 FOWNER 的异主 chmod 权限。
+新日志与控制 socket 先在 PID 1 仍拥有时设置私有权限，再交业务 UID，不增加 privileged/SYS_ADMIN。
+
 新应用目录由 `bootstrap.py` 显式指定，必须尚不存在。它包含：
 
 | 路径 | 职责 |

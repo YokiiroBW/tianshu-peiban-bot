@@ -38,6 +38,16 @@ def redact(text, values):
     return text
 
 
+def _initialize_directory(path, uid, gid):
+    if path.is_symlink():
+        raise ValueError("unsafe_product_data_directory")
+    path.mkdir(parents=True, exist_ok=True)
+    os.chown(path, uid, gid)
+    # Existing product data already belongs to the business UID. PID 1 therefore
+    # needs CAP_FOWNER for chmod, independently of CAP_CHOWN and DAC_OVERRIDE.
+    path.chmod(0o750)
+
+
 class Supervisor:
     def __init__(self, settings, config_path):
         self.settings, self.config_path = settings, str(Path(config_path).resolve())
@@ -55,8 +65,8 @@ class Supervisor:
         instance, sequence = str(uuid4()), 0
         path = self.logs / ("stdout-" + role + "-" + instance + ".jsonl")
         with path.open("xb") as stream:
+            os.fchmod(stream.fileno(), 0o600)
             os.fchown(stream.fileno(), self.uid, self.gid)
-            path.chmod(0o600)
 
             async def record(message):
                 nonlocal sequence
@@ -233,11 +243,7 @@ class Supervisor:
             ),
         ]
         for path in directories:
-            if path.is_symlink():
-                raise ValueError("unsafe_product_data_directory")
-            path.mkdir(parents=True, exist_ok=True)
-            os.chown(path, self.uid, self.gid)
-            path.chmod(0o750)
+            _initialize_directory(path, self.uid, self.gid)
         loop = asyncio.get_running_loop()
         for sig in (signal.SIGTERM, signal.SIGINT):
             loop.add_signal_handler(sig, self.stop.set)

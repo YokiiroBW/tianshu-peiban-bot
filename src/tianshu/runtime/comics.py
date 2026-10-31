@@ -157,8 +157,8 @@ class ComicsController:
         self.runner = web.AppRunner(app, access_log=None)
         await self.runner.setup()
         await web.UnixSite(self.runner, str(self.socket)).start()
-        os.chown(self.socket, self.supervisor.uid, self.supervisor.gid)
         self.socket.chmod(0o600)
+        os.chown(self.socket, self.supervisor.uid, self.supervisor.gid)
 
     async def close(self):
         if self.runner:

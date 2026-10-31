@@ -9,7 +9,8 @@ services:
     working_dir: /opt/tianshu
     user: '0:10001'
     cap_drop: [ALL]
-    cap_add: [SETUID, SETGID, CHOWN, KILL, DAC_OVERRIDE]
+    # PID 1 repairs modes on the UID 10001 data tree; DAC_OVERRIDE does not authorize chmod.
+    cap_add: [SETUID, SETGID, CHOWN, FOWNER, KILL, DAC_OVERRIDE]
     security_opt: [no-new-privileges:true, 'seccomp=./seccomp-chromium.json']
     stop_grace_period: 120s
     pids_limit: 768

@@ -8,7 +8,20 @@ import sys
 import pytest
 
 from tianshu.runtime.config import Settings, Secrets
-from tianshu.runtime.supervisor import Supervisor
+from tianshu.runtime.supervisor import Supervisor, _initialize_directory
+
+
+@pytest.mark.skipif(
+    sys.platform != "linux" or os.geteuid() != 0,
+    reason="actual Linux container root ownership/capability fixture",
+)
+def test_startup_repairs_existing_business_owned_directory_mode(tmp_path):
+    directory = tmp_path / "data"
+    directory.mkdir(mode=0o700)
+    os.chown(directory, 10001, 10001)
+    _initialize_directory(directory, 10001, 10001)
+    metadata = directory.stat()
+    assert (metadata.st_uid, metadata.st_gid, metadata.st_mode & 0o7777) == (10001, 10001, 0o750)
 
 
 @pytest.mark.skipif(
