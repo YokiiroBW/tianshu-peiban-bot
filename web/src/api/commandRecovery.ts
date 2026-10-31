@@ -32,6 +32,7 @@ const capabilityDomains = new Set([
   "weather",
   "resources",
   "channels",
+  "projects",
 ]);
 const capabilityAliases: Record<string, string> = {
   "channels/connections/save": "channels.configure",
