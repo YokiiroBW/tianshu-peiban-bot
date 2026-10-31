@@ -14,8 +14,16 @@ import { lazy, Suspense } from "react";
 const FlowGraphPage = lazy(() => import("../flow-graph/FlowGraphPage"));
 
 const setupLinks = [
-  { href: "#/settings/speech", title: "声音与语音", detail: "连接 Fish Plus 或原生 API，绑定角色音色、试听和管理读音。" },
-  { href: "#/settings/images", title: "图像引擎", detail: "配置 ComfyUI、NovelAI、GPT Image 和角色参考。" },
+  {
+    href: "#/settings/speech",
+    title: "声音与语音",
+    detail: "连接 Fish Plus 或原生 API，绑定角色音色、试听和管理读音。",
+  },
+  {
+    href: "#/settings/images",
+    title: "图像引擎",
+    detail: "配置 ComfyUI、NovelAI、GPT Image 和角色参考。",
+  },
   {
     href: "#/system/graph",
     title: "链路图",
@@ -79,7 +87,7 @@ function ConnectionsOverview() {
           <h2 id="settings-directory-title">连接设置入口</h2>
         </div>
         <p>
-          按要配置的服务进入独立页面。下方功能连接状态来自部署配置与真实读取记录。
+          按要配置的服务进入独立页面。下方目录显示所选角色的真实配置、对端支持、验证与执行权限。
         </p>
         <div className="settings-directory-grid">
           {setupLinks.map((link) => (

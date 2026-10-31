@@ -104,3 +104,91 @@ Home改接devices/view、refresh与device.control模板动作：完整连接/实
 ## 约定完整表单（implemented_not_tested）
 
 约定页接真实Life access、身份会话分页、Catalog schema参数、时区/单次/每日/每周、未开始CAS编辑/取消、来源证据和原Action/Expression任务；不再仅保存标题/时间。自拍的系统目标/窗口/稳定身份交真实后端冻结。小屋媒体读取补全已知person selector，清理预览保存矛盾文案。未运行测试/构建。
+
+## 旧消费者与用例清理
+
+删除不可达ActorMemory/旧Life runtime/ComfyUI单引擎/天气/原件包装；实际功能分别由新Memory、Life、Images和QWeather页面拥有。operations删除无后端旧people/relationships/runtime/connections/旧models等注册；去掉重复媒体注册，避免同一个media.resolve等命令被旧read声明误分类。旧测试/夹具删除如下（均依赖已删除API、旧会话/信封、匿名小屋或已无运行者的产品fixture）：
+
+- access-settings.spec.ts
+- asset-library-dev.spec.ts
+- asset-library.fixtures.ts
+- asset-library.spec.ts
+- books-audio-joint.spec.ts
+- books-joint.spec.ts
+- bot-adapters-live.spec.ts
+- bot-adapters.spec.ts
+- bot-connections.spec.ts
+- comfy-backend.spec.ts
+- comics-joint.spec.ts
+- content-hash.spec.ts
+- dockge-control.spec.ts
+- external-connections.spec.ts
+- flow-graph.spec.ts
+- group-directory.spec.ts
+- group-insights.spec.ts
+- infrastructure-deployment.mjs
+- infrastructure.spec.ts
+- integration-pages.spec.ts
+- life-joint.spec.ts
+- life-runtime.spec.ts
+- life-visual.spec.ts
+- media-dev.spec.ts
+- media-joint.spec.ts
+- media-policy.spec.ts
+- media-retention.spec.ts
+- media.fixtures.ts
+- media.spec.ts
+- memory-role.spec.ts
+- memory-timeline.spec.ts
+- model-functions-fixture.py
+- model-functions.spec.ts
+- music.spec.ts
+- onboarding-real.spec.ts
+- onboarding.spec.ts
+- people.spec.ts
+- persona-author.spec.ts
+- personas.spec.ts
+- plugins.spec.ts
+- provider-manager.spec.ts
+- provider-real-fixture.py
+- provider-real.spec.ts
+- qq-admin.spec.ts
+- quality-platform.spec.ts
+- relationships.spec.ts
+- retrieval-fixture.py
+- retrieval.spec.ts
+- role-empty.spec.ts
+- runtime-joint.spec.ts
+- scope-transitions.spec.ts
+- settings-cards.spec.ts
+- settings-subpages.spec.ts
+- shell.spec.ts
+- skills.spec.ts
+- subscriptions-dashboard.spec.ts
+- subscriptions-destination.spec.ts
+- subscriptions-navigation.spec.ts
+- subscriptions-storage.spec.ts
+- task-center-dev.spec.ts
+- task-center.fixtures.ts
+- task-center.spec.ts
+- ui-tuning.spec.ts
+- web-console.spec.ts
+- fixtures/group-directory.ts
+- fixtures/group-insights.ts
+- fixtures/memory-records.ts
+- fixtures/people.ts
+
+保留session-transport、semantic-routes、status-rail及room曲线用例；room-illustration保留现有视觉场景并换正式Session/Life夹具。集中阶段采用这些入口及新增native页面定向用例，未运行本套。
+
+## 最终源码交付状态
+
+本人CR18A/B/C/D/18页面范围已实现接线，状态implemented_not_tested；C的plugins/media/infrastructure/resources/people/memory/models及knowledge/projects按正式分派由C独占交付，A的Access按CR20交付，不在此重复声明已验收。聊天会话目录改为actor-only授权分页，私人会话打开清空旧会话selector；公开@、引用、原生段保留实际标识/数据。聊天附件用data.media canonical source而非artifact媒体，新增该关键路径用例。
+
+集中验证最小入口（由协调者在完成统一装配后执行，本人未执行）：
+
+- `npm run typecheck` 和 `npm run build`：统一前端装配与静态资源。
+- `npm run test:e2e -- session-transport.spec.ts semantic-routes.spec.ts native-pages.spec.ts --project=desktop --workers=1`：Cookie/CSRF与写入unknown、原Action不重发、约定selector/重复/时区、canonical上传→聊天、小屋CAS保存。
+- `npm run test:e2e -- room-illustration.spec.ts --project=desktop --workers=1`：保留已认可插画/几何切换、局部灯与纱帘、素材失败/退出释放、reduced motion。桌面通过后仅对受影响布局需要时选mobile。
+- `status-rail.spec.ts`和`room.spec.ts`保留既有有效状态视觉/昼夜曲线入口，非每轮必跑。
+
+Playwright沿用现有Chromium和127.0.0.1:4173 preview，先完成build；不启动旧Python产品fixture、不连真实账号/付费模型。native-fixture仅测试使用，未声明API返回404，生产没有mock/fallback。新测试尚未执行，不能当通过证明。业务端口与真实外部接入仍由CR19/CR20集中验收。

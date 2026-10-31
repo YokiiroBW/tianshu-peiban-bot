@@ -1,66 +1,10 @@
 import { test, expect } from "@playwright/test";
 
+import { nativeSession } from "./native-fixture";
+
 test.beforeEach(async ({ page }) => {
-  await page.clock.setFixedTime(new Date("2026-10-04T06:00:00Z"));
-  await page.route("**/api/v1/session", (route) =>
-    route.fulfill({
-      json: {
-        authenticated: true,
-        csrf: "synthetic-room",
-        username: "preview",
-        conversations: [],
-        dialogue: {
-          available: false,
-          model: "not_configured",
-          code: "model_not_configured",
-        },
-      },
-    }),
-  );
-  await page.route("**/api/v1/life/actors", (route) =>
-    route.fulfill({
-      json: {
-        schema_version: 1,
-        fictional: true,
-        items: [
-          {
-            actor_id: "actor:room",
-            actor_version: 1,
-            world_id: "world:room",
-            room_id: "room:room",
-            label: "小屋角色",
-          },
-        ],
-        next_after_actor_id: null,
-      },
-    }),
-  );
-  await page.route("**/api/v1/life/runtime/read", (route) => {
-    const resource = route.request().postDataJSON().resource;
-    return route.fulfill({
-      json: {
-        schema_version: 2,
-        request_id: "room-state",
-        actor_id: "actor:room",
-        resource,
-        items:
-          resource === "state"
-            ? [
-                {
-                  actor_id: "actor:room",
-                  activity: "正在阅读",
-                  mood: "平静",
-                  timezone: "Asia/Shanghai",
-                  outfit_ref: null,
-                  changed_at: 1791093600,
-                },
-              ]
-            : [],
-        next_cursor: null,
-        fictional: true,
-      },
-    });
-  });
+  await page.clock.setFixedTime(new Date("2026-10-31T06:00:00Z"));
+  await nativeSession(page);
 });
 
 test("illustration loads in authenticated room, controls change pixels and state survives mode switch", async ({
@@ -81,7 +25,7 @@ test("illustration loads in authenticated room, controls change pixels and state
   await page.getByRole("button", { name: "夜晚", exact: true }).click();
   await expect(canvas).toHaveAttribute("data-day", "0.000");
   expect((await canvas.screenshot()).equals(day)).toBe(false);
-  await page.locator(".room-controls summary").click();
+  await page.getByRole("button", { name: /环境控制/ }).click();
   const lamp = page.getByRole("slider", { name: "床头灯亮度", exact: true });
   await lamp.fill("100");
   await expect
@@ -96,7 +40,9 @@ test("illustration loads in authenticated room, controls change pixels and state
   await expect
     .poll(() => canvas.screenshot().then((b) => b.equals(lit)))
     .toBe(false);
+  await page.getByRole("button", { name: "关闭卡片", exact: true }).click();
   await page.getByRole("button", { name: "午后", exact: true }).click();
+  await page.getByRole("button", { name: /环境控制/ }).click();
   await expect(canvas).toHaveAttribute("data-day", "1.000");
   await page.getByRole("slider", { name: "纱帘开度", exact: true }).fill("0");
   const curtains = await canvas.screenshot();
@@ -109,17 +55,22 @@ test("illustration loads in authenticated room, controls change pixels and state
   await expect
     .poll(() => canvas.screenshot().then((b) => b.equals(character)))
     .toBe(false);
+  await page.getByRole("button", { name: "关闭卡片", exact: true }).click();
   await page.getByRole("button", { name: "原环境预览", exact: true }).click();
+  await page.getByRole("button", { name: /环境控制/ }).click();
   await expect(canvas).toHaveAttribute("data-frames", /[1-9]/);
   await expect(
     page.getByRole("slider", { name: "书桌灯亮度", exact: true }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "关闭卡片", exact: true }).click();
   await page.getByRole("button", { name: "返回插画小屋", exact: true }).click();
+  await page.getByRole("button", { name: /环境控制/ }).click();
   await expect(canvas).toHaveAttribute("data-ready", "true");
   await expect(lamp).toHaveValue("0");
   await expect(
     page.getByRole("slider", { name: "纱帘开度", exact: true }),
   ).toHaveValue("100");
+  await page.getByRole("button", { name: "关闭卡片", exact: true }).click();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,

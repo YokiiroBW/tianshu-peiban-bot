@@ -2,18 +2,6 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests",
-  testIgnore: [
-    "books-joint.spec.ts",
-    "onboarding-real.spec.ts",
-    "web-console.spec.ts",
-    "task-center.spec.ts",
-    "task-center-dev.spec.ts",
-    "provider-manager.spec.ts",
-    "provider-real.spec.ts",
-    "life-joint.spec.ts",
-    "runtime-joint.spec.ts",
-    "infrastructure.spec.ts",
-  ],
   outputDir: "./test-results",
   fullyParallel: true,
   forbidOnly: true,
@@ -46,8 +34,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command:
-      "node node_modules/vite/bin/vite.js preview --host 127.0.0.1",
+    command: "node node_modules/vite/bin/vite.js preview --host 127.0.0.1",
     url: "http://127.0.0.1:4173",
     cwd: ".",
     reuseExistingServer: false,
