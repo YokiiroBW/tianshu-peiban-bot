@@ -429,8 +429,8 @@
         "CR20"
       ],
       "state": "implementing",
-      "boundary": "runtime/models/types/identity/sources/memory/conversation/context and owned tests; backend manifest/lock/composition/migrations; deploy/core and retired source cleanup; capabilities/projects and its UI; web features knowledge/projects plus settings AccessPanel.tsx/access.css only",
-      "phase": "deployment_and_project_knowledge_with_access_UI"
+      "boundary": "runtime/models/types/identity/sources/memory/conversation/context and owned tests; backend manifest/lock/composition/migrations; deploy/core and retired source cleanup; settings AccessPanel.tsx/access.css only. No capabilities/projects or knowledge/projects UI writes.",
+      "phase": "model_discovery_deletion_group_evidence_deployment_access"
     },
     "frontend": {
       "model": "gpt-6.1-sol",
@@ -471,8 +471,8 @@
         "CR04A"
       ],
       "state": "implementing",
-      "boundary": "capabilities except projects; channels and SDK; web features plugins/media/infrastructure/resources/people/memory; exact ProviderManager/Editors/ModelsPanel/ModelFunctionsPanel/providerApi/providerTypes/providerPresets/models.css settings whitelist; no shared frontend registry changes",
-      "phase": "chat_audit_then_people_memory_model_UI"
+      "boundary": "capabilities/** including newly transferred projects; channels and SDK; web features plugins/media/infrastructure/resources/people/memory/knowledge/projects; exact ProviderManager/Editors/ModelsPanel/ModelFunctionsPanel/providerApi/providerTypes/providerPresets/models.css whitelist. Shared frontend registry stays B; root migration/assembly stays A.",
+      "phase": "people_memory_models_UI_then_actual_project_knowledge_and_UI"
     }
   },
   "integration_commits": [
@@ -811,6 +811,48 @@
       "integrated": "540c970",
       "scope": "complete life reading diary writing weather and wardrobe frontend",
       "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "0044c1f",
+      "integrated": "af704a8",
+      "scope": "ordinary authorized model receipts and actual owner readiness",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "2d1dcc7",
+      "integrated": "642913a",
+      "scope": "actual ChatAudit search read check and explicit historical intake",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "abb8a0b",
+      "integrated": "6869d88",
+      "scope": "archive TLS CA and actual conversation mapping editor",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "3b71103",
+      "integrated": "931f176",
+      "scope": "roles personas relationships and single Catalog UI replace legacy projections",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "2c3a347",
+      "integrated": "d6eba2f",
+      "scope": "explicit source media and task contexts in shared frontend components",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "47c8f0f",
+      "integrated": "d6f8985",
+      "scope": "provider credential namespace and actual request-unit rate reservation",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "70496a1",
+      "integrated": "31bacf8",
+      "scope": "original execution queries cancellation and precise runtime log frontend",
+      "validation": "source_review_only; concentrated CR19 not started"
     }
   ],
   "validation": {
@@ -1059,9 +1101,9 @@
       ]
     },
     {
-      "owner": "foundation_models",
+      "owner": "capabilities",
       "scope": "CR01 U17-18/U69-74/U89-91 actual project knowledge, directory import, research notes, lessons and continuation consumers including UI",
-      "state": "confirmed_missing_assigned_for_implementation"
+      "state": "implementation_assigned_after_confirmed_no_foundation_changes"
     },
     {
       "owner": "capabilities",
@@ -1095,17 +1137,19 @@
       ]
     },
     {
-      "owner": "foundation_models",
+      "owner": "capabilities",
       "scope": "Native project knowledge import versions whole-unit reads research notes lessons continuation CLI/MCP and owned UI remain required; actual former health code was service health, not an implemented human health/mobile domain",
-      "state": "implementing"
+      "state": "implementation_assigned_after_confirmed_no_foundation_changes"
     },
     {
       "owner": "foundation_models and capabilities",
       "scope": "ChatAudit explicit authorized historical evidence reads require new stable external Source aliases and suppression; do not auto-import old archive or migrate old Core alias data",
-      "state": "source_alias_ports_integrated; actual ChatAudit adapter implementing",
+      "state": "source_integrated_pending_concentrated_acceptance",
       "integration_evidence": [
         "49ba813",
-        "27d3ce5"
+        "27d3ce5",
+        "642913a",
+        "6869d88"
       ]
     },
     {

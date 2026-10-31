@@ -11,10 +11,10 @@
 | 写者 | 顺序与独占范围 |
 |---|---|
 | frontend | 继续 B 日记/写作取消、表达恢复；前端 `features/life`、`multimodal`、`room`、`companion`、`home`、`workbench`、`flow-graph`，以及 Channels/Weather 等仍归它的设置页面。唯一拥有 `web/src/api/**`、`app/**`（含实际模块注册 `app/modules.ts`）、公共组件、路由和前端 manifest/lock。 |
-| capabilities | 完成 channels、QWeather、AssetLibrary 与 Chat Audit；`web/src/features/plugins/**`、`media/**`、`infrastructure/**`、`resources/**`。2026-10-31 21:38 起另接 foundation 已确认未修改并冻结的 `people/**`、`memory/**`；设置页仅 `ProviderManager.tsx`、`ProviderEditors.tsx`、`ProviderModelsPanel.tsx`、`ModelFunctionsPanel.tsx`、`providerApi.ts`、`providerTypes.ts`、`providerPresets.ts`、`models.css`。不操作独立产品私有库。 |
-| foundation_models | root composition、CR20 和旧实现退出；真实 Knowledge/Project 业务迁入 `capabilities/projects/**`；`web/src/features/knowledge/**`、`projects/**` 与设置 `AccessPanel.tsx`、`access.css`。2026-10-31 21:38 已确认其余上列 UI 尚未修改，正式转交 capabilities；模型/认识后端公共 API 仍由 foundation 唯一维护。 |
+| capabilities | 完成 channels、QWeather、AssetLibrary 与 Chat Audit；`web/src/features/plugins/**`、`media/**`、`infrastructure/**`、`resources/**`。2026-10-31 21:38 起另接 foundation 已确认未修改并冻结的 `people/**`、`memory/**`；设置页仅 `ProviderManager.tsx`、`ProviderEditors.tsx`、`ProviderModelsPanel.tsx`、`ModelFunctionsPanel.tsx`、`providerApi.ts`、`providerTypes.ts`、`providerPresets.ts`、`models.css`。2026-10-31 22:03 起再接已确认未开始的 `capabilities/projects/**`、其业务测试、`web/src/features/knowledge/**` 与 `projects/**`。不操作独立产品私有库。 |
+| foundation_models | root composition、CR20 和旧实现退出；Models/Memory/Source 公共 API；设置 `AccessPanel.tsx`、`access.css`。其余原 UI 白名单及尚未开始的 Knowledge/Projects 后端与 UI 已按上述两次明确交接转 capabilities；总迁移和装配仍由 foundation 唯一维护。 |
 
-foundation 的项目/知识代码如需能力归属，独占 `src/tianshu/capabilities/projects/**`，从 capabilities 的大目录范围明确划除。跨域注册由所属 owner 提交小补丁或在根装配；不让两个写者同时改 capabilities/service.py、共享客户端或主路由。
+项目/知识实现现在统一由 capabilities 所有者维护 `src/tianshu/capabilities/projects/**` 及上述两个页面目录，A 已确认没有该范围未提交修改并停止写入。C 发布正式模块/迁移/CLI-MCP 入口后，A 接到唯一根装配与迁移注册；Source/Memory/Models 公共口继续找 A。B 唯一维护共享前端客户端、路由与锁，消费者不复制第二套会话或 fetch。
 
 ## 保留清单的实际核对
 
