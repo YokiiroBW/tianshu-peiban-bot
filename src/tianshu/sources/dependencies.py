@@ -1,10 +1,22 @@
 """Pure matching of selected dependency versions and forgotten ranges; grants no access."""
 
 from tianshu.types import SourceRef
+from tianshu.runtime.serialization import wire
+import json
 
 
 def _refs(values):
     return (SourceRef(**value) if isinstance(value,dict) else value for value in values or ())
+
+
+def unique_refs(*groups):
+    """Keep distinct selected ranges; deduplication never merges ranges or grants access."""
+    result={}
+    for group in groups:
+        for ref in _refs(group):
+            key=json.dumps(wire(ref),sort_keys=True,ensure_ascii=False,separators=(",",":"))
+            result.setdefault(key,ref)
+    return tuple(result.values())
 
 
 def intersects_one(values,changed,kind):
