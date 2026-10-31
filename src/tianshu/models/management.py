@@ -5,8 +5,7 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 import hashlib
 
-from tianshu.runtime.api import (CommandResult, Page, command_body, json_response,
-                                require_context)
+from tianshu.runtime.api import CommandResult, Page, command_body, json_response, require_context
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 from tianshu.types import Coverage
@@ -19,7 +18,7 @@ from tianshu.types import RequestBudget, ServiceClass
 def text(body, name):
     value = body.get(name)
     if not isinstance(value, str) or not 1 <= len(value) <= 512:
-        raise AppError("invalid_"+name)
+        raise AppError("invalid_" + name)
     return value
 
 
@@ -28,7 +27,7 @@ def positive(body, name, *, optional=False, allow_zero=False):
     if optional and value is None:
         return None
     if type(value) is not int or value < (0 if allow_zero else 1):
-        raise AppError("invalid_"+name)
+        raise AppError("invalid_" + name)
     return value
 
 
@@ -41,8 +40,9 @@ async def configuration(conn):
         ("bindings", "SELECT * FROM models.bindings ORDER BY function,service_class,actor_id"),
     ):
         result[key] = await (await conn.execute(statement)).fetchall()
-    result["embedding_profile"] = await (await conn.execute(
-        "SELECT * FROM models.embedding_profile WHERE singleton")).fetchone()
+    result["embedding_profile"] = await (
+        await conn.execute("SELECT * FROM models.embedding_profile WHERE singleton")
+    ).fetchone()
     return result
 
 
@@ -57,8 +57,16 @@ async def mutate(services, context, operation, body):
     async def replay(conn, original):
         return replace(original, data=await configuration(conn))
 
-    return wire(await services.commands.execute(context, "models."+operation,
-        body["client_request_id"], digest(body), apply, on_replay=replay))
+    return wire(
+        await services.commands.execute(
+            context,
+            "models." + operation,
+            body["client_request_id"],
+            digest(body),
+            apply,
+            on_replay=replay,
+        )
+    )
 
 
 async def _apply_configuration(conn, operation, body, expected, services):
@@ -67,21 +75,32 @@ async def _apply_configuration(conn, operation, body, expected, services):
         if protocol not in NATIVE_PROTOCOLS:
             raise AppError("native_protocol_unsupported", status=422)
         provider_id = text(body, "provider_id")
-        reference = body.get("credential_ref") or "sealed:provider:"+provider_id
+        reference = body.get("credential_ref") or "sealed:provider:" + provider_id
         if body.get("api_key") is not None:
-            reference = "sealed:provider:"+provider_id
+            reference = "sealed:provider:" + provider_id
             await services.credentials.put(conn, reference, body["api_key"])
-        values = (provider_id, text(body, "name"), text(body, "base_url"),
-                  reference, protocol, bool(body.get("enabled", True)))
+        values = (
+            provider_id,
+            text(body, "name"),
+            text(body, "base_url"),
+            reference,
+            protocol,
+            bool(body.get("enabled", True)),
+        )
         if expected == 0:
-            cursor = await conn.execute("INSERT INTO models.providers(provider_id,name,base_url,"
+            cursor = await conn.execute(
+                "INSERT INTO models.providers(provider_id,name,base_url,"
                 "credential_ref,protocol,enabled) VALUES(%s,%s,%s,%s,%s,%s) "
-                "ON CONFLICT DO NOTHING RETURNING revision", values)
+                "ON CONFLICT DO NOTHING RETURNING revision",
+                values,
+            )
         else:
-            cursor = await conn.execute("UPDATE models.providers SET name=%s,base_url=%s,"
+            cursor = await conn.execute(
+                "UPDATE models.providers SET name=%s,base_url=%s,"
                 "credential_ref=%s,protocol=%s,enabled=%s,revision=revision+1 "
                 "WHERE provider_id=%s AND revision=%s RETURNING revision",
-                (*values[1:], values[0], expected))
+                (*values[1:], values[0], expected),
+            )
     elif operation == "routes":
         caps = body.get("verified_capabilities", [])
         if not isinstance(caps, list) or any(not isinstance(item, str) for item in caps):
@@ -94,16 +113,30 @@ async def _apply_configuration(conn, operation, body, expected, services):
         parameters = body.get("parameters", {})
         if not isinstance(parameters, dict):
             raise AppError("invalid_parameters")
-        values = (text(body, "route_id"), text(body, "provider_id"), text(body, "model"),
-                  text(body, "quota_group"), caps, Jsonb(evidence), Jsonb(parameters), bool(body.get("enabled", True)))
+        values = (
+            text(body, "route_id"),
+            text(body, "provider_id"),
+            text(body, "model"),
+            text(body, "quota_group"),
+            caps,
+            Jsonb(evidence),
+            Jsonb(parameters),
+            bool(body.get("enabled", True)),
+        )
         if expected == 0:
-            cursor = await conn.execute("INSERT INTO models.routes(route_id,provider_id,model,"
+            cursor = await conn.execute(
+                "INSERT INTO models.routes(route_id,provider_id,model,"
                 "quota_group,verified_capabilities,verification,parameters,enabled) VALUES(%s,%s,%s,%s,%s,%s,%s,%s) "
-                "ON CONFLICT DO NOTHING RETURNING revision", values)
+                "ON CONFLICT DO NOTHING RETURNING revision",
+                values,
+            )
         else:
-            cursor = await conn.execute("UPDATE models.routes SET provider_id=%s,model=%s,"
+            cursor = await conn.execute(
+                "UPDATE models.routes SET provider_id=%s,model=%s,"
                 "quota_group=%s,verified_capabilities=%s,verification=%s,parameters=%s,enabled=%s,revision=revision+1 "
-                "WHERE route_id=%s AND revision=%s RETURNING revision", (*values[1:], values[0], expected))
+                "WHERE route_id=%s AND revision=%s RETURNING revision",
+                (*values[1:], values[0], expected),
+            )
     elif operation == "quota-groups":
         concurrency = positive(body, "concurrency")
         reserve = positive(body, "interactive_reserve", allow_zero=True)
@@ -112,35 +145,60 @@ async def _apply_configuration(conn, operation, body, expected, services):
             raise AppError("invalid_quota_reservation")
         unit_limits = body.get("unit_limits", {})
         if not isinstance(unit_limits, dict) or any(
-            type(value) not in (int, float) or value <= 0 for value in unit_limits.values()):
+            type(value) not in (int, float) or value <= 0 for value in unit_limits.values()
+        ):
             raise AppError("invalid_unit_limits")
-        values = (text(body, "quota_group"), concurrency, reserve, background,
-            positive(body, "rpm", optional=True), positive(body, "tpm", optional=True),
-            positive(body, "max_queue"), positive(body, "max_wait_seconds"),
-            positive(body, "unknown_hold_seconds"), Jsonb(unit_limits),
-            body.get("interactive_rpm_reserve", 0), body.get("background_rpm_max"),
-            Jsonb(body.get("interactive_unit_reserve", {})), Jsonb(body.get("background_unit_max", {})))
+        values = (
+            text(body, "quota_group"),
+            concurrency,
+            reserve,
+            background,
+            positive(body, "rpm", optional=True),
+            positive(body, "tpm", optional=True),
+            positive(body, "max_queue"),
+            positive(body, "max_wait_seconds"),
+            positive(body, "unknown_hold_seconds"),
+            Jsonb(unit_limits),
+            body.get("interactive_rpm_reserve", 0),
+            body.get("background_rpm_max"),
+            Jsonb(body.get("interactive_unit_reserve", {})),
+            Jsonb(body.get("background_unit_max", {})),
+        )
         try:
-            QuotaPolicy(values[0], concurrency, reserve, background, rpm=values[4], tpm=values[5],
-                unit_limits=unit_limits, interactive_rpm_reserve=values[10], background_rpm_max=values[11],
+            QuotaPolicy(
+                values[0],
+                concurrency,
+                reserve,
+                background,
+                rpm=values[4],
+                tpm=values[5],
+                unit_limits=unit_limits,
+                interactive_rpm_reserve=values[10],
+                background_rpm_max=values[11],
                 interactive_unit_reserve=body.get("interactive_unit_reserve", {}),
-                background_unit_max=body.get("background_unit_max", {}))
+                background_unit_max=body.get("background_unit_max", {}),
+            )
         except (ValueError, TypeError):
             raise AppError("invalid_quota_reservation") from None
         if expected == 0:
-            cursor = await conn.execute("INSERT INTO models.quota_groups(quota_group,concurrency,"
+            cursor = await conn.execute(
+                "INSERT INTO models.quota_groups(quota_group,concurrency,"
                 "interactive_reserve,background_max,rpm,tpm,max_queue,max_wait_seconds,"
                 "unknown_hold_seconds,unit_limits,interactive_rpm_reserve,background_rpm_max,"
                 "interactive_unit_reserve,background_unit_max) "
                 "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
-                "ON CONFLICT DO NOTHING RETURNING revision", values)
+                "ON CONFLICT DO NOTHING RETURNING revision",
+                values,
+            )
         else:
-            cursor = await conn.execute("UPDATE models.quota_groups SET concurrency=%s,"
+            cursor = await conn.execute(
+                "UPDATE models.quota_groups SET concurrency=%s,"
                 "interactive_reserve=%s,background_max=%s,rpm=%s,tpm=%s,max_queue=%s,"
                 "max_wait_seconds=%s,unknown_hold_seconds=%s,unit_limits=%s,interactive_rpm_reserve=%s,"
                 "background_rpm_max=%s,interactive_unit_reserve=%s,background_unit_max=%s,revision=revision+1 "
                 "WHERE quota_group=%s AND revision=%s RETURNING revision",
-                (*values[1:], values[0], expected))
+                (*values[1:], values[0], expected),
+            )
     elif operation == "bindings":
         function = text(body, "function")
         if function not in (*FUNCTIONS, "*"):
@@ -152,38 +210,60 @@ async def _apply_configuration(conn, operation, body, expected, services):
             raise AppError("invalid_service_class")
         values = (function, service_class, body.get("actor_id") or "", text(body, "route_id"))
         if expected == 0:
-            cursor = await conn.execute("INSERT INTO models.bindings(function,service_class,actor_id,"
-                "route_id) VALUES(%s,%s,%s,%s) ON CONFLICT DO NOTHING RETURNING revision", values)
+            cursor = await conn.execute(
+                "INSERT INTO models.bindings(function,service_class,actor_id,"
+                "route_id) VALUES(%s,%s,%s,%s) ON CONFLICT DO NOTHING RETURNING revision",
+                values,
+            )
         else:
-            cursor = await conn.execute("UPDATE models.bindings SET route_id=%s,revision=revision+1 "
+            cursor = await conn.execute(
+                "UPDATE models.bindings SET route_id=%s,revision=revision+1 "
                 "WHERE function=%s AND service_class=%s AND actor_id=%s AND revision=%s RETURNING revision",
-                (values[3], *values[:3], expected))
+                (values[3], *values[:3], expected),
+            )
     elif operation == "embedding-profile":
-        values = (text(body, "route_id"), text(body, "model_version"),
-                  text(body, "normalization"), body.get("query_instruction", ""))
+        values = (
+            text(body, "route_id"),
+            text(body, "model_version"),
+            text(body, "normalization"),
+            body.get("query_instruction", ""),
+        )
         if body.get("dimensions", 1024) != 1024:
             raise AppError("embedding_dimension_must_be_1024")
-        route = await (await conn.execute("SELECT r.*,p.protocol,p.base_url FROM models.routes r "
-            "JOIN models.providers p USING(provider_id) WHERE route_id=%s", (values[0],))).fetchone()
+        route = await (
+            await conn.execute(
+                "SELECT r.*,p.protocol,p.base_url FROM models.routes r "
+                "JOIN models.providers p USING(provider_id) WHERE route_id=%s",
+                (values[0],),
+            )
+        ).fetchone()
         if not route or route["protocol"] != "openai.embedding":
             raise AppError("embedding_route_required")
-        current = await (await conn.execute("SELECT * FROM models.embedding_profile WHERE singleton "
-                                           "FOR UPDATE")).fetchone()
-        if current and any(current[key] != value for key, value in zip(
-            ("route_id", "model_version", "normalization", "query_instruction"), values)):
+        current = await (
+            await conn.execute("SELECT * FROM models.embedding_profile WHERE singleton FOR UPDATE")
+        ).fetchone()
+        if current and any(
+            current[key] != value
+            for key, value in zip(
+                ("route_id", "model_version", "normalization", "query_instruction"), values
+            )
+        ):
             raise AppError("embedding_rebuild_required", status=409)
-        cursor = await conn.execute("INSERT INTO models.embedding_profile(route_id,model_version,"
+        cursor = await conn.execute(
+            "INSERT INTO models.embedding_profile(route_id,model_version,"
             "normalization,query_instruction,route_fingerprint) VALUES(%s,%s,%s,%s,%s) ON CONFLICT(singleton) "
             "DO UPDATE SET revision=models.embedding_profile.revision WHERE "
             "models.embedding_profile.revision=%s RETURNING revision",
-            (*values, embedding_fingerprint(route), expected))
+            (*values, embedding_fingerprint(route), expected),
+        )
     else:
         raise AppError("unknown_model_operation", status=404)
     changed = await cursor.fetchone()
     if not changed:
         raise AppError("revision_conflict", status=409)
-    return CommandResult(body["client_request_id"], revision=changed["revision"],
-                         data=await configuration(conn))
+    return CommandResult(
+        body["client_request_id"], revision=changed["revision"], data=await configuration(conn)
+    )
 
 
 def register_routes(app, services):
@@ -210,30 +290,60 @@ def register_routes(app, services):
         limit = min(max(int(request.query.get("limit", 50)), 1), 100)
         cursor_value = request.query.get("cursor")
         async with services.database.transaction(control=True, read_only=True) as conn:
-            cursor = await conn.execute("SELECT * FROM models.attempts WHERE principal_id=%s "
+            cursor = await conn.execute(
+                "SELECT * FROM models.attempts WHERE principal_id=%s "
                 "AND (%s::text IS NULL OR attempt_id<%s) ORDER BY attempt_id DESC LIMIT %s",
-                (context.principal_id, cursor_value, cursor_value, limit+1))
+                (context.principal_id, cursor_value, cursor_value, limit + 1),
+            )
             rows = await cursor.fetchall()
         more = len(rows) > limit
         rows = rows[:limit]
-        return json_response(Page(tuple(receipt(row) for row in rows),
-                                  rows[-1]["attempt_id"] if more else None,
-                                  Coverage(complete=not more)))
+        return json_response(
+            Page(
+                tuple(receipt(row) for row in rows),
+                rows[-1]["attempt_id"] if more else None,
+                Coverage(complete=not more),
+            )
+        )
 
     async def cancel(request):
         context = require_context(request)
         body = await command_body(request)
         attempt_id = request.match_info["attempt_id"]
         async with services.database.transaction(control=True, read_only=True) as conn:
-            row = await (await conn.execute("SELECT principal_id FROM models.attempts WHERE attempt_id=%s",
-                                            (attempt_id,))).fetchone()
+            row = await (
+                await conn.execute(
+                    "SELECT principal_id FROM models.attempts WHERE attempt_id=%s", (attempt_id,)
+                )
+            ).fetchone()
         if not row:
             raise AppError("attempt_not_found", status=404)
-        if row["principal_id"] != context.principal_id and "models.manage" not in context.permissions:
+        if (
+            row["principal_id"] != context.principal_id
+            and "models.manage" not in context.permissions
+        ):
             raise AppError("forbidden", status=403)
         result = await services.models.cancel(attempt_id)
-        return json_response(CommandResult(body["client_request_id"], data=result,
-                                            attempt_id=attempt_id))
+        return json_response(
+            CommandResult(body["client_request_id"], data=result, attempt_id=attempt_id)
+        )
+
+    async def read_attempt(request):
+        context = require_context(request)
+        body = await request.json()
+        if not isinstance(body, dict):
+            raise AppError("invalid_input")
+        for field in ("actor_id", "person_id", "conversation_id"):
+            if body.get(field) is not None and body[field] != getattr(context, field):
+                raise AppError("model_result_context_conflict", status=400)
+        result = await services.models.result(text(body, "attempt_id"), context=context)
+        return json_response(
+            {
+                "found": result is not None,
+                "receipt": result.receipt if result else None,
+                "output_available": bool(result and (result.parts or result.native_response)),
+            }
+        )
 
     async def probe(request):
         context = require_context(request, "models.manage")
@@ -246,21 +356,34 @@ def register_routes(app, services):
         async def replay(conn, original):
             return replace(original, data={"catalog": await configuration(conn)})
 
-        cached = await services.commands.replay(context, "models.probe", body["client_request_id"],
-                                                digest(body), on_replay=replay)
+        cached = await services.commands.replay(
+            context, "models.probe", body["client_request_id"], digest(body), on_replay=replay
+        )
         if cached:
             return json_response(cached)
         capability = body.get("capability", "text")
         if capability not in {"text", "stream"}:
             raise AppError("probe_requires_actual_modality_fixture", status=422)
-        probe_id = "probe-"+hashlib.sha256((context.principal_id+route_id+body["client_request_id"])
-                                         .encode()).hexdigest()
-        probe_context = replace(context, permissions=context.permissions | {"models.route", "models.probe"})
-        model_request = ModelRequest(probe_id, probe_id, "chat", ServiceClass.INTERACTIVE,
-            probe_context, RequestBudget(datetime.now(UTC)+timedelta(seconds=30)),
+        probe_id = (
+            "probe-"
+            + hashlib.sha256(
+                (context.principal_id + route_id + body["client_request_id"]).encode()
+            ).hexdigest()
+        )
+        model_request = ModelRequest(
+            probe_id,
+            probe_id,
+            "chat",
+            ServiceClass.INTERACTIVE,
+            context,
+            RequestBudget(datetime.now(UTC) + timedelta(seconds=30)),
             (ModelMessage("user", (ModelPart("text", text="Reply with OK."),)),),
-            route_id=route_id, required_capabilities=frozenset(), max_output_tokens=32,
-            capability_probe=True, route_revision=expected)
+            route_id=route_id,
+            required_capabilities=frozenset(),
+            max_output_tokens=32,
+            capability_probe=True,
+            route_revision=expected,
+        )
         if capability == "stream":
             terminal = None
             saw_text = False
@@ -273,26 +396,57 @@ def register_routes(app, services):
             terminal = result.receipt
             saw_text = any(part.kind == "text" and part.text for part in result.parts)
         if terminal is None or terminal.status != "succeeded" or not saw_text:
-            return json_response(CommandResult(body["client_request_id"], attempt_id=probe_id,
-                data={"verification": "not_verified", "receipt": terminal}))
+            return json_response(
+                CommandResult(
+                    body["client_request_id"],
+                    attempt_id=probe_id,
+                    data={"verification": "not_verified", "receipt": terminal},
+                )
+            )
 
         async def save_probe(conn):
-            changed = await (await conn.execute("UPDATE models.routes SET verified_capabilities="
-                "ARRAY(SELECT DISTINCT unnest(verified_capabilities || %s::text[])),verification=%s,"
-                "revision=revision+1 WHERE route_id=%s AND revision=%s RETURNING revision",
-                (["text", "stream"] if capability == "stream" else ["text"],
-                 Jsonb({"source": "provider_test", "attempt_id": probe_id}), route_id, expected))).fetchone()
+            changed = await (
+                await conn.execute(
+                    "UPDATE models.routes SET verified_capabilities="
+                    "ARRAY(SELECT DISTINCT unnest(verified_capabilities || %s::text[])),verification=%s,"
+                    "revision=revision+1 WHERE route_id=%s AND revision=%s RETURNING revision",
+                    (
+                        ["text", "stream"] if capability == "stream" else ["text"],
+                        Jsonb({"source": "provider_test", "attempt_id": probe_id}),
+                        route_id,
+                        expected,
+                    ),
+                )
+            ).fetchone()
             if not changed:
                 raise AppError("revision_conflict", status=409)
-            return CommandResult(body["client_request_id"], revision=changed["revision"],
-                attempt_id=probe_id, data={"verification": "provider_test", "receipt": terminal,
-                                          "catalog": await configuration(conn)})
+            return CommandResult(
+                body["client_request_id"],
+                revision=changed["revision"],
+                attempt_id=probe_id,
+                data={
+                    "verification": "provider_test",
+                    "receipt": terminal,
+                    "catalog": await configuration(conn),
+                },
+            )
 
-        return json_response(await services.commands.execute(context, "models.probe", body["client_request_id"],
-            digest(body), save_probe, on_replay=replay))
+        return json_response(
+            await services.commands.execute(
+                context,
+                "models.probe",
+                body["client_request_id"],
+                digest(body),
+                save_probe,
+                on_replay=replay,
+            )
+        )
 
     app.router.add_get("/api/v1/models/catalog", view)
-    app.router.add_post("/api/v1/models/{operation:providers|routes|quota-groups|bindings|embedding-profile}", save)
+    app.router.add_post(
+        "/api/v1/models/{operation:providers|routes|quota-groups|bindings|embedding-profile}", save
+    )
     app.router.add_get("/api/v1/models/attempts", attempts)
+    app.router.add_post("/api/v1/models/attempts/read", read_attempt)
     app.router.add_post("/api/v1/models/attempts/{attempt_id}/cancel", cancel)
     app.router.add_post("/api/v1/models/routes/{route_id}/probe", probe)

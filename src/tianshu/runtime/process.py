@@ -167,7 +167,14 @@ async def run(settings, role, *, initialize=False):
             async def ready():
                 status = await product.channels.status()
                 registration["channels"] = status
-                return product.capabilities.initialized and events.ready and status["ready"]
+                actions = product.capabilities.actions.status()
+                registration["actions"] = actions
+                return (
+                    product.capabilities.initialized
+                    and events.ready
+                    and status["ready"]
+                    and actions["ready"]
+                )
         else:
             product = await build_product(services)
             modules = product.modules
@@ -208,11 +215,14 @@ async def run(settings, role, *, initialize=False):
             async def worker_ready():
                 status = await product.channels.status()
                 registration["channels"] = status
+                actions = product.capabilities.actions.status()
+                registration["actions"] = actions
                 return (
                     bool(jobs.tasks)
                     and product.capabilities.initialized
                     and events.ready
                     and status["ready"]
+                    and actions["ready"]
                     and all(not task.done() for task in workers)
                 )
 

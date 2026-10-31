@@ -324,6 +324,7 @@ class MemoryService:
         details = [item for item, valid in zip(details, checked) if valid]
         result = {
             "pair": {"actor_id": selected.actor_id, "person_id": person_id},
+            "can_manage": bool({"*", "memory.manage"} & selected.permissions),
             "revision": row["revision"] if row else 0,
             "relationship_type": row["relationship_type"] if row_visible else "acquaintance",
             "display_label": row["display_label"] if row_visible else "认识的人",

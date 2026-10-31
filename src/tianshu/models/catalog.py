@@ -11,16 +11,41 @@ from .types import ModelRequest
 from tianshu.runtime.commands import body_hash
 
 FUNCTIONS = (
-    "chat", "tools", "code", "search", "writing", "participation", "life.plan",
-    "memory.extract", "reflect", "embed", "rerank", "vision", "asr", "tts",
-    "reaction.annotate", "reaction.search", "image.plan", "video.observe",
+    "chat",
+    "tools",
+    "code",
+    "search",
+    "writing",
+    "participation",
+    "life.plan",
+    "memory.extract",
+    "reflect",
+    "embed",
+    "rerank",
+    "vision",
+    "asr",
+    "tts",
+    "reaction.annotate",
+    "reaction.search",
+    "image.plan",
+    "video.observe",
 )
-NATIVE_PROTOCOLS = frozenset({"openai.chat", "openai.responses", "anthropic.messages",
-                              "gemini.generate", "openai.embedding", "cohere.rerank"})
+NATIVE_PROTOCOLS = frozenset(
+    {
+        "openai.chat",
+        "openai.responses",
+        "anthropic.messages",
+        "gemini.generate",
+        "openai.embedding",
+        "cohere.rerank",
+    }
+)
 
 
 def embedding_fingerprint(row):
-    return body_hash({key: row[key] for key in ("provider_id", "model", "protocol", "base_url", "parameters")})
+    return body_hash(
+        {key: row[key] for key in ("provider_id", "model", "protocol", "base_url", "parameters")}
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,8 +80,13 @@ class QuotaPolicy:
     background_unit_max: Mapping[str, float] = field(default_factory=dict)
 
     def __post_init__(self):
-        for value in (self.concurrency, self.interactive_reserve, self.background_max,
-                      self.max_queue, self.interactive_rpm_reserve):
+        for value in (
+            self.concurrency,
+            self.interactive_reserve,
+            self.background_max,
+            self.max_queue,
+            self.interactive_rpm_reserve,
+        ):
             if type(value) is not int or value < 0:
                 raise ValueError("invalid_quota_limit")
         for value in (self.rpm, self.tpm, self.background_rpm_max):
@@ -66,8 +96,10 @@ class QuotaPolicy:
             if type(value) not in (int, float) or not math.isfinite(value) or value <= 0:
                 raise ValueError("invalid_quota_wait")
         for mapping in (self.unit_limits, self.interactive_unit_reserve, self.background_unit_max):
-            if any(type(value) not in (int, float) or not math.isfinite(value) or value < 0
-                   for value in mapping.values()):
+            if any(
+                type(value) not in (int, float) or not math.isfinite(value) or value < 0
+                for value in mapping.values()
+            ):
                 raise ValueError("invalid_quota_units")
         if self.concurrency < 1 or not 0 <= self.interactive_reserve <= self.concurrency:
             raise ValueError("invalid_quota_concurrency")
@@ -78,8 +110,10 @@ class QuotaPolicy:
         limits = {**self.unit_limits}
         if self.tpm is not None:
             limits["tokens"] = self.tpm
-        if any(value < 0 or value > limits.get(unit, 0)
-               for unit, value in self.interactive_unit_reserve.items()):
+        if any(
+            value < 0 or value > limits.get(unit, 0)
+            for unit, value in self.interactive_unit_reserve.items()
+        ):
             raise ValueError("invalid_unit_reserve")
 
 
@@ -90,17 +124,24 @@ class ModelCatalog:
     async def resolve(self, request: ModelRequest) -> RoutePlan:
         if request.function not in FUNCTIONS:
             raise AppError("unknown_model_function")
-        if (type(request.max_output_tokens) is not int or request.max_output_tokens < (0 if request.function in {"embed", "rerank"} else 1)
-                or request.max_output_tokens > 2**31-1 or request.max_queue_wait <= 0):
+        if (
+            type(request.max_output_tokens) is not int
+            or request.max_output_tokens < (0 if request.function in {"embed", "rerank"} else 1)
+            or request.max_output_tokens > 2**31 - 1
+            or request.max_queue_wait <= 0
+        ):
             raise AppError("invalid_model_budget")
         async with self.database.transaction(request.budget, read_only=True) as conn:
             if request.route_id:
-                if "models.route" not in request.context.permissions and "*" not in request.context.permissions:
+                if not ({"models.route", "*"} & request.context.permissions) and not (
+                    request.capability_probe and "models.manage" in request.context.permissions
+                ):
                     raise AppError("model_route_forbidden", status=403)
                 route_id = request.route_id
             elif request.function == "embed":
-                profile = await (await conn.execute("SELECT * FROM models.embedding_profile "
-                                                    "WHERE singleton")).fetchone()
+                profile = await (
+                    await conn.execute("SELECT * FROM models.embedding_profile WHERE singleton")
+                ).fetchone()
                 if not profile:
                     raise AppError("embedding_profile_not_configured", status=503)
                 route_id = profile["route_id"]
@@ -109,23 +150,36 @@ class ModelCatalog:
                     "SELECT route_id FROM models.bindings WHERE service_class=%s "
                     "AND function IN (%s,'*') AND actor_id IN (%s,'') "
                     "ORDER BY (function=%s) DESC,(actor_id=%s) DESC LIMIT 1",
-                    (request.service_class.value, request.function,
-                     request.context.actor_id or "", request.function,
-                     request.context.actor_id or ""))
+                    (
+                        request.service_class.value,
+                        request.function,
+                        request.context.actor_id or "",
+                        request.function,
+                        request.context.actor_id or "",
+                    ),
+                )
                 binding = await cursor.fetchone()
                 if not binding:
-                    raise AppError("model_function_not_configured", status=503,
-                                   details={"function": request.function,
-                                            "service_class": request.service_class.value})
+                    raise AppError(
+                        "model_function_not_configured",
+                        status=503,
+                        details={
+                            "function": request.function,
+                            "service_class": request.service_class.value,
+                        },
+                    )
                 route_id = binding["route_id"]
             cursor = await conn.execute(
                 "SELECT r.*,p.base_url,p.credential_ref,p.protocol,p.enabled AS provider_enabled "
                 "FROM models.routes r JOIN models.providers p USING(provider_id) "
-                "WHERE r.route_id=%s", (route_id,))
+                "WHERE r.route_id=%s",
+                (route_id,),
+            )
             row = await cursor.fetchone()
             if request.function == "embed":
-                profile = await (await conn.execute("SELECT * FROM models.embedding_profile "
-                                                    "WHERE singleton")).fetchone()
+                profile = await (
+                    await conn.execute("SELECT * FROM models.embedding_profile WHERE singleton")
+                ).fetchone()
                 if not profile or profile["route_id"] != route_id:
                     raise AppError("embedding_profile_not_configured", status=503)
                 if row and profile["route_fingerprint"] != embedding_fingerprint(row):
@@ -136,19 +190,39 @@ class ModelCatalog:
             raise AppError("model_route_revision_conflict", status=409)
         if request.protocol and request.protocol != row["protocol"]:
             raise AppError("native_protocol_mismatch", status=422)
-        probing = request.capability_probe and "models.probe" in request.context.permissions
+        probing = request.capability_probe and bool(
+            {"*", "models.probe", "models.manage"} & request.context.permissions
+        )
         if request.required_capabilities - set(row["verified_capabilities"]) and not probing:
-            raise AppError("model_capability_unverified", status=422,
-                           details={"missing": sorted(request.required_capabilities -
-                                                       set(row["verified_capabilities"]))})
-        return RoutePlan(row["route_id"], row["revision"], row["provider_id"], row["model"],
-                         row["protocol"], row["base_url"], row["credential_ref"],
-                         row["quota_group"], frozenset(row["verified_capabilities"]),
-                         row["parameters"])
+            raise AppError(
+                "model_capability_unverified",
+                status=422,
+                details={
+                    "missing": sorted(
+                        request.required_capabilities - set(row["verified_capabilities"])
+                    )
+                },
+            )
+        return RoutePlan(
+            row["route_id"],
+            row["revision"],
+            row["provider_id"],
+            row["model"],
+            row["protocol"],
+            row["base_url"],
+            row["credential_ref"],
+            row["quota_group"],
+            frozenset(row["verified_capabilities"]),
+            row["parameters"],
+        )
 
     async def policies(self) -> dict[str, QuotaPolicy]:
         async with self.database.transaction(read_only=True) as conn:
             cursor = await conn.execute("SELECT * FROM models.quota_groups")
             rows = await cursor.fetchall()
-        return {row["quota_group"]: QuotaPolicy(**{key: value for key, value in row.items()
-                                                  if key != "revision"}) for row in rows}
+        return {
+            row["quota_group"]: QuotaPolicy(
+                **{key: value for key, value in row.items() if key != "revision"}
+            )
+            for row in rows
+        }
