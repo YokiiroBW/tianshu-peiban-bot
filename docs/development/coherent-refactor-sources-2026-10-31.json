@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-31",
+  "coordination_root": "C:\\YOKI\\Codex\\tianshu-peiban-bot",
+  "integration_root": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-unified-refactor\\tianshu-peiban-bot",
+  "sources": [
+    {
+      "id": "platform",
+      "repository": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\projects\\tianshu-platform",
+      "commit": "21bdb7b9e11e18d47111e656e829edd331a77b14",
+      "archive_sha256": "aebfcf650c90c9a132e170cc95c0a95af26880409f3968d307a7b47b25285e92",
+      "snapshot": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\coherent-refactor-20261031\\sources\\platform",
+      "selection": []
+    },
+    {
+      "id": "companion",
+      "repository": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\projects\\tianshu-companion",
+      "commit": "72d2854b5f186426a71e8fb5af9e91e6f0679ed4",
+      "archive_sha256": "254c8a10e27eb4b6111f103df24df1909cb019b8c0566f295f674385d29e0793",
+      "snapshot": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\coherent-refactor-20261031\\sources\\companion",
+      "selection": []
+    },
+    {
+      "id": "memory",
+      "repository": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\projects\\tianshu-memory",
+      "commit": "874b911a0004d652f4f86ad21912b6e80dae03b3",
+      "archive_sha256": "1aae2fa0ff981ee390657faa3502c8bbbd7ec029e7b274696b329b1b41f705e1",
+      "snapshot": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\coherent-refactor-20261031\\sources\\memory",
+      "selection": []
+    },
+    {
+      "id": "gateway",
+      "repository": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\projects\\tianshu-model-gateway",
+      "commit": "1f5b2a205a13d84513bc3c04682f3642d579e48c",
+      "archive_sha256": "58caf8d2bc48d1a15e2da13a71f21b2d124f02f953ff3d387dfc84530600b7f5",
+      "snapshot": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\coherent-refactor-20261031\\sources\\gateway",
+      "selection": []
+    },
+    {
+      "id": "application",
+      "repository": "C:\\YOKI\\Codex\\tianshu-peiban-bot",
+      "commit": "d352b921cd341b17278c372b6d7f870e685f8011",
+      "archive_sha256": "8a5289493da5d11b7687e7a11d91e60d3da8653b2006574040fe7082ce1f0de4",
+      "snapshot": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\coherent-refactor-20261031\\sources\\application",
+      "selection": [
+        "deploy/single_container",
+        "packages",
+        "ops"
+      ]
+    },
+    {
+      "id": "frontend_deployed",
+      "repository": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\projects\\tianshu-platform",
+      "commit": "911a1dc60318abad76287013a05afacd1e63f9f3",
+      "archive_sha256": "02a5c8674323c6e8b0b3aa89152eb898a1cb5a1ad4041f770b822e751dc0cba9",
+      "snapshot": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\coherent-refactor-20261031\\sources\\frontend_deployed",
+      "selection": [
+        "apps/web",
+        "package.json",
+        "package-lock.json",
+        "AGENTS.md"
+      ]
+    }
+  ]
+}

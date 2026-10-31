@@ -1,0 +1,341 @@
+{
+  "schema_version": 1,
+  "goal_thread": "01a18df4-9275-7411-b48b-32fd86889108",
+  "state": "implementation_authorized",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "xhigh",
+  "integration_root": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-unified-refactor\\tianshu-peiban-bot",
+  "test_policy": "single_concentrated_acceptance_after_complete_integration",
+  "production_writer": "root",
+  "cards": [
+    {
+      "id": "CR01",
+      "title": "产品装配与能力保留清单",
+      "depends_on": [],
+      "owner": "composition root",
+      "state": "planned"
+    },
+    {
+      "id": "CR18A",
+      "title": "前端应用壳 语义路由 与完整页面迁移",
+      "depends_on": [
+        "CR01"
+      ],
+      "owner": "web 基础",
+      "state": "planned"
+    },
+    {
+      "id": "CR02",
+      "title": "PG 原生存储与持久任务基础",
+      "depends_on": [
+        "CR01"
+      ],
+      "owner": "runtime 与各领域 repository",
+      "state": "planned"
+    },
+    {
+      "id": "CR03",
+      "title": "模型功能路由 资源 Broker 与取消",
+      "depends_on": [
+        "CR02"
+      ],
+      "owner": "models",
+      "state": "planned"
+    },
+    {
+      "id": "CR04",
+      "title": "可信接入 事件身份 与对话入口",
+      "depends_on": [
+        "CR02"
+      ],
+      "owner": "identity / channels",
+      "state": "planned"
+    },
+    {
+      "id": "CR05",
+      "title": "来源 覆盖 修订 与遗忘传播",
+      "depends_on": [
+        "CR04"
+      ],
+      "owner": "sources",
+      "state": "planned"
+    },
+    {
+      "id": "CR06",
+      "title": "事实 持续事项 与增量抽取",
+      "depends_on": [
+        "CR03",
+        "CR05"
+      ],
+      "owner": "memory",
+      "state": "planned"
+    },
+    {
+      "id": "CR07",
+      "title": "有界检索 与统一上下文组装",
+      "depends_on": [
+        "CR06"
+      ],
+      "owner": "memory / conversation.context",
+      "state": "planned"
+    },
+    {
+      "id": "CR08",
+      "title": "画像 关系 与分场景认识",
+      "depends_on": [
+        "CR06"
+      ],
+      "owner": "memory.people",
+      "state": "planned"
+    },
+    {
+      "id": "CR09",
+      "title": "人格 情绪 与角色手记类型",
+      "depends_on": [
+        "CR07",
+        "CR08"
+      ],
+      "owner": "companion",
+      "state": "planned"
+    },
+    {
+      "id": "CR10",
+      "title": "目标 日程 承诺 与联系时机",
+      "depends_on": [
+        "CR03",
+        "CR06",
+        "CR08",
+        "CR09"
+      ],
+      "owner": "life",
+      "state": "planned"
+    },
+    {
+      "id": "CR11",
+      "title": "能力目录 插件宿主 动作执行 与结果回流",
+      "depends_on": [
+        "CR03",
+        "CR05"
+      ],
+      "owner": "capabilities / capabilities.plugins",
+      "state": "planned"
+    },
+    {
+      "id": "CR04A",
+      "title": "OneBot 完整消息 事件 API 与传输",
+      "depends_on": [
+        "CR04",
+        "CR11"
+      ],
+      "owner": "channels.onebot",
+      "state": "planned"
+    },
+    {
+      "id": "CR12",
+      "title": "对话编排 与前台完整闭环",
+      "depends_on": [
+        "CR07",
+        "CR08",
+        "CR09",
+        "CR10",
+        "CR11",
+        "CR04A"
+      ],
+      "owner": "conversation",
+      "state": "planned"
+    },
+    {
+      "id": "CR13B",
+      "title": "Fish 语音 MCP 原生 API 与稳定音色",
+      "depends_on": [
+        "CR03",
+        "CR12"
+      ],
+      "owner": "capabilities.speech",
+      "state": "planned"
+    },
+    {
+      "id": "CR13A",
+      "title": "图片 语音理解 与辅助感知",
+      "depends_on": [
+        "CR03",
+        "CR05",
+        "CR12",
+        "CR13B"
+      ],
+      "owner": "capabilities.perception",
+      "state": "planned"
+    },
+    {
+      "id": "CR13C",
+      "title": "表情包管理 与语义选择",
+      "depends_on": [
+        "CR07",
+        "CR12",
+        "CR13A"
+      ],
+      "owner": "capabilities.reactions",
+      "state": "planned"
+    },
+    {
+      "id": "CR13",
+      "title": "多模态表达 与真实任务进度",
+      "depends_on": [
+        "CR12",
+        "CR13A",
+        "CR13B",
+        "CR13C"
+      ],
+      "owner": "companion.expression / channels",
+      "state": "planned"
+    },
+    {
+      "id": "CR14",
+      "title": "网页 论坛 与 B 站内容探索",
+      "depends_on": [
+        "CR07",
+        "CR10",
+        "CR11",
+        "CR13A"
+      ],
+      "owner": "capabilities.content / life",
+      "state": "planned"
+    },
+    {
+      "id": "CR15",
+      "title": "实际视频理解 与持续观看",
+      "depends_on": [
+        "CR14"
+      ],
+      "owner": "capabilities.perception / memory",
+      "state": "planned"
+    },
+    {
+      "id": "CR16",
+      "title": "日记 后台整理 兴趣 与风格成长",
+      "depends_on": [
+        "CR10",
+        "CR12",
+        "CR15"
+      ],
+      "owner": "memory / companion / life",
+      "state": "planned"
+    },
+    {
+      "id": "CR17A",
+      "title": "主被动自拍 场景快照 与提示词规划",
+      "depends_on": [
+        "CR09",
+        "CR10",
+        "CR11",
+        "CR13A"
+      ],
+      "owner": "life / capabilities.images",
+      "state": "planned"
+    },
+    {
+      "id": "CR17B",
+      "title": "ComfyUI NAI GPT Image 三引擎",
+      "depends_on": [
+        "CR17A",
+        "CR13"
+      ],
+      "owner": "capabilities.images",
+      "state": "planned"
+    },
+    {
+      "id": "CR17",
+      "title": "现有媒体 创作 设备 项目能力接线",
+      "depends_on": [
+        "CR11",
+        "CR13",
+        "CR16",
+        "CR17B"
+      ],
+      "owner": "各能力模块",
+      "state": "planned"
+    },
+    {
+      "id": "CR18B",
+      "title": "角色 记忆 关系 生活 与成长界面",
+      "depends_on": [
+        "CR18A",
+        "CR08",
+        "CR10",
+        "CR12",
+        "CR16"
+      ],
+      "owner": "web 角色与认识",
+      "state": "planned"
+    },
+    {
+      "id": "CR18C",
+      "title": "内容 多模态 阅读 与自拍界面",
+      "depends_on": [
+        "CR18A",
+        "CR13",
+        "CR17"
+      ],
+      "owner": "web 内容与媒体",
+      "state": "planned"
+    },
+    {
+      "id": "CR18D",
+      "title": "模型 插件 连接 与系统界面",
+      "depends_on": [
+        "CR18A",
+        "CR03",
+        "CR04A",
+        "CR11",
+        "CR17"
+      ],
+      "owner": "web 设置与运维",
+      "state": "planned"
+    },
+    {
+      "id": "CR18",
+      "title": "前端完整接线 与交互收口",
+      "depends_on": [
+        "CR18B",
+        "CR18C",
+        "CR18D"
+      ],
+      "owner": "web 集成",
+      "state": "planned"
+    },
+    {
+      "id": "CR19",
+      "title": "必要联合验证 与体验对照",
+      "depends_on": [
+        "CR03",
+        "CR05",
+        "CR07",
+        "CR10",
+        "CR12",
+        "CR15",
+        "CR16",
+        "CR17",
+        "CR18"
+      ],
+      "owner": "集成",
+      "state": "planned"
+    },
+    {
+      "id": "CR20",
+      "title": "空数据安装 切换 与旧实现退役",
+      "depends_on": [
+        "CR19"
+      ],
+      "owner": "部署集成人",
+      "state": "planned"
+    }
+  ],
+  "agents": {},
+  "integration_commits": [],
+  "validation": {
+    "state": "not_started"
+  },
+  "deployment": {
+    "state": "not_started"
+  }
+}
