@@ -1,0 +1,238 @@
+{
+  "version": "2026.10.31-unified-linux-r66",
+  "status": "deployed_healthy",
+  "whole_goal_complete": false,
+  "image": "sha256:ebc5d47af6deea864b91d48ff5430b8201ba67057612b21cd9c21f511541f180",
+  "container": "ec16eedc052dcf7d9cec5edb58322bcd54652992ca1efd448c17b6687ca15218",
+  "companion_commit": "1faae1b1564d43e343c1fad991148c1d09f11e50",
+  "postchecks": {
+    "ok": true,
+    "version": "2026.10.31-unified-linux-r66",
+    "sources": {
+      "platform": {
+        "commit": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+        "archive_sha256": "52b2798f412226b4ee588dc69640695629bd396bddb70aa853b45875f21dee2f"
+      },
+      "companion": {
+        "commit": "1faae1b1564d43e343c1fad991148c1d09f11e50",
+        "archive_sha256": "56f61e83bdc51590f3a30bc6d43813177a329d1319ca690c8bda9f0b56ac10c7"
+      },
+      "memory": {
+        "commit": "874b911a0004d652f4f86ad21912b6e80dae03b3",
+        "archive_sha256": "1aae2fa0ff981ee390657faa3502c8bbbd7ec029e7b274696b329b1b41f705e1"
+      },
+      "gateway": {
+        "commit": "1af59a30b698c6d114e927f941de5dc33d1762af",
+        "archive_sha256": "b46e7bb45713d9a2f3c29a547c9cf1bfc299e548f289ab8d25e1e9a95717f450"
+      },
+      "application": {
+        "commit": "d352b921cd341b17278c372b6d7f870e685f8011",
+        "archive_sha256": "b64b4dce9a3d6b5fbd5e1e06a9c82ecf36cd92a9d6a95094b3f9574dd86bba04"
+      },
+      "platform_frontend": {
+        "commit": "911a1dc60318abad76287013a05afacd1e63f9f3",
+        "archive_sha256": "2b0f65ee789feeef51514c6151eca911f49ef7d3309c125ef8e347898ac8a4cd"
+      }
+    },
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "tls_ca_and_hostname_verified": true,
+    "served_affected_assets": {
+      "/index.html": "a3e9b14959ec05c6c2e7559cba0aabf1503c38751de8644099c31c5959de2099"
+    },
+    "probe_generated_model_or_qq": false,
+    "no_owner_store_opened": true,
+    "installed_affected_source_checks_verified": true,
+    "at": 1793405890.8984354,
+    "image": "sha256:ebc5d47af6deea864b91d48ff5430b8201ba67057612b21cd9c21f511541f180",
+    "id": "ec16eedc052dcf7d9cec5edb58322bcd54652992ca1efd448c17b6687ca15218",
+    "health": "healthy",
+    "restarts": 0,
+    "mounts_preserved": 37,
+    "config_files_preserved": 1175,
+    "configuration_changed": [
+      "private/gateway.env"
+    ],
+    "added_contract_files": 0,
+    "non_target_containers_preserved": 15,
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r66",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_free_bytes": 31649878016,
+    "completed_at": 1793405891.1593509
+  },
+  "stop_result": {
+    "systemctl_returncode": 0,
+    "elapsed_seconds": 123.77467966079712,
+    "old_finished_at": "2026-10-31T00:17:16.802254316Z",
+    "old_exit_code": 0,
+    "old_restart": "no"
+  },
+  "activation_terminal": {
+    "pid": 453527,
+    "live": false,
+    "state": "absent"
+  },
+  "validation": {
+    "original_behavior_reproduced_failures": 1,
+    "linux_candidate_cases": 14,
+    "linux_installed_affected_entry_cases": 1,
+    "skipped": 0,
+    "ruff_and_format": true,
+    "full_suite": false
+  },
+  "native_idle": {
+    "before_r65": 42.595529900360894,
+    "after_r66": 18.02562456515496,
+    "before_evidence": "native-idle-r65-1793405689526095300.json",
+    "after_evidence": "native-idle-r66-1793405981857118600.json",
+    "after_metrics": {
+      "status": "measured",
+      "source": "native_owner_worker_health",
+      "observed_at": 1793405978.0958617,
+      "diagnostic_instance": "cbc1425b-0668-4f0b-b6e9-c766c51524ed",
+      "background_peer_circuits": [],
+      "workers": {
+        "core.tick": {
+          "window_start": 1793405918.1811554,
+          "window_end": 1793405978.0958617,
+          "window_seconds": 59.91470620594919,
+          "counts": {
+            "worked": 0,
+            "idle": 2,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 2.0028471739061064
+        },
+        "conversation_window.work": {
+          "window_start": 1793405918.1811554,
+          "window_end": 1793405978.0958617,
+          "window_seconds": 59.91470620594919,
+          "counts": {
+            "worked": 0,
+            "idle": 3,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 3.00427076085916
+        },
+        "memory.work": {
+          "window_start": 1793405918.1811554,
+          "window_end": 1793405978.0958617,
+          "window_seconds": 59.91470620594919,
+          "counts": {
+            "worked": 0,
+            "idle": 2,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 2.0028471739061064
+        },
+        "life.work": {
+          "window_start": 1793405918.1811554,
+          "window_end": 1793405978.0958617,
+          "window_seconds": 59.91470620594919,
+          "counts": {
+            "worked": 0,
+            "idle": 3,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 3.00427076085916
+        },
+        "images.work": {
+          "window_start": 1793405918.1811554,
+          "window_end": 1793405978.0958617,
+          "window_seconds": 59.91470620594919,
+          "counts": {
+            "worked": 0,
+            "idle": 2,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 2.0028471739061064
+        },
+        "writing.work": {
+          "window_start": 1793405918.1811554,
+          "window_end": 1793405978.0958617,
+          "window_seconds": 59.91470620594919,
+          "counts": {
+            "worked": 0,
+            "idle": 2,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 2.0028471739061064
+        },
+        "proactive.work": {
+          "window_start": 1793405918.1811554,
+          "window_end": 1793405978.0958617,
+          "window_seconds": 59.91470620594919,
+          "counts": {
+            "worked": 0,
+            "idle": 2,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 2.0028471739061064
+        },
+        "direct.work": {
+          "window_start": 1793405918.1811554,
+          "window_end": 1793405978.0958617,
+          "window_seconds": 59.91470620594919,
+          "counts": {
+            "worked": 0,
+            "idle": 2,
+            "failed": 0,
+            "unmeasured": 0
+          },
+          "idle_tick_per_minute": 2.0028471739061064
+        }
+      },
+      "counts": {
+        "worked": 0,
+        "idle": 18,
+        "failed": 0,
+        "unmeasured": 0
+      },
+      "idle_tick_per_minute": 18.02562456515496,
+      "failure_per_pass": 0.0,
+      "basis": "Completed loop passes only; ephemeral counters, no business writes or idle log events. Each worker has its own explicit rolling interval."
+    },
+    "steady_window_after_first_minute": true,
+    "uptime_seconds": 139.83065605163574,
+    "target_met_in_this_window": true,
+    "earlier_unfavorable_r64": 35.08336077718086
+  },
+  "unchanged_goal_input_evidence": "proactive-companion-repair-r65-2026-10-31.json",
+  "other_125_companion_payload_files_identical": true,
+  "new_manual_model_QQ_search_calls": 0,
+  "no_data_migration": true,
+  "rollback_executed": false,
+  "unverified": [
+    "sustained_idle_frequency_across_natural_loads",
+    "original_24h_success_rate",
+    "three_real_diary_dates",
+    "five_real_interest_dates_and_current_sources",
+    "human_goal_specificity_review",
+    "natural_sharing_and_group_quality",
+    "three_source_backed_cross_day_causal_cases",
+    "actual_self_recovery",
+    "seven_real_observation_days"
+  ]
+}

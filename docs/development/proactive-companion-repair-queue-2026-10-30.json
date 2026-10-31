@@ -1263,11 +1263,14 @@
     "original_acceptance_criteria_retained": true
   },
   "latest_runtime_release": {
-    "version": "2026.10.31-unified-linux-r65",
-    "record": "proactive-companion-repair-r65-2026-10-31.json",
-    "companion_commit": "e3bb905debaf9d85a5ff4e82f07e4d8ff6b9536b",
+    "version": "2026.10.31-unified-linux-r66",
+    "record": "proactive-companion-repair-r66-2026-10-31.json",
+    "companion_commit": "1faae1b1564d43e343c1fad991148c1d09f11e50",
     "memory_commit": "874b911a0004d652f4f86ad21912b6e80dae03b3",
+    "native_idle_per_minute": 18.02562456515496,
+    "idle_target_met_in_one_window": true,
     "paired_input_token_reduction": 0.5943703552886084,
+    "paired_token_evidence": "proactive-companion-repair-r65-2026-10-31.json",
     "human_goal_specificity_review": "pending",
     "whole_goal_complete": false
   },
@@ -1278,12 +1281,14 @@
     "report": "docs/development/proactive-companion-pc18-r64-observation-2026-10-31.md",
     "private_evidence": "pc18-observation-r64-1793402259412588100.json",
     "human_response_chain_count": 1,
-    "idle_target_met": false,
-    "idle_target_basis": "Latest R64 actual worker rolling window 35.08/min; earlier 28.45/min preserved",
+    "idle_target_met": true,
+    "idle_target_basis": "One R66 native rolling window after excluding startup minute; earlier adverse windows preserved",
     "next": "Observe the original 09:00 free phase and 10:08:20 fixed-window end; retain real-day and human specificity requirements.",
-    "runtime_release": "2026.10.31-unified-linux-r65",
-    "supplement_record": "proactive-companion-repair-r65-2026-10-31.json",
+    "runtime_release": "2026.10.31-unified-linux-r66",
+    "supplement_record": "proactive-companion-repair-r66-2026-10-31.json",
     "prior_r64_complete_auth_30m": true,
-    "prior_r64_idle_tick_per_minute": 35.08336077718086
+    "prior_r64_idle_tick_per_minute": 35.08336077718086,
+    "r65_idle_tick_per_minute": 42.595529900360894,
+    "r66_idle_tick_per_minute": 18.02562456515496
   }
 }
