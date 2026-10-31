@@ -42,5 +42,5 @@ def create_module(service, growth, identity):
     def tasks(queue, _runtime):
         queue.register("companion.organize", growth.organize, retryable=False)
 
-    return DomainModule("companion", register, register_tasks=tasks,
+    return DomainModule("companion", register, start=lambda _runtime:growth.recover(), register_tasks=tasks,
         migrations=(Migration("0030_companion", files("tianshu.companion").joinpath("schema.sql").read_text()),))

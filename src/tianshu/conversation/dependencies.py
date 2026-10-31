@@ -5,6 +5,10 @@ from tianshu.sources.dependencies import changes_for,intersects
 class ConversationDependencies:
     async def invalidate(self,connection,source_refs,kind):
         changes,selector=changes_for(source_refs)
+        requests=await (await connection.execute("SELECT material_key,source_refs FROM conversation.generation_requests WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(source_refs) r WHERE r->>'source_id'=ANY(%s))",(selector,))).fetchall()
+        for row in requests:
+            if intersects(row["source_refs"],changes,kind):
+                await connection.execute("UPDATE conversation.generation_requests SET request=NULL,state='invalidated' WHERE material_key=%s",(row["material_key"],))
         for table,fields in (("conversation.turns","turn_id,source_refs,original_source_refs"),("conversation.messages","id,source_refs"),("conversation.expressions","expression_id,source_refs")):
             rows=await (await connection.execute(f"SELECT {fields} FROM {table} WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(source_refs) r WHERE r->>'source_id'=ANY(%s))",(selector,))).fetchall()
             for row in rows:

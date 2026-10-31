@@ -46,11 +46,13 @@ class ResultConsumer:
             await self.conversation.expression.channel_result(context,current["action"]["expression_id"],result)
         elif not rendered:
             await self.conversation.on_result(context, result, result_revision=current["result_revision"])
+        technical = current["action"]["capability_id"] in {"channels.read","channels.probe","channels.configure",
+            "capabilities.catalog.settings.save","capabilities.catalog.sources.save","capabilities.catalog.sources.refresh"}
         owned_by_life = await self.life_worker.capability_result(context, result, result_revision=current["result_revision"], observed_at=current["result_observed_at"])
-        if not owned_by_life and not rendered and not channel_result:
+        if not owned_by_life and not rendered and not channel_result and not technical:
             await self.life_worker.detached_result(context,result,current["action"])
         async with self.database.transaction() as connection:
-            meaningful=context.actor_id is not None and context.origin_kind.value!="observation" and current["action"]["capability_id"] not in {"channels.read","channels.probe","channels.configure"}
+            meaningful=context.actor_id is not None and context.origin_kind.value!="observation" and not technical
             if meaningful and not owned_by_life and not rendered and not channel_result and result.execution in {"succeeded", "failed", "cancelled", "unknown"}:
                 await self.memory.observe_episode(context, {"episode_id": "action:"+result.action_id,
                     "event_id": "action:"+result.action_id, "revision": current["result_revision"],

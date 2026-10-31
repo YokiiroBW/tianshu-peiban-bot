@@ -69,7 +69,7 @@ class ExpressionRenderer:
     async def render(self,expression_id,index):
         async with self.database.transaction(read_only=True) as connection:
             row=await (await connection.execute("SELECT * FROM conversation.expression_plans WHERE expression_id=%s",(expression_id,))).fetchone()
-        if not row or row["state"]!="waiting_render":
+        if not row or row["state"] not in {"waiting_render","render_unknown"}:
             return
         context,plan=context_from_record(row["context"]),decode_plan(row["plan"])
         await self.identity.check(context,plan.source_refs)
@@ -77,19 +77,32 @@ class ExpressionRenderer:
             if not await self.sources.validate_persistence(connection,context,plan.source_refs):
                 return
             fresh=await (await connection.execute("SELECT * FROM conversation.expression_plans WHERE expression_id=%s FOR UPDATE",(expression_id,))).fetchone()
-            if fresh["state"]!="waiting_render":
+            if fresh["state"] not in {"waiting_render","render_unknown"}:
                 return
             steps=fresh["steps"]
             step=next(item for item in steps if item["index"]==index)
-            if step["state"]!="planned":
+            if step["state"] in {"succeeded","failed","cancelled"}:
                 return
             step["state"]="dispatching"
             await connection.execute("UPDATE conversation.expression_plans SET steps=%s WHERE expression_id=%s",(document(steps),expression_id))
         action=Action(step["action_id"],f"expression-render:{expression_id}:{index}","speech.synthesize",context.actor_id,context,
             {"profile_id":row["profile"]["profile_id"],"profile_revision":row["profile"]["revision"],"text":plan.public_parts[index]["text"]},OriginKind.ACTOR,plan.source_refs,expression_id=expression_id,deadline_at=row["deadline_at"])
         try:
-            await self.actions.invoke(action,background=True,service_class=ServiceClass(row["service_class"]))
-            current=await self.actions.get(action.action_id,context)
+            try:
+                current=await self.actions.get(action.action_id,context)
+            except AppError as error:
+                if error.status!=404:
+                    raise
+                if row["deadline_at"]<=datetime.now(UTC):
+                    await self._failed(context,expression_id,"expression_window_expired")
+                    return
+                # No ledger entry exists. This is the first registration of the
+                # original action ID, including a crash before invoke.
+                await self.actions.invoke(action,background=True,service_class=ServiceClass(row["service_class"]))
+                current=await self.actions.get(action.action_id,context)
+            if current["receipt"] and current["receipt"]["execution"]=="unknown":
+                await self.actions.reconcile(action.action_id,context)
+                current=await self.actions.get(action.action_id,context)
             await self.on_action_result(context,receipt(current["receipt"]),current["result_revision"])
         except BaseException as error:
             # Pre-ledger rejection is distinct from losing the outcome of a submitted call.
@@ -274,9 +287,14 @@ class ExpressionRenderer:
 
     async def recover(self):
         async with self.database.transaction() as connection:
-            rows=await (await connection.execute("SELECT * FROM conversation.expression_plans WHERE state IN ('waiting_render','ready','waiting_order','delivering','waiting_delivery')")).fetchall()
+            rows=await (await connection.execute("SELECT * FROM conversation.expression_plans WHERE state IN ('waiting_render','render_unknown','ready','waiting_order','delivering','waiting_delivery')")).fetchall()
             from uuid import uuid4
             for row in rows:
                 await self.jobs.enqueue(connection,JobSpec("conversation.render_expire",f"render-recover:{row['expression_id']}:{uuid4()}",{"expression_id":row["expression_id"]},ServiceClass.INTERACTIVE,row["deadline_at"],row["actor_id"]))
+                if row["state"] in {"waiting_render","render_unknown"}:
+                    for step in row["steps"]:
+                        if step["state"] not in {"succeeded","failed","cancelled"}:
+                            await self.jobs.enqueue(connection,JobSpec("conversation.expression_render",f"render-step-recover:{step['action_id']}:{uuid4()}",
+                                {"expression_id":row["expression_id"],"index":step["index"]},ServiceClass.INTERACTIVE,subject_id=row["actor_id"]))
                 if row["state"] in {"ready","waiting_order"}:
                     await self.jobs.enqueue(connection,JobSpec("conversation.expression_release",f"render-release-recover:{row['expression_id']}:{uuid4()}",{"expression_id":row["expression_id"]},ServiceClass.INTERACTIVE,subject_id=row["actor_id"]))

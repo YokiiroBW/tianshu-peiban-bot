@@ -60,7 +60,8 @@ CREATE TABLE life.contact_replies(input_id text PRIMARY KEY);
 CREATE TABLE life.plan_watermarks (
     actor_id text PRIMARY KEY, revision bigint NOT NULL DEFAULT 1,
     change_watermark text NOT NULL DEFAULT '', planned_watermark text NOT NULL DEFAULT '',
-    next_due_at timestamptz, last_planned_at timestamptz, reason text
+    next_due_at timestamptz, last_planned_at timestamptz, reason text,
+    generation_material text, generation_key text, generation_consumed boolean NOT NULL DEFAULT false
 );
 CREATE TABLE life.outfits (
     id text PRIMARY KEY, actor_id text NOT NULL, revision bigint NOT NULL DEFAULT 1,
@@ -71,7 +72,7 @@ CREATE TABLE life.outfits (
 CREATE TABLE life.diaries (
     id text PRIMARY KEY, actor_id text NOT NULL, day date NOT NULL, revision bigint NOT NULL DEFAULT 1,
     state text NOT NULL DEFAULT 'draft', current_revision bigint NOT NULL DEFAULT 0,
-    published_revision bigint, generation_id text, context jsonb, reason text, material_key text,
+    published_revision bigint, generation_id text, generation_cancel_requested boolean NOT NULL DEFAULT false, context jsonb, reason text, material_key text,
     generation_recipe jsonb, last_reviewed_at timestamptz, last_changed_at timestamptz,
     episode_ids text[] NOT NULL, source_refs jsonb NOT NULL,
     scope_ids text[] NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), UNIQUE(actor_id,day)
@@ -92,7 +93,7 @@ CREATE TABLE life.chapters (
     id text PRIMARY KEY, work_id text NOT NULL REFERENCES life.works(id), position integer NOT NULL,
     revision bigint NOT NULL DEFAULT 1, title text NOT NULL, plan text NOT NULL DEFAULT '',
     state text NOT NULL DEFAULT 'planned', current_revision bigint NOT NULL DEFAULT 0,
-    published_revision bigint, generation_id text, generation_context jsonb, generation_recipe jsonb, reason text, review_state text, review_note text,
+    published_revision bigint, generation_id text, generation_cancel_requested boolean NOT NULL DEFAULT false, generation_context jsonb, generation_recipe jsonb, reason text, review_state text, review_note text,
     UNIQUE(work_id,position)
 );
 CREATE TABLE life.chapter_revisions (

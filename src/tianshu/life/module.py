@@ -3,9 +3,11 @@ from tianshu.runtime.api import command_body, json_response
 from tianshu.runtime.composition import DomainModule
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.migrations import Migration
+from .generation_control import GenerationControl
 
 
 def create_module(service, presentation, writing, diaries, reading, worker, identity, clock):
+    generation_control = GenerationControl(service, writing, diaries)
     def register(app, _runtime):
         async def access(request):
             body = await request.json()
@@ -57,6 +59,8 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
         route("diaries", lambda ctx, body: diaries.list(ctx, cursor=body.get("cursor"), limit=body.get("limit", 30)), permission="life.published.read")
         route("diaries/read", diaries.read, permission="life.published.read")
         route("diaries/request", diaries.request, write=True)
+        route("diaries/cancel", lambda ctx, body: generation_control.request(ctx,body,kind="diary",operation="cancel"), write=True)
+        route("diaries/reconcile", lambda ctx, body: generation_control.request(ctx,body,kind="diary",operation="reconcile"), write=True)
         route("diaries/revise", diaries.revise, write=True)
         route("diaries/publish", diaries.publish, write=True)
         route("works", lambda ctx, body: writing.list(ctx, cursor=body.get("cursor"), limit=body.get("limit", 30)), permission="life.published.read")
@@ -65,6 +69,8 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
         route("chapters/read", writing.read, permission="life.published.read")
         route("chapters.add", writing.add_chapter, write=True)
         route("chapters/generate", writing.request_generation, write=True)
+        route("chapters/cancel", lambda ctx, body: generation_control.request(ctx,body,kind="chapter",operation="cancel"), write=True)
+        route("chapters/reconcile", lambda ctx, body: generation_control.request(ctx,body,kind="chapter",operation="reconcile"), write=True)
         route("chapters/revise", writing.revise, write=True)
         route("chapters/review", writing.review, write=True)
         route("chapters/publish", writing.publish, write=True)
@@ -77,6 +83,7 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
         route("reading/close", lambda ctx, body: reading.set_state(ctx, body, "closed"), write=True)
 
     def tasks(queue, _runtime):
+        queue.register("life.generation_control",generation_control.work,retryable=True)
         queue.register("life.activate",clock.activate,retryable=True)
         queue.register("life.clock",clock.tick,retryable=True)
         queue.register("life.plan", worker.plan, retryable=False)
@@ -91,6 +98,8 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
 
     async def start(_runtime):
         await clock.recover()
+        await worker.recover()
+        await generation_control.recover()
 
     return DomainModule("life", register, start=start, register_tasks=tasks,
         migrations=(Migration("0031_life", files("tianshu.life").joinpath("schema.sql").read_text()),))

@@ -16,11 +16,13 @@ from .validation import revision, text
 from .writing import can_edit, generated_text
 from . import publications
 from tianshu.conversation.types import InputPart
+from tianshu.conversation.generation import GenerationRequests
 
 
 class DiaryService:
     def __init__(self, life, models, assembler):
         self.life, self.models, self.assembler = life, models, assembler
+        self.generations = GenerationRequests(life.database, life.sources, models)
 
     async def list(self, context, *, cursor=None, limit=30):
         await self.life.identity.check(context)
@@ -91,12 +93,12 @@ class DiaryService:
                 raise AppError("diary_not_found",status=404)
             await self.life.validate_persistence(connection,context)
             revision(row,body.get("expected_revision"))
-            if row and row["state"] in {"collecting","generating","unknown"}:
+            if row and row["state"] in {"collecting","generating","unknown","cancelling"}:
                 raise AppError("diary_generation_unresolved",status=409,details={"attempt_id":row["generation_id"]})
             generation_id = str(uuid4())
             current = row["revision"]+1 if row else 1
             if row:
-                await connection.execute("UPDATE life.diaries SET state='collecting',generation_id=%s,context=%s,generation_recipe=%s,revision=%s,reason=NULL WHERE id=%s",(generation_id,document(context),document(recipe),current,diary_id))
+                await connection.execute("UPDATE life.diaries SET state='collecting',generation_cancel_requested=false,generation_id=%s,context=%s,generation_recipe=%s,revision=%s,reason=NULL WHERE id=%s",(generation_id,document(context),document(recipe),current,diary_id))
             else:
                 await connection.execute("INSERT INTO life.diaries(id,actor_id,day,state,generation_id,context,generation_recipe,episode_ids,source_refs,scope_ids) VALUES (%s,%s,%s,'collecting',%s,%s,%s,'{}','[]',%s)",(diary_id,context.actor_id,day,generation_id,document(context),document(recipe),list(context.scope_ids)))
             await self.life.jobs.enqueue(connection,JobSpec("life.diary_collect","diary-collect:"+generation_id+":start",{"diary_id":diary_id,"generation_id":generation_id,"cursor":None},subject_id=context.actor_id))
@@ -153,6 +155,7 @@ class DiaryService:
         context = context_from_record(row["context"])
         refs, recipe = source_refs(row["source_refs"]), row["generation_recipe"]
         dispatched = False
+        observed_state = None
         try:
             await self.life.identity.check(context, refs)
             actor = await self.life.companion.actor(context)
@@ -162,28 +165,42 @@ class DiaryService:
             pack = await self.assembler.assemble(context, "diary", instruction, budget,
                 persona_text=persona.prompt_text if persona else "", reserved_output_tokens=3000,
                 contributions=(ContextContribution("diary_material", json.dumps(recipe, ensure_ascii=False), refs, context.scope_ids, 90, True),))
+            async def current_generation(connection):
+                current = await (await connection.execute("SELECT generation_id,state FROM life.diaries WHERE id=%s FOR UPDATE", (diary_id,))).fetchone()
+                return current and current["generation_id"] == generation_id and current["state"] == "generating"
             dispatched = True
-            result = await self.models.generate(ModelRequest("diary:"+generation_id, generation_id, "reflect", ServiceClass.ELASTIC,
+            result = await self.generations.run("diary:"+generation_id, ModelRequest("diary:"+generation_id, generation_id, "reflect", ServiceClass.ELASTIC,
                 context, budget, tuple(pack.messages), system=pack.system, max_output_tokens=3000,
-                estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs)))
+                estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs)), guard=current_generation)
+            if result is None:
+                raise AppError("generation_outcome_unknown")
             dispatched = result.receipt.dispatch != "not_started"
-            await self.life.identity.check(context, tuple(pack.source_refs))
+            observed_state = result.receipt.status
+            frozen = await self.generations.request(generation_id, context)
+            refs = frozen.source_refs
+            await self.life.identity.check(context, refs)
             content = generated_text(result)
             if result.receipt.status != "succeeded" or not content.strip():
                 raise AppError(result.receipt.error_code or "diary_generation_failed")
         except BaseException as error:
             async with self.life.database.transaction() as connection:
-                await connection.execute("UPDATE life.diaries SET state=%s,reason=%s,revision=revision+1 WHERE id=%s AND generation_id=%s AND state='generating'", ("unknown" if dispatched else "failed", getattr(error, "code", "generation_outcome_unknown"), diary_id, generation_id))
+                await connection.execute("UPDATE life.diaries SET state=%s,reason=%s,revision=revision+1 WHERE id=%s AND generation_id=%s AND state='generating'", ((observed_state if observed_state in {"failed","cancelled"} else "failed" if observed_state=="succeeded" else "unknown" if dispatched else "failed"), getattr(error, "code", "generation_outcome_unknown"), diary_id, generation_id))
             raise
+        await self.save_generated(context, diary_id, generation_id, recipe, result, refs)
+
+    async def save_generated(self, context, diary_id, generation_id, recipe, result, refs):
+        content = generated_text(result)
+        if result.receipt.status != "succeeded" or not content.strip():
+            raise AppError(result.receipt.error_code or "diary_generation_failed")
         async with self.life.database.transaction() as connection:
-            current = await self._diary(context, diary_id, connection, lock=True, additional_refs=tuple(pack.source_refs))
-            if current["generation_id"] != generation_id or current["state"] != "generating":
+            current = await self._diary(context, diary_id, connection, lock=True, additional_refs=refs)
+            if current["generation_id"] != generation_id or current["generation_cancel_requested"] or current["state"] not in {"generating", "unknown"}:
                 return
-            if not await self.life.sources.validate_persistence(connection,context,tuple(pack.source_refs)):
+            if not await self.life.sources.validate_persistence(connection,context,refs):
                 await connection.execute("UPDATE life.diaries SET state='failed',generation_recipe=NULL,reason='result_source_unavailable',revision=revision+1 WHERE id=%s",(diary_id,))
                 return
             version = current["current_revision"]+1
-            await connection.execute("INSERT INTO life.diary_revisions(diary_id,revision,content,model_attempt_id,recipe) VALUES (%s,%s,%s,%s,%s)", (diary_id, version, content, result.receipt.attempt_id, document({**recipe, "source_refs": pack.source_refs, "model_receipt": result.receipt})))
+            await connection.execute("INSERT INTO life.diary_revisions(diary_id,revision,content,model_attempt_id,recipe) VALUES (%s,%s,%s,%s,%s)", (diary_id, version, content, result.receipt.attempt_id, document({**recipe, "source_refs": refs, "model_receipt": result.receipt})))
             await connection.execute("UPDATE life.diaries SET current_revision=%s,material_key=%s,state='draft',revision=revision+1,last_reviewed_at=now(),last_changed_at=now() WHERE id=%s", (version,recipe['scan_hash'], diary_id))
         # This output is a work artifact, not independent evidence for its described events.
 

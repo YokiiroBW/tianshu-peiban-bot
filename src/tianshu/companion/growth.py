@@ -2,7 +2,7 @@
 from tianshu.sources.dependencies import unique_refs
 from datetime import UTC, datetime, timedelta
 import json
-from uuid import NAMESPACE_URL, uuid4, uuid5
+from uuid import NAMESPACE_URL, uuid5
 
 from tianshu.models.types import ModelRequest
 from tianshu.runtime.api import CommandResult
@@ -13,6 +13,7 @@ from tianshu.types import ContextContribution, RequestBudget, ServiceClass
 from tianshu.conversation.codec import context_from_record, document, signature, source_refs
 from tianshu.life.validation import revision, text
 from tianshu.life.writing import generated_text
+from tianshu.conversation.generation import GenerationRequests, attempt_for
 from .types import AffectUpdate, ReflectionProposal
 
 
@@ -20,6 +21,7 @@ class GrowthService:
     def __init__(self, companion, jobs, models, assembler, *, on_projection_changed):
         self.companion, self.jobs, self.models, self.assembler = companion, jobs, models, assembler
         self.on_projection_changed = on_projection_changed
+        self.generations = GenerationRequests(companion.database, companion.sources, models)
 
     async def changed(self, context, watermark, *, connection=None):
         if connection is None:
@@ -61,12 +63,27 @@ class GrowthService:
         pack = await self.assembler.assemble(context, "reflect", "Review new experiences without forcing a change.", budget,
             persona_text=persona.prompt_text if persona else "", reserved_output_tokens=3000,
             contributions=(ContextContribution("new_experiences", json.dumps(material, ensure_ascii=False), refs, context.scope_ids, 80, True, str(expected_revision)),))
-        result = await self.models.generate(ModelRequest(f"organize:{actor_id}:{scope_key}:{expected_revision}", str(uuid4()), "reflect", ServiceClass.ELASTIC,
+        material_key = "organize:" + signature({"context": self.generations.context_key(context),
+            "episodes": [(item.episode_id,item.revision) for item in page.items],
+            "persona": (actor["persona_id"],actor["persona_revision"])})
+        async def current_material(connection):
+            current = await (await connection.execute("SELECT revision,cursor,reviewed_watermark,watermark FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE",(actor_id,scope_key))).fetchone()
+            return current and current["revision"]==expected_revision and current["cursor"]==state["cursor"] and current["reviewed_watermark"]!=current["watermark"]
+        result = await self.generations.run(material_key, ModelRequest(material_key, attempt_for(material_key), "reflect", ServiceClass.ELASTIC,
             context, budget, tuple(pack.messages), system=pack.system, max_output_tokens=3000,
-            estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs)))
-        if result.receipt.status != "succeeded":
-            raise AppError(result.receipt.error_code or "reflection_generation_failed")
-        await self.companion.identity.check(context, tuple(pack.source_refs))
+            estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs)),guard=current_material)
+        if result is None or result.receipt.status != "succeeded":
+            if result is not None and result.receipt.status in {"queued", "running"}:
+                async with self.companion.database.transaction() as connection:
+                    await self.jobs.enqueue(connection, JobSpec("companion.organize",
+                        f"organize-observe:{material_key}:{datetime.now(UTC).isoformat()}",
+                        {"actor_id":actor_id,"scope_key":scope_key,"expected_revision":expected_revision},
+                        scheduled_at=datetime.now(UTC)+timedelta(seconds=30),subject_id=actor_id))
+            raise AppError(result.receipt.error_code or "reflection_generation_"+result.receipt.status if result else "reflection_outcome_unknown",
+                details={"attempt_id":attempt_for(material_key)})
+        frozen = await self.generations.request(attempt_for(material_key), context)
+        generated_refs = frozen.source_refs
+        await self.companion.identity.check(context, generated_refs)
         try:
             notes = json.loads(generated_text(result))["notes"]
         except (ValueError, KeyError, TypeError):
@@ -83,7 +100,7 @@ class GrowthService:
             if not supports or any(item not in episodes for item in supports):
                 raise AppError("reflection_support_invalid")
             supports = tuple(sorted(set(supports)))
-            original_refs = unique_refs(tuple(ref for item in supports for ref in episodes[item].source_refs))
+            original_refs = unique_refs(generated_refs, tuple(ref for item in supports for ref in episodes[item].source_refs))
             await self.companion.identity.check(context, original_refs)
             proposal_id = str(uuid5(NAMESPACE_URL, f"reflection:{actor_id}:{note['kind']}:{':'.join(supports)}"))
             content = text(note.get("content"), "主观记录", 10000)
@@ -122,6 +139,13 @@ class GrowthService:
             await self.on_projection_changed(context, f"growth:{scope_key}:{page.watermark}")
         if page.next_cursor:
             await self.changed(context, f"continuation:{state['watermark']}:{page.next_cursor}")
+
+    async def recover(self):
+        async with self.companion.database.transaction() as connection:
+            rows = await (await connection.execute("SELECT actor_id,scope_key,revision FROM companion.organize_state WHERE reviewed_watermark<>watermark")).fetchall()
+            for row in rows:
+                await self.jobs.enqueue(connection,JobSpec("companion.organize",f"organize-recover:{row['actor_id']}:{row['scope_key']}:{row['revision']}:{datetime.now(UTC).isoformat()}",
+                    {"actor_id":row["actor_id"],"scope_key":row["scope_key"],"expected_revision":row["revision"]},subject_id=row["actor_id"]))
 
     async def _reviewed(self, actor_id, scope_key, expected_revision, cursor, changed):
         async with self.companion.database.transaction() as connection:
