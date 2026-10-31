@@ -81,7 +81,7 @@ async def withdraw(owner, connection, refs, reason="source_revoked"):
         (media_ids,),
     )
     await connection.execute(
-        "UPDATE capabilities.configuration SET body=(body-'entries'-'source_refs')||jsonb_build_object('state','source_revoked','error_code',%s,'revision',revision+1),revision=revision+1 "
+        "UPDATE capabilities.configuration SET body=(body-'entries'-'source_refs')||jsonb_build_object('state','source_revoked','error_code',%s::text,'revision',revision+1),revision=revision+1 "
         "WHERE kind='catalog_source' AND id=ANY(%s)",
         (reason, sorted(selected.get("catalog_source", ()))),
     )
