@@ -68,3 +68,5 @@
 - Auth使用正式AccountSession，删除虚构dialogue/conversations与部署账号claim路径；首次创建与登录使用真实SessionView，密码/账号输入约束与现有Identity实现一致。RoleWorkspace可继续读取全部授权角色页。
 - 公共operation补A models/attempts/read、memory/relationship/save 与C Archive端点。C Models组件actorId props为已约定待其提交接口，未复制其代码。
 - 仅既有Prettier格式化，未测试/typecheck/build/浏览器；implemented_not_tested。仍继续Multimodal/Channels/Tasks/flow-graph/其余设置与小屋。
+
+- 共享证据/媒体控件正式支持可选 scope:DomainTarget，显式scope清空未提供的conversation/person，不借当前聊天目标；原文与MediaPreview同scope。同版本不同locator稳定区分。CommandFeedback携原操作/目标/attempt查询链接，普通作者Models原receipt读取使用A0044c1f端点。未运行功能验证。

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useDomainResource } from "../api/useDomainResource";
+import { useDomainResource, type DomainTarget } from "../api/useDomainResource";
 import type { Coverage } from "../api/contracts";
 import { MediaPreview, type MediaRef } from "./MediaPreview";
 
@@ -15,14 +15,30 @@ type Projection = {
   next_position: number | null;
   media: MediaRef | null;
 };
-function Evidence({ source }: { source: SourceRef }) {
+function Evidence({
+  source,
+  scope,
+}: {
+  source: SourceRef;
+  scope?: DomainTarget;
+}) {
   const [open, setOpen] = useState(false);
   const start =
     typeof source.locator?.start === "number" ? source.locator.start : 0;
   const [position, setPosition] = useState(start);
   const view = useDomainResource<Projection>(
     "sources/read",
-    { source_ref: source, requested: { position, max_characters: 2400 } },
+    {
+      ...(scope
+        ? {
+            actor_id: scope.actor_id,
+            person_id: scope.person_id ?? null,
+            conversation_id: scope.conversation_id ?? null,
+          }
+        : {}),
+      source_ref: source,
+      requested: { position, max_characters: 2400 },
+    },
     open,
   );
   return (
@@ -37,7 +53,9 @@ function Evidence({ source }: { source: SourceRef }) {
               {view.data.content}
             </blockquote>
           )}
-          {view.data.media && <MediaPreview media={view.data.media} />}
+          {view.data.media && (
+            <MediaPreview media={view.data.media} scope={scope} />
+          )}
           <p className="muted">
             表示方式：{view.data.representation} ·{" "}
             {view.data.coverage.complete
@@ -69,11 +87,17 @@ function Evidence({ source }: { source: SourceRef }) {
     </details>
   );
 }
-export function SourceEvidence({ sources }: { sources: SourceRef[] }) {
+export function SourceEvidence({
+  sources,
+  scope,
+}: {
+  sources: SourceRef[];
+  scope?: DomainTarget;
+}) {
   return sources.length ? (
     <div className="source-evidence">
       {sources.map((source) => (
-        <Evidence key={JSON.stringify(source)} source={source} />
+        <Evidence key={JSON.stringify(source)} source={source} scope={scope} />
       ))}
     </div>
   ) : (

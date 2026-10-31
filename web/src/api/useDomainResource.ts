@@ -1,30 +1,67 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ApiError, apiRead, apiCommand, commandInput, awaitCommand, publishCommandResult, commandTarget } from "./client";
+import {
+  ApiError,
+  apiRead,
+  apiCommand,
+  commandInput,
+  awaitCommand,
+  publishCommandResult,
+  commandTarget,
+} from "./client";
 import { commandIntent, finishIntent } from "./intents";
 import { useAuth } from "../app/Auth";
 import { useRoleWorkspace } from "../app/RoleWorkspace";
 import type { CommandResult } from "./contracts";
 
-export type DomainTarget = { actor_id: string | null; person_id?: string | null; conversation_id?: string | null };
-export const GLOBAL_SCOPE: DomainTarget = Object.freeze({ actor_id: null, person_id: null, conversation_id: null });
-export function actorScope(actor: string | null): DomainTarget { return { actor_id: actor, person_id: null, conversation_id: null }; }
+export type DomainTarget = {
+  actor_id: string | null;
+  person_id?: string | null;
+  conversation_id?: string | null;
+};
+export const GLOBAL_SCOPE: DomainTarget = Object.freeze({
+  actor_id: null,
+  person_id: null,
+  conversation_id: null,
+});
+export function actorScope(actor: string | null): DomainTarget {
+  return { actor_id: actor, person_id: null, conversation_id: null };
+}
 
 export function useDomainTarget(): DomainTarget {
   const workspace = useRoleWorkspace();
-  return { actor_id: workspace.actor || null,
-    ...(workspace.conversation ? { conversation_id: workspace.conversation.conversation_id,
-      ...(workspace.conversation.person_id ? { person_id: workspace.conversation.person_id } : {}) } : {}) };
+  return {
+    actor_id: workspace.actor || null,
+    ...(workspace.conversation
+      ? {
+          conversation_id: workspace.conversation.conversation_id,
+          ...(workspace.conversation.person_id
+            ? { person_id: workspace.conversation.person_id }
+            : {}),
+        }
+      : {}),
+  };
 }
 
 function selectTarget(target: DomainTarget, value: object) {
   const given = value as Record<string, unknown>;
-  const changedActor = "actor_id" in given && given.actor_id !== target.actor_id;
-  const changedPerson = "person_id" in given && given.person_id !== target.person_id;
-  return { ...(changedActor || changedPerson ? { actor_id: target.actor_id } : target), ...value };
+  const changedActor =
+    "actor_id" in given && given.actor_id !== target.actor_id;
+  const changedPerson =
+    "person_id" in given && given.person_id !== target.person_id;
+  return {
+    ...(changedActor || changedPerson ? { actor_id: target.actor_id } : target),
+    ...value,
+  };
 }
 
 /** A request belongs to a session and explicit scope, never to a previous role. */
-export function useDomainResource<T>(path: string, scope: object = {}, enabled = true, pollMs = 0, pollWhile?: (value: T) => boolean) {
+export function useDomainResource<T>(
+  path: string,
+  scope: object = {},
+  enabled = true,
+  pollMs = 0,
+  pollWhile?: (value: T) => boolean,
+) {
   const { session } = useAuth();
   const csrf = session?.authenticated ? session.csrf : "";
   const target = useDomainTarget();
@@ -48,17 +85,37 @@ export function useDomainResource<T>(path: string, scope: object = {}, enabled =
     setLoading(true);
     setError("");
     try {
-      const answer = await apiRead<T>(path, JSON.parse(key), csrf, controller.signal);
-      if (!controller.signal.aborted && mark === generation.current) { setData(answer); setDataKey(requestKey); setAccessLost(false); }
+      const answer = await apiRead<T>(
+        path,
+        JSON.parse(key),
+        csrf,
+        controller.signal,
+      );
+      if (!controller.signal.aborted && mark === generation.current) {
+        setData(answer);
+        setDataKey(requestKey);
+        setAccessLost(false);
+      }
     } catch (cause) {
       if (!controller.signal.aborted && mark === generation.current) {
         setError(cause instanceof Error ? cause.message : "读取失败，请重试。");
-        if (cause instanceof ApiError && ([401, 403, 404, 410].includes(cause.status) || ["source_unavailable", "source_revoked", "result_source_unavailable"].includes(cause.code))) {
-          setData(null); setDataKey(""); setAccessLost(true);
+        if (
+          cause instanceof ApiError &&
+          ([401, 403, 404, 410].includes(cause.status) ||
+            [
+              "source_unavailable",
+              "source_revoked",
+              "result_source_unavailable",
+            ].includes(cause.code))
+        ) {
+          setData(null);
+          setDataKey("");
+          setAccessLost(true);
         }
       }
     } finally {
-      if (!controller.signal.aborted && mark === generation.current) setLoading(false);
+      if (!controller.signal.aborted && mark === generation.current)
+        setLoading(false);
     }
   }, [path, key, csrf, enabled, requestKey]);
   useEffect(() => {
@@ -68,24 +125,47 @@ export function useDomainResource<T>(path: string, scope: object = {}, enabled =
     setError("");
     setLoading(false);
     void refresh();
-    return () => { ++generation.current; current.current?.abort(); };
+    return () => {
+      ++generation.current;
+      current.current?.abort();
+    };
   }, [refresh]);
   useEffect(() => {
     if (!pollMs || !enabled || !csrf) return;
     const timer = window.setInterval(() => {
       const state = latest.current;
-      if (!document.hidden && state.data && (!state.pollWhile || state.pollWhile(state.data))) void refresh();
+      if (
+        !document.hidden &&
+        state.data &&
+        (!state.pollWhile || state.pollWhile(state.data))
+      )
+        void refresh();
     }, pollMs);
     return () => clearInterval(timer);
   }, [pollMs, enabled, csrf, refresh]);
-  return { data: dataKey === requestKey ? data : null, error, loading, refresh, accessLost };
+  return {
+    data: dataKey === requestKey ? data : null,
+    error,
+    loading,
+    refresh,
+    accessLost,
+  };
 }
 
-export function useDomainCommand<T = unknown>(scope = "", targetMode: "conversation" | "actor" | "global" = "conversation") {
+export function useDomainCommand<T = unknown>(
+  scope = "",
+  targetMode: "conversation" | "actor" | "global" = "conversation",
+) {
   const { session } = useAuth();
   const selectedTarget = useDomainTarget();
-  const target = targetMode === "global" ? GLOBAL_SCOPE : targetMode === "actor" ? actorScope(selectedTarget.actor_id) : selectedTarget;
+  const target =
+    targetMode === "global"
+      ? GLOBAL_SCOPE
+      : targetMode === "actor"
+        ? actorScope(selectedTarget.actor_id)
+        : selectedTarget;
   const targetKey = JSON.stringify(target);
+  const [operation, setOperation] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<CommandResult<T> | null>(null);
@@ -94,36 +174,94 @@ export function useDomainCommand<T = unknown>(scope = "", targetMode: "conversat
   const identity = session?.csrf;
   useEffect(() => {
     mounted.current = true;
-    setResult(null); setError(""); setBusy(false);
-    return () => { mounted.current = false; active.current?.abort(); active.current = null; };
+    setResult(null);
+    setError("");
+    setBusy(false);
+    return () => {
+      mounted.current = false;
+      active.current?.abort();
+      active.current = null;
+    };
   }, [identity, scope, targetKey]);
-  async function run(path: string, value: object, revision: number | null = null) {
+  async function run(
+    path: string,
+    value: object,
+    revision: number | null = null,
+  ) {
     if (!session?.authenticated || active.current) return null;
     const submitted = selectTarget(target, value);
     const controller = new AbortController();
     active.current = controller;
-    setBusy(true); setError(""); setResult(null);
-    const intent = commandIntent(session.csrf, scope, path, submitted, revision);
+    setOperation(path);
+    setBusy(true);
+    setError("");
+    setResult(null);
+    const intent = commandIntent(
+      session.csrf,
+      scope,
+      path,
+      submitted,
+      revision,
+    );
     try {
-      const initial = await apiCommand<T>(path, { ...submitted, ...commandInput(revision, intent.id) }, session.csrf, controller.signal);
-      const answer = await awaitCommand(initial, submitted, session.csrf, controller.signal, (current) => {
-        if (!controller.signal.aborted && mounted.current && active.current === controller) setResult(current);
-        publishCommandResult(current, submitted, path);
-      });
-      if (answer.receipt?.execution !== "unknown" && answer.receipt?.effect !== "unknown" && answer.receipt?.delivery !== "unknown") finishIntent(intent.key);
+      const initial = await apiCommand<T>(
+        path,
+        { ...submitted, ...commandInput(revision, intent.id) },
+        session.csrf,
+        controller.signal,
+      );
+      const answer = await awaitCommand(
+        initial,
+        submitted,
+        session.csrf,
+        controller.signal,
+        (current) => {
+          if (
+            !controller.signal.aborted &&
+            mounted.current &&
+            active.current === controller
+          )
+            setResult(current);
+          publishCommandResult(current, submitted, path);
+        },
+      );
+      if (
+        answer.receipt?.execution !== "unknown" &&
+        answer.receipt?.effect !== "unknown" &&
+        answer.receipt?.delivery !== "unknown"
+      )
+        finishIntent(intent.key);
       publishCommandResult(answer, submitted, path);
       return answer;
     } catch (cause) {
-      const unknown = cause instanceof ApiError && ["unknown", "pending"].includes(cause.executionState ?? "");
-      if (unknown) window.dispatchEvent(new CustomEvent("tianshu:command-unknown", { detail: { operation: path, client_request_id: intent.id, expected_revision: revision, scope, target: commandTarget(submitted), ...(cause instanceof ApiError ? cause.details : {}) } }));
+      const unknown =
+        cause instanceof ApiError &&
+        ["unknown", "pending"].includes(cause.executionState ?? "");
+      if (unknown)
+        window.dispatchEvent(
+          new CustomEvent("tianshu:command-unknown", {
+            detail: {
+              operation: path,
+              client_request_id: intent.id,
+              expected_revision: revision,
+              scope,
+              target: commandTarget(submitted),
+              ...(cause instanceof ApiError ? cause.details : {}),
+            },
+          }),
+        );
       else finishIntent(intent.key);
       if (mounted.current && active.current === controller)
-        setError(cause instanceof Error ? cause.message : "提交结果尚未确认，请查询原任务。");
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : "提交结果尚未确认，请查询原任务。",
+        );
       return null;
     } finally {
       if (active.current === controller) active.current = null;
       if (!controller.signal.aborted && mounted.current) setBusy(false);
     }
   }
-  return { run, busy, error, result };
+  return { run, busy, error, result, operation, target: commandTarget(target) };
 }
