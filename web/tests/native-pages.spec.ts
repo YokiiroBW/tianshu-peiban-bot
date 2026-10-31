@@ -115,10 +115,12 @@ test("a weekly commitment freezes an authorized conversation selector and timezo
   await dialog
     .getByLabel("重复计划采用的时区", { exact: true })
     .fill("Asia/Shanghai");
-  await dialog.getByLabel("重复方式", { exact: true }).selectOption("weekly");
+  await dialog
+    .getByRole("combobox", { name: "重复方式", exact: true })
+    .selectOption("weekly");
   await dialog.getByLabel("星期六", { exact: true }).check();
   await dialog
-    .getByLabel("实际目标会话", { exact: true })
+    .getByRole("combobox", { name: "实际目标会话", exact: true })
     .selectOption("web-conversation");
   await dialog.getByRole("button", { name: "保存约定", exact: true }).click();
   await expect(dialog).toBeHidden();
