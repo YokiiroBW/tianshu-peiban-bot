@@ -50,6 +50,11 @@ CREATE TABLE sources.source_aliases (
     FOREIGN KEY(source_id,revision) REFERENCES sources.versions
 );
 CREATE INDEX source_aliases_reverse ON sources.source_aliases(source_id,revision,alias_key);
+CREATE TABLE sources.alias_suppression (
+    alias_key text PRIMARY KEY,
+    reason text NOT NULL,
+    suppressed_at timestamptz NOT NULL DEFAULT now()
+);
 CREATE TABLE sources.archive_records (
     archive_key text PRIMARY KEY,
     source_id text UNIQUE NOT NULL REFERENCES sources.originals,

@@ -127,6 +127,13 @@ class SourceService:
             native_alias = await event_alias(self, conn, context, producer, event_id)
             if native_alias:
                 await self._lock_selected(conn, (), exclusive=True, extra_aliases=(native_alias,))
+                if await (
+                    await conn.execute(
+                        "SELECT 1 FROM sources.alias_suppression WHERE alias_key=%s",
+                        (native_alias,),
+                    )
+                ).fetchone():
+                    raise AppError("source_suppressed", status=409)
             previous_roots = await (
                 await conn.execute(
                     "SELECT o.source_id,o.head_revision FROM sources.originals o JOIN "

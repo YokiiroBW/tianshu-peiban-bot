@@ -121,20 +121,53 @@ async def lock_selected(conn, refs, *, extra=(), exclusive=False, aliases=()):
 
 
 async def invalidate_related(conn, source, kind):
+    withdrawn = kind in {"forgotten", "retracted", "fragment_forgotten", "channel_recall"}
+    if withdrawn:
+        await conn.execute(
+            "INSERT INTO sources.alias_suppression(alias_key,reason) "
+            "SELECT DISTINCT alias_key,%s FROM sources.source_aliases WHERE source_id=%s "
+            "ON CONFLICT DO NOTHING",
+            (kind, source.source_id),
+        )
+    archive_origin = bool(
+        await (
+            await conn.execute(
+                "SELECT 1 FROM sources.archive_records WHERE source_id=%s", (source.source_id,)
+            )
+        ).fetchone()
+    )
     rows = await (
         await conn.execute(
             "SELECT DISTINCT b.source_id,o.head_revision AS revision FROM sources.source_aliases a "
-            "JOIN sources.source_aliases b USING(alias_key) JOIN sources.archive_records r ON r.source_id=b.source_id "
+            "JOIN sources.source_aliases b USING(alias_key) LEFT JOIN sources.archive_records r ON r.source_id=b.source_id "
             "JOIN sources.originals o ON o.source_id=b.source_id WHERE a.source_id=%s AND a.revision=%s "
-            "AND b.source_id<>a.source_id AND o.state='active' ORDER BY b.source_id",
-            (source.source_id, source.revision),
+            "AND b.source_id<>a.source_id AND o.state='active' AND (r.source_id IS NOT NULL OR %s) ORDER BY b.source_id",
+            (source.source_id, source.revision, archive_origin and withdrawn),
         )
     ).fetchall()
     for row in rows:
+        if archive_origin and withdrawn:
+            await conn.execute(
+                "UPDATE sources.originals SET state='forgotten',intake_epoch=intake_epoch+1 "
+                "WHERE source_id=%s",
+                (row["source_id"],),
+            )
+            await conn.execute(
+                "INSERT INTO sources.suppression(source_key,source_id,intake_epoch) "
+                "SELECT source_key,source_id,intake_epoch FROM sources.originals WHERE source_id=%s ON CONFLICT DO NOTHING",
+                (row["source_id"],),
+            )
         await conn.execute(
             "UPDATE sources.versions SET state=%s,content=NULL,media=NULL,locator='{}'::jsonb "
             "WHERE source_id=%s",
-            ("archive_stale" if kind == "corrected" else "unsupported", row["source_id"]),
+            (
+                "forgotten"
+                if archive_origin and withdrawn
+                else "archive_stale"
+                if kind == "corrected"
+                else "unsupported",
+                row["source_id"],
+            ),
         )
     return tuple(SourceRef(row["source_id"], row["revision"], {}) for row in rows)
 
@@ -222,9 +255,18 @@ async def register_archive(service, context, *, mapping_id, channel, records, ex
                 (all_keys,),
             )
         ).fetchall()
+        suppressed = {
+            row["alias_key"]
+            for row in await (
+                await conn.execute(
+                    "SELECT alias_key FROM sources.alias_suppression WHERE alias_key=ANY(%s)",
+                    (all_keys,),
+                )
+            ).fetchall()
+        }
         for record, keys, key, occurred_at in prepared:
             related = [row for row in bound if row["alias_key"] in keys]
-            denied = any(
+            denied = bool(set(keys) & suppressed) or any(
                 row["state"] in {"forgotten", "retracted"}
                 or row["version_state"] in {"forgotten", "retracted", "unsupported"}
                 or row["fragment_forgotten"]

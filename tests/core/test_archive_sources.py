@@ -129,6 +129,54 @@ async def test_archive_alias_cannot_choose_another_room(core, ordinary_users):
         )
 
 
+@pytest.mark.parametrize("native_already_present", [True, False])
+async def test_forgotten_archive_blocks_late_native_but_accepts_a_new_message(
+    core, ordinary_users, native_already_present
+):
+    alice, _bob = ordinary_users
+    await attach_qq(core, alice)
+
+    async def native(event_id):
+        return await core.sources.record_event(
+            alice,
+            producer="qq:qq-connection",
+            event_id="message:private:" + event_id,
+            revision=1,
+            occurred_at=datetime.now(UTC),
+            parts=(InputPart("text", text="original native content"),),
+            origin_kind=OriginKind.HUMAN,
+        )
+
+    original = await native("message-one") if native_already_present else None
+    imported = await core.sources.register_archive(
+        alice,
+        mapping_id="first-mapping",
+        channel={"network": "qq"},
+        records=(archived_record(),),
+        explicit_request=True,
+    )
+    ref = imported[0]["source_ref"]
+    await core.sources.invalidate(
+        alice,
+        {"source_id": ref.source_id, "expected_revision": 1, "client_request_id": "forget-archive"},
+        forgotten=True,
+    )
+    if original:
+        assert await core.sources.check_many(alice, (original,)) == (False,)
+        async with core.database.transaction(read_only=True) as conn:
+            row = await (
+                await conn.execute(
+                    "SELECT content FROM sources.versions WHERE source_id=%s AND revision=1",
+                    (original[0].source_id,),
+                )
+            ).fetchone()
+            assert row["content"] is None
+    with pytest.raises(AppError, match="source_suppressed"):
+        await native("message-one")
+    fresh = await native("a-genuinely-new-message")
+    assert await core.sources.check_many(alice, (fresh,)) == (True,)
+
+
 async def test_one_support_group_preserves_distinct_fragments_of_one_version(core, ordinary_users):
     alice, _bob = ordinary_users
     refs = await core.sources.record_event(
