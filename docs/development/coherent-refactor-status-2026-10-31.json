@@ -484,6 +484,24 @@
       "integrated": "077d71c",
       "scope": "nullable external receipt identities; confirmed no-effect rejection; prior Responses source recheck",
       "validation": "source_review_only"
+    },
+    {
+      "source": "eff68f58773c3927c5ea731bef45ff0a46ee5a0c",
+      "integrated": "c434765",
+      "scope": "ordered InputPart and Channel get/reconcile; B batch source and episode contracts",
+      "validation": "source_review_only"
+    },
+    {
+      "source": "d0669a5",
+      "integrated": "6646e3b",
+      "scope": "B growth, life workers, writing, diary, reading, durable conversation and result consumers; final rendering and frontend ongoing",
+      "validation": "source_review_only; concrete source review fixes returned to owner"
+    },
+    {
+      "source": "6a02a9757319543a7776ebbb1aca1eb3405b4b97",
+      "integrated": "30155cc",
+      "scope": "atomic model resource submission, unknown outcomes, source persistence hook, same-scene state references and three worker queue shares",
+      "validation": "source_review_only; tests authored not run"
     }
   ],
   "validation": {
@@ -567,6 +585,11 @@
       "owner": "frontend",
       "scope": "actor voice profile/output mode consumed by actual reply; render action recovery without recursively synthesizing its own completed audio",
       "state": "implementing"
+    },
+    {
+      "owner": "frontend",
+      "scope": "vision capability mapping; interactive short jobs; round-scoped tool identities; consumed unknown receipt recovery; continuous message collection; durable lease expiry; eliminate nested business-pool acquisition; pending delivery remains unresolved",
+      "state": "accepted_by_owner_fixing"
     }
   ]
 }
