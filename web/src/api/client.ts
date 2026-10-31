@@ -41,6 +41,25 @@ function endpoint(path: string): string {
   return API_ROOT + path;
 }
 
+const selectors = ["actor_id", "person_id", "conversation_id"] as const;
+const getReads = new Set(["session", "identity/conversations", "identity/people", "identity/directory", "models/catalog", "models/attempts", "channels/view"]);
+
+function selectedEndpoint(path: string, body?: object) {
+  const url = new URL(endpoint(path), window.location.origin);
+  const values = (body ?? {}) as Record<string, unknown>;
+  for (const key of selectors) {
+    if (!(key in values)) continue;
+    const value = values[key];
+    if (value !== null && value !== undefined && typeof value !== "string")
+      throw new ApiError("invalid_target", 0, "目标选择无效。", null, null, "not_started");
+    const supplied = url.searchParams.get(key);
+    if (supplied !== null && supplied !== (value ?? ""))
+      throw new ApiError("target_mismatch", 0, "同一请求的会话目标不一致。", null, null, "not_started");
+    if (typeof value === "string" && value) url.searchParams.set(key, value);
+  }
+  return url.pathname + url.search;
+}
+
 /** One transport for all domains; never retries a mutation. */
 export async function apiFetch(path: string, options: Options = {}) {
   const isCommand = options.kind === "command";
@@ -49,9 +68,10 @@ export async function apiFetch(path: string, options: Options = {}) {
     throw new ApiError("request_not_started", 0, "请求尚未发出，已停止提交。",
       { client_request_id: options.intent?.client_request_id ?? null }, null, "not_started");
   }
+  const url = selectedEndpoint(path, options.body);
   let response: Response;
   try {
-    response = await fetch(endpoint(path), {
+    response = await fetch(url, {
       method: options.body === undefined && options.binary === undefined ? "GET" : "POST",
       credentials: "same-origin",
       cache: "no-store",
@@ -102,6 +122,11 @@ export async function apiJson<T>(path: string, options: Options = {}): Promise<T
 }
 
 export function apiRead<T>(path: string, body: object, csrf: string, signal: AbortSignal) {
+  if (getReads.has(path)) {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(body)) if (value !== null && value !== undefined) query.set(key, String(value));
+    return apiJson<T>(path + (query.size ? `?${query}` : ""), { csrf, signal, kind: "read" });
+  }
   return apiJson<T>(path, { body, csrf, signal, kind: "read" });
 }
 

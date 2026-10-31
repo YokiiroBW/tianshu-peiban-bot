@@ -5,6 +5,7 @@ import type { CommandInput } from "./contracts";
 /** Declared public operation semantics; response fields never decide whether a request wrote. */
 const reads = new Set([
   ...capabilityReads,
+  "identity/conversations", "identity/people", "identity/directory", "models/catalog", "models/attempts", "channels/view", "weather/view", "weather/search", "weather/current",
   "companion/roles/list", "companion/roles/get", "companion/personas/catalog", "companion/personas/view", "companion/personas/history", "companion/personas/compare", "companion/affect/view", "companion/growth/view",
   "life/routine", "life/state", "life/goals", "life/activities", "life/commitments", "life/contact-preferences", "life/room", "life/outfits", "life/diaries", "life/diaries/read", "life/works", "life/chapters", "life/chapters/read", "life/reading", "life/reading/shared", "sources/read",
   "conversation/conversations", "capabilities/get", "capabilities/discover", "system/view", "system/tasks", "system/resources", "system/logs", "conversation/messages", "conversation/turn", "conversation/expression",
@@ -20,6 +21,7 @@ const reads = new Set([
 
 const commands = new Set([
   ...capabilityCommands,
+  "weather/connections.save", "identity/principals.save", "identity/actors.grant", "identity/scopes.grant", "identity/people.save", "identity/connections.save", "identity/accounts.link", "identity/conversations.link",
   "companion/roles/create", "companion/roles/save", "companion/roles/delete", "companion/personas/save", "companion/growth/revoke", "companion/growth/restore",
   "life/routine.save", "life/goals.save", "life/activities.save", "life/activities.pause", "life/activities.resume", "life/activities.cancel", "life/commitments.save", "life/commitments.reschedule", "life/commitments.cancel", "life/contact-preferences.save", "life/room.save", "life/outfits.save", "life/outfits.select", "life/diaries/request", "life/diaries/revise", "life/diaries/publish", "life/works.save", "life/chapters.add", "life/chapters/generate", "life/chapters/revise", "life/chapters/review", "life/chapters/publish", "life/reading/open", "life/reading/read", "life/reading/pause", "life/reading/resume", "life/reading/close",
   "identity/conversations/open", "conversation/send", "conversation/cancel", "people/relationships/manage", "memory/correct", "memory/forget",
