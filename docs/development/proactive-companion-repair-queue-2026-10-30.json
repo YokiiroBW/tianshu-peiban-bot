@@ -1036,7 +1036,16 @@
         "不做数值化心理模型",
         "mood 不直接决定活动名"
       ],
-      "detail_section": "PC-13"
+      "detail_section": "PC-13",
+      "latest_acceptance": {
+        "record": "proactive-companion-repair-r65-2026-10-31.json",
+        "controlled_affect_pairs": 2,
+        "four_contract_valid_outputs": true,
+        "role1_activity_type_difference": false,
+        "role2_activity_type_difference": true,
+        "synthetic_feeling_writes": false,
+        "natural_affect_change": "unverified"
+      }
     },
     {
       "id": "PC-14",
@@ -1154,13 +1163,11 @@
       ],
       "detail_section": "PC-17",
       "latest_acceptance": {
-        "record": "proactive-companion-repair-r64-2026-10-31.json",
-        "paired_actual_token_threshold": "verified_3_synthetic_scenes",
+        "record": "proactive-companion-repair-r65-2026-10-31.json",
+        "paired_actual_token_threshold": "verified_two_additional_frozen_scenes",
+        "reduction": 0.5943703552886084,
         "goal_specificity": "human_review_pending",
-        "quality_flags": [
-          "Original reading fixture time context ambiguous; corrected pair appended, human specificity pending."
-        ],
-        "reading_time_supplement": "pc17-reading-time-supplement-r64-summary.json"
+        "original_three_pair_record": "proactive-companion-repair-r64-2026-10-31.json"
       }
     },
     {
@@ -1256,11 +1263,11 @@
     "original_acceptance_criteria_retained": true
   },
   "latest_runtime_release": {
-    "version": "2026.10.31-unified-linux-r64",
-    "record": "proactive-companion-repair-r64-2026-10-31.json",
-    "companion_commit": "beb4a0df287d0214bba29eb154909a7958ed9af1",
+    "version": "2026.10.31-unified-linux-r65",
+    "record": "proactive-companion-repair-r65-2026-10-31.json",
+    "companion_commit": "e3bb905debaf9d85a5ff4e82f07e4d8ff6b9536b",
     "memory_commit": "874b911a0004d652f4f86ad21912b6e80dae03b3",
-    "paired_input_token_reduction": 0.6023626163013556,
+    "paired_input_token_reduction": 0.5943703552886084,
     "human_goal_specificity_review": "pending",
     "whole_goal_complete": false
   },
@@ -1271,8 +1278,12 @@
     "report": "docs/development/proactive-companion-pc18-r64-observation-2026-10-31.md",
     "private_evidence": "pc18-observation-r64-1793402259412588100.json",
     "human_response_chain_count": 1,
-    "idle_target_met": true,
-    "idle_target_basis": "one native rolling window only",
-    "next": "Observe the original 09:00 free phase and 10:08:20 fixed-window end; retain real-day and human specificity requirements."
+    "idle_target_met": false,
+    "idle_target_basis": "Latest R64 actual worker rolling window 35.08/min; earlier 28.45/min preserved",
+    "next": "Observe the original 09:00 free phase and 10:08:20 fixed-window end; retain real-day and human specificity requirements.",
+    "runtime_release": "2026.10.31-unified-linux-r65",
+    "supplement_record": "proactive-companion-repair-r65-2026-10-31.json",
+    "prior_r64_complete_auth_30m": true,
+    "prior_r64_idle_tick_per_minute": 35.08336077718086
   }
 }

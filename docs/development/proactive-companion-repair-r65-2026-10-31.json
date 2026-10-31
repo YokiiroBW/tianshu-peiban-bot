@@ -1,0 +1,177 @@
+{
+  "version": "2026.10.31-unified-linux-r65",
+  "status": "deployed_healthy",
+  "whole_goal_complete": false,
+  "companion_commit": "e3bb905debaf9d85a5ff4e82f07e4d8ff6b9536b",
+  "image": "sha256:f85e759f8acdf8ddc294f3ecd09d5fdbed79357896a0e985e4a44c68fa425417",
+  "container": "1170e62276f83eee131d02b6f44d82a9758b9c07c324ef9385d01d1b52be92c1",
+  "postchecks": {
+    "ok": true,
+    "version": "2026.10.31-unified-linux-r65",
+    "sources": {
+      "platform": {
+        "commit": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+        "archive_sha256": "52b2798f412226b4ee588dc69640695629bd396bddb70aa853b45875f21dee2f"
+      },
+      "companion": {
+        "commit": "e3bb905debaf9d85a5ff4e82f07e4d8ff6b9536b",
+        "archive_sha256": "df6cd681e83073397ee06706550c853c3d293954a4a2bb26cdd23abbfda257fa"
+      },
+      "memory": {
+        "commit": "874b911a0004d652f4f86ad21912b6e80dae03b3",
+        "archive_sha256": "1aae2fa0ff981ee390657faa3502c8bbbd7ec029e7b274696b329b1b41f705e1"
+      },
+      "gateway": {
+        "commit": "1af59a30b698c6d114e927f941de5dc33d1762af",
+        "archive_sha256": "b46e7bb45713d9a2f3c29a547c9cf1bfc299e548f289ab8d25e1e9a95717f450"
+      },
+      "application": {
+        "commit": "d352b921cd341b17278c372b6d7f870e685f8011",
+        "archive_sha256": "b64b4dce9a3d6b5fbd5e1e06a9c82ecf36cd92a9d6a95094b3f9574dd86bba04"
+      },
+      "platform_frontend": {
+        "commit": "911a1dc60318abad76287013a05afacd1e63f9f3",
+        "archive_sha256": "2b0f65ee789feeef51514c6151eca911f49ef7d3309c125ef8e347898ac8a4cd"
+      }
+    },
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "tls_ca_and_hostname_verified": true,
+    "served_affected_assets": {
+      "/index.html": "a3e9b14959ec05c6c2e7559cba0aabf1503c38751de8644099c31c5959de2099"
+    },
+    "probe_generated_model_or_qq": false,
+    "no_owner_store_opened": true,
+    "installed_affected_source_checks_verified": true,
+    "at": 1793405298.2354913,
+    "image": "sha256:f85e759f8acdf8ddc294f3ecd09d5fdbed79357896a0e985e4a44c68fa425417",
+    "id": "1170e62276f83eee131d02b6f44d82a9758b9c07c324ef9385d01d1b52be92c1",
+    "health": "healthy",
+    "restarts": 0,
+    "mounts_preserved": 37,
+    "config_files_preserved": 1175,
+    "configuration_changed": [
+      "private/gateway.env"
+    ],
+    "added_contract_files": 0,
+    "non_target_containers_preserved": 15,
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r65",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_free_bytes": 31672209408,
+    "completed_at": 1793405298.7285385
+  },
+  "stop_result": {
+    "systemctl_returncode": 0,
+    "elapsed_seconds": 123.81736922264099,
+    "old_finished_at": "2026-10-31T00:06:38.574408777Z",
+    "old_exit_code": 0,
+    "old_restart": "no"
+  },
+  "activation_terminal": {
+    "pid": 443561,
+    "live": false,
+    "state": "absent"
+  },
+  "validation": {
+    "windows_goal_affect_commitment_cases": 3,
+    "linux_installed_goal_affect_commitment_cases": 3,
+    "full_suite": false
+  },
+  "controlled_model_evidence": {
+    "candidate_commit": "e3bb905debaf9d85a5ff4e82f07e4d8ff6b9536b",
+    "token_baseline_commit": "6c45edd24b66272d19cba686246d911a9e29a641",
+    "pairs": [
+      {
+        "role": "role1",
+        "before_input_tokens": 9606,
+        "after_input_tokens": 3879,
+        "reduction": 0.5961898813241724,
+        "model_signature": {
+          "resolved_model": "deepseek-v4.1-flash",
+          "protocol": "openai-chat-completions",
+          "config_version": 1000000132,
+          "effective_reasoning": {}
+        }
+      },
+      {
+        "role": "role2",
+        "before_input_tokens": 10040,
+        "after_input_tokens": 4090,
+        "reduction": 0.5926294820717131,
+        "model_signature": {
+          "resolved_model": "deepseek-v4.1-flash",
+          "protocol": "openai-chat-completions",
+          "config_version": 1000000132,
+          "effective_reasoning": {}
+        }
+      }
+    ],
+    "aggregate_input_reduction": 0.5943703552886084,
+    "all_six_contract_valid": true,
+    "complete_published_personas_preserved": 2,
+    "model_calls": 6,
+    "domain_tool_QQ_calls": 0,
+    "synthetic_affect_only": true,
+    "live_feeling_writes": false,
+    "original_r64_related_calls_preserved": 4,
+    "semantic_review": {
+      "software_or_explicit_fiction_new_goals": 3,
+      "rest": 1,
+      "unmarked_executable_bodily_goals": 0,
+      "role1_activity_type_difference": false,
+      "role2_activity_type_difference": true,
+      "human_specificity_review": "pending"
+    }
+  },
+  "new_manual_upstream_model_calls": 6,
+  "prior_related_r64_model_calls": 4,
+  "new_manual_QQ_tool_search_calls": 0,
+  "no_data_migration": true,
+  "rollback_executed": false,
+  "retained_natural_r64_evidence": {
+    "file": "pc18-baseline-r64-1793404119969554400.json",
+    "platform_auth_rejected_per_minute": 0,
+    "complete_30_minute_window": [
+      1793402319.5623128,
+      1793404119.5623128
+    ],
+    "companion_background_failures": 0,
+    "companion_background_work_events": 6,
+    "idle_tick_per_minute": 35.08336077718086,
+    "idle_window_seconds": 59.857435361947864,
+    "idle_target_met": false,
+    "basis": "R64 before this release; not a new R65 thirty-minute or performance claim"
+  },
+  "card_counts": {
+    "verified_production": 9,
+    "deployed": 6,
+    "in_progress": 3
+  },
+  "unverified": [
+    "original_24h_success_rate",
+    "three_real_diary_dates",
+    "five_real_interest_dates_and_current_source_authority",
+    "natural_affect_activity_type_consistency",
+    "human_goal_specificity_review",
+    "natural_sharing_frequency_and_group_quality",
+    "consistently_below_30_idle_ticks_per_minute",
+    "three_source_backed_cross_day_causal_cases",
+    "actual_self_recovery",
+    "seven_real_observation_days"
+  ]
+}
