@@ -1,11 +1,7 @@
-"""Media sessions encrypted at rest; projections never contain session material."""
+"""Media-owned sessions sealed by the runtime's one external master key."""
 
 import base64
-import os
 import re
-from pathlib import Path
-
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from ..contracts import Fault, require
 
@@ -35,58 +31,16 @@ def public_account(value):
 
 
 class Accounts:
-    def __init__(self, repository):
-        self.repo = repository
-        key = Path(str(repository.database) + ".key")
-        if not key.exists():
-            require(
-                not repository.list("account")
-                and not repository.list("media_target")
-                and not repository.list("music_account")
-                and not repository.list("music_navidrome")
-                and not repository.list("book_source")
-                and not any(row.get("opds_secret") for row in repository.list("book_settings"))
-                and not any(
-                    c.get("secret")
-                    for row in repository.list("comic_settings")
-                    for c in row.get("connections", {}).values()
-                ),
-                "media_credentials_unavailable",
-                503,
-            )
-            try:
-                with key.open("xb") as handle:
-                    os.chmod(key, 0o600)
-                    handle.write(AESGCM.generate_key(bit_length=256))
-                    handle.flush()
-                    os.fsync(handle.fileno())
-            except FileExistsError:
-                pass
-        require(key.is_file() and not key.is_symlink(), "media_credentials_unavailable", 503)
-        try:
-            self.cipher = AESGCM(key.read_bytes())
-            for account in repository.list("account") + repository.list("music_account"):
-                if account.get("secret"):
-                    self._decrypt(account)
-            for connection in repository.list("music_navidrome"):
-                self.unseal(connection["connection_id"], connection["secret"])
-            for source in repository.list("book_source"):
-                self.unseal(source["source_id"], source["secret"])
-            for settings in repository.list("book_settings"):
-                if settings.get("opds_secret"):
-                    self.unseal("book-opds", settings["opds_secret"])
-            for settings in repository.list("comic_settings"):
-                for name, connection in settings.get("connections", {}).items():
-                    if connection.get("secret"):
-                        self.unseal("comic-" + name, connection["secret"])
-        except (ValueError, OSError):
-            raise Fault("media_credentials_unavailable", 503) from None
+    def __init__(self, repository, credentials):
+        self.repo, self.credentials = repository, credentials
+        # Construction also serves unconfigured installations. Secrets are only
+        # resolved for the selected account/connection, never scanned at startup.
 
     def seal(self, identity, value):
-        nonce = os.urandom(12)
-        return base64.b64encode(
-            nonce + self.cipher.encrypt(nonce, value.encode(), identity.encode())
-        ).decode()
+        sealed = self.credentials.seal_bytes(
+            value.encode(), domain="capabilities.media", reference=identity
+        )
+        return base64.b64encode(sealed).decode("ascii")
 
     def _decrypt(self, account):
         return self.unseal(account["account_id"], account["secret"])
@@ -94,7 +48,9 @@ class Accounts:
     def unseal(self, identity, secret):
         try:
             raw = base64.b64decode(secret, validate=True)
-            return self.cipher.decrypt(raw[:12], raw[12:], identity.encode()).decode()
+            return self.credentials.unseal_bytes(
+                raw, domain="capabilities.media", reference=identity
+            ).decode()
         except Exception:
             raise Fault("media_credentials_unavailable", 503) from None
 

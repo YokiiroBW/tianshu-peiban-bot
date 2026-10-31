@@ -242,3 +242,11 @@ ContinuationPanel仅显式读取已登记checkout，显示实际branch/head/dirt
 界面显式使用项目冻结会话选择器，退出/角色/项目改变由共享资源hook清除旧显示；命令使用统一CommandFeedback、原Action找回和不盲重放语义。People群会话策略小修改为向Identity传实际conversation_id，避免仅在首100项里本地筛选遗漏。
 
 权威入口：capabilities/projects/{service,registry,documents,directories,notes,lessons,experiences,continuation,withdrawal}.py、API.md；web/features/knowledge/{KnowledgePage,ProjectHeader,ProjectRegistry,ProjectImport,DocumentReader,ResearchNotes,EvidencePicker}.tsx，web/features/projects/{ExperiencePage,LessonPanel,SharedExperience,ContinuationPanel}.tsx。只做明确文件格式整理与源码/契约/diff检查，未运行任何测试、typecheck、build或浏览器。实际PG装配、MCP启动、NAS目录/Git/外部URL/模型及真实渠道账号仍由root统一CR19与后续实机验收覆盖。
+
+## CR19 全新媒体装配密钥修复（implemented_not_tested）
+
+空库镜像首次并行启动暴露Accounts仍保留本地library.media.key/AESGCM与构造期全表解密扫描。该路径绕过唯一外置master，xb文件创建和写完之间也存在跨进程读取窗口。现Media显式传同一runtime.credentials，Accounts仅用CredentialStore.seal_bytes/unseal_bytes，AAD固定domain=capabilities.media并绑定原账号/连接identity；业务secret仍仅存在原生PG媒体文档，base64承载公共TS1密封格式，不新建凭据表、密钥文件或旧密文兼容。
+
+Accounts构造不读密文、不扫账号、不读写本地key，也不因未配置任何媒体账号而要求凭据操作。实际选定账号/连接时才解密，身份/domain/master不匹配仍明确拒绝。相关Media→Books/Comics→PluginManager/Infrastructure构造的源码检查未发现另一处媒体本地key依赖；外部服务仍按原配置和实际操作启用。
+
+新增tests/capabilities/test_media_credentials.py：两个完整未配置Media并行构造共用空目录，不做SQL/密钥物化；两个独立CredentialStore实例按同一合成外置master互读，拒绝换身份、换领域和换master。用例仅编写，未执行测试/SSH/供应商请求，由root最终镜像和受影响用例复验。

@@ -163,7 +163,7 @@ class Media:
         self.repo = Repository(
             settings["database_path"] + ".media", clock=clock, runtime=runtime
         )
-        self.accounts = Accounts(self.repo)
+        self.accounts = Accounts(self.repo, runtime.credentials)
         self.books = Books(self)
         from .comics.plugin import configuration as comic_file_configuration
 
