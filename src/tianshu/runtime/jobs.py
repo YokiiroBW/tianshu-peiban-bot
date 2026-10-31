@@ -54,10 +54,13 @@ class JobQueue:
                 await self.events.emit("job.started", "started", task_name=name, job_id=job_context.job.id)
             try:
                 result = await handler(**kwargs)
-            except BaseException:
+            except BaseException as exc:
                 if self.events:
                     try:
-                        await self.events.emit("job.failed", "failed", task_name=name, job_id=job_context.job.id)
+                        await self.events.emit(
+                            "job.failed", "failed", task_name=name, job_id=job_context.job.id,
+                            error_code=exc.code if isinstance(exc, AppError) else type(exc).__name__,
+                        )
                     except AppError:
                         pass
                 raise
