@@ -150,6 +150,10 @@ class ModelBroker:
         row = await self.ledger.get(attempt_id)
         return receipt(row) if row else None
 
+    async def result(self, attempt_id, *, context):
+        from .results import read_result
+        return await read_result(self, attempt_id, context=context)
+
     async def reload(self):
         from .scheduler import GroupState
         policies = await self.catalog.policies()

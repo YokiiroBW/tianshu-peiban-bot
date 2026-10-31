@@ -36,7 +36,7 @@ class SourceService:
             raise AppError("source_unavailable", status=403)
 
     async def check_many(self, context, refs_groups):
-        async with self.database.transaction(read_only=True) as conn:
+        async with self.database.transaction(control=True, read_only=True) as conn:
             return await self.check_many_on(conn, context, refs_groups)
 
     async def validate_persistence(self, conn, context, source_refs):
@@ -324,8 +324,8 @@ class SourceService:
                 if support.source_id == source_id:
                     raise AppError("source_support_cycle")
                 await conn.execute(
-                    "INSERT INTO sources.supports(source_id,revision,group_id,support_source_id,support_revision,support_locator) "
-                    "VALUES(%s,%s,%s,%s,%s,%s)",
+                    "INSERT INTO sources.supports(source_id,revision,group_id,support_source_id,support_revision,support_locator,support_key) "
+                    "VALUES(%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
                     (
                         source_id,
                         revision,
@@ -333,6 +333,7 @@ class SourceService:
                         support.source_id,
                         support.revision,
                         Jsonb(wire(support.locator)),
+                        body_hash(support),
                     ),
                 )
         await conn.execute(

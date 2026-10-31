@@ -67,6 +67,15 @@ def create_module(identity):
                 )
             )
 
+        async def command_identity(request):
+            body = await command_body(request)
+            context = await identity.for_request(
+                request, actor_id=body.get("actor_id"), person_id=body.get("person_id"),
+                conversation_id=body.get("conversation_id")
+            )
+            result = await identity.commands.find(context, body.get("operation"), body["client_request_id"])
+            return json_response({"found": result is not None, "command": result})
+
         async def open_conversation(request):
             body = await command_body(request)
             context = await identity.for_request(request, actor_id=body.get("actor_id"))
@@ -121,6 +130,7 @@ def create_module(identity):
         app.router.add_post("/api/v1/auth/login", login)
         app.router.add_post("/api/v1/auth/logout", logout)
         app.router.add_get("/api/v1/identity/conversations", conversations)
+        app.router.add_post("/api/v1/commands/get", command_identity)
         app.router.add_post("/api/v1/identity/conversations/open", open_conversation)
         app.router.add_get("/api/v1/identity/people", people)
         app.router.add_get("/api/v1/identity/directory", directory)

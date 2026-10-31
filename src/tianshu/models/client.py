@@ -92,6 +92,11 @@ class ModelClient:
                 return None
             raise
 
+    async def result(self, attempt_id, *, context):
+        value = await self._json("/internal/v1/models/attempts/"+attempt_id+"/result",
+                                 body={"context": context}, control=True)
+        return result_from_wire(value["result"]) if value["result"] is not None else None
+
     async def cancel(self, attempt_id):
         value = await self._json("/internal/v1/models/attempts/"+attempt_id+"/cancel", control=True)
         return receipt_from_wire(value["receipt"])

@@ -12,7 +12,7 @@ from tianshu.runtime.api import error_middleware, json_response
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 from tianshu.types import OriginKind, RequestBudget, ServiceClass, TrustedContext
-from .codec import external_from_wire, request_from_wire
+from .codec import context_from_wire, external_from_wire, request_from_wire
 from .ledger import receipt
 from .types import ModelRequest
 
@@ -58,6 +58,14 @@ def create_broker_app(broker, token, external_keys=()):
         if result is None:
             raise AppError("attempt_not_found", status=404)
         return json_response({"receipt": result})
+
+    async def saved_result(request):
+        body = await request.json()
+        try:
+            context = context_from_wire(body["context"])
+        except (KeyError, TypeError, ValueError):
+            raise AppError("invalid_model_result_context") from None
+        return json_response({"result": await broker.result(request.match_info["attempt_id"], context=context)})
 
     async def reload(request):
         return json_response(await broker.reload())
@@ -153,6 +161,7 @@ def create_broker_app(broker, token, external_keys=()):
     app.router.add_post("/internal/v1/models/reload", reload)
     app.router.add_get("/internal/v1/models/embedding-profile", embedding_profile)
     app.router.add_get("/internal/v1/models/attempts/{attempt_id}", state)
+    app.router.add_post("/internal/v1/models/attempts/{attempt_id}/result", saved_result)
     app.router.add_post("/internal/v1/models/attempts/{attempt_id}/cancel", cancel)
     app.router.add_post("/internal/v1/resources", external_begin)
     app.router.add_post("/internal/v1/resources/{attempt_id}/{operation}", external_update)

@@ -54,5 +54,10 @@ async def test_command_replay_and_semantic_conflict_share_business_transaction(d
     second = await commands.execute(context, "fixture.save", "request-1", body_hash({"name": "one"}), apply)
     assert first.revision == second.revision
     assert second.data is None  # A replay cannot return an old private projection.
+    recovered = await commands.find(context, "fixture.save", "request-1")
+    assert recovered.client_request_id == "request-1"
+    assert recovered.revision == 1 and recovered.data is None and recovered.receipt is None
+    another = TrustedContext("another", None, None, None, (), (), 1, OriginKind.HUMAN)
+    assert await commands.find(another, "fixture.save", "request-1") is None
     with pytest.raises(AppError, match="client_request_id_conflict"):
         await commands.execute(context, "fixture.save", "request-1", body_hash({"name": "different"}), apply)

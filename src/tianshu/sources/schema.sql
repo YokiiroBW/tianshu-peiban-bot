@@ -37,7 +37,8 @@ CREATE TABLE sources.supports (
     support_source_id text NOT NULL,
     support_revision bigint NOT NULL,
     support_locator jsonb NOT NULL DEFAULT '{}',
-    PRIMARY KEY(source_id,revision,group_id,support_source_id,support_revision),
+    support_key text NOT NULL,
+    PRIMARY KEY(source_id,revision,group_id,support_key),
     FOREIGN KEY(source_id,revision) REFERENCES sources.versions
 );
 CREATE INDEX supports_reverse ON sources.supports(support_source_id,support_revision);

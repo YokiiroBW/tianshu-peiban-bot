@@ -26,6 +26,18 @@ class CommandStore:
     def __init__(self, database):
         self.database = database
 
+    async def find(self, context, operation, client_request_id):
+        """Return only the original execution identity; never rerun or disclose cached data."""
+        if any(not isinstance(value, str) or not value or len(value) > 256
+               for value in (operation, client_request_id)):
+            raise AppError("invalid_command_identity")
+        async with self.database.transaction(control=True, read_only=True) as connection:
+            row = await (await connection.execute(
+                "SELECT result FROM runtime.commands WHERE principal_id=%s AND operation=%s "
+                "AND client_request_id=%s", (context.principal_id, operation, client_request_id)
+            )).fetchone()
+        return self.identity(CommandResult(**row["result"])) if row else None
+
     async def replay(self, context, operation, client_request_id, body_hash, *, on_replay=None):
         """Read a known command before beginning a long external step, without rerunning it."""
         async with self.database.transaction(read_only=True) as connection:
