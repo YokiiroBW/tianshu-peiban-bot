@@ -3,12 +3,12 @@ import type { ArtifactRef, CommandResult, MediaRef, SourceRef } from "./contract
 
 export interface UploadedMedia { artifact: ArtifactRef; media: MediaRef; source_ref: SourceRef }
 
-export async function uploadMedia(file: File, selector: { actor_id?: string; conversation_id?: string; person_id?: string }, csrf: string, signal: AbortSignal) {
+export async function uploadMedia(file: File, selector: { actor_id?: string | null; conversation_id?: string | null; person_id?: string | null }, csrf: string, signal: AbortSignal) {
   const intent = commandInput(0);
   const form = new FormData();
   form.append("client_request_id", intent.client_request_id);
   form.append("file", file, file.name);
-  const query = new URLSearchParams(Object.entries(selector).filter((entry): entry is [string, string] => !!entry[1]));
+  const query = new URLSearchParams(Object.entries(selector).filter((entry): entry is [string, string] => typeof entry[1] === "string" && !!entry[1]));
   const result = await apiJson<CommandResult<UploadedMedia>>(`capabilities/upload?${query}`, {
     binary: form, csrf, signal, kind: "command", intent,
   });

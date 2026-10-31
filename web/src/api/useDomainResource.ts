@@ -5,14 +5,18 @@ import { useAuth } from "../app/Auth";
 import { useRoleWorkspace } from "../app/RoleWorkspace";
 import type { CommandResult } from "./contracts";
 
-export function useDomainTarget() {
+export type DomainTarget = { actor_id: string | null; person_id?: string | null; conversation_id?: string | null };
+export const GLOBAL_SCOPE: DomainTarget = Object.freeze({ actor_id: null, person_id: null, conversation_id: null });
+export function actorScope(actor: string | null): DomainTarget { return { actor_id: actor, person_id: null, conversation_id: null }; }
+
+export function useDomainTarget(): DomainTarget {
   const workspace = useRoleWorkspace();
   return { actor_id: workspace.actor || null,
     ...(workspace.conversation ? { conversation_id: workspace.conversation.conversation_id,
       ...(workspace.conversation.person_id ? { person_id: workspace.conversation.person_id } : {}) } : {}) };
 }
 
-function selectTarget(target: ReturnType<typeof useDomainTarget>, value: object) {
+function selectTarget(target: DomainTarget, value: object) {
   const given = value as Record<string, unknown>;
   const changedActor = "actor_id" in given && given.actor_id !== target.actor_id;
   const changedPerson = "person_id" in given && given.person_id !== target.person_id;
@@ -71,9 +75,10 @@ export function useDomainResource<T>(path: string, scope: object = {}, enabled =
   return { data: dataKey === requestKey ? data : null, error, loading, refresh };
 }
 
-export function useDomainCommand<T = unknown>(scope = "") {
+export function useDomainCommand<T = unknown>(scope = "", targetMode: "conversation" | "actor" | "global" = "conversation") {
   const { session } = useAuth();
-  const target = useDomainTarget();
+  const selectedTarget = useDomainTarget();
+  const target = targetMode === "global" ? GLOBAL_SCOPE : targetMode === "actor" ? actorScope(selectedTarget.actor_id) : selectedTarget;
   const targetKey = JSON.stringify(target);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
