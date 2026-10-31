@@ -361,7 +361,9 @@
         "CR19"
       ],
       "owner": "部署集成人",
-      "state": "planned"
+      "state": "deployment_implementation_assigned_after_core_A",
+      "implementation_agent": "foundation_models",
+      "pending": "source implementation before CR19; root production writes only after CR19"
     }
   ],
   "agents": {
@@ -378,11 +380,12 @@
         "CR05",
         "CR06",
         "CR07",
-        "CR08"
+        "CR08",
+        "CR20"
       ],
       "state": "implementing",
-      "boundary": "src/tianshu/runtime,models,types; backend manifest,composition,migration registry; tests/runtime,models; identity/**,sources/**,memory/**,conversation/context/** and respective tests",
-      "phase": "core_A_and_composition"
+      "boundary": "src/tianshu/runtime,models,types; backend manifest,composition,migration registry; tests/runtime,models; identity/**,sources/**,memory/**,conversation/context/** and respective tests; deploy/core/**,root image ignore,tests/deployment after A/composition handoff",
+      "phase": "core_A_composition_then_deployment_materials"
     },
     "frontend": {
       "model": "gpt-6.1-sol",
@@ -475,6 +478,12 @@
       "integrated": "1712f61",
       "scope": "A source/identity/episode incremental contracts",
       "validation": "source_review_only; implementations still in progress"
+    },
+    {
+      "source": "7acd9764374248b7e4d90ad6316922a2d3192a76",
+      "integrated": "077d71c",
+      "scope": "nullable external receipt identities; confirmed no-effect rejection; prior Responses source recheck",
+      "validation": "source_review_only"
     }
   ],
   "validation": {
@@ -499,7 +508,8 @@
       "state": "read_only_boundary_verified_not_created",
       "preserve_shared_instance": "postgres-1"
     },
-    "boundaries_record": "docs/development/coherent-refactor-cutover-boundaries-2026-10-31.json"
+    "boundaries_record": "docs/development/coherent-refactor-cutover-boundaries-2026-10-31.json",
+    "implementation_dispatch": "docs/development/coherent-refactor-deployment-dispatch-2026-10-31.md"
   },
   "planning_commit": "e034276dfb757b7dd64cd2f56e952d81193a5248",
   "source_review_followups": [
@@ -527,6 +537,21 @@
       "owner": "frontend and capabilities",
       "scope": "authorized streaming audio/video Range playback without full browser blob; bounded warehouse/native I/O; explicit acyclic composition and single expression owner",
       "state": "in_progress"
+    },
+    {
+      "owner": "foundation_models",
+      "scope": "normal shareable recognition uses distinct disclosure projection while original private source remains private; source validity/withdrawal and scene boundaries retained",
+      "state": "implementing"
+    },
+    {
+      "owner": "frontend and capabilities",
+      "scope": "semantic receipt revision, original action episode identity, stale-event current-ledger recheck, no completion episodes for accepted/pending",
+      "state": "implementation_reported_not_yet_handed_off"
+    },
+    {
+      "owner": "capabilities",
+      "scope": "Comfy stable UUID prompt identity plus actual returned handle; missing queue entry is not confirmed cancellation",
+      "state": "implementation_reported_not_yet_handed_off"
     }
   ]
 }
