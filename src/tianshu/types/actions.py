@@ -63,6 +63,9 @@ class Action:
     matter_id: str | None = None
     revision: int = 1
     deadline_at: datetime | None = None
+    # The trusted caller selects these original inputs; model arguments never supply them.
+    # This is a selected subset of source_refs, preserving every complete locator.
+    current_input_refs: tuple[SourceRef, ...] = ()
 
     @property
     def access_epoch(self) -> int:
