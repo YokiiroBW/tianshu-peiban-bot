@@ -10,7 +10,7 @@ def password_hash(password):
         raise ValueError("password_length")
     salt = secrets.token_bytes(16)
     key = hashlib.scrypt(password.encode(), salt=salt, n=16384, r=8, p=1, dklen=32)
-    return "scrypt-v1$"+salt.hex()+"$"+key.hex()
+    return "scrypt-v1$" + salt.hex() + "$" + key.hex()
 
 
 def verify_password(password, encoded):
@@ -18,7 +18,9 @@ def verify_password(password, encoded):
         version, salt, expected = encoded.split("$")
         if version != "scrypt-v1" or not isinstance(password, str) or len(password) > 1024:
             return False
-        actual = hashlib.scrypt(password.encode(), salt=bytes.fromhex(salt), n=16384, r=8, p=1, dklen=32)
+        actual = hashlib.scrypt(
+            password.encode(), salt=bytes.fromhex(salt), n=16384, r=8, p=1, dklen=32
+        )
         return hmac.compare_digest(actual, bytes.fromhex(expected))
     except (AttributeError, ValueError, TypeError):
         return False

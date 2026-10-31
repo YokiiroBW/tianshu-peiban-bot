@@ -25,6 +25,8 @@ class Episode:
     cursor: str
     person_id: str | None = None
     matter_id: str | None = None
+    extraction_state: str = "pending"
+    extraction_coverage: Coverage | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,6 +71,7 @@ class MatterView:
     summary: str
     scope_ids: tuple[str, ...]
     conditions: Mapping[str, Any] = field(default_factory=dict)
+    interpretation: bool = False
 
 
 @dataclass(frozen=True, slots=True)

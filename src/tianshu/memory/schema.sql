@@ -30,6 +30,9 @@ CREATE TABLE memory.episodes (
     content_hash text NOT NULL,
     extraction_state text NOT NULL DEFAULT 'pending',
     extraction_started_at timestamptz,
+    extraction_cursor jsonb NOT NULL DEFAULT '{}',
+    extraction_sources jsonb NOT NULL DEFAULT '[]',
+    extraction_missing text[] NOT NULL DEFAULT '{}',
     active boolean NOT NULL DEFAULT true,
     UNIQUE(actor_id,event_id)
 );
@@ -89,7 +92,8 @@ CREATE TABLE memory.matters (
     source_refs jsonb NOT NULL,
     scope_ids text[] NOT NULL,
     observed_at timestamptz NOT NULL,
-    revision bigint NOT NULL DEFAULT 1
+    revision bigint NOT NULL DEFAULT 1,
+    interpretation boolean NOT NULL DEFAULT false
 );
 CREATE INDEX matters_actor_current ON memory.matters(actor_id,state,due_at);
 CREATE INDEX matters_sources ON memory.matters USING gin(source_refs);
