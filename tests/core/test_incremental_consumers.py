@@ -1,6 +1,7 @@
 """Actual incremental consumers, source windows, and interpreted command provenance."""
 
 import json
+import time
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -284,7 +285,10 @@ async def test_author_original_publication_has_no_fabricated_human_evidence(core
     assert original["origin_kind"] == "actor" and original["content"] == "作者独立创作的故事。"
 
 
-async def test_sparse_authorized_vector_candidates_are_not_starved(core, ordinary_users):
+async def test_sparse_authorized_vector_candidates_are_not_starved(
+    core, ordinary_users, monkeypatch
+):
+    import psycopg
     from pgvector import Vector
     from pgvector.psycopg import register_vector_async
 
@@ -339,12 +343,48 @@ async def test_sparse_authorized_vector_candidates_are_not_starved(core, ordinar
 
     core.retrieval.embeddings = QueryEmbedding()
     core.retrieval.settings = {"vector": True, "vector_sql_seconds": 5}
+    measured = []
+    execute = psycopg.AsyncConnection.execute
+
+    async def diagnostic_execute(connection, query, *args, **kwargs):
+        statement = str(query)
+        phase = (
+            "vector_count"
+            if statement.startswith("SELECT count(*) AS count FROM(SELECT 1 ")
+            else "vector_exact"
+            if statement.startswith("WITH allowed AS MATERIALIZED")
+            else "vector_ann"
+            if "ORDER BY r.embedding<=>" in statement
+            else None
+        )
+        started = time.monotonic()
+        error = None
+        try:
+            return await execute(connection, query, *args, **kwargs)
+        except BaseException as exc:
+            error = {"type": type(exc).__name__, "sqlstate": getattr(exc, "sqlstate", None)}
+            raise
+        finally:
+            if phase:
+                measured.append(
+                    {
+                        "phase": phase,
+                        "seconds": round(time.monotonic() - started, 3),
+                        "error": error,
+                    }
+                )
+
+    monkeypatch.setattr(psycopg.AsyncConnection, "execute", diagnostic_execute)
     material, missing = await core.retrieval.search(
         bob,
         "does-not-match-lexically",
         RequestBudget(datetime.now(UTC) + timedelta(seconds=10)),
         limit=12,
     )
-    assert len(material) == 12 and not missing
+    assert len(material) == 12 and not missing, {
+        "material_count": len(material),
+        "missing": missing,
+        "queries": measured,
+    }
     assert all(item.source_refs == templates[1][2] for item in material)
     assert all("private" not in item.text for item in material)

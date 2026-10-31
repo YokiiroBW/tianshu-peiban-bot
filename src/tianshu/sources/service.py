@@ -331,7 +331,7 @@ class SourceService:
                 evidence_unit,
                 content,
                 Jsonb(wire(media)) if media else None,
-                Jsonb(locator),
+                Jsonb(wire(locator)),
                 Jsonb(wire(coverage)),
                 occurred_at,
                 disclosure,
@@ -426,7 +426,7 @@ class SourceService:
                 None,
                 "publication:" + stable_id,
                 Coverage(True),
-                (tuple(source_refs),),
+                (tuple(source_refs),) if source_refs else (),
                 disclosure=True,
                 support_context=context,
             )

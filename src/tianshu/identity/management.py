@@ -152,7 +152,7 @@ class IdentityManagement:
                         await conn.execute(
                             "UPDATE identity.principals SET display_name=%s,permissions=%s,enabled=%s,"
                             "password_hash=COALESCE(%s,password_hash),revision=revision+1,access_epoch=access_epoch+1,"
-                            "auth_epoch=auth_epoch+CASE WHEN %s IS NOT NULL OR NOT %s THEN 1 ELSE 0 END WHERE principal_id=%s AND revision=%s "
+                            "auth_epoch=auth_epoch+CASE WHEN %s::text IS NOT NULL OR NOT %s THEN 1 ELSE 0 END WHERE principal_id=%s AND revision=%s "
                             "RETURNING principal_id,username,display_name,person_id,permissions,enabled,revision",
                             (
                                 required(body, "display_name", 128),
