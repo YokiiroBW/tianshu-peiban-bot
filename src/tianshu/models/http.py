@@ -82,6 +82,8 @@ def create_broker_app(broker, token, external_keys=()):
             result = await permit.finish(body.get("usage"), body.get("result"))
         elif operation == "unknown":
             result = await permit.unknown(body.get("error_code", "external_effect_unknown"))
+        elif operation == "rejected":
+            result = await permit.rejected(body.get("error_code", "external_rejected"), body.get("usage"))
         else:
             raise AppError("unknown_resource_operation", status=404)
         return json_response({"receipt": result})

@@ -162,6 +162,11 @@ class ClientExternalPermit:
         self.done = True
         return result
 
+    async def rejected(self, error_code, usage=None):
+        result = await self._update("rejected", {"error_code": error_code, "usage": usage})
+        self.done = True
+        return result
+
     async def unknown(self, error_code="external_effect_unknown"):
         if self.done:
             return await self.client.status(self.request.attempt_id)

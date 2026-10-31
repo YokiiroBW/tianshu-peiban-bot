@@ -18,10 +18,10 @@ import psycopg
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.cancellation import finish_cleanup
 from tianshu.runtime.serialization import wire
-from tianshu.types import ServiceClass
+from tianshu.types import ServiceClass, SourceRef
 from .catalog import ModelCatalog, RoutePlan
 from .codec import result_from_wire
-from .ledger import AttemptLedger, receipt
+from .ledger import AttemptLedger, digest, receipt
 from .protocols import NativeCompiler, ResponseCollector, normalize_usage, requested_capabilities
 from .scheduler import QuotaScheduler
 from .types import ModelEvent, ModelResult, ModelUsage
@@ -185,12 +185,17 @@ class ModelBroker:
                            request.parameters.get("previous_response_id"))
         if state_reference:
             async with self.database.transaction(request.budget, read_only=True) as conn:
-                previous = await (await conn.execute("SELECT provider_id,model,protocol FROM models.attempts "
+                previous = await (await conn.execute("SELECT provider_id,model,protocol,source_refs FROM models.attempts "
                     "WHERE principal_id=%s AND provider_handle=%s AND status='succeeded' LIMIT 1",
                     (request.context.principal_id, state_reference))).fetchone()
             if not previous or any(previous[key] != getattr(plan, key) for key in
                                    ("provider_id", "model", "protocol")):
                 raise AppError("state_reference_route_incompatible", status=409)
+            previous_refs = tuple(SourceRef(**ref) for ref in previous["source_refs"] or ())
+            if previous_refs:
+                await self.recheck(replace(request, source_refs=previous_refs))
+                request = replace(request, source_refs=tuple({digest(ref): ref for ref in
+                    (*request.source_refs, *previous_refs)}.values()))
         # Compilation/file reading is preparation, before a scarce model permit is held.
         if self.prepare_pending >= 64:
             raise AppError("model_preparation_queue_full", status=429)
@@ -401,6 +406,11 @@ class ExternalPermit:
 
     async def unknown(self, error_code="external_effect_unknown"):
         return await self._finish("unknown" if self.submitted_at else "cancelled", error_code=error_code)
+
+    async def rejected(self, error_code, usage=None):
+        """Only a provider's confirmed no-effect rejection can release unknown occupancy."""
+        return await self._finish("failed" if self.submitted_at else "cancelled",
+                                  usage=usage, error_code=error_code)
 
     async def _finish(self, status, *, usage=None, result=None, error_code=None):
         async with self.finish_lock:

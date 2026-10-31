@@ -83,8 +83,8 @@ class Attempt:
 @dataclass(frozen=True, slots=True)
 class Receipt:
     receipt_id: str
-    action_id: str
-    attempt_id: str
+    action_id: str | None
+    attempt_id: str | None
     execution: Literal["pending", "running", "succeeded", "failed", "cancelled", "unknown"]
     effect: Literal["none", "confirmed", "unknown"]
     delivery: Literal["not_requested", "pending", "delivered", "failed", "unknown"]
