@@ -41,3 +41,8 @@ CREATE TABLE runtime.projection_cursors (
     updated_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (consumer, subject_id)
 );
+CREATE TABLE runtime.access_settings (
+    singleton boolean PRIMARY KEY DEFAULT true CHECK(singleton),
+    revision bigint NOT NULL CHECK(revision>0),
+    value jsonb NOT NULL
+);

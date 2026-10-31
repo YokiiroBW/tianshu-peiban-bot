@@ -1,0 +1,34 @@
+auth_enabled: false
+server:
+  http_listen_address: 127.0.0.1
+  http_listen_port: 13100
+  grpc_listen_address: 127.0.0.1
+  grpc_listen_port: 19095
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /data/observability/loki
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+  storage:
+    filesystem:
+      chunks_directory: /data/observability/loki/chunks
+      rules_directory: /data/observability/loki/rules
+schema_config:
+  configs:
+    - from: 2026-01-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: tianshu_
+        period: 24h
+compactor:
+  working_directory: /data/observability/loki/compactor
+  retention_enabled: true
+  delete_request_store: filesystem
+limits_config:
+  retention_period: 720h
+  reject_old_samples: false
+  allow_structured_metadata: true

@@ -1,0 +1,17 @@
+groups:
+  - name: tianshu-persistence
+    rules:
+      - alert: TianShuLogCollectorUnavailable
+        expr: up{job="vector"} == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations: {summary: 'TianShu durable log collector is unavailable'}
+      - alert: TianShuLogStorageUnavailable
+        expr: up{job="loki"} == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations: {summary: 'TianShu logs are buffering while Loki is unavailable'}
+      - alert: TianShuLogPipelineErrors
+        expr: sum(increase(component_errors_total[5m])) > 0
+        labels: {severity: warning}
+        annotations: {summary: 'TianShu log pipeline reported errors; inspect retained quarantine and disk buffer'}

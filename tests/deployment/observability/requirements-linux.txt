@@ -1,3 +1,0 @@
-# Isolated acceptance environment; no host/global installation.
--r requirements.txt
-jsonschema==4.26.0

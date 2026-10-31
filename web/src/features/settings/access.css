@@ -1,37 +1,14 @@
-.access-settings {
-  margin-bottom: var(--space-5);
-  overflow-wrap: anywhere;
-}
-.access-settings fieldset {
-  display: grid;
-  gap: var(--space-3);
-  min-width: 0;
-  max-width: 36rem;
-  margin: var(--space-4) 0 0;
-  padding: 0;
-  border: 0;
-}
-.access-settings legend {
-  margin-bottom: var(--space-3);
-}
-.access-settings input,
-.access-settings select {
-  width: 100%;
-  min-width: 0;
-  min-height: var(--control-height);
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-control);
-  color: var(--color-text);
-  background: var(--color-input);
-  padding: var(--space-2) var(--space-3);
-  font: inherit;
-}
-.access-settings p {
-  color: var(--color-muted);
-}
-.access-settings [role="alert"] {
-  color: var(--color-red);
-}
-.access-settings [role="status"] {
-  color: var(--color-blue);
-}
+.access-settings { margin-bottom: var(--space-5); overflow-wrap: anywhere; }
+.access-settings .section-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); }
+.access-settings .section-heading h2 { margin-bottom: var(--space-2); }
+.access-settings fieldset { display: grid; gap: var(--space-3); min-width: 0; max-width: 38rem; margin: var(--space-4) 0 0; padding: 0; border: 0; }
+.access-settings legend { margin-bottom: var(--space-3); font-weight: 600; }
+.access-settings input, .access-settings select { width: 100%; min-width: 0; min-height: var(--control-height); border: 1px solid var(--color-line); border-radius: var(--radius-control); color: var(--color-text); background: var(--color-input); padding: var(--space-2) var(--space-3); font: inherit; }
+.access-settings .field-hint, .access-settings .section-heading p { margin: 0; color: var(--color-muted); font-size: .9rem; line-height: 1.6; }
+.access-settings [role="alert"] { color: var(--color-red); }
+.access-settings [role="status"] { color: var(--color-blue); }
+.access-summary { display: flex; flex-wrap: wrap; gap: var(--space-5); margin: var(--space-4) 0; }
+.access-summary dt { color: var(--color-muted); font-size: .85rem; margin-bottom: var(--space-2); }
+.access-summary dd { margin: 0; }
+.access-pending { padding: var(--space-3); border: 1px solid var(--color-line); border-radius: var(--radius-control); }
+@media (max-width: 600px) { .access-settings .section-heading { flex-direction: column; } .access-settings fieldset { max-width: 100%; } }

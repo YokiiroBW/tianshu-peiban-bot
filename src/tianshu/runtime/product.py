@@ -148,6 +148,7 @@ async def build_product(runtime):
         life=presentation,
         result_events=result_events,
         authorize_actor=identity.authorize_actor,
+        authorize_conversation=identity.authorize_conversation,
         actor_directory=actor_directory,
         artifacts=artifacts,
         weather=weather,

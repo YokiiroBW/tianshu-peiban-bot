@@ -19,13 +19,17 @@ uv run --no-sync tianshu worker --config C:/Tianshu/settings.json
 uv run --no-sync tianshu interactive --config C:/Tianshu/settings.json
 ```
 
-后三条是三个独立的进程角色，由部署监督器启动、排空、停止和恢复。首次安装先运行一次 `migrate`；
+后三条是三个独立的进程角色。Linux 单容器使用 `tianshu serve --config /config/settings.json`
+由 PID 1 监督器完成迁移、启动、排空和停止；镜像内还保留完整 Vector/Loki 观测与受管插件子进程。
+当前两宿主的构建、独立 PG/vector、新容量守护与备份恢复见 [部署说明](deploy/core/README.md)。
+手动启动三个角色时，首次安装先运行一次 `migrate`；
 它在天枢专属空 database 安装原生基线、vector 扩展和固定版本 Procrastinate schema，不导入旧库。
 PG 实例必须已安装 pgvector 二进制；缺少扩展时安装明确失败，不回退到 JSON/字节向量。
 
 凭据使用环境引用。设置 `TIANSHU_DATABASE_URL`、`TIANSHU_BROKER_TOKEN` 和 `TIANSHU_MASTER_KEY`；
 master key 是部署生成并保管的 32 字节随机密钥的 base64url 编码。供应商 API Key 可在模型设置中只写保存，
-数据库仅保存 AES-GCM 密封值；读取配置只返回引用。环境中的供应商 Key 也可通过 `env:NAME` 引用。
+数据库仅保存 AES-GCM 密封值；读取配置只返回引用。部署环境的供应商 Key 只允许
+`broker.provider_credential_refs` 显式配置的 provider 专属 `TIANSHU_PROVIDER_*` 引用。
 不要把实际密钥写进配置样例、命令行参数或 Git。
 
 配置最小结构：
@@ -93,3 +97,17 @@ Broker 进程提供原生 Chat Completions、Responses、Claude Messages、Gemin
 依用户本批要求，完整集成前不运行测试、typecheck、build 或浏览器检查。集中验收使用根清单中的新领域测试目录，
 不把历史协调测试混入新产品。PG 用例只接受显式 `TIANSHU_TEST_POSTGRES_ADMIN_DSN`，
 自行创建并删除 `tianshu_test_*` 隔离数据库，不使用生产默认值。
+
+访问设置由 `/api/v1/access/view`、`access/save` 管理实际 HTTP/HTTPS/反向代理外部地址和已安装证书，
+保存使用 CAS 与实时权限复核，下一次 interactive 启动后生效。HTTPS 的证书/私钥/域名离线核验，
+外部 HTTPS 决定安全 Cookie；网页清楚区分当前生效与待重启设置。
+
+项目 CLI 与 MCP stdio 复用当前 Identity 会话及同一项目 HTTP 用例，官方 MCP SDK 已进入根锁文件。
+用户显式提供 owner-only 会话文件（实际 Cookie/CSRF JSON，不入库），例如只读项目目录与 MCP：
+
+```sh
+python -m tianshu.capabilities.projects.cli --server http://192.168.31.230:18446 --session-file /PRIVATE/session.json --actor ACTOR_ID view
+python -m tianshu.capabilities.projects.cli --server http://192.168.31.230:18446 --session-file /PRIVATE/session.json --actor ACTOR_ID --mcp
+```
+
+资料写入按其真实项目会话重新核授权，不用独立 project-token、本地数据库或旧 Core。

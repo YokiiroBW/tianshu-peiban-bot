@@ -109,6 +109,13 @@ async def run(settings, role, *, initialize=False):
         if initialize:
             await migrate(database, product_migrations(jobs))
             return
+        access = None
+        if role == "interactive":
+            from .access import AccessService
+
+            access = AccessService(database, services.commands, settings)
+            settings = await access.load()
+            services.settings = settings
         events = EventLog(settings.artifact_directory.parent / "logs", role)
         await events.open()
         stack.push_async_callback(events.close)
@@ -159,7 +166,19 @@ async def run(settings, role, *, initialize=False):
             from tianshu.models.management import register_routes
 
             model_module = DomainModule("models", register_routes)
-            app = create_app(services, (model_module, *modules))
+            app = create_app(
+                services,
+                (
+                    model_module,
+                    *modules,
+                    DomainModule(
+                        "access",
+                        lambda app, runtime: access.register(
+                            app, runtime, product.authority.identity
+                        ),
+                    ),
+                ),
+            )
             from tianshu.models.proxy import register_native_proxy
 
             register_native_proxy(app, settings)

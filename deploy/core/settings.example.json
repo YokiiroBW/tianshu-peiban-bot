@@ -1,0 +1,45 @@
+{
+  "schema_version": "tianshu.core.v1",
+  "database": {
+    "dsn_ref": "TIANSHU_DATABASE_URL", "connection_budget": 40,
+    "roles": {
+      "interactive": {"max_connections": 4, "control_connections": 2, "sync_connections": 2},
+      "model-broker": {"max_connections": 4, "control_connections": 2, "sync_connections": 1},
+      "worker": {"max_connections": 4, "control_connections": 2, "sync_connections": 2}
+    }
+  },
+  "http": {
+    "host": "0.0.0.0", "port": 18446, "static_directory": "/opt/tianshu/web/dist",
+    "max_body_bytes": 536870912, "drain_seconds": 30,
+    "access": {"initial": {"mode": "https", "origin": "https://tianshu.example.invalid:18443", "certificate": "local"},
+      "certificates": {"local": {"certificate_file": "/config/tls/server.crt", "key_file": "/config/tls/server.key"}}},
+    "tls": {"enabled": true, "host": "0.0.0.0", "port": 18443,
+      "certificate_file": "/config/tls/server.crt", "key_file": "/config/tls/server.key"}
+  },
+  "broker": {"host": "127.0.0.1", "port": 8071, "url": "http://127.0.0.1:8071",
+    "token_ref": "TIANSHU_BROKER_TOKEN", "external_keys": []},
+  "credentials": {"master_key_ref": "TIANSHU_MASTER_KEY"},
+  "identity": {"installation_seal": "/data/state/installed", "setup_token_ref": "TIANSHU_SETUP_TOKEN", "cookie_secure": true},
+  "worker": {"queue_connections": 8, "interactive_concurrency": 2, "due_concurrency": 1, "elastic_concurrency": 2},
+  "artifacts": "/data/files",
+  "channels": {"state_directory": "/data/channels", "owner_url": "http://127.0.0.1:18446", "owner_token_ref": "TIANSHU_CHANNEL_OWNER_TOKEN",
+    "listen": {"host": "0.0.0.0", "port": 18765}},
+  "context": {"tokenizer": "o200k_base", "structured_seconds": 1.0, "retrieval_seconds": 2.0},
+  "memory": {"retrieval": {"vector": true, "embedding_seconds": 1.0, "vector_sql_seconds": 0.8,
+    "ef_search": 128, "max_scan_tuples": 20000, "rerank": false}},
+  "capabilities": {"state_directory": "/data/capabilities", "file_workers": 2,
+    "content": {"browser": {"enabled": true, "contexts": 1, "timeout_seconds": 35, "chromium_sandbox": true}},
+    "plugins": {"package_directory": "/data/plugins"}},
+  "observability": {
+    "loki_url": "http://127.0.0.1:13100", "tenant": "tianshu",
+    "processes": [
+      {"name": "loki", "command": ["/usr/local/bin/loki", "-config.file=/config/observability/loki.yaml"]},
+      {"name": "vector", "command": ["/usr/local/bin/vector", "--config", "/config/observability/vector.toml"]},
+      {"name": "prometheus", "command": ["/usr/local/bin/prometheus", "--config.file=/config/observability/prometheus.yaml",
+        "--storage.tsdb.path=/data/observability/prometheus", "--storage.tsdb.retention.time=15d", "--web.listen-address=0.0.0.0:19491"]},
+      {"name": "grafana", "command": ["/usr/share/grafana/bin/grafana", "server", "--homepath=/usr/share/grafana", "--config=/config/observability/grafana.ini"],
+        "env_refs": {"GF_SECURITY_ADMIN_PASSWORD": "TIANSHU_GRAFANA_ADMIN_PASSWORD"}}
+    ]
+  },
+  "supervisor": {"uid": 10001, "gid": 10001, "term_timeout_seconds": 110}
+}

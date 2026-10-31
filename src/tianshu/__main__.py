@@ -2,22 +2,34 @@
 
 import argparse
 import asyncio
-import logging
 
 from .runtime.config import Settings
 from .runtime.process import run
+from .runtime.logging import configure
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="tianshu")
-    parser.add_argument("role", choices=("interactive", "model-broker", "worker", "migrate"))
+    parser.add_argument(
+        "role", choices=("serve", "interactive", "model-broker", "worker", "migrate")
+    )
     parser.add_argument("--config", required=True)
     args = parser.parse_args(argv)
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    configure()
     settings = Settings.load(args.config)
     try:
-        asyncio.run(run(settings, "interactive" if args.role == "migrate" else args.role,
-                        initialize=args.role == "migrate"))
+        if args.role == "serve":
+            from .runtime.supervisor import Supervisor
+
+            asyncio.run(Supervisor(settings, args.config).run())
+        else:
+            asyncio.run(
+                run(
+                    settings,
+                    "interactive" if args.role == "migrate" else args.role,
+                    initialize=args.role == "migrate",
+                )
+            )
     except KeyboardInterrupt:
         pass
 

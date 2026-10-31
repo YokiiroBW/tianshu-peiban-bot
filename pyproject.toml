@@ -36,6 +36,7 @@ dependencies = [
   "tiktoken>=0.12,<1",
   "tianshu-plugin",
   "playwright==1.64.1",
+  "mcp>=1.26,<2",
 ]
 
 [project.optional-dependencies]
@@ -57,6 +58,7 @@ tianshu-plugin = { path = "packages/tianshu-plugin" }
 "tianshu.sources" = ["*.sql"]
 "tianshu.memory" = ["*.sql"]
 "tianshu.capabilities" = ["*.sql", "**/*.json", "**/*.html", "**/*.js", "**/LICENSE.LegadoParser"]
+"tianshu.capabilities.projects" = ["*.sql"]
 "tianshu.companion" = ["*.sql", "data/*.json"]
 "tianshu.life" = ["*.sql"]
 "tianshu.conversation" = ["*.sql"]

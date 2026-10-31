@@ -1,0 +1,57 @@
+data_dir = "/data/observability/vector"
+[api]
+enabled = true
+address = "127.0.0.1:18686"
+[sources.runtime]
+type = "file"
+include = ["/data/logs/*.jsonl"]
+read_from = "beginning"
+max_line_bytes = 2097152
+fingerprint.strategy = "device_and_inode"
+[transforms.decode]
+type = "remap"
+inputs = ["runtime"]
+source = '''
+value, error = parse_json(.message)
+if error == null && is_object(value) {
+  . = value
+} else {
+  .decode_error = true
+}
+'''
+[transforms.valid]
+type = "route"
+inputs = ["decode"]
+reroute_unmatched = true
+route.product = '.schema_version == "2.0.0" && .service == "tianshu"'
+[transforms.clock]
+type = "remap"
+inputs = ["valid.product"]
+source = '.timestamp = parse_timestamp!(string!(.timestamp), format: "%+")'
+[sinks.loki]
+type = "loki"
+inputs = ["clock"]
+endpoint = "http://127.0.0.1:13100"
+tenant_id = "tianshu"
+encoding.codec = "json"
+labels.stack = "tianshu"
+labels.service = "tianshu"
+labels.role = "{{ role }}"
+labels.level = "{{ level }}"
+healthcheck.enabled = false
+buffer.type = "disk"
+buffer.max_size = 536870912
+buffer.when_full = "block"
+request.timeout_secs = 30
+request.retry_attempts = 4294967295
+[sinks.quarantine]
+type = "file"
+inputs = ["valid._unmatched"]
+path = "/data/observability/vector/quarantine-%Y-%m-%d.jsonl"
+encoding.codec = "json"
+[sources.collector_metrics]
+type = "internal_metrics"
+[sinks.collector_metrics]
+type = "prometheus_exporter"
+inputs = ["collector_metrics"]
+address = "127.0.0.1:18687"

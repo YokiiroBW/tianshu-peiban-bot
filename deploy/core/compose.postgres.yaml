@@ -1,0 +1,25 @@
+name: tianshu-core-postgres
+services:
+  postgres:
+    image: ${TIANSHU_PG_IMAGE:?pin verified pgvector 0.8+ and PostgreSQL17 digest}
+    container_name: tianshu-core-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tianshu_core
+      POSTGRES_USER: tianshu_core
+      POSTGRES_PASSWORD_FILE: /run/secrets/database_password
+    secrets: [database_password]
+    ports:
+      - '${TIANSHU_PG_BIND:?choose explicit private app-reachable NAS address}:25018:5432'
+    volumes:
+      - /volume2/Dockers/tianshu-core-postgres/data:/var/lib/postgresql/data
+      - ./postgres-init.sql:/docker-entrypoint-initdb.d/010-vector.sql:ro
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U tianshu_core -d tianshu_core']
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    stop_grace_period: 60s
+secrets:
+  database_password:
+    file: ./secrets/database_password

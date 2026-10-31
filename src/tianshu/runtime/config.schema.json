@@ -34,6 +34,10 @@
       "host": {"type": "string"}, "port": {"type": ["integer", "null"], "minimum": 1, "maximum": 65535},
       "max_body_bytes": {"type": "integer", "minimum": 2097152},
       "static_directory": {"type": "string"},
+      "access": {"type": "object", "required": ["initial", "certificates"], "properties": {
+        "initial": {"type": "object", "required": ["mode", "origin", "certificate"], "properties": {"mode": {"enum": ["http", "https", "proxy"]}, "origin": {"type": "string"}, "certificate": {"type": ["string", "null"]}}, "additionalProperties": false},
+        "certificates": {"type": "object", "maxProperties": 16, "additionalProperties": {"type": "object", "required": ["certificate_file", "key_file"], "properties": {"certificate_file": {"type": "string"}, "key_file": {"type": "string"}}, "additionalProperties": false}}
+      }, "additionalProperties": false},
       "tls": {"type": "object", "properties": {"enabled": {"type": "boolean"}, "port": {"type": "integer", "minimum": 1, "maximum": 65535},
         "certificate_file": {"type": "string"}, "key_file": {"type": "string"}},
         "if": {"properties": {"enabled": {"const": true}}, "required": ["enabled"]},
