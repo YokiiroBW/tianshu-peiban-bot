@@ -991,13 +991,141 @@
       "integrated": "3b681fa",
       "scope": "final native knowledge and project UI with actual permission and invalidation projections",
       "validation": "source_review_only_before_CR19"
+    },
+    {
+      "source": "35f95ed",
+      "integrated": "111249c",
+      "scope": "artifact export and bounded original model result read",
+      "validation": "concentrated_CR19_defect_repair"
+    },
+    {
+      "source": "e8166c3",
+      "integrated": "8bcc39c",
+      "scope": "shared frontend request and reload types plus patched build dependencies",
+      "validation": "concentrated_CR19_defect_repair"
+    },
+    {
+      "source": "f1b02d0",
+      "integrated": "1524b98",
+      "scope": "node form consumes original reload result",
+      "validation": "concentrated_CR19_defect_repair"
+    },
+    {
+      "source": "b8b7c4c",
+      "integrated": "028217b",
+      "scope": "Projects uses canonical runtime Page",
+      "validation": "concentrated_CR19_defect_repair"
+    },
+    {
+      "source": "7db7633",
+      "integrated": "4c95086",
+      "scope": "Source SQL alias native author fixture and atomic external terminal transition",
+      "validation": "concentrated_CR19_defect_repair"
+    },
+    {
+      "source": "d21eca6",
+      "integrated": "81e4a32",
+      "scope": "typed video evidence original publication and typed nullable identity edit",
+      "validation": "concentrated_CR19_defect_repair"
+    },
+    {
+      "source": "2b639f3",
+      "integrated": "28730b7",
+      "scope": "weekly commitment test selects real accessible combobox",
+      "validation": "concentrated_CR19_defect_repair"
+    },
+    {
+      "source": "d951fb6",
+      "integrated": "de5f693",
+      "scope": "typed native PG withdrawal reason",
+      "validation": "concentrated_CR19_defect_repair"
+    },
+    {
+      "source": "481679a",
+      "integrated": "c80107b",
+      "scope": "bounded vector planning and source filtering before ranking",
+      "validation": "concentrated_CR19_defect_repair"
     }
   ],
   "validation": {
-    "state": "starting",
+    "state": "unit_browser_passed_image_runtime_acceptance_in_progress",
     "initial_complete_source": "3b681fa",
-    "policy": "one concentrated acceptance after all source integration; only affected reruns after actual fixes",
-    "production_data_mutated": false
+    "candidate_source": "c80107b6d90e0cd749dc84e9ace2f7321666b731",
+    "production_data_mutated": false,
+    "policy": "reuse applicable unchanged passes; rerun only failed or materially affected paths",
+    "runs": [
+      {
+        "kind": "backend_initial",
+        "source": "111249c",
+        "passed": 120,
+        "failed": 24,
+        "skipped": 1,
+        "seconds": 34.09,
+        "artifact": ".runtime/coherent-acceptance/backend-first.xml"
+      },
+      {
+        "kind": "backend_affected",
+        "source": "4c95086",
+        "passed": 33,
+        "failed": 4,
+        "seconds": 60.47,
+        "artifact": ".runtime/coherent-acceptance/backend-second.xml"
+      },
+      {
+        "kind": "backend_remaining",
+        "source": "28730b7",
+        "passed": 2,
+        "failed": 2,
+        "seconds": 24.17,
+        "artifact": ".runtime/coherent-acceptance/backend-third.xml"
+      },
+      {
+        "kind": "backend_remaining_and_query_callers",
+        "source": "c80107b",
+        "passed": 4,
+        "failed": 0,
+        "seconds": 16.17,
+        "artifact": ".runtime/coherent-acceptance/backend-fourth.xml"
+      },
+      {
+        "kind": "web_build",
+        "state": "passed",
+        "artifact": ".runtime/coherent-acceptance/web-build-second.log"
+      },
+      {
+        "kind": "web_dependency_advisories",
+        "state": "zero_reported",
+        "artifact": ".runtime/coherent-acceptance/web-audit-second.json"
+      },
+      {
+        "kind": "browser_initial_desktop",
+        "passed": 10,
+        "failed": 1,
+        "seconds": 42.9,
+        "artifact": ".runtime/coherent-acceptance/web-browser-first.log"
+      },
+      {
+        "kind": "browser_failed_case_desktop_and_mobile",
+        "passed": 2,
+        "failed": 0,
+        "seconds": 3.8,
+        "artifact": ".runtime/coherent-acceptance/web-browser-second.log"
+      },
+      {
+        "kind": "linux_supervision_previously_skipped_on_windows",
+        "passed": 1,
+        "failed": 0,
+        "seconds": 0.59,
+        "image": "sha256:4f8600f9eddc5206f4dbb5dd47f98247d8662e6c8a2a4c6a6ba6df8a1f59b37c",
+        "input_unchanged_at": "c80107b"
+      }
+    ],
+    "acceptance_database": {
+      "host": "192.168.31.210",
+      "port": 25019,
+      "container": "tianshu-core-acceptance-pg",
+      "purpose": "disposable only; no old shared database used"
+    }
   },
   "deployment": {
     "state": "not_started",
