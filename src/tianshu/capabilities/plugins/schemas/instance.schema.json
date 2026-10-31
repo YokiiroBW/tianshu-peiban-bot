@@ -1,0 +1,193 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianshu.invalid/contracts/plugin-runtime/candidate-v1/schemas/instance.schema.json",
+  "title": "Instance and binding configuration DTOs",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "schema_version",
+        "instance_id",
+        "plugin_id",
+        "package_version",
+        "config_revision",
+        "config",
+        "secrets",
+        "desired_state"
+      ],
+      "properties": {
+        "kind": {
+          "const": "instance"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "instance_id": {
+          "$ref": "common.schema.json#/$defs/uuid"
+        },
+        "plugin_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_.-]{0,95}$"
+        },
+        "package_version": {
+          "$ref": "common.schema.json#/$defs/version"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "config_revision": {
+          "$ref": "common.schema.json#/$defs/revision"
+        },
+        "config": {
+          "type": "object"
+        },
+        "secrets": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^secret:[a-zA-Z0-9_-]+$"
+          }
+        },
+        "desired_state": {
+          "enum": [
+            "enabled",
+            "disabled"
+          ]
+        },
+        "observed_state": {
+          "enum": [
+            "created",
+            "starting",
+            "ready",
+            "degraded",
+            "blocked",
+            "stopped",
+            "error"
+          ]
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "schema_version",
+        "binding_id",
+        "instance_id",
+        "revision",
+        "enabled",
+        "scope",
+        "overrides",
+        "priority"
+      ],
+      "properties": {
+        "kind": {
+          "const": "binding"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "binding_id": {
+          "$ref": "common.schema.json#/$defs/uuid"
+        },
+        "instance_id": {
+          "$ref": "common.schema.json#/$defs/uuid"
+        },
+        "revision": {
+          "$ref": "common.schema.json#/$defs/revision"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "overrides": {
+          "type": "object"
+        },
+        "priority": {
+          "type": "integer"
+        },
+        "scope": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "workspace_id"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "workspace"
+                },
+                "workspace_id": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "conversation"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "conversation"
+                },
+                "conversation": {
+                  "$ref": "common.schema.json#/$defs/conversation"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "character_id"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "character"
+                },
+                "character_id": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          ]
+        },
+        "entries": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "id"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "action",
+                  "event",
+                  "bridge"
+                ]
+              },
+              "id": {
+                "$ref": "common.schema.json#/$defs/id"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

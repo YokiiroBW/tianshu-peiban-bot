@@ -1,0 +1,73 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "base_url": {
+      "type": "string",
+      "title": "SearXNG 服务地址",
+      "format": "uri",
+      "pattern": "^https?://",
+      "description": "选填；服务须开启 JSON 搜索格式。模型不能改变此地址。"
+    },
+    "api_key": {
+      "type": "string",
+      "title": "搜索服务访问密钥",
+      "minLength": 1,
+      "x-secret": true
+    },
+    "subscription_ids": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      },
+      "default": [],
+      "title": "允许发现的 B站订阅 ID"
+    },
+    "include_books": {
+      "type": "boolean",
+      "default": false,
+      "title": "浏览已有书籍目录"
+    },
+    "include_video_library": {
+      "type": "boolean",
+      "default": false,
+      "title": "浏览已有视频目录"
+    },
+    "include_music": {
+      "type": "boolean",
+      "default": false,
+      "title": "浏览已有音乐目录"
+    },
+    "include_comics": {
+      "type": "boolean",
+      "default": false,
+      "title": "浏览已有漫画目录"
+    },
+    "music_scopes": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "maxLength": 128
+      },
+      "default": [],
+      "title": "允许的音乐来源范围",
+      "description": "必须明确列出原scope；空字符串只表示明确允许无scope的历史导入。"
+    },
+    "comic_libraries": {
+      "type": "array",
+      "maxItems": 2,
+      "uniqueItems": true,
+      "items": {
+        "enum": ["general", "private"]
+      },
+      "default": ["general"],
+      "title": "允许的漫画库"
+    }
+  }
+}

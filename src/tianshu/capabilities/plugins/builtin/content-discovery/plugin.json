@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "id": "tianshu.content-discovery",
+  "name": "内容发现",
+  "version": "1.0.0",
+  "description": "检索已配置的 SearXNG 与允许的媒体目录；候选摘要不代表已经阅读。",
+  "author": "TianShu",
+  "entrypoint": "main:DiscoveryPlugin",
+  "sdk": {
+    "min": "2.0.0",
+    "max_exclusive": "3.0.0"
+  },
+  "config_schema": "config.schema.json",
+  "capabilities": {
+    "required": [
+      {
+        "id": "content.discovery",
+        "major": 1
+      },
+      {
+        "id": "http.client",
+        "major": 1
+      }
+    ],
+    "optional": []
+  }
+}

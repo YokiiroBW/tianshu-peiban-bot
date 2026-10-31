@@ -1,0 +1,193 @@
+"""The sole durable Action, Attempt and Receipt owner for every capability."""
+import asyncio
+import json
+from dataclasses import replace
+from datetime import UTC,datetime
+from uuid import uuid4
+from jsonschema import Draft202012Validator,ValidationError
+from tianshu.types import Action,Attempt,Receipt,ServiceClass
+from tianshu.runtime.jobs import JobSpec
+from tianshu.runtime.serialization import wire
+from .contracts import Fault,digest,canonical
+from .serialization import action_from,attempt_from,receipt_from
+from .execution_context import CURRENT_ACTION,CURRENT_EXECUTION
+
+class Actions:
+    def __init__(self,database,jobs,catalog,authority,events=None):
+        self.database,self.jobs,self.catalog,self.authority,self.events=database,jobs,catalog,authority,events
+        self.running={};self.prepare_handler=None;self.argument_resolver=None;self.worker=False
+    async def handler(self,action):
+        if action.capability_id not in self.catalog.handlers and self.prepare_handler:await self.prepare_handler(action)
+        return self.catalog.handler(action.capability_id)
+    async def invoke(self,action:Action,*,background=False,service_class=None):
+        service_class=service_class or (ServiceClass.INTERACTIVE if not background and action.origin_kind.value=="human" else ServiceClass.ELASTIC)
+        handler=await self.handler(action)
+        if action.actor_id!=action.context.actor_id:raise Fault("actor_mismatch",403)
+        if "*" not in action.context.permissions and not handler.definition.permissions<=action.context.permissions:raise Fault("forbidden",403)
+        await self.authority.check(action.context,action.source_refs)
+        availability=await handler.availability(action.context)
+        if not availability.can_execute:raise Fault(availability.reason or "not_configured",503)
+        arguments=await self.argument_resolver(action.context,action.arguments) if "command_ref" in action.arguments and self.argument_resolver else action.arguments
+        try:Draft202012Validator(handler.definition.input_schema).validate(arguments)
+        except ValidationError:raise Fault("invalid_input",400) from None
+        key=digest([action.context.principal_id,action.capability_id,action.intent_key])
+        semantics=digest(wire(replace(action,action_id="",revision=1)))
+        attempt=Attempt(str(uuid4()),action.action_id)
+        receipt=Receipt(str(uuid4()),action.action_id,attempt.attempt_id,"pending","none","not_requested")
+        async with self.database.transaction() as conn:
+            await conn.execute("SELECT pg_advisory_xact_lock(hashtext(%s))",(key,))
+            old=await (await conn.execute("SELECT action,receipt,semantics FROM capabilities.actions WHERE intent=%s FOR UPDATE",(key,))).fetchone()
+            if old:
+                if old["semantics"]!=semantics:raise Fault("idempotency_conflict",409)
+                replay=receipt_from(old["receipt"])
+                await self.authority.check(action.context,result_sources(replay))
+                return replay
+            await conn.execute("INSERT INTO capabilities.actions(id,intent,semantics,principal_id,kind,created_at,action,attempt,receipt,document) VALUES(%s,%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb,%s::jsonb,%s)",(action.action_id,key,semantics,action.context.principal_id,action.capability_id,datetime.now(UTC).timestamp(),encoded(action),encoded(attempt),encoded(receipt),canonical({"service_class":service_class.value})))
+            if background:await self.jobs.enqueue(conn,JobSpec("capabilities.execute",action.action_id,{"action_id":action.action_id},service_class=service_class,subject_id=action.actor_id,matter_id=action.matter_id))
+        return receipt if background else await self.run(action.action_id)
+    async def get(self,action_id,context):
+        async with self.database.transaction(read_only=True) as conn:
+            row=await (await conn.execute("SELECT * FROM capabilities.actions WHERE id=%s AND principal_id=%s",(action_id,context.principal_id))).fetchone()
+        if row is None:raise Fault("not_found",404)
+        action=action_from(row["action"])
+        await self.authority.check(context,action.source_refs)
+        if action.context.actor_id!=context.actor_id or not set(action.context.scope_ids)<=set(context.scope_ids):raise Fault("forbidden",403)
+        await self.authority.check(context,result_sources(receipt_from(row["receipt"])))
+        return {k:row[k] for k in ("action","attempt","receipt","result_revision","result_observed_at")}
+    async def _load(self,action_id):
+        async with self.database.transaction(read_only=True) as conn:
+            row=await (await conn.execute("SELECT action,attempt,receipt FROM capabilities.actions WHERE id=%s",(action_id,))).fetchone()
+        if row is None:raise Fault("not_found",404)
+        return action_from(row["action"]),attempt_from(row["attempt"]),receipt_from(row["receipt"])
+    async def submitted(self,attempt,handle=None,dispatch="submitted"):
+        async with self.database.transaction() as conn:
+            await conn.execute("UPDATE capabilities.actions SET attempt=attempt||%s::jsonb WHERE id=%s AND attempt->>'attempt_id'=%s",(canonical({"dispatch":dispatch,"provider_handle":handle}),attempt.action_id,attempt.attempt_id))
+    async def run(self,action_id,mode="execute"):
+        action,attempt,current=await self._load(action_id)
+        if current.execution!="pending":return current
+        handler=await self.handler(action)
+        await self.authority.check(action.context,action.source_refs)
+        if action.deadline_at and action.deadline_at<=datetime.now(UTC):return await self.save(Receipt(str(uuid4()),action_id,attempt.attempt_id,"cancelled","none","not_requested",error_code="deadline_expired"),attempt)
+        attempt=replace(attempt,started_at=datetime.now(UTC))
+        async with self.database.transaction() as conn:
+            claim=await (await conn.execute("UPDATE capabilities.actions SET receipt=jsonb_set(receipt,'{execution}',to_jsonb('running'::text)),attempt=%s::jsonb WHERE id=%s AND receipt->>'execution'='pending' RETURNING id",(encoded(attempt),action_id))).fetchone()
+        if claim is None:return (await self._load(action_id))[2]
+        async with self.database.transaction(read_only=True) as conn:document=await (await conn.execute("SELECT document FROM capabilities.actions WHERE id=%s",(action_id,))).fetchone()
+        state={"owner":self,"attempt":attempt,"submitted":False,"service_class":ServiceClass(json.loads(document["document"]).get("service_class","elastic"))}
+        action_token=CURRENT_ACTION.set(action);execution_token=CURRENT_EXECUTION.set(state)
+        self.running[action_id]=asyncio.current_task()
+        watcher=asyncio.create_task(self.watch_cancel(action_id,self.running[action_id]))
+        try:
+            method=getattr(handler,mode,None)
+            if mode not in {"execute","resume"} or method is None:raise Fault("operation_unavailable",409)
+            receipt=await method(action,attempt)
+            if not isinstance(receipt,Receipt):raise TypeError("capability_receipt_required")
+        except asyncio.CancelledError:
+            receipt=Receipt(str(uuid4()),action_id,attempt.attempt_id,"unknown" if state["submitted"] else "cancelled","unknown" if state["submitted"] else "none","not_requested",error_code="interrupted")
+            await asyncio.shield(self.save(receipt,attempt));raise
+        except Exception as error:
+            unknown=getattr(error,"effect",None)=="unknown" or (state["submitted"] and not hasattr(error,"effect"))
+            receipt=Receipt(str(uuid4()),action_id,attempt.attempt_id,"unknown" if unknown else "failed","unknown" if unknown else "none","not_requested",error_code=getattr(error,"code","capability_failed"))
+        finally:
+            watcher.cancel();await asyncio.gather(watcher,return_exceptions=True)
+            self.running.pop(action_id,None);CURRENT_ACTION.reset(action_token);CURRENT_EXECUTION.reset(execution_token)
+        return await self.save(receipt,attempt)
+    async def execution_class(self,action_id):
+        async with self.database.transaction(read_only=True) as conn:
+            row=await (await conn.execute("SELECT document FROM capabilities.actions WHERE id=%s",(action_id,))).fetchone()
+        if not row:raise Fault("not_found",404)
+        return ServiceClass(json.loads(row["document"]).get("service_class","elastic"))
+
+    async def watch_cancel(self,action_id,owner):
+        """Transient control observation for the actual task, including nested foreground work."""
+        while True:
+            await asyncio.sleep(1)
+            async with self.database.transaction(control=True,read_only=True) as conn:
+                row=await (await conn.execute("SELECT document FROM capabilities.actions WHERE id=%s",(action_id,))).fetchone()
+            if row and json.loads(row["document"]).get("cancel_requested"):
+                owner.cancel();return
+
+    async def save(self,receipt,attempt):
+        receipt=replace(receipt,result={**receipt.result,"source_refs":wire(result_sources(receipt))})
+        async with self.database.transaction() as conn:
+            old=await (await conn.execute("SELECT attempt,document,receipt,action,result_revision,result_observed_at FROM capabilities.actions WHERE id=%s FOR UPDATE",(receipt.action_id,))).fetchone()
+            if not old or old["attempt"]["attempt_id"]!=attempt.attempt_id:raise Fault("attempt_changed",409)
+            previous_receipt=receipt_from(old["receipt"])
+            cancel_requested=json.loads(old["document"]).get("cancel_requested")
+            if previous_receipt.execution in {"succeeded","failed","cancelled"} and previous_receipt.effect!="unknown" and receipt.execution!="succeeded":
+                if not cancel_requested:return previous_receipt
+                receipt=replace(previous_receipt,receipt_id=str(uuid4()))
+            persisted=attempt_from(old["attempt"])
+            attempt=replace(persisted,finished_at=datetime.now(UTC) if receipt.execution not in {"pending","running"} else None)
+            if json.loads(old["document"]).get("cancel_requested"):
+                receipt=replace(receipt,result={**receipt.result,"cancel_requested":True,"sharing":{"decision":"archive","reason":"cancel_requested"}})
+            previous=dict(old["receipt"]);current=wire(receipt)
+            if {k:v for k,v in previous.items() if k!="receipt_id"}=={k:v for k,v in current.items() if k!="receipt_id"}:receipt=replace(receipt,receipt_id=previous["receipt_id"])
+            changed=old["receipt"]!=wire(receipt)
+            revision=old["result_revision"]+int(changed)
+            observed_at=datetime.now(UTC) if changed else old["result_observed_at"]
+            await conn.execute("UPDATE capabilities.actions SET receipt=%s::jsonb,attempt=%s::jsonb,result_revision=%s,result_observed_at=%s WHERE id=%s",(encoded(receipt),encoded(attempt),revision,observed_at,receipt.action_id))
+            await conn.execute("INSERT INTO capabilities.attempts(id,action_id,attempt,receipt) VALUES(%s,%s,%s::jsonb,%s::jsonb) ON CONFLICT(id) DO UPDATE SET attempt=excluded.attempt,receipt=excluded.receipt",(attempt.attempt_id,receipt.action_id,encoded(attempt),encoded(receipt)))
+            if self.events and receipt.execution in {"succeeded","failed","cancelled","unknown"} and old["receipt"]!=wire(receipt):
+                await self.events.publish(conn,{"type":"capability.result","version":1,"event_id":receipt.receipt_id,"action_id":receipt.action_id,"result_revision":revision,"result_observed_at":observed_at.isoformat() if observed_at else None,"context":old["action"]["context"],"source_refs":old["action"].get("source_refs",[]),"receipt":wire(receipt)})
+        return receipt
+    async def reconcile(self,action_id,context):
+        await self.get(action_id,context);action,attempt,current=await self._load(action_id)
+        if current.execution in {"succeeded","failed","cancelled"} and current.effect!="unknown":return current
+        handler=await self.handler(action)
+        if getattr(handler,"requires_worker",False) and not self.worker:return await self.enqueue_control(action,attempt,current,"reconcile")
+        return await self.save(await handler.reconcile(action,attempt),attempt)
+    async def cancel(self,action_id,context):
+        await self.get(action_id,context);action,attempt,current=await self._load(action_id)
+        if current.execution in {"succeeded","failed","cancelled"} and current.effect!="unknown":return current
+        async with self.database.transaction() as conn:
+            await conn.execute("UPDATE capabilities.actions SET document=(document::jsonb||%s::jsonb)::text WHERE id=%s",(canonical({"cancel_requested":True}),action_id))
+            await self.jobs.cancel(conn,action_id)
+        task=self.running.get(action_id)
+        if task and task is not asyncio.current_task():task.cancel();await asyncio.gather(task,return_exceptions=True);return (await self._load(action_id))[2]
+        if current.execution=="pending":receipt=Receipt(str(uuid4()),action_id,attempt.attempt_id,"cancelled","none","not_requested")
+        elif current.execution=="running":receipt=replace(current,result={**current.result,"cancel_requested":True})
+        else:
+            handler=await self.handler(action)
+            if getattr(handler,"requires_worker",False) and not self.worker:
+                return await self.enqueue_control(action,attempt,current,"cancel")
+            else:receipt=await handler.cancel(action,attempt)
+        return await self.save(receipt,attempt)
+    async def resume(self,action_id,context):
+        await self.get(action_id,context);action,old,current=await self._load(action_id)
+        handler=await self.handler(action)
+        if not hasattr(handler,"resume"):raise Fault("resume_unavailable",409)
+        if current.execution not in {"unknown","failed","cancelled"}:raise Fault("resume_state_invalid",409)
+        attempt=Attempt(str(uuid4()),action_id)
+        receipt=Receipt(str(uuid4()),action_id,attempt.attempt_id,"pending","none","not_requested")
+        async with self.database.transaction() as conn:
+            claimed=await (await conn.execute("UPDATE capabilities.actions SET attempt=%s::jsonb,receipt=%s::jsonb,document=(document::jsonb-'cancel_requested')::text,result_revision=result_revision+1,result_observed_at=now() WHERE id=%s AND attempt->>'attempt_id'=%s RETURNING id",(encoded(attempt),encoded(receipt),action_id,old.attempt_id))).fetchone()
+            if not claimed:raise Fault("attempt_changed",409)
+            await self.jobs.enqueue(conn,JobSpec("capabilities.execute",action_id+":resume:"+attempt.attempt_id,{"action_id":action_id,"mode":"resume"},service_class=ServiceClass.ELASTIC if handler.definition.long_running else ServiceClass.INTERACTIVE))
+        return receipt
+    async def enqueue_control(self,action,attempt,current,mode):
+        async with self.database.transaction() as conn:
+            await self.jobs.enqueue(conn,JobSpec("capabilities.control",action.action_id+":"+mode+":"+str(uuid4()),{"action_id":action.action_id,"mode":mode},service_class=ServiceClass.INTERACTIVE,subject_id=action.actor_id))
+        return replace(current,result={**current.result,mode+"_requested":True})
+
+    async def control(self,action_id,mode):
+        action,attempt,current=await self._load(action_id)
+        await self.authority.check(action.context,action.source_refs)
+        if mode=="reconcile":return await self.reconcile(action_id,action.context)
+        if mode=="cancel":return await self.cancel(action_id,action.context)
+        raise Fault("invalid_control",400)
+
+    def register_tasks(self):
+        self.jobs.register("capabilities.execute",self.run)
+        self.jobs.register("capabilities.control",self.control)
+
+def encoded(value):return canonical(wire(value))
+digest_json=encoded
+
+def result_sources(receipt):
+    from tianshu.types import SourceRef
+    refs=[ref for artifact in receipt.artifacts for ref in artifact.source_refs]
+    refs.extend(SourceRef(**value) for value in receipt.result.get("source_refs",[]))
+    for value in (receipt.result.get("source"),receipt.result.get("consumption",{}).get("source")):
+        if isinstance(value,dict) and "source_id" in value:refs.append(SourceRef(**value))
+    return tuple({(ref.source_id,ref.revision):ref for ref in refs}.values())

@@ -1,0 +1,231 @@
+{
+  "input": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "query": {
+        "type": "string",
+        "maxLength": 400,
+        "default": ""
+      },
+      "limit": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 20,
+        "default": 8,
+        "title": "每来源条数"
+      },
+      "page": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 100,
+        "default": 1
+      },
+      "sources": {
+        "type": "array",
+        "uniqueItems": true,
+        "minItems": 1,
+        "maxItems": 5,
+        "items": {
+          "enum": ["web", "bilibili", "music", "books", "comics"]
+        }
+      },
+      "exclude_keys": {
+        "type": "array",
+        "uniqueItems": true,
+        "maxItems": 256,
+        "items": {
+          "type": "string",
+          "maxLength": 256
+        }
+      },
+      "cursors": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "web": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "bilibili": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "music": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "books": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "comics": {
+            "type": "string",
+            "maxLength": 2048
+          }
+        }
+      }
+    }
+  },
+  "output": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["candidates", "sources", "omitted_count", "seen_state"],
+    "properties": {
+      "candidates": {
+        "type": "array",
+        "maxItems": 100,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "content_key",
+            "candidate_key",
+            "source",
+            "kind",
+            "title",
+            "authors",
+            "summary",
+            "summary_kind",
+            "text_truncated",
+            "published_at",
+            "owner_version",
+            "metadata_digest",
+            "discovered_at",
+            "source_observed_at",
+            "read_locator",
+            "readability",
+            "seen_state"
+          ],
+          "properties": {
+            "content_key": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "candidate_key": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "source": {
+              "enum": ["web", "bilibili", "music", "books", "comics"]
+            },
+            "kind": {
+              "enum": ["webpage", "video", "audio", "book", "comic"]
+            },
+            "title": {
+              "type": ["string", "null"],
+              "maxLength": 512
+            },
+            "authors": {
+              "type": "array",
+              "maxItems": 8,
+              "items": {
+                "type": "string",
+                "maxLength": 160
+              }
+            },
+            "summary": {
+              "type": "string",
+              "maxLength": 2000
+            },
+            "summary_kind": {
+              "enum": ["search_snippet", "catalog_description"]
+            },
+            "text_truncated": {
+              "type": "boolean"
+            },
+            "published_at": {
+              "type": ["string", "number", "null"]
+            },
+            "owner_version": {
+              "type": ["string", "null"],
+              "maxLength": 160
+            },
+            "metadata_digest": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "discovered_at": {
+              "type": "string"
+            },
+            "source_observed_at": {
+              "type": ["string", "number", "null"]
+            },
+            "read_locator": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["owner", "kind", "id", "url", "source_key"],
+              "properties": {
+                "owner": {
+                  "enum": ["knowledge", "media"]
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "id": {
+                  "type": ["string", "null"],
+                  "maxLength": 256
+                },
+                "url": {
+                  "type": ["string", "null"],
+                  "maxLength": 4096
+                },
+                "source_key": {
+                  "type": ["string", "null"],
+                  "maxLength": 256
+                }
+              }
+            },
+            "readability": {
+              "enum": ["unverified", "adapter_required"]
+            },
+            "seen_state": {
+              "const": "unknown"
+            }
+          }
+        }
+      },
+      "sources": {
+        "type": "array",
+        "maxItems": 5,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source", "state", "code", "has_more", "next_cursor"],
+          "properties": {
+            "source": {
+              "enum": ["web", "bilibili", "music", "books", "comics"]
+            },
+            "state": {
+              "enum": [
+                "ok",
+                "partial",
+                "unavailable",
+                "not_configured",
+                "not_requested"
+              ]
+            },
+            "code": {
+              "type": ["string", "null"],
+              "maxLength": 80
+            },
+            "has_more": {
+              "type": ["boolean", "null"]
+            },
+            "next_cursor": {
+              "type": ["string", "null"],
+              "maxLength": 2048
+            }
+          }
+        }
+      },
+      "omitted_count": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "seen_state": {
+        "const": "unknown"
+      }
+    }
+  }
+}

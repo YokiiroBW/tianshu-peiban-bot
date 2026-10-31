@@ -46,6 +46,7 @@ class PhotoIntent:
     dedup_key:str
     target_ref:str|None=None
     artifact_ids:tuple[str,...]=()
+    delivery_kind:Literal["create_only","share_candidate","requested_delivery"]="share_candidate"
 
 @dataclass(frozen=True)
 class ReactionIntent:
@@ -69,5 +70,6 @@ class ConsumptionReceipt:
     sampling:str|None=None
     omitted:tuple[str,...]=()
     next_position:Mapping[str,Any]|None=None
-    understood:bool=False
+    analysis_completed:bool=False
+    analysis_artifact_id:str|None=None
     model_attempt_id:str|None=None

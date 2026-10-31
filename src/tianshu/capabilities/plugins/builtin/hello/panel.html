@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-CN">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  />
+  <style>
+    body {
+      font:
+        15px system-ui,
+        sans-serif;
+      background: var(--color-surface, #fff);
+      color: var(--color-text, #232c45);
+      padding: 18px;
+      margin: 0;
+    }
+    form {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    input,
+    button {
+      font: inherit;
+      border: 1px solid var(--color-line, #ccd);
+      border-radius: 8px;
+      padding: 10px;
+    }
+    input {
+      flex: 1;
+      min-width: 120px;
+      background: var(--color-input, #f3f5fc);
+      color: inherit;
+    }
+    button {
+      background: var(--color-accent, #465bd6);
+      color: var(--color-surface, #fff);
+      cursor: pointer;
+    }
+    p {
+      overflow-wrap: anywhere;
+    }
+  </style>
+  <h3>独立页面回声</h3>
+  <form id="echo-form">
+    <input
+      id="echo-input"
+      aria-label="页面回声内容"
+      value="你好，天枢"
+    /><button type="submit">在独立页面执行</button>
+  </form>
+  <p id="echo-result" aria-live="polite">正在连接页面桥…</p>
+  <script>
+    const result = document.getElementById("echo-result");
+    let invocation;
+    addEventListener("tianshu:ready", () => {
+      result.textContent = "页面已连接";
+    });
+    addEventListener("tianshu:invocation", (event) => {
+      if (
+        event.detail.receipt.id === invocation &&
+        event.detail.receipt.result
+      ) {
+        result.textContent = event.detail.receipt.result.text;
+      }
+    });
+    document
+      .getElementById("echo-form")
+      .addEventListener("submit", async (event) => {
+        event.preventDefault();
+        try {
+          const receipt = await tianshu.call("callAction", {
+            action: "echo",
+            input: { text: document.getElementById("echo-input").value },
+          });
+          invocation = receipt.id;
+          const current = await tianshu.call("subscribeInvocation", {
+            id: invocation,
+          });
+          result.textContent = current.result?.text || "执行已受理";
+        } catch (error) {
+          result.textContent = error.message;
+        }
+      });
+  </script>
+</html>

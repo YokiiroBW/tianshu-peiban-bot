@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianshu.invalid/contracts/plugin-runtime/candidate-v1/schemas/plugin.schema.json",
+  "title": "Plugin package manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "name",
+    "version",
+    "description",
+    "author",
+    "entrypoint",
+    "sdk",
+    "capabilities"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]*(?:\\.[a-z][a-z0-9_-]*)+$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "$ref": "common.schema.json#/$defs/version"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "author": {
+      "type": "string",
+      "minLength": 1
+    },
+    "license": {
+      "type": "string",
+      "minLength": 1
+    },
+    "repository": {
+      "type": "string",
+      "format": "uri"
+    },
+    "entrypoint": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*:[A-Za-z_][A-Za-z0-9_]*$"
+    },
+    "sdk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "min",
+        "max_exclusive"
+      ],
+      "properties": {
+        "min": {
+          "$ref": "common.schema.json#/$defs/version"
+        },
+        "max_exclusive": {
+          "$ref": "common.schema.json#/$defs/version"
+        }
+      }
+    },
+    "config_schema": {
+      "$ref": "common.schema.json#/$defs/path"
+    },
+    "contributions_file": {
+      "$ref": "common.schema.json#/$defs/path"
+    },
+    "dependency_lock": {
+      "$ref": "common.schema.json#/$defs/path"
+    },
+    "binding_overrides": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_.-]{0,95}$"
+      }
+    },
+    "data_version": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "config_version": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "optional"
+      ],
+      "properties": {
+        "required": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/capability"
+          }
+        },
+        "optional": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/$defs/capability"
+          }
+        }
+      }
+    }
+  }
+}

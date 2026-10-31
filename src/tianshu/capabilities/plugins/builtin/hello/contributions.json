@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "views": [{"id": "panel", "title": "独立页面回声", "entry": "panel.html", "actions": ["echo"]}],
+  "actions": [
+    {
+      "id": "echo",
+      "title": "回声",
+      "handler": "echo",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        }
+      },
+      "effect": "read",
+      "timeout_seconds": 30,
+      "idempotency": "none",
+      "resumable": false,
+      "required_capabilities": []
+    }
+  ],
+  "commands": [
+    {
+      "id": "echo",
+      "names": [
+        "/echo"
+      ],
+      "action": "echo",
+      "arguments": [
+        {
+          "property": "text",
+          "position": 0,
+          "rest": true
+        }
+      ]
+    }
+  ],
+  "tools": [
+    {
+      "name": "echo",
+      "action": "echo",
+      "description": "原样返回文字，用于检查插件入口是否连通"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # CR11/13/14/15/17 能力域交接
 
-状态：开发中，`implemented_not_tested`。基线 e034276dfb757b7dd64cd2f56e952d81193a5248；分支 codex/cr-capabilities；专属目录 src/tianshu/capabilities、packages/tianshu-plugin、tests/capabilities。
+状态：能力主体已实现，`implemented_not_tested`；渠道 C 另卡继续。基线 e034276dfb757b7dd64cd2f56e952d81193a5248；分支 codex/cr-capabilities；专属目录 src/tianshu/capabilities、packages/tianshu-plugin、tests/capabilities。
 
 ## 稳定的跨域端口
 
@@ -12,7 +12,7 @@
 - SourcePort.read(context,SourceRef,requested) 返回实际原件/表示及已覆盖范围；能力层不能把搜索摘要登记成全文。
 - LifeSnapshotPort.scene(context,activity_id=None)：返回 SceneSnapshot 对应字段，天气包含 observed_at/expires_at/source；未知天气返回 null。生活域拥有活动与日程当前状态。
 - LifeSnapshotPort.sharing(context,action_id=...,window=...)：返回 {decision:send|defer|archive|cancel,target_ref,due_at,reason}。生成完成不代表立即分享；target_ref 必须已由可信身份确定。
-- ExpressionPort.present(context,expression_id=...,artifacts=...,public_parts=...) 返回 Receipt。只有表达/渠道出口真正发送，capabilities 不另发 QQ。
+- ExpressionPort.send(context,ExpressionPlan) 返回 Receipt。只有表达/渠道出口真正发送，capabilities 不另发 QQ。
 - ResultEvents.publish(connection,event)：使用动作结果的同一 PG 事务发布一次 capability.result；事件稳定身份为 receipt_id。Memory/Life 按自己的消费水位幂等消费，不建立第二动作队列。
 - 模型/外部资源统一 Broker；Fish/Comfy/NAI/GPT 调用 `Broker.resource(ExternalRequest)`，提交/完成/unknown 由 permit 持久记录，不建局部账户/GPU semaphore。
 
@@ -32,7 +32,7 @@
 | content | view、discover、read、continue、video.observe |
 | capabilities | discover/invoke/get/cancel/reconcile；upload；GET media/{media_id}原件 |
 
-图包导入 body `{name,actor_ids,scope_ids,files:[{filename,media_type,data_base64}]}`，ZIP可用 archive_base64。普通上传不自动成为共享表情。语音试听 `{profile_id,text,connection_id?,model?,voice_id?}`；转写提供 MediaRef 和原 source_event_id。图像预览/生成 `{actor_id,engine_id,profile_id,prompt,purpose:selfie|creation,share,scene_revision?,outfit_id?,activity_id?,reference_ids?}`；真实触发来源从TrustedContext取得。
+图包导入 body `{name,actor_ids,scope_ids,files:[{filename,media:MediaRef}]}`；小图仍接受 data_base64，ZIP优先 archive_media，亦接受小 archive_base64。packs.update 支持 name/enabled/actor_ids/scope_ids，assets.batch 以 items:[{id,expected_revision,description?,ocr?,actions?,purposes?,tags?,enabled?}] 同事务分类。普通上传不自动成为共享表情。语音试听 `{profile_id,text,connection_id?,model?,voice_id?}`；转写提供 MediaRef 和原 source_event_id。图像预览/生成 `{actor_id,engine_id,profile_id,prompt,purpose:selfie|creation,share,scene_revision?,outfit_id?,activity_id?,reference_ids?}`；真实触发来源从TrustedContext取得。
 
 ## 新投影字段
 
@@ -41,8 +41,70 @@
 - reactions/view：{packs:[{id,revision,name,actor_ids,scope_ids,asset_count}],assets:[{id,revision,pack_id,media:MediaRef,description,ocr,actions,purposes,animated,index_state,embedding_profile}],index:{profile:null|string,pending,failed},next_cursor}。
 - images/view：{engines:[{id,revision,engine:comfyui|nai|gpt_image,enabled,configured,model,quota_group,capabilities,state,reason}],profiles:[{id,revision,actor_id,engine_id,workflow_id,character,references,outfit_defaults}],workflows:[{id,revision,name,bindings,outputs}],identity:null|{actor_id,references},outfits,scene:null|SceneSnapshot,jobs:[{action_id,attempt_id,execution,effect,artifacts,reason}],album:[ArtifactRef]}。
 - images/preview：{scene:SceneSnapshot,intent:ImageIntent,engine_id,compiled:{prompt,negative_prompt,parameters,references},warnings:[]}。
-- GET /api/v1/capabilities/media/{media_id}：同源鉴权和来源/范围复核后返回实际字节；POST capabilities/upload 的 data={media:MediaRef}，不暴露本机路径/秘密或供应商永久链接。
+- GET /api/v1/capabilities/media/{media_id}：同源鉴权和来源/范围复核后返回实际字节；POST capabilities/upload 的 data={artifact:ArtifactRef}，不暴露本机路径/秘密或供应商永久链接。
 
 ## 验证边界
 
-用户要求全部集成后统一验证，因此未运行测试/build/typecheck/真实模型或任何收费调用。当前文件存在和源码实现不代表外部实机验收。后续提交将更新本记录的实际能力和待接线项。
+用户要求全部集成后统一验证，因此未运行测试/build/typecheck/真实模型或任何收费调用。源码实现不代表外部实机验收。已写定向用例，未执行；下述静态核对不计测试通过。
+
+
+## 已实现的业务与复用
+
+- CR11：单一 Actions/Catalog，原生 PG Action/Attempt/Receipt、稳定意图幂等、同事务 Procrastinate 与结果事件、取消及未知恢复。迁入成熟插件包安装/隔离依赖/stdio RPC/实例修订/角色绑定/动作/命令/工具/事件/页面/定时任务/升级回滚；SDK public import 仍为 `tianshu_plugin`（2.0.0）。插件只有 worker 进程拥有宿主，interactive 查询与真实提交 Action。
+- CR13B：Fish Plus OAuth PKCE + Streamable HTTP MCP 动态 tools/list/inputSchema；原生 HTTP/MessagePack、SSE 累积时间轴、WS、s2-pro/s2.1-pro/s2.1-pro-free/drama3、固定 voice/reference、文件 ASR、私有克隆、音色检索、词典。另保留显式 Edge/OpenAI compatible 路线。不会因失败切另一个账户或模型。books 保留章节缓存、分段、播放时间轴、ffmpeg 拼接与进度，仅实际每段合成进入同一 speech Action/Broker。
+- CR13A/C、CR15：图片/音频/视频的实际 ModelPart，GIF 原件与首尾在内多帧采样；实际视频按最多30秒页解码真实帧/音频/字幕、保留时间和缺失/继续位置及分析产物。ConsumptionReceipt.analysis_completed 是执行证据，不保证理解正确。图包保留 GIF、导入/导出/修订/批量分类/启停/去重/实际标注与单1024 embedding profile语义筛选。
+- CR14：SearXNG、现有媒体目录及 B站搜索候选；真实网页/论坛正文、原作者/楼层/引用/分页与 Discourse；搜索摘要始终未读候选。B站实际原件通过已复用 yt-dlp/Bilibili 连接器受控获取与 Sources 登记，分页视频必须明确 CID。
+- CR17A/B：冻结 Life 场景、活动/时间/天气有效期/穿搭/角色参考后，实际 Broker image.plan 只规划姿态/表情/镜头/光线；Comfy 受审 API 图与类型绑定、NAI 原生 ZIP/API、GPT Image JSON或multipart编辑均有真实适配。稳定UUID及服务端实际句柄分开登记；Comfy查询/取消不占GPU生成位。delivery_kind 明确 create_only/share_candidate/requested_delivery，能力不自行发送。
+- CR17：成熟 B站订阅/下载/元数据/去重/整理/媒体服务器或外部资产发布；音乐多源获取/解码/标签/歌词/质量比较/Navidrome；Legado规则/仓库/书源/本地TXT及EPUB/章节/订阅/听书；Suwayomi/扩展/CBZ/Komga/漫画文件插件；基础设施现有节点协议/真实远端控制与观察；Home Assistant固定灯/开关模板的目标状态实读；GSCore真实语义命令与首片段协议。没有把这些换成通用 CRUD。
+
+迁入来源固定为 execution/sources JSON 的 Platform 21bdb7b、Companion 72d2854、R67 application d352b92。LegadoParser 许可证与精确源码来源保留在 media/books/_vendor。新产品不导入原产品包、不依赖 projects、无 SQLite/qmark 转译或双后端路径。
+
+## 装配、事件和读取
+
+`module.build_module(runtime, *, settings, authority, sources, life, expression=None, result_events=None, authorize_actor=None, actor_directory=None, worker=None)` 返回 `(DomainModule, Capabilities)`。settings 必须只传 `runtime.settings.document.get('capabilities', {})`；worker 归属以真实 runtime.role 为准。先构造不依赖 Actions 的 LifePresentation，再构造能力/Channels/Expression 等，由根注入 Expression 和事件消费者。能力 start 在迁移后创建成熟 owner；register_tasks 在 readiness 前登记完整统一任务集合。schema.sql 由 foundation 总迁移注册，不由构造函数执行 DDL。
+
+A/B 额外用例直接 `capabilities.catalog.register(handler)`，handler.definition=CapabilityDefinition；async availability(context)、execute(Action,Attempt)、reconcile(Action,Attempt)、cancel(Action,Attempt) 均返回正式类型。不存在第二工具目录。工具名必须合法，model_tool={name}，public_command={name,aliases}，long_running 明确影响 worker 份额。短前台工具用统一 Procrastinate INTERACTIVE，长图像/语音/下载/听书 ELASTIC，DUE只用于真正到期任务；根基础依赖6a02a97提供三份真实消费者。
+
+Actions.get 返回 `{action:wire dict,attempt:wire dict,receipt:wire dict,result_revision:int,result_observed_at:aware datetime|None}`。HTTP转ISO；pending初始revision0不代表完成。save 持行锁递增实际结果修订，重放不改变观察时间，同一已确认结果不会被晚到pending/running/unknown覆盖。事件为 `{type:'capability.result',version:1,event_id:receipt_id,action_id,result_revision,result_observed_at:ISO,context:wire,source_refs:wire,receipt:wire}`，同事务发布终态变化。Memory以原action身份修订一个episode，不能把unknown与恢复成功计为两次经历。
+
+顶层 Receipt.result.source_refs 汇总正式返回source/source_refs、consumption.source与artifact来源；读取/重放均重新核权，不扫描任意JSON的id。SDK显式 messages.present 固定 expression_id 后调用 Expression.send，回填真实 delivery；普通生成只给产物，由B消费一次表达。
+
+`speech.expression_profile(ctx)` 返回 `{profile_id,revision,output_mode:text|audio|both|natural}`或None；固定角色ID默认profile/角色唯一profile，多个未选默认不猜音色。ReadingAccess.read 保持 active/grant_current/observed_at/catalog 形状，且明确人类阅读位置、75秒共享窗口、私聊和准确范围；有效excerpt通过Sources登记 human_reading_observation 来源，不能写成BOT完整读过。
+
+## 部署设置与实际 API
+
+能力 settings 子树：
+
+- state_directory：绝对持久目录（默认 FileStore.root.parent/capabilities）；file_workers 默认2，只用于有界文件操作，与短PG仓储线程和网络/受管子进程分开。
+- media：enabled/staging_directory/package_contract_directory（默认内置契约）/engine{python,ffmpeg,ffprobe,timeout_seconds,max_bytes}/targets/storage_mappings/import_roots/scan_page_limit/scan_item_limit/scan_timeout_seconds/workers；成熟媒体配置字段保留，凭据通过原安全配置或密封API写入。
+- plugins：package_directory、comic_files{runtime_socket,defaults?}、resources[instance_id]{quota_group,provider_id,account_id}。物理资源组必须已在Broker登记；http.client是实际外部工具，也经Broker许可。配置缺失不另生本地池。
+- infrastructure：directory/contract_directory/executor{command,directory}/control{contract_directory,executor}/poll_interval_seconds/stale_after_seconds/timeout_ms/platform_node_id；节点的真实外部账户/设备仍由原协议守护。
+- speech/images/reactions/devices/content/game 的连接、profile、词典和素材由领域 PG 配置/密封凭据保存，不把全根设置或明文secret散发给插件。API秘密字段只写不回显，命令原文敏感输入加密存储，Action只保留稳定引用和摘要。
+
+`POST /api/v1/capabilities/upload` 是受控 multipart（client_request_id首字段、file，默认最大512MiB）；先FileStore.put_async真实封存对象→Sources.register_media→Action登记artifact。不得用用户自报SHA认领原件。`GET|HEAD /api/v1/capabilities/media/{media_id}` 对 artifact: 与 source: 显式按归属授权，支持真实MIME/长度/Range206、416、ETag；范围/304前先核权，不跨域not_found回退，不绕HTTP解析自己原件。前端请求actor_id/conversation_id选择器由A核实，禁止scope/audience自报。
+
+插件ZIP可先上传，再 install.source={type:'artifact',media:MediaRef}（≤6MiB）；图包 archive_media；books/library/import 支持 filename+media（≤64MiB）。旧小base64仅保留作为实际小件参数，不承担长音视频上传。插件 view-content 返回一次受权ticket URL，GET /plugins/page/{ticket}输出真实HTML/CSP；books/comics文件由同域files路径返回受控FileResponse。
+
+系统公开 `POST /api/v1/system/{view,tasks,resources,logs}`，config.publish权限，真实委托runtime.diagnostics，logs带start_ns/end_ns/role?/limit?，不另造任务/日志账本。设备 view/connections.save/refresh/control，游戏 connections.save/query。其他成熟操作的完整枚举为 operations.MATURE_OPERATIONS（下表）。
+
+| 域 | 正式 operation |
+|---|---|
+| media | accounts/check, accounts/import, accounts/qr/poll, accounts/qr/start, accounts/revoke, enqueue, jobs/control, jobs/delete, jobs/detail, jobs/list, jobs/metadata, jobs/refresh_metadata, resolve, rules/preview, subscriptions/control, subscriptions/destination-preview, subscriptions/save, subscriptions/scan, targets/remove, targets/save, targets/test, view |
+| books | audio/control, audio/estimate, audio/generate, audio/manifest, audio/retry, audio/settings, audio/settings/save, audio/view, chapters, detail, downloads/create, feeds/control, feeds/refresh, feeds/save, library/import, library/rebuild, library/view, metadata/apply, metadata/search, preview, reading/close, reading/open, reading/progress, reading/view, search/cancel, search/results, search/start, settings/save, sources/control, sources/export, sources/import, sources/list, subscriptions/control, subscriptions/save, subscriptions/scan, view, warehouse/browse, warehouse/detail, warehouse/subscribe |
+| music | accounts/qr/poll, accounts/qr/start, accounts/revoke, library/link, library/scan, library/view, maintenance/save, navidrome/disable, navidrome/playlists/control, navidrome/playlists/save, navidrome/save, navidrome/test, playlists/control, playlists/detail, playlists/download, playlists/downloads, playlists/export, playlists/list, playlists/scan, playlists/subscribe, settings/inspect, settings/save, view |
+| comics | connections/probe, detail, downloads/enqueue, extensions/control, extensions/view, imports/browse, imports/enqueue, imports/inspect, library/view, metadata/save, search/cancel, search/results, search/start, settings/save, sources/control, sources/list, sources/refresh, subscriptions/control, subscriptions/save, subscriptions/scan, view |
+| infrastructure | catalog/refresh, container, containers, control/action, control/detail, control/execute, control/operation, control/operations, control/plan, control/view, host, logs, logs/refresh, node, refresh, save, test, view |
+
+
+## 已做的静态核对与真实剩余
+
+已静态解析能力/SDK/必要用例的Python AST与JSON，核对相对模块存在；扫描旧产品导入、SQLite、旧/api/web路径、SQL占位和迁入JSON表达式；人工检查关键调用链与diff。没有运行pytest/unittest、build、typecheck、浏览器、数据库迁移、网络供应商或真实设备/消息。定向用例是待CR19执行的材料，不是通过证据。
+
+源码已保留的真实限制：Legado webView浏览器脚本仍是原实现明确不支持（普通HTTP规则有效）；GSCore只保证真实首片段，complete=false，不冒称整段处理完成；MCP工具参数来自实际连接schema，不支持的reference/private字段准确拒绝；供应商没有查询句柄的丢失结果保持unknown，不能盲重生。Comfy/NAI/GPT/Fish未配置账号或quota_group为not_configured，均有实际适配，未标成未实现。没有账号的引擎本轮未做真实调用验收。
+
+跨域实际装配、原生PG执行、打包静态资源、三队列混合负载/取消、A/B来源与Expression、channels OneBot/TG/外宿主桥、真实场景均由完整集成后的CR19集中验证；C组在本主体提交后继续。根pyproject/lock/总迁移/域启动由foundation单写，能力提交不包含共享文件。
+
+
+取消控制补充：API持久写cancel_requested并请求同一Procrastinate原job abort；实际运行Action有短周期控制观察，取消传到真正的async I/O/受管ffmpeg或SDK plugin.cancel。插件reconcile/孤立cancel经统一interactive控制任务交唯一worker宿主，interactive进程不启动第二Host。安装包的封存/原子目录操作会先等已开始的本地文件步骤收尾，不把尚未停下的工作显示为已取消。显式resume新Attempt清除旧取消标记；unknown不自动续写或重收费。
+
+本主体依赖链（只供集成人核对，不把这些文件重复纳入能力提交）：ec2fc7c、84ad865、220249b、94e2020、7f6ffc8、9864139、7acd976、6a02a97，均已在本工作树消费。后续B最终合同与C独立提交另行交接。

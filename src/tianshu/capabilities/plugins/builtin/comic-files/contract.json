@@ -1,0 +1,19 @@
+{
+  "status": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["state", "roles"],
+    "properties": {
+      "state": {"enum": ["ready", "starting", "stopped", "failed"]},
+      "roles": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["inputs", "publisher"],
+        "properties": {
+          "inputs": {"enum": ["running", "stopped", "failed"]},
+          "publisher": {"enum": ["running", "stopped", "failed"]}
+        }
+      }
+    }
+  }
+}

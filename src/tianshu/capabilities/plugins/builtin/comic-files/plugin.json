@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "id": "tianshu.comics-files",
+  "name": "漫画文件辅助",
+  "version": "1.0.0",
+  "description": "在天枢容器内部管理漫画原库只读输入与成品发布，保留现有文件身份和断点回执。",
+  "author": "TianShu",
+  "entrypoint": "main:ComicFilesPlugin",
+  "sdk": {
+    "min": "2.0.0",
+    "max_exclusive": "3.0.0"
+  },
+  "capabilities": {
+    "required": [
+      {
+        "id": "comics.files",
+        "major": 1
+      }
+    ],
+    "optional": []
+  }
+}

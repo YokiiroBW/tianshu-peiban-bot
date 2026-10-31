@@ -1,0 +1,158 @@
+[
+  {
+    "name": "single",
+    "manifest": {
+      "schema_version": 1,
+      "package_id": "11111111-1111-4111-8111-111111111111",
+      "staging_ref": "stage-synthetic-single",
+      "library_id": "22222222-2222-4222-8222-222222222222",
+      "provider": "bilibili",
+      "bvid": "BV0000000001",
+      "layout": "single",
+      "media_extension": "mp4",
+      "selected_parts": [
+        {
+          "cid": "101",
+          "episode_number": null
+        }
+      ],
+      "files": [
+        {
+          "path": "movie.nfo",
+          "kind": "nfo",
+          "cid": null,
+          "size_bytes": 605,
+          "sha256": "1b2d9896472c98fc08928573c5b9f259077f0d7498d607b847efde2b7bbb2fc7"
+        },
+        {
+          "path": "poster.png",
+          "kind": "poster",
+          "cid": null,
+          "size_bytes": 39,
+          "sha256": "e431e99b41ee429184d1a53d07b3a4955a1893def6506a78cc2adc7d2b38e1ea"
+        },
+        {
+          "path": "source.json",
+          "kind": "source",
+          "cid": null,
+          "size_bytes": 1473,
+          "sha256": "703cd532ee592914b141eae977113c1b90a76e531bb71cec33ad22346d0874b5"
+        },
+        {
+          "path": "video.mp4",
+          "kind": "video",
+          "cid": "101",
+          "size_bytes": 37,
+          "sha256": "2ddedbd9f7ccdedfb453637258e556e88e12d6fcfa21903e766608116a7b4036"
+        }
+      ]
+    },
+    "manifest_base64": "eyJidmlkIjoiQlYwMDAwMDAwMDAxIiwiZmlsZXMiOlt7ImNpZCI6bnVsbCwia2luZCI6Im5mbyIsInBhdGgiOiJtb3ZpZS5uZm8iLCJzaGEyNTYiOiIxYjJkOTg5NjQ3MmM5OGZjMDg5Mjg1NzNjNWI5ZjI1OTA3N2YwZDc0OThkNjA3Yjg0N2VmZGUyYjdiYmIyZmM3Iiwic2l6ZV9ieXRlcyI6NjA1fSx7ImNpZCI6bnVsbCwia2luZCI6InBvc3RlciIsInBhdGgiOiJwb3N0ZXIucG5nIiwic2hhMjU2IjoiZTQzMWU5OWI0MWVlNDI5MTg0ZDFhNTNkMDdiM2E0OTU1YTE4OTNkZWY2NTA2YTc4Y2MyYWRjN2QyYjM4ZTFlYSIsInNpemVfYnl0ZXMiOjM5fSx7ImNpZCI6bnVsbCwia2luZCI6InNvdXJjZSIsInBhdGgiOiJzb3VyY2UuanNvbiIsInNoYTI1NiI6IjcwM2NkNTMyZWU1OTI5MTRiMTQxZWFlOTc3MTEzYzFiOTBhNzZlNTMxYmI3MWNlYzMzYWQyMjM0NmQwODc0YjUiLCJzaXplX2J5dGVzIjoxNDczfSx7ImNpZCI6IjEwMSIsImtpbmQiOiJ2aWRlbyIsInBhdGgiOiJ2aWRlby5tcDQiLCJzaGEyNTYiOiIyZGRlZGJkOWY3Y2NkZWRmYjQ1MzYzNzI1OGU1NTZlODhlMTJkNmZjZmEyMTkwM2U3NjY2MDgxMTZhN2I0MDM2Iiwic2l6ZV9ieXRlcyI6Mzd9XSwibGF5b3V0Ijoic2luZ2xlIiwibGlicmFyeV9pZCI6IjIyMjIyMjIyLTIyMjItNDIyMi04MjIyLTIyMjIyMjIyMjIyMiIsIm1lZGlhX2V4dGVuc2lvbiI6Im1wNCIsInBhY2thZ2VfaWQiOiIxMTExMTExMS0xMTExLTQxMTEtODExMS0xMTExMTExMTExMTEiLCJwcm92aWRlciI6ImJpbGliaWxpIiwic2NoZW1hX3ZlcnNpb24iOjEsInNlbGVjdGVkX3BhcnRzIjpbeyJjaWQiOiIxMDEiLCJlcGlzb2RlX251bWJlciI6bnVsbH1dLCJzdGFnaW5nX3JlZiI6InN0YWdlLXN5bnRoZXRpYy1zaW5nbGUifQo=",
+    "manifest_sha256": "29992f80e13b8a00ad4b87dd9252942323dc126cac4f23e5f3866cbd3cecf343",
+    "file_payloads_base64": {
+      "movie.nfo": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiIHN0YW5kYWxvbmU9InllcyI/Pgo8bW92aWU+CiAgPHRpdGxlPuWQiOaIkOaKleeovyAmYW1wOyDmoIfpopg8L3RpdGxlPgogIDxvcmlnaW5hbHRpdGxlPuWQiOaIkOaKleeovyAmYW1wOyDmoIfpopg8L29yaWdpbmFsdGl0bGU+CiAgPHBsb3Q+5LuF55So5LqO6ZqU56a76aKE5qOA55qE5ZCI5oiQ5YaF5a65PC9wbG90PgogIDx5ZWFyPjIwMjY8L3llYXI+CiAgPHByZW1pZXJlZD4yMDI2LTA5LTE5PC9wcmVtaWVyZWQ+CiAgPHRhZz7lkIjmiJDlpLnlhbc8L3RhZz4KICA8YWN0b3I+CiAgICA8bmFtZT7lkIjmiJBVUDwvbmFtZT4KICAgIDxyb2xlIGluZm9zZXQ9InRydWUiIG5hbWU9InVwbG9hZGVyIiBsYW5ndWFnZT0iemgtQ04iPlVQ5Li7PC9yb2xlPgogICAgPG9yZGVyPjA8L29yZGVyPgogIDwvYWN0b3I+CiAgPHJ1bnRpbWU+MTwvcnVudGltZT4KICA8dGh1bWIgYXNwZWN0PSJwb3N0ZXIiPnBvc3Rlci5wbmc8L3RodW1iPgogIDx1bmlxdWVpZCB0eXBlPSJiaWxpYmlsaSIgZGVmYXVsdD0idHJ1ZSI+YmlsaWJpbGk6dmlkZW86QlYwMDAwMDAwMDAxOmNpZDoxMDE8L3VuaXF1ZWlkPgo8L21vdmllPgo=",
+      "source.json": "ewogICJidmlkIjogIkJWMDAwMDAwMDAwMSIsCiAgImNhbm9uaWNhbF91cmwiOiAiaHR0cHM6Ly93d3cuYmlsaWJpbGkuY29tL3ZpZGVvL0JWMDAwMDAwMDAwMS8iLAogICJjYXB0dXJlZF9hdCI6ICIyMDI2LTA5LTE5VDAxOjAwOjAwWiIsCiAgImNvdmVyX2F2YWlsYWJsZSI6IHRydWUsCiAgImNyZWF0b3JzIjogWwogICAgewogICAgICAia2V5IjogImJpbGliaWxpOmNyZWF0b3I6MzAzIiwKICAgICAgIm1pZCI6ICIzMDMiLAogICAgICAibmFtZSI6ICLlkIjmiJBVUCIsCiAgICAgICJuYW1lX21pc3NpbmciOiBmYWxzZSwKICAgICAgInJvbGUiOiAidXBsb2FkZXIiCiAgICB9CiAgXSwKICAiZGlzcGxheV9kZXNjcmlwdGlvbiI6ICLku4XnlKjkuo7pmpTnprvpooTmo4DnmoTlkIjmiJDlhoXlrrkiLAogICJkaXNwbGF5X3RpdGxlIjogIuWQiOaIkOaKleeovyAmIOagh+mimCIsCiAgImVwaXNvZGVfbnVtYmVycyI6IFtdLAogICJleHBlY3RlZF9tZWRpYSI6IFsKICAgIHsKICAgICAgImV4dGVuc2lvbiI6ICJtcDQiLAogICAgICAicGF0aCI6ICJ2aWRlby5tcDQiCiAgICB9CiAgXSwKICAiZmllbGRfc291cmNlcyI6IHsKICAgICJkZXNjcmlwdGlvbiI6ICJzb3VyY2UiLAogICAgInRpdGxlIjogInNvdXJjZSIKICB9LAogICJnZW5lcmF0b3IiOiAidGlhbnNodS1tZWRpYS1tZXRhZGF0YS8xIiwKICAiaXNzdWVzIjogW10sCiAgIml0ZW1fa2V5IjogImJpbGliaWxpOnZpZGVvOkJWMDAwMDAwMDAwMSIsCiAgImxheW91dCI6ICJzaW5nbGUiLAogICJtZWRpYV9leHRlbnNpb24iOiAibXA0IiwKICAibWVkaWFfa2V5IjogImJpbGliaWxpOnZpZGVvOkJWMDAwMDAwMDAwMTpjaWQ6MTAxIiwKICAib3JpZ2luYWxfZGVzY3JpcHRpb24iOiAi5LuF55So5LqO6ZqU56a76aKE5qOA55qE5ZCI5oiQ5YaF5a65IiwKICAib3JpZ2luYWxfdGl0bGUiOiAi5ZCI5oiQ5oqV56i/ICYg5qCH6aKYIiwKICAicGFydHMiOiBbCiAgICB7CiAgICAgICJjaWQiOiAiMTAxIiwKICAgICAgImR1cmF0aW9uX3NlY29uZHMiOiA2MCwKICAgICAgImVwaXNvZGVfbnVtYmVyIjogbnVsbCwKICAgICAgImluZGV4IjogMSwKICAgICAgInNlbGVjdGVkIjogdHJ1ZSwKICAgICAgInRpdGxlIjogIuWQiOaIkOesrOS4gOmbhiIsCiAgICAgICJ0aXRsZV9taXNzaW5nIjogZmFsc2UsCiAgICAgICJ2aWRlbyI6ICJ2aWRlby5tcDQiCiAgICB9CiAgXSwKICAicHJvdmlkZXIiOiAiYmlsaWJpbGkiLAogICJwdWJsaXNoZWRfYXQiOiAiMjAyNi0wOS0xOVQwMDowMDowMFoiLAogICJyZWZlcmVuY2VkX2ltYWdlcyI6IFsKICAgIHsKICAgICAgImNpZCI6IG51bGwsCiAgICAgICJwYXRoIjogInBvc3Rlci5wbmciLAogICAgICAicm9sZSI6ICJwb3N0ZXIiCiAgICB9CiAgXSwKICAic2NoZW1hX3ZlcnNpb24iOiAxLAogICJzZWxlY3RlZF9jaWRzIjogWwogICAgIjEwMSIKICBdLAogICJ0YWdzIjogWwogICAgIuWQiOaIkOWkueWFtyIKICBdCn0K",
+      "video.mp4": "U1lOVEhFVElDLU5PTlBMQVlBQkxFLVZJREVPOnZpZGVvLm1wNA==",
+      "poster.png": "U1lOVEhFVElDLU5PTkRFQ09EQUJMRS1JTUFHRTpwb3N0ZXIucG5n"
+    },
+    "expected_relative_directory": "bilibili-BV0000000001-cid-101",
+    "expected_grants_file_operation": false,
+    "media_validity": "synthetic_bytes_only_not_playable_or_decodable"
+  },
+  {
+    "name": "multipart",
+    "manifest": {
+      "schema_version": 1,
+      "package_id": "11111111-1111-4111-8111-222222222222",
+      "staging_ref": "stage-synthetic-multipart",
+      "library_id": "22222222-2222-4222-8222-222222222222",
+      "provider": "bilibili",
+      "bvid": "BV0000000001",
+      "layout": "multipart",
+      "media_extension": "mp4",
+      "selected_parts": [
+        {
+          "cid": "101",
+          "episode_number": 1
+        },
+        {
+          "cid": "202",
+          "episode_number": 2
+        }
+      ],
+      "files": [
+        {
+          "path": "Season 01/S01E01-cid-101.mp4",
+          "kind": "video",
+          "cid": "101",
+          "size_bytes": 56,
+          "sha256": "8656968e1bd2caee92d1de588aaee712564279b0f4b00e10f5459021f967beba"
+        },
+        {
+          "path": "Season 01/S01E01-cid-101.nfo",
+          "kind": "nfo",
+          "cid": "101",
+          "size_bytes": 656,
+          "sha256": "964fe5f37d7402c62f94481aca62ef6b4b1af358b08188b5c183279a9f564fe3"
+        },
+        {
+          "path": "Season 01/S01E02-cid-202-thumb.png",
+          "kind": "episode_thumb",
+          "cid": "202",
+          "size_bytes": 63,
+          "sha256": "c668c989808ff2ca1b051e408d80d1393a136f500cc9a69e365e305756aeb399"
+        },
+        {
+          "path": "Season 01/S01E02-cid-202.mp4",
+          "kind": "video",
+          "cid": "202",
+          "size_bytes": 56,
+          "sha256": "8827fa0c989801f11f39faaeecf7b2f9b1045c77322af28f1ece16ab579f67a2"
+        },
+        {
+          "path": "Season 01/S01E02-cid-202.nfo",
+          "kind": "nfo",
+          "cid": "202",
+          "size_bytes": 698,
+          "sha256": "c8bdc6d98243641fddc08b66218bb8d3710d1b0f9e70855d9e7c2289b6cdc7db"
+        },
+        {
+          "path": "poster.png",
+          "kind": "poster",
+          "cid": null,
+          "size_bytes": 39,
+          "sha256": "e431e99b41ee429184d1a53d07b3a4955a1893def6506a78cc2adc7d2b38e1ea"
+        },
+        {
+          "path": "source.json",
+          "kind": "source",
+          "cid": null,
+          "size_bytes": 2026,
+          "sha256": "7f174822b7005629b5a4a5d92508b490cb5f32f64743c1005e1ca8e07927dd07"
+        },
+        {
+          "path": "tvshow.nfo",
+          "kind": "nfo",
+          "cid": null,
+          "size_bytes": 576,
+          "sha256": "291d31ae4ea68c46d96275b0f81117ae2d696eb59aa215351d6e181a9b95a930"
+        }
+      ]
+    },
+    "manifest_base64": "eyJidmlkIjoiQlYwMDAwMDAwMDAxIiwiZmlsZXMiOlt7ImNpZCI6IjEwMSIsImtpbmQiOiJ2aWRlbyIsInBhdGgiOiJTZWFzb24gMDEvUzAxRTAxLWNpZC0xMDEubXA0Iiwic2hhMjU2IjoiODY1Njk2OGUxYmQyY2FlZTkyZDFkZTU4OGFhZWU3MTI1NjQyNzliMGY0YjAwZTEwZjU0NTkwMjFmOTY3YmViYSIsInNpemVfYnl0ZXMiOjU2fSx7ImNpZCI6IjEwMSIsImtpbmQiOiJuZm8iLCJwYXRoIjoiU2Vhc29uIDAxL1MwMUUwMS1jaWQtMTAxLm5mbyIsInNoYTI1NiI6Ijk2NGZlNWYzN2Q3NDAyYzYyZjk0NDgxYWNhNjJlZjZiNGIxYWYzNThiMDgxODhiNWMxODMyNzlhOWY1NjRmZTMiLCJzaXplX2J5dGVzIjo2NTZ9LHsiY2lkIjoiMjAyIiwia2luZCI6ImVwaXNvZGVfdGh1bWIiLCJwYXRoIjoiU2Vhc29uIDAxL1MwMUUwMi1jaWQtMjAyLXRodW1iLnBuZyIsInNoYTI1NiI6ImM2NjhjOTg5ODA4ZmYyY2ExYjA1MWU0MDhkODBkMTM5M2ExMzZmNTAwY2M5YTY5ZTM2NWUzMDU3NTZhZWIzOTkiLCJzaXplX2J5dGVzIjo2M30seyJjaWQiOiIyMDIiLCJraW5kIjoidmlkZW8iLCJwYXRoIjoiU2Vhc29uIDAxL1MwMUUwMi1jaWQtMjAyLm1wNCIsInNoYTI1NiI6Ijg4MjdmYTBjOTg5ODAxZjExZjM5ZmFhZWVjZjdiMmY5YjEwNDVjNzczMjJhZjI4ZjFlY2UxNmFiNTc5ZjY3YTIiLCJzaXplX2J5dGVzIjo1Nn0seyJjaWQiOiIyMDIiLCJraW5kIjoibmZvIiwicGF0aCI6IlNlYXNvbiAwMS9TMDFFMDItY2lkLTIwMi5uZm8iLCJzaGEyNTYiOiJjOGJkYzZkOTgyNDM2NDFmZGRjMDhiNjYyMThiYjhkMzcxMGQxYjBmOWU3MDg1NWQ5ZTdjMjI4OWI2Y2RjN2RiIiwic2l6ZV9ieXRlcyI6Njk4fSx7ImNpZCI6bnVsbCwia2luZCI6InBvc3RlciIsInBhdGgiOiJwb3N0ZXIucG5nIiwic2hhMjU2IjoiZTQzMWU5OWI0MWVlNDI5MTg0ZDFhNTNkMDdiM2E0OTU1YTE4OTNkZWY2NTA2YTc4Y2MyYWRjN2QyYjM4ZTFlYSIsInNpemVfYnl0ZXMiOjM5fSx7ImNpZCI6bnVsbCwia2luZCI6InNvdXJjZSIsInBhdGgiOiJzb3VyY2UuanNvbiIsInNoYTI1NiI6IjdmMTc0ODIyYjcwMDU2MjliNWE0YTVkOTI1MDhiNDkwY2I1ZjMyZjY0NzQzYzEwMDVlMWNhOGUwNzkyN2RkMDciLCJzaXplX2J5dGVzIjoyMDI2fSx7ImNpZCI6bnVsbCwia2luZCI6Im5mbyIsInBhdGgiOiJ0dnNob3cubmZvIiwic2hhMjU2IjoiMjkxZDMxYWU0ZWE2OGM0NmQ5NjI3NWIwZjgxMTE3YWUyZDY5NmViNTlhYTIxNTM1MWQ2ZTE4MWE5Yjk1YTkzMCIsInNpemVfYnl0ZXMiOjU3Nn1dLCJsYXlvdXQiOiJtdWx0aXBhcnQiLCJsaWJyYXJ5X2lkIjoiMjIyMjIyMjItMjIyMi00MjIyLTgyMjItMjIyMjIyMjIyMjIyIiwibWVkaWFfZXh0ZW5zaW9uIjoibXA0IiwicGFja2FnZV9pZCI6IjExMTExMTExLTExMTEtNDExMS04MTExLTIyMjIyMjIyMjIyMiIsInByb3ZpZGVyIjoiYmlsaWJpbGkiLCJzY2hlbWFfdmVyc2lvbiI6MSwic2VsZWN0ZWRfcGFydHMiOlt7ImNpZCI6IjEwMSIsImVwaXNvZGVfbnVtYmVyIjoxfSx7ImNpZCI6IjIwMiIsImVwaXNvZGVfbnVtYmVyIjoyfV0sInN0YWdpbmdfcmVmIjoic3RhZ2Utc3ludGhldGljLW11bHRpcGFydCJ9Cg==",
+    "manifest_sha256": "1ecba3a5ed6f5c8ceec6e3565842cc6d0af11462fbd7ad761efaf17d4b5a492b",
+    "file_payloads_base64": {
+      "tvshow.nfo": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiIHN0YW5kYWxvbmU9InllcyI/Pgo8dHZzaG93PgogIDx0aXRsZT7lkIjmiJDmipXnqL8gJmFtcDsg5qCH6aKYPC90aXRsZT4KICA8b3JpZ2luYWx0aXRsZT7lkIjmiJDmipXnqL8gJmFtcDsg5qCH6aKYPC9vcmlnaW5hbHRpdGxlPgogIDxwbG90PuS7heeUqOS6jumalOemu+mihOajgOeahOWQiOaIkOWGheWuuTwvcGxvdD4KICA8eWVhcj4yMDI2PC95ZWFyPgogIDxwcmVtaWVyZWQ+MjAyNi0wOS0xOTwvcHJlbWllcmVkPgogIDx0YWc+5ZCI5oiQ5aS55YW3PC90YWc+CiAgPGFjdG9yPgogICAgPG5hbWU+5ZCI5oiQVVA8L25hbWU+CiAgICA8cm9sZSBpbmZvc2V0PSJ0cnVlIiBuYW1lPSJ1cGxvYWRlciIgbGFuZ3VhZ2U9InpoLUNOIj5VUOS4uzwvcm9sZT4KICAgIDxvcmRlcj4wPC9vcmRlcj4KICA8L2FjdG9yPgogIDx0aHVtYiBhc3BlY3Q9InBvc3RlciI+cG9zdGVyLnBuZzwvdGh1bWI+CiAgPHVuaXF1ZWlkIHR5cGU9ImJpbGliaWxpIiBkZWZhdWx0PSJ0cnVlIj5iaWxpYmlsaTp2aWRlbzpCVjAwMDAwMDAwMDE8L3VuaXF1ZWlkPgo8L3R2c2hvdz4K",
+      "Season 01/S01E01-cid-101.nfo": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiIHN0YW5kYWxvbmU9InllcyI/Pgo8ZXBpc29kZWRldGFpbHM+CiAgPHRpdGxlPuWQiOaIkOesrOS4gOmbhjwvdGl0bGU+CiAgPG9yaWdpbmFsdGl0bGU+5ZCI5oiQ5oqV56i/ICZhbXA7IOagh+mimDwvb3JpZ2luYWx0aXRsZT4KICA8c2hvd3RpdGxlPuWQiOaIkOaKleeovyAmYW1wOyDmoIfpopg8L3Nob3d0aXRsZT4KICA8cGxvdD7ku4XnlKjkuo7pmpTnprvpooTmo4DnmoTlkIjmiJDlhoXlrrk8L3Bsb3Q+CiAgPHNlYXNvbj4xPC9zZWFzb24+CiAgPGVwaXNvZGU+MTwvZXBpc29kZT4KICA8eWVhcj4yMDI2PC95ZWFyPgogIDxhaXJlZD4yMDI2LTA5LTE5PC9haXJlZD4KICA8cnVudGltZT4xPC9ydW50aW1lPgogIDx0YWc+5ZCI5oiQ5aS55YW3PC90YWc+CiAgPGFjdG9yPgogICAgPG5hbWU+5ZCI5oiQVVA8L25hbWU+CiAgICA8cm9sZSBpbmZvc2V0PSJ0cnVlIiBuYW1lPSJ1cGxvYWRlciIgbGFuZ3VhZ2U9InpoLUNOIj5VUOS4uzwvcm9sZT4KICAgIDxvcmRlcj4wPC9vcmRlcj4KICA8L2FjdG9yPgogIDx1bmlxdWVpZCB0eXBlPSJiaWxpYmlsaSIgZGVmYXVsdD0idHJ1ZSI+YmlsaWJpbGk6dmlkZW86QlYwMDAwMDAwMDAxOmNpZDoxMDE8L3VuaXF1ZWlkPgo8L2VwaXNvZGVkZXRhaWxzPgo=",
+      "Season 01/S01E02-cid-202.nfo": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiIHN0YW5kYWxvbmU9InllcyI/Pgo8ZXBpc29kZWRldGFpbHM+CiAgPHRpdGxlPuWQiOaIkOesrOS6jOmbhjwvdGl0bGU+CiAgPG9yaWdpbmFsdGl0bGU+5ZCI5oiQ5oqV56i/ICZhbXA7IOagh+mimDwvb3JpZ2luYWx0aXRsZT4KICA8c2hvd3RpdGxlPuWQiOaIkOaKleeovyAmYW1wOyDmoIfpopg8L3Nob3d0aXRsZT4KICA8cGxvdD7ku4XnlKjkuo7pmpTnprvpooTmo4DnmoTlkIjmiJDlhoXlrrk8L3Bsb3Q+CiAgPHNlYXNvbj4xPC9zZWFzb24+CiAgPGVwaXNvZGU+MjwvZXBpc29kZT4KICA8eWVhcj4yMDI2PC95ZWFyPgogIDxhaXJlZD4yMDI2LTA5LTE5PC9haXJlZD4KICA8cnVudGltZT4yPC9ydW50aW1lPgogIDx0YWc+5ZCI5oiQ5aS55YW3PC90YWc+CiAgPHRodW1iPlMwMUUwMi1jaWQtMjAyLXRodW1iLnBuZzwvdGh1bWI+CiAgPGFjdG9yPgogICAgPG5hbWU+5ZCI5oiQVVA8L25hbWU+CiAgICA8cm9sZSBpbmZvc2V0PSJ0cnVlIiBuYW1lPSJ1cGxvYWRlciIgbGFuZ3VhZ2U9InpoLUNOIj5VUOS4uzwvcm9sZT4KICAgIDxvcmRlcj4wPC9vcmRlcj4KICA8L2FjdG9yPgogIDx1bmlxdWVpZCB0eXBlPSJiaWxpYmlsaSIgZGVmYXVsdD0idHJ1ZSI+YmlsaWJpbGk6dmlkZW86QlYwMDAwMDAwMDAxOmNpZDoyMDI8L3VuaXF1ZWlkPgo8L2VwaXNvZGVkZXRhaWxzPgo=",
+      "source.json": "ewogICJidmlkIjogIkJWMDAwMDAwMDAwMSIsCiAgImNhbm9uaWNhbF91cmwiOiAiaHR0cHM6Ly93d3cuYmlsaWJpbGkuY29tL3ZpZGVvL0JWMDAwMDAwMDAwMS8iLAogICJjYXB0dXJlZF9hdCI6ICIyMDI2LTA5LTE5VDAxOjAwOjAwWiIsCiAgImNvdmVyX2F2YWlsYWJsZSI6IHRydWUsCiAgImNyZWF0b3JzIjogWwogICAgewogICAgICAia2V5IjogImJpbGliaWxpOmNyZWF0b3I6MzAzIiwKICAgICAgIm1pZCI6ICIzMDMiLAogICAgICAibmFtZSI6ICLlkIjmiJBVUCIsCiAgICAgICJuYW1lX21pc3NpbmciOiBmYWxzZSwKICAgICAgInJvbGUiOiAidXBsb2FkZXIiCiAgICB9CiAgXSwKICAiZGlzcGxheV9kZXNjcmlwdGlvbiI6ICLku4XnlKjkuo7pmpTnprvpooTmo4DnmoTlkIjmiJDlhoXlrrkiLAogICJkaXNwbGF5X3RpdGxlIjogIuWQiOaIkOaKleeovyAmIOagh+mimCIsCiAgImVwaXNvZGVfbnVtYmVycyI6IFsKICAgIFsKICAgICAgIjEwMSIsCiAgICAgIDEKICAgIF0sCiAgICBbCiAgICAgICIyMDIiLAogICAgICAyCiAgICBdCiAgXSwKICAiZXhwZWN0ZWRfbWVkaWEiOiBbCiAgICB7CiAgICAgICJleHRlbnNpb24iOiAibXA0IiwKICAgICAgInBhdGgiOiAiU2Vhc29uIDAxL1MwMUUwMS1jaWQtMTAxLm1wNCIKICAgIH0sCiAgICB7CiAgICAgICJleHRlbnNpb24iOiAibXA0IiwKICAgICAgInBhdGgiOiAiU2Vhc29uIDAxL1MwMUUwMi1jaWQtMjAyLm1wNCIKICAgIH0KICBdLAogICJmaWVsZF9zb3VyY2VzIjogewogICAgImRlc2NyaXB0aW9uIjogInNvdXJjZSIsCiAgICAidGl0bGUiOiAic291cmNlIgogIH0sCiAgImdlbmVyYXRvciI6ICJ0aWFuc2h1LW1lZGlhLW1ldGFkYXRhLzEiLAogICJpc3N1ZXMiOiBbXSwKICAiaXRlbV9rZXkiOiAiYmlsaWJpbGk6dmlkZW86QlYwMDAwMDAwMDAxIiwKICAibGF5b3V0IjogIm11bHRpcGFydCIsCiAgIm1lZGlhX2V4dGVuc2lvbiI6ICJtcDQiLAogICJtZWRpYV9rZXkiOiAiYmlsaWJpbGk6dmlkZW86QlYwMDAwMDAwMDAxIiwKICAib3JpZ2luYWxfZGVzY3JpcHRpb24iOiAi5LuF55So5LqO6ZqU56a76aKE5qOA55qE5ZCI5oiQ5YaF5a65IiwKICAib3JpZ2luYWxfdGl0bGUiOiAi5ZCI5oiQ5oqV56i/ICYg5qCH6aKYIiwKICAicGFydHMiOiBbCiAgICB7CiAgICAgICJjaWQiOiAiMTAxIiwKICAgICAgImR1cmF0aW9uX3NlY29uZHMiOiA2MCwKICAgICAgImVwaXNvZGVfbnVtYmVyIjogMSwKICAgICAgImluZGV4IjogMSwKICAgICAgInNlbGVjdGVkIjogdHJ1ZSwKICAgICAgInRpdGxlIjogIuWQiOaIkOesrOS4gOmbhiIsCiAgICAgICJ0aXRsZV9taXNzaW5nIjogZmFsc2UsCiAgICAgICJ2aWRlbyI6ICJTZWFzb24gMDEvUzAxRTAxLWNpZC0xMDEubXA0IgogICAgfSwKICAgIHsKICAgICAgImNpZCI6ICIyMDIiLAogICAgICAiZHVyYXRpb25fc2Vjb25kcyI6IDEyMCwKICAgICAgImVwaXNvZGVfbnVtYmVyIjogMiwKICAgICAgImluZGV4IjogMiwKICAgICAgInNlbGVjdGVkIjogdHJ1ZSwKICAgICAgInRpdGxlIjogIuWQiOaIkOesrOS6jOmbhiIsCiAgICAgICJ0aXRsZV9taXNzaW5nIjogZmFsc2UsCiAgICAgICJ2aWRlbyI6ICJTZWFzb24gMDEvUzAxRTAyLWNpZC0yMDIubXA0IgogICAgfQogIF0sCiAgInByb3ZpZGVyIjogImJpbGliaWxpIiwKICAicHVibGlzaGVkX2F0IjogIjIwMjYtMDktMTlUMDA6MDA6MDBaIiwKICAicmVmZXJlbmNlZF9pbWFnZXMiOiBbCiAgICB7CiAgICAgICJjaWQiOiBudWxsLAogICAgICAicGF0aCI6ICJwb3N0ZXIucG5nIiwKICAgICAgInJvbGUiOiAicG9zdGVyIgogICAgfSwKICAgIHsKICAgICAgImNpZCI6ICIyMDIiLAogICAgICAicGF0aCI6ICJTZWFzb24gMDEvUzAxRTAyLWNpZC0yMDItdGh1bWIucG5nIiwKICAgICAgInJvbGUiOiAiZXBpc29kZV90aHVtYiIKICAgIH0KICBdLAogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgInNlbGVjdGVkX2NpZHMiOiBbCiAgICAiMTAxIiwKICAgICIyMDIiCiAgXSwKICAidGFncyI6IFsKICAgICLlkIjmiJDlpLnlhbciCiAgXQp9Cg==",
+      "Season 01/S01E01-cid-101.mp4": "U1lOVEhFVElDLU5PTlBMQVlBQkxFLVZJREVPOlNlYXNvbiAwMS9TMDFFMDEtY2lkLTEwMS5tcDQ=",
+      "Season 01/S01E02-cid-202.mp4": "U1lOVEhFVElDLU5PTlBMQVlBQkxFLVZJREVPOlNlYXNvbiAwMS9TMDFFMDItY2lkLTIwMi5tcDQ=",
+      "poster.png": "U1lOVEhFVElDLU5PTkRFQ09EQUJMRS1JTUFHRTpwb3N0ZXIucG5n",
+      "Season 01/S01E02-cid-202-thumb.png": "U1lOVEhFVElDLU5PTkRFQ09EQUJMRS1JTUFHRTpTZWFzb24gMDEvUzAxRTAyLWNpZC0yMDItdGh1bWIucG5n"
+    },
+    "expected_relative_directory": "bilibili-BV0000000001",
+    "expected_grants_file_operation": false,
+    "media_validity": "synthetic_bytes_only_not_playable_or_decodable"
+  }
+]

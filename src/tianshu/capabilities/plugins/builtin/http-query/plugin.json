@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "id": "example.http-query",
+  "name": "HTTP 查询",
+  "version": "1.0.0",
+  "description": "查询已配置服务的 JSON 接口，可用作天气或其他只读服务的插件模板。",
+  "author": "TianShu",
+  "entrypoint": "main:QueryPlugin",
+  "sdk": {
+    "min": "2.0.0",
+    "max_exclusive": "3.0.0"
+  },
+  "config_schema": "config.schema.json",
+  "capabilities": {
+    "required": [
+      {
+        "id": "http.client",
+        "major": 1
+      }
+    ],
+    "optional": [
+      {
+        "id": "secrets.read",
+        "major": 1
+      }
+    ]
+  }
+}

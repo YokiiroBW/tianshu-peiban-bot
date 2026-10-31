@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["base_url"],
+  "properties": {
+    "base_url": {"type": "string", "title": "服务地址", "format": "uri", "pattern": "^https?://", "description": "例如 https://weather.example.org；本地服务也可以使用 HTTP。"},
+    "api_key": {"type": "string", "title": "访问密钥", "x-secret": true, "minLength": 1}
+  }
+}

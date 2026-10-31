@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tianshu.invalid/contracts/plugin-runtime/candidate-v1/schemas/common.schema.json",
+  "title": "Plugin runtime shared candidate definitions",
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.-]{0,95}$"
+    },
+    "uuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "path": {
+      "type": "string",
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\)[A-Za-z0-9_./-]+$"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "object": {
+      "type": "object"
+    },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "major"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_.-]{0,95}$"
+        },
+        "major": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "schema": {
+      "type": [
+        "object",
+        "boolean"
+      ],
+      "description": "A JSON Schema 2020-12 document, separately meta-validated offline."
+    },
+    "conversation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platform",
+        "adapter_id",
+        "bot_id",
+        "self_id",
+        "kind",
+        "id"
+      ],
+      "properties": {
+        "platform": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_.-]{0,95}$"
+        },
+        "adapter_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bot_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "self_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "enum": [
+            "private",
+            "group",
+            "channel"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message",
+        "retriable"
+      ],
+      "properties": {
+        "code": {
+          "enum": [
+            "invalid_input",
+            "config_invalid",
+            "permission_denied",
+            "capability_unavailable",
+            "instance_disabled",
+            "dependency_unavailable",
+            "timeout",
+            "outcome_unknown",
+            "conflict",
+            "not_found",
+            "cancelled",
+            "plugin_error"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "retriable": {
+          "type": "boolean"
+        },
+        "detail_ref": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

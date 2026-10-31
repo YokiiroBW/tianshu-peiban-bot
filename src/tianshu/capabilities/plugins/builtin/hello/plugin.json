@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "id": "example.hello",
+  "name": "回声",
+  "version": "1.0.0",
+  "description": "用于验证安装、动作调用和独立页面桥的轻量回声插件。",
+  "author": "TianShu",
+  "entrypoint": "main:HelloPlugin",
+  "sdk": {
+    "min": "2.0.0",
+    "max_exclusive": "3.0.0"
+  },
+  "contributions_file": "contributions.json",
+  "capabilities": {
+    "required": [],
+    "optional": []
+  }
+}
