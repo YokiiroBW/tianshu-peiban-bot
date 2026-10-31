@@ -25,6 +25,16 @@ dependencies = [
   "beautifulsoup4>=4.13,<5",
   "python-docx>=1.2,<2",
   "pypdf>=6.19,<7",
+  "yt-dlp==2026.8.19",
+  "quickjs==1.19.4",
+  "cssselect==1.6.0",
+  "jsonpath-ng==1.11.0",
+  "hjson==3.1.0",
+  "OpenCC==1.4.2",
+  "nonebot2==2.5.0",
+  "nonebot-adapter-onebot==2.4.0",
+  "tiktoken>=0.12,<1",
+  "tianshu-plugin",
 ]
 
 [project.optional-dependencies]
@@ -36,10 +46,16 @@ tianshu = "tianshu.__main__:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.uv.sources]
+tianshu-plugin = { path = "packages/tianshu-plugin" }
+
 [tool.setuptools.package-data]
 "tianshu.runtime" = ["*.sql"]
 "tianshu.models" = ["*.sql"]
-"tianshu.capabilities" = ["*.sql", "**/*.json", "**/*.html", "**/*.js"]
+"tianshu.identity" = ["*.sql"]
+"tianshu.sources" = ["*.sql"]
+"tianshu.memory" = ["*.sql"]
+"tianshu.capabilities" = ["*.sql", "**/*.json", "**/*.html", "**/*.js", "**/LICENSE.LegadoParser"]
 "tianshu.companion" = ["*.sql", "data/*.json"]
 "tianshu.life" = ["*.sql"]
 "tianshu.conversation" = ["*.sql"]
@@ -49,6 +65,7 @@ testpaths = [
   "tests/runtime", "tests/models", "tests/capabilities", "tests/identity", "tests/sources",
   "tests/memory", "tests/context", "tests/companion", "tests/life", "tests/conversation",
   "tests/channels",
+  "tests/core", "tests/deployment",
 ]
 asyncio_mode = "auto"
 

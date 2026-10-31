@@ -25,6 +25,7 @@ class FileStore:
         self.root = Path(root).resolve()
         self.verified = OrderedDict()
         self.cache_lock = threading.Lock()
+        self.intakes = OrderedDict()
 
     def _path(self, reference):
         identity = reference.sha256 if isinstance(reference, MediaRef) else reference
@@ -63,7 +64,16 @@ class FileStore:
                 os.fsync(descriptor)
             finally:
                 os.close(descriptor)
+        with self.cache_lock:
+            self.intakes[id(reference)] = reference
+            while len(self.intakes) > 4096:
+                self.intakes.popitem(last=False)
         return reference
+
+    def was_written(self, reference):
+        """A local intake must use the actual newly written reference, not an asserted SHA."""
+        with self.cache_lock:
+            return isinstance(reference, MediaRef) and self.intakes.get(id(reference)) is reference
 
     def put_stream(self, source, *, media_type="application/octet-stream", max_bytes=None):
         """Consume a binary file-like object with a fixed-size working buffer."""

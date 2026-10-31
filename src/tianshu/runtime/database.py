@@ -11,6 +11,8 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 
 from psycopg.rows import dict_row
+from psycopg.conninfo import conninfo_to_dict
+from psycopg import ProgrammingError
 from psycopg_pool import AsyncConnectionPool, ConnectionPool
 
 from tianshu.types import RequestBudget
@@ -25,7 +27,11 @@ class DatabaseConfig:
     sync_connections: int = 2
 
     def __post_init__(self):
-        if not self.dsn.startswith(("postgresql://", "postgres://")):
+        try:
+            parsed=conninfo_to_dict(self.dsn) if isinstance(self.dsn,str) and self.dsn.strip() else {}
+        except ProgrammingError:
+            raise ValueError("postgresql_dsn_required") from None
+        if not parsed:
             raise ValueError("postgresql_dsn_required")
         if self.max_connections < 1 or self.control_connections < 1 or self.sync_connections < 1:
             raise ValueError("positive_connection_budget_required")
