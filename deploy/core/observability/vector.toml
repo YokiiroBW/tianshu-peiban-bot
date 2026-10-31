@@ -49,9 +49,9 @@ type = "file"
 inputs = ["valid._unmatched"]
 path = "/data/observability/vector/quarantine-%Y-%m-%d.jsonl"
 encoding.codec = "json"
-[sources.collector_metrics]
+[sources.vector_metrics]
 type = "internal_metrics"
-[sinks.collector_metrics]
+[sinks.metrics_exporter]
 type = "prometheus_exporter"
-inputs = ["collector_metrics"]
+inputs = ["vector_metrics"]
 address = "127.0.0.1:18687"
