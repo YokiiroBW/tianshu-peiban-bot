@@ -6,8 +6,7 @@ import {
 } from "../../api/useDomainResource";
 import { Drawer } from "../../components/Drawer";
 import { SourceEvidence } from "../../components/SourceEvidence";
-import { ArtifactList } from "../../components/ArtifactList";
-import { MediaPreview } from "../../components/MediaPreview";
+import { ArtifactList, MediaPreview } from "../../components/MediaPreview";
 import { CommandFeedback } from "../../components/CommandFeedback";
 import { confirmed } from "./types";
 import type { DocumentRow, DocumentRead, Original, ReadUnitRef } from "./types";

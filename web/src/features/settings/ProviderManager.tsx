@@ -127,6 +127,7 @@ export function ProviderManager({
         `models/providers/${encodeURIComponent(directoryRequest.providerId)}/models/result`,
         { ...GLOBAL_SCOPE, client_request_id: directoryRequest.clientId },
         session.csrf,
+        AbortSignal.timeout(15000),
       );
       if (result.command?.data) acceptDirectory(result.command.data, true);
       else setReadError("尚未找到本次枚举的原始账本结果，不会重新调用供应商。");
