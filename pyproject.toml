@@ -57,7 +57,7 @@ tianshu-plugin = { path = "packages/tianshu-plugin" }
 "tianshu.identity" = ["*.sql"]
 "tianshu.sources" = ["*.sql"]
 "tianshu.memory" = ["*.sql"]
-"tianshu.capabilities" = ["*.sql", "**/*.json", "**/*.html", "**/*.js", "**/LICENSE.LegadoParser"]
+"tianshu.capabilities" = ["*.sql", "**/*.json", "**/*.html", "**/*.js", "**/LICENSE.LegadoParser", "media/package_contract/README.md", "media/package_contract/inspector-semantics.md"]
 "tianshu.capabilities.projects" = ["*.sql"]
 "tianshu.companion" = ["*.sql", "data/*.json"]
 "tianshu.life" = ["*.sql"]
