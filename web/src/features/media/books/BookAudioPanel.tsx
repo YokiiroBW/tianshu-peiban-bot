@@ -18,7 +18,7 @@ export function BookAudioPanel({
   const current = useRef({ media, onView });
   current.current = { media, onView };
   const [view, setView] = useState<AudioView | null>(null);
-  const [provider, setProvider] = useState("edge");
+  const [profileId, setProfileId] = useState("");
   const [range, setRange] = useState("chapter");
   const [automatic, setAutomatic] = useState(false);
   const [estimate, setEstimate] = useState<AudioEstimate | null>(null);
@@ -48,12 +48,18 @@ export function BookAudioPanel({
   }, [bookId]);
   useEffect(() => {
     setEstimate(null);
-  }, [provider, range, chapterId]);
-  const selected = view?.providers.find((p) => p.provider === provider);
+  }, [profileId, range, chapterId]);
+  const selected = view?.voice_profiles.find((profile) => profile.id === profileId) ?? view?.voice_profiles[0];
+  const connection = view?.connections.find((item) => item.id === selected?.connection_id);
+  const configured = !!(connection?.enabled && connection.configured);
   const active = view?.jobs.filter((j) => j.state !== "ready") ?? [];
   const request = {
     book_id: bookId,
-    provider,
+    speech_profile_id: selected?.id,
+    speech_profile_revision: selected?.revision,
+    actor_id: selected?.actor_id ?? null,
+    conversation_id: null,
+    person_id: null,
     ...(range === "chapter"
       ? { chapter_ids: chapterId ? [chapterId] : [] }
       : {}),
@@ -88,12 +94,11 @@ export function BookAudioPanel({
         <label>
           生成服务
           <select
-            value={provider}
-            onChange={(e) => setProvider(e.target.value)}
+            value={selected?.id ?? ""}
+            onChange={(e) => setProfileId(e.target.value)}
           >
-            <option value="edge">Edge</option>
-            <option value="fish">Fish Audio</option>
-            <option value="local">本地接口</option>
+            {!view?.voice_profiles.length && <option value="">尚无音色档案</option>}
+            {view?.voice_profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name} · {profile.model} · v{profile.revision}</option>)}
           </select>
         </label>
         <label>
@@ -114,7 +119,7 @@ export function BookAudioPanel({
         <button
           className="button"
           disabled={
-            !selected?.configured || (range === "chapter" && !chapterId)
+            !configured || (range === "chapter" && !chapterId)
           }
           onClick={async () => {
             const result = await media.request<AudioEstimate>(
@@ -128,8 +133,8 @@ export function BookAudioPanel({
           计算待生成章节
         </button>
       </div>
-      {selected && !selected.configured && (
-        <p className="muted">请先在“听书设置”中配置此服务。</p>
+      {selected && !configured && (
+        <p className="muted">请先在语音设置中配置并启用此档案的连接。</p>
       )}
       {estimate && (
         <div className="book-audio-estimate">
@@ -159,7 +164,7 @@ export function BookAudioPanel({
             }}
           >
             开始生成
-            {provider === "fish" ? "（使用 Fish 额度）" : "并保存到 NAS"}
+            并保存音频
           </button>
         </div>
       )}

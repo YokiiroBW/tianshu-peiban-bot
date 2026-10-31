@@ -1,3 +1,4 @@
+import { uploadMedia } from "../../api/uploads";
 import { requestId } from "../../app/requestId";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Plus, Puzzle, RefreshCw, Search, Upload } from "lucide-react";
@@ -126,7 +127,7 @@ export default function PluginCenter() {
       if (operation === "invoke")
         setNotice("动作已受理，可在实例任务中查看结果。");
       else if (operation === "install")
-        setNotice("正在安装，进度会在下方更新。");
+        setNotice("安装操作已完成，下方显示当前安装状态。");
       else setNotice("操作已保存。");
       await reload(active.signal).catch((cause) => {
         if (!active.signal.aborted) setError(readFailure(cause));
@@ -142,17 +143,14 @@ export default function PluginCenter() {
 
   async function upload(file: File) {
     if (file.size > 6 * 1024 * 1024) {
-      setError("安装包超过 6 MiB，请使用 Git 或本地开发目录安装。");
+      setError("插件安装包上限为 6 MiB，请使用 Git 或服务器开发目录安装更大的包。");
       return;
     }
-    const data = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result).split(",")[1]);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
+    const active = new AbortController();
+    mutation.current = active;
+    const uploaded = await uploadMedia(file, {}, csrf, active.signal);
     await mutate("install", {
-      source: { type: "zip", data },
+      source: { type: "artifact", media: uploaded.artifact.media },
       client_request_id: requestId(),
     });
   }
@@ -432,7 +430,7 @@ export default function PluginCenter() {
           <pre>{`from tianshu_plugin import Plugin, action\n\nclass Hello(Plugin):\n    @action(id="hello", title="问候",\n        input_schema={"type": "object"},\n        output_schema={"type": "string"})\n    async def hello(self, call, args):\n        return "你好"`}</pre>
           <p>当前宿主能力：{overview?.capabilities.join("、")}</p>
           <p className="plugins-note">
-            消息、群管理、模型、文件与下载提供者尚未接入通用宿主；缺少的能力会显示为不可用。
+            消息表达、模型、文件和下载使用已登记的宿主端口；上方能力与实例缺失项反映当前实际配置。
           </p>
         </section>
       )}

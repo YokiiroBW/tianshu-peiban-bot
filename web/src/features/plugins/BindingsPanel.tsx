@@ -65,7 +65,7 @@ export function BindingsPanel({
       }}
     >
       <p className="plugins-note">
-        工作区可设置独立参数。角色只可调用这里勾选的动作，并使用此实例已配置的账号；账号和凭据仍在“配置”中管理。
+        角色绑定可设置独立参数。角色只可调用这里勾选的动作，并使用此实例已配置的账号；账号和凭据仍在“配置”中管理。
       </p>
       {actorError && <p role="alert">{actorError}</p>}
       {bindings.map((binding, index) => (
@@ -199,27 +199,6 @@ export function BindingsPanel({
           </button>
         </fieldset>
       ))}
-      <button
-        type="button"
-        onClick={() =>
-          setBindings((current) => [
-            ...current,
-            {
-              kind: "binding",
-              schema_version: 1,
-              binding_id: requestId(),
-              instance_id: instance.id,
-              revision: 1,
-              enabled: true,
-              scope: { kind: "workspace", workspace_id: "main" },
-              overrides: {},
-              priority: 0,
-            },
-          ])
-        }
-      >
-        添加网页工作区
-      </button>
       <button
         type="button"
         disabled={busy || actors.length === 0}

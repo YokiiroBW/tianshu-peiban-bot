@@ -10,10 +10,11 @@ PREFIX = "/api/v1/plugins/"
 
 
 class WebPlugins:
-    def __init__(self,service,authorize_actor=None,actor_directory=None):
-        self.service,self.host=service,service.host
-        self.authorize_actor,self.actor_directory=authorize_actor,actor_directory
-        self.tickets={};self.view_policy=POLICY
+    def __init__(self, service, authorize_actor=None, actor_directory=None):
+        self.service, self.host = service, service.host
+        self.authorize_actor, self.actor_directory = authorize_actor, actor_directory
+        self.tickets = {}
+        self.view_policy = POLICY
 
     async def page(self, ticket, session):
         from .views import document
@@ -21,15 +22,22 @@ class WebPlugins:
         await self.guard(session)
         entry = self.tickets.pop(ticket, None)
         require(
-            entry and entry["principal_id"]==session.principal_id and entry["access_epoch"]==session.access_epoch and entry["expires"] > time.monotonic(),
+            entry
+            and entry["principal_id"] == session.principal_id
+            and entry["access_epoch"] == session.access_epoch
+            and entry["expires"] > time.monotonic(),
             "not_found",
             404,
         )
         return await self.host.local(document, entry["package"], entry["view"], entry["nonce"])
 
-    async def guard(self,session):
+    async def guard(self, session):
         await self.service.authority.check(session)
-        require("*" in session.permissions or "config.publish" in session.permissions,"operator_not_authorized",403)
+        require(
+            "*" in session.permissions or "config.publish" in session.permissions,
+            "operator_not_authorized",
+            403,
+        )
         return True
 
     async def route(self, operation, body, session):
@@ -49,8 +57,14 @@ class WebPlugins:
         elif operation == "catalog":
             result = {"items": await host.catalog()}
         elif operation == "actors":
-            require(self.actor_directory is not None,"actor_directory_unavailable",503)
-            result = {"items": await self.actor_directory(session)}
+            require(self.actor_directory is not None, "actor_directory_unavailable", 503)
+            result = {
+                "items": [
+                    {"actor_id": row["id"], "name": row["name"], "revision": row["revision"]}
+                    for row in await self.actor_directory(session)
+                    if row.get("enabled", True)
+                ]
+            }
         elif operation == "view-content":
             instance = await host.instance(body["instance_id"])
             package = await host.package(instance["package_id"], instance["version"])
@@ -71,7 +85,8 @@ class WebPlugins:
             require(len(self.tickets) < 256, "too_many_requests", 429)
             ticket = secrets.token_urlsafe(32)
             self.tickets[ticket] = {
-                "principal_id":session.principal_id,"access_epoch":session.access_epoch,
+                "principal_id": session.principal_id,
+                "access_epoch": session.access_epoch,
                 "package": package,
                 "view": view,
                 "nonce": body["nonce"],
@@ -79,15 +94,20 @@ class WebPlugins:
             }
             result = {"url": PREFIX + "page/" + ticket}
         elif operation == "install":
-            source=body["source"]
-            if source["type"]=="artifact":
+            source = body["source"]
+            if source["type"] == "artifact":
                 import base64
                 from tianshu.types import MediaRef
-                media=MediaRef(**source["media"])
-                require(media.size_bytes is not None and media.size_bytes<=6*1024*1024,"plugin_package_too_large",413)
-                raw,_=await self.service.artifacts.resolve(session,media)
-                source={"type":"zip","data":base64.b64encode(raw).decode()}
-            result = await host.install(source, body["client_request_id"],wait=True)
+
+                media = MediaRef(**source["media"])
+                require(
+                    media.size_bytes is not None and media.size_bytes <= 6 * 1024 * 1024,
+                    "plugin_package_too_large",
+                    413,
+                )
+                raw, _ = await self.service.artifacts.resolve(session, media)
+                source = {"type": "zip", "data": base64.b64encode(raw).decode()}
+            result = await host.install(source, body["client_request_id"], wait=True)
         elif operation == "installation":
             result = await host.local(repo.get, "operations", body["id"])
             require(result, "not_found", 404)
@@ -105,27 +125,63 @@ class WebPlugins:
                 body["instance_id"], operation == "enable", body["expected_revision"]
             )
         elif operation == "bindings":
-            require(self.authorize_actor is not None,"actor_authority_unavailable",503)
+            require(self.authorize_actor is not None, "actor_authority_unavailable", 503)
             for binding in body["bindings"]:
-                scope=binding.get("scope",{})
-                require(scope.get("kind")=="character","plugin_binding_scope_invalid",400)
-                await self.authorize_actor(session,scope.get("character_id"),permission="config.publish")
+                scope = binding.get("scope", {})
+                require(scope.get("kind") == "character", "plugin_binding_scope_invalid", 400)
+                await self.authorize_actor(
+                    session, scope.get("character_id"), permission="config.publish"
+                )
             result = await host.bindings(
                 body["instance_id"], body["bindings"], body["expected_revision"]
             )
         elif operation == "invoke":
-            from tianshu.types import Action,OriginKind,ServiceClass
+            from tianshu.types import Action, OriginKind, ServiceClass
             from tianshu.runtime.serialization import wire
             from ..contracts import digest
+
             await self.service.discover(session)
-            instance=await host.instance(body["instance_id"])
-            binding=next((x for x in instance["bindings"] if x["enabled"] and x["scope"]=={"kind":"character","character_id":session.actor_id} and (not body.get("binding_id") or x["binding_id"]==body["binding_id"]) and {"kind":"action","id":body["action"]} in x.get("entries",[])),None)
-            require(binding,"plugin_binding_required",403)
-            identifier="plugin:"+instance["id"]+":"+binding["binding_id"]+":"+body["action"]
-            key=digest([session.principal_id,identifier,body["client_request_id"]])
+            instance = await host.instance(body["instance_id"])
+            binding = next(
+                (
+                    x
+                    for x in instance["bindings"]
+                    if x["enabled"]
+                    and x["scope"] == {"kind": "character", "character_id": session.actor_id}
+                    and (not body.get("binding_id") or x["binding_id"] == body["binding_id"])
+                    and {"kind": "action", "id": body["action"]} in x.get("entries", [])
+                ),
+                None,
+            )
+            require(binding, "plugin_binding_required", 403)
+            identifier = (
+                "plugin:" + instance["id"] + ":" + binding["binding_id"] + ":" + body["action"]
+            )
+            key = digest([session.principal_id, identifier, body["client_request_id"]])
             from ..api import contains_secret
-            arguments=await self.service.configuration.seal_command(session,key,body["input"]) if contains_secret(body["input"]) else body["input"]
-            result=wire(await self.service.actions.invoke(Action(key,body["client_request_id"],identifier,session.actor_id,session,arguments,OriginKind.HUMAN),background=True,service_class=ServiceClass.ELASTIC if self.service.catalog.handler(identifier).definition.long_running else ServiceClass.INTERACTIVE))
+
+            arguments = (
+                await self.service.configuration.seal_command(session, key, body["input"])
+                if contains_secret(body["input"])
+                else body["input"]
+            )
+            result = wire(
+                await self.service.actions.invoke(
+                    Action(
+                        key,
+                        body["client_request_id"],
+                        identifier,
+                        session.actor_id,
+                        session,
+                        arguments,
+                        OriginKind.HUMAN,
+                    ),
+                    background=True,
+                    service_class=ServiceClass.ELASTIC
+                    if self.service.catalog.handler(identifier).definition.long_running
+                    else ServiceClass.INTERACTIVE,
+                )
+            )
         elif operation == "invocations":
             result = {
                 "items": [
@@ -136,9 +192,15 @@ class WebPlugins:
         elif operation == "invocation":
             result = host.executions.public(await host.local(repo.call, body["id"]))
         elif operation == "cancel":
-            result = await self.service.actions.cancel(body["id"],session)
-        elif operation in {"reconcile","resume"}:
-            result=await self.service.actions.resume(body["id"],session,client_request_id=body["client_request_id"]) if operation=="resume" else await self.service.actions.reconcile(body["id"],session)
+            result = await self.service.actions.cancel(body["id"], session)
+        elif operation in {"reconcile", "resume"}:
+            result = (
+                await self.service.actions.resume(
+                    body["id"], session, client_request_id=body["client_request_id"]
+                )
+                if operation == "resume"
+                else await self.service.actions.reconcile(body["id"], session)
+            )
         elif operation == "upgrade":
             result = await host.upgrade(
                 body["instance_id"], body["version"], body["expected_revision"]

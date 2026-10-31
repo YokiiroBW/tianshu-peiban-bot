@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  call,
+  call as resourceCall,
   isState,
   session as readSession,
   WebError,
@@ -68,6 +68,17 @@ export function useAssetPage() {
   const generation = useRef(0);
   const active = useRef<AbortController | null>(null);
   const csrf = useRef("");
+  const selectedConnection = useRef<string | null>(null);
+  const call = useCallback(async <T>(path: string, body: object, token: string, signal: AbortSignal): Promise<T> => {
+    if (path === "assets/connection") selectedConnection.current = (body as { connection_id: string }).connection_id || null;
+    if (path === "assets/state" || path === "assets/connection") {
+      const view = await resourceCall<PageState>("assets/view", {}, token, signal);
+      const selected = view.connections.some((item) => item.connection_id === selectedConnection.current) ? selectedConnection.current : null;
+      selectedConnection.current = selected;
+      return { ...view, connection: selected, code: selected ? "ready" : view.code } as T;
+    }
+    return resourceCall<T>(path, { ...body, connection_id: selectedConnection.current }, token, signal);
+  }, []);
   /**
    * Which connection the library list on screen belongs to.
    *
@@ -97,6 +108,16 @@ export function useAssetPage() {
     librariesConnection.current = null;
   }, []);
 
+  useEffect(() => {
+    const ended = () => {
+      active.current?.abort(); generation.current += 1;
+      selectedConnection.current = null; csrf.current = "";
+      setState(null); setAuthenticated(false); setScope(initial); clear();
+    };
+    window.addEventListener("tianshu:session-ended", ended);
+    return () => window.removeEventListener("tianshu:session-ended", ended);
+  }, [clear]);
+
   const load = useCallback(
     async (signal: AbortSignal, next: Scope, retry = true) => {
       setLoading(true);
@@ -111,14 +132,13 @@ export function useAssetPage() {
         if (!current.authenticated) {
           // A revoked or logged-out session is not a stale view: the body goes with it.
           setState(null);
+          selectedConnection.current = null;
           clear();
           setScope(initial);
           return;
         }
-        // The page state is a read of its own: which connections this login may use, and which one
-        // this session already chose. It is asked before a connection is chosen, so the page can
-        // offer the choice instead of reporting a refusal it caused itself — and it is a *read*:
-        // `assets/state` never changes the session's scope, which `assets/connection` does.
+        // Selection belongs to this page. The server authorizes the selected connection
+        // afresh on every actual AssetLink read.
         const page = await call<PageState>(
           "assets/state",
           {},
@@ -206,7 +226,7 @@ export function useAssetPage() {
         if (!signal.aborted) setLoading(false);
       }
     },
-    [clear],
+    [clear, call],
   );
 
   /** Start a new generation for one scope; the previous read stops here. */
@@ -231,14 +251,7 @@ export function useAssetPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /**
-   * Choosing a connection is one generation: the previous library's content goes away, the choice
-   * is made server-side in this session, and the newly authorized library list is read.
-   *
-   * The choice's own answer is the page state, so it is kept as-is instead of being re-read: a
-   * second state read here could arrive before the session change was visible and would then
-   * overwrite the chosen connection with "none", leaving a page that had in fact connected.
-   */
+  /** Selecting a connection clears the previous listing and reads the selected peer. */
   const chooseConnection = useCallback(
     async (connection_id: string) => {
       const { controller, mine } = begin();
@@ -282,7 +295,7 @@ export function useAssetPage() {
           setLoading(false);
       }
     },
-    [begin, clear],
+    [begin, clear, call],
   );
 
   /** Opening a library, entering a directory or leaving one clears the previous list. */
@@ -401,7 +414,7 @@ export function useAssetPage() {
           setLoading(false);
       }
     },
-    [begin, scope],
+    [begin, scope, call],
   );
 
   /** A detail is a current re-read of one entry, never a copy of the listing row. */
@@ -433,7 +446,7 @@ export function useAssetPage() {
         if (generation.current === mine) setPending("");
       }
     },
-    [begin],
+    [begin, call],
   );
 
   return {

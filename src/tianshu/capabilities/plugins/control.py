@@ -29,7 +29,7 @@ OPERATIONS = {
             "source": {
                 "oneOf": [
                     request({"type": {"const": "builtin"}, "id": TEXT}),
-                    request({"type":{"const":"artifact"},"media":OBJECT}),
+                    request({"type": {"const": "artifact"}, "media": OBJECT}),
                     request(
                         {"type": {"const": "directory"}, "path": {"type": "string", "minLength": 1}}
                     ),
@@ -75,7 +75,7 @@ OPERATIONS = {
     "invocation": request({"id": TEXT}),
     "cancel": request({"id": TEXT}),
     "reconcile": request({"id": TEXT}),
-    "resume": request({"id": TEXT}),
+    "resume": request({"id": TEXT, "client_request_id": TEXT}),
     "upgrade": request({**INSTANCE, "version": TEXT}),
     "uninstall": request({"package_id": TEXT}),
     "logs": request({"instance_id": TEXT}),

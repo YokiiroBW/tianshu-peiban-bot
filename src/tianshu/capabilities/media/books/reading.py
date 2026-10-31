@@ -6,8 +6,6 @@ import uuid
 from ...contracts import Fault, canonical, require
 
 
-
-
 class Reading:
     def __init__(self, books):
         self.books, self.repo = books, books.repo
@@ -88,7 +86,7 @@ class Reading:
         require(type(body.get("sharing", False)) is bool, "invalid_input", 400)
         sharing = body.get("sharing", False)
         require(
-            not sharing or scope and scope["person_id"] and scope["conversation_kind"]=="private",
+            not sharing or scope and scope["person_id"] and scope["conversation_kind"] == "private",
             "book_reading_private_required",
             409,
         )
@@ -138,41 +136,155 @@ class Reading:
             )
         return {"closed": True}
 
-    async def web(self,web,operation,body,session):
+    async def web(self, web, operation, body, session):
         from tianshu.runtime.serialization import wire
-        local=self.books.media.local;owner=session.person_id or session.principal_id
-        if operation=="view":return {"reader":await local(self.repo.get,"book_reader",owner),"choices":[{"actor_id":session.actor_id,"scope_ids":list(session.scope_ids),"audience":list(session.audience)}] if session.actor_id else [],"progress":await local(self.repo.get,"book_reading_progress",owner+":"+body.get("book_id",""))}
-        if operation=="close":return await web.web.receipt(body,"books/reading/close",session,lambda db:self.close(owner,body,db))
-        if operation=="open":
-            await local(self.text,body)
-            return await web.web.receipt(body,"books/reading/open",session,lambda db:{"reader":self.open(owner,body,db)})
-        if operation=="progress":
-            row=await local(self.repo.get,"book_reader",owner)
-            require(row and row["reader_id"]==body.get("reader_id"),"book_reading_session_changed",409)
-            _,chapter=await local(self.text,row)
-            scope={key:wire(session)[key] for key in ("actor_id","person_id","scope_ids","audience","access_epoch","conversation_id","conversation_kind")} if body.get("sharing") else None
-            return await web.web.receipt(body,"books/reading/progress",session,lambda db:{"reader":self.update(owner,body,chapter,scope,db)})
-        raise Fault("not_found",404)
+
+        local = self.books.media.local
+        owner = session.person_id or session.principal_id
+        if operation == "view":
+            choices = []
+            if (
+                session.actor_id
+                and session.person_id
+                and session.conversation_id
+                and session.conversation_kind == "private"
+            ):
+                choices.append(
+                    {
+                        "id": session.conversation_id,
+                        "label": "当前私聊",
+                        "actors": [session.actor_id],
+                    }
+                )
+            return {
+                "reader": await local(self.repo.get, "book_reader", owner),
+                "choices": choices,
+                "progress": await local(
+                    self.repo.get, "book_reading_progress", owner + ":" + body.get("book_id", "")
+                ),
+            }
+
+        if operation == "close":
+            return await web.web.receipt(
+                body, "books/reading/close", session, lambda db: self.close(owner, body, db)
+            )
+        if operation == "open":
+            await local(self.text, body)
+            return await web.web.receipt(
+                body,
+                "books/reading/open",
+                session,
+                lambda db: {"reader": self.open(owner, body, db)},
+            )
+        if operation == "progress":
+            row = await local(self.repo.get, "book_reader", owner)
+            require(
+                row and row["reader_id"] == body.get("reader_id"),
+                "book_reading_session_changed",
+                409,
+            )
+            _, chapter = await local(self.text, row)
+            scope = (
+                {
+                    key: wire(session)[key]
+                    for key in (
+                        "actor_id",
+                        "person_id",
+                        "scope_ids",
+                        "audience",
+                        "access_epoch",
+                        "conversation_id",
+                        "conversation_kind",
+                    )
+                }
+                if body.get("sharing")
+                else None
+            )
+            return await web.web.receipt(
+                body,
+                "books/reading/progress",
+                session,
+                lambda db: {"reader": self.update(owner, body, chapter, scope, db)},
+            )
+        raise Fault("not_found", 404)
+
 
 class ReadingAccess:
-    def __init__(self,reading,authority,sources):self.reading,self.authority,self.sources=reading,authority,sources
-    def bind(self,reading):
+    def __init__(self, reading, authority, sources):
+        self.reading, self.authority, self.sources = reading, authority, sources
+
+    def bind(self, reading):
         if self.reading is not None and self.reading is not reading:
             raise RuntimeError("reading_already_bound")
-        self.reading=reading
-    async def read(self,context,grant_id=None):
+        self.reading = reading
+
+    async def read(self, context, grant_id=None):
         from tianshu.runtime.serialization import wire
+
         await self.authority.check(context)
-        if self.reading is None:raise Fault("capabilities_starting",503)
-        owner=context.person_id or context.principal_id;reading=self.reading
-        row=await reading.books.media.local(reading.repo.get,"book_reader",owner)
-        response={"active":None,"grant_current":False,"observed_at":reading.repo.clock(),"catalog":[],"catalog_total":0}
-        scope={key:wire(context)[key] for key in ("actor_id","person_id","scope_ids","audience","access_epoch","conversation_id","conversation_kind")}
-        if not row or row.get("closed") or not row.get("sharing") or row.get("scope")!=scope or row.get("updated_at",0)+75<reading.repo.clock() or (grant_id and row.get("grant_id")!=grant_id):return response
-        book,chapter=await reading.books.media.local(reading.text,row)
-        response.update(grant_current=True,active={"grant_id":row["grant_id"],"book_id":row["book_id"],"chapter_id":row["chapter_id"],"title":book["metadata"]["title"],"content_hash":row["content_hash"],"offset":row["offset"],"seconds":row["seconds"],"excerpt":chapter["content"][max(0,row["offset"]-6000):row["offset"]],"representation":"reader_position_only","experience":"human_reading_observation"})
+        if self.reading is None:
+            raise Fault("capabilities_starting", 503)
+        owner = context.person_id or context.principal_id
+        reading = self.reading
+        row = await reading.books.media.local(reading.repo.get, "book_reader", owner)
+        response = {
+            "active": None,
+            "grant_current": False,
+            "observed_at": reading.repo.clock(),
+            "catalog": [],
+            "catalog_total": 0,
+        }
+        scope = {
+            key: wire(context)[key]
+            for key in (
+                "actor_id",
+                "person_id",
+                "scope_ids",
+                "audience",
+                "access_epoch",
+                "conversation_id",
+                "conversation_kind",
+            )
+        }
+        if (
+            not row
+            or row.get("closed")
+            or not row.get("sharing")
+            or row.get("scope") != scope
+            or row.get("updated_at", 0) + 75 < reading.repo.clock()
+            or (grant_id and row.get("grant_id") != grant_id)
+        ):
+            return response
+        book, chapter = await reading.books.media.local(reading.text, row)
+        response.update(
+            grant_current=True,
+            active={
+                "grant_id": row["grant_id"],
+                "book_id": row["book_id"],
+                "chapter_id": row["chapter_id"],
+                "title": book["metadata"]["title"],
+                "content_hash": row["content_hash"],
+                "offset": row["offset"],
+                "seconds": row["seconds"],
+                "excerpt": chapter["content"][max(0, row["offset"] - 6000) : row["offset"]],
+                "representation": "reader_position_only",
+                "experience": "human_reading_observation",
+            },
+        )
         if response["active"]["excerpt"]:
-            source=await self.sources.capture(context,locator={"kind":"human_reading_observation","book_id":row["book_id"],"chapter_id":row["chapter_id"],"content_hash":row["content_hash"],"offset":row["offset"],"grant_id":row["grant_id"]},raw=response["active"]["excerpt"].encode(),mime_type="text/plain")
-            response["source_refs"]=[wire(source)]
+            source = await self.sources.capture(
+                context,
+                locator={
+                    "kind": "human_reading_observation",
+                    "book_id": row["book_id"],
+                    "chapter_id": row["chapter_id"],
+                    "content_hash": row["content_hash"],
+                    "offset": row["offset"],
+                    "grant_id": row["grant_id"],
+                },
+                raw=response["active"]["excerpt"].encode(),
+                mime_type="text/plain",
+            )
+            response["source_refs"] = [wire(source)]
         await self.authority.check(context)
         return response

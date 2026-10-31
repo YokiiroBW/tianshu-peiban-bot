@@ -1,3 +1,5 @@
+import { uploadMedia } from "../../api/uploads";
+import { useRoleWorkspace } from "../../app/RoleWorkspace";
 import { requestId } from "../../app/requestId";
 import { useEffect, useRef, useState } from "react";
 import { pluginCall } from "./api";
@@ -15,6 +17,13 @@ export function PluginViewFrame({
   csrf: string;
   bindingId: string;
 }) {
+  const workspace = useRoleWorkspace();
+  const binding = instance.bindings.find((item) => item.binding_id === bindingId && item.enabled);
+  const actor = typeof binding?.scope.character_id === "string" ? binding.scope.character_id : null;
+  const target = { actor_id: actor,
+    person_id: actor === workspace.actor ? workspace.conversation?.person_id ?? null : null,
+    conversation_id: actor === workspace.actor ? workspace.conversation?.conversation_id ?? null : null };
+  const targetKey = JSON.stringify(target);
   const frame = useRef<HTMLIFrameElement>(null);
   const [url, setUrl] = useState("");
   const [error, setError] = useState("");
@@ -66,6 +75,7 @@ export function PluginViewFrame({
             result = await pluginCall(
               "invoke",
               {
+                ...target,
                 instance_id: instance.id,
                 action: message.input.action,
                 input: message.input.input ?? {},
@@ -108,9 +118,17 @@ export function PluginViewFrame({
                 }, 2000),
               );
             }
-          } else if (message.method === "selectFile")
-            throw new Error("文件能力尚未接入此宿主。");
-          else throw new Error("页面请求不受支持。");
+          } else if (message.method === "selectFile") {
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept = typeof message.input?.accept === "string" ? message.input.accept : "";
+            const file = await new Promise<File | null>((resolve) => {
+              input.onchange = () => resolve(input.files?.[0] ?? null);
+              input.oncancel = () => resolve(null);
+              input.click();
+            });
+            result = file ? await uploadMedia(file, target, csrf, active.signal) : null;
+          } else throw new Error("页面请求不受支持。");
           port?.postMessage({ id: message.id, result });
         } catch (cause) {
           port?.postMessage({ id: message.id, error: readFailure(cause) });
@@ -147,7 +165,7 @@ export function PluginViewFrame({
       subscriptions.forEach(clearInterval);
       window.removeEventListener("message", listener);
     };
-  }, [instance.id, instance.revision, view.id, csrf, bindingId]);
+  }, [instance.id, instance.revision, view.id, csrf, bindingId, targetKey]);
   return (
     <div>
       {error && <p role="alert">{error}</p>}

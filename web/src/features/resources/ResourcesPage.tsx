@@ -1,3 +1,4 @@
+import { ConnectionSettings } from "./ConnectionSettings";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   ChevronRight,
@@ -29,8 +30,8 @@ function railFor(code: string) {
   if (code === "ready")
     return {
       tone: "blue" as const,
-      label: "已连接",
-      detail: "读取使用服务器登记的只读身份。",
+      label: "已选择",
+      detail: "每次读取重新核验所选连接与上游只读权限。",
     };
   if (code === "connection_required")
     return {
@@ -223,6 +224,7 @@ export default function ResourcesPage() {
         </StatusRail>
       </section>
 
+      {state?.can_manage && <ConnectionSettings rows={state.configurations} onSaved={page.refresh} />}
       {status}
 
       {!status && (

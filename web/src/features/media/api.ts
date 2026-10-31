@@ -1,5 +1,6 @@
-import { ApiError } from "../../api/client";
-import { callOperation } from "../../api/operations";
+import { ApiError, commandInput, apiRead, apiCommandData } from "../../api/client";
+import { capabilityReads } from "../../api/capabilityOperations";
+import { GLOBAL_SCOPE } from "../../api/useDomainResource";
 import { errorWords } from "./wording";
 
 export class MediaError extends Error {
@@ -18,7 +19,8 @@ export async function mediaCall<T>(
   csrf: string,
   signal: AbortSignal,
 ): Promise<T> {
-  const serialized = JSON.stringify(body);
+  const value = { ...GLOBAL_SCOPE, ...body } as Record<string, unknown>;
+  const serialized = JSON.stringify(value);
   const maximum = ["books/library/import", "books/sources/import"].includes(
     operation,
   )
@@ -28,9 +30,15 @@ export async function mediaCall<T>(
     throw new MediaError("budget_exceeded", 413);
   const [domain, ...rest] = operation.split("/");
   const path = ["books", "music", "comics"].includes(domain) ? `${domain}/${rest.join("/")}` : `media/${operation}`;
-  try { return await callOperation<T>(path, body, csrf, signal); }
+  try {
+    if ((capabilityReads as readonly string[]).includes(path)) return await apiRead<T>(path, value, csrf, signal);
+    return await apiCommandData<T>(path, { ...commandInput(), ...value }, csrf, signal);
+  }
   catch (cause) {
-    if (cause instanceof ApiError) throw new MediaError(cause.code, cause.status);
+    if (cause instanceof ApiError) {
+      if (["unknown", "pending"].includes(cause.executionState ?? "")) throw cause;
+      throw new MediaError(cause.code, cause.status);
+    }
     throw cause;
   }
 }

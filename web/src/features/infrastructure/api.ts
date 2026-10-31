@@ -1,96 +1,32 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { integrationPost, readFailure } from "../../app/integrationApi";
+import { useState } from "react";
 import { useAuth } from "../../app/Auth";
+import { apiRead } from "../../api/client";
+import { capabilityReads } from "../../api/capabilityOperations";
+import { useDomainCommand, useDomainResource, GLOBAL_SCOPE } from "../../api/useDomainResource";
 
-export function useInfrastructureQuery<T>(
-  operation: string,
-  body: object,
-  enabled = true,
-) {
-  const { session } = useAuth();
-  const csrf = session?.authenticated ? session.csrf : "";
-  const bodyKey = JSON.stringify(body);
-  const [data, setData] = useState<T | null>(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
-  const active = useRef<AbortController | null>(null);
-  const sequence = useRef(0);
-  const load = useCallback(async () => {
-    if (!csrf || !enabled) return;
-    active.current?.abort();
-    const controller = new AbortController();
-    active.current = controller;
-    const current = ++sequence.current;
-    try {
-      const answer = await integrationPost<T>(
-        `infrastructure/${operation}`,
-        JSON.parse(bodyKey),
-        csrf,
-        controller.signal,
-      );
-      if (!controller.signal.aborted && current === sequence.current) {
-        setData(answer);
-        setError("");
-        return answer;
-      }
-    } catch (cause) {
-      if (!controller.signal.aborted && current === sequence.current)
-        setError(readFailure(cause));
-    } finally {
-      if (!controller.signal.aborted && current === sequence.current)
-        setLoading(false);
-    }
-  }, [bodyKey, csrf, enabled, operation]);
-  useEffect(() => {
-    setData(null);
-    setError("");
-    setLoading(Boolean(csrf && enabled));
-    void load();
-    const visibleLoad = () => {
-      if (!document.hidden) void load();
-    };
-    const timer = window.setInterval(visibleLoad, 3000);
-    document.addEventListener("visibilitychange", visibleLoad);
-    return () => {
-      active.current?.abort();
-      ++sequence.current;
-      window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", visibleLoad);
-    };
-  }, [csrf, enabled, load]);
-  return { data, error, loading, reload: load };
+/** Infrastructure management has an explicit global scene and the shared Action monitor. */
+export function useInfrastructureQuery<T>(operation: string, body: object, enabled = true) {
+  const resource = useDomainResource<T>(`infrastructure/${operation}`, { ...GLOBAL_SCOPE, ...body }, enabled, 3000);
+  return { ...resource, reload: resource.refresh };
 }
 
 export function useInfrastructureAction() {
+  const command = useDomainCommand<unknown>("infrastructure", "global");
   const { session } = useAuth();
-  const csrf = session?.authenticated ? session.csrf : "";
-  const active = useRef<AbortController | null>(null);
-  const [error, setError] = useState("");
-  const [pending, setPending] = useState(false);
-  useEffect(() => () => active.current?.abort(), [csrf]);
-  const send = async <T>(
-    operation: string,
-    body: object,
-  ): Promise<T | null> => {
-    active.current?.abort();
-    const controller = new AbortController();
-    active.current = controller;
-    setError("");
-    setPending(true);
-    try {
-      const result = await integrationPost<T>(
-        `infrastructure/${operation}`,
-        body,
-        csrf,
-        controller.signal,
-      );
-      return controller.signal.aborted ? null : result;
-    } catch (cause) {
-      if (!controller.signal.aborted) setError(readFailure(cause));
-      return null;
-    } finally {
-      if (!controller.signal.aborted) setPending(false);
+  const [reading, setReading] = useState(false);
+  const [readError, setReadError] = useState("");
+  async function send<T>(operation: string, body: object): Promise<T | null> {
+    const path = `infrastructure/${operation}`;
+    if ((capabilityReads as readonly string[]).includes(path)) {
+      if (!session?.csrf) return null;
+      setReading(true); setReadError("");
+      try { return await apiRead<T>(path, { ...GLOBAL_SCOPE, ...body }, session.csrf, AbortSignal.timeout(15000)); }
+      catch (cause) { setReadError(cause instanceof Error ? cause.message : "读取失败"); return null; }
+      finally { setReading(false); }
     }
-  };
-  return { send, pending, error };
+    const revision = (body as { expected_revision?: number }).expected_revision ?? null;
+    const answer = await command.run(`infrastructure/${operation}`, body, revision);
+    return answer ? answer.data as T : null;
+  }
+  return { send, pending: command.busy || reading, error: command.error || readError };
 }

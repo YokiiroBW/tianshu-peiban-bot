@@ -1,21 +1,11 @@
-export type SpeechConfig = {
-  provider: "edge" | "fish" | "local";
-  endpoint: string;
-  model: string;
-  voice: string;
-  speed: number;
-  pitch: number;
-  daily_characters: number;
-  revision: number;
-  has_key: boolean;
-  configured: boolean;
+export type VoiceProfile = {
+  id: string; name: string; actor_id?: string; connection_id: string;
+  model: string; voice_id?: string; revision: number; output_mode: string;
 };
 export type AudioSettings = {
-  providers: SpeechConfig[];
-  voices: { id: string; name: string }[];
-  fish_models: string[];
-  usage: Record<string, number>;
-  budget_day: string;
+  voice_profiles: VoiceProfile[];
+  connections: { id: string; name: string; transport: string; configured: boolean; enabled: boolean; revision: number }[];
+  execution_owner: "speech.synthesize";
 };
 export type AudioJob = {
   id: string;

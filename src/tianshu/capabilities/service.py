@@ -572,7 +572,9 @@ class Capabilities:
             if operation == "connections.save":
                 return await self.weather.save(context, clean)
         if domain == "plugins":
-            if operation in {"install", "create", "invoke"}:
+            if operation not in {"configure", "enable", "disable", "bindings", "upgrade"}:
+                clean.pop("expected_revision", None)
+            if operation in {"install", "create", "invoke", "resume"}:
                 clean["client_request_id"] = client_id
             return await self.web_plugins.route(operation, clean, context)
         if domain in {"media", "books", "music", "comics"}:

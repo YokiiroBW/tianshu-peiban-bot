@@ -39,8 +39,12 @@ class BookAudio:
         self.lock = asyncio.Lock()
 
     async def settings(self):
-        speech=self.books.media.capabilities.speech
-        return {"voice_profiles":await speech.config.list("voice_profile"),"connections":await speech.config.list("speech_connection"),"execution_owner":"speech.synthesize"}
+        speech = self.books.media.capabilities.speech
+        return {
+            "voice_profiles": await speech.config.list("voice_profile"),
+            "connections": await speech.config.list("speech_connection"),
+            "execution_owner": "speech.synthesize",
+        }
 
     async def view(self, book_id):
         await self.local(self.books.catalog.book, book_id)
@@ -55,12 +59,25 @@ class BookAudio:
         }
 
     async def prepare(self, body):
-        speech=self.books.media.capabilities.speech
-        selected=await speech.config.get("voice_profile",body.get("speech_profile_id"))
-        require(selected is not None,"voice_profile_required",409)
-        connection=await speech.config.get("speech_connection",selected["connection_id"])
-        require(connection and connection.get("enabled") and connection.get("configured"),"speech_not_configured",503)
-        selected={**selected,"connection_revision":connection["revision"],"provider":connection["transport"]}
+        speech = self.books.media.capabilities.speech
+        selected = await speech.config.get("voice_profile", body.get("speech_profile_id"))
+        require(selected is not None, "voice_profile_required", 409)
+        require(
+            body.get("speech_profile_revision", selected["revision"]) == selected["revision"],
+            "profile_revision_changed",
+            409,
+        )
+        connection = await speech.config.get("speech_connection", selected["connection_id"])
+        require(
+            connection and connection.get("enabled") and connection.get("configured"),
+            "speech_not_configured",
+            503,
+        )
+        selected = {
+            **selected,
+            "connection_revision": connection["revision"],
+            "provider": connection["transport"],
+        }
         rows, missing = await self.local(
             self.ledger.prepare, body.get("book_id"), selected, body.get("chapter_ids")
         )
@@ -86,21 +103,60 @@ class BookAudio:
                         key = digest({"part": part["text"], "profile": job["profile"]})
                         cached = await self.local(self.files.read, job["root"], key)
                         if cached is None:
-                            from tianshu.types import Action,OriginKind,SourceRef
+                            from tianshu.types import Action, OriginKind, SourceRef
                             from tianshu.runtime.serialization import wire
-                            from ....serialization import context_from,artifact_from
-                            service=self.books.media.capabilities
-                            context=context_from(job["context"])
-                            selected=await service.configuration.get("voice_profile",job["profile"]["id"])
-                            require(selected and selected["revision"]==job["profile"]["revision"],"voice_profile_changed",409)
-                            identity="book-speech:"+digest([job["id"],key,job.get("generation",0)])
-                            action=Action(identity,identity,"speech.synthesize",context.actor_id,context,{"profile_id":selected["id"],"text":part["text"]},OriginKind.TIMER,source_refs=tuple(SourceRef(**x) for x in job.get("source_refs",[])))
-                            result=wire(await service.actions.invoke(action))
-                            require(result["execution"]=="succeeded", "book_audio_unknown" if result["execution"]=="unknown" else result.get("error_code") or "book_audio_failed",409)
-                            produced=[artifact_from(a) for a in result["artifacts"]]
-                            require(len(produced)==1,"book_audio_multiple_clips",409)
-                            raw,_=await service.artifacts.get(context,produced[0].media.media_id)
-                            cached=await self.local(self.files.publish,job["root"],key,part["text"],raw,result["result"].get("alignment",[]))
+                            from ....serialization import context_from, artifact_from
+
+                            service = self.books.media.capabilities
+                            context = context_from(job["context"])
+                            selected = await service.configuration.get(
+                                "voice_profile", job["profile"]["id"]
+                            )
+                            require(
+                                selected and selected["revision"] == job["profile"]["revision"],
+                                "voice_profile_changed",
+                                409,
+                            )
+                            identity = "book-speech:" + digest(
+                                [job["id"], key, job.get("generation", 0)]
+                            )
+                            action = Action(
+                                identity,
+                                identity,
+                                "speech.synthesize",
+                                context.actor_id,
+                                context,
+                                {
+                                    "profile_id": selected["id"],
+                                    "profile_revision": selected["revision"],
+                                    "text": part["text"],
+                                },
+                                OriginKind.TIMER,
+                                source_refs=tuple(
+                                    SourceRef(**x) for x in job.get("source_refs", [])
+                                ),
+                            )
+                            result = wire(await service.actions.invoke(action))
+                            require(
+                                result["execution"] == "succeeded",
+                                "book_audio_unknown"
+                                if result["execution"] == "unknown"
+                                else result.get("error_code") or "book_audio_failed",
+                                409,
+                            )
+                            produced = [artifact_from(a) for a in result["artifacts"]]
+                            require(len(produced) == 1, "book_audio_multiple_clips", 409)
+                            raw, _ = await service.artifacts.get(
+                                context, produced[0].media.media_id
+                            )
+                            cached = await self.local(
+                                self.files.publish,
+                                job["root"],
+                                key,
+                                part["text"],
+                                raw,
+                                result["result"].get("alignment", []),
+                            )
                         pieces.append((cached, part))
                         await self.local(
                             self.ledger.update,
@@ -108,7 +164,7 @@ class BookAudio:
                             completed_parts=index + 1,
                             lease=self.repo.clock() + 240,
                         )
-                    artifact = await self.files.assemble(job,pieces)
+                    artifact = await self.files.assemble(job, pieces)
                 await self.local(
                     self.ledger.update,
                     job,
@@ -157,7 +213,10 @@ class BookAudio:
                 rows, _ = await self.local(
                     self.ledger.prepare, plan["book_id"], plan["profile"], added
                 )
-                rows=[{**r,"context":plan["context"],"source_refs":plan.get("source_refs",[])} for r in rows]
+                rows = [
+                    {**r, "context": plan["context"], "source_refs": plan.get("source_refs", [])}
+                    for r in rows
+                ]
             except Fault as error:
                 # A disconnected book volume must not stop unrelated media loops.
                 await self.local(

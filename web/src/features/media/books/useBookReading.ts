@@ -1,3 +1,4 @@
+import { useDomainTarget, type DomainTarget } from "../../../api/useDomainResource";
 import { apiJson } from "../../../api/client";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../../../app/Auth";
@@ -20,15 +21,18 @@ export function useBookReading(
   audioJob?: string,
 ) {
   const { session } = useAuth();
+  const target = useDomainTarget();
+  const targetKey = JSON.stringify(target);
   const [reader, setReader] = useState<ReaderState | null>(null);
   const [choices, setChoices] = useState<ReadingView["choices"]>([]);
   const [sharing, setSharing] = useState(false);
   const [binding, setBinding] = useState("");
   const [synced, setSynced] = useState(true);
-  const current = useRef({ media, csrf: session?.csrf ?? "" });
-  current.current = { media, csrf: session?.csrf ?? "" };
+  const current = useRef({ media, csrf: session?.csrf ?? "", target });
+  current.current = { media, csrf: session?.csrf ?? "", target };
   const state = useRef({
     reader: null as ReaderState | null,
+    target,
     offset: 0,
     seconds: 0,
     sharing: false,
@@ -36,10 +40,10 @@ export function useBookReading(
     pending: false,
   });
 
-  function close(id: string) {
+  function close(id: string, selector: DomainTarget = current.current.target) {
     // keepalive covers page navigation; TTL covers an offline browser or abrupt termination.
     void apiJson("books/reading/close", {
-      body: { reader_id: id, client_request_id: requestId(), expected_revision: null },
+      body: { ...selector, reader_id: id, client_request_id: requestId(), expected_revision: null },
       csrf: current.current.csrf, keepalive: true,
     }).catch(() => undefined);
   }
@@ -56,6 +60,7 @@ export function useBookReading(
       const result = await current.current.media.request<{
         reader: ReaderState;
       }>("book-reading-progress", "books/reading/progress", {
+        ...data.target,
         reader_id: id,
         sequence,
         offset: data.offset,
@@ -82,6 +87,7 @@ export function useBookReading(
     setSynced(true);
     const data = {
       reader: null as ReaderState | null,
+      target,
       offset: 0,
       seconds: 0,
       sharing: false,
@@ -93,7 +99,7 @@ export function useBookReading(
       const view = await current.current.media.request<ReadingView>(
         "book-reading-view",
         "books/reading/view",
-        { book_id: bookId },
+        { ...current.current.target, book_id: bookId },
       );
       if (stopped || !view) return;
       setChoices(view.choices);
@@ -112,6 +118,7 @@ export function useBookReading(
       const result = await current.current.media.request<{
         reader: ReaderState;
       }>("book-reading-open", "books/reading/open", {
+        ...current.current.target,
         book_id: bookId,
         chapter_id: chapterId,
         content_hash: hash,
@@ -151,7 +158,7 @@ export function useBookReading(
       }
     };
     const leave = () => {
-      if (data.reader) close(data.reader.reader_id);
+      if (data.reader) close(data.reader.reader_id, data.target);
     };
     document.addEventListener("visibilitychange", hidden);
     window.addEventListener("pagehide", leave);
@@ -162,7 +169,7 @@ export function useBookReading(
       window.removeEventListener("pagehide", leave);
       leave();
     };
-  }, [bookId, chapterId, hash, audioJob]);
+  }, [bookId, chapterId, hash, audioJob, targetKey]);
 
   return {
     reader,

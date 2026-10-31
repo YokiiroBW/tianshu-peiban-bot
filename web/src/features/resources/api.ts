@@ -1,5 +1,5 @@
-import { ApiError } from "../../api/client";
-import { callOperation } from "../../api/operations";
+import { ApiError, apiRead } from "../../api/client";
+import { GLOBAL_SCOPE } from "../../api/useDomainResource";
 import { readSession } from "../../api/session";
 /** Same-origin calls for the read-only asset page.
  *
@@ -69,6 +69,12 @@ export type Read = {
   seconds: number;
 };
 
+export type AssetConfiguration = {
+  id: string; name?: string; endpoint: string; revision: number; enabled: boolean;
+  configured: boolean; quota_group?: string; ca_file?: string;
+  allowed_principals?: string[]; actor_ids?: string[];
+};
+
 export type PageState = {
   available: boolean;
   code: string;
@@ -85,6 +91,8 @@ export type PageState = {
   reselect: string;
   cancel: string;
   reads: Read[];
+  can_manage: boolean;
+  configurations: AssetConfiguration[];
 };
 
 export type LibrariesPage = {
@@ -169,7 +177,7 @@ export function isState(cause: unknown, ...codes: string[]) {
 }
 
 export async function call<T>(path: string, body: object, csrf: string, signal: AbortSignal): Promise<T> {
-  try { return await callOperation<T>(path, body, csrf, signal); }
+  try { return await apiRead<T>(`resources/${path}`, { ...GLOBAL_SCOPE, ...body }, csrf, signal); }
   catch (cause) {
     if (cause instanceof ApiError) throw new WebError(cause.code, cause.status);
     throw cause;

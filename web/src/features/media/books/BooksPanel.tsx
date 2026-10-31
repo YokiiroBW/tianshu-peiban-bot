@@ -1,3 +1,5 @@
+import { uploadMedia } from "../../../api/uploads";
+import { useAuth } from "../../../app/Auth";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BookOpen, Download, RefreshCw } from "lucide-react";
 import type { MediaController } from "../useMediaController";
@@ -51,6 +53,7 @@ const slots = [
 ];
 
 export function BooksPanel({ media }: { media: MediaController }) {
+  const { session } = useAuth();
   const current = useRef(media);
   current.current = media;
   const mutations = useRef(0);
@@ -406,19 +409,12 @@ export function BooksPanel({ media }: { media: MediaController }) {
       );
       return;
     }
-    const encoded = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result).split(",", 2)[1]);
-      reader.onerror = () => reject(new Error("无法读取所选文件"));
-      reader.readAsDataURL(file);
-    }).catch(() => "");
-    if (!encoded) {
-      current.current.setNotice("没有读到文件内容，请重新选择。");
-      return;
-    }
+    if (!session?.csrf) return;
+    const active = new AbortController();
+    const uploaded = await uploadMedia(file, {}, session.csrf, active.signal);
     const result = await mutate(
       "library/import",
-      { filename: file.name, content_base64: encoded },
+      { filename: file.name, media: uploaded.artifact.media },
       view?.settings.directory
         ? "原文已导入，EPUB 整理已进入下载中心。"
         : "原文已导入；设置存档目录后可整理为 EPUB。",

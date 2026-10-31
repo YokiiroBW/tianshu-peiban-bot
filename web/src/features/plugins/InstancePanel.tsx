@@ -1,3 +1,4 @@
+import { useRoleWorkspace } from "../../app/RoleWorkspace";
 import { requestId } from "../../app/requestId";
 import { useEffect, useState } from "react";
 import type { Action, Instance, Invocation } from "./types";
@@ -41,6 +42,9 @@ function ActionForm({
   bindingId: string;
 }) {
   const [value, setValue] = useState<Record<string, unknown>>({});
+  const workspace = useRoleWorkspace();
+  const binding = instance.bindings.find((item) => item.binding_id === bindingId);
+  const actor = typeof binding?.scope.character_id === "string" ? binding.scope.character_id : null;
   return (
     <form
       className="plugins-action"
@@ -50,6 +54,9 @@ function ActionForm({
           instance_id: instance.id,
           action: action.id,
           input: value,
+          actor_id: actor,
+          person_id: workspace.actor === actor ? workspace.conversation?.person_id ?? null : null,
+          conversation_id: workspace.actor === actor ? workspace.conversation?.conversation_id ?? null : null,
           client_request_id: requestId(),
           ...(bindingId ? { binding_id: bindingId } : {}),
         });
@@ -69,7 +76,7 @@ function ActionForm({
       )}
       <button
         className="button primary"
-        disabled={busy || !action.availability.available}
+        disabled={busy || !actor || !action.availability.available}
       >
         执行
       </button>
@@ -164,7 +171,7 @@ export function InstancePanel({
       {tab === "actions" && (
         <div className="plugins-actions">
           {instance.bindings.some(
-            (binding) => binding.enabled && binding.scope.kind === "workspace",
+            (binding) => binding.enabled && binding.scope.kind === "character",
           ) && (
             <label className="plugins-field">
               使用范围
@@ -172,15 +179,15 @@ export function InstancePanel({
                 value={bindingId}
                 onChange={(event) => setBindingId(event.target.value)}
               >
-                <option value="">实例默认配置</option>
+                <option value="">请选择已授权角色</option>
                 {instance.bindings
                   .filter(
                     (binding) =>
-                      binding.enabled && binding.scope.kind === "workspace",
+                      binding.enabled && binding.scope.kind === "character",
                   )
                   .map((binding) => (
                     <option key={binding.binding_id} value={binding.binding_id}>
-                      {binding.scope.workspace_id}
+                      {String(binding.scope.character_id)}
                     </option>
                   ))}
               </select>
@@ -211,7 +218,7 @@ export function InstancePanel({
               {instance.contributions
                 .commands!.flatMap((item) => item.names)
                 .join("、")}
-              。机器人命令入口尚未接入。
+              。按该角色目录和频道命令路由执行。
             </p>
           )}
         </div>

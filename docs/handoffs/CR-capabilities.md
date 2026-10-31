@@ -175,3 +175,12 @@ POST /api/v1/resources/assets/{view,libraries,library,browse,search,entry}是读
 配置写 assets/connections.save={client_request_id,id,name?,endpoint,token?只写,clear_credential?,quota_group,ca_file?,allowed_principals?,actor_ids?,expected_revision,enabled?}，external.manage，统一CommandResult；token进入唯一Configuration密封secret。HTTP不接受任意credential_ref借用其他凭据/部署主密钥。view给旧PageState中的connections/page_size/sort/kinds/search_scopes/preview及can_manage/configurations，选择连接只属于前端浏览状态，不授予权限；每次读显式connection_id，服务器重新核对。
 
 渠道连接token_ref同样只允许自身sealed:channels:<id>命名空间；配置变化会刷新真实transport且在实际网络提交前核revision/原目标，不能在五秒owner刷新窗口向旧endpoint发送新内容。原首批根控制socket只是部署接线缺口，漫画两个实际worker业务main已在media.comics.source_service / publisher_service，可由runtime受管启动，不依赖旧BusinessHost。
+
+## 四目录界面实际接线（implemented_not_tested）
+
+- 插件中心：发现/安装（ZIP流式上传后传产物引用、Git固定提交、服务器开发目录）、创建/配置/密钥清除/启停/升级/卸载；逐角色绑定及覆盖参数；角色动作表单/自定义HTML页面/文件选择上传；原任务查询、明确取消/核对/续接、日志与周期任务读取。管理选择器明确global，动作选择已登记角色，只有同角色当前会话才带会话/person。
+- 媒体中心：保留下载/账号/订阅/整理/书籍/音乐/漫画原有效表单与真实业务投影；媒体命令使用已声明操作类型和统一CommandResult/原Action轮询。书籍导入改multipart；听书只选择唯一Speech.voice_profile（含实际版本），删除平行语音密钥/音色配置；共享阅读只绑定当前可信私聊，关闭/后台状态明确同步。原件audio保持原生同源URL/Range播放。
+- 基础设施：Docker/OpenWrt/受管Dockge读取与控制明确global；写入用统一Action monitor；原控制操作已有client_request_id只读恢复，不重新发送。显示原节点读回时间/未知/不可用，不把配置存在称已接通。
+- 资产库：管理员可登记/修订HTTPS AssetLink连接与密封令牌；页面本地选择连接后按真实五类只读协议列库、翻页、浏览目录、搜索、读取详情；每次服务器重新核权，旧generation/退出登录清显示。协议没有原件端口，预览保持不可用。
+
+以上仅完成源码与契约/diff核对，未运行测试、typecheck、build或浏览器；真实账号、外部节点、NAS媒体、插件进程及付费模型仍待根集中验收。

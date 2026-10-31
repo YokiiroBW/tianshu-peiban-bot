@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../../../app/Auth";
-import { integrationPost, IntegrationError } from "../../../app/integrationApi";
+import { ApiError, apiCommandData, apiRead } from "../../../api/client";
+import { GLOBAL_SCOPE } from "../../../api/useDomainResource";
 import { requestId } from "../../../app/requestId";
 import { useInfrastructureQuery, useInfrastructureAction } from "../api";
 import { controlFailure } from "./presentation";
@@ -103,9 +104,9 @@ export function useControlRequest(scope: string, durable = true) {
       setCompleted(null);
       setError("");
       setSending(true);
-      const result = await integrationPost<{ operation: Operation }>(
+      const result = await apiCommandData<{ operation: Operation }>(
         `infrastructure/control/${kind}`,
-        { ...body, ...receipt },
+        { ...GLOBAL_SCOPE, ...body, ...receipt, expected_revision: (body as { expected_revision?: number }).expected_revision ?? null },
         csrf,
         AbortSignal.timeout(15000),
       );
@@ -115,7 +116,7 @@ export function useControlRequest(scope: string, durable = true) {
       // responses and server failures keep their key for read-only recovery.
       const rejected =
         !receipt ||
-        (cause instanceof IntegrationError &&
+        (cause instanceof ApiError &&
           cause.status < 500 &&
           cause.executionState !== "unknown");
       if (rejected && durable) saveReceipt(storageKey, null);
@@ -134,10 +135,10 @@ export function useControlRequest(scope: string, durable = true) {
   const recover = async () => {
     const id = pending?.client_request_id ?? operation?.client_request_id;
     if (!id) return;
-    const result = await recovery.send<{ operation: Operation }>(
-      "control/operation",
-      { client_request_id: id, refresh: operation ? operation.can_refresh : true },
-    );
+    const result = await apiRead<{ operation: Operation }>("infrastructure/control/operation",
+      { ...GLOBAL_SCOPE, client_request_id: id, refresh: operation ? operation.can_refresh : true }, csrf, AbortSignal.timeout(15000)).catch((cause) => {
+        setError(controlFailure(cause)); return null;
+      });
     if (result) {
       if (pending) setSubmitted(result.operation);
       else setCompleted(result.operation);
