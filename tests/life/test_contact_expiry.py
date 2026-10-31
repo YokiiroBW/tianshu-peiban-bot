@@ -85,8 +85,7 @@ async def test_person_ttl_caps_new_contacts_and_never_renews_old_or_retried_cand
             )).fetchone()
 
     first = await read("first")
-    assert first["expires_at"] <= first["created_at"] + timedelta(hours=1)
-    assert first["expires_at"] > first["created_at"] + timedelta(minutes=59)
+    assert first["expires_at"] == first["created_at"] + timedelta(hours=1)
     # Simulate a delayed ordinary candidate; changing due_at does not change its birth/window.
     async with database.transaction() as connection:
         await connection.execute(

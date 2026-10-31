@@ -3,7 +3,6 @@ from __future__ import annotations
 from tianshu.sources.dependencies import unique_refs
 
 import json
-from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from uuid import NAMESPACE_URL, uuid5
 from zoneinfo import ZoneInfo
@@ -372,10 +371,6 @@ class LifeWorker:
             raise AppError("contact_target_mismatch", status=403)
         await self.life.identity.check(context, candidate.source_refs)
         preferences, history = await self.life.contacts.preferences(context), await self.life.contacts.history(context)
-        candidate = replace(candidate, expires_at=contact_expiry(
-            candidate.expires_at, preferences, created_at=datetime.now(UTC),
-            explicit=candidate.explicit, kind=candidate.kind,
-        ))
         content_fingerprint = fingerprint(candidate.summary, [ref.source_id for ref in candidate.source_refs])
         repetition = max((similarity(content_fingerprint, item["signature"]) for item in history), default=0)
         habits = await self.growth.view(context) if self.growth else {"items": []}
@@ -385,17 +380,21 @@ class LifeWorker:
             "affect_pull": abs(affect["valence"]), "recency_need": .5,
             "social_cost": 1 if preferences["availability"] in {"busy", "sleeping"} else .2, "repetition": repetition}, preferences["responsiveness"])
         payload = {**(candidate.payload or {}), "salience": assessment, "fingerprint": content_fingerprint}
-        return PreparedContact(candidate, payload)
+        return PreparedContact(candidate, payload, preferences["expiry_seconds"])
 
     async def persist_contact(self, connection, prepared: PreparedContact):
         candidate, payload = prepared.candidate, prepared.payload
         context = candidate.context
         await self.life.validate_persistence(connection,context,candidate.source_refs)
         added = await (await connection.execute(
-            "INSERT INTO life.contact_candidates(id,actor_id,target_ref,person_id,kind,summary,due_at,expires_at,state,explicit,delivery_kind,action_id,context,source_refs,payload) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'pending',%s,%s,%s,%s,%s,%s) ON CONFLICT(id) DO NOTHING RETURNING id",
+            "INSERT INTO life.contact_candidates(id,actor_id,target_ref,person_id,kind,summary,due_at,expires_at,state,explicit,delivery_kind,action_id,context,source_refs,payload,created_at) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,"
+            "CASE WHEN %s THEN %s::timestamptz ELSE LEAST(%s::timestamptz,now()+%s*interval '1 second') END,"
+            "'pending',%s,%s,%s,%s,%s,%s,now()) ON CONFLICT(id) DO NOTHING RETURNING id",
             (candidate.candidate_id, candidate.actor_id, candidate.target_ref, context.person_id, candidate.kind, candidate.summary,
-             candidate.due_at, candidate.expires_at, candidate.explicit, candidate.delivery_kind, candidate.action_id, document(context), document(candidate.source_refs), document(payload)))).fetchone()
+             candidate.due_at, candidate.explicit or candidate.kind == "reply", candidate.expires_at,
+             candidate.expires_at, prepared.expiry_seconds, candidate.explicit, candidate.delivery_kind,
+             candidate.action_id, document(context), document(candidate.source_refs), document(payload)))).fetchone()
         if added:
             await self.life.jobs.enqueue(connection, JobSpec("life.contact_due", "contact:"+candidate.candidate_id+":1",
                 {"candidate_id": candidate.candidate_id, "expected_revision": 1}, ServiceClass.DUE if candidate.explicit else ServiceClass.ELASTIC, candidate.due_at, context.actor_id))
@@ -521,7 +520,7 @@ class LifeWorker:
 
     async def contact_due(self, candidate_id, expected_revision):
         async with self.life.database.transaction(read_only=True) as connection:
-            candidate = await (await connection.execute("SELECT * FROM life.contact_candidates WHERE id=%s", (candidate_id,))).fetchone()
+            candidate = await (await connection.execute("SELECT *,now() AS review_time FROM life.contact_candidates WHERE id=%s", (candidate_id,))).fetchone()
         if not candidate or candidate["revision"] != expected_revision or candidate["state"] not in {"pending", "waiting"}:
             return
         context = context_from_record(candidate["context"])
@@ -530,7 +529,7 @@ class LifeWorker:
         expires = contact_expiry(candidate["expires_at"], preferences,
             created_at=candidate["created_at"], explicit=candidate["explicit"], kind=candidate["kind"])
         candidate = {**candidate, "expires_at": expires}
-        decision = self.life.attention.decide(candidate, preferences, await self.life.contacts.history(context))
+        decision = self.life.attention.decide(candidate, preferences, await self.life.contacts.history(context), now=candidate["review_time"])
         async with self.life.database.transaction() as connection:
             current = await self.life.lock_row(connection,context,"SELECT * FROM life.contact_candidates WHERE id=%s FOR UPDATE", (candidate_id,))
             if current["revision"] != expected_revision or current["state"] not in {"pending", "waiting"}:

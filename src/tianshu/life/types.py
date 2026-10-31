@@ -33,3 +33,4 @@ class ContactCandidate:
 class PreparedContact:
     candidate: ContactCandidate
     payload: Mapping[str, Any]
+    expiry_seconds: int
