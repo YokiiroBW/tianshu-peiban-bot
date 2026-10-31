@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ApiError, apiRead, apiCommand, commandInput, awaitCommand } from "./client";
+import { ApiError, apiRead, apiCommand, commandInput, awaitCommand, publishCommandResult, commandTarget } from "./client";
 import { commandIntent, finishIntent } from "./intents";
 import { useAuth } from "../app/Auth";
 import { useRoleWorkspace } from "../app/RoleWorkspace";
@@ -33,6 +33,7 @@ export function useDomainResource<T>(path: string, scope: object = {}, enabled =
   const [dataKey, setDataKey] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [accessLost, setAccessLost] = useState(false);
   const current = useRef<AbortController | null>(null);
   const generation = useRef(0);
   const requestKey = `${csrf}:${path}:${key}`;
@@ -48,10 +49,14 @@ export function useDomainResource<T>(path: string, scope: object = {}, enabled =
     setError("");
     try {
       const answer = await apiRead<T>(path, JSON.parse(key), csrf, controller.signal);
-      if (!controller.signal.aborted && mark === generation.current) { setData(answer); setDataKey(requestKey); }
+      if (!controller.signal.aborted && mark === generation.current) { setData(answer); setDataKey(requestKey); setAccessLost(false); }
     } catch (cause) {
-      if (!controller.signal.aborted && mark === generation.current)
+      if (!controller.signal.aborted && mark === generation.current) {
         setError(cause instanceof Error ? cause.message : "读取失败，请重试。");
+        if (cause instanceof ApiError && ([401, 403, 404, 410].includes(cause.status) || ["source_unavailable", "source_revoked", "result_source_unavailable"].includes(cause.code))) {
+          setData(null); setDataKey(""); setAccessLost(true);
+        }
+      }
     } finally {
       if (!controller.signal.aborted && mark === generation.current) setLoading(false);
     }
@@ -59,6 +64,7 @@ export function useDomainResource<T>(path: string, scope: object = {}, enabled =
   useEffect(() => {
     ++generation.current;
     setData(null);
+    setAccessLost(false);
     setError("");
     setLoading(false);
     void refresh();
@@ -72,7 +78,7 @@ export function useDomainResource<T>(path: string, scope: object = {}, enabled =
     }, pollMs);
     return () => clearInterval(timer);
   }, [pollMs, enabled, csrf, refresh]);
-  return { data: dataKey === requestKey ? data : null, error, loading, refresh };
+  return { data: dataKey === requestKey ? data : null, error, loading, refresh, accessLost };
 }
 
 export function useDomainCommand<T = unknown>(scope = "", targetMode: "conversation" | "actor" | "global" = "conversation") {
@@ -102,14 +108,14 @@ export function useDomainCommand<T = unknown>(scope = "", targetMode: "conversat
       const initial = await apiCommand<T>(path, { ...submitted, ...commandInput(revision, intent.id) }, session.csrf, controller.signal);
       const answer = await awaitCommand(initial, submitted, session.csrf, controller.signal, (current) => {
         if (!controller.signal.aborted && mounted.current && active.current === controller) setResult(current);
-        window.dispatchEvent(new CustomEvent("tianshu:command-result", { detail: current }));
+        publishCommandResult(current, submitted, path);
       });
       if (answer.receipt?.execution !== "unknown" && answer.receipt?.effect !== "unknown" && answer.receipt?.delivery !== "unknown") finishIntent(intent.key);
-      window.dispatchEvent(new CustomEvent("tianshu:command-result", { detail: answer }));
+      publishCommandResult(answer, submitted, path);
       return answer;
     } catch (cause) {
       const unknown = cause instanceof ApiError && ["unknown", "pending"].includes(cause.executionState ?? "");
-      if (unknown) window.dispatchEvent(new CustomEvent("tianshu:command-unknown", { detail: { operation: path, client_request_id: intent.id, expected_revision: revision, scope, ...(cause instanceof ApiError ? cause.details : {}) } }));
+      if (unknown) window.dispatchEvent(new CustomEvent("tianshu:command-unknown", { detail: { operation: path, client_request_id: intent.id, expected_revision: revision, scope, target: commandTarget(submitted), ...(cause instanceof ApiError ? cause.details : {}) } }));
       else finishIntent(intent.key);
       if (mounted.current && active.current === controller)
         setError(cause instanceof Error ? cause.message : "提交结果尚未确认，请查询原任务。");

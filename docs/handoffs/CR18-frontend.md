@@ -39,3 +39,11 @@
 角色会话/聊天重写为Identity conversations/open与Conversation消息/发送/turn/取消，连续输入由后端Collector处理。上传消费正式data.media/source_ref作为InputPart原件，artifact.media只供能力素材；不上传本机路径。小屋消费实际life/state；Growth消费当前规则/真实认识与Sources.read。所有现有视觉资产和书架、房间呈现仍保留。
 
 生活总览/目标活动/衣柜/阅读、日记/作品以及Speech/Reactions/Images在继续替换实际DTO；目前仍有原页面尚未接线，不得据此标CR18完成。People/Memory/模型/Channels/插件/媒体/基础设施后续分别收口。共享api/app/路由/依赖锁由本前端写者持有，若协调者将插件/媒体/基础设施页面交C，须明确子目录边界并先消费本次客户端。未执行测试/typecheck/build/浏览器，定向传输测试只写未跑。
+
+
+### 原操作查询与缓存失效增量
+
+- 共享操作表纳入 Catalog actor policy/manifest、AssetLibrary 实际读取/连接命令、capabilities/find、commands/get、Life access/取消/核对等正式端点。
+- 原命令监控保留提交时 actor/person/conversation，使用同一原 ID 只读查询；页面切换不改写原目标，不重发 mutation。目标同查询参数一起带到任务页。
+- useDomainResource 遇 401/403/404/410 或来源失效清缓存与编辑依赖，保留普通瞬时网络错误的重读入口。
+- 状态：implemented_not_tested；按用户要求未运行测试、typecheck、build 或浏览器。Life 全页面接线仍在后续提交中，不以本基础增量标整批完成。

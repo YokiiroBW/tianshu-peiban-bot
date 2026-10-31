@@ -27,12 +27,22 @@ type Options = {
   intent?: CommandInput;
 };
 
+export type CommandTarget = { actor_id: string | null; person_id: string | null; conversation_id: string | null };
+export function commandTarget(value: object = {}, path = ""): CommandTarget {
+  const query = new URLSearchParams(path.split("?")[1] ?? "");
+  const values = value as Record<string, unknown>;
+  return Object.fromEntries(["actor_id", "person_id", "conversation_id"].map((key) =>
+    [key, typeof values[key] === "string" ? values[key] : query.get(key)])) as CommandTarget;
+}
+export function publishCommandResult(value: CommandResult<unknown>, target: object, operation?: string) {
+  window.dispatchEvent(new CustomEvent("tianshu:command-result", { detail: { ...value, target: commandTarget(target), operation, capability_id: (target as Record<string, unknown>).capability_id } }));
+}
 function uncertain(path: string, options: Options, status = 0) {
-  window.dispatchEvent(new CustomEvent("tianshu:command-unknown", { detail: { operation: path, client_request_id: options.intent?.client_request_id, expected_revision: options.intent?.expected_revision } }));
+  window.dispatchEvent(new CustomEvent("tianshu:command-unknown", { detail: { operation: path, client_request_id: options.intent?.client_request_id, expected_revision: options.intent?.expected_revision, target: commandTarget(options.body, path), capability_id: (options.body as Record<string, unknown> | undefined)?.capability_id, action_id: (options.body as Record<string, unknown> | undefined)?.action_id } }));
   return new ApiError("outcome_unknown", status,
     "本次提交结果尚未确认。取消等待不会撤销服务端操作，请查询原任务或当前版本。",
     { operation: path, client_request_id: options.intent?.client_request_id ?? null,
-      expected_revision: options.intent?.expected_revision ?? null }, null, "unknown");
+      expected_revision: options.intent?.expected_revision ?? null, target: commandTarget(options.body, path) }, null, "unknown");
 }
 
 function endpoint(path: string): string {
@@ -42,7 +52,7 @@ function endpoint(path: string): string {
 }
 
 const selectors = ["actor_id", "person_id", "conversation_id"] as const;
-const getReads = new Set(["session", "identity/conversations", "identity/people", "identity/directory", "models/catalog", "models/attempts", "channels/view"]);
+const getReads = new Set(["session", "identity/conversations", "identity/people", "identity/directory", "identity/publication-recipients", "models/catalog", "models/attempts", "channels/view"]);
 
 function selectedEndpoint(path: string, body?: object) {
   const url = new URL(endpoint(path), window.location.origin);
@@ -94,10 +104,12 @@ export async function apiFetch(path: string, options: Options = {}) {
     const error = payload?.error;
     if (!error && isCommand) throw uncertain(path, options, response.status);
     const code = error?.code ?? "invalid_response";
-    if (isCommand && response.status >= 500 && error?.details?.execution_state !== "not_started")
+    if (isCommand && response.status >= 500 && error?.details?.execution_state !== "not_started") {
+      uncertain(path, options, response.status);
       throw new ApiError("outcome_unknown", response.status, "本次提交结果尚未确认，请查询原任务或当前版本。",
         { ...error?.details, operation: path, client_request_id: options.intent?.client_request_id ?? null,
-          expected_revision: options.intent?.expected_revision ?? null, server_error: code }, error?.request_id ?? null, "unknown");
+          expected_revision: options.intent?.expected_revision ?? null, server_error: code, target: commandTarget(options.body, path) }, error?.request_id ?? null, "unknown");
+    }
     if (["session_expired", "unauthorized"].includes(code) && path !== "auth/login")
       window.dispatchEvent(new Event("tianshu:session-lost"));
     const execution = error?.details?.execution_state;
@@ -141,6 +153,7 @@ export async function apiCommand<T>(path: string, body: object & CommandInput, c
   const result = await apiJson<CommandResult<T>>(path, options);
   if (!result || result.client_request_id !== body.client_request_id || !("receipt" in result) || !("data" in result))
     throw uncertain(path, options, 200);
+  publishCommandResult(result, commandTarget(body, path), path);
   return result;
 }
 
@@ -196,9 +209,9 @@ export async function awaitCommand<T>(initial: CommandResult<T>, selector: objec
 /** The operation is declared a command by its domain client, never guessed from response fields. */
 export async function apiCommandData<T>(path: string, body: object & CommandInput, csrf: string, signal: AbortSignal): Promise<T> {
   const initial = await apiCommand<T>(path, body, csrf, signal);
-  window.dispatchEvent(new CustomEvent("tianshu:command-result", { detail: initial }));
+  publishCommandResult(initial, body, path);
   const command = await awaitCommand(initial, body, csrf, signal, (value) =>
-    window.dispatchEvent(new CustomEvent("tianshu:command-result", { detail: value })));
+    publishCommandResult(value, body, path));
   return command.data;
 }
 
