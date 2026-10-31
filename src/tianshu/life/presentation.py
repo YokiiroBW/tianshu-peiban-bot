@@ -6,13 +6,24 @@ from zoneinfo import ZoneInfo
 from tianshu.runtime.api import CommandResult
 from tianshu.runtime.errors import AppError
 from tianshu.types import MediaRef
+from tianshu.sources.dependencies import unique_refs
 from tianshu.conversation.codec import document, signature, source_refs
-from .validation import revision, text, timezone
+from .validation import revision, text, timezone, timestamp
 
 
 class LifePresentation:
-    def __init__(self, life):
-        self.life = life
+    def __init__(self, life, *, media):
+        self.life, self.media = life, media
+
+    async def _reference(self, context, value):
+        try:
+            supplied = MediaRef(**value)
+        except (TypeError, ValueError):
+            raise AppError("invalid_media_reference") from None
+        artifact = await self.media.reference(context, supplied.media_id)
+        if artifact.media != supplied or not artifact.media.mime_type.startswith("image/"):
+            raise AppError("image_reference_required")
+        return artifact
 
     async def outfits(self, context, *, cursor=None, limit=40):
         await self.life.identity.check(context)
@@ -29,18 +40,12 @@ class LifePresentation:
         description = text(body.get("description"), "服装描述", 1000)
         appearance = text(body.get("appearance"), "服装外观", 8000)
         reference = body.get("reference")
-        if reference is not None:
-            try:
-                media = MediaRef(**reference)
-            except TypeError:
-                raise AppError("invalid_media_reference") from None
-            if not media.mime_type.startswith("image/"):
-                raise AppError("image_reference_required")
-            await self.life.sources.resolve(context, media)
+        artifact = await self._reference(context, reference) if reference is not None else None
+        refs = artifact.source_refs if artifact else ()
         async def apply(connection):
             outfit_id = body.get("id") or str(uuid4())
-            row = await (await connection.execute("SELECT * FROM life.outfits WHERE id=%s FOR UPDATE", (outfit_id,))).fetchone()
-            if row and row["actor_id"] != context.actor_id:
+            row = await self.life.lock_row(connection, context, "SELECT * FROM life.outfits WHERE id=%s FOR UPDATE", (outfit_id,), additional_refs=refs)
+            if row and (row["actor_id"] != context.actor_id or not set(row["scope_ids"]).issubset(context.scope_ids)):
                 raise AppError("outfit_not_found", status=404)
             if body.get("id") and row is None:
                 raise AppError("object_not_found", status=404)
@@ -52,18 +57,20 @@ class LifePresentation:
                 "activity_kinds=excluded.activity_kinds,revision=%s",
                 (outfit_id, context.actor_id, description, appearance, document(reference) if reference else None,
                  body.get("activity_kinds", []), list(context.scope_ids), next_revision))
+            await connection.execute("UPDATE life.outfits SET source_refs=%s WHERE id=%s", (document(refs), outfit_id))
             return CommandResult(body["client_request_id"], {"id": outfit_id, "revision": next_revision}, next_revision)
         return await self.life.commands.execute(context, "life.outfits.save", body["client_request_id"], signature(body), apply)
 
     async def select_outfit(self, context, body):
         await self.life.identity.check(context)
         async def apply(connection):
-            state = await (await connection.execute("SELECT * FROM life.actor_state WHERE actor_id=%s FOR UPDATE", (context.actor_id,))).fetchone()
-            revision(state, body.get("expected_revision"))
-            row = await (await connection.execute("SELECT * FROM life.outfits WHERE id=%s AND actor_id=%s AND scope_ids<@%s::text[]", (body.get("id"), context.actor_id, list(context.scope_ids)))).fetchone()
+            row = await self.life.lock_row(connection, context,
+                "SELECT * FROM life.outfits WHERE id=%s AND actor_id=%s AND scope_ids<@%s::text[] FOR UPDATE",
+                (body.get("id"), context.actor_id, list(context.scope_ids)))
             if not row:
                 raise AppError("outfit_not_found", status=404)
-            await self.life.identity.check(context, source_refs(row["source_refs"]))
+            state = await (await connection.execute("SELECT * FROM life.actor_state WHERE actor_id=%s FOR UPDATE", (context.actor_id,))).fetchone()
+            revision(state, body.get("expected_revision"))
             await connection.execute("UPDATE life.actor_state SET outfit_id=%s,revision=revision+1,updated_at=now() WHERE actor_id=%s", (row["id"], context.actor_id))
             return CommandResult(body["client_request_id"], {"outfit_id": row["id"]}, state["revision"] + 1)
         return await self.life.commands.execute(context, "life.outfits.select", body["client_request_id"], signature(body), apply)
@@ -116,23 +123,23 @@ class LifePresentation:
         weather = None
         if self.life.weather and state["weather_location"]:
             weather = await self.life.weather.observe(context, state["weather_location"])
-            if weather and weather.get("expires_at") and weather["expires_at"] < datetime.now(UTC):
+            if weather and weather.get("expires_at") and timestamp(weather["expires_at"]) < datetime.now(UTC):
                 weather = None
         now = datetime.now(UTC)
         outfit = state["outfit"]
-        refs = source_refs((activity or {}).get("source_refs", ())) + source_refs((outfit or {}).get("source_refs", ()))
+        refs = unique_refs(source_refs((activity or {}).get("source_refs", ())), source_refs((outfit or {}).get("source_refs", ())))
         references = []
         if outfit and outfit["reference"]:
-            media = MediaRef(**outfit["reference"])
-            await self.life.sources.resolve(context, media)
-            references.append(media)
+            artifact = await self._reference(context, outfit["reference"])
+            references.append(artifact.media)
+            refs = unique_refs(refs, artifact.source_refs)
         return {"actor_id": context.actor_id, "revision": signature([actor["revision"], state["revision"],
                 (activity or {}).get("revision"), (outfit or {}).get("revision"), weather]),
                 "captured_at": now, "timezone": state["timezone"], "local_time": now.astimezone(ZoneInfo(state["timezone"])).isoformat(),
                 "character": actor["name"], "activity": {key: activity[key] for key in ("id", "title", "kind", "state")} if activity else {},
                 "place": {"world_id": state["world_id"], "room_id": state["room_id"]},
                 "weather": weather, "outfit": {"id": outfit["id"], "description": outfit["description"], "appearance": outfit["appearance"]} if outfit else None,
-                "references": tuple(references), "source_refs": tuple(dict(((ref.source_id, ref.revision), ref) for ref in refs).values())}
+                "references": tuple(references), "source_refs": tuple(refs)}
 
     async def sharing(self, context, *, action_id, window):
         await self.life.identity.check(context)

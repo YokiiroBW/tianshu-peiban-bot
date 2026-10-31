@@ -1,5 +1,5 @@
 from tianshu.conversation.codec import document
-from tianshu.conversation.provenance import changes_for,intersects
+from tianshu.sources.dependencies import changes_for,intersects
 
 
 class LifeDependencies:
@@ -19,7 +19,7 @@ class LifeDependencies:
         for row in rows:
             if intersects(row["generation_recipe"]["source_refs"],changes,kind):
                 await connection.execute("UPDATE life.chapters SET state='failed',generation_recipe=NULL,reason='source_unavailable',revision=revision+1 WHERE id=%s",(row["id"],))
-        for table in ("life.activities","life.goals","life.contact_candidates"):
+        for table in ("life.activities","life.goals","life.commitments","life.contact_candidates"):
             rows=await (await connection.execute(f"SELECT id,source_refs FROM {table} WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(source_refs) r WHERE r->>'source_id'=ANY(%s))",(selector,))).fetchall()
             for row in rows:
                 if not intersects(row["source_refs"],changes,kind):
@@ -29,5 +29,17 @@ class LifeDependencies:
                     await connection.execute("UPDATE life.actor_state SET activity_id=NULL,revision=revision+1 WHERE activity_id=%s",(row["id"],))
                 elif table=="life.goals":
                     await connection.execute("UPDATE life.goals SET title='',motivation='',state='paused',revision=revision+1 WHERE id=%s",(row["id"],))
+                elif table=="life.commitments":
+                    await connection.execute("UPDATE life.commitments SET title='',arguments='{}',state=CASE WHEN state IN ('completed','unknown','dispatching') THEN state ELSE 'cancelled' END,reason='source_unavailable',revision=revision+1 WHERE id=%s",(row["id"],))
                 else:
                     await connection.execute("UPDATE life.contact_candidates SET summary='',payload='{}',state='cancelled',reason='source_unavailable',revision=revision+1 WHERE id=%s",(row["id"],))
+
+        rows=await (await connection.execute("SELECT id,source_refs FROM life.outfits WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(source_refs) r WHERE r->>'source_id'=ANY(%s))",(selector,))).fetchall()
+        for row in rows:
+            if intersects(row["source_refs"],changes,kind):
+                await connection.execute("UPDATE life.outfits SET description='',appearance='',reference=NULL,revision=revision+1 WHERE id=%s",(row["id"],))
+                await connection.execute("UPDATE life.actor_state SET outfit_id=NULL,revision=revision+1 WHERE outfit_id=%s",(row["id"],))
+        rows=await (await connection.execute("SELECT id,source_ref FROM life.readings WHERE source_ref->>'source_id'=ANY(%s)",(selector,))).fetchall()
+        for row in rows:
+            if intersects((row["source_ref"],),changes,kind):
+                await connection.execute("UPDATE life.readings SET state='closed',covered='[]',next_position=NULL,requested='{}',revision=revision+1,updated_at=now() WHERE id=%s",(row["id"],))

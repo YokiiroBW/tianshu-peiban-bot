@@ -1,4 +1,5 @@
 """Incremental subjective reflections and revocable expression habits."""
+from tianshu.sources.dependencies import unique_refs
 from datetime import UTC, datetime, timedelta
 import json
 from uuid import NAMESPACE_URL, uuid4, uuid5
@@ -50,7 +51,7 @@ class GrowthService:
             return
         actor = await self.companion.actor(context)
         persona = await self.companion.persona(context, actor["persona_id"], actor["persona_revision"]) if actor["persona_id"] else None
-        refs = tuple({(ref.source_id, ref.revision): ref for episode in page.items for ref in episode.source_refs}.values())
+        refs = unique_refs(tuple(ref for episode in page.items for ref in episode.source_refs))
         material = {"episodes": wire(page.items), "instruction":
             "Reflect on actual new experiences. Return JSON {notes:[{kind:'reflection'|'interest'|'style',title,content,episode_ids,conditions,counterexamples,affect:null|{appraisal,valence,arousal,stress,social_need,confidence,goal_relevance,attribution,control}}]}. "
             "No change is a valid result. Separate interpretation from observed fact. Cite only supplied episode IDs. "
@@ -82,7 +83,7 @@ class GrowthService:
             if not supports or any(item not in episodes for item in supports):
                 raise AppError("reflection_support_invalid")
             supports = tuple(sorted(set(supports)))
-            original_refs = tuple({(ref.source_id, ref.revision): ref for item in supports for ref in episodes[item].source_refs}.values())
+            original_refs = unique_refs(tuple(ref for item in supports for ref in episodes[item].source_refs))
             await self.companion.identity.check(context, original_refs)
             proposal_id = str(uuid5(NAMESPACE_URL, f"reflection:{actor_id}:{note['kind']}:{':'.join(supports)}"))
             content = text(note.get("content"), "主观记录", 10000)
@@ -151,7 +152,7 @@ class GrowthService:
         rules = [row for row in view["items"] if row["state"] == "active"]
         if not rules:
             return ()
-        refs = tuple({(ref.source_id, ref.revision): ref for row in rules for ref in source_refs(row["source_refs"])}.values())
+        refs = unique_refs(tuple(ref for row in rules for ref in source_refs(row["source_refs"])))
         return (ContextContribution("learned_habits", json.dumps(wire(rules), ensure_ascii=False), refs, context.scope_ids, 55),)
 
     async def set_state(self, context, body, state):
@@ -164,6 +165,7 @@ class GrowthService:
             raise AppError("growth_item_not_found", status=404)
         await self.companion.identity.check(context, source_refs(original["source_refs"]))
         async def apply(connection):
+            await self.companion.validate_persistence(connection,context,source_refs(original["source_refs"]))
             row = await (await connection.execute("SELECT * FROM companion.style_rules WHERE id=%s FOR UPDATE", (original["id"],))).fetchone()
             revision(row, body.get("expected_revision"))
             await connection.execute("UPDATE companion.style_rules SET state=%s,reason=%s,revision=revision+1,updated_at=now() WHERE id=%s", (state, "explicit_user_change", row["id"]))

@@ -1,5 +1,5 @@
 from tianshu.conversation.codec import document
-from tianshu.conversation.provenance import changes_for,intersects
+from tianshu.sources.dependencies import changes_for,intersects
 
 
 class ConversationDependencies:
@@ -17,3 +17,8 @@ class ConversationDependencies:
                     await connection.execute("UPDATE conversation.messages SET parts='[]' WHERE id=%s",(row["id"],))
                 else:
                     await connection.execute("UPDATE conversation.expressions SET public_parts='[]',artifacts='[]',revision=revision+1 WHERE expression_id=%s",(row["expression_id"],))
+
+        rows=await (await connection.execute("SELECT expression_id,source_refs FROM conversation.expression_plans WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(source_refs) r WHERE r->>'source_id'=ANY(%s))",(selector,))).fetchall()
+        for row in rows:
+            if intersects(row["source_refs"],changes,kind):
+                await connection.execute("UPDATE conversation.expression_plans SET plan='{}',rendered=NULL,steps=(SELECT COALESCE(jsonb_agg(jsonb_build_object('index',s->'index','action_id',s->'action_id','state',s->'state','result_revision',s->'result_revision','artifacts','[]'::jsonb,'receipt',NULL)),'[]'::jsonb) FROM jsonb_array_elements(steps) s),state=CASE WHEN state='delivered' THEN state ELSE 'failed' END,reason='source_unavailable',revision=revision+1 WHERE expression_id=%s",(row["expression_id"],))

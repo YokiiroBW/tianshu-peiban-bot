@@ -1,5 +1,6 @@
 """Authored persona versions and scoped affect; no scoring or hidden second model loop."""
 from __future__ import annotations
+from tianshu.sources.dependencies import unique_refs
 
 import math
 from datetime import UTC, datetime, timedelta
@@ -7,7 +8,7 @@ from uuid import uuid4
 
 from tianshu.runtime.api import CommandResult, Page
 from tianshu.runtime.errors import AppError
-from tianshu.types import Coverage
+from tianshu.types import Coverage,OriginKind
 from tianshu.conversation.codec import document, signature, source_refs
 from .types import AffectUpdate, Persona
 from .regulation import regulate
@@ -114,7 +115,8 @@ class CompanionService:
                      capabilities, revision, actor_id))
             await self.actor_changed(context, actor_id, enabled, connection=connection)
             if enabled:
-                await self.actor_activated(context,actor_id,revision=revision,connection=connection)
+                activated=await self.actor_registry.context_on(connection,context.principal_id,actor_id=actor_id,origin_kind=OriginKind.TIMER)
+                await self.actor_activated(activated,actor_id,revision=revision,connection=connection)
             return CommandResult(body["client_request_id"], data={"actor_id": actor_id, "name": name,
                                  "enabled": enabled, "revision": revision}, revision=revision)
         return await self.commands.execute(context,"companion.roles.save",body["client_request_id"],signature(body),apply)
@@ -265,6 +267,6 @@ class CompanionService:
         totals.update(goal_relevance=relevance / weight_total if weight_total else 0,
                       control=control / weight_total if weight_total else .5)
         return {"actor_id": context.actor_id, **totals, "feelings": feelings,
-                "source_refs": tuple({(ref.source_id, ref.revision): ref for ref in evidence}.values()),
+                "source_refs": unique_refs(tuple(ref for ref in evidence)),
                 "regulation": regulate(totals, prior["mode"] if prior else "steady"),
                 "observed_at": now, "missing": sorted(set(missing))}

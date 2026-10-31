@@ -1,5 +1,5 @@
 from tianshu.conversation.codec import document
-from tianshu.conversation.provenance import changes_for,intersects
+from tianshu.sources.dependencies import changes_for,intersects
 
 
 class CompanionDependencies:

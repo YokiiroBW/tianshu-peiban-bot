@@ -1,5 +1,6 @@
 """The only owner of public part ordering and delivery identity."""
 from __future__ import annotations
+from tianshu.sources.dependencies import unique_refs
 
 import asyncio
 from dataclasses import replace
@@ -66,10 +67,10 @@ class ExpressionService:
         return result
 
     async def _finish(self, context, plan, result):
-        state = "delivered" if result.delivery == "delivered" else "unknown" if result.delivery in {"unknown", "pending"} else "failed"
+        state = "delivered" if result.delivery == "delivered" else "waiting_delivery" if result.delivery=="pending" else "unknown" if result.delivery=="unknown" else "failed"
         async with self.database.transaction() as connection:
             material_valid = await self.sources.validate_persistence(connection,context,plan.source_refs)
-            await connection.execute("UPDATE conversation.expressions SET state=%s,receipt=%s,revision=revision+1,completed_at=now() WHERE expression_id=%s AND state IN ('sending','unknown')", (state, document(result), plan.expression_id))
+            await connection.execute("UPDATE conversation.expressions SET state=%s,receipt=%s,revision=revision+1,completed_at=now() WHERE expression_id=%s AND state IN ('sending','waiting_delivery','unknown') AND (state<>%s OR receipt IS DISTINCT FROM %s)", (state, document(result), plan.expression_id,state,document(result)))
             if state == "delivered" and material_valid:
                 await connection.execute(
                     "INSERT INTO conversation.messages(actor_id,conversation_id,speaker,parts,source_refs,scope_ids,turn_id,expression_id) "
@@ -81,7 +82,7 @@ class ExpressionService:
 
     async def present(self, context, expression_id, artifacts, public_parts):
         """An explicit capability presentation request uses the same durable expression."""
-        refs = tuple({(ref.source_id, ref.revision): ref for item in artifacts for ref in item.source_refs}.values())
+        refs = unique_refs(tuple(ref for item in artifacts for ref in item.source_refs))
         return await self.send(context, ExpressionPlan(expression_id, context.actor_id, context.conversation_id,
             tuple(public_parts), refs, context.origin_kind, artifacts=tuple(artifacts)))
 
@@ -99,7 +100,7 @@ class ExpressionService:
         current = await self.get(context, expression_id)
         if expected_revision != current["revision"]:
             raise AppError("revision_conflict", status=409, details={"current_revision": current["revision"]})
-        if current["state"] != "unknown":
+        if current["state"] not in {"unknown","waiting_delivery","sending"}:
             return current
         actual = await self.channels.reconcile(context, expression_id)
         if actual is None:
@@ -120,17 +121,17 @@ class ExpressionService:
         plan=ExpressionPlan(expression_id,context.actor_id,context.conversation_id,tuple(row["public_parts"]),source_refs(row["source_refs"]),context.origin_kind,row["turn_id"],artifacts(row["artifacts"]),row["candidate_id"])
         await self._finish(context,plan,result)
         async with self.database.transaction() as connection:
-            state="completed" if result.delivery=="delivered" else "unknown" if result.delivery in {"unknown","pending"} else "failed"
-            await connection.execute("UPDATE conversation.turns SET state=%s,error_code=%s,completed_at=now() WHERE expression_id=%s AND state IN ('running','unknown')",(state,result.error_code,expression_id))
+            state="completed" if result.delivery=="delivered" else "waiting_expression" if result.delivery=="pending" else "unknown" if result.delivery=="unknown" else "failed"
+            await connection.execute("UPDATE conversation.turns SET state=%s,error_code=%s,completed_at=now() WHERE expression_id=%s AND state IN ('running','waiting_expression','unknown')",(state,result.error_code,expression_id))
         return True
 
     async def expire(self, expression_id):
         async with self.database.transaction() as connection:
-            await connection.execute("UPDATE conversation.expressions SET state='unknown',revision=revision+1,receipt=%s WHERE expression_id=%s AND state='sending' AND lease_until<=now()", (document(self._unknown(expression_id, "delivery_lease_expired")), expression_id))
+            await connection.execute("UPDATE conversation.expressions SET state='unknown',revision=revision+1,receipt=%s WHERE expression_id=%s AND state IN ('sending','waiting_delivery') AND lease_until<=now()", (document(self._unknown(expression_id, "delivery_lease_expired")), expression_id))
 
     async def recover(self):
         async with self.database.transaction() as connection:
-            rows = await (await connection.execute("SELECT expression_id,actor_id,lease_until FROM conversation.expressions WHERE state='sending'")).fetchall()
+            rows = await (await connection.execute("SELECT expression_id,actor_id,lease_until FROM conversation.expressions WHERE state IN ('sending','waiting_delivery')")).fetchall()
             for row in rows:
                 await self.jobs.enqueue(connection, JobSpec("conversation.expression_expire", f"expression-recover:{row['expression_id']}:{uuid4()}",
                     {"expression_id": row["expression_id"]}, ServiceClass.INTERACTIVE, row["lease_until"], row["actor_id"]))

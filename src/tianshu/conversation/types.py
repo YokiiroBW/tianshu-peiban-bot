@@ -68,3 +68,12 @@ class DialogueResult:
     model_attempt_ids: tuple[str, ...] = ()
     missing: tuple[str, ...] = ()
     revision: int = 1
+
+
+@dataclass(frozen=True, slots=True)
+class ExpressionProgress:
+    expression_id: str
+    state: str
+    receipt: Receipt | None = None
+    render_action_ids: tuple[str, ...] = ()
+    reason: str | None = None

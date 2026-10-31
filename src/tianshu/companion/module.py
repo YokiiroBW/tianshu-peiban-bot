@@ -19,7 +19,8 @@ def create_module(service, growth, identity):
                 body = await command_body(request) if write else await read_body(request)
                 context = await identity.for_request(request,
                     actor_id=body.get("actor_id") if actor else None,
-                    person_id=body.get("person_id"),
+                    person_id=body.get("person_id") if actor else None,
+                    conversation_id=body.get("conversation_id") if actor else None,
                     permission="companion.manage" if write else "companion.read")
                 return json_response(await callback(context, body))
             app.router.add_post("/api/v1/companion/" + operation, handler)

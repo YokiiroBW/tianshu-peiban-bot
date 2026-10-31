@@ -6,7 +6,7 @@ from tianshu.runtime.errors import AppError
 from tianshu.runtime.migrations import Migration
 
 
-def create_module(service, expression, identity, result_consumer):
+def create_module(service, expression, identity, result_consumer, renderer):
     def register(app, _runtime):
         def route(operation, callback, *, write=False):
             async def handler(request):
@@ -23,10 +23,15 @@ def create_module(service, expression, identity, result_consumer):
         route("send", service.send, write=True)
         route("turn", lambda ctx, body: service.turn(ctx, body.get("turn_id")))
         route("cancel", service.cancel, write=True)
-        route("expression", lambda ctx, body: expression.get(ctx, body.get("expression_id")))
+        route("expression", lambda ctx, body: renderer.get(ctx, body.get("expression_id")))
         route("expression/reconcile", service.reconcile_expression, write=True)
 
     def tasks(queue, _runtime):
+        queue.register("conversation.expression_release",renderer.release,retryable=False)
+        queue.register("conversation.expression_render",renderer.render,retryable=False)
+        queue.register("conversation.render_expire",renderer.expire,retryable=True)
+        queue.register("conversation.expression_result",result_consumer.expression_progress,retryable=True)
+        queue.register("conversation.expression_reconcile",service.reconcile_expression_work,retryable=False)
         queue.register("conversation.run", service.run, retryable=False)
         queue.register("conversation.seal", service.collector.seal, retryable=False)
         queue.register("conversation.cancel", service.cancel_work, retryable=False)
@@ -38,6 +43,7 @@ def create_module(service, expression, identity, result_consumer):
     async def start(_runtime):
         await service.recover()
         await expression.recover()
+        await renderer.recover()
         async with service.database.transaction() as connection:
             queued = await (await connection.execute("SELECT DISTINCT actor_id,conversation_id FROM conversation.turns WHERE state='queued'")).fetchall()
         for row in queued:

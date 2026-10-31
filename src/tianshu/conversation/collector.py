@@ -1,4 +1,5 @@
 """Durable U01 silence collection, separated by actual speaker and authorization facts."""
+from tianshu.sources.dependencies import unique_refs
 from datetime import UTC, datetime, timedelta
 import json
 
@@ -51,7 +52,7 @@ class ConversationCollector:
         root_id = parent["turn_id"] if parent else turn_id
         collection_revision = parent["collection_revision"]+1 if parent else 1
         if parent:
-            combined_refs = tuple({(ref.source_id, ref.revision): ref for ref in (*source_refs(parent["source_refs"]), *refs)}.values())
+            combined_refs = unique_refs(tuple(ref for ref in (*source_refs(parent["source_refs"]), *refs)))
             if self.policy.max_wait_ms is not None:
                 seal_at = min(seal_at, parent["received_at"]+timedelta(milliseconds=self.policy.max_wait_ms))
             await connection.execute("UPDATE conversation.turns SET input_parts=input_parts||%s,source_refs=%s,seal_at=%s,collection_messages=collection_messages+1,collection_bytes=collection_bytes+%s,collection_revision=%s,message_cutoff=%s WHERE turn_id=%s", (document(raw), document(combined_refs), seal_at, size, collection_revision, message_row["id"], root_id))

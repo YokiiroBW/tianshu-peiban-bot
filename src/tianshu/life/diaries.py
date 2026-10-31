@@ -1,4 +1,5 @@
 """Local-day diaries from actual authorized experiences, draft before publication."""
+from tianshu.sources.dependencies import unique_refs
 from datetime import UTC, date, datetime, time, timedelta
 from uuid import NAMESPACE_URL, uuid4, uuid5
 from zoneinfo import ZoneInfo
@@ -39,16 +40,20 @@ class DiaryService:
                 (context.actor_id, list(context.scope_ids), can_edit(context), cursor, cursor, limit+1))).fetchall()
         return await self.life._page(context, rows, limit)
 
-    async def _diary(self, context, diary_id, connection, *, lock=False):
-        row = await (await connection.execute("SELECT * FROM life.diaries WHERE id=%s AND actor_id=%s AND scope_ids<@%s::text[]" + (" FOR UPDATE" if lock else ""), (diary_id, context.actor_id, list(context.scope_ids)))).fetchone()
+    async def _diary(self, context, diary_id, connection, *, lock=False, additional_refs=()):
+        query = "SELECT * FROM life.diaries WHERE id=%s AND actor_id=%s AND scope_ids<@%s::text[]"
+        parameters = (diary_id, context.actor_id, list(context.scope_ids))
+        row = (await self.life.lock_row(connection, context, query+" FOR UPDATE", parameters,
+                                       additional_refs=additional_refs, related_refs=self._version_refs)
+               if lock else await (await connection.execute(query, parameters)).fetchone())
         if not row or (not can_edit(context) and row["published_revision"] is None):
             raise AppError("diary_not_found", status=404)
         return row
 
     async def _version_refs(self, diary, connection):
         current = await (await connection.execute("SELECT recipe FROM life.diary_revisions WHERE diary_id=%s AND revision=%s", (diary["id"], diary["current_revision"]))).fetchone()
-        return tuple({(ref.source_id, ref.revision): ref for ref in (
-            *source_refs(diary["source_refs"]), *(source_refs(current["recipe"]["source_refs"]) if current else ()))}.values())
+        return unique_refs(tuple(ref for ref in (
+            *source_refs(diary["source_refs"]), *(source_refs(current["recipe"]["source_refs"]) if current else ()))))
 
     async def read(self, context, body):
         await self.life.identity.check(context)
@@ -81,7 +86,7 @@ class DiaryService:
                   "coverage":{"complete":False,"missing":["collection_pending"]}}
         async def apply(connection):
             diary_id = str(uuid5(NAMESPACE_URL,f"diary:{context.actor_id}:{day}"))
-            row = await (await connection.execute("SELECT * FROM life.diaries WHERE id=%s FOR UPDATE",(diary_id,))).fetchone()
+            row = await self.life.lock_row(connection,context,"SELECT * FROM life.diaries WHERE id=%s FOR UPDATE",(diary_id,),related_refs=self._version_refs)
             if row and not set(row["scope_ids"]).issubset(context.scope_ids):
                 raise AppError("diary_not_found",status=404)
             await self.life.validate_persistence(connection,context)
@@ -117,13 +122,13 @@ class DiaryService:
         missing = sorted(set(recipe["coverage"].get("missing",[]))-{"collection_pending"} | set(page.coverage.missing))
         if scanned>len(selected):
             missing.append("older_experiences_omitted_from_generation")
-        refs = tuple({(ref.source_id,ref.revision):ref for item in selected for ref in source_refs(item["source_refs"])}.values())
+        refs = unique_refs(tuple(ref for item in selected for ref in source_refs(item["source_refs"])))
         recipe = {**recipe,"cursor":page.next_cursor,"watermark":page.watermark,"scan_hash":digest,"scanned":scanned,
                   "episodes":selected,"material_revisions":[(item["episode_id"],item["revision"]) for item in selected],
                   "coverage":{"complete":not page.next_cursor and not missing,"missing":sorted(set(missing)),
                               "scanned":scanned,"selected":len(selected),"watermark":page.watermark}}
         async with self.life.database.transaction() as connection:
-            fresh = await (await connection.execute("SELECT * FROM life.diaries WHERE id=%s FOR UPDATE",(diary_id,))).fetchone()
+            fresh = await self.life.lock_row(connection,context,"SELECT * FROM life.diaries WHERE id=%s FOR UPDATE",(diary_id,),additional_refs=refs,related_refs=self._version_refs)
             if fresh["generation_id"]!=generation_id or fresh["state"]!="collecting" or fresh["generation_recipe"]["cursor"]!=cursor:
                 return
             if not await self.life.sources.validate_persistence(connection,context,refs):
@@ -171,7 +176,7 @@ class DiaryService:
                 await connection.execute("UPDATE life.diaries SET state=%s,reason=%s,revision=revision+1 WHERE id=%s AND generation_id=%s AND state='generating'", ("unknown" if dispatched else "failed", getattr(error, "code", "generation_outcome_unknown"), diary_id, generation_id))
             raise
         async with self.life.database.transaction() as connection:
-            current = await self._diary(context, diary_id, connection, lock=True)
+            current = await self._diary(context, diary_id, connection, lock=True, additional_refs=tuple(pack.source_refs))
             if current["generation_id"] != generation_id or current["state"] != "generating":
                 return
             if not await self.life.sources.validate_persistence(connection,context,tuple(pack.source_refs)):
@@ -203,17 +208,16 @@ class DiaryService:
     async def publish(self, context, body):
         await self.life.identity.check(context)
         async def apply(connection):
-            diary = await self._diary(context, body.get("id"), connection, lock=True)
-            if diary:
-                await self.life.validate_persistence(connection, context, source_refs(diary["source_refs"]))
+            diary = await self._diary(context, body.get("id"), connection)
             revision(diary, body.get("expected_revision"))
             if not diary["current_revision"] or diary["state"] in {"collecting","generating"}:
                 raise AppError("diary_not_ready", status=409)
             refs = await self._version_refs(diary, connection)
-            await self.life.validate_persistence(connection, context, refs)
             current = await (await connection.execute("SELECT content FROM life.diary_revisions WHERE diary_id=%s AND revision=%s",(diary["id"],diary["current_revision"]))).fetchone()
             disclosure = await self.life.sources.disclose(context,producer="life.diary",event_id=diary["id"]+":"+str(diary["current_revision"]),revision=diary["revision"]+1,
                 parts=(InputPart("text",current["content"]),),source_refs=refs,reader_ids=tuple(body.get("reader_ids",())),conversation_ids=tuple(body.get("conversation_ids",())),connection=connection)
+            diary = await self._diary(context, body.get("id"), connection, lock=True, additional_refs=refs)
+            revision(diary, body.get("expected_revision"))
             await connection.execute("UPDATE life.diary_revisions SET disclosure_ref=%s,publication_metadata=%s WHERE diary_id=%s AND revision=%s",(document(disclosure),document({"day":diary["day"]}),diary["id"],diary["current_revision"]))
             await connection.execute("UPDATE life.diaries SET published_revision=current_revision,state='published',revision=revision+1 WHERE id=%s", (diary["id"],))
             return CommandResult(body["client_request_id"], {"id": diary["id"], "published_revision": diary["current_revision"]}, diary["revision"]+1)
