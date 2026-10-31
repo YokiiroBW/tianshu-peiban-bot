@@ -255,7 +255,7 @@ class IdentityService:
 
         if connection is not None:
             return await check(connection)
-        async with self.database.transaction(read_only=True) as conn:
+        async with self.database.transaction(control=True, read_only=True) as conn:
             return await check(conn)
 
     async def check(self, context, source_refs=()):
@@ -529,6 +529,40 @@ class IdentityService:
 
     async def check_actor(self, context, actor_id, permission="config.publish"):
         return await self.authorize_actor(context, actor_id, permission=permission)
+
+    async def publication_recipients(self, context, *, cursor=None, limit=100):
+        """Account identities already related to this authorized actor, without private profiles."""
+        await self.check_context(context)
+        require_permission(context.permissions, "life.manage")
+        if not context.actor_id:
+            raise AppError("actor_required")
+        limit = min(max(int(limit), 1), 200)
+        async with self.database.transaction(control=True, read_only=True) as conn:
+            rows = await (
+                await conn.execute(
+                    "SELECT DISTINCT p.principal_id,p.display_name FROM identity.principals p "
+                    "WHERE p.enabled AND p.password_hash IS NOT NULL AND (%s::text IS NULL OR p.principal_id>%s) AND ("
+                    "p.principal_id=%s OR EXISTS(SELECT 1 FROM identity.actors a WHERE a.actor_id=%s AND a.owner_id=p.principal_id) "
+                    "OR EXISTS(SELECT 1 FROM identity.actor_grants g WHERE g.actor_id=%s AND g.principal_id=p.principal_id) "
+                    "OR EXISTS(SELECT 1 FROM identity.scope_grants g JOIN identity.scopes s USING(scope_id) "
+                    "WHERE s.actor_id=%s AND s.kind='publication' AND g.principal_id=p.principal_id)) "
+                    "ORDER BY p.principal_id LIMIT %s",
+                    (
+                        cursor,
+                        cursor,
+                        context.principal_id,
+                        context.actor_id,
+                        context.actor_id,
+                        context.actor_id,
+                        limit + 1,
+                    ),
+                )
+            ).fetchall()
+        return Page(
+            tuple(rows[:limit]),
+            rows[limit - 1]["principal_id"] if len(rows) > limit else None,
+            Coverage(len(rows) <= limit),
+        )
 
     async def register_actor(self, context, *, connection, enabled=True):
         await self.check_context(context, connection=connection)

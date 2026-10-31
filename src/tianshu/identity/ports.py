@@ -8,6 +8,9 @@ from .types import AdmissionDecision, IncomingEvent
 
 
 class IdentityPort(Protocol):
+    async def publication_recipients(
+        self, context: TrustedContext, *, cursor: str | None = None, limit: int = 100
+    ): ...
     async def context_on(
         self,
         connection,

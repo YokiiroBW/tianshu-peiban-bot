@@ -95,6 +95,18 @@ def create_module(identity):
                 )
             )
 
+        async def publication_recipients(request):
+            context = await identity.for_request(
+                request, actor_id=request.query.get("actor_id"), permission="life.manage"
+            )
+            return json_response(
+                await identity.publication_recipients(
+                    context,
+                    cursor=request.query.get("cursor"),
+                    limit=request.query.get("limit", 100),
+                )
+            )
+
         async def command(request):
             body = await command_body(request)
             context = await identity.for_request(
@@ -112,6 +124,7 @@ def create_module(identity):
         app.router.add_post("/api/v1/identity/conversations/open", open_conversation)
         app.router.add_get("/api/v1/identity/people", people)
         app.router.add_get("/api/v1/identity/directory", directory)
+        app.router.add_get("/api/v1/identity/publication-recipients", publication_recipients)
         app.router.add_post(
             "/api/v1/identity/{operation:principals.save|actors.grant|scopes.grant|people.save|connections.save|accounts.link|conversations.link}",
             command,
