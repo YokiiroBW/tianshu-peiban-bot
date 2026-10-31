@@ -59,8 +59,10 @@
         "CR02"
       ],
       "owner": "identity / channels",
-      "state": "implementing",
-      "implementation_agent": "foundation_models"
+      "state": "implemented_pending_source_fixes",
+      "implementation_agent": "foundation_models",
+      "handoff_source": "fb6335d",
+      "pending": "source write serialization, extraction continuation and retrieval budget fixes; all-domain composition and CR19"
     },
     {
       "id": "CR05",
@@ -69,8 +71,10 @@
         "CR04"
       ],
       "owner": "sources",
-      "state": "implementing",
-      "implementation_agent": "foundation_models"
+      "state": "implemented_pending_source_fixes",
+      "implementation_agent": "foundation_models",
+      "handoff_source": "fb6335d",
+      "pending": "source write serialization, extraction continuation and retrieval budget fixes; all-domain composition and CR19"
     },
     {
       "id": "CR06",
@@ -80,8 +84,10 @@
         "CR05"
       ],
       "owner": "memory",
-      "state": "implementing",
-      "implementation_agent": "foundation_models"
+      "state": "implemented_pending_source_fixes",
+      "implementation_agent": "foundation_models",
+      "handoff_source": "fb6335d",
+      "pending": "source write serialization, extraction continuation and retrieval budget fixes; all-domain composition and CR19"
     },
     {
       "id": "CR07",
@@ -90,8 +96,10 @@
         "CR06"
       ],
       "owner": "memory / conversation.context",
-      "state": "implementing",
-      "implementation_agent": "foundation_models"
+      "state": "implemented_pending_source_fixes",
+      "implementation_agent": "foundation_models",
+      "handoff_source": "fb6335d",
+      "pending": "source write serialization, extraction continuation and retrieval budget fixes; all-domain composition and CR19"
     },
     {
       "id": "CR08",
@@ -100,8 +108,10 @@
         "CR06"
       ],
       "owner": "memory.people",
-      "state": "implementing",
-      "implementation_agent": "foundation_models"
+      "state": "implemented_pending_source_fixes",
+      "implementation_agent": "foundation_models",
+      "handoff_source": "fb6335d",
+      "pending": "source write serialization, extraction continuation and retrieval budget fixes; all-domain composition and CR19"
     },
     {
       "id": "CR09",
@@ -592,6 +602,30 @@
       "integrated": "a9af240",
       "scope": "indexed precise source version/fragment withdrawal; batched dependencies; execution-time voice profile revision",
       "validation": "source_review_only; tests still not run"
+    },
+    {
+      "source": "051d6b6",
+      "integrated": "e9881fd",
+      "scope": "separate verified channel notice context",
+      "validation": "source_review_only"
+    },
+    {
+      "source": "fb6335d",
+      "integrated": "e3b6452",
+      "scope": "native identity/source/memory/context domains, actual APIs and workers, shared disposable PG fixture",
+      "validation": "source_review_only; substantive source fixes assigned"
+    },
+    {
+      "source": "4bff52a",
+      "integrated": "3720c05",
+      "scope": "ordinary conversation permission alignment",
+      "validation": "source_review_only"
+    },
+    {
+      "source": "10daeda",
+      "integrated": "38fb51c",
+      "scope": "target refresh preserves original trusted scope and permissions ceiling",
+      "validation": "source_review_only"
     }
   ],
   "validation": {
@@ -749,6 +783,26 @@
       "owner": "root",
       "scope": "existing main Gemini alias currently configured through OpenAI chat compatibility; native multimodal protocol and embedding 1024 must be verified from actual endpoints at CR19",
       "state": "read_only_metadata_verified_no_model_calls"
+    },
+    {
+      "owner": "foundation_models",
+      "scope": "canonical embed capability, durable extraction fragment cursor, structured and lexical retrieval preserved when optional vector is slow",
+      "state": "accepted_by_owner_fixing"
+    },
+    {
+      "owner": "foundation_models",
+      "scope": "all memory result and model-step persistence locks selected sources before domain rows; read_many never exceeds selected fragment",
+      "state": "returned_to_owner"
+    },
+    {
+      "owner": "capabilities and frontend",
+      "scope": "ConsumptionReceipt continuation used by life; perception image maps to vision; full source locators retained across aggregation",
+      "state": "implementation_reported_waiting_handoff"
+    },
+    {
+      "owner": "capabilities",
+      "scope": "reaction filters precede LIMIT in both recall paths; shared-connection artifact checks avoid nested pool and lock inversion",
+      "state": "implementation_reported_waiting_handoff"
     }
   ]
 }
