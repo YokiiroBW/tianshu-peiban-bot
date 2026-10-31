@@ -250,3 +250,11 @@ ContinuationPanel仅显式读取已登记checkout，显示实际branch/head/dirt
 Accounts构造不读密文、不扫账号、不读写本地key，也不因未配置任何媒体账号而要求凭据操作。实际选定账号/连接时才解密，身份/domain/master不匹配仍明确拒绝。相关Media→Books/Comics→PluginManager/Infrastructure构造的源码检查未发现另一处媒体本地key依赖；外部服务仍按原配置和实际操作启用。
 
 新增tests/capabilities/test_media_credentials.py：两个完整未配置Media并行构造共用空目录，不做SQL/密钥物化；两个独立CredentialStore实例按同一合成外置master互读，拒绝换身份、换领域和换master。用例仅编写，未执行测试/SSH/供应商请求，由root最终镜像和受影响用例复验。
+
+## CR19 上传实测媒体属性（implemented_not_tested）
+
+前置A正式812e1ce：唯一FileStore.inspection_path/describe_intake，仅原本进程was_written实际对象可获得受控本地读取路径和重新登记的属性证明，sha/URI/size/MIME不改。C新增media/inspection.py，在Source登记前读取最多1MiB图片头取得真实尺寸；音视频复用既有media.engine.run_process执行ffprobe（15秒、64KiB输出、受限本地容器/协议、无外部URL），沿原file_slots/有界文件线程执行，取消结束实际进程并清理文件作用域，不持数据库连接、不复制原件、不另建存储或队列。
+
+上传路径为put_async→实测→describe_intake返回原生证明对象→Sources.register_media。canonical source与artifact/返回media均从Sources.read读回同一组duration_ms/width/height；不采信客户端时长或文件名。inspection方法、缺失字段与错误码在原Source locator保存，回执读取该权威记录并给original_metadata coverage。无法探测时保留None和明确unavailable/partial缺口，不把未知时长写0，也不宣称理解完成。此修复只作用于新的intake，不改旧Source版本。
+
+新增tests/capabilities/test_media_inspection.py六条：真实16x16红PNG、8秒合成PCM WAV、4秒合成无扩展名MP4，multipart上传的登记/Source/产物属性一致性，缺工具保持未知，取消不变成成功元数据。ffmpeg/ffprobe仅在集中runner实际存在时执行相应本地用例；C只编写并做formatter/AST/diff自查，未运行测试、SSH、付费模型或实机操作。根先集成A 812e1ce再C并按新上传引用复验多模态闭环。

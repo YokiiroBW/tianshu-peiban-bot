@@ -622,11 +622,17 @@ class Capabilities:
             if not original.get("media"):
                 raise Fault("upload_original_missing", 409)
             media = MediaRef(**original["media"])
+            inspection = (original.get("locator") or {}).get("media_inspection")
+            missing = tuple(inspection.get("missing", ())) if inspection else ()
             artifact = await self.artifacts.record(
                 context,
                 media,
                 source_refs=(source,),
-                metadata={"kind": "upload", "filename": clean["filename"]},
+                metadata={
+                    "kind": "upload",
+                    "filename": clean["filename"],
+                    "media_inspection": inspection,
+                },
             )
             return Receipt(
                 str(uuid4()),
@@ -636,10 +642,16 @@ class Capabilities:
                 "confirmed",
                 "not_requested",
                 artifacts=(artifact,),
+                coverage=Coverage(
+                    not missing and not (inspection or {}).get("error_code"),
+                    missing=missing,
+                    representation="original_metadata",
+                ),
                 result={
                     "artifact": wire(artifact),
                     "media": wire(media),
                     "source_ref": wire(source),
+                    "media_inspection": inspection,
                 },
             )
         if domain == "speech":

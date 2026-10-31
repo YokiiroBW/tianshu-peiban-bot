@@ -375,10 +375,25 @@ def register_routes(app, service):
         )
         if await multipart.next() is not None:
             raise Fault("single_upload_required", 400)
+        from .media.inspection import inspect_intake
+
+        engine = (service.settings.get("media") or {}).get("engine") or {}
+        reference, inspection = await inspect_intake(
+            service.runtime.files,
+            reference,
+            local=service.local,
+            slots=service.file_slots,
+            ffprobe=engine.get("ffprobe") or "ffprobe",
+        )
         source = await service.sources.register_media(
             context,
             reference,
-            locator={"kind": "upload", "filename": filename, "client_request_id": client_id},
+            locator={
+                "kind": "upload",
+                "filename": filename,
+                "client_request_id": client_id,
+                "media_inspection": inspection,
+            },
             origin_kind=OriginKind.HUMAN,
         )
         return json_response(
