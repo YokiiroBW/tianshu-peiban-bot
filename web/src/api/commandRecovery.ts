@@ -42,6 +42,7 @@ const capabilityAliases: Record<string, string> = {
   "devices/control": "device.control",
 };
 const nativeOperations: Record<string, string> = {
+  "access/save": "runtime.access.save",
   "companion/roles/create": "companion.roles.save",
   "companion/growth/revoke": "companion.growth.revoked",
   "companion/growth/restore": "companion.growth.active",

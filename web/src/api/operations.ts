@@ -5,6 +5,7 @@ import type { CommandInput } from "./contracts";
 /** Declared public operation semantics; response fields never decide whether a request wrote. */
 const reads = new Set([
   ...capabilityReads,
+  "access/view",
   "projects/view",
   "projects/registry/get",
   "projects/documents",
@@ -163,6 +164,10 @@ const reads = new Set([
 
 const commands = new Set([
   ...capabilityCommands,
+  "access/save",
+  "devices/connections.save",
+  "devices/refresh",
+  "devices/control",
   "projects/registry/save",
   "projects/directories/preview",
   "projects/directories/import",

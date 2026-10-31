@@ -1,54 +1,164 @@
 import { ArrowUpRight, CalendarDays } from "lucide-react";
 import { HostResources } from "./HostResources";
+import { useRoleWorkspace } from "../../app/RoleWorkspace";
+import { useDomainResource } from "../../api/useDomainResource";
+import type { Page } from "../../api/contracts";
+import type { LifeAccessView, LifeState } from "../life/domainTypes";
+import { activityLabels } from "../life/domainTypes";
+import type { DevicesView } from "../home/deviceTypes";
 
+type Upcoming = {
+  id: string;
+  title: string;
+  due_at: string | null;
+  timezone: string;
+  state: string;
+  reason: string | null;
+};
 export default function WorkbenchPage() {
+  const workspace = useRoleWorkspace();
+  const access = useDomainResource<LifeAccessView>(
+    "life/access",
+    {},
+    !!workspace.actor,
+  );
+  const canRead = !!workspace.actor && access.data?.can_read === true;
+  const state = useDomainResource<LifeState>("life/state", {}, canRead);
+  const commitments = useDomainResource<Page<Upcoming>>(
+    "life/commitments",
+    { limit: 20 },
+    canRead,
+  );
+  const devices = useDomainResource<DevicesView>("devices/view");
+  const name =
+    workspace.roles.find((row) => row.id === workspace.actor)?.name ?? "角色";
   return (
     <div className="workbench">
       <HostResources />
       <div className="workspace-columns">
         <section className="panel">
-          <div className="section-heading">
-            <h2>角色近况</h2>
-            <a className="text-link" href="#/roles/chat">
-              陪伴 <ArrowUpRight aria-hidden="true" />
+          <header className="section-heading">
+            <h2>{name}的近况</h2>
+            <a className="text-link" href="#/roles/life">
+              生活
+              <ArrowUpRight aria-hidden="true" />
             </a>
-          </div>
-          <div className="quiet-content">
-            <p className="empty-title">还没有可读取的角色近况</p>
-            <p>此处尚未读取角色近况。可前往陪伴查看角色与对话状态。</p>
-            <a className="text-link" href="#/roles/room">
-              查看小屋入口 <ArrowUpRight aria-hidden="true" />
-            </a>
-          </div>
+          </header>
+          {access.error && <p role="alert">{access.error}</p>}
+          {state.error && <p role="alert">{state.error}</p>}
+          {!workspace.actor ? (
+            <p>先选择一位角色。</p>
+          ) : access.data && !access.data.can_read ? (
+            <p>当前范围没有生活状态读取权限。</p>
+          ) : state.data ? (
+            <div className="quiet-content">
+              <p className="empty-title">
+                {state.data.activity?.title ?? "当前没有活动安排"}
+              </p>
+              {state.data.activity && (
+                <p>
+                  {activityLabels[state.data.activity.state] ??
+                    state.data.activity.state}
+                </p>
+              )}
+              <p>穿着：{state.data.outfit?.description ?? "未选择服装"}</p>
+              <p>{state.data.affect.regulation.expression_direction}</p>
+              {state.data.missing.length > 0 && (
+                <p>本次缺失：{state.data.missing.join("、")}</p>
+              )}
+              <small>
+                读取于{" "}
+                {new Date(state.data.observed_at).toLocaleString("zh-CN")} ·
+                角色生活场景为想象状态
+              </small>
+            </div>
+          ) : (
+            <p>正在读取当前生活状态…</p>
+          )}
+          <a className="text-link" href="#/roles/room">
+            打开小屋
+          </a>
         </section>
         <section className="panel">
-          <div className="section-heading">
-            <h2>家庭与服务</h2>
-            <span className="badge">状态未知</span>
-          </div>
-          <div className="quiet-content">
-            <p className="empty-title">尚未取得设备观测</p>
-            <p>此处尚未取得设备和容器读数，请前往家庭与服务查看实际状态。</p>
+          <header className="section-heading">
+            <h2>家庭设备</h2>
             <a className="text-link" href="#/home/devices">
-              查看家庭与服务 <ArrowUpRight aria-hidden="true" />
+              设备与控制
+              <ArrowUpRight aria-hidden="true" />
             </a>
-          </div>
+          </header>
+          {devices.error && <p role="alert">{devices.error}</p>}
+          {devices.data ? (
+            <div className="quiet-content">
+              <p>
+                {devices.data.connections.length}个已登记连接 ·{" "}
+                {devices.data.readings.length}项已保存观测
+              </p>
+              {!devices.data.readings.length && <p>尚无实际设备读数。</p>}
+              {devices.data.readings.slice(0, 6).map((row) => (
+                <p key={`${row.connection_id}:${row.entity_id}`}>
+                  <strong>{row.label || row.entity_id}</strong>：
+                  {row.state ?? "未知"}{" "}
+                  {row.attributes.unit_of_measurement ?? ""}
+                  <br />
+                  <small>
+                    {row.connection_id} ·{" "}
+                    {new Date(row.observed_at).toLocaleString("zh-CN")}
+                  </small>
+                </p>
+              ))}
+            </div>
+          ) : (
+            !devices.error && <p>正在读取已记录设备状态…</p>
+          )}
         </section>
       </div>
       <section className="panel">
-        <div className="section-heading">
+        <header className="section-heading">
           <h2>
             <CalendarDays aria-hidden="true" />
-            近期事项
+            近期约定
           </h2>
-          <a className="text-link" href="#/system/tasks">
-            查看任务 <ArrowUpRight aria-hidden="true" />
+          <a className="text-link" href="#/roles/commitments">
+            管理约定
+            <ArrowUpRight aria-hidden="true" />
           </a>
-        </div>
-        <div className="agenda-empty">
-          <p className="empty-title">工作台尚未读取任务</p>
-          <p>任务中心会显示平台已记录的操作、各来源状态和实际失败原因。</p>
-        </div>
+        </header>
+        {commitments.error && <p role="alert">{commitments.error}</p>}
+        {commitments.data && (
+          <>
+            {commitments.data.items
+              .filter(
+                (row) =>
+                  !["completed", "cancelled", "expired"].includes(row.state),
+              )
+              .sort((a, b) =>
+                (a.due_at ?? "9999").localeCompare(b.due_at ?? "9999"),
+              )
+              .map((row) => (
+                <article className="domain-record" key={row.id}>
+                  <strong>{row.title}</strong>
+                  <p>
+                    {row.due_at
+                      ? new Date(row.due_at).toLocaleString("zh-CN", {
+                          timeZone: row.timezone,
+                        })
+                      : "尚未约定时间"}{" "}
+                    · {row.state}
+                  </p>
+                  {row.reason && <p>{row.reason}</p>}
+                </article>
+              ))}
+            {commitments.data.items.length === 0 && (
+              <p>当前读取范围没有约定。</p>
+            )}
+            {!commitments.data.coverage.complete && (
+              <p className="muted">
+                仅显示本页可读约定；完整安排请打开约定页。
+              </p>
+            )}
+          </>
+        )}
       </section>
     </div>
   );

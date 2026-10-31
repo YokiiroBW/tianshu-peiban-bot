@@ -96,3 +96,7 @@
 ## 链路图收口（implemented_not_tested）
 
 配置图读取已授权角色、Identity账号登记及分页会话：一个QQ连接绑定一个角色，群只配置处理策略。运行图改用interactive/model-broker/worker真实Loki记录与同一RuntimeTasks资源投影；纳秒边界保持字符串，未知阶段不补造。删除旧runtime/graph与跨产品拓扑DTO/API消费者。仅源码与差异检查，未运行测试、typecheck、build或浏览器。
+
+## 设备、外部连接与工作台收口（implemented_not_tested）
+
+Home改接devices/view、refresh与device.control模板动作：完整连接/实体/模板配置、真实观测时间/修订/未知状态、原Action回执。删除home旧API和独立解锁流程。资产设置复用C的resources/ConnectionSettings及GLOBAL_SCOPE配置投影；需集成已交29385d3，未复制第二表单。连接总览复用唯一Catalog与Skills状态展示；工作台读取当前授权生活/约定与真实设备观测，保留原HostResources。注册CR20 access/view、save及runtime.access.save恢复映射。仅源码/差异检查，无测试、build、typecheck或浏览器。
