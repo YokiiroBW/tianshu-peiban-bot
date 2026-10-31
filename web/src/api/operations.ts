@@ -225,6 +225,7 @@ const commands = new Set([
   "content/continue",
   "speech/connections.save",
   "speech/connections.connect",
+  "speech/connections.complete",
   "speech/connections.refresh",
   "speech/connections.disconnect",
   "speech/connect",

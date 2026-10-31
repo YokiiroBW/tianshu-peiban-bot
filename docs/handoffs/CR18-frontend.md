@@ -74,3 +74,7 @@
 ## 原任务与日志查询收口
 
 状态 implemented_not_tested。TasksPanel 按原 scene 分开读取能力 Action、普通作者 Models attempt、Expression 与 CommandStore 身份；同路由任务链接可切换原目标。核对/取消后重读原账本，unknown 不重发。原表达展示有序公开片段和实际媒体。运行任务、三角色资源和 Loki 范围日志明确使用 GLOBAL_SCOPE；纳秒边界以 BigInt 十进制字符串传输，消费 A47c8f0f 的 next_end_ns:string|null。日志上限与同纳秒密集记录局限明确展示。CommandMonitor 手工核对后的成功/失败/取消与效果未知分别报告。仅源码阅读、diff 和已有 Prettier 格式化，未运行测试/typecheck/build/浏览器。
+
+## Speech真实用例收口
+
+状态 implemented_not_tested。音色查询改为真实Action并保留分页；克隆与转写通过受控multipart上传，传canonical媒体，消费recordings与transcript正式字段。Plus连接带真实redirect_uri并在官方OAuth返回后显式完成授权，成功后清URL临时code/state。连接配置使用global，声线配置actor-only，试听/转写保持当前实际scene；声线试听带profile_revision，speed/tone与实际合成器一致。词典支持供应商ID/版本，校验行格式，不把未知用量或余额写成零。未执行测试/typecheck/build/浏览器；只有源码与已有Prettier格式化。

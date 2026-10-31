@@ -66,7 +66,8 @@ export function App() {
   return (
     <AuthProvider>
       <RoleWorkspaceProvider>
-        <CommandMonitor /><AppShell />
+        <CommandMonitor />
+        <AppShell />
       </RoleWorkspaceProvider>
     </AuthProvider>
   );
@@ -74,7 +75,19 @@ export function App() {
 
 function AppShell() {
   const auth = useAuth();
-  const [hash, setHash] = useState(window.location.hash);
+  const [hash, setHash] = useState(() => {
+    if (
+      new URLSearchParams(window.location.search).get("tianshu_oauth") ===
+      "speech"
+    ) {
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + window.location.search + "#/settings/speech",
+      );
+    }
+    return window.location.hash;
+  });
   const acceptedHash = useRef(window.location.hash);
   const [drawer, setDrawer] = useState<"navigation" | "appearance" | null>(
     null,
@@ -219,7 +232,12 @@ function AppShell() {
                   <a
                     className="nav-item"
                     href={
-                      item.id === "companion" ? "#/roles" : routeHref(item.id, item.id === "subscriptions" ? 4 : 0)
+                      item.id === "companion"
+                        ? "#/roles"
+                        : routeHref(
+                            item.id,
+                            item.id === "subscriptions" ? 4 : 0,
+                          )
                     }
                     aria-label={item.label}
                     title={item.label}
@@ -292,17 +310,18 @@ function AppShell() {
     page = <pages.roleSettings />;
   else if (current.id === "companion" && section === 7) page = <pages.room />;
   else if (current.id === "companion" && section === 8) page = <pages.growth />;
-  else if (current.id === "companion" && section === 9) page = <pages.commitments />;
+  else if (current.id === "companion" && section === 9)
+    page = <pages.commitments />;
   else if (current.id === "home" && section === 0) page = <pages.home />;
   else if (current.id === "home" && (section === 1 || section === 2))
     page = <pages.infrastructure section={section} />;
-  else if (current.id === "memory")
-    page = <pages.memory section={section} />;
+  else if (current.id === "memory") page = <pages.memory section={section} />;
   else if (current.id === "resources" && section === 0)
     page = <pages.knowledge />;
   else if (current.id === "resources" && section === 1)
     page = <pages.resources />;
-  else if (current.id === "subscriptions" && section === 10) page = <pages.reactions />;
+  else if (current.id === "subscriptions" && section === 10)
+    page = <pages.reactions />;
   else if (current.id === "subscriptions")
     page = <pages.media section={section} />;
   else if (current.id === "projects" && section === 0)
@@ -311,7 +330,8 @@ function AppShell() {
     page = <pages.experience />;
   else if (current.id === "plugins") page = <pages.plugins />;
   else if (current.id === "settings" && section === 13) page = <pages.speech />;
-  else if (current.id === "settings" && section === 14) page = <pages.images settings />;
+  else if (current.id === "settings" && section === 14)
+    page = <pages.images settings />;
   else if (current.id === "settings")
     page = <pages.settings section={section} />;
   else page = <UnavailablePage module={current} section={section} />;
