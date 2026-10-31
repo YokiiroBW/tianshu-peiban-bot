@@ -3,7 +3,8 @@
 import base64
 import json
 from tianshu.runtime.serialization import wire
-from tianshu.types import Page, Coverage
+from tianshu.runtime.api import Page
+from tianshu.types import Coverage
 from ..contracts import Fault, canonical, require
 from ..withdrawal import depend
 from .primitives import refs
