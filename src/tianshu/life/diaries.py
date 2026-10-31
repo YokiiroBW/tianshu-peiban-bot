@@ -13,6 +13,8 @@ from tianshu.types import ContextContribution, RequestBudget, ServiceClass
 from tianshu.conversation.codec import context_from_record, document, signature, source_refs
 from .validation import revision, text
 from .writing import can_edit, generated_text
+from . import publications
+from tianshu.conversation.types import InputPart
 
 
 class DiaryService:
@@ -22,6 +24,14 @@ class DiaryService:
     async def list(self, context, *, cursor=None, limit=30):
         await self.life.identity.check(context)
         limit = min(100, max(1, int(limit)))
+        if not can_edit(context):
+            async with self.life.database.transaction(read_only=True) as connection:
+                rows = await (await connection.execute(
+                    "SELECT d.id,d.actor_id,d.day,d.published_revision,r.disclosure_ref FROM life.diaries d "
+                    "JOIN life.diary_revisions r ON r.diary_id=d.id AND r.revision=d.published_revision "
+                    "WHERE d.actor_id=%s AND r.disclosure_ref IS NOT NULL AND (%s::text IS NULL OR d.id>%s) ORDER BY d.id LIMIT %s",
+                    (context.actor_id,cursor,cursor,limit+1))).fetchall()
+            return await publications.page(self.life.identity,context,rows,limit,publications.diary)
         async with self.life.database.transaction(read_only=True) as connection:
             rows = await (await connection.execute(
                 "SELECT * FROM life.diaries WHERE actor_id=%s AND scope_ids<@%s::text[] AND (%s OR published_revision IS NOT NULL) "
@@ -42,6 +52,14 @@ class DiaryService:
 
     async def read(self, context, body):
         await self.life.identity.check(context)
+        if not can_edit(context):
+            async with self.life.database.transaction(read_only=True) as connection:
+                row = await (await connection.execute(
+                    "SELECT d.id,d.actor_id,d.day,d.published_revision,r.content,r.created_at AS published_at,r.disclosure_ref "
+                    "FROM life.diaries d JOIN life.diary_revisions r ON r.diary_id=d.id AND r.revision=d.published_revision "
+                    "WHERE d.id=%s AND d.actor_id=%s",(body.get("id"),context.actor_id))).fetchone()
+            await publications.readable(self.life.identity,context,row)
+            return {"diary":publications.diary(row),"version":publications.version(row)}
         async with self.life.database.transaction(read_only=True) as connection:
             diary = await self._diary(context, body.get("id"), connection)
             version = (body.get("revision") or diary["current_revision"]) if can_edit(context) else diary["published_revision"]
@@ -58,43 +76,69 @@ class DiaryService:
             day = date.fromisoformat(body.get("day", ""))
         except (TypeError, ValueError):
             raise AppError("invalid_diary_day") from None
-        zone = ZoneInfo(state["timezone"])
-        start = datetime.combine(day, time.min, zone)
-        end = datetime.combine(day+timedelta(days=1), time.min, zone)
-        page = await self.life.memory.episodes_between(context, start, end, limit=200)
-        # Reflections and earlier diary text are not another observation of their subject.
-        episodes = tuple(item for item in page.items if item.origin_kind in {"human", "observation", "tool_result", "actor"}
-                         and (item.actual_result or {}).get("derived_kind") not in {"reflection", "diary"})
-        if not episodes:
-            raise AppError("diary_no_new_material", "这一天还没有可写入日记的实际经历", status=409)
-        refs = tuple({(ref.source_id, ref.revision): ref for item in episodes for ref in item.source_refs}.values())
-        inherited_scopes = {scope for item in episodes for scope in item.scope_ids}
-        await self.life.identity.check(context, refs)
-        recipe = {"day": day.isoformat(), "timezone": state["timezone"], "episodes": wire(episodes),
-                  "material_revisions": [(item.episode_id, item.revision) for item in episodes], "coverage": wire(page.coverage)}
-        material_key = signature(recipe["material_revisions"])
+        recipe = {"day":day.isoformat(),"timezone":state["timezone"],"cursor":None,
+                  "watermark":None,"scan_hash":"","scanned":0,"episodes":[],"material_revisions":[],
+                  "coverage":{"complete":False,"missing":["collection_pending"]}}
         async def apply(connection):
-            diary_id = str(uuid5(NAMESPACE_URL, f"diary:{context.actor_id}:{day}"))
-            row = await (await connection.execute("SELECT * FROM life.diaries WHERE id=%s FOR UPDATE", (diary_id,))).fetchone()
+            diary_id = str(uuid5(NAMESPACE_URL,f"diary:{context.actor_id}:{day}"))
+            row = await (await connection.execute("SELECT * FROM life.diaries WHERE id=%s FOR UPDATE",(diary_id,))).fetchone()
             if row and not set(row["scope_ids"]).issubset(context.scope_ids):
-                raise AppError("diary_not_found", status=404)
-            if row:
-                await self.life.identity.check(context, source_refs(row["source_refs"]))
-            scopes = sorted(inherited_scopes | (set(row["scope_ids"]) if row else set()))
-            revision(row, body.get("expected_revision"))
-            if row and row["state"] in {"generating", "unknown"}:
-                raise AppError("diary_generation_unresolved", status=409, details={"attempt_id": row["generation_id"]})
-            if row and row["material_key"] == material_key:
-                raise AppError("diary_no_new_material", status=409)
+                raise AppError("diary_not_found",status=404)
+            await self.life.validate_persistence(connection,context)
+            revision(row,body.get("expected_revision"))
+            if row and row["state"] in {"collecting","generating","unknown"}:
+                raise AppError("diary_generation_unresolved",status=409,details={"attempt_id":row["generation_id"]})
             generation_id = str(uuid4())
             current = row["revision"]+1 if row else 1
             if row:
-                await connection.execute("UPDATE life.diaries SET state='generating',generation_id=%s,context=%s,material_key=%s,generation_recipe=%s,episode_ids=%s,source_refs=%s,scope_ids=%s,revision=%s,reason=NULL WHERE id=%s", (generation_id, document(context), material_key, document(recipe), [item.episode_id for item in episodes], document(refs), scopes, current, diary_id))
+                await connection.execute("UPDATE life.diaries SET state='collecting',generation_id=%s,context=%s,generation_recipe=%s,revision=%s,reason=NULL WHERE id=%s",(generation_id,document(context),document(recipe),current,diary_id))
             else:
-                await connection.execute("INSERT INTO life.diaries(id,actor_id,day,state,generation_id,context,material_key,generation_recipe,episode_ids,source_refs,scope_ids) VALUES (%s,%s,%s,'generating',%s,%s,%s,%s,%s,%s,%s)", (diary_id, context.actor_id, day, generation_id, document(context), material_key, document(recipe), [item.episode_id for item in episodes], document(refs), scopes))
-            await self.life.jobs.enqueue(connection, JobSpec("life.diary_generate", "diary:"+generation_id, {"diary_id": diary_id, "generation_id": generation_id}, subject_id=context.actor_id))
-            return CommandResult(body["client_request_id"], {"id": diary_id, "revision": current, "state": "generating", "coverage": page.coverage}, current, attempt_id=generation_id)
-        return await self.life.commands.execute(context, "life.diaries.request", body["client_request_id"], signature(body), apply)
+                await connection.execute("INSERT INTO life.diaries(id,actor_id,day,state,generation_id,context,generation_recipe,episode_ids,source_refs,scope_ids) VALUES (%s,%s,%s,'collecting',%s,%s,%s,'{}','[]',%s)",(diary_id,context.actor_id,day,generation_id,document(context),document(recipe),list(context.scope_ids)))
+            await self.life.jobs.enqueue(connection,JobSpec("life.diary_collect","diary-collect:"+generation_id+":start",{"diary_id":diary_id,"generation_id":generation_id,"cursor":None},subject_id=context.actor_id))
+            return CommandResult(body["client_request_id"],{"id":diary_id,"revision":current,"state":"collecting"},current,attempt_id=generation_id)
+        return await self.life.commands.execute(context,"life.diaries.request",body["client_request_id"],signature(body),apply)
+
+    async def collect(self, diary_id, generation_id, cursor):
+        async with self.life.database.transaction(read_only=True) as connection:
+            row = await (await connection.execute("SELECT * FROM life.diaries WHERE id=%s",(diary_id,))).fetchone()
+        if not row or row["generation_id"]!=generation_id or row["state"]!="collecting" or row["generation_recipe"]["cursor"]!=cursor:
+            return
+        context,recipe = context_from_record(row["context"]),row["generation_recipe"]
+        await self.life.identity.check(context)
+        day = date.fromisoformat(recipe["day"])
+        zone = ZoneInfo(recipe["timezone"])
+        start,end = datetime.combine(day,time.min,zone),datetime.combine(day+timedelta(days=1),time.min,zone)
+        page = await self.life.memory.episodes_between(context,start,end,limit=200,cursor=cursor)
+        episodes = tuple(item for item in page.items if item.origin_kind in {"human","observation","tool_result","actor"}
+                         and (item.actual_result or {}).get("derived_kind") not in {"reflection","diary"})
+        selected = (recipe["episodes"]+list(wire(episodes)))[-64:]
+        scanned = recipe["scanned"]+len(episodes)
+        digest = signature({"previous":recipe["scan_hash"],"revisions":[(item.episode_id,item.revision) for item in episodes],"coverage":page.coverage})
+        missing = sorted(set(recipe["coverage"].get("missing",[]))-{"collection_pending"} | set(page.coverage.missing))
+        if scanned>len(selected):
+            missing.append("older_experiences_omitted_from_generation")
+        refs = tuple({(ref.source_id,ref.revision):ref for item in selected for ref in source_refs(item["source_refs"])}.values())
+        recipe = {**recipe,"cursor":page.next_cursor,"watermark":page.watermark,"scan_hash":digest,"scanned":scanned,
+                  "episodes":selected,"material_revisions":[(item["episode_id"],item["revision"]) for item in selected],
+                  "coverage":{"complete":not page.next_cursor and not missing,"missing":sorted(set(missing)),
+                              "scanned":scanned,"selected":len(selected),"watermark":page.watermark}}
+        async with self.life.database.transaction() as connection:
+            fresh = await (await connection.execute("SELECT * FROM life.diaries WHERE id=%s FOR UPDATE",(diary_id,))).fetchone()
+            if fresh["generation_id"]!=generation_id or fresh["state"]!="collecting" or fresh["generation_recipe"]["cursor"]!=cursor:
+                return
+            if not await self.life.sources.validate_persistence(connection,context,refs):
+                await connection.execute("UPDATE life.diaries SET state='failed',generation_recipe=NULL,reason='source_unavailable',revision=revision+1 WHERE id=%s",(diary_id,))
+                return
+            if page.next_cursor:
+                await connection.execute("UPDATE life.diaries SET generation_recipe=%s,source_refs=%s WHERE id=%s",(document(recipe),document(refs),diary_id))
+                await self.life.jobs.enqueue(connection,JobSpec("life.diary_collect","diary-collect:"+generation_id+":"+signature(page.next_cursor),{"diary_id":diary_id,"generation_id":generation_id,"cursor":page.next_cursor},subject_id=context.actor_id))
+                return
+            if not selected or fresh["material_key"]==digest:
+                await connection.execute("UPDATE life.diaries SET state=%s,reason='diary_no_new_material',generation_recipe=NULL,last_reviewed_at=now(),revision=revision+1 WHERE id=%s",("draft" if fresh["current_revision"] else "empty",diary_id))
+                return
+            scopes = sorted({scope for item in selected for scope in item["scope_ids"]})
+            await connection.execute("UPDATE life.diaries SET state='generating',generation_recipe=%s,episode_ids=%s,source_refs=%s,scope_ids=%s WHERE id=%s",(document(recipe),[item["episode_id"] for item in selected],document(refs),scopes,diary_id))
+            await self.life.jobs.enqueue(connection,JobSpec("life.diary_generate","diary:"+generation_id,{"diary_id":diary_id,"generation_id":generation_id},subject_id=context.actor_id))
 
     async def generate(self, diary_id, generation_id):
         async with self.life.database.transaction(read_only=True) as connection:
@@ -130,9 +174,12 @@ class DiaryService:
             current = await self._diary(context, diary_id, connection, lock=True)
             if current["generation_id"] != generation_id or current["state"] != "generating":
                 return
+            if not await self.life.sources.validate_persistence(connection,context,tuple(pack.source_refs)):
+                await connection.execute("UPDATE life.diaries SET state='failed',generation_recipe=NULL,reason='result_source_unavailable',revision=revision+1 WHERE id=%s",(diary_id,))
+                return
             version = current["current_revision"]+1
             await connection.execute("INSERT INTO life.diary_revisions(diary_id,revision,content,model_attempt_id,recipe) VALUES (%s,%s,%s,%s,%s)", (diary_id, version, content, result.receipt.attempt_id, document({**recipe, "source_refs": pack.source_refs, "model_receipt": result.receipt})))
-            await connection.execute("UPDATE life.diaries SET current_revision=%s,state='draft',revision=revision+1,last_reviewed_at=now(),last_changed_at=now() WHERE id=%s", (version, diary_id))
+            await connection.execute("UPDATE life.diaries SET current_revision=%s,material_key=%s,state='draft',revision=revision+1,last_reviewed_at=now(),last_changed_at=now() WHERE id=%s", (version,recipe['scan_hash'], diary_id))
         # This output is a work artifact, not independent evidence for its described events.
 
     async def revise(self, context, body):
@@ -141,13 +188,13 @@ class DiaryService:
         async def apply(connection):
             diary = await self._diary(context, body.get("id"), connection, lock=True)
             if diary:
-                await self.life.identity.check(context, source_refs(diary["source_refs"]))
+                await self.life.validate_persistence(connection, context, source_refs(diary["source_refs"]))
             revision(diary, body.get("expected_revision"))
-            if diary["state"] == "generating":
+            if diary["state"] in {"collecting","generating"}:
                 raise AppError("diary_generation_running", status=409)
             version = diary["current_revision"]+1
             refs = await self._version_refs(diary, connection)
-            await self.life.identity.check(context, refs)
+            await self.life.validate_persistence(connection, context, refs)
             await connection.execute("INSERT INTO life.diary_revisions(diary_id,revision,content,recipe) VALUES (%s,%s,%s,%s)", (diary["id"], version, content, document({"kind": "author_edit", "source_refs": refs, "episode_ids": diary["episode_ids"]})))
             await connection.execute("UPDATE life.diaries SET current_revision=%s,state='draft',revision=revision+1,last_changed_at=now() WHERE id=%s", (version, diary["id"]))
             return CommandResult(body["client_request_id"], {"id": diary["id"], "content_revision": version}, diary["revision"]+1)
@@ -158,11 +205,16 @@ class DiaryService:
         async def apply(connection):
             diary = await self._diary(context, body.get("id"), connection, lock=True)
             if diary:
-                await self.life.identity.check(context, source_refs(diary["source_refs"]))
+                await self.life.validate_persistence(connection, context, source_refs(diary["source_refs"]))
             revision(diary, body.get("expected_revision"))
-            if not diary["current_revision"] or diary["state"] == "generating":
+            if not diary["current_revision"] or diary["state"] in {"collecting","generating"}:
                 raise AppError("diary_not_ready", status=409)
-            await self.life.identity.check(context, await self._version_refs(diary, connection))
+            refs = await self._version_refs(diary, connection)
+            await self.life.validate_persistence(connection, context, refs)
+            current = await (await connection.execute("SELECT content FROM life.diary_revisions WHERE diary_id=%s AND revision=%s",(diary["id"],diary["current_revision"]))).fetchone()
+            disclosure = await self.life.sources.disclose(context,producer="life.diary",event_id=diary["id"]+":"+str(diary["current_revision"]),revision=diary["revision"]+1,
+                parts=(InputPart("text",current["content"]),),source_refs=refs,reader_ids=tuple(body.get("reader_ids",())),conversation_ids=tuple(body.get("conversation_ids",())),connection=connection)
+            await connection.execute("UPDATE life.diary_revisions SET disclosure_ref=%s,publication_metadata=%s WHERE diary_id=%s AND revision=%s",(document(disclosure),document({"day":diary["day"]}),diary["id"],diary["current_revision"]))
             await connection.execute("UPDATE life.diaries SET published_revision=current_revision,state='published',revision=revision+1 WHERE id=%s", (diary["id"],))
             return CommandResult(body["client_request_id"], {"id": diary["id"], "published_revision": diary["current_revision"]}, diary["revision"]+1)
         return await self.life.commands.execute(context, "life.diaries.publish", body["client_request_id"], signature(body), apply)

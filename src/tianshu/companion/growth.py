@@ -21,10 +21,11 @@ class GrowthService:
         self.on_projection_changed = on_projection_changed
 
     async def changed(self, context, watermark, *, connection=None):
-        await self.companion.identity.check(context)
         if connection is None:
+            await self.companion.identity.check(context)
             async with self.companion.database.transaction() as transaction:
                 return await self.changed(context, watermark, connection=transaction)
+        await self.companion.validate_persistence(connection, context)
         scope_key = signature(sorted(context.scope_ids))
         row = await (await connection.execute(
             "INSERT INTO companion.organize_state(actor_id,scope_key,watermark,context) VALUES (%s,%s,%s,%s) "
@@ -95,6 +96,7 @@ class GrowthService:
             # This is a current expression projection, never a second fact ledger.
             if note["kind"] in {"style", "interest"} and not (note["kind"] == "style" and relationship and relationship["frozen"]):
                 async with self.companion.database.transaction() as connection:
+                    await self.companion.validate_persistence(connection, context, original_refs)
                     inserted = await (await connection.execute(
                         "INSERT INTO companion.style_rules(id,actor_id,person_id,kind,title,content,conditions,counterexamples,episode_ids,source_refs,scope_ids,state) "
                         "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'active') ON CONFLICT(id) DO UPDATE SET "

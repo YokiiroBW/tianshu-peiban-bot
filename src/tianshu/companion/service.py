@@ -28,11 +28,17 @@ def require_revision(row, expected):
 
 
 class CompanionService:
-    def __init__(self, database, commands, identity, memory, *, actor_registry, actor_changed):
+    def __init__(self, database, commands, identity, memory, *, actor_registry, actor_changed, sources, actor_activated):
         self.database, self.commands = database, commands
         self.identity, self.memory = identity, memory
         self.actor_registry = actor_registry
         self.actor_changed = actor_changed
+        self.sources = sources
+        self.actor_activated = actor_activated
+
+    async def validate_persistence(self, connection, context, refs=()):
+        if not await self.sources.validate_persistence(connection, context, tuple(refs)):
+            raise AppError("source_unavailable", status=409)
 
     async def roles(self, context, *, cursor=None, limit=50):
         await self.identity.check(context)
@@ -107,10 +113,11 @@ class CompanionService:
                     (name, enabled, persona_id, persona_revision, body.get("model_function", row["model_function"]),
                      capabilities, revision, actor_id))
             await self.actor_changed(context, actor_id, enabled, connection=connection)
+            if enabled:
+                await self.actor_activated(context,actor_id,revision=revision,connection=connection)
             return CommandResult(body["client_request_id"], data={"actor_id": actor_id, "name": name,
                                  "enabled": enabled, "revision": revision}, revision=revision)
-        return await self.commands.execute(context, "companion.roles.save", body["client_request_id"],
-                                           signature(body), apply)
+        return await self.commands.execute(context,"companion.roles.save",body["client_request_id"],signature(body),apply)
 
     async def delete_actor(self, context, body):
         await self.identity.check(context)
@@ -196,6 +203,7 @@ class CompanionService:
         if not -1 <= update.goal_relevance <= 1 or not 0 <= update.control <= 1 or update.attribution not in {"self", "other", "situation", "unknown"}:
             raise AppError("invalid_appraisal")
         async with self.database.transaction() as connection:
+            await self.validate_persistence(connection, context, update.source_refs)
             changed = await (await connection.execute(
                 "INSERT INTO companion.affect_events(actor_id,event_id,event_revision,scope_ids,appraisal,valence,arousal,stress,social_need,confidence,half_life_seconds,occurred_at,source_refs,goal_id,goal_relevance,attribution,control) "
                 "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT(actor_id,event_id) DO UPDATE SET "

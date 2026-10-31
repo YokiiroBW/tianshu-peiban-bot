@@ -22,7 +22,8 @@ def context_from_record(value):
         person_id=value["person_id"], conversation_id=value["conversation_id"],
         scope_ids=tuple(value["scope_ids"]), audience=tuple(value["audience"]),
         access_epoch=value["access_epoch"], origin_kind=OriginKind(value["origin_kind"]),
-        permissions=frozenset(value.get("permissions", ())), conversation_kind=value.get("conversation_kind"))
+        permissions=frozenset(value.get("permissions", ())), conversation_kind=value.get("conversation_kind"),
+        delivery_allowed=bool(value.get("delivery_allowed", False)))
 
 
 def input_parts(values):

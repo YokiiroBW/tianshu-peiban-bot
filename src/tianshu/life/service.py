@@ -28,6 +28,10 @@ class LifeService:
         self.sources, self.memory, self.weather = sources, memory, weather
         self.attention = AttentionPolicy()
 
+    async def validate_persistence(self, connection, context, refs=()):
+        if not await self.sources.validate_persistence(connection, context, tuple(refs)):
+            raise AppError("source_unavailable", "材料已失效，请重新读取当前内容", status=409)
+
     async def _state(self, context, connection):
         row = await (await connection.execute(
             "SELECT * FROM life.actor_state WHERE actor_id=%s", (context.actor_id,))).fetchone()
@@ -106,7 +110,7 @@ class LifeService:
             if body.get("id") and row is None:
                 raise AppError("object_not_found", status=404)
             if row and "source_refs" in row:
-                await self.identity.check(context, source_refs(row["source_refs"]))
+                await self.validate_persistence(connection, context, source_refs(row["source_refs"]))
             revision(row, body.get("expected_revision"))
             next_revision = row["revision"] + 1 if row else 1
             await connection.execute(
@@ -138,8 +142,19 @@ class LifeService:
             if body.get("id") and row is None:
                 raise AppError("object_not_found", status=404)
             if row and "source_refs" in row:
-                await self.identity.check(context, source_refs(row["source_refs"]))
+                await self.validate_persistence(connection, context, source_refs(row["source_refs"]))
             revision(row, body.get("expected_revision"))
+            goal_id=body.get("goal_id")
+            if goal_id:
+                goal=await (await connection.execute("SELECT * FROM life.goals WHERE id=%s AND actor_id=%s AND scope_ids<@%s::text[]",(goal_id,context.actor_id,list(context.scope_ids)))).fetchone()
+                if not goal:
+                    raise AppError("goal_not_found",status=404)
+                await self.validate_persistence(connection,context,source_refs(goal["source_refs"]))
+            if not isinstance(body.get("arguments",{}),dict):
+                raise AppError("invalid_activity_arguments")
+            checkpoint={**(row["checkpoint_data"] if row else {}),"capability_id":body.get("capability_id"),"arguments":body.get("arguments",{})}
+            if row and row["action_id"] and checkpoint!=row["checkpoint_data"]:
+                raise AppError("activity_action_unresolved",status=409,details={"action_id":row["action_id"]})
             if row and state != row["state"] and state not in TRANSITIONS[row["state"]]:
                 raise AppError("invalid_activity_transition", status=409)
             if state == "running":
@@ -158,14 +173,15 @@ class LifeService:
                 "resume_condition=excluded.resume_condition,waiting_reason=excluded.waiting_reason,revision=%s,updated_at=now()",
                 (activity_id, context.actor_id, body.get("goal_id"), title, kind, state, due, body.get("resume_condition"),
                  body.get("waiting_reason"), body.get("matter_id"), list(context.scope_ids), next_revision))
+            await connection.execute("UPDATE life.activities SET goal_id=%s,checkpoint_data=%s WHERE id=%s",(goal_id,document(checkpoint),activity_id))
             if state == "running":
                 await connection.execute("UPDATE life.actor_state SET activity_id=%s,revision=revision+1,updated_at=now() WHERE actor_id=%s", (activity_id, context.actor_id))
             else:
                 await connection.execute("UPDATE life.actor_state SET activity_id=NULL,revision=revision+1 WHERE actor_id=%s AND activity_id=%s", (context.actor_id, activity_id))
-            if state in {"planned", "running"} and due:
+            if state in {"planned", "running"}:
                 await self.jobs.enqueue(connection, JobSpec("life.activity_step", f"activity:{activity_id}:{next_revision}",
                     {"activity_id": activity_id, "expected_revision": next_revision, "context": self._context(context)},
-                    ServiceClass.ELASTIC, due, context.actor_id, body.get("matter_id")))
+                    ServiceClass.ELASTIC, due or datetime.now(UTC), context.actor_id, body.get("matter_id")))
             return CommandResult(body["client_request_id"], {"id": activity_id, "revision": next_revision, "state": state}, next_revision)
         return await self.commands.execute(context, "life.activities.save", body["client_request_id"], signature(body), apply)
 
@@ -180,7 +196,7 @@ class LifeService:
             if body.get("id") and row is None:
                 raise AppError("object_not_found", status=404)
             if row and "source_refs" in row:
-                await self.identity.check(context, source_refs(row["source_refs"]))
+                await self.validate_persistence(connection, context, source_refs(row["source_refs"]))
             revision(row, body.get("expected_revision"))
             if target not in TRANSITIONS[row["state"]]:
                 raise AppError("invalid_activity_transition", status=409)
@@ -244,7 +260,7 @@ class LifeService:
             if body.get("id") and row is None:
                 raise AppError("object_not_found", status=404)
             if row and "source_refs" in row:
-                await self.identity.check(context, source_refs(row["source_refs"]))
+                await self.validate_persistence(connection, context, source_refs(row["source_refs"]))
             revision(row, body.get("expected_revision"))
             if row and row["state"] not in {"scheduled", "waiting"}:
                 raise AppError("commitment_already_started", status=409)
@@ -280,7 +296,7 @@ class LifeService:
             if not row:
                 raise AppError("commitment_not_found", status=404)
             if row and "source_refs" in row:
-                await self.identity.check(context, source_refs(row["source_refs"]))
+                await self.validate_persistence(connection, context, source_refs(row["source_refs"]))
             revision(row, body.get("expected_revision"))
             if row["state"] not in {"scheduled", "waiting"}:
                 raise AppError("commitment_already_started", status=409)
@@ -307,7 +323,7 @@ class LifeService:
             if body.get("id") and row is None:
                 raise AppError("object_not_found", status=404)
             if row and "source_refs" in row:
-                await self.identity.check(context, source_refs(row["source_refs"]))
+                await self.validate_persistence(connection, context, source_refs(row["source_refs"]))
             revision(row, body.get("expected_revision"))
             if row["state"] not in {"scheduled", "waiting"}:
                 raise AppError("commitment_already_started", status=409)
@@ -334,7 +350,7 @@ class LifeService:
             if body.get("id") and row is None:
                 raise AppError("object_not_found", status=404)
             if row and "source_refs" in row:
-                await self.identity.check(context, source_refs(row["source_refs"]))
+                await self.validate_persistence(connection, context, source_refs(row["source_refs"]))
             revision(row, body.get("expected_revision"))
             next_revision = row["revision"] + 1 if row else 1
             await connection.execute(
@@ -347,15 +363,11 @@ class LifeService:
         return await self.commands.execute(context, "life.contact_preferences.save", body["client_request_id"], signature(body), apply)
 
     async def signal(self, context, watermark, *, connection=None):
+        from .planning import signal
         if connection is None:
+            await self.identity.check(context)
             async with self.database.transaction() as selected:
-                return await self.signal(context, watermark, connection=selected)
-        row = await (await connection.execute(
-            "INSERT INTO life.plan_watermarks(actor_id,change_watermark) VALUES (%s,%s) "
-            "ON CONFLICT(actor_id) DO UPDATE SET change_watermark=excluded.change_watermark,revision=life.plan_watermarks.revision+1 "
-            "WHERE life.plan_watermarks.change_watermark<>excluded.change_watermark RETURNING revision",
-            (context.actor_id, watermark))).fetchone()
-        if row:
-            await self.jobs.enqueue(connection, JobSpec("life.plan", f"life-plan:{context.actor_id}:{row['revision']}",
-                {"actor_id": context.actor_id, "revision": row["revision"], "context": self._context(context)}, subject_id=context.actor_id))
-        return bool(row)
+                await self.validate_persistence(selected,context)
+                return await signal(selected,self.jobs,context,watermark)
+        await self.validate_persistence(connection,context)
+        return await signal(connection,self.jobs,context,watermark)

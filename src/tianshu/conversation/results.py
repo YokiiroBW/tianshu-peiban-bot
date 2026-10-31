@@ -1,6 +1,7 @@
 """Action results join the existing transactional queue, then reach both B consumers."""
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
+from tianshu.types import ServiceClass
 from .codec import context_from_record, receipt, source_refs
 
 
@@ -12,7 +13,7 @@ class ActionResultEvents:
         if event.get("type") != "capability.result" or event.get("version") != 1:
             raise AppError("unsupported_result_event", status=500)
         await self.jobs.enqueue(connection, JobSpec("conversation.result", "capability.result:"+event["event_id"],
-            {"event": event}, subject_id=event["context"]["actor_id"]))
+            {"event": event}, ServiceClass.INTERACTIVE, subject_id=event["context"]["actor_id"]))
 
 
 class ResultConsumer:
@@ -31,13 +32,17 @@ class ResultConsumer:
         if result is None:
             return
         refs = tuple({(ref.source_id, ref.revision): ref for ref in (
-            *source_refs(current["action"]["source_refs"]), *(ref for item in result.artifacts for ref in item.source_refs))}.values())
+            *source_refs(current["action"]["source_refs"]), *source_refs(result.result.get("source_refs", ())),
+            *(ref for item in result.artifacts for ref in item.source_refs))}.values())
         await self.identity.check(context, refs)
         async with self.database.transaction(read_only=True) as connection:
             previous = await (await connection.execute("SELECT receipt_id FROM conversation.result_consumption WHERE receipt_id=%s", (result.receipt_id,))).fetchone()
         if previous:
             return
-        await self.conversation.on_result(context, result, result_revision=current["result_revision"])
+        if current["action"]["capability_id"]=="channels.deliver":
+            await self.conversation.expression.channel_result(context,current["action"]["expression_id"],result)
+        else:
+            await self.conversation.on_result(context, result, result_revision=current["result_revision"])
         owned_by_life = await self.life_worker.capability_result(context, result, result_revision=current["result_revision"], observed_at=current["result_observed_at"])
         async with self.database.transaction() as connection:
             if not owned_by_life and result.execution in {"succeeded", "failed", "cancelled", "unknown"}:

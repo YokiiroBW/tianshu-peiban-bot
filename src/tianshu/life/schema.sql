@@ -79,6 +79,7 @@ CREATE TABLE life.diaries (
 CREATE TABLE life.diary_revisions (
     diary_id text NOT NULL REFERENCES life.diaries(id), revision bigint NOT NULL,
     content text NOT NULL, model_attempt_id text, recipe jsonb NOT NULL,
+    disclosure_ref jsonb, publication_metadata jsonb,
     created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(diary_id,revision)
 );
 CREATE TABLE life.works (
@@ -97,11 +98,17 @@ CREATE TABLE life.chapters (
 CREATE TABLE life.chapter_revisions (
     chapter_id text NOT NULL REFERENCES life.chapters(id), revision bigint NOT NULL,
     content text NOT NULL, work_revision bigint NOT NULL, model_attempt_id text,
-    recipe jsonb NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(chapter_id,revision)
+    recipe jsonb NOT NULL, disclosure_ref jsonb, publication_metadata jsonb, created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(chapter_id,revision)
 );
 CREATE TABLE life.readings (
     id text PRIMARY KEY, actor_id text NOT NULL, revision bigint NOT NULL DEFAULT 1,
     source_ref jsonb NOT NULL, requested jsonb NOT NULL, covered jsonb NOT NULL DEFAULT '[]',
     next_position jsonb, state text NOT NULL, scope_ids text[] NOT NULL,
     created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE life.routines (
+    actor_id text PRIMARY KEY,revision bigint NOT NULL DEFAULT 1,enabled boolean NOT NULL DEFAULT true,
+    timezone text NOT NULL DEFAULT 'Asia/Shanghai',wake_at text NOT NULL DEFAULT '08:00',sleep_at text NOT NULL DEFAULT '23:00',
+    idle_seconds integer NOT NULL DEFAULT 5400,context jsonb NOT NULL,next_due_at timestamptz NOT NULL,last_tick_at timestamptz
 );

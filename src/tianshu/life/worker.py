@@ -15,7 +15,7 @@ from tianshu.conversation.codec import context_from_record, artifacts, document,
 from tianshu.conversation.types import ExpressionPlan
 from .validation import timestamp
 from .salience import evaluate, fingerprint, similarity, interest_fit
-from .types import ContactCandidate
+from .types import ContactCandidate, PreparedContact
 
 
 def future_occurrence(row, now):
@@ -48,6 +48,9 @@ class LifeWorker:
             mark = await (await connection.execute("SELECT * FROM life.plan_watermarks WHERE actor_id=%s", (actor_id,))).fetchone()
         if not mark or mark["revision"] != revision or mark["planned_watermark"] == mark["change_watermark"]:
             return
+        if mark["next_due_at"] and mark["next_due_at"]>datetime.now(UTC)+timedelta(seconds=5) and mark["change_watermark"].startswith(("activity-","growth:")):
+            await self._planned(actor_id,revision,mark["change_watermark"],"waiting_for_next_life_window",keep_due=True)
+            return
         state = await self.life.state(context)
         if state["activity"] and state["activity"]["state"] == "running":
             # A new expression or relation revision never rebuilds the day's active work.
@@ -55,21 +58,18 @@ class LifeWorker:
             return
         goals = await self.life.goals(context, limit=20)
         commitments = await self.life.commitments(context, limit=20)
-        learned = await self.growth.view(context) if self.growth else {"items": []}
-        if not any(item["state"] == "active" for item in goals.items) and not any(item["state"] in {"scheduled", "waiting"} for item in commitments.items) and not any(item["state"] == "active" and item["kind"] == "interest" for item in learned["items"]):
-            await self._planned(actor_id, revision, mark["change_watermark"], "no_new_goal_or_interest")
-            return
         choices = await self.catalog.discover(context)
         persona = await self.life.companion.persona(context, actor["persona_id"], actor["persona_revision"]) if actor["persona_id"] else None
         budget = RequestBudget(datetime.now(UTC) + timedelta(seconds=90))
         refs = tuple({(ref.source_id, ref.revision): ref for ref in (
             *state["affect"]["source_refs"], *(ref for item in (*goals.items, *commitments.items) for ref in source_refs(item["source_refs"])))}.values())
         contribution = ContextContribution("life_plan", json.dumps(wire({
-            "goals": goals.items, "commitments": commitments.items,
+            "goals": goals.items, "commitments": commitments.items,"logical_conversation_id":context.conversation_id,"delivery_allowed":context.delivery_allowed,
             "affect_regulation": state["affect"]["regulation"], "capabilities": choices,
-            "instruction": "Choose one feasible next activity, or no activity. Preserve explicit commitments. Return JSON {activity:null|{title,kind,goal_id,capability_id,arguments},reason}. Fictional rest is allowed; software actions require a listed available capability. Do not claim work already happened."}), ensure_ascii=False),
+            "local_time": datetime.now(ZoneInfo(state["timezone"])).isoformat(), "current_outfit":state["outfit"],
+            "instruction": "Choose one feasible next activity from authored daily routine, authored interests, actual goals and recent experience, or no activity. A schedule/actor motivated selfie is allowed when images.generate is available; explicitly set delivery_kind=create_only unless the supplied trusted conversation and motivation justify share_candidate. Freeze target_ref to the current logical conversation and set a finite window and stable dedup_key. Never invent a destination. Choose a duration of 15-180 minutes for fictional activities. Preserve explicit commitments. Return JSON {activity:null|{title,kind,goal_id,capability_id,arguments},reason}. Fictional rest is allowed; software actions require a listed available capability. Do not claim work already happened."}), ensure_ascii=False),
             refs, context.scope_ids, 70)
-        pack = await self.assembler.assemble(context, "plan", "Choose a meaningful next activity.", budget,
+        pack = await self.assembler.assemble(context, "life.plan", "Choose a meaningful next activity.", budget,
             persona_text=persona.prompt_text if persona else "", contributions=(contribution,) + (await self.growth.material(context) if self.growth else ()))
         result = await self.models.generate(ModelRequest(
             f"life-plan:{actor_id}:{revision}", str(uuid4()), "life.plan", ServiceClass.ELASTIC,
@@ -95,6 +95,7 @@ class LifeWorker:
             raise AppError("capability_required_for_activity")
         await self.life.identity.check(context, tuple(pack.source_refs))
         async with self.life.database.transaction() as connection:
+            await self.life.validate_persistence(connection, context, tuple(pack.source_refs))
             fresh = await (await connection.execute("SELECT * FROM life.plan_watermarks WHERE actor_id=%s FOR UPDATE", (actor_id,))).fetchone()
             if fresh["revision"] != revision:
                 return
@@ -107,11 +108,11 @@ class LifeWorker:
                  list(context.scope_ids), document(tuple(pack.source_refs))))
             await self.life.jobs.enqueue(connection, JobSpec("life.activity_step", f"activity:{activity_id}:1",
                 {"activity_id": activity_id, "expected_revision": 1, "context": wire(context)}, subject_id=actor_id))
-            await connection.execute("UPDATE life.plan_watermarks SET planned_watermark=change_watermark,last_planned_at=now(),reason=%s WHERE actor_id=%s", (decision.get("reason", "planned"), actor_id))
+            await connection.execute("UPDATE life.plan_watermarks SET planned_watermark=change_watermark,last_planned_at=now(),next_due_at=now()+make_interval(secs=>COALESCE((SELECT idle_seconds FROM life.routines WHERE actor_id=life.plan_watermarks.actor_id),5400)),reason=%s WHERE actor_id=%s", (decision.get("reason", "planned"), actor_id))
 
-    async def _planned(self, actor_id, revision, watermark, reason):
+    async def _planned(self, actor_id, revision, watermark, reason, *, keep_due=False):
         async with self.life.database.transaction() as connection:
-            await connection.execute("UPDATE life.plan_watermarks SET planned_watermark=%s,last_planned_at=now(),reason=%s WHERE actor_id=%s AND revision=%s", (watermark, reason, actor_id, revision))
+            await connection.execute("UPDATE life.plan_watermarks SET planned_watermark=%s,last_planned_at=now(),next_due_at=CASE WHEN %s THEN next_due_at ELSE now()+make_interval(secs=>COALESCE((SELECT idle_seconds FROM life.routines WHERE actor_id=life.plan_watermarks.actor_id),5400)) END,reason=%s WHERE actor_id=%s AND revision=%s", (watermark, keep_due, reason, actor_id, revision))
 
     @staticmethod
     def _can_execute(choice):
@@ -134,7 +135,7 @@ class LifeWorker:
                 return
             if row["action_id"]:
                 return  # Reconcile an existing external attempt, never submit it a second time.
-            await self.life.identity.check(context, source_refs(row["source_refs"]))
+            await self.life.validate_persistence(connection, context, source_refs(row["source_refs"]))
             data, now = row["checkpoint_data"], datetime.now(UTC)
             capability_id = data.get("capability_id")
             if capability_id is None:
@@ -167,6 +168,7 @@ class LifeWorker:
                 "source_refs": source_refs(row["source_refs"]), "actual_result": {"representation": "fictional_world", "software_action": False}})
             if self.growth:
                 await self.growth.changed(context, f"fiction:{activity_id}:{expected_revision}")
+            await self.life.signal(context,f"activity-finished:{activity_id}:{expected_revision}")
             return
         action = Action(action_id, f"activity:{activity_id}:{expected_revision}:{row['checkpoint_step']}", capability_id,
             context.actor_id, context, data.get("arguments", {}), OriginKind.ACTOR,
@@ -215,6 +217,27 @@ class LifeWorker:
 
     async def _activity_result(self, context, result, result_revision, observed_at):
         await self.life.identity.check(context)
+        async with self.life.database.transaction(read_only=True) as probe:
+            snapshot = await (await probe.execute("SELECT * FROM life.activities WHERE action_id=%s AND actor_id=%s", (result.action_id, context.actor_id))).fetchone()
+        prepared = None
+        if snapshot:
+            photo = result.result.get("photo_intent") or {}
+            delivery_kind = photo.get("delivery_kind", "create_only")
+            target = photo.get("target_ref") or context.conversation_id
+            if target != context.conversation_id:
+                raise AppError("contact_target_mismatch",status=403)
+            window = photo.get("window") or {}
+            due = timestamp(window.get("start")) if window.get("start") else datetime.now(UTC)
+            expires = timestamp(window.get("end")) if window.get("end") else datetime.now(UTC)+timedelta(hours=4)
+            refs = tuple({(ref.source_id, ref.revision): ref for ref in (
+                *source_refs(snapshot["source_refs"]), *source_refs(result.result.get("source_refs", ())),
+                *(ref for item in result.artifacts for ref in item.source_refs))}.values())
+            if result.execution == "succeeded" and result.artifacts and delivery_kind != "create_only" and context.conversation_id and snapshot["state"] != "cancelled":
+                prepared = await self.prepare_contact(ContactCandidate("action:"+result.action_id, context.actor_id, context.conversation_id,
+                    "creation", snapshot["title"], due, expires, context,
+                    refs, explicit=delivery_kind == "requested_delivery", action_id=result.action_id, delivery_kind=delivery_kind,
+                    payload={"artifacts": wire(result.artifacts), "public_parts": [
+                        {"kind": "image" if item.media.mime_type.startswith("image/") else "audio" if item.media.mime_type.startswith("audio/") else "file", "media": wire(item.media)} for item in result.artifacts]}))
         async with self.life.database.transaction() as connection:
             row = await (await connection.execute("SELECT * FROM life.activities WHERE action_id=%s AND actor_id=%s FOR UPDATE", (result.action_id, context.actor_id))).fetchone()
             if not row:
@@ -222,8 +245,9 @@ class LifeWorker:
             if result_revision <= row["last_result_revision"]:
                 return True
             refs = tuple({(ref.source_id, ref.revision): ref for ref in (
-                *source_refs(row["source_refs"]), *(ref for item in result.artifacts for ref in item.source_refs))}.values())
-            await self.life.identity.check(context, refs)
+                *source_refs(row["source_refs"]), *source_refs(result.result.get("source_refs", ())),
+                *(ref for item in result.artifacts for ref in item.source_refs))}.values())
+            await self.life.validate_persistence(connection, context, refs)
             await connection.execute("UPDATE life.activities SET last_result_revision=%s,last_receipt_id=%s WHERE id=%s", (result_revision, result.receipt_id, row["id"]))
             if result.execution in {"pending", "running"}:
                 if row["state"] not in {"completed", "cancelled"}:
@@ -254,13 +278,10 @@ class LifeWorker:
                     "delivery": result.delivery, "receipt_id": result.receipt_id}}, connection=connection)
             if self.growth:
                 await self.growth.changed(context, f"result:{result.action_id}:{result_revision}", connection=connection)
-            delivery_kind = row["checkpoint_data"].get("arguments", {}).get("delivery_kind", "create_only")
-            if result.execution == "succeeded" and result.artifacts and delivery_kind != "create_only" and context.conversation_id and row["state"] != "cancelled":
-                await self.propose_contact(ContactCandidate("action:"+result.action_id, context.actor_id, context.conversation_id,
-                    "creation", row["title"], datetime.now(UTC), datetime.now(UTC)+timedelta(hours=4), context,
-                    refs, explicit=delivery_kind == "requested_delivery", action_id=result.action_id,
-                    delivery_kind=delivery_kind, payload={"artifacts": wire(result.artifacts), "public_parts": [
-                        {"kind": "image" if item.media.mime_type.startswith("image/") else "audio" if item.media.mime_type.startswith("audio/") else "file", "media": wire(item.media)} for item in result.artifacts]}), connection=connection)
+            if prepared is not None and row["state"] != "cancelled":
+                await self.persist_contact(connection, prepared)
+            if result.execution != "unknown" and result.effect != "unknown":
+                await self.life.signal(context,f"activity-result:{result.action_id}:{result_revision}",connection=connection)
         return True
 
     async def cancel_activity(self, activity_id, context):
@@ -275,7 +296,7 @@ class LifeWorker:
             await connection.execute("UPDATE life.activities SET waiting_reason=%s,last_receipt_id=%s WHERE id=%s AND state='cancelled'", (
                 "external_cancelled" if result.execution == "cancelled" else "cancellation_outcome_unknown" if result.execution == "unknown" or result.effect == "unknown" else "external_action_already_finished" if result.execution in {"succeeded", "failed"} else "external_cancellation_pending", result.receipt_id, activity_id))
 
-    async def propose_contact(self, candidate: ContactCandidate, *, connection=None):
+    async def prepare_contact(self, candidate: ContactCandidate):
         context = candidate.context
         if candidate.actor_id != context.actor_id or candidate.target_ref != context.conversation_id:
             raise AppError("contact_target_mismatch", status=403)
@@ -290,21 +311,24 @@ class LifeWorker:
             "affect_pull": abs(affect["valence"]), "recency_need": .5,
             "social_cost": 1 if preferences["availability"] in {"busy", "sleeping"} else .2, "repetition": repetition}, preferences["responsiveness"])
         payload = {**(candidate.payload or {}), "salience": assessment, "fingerprint": content_fingerprint}
-        async def persist(connection):
-            added = await (await connection.execute(
-                "INSERT INTO life.contact_candidates(id,actor_id,target_ref,person_id,kind,summary,due_at,expires_at,state,explicit,delivery_kind,action_id,context,source_refs,payload) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'pending',%s,%s,%s,%s,%s,%s) ON CONFLICT(id) DO NOTHING RETURNING id",
-                (candidate.candidate_id, candidate.actor_id, candidate.target_ref, context.person_id, candidate.kind, candidate.summary,
-                 candidate.due_at, candidate.expires_at, candidate.explicit, candidate.delivery_kind, candidate.action_id, document(context), document(candidate.source_refs), document(payload)))).fetchone()
-            if added:
-                await self.life.jobs.enqueue(connection, JobSpec("life.contact_due", "contact:"+candidate.candidate_id+":1",
-                    {"candidate_id": candidate.candidate_id, "expected_revision": 1}, ServiceClass.DUE, candidate.due_at, context.actor_id))
+        return PreparedContact(candidate, payload)
 
-        if connection is not None:
-            await persist(connection)
-        else:
-            async with self.life.database.transaction() as transaction:
-                await persist(transaction)
+    async def persist_contact(self, connection, prepared: PreparedContact):
+        candidate, payload = prepared.candidate, prepared.payload
+        context = candidate.context
+        added = await (await connection.execute(
+            "INSERT INTO life.contact_candidates(id,actor_id,target_ref,person_id,kind,summary,due_at,expires_at,state,explicit,delivery_kind,action_id,context,source_refs,payload) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'pending',%s,%s,%s,%s,%s,%s) ON CONFLICT(id) DO NOTHING RETURNING id",
+            (candidate.candidate_id, candidate.actor_id, candidate.target_ref, context.person_id, candidate.kind, candidate.summary,
+             candidate.due_at, candidate.expires_at, candidate.explicit, candidate.delivery_kind, candidate.action_id, document(context), document(candidate.source_refs), document(payload)))).fetchone()
+        if added:
+            await self.life.jobs.enqueue(connection, JobSpec("life.contact_due", "contact:"+candidate.candidate_id+":1",
+                {"candidate_id": candidate.candidate_id, "expected_revision": 1}, ServiceClass.DUE, candidate.due_at, context.actor_id))
+
+    async def propose_contact(self, candidate: ContactCandidate):
+        prepared = await self.prepare_contact(candidate)
+        async with self.life.database.transaction() as connection:
+            await self.persist_contact(connection, prepared)
 
     async def commitment_due(self, commitment_id, expected_revision):
         async with self.life.database.transaction(read_only=True) as connection:
@@ -418,4 +442,4 @@ class LifeWorker:
             artifacts=artifacts(candidate["payload"].get("artifacts", ())), candidate_id=candidate_id)
         result = await self.expression.send(context, plan)
         async with self.life.database.transaction() as connection:
-            await connection.execute("UPDATE life.contact_candidates SET state=%s,expression_id=%s,reason=%s,revision=revision+1 WHERE id=%s AND state='sending'", ("delivered" if result.delivery == "delivered" else "unknown" if result.delivery == "unknown" else "failed", plan.expression_id, result.error_code, candidate_id))
+            await connection.execute("UPDATE life.contact_candidates SET state=%s,expression_id=%s,reason=%s,revision=revision+1 WHERE id=%s AND state='sending'", ("delivered" if result.delivery == "delivered" else "unknown" if result.delivery in {"unknown", "pending"} else "failed", plan.expression_id, result.error_code, candidate_id))

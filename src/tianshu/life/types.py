@@ -27,3 +27,9 @@ class ContactCandidate:
     action_id: str | None = None
     delivery_kind: str = "share_candidate"
     payload: Mapping[str, Any] | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PreparedContact:
+    candidate: ContactCandidate
+    payload: Mapping[str, Any]

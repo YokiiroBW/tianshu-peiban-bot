@@ -28,15 +28,17 @@ def create_module(service, expression, identity, result_consumer):
 
     def tasks(queue, _runtime):
         queue.register("conversation.run", service.run, retryable=False)
+        queue.register("conversation.seal", service.collector.seal, retryable=False)
         queue.register("conversation.cancel", service.cancel_work, retryable=False)
         queue.register("conversation.reconcile", service.reconcile, retryable=False)
         queue.register("conversation.result", result_consumer.consume, retryable=True)
+        queue.register("conversation.expire", service.expire, retryable=True)
+        queue.register("conversation.expression_expire", expression.expire, retryable=True)
 
     async def start(_runtime):
-        # There is no proof that a killed model/delivery call did not cross its provider boundary.
+        await service.recover()
+        await expression.recover()
         async with service.database.transaction() as connection:
-            await connection.execute("UPDATE conversation.turns SET state='unknown',error_code='worker_lease_expired',completed_at=now() WHERE state='running' AND lease_until<now()")
-            await connection.execute("UPDATE conversation.expressions SET state='unknown' WHERE state='sending' AND created_at<now()-interval '20 minutes'")
             queued = await (await connection.execute("SELECT DISTINCT actor_id,conversation_id FROM conversation.turns WHERE state='queued'")).fetchall()
         for row in queued:
             await service._next(row["actor_id"], row["conversation_id"])

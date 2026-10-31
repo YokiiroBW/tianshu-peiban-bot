@@ -10,6 +10,8 @@ from tianshu.runtime.serialization import wire
 from tianshu.types import ContextContribution, Coverage, RequestBudget, ServiceClass
 from tianshu.conversation.codec import context_from_record, document, signature, source_refs
 from .validation import revision, text
+from . import publications
+from tianshu.conversation.types import InputPart
 
 
 def can_edit(context):
@@ -28,6 +30,20 @@ class WritingService:
     async def list(self, context, *, cursor=None, limit=30):
         await self.life.identity.check(context)
         limit = min(100, max(1, int(limit)))
+        if not can_edit(context):
+            async with self.life.database.transaction(read_only=True) as connection:
+                rows = await (await connection.execute(
+                    "SELECT w.id,w.actor_id,w.title,count(c.id) AS chapter_count FROM life.works w "
+                    "JOIN life.chapters c ON c.work_id=w.id JOIN life.chapter_revisions r ON r.chapter_id=c.id AND r.revision=c.published_revision "
+                    "WHERE w.actor_id=%s AND r.disclosure_ref IS NOT NULL AND (%s::text IS NULL OR w.id>%s) "
+                    "GROUP BY w.id ORDER BY w.id LIMIT %s",(context.actor_id,cursor,cursor,limit+1))).fetchall()
+                refs = await (await connection.execute(
+                    "SELECT c.work_id,r.disclosure_ref,r.publication_metadata FROM life.chapters c JOIN life.chapter_revisions r ON r.chapter_id=c.id AND r.revision=c.published_revision WHERE c.work_id=ANY(%s) AND r.disclosure_ref IS NOT NULL",([row["id"] for row in rows[:limit]],))).fetchall()
+            allowed = await self.life.identity.check_many(context,tuple(publications.reference(row) for row in refs))
+            visible = {row["work_id"] for row,valid in zip(refs,allowed,strict=True) if valid}
+            counts = {work_id:sum(1 for row,valid in zip(refs,allowed,strict=True) if valid and row["work_id"]==work_id) for work_id in visible}
+            more = len(rows)>limit
+            return Page(tuple({"id":row["id"],"actor_id":row["actor_id"],"title":next(item["publication_metadata"]["work_title"] for item,valid in zip(refs,allowed,strict=True) if valid and item["work_id"]==row["id"]),"chapter_count":counts[row["id"]]} for row in rows[:limit] if row["id"] in visible),rows[limit-1]["id"] if more else None,Coverage(not more and len(visible)==len(rows[:limit])))
         async with self.life.database.transaction(read_only=True) as connection:
             rows = await (await connection.execute(
                 "SELECT w.*, (SELECT count(*) FROM life.chapters c WHERE c.work_id=w.id) AS chapter_count "
@@ -77,6 +93,19 @@ class WritingService:
     async def chapters(self, context, body):
         await self.life.identity.check(context)
         limit = min(100, max(1, int(body.get("limit", 40))))
+        if not can_edit(context):
+            async with self.life.database.transaction(read_only=True) as connection:
+                work = await (await connection.execute("SELECT id,actor_id,title FROM life.works WHERE id=%s AND actor_id=%s",(body.get("work_id"),context.actor_id))).fetchone()
+                if not work:
+                    raise AppError("work_not_found",status=404)
+                rows = await (await connection.execute(
+                    "SELECT c.id,c.work_id,c.position,c.published_revision,r.disclosure_ref,r.publication_metadata FROM life.chapters c "
+                    "JOIN life.chapter_revisions r ON r.chapter_id=c.id AND r.revision=c.published_revision "
+                    "WHERE c.work_id=%s AND r.disclosure_ref IS NOT NULL AND (%s::int IS NULL OR c.position>%s) ORDER BY c.position LIMIT %s",
+                    (work["id"],body.get("cursor"),body.get("cursor"),limit+1))).fetchall()
+            page = await publications.page(self.life.identity,context,rows,limit,publications.chapter,cursor_key="position")
+            public_work={"id":work["id"],"actor_id":work["actor_id"]}
+            return {"work":public_work,"chapters":page}
         async with self.life.database.transaction(read_only=True) as connection:
             work = await self._work(context, body.get("work_id"), connection)
             rows = await (await connection.execute(
@@ -89,6 +118,14 @@ class WritingService:
 
     async def read(self, context, body):
         await self.life.identity.check(context)
+        if not can_edit(context):
+            async with self.life.database.transaction(read_only=True) as connection:
+                row = await (await connection.execute(
+                    "SELECT c.id,c.work_id,c.published_revision,r.content,r.created_at AS published_at,r.disclosure_ref,r.publication_metadata "
+                    "FROM life.chapters c JOIN life.works w ON w.id=c.work_id JOIN life.chapter_revisions r ON r.chapter_id=c.id AND r.revision=c.published_revision "
+                    "WHERE c.id=%s AND w.actor_id=%s",(body.get("id"),context.actor_id))).fetchone()
+            await publications.readable(self.life.identity,context,row)
+            return {"chapter":publications.chapter(row),"version":publications.version(row)}
         async with self.life.database.transaction(read_only=True) as connection:
             chapter = await self._chapter(context, body.get("id"), connection)
             version = body.get("revision") if can_edit(context) else chapter["published_revision"]
@@ -105,7 +142,7 @@ class WritingService:
         async def apply(connection):
             work = await self._work(context, body.get("work_id"), connection, lock=True)
             if work:
-                await self.life.identity.check(context, source_refs(work["source_refs"]))
+                await self.life.validate_persistence(connection, context, source_refs(work["source_refs"]))
             revision(work, body.get("expected_revision"))
             position = (await (await connection.execute("SELECT COALESCE(max(position),0)+1 AS position FROM life.chapters WHERE work_id=%s", (work["id"],))).fetchone())["position"]
             chapter_id = str(uuid4())
@@ -120,7 +157,7 @@ class WritingService:
         async def apply(connection):
             chapter = await self._chapter(context, body.get("id"), connection, lock=True)
             if chapter:
-                await self.life.identity.check(context, source_refs(chapter["source_refs"]))
+                await self.life.validate_persistence(connection, context, source_refs(chapter["source_refs"]))
             revision(chapter, body.get("expected_revision"))
             if chapter["state"] in {"generating", "unknown"}:
                 raise AppError("chapter_generation_unresolved", status=409, details={"attempt_id": chapter["generation_id"]})
@@ -132,7 +169,7 @@ class WritingService:
             attempt_id = str(uuid4())
             refs = tuple({(ref.source_id, ref.revision): ref for ref in (
                 *source_refs(work["source_refs"]), *(ref for chapter in previous for ref in source_refs(chapter["source_refs"] or ())))}.values())
-            await self.life.identity.check(context, refs)
+            await self.life.validate_persistence(connection, context, refs)
             recipe = {"work_revision": work["revision"], "title": work["title"], "synopsis": work["synopsis"],
                 "outline": work["outline"], "characters": work["characters"], "chapter_title": chapter["title"],
                 "plan": chapter["plan"], "instruction": instruction, "previous": previous, "source_refs": refs}
@@ -177,6 +214,9 @@ class WritingService:
             fresh = await self._chapter(context, chapter_id, connection, lock=True)
             if fresh["generation_id"] != generation_id or fresh["state"] != "generating":
                 return
+            if not await self.life.sources.validate_persistence(connection,context,tuple(pack.source_refs)):
+                await connection.execute("UPDATE life.chapters SET state='failed',generation_recipe=NULL,reason='result_source_unavailable',revision=revision+1 WHERE id=%s",(chapter_id,))
+                return
             version = fresh["current_revision"]+1
             await connection.execute("INSERT INTO life.chapter_revisions(chapter_id,revision,content,work_revision,model_attempt_id,recipe) VALUES (%s,%s,%s,%s,%s,%s)", (chapter_id, version, content, recipe["work_revision"], result.receipt.attempt_id, document({**recipe, "source_refs": pack.source_refs, "model_receipt": result.receipt})))
             await connection.execute("UPDATE life.chapters SET current_revision=%s,state='draft',review_state=NULL,review_note=NULL,revision=revision+1 WHERE id=%s", (version, chapter_id))
@@ -187,14 +227,14 @@ class WritingService:
         async def apply(connection):
             chapter = await self._chapter(context, body.get("id"), connection, lock=True)
             if chapter:
-                await self.life.identity.check(context, source_refs(chapter["source_refs"]))
+                await self.life.validate_persistence(connection, context, source_refs(chapter["source_refs"]))
             revision(chapter, body.get("expected_revision"))
             if chapter["state"] == "generating":
                 raise AppError("chapter_generation_running", status=409)
             work = await self._work(context, chapter["work_id"], connection)
             version = chapter["current_revision"]+1
             refs = await self._version_refs(chapter, connection)
-            await self.life.identity.check(context, refs)
+            await self.life.validate_persistence(connection, context, refs)
             await connection.execute("INSERT INTO life.chapter_revisions(chapter_id,revision,content,work_revision,recipe) VALUES (%s,%s,%s,%s,%s)", (chapter["id"], version, content, work["revision"], document({"kind": "author_edit", "source_refs": refs})))
             await connection.execute("UPDATE life.chapters SET current_revision=%s,state='draft',review_state=NULL,review_note=NULL,revision=revision+1 WHERE id=%s", (version, chapter["id"]))
             return CommandResult(body["client_request_id"], {"id": chapter["id"], "content_revision": version}, chapter["revision"]+1)
@@ -209,11 +249,11 @@ class WritingService:
         async def apply(connection):
             chapter = await self._chapter(context, body.get("id"), connection, lock=True)
             if chapter:
-                await self.life.identity.check(context, source_refs(chapter["source_refs"]))
+                await self.life.validate_persistence(connection, context, source_refs(chapter["source_refs"]))
             revision(chapter, body.get("expected_revision"))
             if not chapter["current_revision"] or chapter["state"] == "generating":
                 raise AppError("chapter_not_ready", status=409)
-            await self.life.identity.check(context, await self._version_refs(chapter, connection))
+            await self.life.validate_persistence(connection, context, await self._version_refs(chapter, connection))
             await connection.execute("UPDATE life.chapters SET review_state=%s,review_note=%s,revision=revision+1 WHERE id=%s", (state, note, chapter["id"]))
             return CommandResult(body["client_request_id"], {"id": chapter["id"], "review_state": state}, chapter["revision"]+1)
         return await self.life.commands.execute(context, "life.chapters.review", body["client_request_id"], signature(body), apply)
@@ -223,11 +263,17 @@ class WritingService:
         async def apply(connection):
             chapter = await self._chapter(context, body.get("id"), connection, lock=True)
             if chapter:
-                await self.life.identity.check(context, source_refs(chapter["source_refs"]))
+                await self.life.validate_persistence(connection, context, source_refs(chapter["source_refs"]))
             revision(chapter, body.get("expected_revision"))
             if chapter["state"] == "generating" or chapter["review_state"] != "approved":
                 raise AppError("chapter_review_required", status=409)
-            await self.life.identity.check(context, await self._version_refs(chapter, connection))
+            await self.life.validate_persistence(connection, context, await self._version_refs(chapter, connection))
+            refs = await self._version_refs(chapter,connection)
+            work = await self._work(context,chapter["work_id"],connection)
+            current = await (await connection.execute("SELECT content FROM life.chapter_revisions WHERE chapter_id=%s AND revision=%s",(chapter["id"],chapter["current_revision"]))).fetchone()
+            disclosure = await self.life.sources.disclose(context,producer="life.chapter",event_id=chapter["id"]+":"+str(chapter["current_revision"]),revision=chapter["revision"]+1,
+                parts=(InputPart("text",current["content"]),),source_refs=refs,reader_ids=tuple(body.get("reader_ids",())),conversation_ids=tuple(body.get("conversation_ids",())),connection=connection)
+            await connection.execute("UPDATE life.chapter_revisions SET disclosure_ref=%s,publication_metadata=%s WHERE chapter_id=%s AND revision=%s",(document(disclosure),document({"title":chapter["title"],"work_title":work["title"],"position":chapter["position"]}),chapter["id"],chapter["current_revision"]))
             await connection.execute("UPDATE life.chapters SET published_revision=current_revision,state='published',revision=revision+1 WHERE id=%s", (chapter["id"],))
             return CommandResult(body["client_request_id"], {"id": chapter["id"], "published_revision": chapter["current_revision"]}, chapter["revision"]+1)
         return await self.life.commands.execute(context, "life.chapters.publish", body["client_request_id"], signature(body), apply)
