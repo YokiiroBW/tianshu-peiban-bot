@@ -50,7 +50,16 @@
     "preserve_schemas": [
       "public"
     ],
-    "action": "drop exact owned schemas only after static config selection and old writer stop; never drop shared database or server"
+    "action": "drop exact owned schemas only after static config selection and old writer stop; never drop shared database or server",
+    "dependency_snapshot": {
+      "date": "2026-10-31",
+      "schema_count": 25,
+      "dependent_objects": 3890,
+      "owned_triggers_and_defaults": 612,
+      "external_or_unclassified": 0,
+      "method": "read-only pg_depend transitive closure and pg_identify_object; null-schema trigger/default owners resolved from qualified target",
+      "fresh_check_before_drop": true
+    }
   },
   "redis_old": {
     "host": "192.168.31.210",
