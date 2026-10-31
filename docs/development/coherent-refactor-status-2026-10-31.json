@@ -429,8 +429,8 @@
         "CR20"
       ],
       "state": "implementing",
-      "boundary": "src/tianshu/runtime,models,types; backend manifest,composition,migration registry; tests/runtime,models; identity/**,sources/**,memory/**,conversation/context/** and respective tests; deploy/core/**,root image ignore,tests/deployment after A/composition handoff; capabilities/projects/** and project-specific tests; then web features people/memory/knowledge/projects and exact model/access settings files in final-ui-dispatch",
-      "phase": "composition_deployment_then_project_knowledge_and_owned_UI"
+      "boundary": "runtime/models/types/identity/sources/memory/conversation/context and owned tests; backend manifest/lock/composition/migrations; deploy/core and retired source cleanup; capabilities/projects and its UI; web features knowledge/projects plus settings AccessPanel.tsx/access.css only",
+      "phase": "deployment_and_project_knowledge_with_access_UI"
     },
     "frontend": {
       "model": "gpt-6.1-sol",
@@ -471,8 +471,8 @@
         "CR04A"
       ],
       "state": "implementing",
-      "boundary": "src/tianshu/capabilities/**,packages/tianshu-plugin/**,tests/capabilities/**; capability schema fragment; channels/** and tests/channels after capability handoff; excludes capabilities/projects/** owned by foundation; after backend handoff owns web/src/features/{plugins,media,infrastructure,resources}/** from 7660945",
-      "phase": "assetlink_integrated_chat_audit_and_owned_frontend"
+      "boundary": "capabilities except projects; channels and SDK; web features plugins/media/infrastructure/resources/people/memory; exact ProviderManager/Editors/ModelsPanel/ModelFunctionsPanel/providerApi/providerTypes/providerPresets/models.css settings whitelist; no shared frontend registry changes",
+      "phase": "chat_audit_then_people_memory_model_UI"
     }
   },
   "integration_commits": [
@@ -739,6 +739,78 @@
       "integrated": "767f290",
       "scope": "actual AssetLibrary AssetLink reads and connection revision boundaries",
       "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "a3d46aa",
+      "integrated": "49ba813",
+      "scope": "explicit current-scene ChatAudit source intake and native aliases",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "35e9b83",
+      "integrated": "3879ba4",
+      "scope": "original command recovery with submitted scene retained",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "58046e3",
+      "integrated": "27d3ce5",
+      "scope": "archive withdrawal also suppresses late native reintake",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "ea7ff34",
+      "integrated": "c053ae4",
+      "scope": "frozen authored and life model requests and original render recovery",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "365eba8",
+      "integrated": "db8158e",
+      "scope": "generation control uses supported short interactive queue",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "29385d3",
+      "integrated": "81bcdec",
+      "scope": "plugin media infrastructure and AssetLibrary real frontend workflows",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "f4b5800",
+      "integrated": "f62afa3",
+      "scope": "original-ID first model admission on authoritative absence and expiry path",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "77e5597",
+      "integrated": "b3e70b3",
+      "scope": "actual product object graph native media authority routes and migrations",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "d19a416",
+      "integrated": "aacf9fe",
+      "scope": "durable Action execution owner recovery and absolute deadlines",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "a448ba0",
+      "integrated": "d554039",
+      "scope": "Fish MCP response completion and shared OAuth refresh",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "fb8aedd",
+      "integrated": "6d3693e",
+      "scope": "expired execution owners cannot revive or submit new I/O",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "a325af5",
+      "integrated": "540c970",
+      "scope": "complete life reading diary writing weather and wardrobe frontend",
+      "validation": "source_review_only; concentrated CR19 not started"
     }
   ],
   "validation": {
@@ -853,7 +925,11 @@
     {
       "owner": "frontend",
       "scope": "actor voice profile/output mode consumed by actual reply; render action recovery without recursively synthesizing its own completed audio",
-      "state": "implementing"
+      "state": "source_integrated_pending_concentrated_acceptance",
+      "integration_evidence": [
+        "ccdb2d9",
+        "c053ae4"
+      ]
     },
     {
       "owner": "frontend",
@@ -881,7 +957,10 @@
     {
       "owner": "foundation_models and capabilities",
       "scope": "explicit construction/migration/task registration/start lifecycle; ReadingService must receive a real stable port before startup, not captured None",
-      "state": "returned_to_owners"
+      "state": "source_integrated_pending_concentrated_acceptance",
+      "integration_evidence": [
+        "b3e70b3"
+      ]
     },
     {
       "owner": "capabilities",
@@ -987,7 +1066,13 @@
     {
       "owner": "capabilities",
       "scope": "QWeather and external AssetLibrary existing effective behavior plus full owned frontend consumers",
-      "state": "implementing"
+      "state": "source_integrated_pending_concentrated_acceptance",
+      "integration_evidence": [
+        "06bffdb",
+        "767f290",
+        "81bcdec",
+        "540c970"
+      ]
     },
     {
       "owner": "frontend and capabilities",
@@ -1002,7 +1087,12 @@
     {
       "owner": "frontend",
       "scope": "restore planned/dispatching expression steps by original action identity after interruption; no paid retry for unknown",
-      "state": "accepted_by_owner_fixing"
+      "state": "source_integrated_pending_concentrated_acceptance",
+      "integration_evidence": [
+        "c053ae4",
+        "db8158e",
+        "f62afa3"
+      ]
     },
     {
       "owner": "foundation_models",
@@ -1012,17 +1102,43 @@
     {
       "owner": "foundation_models and capabilities",
       "scope": "ChatAudit explicit authorized historical evidence reads require new stable external Source aliases and suppression; do not auto-import old archive or migrate old Core alias data",
-      "state": "implementing"
+      "state": "source_alias_ports_integrated; actual ChatAudit adapter implementing",
+      "integration_evidence": [
+        "49ba813",
+        "27d3ce5"
+      ]
     },
     {
       "owner": "frontend",
       "scope": "Persist original ModelRequest and attempt for growth life plan diary writing; interrupted dispatch uses original result lookup and never duplicates unknown paid work",
-      "state": "implementing"
+      "state": "source_integrated_pending_concentrated_acceptance",
+      "integration_evidence": [
+        "c053ae4",
+        "db8158e",
+        "f62afa3"
+      ]
     },
     {
       "owner": "foundation_models",
       "scope": "Build source and complete fresh deployment cleanup code before CR19; NAS dedicated build space preferred over consuming .230 capacity guard reserve",
       "state": "implementing"
+    },
+    {
+      "owner": "capabilities",
+      "scope": "Actual Action owner loss uses original receipt and handle; absolute deadline cancels actual wait; expired owner cannot revive and resubmit",
+      "state": "source_integrated_pending_concentrated_acceptance",
+      "integration_evidence": [
+        "aacf9fe",
+        "6d3693e"
+      ]
+    },
+    {
+      "owner": "capabilities",
+      "scope": "Fish matching MCP SSE result finishes immediately; concurrent token refresh uses short shared lease without holding database across network",
+      "state": "source_integrated_pending_concentrated_acceptance",
+      "integration_evidence": [
+        "d554039"
+      ]
     }
   ]
 }

@@ -11,8 +11,8 @@
 | 写者 | 顺序与独占范围 |
 |---|---|
 | frontend | 继续 B 日记/写作取消、表达恢复；前端 `features/life`、`multimodal`、`room`、`companion`、`home`、`workbench`、`flow-graph`，以及 Channels/Weather 等仍归它的设置页面。唯一拥有 `web/src/api/**`、`app/**`（含实际模块注册 `app/modules.ts`）、公共组件、路由和前端 manifest/lock。 |
-| capabilities | 先交完整 channels、QWeather 与当前实际能力补丁；然后接 `web/src/features/plugins/**`、`media/**`、`infrastructure/**`、`resources/**`。这些目录自 `7660945` 起由 frontend 冻结。核对外部 AssetLibrary 有效只读适配及原 Chat Audit 接口实际去向；不操作或复制独立产品私有库。 |
-| foundation_models | 继续 root composition、CR20 和旧实现退出；核对旧 Knowledge/Project 的真实已实现能力。然后接 `web/src/features/people/**`、`memory/**`、`knowledge/**`、`projects/**`；设置页仅 `ProviderManager.tsx`、`ProviderEditors.tsx`、`ProviderModelsPanel.tsx`、`ModelFunctionsPanel.tsx`、`providerApi.ts`、`providerTypes.ts`、`providerPresets.ts`、`models.css`、`AccessPanel.tsx`、`access.css`。这些路径尚未开始最终业务重写，frontend 不再修改。 |
+| capabilities | 完成 channels、QWeather、AssetLibrary 与 Chat Audit；`web/src/features/plugins/**`、`media/**`、`infrastructure/**`、`resources/**`。2026-10-31 21:38 起另接 foundation 已确认未修改并冻结的 `people/**`、`memory/**`；设置页仅 `ProviderManager.tsx`、`ProviderEditors.tsx`、`ProviderModelsPanel.tsx`、`ModelFunctionsPanel.tsx`、`providerApi.ts`、`providerTypes.ts`、`providerPresets.ts`、`models.css`。不操作独立产品私有库。 |
+| foundation_models | root composition、CR20 和旧实现退出；真实 Knowledge/Project 业务迁入 `capabilities/projects/**`；`web/src/features/knowledge/**`、`projects/**` 与设置 `AccessPanel.tsx`、`access.css`。2026-10-31 21:38 已确认其余上列 UI 尚未修改，正式转交 capabilities；模型/认识后端公共 API 仍由 foundation 唯一维护。 |
 
 foundation 的项目/知识代码如需能力归属，独占 `src/tianshu/capabilities/projects/**`，从 capabilities 的大目录范围明确划除。跨域注册由所属 owner 提交小补丁或在根装配；不让两个写者同时改 capabilities/service.py、共享客户端或主路由。
 
