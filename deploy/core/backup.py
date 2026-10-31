@@ -276,6 +276,8 @@ def restore(bundle, root, dsn_file, manifest_sha256):
             pg_tool(
                 "pg_restore",
                 [
+                    "--dbname",
+                    params["dbname"],
                     "--single-transaction",
                     "--exit-on-error",
                     "--no-owner",

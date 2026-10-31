@@ -114,6 +114,17 @@ def test_multifile_compose_backup_restores_the_exact_reviewed_order(monkeypatch,
         assert target == dsn
         if binary == "pg_dump":
             Path(arguments[arguments.index("--file") + 1]).write_bytes(b"synthetic database dump")
+        elif binary == "pg_restore":
+            assert arguments == [
+                "--dbname",
+                "tianshu_core",
+                "--single-transaction",
+                "--exit-on-error",
+                "--no-owner",
+                "--no-acl",
+                str(tmp_path / "backup/database.dump"),
+            ]
+            assert all("synthetic" not in argument for argument in arguments)
 
     class Connection:
         def __enter__(self):
