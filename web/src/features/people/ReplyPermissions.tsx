@@ -113,7 +113,13 @@ export function ReplyPermissions({
   const [cursor, setCursor] = useState<string | null>(null);
   const conversations = useDomainResource<Page<Conversation>>(
     "identity/conversations",
-    { ...actorScope(actorId), person_id: personId ?? null, limit: 100, cursor },
+    {
+      ...actorScope(actorId),
+      person_id: personId ?? null,
+      conversation_id: conversationId ?? null,
+      limit: 100,
+      cursor,
+    },
     directory.manageable,
   );
   const available =

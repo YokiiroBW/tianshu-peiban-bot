@@ -33,6 +33,11 @@ class Registry:
         )
         if "*" in context.permissions or "config.publish" in context.permissions:
             result["allowed_roots"] = list(self.settings.allowed_roots)
+        result["can_manage"] = bool({"*", "config.publish"} & context.permissions)
+        result["can_write"] = bool({"*", "projects.write"} & context.permissions)
+        result["can_share"] = (
+            "*" in context.permissions or {"projects.write", "memory.share"} <= context.permissions
+        )
         return result
 
     def configuration(self, body):

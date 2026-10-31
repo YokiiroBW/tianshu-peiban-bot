@@ -1,6 +1,6 @@
 # Projects and knowledge public boundary
 
-Implementation status: in progress; no execution or verification has run.
+Implementation status: implemented_not_tested. Native backend, CLI/MCP and the knowledge/projects UI are implemented; no product execution or acceptance has run.
 
 Construction is owned by `Capabilities`: `Projects(runtime, settings, authority, sources, artifacts, local)`, no independent process or authentication. Deployment config is `capabilities.projects.allowed_roots` (explicit managed absolute roots) and optional `git_executable`. No root scan, watching or repository writes. Registry binds the selected real conversation_id; subsequent operations rederive that scene through the injected Identity.authorize_conversation port, retaining the caller permission upper bound. Migration name `capabilities-projects-0001` loads `projects/schema.sql`.
 
@@ -11,3 +11,9 @@ Read operations: `view`, `registry/get`, `documents`, `documents/read`, `documen
 A ReadUnitRef is `{document_id,version,unit_id,sha256}`. A note citation is `{kind:'unit'|'note',reference:ReadUnitRef|{note_id,version,sha256}}`. Each item also returns complete authoritative SourceRefs; note/lesson transitive citations recheck source permission and current project versions. Bodies are stored once in Sources. Directory entries explicitly report `source_validation:'not_checked'`; real reads check disk/URL freshness and original Source authority before serving content.
 
 CLI/MCP default read only and call these same HTTP operations with the current Identity session and CSRF; no old Core transport or project-token store. Worktree observation runs only fixed bounded read-only Git fact commands, never text-supplied commands.
+
+`view` adds actual `can_manage`, `can_write`, `can_share` from the trusted caller permissions and `allowed_roots` only for configuration managers. `registry/get` permits authorized metadata reads of disabled projects so the registry can be re-enabled; data operations still require an enabled project. `state` returns a monotonic `revision` even when revoked evidence has removed its content, allowing a fresh explicit CAS declaration without reproducing the old content. Revoked note/lesson bodies return an explicit 410 and cannot be rendered as empty valid notes.
+
+The knowledge UI supports registry forms, paged catalogues, explicit directory plans and selected import/tombstones, single-file/registered URL/canonical uploaded Source imports, original/range readers, bounded original text search, typed research-note citations, revision history and withdrawal. The project UI supports versioned lessons and history/retirement, explicit multi-project shared summaries and withdrawal, actual registered checkout observations, original-pack reconciliation, and human progress declarations with fresh HEAD-bound verification statements. Source evidence and media retain the project's verified conversation selectors; an unconfirmed Action keeps its original identity and form.
+
+Official MCP SDK is `mcp>=1.26,<2` (root dependency lock: 1.30.0); its entry is `python -m tianshu.capabilities.projects.cli --server URL --session-file FILE --actor ACTOR --mcp`. The session file is explicitly supplied by the user and contains the existing Identity Cookie/CSRF; no new token authority is created. Optional write tools require `--allow-write` and remain subject to server authority and the same Actions catalog.

@@ -147,6 +147,11 @@ class Lessons:
         project = await self.store.project(context, body["project_id"])
         row = await self.row(project, body["lesson_id"], body.get("version"))
         await self.store.readable(context, row["source_refs"])
+        require(
+            row["version_state"] != "source_revoked" and bool(row["payload"]),
+            "lesson_source_unavailable",
+            410,
+        )
         try:
             await self.resolve(
                 context,

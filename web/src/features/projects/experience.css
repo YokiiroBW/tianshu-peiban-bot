@@ -1,34 +1,29 @@
 .experience-page,
 .experience-results,
-.experience-card,
-.experience-continuation,
-.experience-search {
+.experience-card {
   display: grid;
   gap: var(--space-4);
 }
-.experience-project,
-.experience-search label,
-.experience-continuation label {
+.experience-page > div,
+.experience-snapshot {
   display: grid;
-  gap: var(--space-2);
-  max-width: 34rem;
-}
-.experience-project select,
-.experience-search input,
-.experience-continuation input,
-.experience-continuation select {
-  width: 100%;
+  gap: var(--space-4);
   min-width: 0;
-  min-height: var(--control-height);
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  color: var(--color-text);
-  padding: var(--space-2) var(--space-3);
 }
-.experience-tabs,
-.experience-search form,
-.experience-continuation form {
+.experience-card pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 24rem;
+  overflow: auto;
+}
+.experience-card h3,
+.experience-card h4 {
+  margin-block: 0 var(--space-2);
+}
+.experience-card li {
+  margin-bottom: var(--space-2);
+}
+.experience-tabs {
   display: flex;
   flex-wrap: wrap;
   align-items: end;
@@ -66,10 +61,4 @@
 .experience-card dd {
   margin: 0;
   white-space: pre-wrap;
-}
-@media (max-width: 620px) {
-  .experience-search form,
-  .experience-continuation form {
-    display: grid;
-  }
 }

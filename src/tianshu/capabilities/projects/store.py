@@ -16,14 +16,14 @@ class ProjectStore:
         self.authority = authority
         self.sources = sources
 
-    async def project(self, context, project_id):
+    async def project(self, context, project_id, *, include_disabled=False):
         await self.authority.check(context)
         require(context.actor_id is not None, "project_actor_required", 400)
         async with self.database.transaction(read_only=True) as conn:
             row = await (
                 await conn.execute(
-                    "SELECT * FROM capability_projects.projects WHERE project_id=%s AND actor_id=%s AND scope_ids<@%s AND enabled",
-                    (project_id, context.actor_id, list(context.scope_ids)),
+                    "SELECT * FROM capability_projects.projects WHERE project_id=%s AND actor_id=%s AND scope_ids<@%s AND (enabled OR %s)",
+                    (project_id, context.actor_id, list(context.scope_ids), include_disabled),
                 )
             ).fetchone()
         require(row is not None, "project_unavailable", 404)

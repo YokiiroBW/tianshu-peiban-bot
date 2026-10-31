@@ -216,10 +216,10 @@ Models设置消费唯一Models管理API：原生供应商/只写密钥、路由/
 
 Images新增只读workflows.inspect({graph})，候选来自唯一Workflow.EDITABLE及真实字面量规则，不执行/保存图；outfit_id传正式Life.scene仅冻结本次衣柜，不改生活权威。协议新增sender_display_name传真实昵称，live observation eligibility只在非归档/非旧revision/非重复准入且reply_owner=tianshu时为true；B仍核真实active策略/Contacts与Identity权限。
 
-以上仅已编写源码、定向故障用例与格式整理/完整diff自查。未执行tests/build/typecheck/浏览器/付费模型/真实渠道。Projects/Knowledge仍在独立提交实施，不能据此宣称本轮全部完成。
+以上仅已编写源码、定向故障用例与格式整理/完整diff自查。未执行tests/build/typecheck/浏览器/付费模型/真实渠道。Projects/Knowledge后续交付状态见下节。
 
 
-## Projects/Knowledge后端主体（implemented_not_tested，UI仍实施）
+## Projects/Knowledge后端主体（implemented_not_tested）
 
 统一src/tianshu/capabilities/projects，公开API见其API.md；成熟文件安全读取、Git事实、PDF/docx/图片/字幕/音视频范围解码复用冻结memory源码中的有效算法，没有旧Core/项目令牌/旧SQL适配/外部产品运行依赖。项目根仅由capabilities.projects.allowed_roots管理，显式登记实际conversation_id、目录、URL与worktree。build_module新增authorize_conversation，根注入Identity.authorize_conversation；实际项目场景重派生保原权限上界，文件/网络/解码/Git不持业务PG连接。唯一Migration capabilities-projects-0001已在capabilities.module正式注册，根只装配该schema资源。
 
@@ -229,4 +229,16 @@ Images新增只读workflows.inspect({graph})，候选来自唯一Workflow.EDITAB
 
 续作包把实际Git branch/head/dirty/≤16注册文件/≤8提交事实、索引not_checked与人工声明分开；Git只固定只读命令，关闭helpers与可写行为，不执行文档/声明中的shell。声明verification绑定当次实际checkout但标not_executed_here；原pack按原身份/来源/版本/实际checkout再核，不换新pack伪称旧包有效。默认只读CLI/MCP复用当前Identity Cookie+CSRF和同一HTTP，写入需显式启用且服务端仍按Catalog/Actions原权限处理；官方FastMCP依赖由A唯一manifest/lock处理。
 
-定向用例仅编写，源码只做formatter/AST与diff自查；未运行tests/build/typecheck/浏览器/真实目录Git/真实URL/Source-PG集成或账户。下一步仍为本轮knowledge/projects UI实际表单与读取流程，完成后root统一CR19。
+定向用例仅编写，源码只做formatter/AST与diff自查；未运行tests/build/typecheck/浏览器/真实目录Git/真实URL/Source-PG集成或账户。原生PG连续项目故事已由root正式转交B的tests/core/test_project_stories.py独占编写，C不重复创建或运行。
+
+## Projects/Knowledge界面收口（implemented_not_tested）
+
+knowledge/KnowledgePage直接读唯一Projects域：项目/完整资料分页，实际登记范围表单（受管根/目录/URL/worktree文件），停用项目元数据仍可修订启用；目录仅显式预览，勾选原件与明确缺失索引后增量导入。单文件/固定URL/流式上传canonical Source均进同一Actions；上传可取消，未知结果保留原引用/表单，不自动重传原件。资料抽屉按当前版本和实际hash读章节、文字续段或媒体范围，原件走同源Source授权媒体出口；移除只改登记不改外部文件。文字搜索覆盖受权实际范围，继续游标不假装全文已搜完。
+
+ResearchNotes分别编辑研究问题、原件支持的陈述、推断、待答问题、决定及依据。原件单元必须从实际读回引用中选取，笔记版本依据从当前同项目笔记中选取；历史/修订/撤回为真实版本CAS。Projects页保留完整lesson字段、环境/适用/排除范围、typed原件依据、历史/修订/停用。共享摘要从至少两个真实授权项目的当前经验中选择，写明适用/排除/反例/复核时间，独立披露/撤回，不打开私密原件权限。
+
+ContinuationPanel仅显式读取已登记checkout，显示实际branch/head/dirty/文件hash与登记版本新鲜度/八条提交；资料索引与人工进度分栏。原pack按pack_id+sha原身份核对，不生成新包替代确认；人工验证声明只能绑定本次读到的实际HEAD，后端保存时复核，不冒充在天枢执行过测试。失效进度内容为空时只回旧revision以允许新的明确CAS声明；失效笔记/lesson正文410，不把清除后的空对象显示成有效条目。
+
+界面显式使用项目冻结会话选择器，退出/角色/项目改变由共享资源hook清除旧显示；命令使用统一CommandFeedback、原Action找回和不盲重放语义。People群会话策略小修改为向Identity传实际conversation_id，避免仅在首100项里本地筛选遗漏。
+
+权威入口：capabilities/projects/{service,registry,documents,directories,notes,lessons,experiences,continuation,withdrawal}.py、API.md；web/features/knowledge/{KnowledgePage,ProjectHeader,ProjectRegistry,ProjectImport,DocumentReader,ResearchNotes,EvidencePicker}.tsx，web/features/projects/{ExperiencePage,LessonPanel,SharedExperience,ContinuationPanel}.tsx。只做明确文件格式整理与源码/契约/diff检查，未运行任何测试、typecheck、build或浏览器。实际PG装配、MCP启动、NAS目录/Git/外部URL/模型及真实渠道账号仍由root统一CR19与后续实机验收覆盖。

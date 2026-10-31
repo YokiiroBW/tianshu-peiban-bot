@@ -54,10 +54,16 @@ class Continuation:
         if row:
             await self.store.readable(context, row["source_refs"])
             if row["state"] != "active":
-                return {"project_id": project["project_id"], "state": None, "reason": row["state"]}
+                return {
+                    "project_id": project["project_id"],
+                    "state": None,
+                    "revision": row["revision"],
+                    "reason": row["state"],
+                }
         return {
             "project_id": project["project_id"],
             "state": row,
+            "revision": row["revision"] if row else 0,
             "kind": "operator_declared_not_executed",
         }
 

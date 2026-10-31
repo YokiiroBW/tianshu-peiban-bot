@@ -52,8 +52,8 @@ class Projects:
     def bind_content(self, content):
         self.documents.content = content
 
-    async def scene(self, context, project_id):
-        project = await self.store.project(context, project_id)
+    async def scene(self, context, project_id, *, include_disabled=False):
+        project = await self.store.project(context, project_id, include_disabled=include_disabled)
         require(self.authorize_conversation is not None, "project_scene_authority_unavailable", 503)
         return await self.authorize_conversation(context, project["conversation_id"])
 
@@ -69,11 +69,13 @@ class Projects:
             "*" in context.permissions or "projects.read" in context.permissions, "forbidden", 403
         )
         if body.get("project_id"):
-            context = await self.scene(context, body["project_id"])
+            context = await self.scene(
+                context, body["project_id"], include_disabled=operation == "registry/get"
+            )
         if operation == "view":
             return await self.registry.view(context, body)
         if operation == "registry/get":
-            return await self.store.project(context, body["project_id"])
+            return await self.store.project(context, body["project_id"], include_disabled=True)
         if operation == "documents":
             return await self.documents.list(context, body)
         if operation == "documents/read":
