@@ -7,7 +7,7 @@ import { useDomainCommand, useDomainResource, GLOBAL_SCOPE } from "../../api/use
 /** Infrastructure management has an explicit global scene and the shared Action monitor. */
 export function useInfrastructureQuery<T>(operation: string, body: object, enabled = true) {
   const resource = useDomainResource<T>(`infrastructure/${operation}`, { ...GLOBAL_SCOPE, ...body }, enabled, 3000);
-  return { ...resource, reload: resource.refresh };
+  return { ...resource, reload: resource.reload };
 }
 
 export function useInfrastructureAction() {
