@@ -20,6 +20,7 @@ type ContactPreferences = {
   cooldown_seconds: number;
   daily_quota: number;
   unanswered_limit: number;
+  expiry_seconds: number;
   responsiveness: number;
 };
 export function LifeRoutinePanel({
@@ -168,6 +169,7 @@ export function LifeRoutinePanel({
                     cooldown_seconds: Number(data.get("cooldown")) * 60,
                     daily_quota: Number(data.get("daily_quota")),
                     unanswered_limit: Number(data.get("unanswered_limit")),
+                    expiry_seconds: Number(data.get("expiry_seconds")),
                     responsiveness: Number(data.get("responsiveness")),
                   },
                   preferences.data!.edit_revision,
@@ -256,6 +258,22 @@ export function LifeRoutinePanel({
                   required
                   readOnly={!canManage}
                 />
+              </label>
+              <label>
+                普通分享有效期（秒）
+                <input
+                  name="expiry_seconds"
+                  type="number"
+                  min="60"
+                  max="2592000"
+                  step="1"
+                  defaultValue={preferences.data.expiry_seconds}
+                  required
+                  readOnly={!canManage}
+                />
+                <small className="muted">
+                  从候选产生时计算；过期后不再补发。明示约定保留自己的时间窗。
+                </small>
               </label>
               <label>
                 对普通分享的积极程度

@@ -3,6 +3,9 @@ from tianshu.conversation.codec import document
 from .salience import fingerprint
 
 
+DEFAULT_EXPIRY_SECONDS = 4 * 60 * 60
+
+
 class Contacts:
     def __init__(self, database):
         self.database = database
@@ -19,6 +22,7 @@ class Contacts:
             return {**row,"edit_revision":row["revision"] if exact else None,"inherited":not exact}
         return {"revision": 0,"edit_revision":None,"inherited":False, "timezone": "Asia/Shanghai", "quiet_start": "23:00", "quiet_end": "08:00",
                        "cooldown_seconds": 1800, "daily_quota": 3, "unanswered_limit": 3,
+                       "expiry_seconds": DEFAULT_EXPIRY_SECONDS,
                        "responsiveness": .5, "enabled": True, "availability": "unknown", "available_until": None}
 
     async def history(self, context, *, conversation_only=False):

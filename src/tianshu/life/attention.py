@@ -2,6 +2,16 @@
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 from .types import AttentionDecision
+from .contacts import DEFAULT_EXPIRY_SECONDS
+
+
+def contact_expiry(expires_at, preferences, *, created_at, explicit=False, kind=None):
+    """A current policy may shorten an original window, never renew it."""
+    if explicit or kind == "reply":
+        return expires_at
+    return min(expires_at, created_at + timedelta(
+        seconds=preferences.get("expiry_seconds", DEFAULT_EXPIRY_SECONDS),
+    ))
 
 
 def quiet_until(now: datetime, timezone: str, start: str, end: str):
@@ -22,7 +32,10 @@ def quiet_until(now: datetime, timezone: str, start: str, end: str):
 class AttentionPolicy:
     def decide(self, candidate, preferences, history, *, now=None):
         now = now or datetime.now(UTC)
-        if candidate["expires_at"] <= now:
+        expires = contact_expiry(candidate["expires_at"], preferences,
+            created_at=candidate["created_at"], explicit=candidate.get("explicit", False),
+            kind=candidate.get("kind"))
+        if expires <= now:
             return AttentionDecision("cancel", "window_expired")
         # Ordinary input and explicit promises are not ranked as unsolicited novelty.
         if candidate.get("kind") == "reply":
@@ -30,6 +43,8 @@ class AttentionPolicy:
         if candidate.get("delivery_kind") == "create_only":
             return AttentionDecision("archive", "creation_without_delivery")
         if candidate["due_at"] > now:
+            if candidate["due_at"] >= expires:
+                return AttentionDecision("cancel", "contact_window_before_due_time")
             return AttentionDecision("defer", "not_due", candidate["due_at"])
         if not preferences.get("enabled", True) and not candidate.get("explicit"):
             return AttentionDecision("archive", "contact_disabled")
@@ -39,6 +54,8 @@ class AttentionPolicy:
         if salience is None or salience["score"] < salience["thresholds"]["engage"]:
             return AttentionDecision("archive", "kept_for_relevant_conversation")
         decision = self.window(preferences, history, now=now)
+        if decision.decision == "defer" and decision.due_at >= expires:
+            return AttentionDecision("cancel", "contact_window_before_available_time")
         if decision.decision != "send":
             return decision
         return AttentionDecision("send", "current_content_and_available_time", target_ref=candidate["target_ref"])

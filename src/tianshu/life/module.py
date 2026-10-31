@@ -102,4 +102,7 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
         await generation_control.recover()
 
     return DomainModule("life", register, start=start, register_tasks=tasks,
-        migrations=(Migration("0031_life", files("tianshu.life").joinpath("schema.sql").read_text()),))
+        migrations=(
+            Migration("0031_life", files("tianshu.life").joinpath("schema.sql").read_text()),
+            Migration("0033_life_contact_expiry", files("tianshu.life").joinpath("contact_expiry.sql").read_text()),
+        ))

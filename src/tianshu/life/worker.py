@@ -3,6 +3,7 @@ from __future__ import annotations
 from tianshu.sources.dependencies import unique_refs
 
 import json
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from uuid import NAMESPACE_URL, uuid5
 from zoneinfo import ZoneInfo
@@ -16,6 +17,7 @@ from tianshu.conversation.codec import context_from_record, artifacts, document,
 from tianshu.conversation.types import ExpressionPlan
 from tianshu.conversation.generation import GenerationRequests, attempt_for
 from .validation import timestamp
+from .attention import contact_expiry
 from .salience import evaluate, fingerprint, similarity, interest_fit
 from .types import ContactCandidate, PreparedContact
 
@@ -370,6 +372,10 @@ class LifeWorker:
             raise AppError("contact_target_mismatch", status=403)
         await self.life.identity.check(context, candidate.source_refs)
         preferences, history = await self.life.contacts.preferences(context), await self.life.contacts.history(context)
+        candidate = replace(candidate, expires_at=contact_expiry(
+            candidate.expires_at, preferences, created_at=datetime.now(UTC),
+            explicit=candidate.explicit, kind=candidate.kind,
+        ))
         content_fingerprint = fingerprint(candidate.summary, [ref.source_id for ref in candidate.source_refs])
         repetition = max((similarity(content_fingerprint, item["signature"]) for item in history), default=0)
         habits = await self.growth.view(context) if self.growth else {"items": []}
@@ -520,11 +526,16 @@ class LifeWorker:
             return
         context = context_from_record(candidate["context"])
         await self.life.identity.check(context, source_refs(candidate["source_refs"]))
-        decision = self.life.attention.decide(candidate, await self.life.contacts.preferences(context), await self.life.contacts.history(context))
+        preferences = await self.life.contacts.preferences(context)
+        expires = contact_expiry(candidate["expires_at"], preferences,
+            created_at=candidate["created_at"], explicit=candidate["explicit"], kind=candidate["kind"])
+        candidate = {**candidate, "expires_at": expires}
+        decision = self.life.attention.decide(candidate, preferences, await self.life.contacts.history(context))
         async with self.life.database.transaction() as connection:
             current = await self.life.lock_row(connection,context,"SELECT * FROM life.contact_candidates WHERE id=%s FOR UPDATE", (candidate_id,))
             if current["revision"] != expected_revision or current["state"] not in {"pending", "waiting"}:
                 return
+            await connection.execute("UPDATE life.contact_candidates SET expires_at=LEAST(expires_at,%s) WHERE id=%s", (expires, candidate_id))
             if decision.decision == "defer":
                 await connection.execute("UPDATE life.contact_candidates SET state='waiting',due_at=%s,reason=%s,revision=revision+1 WHERE id=%s", (decision.due_at, decision.reason, candidate_id))
                 await self.life.jobs.enqueue(connection, JobSpec("life.contact_due", f"contact:{candidate_id}:{expected_revision+1}", {"candidate_id": candidate_id, "expected_revision": expected_revision + 1}, ServiceClass.DUE, decision.due_at, context.actor_id))

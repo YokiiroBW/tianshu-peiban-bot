@@ -12,6 +12,7 @@ from tianshu.types import Coverage, ServiceClass
 from tianshu.conversation.codec import document, signature, source_refs
 from tianshu.conversation.persistence import lock_material_row
 from .attention import AttentionPolicy
+from .contacts import DEFAULT_EXPIRY_SECONDS
 from .validation import revision, text, timestamp, timezone
 
 TRANSITIONS = {
@@ -386,6 +387,9 @@ class LifeService:
                 await self.validate_persistence(connection, context, source_refs(row["source_refs"]))
             revision(row, body.get("expected_revision"))
             next_revision = row["revision"] + 1 if row else 1
+            expiry = body.get("expiry_seconds", row["expiry_seconds"] if row else DEFAULT_EXPIRY_SECONDS)
+            if type(expiry) is not int or not 60 <= expiry <= 2592000:
+                raise AppError("invalid_contact_expiry")
             responsiveness=body.get("responsiveness",row["responsiveness"] if row else .5)
             availability=body.get("availability",row["availability"] if row else "unknown")
             available_until=timestamp(body.get("available_until",row["available_until"] if row else None),optional=True)
@@ -399,7 +403,7 @@ class LifeService:
                 "revision=excluded.revision,timezone=excluded.timezone,quiet_start=excluded.quiet_start,quiet_end=excluded.quiet_end,"
                 "cooldown_seconds=excluded.cooldown_seconds,daily_quota=excluded.daily_quota,unanswered_limit=excluded.unanswered_limit,enabled=excluded.enabled",
                 (context.actor_id, context.person_id or "", next_revision, zone, body["quiet_start"], body["quiet_end"], body["cooldown_seconds"], body["daily_quota"], body["unanswered_limit"], body.get("enabled", True), list(context.scope_ids)))
-            await connection.execute("UPDATE life.contact_preferences SET responsiveness=%s,availability=%s,available_until=%s WHERE actor_id=%s AND person_id=%s",(responsiveness,availability,available_until,context.actor_id,context.person_id or ""))
+            await connection.execute("UPDATE life.contact_preferences SET responsiveness=%s,availability=%s,available_until=%s,expiry_seconds=%s WHERE actor_id=%s AND person_id=%s",(responsiveness,availability,available_until,expiry,context.actor_id,context.person_id or ""))
             return CommandResult(body["client_request_id"], {"revision": next_revision}, next_revision)
         return await self.commands.execute(context, "life.contact_preferences.save", body["client_request_id"], signature(body), apply)
 
