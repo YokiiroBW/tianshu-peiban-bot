@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Literal, Mapping
 
-from tianshu.types import MediaRef, RequestBudget, ServiceClass, TrustedContext
+from tianshu.types import MediaRef, RequestBudget, ServiceClass, SourceRef, TrustedContext
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +59,7 @@ class ModelRequest:
     protocol: str | None = None
     route_id: str | None = None
     parameters: Mapping[str, Any] = field(default_factory=dict)
+    source_refs: tuple[SourceRef, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,3 +108,21 @@ class ModelEvent:
     part: ModelPart | None = None
     receipt: ModelReceipt | None = None
     data: Any = None
+
+
+@dataclass(frozen=True, slots=True)
+class ExternalRequest:
+    """A domain-owned external protocol whose actual capacity still belongs to Broker."""
+
+    intent_id: str
+    attempt_id: str
+    context: TrustedContext
+    budget: RequestBudget
+    quota_group: str
+    function: str
+    service_class: ServiceClass
+    provider_id: str
+    billing_account: str | None = None
+    estimated_units: Mapping[str, float] = field(default_factory=dict)
+    max_queue_wait: float = 30.0
+    source_refs: tuple[SourceRef, ...] = ()

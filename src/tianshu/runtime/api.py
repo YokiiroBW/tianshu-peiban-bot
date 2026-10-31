@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 from uuid import uuid4
@@ -24,7 +25,7 @@ def require_context(request, permission=None) -> TrustedContext:
     context = request.get(TRUSTED_CONTEXT)
     if not isinstance(context, TrustedContext):
         raise AppError("unauthorized", status=401)
-    if permission and permission not in context.permissions:
+    if permission and permission not in context.permissions and "*" not in context.permissions:
         raise AppError("forbidden", status=403)
     return context
 
@@ -87,10 +88,13 @@ async def error_middleware(request, handler):
     request_id = str(uuid4())
     request["request_id"] = request_id
     event_log = request.app.get("event_log")
-    started = __import__("time").monotonic()
-    if event_log and not request.path.startswith("/health/"):
-        await event_log.emit("http.started", "started", correlation_id=request_id)
+    started = time.monotonic()
+    resource = request.match_info.route.resource
+    route_name = getattr(resource, "canonical", None)
     try:
+        if event_log and not request.path.startswith("/health/"):
+            await event_log.emit("http.started", "started", correlation_id=request_id,
+                                 route=route_name, method=request.method)
         response = await handler(request)
     except AppError as exc:
         response = json_response({"error": {"code": exc.code, "message": exc.message,
@@ -102,14 +106,15 @@ async def error_middleware(request, handler):
         response = json_response({"error": {"code": "http_" + str(exc.status),
             "message": exc.reason, "details": None, "request_id": request_id}}, status=exc.status)
     except Exception:
-        LOG.exception("request_failed request_id=%s", request_id)
+        LOG.error("request_failed request_id=%s", request_id)
         response = json_response({"error": {"code": "internal_error",
             "message": "请求未完成", "details": None, "request_id": request_id}}, status=500)
     response.headers["X-Request-Id"] = request_id
     if event_log and not request.path.startswith("/health/"):
         try:
             await event_log.emit("http.finished", "succeeded" if response.status < 400 else "failed",
-                correlation_id=request_id, duration_ms=(__import__("time").monotonic()-started)*1000)
+                correlation_id=request_id, duration_ms=(time.monotonic()-started)*1000,
+                route=route_name, method=request.method, status=response.status)
         except AppError:
             pass  # Never rewrite an already-committed business outcome because logging failed.
     return response

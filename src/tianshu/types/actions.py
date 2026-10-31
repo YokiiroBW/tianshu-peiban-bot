@@ -53,7 +53,7 @@ class Action:
     action_id: str
     intent_key: str
     capability_id: str
-    actor_id: str
+    actor_id: str | None
     context: TrustedContext
     arguments: Mapping[str, Any]
     origin_kind: OriginKind
