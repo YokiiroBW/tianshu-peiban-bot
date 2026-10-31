@@ -1,0 +1,13 @@
+"""The model port used by all domains, in-process or across the broker boundary."""
+
+from collections.abc import AsyncIterator
+from typing import Protocol
+
+from .types import ModelEvent, ModelReceipt, ModelRequest, ModelResult
+
+
+class ModelPort(Protocol):
+    async def generate(self, request: ModelRequest) -> ModelResult: ...
+    def stream(self, request: ModelRequest) -> AsyncIterator[ModelEvent]: ...
+    async def cancel(self, attempt_id: str) -> ModelReceipt | None: ...
+    async def status(self, attempt_id: str) -> ModelReceipt | None: ...

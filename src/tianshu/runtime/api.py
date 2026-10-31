@@ -1,0 +1,94 @@
+"""Public HTTP shapes. Domain routes register actual operations under /api/v1."""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from dataclasses import dataclass, field
+from typing import Any, Mapping
+from uuid import uuid4
+
+from aiohttp import web
+
+from tianshu.types import Coverage, Receipt
+from .errors import AppError
+from .serialization import wire
+
+LOG = logging.getLogger(__name__)
+CSRF_HEADER = "X-CSRF-Token"
+API_PREFIX = "/api/v1"
+
+
+@dataclass(frozen=True, slots=True)
+class PrincipalView:
+    principal_id: str
+    display_name: str
+    permissions: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class SessionView:
+    authenticated: bool
+    initialized: bool
+    principal: PrincipalView | None
+    csrf_token: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class CommandResult:
+    client_request_id: str
+    data: Any = None
+    revision: int | None = None
+    action_id: str | None = None
+    attempt_id: str | None = None
+    receipt: Receipt | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class Page:
+    items: tuple[Any, ...]
+    next_cursor: str | None
+    coverage: Coverage
+
+
+def json_response(value, *, status=200):
+    return web.json_response(wire(value), status=status)
+
+
+async def command_body(request: web.Request) -> Mapping[str, Any]:
+    try:
+        body = await request.json()
+    except (ValueError, UnicodeError):
+        raise AppError("invalid_json") from None
+    if not isinstance(body, dict):
+        raise AppError("invalid_input")
+    client_id = body.get("client_request_id")
+    if not isinstance(client_id, str) or not 1 <= len(client_id) <= 128:
+        raise AppError("client_request_id_required")
+    revision = body.get("expected_revision")
+    if revision is not None and (type(revision) is not int or revision < 0):
+        raise AppError("invalid_revision")
+    return body
+
+
+@web.middleware
+async def error_middleware(request, handler):
+    request_id = str(uuid4())
+    request["request_id"] = request_id
+    try:
+        response = await handler(request)
+    except AppError as exc:
+        response = json_response({"error": {"code": exc.code, "message": exc.message,
+            "details": exc.details, "request_id": request_id}}, status=exc.status)
+    except (TimeoutError, asyncio.TimeoutError):
+        response = json_response({"error": {"code": "deadline_exceeded",
+            "message": "请求已超时", "details": None, "request_id": request_id}}, status=504)
+    except web.HTTPException as exc:
+        response = json_response({"error": {"code": "http_" + str(exc.status),
+            "message": exc.reason, "details": None, "request_id": request_id}}, status=exc.status)
+    except Exception:
+        LOG.exception("request_failed request_id=%s", request_id)
+        response = json_response({"error": {"code": "internal_error",
+            "message": "请求未完成", "details": None, "request_id": request_id}}, status=500)
+    response.headers["X-Request-Id"] = request_id
+    return response
