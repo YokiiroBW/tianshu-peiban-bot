@@ -522,3 +522,7 @@
     flex: 1;
   }
 }
+
+.flow-runtime .flow-swimlanes {
+  grid-template-columns: repeat(3, minmax(18rem, 1fr));
+}

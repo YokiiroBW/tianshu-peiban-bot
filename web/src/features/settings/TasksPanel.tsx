@@ -625,7 +625,9 @@ export type RuntimeResources = {
   }[];
   broker: Record<string, unknown>;
 };
-export function RuntimeTasks() {
+export function RuntimeTasks({
+  includeLogs = true,
+}: { includeLogs?: boolean } = {}) {
   const { session } = useAuth();
   const canRead =
     session?.principal?.permissions.some(
@@ -726,7 +728,7 @@ export function RuntimeTasks() {
           <pre>{JSON.stringify(resources.data.broker, null, 2)}</pre>
         </DetailCard>
       )}
-      <RuntimeLogs />
+      {includeLogs && <RuntimeLogs />}
     </section>
   );
 }

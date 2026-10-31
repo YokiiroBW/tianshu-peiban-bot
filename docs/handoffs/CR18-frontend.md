@@ -92,3 +92,7 @@
 状态 implemented_not_tested。真实Identity登记账号/角色/事件权限/新私聊默认方式，明确群或私聊绑定、普通回复/仅观察/忽略、@或原文关键词及唯一回复责任。管理表单固定对象修订，消费A d61的directory目标metadata，不猜人物或私聊双账号。传输配置覆盖OneBot四模式、Telegram webhook/poll、NoneBot/AstrBot桥、凭据只写、扩展声明/对端支持/媒体映射与大小/主机规则。真实探测与明确原生API共用CommandResult+原Actions，原会话selector经Identity核验；矩阵逐条区分本地实现、对端声明、真实验证时间。观察/owner/原表达投递来自Channels真实投影，不保留旧解锁/草稿/旧站回退。
 
 群主动参与直接消费B conversation/participation与participation.save（actor-only+真实target_conversation_id），配合既有Contacts节律。删除BotConnectionsPanel/BotObservationPanel/OneBotOnboarding/botAdapterApi/GroupPolicyEditor旧内部信封消费者；Memory新群页依C b448219已去掉旧GroupPolicyEditor引用，整合顺序需包含该C UI提交。仅读实际源码/diff与已有Prettier，未测试/typecheck/build/浏览器。
+
+## 链路图收口（implemented_not_tested）
+
+配置图读取已授权角色、Identity账号登记及分页会话：一个QQ连接绑定一个角色，群只配置处理策略。运行图改用interactive/model-broker/worker真实Loki记录与同一RuntimeTasks资源投影；纳秒边界保持字符串，未知阶段不补造。删除旧runtime/graph与跨产品拓扑DTO/API消费者。仅源码与差异检查，未运行测试、typecheck、build或浏览器。
