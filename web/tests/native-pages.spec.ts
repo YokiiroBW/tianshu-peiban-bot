@@ -42,12 +42,9 @@ test("life summaries show recorded feelings without exposing expression guidance
       await page.goto(`/#/${route}`);
       const summary =
         route === "roles/life"
-          ? page.locator("section").filter({
-              has: page.getByRole("heading", {
-                name: "心情与感想",
-                exact: true,
-              }),
-            })
+          ? page
+              .getByRole("heading", { name: "心情与感想", exact: true })
+              .locator("..")
           : page.locator("section").filter({
               has: page.getByRole("heading", {
                 name: "小屋角色的近况",

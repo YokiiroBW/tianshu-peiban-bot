@@ -14,6 +14,48 @@ from .codec import document, receipt, signature, source_refs, artifacts
 from .types import ExpressionPlan
 
 
+def delivery_state(result: Receipt) -> str:
+    """An accepted channel action has not made a delivery decision yet."""
+    if result.delivery == "delivered":
+        return "delivered"
+    if "unknown" in {result.execution, result.effect, result.delivery}:
+        return "unknown"
+    if result.execution in {"pending", "running"} or result.delivery == "pending":
+        return "waiting_delivery"
+    return "failed"
+
+
+def expression_turn_state(state: str) -> str:
+    if state == "delivered":
+        return "completed"
+    if state == "cancelled":
+        return "cancelled"
+    if state in {"waiting_render", "ready", "waiting_order", "delivering", "waiting_delivery", "sending"}:
+        return "waiting_expression"
+    if state in {"render_unknown", "delivery_unknown", "unknown"}:
+        return "unknown"
+    return "failed"
+
+
+def receipt_advances(previous: Receipt | None, result: Receipt) -> bool:
+    if previous is None:
+        return True
+    for key in ("action_id", "attempt_id"):
+        old, new = getattr(previous, key), getattr(result, key)
+        if old is not None and new is not None and old != new:
+            raise AppError("expression_receipt_identity_conflict", status=409)
+        if old is not None and new is None:
+            return False
+    prior_state, next_state = delivery_state(previous), delivery_state(result)
+    if prior_state == "delivered":
+        return False
+    if prior_state == "unknown" and next_state == "waiting_delivery":
+        return False
+    if prior_state == "failed" and next_state in {"waiting_delivery", "unknown"}:
+        return False
+    return previous != result
+
+
 class ExpressionService:
     def __init__(self, database, jobs, identity, channels, contacts, *, sources):
         self.database, self.jobs, self.identity = database, jobs, identity
@@ -59,18 +101,34 @@ class ExpressionService:
             result = receipt(await self.channels.deliver(context, plan))
         except (asyncio.CancelledError, Exception) as error:
             result = self._unknown(plan.expression_id, getattr(error, "code", "delivery_outcome_unknown"))
-            await self._finish(context, plan, result)
+            result = await self._finish(context, plan, result)
             if isinstance(error, asyncio.CancelledError):
                 raise
             return result
-        await self._finish(context, plan, result)
-        return result
+        return await self._finish(context, plan, result)
 
     async def _finish(self, context, plan, result):
-        state = "delivered" if result.delivery == "delivered" else "waiting_delivery" if result.delivery=="pending" else "unknown" if result.delivery=="unknown" else "failed"
         async with self.database.transaction() as connection:
             material_valid = await self.sources.validate_persistence(connection,context,plan.source_refs)
-            await connection.execute("UPDATE conversation.expressions SET state=%s,receipt=%s,revision=revision+1,completed_at=now() WHERE expression_id=%s AND state IN ('sending','waiting_delivery','unknown') AND (state<>%s OR receipt IS DISTINCT FROM %s)", (state, document(result), plan.expression_id,state,document(result)))
+            current = await (await connection.execute(
+                "SELECT state,receipt FROM conversation.expressions WHERE expression_id=%s "
+                "AND actor_id=%s AND conversation_id=%s FOR UPDATE",
+                (plan.expression_id, context.actor_id, context.conversation_id))).fetchone()
+            if not current:
+                raise AppError("expression_not_found", status=404)
+            previous = receipt(current["receipt"])
+            if previous and result.action_id in {None, previous.action_id}:
+                result = replace(
+                    result, action_id=result.action_id or previous.action_id,
+                    attempt_id=result.attempt_id or previous.attempt_id,
+                )
+            if not receipt_advances(previous, result):
+                return previous
+            state = delivery_state(result)
+            await connection.execute(
+                "UPDATE conversation.expressions SET state=%s,receipt=%s,revision=revision+1,"
+                "completed_at=CASE WHEN %s='waiting_delivery' THEN NULL ELSE now() END WHERE expression_id=%s",
+                (state, document(result), state, plan.expression_id))
             if state == "delivered" and material_valid:
                 await connection.execute(
                     "INSERT INTO conversation.messages(actor_id,conversation_id,speaker,parts,source_refs,scope_ids,turn_id,expression_id) "
@@ -79,6 +137,7 @@ class ExpressionService:
                      list(context.scope_ids), plan.turn_id, plan.expression_id))
         if material_valid:
             await self.contacts.record_delivery(context, plan, result)
+        return result
 
     async def present(self, context, expression_id, artifacts, public_parts):
         """An explicit capability presentation request uses the same durable expression."""
@@ -100,7 +159,8 @@ class ExpressionService:
         current = await self.get(context, expression_id)
         if expected_revision != current["revision"]:
             raise AppError("revision_conflict", status=409, details={"current_revision": current["revision"]})
-        if current["state"] not in {"unknown","waiting_delivery","sending"}:
+        pending_failure = current["state"] == "failed" and current["receipt"] and delivery_state(receipt(current["receipt"])) in {"waiting_delivery", "unknown"}
+        if current["state"] not in {"unknown","waiting_delivery","sending"} and not pending_failure:
             return current
         actual = await self.channels.reconcile(context, expression_id)
         if actual is None:
@@ -113,21 +173,42 @@ class ExpressionService:
         await self._finish(context, plan, receipt(actual))
         return await self.get(context, expression_id)
 
-    async def channel_result(self, context, expression_id, result):
+    async def channel_result(self, context, expression_id, result) -> Receipt | None:
         async with self.database.transaction(read_only=True) as connection:
             row=await (await connection.execute("SELECT * FROM conversation.expressions WHERE expression_id=%s AND actor_id=%s AND conversation_id=%s",(expression_id,context.actor_id,context.conversation_id))).fetchone()
         if not row:
-            return False
+            return None
         plan=ExpressionPlan(expression_id,context.actor_id,context.conversation_id,tuple(row["public_parts"]),source_refs(row["source_refs"]),context.origin_kind,row["turn_id"],artifacts(row["artifacts"]),row["candidate_id"])
-        await self._finish(context,plan,result)
+        result = await self._finish(context,plan,result)
         async with self.database.transaction() as connection:
-            state="completed" if result.delivery=="delivered" else "waiting_expression" if result.delivery=="pending" else "unknown" if result.delivery=="unknown" else "failed"
-            await connection.execute("UPDATE conversation.turns SET state=%s,error_code=%s,completed_at=now() WHERE expression_id=%s AND state IN ('running','waiting_expression','unknown')",(state,result.error_code,expression_id))
-        return True
+            state = expression_turn_state(delivery_state(result))
+            await connection.execute(
+                "UPDATE conversation.turns SET state=%s,error_code=%s,revision=revision+1,"
+                "completed_at=CASE WHEN %s='waiting_expression' THEN NULL ELSE now() END "
+                "WHERE actor_id=%s AND conversation_id=%s AND expression_id=%s "
+                "AND (state IN ('running','waiting_expression','unknown') "
+                "OR (state='failed' AND error_code IS NULL AND %s='completed')) "
+                "AND (state IS DISTINCT FROM %s OR error_code IS DISTINCT FROM %s)",
+                (state, result.error_code, state, context.actor_id, context.conversation_id,
+                 expression_id, state, state, result.error_code))
+        return result
 
     async def expire(self, expression_id):
         async with self.database.transaction() as connection:
-            await connection.execute("UPDATE conversation.expressions SET state='unknown',revision=revision+1,receipt=%s WHERE expression_id=%s AND state IN ('sending','waiting_delivery') AND lease_until<=now()", (document(self._unknown(expression_id, "delivery_lease_expired")), expression_id))
+            row = await (await connection.execute(
+                "SELECT receipt FROM conversation.expressions WHERE expression_id=%s "
+                "AND state IN ('sending','waiting_delivery') AND lease_until<=now() FOR UPDATE",
+                (expression_id,))).fetchone()
+            if row:
+                previous = receipt(row["receipt"])
+                observation = self._unknown(expression_id, "delivery_lease_expired")
+                result = replace(
+                    previous, receipt_id=observation.receipt_id, execution="unknown",
+                    effect="unknown", delivery="unknown", error_code=observation.error_code,
+                ) if previous else observation
+                await connection.execute(
+                    "UPDATE conversation.expressions SET state='unknown',revision=revision+1,receipt=%s "
+                    "WHERE expression_id=%s", (document(result), expression_id))
 
     async def recover(self):
         async with self.database.transaction() as connection:

@@ -20,6 +20,7 @@ from .persistence import lock_material_row
 from .types import CollectorPolicy, DialogueResult, ExpressionPlan, InputMessage
 from .collector import ConversationCollector
 from .participation import GroupParticipation
+from .expression import expression_turn_state
 
 
 class ConversationService:
@@ -272,8 +273,12 @@ class ConversationService:
         expression_refs = unique_refs(tuple(ref for ref in (*pack.source_refs, *(ref for item in output_artifacts for ref in item.source_refs))))
         delivered = await self.expression.send(context, ExpressionPlan(expression_id, context.actor_id, context.conversation_id,
             public, expression_refs, OriginKind.ACTOR, turn_id=row["turn_id"], artifacts=output_artifacts))
+        state = expression_turn_state(delivered.state)
         async with self.database.transaction() as connection:
-            await connection.execute("UPDATE conversation.turns SET state=%s,completed_at=now() WHERE turn_id=%s AND state='running'", ("completed" if delivered.state=="delivered" else "waiting_expression" if delivered.state in {"waiting_render","ready","waiting_order","delivering","waiting_delivery"} else "unknown" if delivered.state in {"render_unknown","delivery_unknown"} else "failed", row["turn_id"]))
+            await connection.execute(
+                "UPDATE conversation.turns SET state=%s,completed_at=CASE WHEN %s='waiting_expression' "
+                "THEN NULL ELSE now() END WHERE turn_id=%s AND state='running'",
+                (state, state, row["turn_id"]))
 
     @staticmethod
     def _message(role, parts, native=None):
@@ -547,7 +552,15 @@ class ConversationService:
 
     async def expression_result(self,context,expression_id,current):
         await self.identity.check(context)
-        state="cancelled" if current["state"]=="cancelled" else "completed" if current["state"]=="delivered" else "waiting_expression" if current["state"] in {"waiting_render","ready","waiting_order","delivering","waiting_delivery"} else "unknown" if current["state"] in {"render_unknown","delivery_unknown","unknown"} else "failed"
+        state = expression_turn_state(current["state"])
         async with self.database.transaction() as connection:
-            await connection.execute("UPDATE conversation.turns SET state=%s,error_code=%s,revision=revision+1,completed_at=CASE WHEN %s='waiting_expression' THEN NULL ELSE now() END WHERE actor_id=%s AND conversation_id=%s AND expression_id=%s AND state IN ('running','waiting_expression','unknown')",(state,current.get("reason"),state,context.actor_id,context.conversation_id,expression_id))
+            await connection.execute(
+                "UPDATE conversation.turns SET state=%s,error_code=%s,revision=revision+1,"
+                "completed_at=CASE WHEN %s='waiting_expression' THEN NULL ELSE now() END "
+                "WHERE actor_id=%s AND conversation_id=%s AND expression_id=%s "
+                "AND (state IN ('running','waiting_expression','unknown') "
+                "OR (state='failed' AND error_code IS NULL AND %s='completed')) "
+                "AND (state IS DISTINCT FROM %s OR error_code IS DISTINCT FROM %s)",
+                (state, current.get("reason"), state, context.actor_id, context.conversation_id,
+                 expression_id, state, state, current.get("reason")))
         await self.expression.wake(context.actor_id,context.conversation_id)

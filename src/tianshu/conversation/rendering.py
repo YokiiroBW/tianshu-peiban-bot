@@ -9,6 +9,7 @@ from tianshu.runtime.serialization import wire
 from tianshu.types import Action,OriginKind,ServiceClass
 from .codec import artifacts,context_from_record,document,receipt,signature,source_refs
 from .types import ExpressionPlan,ExpressionProgress
+from .expression import delivery_state, receipt_advances
 
 
 def decode_plan(value):
@@ -202,9 +203,11 @@ class ExpressionRenderer:
                     return progress(updated)
             await connection.execute("UPDATE conversation.expression_plans SET state='delivering',reason=NULL WHERE expression_id=%s",(expression_id,))
         result=await self.delivery.send(context,plan)
-        state="delivered" if result.delivery=="delivered" else "waiting_delivery" if result.delivery=="pending" else "delivery_unknown" if result.delivery=="unknown" else "failed"
+        state = delivery_state(result)
+        if state == "unknown":
+            state = "delivery_unknown"
         async with self.database.transaction() as connection:
-            row=await (await connection.execute("UPDATE conversation.expression_plans SET state=%s,receipt=%s,reason=%s,revision=revision+1,updated_at=now() WHERE expression_id=%s AND (state<>%s OR receipt IS DISTINCT FROM %s) RETURNING *",(state,document(result),result.error_code,expression_id,state,document(result)))).fetchone()
+            row=await (await connection.execute("UPDATE conversation.expression_plans SET state=%s,receipt=%s,reason=%s,revision=revision+1,updated_at=now() WHERE expression_id=%s AND state='delivering' AND revision=%s AND (state<>%s OR receipt IS DISTINCT FROM %s) RETURNING *",(state,document(result),result.error_code,expression_id,fresh["revision"],state,document(result)))).fetchone()
             if row:
                 await self._event(connection,context,expression_id,row["revision"])
             else:
@@ -254,11 +257,16 @@ class ExpressionRenderer:
             raise AppError("revision_conflict",status=409)
         if "render_action_ids" not in current:
             return await self.delivery.reconcile(context,expression_id,expected_revision)
+        if current["state"] == "delivered" and current["receipt"]:
+            # The original final channel receipt can repair a previously failed projection.
+            await self.channel_result(context, expression_id, receipt(current["receipt"]))
+            return await self.get(context, expression_id)
         for action_id in current.get("render_action_ids",()):
             await self.actions.reconcile(action_id,context)
             actual=await self.actions.get(action_id,context)
             await self.on_action_result(context,receipt(actual["receipt"]),actual["result_revision"])
-        if current["state"] in {"delivering","waiting_delivery","delivery_unknown"}:
+        pending_failure = current["state"] == "failed" and current["receipt"] and delivery_state(receipt(current["receipt"])) in {"waiting_delivery", "unknown"}
+        if current["state"] in {"delivering","waiting_delivery","delivery_unknown"} or pending_failure:
             try:
                 original=await self.delivery.get(context,expression_id)
             except AppError as error:
@@ -271,9 +279,19 @@ class ExpressionRenderer:
         return await self.get(context,expression_id)
 
     async def channel_result(self,context,expression_id,result):
-        await self.delivery.channel_result(context,expression_id,result)
+        result = await self.delivery.channel_result(context, expression_id, result)
+        if not result:
+            return
         async with self.database.transaction() as connection:
-            state="delivered" if result.delivery=="delivered" else "waiting_delivery" if result.delivery=="pending" else "delivery_unknown" if result.delivery=="unknown" else "failed"
+            current = await (await connection.execute(
+                "SELECT receipt FROM conversation.expression_plans WHERE expression_id=%s "
+                "AND actor_id=%s AND conversation_id=%s FOR UPDATE",
+                (expression_id, context.actor_id, context.conversation_id))).fetchone()
+            if not current or not receipt_advances(receipt(current["receipt"]), result):
+                return
+            state = delivery_state(result)
+            if state == "unknown":
+                state = "delivery_unknown"
             row=await (await connection.execute("UPDATE conversation.expression_plans SET state=%s,receipt=%s,reason=%s,revision=revision+1,updated_at=now() WHERE expression_id=%s AND (state<>%s OR receipt IS DISTINCT FROM %s) RETURNING revision",(state,document(result),result.error_code,expression_id,state,document(result)))).fetchone()
             if row:
                 await self._event(connection,context,expression_id,row["revision"])
