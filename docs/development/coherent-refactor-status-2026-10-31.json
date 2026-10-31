@@ -526,6 +526,24 @@
       "integrated": "28270d9",
       "scope": "capability Actions, plugins/SDK, mature media/infrastructure and multimodal engines",
       "validation": "source_review_only; tests authored not run; concrete plugin and lifecycle wiring fixes pending"
+    },
+    {
+      "source": "940225a63b33da5899de7e8145eee82971f4b69c",
+      "integrated": "94d94d2",
+      "scope": "Identity channel/delivery target and Source disclosure contracts",
+      "validation": "source_review_only"
+    },
+    {
+      "source": "b7ba62402b93a6409c002501299cdd011a454b57",
+      "integrated": "3400505",
+      "scope": "domain/reference bound synchronous seal/unseal with external master key",
+      "validation": "source_review_only; capability consumers in progress"
+    },
+    {
+      "source": "2b580866f524abafb3347d67d84fe6830ffcf321",
+      "integrated": "ea7f641",
+      "scope": "delivery_allowed defaults false for fresh/recovered contexts",
+      "validation": "source_review_only; domain decoders and actual channel checks follow"
     }
   ],
   "validation": {
@@ -653,6 +671,21 @@
       "owner": "foundation_models and capabilities",
       "scope": "reuse small runtime seal/unseal primitive with external master and domain AAD; remove duplicate local key creation race while retaining domain snapshot ownership",
       "state": "owners_aligning"
+    },
+    {
+      "owner": "capabilities",
+      "scope": "provider cancel/reconcile after task interruption; stable request identity for resume; keep unknown paid effects distinct",
+      "state": "accepted_by_owner_fixing"
+    },
+    {
+      "owner": "frontend and capabilities",
+      "scope": "all context decoders retain observation-only delivery boundary; same-identity actual channel authorization remains authoritative",
+      "state": "owners_aligning"
+    },
+    {
+      "owner": "frontend",
+      "scope": "async settings and actions retain original action identity; pending HTTP acceptance is not completed UI success",
+      "state": "returned_to_owner"
     }
   ]
 }
