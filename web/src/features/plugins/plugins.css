@@ -1,0 +1,242 @@
+.plugins-page {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+.plugins-page h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+.plugins-page p {
+  line-height: 1.65;
+}
+.plugins-toolbar,
+.plugins-inline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.plugins-toolbar {
+  justify-content: space-between;
+}
+.plugins-inline > div:first-child {
+  flex: 1;
+}
+.plugins-tabs {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.plugins-tabs button[aria-pressed="true"],
+.plugins-instances button[aria-pressed="true"] {
+  color: var(--color-accent);
+  background: var(--color-selection);
+}
+.plugins-page button,
+.plugins-upload {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: 9px 13px;
+  font: inherit;
+  cursor: pointer;
+}
+.plugins-page button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.plugins-page button:focus-visible,
+.plugins-page input:focus-visible,
+.plugins-page select:focus-visible,
+.plugins-page textarea:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+.plugins-page .primary {
+  background: var(--color-accent);
+  color: var(--color-surface);
+}
+.plugins-page input,
+.plugins-page select,
+.plugins-page textarea {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  border: 1px solid var(--color-line);
+  border-radius: 9px;
+  padding: 10px;
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+.plugins-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: min(280px, 100%);
+}
+.plugins-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: 15px;
+}
+.plugins-package,
+.plugins-detail,
+.plugins-empty,
+.plugins-config,
+.plugins-create,
+.plugins-records {
+  padding: 22px;
+}
+.plugins-package {
+  display: grid;
+  align-content: start;
+  gap: 15px;
+}
+.plugins-package p {
+  margin: 0;
+  color: var(--color-muted);
+}
+.plugins-package > button {
+  justify-self: start;
+}
+.plugins-instances {
+  display: grid;
+  gap: 8px;
+}
+.plugins-instances button {
+  justify-content: space-between;
+  text-align: left;
+}
+.plugins-detail {
+  display: grid;
+  gap: 20px;
+}
+.plugins-config,
+.plugins-fields,
+.plugins-action {
+  display: grid;
+  gap: 16px;
+}
+.plugins-config > button,
+.plugins-action > button {
+  justify-self: start;
+}
+.plugins-field {
+  display: grid;
+  gap: 7px;
+}
+.plugins-field small,
+.plugins-note,
+.plugins-page small {
+  color: var(--color-muted);
+}
+.plugins-field textarea {
+  resize: vertical;
+  min-height: 90px;
+}
+.plugins-check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.plugins-check input {
+  width: auto;
+}
+.plugins-fields {
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  padding: 16px;
+  min-width: 0;
+}
+.plugins-array {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+.plugins-actions {
+  display: grid;
+  gap: 16px;
+}
+.plugins-action,
+.plugins-record {
+  border: 1px solid var(--color-line);
+  padding: 18px;
+  border-radius: 14px;
+}
+.plugins-records {
+  display: grid;
+  gap: 14px;
+}
+.plugins-page pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 420px;
+  overflow: auto;
+  font-size: 0.85rem;
+  background: var(--color-input);
+  border-radius: 9px;
+  padding: 12px;
+}
+.plugins-status {
+  font-size: 0.85rem;
+  padding: 5px 10px;
+  border-radius: 20px;
+  background: var(--color-input);
+}
+.plugins-status.ready {
+  color: var(--color-accent);
+  background: var(--color-selection);
+}
+.plugins-error {
+  color: var(--color-red);
+  padding: 12px;
+  border: 1px solid currentColor;
+  border-radius: 10px;
+  overflow-wrap: anywhere;
+}
+.plugins-upload {
+  justify-self: start;
+  position: relative;
+}
+.plugins-upload input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  cursor: pointer;
+}
+.plugins-view {
+  width: 100%;
+  min-height: 260px;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+@media (max-width: 640px) {
+  .plugins-toolbar {
+    align-items: stretch;
+  }
+  .plugins-search {
+    width: 100%;
+  }
+  .plugins-package,
+  .plugins-detail,
+  .plugins-config,
+  .plugins-records {
+    padding: 15px;
+  }
+  .plugins-page .plugins-config {
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .plugins-array {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

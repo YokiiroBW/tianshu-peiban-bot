@@ -1,0 +1,54 @@
+{
+  "version": "room-illustration-study-v1",
+  "reference": "coordination/docs/design/room-reference-v1/primary.png",
+  "provenance": "coordination/docs/design/room-materials-v3/*-prompt.json and provenance.json",
+  "tool": "built-in image_gen.imagegen",
+  "runtime": "Canvas 2D with shared room/environment.ts",
+  "status": "integrated into authenticated room; deployment tracked by ROOM-ILLUSTRATION-DEPLOY-20261003 handoff",
+  "logical_canvas": [1536, 1024],
+  "total_bytes": 9201159,
+  "assets": [
+    {
+      "file": "character-reading-v1.png",
+      "bytes": 844223,
+      "sha256": "f4d5189a6d731130a13a6e449ed50dcf04a77c98553387ab953ad9bb868ef29a",
+      "size": [1536, 1024],
+      "mode": "RGBA"
+    },
+    {
+      "file": "room-clean-afternoon-v1.png",
+      "bytes": 2196116,
+      "sha256": "fb9d2abceb24eeb3ab40593105dece8eb1bacf06c9d1b52ca1f216ae7d024823",
+      "size": [1536, 1024],
+      "mode": "RGBA"
+    },
+    {
+      "file": "room-clean-night-lamp-v1.png",
+      "bytes": 2006527,
+      "sha256": "f9da00d417aec82919adeaa22007e46e7e838160951c5a833961eeedd2eeca53",
+      "size": [1536, 1024],
+      "mode": "RGBA"
+    },
+    {
+      "file": "room-clean-night-v1.png",
+      "bytes": 1993359,
+      "sha256": "880616246d782a7955a031e9cee74dbc321fdb0748f3a2d7ebabf3d80f5a33fc",
+      "size": [1536, 1024],
+      "mode": "RGBA"
+    },
+    {
+      "file": "sheer-closed-v1.png",
+      "bytes": 1281926,
+      "sha256": "3e1ddb8da8d3cd2930ff5c6a618330ba93c86542ddd75462e827ad0b2d283f41",
+      "size": [1536, 1024],
+      "mode": "RGBA"
+    },
+    {
+      "file": "sheer-open-v1.png",
+      "bytes": 879008,
+      "sha256": "0b7ac04daf1068ecdf33e505ab13ff1ba028fd3c4c72c967e8f7bc34c40ba7de",
+      "size": [1536, 1024],
+      "mode": "RGBA"
+    }
+  ]
+}

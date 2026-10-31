@@ -1,0 +1,547 @@
+/* 资产库（TS-019）。颜色、间距、圆角、阴影与时长全部取自 design/tokens.css，
+   本文件只定义这一页的布局与状态呈现，不改全局令牌或外壳断点。 */
+
+.asset-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.asset-title {
+  margin: 0;
+  font-size: var(--text-section);
+}
+
+.asset-title:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+  border-radius: var(--radius-control);
+}
+
+.asset-readonly {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-small);
+}
+
+.asset-readonly svg {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+}
+
+/* 连接与库选择 ---------------------------------------------------------- */
+
+.asset-connection {
+  margin-bottom: var(--space-4);
+}
+
+.asset-connection-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.asset-connection-detail {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-small);
+}
+
+.asset-connection-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.asset-select {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-small);
+  color: var(--color-muted);
+}
+
+.asset-select select {
+  min-height: var(--control-height);
+  min-width: 12rem;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  background: var(--color-input);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.asset-warning {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--color-yellow-soft);
+  color: var(--color-yellow);
+  font-size: var(--text-small);
+}
+
+/* 工具条与面包屑 -------------------------------------------------------- */
+
+.asset-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.asset-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.asset-crumb-part {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-muted);
+}
+
+.asset-crumb-part svg {
+  width: 0.9rem;
+  height: 0.9rem;
+  flex: none;
+}
+
+.asset-crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 2.25rem;
+  padding: 0 var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--color-accent-text);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease),
+    background-color var(--duration-fast) var(--ease);
+}
+
+.asset-crumb:hover {
+  background: var(--color-selection);
+}
+
+.asset-crumb[data-current] {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.asset-crumb svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.asset-crumb-query {
+  color: var(--color-text);
+  font-size: var(--text-small);
+}
+
+.asset-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* 搜索 ------------------------------------------------------------------ */
+
+.asset-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+}
+
+.asset-search-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1 1 16rem;
+  min-width: 0;
+  font-size: var(--text-small);
+  color: var(--color-muted);
+}
+
+.asset-search-field input {
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  background: var(--color-input);
+  color: var(--color-text);
+  font: inherit;
+}
+
+/* 列表与详情：≥960px 并排，低于则详情下置 ------------------------------- */
+
+.asset-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: stretch;
+}
+
+.asset-main,
+.asset-side {
+  min-width: 0;
+}
+
+.asset-side {
+  position: static;
+}
+
+@media (min-width: 960px) {
+  .asset-body {
+    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-rows: minmax(0, 1fr);
+  }
+}
+@media (max-width: 959px) {
+  .asset-body {
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.asset-section-title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-body);
+}
+
+.asset-library,
+.asset-list,
+.asset-library-list,
+.asset-fields,
+.asset-library-fields {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.asset-library-name {
+  margin: 0;
+  font-weight: 600;
+}
+
+.asset-library-detail {
+  margin: var(--space-1) 0 var(--space-2);
+  color: var(--color-muted);
+  font-size: var(--text-small);
+}
+
+.asset-library-fields,
+.asset-fields {
+  display: grid;
+  grid-template-columns: minmax(6rem, auto) minmax(0, 1fr);
+  gap: var(--space-1) var(--space-3);
+  font-size: var(--text-small);
+}
+
+.asset-fields {
+  grid-template-columns: minmax(5rem, auto) minmax(0, 1fr);
+}
+
+.asset-field {
+  display: contents;
+}
+
+.asset-field dt {
+  color: var(--color-muted);
+}
+
+.asset-field dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.asset-list,
+.asset-library-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.asset-list {
+  margin-top: var(--space-3);
+}
+
+.asset-row,
+.asset-library-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease),
+    border-color var(--duration-fast) var(--ease);
+}
+
+.asset-library-row {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+}
+
+.asset-row:hover,
+.asset-library-row:hover {
+  background: var(--color-selection);
+}
+
+.asset-row[data-selected],
+.asset-library-row[data-selected] {
+  background: var(--color-selection);
+  border-color: var(--color-accent);
+}
+
+.asset-row-icon svg,
+.asset-library-row svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.asset-row-name {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* 长名称换行而不是被裁掉，键盘与读屏仍能读到完整值（路径在下方完整给出）。 */
+.asset-row-label {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.asset-row-path {
+  color: var(--color-muted);
+  font-size: var(--text-small);
+  overflow-wrap: anywhere;
+}
+
+.asset-row-kind,
+.asset-row-size,
+.asset-row-time {
+  color: var(--color-muted);
+  font-size: var(--text-small);
+  white-space: nowrap;
+}
+
+.asset-row-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--color-accent-text);
+  font-size: var(--text-small);
+  white-space: nowrap;
+}
+
+.asset-row-hint svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.asset-tone {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-small);
+}
+
+.asset-tone.tone-blue {
+  background: var(--color-blue-soft);
+  color: var(--color-blue);
+}
+
+.asset-tone.tone-yellow {
+  background: var(--color-yellow-soft);
+  color: var(--color-yellow);
+}
+
+.asset-tone.tone-gray {
+  background: var(--color-gray-soft);
+  color: var(--color-gray);
+}
+
+.asset-more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.asset-complete {
+  margin-top: var(--space-3);
+}
+
+.asset-muted {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-small);
+}
+
+.asset-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--color-gray-soft);
+  color: var(--color-gray);
+  font-size: var(--text-small);
+}
+
+.asset-note svg {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+}
+
+.asset-note-label {
+  display: block;
+  font-weight: 600;
+}
+
+/* 详情 ------------------------------------------------------------------ */
+
+.asset-detail {
+  padding: var(--space-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-panel);
+  animation: asset-detail-enter var(--duration-enter) var(--ease) both;
+}
+
+.asset-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.asset-detail-title {
+  margin: 0;
+  font-size: var(--text-body);
+}
+
+.asset-detail-name {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.asset-detail-name svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex: none;
+}
+
+@keyframes asset-detail-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* 读取说明 -------------------------------------------------------------- */
+
+.asset-freshness {
+  margin-top: var(--space-5);
+  padding: var(--space-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+}
+
+.asset-freshness ul {
+  margin: 0;
+  padding-left: var(--space-4);
+  color: var(--color-muted);
+  font-size: var(--text-small);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* ≤600px：筛选与搜索竖排，条目改为名称 + 二级元数据 ---------------------- */
+
+@media (max-width: 600px) {
+  .asset-search,
+  .asset-connection-controls,
+  .asset-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .asset-toolbar-actions {
+    flex-direction: column;
+  }
+
+  .asset-row,
+  .asset-library-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-1);
+  }
+
+  .asset-row-icon,
+  .asset-row-hint {
+    display: none;
+  }
+
+  .asset-row-kind,
+  .asset-row-size,
+  .asset-row-time {
+    white-space: normal;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .asset-detail {
+    animation: none;
+  }
+}
+
+:root[data-motion="reduce"] .asset-detail {
+  animation: none;
+}

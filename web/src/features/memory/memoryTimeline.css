@@ -1,0 +1,86 @@
+.memory-records {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-4) 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.memory-records small {
+  color: var(--color-muted);
+}
+.memory-records > li {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  padding: var(--space-4);
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.memory-records ul {
+  margin-top: var(--space-3);
+  padding-left: var(--space-4);
+}
+.memory-records ul li + li {
+  margin-top: var(--space-3);
+}
+.memory-records p {
+  white-space: pre-wrap;
+}
+.memory-fact-conditions dd {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.memory-view-filter,
+.memory-record-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.memory-view-filter [aria-pressed="true"] {
+  border-color: var(--color-accent);
+  background: var(--color-selection);
+}
+.memory-record-meta,
+.memory-provenance {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+.memory-provenance {
+  margin-top: var(--space-3);
+}
+.memory-provenance summary {
+  cursor: pointer;
+  padding-block: var(--space-2);
+}
+.memory-provenance blockquote {
+  margin: var(--space-3) 0;
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--color-line);
+}
+.memory-provenance blockquote p {
+  white-space: pre-wrap;
+  color: var(--color-text);
+}
+.memory-review {
+  margin-block: var(--space-4);
+}
+.memory-review-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  gap: var(--space-4);
+}
+.memory-review-grid > section {
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+}
+.memory-review-grid ul {
+  padding-left: var(--space-4);
+  overflow-wrap: anywhere;
+}
+.memory-review-grid li + li {
+  margin-top: var(--space-3);
+}
+.memory-review-grid p {
+  white-space: pre-wrap;
+}

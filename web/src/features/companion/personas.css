@@ -1,0 +1,292 @@
+.persona-page {
+  min-width: 0;
+  padding: var(--space-5);
+}
+.persona-page-heading {
+  padding: 0 0 var(--space-4);
+  border-bottom: 1px solid var(--color-line);
+}
+.persona-page h2,
+.persona-page h3,
+.persona-page h4,
+.persona-page p {
+  margin-top: 0;
+}
+.persona-page h2 {
+  margin-bottom: 0;
+}
+.persona-page .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--control-height);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  background: var(--color-input);
+  color: var(--color-text);
+  padding: var(--space-2) var(--space-4);
+  font: inherit;
+  cursor: pointer;
+}
+.persona-page .button svg {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+}
+.persona-page .button.primary {
+  background: var(--color-accent);
+  color: var(--color-surface);
+  border-color: transparent;
+}
+.persona-page .button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.persona-page button:focus-visible,
+.persona-page input:focus-visible,
+.persona-page textarea:focus-visible,
+.persona-page select:focus-visible,
+.persona-page summary:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+.persona-page .muted {
+  color: var(--color-muted);
+  font-size: var(--text-small);
+}
+.persona-author-layout {
+  display: grid;
+  grid-template-columns: minmax(14rem, 16rem) minmax(0, 1fr);
+  min-height: 0;
+}
+.persona-author-list {
+  min-width: 0;
+  padding: var(--space-5) var(--space-4) 0 0;
+  border-right: 1px solid var(--color-line);
+}
+.persona-author-list,
+.persona-author-form {
+  overscroll-behavior: contain;
+}
+.persona-list-heading,
+.persona-author-title,
+.persona-title-actions,
+.persona-author-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.persona-list-heading {
+  margin-bottom: var(--space-4);
+}
+.persona-list-heading h3,
+.persona-author-title h3 {
+  margin-bottom: 0;
+}
+.persona-search,
+.persona-author-field input,
+.persona-author-field textarea,
+.persona-apply-target select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  background: var(--color-input);
+  color: var(--color-text);
+  padding: var(--space-3);
+  font: inherit;
+}
+.persona-search {
+  margin-bottom: var(--space-4);
+}
+.persona-list-items {
+  display: grid;
+  gap: var(--space-1);
+}
+.persona-subject {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-3);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.persona-subject:hover,
+.persona-subject[aria-pressed="true"] {
+  background: var(--color-selection);
+}
+.persona-list-name {
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+.persona-list-badge {
+  flex: none;
+  color: var(--color-muted);
+  font-size: var(--text-small);
+  font-weight: 400;
+}
+.persona-author-form {
+  min-width: 0;
+  padding: var(--space-5) 0 var(--space-5) var(--space-6);
+}
+.persona-author-title {
+  align-items: flex-start;
+  margin-bottom: var(--space-6);
+}
+.persona-author-title h3 {
+  font-size: 1.5rem;
+}
+.persona-title-actions {
+  flex: none;
+}
+.persona-more-menu {
+  position: relative;
+}
+.persona-more-menu summary {
+  display: grid;
+  place-items: center;
+  min-width: var(--control-height);
+  min-height: var(--control-height);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  list-style: none;
+}
+.persona-more-menu summary::-webkit-details-marker {
+  display: none;
+}
+.persona-more-menu[open] > .button {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 2;
+  width: max-content;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-panel);
+}
+.persona-fields {
+  display: grid;
+  gap: var(--space-5);
+  max-width: 52rem;
+}
+.persona-author-field {
+  display: grid;
+  gap: var(--space-2);
+  font-weight: 600;
+}
+.persona-author-field textarea {
+  resize: vertical;
+  line-height: 1.65;
+}
+.persona-author-field .persona-main-text {
+  min-height: 19rem;
+}
+.persona-extra-settings {
+  border-top: 1px solid var(--color-line);
+  padding-top: var(--space-3);
+  color: var(--color-muted);
+}
+.persona-extra-settings > .detail-card-trigger {
+  cursor: pointer;
+  font-weight: 600;
+}
+.persona-extra-settings:has(> dialog[open]) {
+  display: grid;
+  gap: var(--space-4);
+}
+.persona-extra-settings .persona-author-field {
+  color: var(--color-text);
+}
+.persona-extra-settings p {
+  white-space: pre-wrap;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+.persona-apply-target {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 20rem;
+}
+.persona-author-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+.persona-view {
+  max-width: 54rem;
+}
+.persona-view h4 {
+  color: var(--color-muted);
+  font-size: var(--text-small);
+}
+.persona-body {
+  min-height: 8rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.75;
+}
+.persona-error,
+.persona-notice {
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+  border-radius: var(--radius-control);
+}
+.persona-error {
+  color: var(--color-red);
+  background: var(--color-red-soft);
+}
+.persona-notice {
+  color: var(--color-blue);
+  background: var(--color-blue-soft);
+}
+.persona-mobile-back {
+  display: none !important;
+}
+@media (max-width: 48rem) {
+  .persona-page {
+    padding: var(--space-4);
+  }
+  .persona-author-layout {
+    display: block;
+    min-height: 0;
+  }
+  .persona-author-list {
+    height: 100%;
+    border-right: 0;
+    padding: var(--space-4) 0;
+  }
+  .persona-author-form {
+    height: 100%;
+    display: none;
+    padding: var(--space-4) 0;
+  }
+  .persona-show-detail .persona-author-list {
+    display: none;
+  }
+  .persona-show-detail .persona-author-form {
+    display: block;
+  }
+  .persona-mobile-back {
+    display: inline-flex !important;
+    margin-bottom: var(--space-4);
+  }
+  .persona-author-title {
+    margin-bottom: var(--space-5);
+  }
+  .persona-list-items {
+    gap: var(--space-2);
+  }
+  .persona-subject {
+    min-height: 3.5rem;
+    border-bottom: 1px solid var(--color-line);
+  }
+}

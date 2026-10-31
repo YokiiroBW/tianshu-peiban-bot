@@ -1,0 +1,109 @@
+/* Single source: management-v2 materials; Docker overrides follow docker-status-v3. */
+:root {
+  color-scheme: light;
+  --color-bg: #e7ebf7;
+  --color-text: #232c45;
+  --color-muted: #55617b;
+  --color-line: rgb(87 106 154 / 18%);
+  --color-glass: rgb(250 252 255 / 56%);
+  --color-surface: #fdfefe;
+  --color-input: #f3f5fc;
+  --color-shine: rgb(255 255 255 / 95%);
+  --color-accent: #465bd6;
+  --color-accent-text: #384abc;
+  --color-selection: #e8ecfc;
+  --color-blue: #3264b9;
+  --color-yellow: #8b6218;
+  --color-red: #b24453;
+  --color-gray: #59667b;
+  --color-backdrop: rgb(20 28 48 / 35%);
+  --color-blue-soft: #eaf1fc;
+  --color-yellow-soft: #fbf2df;
+  --color-red-soft: #fceef0;
+  --color-gray-soft: #edf0f5;
+  --gradient-blue: #d5e6f6;
+  --gradient-lilac: #e0dcf1;
+  --gradient-rose: #f1e0e8;
+  --material-background:
+    radial-gradient(ellipse at 25% 0%, var(--gradient-blue), transparent 65%),
+    radial-gradient(ellipse at 100% 15%, var(--gradient-rose), transparent 55%),
+    linear-gradient(140deg, var(--color-bg), var(--gradient-lilac));
+  --shadow-panel: 0 14px 40px -23px rgb(63 69 130 / 35%);
+  --shadow-glass:
+    0 18px 50px -28px rgb(60 74 131 / 44%), inset 0 1px 0 var(--color-shine);
+  --font-body: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  --text-small: 0.875rem;
+  --text-body: 1rem;
+  --text-section: 1.125rem;
+  --text-title: clamp(1.65rem, 3vw, 2rem);
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --radius-control: 0.75rem;
+  --radius-panel: 1.25rem;
+  --radius-shell: 1.75rem;
+  --radius-pill: 99rem;
+  --focus-ring: 3px solid var(--color-accent);
+  --focus-offset: 3px;
+  --blur-glass: 24px;
+  --duration-fast: 160ms;
+  --duration-enter: 240ms;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --layer-header: 10;
+  --layer-skip: 20;
+  --layout-sidebar: 14.5rem;
+  --control-height: 2.75rem;
+  --rail-width: 3px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg: #202537;
+  --color-text: #f0f2fb;
+  --color-muted: #c2cbe0;
+  --color-line: rgb(197 205 236 / 20%);
+  --color-glass: rgb(44 52 77 / 65%);
+  --color-surface: #293045;
+  --color-input: #35405a;
+  --color-shine: rgb(226 234 255 / 20%);
+  --color-accent: #a7b6ff;
+  --color-accent-text: #b9c8ff;
+  --color-selection: #3b4565;
+  --color-blue: #91baff;
+  --color-yellow: #e2c492;
+  --color-red: #ffa3b2;
+  --color-gray: #b2bfd2;
+  --color-blue-soft: #293c58;
+  --color-yellow-soft: #493f2c;
+  --color-red-soft: #50333e;
+  --color-gray-soft: #354052;
+  --gradient-blue: #374668;
+  --gradient-lilac: #4a405f;
+  --gradient-rose: #514254;
+  --shadow-panel: 0 12px 32px -16px rgb(5 10 37 / 47%);
+}
+
+:root[data-transparency="reduce"] {
+  --color-glass: var(--color-surface);
+  --blur-glass: 0px;
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --color-glass: var(--color-surface);
+    --blur-glass: 0px;
+  }
+}
+:root[data-motion="reduce"] {
+  --duration-fast: 0ms;
+  --duration-enter: 0ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-enter: 0ms;
+  }
+}

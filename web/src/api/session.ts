@@ -1,0 +1,42 @@
+import { apiJson } from "./client";
+
+export type SessionView = {
+  authenticated: boolean;
+  initialized: boolean;
+  principal: {
+    principal_id: string;
+    display_name: string;
+    permissions: string[];
+  } | null;
+  csrf_token: string | null;
+};
+
+/** Display conveniences are derived here; the server remains the session authority. */
+export type AccountSession = SessionView & {
+  csrf: string;
+  username: string;
+  onboarding: {
+    state: "create_admin" | "ready" | "sign_in";
+    credential_source: "account";
+    setup_token_required: false;
+  };
+};
+
+export function presentSession(view: SessionView): AccountSession {
+  if (typeof view?.authenticated !== "boolean" || typeof view.initialized !== "boolean" || (view.csrf_token !== null && typeof view.csrf_token !== "string"))
+    throw new Error("会话数据不完整，请重新连接。");
+  return {
+    ...view,
+    csrf: view.csrf_token ?? "",
+    username: view.principal?.display_name ?? "",
+    onboarding: {
+      state: !view.initialized ? "create_admin" : view.authenticated ? "ready" : "sign_in",
+      credential_source: "account",
+      setup_token_required: false,
+    },
+  };
+}
+
+export async function readSession(signal?: AbortSignal) {
+  return presentSession(await apiJson<SessionView>("session", { signal }));
+}

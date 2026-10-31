@@ -1,0 +1,56 @@
+.retrieval-settings {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 60rem;
+}
+.retrieval-settings .panel {
+  display: grid;
+  gap: var(--space-3);
+}
+.retrieval-settings fieldset {
+  display: grid;
+  gap: var(--space-3);
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.retrieval-settings label {
+  display: grid;
+  gap: var(--space-2);
+  font-size: var(--text-small);
+}
+.retrieval-settings input:not([type="checkbox"]),
+.retrieval-settings select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  background: var(--color-input);
+  color: var(--color-text);
+  font: inherit;
+}
+.retrieval-settings label:has(input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+  min-height: var(--control-height);
+}
+.retrieval-settings .models-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.retrieval-settings [role="alert"] {
+  color: var(--color-red);
+}
+.retrieval-settings [role="status"] {
+  color: var(--color-blue);
+}
+@media (max-width: 560px) {
+  .retrieval-settings .models-actions .button {
+    width: 100%;
+  }
+}

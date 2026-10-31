@@ -1,0 +1,245 @@
+.comics-page {
+  max-width: 1480px;
+  margin-inline: auto;
+}
+.comic-heading,
+.comic-actions,
+.comic-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.comic-heading {
+  justify-content: space-between;
+}
+.comic-heading h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.comic-heading h2,
+.comic-heading h3 {
+  margin: 0;
+}
+.comic-stack {
+  display: grid;
+  gap: 18px;
+}
+.comic-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+  margin-block: 20px;
+}
+.comic-tabs button,
+.comic-text-button {
+  font: inherit;
+  color: inherit;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}
+.comic-tabs button {
+  padding: 10px 14px;
+  border-radius: 10px;
+}
+.comic-tabs button[aria-current] {
+  background: var(--accent-soft, #e9e6df);
+  color: var(--text);
+  font-weight: 650;
+}
+.comic-controls {
+  margin-bottom: 18px;
+}
+.comics-page label {
+  display: grid;
+  gap: 7px;
+  font-size: 14px;
+}
+.comics-page input:not([type="checkbox"]),
+.comics-page select,
+.comics-page textarea {
+  min-width: 0;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  background: var(--surface, transparent);
+  font: inherit;
+  box-sizing: border-box;
+}
+.comics-page fieldset {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.comics-page legend {
+  padding-inline: 6px;
+  font-weight: 600;
+}
+.comic-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.comic-search {
+  display: grid;
+  grid-template-columns: minmax(200px, 2fr) minmax(150px, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+}
+.comic-search > p,
+.comic-search > .detail-card {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.comic-extension-details > .detail-card-trigger,
+.comic-search > .detail-card > .detail-card-trigger {
+  cursor: pointer;
+  font-weight: 600;
+  padding-block: 8px;
+}
+.comic-extension-details .detail-card-content > section {
+  margin-top: 18px;
+}
+.comic-job-status {
+  flex: 1 1 260px;
+}
+.comic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-block: 16px;
+}
+.comic-card {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: 16px;
+}
+.comic-card h3 {
+  margin: 0;
+  font-size: 17px;
+}
+.comic-card p {
+  margin-block: 8px;
+}
+.comic-cover {
+  border: 0;
+  padding: 0;
+  background: var(--surface-hover, #eeece8);
+  width: 100px;
+  height: 145px;
+  border-radius: 9px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.comic-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.comic-cover svg {
+  width: 36px;
+  height: 36px;
+  opacity: 0.4;
+}
+.comic-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-muted);
+}
+.comic-source-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+.comic-source-health {
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.comic-source-health > div {
+  margin-top: 9px;
+}
+.comic-source-health dt {
+  font-weight: 600;
+}
+.comic-source-health dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.comic-source-health small {
+  display: block;
+  color: var(--text-muted);
+}
+.comics-page .comic-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.comic-check input {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+}
+.comic-chapters {
+  display: grid;
+  gap: 8px;
+}
+.comic-chapter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+.comic-chapter small {
+  display: block;
+  color: var(--text-muted);
+  padding-top: 6px;
+}
+.comic-description {
+  white-space: pre-wrap;
+  line-height: 1.75;
+}
+.comic-preview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.comic-preview figure {
+  margin: 0;
+}
+.comic-preview img {
+  width: 100%;
+  border-radius: 6px;
+}
+.comic-preview figcaption {
+  padding-top: 8px;
+  color: var(--text-muted);
+}
+.comic-import-order {
+  max-height: 300px;
+  overflow-y: auto;
+  line-height: 1.9;
+}
+@media (max-width: 800px) {
+  .comic-search,
+  .comic-field-grid {
+    grid-template-columns: 1fr;
+  }
+  .comic-preview {
+    grid-template-columns: 1fr;
+  }
+  .comic-controls > label {
+    flex: 1;
+    min-width: 150px;
+  }
+}

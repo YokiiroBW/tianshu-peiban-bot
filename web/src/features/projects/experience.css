@@ -1,0 +1,75 @@
+.experience-page,
+.experience-results,
+.experience-card,
+.experience-continuation,
+.experience-search {
+  display: grid;
+  gap: var(--space-4);
+}
+.experience-project,
+.experience-search label,
+.experience-continuation label {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 34rem;
+}
+.experience-project select,
+.experience-search input,
+.experience-continuation input,
+.experience-continuation select {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--control-height);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: var(--space-2) var(--space-3);
+}
+.experience-tabs,
+.experience-search form,
+.experience-continuation form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3);
+}
+.experience-tabs button {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  padding: var(--space-2) var(--space-4);
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+.experience-tabs button[aria-pressed="true"] {
+  background: var(--color-selection);
+  color: var(--color-accent-text);
+}
+.experience-results {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+}
+.experience-card {
+  min-width: 0;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  padding: var(--space-4);
+  overflow-wrap: anywhere;
+}
+.experience-card dl {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+.experience-card dt {
+  font-weight: 700;
+}
+.experience-card dd {
+  margin: 0;
+  white-space: pre-wrap;
+}
+@media (max-width: 620px) {
+  .experience-search form,
+  .experience-continuation form {
+    display: grid;
+  }
+}

@@ -1,0 +1,112 @@
+.music-panel h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.music-scope {
+  padding: 12px 16px;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  color: var(--color-muted);
+  line-height: 1.65;
+}
+.music-settings-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.85fr) minmax(0, 1.15fr);
+  gap: 18px;
+  align-items: start;
+}
+.music-settings-grid > *,
+.music-select-row > * {
+  min-width: 0;
+}
+.music-select-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(130px, 0.6fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+.music-account,
+.music-playlist {
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--color-line);
+}
+.music-account > div:first-child,
+.music-playlist > div:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.music-account p,
+.music-playlist p {
+  margin-top: 6px;
+}
+.music-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.music-playlists {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 24px;
+}
+.music-directory-result {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.music-track-table {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.music-track-table table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  text-align: left;
+}
+.music-track-table th,
+.music-track-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--color-line);
+  overflow-wrap: anywhere;
+}
+.music-track-table th {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+@media (max-width: 760px) {
+  .music-settings-grid,
+  .music-select-row,
+  .music-playlists {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .music-playlist {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .music-account {
+    flex-wrap: wrap;
+  }
+}
+.music-file {
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+}
+.music-downloads {
+  border-bottom: 1px solid var(--color-line);
+  padding-bottom: 1rem;
+}
+.music-downloads .detail-card-content form {
+  padding-top: 1rem;
+}
+.navidrome-form {
+  padding-top: 1rem;
+}
+.navidrome-playlist {
+  padding: 0.75rem 0 1rem;
+  overflow-wrap: anywhere;
+}

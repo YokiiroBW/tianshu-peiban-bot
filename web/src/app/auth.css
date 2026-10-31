@@ -1,0 +1,97 @@
+.account-panel {
+  max-width: 640px;
+  margin: 0 auto;
+}
+.account-panel form {
+  display: grid;
+  gap: 16px;
+  margin: 24px 0;
+}
+.account-panel label {
+  display: grid;
+  gap: 8px;
+}
+.account-panel input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: var(--color-input);
+  color: var(--color-text);
+  font: inherit;
+}
+.account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+.getting-started ol {
+  padding-left: 24px;
+  line-height: 2;
+}
+.account-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+@media (max-width: 600px) {
+  .account-control > span {
+    display: none;
+  }
+}
+
+.auth-screen {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 40px 20px;
+}
+.auth-entry {
+  width: min(100%, 500px);
+}
+.auth-brand {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.auth-brand .brand-symbol {
+  display: inline-flex;
+  width: 60px;
+  height: 60px;
+  align-items: center;
+  justify-content: center;
+}
+.auth-brand h1 {
+  margin: 12px 0 8px;
+  font-size: 30px;
+}
+.auth-brand p,
+.auth-footer {
+  color: var(--color-muted);
+}
+.auth-screen .account-panel {
+  padding: 32px;
+}
+.auth-screen .account-panel form {
+  margin-bottom: 0;
+}
+.auth-screen .account-panel input {
+  min-height: 48px;
+}
+.auth-screen .account-panel button[type="submit"] {
+  min-height: 48px;
+}
+.auth-footer {
+  text-align: center;
+  font-size: 13px;
+  margin: 24px 0 0;
+}
+@media (max-width: 600px) {
+  .auth-screen {
+    padding: 28px 16px;
+  }
+  .auth-screen .account-panel {
+    padding: 24px;
+  }
+}

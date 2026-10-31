@@ -1,0 +1,25 @@
+.domain-workspace { display: grid; gap: var(--space-5); }
+.domain-workspace h2, .domain-workspace h3 { margin-top: 0; }
+.domain-workspace .panel { min-width: 0; }
+.domain-toolbar, .domain-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem; }
+.domain-toolbar { justify-content: space-between; }
+.domain-form { display: grid; gap: 1rem; }
+.domain-form label { display: grid; gap: .4rem; }
+.domain-form input:not([type=checkbox]), .domain-form textarea, .domain-form select { width: 100%; min-height: var(--control-height); border: 1px solid var(--color-line); border-radius: var(--radius-control); background: var(--color-input); color: var(--color-text); padding: .7rem .85rem; font: inherit; }
+.domain-form textarea { min-height: 6rem; resize: vertical; }
+.domain-form .inline-check { display: flex; align-items: center; gap: .6rem; }
+.domain-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,19rem),1fr)); gap: 1rem; }
+.domain-record { border: 1px solid var(--color-line); border-radius: var(--radius-control); padding: 1rem; min-width: 0; }
+.domain-record header { display: flex; align-items: center; flex-wrap: wrap; gap: .6rem; justify-content: space-between; }
+.domain-record dl, .scene-summary { display: grid; gap: .5rem; }
+.domain-record dl div, .scene-summary div { display: grid; grid-template-columns: 7rem 1fr; gap: .6rem; }
+.domain-record dt, .scene-summary dt { color: var(--color-muted); }
+.domain-record dd, .scene-summary dd { margin: 0; overflow-wrap: anywhere; }
+.domain-record pre, .domain-workspace pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .875rem; }
+.media-artifact { display: grid; gap: .5rem; }
+.media-artifact img, .media-artifact video { max-width: 100%; max-height: 32rem; object-fit: contain; border-radius: .7rem; }
+.media-artifact audio { width: 100%; }
+.artifact-list { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,17rem),1fr)); gap: 1rem; }
+.reaction-card img { height: 12rem; width: 100%; object-fit: contain; }
+.domain-unknown { color: var(--color-muted); }
+.command-feedback { border-left: 3px solid var(--color-accent); padding-left: 1rem; margin: 1rem 0; }
