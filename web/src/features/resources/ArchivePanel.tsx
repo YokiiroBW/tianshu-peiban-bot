@@ -1,8 +1,9 @@
+import { ArchiveMappings, type ArchiveMapping } from "./ArchiveMappings";
 import { useState } from "react";
 import { useDomainCommand, useDomainResource, useDomainTarget } from "../../api/useDomainResource";
 import type { SourceRef } from "../../api/contracts";
 
-type ArchiveConnection = { id: string; name?: string; endpoint: string; quota_group?: string; ca_file?: string; enabled: boolean; configured: boolean; revision: number; mappings: object[] };
+type ArchiveConnection = { id: string; name?: string; endpoint: string; quota_group?: string; ca_file?: string; enabled: boolean; configured: boolean; revision: number; mappings: ArchiveMapping[] };
 type ArchiveView = { available: boolean; reason: string | null; can_manage: boolean; connections: { id: string; name?: string; enabled: boolean; configured: boolean }[]; configurations: ArchiveConnection[] };
 type ArchiveRecord = { locator: string; stored_content_sha256: string; text: string; sender_id: string; timestamp: number; source_ref: SourceRef };
 type ArchiveResult = { records: ArchiveRecord[]; next_cursor?: string | null; observed_at: string; archive_observed_at: number | null; omitted_records: number; omitted: { locator: string; reason: string }[]; context_complete?: boolean };
@@ -15,10 +16,8 @@ export function ArchivePanel() {
   const command = useDomainCommand<ArchiveResult>("archive-read", "conversation");
   const save = useDomainCommand<ArchiveConnection>("archive-connection", "global");
   const [config, setConfig] = useState<ArchiveConnection>(empty);
-  const [mappingText, setMappingText] = useState("[]");
   const [token, setToken] = useState("");
   const [clearToken, setClearToken] = useState(false);
-  const [formError, setFormError] = useState("");
   const [connectionId, setConnectionId] = useState("");
   const [keyword, setKeyword] = useState("");
   const [sender, setSender] = useState("");
@@ -61,13 +60,11 @@ export function ArchivePanel() {
     {view.data?.can_manage && <details><summary>档案连接与会话映射</summary>
       <label>已有连接<select value={config.revision ? config.id : ""} onChange={(event) => {
         const row = view.data?.configurations.find((item) => item.id === event.target.value) ?? empty;
-        setConfig(row); setMappingText(JSON.stringify(row.mappings, null, 2)); setToken(""); setClearToken(false);
+        setConfig(row); setToken(""); setClearToken(false);
       }}><option value="">新增连接</option>{view.data.configurations.map((row) => <option key={row.id} value={row.id}>{row.name || row.id}</option>)}</select></label>
       <form className="asset-settings-form" onSubmit={async (event) => {
-        event.preventDefault(); setFormError("");
-        let mappings: unknown;
-        try { mappings = JSON.parse(mappingText); } catch { setFormError("会话映射需要有效的 JSON 数组。"); return; }
-        const answer = await save.run("resources/archive/connections.save", { ...config, mappings, ...(token ? { token } : {}), clear_credential: clearToken }, config.revision);
+        event.preventDefault();
+        const answer = await save.run("resources/archive/connections.save", { ...config, ...(token ? { token } : {}), clear_credential: clearToken }, config.revision);
         if (answer) { setConfig(answer.data); setToken(""); setClearToken(false); await view.refresh(); }
       }}>
         <label>连接标识<input required readOnly={config.revision > 0} value={config.id} onChange={(event) => setConfig({ ...config, id: event.target.value })} /></label>
@@ -77,12 +74,11 @@ export function ArchivePanel() {
         <label>服务令牌<input type="password" autoComplete="new-password" placeholder={config.configured ? "已配置，留空保留" : "尚未配置"} value={token} onChange={(event) => setToken(event.target.value)} /></label>
         <label><input type="checkbox" checked={clearToken} onChange={(event) => setClearToken(event.target.checked)} />清除已保存令牌</label>
         <label>自定义 CA 文件（服务器绝对路径，可选）<input value={config.ca_file ?? ""} onChange={(event) => setConfig({ ...config, ca_file: event.target.value || undefined })} /></label>
-        <label>会话映射<textarea rows={8} value={mappingText} onChange={(event) => setMappingText(event.target.value)} /></label>
-        <p>每项包含 mapping_id、天枢 conversation_id、已登记频道 connection_id，以及原档案 channel 对象（namespace、binding_id、channel_conversation_id、thread_id）。只能映射该频道实际账号与目标。</p>
+        <ArchiveMappings value={config.mappings} onChange={(mappings) => setConfig({ ...config, mappings })} />
         <label><input type="checkbox" checked={config.enabled} onChange={(event) => setConfig({ ...config, enabled: event.target.checked })} />启用</label>
         <button className="button" disabled={save.busy}>保存连接</button>
       </form>
-      {(formError || save.error) && <p role="alert">{formError || save.error}</p>}
+      {save.error && <p role="alert">{save.error}</p>}
       {save.result?.receipt?.execution === "succeeded" && <p role="status">档案配置已保存。</p>}
     </details>}
   </details>;

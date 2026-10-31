@@ -308,6 +308,7 @@ class Archive:
                     trust_env=False,
                     cookie_jar=aiohttp.DummyCookieJar(),
                     auto_decompress=False,
+                    connector=aiohttp.TCPConnector(ssl=tls),
                 ) as client:
                     response = await self.call(client, connection, token, native, body)
                     rows = unique_records(native, response, body)
