@@ -1,0 +1,170 @@
+{
+  "recorded_at": 1793406794.5642312,
+  "runtime_version": "2026.10.31-unified-linux-r66",
+  "runtime_image": "sha256:ebc5d47af6deea864b91d48ff5430b8201ba67057612b21cd9c21f511541f180",
+  "runtime_container": "ec16eedc052dcf7d9cec5edb58322bcd54652992ca1efd448c17b6687ca15218",
+  "runtime_companion_commit": "1faae1b1564d43e343c1fad991148c1d09f11e50",
+  "test_commit": "14ce7874b34f434e656432f0b6d954873e76db5a",
+  "status": "PC13_PC15_original_constructed_acceptance_verified",
+  "whole_goal_complete": false,
+  "cards": {
+    "PC-13": {
+      "status": "verified_production",
+      "scope": "Original constructed affect/mood criteria, with two formal actors after explicit household deletion",
+      "criteria": [
+        {
+          "requirement": "mood由valence派生，适用正式角色与当前快照一致",
+          "evidence": [
+            "pc13-current-mood-r66-1793406501482485300.json",
+            "idle-wake-pc15-r66-27274d224de94e93a9d9536cefc9eae4-result.json"
+          ],
+          "result": "verified_current_snapshot_plus_installed_dynamic_tick_and_decay_fixture"
+        },
+        {
+          "requirement": "构造-0.8/+0.8，其余条件相同，输出活动类型有可观察差异",
+          "evidence": [
+            "pc13-goal-feasibility-r65-private.json"
+          ],
+          "result": "verified_role2_rest_vs_software_memo",
+          "qualification": "role1 is image creation in both conditions; no claim that every actor or every sample must choose a different type"
+        },
+        {
+          "requirement": "relationship_effect仍为none，情绪不改变关系或权限",
+          "evidence": [
+            "pc13-current-mood-r66-1793406501482485300.json",
+            "idle-wake-pc15-r66-27274d224de94e93a9d9536cefc9eae4-result.json",
+            "pc13-goal-feasibility-r65-private.json"
+          ],
+          "result": "verified"
+        }
+      ],
+      "unverified": [
+        "两位真实角色当前都为valence=0/平静，未证明自然情绪已发生变化。",
+        "澄汐受控两组同为图像创作；自然长期活动类型、表达与陪伴质量继续PC-18观察。"
+      ]
+    },
+    "PC-15": {
+      "status": "verified_production",
+      "scope": "Original ten-feedback simulation, persistence and quota criteria in exact installed R66 image",
+      "criteria": [
+        {
+          "requirement": "十次不回后频率下降",
+          "result": "same_two_opportunities_default_1_to_unanswered_0",
+          "evidence": [
+            "idle-wake-pc15-r66-b3ed7c7e4650408b96e4b1ec3dc8509f-result.json"
+          ]
+        },
+        {
+          "requirement": "十次积极回应后频率上升且不越日配额",
+          "result": "same_two_opportunities_default_1_to_responded_2_then_daily_quota_blocks_next_attempt",
+          "evidence": [
+            "idle-wake-pc15-r66-b3ed7c7e4650408b96e4b1ec3dc8509f-result.json",
+            "idle-wake-pc15-r66-86965d974d7b4dda9f5ab653e76088d2-result.json"
+          ]
+        },
+        {
+          "requirement": "值在0到1且重启不丢",
+          "result": "default_0.5_unanswered_0.17433922005_responded_0.82566077995_retained_after_reopen",
+          "evidence": [
+            "idle-wake-pc15-r66-b3ed7c7e4650408b96e4b1ec3dc8509f-result.json",
+            "idle-wake-pc15-r66-86965d974d7b4dda9f5ab653e76088d2-result.json"
+          ]
+        }
+      ],
+      "unverified": [
+        "全部十次反馈及发送均为合成渠道，未发送真实QQ，不代表真实十天或用户感受。",
+        "合成订阅沿用24次未回应上限以隔离学习阈值，日配额仍2；生产配置未改，真实频率继续PC-14/18观察。"
+      ]
+    }
+  },
+  "card_states": {
+    "PC-01": "verified_production",
+    "PC-02": "in_progress",
+    "PC-03": "verified_production",
+    "PC-04": "verified_production",
+    "PC-05": "verified_production",
+    "PC-06": "in_progress",
+    "PC-07": "verified_production",
+    "PC-08": "verified_production",
+    "PC-09": "verified_production",
+    "PC-10": "verified_production",
+    "PC-11": "verified_production",
+    "PC-12": "deployed",
+    "PC-13": "verified_production",
+    "PC-14": "deployed",
+    "PC-15": "verified_production",
+    "PC-16": "deployed",
+    "PC-17": "deployed",
+    "PC-18": "in_progress"
+  },
+  "card_counts": {
+    "deployed": 4,
+    "in_progress": 3,
+    "verified_production": 11
+  },
+  "new_validation": {
+    "pc15_first_run": "2 passed, one new quota reason assertion mislabeled daily_limit instead of existing daily_quota",
+    "pc15_changed_case_only": "1 passed",
+    "pc13_installed_dynamic_mood_case": "1 passed",
+    "repeated_unchanged_passes": false,
+    "production_mounts": 0,
+    "external_model_QQ_search_calls": 0,
+    "new_dependencies": 0,
+    "full_suite": false
+  },
+  "frequency_properties": {
+    "default": {
+      "dispatches_first_two": "1",
+      "responsiveness": "0.5",
+      "decisions": "submitted,salience_below_engage"
+    },
+    "ten-unanswered": {
+      "dispatches_first_two": "0",
+      "responsiveness": "0.17433922005000008",
+      "decisions": "salience_below_engage,salience_below_engage"
+    },
+    "ten-responded": {
+      "dispatches_first_two": "2",
+      "responsiveness": "0.82566077995",
+      "decisions": "submitted,submitted"
+    }
+  },
+  "domain_payload_unchanged_from_installed_R57": {
+    "life_affect.py": true,
+    "life_salience.py": true,
+    "proactive.py": true,
+    "proactive_salience.py": true
+  },
+  "live_moods": [
+    {
+      "actor_id": "actor:role-7b6c92871ab7490e993c6713670594b3",
+      "stored_mood": "平静",
+      "current_valence": 0,
+      "expected_mood": "平静",
+      "matches": true,
+      "relationship_effect": "none",
+      "unscoped_feelings": 0
+    },
+    {
+      "actor_id": "actor:role-84e36c92a52e40dd8edf50228465bcf9",
+      "stored_mood": "平静",
+      "current_valence": 0,
+      "expected_mood": "平静",
+      "matches": true,
+      "relationship_effect": "none",
+      "unscoped_feelings": 0
+    }
+  ],
+  "no_product_code_or_production_changes": true,
+  "remaining_unverified": [
+    "original_24h_success_rate",
+    "three_real_diary_dates",
+    "five_real_interest_dates",
+    "natural_sharing_frequency",
+    "natural_group_quality",
+    "human_goal_specificity_review",
+    "three_cross_day_causal_cases",
+    "actual_self_recovery",
+    "seven_real_observation_days"
+  ]
+}

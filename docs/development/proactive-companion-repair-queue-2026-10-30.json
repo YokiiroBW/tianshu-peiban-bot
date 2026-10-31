@@ -1012,7 +1012,7 @@
       "id": "PC-13",
       "title": "让情绪真正进入决策",
       "owner": "companion",
-      "status": "deployed",
+      "status": "verified_production",
       "wave": "W3",
       "depends_on": [
         "W1"
@@ -1038,13 +1038,40 @@
       ],
       "detail_section": "PC-13",
       "latest_acceptance": {
-        "record": "proactive-companion-repair-r65-2026-10-31.json",
-        "controlled_affect_pairs": 2,
-        "four_contract_valid_outputs": true,
-        "role1_activity_type_difference": false,
-        "role2_activity_type_difference": true,
-        "synthetic_feeling_writes": false,
-        "natural_affect_change": "unverified"
+        "record": "proactive-companion-pc13-pc15-acceptance-2026-10-31.json",
+        "status": "verified_production",
+        "scope": "Original constructed affect/mood criteria, with two formal actors after explicit household deletion",
+        "criteria": [
+          {
+            "requirement": "mood由valence派生，适用正式角色与当前快照一致",
+            "evidence": [
+              "pc13-current-mood-r66-1793406501482485300.json",
+              "idle-wake-pc15-r66-27274d224de94e93a9d9536cefc9eae4-result.json"
+            ],
+            "result": "verified_current_snapshot_plus_installed_dynamic_tick_and_decay_fixture"
+          },
+          {
+            "requirement": "构造-0.8/+0.8，其余条件相同，输出活动类型有可观察差异",
+            "evidence": [
+              "pc13-goal-feasibility-r65-private.json"
+            ],
+            "result": "verified_role2_rest_vs_software_memo",
+            "qualification": "role1 is image creation in both conditions; no claim that every actor or every sample must choose a different type"
+          },
+          {
+            "requirement": "relationship_effect仍为none，情绪不改变关系或权限",
+            "evidence": [
+              "pc13-current-mood-r66-1793406501482485300.json",
+              "idle-wake-pc15-r66-27274d224de94e93a9d9536cefc9eae4-result.json",
+              "pc13-goal-feasibility-r65-private.json"
+            ],
+            "result": "verified"
+          }
+        ],
+        "unverified": [
+          "两位真实角色当前都为valence=0/平静，未证明自然情绪已发生变化。",
+          "澄汐受控两组同为图像创作；自然长期活动类型、表达与陪伴质量继续PC-18观察。"
+        ]
       }
     },
     {
@@ -1084,7 +1111,7 @@
       "id": "PC-15",
       "title": "订阅敏感度：让打扰有记忆",
       "owner": "companion",
-      "status": "deployed",
+      "status": "verified_production",
       "wave": "W3",
       "depends_on": [
         "PC-07",
@@ -1106,7 +1133,41 @@
         "不用多臂老虎机",
         "responsiveness 只调阈值不调权重；重要事项不因对方冷淡被压掉"
       ],
-      "detail_section": "PC-15"
+      "detail_section": "PC-15",
+      "latest_acceptance": {
+        "record": "proactive-companion-pc13-pc15-acceptance-2026-10-31.json",
+        "status": "verified_production",
+        "scope": "Original ten-feedback simulation, persistence and quota criteria in exact installed R66 image",
+        "criteria": [
+          {
+            "requirement": "十次不回后频率下降",
+            "result": "same_two_opportunities_default_1_to_unanswered_0",
+            "evidence": [
+              "idle-wake-pc15-r66-b3ed7c7e4650408b96e4b1ec3dc8509f-result.json"
+            ]
+          },
+          {
+            "requirement": "十次积极回应后频率上升且不越日配额",
+            "result": "same_two_opportunities_default_1_to_responded_2_then_daily_quota_blocks_next_attempt",
+            "evidence": [
+              "idle-wake-pc15-r66-b3ed7c7e4650408b96e4b1ec3dc8509f-result.json",
+              "idle-wake-pc15-r66-86965d974d7b4dda9f5ab653e76088d2-result.json"
+            ]
+          },
+          {
+            "requirement": "值在0到1且重启不丢",
+            "result": "default_0.5_unanswered_0.17433922005_responded_0.82566077995_retained_after_reopen",
+            "evidence": [
+              "idle-wake-pc15-r66-b3ed7c7e4650408b96e4b1ec3dc8509f-result.json",
+              "idle-wake-pc15-r66-86965d974d7b4dda9f5ab653e76088d2-result.json"
+            ]
+          }
+        ],
+        "unverified": [
+          "全部十次反馈及发送均为合成渠道，未发送真实QQ，不代表真实十天或用户感受。",
+          "合成订阅沿用24次未回应上限以隔离学习阈值，日配额仍2；生产配置未改，真实频率继续PC-14/18观察。"
+        ]
+      }
     },
     {
       "id": "PC-16",
@@ -1290,5 +1351,18 @@
     "prior_r64_idle_tick_per_minute": 35.08336077718086,
     "r65_idle_tick_per_minute": 42.595529900360894,
     "r66_idle_tick_per_minute": 18.02562456515496
+  },
+  "latest_original_card_acceptance": {
+    "record": "proactive-companion-pc13-pc15-acceptance-2026-10-31.json",
+    "cards": [
+      "PC-13",
+      "PC-15"
+    ],
+    "card_counts": {
+      "deployed": 4,
+      "in_progress": 3,
+      "verified_production": 11
+    },
+    "whole_goal_complete": false
   }
 }
