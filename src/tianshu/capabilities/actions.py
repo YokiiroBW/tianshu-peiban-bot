@@ -123,6 +123,24 @@ class Actions:
             return receipt
         return receipt if background else await self.run(action.action_id)
 
+    async def find(self, capability_id, client_request_id, context):
+        if (
+            not isinstance(capability_id, str)
+            or not 1 <= len(capability_id) <= 512
+            or not isinstance(client_request_id, str)
+            or not 1 <= len(client_request_id) <= 128
+        ):
+            raise Fault("invalid_input", 400)
+        key = digest([context.principal_id, capability_id, client_request_id])
+        async with self.database.transaction(read_only=True) as conn:
+            row = await (
+                await conn.execute(
+                    "SELECT id FROM capabilities.actions WHERE intent=%s AND principal_id=%s",
+                    (key, context.principal_id),
+                )
+            ).fetchone()
+        return await self.get(row["id"], context) if row else None
+
     async def get(self, action_id, context):
         async with self.database.transaction(read_only=True) as conn:
             row = await (

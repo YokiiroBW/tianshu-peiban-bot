@@ -211,6 +211,12 @@ def register_routes(app, service):
                 return json_response({"items": await service.discover(context)})
             if op == "get":
                 return json_response(await service.actions.get(body["action_id"], context))
+            if op == "find":
+                return json_response(
+                    await service.actions.find(
+                        body["capability_id"], body["client_request_id"], context
+                    )
+                )
             if op in {"cancel", "reconcile", "resume"}:
                 if not body.get("client_request_id"):
                     raise Fault("client_request_id_required", 400)

@@ -161,3 +161,6 @@ HTTP全部actor/person/conversation selector只由A在query授权，body剥离�
 同canonical ID的声明只追加发现来源，不覆盖已安装工具的可信schema/description/权限；禁用发现源不等同卸载既有native/插件。未知adapter仅目录展示implemented=false/adapter_not_installed，不创建占位handler或远程导入代码。真正执行仍只允许已安装同一Catalog.handlers；source.config不是第二套模型/供应商配置，领域连接继续由各领域实际配置所有。
 
 没有执行测试或来源网络请求；tests/capabilities/test_catalog_policy.py待集中验证，覆盖目录禁用后直接invoke拒绝、manifest不能覆盖真实schema或凭元数据安装执行器。C渠道Operation编排移到channels/operations.py，socket owner/service仍单独负责真实生命周期。
+
+
+`POST /api/v1/capabilities/find` 是只读恢复原提交：{capability_id,client_request_id}，按当前principal+canonical capability+原intent_key的既有唯一索引查原Action，再走Actions.get原角色/范围/来源核验；存在返回与get同投影，没找到JSON null。不创建或重发请求，不要求config.publish；UI必须保留原三selector，不自行算hash。
