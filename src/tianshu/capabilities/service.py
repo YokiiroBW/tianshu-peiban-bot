@@ -216,6 +216,12 @@ class Capabilities:
             models=self.models,
         )
         self.weather.bind_actions(self.actions)
+        from .catalog_configuration import CatalogConfiguration
+
+        self.catalog_configuration = CatalogConfiguration(
+            self.catalog, self.configuration, self.models, sources, authority
+        )
+        self.catalog.configuration = self.catalog_configuration
         from concurrent.futures import ThreadPoolExecutor
 
         self.file_executor = ThreadPoolExecutor(
@@ -425,7 +431,12 @@ class Capabilities:
             ),
             "content": ("discover", "continue", "providers.save"),
             "devices": ("connections.save", "refresh"),
-            "capabilities": ("upload",),
+            "capabilities": (
+                "upload",
+                "catalog/settings.save",
+                "catalog/sources.save",
+                "catalog/sources.refresh",
+            ),
             "game": ("connections.save",),
             "weather": ("connections.save",),
         }
@@ -444,7 +455,9 @@ class Capabilities:
                     "external.manage"
                     if domain in {"infrastructure", "weather"}
                     else "config.publish"
-                    if domain in {"plugins", "reactions"}
+                    if domain == "capabilities"
+                    and op.startswith("catalog/")
+                    or domain in {"plugins", "reactions"}
                     and op != "search"
                     or op.endswith((".save", "/save"))
                     or op == "providers.save"
@@ -527,6 +540,15 @@ class Capabilities:
         clean = {k: v for k, v in body.items() if k != "client_request_id"}
         if operation in CLIENT_ID_OPERATIONS.get(domain, ()):
             clean["client_request_id"] = client_id
+        if domain == "capabilities" and operation.startswith("catalog/"):
+            if operation == "catalog/view":
+                return await self.catalog_configuration.view(context)
+            if operation == "catalog/settings.save":
+                return await self.catalog_configuration.save_policy(context, clean)
+            if operation == "catalog/sources.save":
+                return await self.catalog_configuration.save_source(context, clean)
+            if operation == "catalog/sources.refresh":
+                return await self.catalog_configuration.refresh(context, clean, action, attempt)
         if domain == "weather":
             if operation == "view":
                 return await self.weather.view(context)

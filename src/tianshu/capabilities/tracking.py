@@ -59,6 +59,17 @@ class TrackedPermit:
         self.permit, self.current = permit, current
 
     async def submitted(self, provider_handle=None):
+        if self.current:
+            from .execution_context import CURRENT_ACTION
+            from .contracts import Fault
+
+            action = CURRENT_ACTION.get()
+            if action is not None:
+                owner = self.current["owner"]
+                handler = await owner.handler(action)
+                available = await owner.catalog.availability(action.context, handler)
+                if not available.can_execute:
+                    raise Fault(available.reason or "capability_unavailable", 503)
         await self.permit.submitted(provider_handle=provider_handle)
         if self.current:
             await self.current["owner"].submitted(self.current["attempt"], provider_handle)

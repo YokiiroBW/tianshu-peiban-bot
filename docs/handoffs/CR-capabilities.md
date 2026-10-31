@@ -148,3 +148,16 @@ WeatherService(runtime,*,authority,sources,configuration=None,models=None)可独
 正式读POST /api/v1/weather/view→{connection:{id:qweather,revision,host?,quota_group?,account_id?,configured,enabled},configured,reason,server_time}；search {query}→{items:[{id,name,adm1,adm2,country,tz,utc_offset,latitude,longitude}],source_refs}；current {location_id}→{location,weather:{temp,feels_like,text,icon,wind_scale,attributions,observed_at:null},description,observed_at:null,fetched_at,expires_at,stale,code,source_refs}。未配置observe返回None，缺实时数据weather=null/真实code。连接写POST /api/v1/weather/connections.save={client_request_id,host,api_key?只写,clear_credential?,quota_group,account_id?,expected_revision,enabled?}返回统一CommandResult，权限external.manage。小端口weather.observe(ctx,location_id)为同投影但时间返回aware datetime。测试材料未执行；无真实和风Key调用。
 
 HTTP全部actor/person/conversation selector只由A在query授权，body剥离，不误进工具schema，选择角色不附加config.publish。handler原permissions仍Actions实际复核。上传/原件/读取/命令使用同真实会话场景。
+
+
+## 唯一Catalog角色策略与数据manifest来源（implemented_not_tested）
+
+旧skills/native已由同一Catalog真实领域工具替代，旧skills/sources的有效数据发现与逐角色启停现在由CatalogConfiguration提供，绝不迁旧SkillRegistry/内部平台桥。Catalog.discover直接投影，Actions.invoke与实际run及Broker permit.submitted前均检查相同actor policy。B companion.actors.capabilities必须删除，不另取交集；插件安装/binding/供应商可用性依然是真实执行条件。配置管理入口本身不能被角色工具开关锁死。
+
+正式POST /api/v1/capabilities/catalog/view（读）→{actor_id,revision,items:[{definition,availability,can_execute,enabled,source_ids}],sources}；/catalog/settings.save={client_request_id,expected_revision,capabilities:{canonical_id:{enabled:bool}}}只改启停；/catalog/sources.save={client_request_id,source_id,name?,manifest_url,enabled?,expected_sha256?,quota_group,token?只写,expected_revision}；/catalog/sources.refresh={client_request_id,source_id}。写均统一CommandResult与config.publish。新装无旧JSON/registry兼容。
+
+来源manifest是受界64KiB JSON：{version?,capabilities:[{id,title?,description?,input_schema?,output_schema?}]}，最多256条、schema真实校验、sha pin、固定URL不跟重定向、token密封且只发该来源；刷新经过唯一Broker.resource function=catalog.sources.refresh。失败保存真实invalid/unreachable/error_code/last_refreshed_at，保上次有效目录但不称刚刚刷新成功。来源实际JSON登记TOOL_RESULT并在同Source事务索引依赖，撤回精确版本/片段清其entries/refs；actor/scope/audience与Source授权决定可见。
+
+同canonical ID的声明只追加发现来源，不覆盖已安装工具的可信schema/description/权限；禁用发现源不等同卸载既有native/插件。未知adapter仅目录展示implemented=false/adapter_not_installed，不创建占位handler或远程导入代码。真正执行仍只允许已安装同一Catalog.handlers；source.config不是第二套模型/供应商配置，领域连接继续由各领域实际配置所有。
+
+没有执行测试或来源网络请求；tests/capabilities/test_catalog_policy.py待集中验证，覆盖目录禁用后直接invoke拒绝、manifest不能覆盖真实schema或凭元数据安装执行器。C渠道Operation编排移到channels/operations.py，socket owner/service仍单独负责真实生命周期。

@@ -54,6 +54,7 @@ class Catalog:
     def __init__(self):
         self.handlers = {}
         self.refresher = None
+        self.configuration = None
 
     def register(self, handler):
         definition = handler.definition
@@ -84,7 +85,17 @@ class Catalog:
                     "can_execute": availability.can_execute,
                 }
             )
-        return result
+        return (
+            await self.configuration.project(context, result)
+            if self.configuration is not None
+            else result
+        )
+
+    async def availability(self, context, handler):
+        availability = await handler.availability(context)
+        if self.configuration is not None:
+            availability = await self.configuration.availability(context, handler, availability)
+        return availability
 
     def handler(self, name):
         if name not in self.handlers:

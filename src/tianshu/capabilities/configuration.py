@@ -17,6 +17,8 @@ class Configuration:
             "device_connection",
             "game_connection",
             "weather_connection",
+            "catalog_actor",
+            "catalog_source",
         }
     )
 

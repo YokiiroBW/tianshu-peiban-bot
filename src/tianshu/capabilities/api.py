@@ -203,6 +203,10 @@ def register_routes(app, service):
                 )
             )
         if domain == "capabilities":
+            if op == "catalog/view":
+                return json_response(await service.operate(domain, op, body, context))
+            if op in {"catalog/settings.save", "catalog/sources.save", "catalog/sources.refresh"}:
+                return json_response(await invoke(service, domain, op, body, context))
             if op == "discover":
                 return json_response({"items": await service.discover(context)})
             if op == "get":

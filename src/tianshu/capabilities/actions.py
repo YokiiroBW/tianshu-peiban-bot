@@ -55,7 +55,7 @@ class Actions:
         if any(canonical(wire(ref)) not in authorized_refs for ref in action.current_input_refs):
             raise Fault("current_input_source_not_authorized", 403)
         await self.authority.check(action.context, action.source_refs)
-        availability = await handler.availability(action.context)
+        availability = await self.catalog.availability(action.context, handler)
         if not availability.can_execute:
             raise Fault(availability.reason or "not_configured", 503)
         arguments = (
@@ -224,6 +224,9 @@ class Actions:
         self.running[action_id] = asyncio.current_task()
         watcher = asyncio.create_task(self.watch_cancel(action_id, self.running[action_id]))
         try:
+            availability = await self.catalog.availability(action.context, handler)
+            if not availability.can_execute:
+                raise Fault(availability.reason or "capability_unavailable", 503)
             method = getattr(handler, mode, None)
             if mode not in {"execute", "resume"} or method is None:
                 raise Fault("operation_unavailable", 409)
