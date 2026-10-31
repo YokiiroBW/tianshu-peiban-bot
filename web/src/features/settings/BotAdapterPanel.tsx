@@ -1,1011 +1,690 @@
-import { PASSWORD_MIN_LENGTH } from "../../app/passwordPolicy";
-import { DetailCard } from "../../components/DetailCard";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useState } from "react";
 import { useAuth } from "../../app/Auth";
-import { requestId } from "../../app/requestId";
-import { integrationPost } from "../../app/integrationApi";
-import { StatusRail } from "../../components/StatusRail";
 import {
-  AdapterApiError,
-  adapterErrorMessage,
-  adapterLabel,
-  adapterPost,
-  type AdapterConnection,
-  type AdapterKind,
-  type AdapterProbe,
-  type AdapterView,
-} from "./botAdapterApi";
-import { BotConnectionsPanel as LegacyBotConnectionsPanel } from "./BotConnectionsPanel";
-import { BotObservationPanel } from "./BotObservationPanel";
+  useRoleWorkspace,
+  type ConversationSelection,
+} from "../../app/RoleWorkspace";
+import {
+  GLOBAL_SCOPE,
+  actorScope,
+  useDomainCommand,
+  useDomainResource,
+} from "../../api/useDomainResource";
+import type { Page } from "../../api/contracts";
+import { CommandFeedback } from "../../components/CommandFeedback";
+import { DetailCard } from "../../components/DetailCard";
+import { taskHref } from "../../api/commandRecovery";
+import { ChannelIdentityPanel } from "./ChannelIdentityPanel";
+import {
+  adapterLabels,
+  splitLines,
+  type ChannelConnection,
+  type ChannelView,
+  type ChannelMatrix,
+  type IdentityDirectory,
+  type RegisteredConnection,
+} from "./channelTypes";
 import "./bots.css";
-
-const protocol = "tianshu.bot-adapter/v1";
-type Receipt = { connection: AdapterConnection };
-
-function formatTime(value: string | null) {
-  if (!value) return "尚无";
-  const time = Date.parse(value);
-  return Number.isFinite(time)
-    ? new Date(time).toLocaleString("zh-CN", { hour12: false })
-    : "时间未知";
-}
-
-function rail(connection: AdapterConnection, unverified: boolean) {
-  if (unverified || connection.state === "unknown")
-    return { tone: "yellow" as const, label: "结果待核对" };
-  if (connection.state === "draft")
-    return { tone: "yellow" as const, label: "保存待确认" };
-  if (!connection.enabled)
-    return { tone: "gray" as const, label: "已保存 · 未启用" };
-  if (connection.state === "ready")
-    return { tone: "blue" as const, label: "已启用" };
-  if (connection.state === "degraded")
-    return { tone: "red" as const, label: "连接异常" };
-  return { tone: "yellow" as const, label: "等待后台确认" };
-}
-
-function authorsFrom(value: string) {
-  return [
-    ...new Set(
-      value
-        .split(/[\s,，;；]+/)
-        .map((id) => id.trim())
-        .filter(Boolean),
-    ),
-  ];
-}
-
-function uncertain(cause: unknown) {
-  return (
-    !(cause instanceof AdapterApiError) ||
-    cause.code === "result_unknown" ||
-    cause.executionState === "unknown" ||
-    cause.status >= 500
-  );
-}
-
-function settledTogether(
-  id: string,
-  revision: number,
-  receipt: AdapterConnection | undefined,
-  readback: AdapterConnection | undefined,
-) {
-  if (
-    !receipt ||
-    !readback ||
-    receipt.id !== id ||
-    readback.id !== id ||
-    receipt.revision !== revision ||
-    receipt.revision !== readback.revision ||
-    receipt.enabled !== readback.enabled ||
-    receipt.state !== readback.state
-  )
-    return false;
-  return (
-    (receipt.state === "ready" && receipt.enabled) ||
-    (receipt.state === "disabled" && !receipt.enabled)
-  );
-}
-
-function message(cause: unknown) {
-  return cause instanceof Error
-    ? cause.message
-    : "连接中断，请刷新后台状态后核对。";
-}
 
 export function BotAdapterPanel() {
   const { session } = useAuth();
-  const csrf = session?.authenticated ? session.csrf : "";
-  const active = useRef<AbortController | null>(null);
-  const [view, setView] = useState<AdapterView | null>(null);
-  const [unavailable, setUnavailable] = useState(false);
-  const [busy, setBusy] = useState("");
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const [password, setPassword] = useState("");
-  const [open, setOpen] = useState(false);
-  const [adapter, setAdapter] = useState<AdapterKind>("astrbot");
-  const [address, setAddress] = useState("");
-  const [accessKey, setAccessKey] = useState("");
-  const [privateHttp, setPrivateHttp] = useState(false);
-  const [caPem, setCaPem] = useState("");
-  const [probe, setProbe] = useState<AdapterProbe | null>(null);
-  const [expiryTick, setExpiryTick] = useState(0);
-  const [accountId, setAccountId] = useState("");
-  const [name, setName] = useState("");
-  const [actorId, setActorId] = useState("");
-  const [conversationKind, setConversationKind] = useState<"group" | "private">(
-    "group",
+  const permissions = session?.principal?.permissions ?? [];
+  const canIdentity =
+    permissions.includes("*") || permissions.includes("identity.manage");
+  const view = useDomainResource<ChannelView>(
+    "channels/view",
+    GLOBAL_SCOPE,
+    true,
+    15000,
   );
-  const [conversationId, setConversationId] = useState("");
-  const [authors, setAuthors] = useState("");
-  const [unverifiedIds, setUnverifiedIds] = useState<Set<string>>(
-    () => new Set(),
+  const directory = useDomainResource<IdentityDirectory>(
+    "identity/directory",
+    GLOBAL_SCOPE,
+    canIdentity,
   );
-
-  function markUnverified(id: string | undefined) {
-    if (id) setUnverifiedIds((before) => new Set(before).add(id));
-  }
-
-  function clearUnverified(id: string) {
-    setUnverifiedIds((before) => {
-      const next = new Set(before);
-      next.delete(id);
-      return next;
-    });
-  }
-
-  function start(operation: string) {
-    active.current?.abort();
-    const controller = new AbortController();
-    active.current = controller;
-    setBusy(operation);
-    setError("");
-    setNotice("");
-    return controller;
-  }
-
-  async function readView(controller: AbortController) {
-    const result = await adapterPost<AdapterView>(
-      "view",
-      {},
-      csrf,
-      controller.signal,
-    );
-    if (
-      typeof result.available !== "boolean" ||
-      typeof result.unlocked !== "boolean" ||
-      !Array.isArray(result.actors) ||
-      !Array.isArray(result.connections)
-    )
-      throw new Error("机器人管理接口返回不完整，请联系部署管理员。");
-    if (!controller.signal.aborted) {
-      setView(result);
-      setUnavailable(!result.available);
-      if (!result.unlocked) {
-        setProbe(null);
-        setAccessKey("");
-        setCaPem("");
-      }
-    }
-    return result;
-  }
-
-  async function refresh() {
-    if (!csrf) return;
-    const controller = start("refresh");
-    try {
-      await readView(controller);
-      if (!controller.signal.aborted) setUnverifiedIds(new Set());
-    } catch (cause) {
-      if (controller.signal.aborted) return;
-      setView(null);
-      setUnavailable(
-        cause instanceof AdapterApiError &&
-          [
-            "web_not_configured",
-            "management_disabled",
-            "not_configured",
-            "not_found",
-          ].includes(cause.code),
-      );
-      setError(message(cause));
-    } finally {
-      if (!controller.signal.aborted) setBusy("");
-    }
-  }
-
-  useEffect(() => {
-    void refresh();
-    return () => active.current?.abort();
-  }, [csrf]);
-
-  useEffect(() => {
-    if (!probe) return;
-    const delay = Date.parse(probe.expires_at) - Date.now();
-    if (delay <= 0) return;
-    const timer = window.setTimeout(
-      () => setExpiryTick((tick) => tick + 1),
-      delay,
-    );
-    return () => window.clearTimeout(timer);
-  }, [probe, expiryTick]);
-
-  function invalidateProbe() {
-    setProbe(null);
-    setAccountId("");
-    setError("");
-    setNotice("");
-  }
-
-  function requireUnlock(cause: unknown) {
-    if (
-      !(cause instanceof AdapterApiError) ||
-      cause.code !== "management_required"
-    )
-      return;
-    setView((before) => (before ? { ...before, unlocked: false } : before));
-    setOpen(false);
-    setPassword("");
-    setAddress("");
-    setAccessKey("");
-    setCaPem("");
-    setPrivateHttp(false);
-    setProbe(null);
-    setAccountId("");
-    setName("");
-    setActorId("");
-    setConversationId("");
-    setAuthors("");
-    setConversationKind("group");
-  }
-
-  function cancel() {
-    const pendingWrite = busy === "create";
-    active.current?.abort();
-    setBusy("");
-    setOpen(false);
-    setAddress("");
-    setAccessKey("");
-    setCaPem("");
-    setPrivateHttp(false);
-    setProbe(null);
-    setAccountId("");
-    setName("");
-    setActorId("");
-    setConversationId("");
-    setAuthors("");
-    setConversationKind("group");
-    setError("");
-    setNotice(
-      pendingWrite
-        ? "已停止等待保存回执；请求可能已经提交。请刷新列表核对，不要立即重复提交。"
-        : "",
-    );
-  }
-
-  async function unlock(event: FormEvent) {
-    event.preventDefault();
-    if (!password) return;
-    const controller = start("unlock");
-    try {
-      await integrationPost(
-        "bots/unlock",
-        { password },
-        csrf,
-        controller.signal,
-      );
-      setPassword("");
-      const next = await readView(controller);
-      if (!controller.signal.aborted && !next.unlocked)
-        setError("管理员解锁未生效，请刷新后检查权限。");
-    } catch (cause) {
-      if (!controller.signal.aborted) {
-        requireUnlock(cause);
-        setError(message(cause));
-      }
-    } finally {
-      setPassword("");
-      if (!controller.signal.aborted) setBusy("");
-    }
-  }
-
-  async function detect(event: FormEvent) {
-    event.preventDefault();
-    if (!view?.available || !view.unlocked) return;
-    let url: URL;
-    try {
-      url = new URL(address.trim());
-    } catch {
-      setError("请输入完整的插件地址，例如 https://bot.example.com:8080。");
-      return;
-    }
-    if (
-      !["https:", "http:"].includes(url.protocol) ||
-      url.username ||
-      url.password ||
-      url.search ||
-      url.hash
-    ) {
-      setError(
-        "插件地址只能使用 HTTP(S)，且不能包含账号、密码、查询参数或片段。",
-      );
-      return;
-    }
-    if (url.protocol === "http:" && !privateHttp) {
-      setError("局域网 HTTP 需要显式勾选；公共地址必须使用 HTTPS。");
-      return;
-    }
-    if (!accessKey.trim()) {
-      setError("请填写插件连接密钥。");
-      return;
-    }
-    const key = accessKey;
-    const ca = caPem.trim();
-    setAccessKey("");
-    setCaPem("");
-    setProbe(null);
-    setAccountId("");
-    const controller = start("probe");
-    try {
-      const result = await adapterPost<AdapterProbe>(
-        "probe",
-        {
-          adapter,
-          address: address.trim(),
-          access_key: key,
-          allow_private_http: privateHttp,
-          ca_pem: ca || null,
-        },
-        csrf,
-        controller.signal,
-      );
-      if (controller.signal.aborted) return;
-      if (result.protocol !== protocol) {
-        setError("插件协议版本不兼容，请更新对应的天枢插件。");
-        return;
-      }
-      if (
-        !result.draft_id ||
-        !Number.isFinite(Date.parse(result.expires_at)) ||
-        Date.parse(result.expires_at) <= Date.now() ||
-        !Array.isArray(result.accounts)
-      ) {
-        setError("检测回执不完整或已过期，请重新检测连接。");
-        return;
-      }
-      const qqAccounts = result.accounts.filter(
-        (account) => account.platform === "qq" && Boolean(account.id),
-      );
-      setProbe({ ...result, accounts: qqAccounts });
-      setAccountId(qqAccounts[0]?.id ?? "");
-      setNotice(
-        qqAccounts.length
-          ? "插件检测通过，请选择实际在线账号并填写允许范围。保存后仍需单独启用。"
-          : "插件已响应，但 SDK 未提供在线机器人账号。请在宿主中登录机器人后重新检测。",
-      );
-    } catch (cause) {
-      if (!controller.signal.aborted) {
-        requireUnlock(cause);
-        setError(message(cause));
-      }
-    } finally {
-      if (!controller.signal.aborted) setBusy("");
-    }
-  }
-
-  async function create(event: FormEvent) {
-    event.preventDefault();
-    if (!probe || !view?.unlocked || busy) return;
-    if (Date.parse(probe.expires_at) <= Date.now()) {
-      setError("检测草稿已过期，请重新检测连接。");
-      return;
-    }
-    if (!probe.accounts.some((account) => account.id === accountId)) {
-      setError("请从插件实际返回的账号中选择一个。");
-      return;
-    }
-    const allow =
-      conversationKind === "private"
-        ? [conversationId.trim()]
-        : authorsFrom(authors);
-    if (name.trim().length > 64) {
-      setError("连接名称最多 64 个字符。");
-      return;
-    }
-    if (!name.trim() || !actorId || !conversationId.trim() || !allow.length) {
-      setError("请填写连接名称、角色、会话 ID 和明确允许的作者 ID。");
-      return;
-    }
-    const controller = start("create");
-    let submitted = false;
-    try {
-      const result = await adapterPost<Receipt>(
-        "create",
-        {
-          draft_id: probe.draft_id,
-          name: name.trim(),
-          account_id: accountId,
-          conversation: { kind: conversationKind, id: conversationId.trim() },
-          allowed_authors: allow,
-          actor_id: actorId,
-          client_request_id: requestId(),
-        },
-        csrf,
-        controller.signal,
-      );
-      if (controller.signal.aborted) return;
-      submitted = true;
-      const latest = await readView(controller);
-      if (controller.signal.aborted) return;
-      const confirmed = latest.connections.find(
-        (item) => item.id === result.connection?.id,
-      );
-      if (
-        latest.unlocked &&
-        result.connection?.enabled === false &&
-        result.connection.state === "disabled" &&
-        confirmed?.enabled === false &&
-        confirmed.state === "disabled" &&
-        confirmed.revision === result.connection.revision
-      ) {
-        clearUnverified(result.connection.id);
-        setNotice("连接已保存且保持停用。核对允许范围后，再单独点击“启用”。");
-        setProbe(null);
-        setOpen(false);
-      } else {
-        markUnverified(result.connection?.id);
-        setNotice(
-          "保存回执与当前状态未能一致核对。请刷新连接列表，确认后再操作。",
-        );
-      }
-    } catch (cause) {
-      if (!controller.signal.aborted) {
-        requireUnlock(cause);
-        setError(
-          submitted || uncertain(cause)
-            ? `保存结果无法确认。请刷新列表核对，不要立即重复提交。${message(cause)}`
-            : message(cause),
-        );
-      }
-    } finally {
-      if (!controller.signal.aborted) setBusy("");
-    }
-  }
-
-  async function change(
-    connection: AdapterConnection,
-    operation: "enable" | "disable",
-  ) {
-    if (
-      !view?.unlocked ||
-      busy ||
-      unverifiedIds.has(connection.id) ||
-      connection.state === "unknown" ||
-      connection.state === "draft"
-    )
-      return;
-    const controller = start(operation);
-    let submitted = false;
-    try {
-      const result = await adapterPost<Receipt>(
-        operation,
-        {
-          id: connection.id,
-          expected_revision: connection.revision,
-          client_request_id: requestId(),
-        },
-        csrf,
-        controller.signal,
-      );
-      if (controller.signal.aborted) return;
-      submitted = true;
-      const latest = await readView(controller);
-      if (controller.signal.aborted) return;
-      const confirmed = latest.connections.find(
-        (item) => item.id === connection.id,
-      );
-      const verified = Boolean(
-        latest.unlocked &&
-        confirmed &&
-        confirmed.revision === result.connection?.revision &&
-        confirmed.enabled === (operation === "enable") &&
-        result.connection.enabled === confirmed.enabled &&
-        confirmed.state === (operation === "enable" ? "ready" : "disabled") &&
-        result.connection.state === confirmed.state,
-      );
-      if (verified) {
-        clearUnverified(connection.id);
-        setNotice(
-          operation === "enable"
-            ? "适配器已启用，插件与后台状态已确认。"
-            : "适配器已停用，后台状态已确认。",
-        );
-      } else {
-        markUnverified(connection.id);
-        setNotice(
-          "操作回执与当前状态尚未一致确认。请刷新状态并核对，勿直接重复操作。",
-        );
-      }
-    } catch (cause) {
-      if (!controller.signal.aborted) {
-        if (submitted || uncertain(cause)) markUnverified(connection.id);
-        requireUnlock(cause);
-        setError(
-          submitted || uncertain(cause)
-            ? `操作结果无法确认。请刷新状态核对，不要立即重复提交。${message(cause)}`
-            : message(cause),
-        );
-      }
-    } finally {
-      if (!controller.signal.aborted) setBusy("");
-    }
-  }
-
-  async function reconcile(connection: AdapterConnection) {
-    if (
-      !view?.unlocked ||
-      busy ||
-      unverifiedIds.has(connection.id) ||
-      connection.state !== "unknown"
-    )
-      return;
-    const controller = start("reconcile");
-    let submitted = false;
-    try {
-      const result = await adapterPost<Receipt>(
-        "reconcile",
-        {
-          id: connection.id,
-          expected_revision: connection.revision,
-          client_request_id: requestId(),
-        },
-        csrf,
-        controller.signal,
-      );
-      if (controller.signal.aborted) return;
-      submitted = true;
-      const latest = await readView(controller);
-      if (controller.signal.aborted) return;
-      const confirmed = latest.connections.find(
-        (item) => item.id === connection.id,
-      );
-      if (
-        latest.unlocked &&
-        settledTogether(
-          connection.id,
-          connection.revision,
-          result.connection,
-          confirmed,
-        )
-      ) {
-        clearUnverified(connection.id);
-        setNotice(
-          confirmed?.state === "ready"
-            ? "上一次配置已恢复，适配器已启用。"
-            : "上一次配置已核对，适配器已停用。",
-        );
-      } else {
-        markUnverified(connection.id);
-        setNotice("恢复结果仍待核对。请刷新状态后检查，不要立即重复提交。");
-      }
-    } catch (cause) {
-      if (!controller.signal.aborted) {
-        markUnverified(connection.id);
-        requireUnlock(cause);
-        setError(
-          submitted || uncertain(cause)
-            ? `恢复结果无法确认。请刷新状态核对，不要立即重复提交。${message(cause)}`
-            : message(cause),
-        );
-      }
-    } finally {
-      if (!controller.signal.aborted) setBusy("");
-    }
-  }
-
-  const expired = probe ? Date.parse(probe.expires_at) <= Date.now() : false;
+  const [selected, setSelected] = useState<string | null>(null);
+  const refresh = () => {
+    void view.refresh();
+    if (canIdentity) void directory.refresh();
+  };
   return (
-    <div className="bot-adapter-page">
-      <section className="panel bot-adapter" aria-label="机器人适配器管理">
-        <div className="section-heading">
+    <div className="bot-adapter-page scroll-page">
+      <header className="section-heading">
+        <div>
           <h2>机器人接入</h2>
+          <p>原生 OneBot、Telegram 与外部宿主共用一个公开表达和投递回执。</p>
+        </div>
+        <button className="button" onClick={refresh}>
+          读取当前状态
+        </button>
+      </header>
+      {view.error && <p role="alert">{view.error}</p>}
+      <section className="panel">
+        <h3>传输进程</h3>
+        <p>
+          {view.data?.owner
+            ? `${view.data.owner.active ? "租约有效" : "租约已失效"} · ${view.data.owner.owner_id} · epoch ${view.data.owner.epoch} · 到期 ${new Date(view.data.owner.expires_at).toLocaleString("zh-CN")}`
+            : "当前没有传输owner记录"}
+        </p>
+        <p className="muted">
+          连接配置与对端账号验证分别记录。外部宿主未提供可核验状态时保持未知。
+        </p>
+      </section>
+      {canIdentity && <ChannelIdentityPanel onChanged={refresh} />}
+      <section className="panel">
+        <div className="section-heading">
+          <h3>传输连接</h3>
           <button
             className="button"
-            type="button"
-            disabled={Boolean(busy)}
-            onClick={() => void refresh()}
+            onClick={() => setSelected("new")}
+            disabled={!directory.data?.connections.length}
           >
-            刷新状态
+            配置已登记账号
           </button>
         </div>
-        <p className="muted">
-          创建机器人后，将 WS 地址和 Token 填入 SnowLuma
-          等客户端；连接成功后自动关联账号。
-        </p>
-        {busy === "refresh" && !view && (
-          <p role="status">正在读取适配器状态…</p>
-        )}
-        {error && (
-          <p className="bot-error" role="alert">
-            {error}
-          </p>
-        )}
-        {notice && (
-          <p className="bot-notice" role="status">
-            {notice}
-          </p>
-        )}
-        {unavailable && (
-          <p role="status">
-            当前部署尚未启用网页适配器管理，请由部署管理员启用后台能力后刷新。本页不会保存未生效的表单。
-          </p>
-        )}
-        {view?.available && !view.unlocked && (
-          <form className="bot-form" onSubmit={(event) => void unlock(event)}>
-            <label>
-              管理员密码（二次验证）
-              <input
-                type="password"
-                autoComplete="current-password"
-                minLength={PASSWORD_MIN_LENGTH}
-                maxLength={256}
-                required
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-            </label>
-            <button className="button" disabled={Boolean(busy)}>
-              解锁连接管理
-            </button>
-          </form>
-        )}
-        <BotObservationPanel
-          csrf={csrf}
-          unlocked={Boolean(view?.unlocked)}
-          actors={view?.actors ?? []}
-        />
-        <DetailCard
-          title="高级兼容：精确范围适配器"
-          className="panel bot-legacy"
-        >
+        {view.data?.connections.map((connection) => (
+          <ChannelCard
+            key={connection.id + ":" + connection.revision}
+            connection={connection}
+            refresh={refresh}
+            edit={() => setSelected(connection.id)}
+          />
+        ))}
+        {view.data && !view.data.connections.length && (
           <p className="muted">
-            仅在需要按会话、作者和角色逐项绑定时使用。新增观察账号请使用上方主入口。
+            还没有传输配置。先登记机器人账号，再配置连接。
           </p>
-          {view?.available && view.unlocked && (
-            <>
-              <div className="bot-adapter-actions">
-                <p className="muted">
-                  管理已解锁。密钥由后台安全保存供后续连接使用；页面提交后清除且不回显。
-                </p>
-                {!open && (
-                  <button
-                    className="button"
-                    type="button"
-                    disabled={Boolean(busy)}
-                    onClick={() => {
-                      setOpen(true);
-                      setError("");
-                      setNotice("");
-                    }}
-                  >
-                    添加适配器
-                  </button>
-                )}
-              </div>
-              {open && (
-                <div className="bot-wizard">
-                  <div className="bot-wizard-heading">
-                    <h3>添加适配器</h3>
-                    <button className="button" type="button" onClick={cancel}>
-                      取消
-                    </button>
-                  </div>
-                  <ol className="bot-wizard-steps" aria-label="添加步骤">
-                    <li>选择平台并检测</li>
-                    <li>选择账号与范围</li>
-                    <li>保存后启用</li>
-                  </ol>
-                  <form
-                    className="bot-form"
-                    onSubmit={(event) => void detect(event)}
-                  >
-                    <label>
-                      机器人平台
-                      <select
-                        value={adapter}
-                        disabled={Boolean(busy)}
-                        onChange={(event) => {
-                          setAdapter(event.target.value as AdapterKind);
-                          invalidateProbe();
-                        }}
-                      >
-                        <option value="astrbot">AstrBot</option>
-                        <option value="nonebot">NoneBot</option>
-                        <option value="onebot">OneBot / NapCat</option>
-                      </select>
-                    </label>
-                    <label>
-                      插件地址
-                      <input
-                        type="url"
-                        required
-                        placeholder="https://bot.example.com:8080"
-                        value={address}
-                        disabled={Boolean(busy)}
-                        onChange={(event) => {
-                          setAddress(event.target.value);
-                          invalidateProbe();
-                        }}
-                      />
-                    </label>
-                    <p className="muted">
-                      {adapter === "onebot"
-                        ? "填写天枢 OneBot 接入服务的 HTTP 地址。NapCat 通过反向 WebSocket 连接该服务；这里不填 NapCat 管理页面地址。"
-                        : "填写插件监听地址即可，协议路径会自动补全。"}
-                    </p>
-                    <label>
-                      插件连接密钥
-                      <input
-                        type="password"
-                        autoComplete="off"
-                        required
-                        value={accessKey}
-                        disabled={Boolean(busy)}
-                        onChange={(event) => {
-                          setAccessKey(event.target.value);
-                          invalidateProbe();
-                        }}
-                      />
-                    </label>
-                    <label className="bot-check">
-                      <input
-                        type="checkbox"
-                        checked={privateHttp}
-                        disabled={Boolean(busy)}
-                        onChange={(event) => {
-                          setPrivateHttp(event.target.checked);
-                          invalidateProbe();
-                        }}
-                      />
-                      允许局域网 HTTP（仅私有或本机地址）
-                    </label>
-                    <DetailCard title="高级连接选项" className="bot-advanced">
-                      <p>
-                        协议路径由天枢自动处理。HTTPS
-                        始终验证证书；仅自签发证书需要填写可信 CA。
-                      </p>
-                      <label>
-                        可信 CA 证书（可选，PEM）
-                        <textarea
-                          rows={5}
-                          value={caPem}
-                          disabled={Boolean(busy)}
-                          onChange={(event) => {
-                            setCaPem(event.target.value);
-                            invalidateProbe();
-                          }}
-                        />
-                      </label>
-                    </DetailCard>
-                    <button className="button" disabled={Boolean(busy)}>
-                      检测连接并读取账号
-                    </button>
-                  </form>
-                  {probe && (
-                    <div className="bot-probe-result">
-                      <h4>检测结果</h4>
-                      <p>
-                        {adapterLabel(adapter)} 插件已响应。检测草稿有效至{" "}
-                        {formatTime(probe.expires_at)}。
-                      </p>
-                      {expired ? (
-                        <p className="bot-error" role="alert">
-                          草稿已过期，请重新填写密钥并检测。
-                        </p>
-                      ) : probe.accounts.length === 0 ? (
-                        <p role="status">
-                          SDK 当前没有在线 QQ
-                          机器人账号。请先登录机器人，再重新检测。
-                        </p>
-                      ) : view.actors.length === 0 ? (
-                        <p role="status">
-                          当前没有可选角色，请先准备角色后刷新状态。
-                        </p>
-                      ) : (
-                        <form
-                          className="bot-form"
-                          onSubmit={(event) => void create(event)}
-                        >
-                          <label>
-                            连接名称
-                            <input
-                              required
-                              maxLength={64}
-                              value={name}
-                              disabled={Boolean(busy)}
-                              onChange={(event) => setName(event.target.value)}
-                            />
-                          </label>
-                          <label>
-                            在线机器人账号
-                            <select
-                              value={accountId}
-                              disabled={Boolean(busy)}
-                              onChange={(event) =>
-                                setAccountId(event.target.value)
-                              }
-                            >
-                              {probe.accounts.map((account) => (
-                                <option key={account.id} value={account.id}>
-                                  {account.label || account.id} · {account.id} ·{" "}
-                                  {account.platform}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          <label>
-                            回复角色
-                            <select
-                              value={actorId}
-                              required
-                              disabled={Boolean(busy)}
-                              onChange={(event) =>
-                                setActorId(event.target.value)
-                              }
-                            >
-                              <option value="">请选择角色</option>
-                              {view.actors.map((actor) => (
-                                <option key={actor.id} value={actor.id}>
-                                  {actor.label}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          <label>
-                            会话类型
-                            <select
-                              value={conversationKind}
-                              disabled={Boolean(busy)}
-                              onChange={(event) =>
-                                setConversationKind(
-                                  event.target.value as "group" | "private",
-                                )
-                              }
-                            >
-                              <option value="group">QQ群</option>
-                              <option value="private">QQ私聊</option>
-                            </select>
-                          </label>
-                          <label>
-                            {conversationKind === "group"
-                              ? "群 ID"
-                              : "联系人 ID"}
-                            <input
-                              required
-                              value={conversationId}
-                              disabled={Boolean(busy)}
-                              onChange={(event) =>
-                                setConversationId(event.target.value)
-                              }
-                            />
-                          </label>
-                          {conversationKind === "group" ? (
-                            <label>
-                              明确允许的作者 ID
-                              <textarea
-                                required
-                                rows={3}
-                                value={authors}
-                                disabled={Boolean(busy)}
-                                onChange={(event) =>
-                                  setAuthors(event.target.value)
-                                }
-                                aria-describedby="bot-authors-help"
-                              />
-                            </label>
-                          ) : (
-                            <label>
-                              私聊允许作者（由联系人 ID 确定）
-                              <input
-                                readOnly
-                                value={conversationId.trim()}
-                                aria-describedby="bot-authors-help"
-                              />
-                            </label>
-                          )}
-                          <p id="bot-authors-help" className="muted">
-                            {conversationKind === "group"
-                              ? "用逗号或换行分隔，逐个填写允许的群成员 ID。未列出的作者不会触发回复。"
-                              : "私聊只允许上方联系人触发回复，作者 ID 与联系人 ID 保持一致。"}
-                          </p>
-                          <button className="button" disabled={Boolean(busy)}>
-                            保存为停用
-                          </button>
-                        </form>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-              <div className="bot-adapter-list-heading">
-                <h3>已添加的适配器</h3>
-                <p className="muted">
-                  启用前请核对账号、会话与作者。检测连接不会发送消息。
-                </p>
-              </div>
-              {view.connections.length === 0 ? (
-                <p>尚无适配器连接。</p>
-              ) : (
-                <ul className="bot-list bot-adapter-list">
-                  {view.connections.map((connection) => {
-                    const pending = unverifiedIds.has(connection.id);
-                    const status = rail(connection, pending);
-                    return (
-                      <li key={connection.id}>
-                        <div>
-                          <strong>{connection.name}</strong>
-                          <p>
-                            {adapterLabel(connection.adapter)} · 机器人{" "}
-                            {connection.account_id} ·{" "}
-                            {connection.conversation.kind === "group"
-                              ? "群"
-                              : "私聊"}{" "}
-                            {connection.conversation.id}
-                          </p>
-                          <p>
-                            角色：
-                            {view.actors.find(
-                              (actor) => actor.id === connection.actor_id,
-                            )?.label ?? connection.actor_id}{" "}
-                            · 允许作者：{connection.allowed_authors.join("、")}
-                          </p>
-                          <small>
-                            最近检查：{formatTime(connection.last_checked_at)}
-                            {connection.last_error
-                              ? ` · ${adapterErrorMessage(connection.last_error)}`
-                              : ""}
-                          </small>
-                          {connection.state === "unknown" && (
-                            <p className="muted">
-                              上一次配置操作尚未确认。“核对并恢复”会继续完成上一次操作；若上次是启用，恢复成功后将恢复正常消息处理。此操作不会发送测试消息。
-                            </p>
-                          )}
-                          {pending && connection.state !== "unknown" && (
-                            <p className="muted">
-                              页面结果待核对，请先刷新状态。
-                            </p>
-                          )}
-                        </div>
-                        <StatusRail tone={status.tone} label={status.label} />
-                        <div className="bot-actions">
-                          <button
-                            className="button"
-                            type="button"
-                            disabled={
-                              Boolean(busy) ||
-                              pending ||
-                              connection.state === "unknown" ||
-                              connection.state === "draft"
-                            }
-                            onClick={() =>
-                              void change(
-                                connection,
-                                connection.enabled ? "disable" : "enable",
-                              )
-                            }
-                          >
-                            {connection.enabled ? "停用" : "启用"}
-                          </button>
-                          {connection.state === "unknown" && (
-                            <button
-                              className="button"
-                              type="button"
-                              disabled={Boolean(busy) || pending}
-                              onClick={() => void reconcile(connection)}
-                            >
-                              核对并恢复
-                            </button>
-                          )}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </>
-          )}
-        </DetailCard>
+        )}
+        {selected && (
+          <ChannelEditor
+            key={
+              selected +
+              ":" +
+              (view.data?.connections.find((x) => x.id === selected)
+                ?.revision ?? 0)
+            }
+            row={view.data?.connections.find((x) => x.id === selected) ?? null}
+            registrations={directory.data?.connections ?? []}
+            close={() => setSelected(null)}
+            done={() => {
+              setSelected(null);
+              refresh();
+            }}
+          />
+        )}
       </section>
-      <DetailCard
-        title="旧连接管理（已配置的连接）"
-        className="panel bot-legacy"
-      >
-        <p className="muted">
-          仅管理此前由部署方登记的连接。新适配器连接不会重复出现在这里。
-        </p>
-        <LegacyBotConnectionsPanel />
-      </DetailCard>
+      {view.data && (
+        <>
+          <NativeApi connections={view.data.connections} />
+          <DetailCard title="标准协议目录">
+            <Matrix matrix={view.data.matrix} />
+          </DetailCard>
+          <DetailCard title="真实观察与原投递">
+            <div className="domain-grid">
+              {view.data.deliveries.map((delivery) => (
+                <a
+                  key={delivery.expression_id}
+                  className="domain-record"
+                  href={taskHref({
+                    action_id: delivery.action_id,
+                    client_request_id: "",
+                    target: {
+                      actor_id: null,
+                      person_id: null,
+                      conversation_id: delivery.conversation_id,
+                    },
+                  })}
+                >
+                  {delivery.expression_id}
+                </a>
+              ))}
+            </div>
+            {view.data.observations.map((observation, index) => (
+              <article className="domain-record" key={index}>
+                <strong>
+                  {observation.connection_id} · {observation.kind} /{" "}
+                  {observation.name}
+                </strong>
+                <time>
+                  {new Date(observation.observed_at).toLocaleString("zh-CN")}
+                </time>
+                <details>
+                  <summary>实际观察</summary>
+                  <pre>{JSON.stringify(observation.body, null, 2)}</pre>
+                </details>
+              </article>
+            ))}
+          </DetailCard>
+        </>
+      )}
     </div>
+  );
+}
+function ChannelCard({
+  connection,
+  refresh,
+  edit,
+}: {
+  connection: ChannelConnection;
+  refresh: () => void;
+  edit: () => void;
+}) {
+  const probe = useDomainCommand("channel-probe:" + connection.id, "global");
+  return (
+    <article className="bot-wizard">
+      <div className="section-heading">
+        <div>
+          <h3>{connection.id}</h3>
+          <p>
+            {adapterLabels[connection.adapter] ?? connection.adapter} ·{" "}
+            {connection.transport} · {connection.provider}
+          </p>
+        </div>
+        <span className="tasks-chip">
+          {connection.enabled ? "已启用" : "已停用"} ·{" "}
+          {connection.configured ? "已配置凭据" : "未配置凭据"}
+        </span>
+      </div>
+      <p>
+        {connection.self_external_id} · {connection.state}
+        {connection.reason ? ` · ${connection.reason}` : ""} · 修订
+        {connection.revision}
+      </p>
+      <div className="domain-actions">
+        <button className="button" onClick={edit}>
+          编辑传输设置
+        </button>
+        <button
+          className="button"
+          disabled={probe.busy}
+          onClick={() =>
+            void probe
+              .run(
+                "channels/connections/probe",
+                {
+                  ...actorScope(connection.actor_id),
+                  connection_id: connection.id,
+                },
+                connection.revision,
+              )
+              .then(() => refresh())
+          }
+        >
+          实际探测账号与协议
+        </button>
+      </div>
+      <CommandFeedback {...probe} />
+      {connection.transport === "reverse_http" && (
+        <p>
+          事件入口：
+          <code>{`/channels/onebot/v11/${encodeURIComponent(connection.id)}/events`}</code>
+        </p>
+      )}
+      {connection.transport === "reverse_ws" && (
+        <p>
+          反向WS入口：
+          <code>{`/channels/onebot/v11/${encodeURIComponent(connection.id)}/ws`}</code>
+          （连接方使用同一Bearer令牌和真实Self-ID）
+        </p>
+      )}
+      {connection.adapter === "telegram" && (
+        <p>
+          Webhook入口：
+          <code>{`/channels/telegram/${encodeURIComponent(connection.id)}/webhook`}</code>
+        </p>
+      )}
+      {["nonebot", "astrbot"].includes(connection.adapter) && (
+        <p>
+          在宿主安装对应天枢SDK桥，配置同一连接标识、宿主实例与令牌。外部规则链的实际回复责任以观察回执为准。
+        </p>
+      )}
+      <details>
+        <summary>此连接的真实支持矩阵</summary>
+        <Matrix matrix={connection.matrix} />
+      </details>
+    </article>
+  );
+}
+function Matrix({ matrix }: { matrix: ChannelMatrix }) {
+  return (
+    <div className="channel-matrix">
+      <p>
+        {matrix.standard}
+        {matrix.spec_url && (
+          <>
+            {" "}
+            ·{" "}
+            <a href={matrix.spec_url} target="_blank" rel="noreferrer">
+              协议来源
+            </a>
+          </>
+        )}
+      </p>
+      <p className="muted">
+        “已实现”表示本地代码能力；对端未声明支持或没有该修订的真实成功回执时，分别显示未知与未验证。
+      </p>
+      <div className="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>API / 消息段</th>
+              <th>本地实现</th>
+              <th>对端支持</th>
+              <th>实际验证</th>
+              <th>参数 / 方向</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[...matrix.apis, ...(matrix.segments ?? [])].map((item, index) => (
+              <tr key={index}>
+                <td>
+                  {item.name ?? item.type}
+                  {item.variant ? ` / ${item.variant}` : ""}
+                </td>
+                <td>{item.implemented ? "已实现" : "未实现"}</td>
+                <td>
+                  {item.provider_supported === true
+                    ? "已声明支持"
+                    : item.provider_supported === false
+                      ? "不支持"
+                      : "未知"}
+                </td>
+                <td>
+                  {item.verified_at
+                    ? new Date(item.verified_at).toLocaleString("zh-CN")
+                    : "未验证"}
+                </td>
+                <td>
+                  {item.required?.join("、") ??
+                    `${item.receive ? "接收 " : ""}${item.send ? "发送" : ""}`}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+const transports: Record<string, string[]> = {
+  onebot: ["http", "reverse_http", "ws", "reverse_ws"],
+  telegram: ["telegram_webhook", "telegram_poll"],
+  nonebot: ["bridge"],
+  astrbot: ["bridge"],
+};
+function ChannelEditor({
+  row,
+  registrations,
+  done,
+  close,
+}: {
+  row: ChannelConnection | null;
+  registrations: RegisteredConnection[];
+  done: () => void;
+  close: () => void;
+}) {
+  const [adapter, setAdapter] = useState(row?.adapter ?? "onebot");
+  const [transport, setTransport] = useState(row?.transport ?? "reverse_ws");
+  const [error, setError] = useState("");
+  const command = useDomainCommand(
+    "channel-config:" + (row?.id ?? "new"),
+    "global",
+  );
+  return (
+    <form
+      className="domain-form bot-wizard"
+      onSubmit={(event) => {
+        event.preventDefault();
+        setError("");
+        const form = event.currentTarget;
+        const data = new FormData(form);
+        const registered = row
+          ? { connection_id: row.id, actor_id: row.actor_id }
+          : registrations.find(
+              (x) => x.connection_id === data.get("connection"),
+            );
+        if (!registered) {
+          setError("当前登记身份不可读，请刷新身份列表。");
+          return;
+        }
+        let advanced: Record<string, unknown>;
+        try {
+          advanced = JSON.parse(String(data.get("advanced")));
+          if (
+            !advanced ||
+            Array.isArray(advanced) ||
+            typeof advanced !== "object"
+          )
+            throw new Error();
+        } catch {
+          setError("高级协议声明必须是JSON对象。");
+          return;
+        }
+        const token = String(data.get("token") ?? "");
+        void command
+          .run(
+            "channels/connections/save",
+            {
+              ...advanced,
+              ...actorScope(registered.actor_id),
+              id: registered.connection_id,
+              adapter,
+              transport,
+              provider: String(data.get("provider")),
+              endpoint: String(data.get("endpoint")) || null,
+              api_endpoint: String(data.get("api_endpoint")) || null,
+              enabled: data.get("enabled") === "on",
+              allow_at_all: data.get("at_all") === "on",
+              extension_apis: splitLines(String(data.get("extensions") ?? "")),
+              allowed_media_hosts: splitLines(String(data.get("hosts") ?? "")),
+              ...(token ? { token } : {}),
+            },
+            row?.revision ?? 0,
+          )
+          .then((answer) => {
+            if (answer) {
+              form.reset();
+              done();
+            }
+          });
+      }}
+    >
+      <h3>{row ? "编辑连接" : "配置传输"}</h3>
+      <div className="domain-grid">
+        <label>
+          已登记账号
+          <select
+            name="connection"
+            defaultValue={row?.id}
+            disabled={!!row}
+            required
+          >
+            {row &&
+              !registrations.some(
+                (value) => value.connection_id === row.id,
+              ) && (
+                <option value={row.id}>
+                  {row.id} · {row.self_external_id}
+                </option>
+              )}
+            {registrations.map((x) => (
+              <option key={x.connection_id} value={x.connection_id}>
+                {x.connection_id} · {x.self_external_id}
+              </option>
+            ))}
+          </select>
+          {row && <input type="hidden" name="connection" value={row.id} />}
+        </label>
+        <label>
+          适配器
+          <select
+            value={adapter}
+            onChange={(event) => {
+              const value = event.target.value;
+              setAdapter(value);
+              setTransport(transports[value][0]);
+            }}
+          >
+            {Object.entries(adapterLabels).map(([id, title]) => (
+              <option key={id} value={id}>
+                {title}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          传输
+          <select
+            value={transport}
+            onChange={(event) => setTransport(event.target.value)}
+          >
+            {transports[adapter].map((value) => (
+              <option key={value}>{value}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          对端类型
+          <select name="provider" defaultValue={row?.provider ?? "generic"}>
+            {[
+              "generic",
+              "napcat",
+              "snowluma",
+              "telegram",
+              "nonebot",
+              "astrbot",
+            ].map((value) => (
+              <option key={value}>{value}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          服务地址
+          <input
+            name="endpoint"
+            defaultValue={row?.endpoint}
+            placeholder="https://… 或 wss://…"
+          />
+        </label>
+        <label>
+          独立API地址（可选）
+          <input name="api_endpoint" defaultValue={row?.api_endpoint} />
+        </label>
+        <label>
+          令牌（留空保留已保存值）
+          <input type="password" name="token" autoComplete="new-password" />
+        </label>
+      </div>
+      <label>
+        <input
+          type="checkbox"
+          name="enabled"
+          defaultChecked={row?.enabled ?? true}
+        />
+        启用连接
+      </label>
+      <label>
+        <input
+          type="checkbox"
+          name="at_all"
+          defaultChecked={row?.allow_at_all ?? false}
+        />
+        允许明确的@全体请求（仍核对当前群权限与额度）
+      </label>
+      <label>
+        明确扩展API（每行一项）
+        <textarea
+          name="extensions"
+          defaultValue={row?.extension_apis?.join("\n")}
+        />
+      </label>
+      <label>
+        允许获取媒体的远程主机（每行一项）
+        <textarea
+          name="hosts"
+          defaultValue={row?.allowed_media_hosts?.join("\n")}
+        />
+      </label>
+      <details>
+        <summary>协议声明、长媒体映射与SDK实例</summary>
+        <p className="muted">
+          本地与远程目录映射只用于已明确共享的媒体，不会把服务器路径发到浏览器预览。
+        </p>
+        <textarea
+          name="advanced"
+          rows={10}
+          defaultValue={JSON.stringify(
+            {
+              api_support: row?.api_support ?? {},
+              segment_support: row?.segment_support ?? {},
+              media_path_mappings: row?.media_path_mappings ?? [],
+              max_media_bytes: row?.max_media_bytes ?? 67108864,
+              max_inline_bytes: row?.max_inline_bytes ?? 4194304,
+              external_commands: row?.external_commands ?? [],
+              ...(row?.bridge_instance_id
+                ? { bridge_instance_id: row.bridge_instance_id }
+                : {}),
+              ...(row?.webhook_public_url
+                ? { webhook_public_url: row.webhook_public_url }
+                : {}),
+              ...(row?.webhook_secret_ref
+                ? { webhook_secret_ref: row.webhook_secret_ref }
+                : {}),
+            },
+            null,
+            2,
+          )}
+        />
+      </details>
+      {error && <p role="alert">{error}</p>}
+      <div className="domain-actions">
+        <button className="button primary" disabled={command.busy}>
+          保存连接配置
+        </button>
+        <button className="button" type="button" onClick={close}>
+          关闭
+        </button>
+      </div>
+      <CommandFeedback {...command} />
+    </form>
+  );
+}
+function NativeApi({ connections }: { connections: ChannelConnection[] }) {
+  const { actor } = useRoleWorkspace();
+  const [connectionId, setConnectionId] = useState("");
+  const connection = connections.find((x) => x.id === connectionId);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const conversations = useDomainResource<Page<ConversationSelection>>(
+    "identity/conversations",
+    { ...actorScope(connection?.actor_id ?? actor), cursor, limit: 100 },
+    !!(connection?.actor_id ?? actor),
+  );
+  const command = useDomainCommand(
+    "explicit-channel-api:" + connectionId,
+    "global",
+  );
+  const [error, setError] = useState("");
+  return (
+    <DetailCard title="明确调用渠道API">
+      <p>
+        发送操作仍进入唯一公开表达。请选择原逻辑会话，服务端会再次核对连接、目标、权限与当前来源。
+      </p>
+      <form
+        className="domain-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          setError("");
+          if (!connection) return;
+          const data = new FormData(event.currentTarget);
+          const selected = conversations.data?.items.find(
+            (x) => x.conversation_id === data.get("conversation"),
+          );
+          let params: Record<string, unknown>;
+          try {
+            params = JSON.parse(String(data.get("params")));
+            if (!params || typeof params !== "object" || Array.isArray(params))
+              throw new Error();
+          } catch {
+            setError("API参数必须是JSON对象。");
+            return;
+          }
+          void command.run(
+            "channels/actions/invoke",
+            {
+              ...actorScope(connection.actor_id),
+              ...(selected
+                ? {
+                    conversation_id: selected.conversation_id,
+                    person_id: selected.person_id,
+                  }
+                : {}),
+              connection_id: connection.id,
+              api_name: String(data.get("api")),
+              params,
+            },
+            null,
+          );
+        }}
+      >
+        <div className="domain-grid">
+          <label>
+            连接
+            <select
+              value={connectionId}
+              onChange={(event) => {
+                setConnectionId(event.target.value);
+                setCursor(null);
+              }}
+              required
+            >
+              <option value="">选择连接</option>
+              {connections.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.id}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            当前授权会话
+            <select name="conversation" key={connectionId + ":" + cursor}>
+              <option value="">无会话（仅连接管理/读取）</option>
+              {conversations.data?.items.map((x) => (
+                <option key={x.conversation_id} value={x.conversation_id}>
+                  {x.label} · {x.kind}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            明确API
+            <select name="api" key={connectionId} required>
+              <option value="">选择API</option>
+              {connection?.matrix.apis
+                .filter((x) => x.implemented && x.provider_supported !== false)
+                .map((x) => (
+                  <option key={x.name} value={x.name}>
+                    {x.name} · {x.effect ?? "未知效果"}
+                  </option>
+                ))}
+            </select>
+          </label>
+        </div>
+        {conversations.error && <p role="alert">{conversations.error}</p>}
+        {conversations.data?.next_cursor && (
+          <button
+            type="button"
+            className="text-link"
+            onClick={() => setCursor(conversations.data!.next_cursor)}
+          >
+            下一页会话
+          </button>
+        )}
+        {cursor && (
+          <button
+            type="button"
+            className="text-link"
+            onClick={() => setCursor(null)}
+          >
+            回到第一页会话
+          </button>
+        )}
+        <label>
+          API参数
+          <textarea name="params" rows={5} defaultValue="{}" />
+        </label>
+        {error && <p role="alert">{error}</p>}
+        <button className="button" disabled={command.busy || !connection}>
+          执行明确API
+        </button>
+        <CommandFeedback {...command} />
+        {command.result?.data != null && (
+          <details>
+            <summary>本次实际业务结果</summary>
+            <pre>{JSON.stringify(command.result.data, null, 2)}</pre>
+          </details>
+        )}
+      </form>
+    </DetailCard>
   );
 }
