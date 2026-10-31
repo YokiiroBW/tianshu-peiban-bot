@@ -125,7 +125,7 @@ class LifePresentation:
             return CommandResult(body["client_request_id"], {"controls": selected, "timezone": zone, "weather_location": location, "fictional": True}, row["revision"] + 1)
         return await self.life.commands.execute(context, "life.room.save", body["client_request_id"], signature(body), apply)
 
-    async def scene(self, context, *, activity_id=None):
+    async def scene(self, context, *, activity_id=None, outfit_id=None):
         state = await self.life.state(context)
         actor = await self.life.companion.actor(context)
         activity = state["activity"]
@@ -144,6 +144,14 @@ class LifePresentation:
                 weather = None
         now = datetime.now(UTC)
         outfit = state["outfit"]
+        if outfit_id and (outfit is None or outfit["id"] != outfit_id):
+            async with self.life.database.transaction(read_only=True) as connection:
+                outfit = await (await connection.execute(
+                    "SELECT * FROM life.outfits WHERE id=%s AND actor_id=%s AND scope_ids<@%s::text[]",
+                    (outfit_id, context.actor_id, list(context.scope_ids)))).fetchone()
+            if not outfit:
+                raise AppError("outfit_not_found", status=404)
+            await self.life.identity.check(context, source_refs(outfit["source_refs"]))
         refs = unique_refs(source_refs((activity or {}).get("source_refs", ())), source_refs((outfit or {}).get("source_refs", ())), source_refs((weather or {}).get("source_refs", ())))
         references = []
         if outfit and outfit["reference"]:
