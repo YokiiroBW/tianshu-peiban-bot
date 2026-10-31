@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "goal_thread": "01a18df4-9275-7411-b48b-32fd86889108",
-  "state": "implementing",
+  "state": "concentrated_acceptance",
   "model": "gpt-6.1-sol",
   "reasoning_effort": "xhigh",
   "integration_root": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-unified-refactor\\tianshu-peiban-bot",
@@ -308,10 +308,10 @@
         "CR17B"
       ],
       "owner": "各能力模块",
-      "state": "implementing",
+      "state": "implemented_not_tested",
       "implementation_agent": "capabilities",
       "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c",
-      "pending": "backend integrated; two native knowledge/project frontend workflows and one PG evidence story completing",
+      "pending": "concentrated CR19 native PG and actual UI acceptance",
       "contributors": [
         "capabilities",
         "foundation_models"
@@ -344,7 +344,7 @@
         "CR17"
       ],
       "owner": "web 内容与媒体",
-      "state": "implementing",
+      "state": "implemented_not_tested",
       "implementation_agent": "frontend",
       "contributors": [
         "frontend",
@@ -379,7 +379,7 @@
         "CR18D"
       ],
       "owner": "web 集成",
-      "state": "implementing",
+      "state": "implemented_not_tested",
       "implementation_agent": "frontend"
     },
     {
@@ -397,7 +397,7 @@
         "CR18"
       ],
       "owner": "集成",
-      "state": "planned"
+      "state": "validating"
     },
     {
       "id": "CR20",
@@ -430,7 +430,7 @@
       ],
       "state": "awaiting_concentrated_acceptance",
       "boundary": "runtime/models/types/identity/sources/memory/conversation/context and owned tests; backend manifest/lock/composition/migrations; deploy/core and retired source cleanup; settings AccessPanel.tsx/access.css only. No capabilities/projects or knowledge/projects UI writes.",
-      "phase": "complete_source_deployment_access_retired_source_cleanup"
+      "phase": "complete_assigned_source"
     },
     "frontend": {
       "model": "gpt-6.1-sol",
@@ -449,9 +449,9 @@
         "CR13",
         "CR16"
       ],
-      "state": "implementing",
+      "state": "awaiting_concentrated_acceptance",
       "boundary": "companion/**,life/**,conversation/** except context; shared web api/app/components/router/manifest; features life/multimodal/room/companion/home/workbench/flow-graph and settings outside foundation exact whitelist; no writes to C or A owned feature folders",
-      "phase": "complete_owned_UI; exclusive_tests/core/test_project_stories.py_pending"
+      "phase": "complete_assigned_source"
     },
     "capabilities": {
       "model": "gpt-6.1-sol",
@@ -470,9 +470,9 @@
         "CR17",
         "CR04A"
       ],
-      "state": "implementing",
+      "state": "awaiting_concentrated_acceptance",
       "boundary": "capabilities/** including newly transferred projects; channels and SDK; web features plugins/media/infrastructure/resources/people/memory/knowledge/projects; exact ProviderManager/Editors/ModelsPanel/ModelFunctionsPanel/providerApi/providerTypes/providerPresets/models.css whitelist. Shared frontend registry stays B; root migration/assembly stays A.",
-      "phase": "knowledge_and_projects_UI_only"
+      "phase": "complete_assigned_source"
     }
   },
   "integration_commits": [
@@ -979,10 +979,25 @@
       "integrated": "34eab90",
       "scope": "single-product deployment Access supervision backup and retired source removal",
       "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "ce3cceb",
+      "integrated": "40aa86e",
+      "scope": "native PG complete project evidence and source revocation story",
+      "validation": "written_not_executed_before_CR19"
+    },
+    {
+      "source": "a3bb647",
+      "integrated": "3b681fa",
+      "scope": "final native knowledge and project UI with actual permission and invalidation projections",
+      "validation": "source_review_only_before_CR19"
     }
   ],
   "validation": {
-    "state": "not_started"
+    "state": "starting",
+    "initial_complete_source": "3b681fa",
+    "policy": "one concentrated acceptance after all source integration; only affected reruns after actual fixes",
+    "production_data_mutated": false
   },
   "deployment": {
     "state": "not_started",
