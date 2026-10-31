@@ -112,3 +112,40 @@ class ExecutionRecovery(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(job.task, "capabilities.control")
         self.assertEqual(job.payload, {"action_id": action.action_id, "mode": "reconcile"})
         service.handler.assert_not_awaited()
+
+
+class LeaseFencing(unittest.IsolatedAsyncioTestCase):
+    async def test_expired_owner_cannot_revive_its_existing_identity(self):
+        from tianshu.capabilities.execution_owners import ExecutionOwners
+
+        conn = SimpleNamespace(
+            execute=AsyncMock(return_value=SimpleNamespace(fetchone=AsyncMock(return_value=None)))
+        )
+
+        @asynccontextmanager
+        async def transaction(**kwargs):
+            yield conn
+
+        owners = ExecutionOwners(
+            SimpleNamespace(
+                database=SimpleNamespace(transaction=transaction), worker=False, running={}
+            )
+        )
+        with self.assertRaises(Fault):
+            await owners.renew()
+        self.assertFalse(owners.status()["ready"])
+        self.assertTrue(owners.closing)
+
+    async def test_admission_lost_before_network_rejects_unused_permit(self):
+        from tianshu.capabilities.tracking import TrackedPermit
+
+        owner = SimpleNamespace(
+            owners=SimpleNamespace(
+                check_attempt=AsyncMock(side_effect=Fault("action_execution_owner_changed", 409))
+            )
+        )
+        permit = SimpleNamespace(submitted=AsyncMock(), rejected=AsyncMock())
+        tracked = TrackedPermit(permit, {"owner": owner, "attempt": Attempt("t", "a")})
+        with self.assertRaises(Fault):
+            await tracked.submitted()
+        permit.rejected.assert_awaited_once_with("action_execution_owner_changed")

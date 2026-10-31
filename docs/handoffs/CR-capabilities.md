@@ -194,3 +194,5 @@ run保护覆盖handler加载/authority/availability及实际执行；拒绝后�
 ## Fish协议收口（implemented_not_tested）
 
 Fish MCP SSE取得匹配JSON-RPC id的结果后立即退出并关闭response，不等待服务器长连接EOF；普通JSON也核匹配id。MCP/native新增协议文件已整理多行。OAuth同连接跨进程刷新通过PG短租约合并，网络期间不持PG连接；等待方重读已密封新token，配置CAS冲突只在同一旧凭据仍未变化时合并。旋转令牌提交后失联/owner过期保持unknown并要求原连接重新授权，绝不重复旧refresh token盲重试；明确新授权可解除该状态。SSE长连接及失联刷新用例已写未运行。
+
+Owner续租仅允许原租约尚未过期且未停止；过期身份永久不能续命，新进程必须新id。外部resource真实submitted之前/之后、实际网络写之前会在同control连接核原Action+Attempt仍属本owner且PG租约存活；失去归属时拒绝尚未使用的permit。原生Model等待则由owner丢失时取消实际Client请求，晚到真实结果仍按原Attempt保存/核对，不以旧owner复活准许新提交。

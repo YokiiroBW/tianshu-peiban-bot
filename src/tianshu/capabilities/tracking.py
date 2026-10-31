@@ -32,6 +32,9 @@ class TrackedBroker:
             current["submitted"] = True
 
     async def generate(self, request):
+        current = CURRENT_EXECUTION.get()
+        if current:
+            await current["owner"].owners.check_attempt(current["attempt"])
         try:
             result = await self.broker.generate(request)
         except BaseException:
@@ -66,13 +69,18 @@ class TrackedPermit:
             action = CURRENT_ACTION.get()
             if action is not None:
                 owner = self.current["owner"]
-                await owner.owners.check()
+                await owner.owners.check_attempt(self.current["attempt"])
                 handler = await owner.handler(action)
                 available = await owner.catalog.availability(action.context, handler)
                 if not available.can_execute:
                     raise Fault(available.reason or "capability_unavailable", 503)
         await self.permit.submitted(provider_handle=provider_handle)
         if self.current:
+            try:
+                await self.current["owner"].owners.check_attempt(self.current["attempt"])
+            except Exception:
+                await self.permit.rejected("action_execution_owner_changed")
+                raise
             await self.current["owner"].submitted(self.current["attempt"], provider_handle)
             self.current["submitted"] = True
 
@@ -89,6 +97,6 @@ class TrackedPermit:
 async def mark_submitted(provider_handle=None):
     current = CURRENT_EXECUTION.get()
     if current:
-        await current["owner"].owners.check()
+        await current["owner"].owners.check_attempt(current["attempt"])
         await current["owner"].submitted(current["attempt"], provider_handle)
         current["submitted"] = True

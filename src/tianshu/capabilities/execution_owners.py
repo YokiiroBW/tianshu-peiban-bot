@@ -28,18 +28,44 @@ class ExecutionOwners:
             self.task = asyncio.create_task(self.loop(), name="capability-execution-owner")
 
     async def renew(self):
+        started = time.monotonic()
         async with self.actions.database.transaction(control=True) as conn:
-            await conn.execute(
-                "INSERT INTO capabilities.execution_owners(id,role,expires_at) "
-                "VALUES(%s,%s,now()+%s*interval '1 second') ON CONFLICT(id) DO UPDATE "
-                "SET expires_at=excluded.expires_at,stopped_at=NULL",
-                (self.id, "worker" if self.actions.worker else "interactive", self.LEASE_SECONDS),
-            )
-        self.lease_until = time.monotonic() + self.LEASE_SECONDS
+            row = await (
+                await conn.execute(
+                    "INSERT INTO capabilities.execution_owners(id,role,expires_at) "
+                    "VALUES(%s,%s,now()+%s*interval '1 second') ON CONFLICT(id) DO UPDATE "
+                    "SET expires_at=excluded.expires_at WHERE capabilities.execution_owners.expires_at>now() "
+                    "AND capabilities.execution_owners.stopped_at IS NULL RETURNING id",
+                    (
+                        self.id,
+                        "worker" if self.actions.worker else "interactive",
+                        self.LEASE_SECONDS,
+                    ),
+                )
+            ).fetchone()
+        if row is None:
+            self.closing = True
+            await self.interrupt()
+            raise Fault("action_executor_lease_lost", 503)
+        self.lease_until = started + self.LEASE_SECONDS
 
     async def check(self):
         if self.closing or self.lease_until <= time.monotonic():
             raise Fault("action_executor_lease_lost", 503)
+
+    async def check_attempt(self, attempt):
+        await self.check()
+        async with self.actions.database.transaction(control=True, read_only=True) as conn:
+            row = await (
+                await conn.execute(
+                    "SELECT a.id FROM capabilities.actions a JOIN capabilities.execution_owners o ON o.id=a.execution_owner "
+                    "WHERE a.id=%s AND a.attempt->>'attempt_id'=%s AND a.execution_owner=%s "
+                    "AND a.receipt->>'execution'='running' AND o.expires_at>now() AND o.stopped_at IS NULL",
+                    (attempt.action_id, attempt.attempt_id, self.id),
+                )
+            ).fetchone()
+        if row is None:
+            raise Fault("action_execution_owner_changed", 409)
 
     def status(self):
         return {
