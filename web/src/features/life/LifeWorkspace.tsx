@@ -1,14 +1,15 @@
 import { useState, type ReactNode } from "react";
 import { LifecyclePanel } from "./LifecyclePanel";
 import { WardrobePanel } from "./WardrobePanel";
+import { ReadingPanel } from "./ReadingPanel";
+import { EpisodeTimeline } from "./EpisodeTimeline";
+import { LifeRoutinePanel } from "./LifeRoutinePanel";
 import ImagesPage from "../multimodal/ImagesPage";
 import {
   readRolePreference,
   saveRolePreference,
 } from "../../app/rolePreference";
-import { ReadingPanel } from "./ReadingPanel";
-import { ActorMemoryPanel } from "./ActorMemoryPanel";
-import type { LifeAccess } from "./runtimeApi";
+import type { LifeState } from "./domainTypes";
 const tabs = [
   { id: "overview", label: "总览" },
   { id: "now", label: "活动与关注" },
@@ -16,12 +17,17 @@ const tabs = [
   { id: "wardrobe", label: "衣柜" },
   { id: "reading", label: "阅读与学习" },
   { id: "images", label: "生图与相册" },
+  { id: "rhythm", label: "作息与联系" },
 ] as const;
 export function LifeWorkspace({
-  access,
+  canManage,
+  state,
+  refresh,
   overview,
 }: {
-  access: LifeAccess;
+  canManage: boolean;
+  state: LifeState | null;
+  refresh: () => Promise<void>;
   overview: ReactNode;
 }) {
   const [tab, setTab] = useState<(typeof tabs)[number]["id"]>(
@@ -61,15 +67,25 @@ export function LifeWorkspace({
         {tab === "overview" ? (
           overview
         ) : tab === "now" ? (
-          <LifecyclePanel access={access} />
+          <LifecyclePanel canManage={canManage} refreshState={refresh} />
         ) : tab === "memory" ? (
-          <ActorMemoryPanel access={access} />
+          <EpisodeTimeline />
         ) : tab === "wardrobe" ? (
-          <WardrobePanel access={access} />
+          <WardrobePanel
+            canManage={canManage}
+            state={state}
+            refreshState={refresh}
+          />
         ) : tab === "images" ? (
-          <ImagesPage key={access.actor} />
+          <ImagesPage />
+        ) : tab === "rhythm" ? (
+          <LifeRoutinePanel
+            canManage={canManage}
+            state={state}
+            refreshState={refresh}
+          />
         ) : (
-          <ReadingPanel access={access} />
+          <ReadingPanel canManage={canManage} />
         )}
       </div>
     </section>

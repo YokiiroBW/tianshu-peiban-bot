@@ -1,272 +1,208 @@
-import { DetailCard } from "../../components/DetailCard";
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Search, RefreshCw } from "lucide-react";
-import { integrationPost, IntegrationError } from "../../app/integrationApi";
-import { requestId } from "../../app/requestId";
-import { useWeather } from "./useWeather";
+import { useState } from "react";
 import {
-  locationLabel,
-  weatherFailure,
-  type WeatherLocation,
-  type WeatherView,
-} from "./weather";
-import "./weather.css";
+  useDomainCommand,
+  useDomainResource,
+  GLOBAL_SCOPE,
+} from "../../api/useDomainResource";
+import { CommandFeedback } from "../../components/CommandFeedback";
+import type { WeatherLocation } from "./WeatherCard";
+import type { LifeState } from "./domainTypes";
 
-/** The original weather connection/location form, now mounted only in Settings. */
-export function WeatherSettings({
-  actor,
-  csrf,
-}: {
-  actor: string;
-  csrf: string;
-}) {
-  const { view, error, loading, accept, refresh } = useWeather(actor, csrf);
-  const [host, setHost] = useState("");
-  const [key, setKey] = useState("");
-  const [query, setQuery] = useState("");
-  const [locations, setLocations] = useState<WeatherLocation[]>([]);
-  const [searched, setSearched] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState("");
-  const [notice, setNotice] = useState("");
-  const mutation = useRef<AbortController | null>(null);
-  useEffect(() => {
-    setHost(view?.host ?? "");
-  }, [view?.host]);
-  useEffect(() => () => mutation.current?.abort(), [actor, csrf]);
-
-  async function operation<T>(
-    path: string,
-    body: object,
-  ): Promise<T | undefined> {
-    mutation.current?.abort();
-    const controller = new AbortController();
-    mutation.current = controller;
-    setSaving(true);
-    setFormError("");
-    setNotice("");
-    try {
-      const result = await integrationPost<T>(
-        `weather/${path}`,
-        { actor_id: actor, ...body },
-        csrf,
-        controller.signal,
-      );
-      if (!controller.signal.aborted) return result;
-    } catch (cause) {
-      if (!controller.signal.aborted) {
-        setFormError(weatherFailure(cause));
-        if (cause instanceof IntegrationError && cause.status === 409)
-          void refresh();
-      }
-    } finally {
-      if (!controller.signal.aborted) setSaving(false);
-    }
-  }
-  async function configure(event: FormEvent) {
-    event.preventDefault();
-    if (!view) return;
-    const next = await operation<WeatherView>("configure", {
-      host: host.trim(),
-      credential: key ? { action: "replace", value: key } : { action: "keep" },
-      expected_revision: view.revision,
-      client_request_id: requestId(),
-    });
-    if (next) {
-      setKey("");
-      if (!accept(next)) return;
-      setNotice("连接配置已保存。选择位置后会读取实际天气。");
-      setLocations([]);
-      setSearched(false);
-      void refresh();
-    }
-  }
-  async function search(event: FormEvent) {
-    event.preventDefault();
-    setLocations([]);
-    setSearched(false);
-    const result = await operation<{ items: WeatherLocation[] }>("locations", {
-      query: query.trim(),
-    });
-    if (result) {
-      setLocations(result.items);
-      setSearched(true);
-    }
-  }
-  async function choose(location: WeatherLocation) {
-    if (!view) return;
-    const next = await operation<WeatherView>("location", {
-      location_id: location.id,
-      expected_revision: view.revision,
-      client_request_id: requestId(),
-    });
-    if (next && accept(next)) {
-      setNotice("天气位置已保存。");
-      setLocations([]);
-      setSearched(false);
-      void refresh();
-    }
-  }
+type WeatherView = {
+  configured: boolean;
+  reason: string | null;
+  connection: {
+    id: string;
+    revision: number;
+    host?: string;
+    configured: boolean;
+    enabled: boolean;
+    quota_group?: string;
+    account_id?: string;
+  };
+};
+export function WeatherConnectionSettings() {
+  const view = useDomainResource<WeatherView>("weather/view", GLOBAL_SCOPE);
+  const action = useDomainCommand("weather-connection", "global");
+  const row = view.data?.connection;
   return (
-    <DetailCard title={"位置与天气设置"}>
-      <div className="weather-settings" aria-busy={loading || saving}>
-        <p className="muted">
-          按这位角色所选位置显示天气和当地时间，日程仍按角色原有时区推进。
-        </p>
-        {error && (
-          <p className="life-weather-warning" role="alert">
-            {error}
+    <section className="panel">
+      <h3>实际天气连接</h3>
+      <p className="muted">使用已配置的QWeather主机与账号，密钥仅写入。</p>
+      {view.error && <p role="alert">{view.error}</p>}
+      {row && (
+        <form
+          key={row.revision}
+          className="domain-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const data = new FormData(event.currentTarget);
+            void action
+              .run(
+                "weather/connections.save",
+                {
+                  host: data.get("host"),
+                  quota_group: data.get("quota_group"),
+                  account_id: data.get("account_id"),
+                  enabled: data.get("enabled") === "on",
+                  ...(data.get("api_key")
+                    ? { api_key: data.get("api_key") }
+                    : {}),
+                  clear_credential: data.get("clear") === "on",
+                },
+                row.revision,
+              )
+              .then((result) => {
+                if (result) void view.refresh();
+              });
+          }}
+        >
+          <p>
+            {row.configured ? "已保存天气凭据" : "尚未配置天气凭据"} ·{" "}
+            {view.data?.reason ?? "连接配置可用"}
           </p>
-        )}
-        {view && !view.can_manage && (
-          <p className="muted">当前账号没有天气连接管理权限。</p>
-        )}
-        <form onSubmit={configure} className="life-weather-form">
           <label>
-            和风天气 API Host
+            QWeather API主机
             <input
-              value={host}
+              name="host"
+              defaultValue={row.host ?? ""}
               required
-              maxLength={255}
-              disabled={saving || !view?.can_manage}
-              placeholder="例如 abcxyz.re.qweatherapi.com"
-              autoComplete="off"
-              onChange={(event) => setHost(event.target.value)}
+              placeholder="https://你的主机.qweatherapi.com"
             />
           </label>
           <label>
-            API Key
+            账号标识
             <input
+              name="account_id"
+              defaultValue={row.account_id ?? "qweather"}
+              required
+            />
+          </label>
+          <label>
+            资源配额组
+            <input
+              name="quota_group"
+              defaultValue={row.quota_group ?? ""}
+              required
+            />
+          </label>
+          <label>
+            新API Key
+            <input
+              name="api_key"
               type="password"
-              value={key}
-              required={!view?.credential_configured}
-              disabled={saving || !view?.can_manage}
-              maxLength={4096}
               autoComplete="new-password"
               placeholder={
-                view?.credential_configured
-                  ? "已保存，留空保留原凭据"
-                  : "输入和风天气 API Key"
+                row.configured ? "留空保留已存密钥" : "填入实际API Key"
               }
-              onChange={(event) => setKey(event.target.value)}
             />
           </label>
-          <p className="muted">
-            连接供所有角色共用；位置分别保存。凭据仅提交到天枢服务端，不会回显。
-          </p>
-          <button
-            className="button"
-            disabled={saving || loading || !view?.can_manage}
-          >
-            保存连接
-          </button>
-        </form>
-        <form onSubmit={search} className="life-weather-search">
-          <label>
-            搜索城市或区县
+          <label className="inline-check">
             <input
-              value={query}
-              maxLength={100}
-              required
-              disabled={saving || !view?.can_manage}
-              placeholder="例如：上海、杭州西湖"
-              onChange={(event) => setQuery(event.target.value)}
+              name="enabled"
+              type="checkbox"
+              defaultChecked={row.enabled}
             />
+            启用天气
           </label>
-          <button
-            className="button"
-            disabled={
-              saving || !view?.can_manage || !view.configured || !query.trim()
-            }
-          >
-            <Search size={18} />
-            搜索位置
+          <label className="inline-check">
+            <input name="clear" type="checkbox" />
+            清除已存密钥
+          </label>
+          <button className="button primary" disabled={action.busy}>
+            保存天气连接
           </button>
+          <CommandFeedback {...action} />
         </form>
-        {view?.location && (
-          <p className="muted">
-            当前：{locationLabel(view.location)} · {view.location.tz}
-          </p>
-        )}
-        {formError && (
-          <p className="life-weather-warning" role="alert">
-            {formError}
-          </p>
-        )}
-        {notice && <p role="status">{notice}</p>}
-        {searched && locations.length === 0 && (
-          <p role="status">没有找到位置，请尝试城市名或经纬度。</p>
-        )}
-        <ul className="life-weather-results">
-          {locations.map((location) => (
-            <li key={location.id}>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => void choose(location)}
-              >
-                <strong>{locationLabel(location)}</strong>
-                <span>
-                  {location.country} · {location.adm1} · {location.tz}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-        <footer className="weather-settings-sources">
-          <div className="external-actions">
-            <a
-              href="https://www.qweather.com/"
-              target="_blank"
-              rel="noreferrer"
-            >
-              和风天气
-            </a>
-            <a
-              href="https://dev.qweather.com/docs/configuration/api-config/"
-              target="_blank"
-              rel="noreferrer"
-            >
-              查看天气接入说明 ↗
-            </a>
-            <button
-              type="button"
-              disabled={loading || saving}
-              onClick={() => void refresh()}
-            >
-              <RefreshCw size={14} aria-hidden="true" />
-              重新读取
-            </button>
-          </div>
-          {view?.weather?.attributions?.length ? (
-            <p className="muted">
-              数据归因：
-              {view.weather.attributions.map((source, index) => {
-                let url: URL | null = null;
-                try {
-                  const parsed = new URL(source);
-                  if (["https:", "http:"].includes(parsed.protocol))
-                    url = parsed;
-                } catch {
-                  /* A provider attribution may be a plain name. */
-                }
-                return (
-                  <span key={`${index}:${source}`}>
-                    {index > 0 && " · "}
-                    {url ? (
-                      <a href={url.href} target="_blank" rel="noreferrer">
-                        {url.hostname}
-                      </a>
-                    ) : (
-                      source
-                    )}
-                  </span>
-                );
-              })}
+      )}
+    </section>
+  );
+}
+
+export function WeatherLocationSettings({
+  state,
+  refresh,
+}: {
+  state: LifeState;
+  refresh: () => Promise<void>;
+}) {
+  const [query, setQuery] = useState("");
+  const search = useDomainResource<{ items: WeatherLocation[] }>(
+    "weather/search",
+    { query },
+    !!query,
+  );
+  const action = useDomainCommand("weather-location", "actor");
+  return (
+    <section className="panel">
+      <h3>角色的实际天气位置</h3>
+      <p>当前保存的位置编号：{state.weather_location ?? "尚未选择"}</p>
+      <form
+        className="domain-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          setQuery(
+            String(new FormData(event.currentTarget).get("query") ?? ""),
+          );
+        }}
+      >
+        <label>
+          城市或地区
+          <input name="query" required placeholder="例如：杭州、北京或城市ID" />
+        </label>
+        <button className="button" disabled={search.loading}>
+          查找实际位置
+        </button>
+      </form>
+      {search.error && <p role="alert">{search.error}</p>}
+      <div className="domain-grid">
+        {search.data?.items.map((item) => (
+          <article className="domain-record" key={item.id}>
+            <strong>{item.name}</strong>
+            <p>
+              {[item.country, item.adm1, item.adm2].filter(Boolean).join(" · ")}{" "}
+              · {item.tz}
             </p>
-          ) : null}
-        </footer>
+            <button
+              className="button"
+              disabled={action.busy}
+              onClick={() =>
+                void action
+                  .run(
+                    "life/room.save",
+                    { controls: {}, weather_location: item.id },
+                    state.revision,
+                  )
+                  .then((result) => {
+                    if (result) void refresh();
+                  })
+              }
+            >
+              使用这个位置
+            </button>
+          </article>
+        ))}
       </div>
-    </DetailCard>
+      {state.weather_location && (
+        <button
+          className="text-link"
+          disabled={action.busy}
+          onClick={() =>
+            void action
+              .run(
+                "life/room.save",
+                { controls: {}, weather_location: null },
+                state.revision,
+              )
+              .then((result) => {
+                if (result) void refresh();
+              })
+          }
+        >
+          解除天气位置
+        </button>
+      )}
+      <CommandFeedback {...action} />
+    </section>
   );
 }

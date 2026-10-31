@@ -47,3 +47,13 @@
 - 原命令监控保留提交时 actor/person/conversation，使用同一原 ID 只读查询；页面切换不改写原目标，不重发 mutation。目标同查询参数一起带到任务页。
 - useDomainResource 遇 401/403/404/410 或来源失效清缓存与编辑依赖，保留普通瞬时网络错误的重读入口。
 - 状态：implemented_not_tested；按用户要求未运行测试、typecheck、build 或浏览器。Life 全页面接线仍在后续提交中，不以本基础增量标整批完成。
+
+
+### CR18B 生活、日记与作品实际接线
+
+- LifePage 按真实 life/access 区分作者管理/生活读取/已发布读者。保留原生活总览、时段插画、书架与抽屉视觉，目标/活动编辑、暂停继续取消、衣柜原图上传及穿着、持续阅读范围与进度均接实际 Life/C 能力端点。目标、活动、衣柜、阅读、经历、作品、章节和发布账号/会话均可继续翻页。
+- 日记按本地日收集实际经历；作者正文修订、历史、取消/核对原模型、账号/会话发布；作品简介/提纲/人物、章节计划、真实生成、人工初稿/修订、审校与发布。读者仅使用后端独立发布投影，无生成材料。编辑持有原revision，冲突保留编辑，不自动套用新版本。
+- QWeather 真实连接配置、位置查询/角色绑定与天气读数；展示 fetched_at 与真实未知 observed_at，不伪造观测时刻。作息和普通联系节奏使用实际 routine/preferences。
+- SourceEvidence 按完整 locator 区分原文片段，使用实际字符 next_position；来源撤销/目标切换清当前视图/编辑依赖。
+- 仅运行既有 Prettier 对本次自己所有的 TS/TSX 源码格式化，未安装依赖，未运行测试、typecheck、build、浏览器。状态 implemented_not_tested。
+- 后续仍在完成：角色/人格/关系旧投影替换；Speech/Reactions/Images 完整配置与素材流程；Channels；Tasks/Skills/flow-graph；小屋控件持久保存与约定高级安排。A/C各自白名单页面另由其交付，不能据本提交宣称CR18整批完成。

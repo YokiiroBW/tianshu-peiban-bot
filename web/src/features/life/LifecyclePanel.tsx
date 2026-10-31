@@ -1,570 +1,551 @@
+import { useEffect, useState } from "react";
+import {
+  useDomainCommand,
+  useDomainResource,
+} from "../../api/useDomainResource";
+import type { Page } from "../../api/contracts";
+import { CommandFeedback } from "../../components/CommandFeedback";
+import { SourceEvidence } from "../../components/SourceEvidence";
 import { DetailCard } from "../../components/DetailCard";
-import { useState } from "react";
-import { useDraftId, useLifeAction, useLifeResource } from "./useLifeRuntime";
-import { ResourceFeedback, RuntimeFeedback } from "./RuntimeFeedback";
-import { showState, type LifeAccess } from "./runtimeApi";
-import type { activities_record, open_work_record } from "./runtimeTypes";
-import { showMood } from "./lifeLabels";
-import { LifeEvidence } from "./LifeEvidence";
-import { Target, Sun, Heart, ListTodo } from "lucide-react";
+import { SchemaFields } from "../plugins/SchemaFields";
+import type { JsonSchema } from "../plugins/types";
+import type { Activity, Goal } from "./domainTypes";
+import { activityLabels, timeLabel } from "./domainTypes";
 
-function time(value: number | null) {
-  return value !== null
-    ? new Date(value * 1000).toLocaleString("zh-CN")
-    : "未安排";
-}
-
-function localInputTime(value: number | null) {
-  if (value === null) return "";
-  const date = new Date(value * 1000);
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
-    .toISOString()
-    .slice(0, 16);
-}
-const certaintyNames = {
-  observed: "实际记录",
-  reported: "本人陈述",
-  inferred: "推测",
-  uncertain: "尚未确认",
+type Choice = {
+  definition: {
+    id: string;
+    title: string;
+    description: string;
+    input_schema: JsonSchema;
+    model_tool: { name: string } | null;
+  };
+  can_execute: boolean;
+  availability: { reason: string | null };
 };
-
-export function LifecyclePanel({ access }: { access: LifeAccess }) {
-  const state = useLifeResource(access, "state", { refreshMs: 15000 }),
-    affect = useLifeResource(access, "affect", { refreshMs: 15000 }),
-    autonomy = useLifeResource(access, "autonomy", { refreshMs: 15000 });
+export function LifecyclePanel({
+  canManage,
+  refreshState,
+}: {
+  canManage: boolean;
+  refreshState: () => Promise<void>;
+}) {
+  const [goalCursor, setGoalCursor] = useState<string | null>(null);
+  const [activityCursor, setActivityCursor] = useState<string | null>(null);
+  const goals = useDomainResource<Page<Goal>>(
+    "life/goals",
+    { cursor: goalCursor, limit: 40 },
+    true,
+    15000,
+  );
+  const activities = useDomainResource<Page<Activity>>(
+    "life/activities",
+    { cursor: activityCursor, limit: 40 },
+    true,
+    15000,
+  );
+  const [goal, setGoal] = useState<Goal | "new" | null>(null);
+  const [activity, setActivity] = useState<Activity | "new" | null>(null);
+  const action = useDomainCommand("activity-controls");
+  useEffect(() => {
+    if (goals.accessLost) setGoal(null);
+  }, [goals.accessLost]);
+  useEffect(() => {
+    if (activities.accessLost) setActivity(null);
+  }, [activities.accessLost]);
+  const reload = async () => {
+    await Promise.all([goals.refresh(), activities.refresh(), refreshState()]);
+  };
   return (
-    <div className="life-runtime-grid life-activity-overview">
-      <section className="panel life-goal-card">
-        <h3>
-          <Target aria-hidden="true" /> 当前自主目标
-        </h3>
-        <ResourceFeedback {...autonomy} empty={!autonomy.items.length} />
-        {autonomy.items.map((row) => (
-          <article key={row.id} className="life-record">
-            <header>
-              <strong>{row.title || "尚无已记录目标"}</strong>
-              <span className="status-pill">{showState(row.state)}</span>
-            </header>
-            <p>关注原因：{row.reason || "尚无已记录的选择原因"}</p>
-            <p>
-              {row.enabled ? "自主生活已启用" : "自主生活已停用"}
-              {row.step_state && ` · 执行步骤：${showState(row.step_state)}`}
-            </p>
-            {row.current_step && (
-              <p>
-                步骤 {row.current_step.step} ·{" "}
-                {row.current_step.note || "尚无步骤说明"}
-              </p>
-            )}
-            {row.error_code && (
-              <p role="status">当前执行反馈：{row.error_code}</p>
-            )}
+    <div className="domain-workspace">
+      <section className="life-card">
+        <div className="section-heading">
+          <div>
+            <h3>正在关心的目标</h3>
             <p className="muted">
-              下一步：{time(row.next_due_at)} · 更新：{time(row.updated_at)}
+              目标提供方向，实际完成仍取决于活动与执行结果。
             </p>
-            <LifeEvidence sources={row.sources} />
-          </article>
-        ))}
-        <button className="button" onClick={autonomy.refresh}>
-          刷新当前目标
-        </button>
-      </section>
-      <section className="panel life-now-card">
-        <h3>
-          <Sun aria-hidden="true" /> 此刻
-        </h3>
-        <ResourceFeedback {...state} empty={!state.items.length} />
-        {state.items.map((row) => (
-          <div key={row.actor_id}>
-            <p className="life-status-title">
-              {row.activity || "暂无已记录活动"}
-            </p>
-            <p>
-              心情：{showMood(row.mood)} · 时区：{row.timezone}
-            </p>
-            <small>最后更新：{time(row.changed_at)} · 虚构角色生活</small>
           </div>
-        ))}
-        <button className="button" onClick={state.refresh}>
-          刷新状态
-        </button>
+          {canManage && (
+            <button className="button" onClick={() => setGoal("new")}>
+              记下新目标
+            </button>
+          )}
+        </div>
+        {goals.error && <p role="alert">{goals.error}</p>}
+        <div className="domain-grid">
+          {goals.data?.items.map((item) => (
+            <article className="domain-record" key={item.id}>
+              <header>
+                <strong>{item.title}</strong>
+                <span className="badge">
+                  {(
+                    {
+                      active: "在意中",
+                      paused: "暂放一边",
+                      completed: "已完成",
+                      cancelled: "已取消",
+                    } as Record<string, string>
+                  )[item.state] ?? item.state}
+                </span>
+              </header>
+              <p>{item.motivation}</p>
+              {item.due_at && <small>计划时间：{timeLabel(item.due_at)}</small>}
+              <SourceEvidence sources={item.source_refs} />
+              {canManage && (
+                <button
+                  className="text-link"
+                  onClick={() => setGoal(structuredClone(item))}
+                >
+                  调整目标
+                </button>
+              )}
+            </article>
+          ))}
+        </div>
+        {goals.data && !goals.data.items.length && (
+          <p className="muted">
+            还没有单独记下目标，已配置的人格兴趣仍可成为生活动机。
+          </p>
+        )}
+        <div className="domain-actions">
+          {goalCursor && (
+            <button className="button" onClick={() => setGoalCursor(null)}>
+              回到首批目标
+            </button>
+          )}
+          {goals.data?.next_cursor && (
+            <button
+              className="button"
+              onClick={() => setGoalCursor(goals.data!.next_cursor)}
+            >
+              更多目标
+            </button>
+          )}
+        </div>
+        {goal && (
+          <GoalEditor
+            key={goal === "new" ? "new" : `${goal.id}:${goal.revision}`}
+            value={goal === "new" ? null : goal}
+            onClose={() => setGoal(null)}
+            onSaved={() => {
+              setGoal(null);
+              void reload();
+            }}
+          />
+        )}
       </section>
-      <section className="panel life-feeling-card">
-        <h3>
-          <Heart aria-hidden="true" /> 短期感受
-        </h3>
-        <ResourceFeedback {...affect} empty={!affect.items.length} />
-        {affect.items.map((row) => (
-          <div key={row.actor_id}>
-            <p>
-              {row.valence > 0.2
-                ? "心情明朗"
-                : row.valence < -0.2
-                  ? "需要一点空间"
-                  : "平静的此刻"}
-            </p>
-            <ul>
-              {row.feelings.map((item) => (
-                <li key={item.id}>
-                  {item.reason}{" "}
-                  <small>强度 {Math.round(item.intensity * 100)}%</small>
-                </li>
-              ))}
-            </ul>
-            <small>独立于关系分值 · 记录于 {time(row.observed_at)}</small>
+      <section className="life-card">
+        <div className="section-heading">
+          <div>
+            <h3>持续活动</h3>
+            <p className="muted">暂停保留进度；未知的原执行只核对原任务。</p>
           </div>
-        ))}
+          {canManage && (
+            <button className="button" onClick={() => setActivity("new")}>
+              安排活动
+            </button>
+          )}
+        </div>
+        {activities.error && <p role="alert">{activities.error}</p>}
+        <div className="domain-grid">
+          {activities.data?.items.map((item) => (
+            <article className="domain-record" key={item.id}>
+              <header>
+                <strong>{item.title}</strong>
+                <span className="badge">
+                  {activityLabels[item.state] ?? item.state}
+                </span>
+              </header>
+              <p>
+                {item.waiting_reason ??
+                  `${item.kind} · 已保存 ${item.checkpoint_step} 个步骤`}
+              </p>
+              {item.next_due_at && (
+                <p>下一时间：{timeLabel(item.next_due_at)}</p>
+              )}
+              {item.resume_condition && (
+                <p className="muted">继续条件：{item.resume_condition}</p>
+              )}
+              <SourceEvidence sources={item.source_refs} />
+              <div className="domain-actions">
+                {item.action_id && (
+                  <a
+                    className="text-link"
+                    href={`#/system/tasks?action=${encodeURIComponent(item.action_id)}`}
+                  >
+                    查看原任务
+                  </a>
+                )}
+                {canManage && (
+                  <>
+                    {item.state === "running" && (
+                      <button
+                        className="button"
+                        disabled={action.busy}
+                        onClick={() =>
+                          void action
+                            .run(
+                              "life/activities.pause",
+                              { id: item.id },
+                              item.revision,
+                            )
+                            .then(reload)
+                        }
+                      >
+                        暂停
+                      </button>
+                    )}
+                    {["planned", "paused", "dormant"].includes(item.state) &&
+                      item.waiting_reason !== "outcome_unknown" && (
+                        <button
+                          className="button"
+                          disabled={action.busy}
+                          onClick={() =>
+                            void action
+                              .run(
+                                "life/activities.resume",
+                                { id: item.id },
+                                item.revision,
+                              )
+                              .then(reload)
+                          }
+                        >
+                          {item.waiting_reason === "continuation_available"
+                            ? "从实际位置继续"
+                            : "开始或继续"}
+                        </button>
+                      )}
+                    {!["completed", "cancelled"].includes(item.state) && (
+                      <button
+                        className="button"
+                        disabled={action.busy}
+                        onClick={() =>
+                          void action
+                            .run(
+                              "life/activities.cancel",
+                              { id: item.id },
+                              item.revision,
+                            )
+                            .then(reload)
+                        }
+                      >
+                        取消后续活动
+                      </button>
+                    )}
+                    {!item.action_id &&
+                      !["completed", "cancelled"].includes(item.state) && (
+                        <button
+                          className="text-link"
+                          onClick={() => setActivity(structuredClone(item))}
+                        >
+                          编辑安排
+                        </button>
+                      )}
+                  </>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+        <CommandFeedback {...action} />
+        {activity && (
+          <ActivityEditor
+            key={
+              activity === "new" ? "new" : `${activity.id}:${activity.revision}`
+            }
+            value={activity === "new" ? null : activity}
+            goals={goals.data?.items ?? []}
+            onClose={() => setActivity(null)}
+            onSaved={() => {
+              setActivity(null);
+              void reload();
+            }}
+          />
+        )}
+        <div className="domain-actions">
+          {activityCursor && (
+            <button className="button" onClick={() => setActivityCursor(null)}>
+              回到首批活动
+            </button>
+          )}
+          {activities.data?.next_cursor && (
+            <button
+              className="button"
+              onClick={() => setActivityCursor(activities.data!.next_cursor)}
+            >
+              更多活动
+            </button>
+          )}
+        </div>
       </section>
-      <ActivityPanel access={access} />
-      <ConcernsPanel access={access} />
     </div>
   );
 }
 
-function ActivityPanel({ access }: { access: LifeAccess }) {
-  const records = useLifeResource(access, "activities"),
-    action = useLifeAction(access, records.refresh);
-  const draft = useDraftId("activity");
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [editing, setEditing] = useState<activities_record | null>(null),
-    [title, setTitle] = useState(""),
-    [note, setNote] = useState("");
-  const [state, setState] = useState<activities_record["state"]>("planned"),
-    [due, setDue] = useState(""),
-    [resume, setResume] = useState("");
-  function edit(row: activities_record) {
-    setEditing(row);
-    setTitle(row.title);
-    setNote(typeof row.checkpoint.note === "string" ? row.checkpoint.note : "");
-    setState(row.state);
-    setDue(localInputTime(row.next_due_at));
-    setResume(row.resume_condition || "");
-  }
-  function clearDraft() {
-    setEditing(null);
-    setEditorOpen(false);
-    setTitle("");
-    setNote("");
-    setDue("");
-    setResume("");
-    setState("planned");
-  }
-  async function save(event: React.FormEvent) {
-    event.preventDefault();
-    const result = await action.run(
-      "activity.save",
-      {
-        id: editing?.id || draft.id,
-        title,
-        state,
-        checkpoint: {
-          ...(editing?.checkpoint ?? { step: 0, position: 0, unit: "step" }),
-          note,
-        },
-        next_due_at: due ? new Date(due).getTime() / 1000 : state === "paused" ? Date.now() / 1000 + 60 : null,
-        resume_condition: resume || null,
-        sources: editing?.sources ?? [],
-        result_refs: editing?.result_refs ?? [],
-        scope: editing?.scope ?? null,
-      },
-      editing?.version ?? 0,
-    );
-    if (result && result.result.state !== "unknown") {
-      draft.reset();
-      clearDraft();
-    }
-  }
+function GoalEditor({
+  value,
+  onClose,
+  onSaved,
+}: {
+  value: Goal | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const action = useDomainCommand(`goal:${value?.id ?? "new"}`);
   return (
-    <section className="panel life-activities-card">
-      <div className="section-heading">
-        <h3>
-          <ListTodo aria-hidden="true" /> 活动与进度
-        </h3>
-        <button
-          className="button"
-          disabled={records.loading}
-          onClick={records.refresh}
-        >
-          刷新活动
-        </button>
-      </div>
-      <ResourceFeedback {...records} empty={!records.items.length} />
-      <div className="life-records">
-        {records.items.map((row) => (
-          <article className="life-record" key={row.id}>
-            <header>
-              <strong>{row.title}</strong>
-              <span className="status-pill">{showState(row.state)}</span>
-            </header>
-            <p>
-              进度：
-              {typeof row.checkpoint.note === "string"
-                ? row.checkpoint.note
-                : Object.entries(row.checkpoint)
-                    .map(([k, v]) => `${k}：${String(v)}`)
-                    .join("；") || "尚无"}
-            </p>
-            {row.resume_condition && <p>恢复条件：{row.resume_condition}</p>}
-            <p className="muted">
-              已记录步骤 {row.checkpoint.step} · 位置 {row.checkpoint.position}
+    <DetailCard title={value ? "调整目标" : "记下新目标"}>
+      <form
+        className="domain-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const form = new FormData(event.currentTarget);
+          void action
+            .run(
+              "life/goals.save",
               {
-                { step: "步", characters: "字符", seconds: "秒", pages: "页" }[
-                  row.checkpoint.unit
-                ]
-              }
-              {" · "}开始：{time(row.started_at)} · 更新：{time(row.updated_at)}
-            </p>
-            <LifeEvidence sources={row.sources} />
-            <small>
-              下一步：{time(row.next_due_at)} · 版本 {row.version}
-            </small>
-            <div className="life-action-row">
-              <button
-                className="button"
-                disabled={action.busy}
-                onClick={() => edit(row)}
-              >
-                编辑进度
-              </button>
-              {row.state === "running" && (
-                <button
-                  className="button"
-                  disabled={action.busy}
-                  onClick={() =>
-                    void action.run(
-                      "activity.pause",
-                      { id: row.id, reason: "用户暂停" },
-                      row.version,
-                    )
-                  }
-                >
-                  暂停
-                </button>
-              )}
-              {(row.state === "paused" || row.state === "dormant") && (
-                <button
-                  className="button"
-                  disabled={action.busy}
-                  onClick={() =>
-                    void action.run(
-                      "activity.resume",
-                      { id: row.id },
-                      row.version,
-                    )
-                  }
-                >
-                  恢复
-                </button>
-              )}
-              {!["completed", "cancelled"].includes(row.state) && (
-                <button
-                  className="button"
-                  disabled={action.busy}
-                  onClick={() =>
-                    void action.run(
-                      "activity.cancel",
-                      { id: row.id, reason: "用户结束活动" },
-                      row.version,
-                    )
-                  }
-                >
-                  结束活动
-                </button>
-              )}
-            </div>
-          </article>
-        ))}
-      </div>
-      {records.cursor && (
-        <button className="button" onClick={() => void records.more()}>
-          继续读取活动
-        </button>
-      )}
-      <DetailCard
-        title={editing ? "编辑活动" : "新增活动"}
-        open={editorOpen || !!editing}
-        onOpenChange={(open) => {
-          setEditorOpen(open);
-          if (!open) clearDraft();
+                ...(value ? { id: value.id, matter_id: value.matter_id } : {}),
+                title: form.get("title"),
+                motivation: form.get("motivation"),
+                priority: Number(form.get("priority")),
+                state: form.get("state"),
+                due_at: form.get("due_at")
+                  ? new Date(String(form.get("due_at"))).toISOString()
+                  : null,
+              },
+              value?.revision ?? null,
+            )
+            .then((result) => {
+              if (result) onSaved();
+            });
         }}
       >
-        <RuntimeFeedback {...action} />
-        <form className="life-form" onSubmit={save}>
-          <h4>{editing ? "编辑活动" : "安排活动"}</h4>
-          <label>
-            活动名称
-            <input
-              required
-              maxLength={4000}
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </label>
-          <label>
-            当前进度
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              maxLength={4000}
-            />
-          </label>
-          <div className="life-form-row">
-            <label>
-              状态
-              <select
-                value={state}
-                onChange={(e) =>
-                  setState(e.target.value as activities_record["state"])
-                }
-              >
-                {(state === "dormant" ? ["dormant"] : ["planned", "running", "paused", "completed"]).map((x) => (
-                  <option key={x} value={x}>
-                    {showState(x)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              下一步时间（本机时区）
-              <input
-                type="datetime-local"
-                value={due}
-                onChange={(e) => setDue(e.target.value)}
-              />
-            </label>
-          </div>
-          <label>
-            恢复条件
-            <input
-              maxLength={1000}
-              value={resume}
-              onChange={(e) => setResume(e.target.value)}
-            />
-          </label>
-          <div className="life-action-row">
-            <button className="button primary" disabled={action.busy}>
-              保存活动
-            </button>
-            {editing && (
-              <button type="button" className="button" onClick={clearDraft}>
-                取消编辑
-              </button>
-            )}
-          </div>
-        </form>
-      </DetailCard>
-      <RuntimeFeedback {...action} />
-    </section>
+        <label>
+          想做的事
+          <input
+            name="title"
+            defaultValue={value?.title ?? ""}
+            required
+            maxLength={1000}
+          />
+        </label>
+        <label>
+          为什么在意
+          <textarea
+            name="motivation"
+            defaultValue={value?.motivation ?? ""}
+            maxLength={4000}
+          />
+        </label>
+        <label>
+          状态
+          <select name="state" defaultValue={value?.state ?? "active"}>
+            <option value="active">在意中</option>
+            <option value="paused">暂放一边</option>
+            <option value="completed">已完成</option>
+            <option value="cancelled">已取消</option>
+          </select>
+        </label>
+        <label>
+          优先程度
+          <input
+            name="priority"
+            type="range"
+            min="0"
+            max="1"
+            step="0.1"
+            defaultValue={value?.priority ?? 0.5}
+          />
+        </label>
+        <label>
+          计划时间
+          <input
+            name="due_at"
+            type="datetime-local"
+            defaultValue={value?.due_at ? localInput(value.due_at) : ""}
+          />
+        </label>
+        <div className="domain-actions">
+          <button className="button primary" disabled={action.busy}>
+            保存目标
+          </button>
+          <button className="button" type="button" onClick={onClose}>
+            收起
+          </button>
+        </div>
+        <CommandFeedback {...action} />
+      </form>
+    </DetailCard>
   );
 }
 
-function ConcernsPanel({ access }: { access: LifeAccess }) {
-  const records = useLifeResource(access, "open_work"),
-    action = useLifeAction(access, records.refresh);
-  const draft = useDraftId("concern"),
-    fragmentDraft = useDraftId("fragment");
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [editing, setEditing] = useState<open_work_record | null>(null),
-    [title, setTitle] = useState(""),
-    [goal, setGoal] = useState(""),
-    [fragment, setFragment] = useState(""),
-    [due, setDue] = useState(""),
-    [expiry, setExpiry] = useState("");
-  function clearDraft() {
-    setEditing(null);
-    setEditorOpen(false);
-    setTitle("");
-    setGoal("");
-    setFragment("");
-    setDue("");
-    setExpiry("");
-  }
-
-  async function save(event: React.FormEvent) {
-    event.preventDefault();
-    const fragments =
-      editing?.fragments.map(({ version, valid, ...item }) => ({
-        ...item,
-        expected_revision: version,
-      })) ?? [];
-    if (fragment)
-      fragments.push({
-        id: fragmentDraft.id,
-        expected_revision: 0,
-        text: fragment,
-        sources: [],
-        expires_at: null,
-        certainty: "reported",
-      });
-    const result = await action.run(
-      "concern.save",
-      {
-        id: editing?.id || draft.id,
-        title,
-        goal,
-        state: editing?.state ?? "open",
-        scope: editing?.scope ?? null,
-        sources: editing?.sources ?? [],
-        fragments,
-        next_due_at: due ? new Date(due).getTime() / 1000 : null,
-        expires_at: expiry ? new Date(expiry).getTime() / 1000 : null,
-        result_refs: editing?.result_refs ?? [],
-      },
-      editing?.version ?? 0,
-    );
-    if (result && result.result.state !== "unknown") {
-      draft.reset();
-      fragmentDraft.reset();
-      clearDraft();
-    }
-  }
+function ActivityEditor({
+  value,
+  goals,
+  onClose,
+  onSaved,
+}: {
+  value: Activity | null;
+  goals: Goal[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const choices = useDomainResource<{ items: Choice[] }>(
+    "capabilities/discover",
+  );
+  const [capability, setCapability] = useState(
+    value?.checkpoint_data.capability_id ?? "",
+  );
+  const [argumentsValue, setArguments] = useState<Record<string, unknown>>(
+    value?.checkpoint_data.arguments ?? {},
+  );
+  const action = useDomainCommand(`activity:${value?.id ?? "new"}`);
+  const selected = choices.data?.items.find(
+    (choice) => choice.definition.id === capability,
+  );
   return (
-    <section className="panel">
-      <div className="section-heading">
-        <h3>近期关注与约定</h3>
-        <button
-          className="button"
-          disabled={records.loading}
-          onClick={records.refresh}
-        >
-          刷新关注
-        </button>
-      </div>
-      <ResourceFeedback {...records} empty={!records.items.length} />
-      {records.items.map((row) => (
-        <article key={row.id} className="life-record">
-          <header>
-            <strong>{row.title}</strong>
-            <span className="status-pill">{showState(row.state)}</span>
-          </header>
-          <p>关注目标：{row.goal}</p>
-          <p className="muted">
-            下一次跟进：{time(row.next_due_at)} · 有效至：{time(row.expires_at)}
-          </p>
-          <LifeEvidence sources={row.sources} />
-          {row.fragments
-            .filter((item) => item.valid)
-            .map((item) => (
-              <div key={item.id}>
-                <p>
-                  {item.text} <small>· {certaintyNames[item.certainty]}</small>
-                </p>
-                <LifeEvidence sources={item.sources} />
-              </div>
-            ))}
-          <small>
-            {row.intent_valid ? "当前意图有效" : "意图已失效"} · 版本{" "}
-            {row.version}
-          </small>
-          <div className="life-action-row">
-            <button
-              className="button"
-              onClick={() => {
-                setEditing(row);
-                setTitle(row.title);
-                setGoal(row.goal);
-                setFragment("");
-                setDue(localInputTime(row.next_due_at));
-                setExpiry(localInputTime(row.expires_at));
-              }}
-            >
-              继续记录
-            </button>
-            {row.state === "open" && (
-              <button
-                className="button"
-                disabled={action.busy}
-                onClick={() =>
-                  void action.run(
-                    "concern.close",
-                    { id: row.id, reason: "用户结束关注" },
-                    row.version,
-                  )
-                }
-              >
-                结束关注
-              </button>
-            )}
-          </div>
-        </article>
-      ))}
-      {records.cursor && (
-        <button className="button" onClick={() => void records.more()}>
-          继续读取事项
-        </button>
-      )}
-      <DetailCard
-        title={editing ? "编辑关注" : "新增关注"}
-        open={editorOpen || !!editing}
-        onOpenChange={(open) => {
-          setEditorOpen(open);
-          if (!open) clearDraft();
+    <DetailCard title="活动安排">
+      <form
+        className="domain-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const data = new FormData(event.currentTarget);
+          void action
+            .run(
+              "life/activities.save",
+              {
+                ...(value ? { id: value.id } : {}),
+                title: data.get("title"),
+                kind: capability
+                  ? data.get("kind")
+                  : data.get("fictional_kind"),
+                state: value?.state ?? "planned",
+                goal_id: data.get("goal_id") || null,
+                capability_id: capability || null,
+                arguments: capability ? argumentsValue : {},
+                next_due_at: data.get("due_at")
+                  ? new Date(String(data.get("due_at"))).toISOString()
+                  : null,
+                waiting_reason: value?.waiting_reason,
+                resume_condition: value?.resume_condition,
+              },
+              value?.revision ?? null,
+            )
+            .then((result) => {
+              if (result) onSaved();
+            });
         }}
       >
-        <RuntimeFeedback {...action} />
-        <form className="life-form" onSubmit={save}>
-          <h4>{editing ? "继续记录关注" : "增加关注"}</h4>
-          <label>
-            事项
-            <input
-              required
-              maxLength={4000}
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </label>
-          <label>
-            目标或约定
-            <textarea
-              required
-              maxLength={4000}
-              value={goal}
-              onChange={(e) => setGoal(e.target.value)}
-            />
-          </label>
-          <label>
-            本次进展
-            <textarea
-              maxLength={4000}
-              value={fragment}
-              onChange={(e) => setFragment(e.target.value)}
-            />
-          </label>
-          <div className="life-form-row">
+        <label>
+          活动名称
+          <input
+            name="title"
+            defaultValue={value?.title ?? ""}
+            required
+            maxLength={1000}
+          />
+        </label>
+        <label>
+          关联目标
+          <select name="goal_id" defaultValue={value?.goal_id ?? ""}>
+            <option value="">不关联单独目标</option>
+            {value?.goal_id &&
+              !goals.some((goal) => goal.id === value.goal_id) && (
+                <option value={value.goal_id}>
+                  当前关联目标 · {value.goal_id}
+                </option>
+              )}
+            {goals.map((goal) => (
+              <option key={goal.id} value={goal.id}>
+                {goal.title}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          实际能力
+          <select
+            value={capability}
+            onChange={(event) => {
+              setCapability(event.target.value);
+              setArguments({});
+            }}
+          >
+            <option value="">角色生活中的休息、反思或小屋活动</option>
+            {choices.data?.items
+              .filter(
+                (choice) => choice.can_execute && choice.definition.model_tool,
+              )
+              .map((choice) => (
+                <option key={choice.definition.id} value={choice.definition.id}>
+                  {choice.definition.title}
+                </option>
+              ))}
+          </select>
+        </label>
+        {choices.error && <p role="alert">{choices.error}</p>}
+        {capability ? (
+          <>
             <label>
-              下次跟进时间（本机时区）
+              活动类别
               <input
-                type="datetime-local"
-                value={due}
-                onChange={(event) => setDue(event.target.value)}
+                name="kind"
+                defaultValue={value?.kind ?? "software"}
+                required
               />
             </label>
-            <label>
-              关注有效期（本机时区）
-              <input
-                type="datetime-local"
-                value={expiry}
-                onChange={(event) => setExpiry(event.target.value)}
-              />
-            </label>
-          </div>
-          <button className="button primary" disabled={action.busy}>
-            保存关注
+            {selected && (
+              <>
+                <p className="muted">{selected.definition.description}</p>
+                <SchemaFields
+                  schema={selected.definition.input_schema}
+                  value={argumentsValue}
+                  onChange={(next) =>
+                    setArguments(next as Record<string, unknown>)
+                  }
+                />
+              </>
+            )}
+          </>
+        ) : (
+          <label>
+            角色活动
+            <select name="fictional_kind" defaultValue={value?.kind ?? "rest"}>
+              <option value="rest">休息</option>
+              <option value="reflection">想一想</option>
+              <option value="room">在小屋里</option>
+            </select>
+          </label>
+        )}
+        <label>
+          开始时间
+          <input
+            type="datetime-local"
+            name="due_at"
+            defaultValue={
+              value?.next_due_at ? localInput(value.next_due_at) : ""
+            }
+          />
+        </label>
+        <div className="domain-actions">
+          <button
+            className="button primary"
+            disabled={action.busy || (!!capability && !selected)}
+          >
+            保存活动
           </button>
-          {editing && (
-            <button
-              type="button"
-              className="button"
-              onClick={() => {
-                clearDraft();
-              }}
-            >
-              取消编辑
-            </button>
-          )}
-        </form>
-      </DetailCard>
-      <RuntimeFeedback {...action} />
-    </section>
+          <button className="button" type="button" onClick={onClose}>
+            收起
+          </button>
+        </div>
+        <CommandFeedback {...action} />
+      </form>
+    </DetailCard>
   );
+}
+export function localInput(value: string) {
+  const date = new Date(value);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 16);
 }
