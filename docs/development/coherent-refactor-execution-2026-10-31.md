@@ -55,3 +55,13 @@ CR18A 负责语义路由、统一 API/会话/状态基础和所有有效页面/�
 切换前固定新镜像、静态资源、配置及专属数据域清单，准备新空库和可启动初装材料，核对容量/鉴权/主机所有者。验证完成后先排空并停用旧天枢写者，清除明确旧天枢专属数据库/状态/队列/废弃入口，再启用新版本；最终只保留一个有效天枢运行入口。配置/凭据和外部账号若为新系统必需，仅按字段明确重建，不携带旧记忆或运行任务。
 
 清理不包括共享 PG 实例整体、Redis 整体、AssetLibrary、Chat Audit、独立 control-hub、AstrBot、QQ 账号、外部下载器/媒体库或未确认归属的挂载。生产当前已迁至 .230 的历史记录需活体核对；不能按旧 NAS 地址盲目重建。保留有效容量守护和权限约束，不执行全局 Docker prune。清理前解析路径/挂载/所有者，确保计算出的目标仍在明确边界；最终报告实际清理量和健康/关键业务证据。
+
+## 当前宿主与数据库落点核对
+
+本轮只读核验：.230 现只有 `tianshu-unified-tianshu-1` 为运行中的天枢应用入口，R67 镜像 `d45d1aeebfee`、37 个挂载、healthy；历史 resident/onebot/comics/observability 容器已停止。容量守护 active。.230 本地剩余约 31.5 GB；实际 NAS NFS 子挂载分别核验，不能用 `/mnt/tianshu-nas` 父目录的本地容量代替。
+
+当前五个旧模块共用 NAS `postgres-1` 的 PG 17.6、`xinghai` 库内 25 个 `ts_tianshu_*` schema，Redis DB 1、namespace `tianshu`。现有服务器没有可安装的 vector 扩展二进制；不能只执行 CREATE EXTENSION 假定可用，也不能因此恢复向量 JSON 双格式。
+
+新版拟用天枢专属 PostgreSQL/pgvector 服务，保留 NAS 既有共享 `postgres-1` 不重建。只读核验 `/volume2/Dockers/tianshu-core-postgres` 尚不存在、NAS本地卷约 361 GB 可用、Docker 未占用候选端口 25018；最终部署前仍核对主机监听与精确镜像摘要。应用仍为一个模块化天枢产品容器，PG 为明确的数据服务依赖。官方 [pgvector Docker 安装说明](https://github.com/pgvector/pgvector#docker) 当前列出 `0.8.7-pg17-bookworm`；执行者编写安装材料时按该固定版本并在发布时固定实际摘要。
+
+旧 PG 只删除经实际枚举和归属核实的天枢 schema，不删除整个共享实例。Redis 只删除明确 namespace 的旧键，不 FLUSHDB/FLUSHALL。漫画/音乐/电子书/既有媒体、AstrBot/QQ 和其他容器继续按原独立归属保留；专属旧缓存、队列、记忆和运行日志按清单清理。新数据库从空数据起步，原生迁移与新版本备份恢复随 CR20 交付。

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "goal_thread": "01a18df4-9275-7411-b48b-32fd86889108",
-  "state": "implementation_authorized",
+  "state": "implementing",
   "model": "gpt-6.1-sol",
   "reasoning_effort": "xhigh",
   "integration_root": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-unified-refactor\\tianshu-peiban-bot",
@@ -13,7 +13,8 @@
       "title": "产品装配与能力保留清单",
       "depends_on": [],
       "owner": "composition root",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "foundation_models"
     },
     {
       "id": "CR18A",
@@ -22,7 +23,8 @@
         "CR01"
       ],
       "owner": "web 基础",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "frontend"
     },
     {
       "id": "CR02",
@@ -31,7 +33,8 @@
         "CR01"
       ],
       "owner": "runtime 与各领域 repository",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "foundation_models"
     },
     {
       "id": "CR03",
@@ -40,7 +43,8 @@
         "CR02"
       ],
       "owner": "models",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "foundation_models"
     },
     {
       "id": "CR04",
@@ -118,7 +122,8 @@
         "CR05"
       ],
       "owner": "capabilities / capabilities.plugins",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "capabilities"
     },
     {
       "id": "CR04A",
@@ -152,7 +157,8 @@
         "CR12"
       ],
       "owner": "capabilities.speech",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "capabilities"
     },
     {
       "id": "CR13A",
@@ -164,7 +170,8 @@
         "CR13B"
       ],
       "owner": "capabilities.perception",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "capabilities"
     },
     {
       "id": "CR13C",
@@ -175,7 +182,8 @@
         "CR13A"
       ],
       "owner": "capabilities.reactions",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "capabilities"
     },
     {
       "id": "CR13",
@@ -199,7 +207,8 @@
         "CR13A"
       ],
       "owner": "capabilities.content / life",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "capabilities"
     },
     {
       "id": "CR15",
@@ -208,7 +217,8 @@
         "CR14"
       ],
       "owner": "capabilities.perception / memory",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "capabilities"
     },
     {
       "id": "CR16",
@@ -231,7 +241,8 @@
         "CR13A"
       ],
       "owner": "life / capabilities.images",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "capabilities"
     },
     {
       "id": "CR17B",
@@ -241,7 +252,8 @@
         "CR13"
       ],
       "owner": "capabilities.images",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "capabilities"
     },
     {
       "id": "CR17",
@@ -253,7 +265,8 @@
         "CR17B"
       ],
       "owner": "各能力模块",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "capabilities"
     },
     {
       "id": "CR18B",
@@ -266,7 +279,8 @@
         "CR16"
       ],
       "owner": "web 角色与认识",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "frontend"
     },
     {
       "id": "CR18C",
@@ -277,7 +291,8 @@
         "CR17"
       ],
       "owner": "web 内容与媒体",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "frontend"
     },
     {
       "id": "CR18D",
@@ -290,7 +305,8 @@
         "CR17"
       ],
       "owner": "web 设置与运维",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "frontend"
     },
     {
       "id": "CR18",
@@ -301,7 +317,8 @@
         "CR18D"
       ],
       "owner": "web 集成",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "frontend"
     },
     {
       "id": "CR19",
@@ -330,12 +347,77 @@
       "state": "planned"
     }
   ],
-  "agents": {},
-  "integration_commits": [],
+  "agents": {
+    "foundation_models": {
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "xhigh",
+      "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-cr-foundation\\tianshu-peiban-bot",
+      "branch": "codex/cr-foundation",
+      "cards": [
+        "CR01",
+        "CR02",
+        "CR03"
+      ],
+      "state": "implementing",
+      "boundary": "src/tianshu/runtime,models,types; backend manifest,composition,migration registry; tests/runtime,models"
+    },
+    "frontend": {
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "xhigh",
+      "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-cr-frontend\\tianshu-peiban-bot",
+      "branch": "codex/cr-frontend",
+      "cards": [
+        "CR18A",
+        "CR18B",
+        "CR18C",
+        "CR18D",
+        "CR18"
+      ],
+      "state": "implementing",
+      "boundary": "web/**; docs/handoffs/CR18-frontend.md"
+    },
+    "capabilities": {
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "xhigh",
+      "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-cr-capabilities\\tianshu-peiban-bot",
+      "branch": "codex/cr-capabilities",
+      "cards": [
+        "CR11",
+        "CR13A",
+        "CR13B",
+        "CR13C",
+        "CR14",
+        "CR15",
+        "CR17A",
+        "CR17B",
+        "CR17"
+      ],
+      "state": "implementing",
+      "boundary": "src/tianshu/capabilities/**,packages/tianshu-plugin/**,tests/capabilities/**; capability schema fragment"
+    }
+  },
+  "integration_commits": [
+    {
+      "source": "ec2fc7c27ca7d648a263f3d7f1d09138ad2ea70f",
+      "integrated": "0370ddc",
+      "scope": "early public types and native PG/API contract",
+      "validation": "source_review_only; full CR01-03 still implementing"
+    }
+  ],
   "validation": {
     "state": "not_started"
   },
   "deployment": {
-    "state": "not_started"
-  }
+    "state": "not_started",
+    "inventory": "read_only_verified",
+    "owner": "tianshu-unified-tianshu-1",
+    "owner_id": "f2e3cc2dde14e5bc77c266c36522c6d94edcea8ee75f6ae3593a2d0685ef97b5",
+    "image": "sha256:d45d1aeebfeea15673877ff88b807fa05fa26c856a6567debf7fce71fe224550",
+    "health": "healthy",
+    "container_count": 16,
+    "mount_count": 37,
+    "guard": "active",
+    "mutated": false
+  },
+  "planning_commit": "e034276dfb757b7dd64cd2f56e952d81193a5248"
 }
