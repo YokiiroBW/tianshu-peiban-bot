@@ -10,13 +10,23 @@ from uuid import uuid4
 
 from aiohttp import web
 
-from tianshu.types import Coverage, Receipt
+from tianshu.types import Coverage, Receipt, TrustedContext
 from .errors import AppError
 from .serialization import wire
 
 LOG = logging.getLogger(__name__)
 CSRF_HEADER = "X-CSRF-Token"
 API_PREFIX = "/api/v1"
+TRUSTED_CONTEXT = "trusted_context"
+
+
+def require_context(request, permission=None) -> TrustedContext:
+    context = request.get(TRUSTED_CONTEXT)
+    if not isinstance(context, TrustedContext):
+        raise AppError("unauthorized", status=401)
+    if permission and permission not in context.permissions:
+        raise AppError("forbidden", status=403)
+    return context
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,6 +42,7 @@ class SessionView:
     initialized: bool
     principal: PrincipalView | None
     csrf_token: str | None
+    setup_token_required: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,6 +86,10 @@ async def command_body(request: web.Request) -> Mapping[str, Any]:
 async def error_middleware(request, handler):
     request_id = str(uuid4())
     request["request_id"] = request_id
+    event_log = request.app.get("event_log")
+    started = __import__("time").monotonic()
+    if event_log and not request.path.startswith("/health/"):
+        await event_log.emit("http.started", "started", correlation_id=request_id)
     try:
         response = await handler(request)
     except AppError as exc:
@@ -91,4 +106,10 @@ async def error_middleware(request, handler):
         response = json_response({"error": {"code": "internal_error",
             "message": "请求未完成", "details": None, "request_id": request_id}}, status=500)
     response.headers["X-Request-Id"] = request_id
+    if event_log and not request.path.startswith("/health/"):
+        try:
+            await event_log.emit("http.finished", "succeeded" if response.status < 400 else "failed",
+                correlation_id=request_id, duration_ms=(__import__("time").monotonic()-started)*1000)
+        except AppError:
+            pass  # Never rewrite an already-committed business outcome because logging failed.
     return response
