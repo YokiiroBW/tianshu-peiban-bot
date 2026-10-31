@@ -64,8 +64,8 @@ class ConversationCollector:
             await self._run(connection, root_id, context.actor_id)
         return {"turn_id": root_id, "input_id": turn_id, "state": "collecting" if parent else state}
 
-    async def _run(self, connection, turn_id, actor_id):
-        await self.jobs.enqueue(connection, JobSpec("conversation.run", "turn:"+turn_id+":0", {"turn_id": turn_id}, ServiceClass.INTERACTIVE, subject_id=actor_id))
+    async def _run(self, connection, turn_id, actor_id, *, service_class=ServiceClass.INTERACTIVE):
+        await self.jobs.enqueue(connection, JobSpec("conversation.run", "turn:"+turn_id+":0", {"turn_id": turn_id}, service_class, subject_id=actor_id))
 
     async def _seal(self, connection, row):
         await connection.execute("UPDATE conversation.turns SET state='queued',deadline_at=now()+interval '15 minutes' WHERE turn_id=%s AND state='collecting'", (row["turn_id"],))

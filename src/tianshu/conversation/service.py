@@ -19,6 +19,7 @@ from .codec import (artifacts, context_from_record, document, input_parts, model
 from .persistence import lock_material_row
 from .types import CollectorPolicy, DialogueResult, ExpressionPlan, InputMessage
 from .collector import ConversationCollector
+from .participation import GroupParticipation
 
 
 class ConversationService:
@@ -29,6 +30,7 @@ class ConversationService:
         self.life, self.growth, self.assembler, self.models = life, growth, assembler, models
         self.catalog, self.actions, self.expression, self.contacts = catalog, actions, expression, contacts
         self.collector = ConversationCollector(database, jobs, policy)
+        self.participation = GroupParticipation(self)
 
     async def _prepare_input(self, context, message: InputMessage):
         await self.identity.check(context, message.source_refs)
@@ -55,10 +57,12 @@ class ConversationService:
 
     async def ingest(self, context, message: InputMessage):
         message, refs, turn_id, responding = await self._prepare_input(context, message)
+        prepared = await self.participation.prepare(context, message) if not responding else None
         async with self.database.transaction() as connection:
             if not await self.sources.validate_persistence(connection,context,refs):
                 raise AppError("source_unavailable",status=409)
             result = await self.collector.accept(connection, context, message, refs, turn_id, responding)
+            await self.participation.offer(connection, context, message, turn_id, prepared)
         await self._observe_turn(context, turn_id)
         return {**result,"source_refs":refs}
 
@@ -184,6 +188,11 @@ class ConversationService:
         conversation_refs = unique_refs(tuple(ref for ref in (
             *source_refs(row["source_refs"]), *(ref for item in recent.items for ref in source_refs(item["source_refs"])))))
         contributions += (ContextContribution("current_input_sources", "", source_refs(row["source_refs"]),context.scope_ids,100,True),)
+        if row.get("autonomous"):
+            contributions += (ContextContribution("group_participation_origin",
+                "This is the character's unsolicited contribution to a public group topic, not a direct human command. "
+                "Be brief, respect the current group audience, and do not invent a personal request or disclose private context.",
+                (), context.scope_ids, 100, True),)
         contributions += (ContextContribution("conversation_provenance", "近期消息和工具结果仍受各自原来源约束。",
             conversation_refs, context.scope_ids, 95, True),)
         messages = tuple(self._message(item["speaker"], item["parts"]) for item in reversed(recent.items))
@@ -197,7 +206,7 @@ class ConversationService:
         if tools:
             required.add("tools")
         required.update("vision" if part.kind == "image" else part.kind for message in pack.messages for part in message.parts if part.kind in {"image", "audio", "video"})
-        result = await self.models.generate(ModelRequest(row["turn_id"]+":"+str(row["round"]), attempt_id, "chat", ServiceClass.INTERACTIVE,
+        result = await self.models.generate(ModelRequest(row["turn_id"]+":"+str(row["round"]), attempt_id, "chat", ServiceClass.ELASTIC if row.get("autonomous") else ServiceClass.INTERACTIVE,
             context, budget, tuple(pack.messages), system=pack.system, tools=tuple(pack.tools), required_capabilities=frozenset(required),
             estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs), persona_revision=persona.revision if persona else None))
         result_parts = tuple(replace(part, call_id=part.call_id or f"call_r{row['round']}_p{index}")
@@ -318,13 +327,13 @@ class ConversationService:
                 raise AppError("original_action_unresolved", status=409, details={"action_id": unresolved["action_id"]})
             tool_name = definition.model_tool["name"] if definition.model_tool else "declared_command"
             await connection.execute("INSERT INTO conversation.tool_links(turn_id,call_id,action_id,capability_id,tool_name,provider_call_id,arguments_hash,background,state) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'queued') ON CONFLICT DO NOTHING", (row["turn_id"], call_id, action_id, definition.id, tool_name, provider_call_id, signature(arguments),definition.long_running))
-        current_input_refs=await self._input_refs(context,row["turn_id"])
+        current_input_refs=() if row.get("autonomous") else await self._input_refs(context,row["turn_id"])
         action = Action(action_id, f"turn:{row['turn_id']}:{call_id}", definition.id, context.actor_id, context,
             arguments, context.origin_kind, refs, expression_id="turn:"+row["turn_id"], deadline_at=row["deadline_at"],
             current_input_refs=current_input_refs)
         # Background work releases the dialogue lane; the persisted action owns its actual completion.
         result = receipt(await self.actions.invoke(action, background=definition.long_running,
-            service_class=ServiceClass.ELASTIC if definition.long_running else ServiceClass.INTERACTIVE))
+            service_class=ServiceClass.ELASTIC if definition.long_running or row.get("autonomous") else ServiceClass.INTERACTIVE))
         await self._tool_receipt(context, result)
 
     async def _command(self, context, row, choices):
@@ -419,7 +428,7 @@ class ConversationService:
                 await connection.execute("UPDATE conversation.turns SET state='failed',error_code='result_source_unavailable',continuation='[]',ordered_parts='[]',artifacts='[]' WHERE turn_id=%s",(turn_id,))
                 return
             await connection.execute("UPDATE conversation.turns SET state='queued',continuation=%s,ordered_parts=%s,artifacts=%s,source_refs=%s,round=%s WHERE turn_id=%s", (document(continuation), document(ordered), document(output_artifacts), document(merged_refs), next_round, turn_id))
-            await self.jobs.enqueue(connection, JobSpec("conversation.run", f"turn:{turn_id}:{next_round}", {"turn_id": turn_id}, ServiceClass.INTERACTIVE, subject_id=context.actor_id))
+            await self.jobs.enqueue(connection, JobSpec("conversation.run", f"turn:{turn_id}:{next_round}", {"turn_id": turn_id}, ServiceClass.ELASTIC if row.get("autonomous") else ServiceClass.INTERACTIVE, subject_id=context.actor_id))
 
     async def on_result(self, context, result, *, result_revision=None):
         result = receipt(result)
@@ -452,9 +461,9 @@ class ConversationService:
 
     async def _next(self, actor_id, conversation_id):
         async with self.database.transaction() as connection:
-            row = await (await connection.execute("SELECT turn_id,round FROM conversation.turns WHERE actor_id=%s AND conversation_id=%s AND state='queued' ORDER BY received_at LIMIT 1", (actor_id, conversation_id))).fetchone()
+            row = await (await connection.execute("SELECT turn_id,round,autonomous FROM conversation.turns WHERE actor_id=%s AND conversation_id=%s AND state='queued' ORDER BY received_at LIMIT 1", (actor_id, conversation_id))).fetchone()
             if row:
-                await self.jobs.enqueue(connection, JobSpec("conversation.run", f"turn-wake:{row['turn_id']}:{row['round']}:{uuid4()}", {"turn_id": row["turn_id"]}, ServiceClass.INTERACTIVE, subject_id=actor_id))
+                await self.jobs.enqueue(connection, JobSpec("conversation.run", f"turn-wake:{row['turn_id']}:{row['round']}:{uuid4()}", {"turn_id": row["turn_id"]}, ServiceClass.ELASTIC if row.get("autonomous") else ServiceClass.INTERACTIVE, subject_id=actor_id))
 
         await self.expression.wake(actor_id,conversation_id)
 

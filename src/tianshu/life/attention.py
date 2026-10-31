@@ -38,6 +38,16 @@ class AttentionPolicy:
         salience = candidate.get("payload", {}).get("salience")
         if salience is None or salience["score"] < salience["thresholds"]["engage"]:
             return AttentionDecision("archive", "kept_for_relevant_conversation")
+        decision = self.window(preferences, history, now=now)
+        if decision.decision != "send":
+            return decision
+        return AttentionDecision("send", "current_content_and_available_time", target_ref=candidate["target_ref"])
+
+    def window(self, preferences, history, *, now=None):
+        """One contact budget also gates unsolicited group participation."""
+        now = now or datetime.now(UTC)
+        if not preferences.get("enabled", True):
+            return AttentionDecision("archive", "contact_disabled")
         until = quiet_until(now, preferences["timezone"], preferences["quiet_start"], preferences["quiet_end"])
         if until:
             return AttentionDecision("defer", "quiet_hours", until)
@@ -55,4 +65,5 @@ class AttentionPolicy:
             next_time = history[0]["delivered_at"] + timedelta(seconds=preferences["cooldown_seconds"])
             if next_time > now:
                 return AttentionDecision("defer", "contact_spacing", next_time)
-        return AttentionDecision("send", "current_content_and_available_time", target_ref=candidate["target_ref"])
+        return AttentionDecision("send", "current_contact_window")
+

@@ -10,6 +10,10 @@ CREATE TABLE conversation.turns (
     producer text NOT NULL, event_id text NOT NULL, event_revision bigint NOT NULL,
     context jsonb NOT NULL, input_parts jsonb NOT NULL, source_refs jsonb NOT NULL,
     original_parts jsonb NOT NULL, original_source_refs jsonb NOT NULL,
+    autonomous boolean NOT NULL DEFAULT false,
+    participation_state text, participation_policy_revision bigint,
+    participation_checked_at timestamptz, participation_deadline timestamptz,
+    participation_cutoff bigint, participation_reason text,
     sequence bigint GENERATED ALWAYS AS IDENTITY,
     collector_key text, collection_revision bigint NOT NULL DEFAULT 1,
     collection_messages integer NOT NULL DEFAULT 1, collection_bytes integer NOT NULL DEFAULT 0,
@@ -64,3 +68,11 @@ CREATE TABLE conversation.expression_plans (
     receipt jsonb, reason text, deadline_at timestamptz NOT NULL,
     created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE TABLE conversation.group_participation (
+    actor_id text NOT NULL, conversation_id text NOT NULL,
+    enabled boolean NOT NULL DEFAULT false, revision bigint NOT NULL DEFAULT 1,
+    PRIMARY KEY(actor_id,conversation_id)
+);
+CREATE UNIQUE INDEX one_group_participation ON conversation.turns(actor_id,conversation_id)
+    WHERE participation_state IN ('waiting','evaluating');

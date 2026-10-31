@@ -15,7 +15,7 @@ class ConversationDependencies:
                 if not intersects(row["source_refs"],changes,kind):
                     continue
                 if table=="conversation.turns":
-                    await connection.execute("UPDATE conversation.turns SET input_parts='[]',original_parts='[]',model_parts='[]',model_native=NULL,continuation='[]',ordered_parts='[]',artifacts='[]',state=CASE WHEN state IN ('completed','cancelled') THEN state ELSE 'failed' END,error_code='source_unavailable',revision=revision+1 WHERE turn_id=%s",(row["turn_id"],))
+                    await connection.execute("UPDATE conversation.turns SET input_parts='[]',original_parts='[]',model_parts='[]',model_native=NULL,continuation='[]',ordered_parts='[]',artifacts='[]',state=CASE WHEN state IN ('completed','cancelled') THEN state ELSE 'failed' END,error_code='source_unavailable',participation_state=CASE WHEN participation_state IN ('waiting','evaluating','unknown') THEN 'invalidated' ELSE participation_state END,participation_reason='source_unavailable',revision=revision+1 WHERE turn_id=%s",(row["turn_id"],))
                     await connection.execute("UPDATE conversation.tool_links SET result=NULL WHERE turn_id=%s",(row["turn_id"],))
                 elif table=="conversation.messages":
                     await connection.execute("UPDATE conversation.messages SET parts='[]' WHERE id=%s",(row["id"],))
