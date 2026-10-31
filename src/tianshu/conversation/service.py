@@ -23,6 +23,10 @@ from .participation import GroupParticipation
 from .expression import expression_turn_state
 
 
+class TurnRejected(AppError):
+    """A definite local refusal or terminal receipt, never inferred transport failure."""
+
+
 class ConversationService:
     def __init__(self, database, commands, jobs, identity, sources, memory, companion,
                  life, growth, assembler, models, catalog, actions, expression, contacts, *, policy=CollectorPolicy()):
@@ -129,7 +133,7 @@ class ConversationService:
         expression = await self.expression.get(context, row["expression_id"]) if row["expression_id"] else None
         return DialogueResult(turn_id, row["state"], row["expression_id"], receipt(expression["receipt"]) if expression else None,
             tuple(expression["public_parts"]) if expression else (), tuple(item["action_id"] for item in links),
-            (row["model_attempt_id"],) if row["model_attempt_id"] else (), tuple(row["missing"]), row["revision"])
+            (row["model_attempt_id"],) if row["model_attempt_id"] else (), tuple(row["missing"]), row["revision"], row["error_code"])
 
     async def run(self, turn_id):
         async with self.database.transaction() as connection:
@@ -150,11 +154,14 @@ class ConversationService:
                 {"turn_id": turn_id, "attempt_id": attempt_id}, ServiceClass.INTERACTIVE, lease, row["actor_id"]))
         context = context_from_record(row["context"])
         try:
-            await self.identity.check(context, source_refs(row["source_refs"]))
-            actor = await self.companion.actor(context)
-            if not actor["enabled"]:
-                raise AppError("actor_disabled", status=409)
-            choices = await self.catalog.discover(context)
+            try:
+                await self.identity.check(context, source_refs(row["source_refs"]))
+                actor = await self.companion.actor(context)
+                if not actor["enabled"]:
+                    raise AppError("actor_disabled", status=409)
+                choices = await self.catalog.discover(context)
+            except AppError as error:
+                raise TurnRejected(error.code, error.message, status=error.status, details=error.details) from error
             if row["command"] and row["round"] == 0:
                 await self._command(context, row, choices)
             else:
@@ -163,7 +170,7 @@ class ConversationService:
             if isinstance(error, asyncio.CancelledError):
                 await self.models.cancel(attempt_id)
             code = getattr(error, "code", "turn_outcome_unknown")
-            known = isinstance(error, AppError) and code in {"actor_disabled", "forbidden", "source_unavailable", "deadline_exceeded", "capability_unavailable", "command_unknown"}
+            known = isinstance(error, TurnRejected)
             async with self.database.transaction() as connection:
                 await connection.execute("UPDATE conversation.turns SET state=%s,error_code=%s,completed_at=now() WHERE turn_id=%s AND state='running'", ("failed" if known else "unknown", code, turn_id))
             if isinstance(error, asyncio.CancelledError):
@@ -171,7 +178,7 @@ class ConversationService:
         finally:
             await self._next(row["actor_id"], row["conversation_id"])
 
-    async def _model_turn(self, context, row, attempt_id, choices):
+    async def _prepare_model_request(self, context, row, attempt_id, choices):
         actor = await self.companion.actor(context)
         persona = await self.companion.persona(context, actor["persona_id"], actor["persona_revision"]) if actor["persona_id"] else None
         state = await self.life.state(context)
@@ -200,6 +207,8 @@ class ConversationService:
         continuation = tuple(self._message(item["role"], item["parts"], item.get("native", {})) for item in row["continuation"])
         tools, tool_map = self._tools(choices)
         budget = RequestBudget(row["deadline_at"])
+        if budget.remaining() <= 0:
+            raise AppError("deadline_exceeded", status=408)
         pack = await self.assembler.assemble(context, "chat", "\n".join(part.text for part in input_parts(row["input_parts"]) if part.text), budget,
             persona_text=persona.prompt_text if persona else "", recent_messages=messages+continuation,
             tools=tools, contributions=contributions)
@@ -207,22 +216,52 @@ class ConversationService:
         if tools:
             required.add("tools")
         required.update("vision" if part.kind == "image" else part.kind for message in pack.messages for part in message.parts if part.kind in {"image", "audio", "video"})
-        result = await self.models.generate(ModelRequest(row["turn_id"]+":"+str(row["round"]), attempt_id, "chat", ServiceClass.ELASTIC if row.get("autonomous") else ServiceClass.INTERACTIVE,
+        if budget.remaining() <= 0:
+            raise AppError("deadline_exceeded", status=408)
+        request = ModelRequest(row["turn_id"]+":"+str(row["round"]), attempt_id, "chat", ServiceClass.ELASTIC if row.get("autonomous") else ServiceClass.INTERACTIVE,
             context, budget, tuple(pack.messages), system=pack.system, tools=tuple(pack.tools), required_capabilities=frozenset(required),
-            estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs), persona_revision=persona.revision if persona else None))
+            estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs), persona_revision=persona.revision if persona else None)
+        return request, pack, tool_map
+
+    async def _model_turn(self, context, row, attempt_id, choices):
+        try:
+            request, pack, tool_map = await self._prepare_model_request(context, row, attempt_id, choices)
+        except AppError as error:
+            # This boundary has not called ModelClient.generate or admitted this attempt.
+            raise TurnRejected(error.code, error.message, status=error.status, details=error.details) from error
+        try:
+            result = await self.models.generate(request)
+        except Exception:
+            # An RPC can still arrive late even when a read currently finds no attempt.
+            # Only an actual terminal receipt settles that uncertainty; never resubmit.
+            original = None
+            try:
+                original = await self.models.result(attempt_id, context=context)
+            except Exception:
+                pass
+            if original is None or original.receipt.status not in {"succeeded", "failed", "cancelled"}:
+                raise
+            result = original
         result_parts = tuple(replace(part, call_id=part.call_id or f"call_r{row['round']}_p{index}")
             if part.kind == "tool_call" else part for index, part in enumerate(result.parts))
-        await self.identity.check(context, tuple(pack.source_refs))
-        async with self.database.transaction() as connection:
-            fresh = await lock_material_row(connection,self.sources,context,"SELECT * FROM conversation.turns WHERE turn_id=%s FOR UPDATE",(row["turn_id"],),additional_refs=tuple(pack.source_refs))
-            if fresh["state"] != "running":
-                return
-            if result.receipt.error_code == "result_source_unavailable" or not await self.sources.validate_persistence(connection,context,tuple(pack.source_refs)):
-                await connection.execute("UPDATE conversation.turns SET state='failed',error_code='result_source_unavailable',model_parts='[]',model_native=NULL,continuation='[]',ordered_parts='[]',completed_at=now() WHERE turn_id=%s",(row["turn_id"],))
-                return
-            await connection.execute("UPDATE conversation.turns SET model_parts=%s,model_native=%s,source_refs=%s,missing=%s WHERE turn_id=%s", (document(result_parts), document(result.native_response), document(pack.source_refs), list(pack.missing), row["turn_id"]))
+        try:
+            await self.identity.check(context, tuple(pack.source_refs))
+            async with self.database.transaction() as connection:
+                fresh = await lock_material_row(connection,self.sources,context,"SELECT * FROM conversation.turns WHERE turn_id=%s FOR UPDATE",(row["turn_id"],),additional_refs=tuple(pack.source_refs))
+                if fresh["state"] != "running":
+                    return
+                if result.receipt.error_code == "result_source_unavailable" or not await self.sources.validate_persistence(connection,context,tuple(pack.source_refs)):
+                    await connection.execute("UPDATE conversation.turns SET state='failed',error_code='result_source_unavailable',model_parts='[]',model_native=NULL,continuation='[]',ordered_parts='[]',completed_at=now() WHERE turn_id=%s",(row["turn_id"],))
+                    return
+                await connection.execute("UPDATE conversation.turns SET model_parts=%s,model_native=%s,source_refs=%s,missing=%s WHERE turn_id=%s", (document(result_parts), document(result.native_response), document(pack.source_refs), list(pack.missing), row["turn_id"]))
+        except AppError as error:
+            # A local refusal to persist does not change the model's actual execution receipt.
+            raise TurnRejected(error.code, error.message, status=error.status, details=error.details) from error
         if result.receipt.status != "succeeded":
-            raise AppError(result.receipt.error_code or "model_outcome_unknown", details={"attempt_id": result.receipt.attempt_id, "dispatch": result.receipt.dispatch})
+            error_type = TurnRejected if result.receipt.status in {"failed", "cancelled"} else AppError
+            raise error_type(result.receipt.error_code or "model_"+result.receipt.status,
+                             details={"attempt_id": result.receipt.attempt_id,
+                                      "status": result.receipt.status, "dispatch": result.receipt.dispatch})
         calls = tuple(part for part in result_parts if part.kind == "tool_call")
         ordered = list(row["ordered_parts"])
         for index, part in enumerate(result_parts):
@@ -236,7 +275,7 @@ class ConversationService:
                 ordered.append({"kind": part.kind, "media": wire(part.media)})
         async with self.database.transaction() as connection:
             if not await self.sources.validate_persistence(connection,context,tuple(pack.source_refs)):
-                raise AppError("source_unavailable",status=409)
+                raise TurnRejected("source_unavailable",status=409)
             await connection.execute("UPDATE conversation.turns SET ordered_parts=%s,tool_dispatch_complete=false WHERE turn_id=%s AND state='running'", (document(ordered), row["turn_id"]))
         if calls:
             if row["round"] >= 8 or len(calls)>8:
@@ -244,14 +283,14 @@ class ConversationService:
             continuation = list(row["continuation"])+[{"role": "assistant", "parts": wire(result_parts)}]
             async with self.database.transaction() as connection:
                 if not await self.sources.validate_persistence(connection,context,tuple(pack.source_refs)):
-                    raise AppError("source_unavailable",status=409)
+                    raise TurnRejected("source_unavailable",status=409)
                 await connection.execute("UPDATE conversation.turns SET continuation=%s WHERE turn_id=%s AND state='running'", (document(continuation), row["turn_id"]))
             for index, call in enumerate(result_parts):
                 if call.kind != "tool_call":
                     continue
                 definition = tool_map.get(call.name)
                 if not definition:
-                    raise AppError("capability_unavailable", status=409)
+                    raise TurnRejected("capability_unavailable", status=409)
                 await self._invoke(context, row, call.call_id or f"round:{row['round']}:{index}", definition, call.arguments or {}, tuple(pack.source_refs))
             async with self.database.transaction() as connection:
                 await connection.execute("UPDATE conversation.turns SET tool_dispatch_complete=true WHERE turn_id=%s", (row["turn_id"],))
@@ -326,7 +365,7 @@ class ConversationService:
         action_id = str(uuid5(NAMESPACE_URL, f"tool:{row['turn_id']}:{call_id}"))
         async with self.database.transaction() as connection:
             if not await self.sources.validate_persistence(connection,context,refs):
-                raise AppError("source_unavailable",status=409)
+                raise TurnRejected("source_unavailable",status=409)
             unresolved = await (await connection.execute("SELECT action_id FROM conversation.tool_links WHERE turn_id=%s AND capability_id=%s AND arguments_hash=%s AND state='unknown'", (row["turn_id"], definition.id, signature(arguments)))).fetchone()
             if unresolved:
                 raise AppError("original_action_unresolved", status=409, details={"action_id": unresolved["action_id"]})
@@ -346,15 +385,15 @@ class ConversationService:
         definition = next((choice["definition"] for choice in choices if choice["can_execute"] and choice["definition"].public_command
             and name in {choice["definition"].public_command["name"], *choice["definition"].public_command.get("aliases", ())}), None)
         if not definition:
-            raise AppError("command_unknown", status=404)
+            raise TurnRejected("command_unknown", status=404)
         try:
             arguments = json.loads(raw) if raw else {}
         except ValueError:
-            raise AppError("command_arguments_invalid") from None
+            raise TurnRejected("command_arguments_invalid") from None
         tool_name = definition.model_tool["name"] if definition.model_tool else "declared_command"
         async with self.database.transaction() as connection:
             if not await self.sources.validate_persistence(connection,context,source_refs(row["source_refs"])):
-                raise AppError("source_unavailable",status=409)
+                raise TurnRejected("source_unavailable",status=409)
             continuation = list(row["continuation"])+[{"role": "assistant", "parts": [wire(ModelPart("tool_call", call_id="command", name=tool_name, arguments=arguments))]}]
             await connection.execute("UPDATE conversation.turns SET continuation=%s,ordered_parts=%s,tool_dispatch_complete=false WHERE turn_id=%s", (document(continuation), document([{"kind": "tool_slot", "call_id": "0:command"}]), row["turn_id"]))
         await self._invoke(context, row, "command", definition, arguments, source_refs(row["source_refs"]))

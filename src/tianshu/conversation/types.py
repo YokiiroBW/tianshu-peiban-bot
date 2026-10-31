@@ -69,6 +69,7 @@ class DialogueResult:
     model_attempt_ids: tuple[str, ...] = ()
     missing: tuple[str, ...] = ()
     revision: int = 1
+    error_code: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

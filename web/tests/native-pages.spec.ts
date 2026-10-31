@@ -10,6 +10,51 @@ import {
 
 test.beforeEach(async ({ page }) => nativeSession(page));
 
+test("chat presents a rejected turn's context budget reason without resubmitting", async ({
+  page,
+}) => {
+  let submissions = 0;
+  await page.route("**/api/v1/conversation/messages**", (route) =>
+    answer(route, {
+      items: [],
+      next_cursor: null,
+      coverage: { complete: true, missing: [] },
+    }),
+  );
+  await page.route("**/api/v1/conversation/send**", async (route) => {
+    submissions += 1;
+    await answer(
+      route,
+      command(route.request().postDataJSON(), {
+        turn_id: "rejected-turn",
+        state: "queued",
+      }),
+    );
+  });
+  await page.route("**/api/v1/conversation/turn**", (route) =>
+    answer(route, {
+      turn_id: "rejected-turn",
+      state: "failed",
+      revision: 1,
+      receipt: null,
+      missing: [],
+      action_ids: [],
+      expression_id: null,
+      error_code: "context_mandatory_budget_exceeded",
+    }),
+  );
+  await page.goto("/#/roles/chat");
+  await page
+    .getByRole("textbox", { name: "说点什么", exact: true })
+    .fill("请看看这一段");
+  await page.getByRole("button", { name: "发送", exact: true }).click();
+  await expect(page.getByText("本轮未完成", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "本轮必要内容超出上下文预算。" }),
+  ).toBeVisible();
+  expect(submissions).toBe(1);
+});
+
 test("life summaries show recorded feelings without exposing expression guidance", async ({
   page,
 }) => {

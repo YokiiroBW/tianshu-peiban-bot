@@ -36,6 +36,7 @@ type Turn = {
   missing: string[];
   action_ids: string[];
   expression_id: string | null;
+  error_code: string | null;
 };
 const active = new Set([
   "collecting",
@@ -54,6 +55,17 @@ const labels: Record<string, string> = {
   failed: "本轮未完成",
   unknown: "原结果尚未确认",
   cancelled: "已停止本轮等待，外部效果以回执为准",
+};
+const turnErrors: Record<string, string> = {
+  context_mandatory_budget_exceeded:
+    "本轮必要内容超出上下文预算。请缩短输入或减少附件。",
+  invalid_context_input: "本轮输入无法组成有效上下文。",
+  invalid_context_budget: "当前上下文预算配置无效。",
+  context_source_unavailable: "本轮上下文中的来源已不可用。",
+  source_unavailable: "本轮所需的原文依据已不可用。",
+  deadline_exceeded: "本轮已超过等待时限。",
+  forbidden: "当前会话权限不允许继续本轮。",
+  actor_disabled: "当前角色已停用。",
 };
 
 export function DialoguePanel({
@@ -264,6 +276,7 @@ function TurnStatus({
     (turn) => active.has(turn.state),
   );
   const action = useDomainCommand(turnId);
+  const reason = view.data?.error_code ?? view.data?.receipt?.error_code;
   return (
     <div className="chat-turn-status">
       <p>
@@ -275,7 +288,7 @@ function TurnStatus({
       {view.data?.missing.length ? (
         <p className="muted">本轮缺少：{view.data.missing.join("、")}</p>
       ) : null}
-      {view.data?.receipt?.error_code && <p>{view.data.receipt.error_code}</p>}
+      {reason && <p role="alert">{turnErrors[reason] ?? reason}</p>}
       {view.data && active.has(view.data.state) && (
         <button
           className="text-link"
