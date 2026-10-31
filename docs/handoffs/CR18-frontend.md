@@ -78,3 +78,7 @@
 ## Speech真实用例收口
 
 状态 implemented_not_tested。音色查询改为真实Action并保留分页；克隆与转写通过受控multipart上传，传canonical媒体，消费recordings与transcript正式字段。Plus连接带真实redirect_uri并在官方OAuth返回后显式完成授权，成功后清URL临时code/state。连接配置使用global，声线配置actor-only，试听/转写保持当前实际scene；声线试听带profile_revision，speed/tone与实际合成器一致。词典支持供应商ID/版本，校验行格式，不把未知用量或余额写成零。未执行测试/typecheck/build/浏览器；只有源码与已有Prettier格式化。
+
+## 图像与表情真实用例收口
+
+状态 implemented_not_tested。Images实际保存endpoint/account_id/quota_group/reference_mode/原生参数；角色参考走multipart受控产物，默认profile以actor ID保存。明确分享采用requested_delivery+真实conversation目标；预览保留场景修订/来源，生成只读查原Action控制，不用空revision冒充CAS。衣柜选择直接分页读life/outfits，本次场景支持outfit_id且不改当前衣着。ComfyUI工作流用graph/bindings/outputs正式合同，候选来自C唯一workflows.inspect规则，保留节点语义、追加/替换、数值边界及输出选择。Reactions按ReactionIntent实际选图，原件/ZIP采用受控媒体，真实单产物导出、逐项标注、图包/素材启停和每项CAS批量编辑。旧pack_id读取过滤假设已移除：图库分页真实读取后按所选图包展示，并明确未读页未知。仅读源码/diff与已有Prettier格式化，未运行测试/typecheck/build/浏览器。依赖C正式workflows.inspect和Images.scene outfit参数增量。
