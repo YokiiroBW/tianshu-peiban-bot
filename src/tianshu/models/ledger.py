@@ -17,6 +17,11 @@ def digest(value):
                                      separators=(",", ":")).encode()).hexdigest()
 
 
+def context_fingerprint(context):
+    return digest({key: getattr(context, key) for key in
+        ("actor_id", "person_id", "conversation_id", "scope_ids", "audience", "conversation_kind")})
+
+
 def receipt(row):
     usage = row.get("usage") or {}
     return ModelReceipt(
@@ -40,16 +45,16 @@ class AttemptLedger:
                 "INSERT INTO models.attempts(attempt_id,intent_id,principal_id,actor_id,"
                 "conversation_id,function,service_class,route_id,route_revision,provider_id,"
                 "model,protocol,quota_group,request_digest,status,dispatch,deadline_at,"
-                "estimated_tokens,estimated_units,charged_units,broker_instance,billing_account,source_refs) "
+                "estimated_tokens,estimated_units,charged_units,broker_instance,billing_account,source_refs,context_fingerprint,persona_revision) "
                 "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'queued','not_started',"
-                "%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING RETURNING *",
+                "%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING RETURNING *",
                 (request.attempt_id, request.intent_id, request.context.principal_id,
                  request.context.actor_id, request.context.conversation_id, request.function,
                  request.service_class.value, plan.route_id, plan.revision, plan.provider_id,
                  plan.model, plan.protocol, plan.quota_group, request_hash,
                  request.budget.deadline_at, units.get("tokens"), Jsonb(dict(units)),
                  Jsonb(dict(units)), self.instance_id, getattr(request, "billing_account", None),
-                 Jsonb(wire(request.source_refs))))
+                 Jsonb(wire(request.source_refs)), context_fingerprint(request.context), getattr(request, "persona_revision", None)))
             row = await cursor.fetchone()
             if row:
                 cancelled = await (await conn.execute("SELECT 1 FROM models.cancellations "
@@ -95,19 +100,25 @@ class AttemptLedger:
                 "WHERE attempt_id=%s", (provider_handle, first_output_ms, attempt_id))
 
     async def finish(self, attempt_id, status, *, usage=None, result=None, error_code=None,
-                     charged_units=None, provider_handle=None):
+                     charged_units=None, provider_handle=None, validate_result=None):
         async with self.database.transaction(control=True) as conn:
+            if result is not None and validate_result is not None and not await validate_result(conn):
+                result = None
+                error_code = error_code or "result_source_unavailable"
             cursor = await conn.execute(
                 "UPDATE models.attempts SET status=%s,dispatch=CASE WHEN %s='unknown' "
                 "THEN 'unknown' ELSE dispatch END,finished_at=now(),usage=%s,result=%s,error_code=%s,"
                 "provider_handle=COALESCE(%s,provider_handle),charged_units=COALESCE(%s,charged_units),"
                 "charged_tokens=COALESCE(%s,charged_tokens),revision=revision+1 "
-                "WHERE attempt_id=%s RETURNING *",
+                "WHERE attempt_id=%s AND status NOT IN ('succeeded','failed','cancelled') RETURNING *",
                 (status, status, Jsonb(wire(usage)) if usage is not None else None,
                  Jsonb(wire(result)) if result is not None else None, error_code, provider_handle,
                  Jsonb(dict(charged_units)) if charged_units is not None else None,
                  charged_units.get("tokens") if charged_units else None, attempt_id))
-            return await cursor.fetchone()
+            row = await cursor.fetchone()
+            if row is None:
+                row = await (await conn.execute("SELECT * FROM models.attempts WHERE attempt_id=%s", (attempt_id,))).fetchone()
+            return row
 
     async def request_cancel(self, attempt_id):
         async with self.database.transaction(control=True) as conn:
@@ -132,6 +143,17 @@ class AttemptLedger:
 
 async def purge_source_results(connection, source_ref):
     """Source owner calls this in its forgetting transaction, through the models port."""
-    await connection.execute("UPDATE models.attempts SET result=NULL,revision=revision+1 "
-        "WHERE source_refs @> %s", (Jsonb([{"source_id": source_ref.source_id,
-                                            "revision": source_ref.revision}]),))
+    await purge_source_results_many(connection, (source_ref,))
+
+
+async def purge_source_results_many(connection, source_refs):
+    if not source_refs:
+        return
+    rows = await (await connection.execute("SELECT a.attempt_id FROM models.attempts a WHERE a.attempt_id IN ("
+        "SELECT c.attempt_id FROM unnest(%s::text[],%s::bigint[]) s(source_id,revision) JOIN models.attempts c "
+        "ON c.source_refs @> jsonb_build_array(jsonb_build_object('source_id',s.source_id,'revision',s.revision))) "
+        "ORDER BY a.attempt_id FOR UPDATE", ([ref.source_id for ref in source_refs],
+                                            [ref.revision for ref in source_refs]))).fetchall()
+    if rows:
+        await connection.execute("UPDATE models.attempts SET result=NULL,revision=revision+1 WHERE attempt_id=ANY(%s)",
+                                  ([row["attempt_id"] for row in rows],))

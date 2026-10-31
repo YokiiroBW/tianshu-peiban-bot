@@ -77,7 +77,7 @@ class JobQueue:
     def enqueue_sync(self, connection, spec: JobSpec) -> int:
         if spec.task not in self.sync_tasks:
             raise AppError("task_not_registered", status=503)
-        if spec.service_class not in {ServiceClass.DUE, ServiceClass.ELASTIC}:
+        if spec.service_class not in {ServiceClass.INTERACTIVE, ServiceClass.DUE, ServiceClass.ELASTIC}:
             raise AppError("invalid_persistent_job_class")
         inserted = connection.execute(
             "INSERT INTO runtime.job_keys(key,task,subject_id,matter_id) VALUES (%s,%s,%s,%s) "
@@ -100,7 +100,7 @@ class JobQueue:
     async def enqueue(self, connection, spec: JobSpec) -> int:
         if spec.task not in self.tasks:
             raise AppError("task_not_registered", status=503)
-        if spec.service_class not in {ServiceClass.DUE, ServiceClass.ELASTIC}:
+        if spec.service_class not in {ServiceClass.INTERACTIVE, ServiceClass.DUE, ServiceClass.ELASTIC}:
             raise AppError("invalid_persistent_job_class")
         cursor = await connection.execute(
             "INSERT INTO runtime.job_keys(key,task,subject_id,matter_id) VALUES (%s,%s,%s,%s) "

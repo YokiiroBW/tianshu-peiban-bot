@@ -90,7 +90,7 @@ class ModelCatalog:
     async def resolve(self, request: ModelRequest) -> RoutePlan:
         if request.function not in FUNCTIONS:
             raise AppError("unknown_model_function")
-        if (type(request.max_output_tokens) is not int or request.max_output_tokens < 1
+        if (type(request.max_output_tokens) is not int or request.max_output_tokens < (0 if request.function in {"embed", "rerank"} else 1)
                 or request.max_output_tokens > 2**31-1 or request.max_queue_wait <= 0):
             raise AppError("invalid_model_budget")
         async with self.database.transaction(request.budget, read_only=True) as conn:

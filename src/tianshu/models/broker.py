@@ -21,7 +21,7 @@ from tianshu.runtime.serialization import wire
 from tianshu.types import ServiceClass, SourceRef
 from .catalog import ModelCatalog, RoutePlan
 from .codec import result_from_wire
-from .ledger import AttemptLedger, digest, receipt
+from .ledger import AttemptLedger, context_fingerprint, digest, receipt
 from .protocols import NativeCompiler, ResponseCollector, normalize_usage, requested_capabilities
 from .scheduler import QuotaScheduler
 from .types import ModelEvent, ModelResult, ModelUsage
@@ -32,7 +32,8 @@ MAX_SSE_EVENT_BYTES = 2 * 1024 * 1024
 
 class ModelBroker:
     def __init__(self, database, files, secrets, *, http_connections=32, events=None,
-                 validate_submission=None, credential_store=None):
+                 validate_submission=None, validate_persistence=None, credential_store=None,
+                 native_principals=frozenset()):
         self.database = database
         self.catalog = ModelCatalog(database)
         self.compiler = NativeCompiler(files, secrets)
@@ -48,19 +49,36 @@ class ModelBroker:
         self.ready = False
         self.events = events
         self.validate_submission = validate_submission
+        self.validate_persistence = validate_persistence
         self.prepare_slots = asyncio.Semaphore(8)
         self.prepare_pending = 0
         self.credential_store = credential_store
+        self.native_principals = frozenset(native_principals)
+
+    def native_grant(self, request):
+        context = request.context
+        return (context.principal_id in self.native_principals and not request.source_refs
+            and context.actor_id is None and context.person_id is None and context.conversation_id is None
+            and not context.scope_ids and not context.audience)
 
     async def event(self, name, outcome, attempt_id):
         if self.events:
             await self.events.emit(name, outcome, attempt_id=attempt_id)
 
     async def recheck(self, request):
+        if self.native_grant(request):
+            return
         if self.validate_submission:
             await self.validate_submission(request.context, request.source_refs)
         elif request.source_refs:
             raise AppError("source_validation_not_bound", status=503)
+
+    async def may_persist(self, connection, request):
+        if self.native_grant(request):
+            return True
+        if self.validate_persistence:
+            return await self.validate_persistence(connection, request.context, request.source_refs)
+        return not request.source_refs
 
     async def embedding_profile(self):
         async with self.database.transaction(control=True, read_only=True) as conn:
@@ -185,11 +203,14 @@ class ModelBroker:
                            request.parameters.get("previous_response_id"))
         if state_reference:
             async with self.database.transaction(request.budget, read_only=True) as conn:
-                previous = await (await conn.execute("SELECT provider_id,model,protocol,source_refs FROM models.attempts "
+                previous = await (await conn.execute("SELECT provider_id,model,protocol,source_refs,context_fingerprint,persona_revision "
+                    "FROM models.attempts "
                     "WHERE principal_id=%s AND provider_handle=%s AND status='succeeded' LIMIT 1",
                     (request.context.principal_id, state_reference))).fetchone()
             if not previous or any(previous[key] != getattr(plan, key) for key in
-                                   ("provider_id", "model", "protocol")):
+                                   ("provider_id", "model", "protocol")) or (
+                    previous["context_fingerprint"] != context_fingerprint(request.context)
+                    or previous["persona_revision"] != request.persona_revision):
                 raise AppError("state_reference_route_incompatible", status=409)
             previous_refs = tuple(SourceRef(**ref) for ref in previous["source_refs"] or ())
             if previous_refs:
@@ -307,11 +328,14 @@ class ModelBroker:
                            "native_response": collector.native_response}
             row = await self.ledger.finish(request.attempt_id, "succeeded", usage=usage,
                 result=result_data, charged_units={"tokens": charged}, provider_handle=(
-                    collector.native_response or {}).get("id", (collector.native_response or {}).get("responseId")))
+                    collector.native_response or {}).get("id", (collector.native_response or {}).get("responseId")),
+                validate_result=lambda connection: self.may_persist(connection, request))
             terminal = True
             await self.scheduler.release(plan.quota_group, request.attempt_id, units={"tokens": charged})
             acquired = False
-            result = ModelResult(tuple(collector.parts)+extra, receipt(row), collector.native_response)
+            saved = row["result"]
+            result = ModelResult(tuple(collector.parts)+extra if saved is not None else (), receipt(row),
+                                 collector.native_response if saved is not None else None)
             try:
                 await self.event("model.finished", "succeeded", request.attempt_id)
             except AppError:
@@ -321,7 +345,10 @@ class ModelBroker:
             # A submitted request may have run even if the client saw no output.
             status = "unknown" if submitted else "cancelled" if isinstance(
                 exc, (asyncio.CancelledError, TimeoutError)) else "failed"
-            if submitted and isinstance(exc, AppError) and exc.code.startswith("upstream_http_"):
+            if submitted and isinstance(exc, AppError) and exc.code in {
+                "upstream_http_400", "upstream_http_401", "upstream_http_402", "upstream_http_403",
+                "upstream_http_404", "upstream_http_405", "upstream_http_413", "upstream_http_415",
+                "upstream_http_422", "upstream_http_429"}:
                 status = "failed"
             code = exc.code if isinstance(exc, AppError) else (
                 "cancelled_unknown" if isinstance(exc, asyncio.CancelledError) else
@@ -388,13 +415,20 @@ class ExternalPermit:
         self.finish_lock = asyncio.Lock()
 
     async def submitted(self, provider_handle=None):
-        if self.done:
-            raise AppError("attempt_already_finished", status=409)
+        async with self.finish_lock:
+            if self.done:
+                raise AppError("attempt_already_finished", status=409)
+            self.request.budget.check()
+            await finish_cleanup(self._mark_submitted(provider_handle))
+
+    async def _mark_submitted(self, provider_handle):
         if self.submitted_at is None:
             await self.broker.recheck(self.request)
+            self.request.budget.check()
             policy = self.broker.scheduler.policies[self.request.quota_group]
             await self.broker.ledger.started(self.request.attempt_id, policy.unknown_hold_seconds)
             self.submitted_at = datetime.now(UTC)
+            self.request.budget.check()
             await self.broker.event("resource.submitted", "started", self.request.attempt_id)
         if provider_handle:
             await self.broker.ledger.checkpoint(self.request.attempt_id, provider_handle=provider_handle)
@@ -425,10 +459,11 @@ class ExternalPermit:
                 raise AppError("invalid_resource_usage")
             row = await self.broker.ledger.finish(self.request.attempt_id, status, usage=ModelUsage(
                 raw=usage, metering="reported" if usage is not None else "unknown"), result=result,
-                error_code=error_code, charged_units=units)
+                error_code=error_code, charged_units=units,
+                validate_result=lambda connection: self.broker.may_persist(connection, self.request))
             await self.broker.scheduler.release(self.request.quota_group, self.request.attempt_id,
                 units=units,
-                hold_until=row["hold_until"] if status == "unknown" else None,
+                hold_until=row["hold_until"] if row["status"] == "unknown" else None,
                 not_started=self.submitted_at is None)
             self.done = True
             self.broker.external.pop(self.request.attempt_id, None)

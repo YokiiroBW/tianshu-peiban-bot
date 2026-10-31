@@ -1,9 +1,11 @@
 from datetime import UTC, datetime, timedelta
+import pytest
 
 from tianshu.models.catalog import RoutePlan
-from tianshu.models.protocols import NativeCompiler, ResponseCollector, normalize_usage
+from tianshu.models.protocols import NativeCompiler, ResponseCollector, normalize_usage, requested_capabilities
 from tianshu.models.types import ModelMessage, ModelPart, ModelRequest, ToolSpec
 from tianshu.runtime.config import Secrets
+from tianshu.runtime.errors import AppError
 from tianshu.runtime.files import FileStore
 from tianshu.types import OriginKind, RequestBudget, ServiceClass, TrustedContext
 
@@ -65,3 +67,19 @@ def test_responses_continuation_is_not_converted_to_chat(tmp_path):
     assert call.body["previous_response_id"] == "provider-state"
     assert call.body["input"] == native["input"]
     assert call.body["reasoning"] == {"effort": "high"}
+
+
+def test_native_responses_modalities_require_actual_route_capabilities():
+    native = {"input": [{"role": "user", "content": [
+        {"type": "input_image", "image_url": "https://example.test/image.png"},
+        {"type": "input_audio", "input_audio": {"data": "fixture", "format": "wav"}}]}]}
+    assert {"vision", "audio"} <= requested_capabilities(request(native_payload=native))
+
+
+def test_chat_does_not_relabel_ogg_as_mp3(tmp_path):
+    files = FileStore(tmp_path)
+    audio = files.put_bytes(b"OggS synthetic fixture", media_type="audio/ogg")
+    model_request = request((ModelMessage("user", (ModelPart("audio", media=audio),)),))
+    with pytest.raises(AppError, match="native_audio_requires_transcode"):
+        NativeCompiler(files, Secrets({"TEST_TOKEN": "fixture-key"})).compile(
+            route("openai.chat"), model_request, stream=False)

@@ -53,8 +53,9 @@ class Settings:
         total = sum(item.get("max_connections", 4)+item.get("control_connections", 2)+
                     item.get("sync_connections", 2) for item in
                     (budgets.get(name, {}) for name in ROLES))
-        # Queue consumers/listeners and the sole advisory owner use real connections too.
-        total += self.document.get("worker", {}).get("queue_connections", 8)+1
+        # Procrastinate 3.10 creates one standalone LISTEN connection per consumer,
+        # outside its configured shared pool. The broker advisory owner is separate too.
+        total += self.document.get("worker", {}).get("queue_connections", 8)+3+1
         if total > value.get("connection_budget", 40):
             raise ValueError("database_connection_budget_exceeded")
         return DatabaseConfig(self.secrets.resolve(value.get("dsn_ref", "TIANSHU_DATABASE_URL")),

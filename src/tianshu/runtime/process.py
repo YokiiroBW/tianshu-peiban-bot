@@ -115,7 +115,8 @@ async def run(settings, role, *, initialize=False):
         stop = stop_event()
         if role == "model-broker":
             broker = ModelBroker(database, files, settings.secrets, events=events,
-                                 credential_store=services.credentials)
+                credential_store=services.credentials, native_principals={"model-client:"+entry["id"]
+                    for entry in settings.document.get("broker", {}).get("external_keys", ())})
             await broker.open()
             stack.push_async_callback(broker.close)
             app = create_broker_app(broker, settings.broker_token,
@@ -132,7 +133,10 @@ async def run(settings, role, *, initialize=False):
         else:
             await jobs.open()
             stack.push_async_callback(jobs.close)
-            registration = {"tasks": sorted(jobs.tasks)}
+            shares = {"interactive": worker_settings.get("interactive_concurrency", 2),
+                      "due": worker_settings.get("due_concurrency", 1),
+                      "elastic": worker_settings.get("elastic_concurrency", 2)}
+            registration = {"tasks": sorted(jobs.tasks), "queues": shares}
             ready = lambda: bool(jobs.tasks)
             for module in modules:
                 if module.start:
@@ -140,14 +144,14 @@ async def run(settings, role, *, initialize=False):
                 if module.stop:
                     stack.push_async_callback(module.stop, services)
             workers = []
-            for queue, count in (("due", worker_settings.get("due_concurrency", 1)),
-                                 ("elastic", worker_settings.get("elastic_concurrency", 2))):
+            for queue, count in shares.items():
                 if count < 1:
                     raise ValueError("positive_worker_share_required")
                 workers.append(asyncio.create_task(jobs.app.run_worker_async(
                     queues=[queue], concurrency=count, name="tianshu-"+queue,
                     install_signal_handlers=False, shutdown_graceful_timeout=30,
-                    fetch_job_polling_interval=30, abort_job_polling_interval=10)))
+                    fetch_job_polling_interval=30,
+                    abort_job_polling_interval=worker_settings.get("abort_poll_seconds", 2))))
             heartbeat = ProcessHeartbeat(database, role, registration,
                 lambda: bool(jobs.tasks) and events.ready and all(not task.done() for task in workers))
             await heartbeat.start()

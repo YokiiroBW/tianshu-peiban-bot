@@ -125,7 +125,7 @@ def create_broker_app(broker, token, external_keys=()):
                                  OriginKind.SYSTEM, frozenset({"models.route"}))
         model_request = ModelRequest(identity, request.headers.get("X-Request-Id", identity),
             "embed" if protocol == "openai.embedding" else "chat", ServiceClass.INTERACTIVE,
-            context, RequestBudget(deadline), (), max_output_tokens=body.get("max_tokens",
+            context, RequestBudget(deadline), (), max_output_tokens=0 if protocol == "openai.embedding" else body.get("max_tokens",
                 body.get("max_output_tokens", body.get("generationConfig", {}).get("maxOutputTokens", 2048))),
             native_payload=body, protocol=protocol, route_id=route_id,
             required_capabilities=frozenset({"embed" if protocol == "openai.embedding" else "text"}))

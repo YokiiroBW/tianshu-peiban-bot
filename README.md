@@ -43,7 +43,7 @@ master key 是部署生成并保管的 32 字节随机密钥的 base64url 编码
   },
   "http": {"host": "127.0.0.1", "port": 8070, "max_body_bytes": 536870912},
   "broker": {"host": "127.0.0.1", "port": 8071, "url": "http://127.0.0.1:8071", "token_ref": "TIANSHU_BROKER_TOKEN"},
-  "worker": {"queue_connections": 8, "due_concurrency": 1, "elastic_concurrency": 2},
+  "worker": {"queue_connections": 8, "interactive_concurrency": 2, "due_concurrency": 1, "elastic_concurrency": 2},
   "artifacts": "data/artifacts",
   "modules": [],
   "capabilities": {},

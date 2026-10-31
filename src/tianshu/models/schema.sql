@@ -62,6 +62,8 @@ CREATE TABLE models.attempts (
     quota_group text NOT NULL,
     request_digest text NOT NULL,
     source_refs jsonb NOT NULL DEFAULT '[]',
+    context_fingerprint text NOT NULL,
+    persona_revision bigint,
     status text NOT NULL CHECK(status IN ('queued','running','succeeded','failed','cancelled','unknown')),
     dispatch text NOT NULL CHECK(dispatch IN ('not_started','submitted','unknown')),
     queued_at timestamptz NOT NULL DEFAULT now(),

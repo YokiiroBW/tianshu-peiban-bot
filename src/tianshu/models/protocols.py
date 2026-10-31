@@ -32,6 +32,17 @@ def requested_capabilities(request, stream=False):
             if capability:
                 required.add(capability)
     native = request.native_payload or {}
+    inputs = native.get("input", [])
+    for item in inputs if isinstance(inputs, list) else []:
+        if not isinstance(item, dict):
+            continue
+        if item.get("type") in {"function_call", "function_call_output", "computer_call", "web_search_call"}:
+            required.add("tools")
+        content = item.get("content", [])
+        for part in content if isinstance(content, list) else []:
+            capability = {"input_image": "vision", "input_audio": "audio", "input_video": "video"}.get(part.get("type"))
+            if capability:
+                required.add(capability)
     if native.get("tools"):
         required.add("tools")
     # Only native content positions are inspected, never arbitrary tool argument JSON.
@@ -142,9 +153,13 @@ class NativeCompiler:
                             content.append({"type": "image_url", "image_url":
                                             {"url": self._data_uri(part.media)}})
                         elif part.kind == "audio":
+                            formats = {"audio/wav": "wav", "audio/x-wav": "wav", "audio/wave": "wav",
+                                       "audio/mpeg": "mp3", "audio/mp3": "mp3"}
+                            if part.media is None or part.media.mime_type not in formats:
+                                raise AppError("native_audio_requires_transcode", status=422)
                             content.append({"type": "input_audio", "input_audio": {
                                 "data": self._bytes(part.media),
-                                "format": "wav" if "wav" in part.media.mime_type else "mp3"}})
+                                "format": formats[part.media.mime_type]}})
                         elif part.kind == "tool_call":
                             calls.append({"id": part.call_id, "type": "function", "function":
                                           {"name": part.name, "arguments": json.dumps(part.arguments)}})

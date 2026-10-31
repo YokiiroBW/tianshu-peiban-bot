@@ -155,7 +155,10 @@ class ClientExternalPermit:
         return receipt_from_wire(value["receipt"])
 
     async def submitted(self, provider_handle=None):
-        return await self._update("submitted", {"provider_handle": provider_handle})
+        self.request.budget.check()
+        result = await self._update("submitted", {"provider_handle": provider_handle})
+        self.request.budget.check()
+        return result
 
     async def finish(self, usage=None, result=None):
         result = await self._update("finish", {"usage": usage, "result": result})
