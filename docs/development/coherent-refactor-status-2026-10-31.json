@@ -311,7 +311,7 @@
       "state": "implementing",
       "implementation_agent": "capabilities",
       "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c",
-      "pending": "actual knowledge/project and external asset consumers confirmed missing; migration and UI assigned in final-ui-dispatch",
+      "pending": "complete project knowledge import notes experience continuation CLI MCP and frontend; external assets and archive source integrated",
       "contributors": [
         "capabilities",
         "foundation_models"
@@ -406,9 +406,9 @@
         "CR19"
       ],
       "owner": "部署集成人",
-      "state": "deployment_implementation_assigned_after_core_A",
+      "state": "implementing",
       "implementation_agent": "foundation_models",
-      "pending": "source implementation before CR19; root production writes only after CR19"
+      "pending": "Access UI deployment scripts retired source removal and final integration before CR19"
     }
   ],
   "agents": {
@@ -430,7 +430,7 @@
       ],
       "state": "implementing",
       "boundary": "runtime/models/types/identity/sources/memory/conversation/context and owned tests; backend manifest/lock/composition/migrations; deploy/core and retired source cleanup; settings AccessPanel.tsx/access.css only. No capabilities/projects or knowledge/projects UI writes.",
-      "phase": "model_discovery_deletion_group_evidence_deployment_access"
+      "phase": "deployment_access_retired_source_cleanup"
     },
     "frontend": {
       "model": "gpt-6.1-sol",
@@ -451,7 +451,7 @@
       ],
       "state": "implementing",
       "boundary": "companion/**,life/**,conversation/** except context; shared web api/app/components/router/manifest; features life/multimodal/room/companion/home/workbench/flow-graph and settings outside foundation exact whitelist; no writes to C or A owned feature folders",
-      "phase": "generation_recovery_and_final_owned_frontend"
+      "phase": "flow_graph_device_connections_advanced_commitments_final_cleanup"
     },
     "capabilities": {
       "model": "gpt-6.1-sol",
@@ -472,7 +472,7 @@
       ],
       "state": "implementing",
       "boundary": "capabilities/** including newly transferred projects; channels and SDK; web features plugins/media/infrastructure/resources/people/memory/knowledge/projects; exact ProviderManager/Editors/ModelsPanel/ModelFunctionsPanel/providerApi/providerTypes/providerPresets/models.css whitelist. Shared frontend registry stays B; root migration/assembly stays A.",
-      "phase": "people_memory_models_UI_then_actual_project_knowledge_and_UI"
+      "phase": "actual_project_knowledge_backend_CLI_MCP_UI"
     }
   },
   "integration_commits": [
@@ -852,6 +852,90 @@
       "source": "70496a1",
       "integrated": "31bacf8",
       "scope": "original execution queries cancellation and precise runtime log frontend",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "a69bc4c",
+      "integrated": "c45cf93",
+      "scope": "native provider discovery and CAS configuration removal",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "523842a",
+      "integrated": "5c91b69",
+      "scope": "shared frontend Models operation registration",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "22adf92",
+      "integrated": "313aed3",
+      "scope": "Fish speech voices OAuth clone ASR and profile UI",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "3e196ed",
+      "integrated": "c3ea761",
+      "scope": "trusted live group participation input marker",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "0b7e379",
+      "integrated": "30de9ac",
+      "scope": "scene outfit reference",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "06bf8e9",
+      "integrated": "00058bd",
+      "scope": "image generation and reaction management UI",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "771c263",
+      "integrated": "dc688ff",
+      "scope": "project registry schema and bounded filesystem primitives",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "671afc0",
+      "integrated": "d761442",
+      "scope": "persisted room light and curtain scene controls",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "d61fbf8",
+      "integrated": "eccfdfa",
+      "scope": "native first contacts keywords actual group subjects and evidence authors",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "b448219",
+      "integrated": "a6efe24",
+      "scope": "people memory model management UI and workflow slots",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "5d778f9",
+      "integrated": "34f10de",
+      "scope": "same-transaction owned disclosure retraction",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "1678874",
+      "integrated": "3584c35",
+      "scope": "live group participation using existing attention generation and expression",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "d9a6f99",
+      "integrated": "7a018f3",
+      "scope": "native channel identity and group participation management UI",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "8ba0e94",
+      "integrated": "529c3ac",
+      "scope": "device actual connection identity and control permissions",
       "validation": "source_review_only; concentrated CR19 not started"
     }
   ],
