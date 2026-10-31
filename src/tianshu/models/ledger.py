@@ -19,7 +19,7 @@ def digest(value):
 
 def context_fingerprint(context):
     return digest({key: getattr(context, key) for key in
-        ("actor_id", "person_id", "conversation_id", "scope_ids", "audience", "conversation_kind")})
+        ("actor_id", "person_id", "conversation_id", "scope_ids", "audience", "conversation_kind", "delivery_allowed")})
 
 
 def receipt(row):

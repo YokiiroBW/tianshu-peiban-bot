@@ -41,6 +41,7 @@ class TrustedContext:
     origin_kind: OriginKind
     permissions: frozenset[str] = frozenset()
     conversation_kind: str | None = None
+    delivery_allowed: bool = True
 
 
 @dataclass(frozen=True, slots=True)
