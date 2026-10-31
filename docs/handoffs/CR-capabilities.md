@@ -190,3 +190,7 @@ POST /api/v1/resources/assets/{view,libraries,library,browse,search,entry}是读
 `Actions.start/close/status` 由现有 capabilities.initialize/close 接线。每个实际进程有唯一PG execution_owners租约，运行前同一CAS绑定原Attempt与owner；短暂DB失联后自我围栏并取消实际本地任务，停止续租的owner过期后才扫描其running任务。同一个活interactive owner不会被worker恢复；只把原身份置unknown，存在原provider_handle时通过同一Procrastinate control原句柄核对，不自动重新execute/新建Attempt。提供者仍running的ownerless核对投影不冒充本地执行owner。
 
 run保护覆盖handler加载/authority/availability及实际执行；拒绝后有终态回执，Action绝对deadline约束整个等待/外部调用，期限取消原I/O并有界调用原provider.cancel，无法确认的结果仍unknown。普通HTTP断开/停机不伪称外部取消。close也处理prepare完成而initialize尚未成功的文件执行器与owner资源。新增关键故障用例未运行；无后台第二业务队列。
+
+## Fish协议收口（implemented_not_tested）
+
+Fish MCP SSE取得匹配JSON-RPC id的结果后立即退出并关闭response，不等待服务器长连接EOF；普通JSON也核匹配id。MCP/native新增协议文件已整理多行。OAuth同连接跨进程刷新通过PG短租约合并，网络期间不持PG连接；等待方重读已密封新token，配置CAS冲突只在同一旧凭据仍未变化时合并。旋转令牌提交后失联/owner过期保持unknown并要求原连接重新授权，绝不重复旧refresh token盲重试；明确新授权可解除该状态。SSE长连接及失联刷新用例已写未运行。

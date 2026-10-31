@@ -110,3 +110,5 @@ CREATE INDEX IF NOT EXISTS capability_source_revision_dependants ON capabilities
 CREATE TABLE IF NOT EXISTS capabilities.execution_owners(id text PRIMARY KEY,role text NOT NULL,expires_at timestamptz NOT NULL,stopped_at timestamptz);
 ALTER TABLE capabilities.actions ADD COLUMN IF NOT EXISTS execution_owner text;
 CREATE INDEX IF NOT EXISTS capability_running_owner ON capabilities.actions(execution_owner) WHERE receipt->>'execution'='running';
+
+CREATE TABLE IF NOT EXISTS capabilities.oauth_refresh_leases(connection_id text PRIMARY KEY,fingerprint text NOT NULL,owner text NOT NULL,state text NOT NULL,expires_at timestamptz NOT NULL);
