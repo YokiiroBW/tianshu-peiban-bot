@@ -1,0 +1,19 @@
+from typing import Any, Protocol
+from tianshu.types import Action, Receipt, TrustedContext
+from .types import ExpressionPlan
+
+
+class CatalogPort(Protocol):
+    async def discover(self, context: TrustedContext) -> list[dict]: ...
+
+
+class ActionsPort(Protocol):
+    async def invoke(self, action: Action, *, background: bool = False,
+                     service_class: Any = None) -> Receipt: ...
+    async def get(self, action_id: str, context: TrustedContext) -> dict: ...
+    async def cancel(self, action_id: str, context: TrustedContext) -> Receipt: ...
+    async def reconcile(self, action_id: str, context: TrustedContext) -> Receipt: ...
+
+
+class ChannelPort(Protocol):
+    async def deliver(self, context: TrustedContext, plan: ExpressionPlan) -> Receipt: ...
