@@ -268,10 +268,10 @@ class Perception:
             result.receipt.attempt_id,
         )
         async with self.database.transaction() as conn:
-            from ..withdrawal import lock_sources
+            from ..withdrawal import validate_sources
 
-            await lock_sources(conn, (source,))
-            await self.authority.check(action.context, (source,))
+            if not await validate_sources(conn, action.context, (source,), self.artifacts.sources):
+                raise Fault("source_revoked", 410)
             await conn.execute(
                 "INSERT INTO capabilities.consumptions(id,action_id,source_id,source_revision,body) VALUES(%s,%s,%s,%s,%s::jsonb) ON CONFLICT(id) DO NOTHING",
                 (

@@ -9,10 +9,19 @@ from .contracts import canonical
 from .serialization import receipt_from
 
 
-async def lock_sources(connection, refs):
-    for source_id in sorted({ref.source_id for ref in refs}):
+async def validate_sources(connection, context, refs, sources):
+    if sources is None:
+        from .contracts import Fault
+
+        raise Fault("source_persistence_port_unavailable", 503)
+    return await sources.validate_persistence(connection, context, tuple(refs))
+
+
+async def depend(connection, kind, identifier, refs):
+    for ref in refs:
         await connection.execute(
-            "SELECT pg_advisory_xact_lock(hashtext(%s))", ("capabilities:source:" + source_id,)
+            "INSERT INTO capabilities.source_dependencies(owner_kind,owner_id,source_id,source_revision) VALUES(%s,%s,%s,%s) ON CONFLICT DO NOTHING",
+            (kind, identifier, ref.source_id, ref.revision),
         )
 
 
@@ -34,14 +43,13 @@ def redacted(receipt):
 
 async def withdraw(owner, connection, refs):
     refs = tuple(refs)
-    await lock_sources(connection, refs)
     identifiers = list({ref.source_id for ref in refs})
     if not identifiers:
         return {"actions": 0, "artifacts": 0}
     # Match explicit SourceRefs only; arbitrary JSON identifiers are never sources.
     rows = await (
         await connection.execute(
-            "SELECT id,media_id FROM capabilities.artifacts WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(body->'source_refs') ref WHERE ref->>'source_id'=ANY(%s)) FOR UPDATE",
+            "SELECT id,media_id FROM capabilities.artifacts WHERE id IN (SELECT owner_id FROM capabilities.source_dependencies WHERE owner_kind='artifact' AND source_id=ANY(%s)) FOR UPDATE",
             (identifiers,),
         )
     ).fetchall()
@@ -52,14 +60,14 @@ async def withdraw(owner, connection, refs):
         (media_ids,),
     )
     await connection.execute(
-        "DELETE FROM capabilities.speech_cache WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(result->'artifacts') artifact WHERE artifact->>'artifact_id'=ANY(%s))",
-        (artifact_ids,),
+        "DELETE FROM capabilities.speech_cache WHERE key IN (SELECT owner_id FROM capabilities.source_dependencies WHERE owner_kind='speech_cache' AND source_id=ANY(%s))",
+        (identifiers,),
     )
     await connection.execute("DELETE FROM capabilities.artifacts WHERE id=ANY(%s)", (artifact_ids,))
     actions = await (
         await connection.execute(
-            "SELECT id,action,attempt,receipt,document,result_revision FROM capabilities.actions WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(action->'source_refs') ref WHERE ref->>'source_id'=ANY(%s)) OR EXISTS (SELECT 1 FROM jsonb_array_elements(coalesce(receipt->'result'->'source_refs','[]'::jsonb)) ref WHERE ref->>'source_id'=ANY(%s)) OR EXISTS (SELECT 1 FROM capabilities.image_work w,jsonb_array_elements(coalesce(w.body->'source_refs','[]'::jsonb)) ref WHERE w.action_id=capabilities.actions.id AND ref->>'source_id'=ANY(%s)) FOR UPDATE",
-            (identifiers, identifiers, identifiers),
+            "SELECT id,action,attempt,receipt,document,result_revision FROM capabilities.actions WHERE id IN (SELECT owner_id FROM capabilities.source_dependencies WHERE owner_kind='action' AND source_id=ANY(%s)) FOR UPDATE",
+            (identifiers,),
         )
     ).fetchall()
     for row in actions:

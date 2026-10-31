@@ -45,10 +45,11 @@ class Artifacts:
         media = replace(media, media_id="artifact:" + identity)
         artifact = ArtifactRef(identity, media, tuple(source_refs), coverage, metadata or {})
         async with self.database.transaction() as conn:
-            from .withdrawal import lock_sources
+            from .withdrawal import validate_sources, depend
 
-            await lock_sources(conn, source_refs)
-            await self.authority.check(context, tuple(source_refs))
+            if not await validate_sources(conn, context, source_refs, self.sources):
+                raise Fault("source_revoked", 410)
+            await depend(conn, "artifact", artifact.artifact_id, source_refs)
             await conn.execute(
                 "INSERT INTO capabilities.artifacts(id,media_id,principal_id,actor_id,scopes,audience,body) VALUES(%s,%s,%s,%s,%s,%s,%s::jsonb) ON CONFLICT(id) DO NOTHING",
                 (

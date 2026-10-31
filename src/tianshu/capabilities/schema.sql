@@ -98,3 +98,9 @@ CREATE TABLE IF NOT EXISTS capabilities.command_inputs(id text PRIMARY KEY,princ
 CREATE TABLE IF NOT EXISTS capabilities.maintenance(name text PRIMARY KEY,owner text NOT NULL,lease_until timestamptz NOT NULL);
 
 CREATE TABLE IF NOT EXISTS capabilities.action_controls(id text PRIMARY KEY,action_id text NOT NULL REFERENCES capabilities.actions(id),attempt_id text NOT NULL);
+
+CREATE TABLE IF NOT EXISTS capabilities.source_dependencies(owner_kind text NOT NULL,owner_id text NOT NULL,source_id text NOT NULL,source_revision bigint NOT NULL,PRIMARY KEY(owner_kind,owner_id,source_id,source_revision));
+CREATE INDEX IF NOT EXISTS capability_source_dependants ON capabilities.source_dependencies(source_id,owner_kind,owner_id);
+
+CREATE INDEX IF NOT EXISTS reaction_original_media ON capabilities.reaction_assets((body->'media'->>'media_id'));
+CREATE INDEX IF NOT EXISTS capability_consumption_source ON capabilities.consumptions(source_id);

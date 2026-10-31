@@ -189,6 +189,7 @@ class Capabilities:
         )
         self.actions.argument_resolver = self.configuration.command
         self.actions.worker = self.worker
+        self.actions.sources = sources
         self.models = TrackedBroker(runtime.models)
         self.artifacts = Artifacts(runtime.database, runtime.files, authority, sources)
         self.speech = Speech(self.configuration, self.models, self.artifacts)

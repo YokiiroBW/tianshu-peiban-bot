@@ -399,11 +399,14 @@ class Images:
         submission_id = str(uuid5(NAMESPACE_URL, "tianshu:image:" + action.action_id))
         if not old:
             async with self.config.database.transaction() as conn:
-                from ..withdrawal import lock_sources
+                from ..withdrawal import validate_sources, depend
 
                 frozen_refs = tuple(SourceRef(**x) for x in prepared["source_refs"])
-                await lock_sources(conn, frozen_refs)
-                await self.authority.check(action.context, frozen_refs)
+                if not await validate_sources(
+                    conn, action.context, frozen_refs, self.artifacts.sources
+                ):
+                    raise Fault("source_revoked", 410)
+                await depend(conn, "action", action.action_id, frozen_refs)
                 await conn.execute(
                     "INSERT INTO capabilities.image_work(action_id,body,submitted) VALUES(%s,%s::jsonb,false) ON CONFLICT DO NOTHING",
                     (action.action_id, canonical(prepared)),

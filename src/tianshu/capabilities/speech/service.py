@@ -428,10 +428,13 @@ class Speech:
             "cache": "miss",
         }
         async with self.config.database.transaction() as conn:
-            from ..withdrawal import lock_sources
+            from ..withdrawal import validate_sources, depend
 
-            await lock_sources(conn, action.source_refs)
-            await self.artifacts.authority.check(action.context, action.source_refs)
+            if not await validate_sources(
+                conn, action.context, action.source_refs, self.artifacts.sources
+            ):
+                raise Fault("source_revoked", 410)
+            await depend(conn, "speech_cache", cache_key, action.source_refs)
             await conn.execute(
                 "INSERT INTO capabilities.speech_cache(key,result) VALUES(%s,%s::jsonb) ON CONFLICT DO NOTHING",
                 (cache_key, canonical(result)),

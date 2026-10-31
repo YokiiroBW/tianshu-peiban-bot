@@ -117,6 +117,6 @@ Actions.get 返回 `{action:wire dict,attempt:wire dict,receipt:wire dict,result
 - `images.generate`/preview 的 `intent` 是 ImageIntent；独立 `photo_intent` 是 PhotoIntent，字段 trigger/purpose/motivation/window/dedup_key/target_ref/artifact_ids/delivery_kind。B 冻结授权目标/时间窗作为输入，能力执行前保存原值，重对账不丢 requested_delivery；明确交付不经过普通随兴分享筛选。输出 delivery 始终 not_requested，由唯一 Expression 发送。
 - 明确取消会中断实际 I/O 并调用原供应商 handle 的 cancel/reconcile；普通连接中断仍 unknown。Comfy 运行中只使用支持原 handle 的定向取消，旧端不调用影响其他任务的全局 interrupt。
 - `Actions.resume(...,client_request_id=...)` 在同事务持久登记恢复命令→原新 attempt；同命令重投不会再创建计费尝试。
-- `await capabilities.withdraw_sources(connection,refs)` 是 A 撤回事务内钩子：锁定来源派生写入、清理素材逻辑引用/语义索引/语音缓存/分析内容并标记未执行及进行中动作，晚到结果只能保留真实 effect/usage/身份。FileStore 共享字节不删除。所有 artifact 写入、语音缓存、分析与结果落账重新核来源；来源事务与派生写入用 capabilities:source:<source_id> advisory 锁串行。
+- `await capabilities.withdraw_sources(connection,refs)` 是 A 撤回事务内钩子：锁定来源派生写入、清理素材逻辑引用/语义索引/语音缓存/分析内容并标记未执行及进行中动作，晚到结果只能保留真实 effect/usage/身份。FileStore 共享字节不删除。所有 artifact 写入、语音缓存、分析与结果落账重新核来源；来源事务与派生写入统一使用 SourcePort.validate_persistence(conn,ctx,refs) 的权威 FOR SHARE/FOR UPDATE 顺序，不借第二连接或另建来源锁。按 source_dependencies 索引定向传播，不扫描全域正文。
 - 配置与 Plugin Vault 复用 runtime.credentials.seal_bytes/unseal_bytes，外置唯一 master + 精确 domain/reference AAD，不再生成本地 key 文件。无旧密文兼容。
 - 新编排源码以 formatter 展开为正常多行；未运行测试/build/typecheck/真实服务。

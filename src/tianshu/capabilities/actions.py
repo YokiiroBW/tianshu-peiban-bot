@@ -27,6 +27,7 @@ class Actions:
         self.prepare_handler = None
         self.argument_resolver = None
         self.worker = False
+        self.sources = None
 
     async def handler(self, action):
         if action.capability_id not in self.catalog.handlers and self.prepare_handler:
@@ -69,10 +70,10 @@ class Actions:
             str(uuid4()), action.action_id, attempt.attempt_id, "pending", "none", "not_requested"
         )
         async with self.database.transaction() as conn:
-            from .withdrawal import lock_sources
+            from .withdrawal import validate_sources, depend
 
-            await lock_sources(conn, action.source_refs)
-            await self.authority.check(action.context, action.source_refs)
+            if not await validate_sources(conn, action.context, action.source_refs, self.sources):
+                raise Fault("source_revoked", 410)
             await conn.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (key,))
             old = await (
                 await conn.execute(
@@ -86,6 +87,7 @@ class Actions:
                 replay = receipt_from(old["receipt"])
                 await self.authority.check(action.context, result_sources(replay))
                 return replay
+            await depend(conn, "action", action.action_id, action.source_refs)
             await conn.execute(
                 "INSERT INTO capabilities.actions(id,intent,semantics,principal_id,kind,created_at,action,attempt,receipt,document) VALUES(%s,%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb,%s::jsonb,%s)",
                 (
@@ -281,9 +283,23 @@ class Actions:
             receipt, result={**receipt.result, "source_refs": wire(result_sources(receipt))}
         )
         async with self.database.transaction() as conn:
-            from .withdrawal import lock_sources
+            from .withdrawal import validate_sources, depend
 
-            await lock_sources(conn, result_sources(receipt))
+            snapshot = await (
+                await conn.execute(
+                    "SELECT action FROM capabilities.actions WHERE id=%s", (receipt.action_id,)
+                )
+            ).fetchone()
+            if snapshot is None:
+                raise Fault("not_found", 404)
+            original = action_from(snapshot["action"])
+            refs = tuple(
+                {
+                    (ref.source_id, ref.revision): ref
+                    for ref in (*original.source_refs, *result_sources(receipt))
+                }.values()
+            )
+            valid = await validate_sources(conn, original.context, refs, self.sources)
             old = await (
                 await conn.execute(
                     "SELECT attempt,document,receipt,action,result_revision,result_observed_at FROM capabilities.actions WHERE id=%s FOR UPDATE",
@@ -293,26 +309,12 @@ class Actions:
             if not old or old["attempt"]["attempt_id"] != attempt.attempt_id:
                 raise Fault("attempt_changed", 409)
             previous_receipt = receipt_from(old["receipt"])
-            source_invalid = False
-            if json.loads(old["document"]).get("source_revoked"):
+            source_invalid = not valid
+            if not valid or json.loads(old["document"]).get("source_revoked"):
                 from .withdrawal import redacted
 
                 receipt = redacted(receipt)
                 source_invalid = True
-            else:
-                from .serialization import context_from
-
-                try:
-                    await self.authority.check(
-                        context_from(old["action"]["context"]), result_sources(receipt)
-                    )
-                except Exception as error:
-                    if getattr(error, "status", None) not in {403, 404, 410}:
-                        raise
-                    from .withdrawal import redacted
-
-                    receipt = redacted(receipt)
-                    source_invalid = True
             cancel_requested = json.loads(old["document"]).get("cancel_requested")
             if (
                 previous_receipt.execution in {"succeeded", "failed", "cancelled"}
@@ -348,6 +350,7 @@ class Actions:
             changed = old["receipt"] != wire(receipt)
             revision = old["result_revision"] + int(changed)
             observed_at = datetime.now(UTC) if changed else old["result_observed_at"]
+            await depend(conn, "action", receipt.action_id, refs)
             await conn.execute(
                 "UPDATE capabilities.actions SET receipt=%s::jsonb,attempt=%s::jsonb,result_revision=%s,result_observed_at=%s WHERE id=%s",
                 (encoded(receipt), encoded(attempt), revision, observed_at, receipt.action_id),
