@@ -1,145 +1,172 @@
-import { DetailCard } from "../../../components/DetailCard";
-import { History } from "./History";
-import { RelationshipForm, types } from "./RelationshipForm";
-import { useRelationships, type RelationshipTarget } from "./useRelationships";
+import { useEffect, useState } from "react";
+import { CommandFeedback } from "../../../components/CommandFeedback";
+import { SourceEvidence } from "../../../components/SourceEvidence";
+import { RelationshipForm } from "./RelationshipForm";
+import { types, type Projection, type RelationshipTarget } from "./api";
+import { useRelationships } from "./useRelationships";
 import "./relationships.css";
-
-const stages: Record<string, string> = {
-  deeply_distant: "深度疏远",
-  strongly_distant: "明显疏远",
-  distant: "疏远",
-  acquaintance: "相识",
-  familiar: "熟悉",
-  close: "亲近",
-  intimate: "亲密",
-  deeply_intimate: "深度亲密",
-};
-
-type Props = { csrf: string; selection?: RelationshipTarget };
-
-export default function RelationshipPanel(props: Props) {
+export default function RelationshipPanel(props: {
+  csrf: string;
+  selection?: RelationshipTarget;
+}) {
   return (
     <RelationshipContent
-      key={`${props.csrf}:${props.selection?.roleId ?? ""}:${props.selection?.personId ?? ""}`}
-      {...props}
+      key={`${props.selection?.roleId ?? ""}:${props.selection?.personId ?? ""}`}
+      selection={props.selection}
     />
   );
 }
-
-function RelationshipContent({ csrf, selection }: Props) {
-  const state = useRelationships(csrf, selection);
-  const projection = state.view?.projection;
+function RelationshipContent({
+  selection,
+}: {
+  selection?: RelationshipTarget;
+}) {
+  const state = useRelationships(selection);
+  const value = state.view.data;
+  const [editing, setEditing] = useState<Projection | null>(null);
+  useEffect(() => {
+    setEditing(null);
+  }, [state.roleId, state.personId]);
+  useEffect(() => {
+    if (state.view.accessLost) setEditing(null);
+  }, [state.view.accessLost]);
   return (
-    <section
-      className="relationships"
-      aria-label="角色人物关系管理"
-      aria-busy={state.busy || state.saving}
-    >
-      <h3>关系与好感</h3>
-      <p>关系类型、称呼和好感只影响角色表达，回复权限在用户档案中单独设置。</p>
-      <p>私聊可使用关系与称呼；群聊不公开私聊关系、称呼或分数。</p>
+    <section className="relationships" aria-label="关系与相处背景">
+      <h3>关系与相处背景</h3>
+      <p>关系、称呼与共同经历影响相处方式，实际访问与回复权限分别管理。</p>
       {!selection && (
         <div className="relationship-selectors">
           <label>
-            关系角色
+            角色
             <select
               value={state.roleId}
               onChange={(event) => state.chooseRole(event.target.value)}
-              disabled={state.busy && !state.catalog}
             >
-              <option value="">请选择角色</option>
-              {state.catalog?.roles.map((role) => (
-                <option
-                  key={role.id}
-                  value={role.id}
-                  disabled={!role.available}
-                >
-                  {role.label}
-                  {role.available ? "" : "（暂不可用）"}
+              <option value="">选择角色</option>
+              {state.roles.map((role) => (
+                <option key={role.id} value={role.id}>
+                  {role.name}
                 </option>
               ))}
             </select>
           </label>
           <label>
-            关系人物
+            人物
             <select
               value={state.personId}
               onChange={(event) => state.choosePerson(event.target.value)}
-              disabled={!state.roleId}
             >
-              <option value="">请选择人物</option>
-              {state.catalog?.items.map((person) => (
-                <option key={person.id} value={person.id}>
-                  {person.label}
+              <option value="">选择已授权人物</option>
+              {state.people.data?.items.map((person) => (
+                <option key={person.person_id} value={person.person_id}>
+                  {person.display_name}
                 </option>
               ))}
             </select>
           </label>
+          {state.cursor && (
+            <button className="text-link" onClick={() => state.setCursor(null)}>
+              回到首批人物
+            </button>
+          )}
+          {state.people.data?.next_cursor && (
+            <button
+              className="text-link"
+              onClick={() => state.setCursor(state.people.data!.next_cursor)}
+            >
+              更多人物
+            </button>
+          )}
         </div>
       )}
-      {state.catalog && !state.catalog.items.length && (
-        <p>尚无已确认人物。观察归档建立身份后才能选择。</p>
-      )}
-      {!selection && state.catalog?.next_after && (
-        <button
-          className="button"
-          onClick={() => void state.morePeople()}
-          disabled={state.busy || state.saving}
-        >
-          加载更多人物
-        </button>
-      )}
-      <button
-        className="button"
-        onClick={() =>
-          void (state.personId ? state.refresh() : state.loadCatalog())
-        }
-        disabled={state.busy || state.saving}
-      >
-        刷新关系
-      </button>
-      {state.busy && <p role="status">正在读取当前关系…</p>}
-      {state.saving && (
+      {state.people.error && <p role="alert">{state.people.error}</p>}
+      {state.view.error && <p role="alert">{state.view.error}</p>}
+      {state.view.loading && !value && <p>正在读取当前关系依据…</p>}
+      {value && (
         <>
-          <p role="status">正在提交，尚未确认保存…</p>
-          <button className="button" onClick={state.cancelWaiting}>
-            取消等待
-          </button>
-        </>
-      )}
-      {state.error && (
-        <p role="alert" className="chat-error">
-          {state.error}
-        </p>
-      )}
-      {state.notice && <p role="status">{state.notice}</p>}
-      {projection && (
-        <>
-          <div className="relationship-summary" aria-label="当前关系">
-            <strong>
-              {types[projection.relationship_type] ?? "未指定"}
-              {projection.display_label ? ` · ${projection.display_label}` : ""}
-            </strong>
-            <p>
-              好感 <output aria-label="当前好感">{projection.score}</output> ·{" "}
-              {stages[projection.stage] ?? "当前阶段"} ·{" "}
-              {projection.frozen ? "已冻结" : "自动变化开启"}
-            </p>
-          </div>
-          <DetailCard title={"修改关系与好感"}>
-            {state.error && <p role="alert">{state.error}</p>}
-            {state.notice && <p role="status">{state.notice}</p>}
+          <header className="section-heading">
+            <div>
+              <h4>
+                {value.display_label} ·{" "}
+                {types[value.relationship_type] ?? value.relationship_type}
+              </h4>
+              <p>
+                当前修订 {value.revision} ·{" "}
+                {value.frozen ? "自动演变已冻结" : "允许自动演变"}
+                {value.frozen_at
+                  ? ` · ${new Date(value.frozen_at).toLocaleString("zh-CN")}`
+                  : ""}
+              </p>
+            </div>
+            <button
+              className="button"
+              onClick={() => void state.view.refresh()}
+            >
+              核对当前背景
+            </button>
+          </header>
+          <p style={{ whiteSpace: "pre-wrap" }}>
+            {value.summary || "还没有单独记下相处背景。"}
+          </p>
+          <SourceEvidence sources={value.source_refs} />
+          {(
+            [
+              ["boundaries", "边界"],
+              ["preferences", "相处偏好"],
+              ["shared_experiences", "共同经历"],
+            ] as const
+          ).map(([field, label]) => (
+            <section className="panel" key={field}>
+              <h4>{label}</h4>
+              {!value[field].length && <p className="muted">尚无可读记录。</p>}
+              {value[field].map((item) => (
+                <article className="domain-record" key={item.detail_id}>
+                  <p>{item.content}</p>
+                  <small>
+                    {item.explicit ? "明确记录" : "有来源的认识"} · 修订{" "}
+                    {item.revision}
+                  </small>
+                  <SourceEvidence sources={item.source_refs} />
+                </article>
+              ))}
+            </section>
+          ))}
+          {value.can_manage && (
+            <div className="domain-actions">
+              <button
+                className="button"
+                onClick={() => setEditing(structuredClone(value))}
+              >
+                更正关系背景
+              </button>
+              <button
+                className="button"
+                disabled={state.command.busy}
+                onClick={() =>
+                  void state.save(
+                    {
+                      relationship_type: value.relationship_type,
+                      display_label: value.display_label,
+                      summary: value.summary,
+                      frozen: !value.frozen,
+                    },
+                    value.revision,
+                  )
+                }
+              >
+                {value.frozen ? "恢复以后自动演变" : "冻结以后自动演变"}
+              </button>
+            </div>
+          )}
+          {editing && (
             <RelationshipForm
-              key={`${state.roleId}:${state.personId}`}
-              projection={projection}
-              disabled={state.busy || state.saving || state.uncertain}
-              onSave={state.save}
+              value={editing}
+              busy={state.command.busy}
+              save={state.save}
+              close={() => setEditing(null)}
             />
-          </DetailCard>
-          <History
-            items={state.view?.items ?? []}
-            more={state.view?.has_more ?? false}
-          />
+          )}
+          <CommandFeedback {...state.command} />
         </>
       )}
     </section>

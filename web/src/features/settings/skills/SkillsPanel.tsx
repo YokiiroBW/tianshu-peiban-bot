@@ -1,428 +1,175 @@
-import { Drawer } from "../../../components/Drawer";
-import { DetailCard } from "../../../components/DetailCard";
-import { useEffect, useRef, useState } from "react";
-import { RefreshCw } from "lucide-react";
-import { useAuth } from "../../../app/Auth";
+import { useState } from "react";
 import { useRoleWorkspace } from "../../../app/RoleWorkspace";
 import {
-  integrationPost,
-  readFailure,
-  writeFailure,
-} from "../../../app/integrationApi";
-import {
-  readRolePreference,
-  saveRolePreference,
-} from "../../../app/rolePreference";
-import { requestId } from "../../../app/requestId";
-import { StatePanel } from "../../../components/StatePanel";
-import { StatusRail } from "../../../components/StatusRail";
-import { configureSkills, manageSkills, readSkills } from "./api";
-import { SkillConnection } from "./SkillConnection";
+  actorScope,
+  useDomainResource,
+  useDomainCommand,
+} from "../../../api/useDomainResource";
+import { CommandFeedback } from "../../../components/CommandFeedback";
+import { DetailCard } from "../../../components/DetailCard";
 import { SkillSources } from "./SkillSources";
-import type { CredentialChange, Skill, SkillsCatalog } from "./types";
-import "../external.css";
+import type { Skill, SkillsCatalog } from "./types";
 import "./skills.css";
-
-type Actor = { actor_id: string; label?: string };
-const states: Record<
-  Skill["availability"]["state"],
-  { label: string; tone: "blue" | "gray" | "yellow" | "red" }
-> = {
-  available: { label: "可用", tone: "blue" },
-  disabled: { label: "已停用", tone: "gray" },
-  not_configured: { label: "未配置", tone: "yellow" },
-  unsupported: { label: "待接入", tone: "gray" },
-  unavailable: { label: "暂时不可用", tone: "red" },
+const settings: Record<string, string> = {
+  speech: "#/settings/speech",
+  images: "#/settings/images",
+  plugins: "#/plugins",
+  memory: "#/memory",
+  content: "#/roles/life",
+  weather: "#/settings/weather",
+  device: "#/home/devices",
+  channels: "#/settings/channels",
+  books: "#/media/books",
+  music: "#/media/music",
+  comics: "#/media/comics",
 };
-
+function stateOf(skill: Skill) {
+  const available = skill.availability;
+  if (!available.implemented) return "待接入执行适配器";
+  if (!skill.enabled || !available.enabled) return "已停用";
+  if (!available.configured) return "尚未配置";
+  if (available.provider_supported === false) return "对端不支持";
+  return skill.can_execute ? "当前可执行" : "当前不可执行";
+}
 export function SkillsPanel({ actorId }: { actorId?: string }) {
-  const { session } = useAuth();
   const workspace = useRoleWorkspace();
-  const csrf = session?.authenticated ? session.csrf : "";
-  const preference = `tianshu-skills-role:${encodeURIComponent(session?.username || csrf)}`;
-  const [actors, setActors] = useState<Actor[]>([]);
-  const [actor, setActor] = useState("");
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [catalog, setCatalog] = useState<SkillsCatalog | null>(null);
-  const [editing, setEditing] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const request = useRef<AbortController | null>(null);
-  const attempt = useRef<{ signature: string; id: string } | null>(null);
-
-  function start() {
-    request.current?.abort();
-    const controller = new AbortController();
-    request.current = controller;
-    setBusy(true);
-    setError("");
-    return controller;
-  }
-
-  async function listActors(after: string | null = null) {
-    if (!csrf) return;
-    const controller = start();
-    try {
-      const response = await integrationPost<{
-        items: Actor[];
-        next_after_actor_id: string | null;
-      }>(
-        "life/actors",
-        { limit: 50, after_actor_id: after },
-        csrf,
-        controller.signal,
-      );
-      if (controller.signal.aborted) return;
-      setActors((previous) =>
-        after ? [...previous, ...response.items] : response.items,
-      );
-      setCursor(response.next_after_actor_id);
-      if (!after)
-        setActor((previous) =>
-          actorId
-            ? response.items.some((item) => item.actor_id === actorId)
-              ? actorId
-              : ""
-            : response.items.some((item) => item.actor_id === previous)
-              ? previous
-              : (response.items.find(
-                  (item) => item.actor_id === readRolePreference(preference),
-                )?.actor_id ??
-                response.items[0]?.actor_id ??
-                ""),
-        );
-    } catch (cause) {
-      if (!controller.signal.aborted) setError(readFailure(cause));
-    } finally {
-      if (!controller.signal.aborted) setBusy(false);
-    }
-  }
-
-  async function load() {
-    if (!actor || !csrf) return;
-    const controller = start();
-    try {
-      const value = await readSkills({ actor, csrf }, controller.signal);
-      if (!controller.signal.aborted) setCatalog(value);
-    } catch (cause) {
-      if (!controller.signal.aborted) setError(readFailure(cause));
-    } finally {
-      if (!controller.signal.aborted) setBusy(false);
-    }
-  }
-
-  useEffect(() => {
-    setCatalog(null);
-    setActors([]);
-    setActor("");
-    setEditing("");
-    setNotice("");
-    void listActors();
-    return () => request.current?.abort();
-  }, [csrf]);
-  useEffect(() => {
-    setCatalog(null);
-    setEditing("");
-    setNotice("");
-    void load();
-    return () => request.current?.abort();
-  }, [actor, csrf]);
-
-  async function mutate(
-    operation: string,
-    value: object,
-    credential?: CredentialChange,
-    revision: number | null = null,
-  ) {
-    if (!catalog) return false;
-    const controller = start();
-    setNotice("");
-    const signature = JSON.stringify([
-      actor,
-      operation,
-      value,
-      credential,
-      revision,
-      catalog.actor_version,
-    ]);
-    if (attempt.current?.signature !== signature)
-      attempt.current = { signature, id: requestId() };
-    const clientId = attempt.current.id;
-    try {
-      const next = credential
-        ? await configureSkills(
-            { actor, csrf },
-            operation as "skill.update" | "source.configure",
-            value,
-            credential,
-            revision,
-            catalog.actor_version,
-            clientId,
-            controller.signal,
-          )
-        : await manageSkills(
-            { actor, csrf },
-            operation,
-            value,
-            catalog.actor_version,
-            clientId,
-            controller.signal,
-          );
-      if (controller.signal.aborted) return false;
-      setCatalog(next);
-      const refreshedSource = next.sources.find(
-        (source) =>
-          source.source_id === (value as { source_id?: string }).source_id,
-      );
-      setNotice(
-        operation === "source.refresh"
-          ? refreshedSource?.state === "ready"
-            ? "目录已刷新；技能状态以当前可用性为准。"
-            : "目录刷新未完成，已保留原有技能目录。"
-          : "已保存当前角色的技能设置。",
-      );
-      setEditing("");
-      attempt.current = null;
-      return true;
-    } catch (cause) {
-      if (!controller.signal.aborted) setError(writeFailure(cause));
-      return false;
-    } finally {
-      if (!controller.signal.aborted) setBusy(false);
-    }
-  }
-
-  function selectActor(next: string) {
-    request.current?.abort();
-    setCatalog(null);
-    setActor(next);
-    saveRolePreference(preference, next);
-  }
-  function comfyLink() {
-    workspace.select(actor);
-    saveRolePreference("tianshu-life-tab", "images");
-    saveRolePreference(
-      `tianshu-life-role:${encodeURIComponent(session?.username || csrf)}`,
-      actor,
-    );
-  }
-
-  if (!csrf)
-    return (
-      <StatePanel kind="error" title="请先登录">
-        <p>技能管理使用当前账号的角色授权。</p>
-      </StatePanel>
-    );
-
+  const actor = actorId ?? workspace.actor;
+  const view = useDomainResource<SkillsCatalog>(
+    "capabilities/catalog/view",
+    actorScope(actor),
+    !!actor,
+  );
+  const command = useDomainCommand(`catalog-policy:${actor}`, "actor");
+  const [query, setQuery] = useState("");
+  const items = view.data?.items ?? [];
+  const allowed = (id: string) =>
+    items.some((item) => item.definition.id === id && item.can_execute);
+  const canSave = allowed("capabilities.catalog.settings.save");
   return (
-    <div className="skills-page">
-      <section className="panel skills-header external-form">
-        <div className="section-heading">
-          <h2>角色技能</h2>
-          <button
-            className="button"
-            disabled={busy}
-            onClick={() => void (actor ? load() : listActors())}
-          >
-            <RefreshCw aria-hidden="true" />
-            刷新状态
-          </button>
+    <section className="skills-page domain-workspace">
+      <header className="section-heading">
+        <div>
+          <h2>角色能力目录</h2>
+          <p>模型工具、明确命令与生活安排共用这些能力定义及执行回执。</p>
         </div>
-        <p className="muted">
-          查看角色可以使用的能力，管理启停与来源。停用后角色不再发起新的对话或主动调用，已开始的任务和原有管理入口继续可用。
-        </p>
-        <label>
-          选择角色
-          <select
-            value={actor}
-            disabled={busy || actors.length === 0 || !!actorId}
-            onChange={(event) => selectActor(event.target.value)}
-          >
-            {actors.length === 0 && <option value="" />}
-            {actors.map((item) => (
-              <option key={item.actor_id} value={item.actor_id}>
-                {item.label || item.actor_id}
-              </option>
-            ))}
-          </select>
-        </label>
-        {cursor && (
-          <button
-            className="button"
-            disabled={busy}
-            onClick={() => void listActors(cursor)}
-          >
-            继续读取角色
-          </button>
-        )}
-        {catalog && (
-          <small>
-            角色设置版本 {catalog.actor_version} · 目录版本{" "}
-            {catalog.catalog_version.slice(0, 12)}
-          </small>
-        )}
-      </section>
-      {busy && !catalog && (
-        <StatePanel kind="loading" title="正在读取技能目录">
-          <p>请稍候。</p>
-        </StatePanel>
-      )}
-      {error && (
-        <StatePanel
-          kind="error"
-          title="本次操作未完成"
-          action={
-            <button
-              className="button"
-              disabled={busy}
-              onClick={() => void (actor ? load() : listActors())}
-            >
-              重新读取状态
-            </button>
-          }
+        <button
+          className="button"
+          disabled={!actor || view.loading}
+          onClick={() => void view.refresh()}
         >
-          <p>{error}</p>
-        </StatePanel>
-      )}
-      {notice && <p role="status">{notice}</p>}
-      {!busy && !error && actors.length === 0 && (
-        <StatePanel kind="empty" title="没有可管理角色">
-          <p>请先到角色管理创建或启用角色。</p>
-          <a className="button" href="#/roles/0">
-            角色管理
-          </a>
-        </StatePanel>
-      )}
-      {catalog && (
-        <>
-          <section className="skills-directory" aria-label="技能目录">
-            {catalog.skills.length === 0 && (
-              <StatePanel kind="empty" title="目录没有技能">
-                <p>服务已返回空目录，添加外部来源后可以刷新查看。</p>
-              </StatePanel>
-            )}
-            {catalog.skills.map((skill) => {
-              const state =
-                states[skill.availability.state] ?? states.unavailable;
-              const source = catalog.sources.find(
-                (item) => item.source_id === skill.source_id,
-              );
-              return (
-                <article className="panel skill-card" key={skill.id}>
-                  <div className="section-heading">
-                    <h3>{skill.title}</h3>
-                    <StatusRail tone={state.tone} label={state.label} />
-                  </div>
-                  <p>{skill.description}</p>
-                  <dl className="skill-metadata">
-                    <div>
-                      <dt>来源</dt>
-                      <dd>{source?.name ?? skill.source_id}</dd>
-                    </div>
-                    <div>
-                      <dt>版本</dt>
-                      <dd>{skill.version}</dd>
-                    </div>
-                    <div>
-                      <dt>分类</dt>
-                      <dd>{skill.domain}</dd>
-                    </div>
-                  </dl>
-                  <DetailCard title="查看能力与状态">
-                    <ul>
-                      {skill.operations.map((operation) => (
-                        <li key={operation}>{operation}</li>
-                      ))}
-                    </ul>
-                    {skill.availability.reason_code && (
-                      <small>状态码：{skill.availability.reason_code}</small>
-                    )}
-                  </DetailCard>
-                  {skill.installed ? (
-                    <div className="skills-actions">
-                      <button
-                        className="button"
-                        disabled={busy}
-                        onClick={() =>
-                          void mutate(
-                            skill.enabled ? "skill.disable" : "skill.enable",
-                            { skill_id: skill.id },
-                          )
-                        }
-                      >
-                        {skill.enabled ? "停用技能" : "启用技能"}
-                      </button>
-                      {skill.definition.handler_id === "image.generate" && (
-                        <a
-                          className="button"
-                          href="#/roles/life"
-                          onClick={comfyLink}
-                        >
-                          管理生图与 ComfyUI
-                        </a>
-                      )}
-                      {skill.definition.handler_id === "gscore.query" && (
-                        <button
-                          className="button"
-                          disabled={busy}
-                          onClick={() =>
-                            setEditing(editing === skill.id ? "" : skill.id)
-                          }
-                        >
-                          配置 GSCore
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="muted">
-                      当前执行适配器尚未接入，此条目暂时不能使用。
-                    </p>
+          读取当前目录
+        </button>
+      </header>
+      {!actor && <p>先选择一位角色。</p>}
+      {view.error && <p role="alert">{view.error}</p>}
+      <label>
+        查找能力
+        <input
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="名称、能力标识或说明"
+        />
+      </label>
+      <div className="domain-grid">
+        {items
+          .filter(
+            (item) =>
+              (item.definition.model_tool ||
+                item.definition.public_command ||
+                item.source_ids.length > 0) &&
+              `${item.definition.title} ${item.definition.id} ${item.definition.description}`
+                .toLowerCase()
+                .includes(query.toLowerCase()),
+          )
+          .map((item) => (
+            <article className="skill-card panel" key={item.definition.id}>
+              <header>
+                <h3>{item.definition.title}</h3>
+                <span className="badge">{stateOf(item)}</span>
+              </header>
+              <p>{item.definition.description}</p>
+              <small>
+                {item.definition.id} · 定义修订 {item.definition.version} ·{" "}
+                {item.definition.effect === "read" ? "读取能力" : "会产生变更"}
+              </small>
+              {item.availability.reason && <p>{item.availability.reason}</p>}
+              {item.availability.provider_supported === null && (
+                <p className="muted">供应商实际支持情况尚未确认。</p>
+              )}
+              {item.availability.verified_at && (
+                <p>
+                  最近实际核对：
+                  {new Date(item.availability.verified_at).toLocaleString(
+                    "zh-CN",
                   )}
-                  {skill.definition.handler_id === "image.generate" && (
-                    <small>
-                      在角色生活的“衣柜与相册”中管理已有连接与工作流。
-                    </small>
-                  )}
-                  {editing === skill.id &&
-                    skill.definition.handler_id === "gscore.query" && (
-                      <Drawer
-                        title={"GSCore 连接设置"}
-                        variant="card"
-                        open={true}
-                        onClose={() => setEditing("")}
-                      >
-                        {error && <p role="alert">{error}</p>}
-                        {notice && <p role="status">{notice}</p>}
-                        <SkillConnection
-                          key={`${actor}:${skill.id}`}
-                          access={{ actor, csrf }}
-                          skill={skill}
-                          busy={busy}
-                          save={(value, credential, revision) =>
-                            mutate("skill.update", value, credential, revision)
-                          }
-                        />
-                      </Drawer>
-                    )}
-                </article>
-              );
-            })}
-          </section>
-          <SkillSources
-            key={actor}
-            access={{ actor, csrf }}
-            sources={catalog.sources}
-            busy={busy}
-            refresh={(source) =>
-              void mutate("source.refresh", { source_id: source.source_id })
-            }
-            save={(value, credential, revision) =>
-              mutate("source.configure", value, credential, revision)
-            }
-          />
-        </>
+                </p>
+              )}
+              {item.definition.public_command && (
+                <p>
+                  明确命令：{item.definition.public_command.name}
+                  {item.definition.public_command.aliases.length
+                    ? ` · ${item.definition.public_command.aliases.join("、")}`
+                    : ""}
+                </p>
+              )}
+              <div className="domain-actions">
+                {canSave && (
+                  <button
+                    className="button"
+                    disabled={command.busy}
+                    onClick={() =>
+                      void command
+                        .run(
+                          "capabilities/catalog/settings.save",
+                          {
+                            actor_id: actor,
+                            person_id: null,
+                            conversation_id: null,
+                            capabilities: {
+                              [item.definition.id]: { enabled: !item.enabled },
+                            },
+                          },
+                          view.data!.revision,
+                        )
+                        .then((result) => {
+                          if (result) void view.refresh();
+                        })
+                    }
+                  >
+                    {item.enabled ? "停用此角色的能力" : "启用此角色的能力"}
+                  </button>
+                )}
+                {settings[item.definition.id.split(".")[0]] && (
+                  <a href={settings[item.definition.id.split(".")[0]]}>
+                    配置所属服务
+                  </a>
+                )}
+              </div>
+              {!item.availability.implemented && (
+                <p className="muted">目录已收录，当前没有可执行适配器。</p>
+              )}
+            </article>
+          ))}
+      </div>
+      <CommandFeedback {...command} />
+      {view.data && (
+        <SkillSources
+          actor={actor}
+          sources={view.data.sources}
+          canSave={allowed("capabilities.catalog.sources.save")}
+          canRefresh={allowed("capabilities.catalog.sources.refresh")}
+          refresh={view.refresh}
+        />
       )}
-    </div>
+      <DetailCard title="插件与实际配置">
+        <p>
+          插件安装、版本与角色binding在插件中心管理；声音、图像、设备等凭据由各自设置页面管理。
+        </p>
+        <a className="button" href="#/plugins">
+          打开插件中心
+        </a>
+      </DetailCard>
+    </section>
   );
 }

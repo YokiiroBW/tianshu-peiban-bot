@@ -66,7 +66,7 @@ class CompanionService:
                 (context.actor_id,))).fetchone()
         if row is None:
             raise AppError("actor_not_found", status=404)
-        return row
+        return {**row,"can_manage":bool(context.permissions & {"*","companion.manage"})}
 
     async def save_actor(self, context, body):
         await self.identity.check(context)
@@ -140,7 +140,7 @@ class CompanionService:
         async with self.database.transaction(read_only=True) as connection:
             rows = await (await connection.execute(
                 "SELECT persona_id,name,revision,current_revision FROM companion.persona_profiles ORDER BY name,persona_id")).fetchall()
-        return {"items": rows}
+        return {"items": rows,"can_manage":bool(context.permissions & {"*","companion.manage"})}
 
     async def persona(self, context, persona_id, revision=None):
         await self.identity.check(context)

@@ -57,3 +57,14 @@
 - SourceEvidence 按完整 locator 区分原文片段，使用实际字符 next_position；来源撤销/目标切换清当前视图/编辑依赖。
 - 仅运行既有 Prettier 对本次自己所有的 TS/TSX 源码格式化，未安装依赖，未运行测试、typecheck、build、浏览器。状态 implemented_not_tested。
 - 后续仍在完成：角色/人格/关系旧投影替换；Speech/Reactions/Images 完整配置与素材流程；Channels；Tasks/Skills/flow-graph；小屋控件持久保存与约定高级安排。A/C各自白名单页面另由其交付，不能据本提交宣称CR18整批完成。
+
+
+### CR18B/D 角色、人格、关系与唯一能力目录
+
+- RoleManager 已删除 legacy_roles/role.legacy/stage/capabilities/provider 等旧投影，角色只保存实际 name/enabled/persona_id/persona_revision。详情读取真实 can_manage；逐角色模型通过 C 提供的 ModelFunctionsPanel(actorId) 使用唯一Models.bindings，不保留 roles/models API。
+- PersonaAuthor 接正式catalog/view/history/save与角色CAS绑定，保留新建、完整作者正文/语气/风格/称呼/世界、复制、作者修订历史/对照、明确固定角色版本。未运行的旧persona API包装已删除。
+- companion/relationships 已整体删除旧分数/阶段/legacy_import/旧history消费者。接A memory/relationship 与save，展示带来源的背景、边界、偏好、共同经历，冻结/解冻保留当前关系字段并不重写未编辑详情；编辑固定原revision。依A0044c1f can_manage投影。
+- SkillsPanel 只接 C Catalog actor policy；按真实availability分别显示未实现、未配置、停用、对端支持未知与实际can_execute。manifest来源真实保存/刷新/固定hash/只写token，无独立Skills账本或凭据转发。
+- Auth使用正式AccountSession，删除虚构dialogue/conversations与部署账号claim路径；首次创建与登录使用真实SessionView，密码/账号输入约束与现有Identity实现一致。RoleWorkspace可继续读取全部授权角色页。
+- 公共operation补A models/attempts/read、memory/relationship/save 与C Archive端点。C Models组件actorId props为已约定待其提交接口，未复制其代码。
+- 仅既有Prettier格式化，未测试/typecheck/build/浏览器；implemented_not_tested。仍继续Multimodal/Channels/Tasks/flow-graph/其余设置与小屋。

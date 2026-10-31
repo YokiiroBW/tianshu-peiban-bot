@@ -1,649 +1,407 @@
+import { useEffect, useState } from "react";
+import { Plus, Copy } from "lucide-react";
+import {
+  GLOBAL_SCOPE,
+  actorScope,
+  useDomainCommand,
+  useDomainResource,
+} from "../../api/useDomainResource";
+import type { Page } from "../../api/contracts";
+import type { AccountSession } from "../../api/session";
 import { Drawer } from "../../components/Drawer";
-import { DetailCard } from "../../components/DetailCard";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, Copy, MoreHorizontal, Plus } from "lucide-react";
-import { author, PersonaError, reason, type SessionState } from "./personaApi";
-import { requestId } from "../../app/requestId";
+import { CommandFeedback } from "../../components/CommandFeedback";
+import type { Actor, Persona, PersonaCatalog } from "./roleTypes";
 
-type Content = {
-  persona: string;
-  tone: string;
-  style: string;
-  address: string;
+type Edition = {
+  persona: Partial<Persona>;
+  expectedRevision: number | null;
+  copy: boolean;
 };
-type Item = {
-  id: string;
-  kind: "profile" | "role";
-  name: string;
-  description: string;
-  version: number;
-  state: string;
-  published_revision: string | null;
-  draft_revision: string | null;
-  last_applied_profile_revision: string | null;
-  applied_state?: "never" | "current" | "previous" | "unknown";
-  content?: Content;
-};
-type Form = { name: string; description: string; content: Content };
-const blank: Form = {
-  name: "",
-  description: "",
-  content: { persona: "", tone: "", style: "", address: "" },
-};
-const extras = [
-  { key: "tone", label: "语气", max: 20000 },
-  { key: "style", label: "表达风格", max: 20000 },
-  { key: "address", label: "称呼", max: 4000 },
-] as const;
-
-function fromItem(item: Item): Form {
-  return {
-    name: item.name,
-    description: item.description || "",
-    content: {
-      persona: item.content?.persona || "",
-      tone: item.content?.tone || "",
-      style: item.content?.style || "",
-      address: item.content?.address || "",
-    },
-  };
-}
-
-function label(item: Item, index: number) {
-  return item.kind === "role" && item.name === item.id
-    ? `角色 ${index + 1}`
-    : item.name;
-}
-
-function badge(item: Item) {
-  if (item.kind === "role") {
-    if (item.published_revision && item.draft_revision)
-      return "当前使用 · 有新草稿";
-    return item.published_revision ? "当前使用" : "草稿";
-  }
-  if (item.applied_state === "current")
-    return item.draft_revision &&
-      item.last_applied_profile_revision !== item.draft_revision
-      ? "当前使用 · 有新草稿"
-      : "当前使用";
-  return "草稿";
-}
-
+type History = { revision: number; note: string; created_at: string };
+const labels = {
+  author_text: "完整作者人格",
+  tone: "语气",
+  style: "表达方式",
+  address: "称呼约定",
+  world: "角色世界背景",
+} as const;
 export default function PersonaAuthor({
-  session,
   actor = "",
 }: {
-  session: SessionState;
+  session: AccountSession;
   actor?: string;
 }) {
-  const [profiles, setProfiles] = useState<Item[]>([]);
-  const [targets, setTargets] = useState<Item[]>([]);
-  const [permissions, setPermissions] = useState({
-    create: false,
-    edit: false,
-    apply: false,
-  });
-  const [selected, setSelected] = useState<Item | null>(null);
-  const [copySource, setCopySource] = useState<{
-    id: string;
-    version: number;
-  } | null>(null);
-  const [form, setForm] = useState<Form>(blank);
-  const [baseline, setBaseline] = useState<Form>(blank);
-  const [editing, setEditing] = useState(false);
-  const [mobileDetail, setMobileDetail] = useState(false);
-  const [search, setSearch] = useState("");
-  const [target, setTarget] = useState("");
-  const [targetVersion, setTargetVersion] = useState<number | null>(null);
-  const [choosingTarget, setChoosingTarget] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const [loaded, setLoaded] = useState(false);
-  const request = useRef<{ body: string; id: string } | null>(null);
-  const controller = useRef<AbortController | null>(null);
-  const initialized = useRef(false);
-  const dirty = JSON.stringify(form) !== JSON.stringify(baseline);
-  const dirtyRef = useRef(dirty);
-  dirtyRef.current = dirty;
-
-  useEffect(() => {
-    const warn = (event: BeforeUnloadEvent) => {
-      if (!dirtyRef.current) return;
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    const protect = (event: Event) => {
-      if (
-        dirtyRef.current &&
-        !window.confirm("有尚未保存的输入。离开后会丢失，确定继续吗？")
-      )
-        event.preventDefault();
-    };
-    window.addEventListener("beforeunload", warn);
-    window.addEventListener("tianshu:before-route", protect);
-    window.addEventListener("tianshu:before-role", protect);
-    return () => {
-      controller.current?.abort();
-      window.removeEventListener("beforeunload", warn);
-      window.removeEventListener("tianshu:before-route", protect);
-      window.removeEventListener("tianshu:before-role", protect);
-    };
-  }, []);
-
-  const call = useCallback(
-    async <T,>(
-      path: "profiles" | "view" | "create" | "save" | "apply",
-      body: object,
-    ) => {
-      const next = new AbortController();
-      controller.current = next;
-      try {
-        return await author<T>(path, body, session.csrf, next.signal);
-      } catch (cause) {
-        if (
-          cause instanceof PersonaError &&
-          ["session_expired", "unauthorized"].includes(cause.code)
-        )
-          window.dispatchEvent(new Event("tianshu:session-lost"));
-        throw cause;
-      }
+  const catalog = useDomainResource<PersonaCatalog>(
+    "companion/personas/catalog",
+    GLOBAL_SCOPE,
+  );
+  const currentRole = useDomainResource<Actor>(
+    "companion/roles/get",
+    actorScope(actor),
+    !!actor,
+  );
+  const [selected, setSelected] = useState("");
+  const [version, setVersion] = useState<number | null>(null);
+  const [historyCursor, setHistoryCursor] = useState<string | null>(null);
+  const [compare, setCompare] = useState<number | null>(null);
+  const [filter, setFilter] = useState("");
+  const [edition, setEdition] = useState<Edition | null>(null);
+  const index = catalog.data?.items.find(
+    (item) => item.persona_id === selected,
+  );
+  const view = useDomainResource<Persona>(
+    "companion/personas/view",
+    {
+      ...GLOBAL_SCOPE,
+      persona_id: selected,
+      ...(version ? { revision: version } : {}),
     },
-    [session.csrf],
+    !!selected,
   );
-
-  const load = useCallback(async () => {
-    const result = await call<{
-      profiles: Item[];
-      targets: Item[];
-      permissions: { create: boolean; edit: boolean; apply: boolean };
-    }>("profiles", {});
-    setProfiles(result.profiles);
-    setTargets(result.targets);
-    setPermissions(result.permissions);
-    if (!initialized.current) {
-      initialized.current = true;
-      const first =
-        result.targets.find((item) => item.id === actor) ??
-        result.profiles[0] ??
-        result.targets[0];
-      if (first) {
-        const answer = await call<{ item: Item }>("view", { id: first.id });
-        const next = fromItem(answer.item);
-        setSelected(answer.item);
-        setForm(next);
-        setBaseline(next);
-        if (first.kind === "role") {
-          setTarget(first.id);
-          setTargetVersion(answer.item.version);
-        }
-      }
-    }
-    setLoaded(true);
-  }, [call, actor]);
-
+  const previous = useDomainResource<Persona>(
+    "companion/personas/view",
+    { ...GLOBAL_SCOPE, persona_id: selected, revision: compare },
+    !!selected && compare !== null,
+  );
+  const history = useDomainResource<Page<History>>(
+    "companion/personas/history",
+    { ...GLOBAL_SCOPE, persona_id: selected, cursor: historyCursor, limit: 40 },
+    !!selected,
+  );
+  const apply = useDomainCommand("persona-apply", "actor");
   useEffect(() => {
-    void load().catch((cause) => setError(reason(cause)));
-  }, [load]);
-
-  const mayLeave = () =>
-    !dirty || window.confirm("有尚未保存的输入。离开后会丢失，确定继续吗？");
-
-  const open = async (id: string) => {
-    if (busy || !mayLeave()) return;
-    setBusy(true);
-    setError("");
-    setNotice("");
-    try {
-      const answer = await call<{ item: Item }>("view", { id });
-      const next = fromItem(answer.item);
-      setSelected(answer.item);
-      setCopySource(null);
-      setForm(next);
-      setBaseline(next);
-      setEditing(false);
-      setMobileDetail(true);
-      setChoosingTarget(false);
-      setTarget(answer.item.kind === "role" ? id : "");
-      setTargetVersion(
-        answer.item.kind === "role" ? answer.item.version : null,
-      );
-      request.current = null;
-    } catch (cause) {
-      setError(reason(cause));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const create = () => {
-    if (busy || !mayLeave()) return;
-    setSelected(null);
-    setCopySource(null);
-    setForm(blank);
-    setBaseline(blank);
-    setTarget("");
-    setTargetVersion(null);
-    setEditing(true);
-    setMobileDetail(true);
-    setChoosingTarget(false);
-    setError("");
-    setNotice("");
-    request.current = null;
-  };
-
-  const copy = () => {
-    if (!selected || busy || !mayLeave()) return;
-    setCopySource({ id: selected.id, version: selected.version });
-    setForm({
-      ...form,
-      name: `${label(
-        selected,
-        targets.findIndex((item) => item.id === selected.id),
-      )} 副本`,
-    });
-    setBaseline(blank);
-    setSelected(null);
-    setTarget("");
-    setTargetVersion(null);
-    setEditing(true);
-    setChoosingTarget(false);
-    setNotice("");
-    request.current = null;
-  };
-
-  const chooseTarget = async (id: string) => {
-    if (!id) {
-      setTarget("");
-      setTargetVersion(null);
-      return;
-    }
-    setBusy(true);
-    setError("");
-    try {
-      const answer = await call<{ item: Item }>("view", { id });
-      setTarget(id);
-      setTargetVersion(answer.item.version);
-    } catch (cause) {
-      setError(reason(cause));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const submit = async (apply: boolean) => {
-    if (busy || !form.name.trim() || !form.content.persona.trim()) return;
-    if (
-      apply &&
-      (!selected ||
-        !target ||
-        targetVersion === null ||
-        !permissions.apply ||
-        !permissions.edit)
-    )
-      return;
-    if (!apply && !(selected ? permissions.edit : permissions.create)) return;
-    setBusy(true);
-    setError("");
-    setNotice("");
-    try {
-      const path = apply ? "apply" : selected ? "save" : "create";
-      const body: Record<string, unknown> = { ...form };
-      if (!selected && copySource)
-        Object.assign(body, {
-          copy_from: copySource.id,
-          copy_expected: copySource.version,
-        });
-      if (selected)
-        Object.assign(body, { id: selected.id, expected: selected.version });
-      if (apply)
-        Object.assign(body, { target, target_expected: targetVersion });
-      const signature = JSON.stringify([path, body]);
-      if (request.current?.body !== signature)
-        request.current = { body: signature, id: requestId() };
-      body.client_request_id = request.current.id;
-      const result = await call<{ item: Item; target?: Item }>(path, body);
-      request.current = null;
-      const next = { ...result.item, content: { ...form.content } };
-      setSelected(next);
-      setCopySource(null);
-      setBaseline(form);
-      setEditing(false);
-      setChoosingTarget(false);
-      if (result.target) setTargetVersion(result.target.version);
-      else if (next.kind === "role") setTargetVersion(next.version);
-      setNotice(apply ? "已保存并应用。" : "草稿已保存。");
-      await load();
-    } catch (cause) {
-      setError(reason(cause));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const all = [...profiles, ...targets];
-  const visible = all.filter((item) =>
-    label(item, targets.indexOf(item))
-      .toLocaleLowerCase()
-      .includes(search.toLocaleLowerCase()),
-  );
-  const selectedName = selected
-    ? label(
-        selected,
-        targets.findIndex((item) => item.id === selected.id),
-      )
-    : "新建人格";
-  const canEdit = selected ? permissions.edit : permissions.create;
-
+    if (!selected && catalog.data?.items.length)
+      setSelected(catalog.data.items[0].persona_id);
+  }, [catalog.data, selected]);
+  useEffect(() => {
+    if (view.accessLost) setEdition(null);
+  }, [view.accessLost]);
+  function choose(id: string) {
+    setSelected(id);
+    setVersion(null);
+    setHistoryCursor(null);
+    setCompare(null);
+    setEdition(null);
+  }
   return (
-    <div
-      className={`persona-author persona-author-layout scroll-layout${mobileDetail ? " persona-show-detail" : ""}`}
-    >
+    <div className="persona-author persona-author-layout scroll-layout">
       <nav className="persona-author-list scroll-pane" aria-label="人格列表">
         <div className="persona-list-heading">
           <h3>人格列表</h3>
-          <button
-            type="button"
-            className="button primary"
-            onClick={create}
-            disabled={busy || !permissions.create}
-            aria-label="新建人格"
-          >
-            <Plus aria-hidden="true" /> <span>新建</span>
-          </button>
+          {catalog.data?.can_manage && (
+            <button
+              className="button primary"
+              onClick={() =>
+                setEdition({
+                  persona: { name: "", author_text: "" },
+                  expectedRevision: null,
+                  copy: false,
+                })
+              }
+            >
+              <Plus />
+              新建
+            </button>
+          )}
         </div>
         <input
-          className="persona-search"
           type="search"
-          placeholder="搜索人格"
-          aria-label="搜索人格"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          aria-label="查找人格"
+          placeholder="查找人格"
+          value={filter}
+          onChange={(event) => setFilter(event.target.value)}
         />
-        {!loaded && !error && <p className="muted">正在读取人格…</p>}
-        {loaded && !all.length && <p className="muted">还没有人格。</p>}
-        <div className="persona-list-items">
-          {visible.map((item) => (
+        {catalog.error && <p role="alert">{catalog.error}</p>}
+        {catalog.data?.items
+          .filter((item) =>
+            item.name.toLowerCase().includes(filter.toLowerCase()),
+          )
+          .map((item) => (
             <button
-              key={item.id}
               type="button"
-              className="persona-subject"
-              aria-pressed={selected?.id === item.id}
-              onClick={() => void open(item.id)}
+              className="persona-list-item"
+              aria-selected={item.persona_id === selected}
+              key={item.persona_id}
+              onClick={() => choose(item.persona_id)}
             >
-              <span className="persona-list-name">
-                {label(item, targets.indexOf(item))}
-              </span>
-              <span className="persona-list-badge">{badge(item)}</span>
+              <strong>{item.name}</strong>
+              <small>
+                当前作者修订 {item.current_revision}
+                {currentRole.data?.persona_id === item.persona_id
+                  ? ` · 角色固定使用 ${currentRole.data.persona_revision}`
+                  : ""}
+              </small>
             </button>
           ))}
-        </div>
       </nav>
-      <section
-        className="persona-author-form scroll-pane"
-        aria-label="人格详情"
-        tabIndex={0}
-      >
-        <button
-          type="button"
-          className="button persona-mobile-back"
-          onClick={() => setMobileDetail(false)}
-        >
-          <ArrowLeft aria-hidden="true" /> 人格列表
-        </button>
-        {error && (
-          <p className="persona-error" role="alert">
-            {error}
-          </p>
-        )}
-        {notice && (
-          <p className="persona-notice" role="status">
-            {notice}
-          </p>
-        )}
-        {!loaded && !error ? (
-          <p>正在读取人格…</p>
-        ) : !selected && !editing ? (
-          <p className="muted">选择左侧人格查看详情。</p>
-        ) : (
+      <section className="persona-author-detail scroll-pane">
+        {view.error && <p role="alert">{view.error}</p>}
+        {view.loading && !view.data && <p>正在读取作者人格…</p>}
+        {view.data && (
           <>
-            <div className="persona-author-title">
+            <header className="section-heading">
               <div>
-                <h3>{selectedName}</h3>
-                {selected && (
-                  <span className="persona-list-badge">
-                    {badge(
-                      profiles.find((item) => item.id === selected.id) ||
-                        selected,
-                    )}
-                  </span>
-                )}
+                <h3>{view.data.name}</h3>
+                <p>
+                  已保存修订 {view.data.revision} ·
+                  作者正文不会被主观手记自动改写。
+                </p>
               </div>
-              <div className="persona-title-actions">
-                {selected && canEdit && !editing && (
+              {catalog.data?.can_manage && (
+                <div className="domain-actions">
                   <button
-                    type="button"
                     className="button"
-                    onClick={() => setEditing(true)}
+                    onClick={() =>
+                      setEdition({
+                        persona: structuredClone(view.data!),
+                        expectedRevision: index!.revision,
+                        copy: false,
+                      })
+                    }
                   >
-                    编辑
+                    编辑为新修订
+                  </button>
+                  <button
+                    className="button"
+                    onClick={() =>
+                      setEdition({
+                        persona: {
+                          ...structuredClone(view.data!),
+                          name: view.data!.name + " 副本",
+                        },
+                        expectedRevision: null,
+                        copy: true,
+                      })
+                    }
+                  >
+                    <Copy />
+                    复制为新人格
+                  </button>
+                </div>
+              )}
+            </header>
+            <div className={previous.data ? "domain-grid" : ""}>
+              <PersonaText value={view.data} />
+              {previous.data && (
+                <section>
+                  <h4>对照修订 {previous.data.revision}</h4>
+                  <PersonaText value={previous.data} />
+                </section>
+              )}
+            </div>
+            {previous.error && <p role="alert">{previous.error}</p>}
+            {currentRole.data?.can_manage && (
+              <section className="panel">
+                <h4>应用给当前角色</h4>
+                <p>
+                  {currentRole.data.name}当前固定修订：
+                  {currentRole.data.persona_id === selected
+                    ? currentRole.data.persona_revision
+                    : "使用其他人格或尚未选择"}
+                  。
+                </p>
+                <button
+                  className="button primary"
+                  disabled={apply.busy}
+                  onClick={() =>
+                    void apply
+                      .run(
+                        "companion/roles/save",
+                        {
+                          actor_id: actor,
+                          person_id: null,
+                          conversation_id: null,
+                          name: currentRole.data!.name,
+                          enabled: currentRole.data!.enabled,
+                          persona_id: selected,
+                          persona_revision: view.data!.revision,
+                        },
+                        currentRole.data!.revision,
+                      )
+                      .then((result) => {
+                        if (result) void currentRole.refresh();
+                      })
+                  }
+                >
+                  明确使用修订 {view.data.revision}
+                </button>
+                <CommandFeedback {...apply} />
+              </section>
+            )}
+            <section className="panel">
+              <h4>作者修订记录</h4>
+              {history.error && <p role="alert">{history.error}</p>}
+              {history.data?.items.map((item) => (
+                <div className="domain-record" key={item.revision}>
+                  <strong>修订 {item.revision}</strong>
+                  <small>
+                    {new Date(item.created_at).toLocaleString("zh-CN")}
+                  </small>
+                  <p>{item.note || "未填写修订说明"}</p>
+                  <div className="domain-actions">
+                    <button
+                      className="text-link"
+                      onClick={() => setVersion(item.revision)}
+                    >
+                      查看这一版
+                    </button>
+                    <button
+                      className="text-link"
+                      onClick={() => setCompare(item.revision)}
+                    >
+                      与当前显示版对照
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <div className="domain-actions">
+                {compare !== null && (
+                  <button className="button" onClick={() => setCompare(null)}>
+                    收起对照
                   </button>
                 )}
-                {selected && permissions.create && (
-                  <details className="persona-more-menu">
-                    <summary aria-label="更多操作">
-                      <MoreHorizontal aria-hidden="true" />
-                    </summary>
-                    <button type="button" className="button" onClick={copy}>
-                      <Copy aria-hidden="true" /> 复制为新人格
-                    </button>
-                  </details>
+                {version !== null && (
+                  <button className="button" onClick={() => setVersion(null)}>
+                    查看最新作者修订
+                  </button>
+                )}
+                {historyCursor && (
+                  <button
+                    className="button"
+                    onClick={() => setHistoryCursor(null)}
+                  >
+                    回到最新记录
+                  </button>
+                )}
+                {history.data?.next_cursor && (
+                  <button
+                    className="button"
+                    onClick={() => setHistoryCursor(history.data!.next_cursor)}
+                  >
+                    更早的修订
+                  </button>
                 )}
               </div>
-            </div>
-            {editing ? (
-              <Drawer
-                title={`编辑人格 · ${selectedName}`}
-                variant="card"
-                open={true}
-                onClose={() => {
-                  if (mayLeave()) {
-                    setForm(baseline);
-                    setEditing(false);
-                    setChoosingTarget(false);
-                  }
-                }}
-              >
-                {error && <p role="alert">{error}</p>}
-                {notice && <p role="status">{notice}</p>}
-                <div className="persona-fields">
-                  <label className="persona-author-field">
-                    名称
-                    <input
-                      value={
-                        selected?.kind === "role" && form.name === selected.id
-                          ? ""
-                          : form.name
-                      }
-                      placeholder={
-                        selected?.kind === "role" && form.name === selected.id
-                          ? "为角色起个名字"
-                          : "人格名称"
-                      }
-                      maxLength={80}
-                      onChange={(event) =>
-                        setForm({ ...form, name: event.target.value })
-                      }
-                    />
-                  </label>
-                  <label className="persona-author-field">
-                    人设正文
-                    <textarea
-                      className="persona-main-text"
-                      value={form.content.persona}
-                      maxLength={20000}
-                      rows={12}
-                      onChange={(event) =>
-                        setForm({
-                          ...form,
-                          content: {
-                            ...form.content,
-                            persona: event.target.value,
-                          },
-                        })
-                      }
-                    />
-                  </label>
-                  <DetailCard
-                    title="更多设置"
-                    className="persona-extra-settings"
-                  >
-                    <label className="persona-author-field">
-                      简介
-                      <textarea
-                        value={form.description}
-                        maxLength={400}
-                        rows={2}
-                        onChange={(event) =>
-                          setForm({ ...form, description: event.target.value })
-                        }
-                      />
-                    </label>
-                    {extras.map(({ key, label: fieldLabel, max }) => (
-                      <label key={key} className="persona-author-field">
-                        {fieldLabel}
-                        <textarea
-                          value={form.content[key]}
-                          maxLength={max}
-                          rows={3}
-                          onChange={(event) =>
-                            setForm({
-                              ...form,
-                              content: {
-                                ...form.content,
-                                [key]: event.target.value,
-                              },
-                            })
-                          }
-                        />
-                      </label>
-                    ))}
-                  </DetailCard>
-                  {choosingTarget && selected?.kind === "profile" && (
-                    <div className="persona-apply-target">
-                      <label htmlFor="persona-target">应用到</label>
-                      <select
-                        id="persona-target"
-                        value={target}
-                        disabled={busy}
-                        onChange={(event) =>
-                          void chooseTarget(event.target.value)
-                        }
-                      >
-                        <option value="">选择角色</option>
-                        {targets.map((item, index) => (
-                          <option key={item.id} value={item.id}>
-                            {label(item, index)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                  {dirty && (
-                    <p className="muted" role="status">
-                      有未保存的修改
-                    </p>
-                  )}
-                  <div className="persona-author-actions">
-                    <button
-                      type="button"
-                      className="button"
-                      disabled={
-                        busy ||
-                        !canEdit ||
-                        !form.name.trim() ||
-                        !form.content.persona.trim()
-                      }
-                      onClick={() => void submit(false)}
-                    >
-                      {busy ? "保存中…" : "保存草稿"}
-                    </button>
-                    <button
-                      type="button"
-                      className="button primary"
-                      disabled={
-                        busy ||
-                        !selected ||
-                        !permissions.edit ||
-                        !permissions.apply ||
-                        !form.name.trim() ||
-                        !form.content.persona.trim()
-                      }
-                      onClick={() => {
-                        if (selected?.kind === "profile" && !target)
-                          setChoosingTarget(true);
-                        else void submit(true);
-                      }}
-                    >
-                      保存并应用
-                    </button>
-                    {selected && (
-                      <button
-                        type="button"
-                        className="button persona-cancel"
-                        onClick={() => {
-                          if (mayLeave()) {
-                            setForm(baseline);
-                            setEditing(false);
-                            setChoosingTarget(false);
-                          }
-                        }}
-                      >
-                        取消
-                      </button>
-                    )}
-                  </div>
-                  {!selected && (
-                    <p className="muted">保存草稿后可选择角色应用。</p>
-                  )}
-                </div>
-              </Drawer>
-            ) : (
-              <div className="persona-view">
-                <h4>人设正文</h4>
-                <p className="persona-body">
-                  {form.content.persona || "暂无正文"}
-                </p>
-                {(form.description ||
-                  extras.some(({ key }) => form.content[key])) && (
-                  <DetailCard
-                    title="更多设置"
-                    className="persona-extra-settings"
-                  >
-                    {form.description && (
-                      <p>
-                        <strong>简介</strong>
-                        <br />
-                        {form.description}
-                      </p>
-                    )}
-                    {extras.map(
-                      ({ key, label: fieldLabel }) =>
-                        form.content[key] && (
-                          <p key={key}>
-                            <strong>{fieldLabel}</strong>
-                            <br />
-                            {form.content[key]}
-                          </p>
-                        ),
-                    )}
-                  </DetailCard>
-                )}
-              </div>
-            )}
+            </section>
           </>
         )}
+        {!selected && !catalog.loading && (
+          <p>从左侧选择或新建一份完整作者人格。</p>
+        )}
       </section>
+      <Drawer
+        title={edition?.expectedRevision === null ? "新的人格" : "编辑为新修订"}
+        open={edition !== null}
+        onClose={() => setEdition(null)}
+        variant="card"
+      >
+        {edition && (
+          <PersonaEditor
+            key={`${edition.persona.persona_id ?? "new"}:${edition.persona.revision ?? 0}:${edition.copy}`}
+            value={edition}
+            close={() => setEdition(null)}
+            saved={(id, revision) => {
+              setEdition(null);
+              choose(id);
+              setVersion(revision);
+              void catalog.refresh();
+              void history.refresh();
+            }}
+          />
+        )}
+      </Drawer>
     </div>
+  );
+}
+function PersonaText({ value }: { value: Persona }) {
+  return (
+    <article className="persona-text">
+      {Object.entries(labels).map(([key, label]) => (
+        <section key={key}>
+          <h4>{label}</h4>
+          <p style={{ whiteSpace: "pre-wrap" }}>
+            {value[key as keyof typeof labels] || "未单独填写"}
+          </p>
+        </section>
+      ))}
+    </article>
+  );
+}
+function PersonaEditor({
+  value,
+  close,
+  saved,
+}: {
+  value: Edition;
+  close: () => void;
+  saved: (id: string, revision: number) => void;
+}) {
+  const action = useDomainCommand<{ persona_id: string; revision: number }>(
+    `persona:${value.persona.persona_id ?? "new"}:${value.copy}`,
+    "global",
+  );
+  return (
+    <form
+      className="domain-form"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        const fields = Object.fromEntries(
+          Object.keys(labels).map((key) => [key, String(data.get(key) ?? "")]),
+        );
+        void action
+          .run(
+            "companion/personas/save",
+            {
+              ...(!value.copy && value.persona.persona_id
+                ? { persona_id: value.persona.persona_id }
+                : {}),
+              name: data.get("name"),
+              ...fields,
+              note: data.get("note"),
+            },
+            value.expectedRevision,
+          )
+          .then((result) => {
+            if (result?.data)
+              saved(result.data.persona_id, result.data.revision);
+          });
+      }}
+    >
+      <label>
+        人格名称
+        <input
+          name="name"
+          defaultValue={value.persona.name ?? ""}
+          required
+          maxLength={128}
+        />
+      </label>
+      {Object.entries(labels).map(([key, label]) => (
+        <label key={key}>
+          {label}
+          <textarea
+            name={key}
+            defaultValue={value.persona[key as keyof typeof labels] ?? ""}
+            required={key === "author_text"}
+            maxLength={key === "author_text" ? 200000 : 20000}
+            rows={key === "author_text" ? 16 : 5}
+          />
+        </label>
+      ))}
+      <label>
+        本次修订说明
+        <textarea name="note" maxLength={20000} />
+      </label>
+      <div className="domain-actions">
+        <button className="button primary" disabled={action.busy}>
+          保存作者修订
+        </button>
+        <button type="button" className="button" onClick={close}>
+          收起
+        </button>
+      </div>
+      <CommandFeedback {...action} />
+    </form>
   );
 }
