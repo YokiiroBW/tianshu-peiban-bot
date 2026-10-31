@@ -28,3 +28,11 @@
 新镜像与配置先固定。生产切换前重新核验旧容器 ID/image、单写者、端口、挂载、数据域与容量；新数据库从空数据开始，不复制验收夹具。按授权排空并停旧 writer，清除确认的旧天枢 schema/命名空间/专属运行状态，再启用新版本。共享 PG/Redis、control-hub、AssetLibrary、Chat Audit、AstrBot/QQ 与媒体库保持独立。若验收未通过，不提前删除旧数据。
 
 只有根完成实际操作后才能标记 deployed；工具/文档存在不表示已经切换。外部账户未配置、未真实调用的能力单独注明，不用替身通过冒称实机成功。
+
+## 模型配置的只读核对与待验证项
+
+旧配置的默认模型是 `gemini-3.8-flash-high`，当前实际来源协议为 OpenAI Chat 兼容格式。新装不能仅凭模型名称把它标成原生 Gemini 已可用；保留明确的协议、端点、共享账户容量及验证状态。旧功能绑定中 writing/memory 指向 `deepseek-v4.1-flash`，search 指向该 Gemini，code/tools 指向 `gpt-6.1-sol`；新功能路由需显式重建，后台不自动借用前台默认。
+
+New API 的官方[原生 Gemini 接口文档](https://docs.newapi.ai/zh/docs/api/ai-model/chat/gemini/geminirelayv1beta)说明了 `/v1beta/models/{model}:generateContent`；其[认证源码](https://github.com/QuantumNous/new-api/blob/main/middleware/auth.go)支持相应路径的 `x-goog-api-key`。这仅提供候选接入依据，不能据此证明用户供应商的具体部署/模型已支持多模态；CR19 再验证真实配置。
+
+旧配置还包含 Qwen3 Reranker 与 Embedding；后者最近一次旧测试是 unknown。SiliconFlow 的[模型说明](https://www.siliconflow.com/models/qwen3-embedding-8b)列出可变维度范围，但新安装仍须实际检查返回 1024 维及固定 profile，不能把旧测试记录或文档能力当作本轮成功。只读元数据保存在原根本批私有 runtime 目录；没有导出或打印 API Key，也没有在开发阶段调用模型。

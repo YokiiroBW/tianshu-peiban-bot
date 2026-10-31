@@ -586,6 +586,12 @@
       "integrated": "8ebc219",
       "scope": "durable dialogue collection/recovery, life clock and activation, paged diary materials and publication boundaries",
       "validation": "source_review_only; expression planner/usecase handlers and final UI ongoing"
+    },
+    {
+      "source": "3d48548b5bba794d53a2ca8d82aa668636820e51",
+      "integrated": "a9af240",
+      "scope": "indexed precise source version/fragment withdrawal; batched dependencies; execution-time voice profile revision",
+      "validation": "source_review_only; tests still not run"
     }
   ],
   "validation": {
