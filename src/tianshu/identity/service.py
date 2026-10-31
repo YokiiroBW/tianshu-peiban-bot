@@ -463,6 +463,23 @@ class IdentityService:
             ).fetchone()
         )
 
+    async def archive_scene_on(self, conn, context):
+        """Actual registered channel targets for this read scene, including observation-only scenes."""
+        await self.check_context(context, connection=conn)
+        if not context.actor_id or not context.conversation_id:
+            raise AppError("archive_conversation_required", status=403)
+        return tuple(
+            await (
+                await conn.execute(
+                    "SELECT c.connection_id,c.namespace,c.self_external_id,l.external_id AS target_ref,v.kind "
+                    "FROM identity.conversations v JOIN identity.conversation_links l USING(conversation_id) "
+                    "JOIN identity.connections c USING(connection_id) WHERE v.conversation_id=%s "
+                    "AND v.actor_id=%s AND v.scope_id=ANY(%s) AND c.enabled ORDER BY c.connection_id",
+                    (context.conversation_id, context.actor_id, list(context.scope_ids)),
+                )
+            ).fetchall()
+        )
+
     async def channel_context(self, connection_id, conversation_external_id):
         """Only authenticated transport owners call this for non-message events; no HTTP body endpoint."""
         async with self.database.transaction(read_only=True) as conn:

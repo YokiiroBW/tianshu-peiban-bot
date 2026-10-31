@@ -8,6 +8,7 @@ from .types import AdmissionDecision, IncomingEvent
 
 
 class IdentityPort(Protocol):
+    async def archive_scene_on(self, connection, context: TrustedContext) -> tuple[dict, ...]: ...
     async def publication_recipients(
         self, context: TrustedContext, *, cursor: str | None = None, limit: int = 100
     ): ...

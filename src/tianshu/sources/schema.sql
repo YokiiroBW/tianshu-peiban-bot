@@ -42,6 +42,21 @@ CREATE TABLE sources.supports (
     FOREIGN KEY(source_id,revision) REFERENCES sources.versions
 );
 CREATE INDEX supports_reverse ON sources.supports(support_source_id,support_revision);
+CREATE TABLE sources.source_aliases (
+    alias_key text NOT NULL,
+    source_id text NOT NULL,
+    revision bigint NOT NULL,
+    PRIMARY KEY(alias_key,source_id,revision),
+    FOREIGN KEY(source_id,revision) REFERENCES sources.versions
+);
+CREATE INDEX source_aliases_reverse ON sources.source_aliases(source_id,revision,alias_key);
+CREATE TABLE sources.archive_records (
+    archive_key text PRIMARY KEY,
+    source_id text UNIQUE NOT NULL REFERENCES sources.originals,
+    content_hash text NOT NULL,
+    alias_keys text[] NOT NULL
+);
+CREATE INDEX archive_aliases ON sources.archive_records USING gin(alias_keys);
 CREATE TABLE sources.forgotten_fragments (
     source_id text NOT NULL,
     revision bigint NOT NULL,

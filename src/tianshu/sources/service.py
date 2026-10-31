@@ -8,7 +8,7 @@ import json
 
 from psycopg.types.json import Jsonb
 
-from tianshu.models.ledger import purge_source_results, purge_source_results_many
+from tianshu.models.ledger import purge_source_results_many
 from tianshu.runtime.api import CommandResult
 from tianshu.runtime.commands import body_hash
 from tianshu.runtime.errors import AppError
@@ -49,20 +49,27 @@ class SourceService:
                 return False
             raise
 
-    async def _lock_selected(self, conn, source_refs, *, extra=(), exclusive=False):
-        if source_refs or extra:
-            await conn.execute(
-                "WITH RECURSIVE selected(source_id,revision) AS ("
-                "SELECT * FROM unnest(%s::text[],%s::bigint[]) UNION SELECT d.support_source_id,d.support_revision "
-                "FROM sources.supports d JOIN selected s ON s.source_id=d.source_id AND s.revision=d.revision) "
-                "SELECT o.source_id FROM sources.originals o WHERE o.source_id IN(SELECT source_id FROM selected) OR o.source_id=ANY(%s) "
-                "ORDER BY o.source_id " + ("FOR UPDATE" if exclusive else "FOR SHARE"),
-                (
-                    [ref.source_id for ref in source_refs],
-                    [ref.revision for ref in source_refs],
-                    list(extra),
-                ),
+    async def _lock_selected(
+        self, conn, source_refs, *, extra=(), exclusive=False, extra_aliases=()
+    ):
+        if source_refs or extra or extra_aliases:
+            from .archives import lock_selected
+
+            await lock_selected(
+                conn, source_refs, extra=extra, exclusive=exclusive, aliases=extra_aliases
             )
+
+    async def register_archive(self, context, *, mapping_id, channel, records, explicit_request):
+        from .archives import register_archive
+
+        return await register_archive(
+            self,
+            context,
+            mapping_id=mapping_id,
+            channel=channel,
+            records=records,
+            explicit_request=explicit_request,
+        )
 
     async def check_many_on(self, conn, context, refs_groups):
         from psycopg.errors import ProgramLimitExceeded
@@ -115,6 +122,11 @@ class SourceService:
         async with self.database.transaction() as conn:
             intake, epochs = await self.identity.intake_scope(context, connection=conn)
             write_context = replace(context, scope_ids=intake, audience=intake)
+            from .archives import event_alias, bind_event
+
+            native_alias = await event_alias(self, conn, context, producer, event_id)
+            if native_alias:
+                await self._lock_selected(conn, (), exclusive=True, extra_aliases=(native_alias,))
             previous_roots = await (
                 await conn.execute(
                     "SELECT o.source_id,o.head_revision FROM sources.originals o JOIN "
@@ -217,6 +229,7 @@ class SourceService:
                 await self._changed(
                     conn, SourceRef(row["source_id"], row["head_revision"], {}), "corrected"
                 )
+            await bind_event(conn, native_alias, tuple(refs))
         return tuple(refs)
 
     async def _register(
@@ -649,24 +662,29 @@ class SourceService:
         return tuple(results)
 
     async def _changed(self, conn, source, kind):
-        change = await (
-            await conn.execute(
-                "INSERT INTO sources.changes(source_id,revision,kind) VALUES(%s,%s,%s) RETURNING sequence",
-                (source.source_id, source.revision, kind),
-            )
-        ).fetchone()
-        await purge_source_results(conn, source)
+        from .archives import invalidate_related
+
+        related = await invalidate_related(conn, source, kind)
+        affected = (source, *related)
+        await purge_source_results_many(conn, affected)
         for callback in self.dependants:
-            await callback(conn, (source,), kind)
-        await self.jobs.enqueue(
-            conn,
-            JobSpec(
-                "sources.propagate",
-                f"source-change:{change['sequence']}",
-                {"source": wire(source), "kind": kind},
-                ServiceClass.DUE,
-            ),
-        )
+            await callback(conn, affected, kind)
+        for ref in affected:
+            change = await (
+                await conn.execute(
+                    "INSERT INTO sources.changes(source_id,revision,kind) VALUES(%s,%s,%s) RETURNING sequence",
+                    (ref.source_id, ref.revision, kind),
+                )
+            ).fetchone()
+            await self.jobs.enqueue(
+                conn,
+                JobSpec(
+                    "sources.propagate",
+                    f"source-change:{change['sequence']}",
+                    {"source": wire(ref), "kind": kind},
+                    ServiceClass.DUE,
+                ),
+            )
 
     async def recall_event(
         self, context, producer, event_id, *, revision=None, reason="channel_recall"
@@ -684,7 +702,7 @@ class SourceService:
                     "SELECT o.source_id,o.head_revision FROM sources.originals o JOIN sources.versions v "
                     "ON v.source_id=o.source_id AND v.revision=o.head_revision WHERE o.actor_id=%s "
                     "AND v.evidence_unit=%s AND v.scope_ids<@%s::text[] AND o.state='active' "
-                    "AND (%s::bigint IS NULL OR o.head_revision=%s) ORDER BY o.source_id FOR UPDATE OF o",
+                    "AND (%s::bigint IS NULL OR o.head_revision=%s) ORDER BY o.source_id",
                     (
                         context.actor_id,
                         producer + ":" + event_id,
@@ -694,23 +712,35 @@ class SourceService:
                     ),
                 )
             ).fetchall()
+            await self._lock_selected(
+                conn,
+                tuple(SourceRef(row["source_id"], row["head_revision"], {}) for row in rows),
+                exclusive=True,
+            )
             await purge_source_results_many(
                 conn, tuple(SourceRef(row["source_id"], row["head_revision"], {}) for row in rows)
             )
             for row in rows:
-                await conn.execute(
-                    "UPDATE sources.originals SET state='retracted',intake_epoch=intake_epoch+1 WHERE source_id=%s",
-                    (row["source_id"],),
-                )
-                await self._changed(
-                    conn, SourceRef(row["source_id"], row["head_revision"], {}), "channel_recall"
-                )
+                changed = await (
+                    await conn.execute(
+                        "UPDATE sources.originals SET state='retracted',intake_epoch=intake_epoch+1 "
+                        "WHERE source_id=%s AND state='active' RETURNING source_id",
+                        (row["source_id"],),
+                    )
+                ).fetchone()
+                if changed:
+                    await self._changed(
+                        conn,
+                        SourceRef(row["source_id"], row["head_revision"], {}),
+                        "channel_recall",
+                    )
 
     async def invalidate(self, context, body, *, forgotten=False):
         source = SourceRef(body["source_id"], body["expected_revision"], {})
 
         async def apply(conn):
             await self.identity.check_context(context, connection=conn)
+            await self._lock_selected(conn, (source,), exclusive=True)
             row = await (
                 await conn.execute(
                     "SELECT * FROM sources.originals WHERE source_id=%s FOR UPDATE",
@@ -768,6 +798,7 @@ class SourceService:
 
         async def apply(conn):
             await self.identity.check_context(context, connection=conn)
+            await self._lock_selected(conn, (source,), exclusive=True)
             row = await (
                 await conn.execute(
                     "SELECT o.owner_id,o.person_id,o.actor_id,o.source_key,o.head_revision,length(v.content) AS length FROM sources.originals o "

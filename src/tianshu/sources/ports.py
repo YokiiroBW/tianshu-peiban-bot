@@ -13,6 +13,15 @@ if TYPE_CHECKING:
 
 
 class SourcePort(Protocol):
+    async def register_archive(
+        self,
+        context: TrustedContext,
+        *,
+        mapping_id: str,
+        channel: dict,
+        records: tuple[dict, ...],
+        explicit_request: bool,
+    ) -> tuple[dict, ...]: ...
     async def validate_persistence(
         self, connection, context: TrustedContext, source_refs: tuple[SourceRef, ...]
     ) -> bool: ...
