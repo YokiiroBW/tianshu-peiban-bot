@@ -86,6 +86,9 @@ class PluginManager:
 
         self.owner = Owner(str(anchor) + ".plugins.owner")
         self.worker_enabled=False
+        from .runtime_state import RuntimeState
+
+        self.runtime_state = RuntimeState(self)
         from .execution import Executions
         from .scheduler import Scheduler
 
@@ -118,6 +121,7 @@ class PluginManager:
         self.closing = False
         self.owner_busy = False
         self.started = True
+        self.runtime_state.start()
         # The process that held these contexts is gone. A write is never replayed automatically.
         for call in await self.local(self.repository.unfinished):
             await self.local(
@@ -187,17 +191,19 @@ class PluginManager:
 
     async def close(self):
         self.closing = True
-        for task in tuple(self.background):
-            task.cancel()
-        await asyncio.gather(*tuple(self.background), return_exceptions=True)
-        await self.executions.close()
-        await asyncio.gather(
-            *(self.stop_worker(identifier, "host_shutdown") for identifier in tuple(self.workers)),
-            return_exceptions=True,
-        )
-        self.workers.clear()
-        self.started = False
-        self.owner.close()
+        try:
+            for task in tuple(self.background):
+                task.cancel()
+            await asyncio.gather(*tuple(self.background), return_exceptions=True)
+            await self.executions.close()
+            await asyncio.gather(
+                *(self.stop_worker(identifier, "host_shutdown") for identifier in tuple(self.workers)),
+                return_exceptions=True,
+            )
+            self.workers.clear()
+        finally:
+            self.started = False
+            self.owner.close()
 
     async def reject_capability(self, method, params):
         raise Fault("permission_denied", 403)
@@ -388,11 +394,9 @@ class PluginManager:
         except Fault as error:
             problem = error.code
         worker = self.workers.get(instance["id"])
-        state = (
-            "ready"
-            if worker and worker[0].alive and worker[1] == instance["revision"]
-            else "stopped"
-        )
+        local_ready = bool(worker and worker[0].alive and worker[1] == instance["revision"])
+        runtime = await self.local(self.repository.runtime, instance["id"], instance["revision"])
+        state = "ready" if local_ready or runtime is not None else "stopped"
         if instance["desired_state"] == "enabled" and state != "ready":
             state = "managed_elsewhere" if self.owner_busy else "error"
         if missing or not package["installed"]:
@@ -423,6 +427,7 @@ class PluginManager:
         return {
             **instance,
             "state": state,
+            "plugin_runtime": runtime,
             "missing_capabilities": missing,
             "problem": problem,
             "binding_overrides": package["manifest"].get("binding_overrides", []),
@@ -583,11 +588,18 @@ class PluginManager:
             await process.call("plugin.initialize", context, timeout=15)
             await process.call("plugin.start", {}, timeout=15)
             self.workers[instance["id"]] = process, instance["revision"]
-            if await self.comic_instance(instance):
-                self.spawn(self.watch_comic_worker(instance["id"], process))
+            await self.runtime_state.started(instance["id"], process, instance["revision"])
+            self.spawn(self.watch_worker(instance["id"], process))
             await self.scheduler.seed(instance["id"], package["description"])
             return process
         except BaseException:
+            current = self.workers.get(instance["id"])
+            if current and current[0] is process:
+                self.workers.pop(instance["id"], None)
+            try:
+                await self.runtime_state.forget(instance["id"], process)
+            except Exception:
+                pass
             await process.close("startup_failed")
             self.executions.revoke(instance["id"])
             if await self.comic_instance(instance):
@@ -597,22 +609,30 @@ class PluginManager:
                     pass
             raise
 
-    async def watch_comic_worker(self, identifier, process):
-        await process.process.wait()
-        async with self.locks[identifier]:
-            current = self.workers.get(identifier)
-            if current and current[0] is process:
-                try:
-                    await self.stop_worker(identifier, "worker_exited")
-                except (Fault, TimeoutError, OSError):
-                    # The worker has gone; projection still compares its absence
-                    # with the real file roles and cannot turn this into ready.
-                    pass
+    async def watch_worker(self, identifier, process):
+        exited = asyncio.create_task(process.process.wait())
+        try:
+            # A live OS child with a closed/broken RPC reader is not ready either.
+            await asyncio.wait((exited, process.reader), return_when=asyncio.FIRST_COMPLETED)
+            async with self.locks[identifier]:
+                current = self.workers.get(identifier)
+                if current and current[0] is process:
+                    try:
+                        await self.stop_worker(identifier, "worker_exited")
+                    except (Fault, TimeoutError, OSError):
+                        pass
+        finally:
+            if not exited.done():
+                exited.cancel()
+            await asyncio.gather(exited, return_exceptions=True)
 
     async def stop_worker(self, identifier, reason):
         item = self.workers.pop(identifier, None)
         if item:
-            await item[0].close(reason)
+            try:
+                await self.runtime_state.forget(identifier, item[0])
+            finally:
+                await item[0].close(reason)
         self.executions.revoke(identifier)
         instance = await self.instance(identifier)
         if await self.comic_instance(instance):

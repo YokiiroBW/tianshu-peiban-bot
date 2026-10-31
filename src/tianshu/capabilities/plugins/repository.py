@@ -55,6 +55,59 @@ class Repository:
                 for row in db.execute(f"SELECT document FROM plugin_{kind} ORDER BY id")
             ]
 
+    def observe_runtime(self, owner_id, samples, *, starting=False):
+        """Publish actual child/RPC observations under the existing worker lease."""
+        with self.transaction() as db:
+            # Config revision is unchanged: this is a runtime observation of the
+            # existing instance, not another desired-state/configuration writer.
+            if not samples:
+                return
+            # A delayed health sample can only renew its existing generation.
+            # After stop/replace, it cannot recreate a removed claim or clear a
+            # newer child's observation. Only actual startup creates a claim.
+            db.execute(
+                "WITH samples AS (SELECT * FROM jsonb_to_recordset(%s::jsonb) "
+                "AS sample(id text,revision bigint,generation text,pid integer)) "
+                "UPDATE plugin_instances i SET document=jsonb_set(i.document::jsonb,'{plugin_runtime}',"
+                "jsonb_build_object('owner_id',o.id,'generation',s.generation,'pid',s.pid,"
+                "'instance_revision',s.revision,'observed_at',now(),"
+                "'expires_at',now()+interval '15 seconds'))::text "
+                "FROM samples s,capabilities.execution_owners o WHERE i.id=s.id "
+                "AND (i.document::jsonb->>'revision')::bigint=s.revision "
+                "AND i.document::jsonb->>'desired_state'='enabled' "
+                "AND (%s::boolean OR (i.document::jsonb #>> '{plugin_runtime,owner_id}'=o.id "
+                "AND i.document::jsonb #>> '{plugin_runtime,generation}'=s.generation)) "
+                "AND o.id=%s AND o.role='worker' AND o.expires_at>now() AND o.stopped_at IS NULL",
+                (canonical(samples), starting, owner_id),
+            )
+
+    def runtime(self, identifier, revision):
+        """An API process verifies both the instance generation and worker lease."""
+        with self.transaction(False) as db:
+            row = db.execute(
+                "SELECT i.document::jsonb->'plugin_runtime' FROM plugin_instances i "
+                "JOIN capabilities.execution_owners o "
+                "ON o.id=(i.document::jsonb #>> '{plugin_runtime,owner_id}') "
+                "WHERE i.id=%s AND (i.document::jsonb->>'revision')::bigint=%s "
+                "AND i.document::jsonb->>'desired_state'='enabled' "
+                "AND (i.document::jsonb #>> '{plugin_runtime,instance_revision}')::bigint=%s "
+                "AND (i.document::jsonb #>> '{plugin_runtime,expires_at}')::timestamptz>now() "
+                "AND o.role='worker' AND o.expires_at>now() AND o.stopped_at IS NULL",
+                (identifier, revision, revision),
+            ).fetchone()
+            if not row:
+                return None
+            return json.loads(row[0]) if isinstance(row[0], str) else row[0]
+
+    def forget_runtime(self, identifier, owner_id, generation):
+        with self.transaction() as db:
+            db.execute(
+                "UPDATE plugin_instances SET document=(document::jsonb-'plugin_runtime')::text "
+                "WHERE id=%s AND document::jsonb #>> '{plugin_runtime,owner_id}'=%s "
+                "AND document::jsonb #>> '{plugin_runtime,generation}'=%s",
+                (identifier, owner_id, generation),
+            )
+
     def save_schedule(self, document, expected, enqueue):
         with self.transaction() as connection:
             self.put("schedules",document,connection,expected=expected)

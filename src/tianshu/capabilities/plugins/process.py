@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from uuid import uuid4
 from pathlib import Path
 
 from ..contracts import Fault, canonical, require
@@ -19,6 +20,7 @@ class RemoteError(Exception):
 
 class Process:
     def __init__(self, package, callback):
+        self.runtime_id = str(uuid4())
         self.package, self.callback = package, callback
         self.pending, self.counter = {}, 0
         self.process, self.reader, self.stderr = None, None, None
