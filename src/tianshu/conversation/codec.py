@@ -22,7 +22,20 @@ def context_from_record(value):
         person_id=value["person_id"], conversation_id=value["conversation_id"],
         scope_ids=tuple(value["scope_ids"]), audience=tuple(value["audience"]),
         access_epoch=value["access_epoch"], origin_kind=OriginKind(value["origin_kind"]),
-        permissions=frozenset(value.get("permissions", ())))
+        permissions=frozenset(value.get("permissions", ())), conversation_kind=value.get("conversation_kind"))
+
+
+def input_parts(values):
+    from .types import InputPart
+    return tuple(item if isinstance(item, InputPart) else InputPart(item["kind"], item.get("text"),
+        MediaRef(**item["media"]) if item.get("media") else None, item.get("metadata", {})) for item in values)
+
+
+def model_parts(values):
+    from tianshu.models.types import ModelPart
+    return tuple(item if isinstance(item, ModelPart) else ModelPart(item["kind"], item.get("text"),
+        MediaRef(**item["media"]) if item.get("media") else None, item.get("call_id"), item.get("name"),
+        item.get("arguments"), item.get("result"), item.get("native", {})) for item in values)
 
 
 def source_refs(values):

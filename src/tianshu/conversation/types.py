@@ -1,7 +1,15 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Mapping
-from tianshu.types import ArtifactRef, OriginKind, Receipt, SourceRef
+from tianshu.types import ArtifactRef, MediaRef, OriginKind, Receipt, SourceRef
+
+
+@dataclass(frozen=True, slots=True)
+class InputPart:
+    kind: str
+    text: str | None = None
+    media: MediaRef | None = None
+    metadata: Mapping[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -11,11 +19,12 @@ class InputMessage:
     revision: int
     occurred_at: datetime
     received_at: datetime
-    parts: tuple[Mapping[str, Any], ...]
+    parts: tuple[InputPart, ...]
     source_refs: tuple[SourceRef, ...] = ()
     reply_owner: str = "tianshu"
     reply_required: bool = True
     command: str | None = None
+    conversation_kind: str = "unknown"
 
 
 @dataclass(frozen=True, slots=True)
@@ -28,6 +37,7 @@ class ExpressionPlan:
     origin_kind: OriginKind
     turn_id: str | None = None
     artifacts: tuple[ArtifactRef, ...] = ()
+    candidate_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
