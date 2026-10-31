@@ -75,6 +75,8 @@ master key 是部署生成并保管的 32 字节随机密钥的 base64url 编码
 模型设置入口是 `/api/v1/models/catalog`、providers、routes、quota-groups、bindings、embedding-profile；
 `/api/v1/models/routes/{route_id}/probe` 仅在用户显式测试时发出真实文本/流式验证请求。
 每条实际路线关联真实共享 `quota_group`，前后台默认明确配置，不根据模型名称推断独立配额或模态。
+OpenCode 的精确 HTTPS Zen 端点保留其既有固定 User-Agent 与不透明会话头，生成和目录枚举共用
+同一传输规则；会话身份只由可信场景/原意图派生，不接受任意用户 HTTP 头。
 Embedding 使用一个固定的 1024 维 profile，模型/版本/归一化/指令及路线指纹一起固定。
 
 Broker 进程提供原生 Chat Completions、Responses、Claude Messages、Gemini generate/stream 和 embeddings 入口。

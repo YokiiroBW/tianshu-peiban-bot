@@ -14,6 +14,7 @@ from tianshu.types import Coverage, RequestBudget, ServiceClass
 from .credentials import provider_reference
 from .ledger import context_fingerprint, digest, receipt
 from .types import ExternalRequest
+from .transport import provider_headers
 
 
 OPERATION = "models.providers.models"
@@ -34,7 +35,7 @@ def attempt_id(context, provider_id, client_request_id):
     )
 
 
-def native_request(provider, secret, cursor=None):
+def native_request(provider, secret, cursor=None, *, context=None, intent_id=None):
     base = provider["base_url"].rstrip("/")
     parsed = urlsplit(base)
     if (
@@ -51,6 +52,7 @@ def native_request(provider, secret, cursor=None):
     if cursor is not None and (not isinstance(cursor, str) or not 1 <= len(cursor) <= 4096):
         raise AppError("invalid_model_cursor")
     headers = {"Accept": "application/json", "Accept-Encoding": "identity"}
+    headers.update(provider_headers(provider["base_url"], context, intent_id))
     params = {}
     if protocol == "gemini.generate":
         headers["x-goog-api-key"] = secret
@@ -197,7 +199,6 @@ async def enumerate_models(services, context, provider_id, body):
             services.settings.get("broker", {}).get("provider_credential_refs", {}),
         )
         secret = await services.credentials.resolve(reference)
-        url, headers, params = native_request(provider, secret, body.get("cursor"))
         request = ExternalRequest(
             request_hash,
             attempt_id(context, provider_id, client_id),
@@ -208,6 +209,13 @@ async def enumerate_models(services, context, provider_id, body):
             ServiceClass.INTERACTIVE,
             provider_id,
             estimated_units={"requests": 1},
+        )
+        url, headers, params = native_request(
+            provider,
+            secret,
+            body.get("cursor"),
+            context=request.context,
+            intent_id=request.intent_id,
         )
         try:
             async with services.models.resource(request) as permit:
