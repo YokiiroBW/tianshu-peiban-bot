@@ -15,6 +15,15 @@ from tianshu.types import SourceRef
 from .types import AffectUpdate, ReflectionProposal
 
 
+# Reasoning and visible JSON share the provider's output allowance. Preserve
+# the previous 13k material capacity while reserving room for both outputs.
+INPUT_TOKEN_BUDGET = 13000
+OUTPUT_TOKEN_BUDGET = 8192
+MAX_NOTES = 3
+TITLE_MAX_LENGTH = 48
+CONTENT_MAX_LENGTH = 240
+
+
 OUTPUT_ERRORS = frozenset({
     "reflection_output_invalid",
     "reflection_support_invalid",
@@ -28,11 +37,11 @@ REVIEW_ERRORS = OUTPUT_ERRORS | {
 }
 
 
-def string_list(*, maximum=16):
+def string_list():
     return {
         "type": "array",
-        "maxItems": maximum,
-        "items": {"type": "string", "minLength": 1, "maxLength": 2000, "pattern": r"\S"},
+        "maxItems": 2,
+        "items": {"type": "string", "minLength": 1, "maxLength": 80, "pattern": r"\S"},
     }
 
 
@@ -45,15 +54,15 @@ def output_schema(episode_ids):
         )
     }
     affect.update(
-        appraisal={"type": "string", "minLength": 1, "maxLength": 2000, "pattern": r"\S"},
+        appraisal={"type": "string", "minLength": 1, "maxLength": 160, "pattern": r"\S"},
         attribution={"enum": ["self", "other", "situation", "unknown"]},
     )
     fields = {
         "kind": {"enum": ["reflection", "interest", "style"]},
-        "title": {"type": "string", "minLength": 1, "maxLength": 500, "pattern": r"\S"},
-        "content": {"type": "string", "minLength": 1, "maxLength": 10000, "pattern": r"\S"},
+        "title": {"type": "string", "minLength": 1, "maxLength": TITLE_MAX_LENGTH, "pattern": r"\S"},
+        "content": {"type": "string", "minLength": 1, "maxLength": CONTENT_MAX_LENGTH, "pattern": r"\S"},
         "episode_ids": {
-            "type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": True,
+            "type": "array", "minItems": 1, "maxItems": 8, "uniqueItems": True,
             "items": {"type": "string", "enum": list(episode_ids)},
         },
         "conditions": {
@@ -73,7 +82,7 @@ def output_schema(episode_ids):
         "type": "object", "required": ["notes"], "additionalProperties": False,
         "properties": {
             "notes": {
-                "type": "array", "maxItems": 16,
+                "type": "array", "maxItems": MAX_NOTES,
                 "items": {"type": "object", "properties": fields, "required": list(fields),
                           "additionalProperties": False},
             },

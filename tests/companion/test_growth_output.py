@@ -63,6 +63,7 @@ class Memory:
 
 class Models:
     status = "succeeded"
+    native_response = None
 
     def __init__(self, *payloads):
         self.payloads, self.calls, self.reads, self.results = payloads, [], [], {}
@@ -70,9 +71,10 @@ class Models:
     async def generate(self, request):
         payload = self.payloads[len(self.calls)]
         self.calls.append(request)
-        result = ModelResult((ModelPart("text", text=json.dumps(payload, ensure_ascii=False)),) if self.status == "succeeded" else (),
+        output = payload if isinstance(payload, str) else json.dumps(payload, ensure_ascii=False)
+        result = ModelResult((ModelPart("text", text=output),) if self.status == "succeeded" else (),
             ModelReceipt(request.attempt_id, request.intent_id, self.status, "submitted" if self.status == "succeeded" else "unknown", "route", 1,
-                         "provider", "model", "openai.responses", "quota"))
+                         "provider", "model", "openai.responses", "quota"), self.native_response)
         self.results[request.attempt_id] = result
         return result
 
@@ -256,3 +258,54 @@ async def test_unknown_attempt_cannot_be_replaced_by_explicit_review(database):
     assert unresolved.value.code == "reflection_original_attempt_unresolved"
     assert len(models.calls) == 1
     assert models.reads == [models.calls[0].attempt_id]
+
+
+@pytest.mark.asyncio
+async def test_reasoning_and_complete_small_batch_share_the_reserved_output_budget(database):
+    models = Models({"notes": [note("reflection"), note("style"), note("interest")]})
+    growth, memory, _jobs, context, _notifications = await prepare(database, models)
+
+    class ObservedAssembler(ContextAssembler):
+        async def assemble(self, *args, **kwargs):
+            self.pack = await super().assemble(*args, **kwargs)
+            return self.pack
+
+    assembler = ObservedAssembler(growth.companion.identity, memory, None)
+    growth.assembler = assembler
+    await growth.organize("actor", signature(sorted(context.scope_ids)), 1)
+    request = models.calls[0]
+    usage = assembler.pack.token_usage
+    assert request.max_output_tokens == usage.reserved_output_tokens
+    # The observed 2565 reasoning tokens must no longer leave only 435 for JSON.
+    assert request.max_output_tokens - 2565 >= 3000
+    assert usage.limit_tokens - usage.reserved_output_tokens >= 10843
+    assert usage.estimated_tokens + request.max_output_tokens <= usage.limit_tokens
+    assert len(memory.proposals) == 3
+
+
+@pytest.mark.asyncio
+async def test_truncated_success_is_rejected_without_partial_writes_or_automatic_new_attempt(database):
+    # The provider finished by length while starting a second note's support IDs.
+    first_note = json.dumps({"notes": [note("style")]}, ensure_ascii=False)[:-2]
+    models = Models(first_note + ',{"kind":"reflection","episode_ids":["epis')
+    models.native_response = {
+        "choices": [{"finish_reason": "length"}],
+        "usage": {"completion_tokens": 3000, "completion_tokens_details": {"reasoning_tokens": 2565}},
+    }
+    growth, memory, jobs, context, notifications = await prepare(database, models)
+    scope = signature(sorted(context.scope_ids))
+    rejected = await growth.organize("actor", scope, 1)
+    assert rejected["error_code"] == "reflection_output_invalid"
+    assert memory.proposals == notifications == []
+    async with database.transaction(read_only=True) as connection:
+        assert (await (await connection.execute("SELECT count(*) AS n FROM companion.style_rules")).fetchone())["n"] == 0
+    original = await state(database)
+    assert original["cursor"] is None
+    assert original["generation_revision"] == 0
+    before = len(jobs.items)
+    await growth.recover()
+    await growth.organize("actor", scope, 1)
+    assert len(jobs.items) == before
+    assert len(models.calls) == 1
+    assert models.reads == []
+    assert models.results[rejected["attempt_id"]].receipt.status == "succeeded"

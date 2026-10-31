@@ -13,7 +13,11 @@ from tianshu.conversation.codec import context_from_record, document, signature,
 from tianshu.life.validation import revision
 from tianshu.conversation.generation import GenerationRequests, attempt_for
 from tianshu.conversation.context.assembly import ContextAssembler
-from .reflection_output import REVIEW_ERRORS, frozen_episodes, output_example, output_schema, prepare_reflections
+from .reflection_output import (
+    CONTENT_MAX_LENGTH, INPUT_TOKEN_BUDGET, MAX_NOTES, OUTPUT_TOKEN_BUDGET,
+    REVIEW_ERRORS, TITLE_MAX_LENGTH, frozen_episodes, output_example, output_schema,
+    prepare_reflections,
+)
 
 
 class GrowthService:
@@ -57,6 +61,9 @@ class GrowthService:
         refs = unique_refs(tuple(ref for episode in page.items for ref in episode.source_refs))
         material = {"episodes": wire(page.items), "instruction":
             "Reflect on actual new experiences. Return only JSON matching output_schema; every declared note field is required. "
+            f"Select at most {MAX_NOTES} useful, distinct notes for this whole batch, not one note per episode. "
+            f"Keep each title within {TITLE_MAX_LENGTH} characters and content within {CONTENT_MAX_LENGTH} characters. "
+            "Do not repeat the supplied episodes, instructions, or example. Respect every schema list/string bound; cite only the most relevant episode IDs. "
             "conditions is an object with when and unless arrays of strings, never a list. counterexamples is a separate array of actual counterexamples, empty when none are known. "
             "affect is null or the complete bounded numeric object in the schema. Do not invent affect to fill the field. "
             "Use at most one note per kind and episode_ids set. "
@@ -68,7 +75,9 @@ class GrowthService:
             "example": output_example(page.items[0].episode_id), "no_change_example": {"notes": []}}
         budget = RequestBudget(datetime.now(UTC)+timedelta(minutes=3))
         pack = await self.assembler.assemble(context, "reflect", "Review new experiences without forcing a change.", budget,
-            persona_text=persona.prompt_text if persona else "", reserved_output_tokens=3000,
+            persona_text=persona.prompt_text if persona else "",
+            max_input_tokens=INPUT_TOKEN_BUDGET + OUTPUT_TOKEN_BUDGET,
+            reserved_output_tokens=OUTPUT_TOKEN_BUDGET,
             contributions=(ContextContribution("new_experiences", json.dumps(material, ensure_ascii=False), refs, context.scope_ids, 80, True, str(expected_revision)),))
         material_key = "organize:" + signature({"context": self.generations.context_key(context),
             "episodes": [(item.episode_id,item.revision) for item in page.items],
@@ -78,7 +87,7 @@ class GrowthService:
             return current and current["revision"]==expected_revision and current["cursor"]==state["cursor"] and current["reviewed_watermark"]!=current["watermark"]
         try:
             result = await self.generations.run(material_key, ModelRequest(material_key, attempt_for(material_key), "reflect", ServiceClass.ELASTIC,
-                context, budget, tuple(pack.messages), system=pack.system, max_output_tokens=3000,
+                context, budget, tuple(pack.messages), system=pack.system, max_output_tokens=OUTPUT_TOKEN_BUDGET,
                 estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs)),guard=current_material)
         except AppError as error:
             if error.code!="generation_request_expired":
