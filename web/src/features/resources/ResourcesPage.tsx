@@ -1,3 +1,4 @@
+import { ArchivePanel } from "./ArchivePanel";
 import { ConnectionSettings } from "./ConnectionSettings";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
@@ -225,6 +226,7 @@ export default function ResourcesPage() {
       </section>
 
       {state?.can_manage && <ConnectionSettings rows={state.configurations} onSaved={page.refresh} />}
+      <ArchivePanel />
       {status}
 
       {!status && (

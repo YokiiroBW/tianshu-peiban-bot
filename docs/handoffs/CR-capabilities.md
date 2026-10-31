@@ -196,3 +196,13 @@ run保护覆盖handler加载/authority/availability及实际执行；拒绝后�
 Fish MCP SSE取得匹配JSON-RPC id的结果后立即退出并关闭response，不等待服务器长连接EOF；普通JSON也核匹配id。MCP/native新增协议文件已整理多行。OAuth同连接跨进程刷新通过PG短租约合并，网络期间不持PG连接；等待方重读已密封新token，配置CAS冲突只在同一旧凭据仍未变化时合并。旋转令牌提交后失联/owner过期保持unknown并要求原连接重新授权，绝不重复旧refresh token盲重试；明确新授权可解除该状态。SSE长连接及失联刷新用例已写未运行。
 
 Owner续租仅允许原租约尚未过期且未停止；过期身份永久不能续命，新进程必须新id。外部resource真实submitted之前/之后、实际网络写之前会在同control连接核原Action+Attempt仍属本owner且PG租约存活；失去归属时拒绝尚未使用的permit。原生Model等待则由owner丢失时取消实际Client请求，晚到真实结果仍按原Attempt保存/核对，不以旧owner复活准许新提交。
+
+## Chat Audit真实历史读取（implemented_not_tested）
+
+原有效`chat_history.py`/chat skill已折入唯一Catalog：`resources.archive.search/read`，模型工具名保留`chat_history_search/read`，权限memory.read。固定HTTPS档案根地址实际调用`/internal/evidence/search`、`read-locator`、`check`，严格复用原外部JSON schema，15秒/2MB响应/最多100记录；opaque摘要只与档案真实check结果比较，不猜本地text摘要。每次结果再经A `Sources.register_archive` 当前会话/真实账号/目标/别名/已忘屏障核权，完整原SourceRef贯穿Action结果。
+
+新增配置kind archive_connection保留revision/自有密封token/CA/quota_group/mappings。mappings每项为 `{mapping_id,conversation_id,connection_id,channel:{namespace:'qq',binding_id,channel_conversation_id,thread_id:null}}`；channel和mapping从已登记配置取，模型不能传。未配置明确不可执行；只有实际HUMAN触发命令允许登记未见历史，TIMER/TOOL_RESULT后台仅能读已授权原件。已忘/撤回/片段遗忘任何explicit取值都不重新导入；别名不具可验证external身份的旧档案记录省略并给真实原因，不伪造转换。
+
+HTTP POST `/api/v1/resources/archive/view`为当前会话projection（管理员另得configurations），`connections.save`真实CAS命令；`search`/`read`返回统一CommandResult。结果含 records(原作者/timestamp/locator/opaque摘要/原文/source_ref)、source_refs、next_cursor/search coverage或target_locator/context_complete、omitted及原因、archive_observed_at和本次observed_at。只说明核对当刻存档，不把旧消息升当前指令，不声称档案媒体原件可用。资源页已有显式当前会话查询、原文前后文/续页及管理员连接映射表单；正常聊天也可调用同目录工具。Broker function resources.archive.read统一已配置quota/RPM/requests资源，无本地池；每次读取不会启动后台档案扫描，清空后无自动学回。
+
+权威代码：resources/archive.py（真实链路与来源交接）、archive_protocol.py/archive_read.json（原协议）、A sources/archives.py（精确别名与抑制）。未运行tests/build/typecheck/浏览器/Archive真实账户；协议用例只编写。

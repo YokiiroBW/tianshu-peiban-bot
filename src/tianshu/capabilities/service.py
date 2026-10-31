@@ -227,6 +227,9 @@ class Capabilities:
         self.resources = Resources(
             self.configuration, self.models, sources, authority, self.actions
         )
+        from .resources.archive import Archive
+
+        self.archive = Archive(self.configuration, self.models, sources, authority, self.catalog)
         from concurrent.futures import ThreadPoolExecutor
 
         self.file_executor = ThreadPoolExecutor(
@@ -445,7 +448,7 @@ class Capabilities:
             ),
             "game": ("connections.save",),
             "weather": ("connections.save",),
-            "resources": ("assets/connections.save",),
+            "resources": ("assets/connections.save", "archive/connections.save"),
         }
         for domain, operations in {**MATURE_OPERATIONS, **extras}.items():
             for op in operations:
@@ -557,6 +560,10 @@ class Capabilities:
             if operation == "catalog/sources.refresh":
                 return await self.catalog_configuration.refresh(context, clean, action, attempt)
         if domain == "resources":
+            if operation == "archive/view":
+                return await self.archive.view(context)
+            if operation == "archive/connections.save":
+                return await self.archive.save(context, clean)
             if operation == "assets/view":
                 return await self.resources.view(context)
             if operation == "assets/connections.save":

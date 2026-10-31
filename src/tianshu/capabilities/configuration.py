@@ -20,6 +20,7 @@ class Configuration:
             "catalog_actor",
             "catalog_source",
             "asset_connection",
+            "archive_connection",
         }
     )
 
