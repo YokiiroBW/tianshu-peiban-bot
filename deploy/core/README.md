@@ -1,8 +1,7 @@
 # 天枢单产品部署
 
 本目录替代旧 `deploy/tianshu`、`deploy/observability`、`ops/resident_install`、
-`ops/resident_capacity` 和 `ops/recovery` 的产品实现。源码状态为 `implemented_not_tested`；
-下面是集中验收之后由唯一发布者执行的步骤，本次没有构建、拉镜像、运行容器或操作生产。
+`ops/resident_capacity` 和 `ops/recovery` 的产品实现。2026-11-01 已完成集中验收、实际 Linux 镜像构建、备份恢复、日志缓冲补传及必要复验；全新生产实例和 PostgreSQL 已建立，作者配置已导入并读回核对。新实例暂用 28446，旧服务仍在运行，正式切换和旧业务数据删除尚待 QQ 对端恢复正常管理登录。下文为单写发布者的运行说明；本批实况见 [配置及切换记录](../../docs/development/coherent-refactor-configuration-2026-11-01.md)。
 
 ## 运行组成与目录
 

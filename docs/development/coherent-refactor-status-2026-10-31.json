@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "goal_thread": "01a18df4-9275-7411-b48b-32fd86889108",
-  "state": "concentrated_acceptance",
+  "state": "configuration_migrated_staged_cutover_pending_peer_login",
   "model": "gpt-6.1-sol",
   "reasoning_effort": "xhigh",
   "integration_root": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-unified-refactor\\tianshu-peiban-bot",
@@ -13,10 +13,9 @@
       "title": "产品装配与能力保留清单",
       "depends_on": [],
       "owner": "composition root",
-      "state": "implemented_not_tested",
+      "state": "accepted_integrated",
       "implementation_agent": "foundation_models",
-      "handoff_source": "7f6ffc84a4ce4ced0dfba2cf321acfb210ae4a8c",
-      "pending": "all-domain composition and concentrated CR19 acceptance"
+      "handoff_source": "7f6ffc84a4ce4ced0dfba2cf321acfb210ae4a8c"
     },
     {
       "id": "CR18A",
@@ -25,7 +24,7 @@
         "CR01"
       ],
       "owner": "web 基础",
-      "state": "implemented_not_tested",
+      "state": "accepted_integrated",
       "implementation_agent": "frontend"
     },
     {
@@ -35,10 +34,9 @@
         "CR01"
       ],
       "owner": "runtime 与各领域 repository",
-      "state": "implemented_not_tested",
+      "state": "accepted_integrated",
       "implementation_agent": "foundation_models",
-      "handoff_source": "7f6ffc84a4ce4ced0dfba2cf321acfb210ae4a8c",
-      "pending": "all-domain composition and concentrated CR19 acceptance"
+      "handoff_source": "7f6ffc84a4ce4ced0dfba2cf321acfb210ae4a8c"
     },
     {
       "id": "CR03",
@@ -47,10 +45,9 @@
         "CR02"
       ],
       "owner": "models",
-      "state": "implemented_not_tested",
+      "state": "accepted_integrated",
       "implementation_agent": "foundation_models",
-      "handoff_source": "7f6ffc84a4ce4ced0dfba2cf321acfb210ae4a8c",
-      "pending": "all-domain composition and concentrated CR19 acceptance"
+      "handoff_source": "7f6ffc84a4ce4ced0dfba2cf321acfb210ae4a8c"
     },
     {
       "id": "CR04",
@@ -59,10 +56,9 @@
         "CR02"
       ],
       "owner": "identity / channels",
-      "state": "implemented_not_tested",
+      "state": "accepted_integrated",
       "implementation_agent": "foundation_models",
-      "handoff_source": "711f228",
-      "pending": "all-domain composition and concentrated CR19 acceptance"
+      "handoff_source": "711f228"
     },
     {
       "id": "CR05",
@@ -71,10 +67,9 @@
         "CR04"
       ],
       "owner": "sources",
-      "state": "implemented_not_tested",
+      "state": "accepted_integrated",
       "implementation_agent": "foundation_models",
-      "handoff_source": "711f228",
-      "pending": "all-domain composition and concentrated CR19 acceptance"
+      "handoff_source": "711f228"
     },
     {
       "id": "CR06",
@@ -84,10 +79,9 @@
         "CR05"
       ],
       "owner": "memory",
-      "state": "implemented_not_tested",
+      "state": "accepted_integrated",
       "implementation_agent": "foundation_models",
-      "handoff_source": "711f228",
-      "pending": "all-domain composition and concentrated CR19 acceptance"
+      "handoff_source": "711f228"
     },
     {
       "id": "CR07",
@@ -96,10 +90,9 @@
         "CR06"
       ],
       "owner": "memory / conversation.context",
-      "state": "implemented_not_tested",
+      "state": "accepted_integrated",
       "implementation_agent": "foundation_models",
-      "handoff_source": "711f228",
-      "pending": "all-domain composition and concentrated CR19 acceptance"
+      "handoff_source": "711f228"
     },
     {
       "id": "CR08",
@@ -108,10 +101,9 @@
         "CR06"
       ],
       "owner": "memory.people",
-      "state": "implemented_not_tested",
+      "state": "accepted_integrated",
       "implementation_agent": "foundation_models",
-      "handoff_source": "711f228",
-      "pending": "all-domain composition and concentrated CR19 acceptance"
+      "handoff_source": "711f228"
     },
     {
       "id": "CR09",
@@ -121,7 +113,7 @@
         "CR08"
       ],
       "owner": "companion",
-      "state": "implementing",
+      "state": "accepted_integrated",
       "implementation_agent": "frontend"
     },
     {
@@ -134,7 +126,7 @@
         "CR09"
       ],
       "owner": "life",
-      "state": "implementing",
+      "state": "accepted_integrated",
       "implementation_agent": "frontend"
     },
     {
@@ -145,10 +137,9 @@
         "CR05"
       ],
       "owner": "capabilities / capabilities.plugins",
-      "state": "implemented_not_tested",
+      "state": "accepted_integrated",
       "implementation_agent": "capabilities",
-      "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c",
-      "pending": "plugin discovery/worker ownership and lifecycle corrections; complete domain composition and CR19"
+      "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c"
     },
     {
       "id": "CR04A",
@@ -158,7 +149,7 @@
         "CR11"
       ],
       "owner": "channels.onebot",
-      "state": "implementing",
+      "state": "accepted_integrated",
       "implementation_agent": "capabilities"
     },
     {
@@ -173,7 +164,7 @@
         "CR04A"
       ],
       "owner": "conversation",
-      "state": "implementing",
+      "state": "accepted_integrated",
       "implementation_agent": "frontend"
     },
     {
@@ -184,10 +175,9 @@
         "CR12"
       ],
       "owner": "capabilities.speech",
-      "state": "implemented_not_tested",
+      "state": "accepted_integrated",
       "implementation_agent": "capabilities",
-      "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c",
-      "pending": "plugin discovery/worker ownership and lifecycle corrections; complete domain composition and CR19"
+      "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c"
     },
     {
       "id": "CR13A",
@@ -199,10 +189,9 @@
         "CR13B"
       ],
       "owner": "capabilities.perception",
-      "state": "implemented_not_tested",
+      "state": "accepted_integrated",
       "implementation_agent": "capabilities",
-      "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c",
-      "pending": "plugin discovery/worker ownership and lifecycle corrections; complete domain composition and CR19"
+      "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c"
     },
     {
       "id": "CR13C",
@@ -213,10 +202,9 @@
         "CR13A"
       ],
       "owner": "capabilities.reactions",
-      "state": "implemented_not_tested",
+      "state": "accepted_integrated",
       "implementation_agent": "capabilities",
-      "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c",
-      "pending": "plugin discovery/worker ownership and lifecycle corrections; complete domain composition and CR19"
+      "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c"
     },
     {
       "id": "CR13",
@@ -228,7 +216,7 @@
         "CR13C"
       ],
       "owner": "companion.expression / channels",
-      "state": "implementing",
+      "state": "accepted_integrated",
       "implementation_agent": "frontend"
     },
     {
@@ -241,10 +229,9 @@
         "CR13A"
       ],
       "owner": "capabilities.content / life",
-      "state": "implemented_not_tested",
+      "state": "accepted_integrated",
       "implementation_agent": "capabilities",
-      "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c",
-      "pending": "plugin discovery/worker ownership and lifecycle corrections; complete domain composition and CR19"
+      "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c"
     },
     {
       "id": "CR15",
@@ -253,10 +240,9 @@
         "CR14"
       ],
       "owner": "capabilities.perception / memory",
-      "state": "implemented_not_tested",
+      "state": "accepted_integrated",
       "implementation_agent": "capabilities",
-      "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c",
-      "pending": "plugin discovery/worker ownership and lifecycle corrections; complete domain composition and CR19"
+      "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c"
     },
     {
       "id": "CR16",
@@ -267,7 +253,7 @@
         "CR15"
       ],
       "owner": "memory / companion / life",
-      "state": "implementing",
+      "state": "accepted_integrated",
       "implementation_agent": "frontend"
     },
     {
@@ -280,10 +266,9 @@
         "CR13A"
       ],
       "owner": "life / capabilities.images",
-      "state": "implemented_not_tested",
+      "state": "accepted_integrated",
       "implementation_agent": "capabilities",
-      "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c",
-      "pending": "plugin discovery/worker ownership and lifecycle corrections; complete domain composition and CR19"
+      "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c"
     },
     {
       "id": "CR17B",
@@ -293,10 +278,9 @@
         "CR13"
       ],
       "owner": "capabilities.images",
-      "state": "implemented_not_tested",
+      "state": "accepted_integrated",
       "implementation_agent": "capabilities",
-      "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c",
-      "pending": "plugin discovery/worker ownership and lifecycle corrections; complete domain composition and CR19"
+      "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c"
     },
     {
       "id": "CR17",
@@ -308,10 +292,9 @@
         "CR17B"
       ],
       "owner": "各能力模块",
-      "state": "implemented_not_tested",
+      "state": "accepted_integrated",
       "implementation_agent": "capabilities",
       "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c",
-      "pending": "concentrated CR19 native PG and actual UI acceptance",
       "contributors": [
         "capabilities",
         "foundation_models"
@@ -328,7 +311,7 @@
         "CR16"
       ],
       "owner": "web 角色与认识",
-      "state": "implemented_not_tested",
+      "state": "accepted_integrated",
       "implementation_agent": "frontend",
       "contributors": [
         "frontend",
@@ -344,7 +327,7 @@
         "CR17"
       ],
       "owner": "web 内容与媒体",
-      "state": "implemented_not_tested",
+      "state": "accepted_integrated",
       "implementation_agent": "frontend",
       "contributors": [
         "frontend",
@@ -362,7 +345,7 @@
         "CR17"
       ],
       "owner": "web 设置与运维",
-      "state": "implemented_not_tested",
+      "state": "accepted_integrated",
       "implementation_agent": "frontend",
       "contributors": [
         "frontend",
@@ -379,7 +362,7 @@
         "CR18D"
       ],
       "owner": "web 集成",
-      "state": "implemented_not_tested",
+      "state": "accepted_integrated",
       "implementation_agent": "frontend"
     },
     {
@@ -397,7 +380,7 @@
         "CR18"
       ],
       "owner": "集成",
-      "state": "validating"
+      "state": "accepted_integrated"
     },
     {
       "id": "CR20",
@@ -406,9 +389,9 @@
         "CR19"
       ],
       "owner": "部署集成人",
-      "state": "implemented_not_tested",
+      "state": "staged_configuration_verified_cutover_pending",
       "implementation_agent": "foundation_models",
-      "pending": "all deployment source integrated; concentrated CR19 then root-only actual empty-data production cutover"
+      "pending": "Normal SnowLuma WebUI login, switch two exact QQ reverse-WS destinations, verify actual connection, then retire old writer and exclusive old resources."
     }
   ],
   "agents": {
@@ -428,7 +411,7 @@
         "CR08",
         "CR20"
       ],
-      "state": "awaiting_concentrated_acceptance",
+      "state": "implementation_and_repairs_accepted",
       "boundary": "runtime/models/types/identity/sources/memory/conversation/context and owned tests; backend manifest/lock/composition/migrations; deploy/core and retired source cleanup; settings AccessPanel.tsx/access.css only. No capabilities/projects or knowledge/projects UI writes.",
       "phase": "complete_assigned_source"
     },
@@ -449,7 +432,7 @@
         "CR13",
         "CR16"
       ],
-      "state": "awaiting_concentrated_acceptance",
+      "state": "implementation_and_repairs_accepted",
       "boundary": "companion/**,life/**,conversation/** except context; shared web api/app/components/router/manifest; features life/multimodal/room/companion/home/workbench/flow-graph and settings outside foundation exact whitelist; no writes to C or A owned feature folders",
       "phase": "complete_assigned_source"
     },
@@ -470,7 +453,7 @@
         "CR17",
         "CR04A"
       ],
-      "state": "awaiting_concentrated_acceptance",
+      "state": "implementation_and_repairs_accepted",
       "boundary": "capabilities/** including newly transferred projects; channels and SDK; web features plugins/media/infrastructure/resources/people/memory/knowledge/projects; exact ProviderManager/Editors/ModelsPanel/ModelFunctionsPanel/providerApi/providerTypes/providerPresets/models.css whitelist. Shared frontend registry stays B; root migration/assembly stays A.",
       "phase": "complete_assigned_source"
     }
@@ -1045,13 +1028,132 @@
       "integrated": "c80107b",
       "scope": "bounded vector planning and source filtering before ranking",
       "validation": "concentrated_CR19_defect_repair"
+    },
+    {
+      "integrated": "43b01e7ecacc0e9f1be72d25e3c4c3575d3b66c6",
+      "scope": "docs: record concentrated checks and scoped repairs before runtime acceptance",
+      "validation": "CR19 applicable evidence plus affected repairs; see validation runs"
+    },
+    {
+      "integrated": "6934ce1a8304d1f2066a6091977ef487a328eb2f",
+      "scope": "fix(deploy): allow owner mode repair with minimal supervisor capability",
+      "validation": "CR19 applicable evidence plus affected repairs; see validation runs"
+    },
+    {
+      "integrated": "d3e6a949cad13246c145af1e51705e8eef9f5529",
+      "scope": "fix(observability): give vector metrics components distinct identities",
+      "validation": "CR19 applicable evidence plus affected repairs; see validation runs"
+    },
+    {
+      "integrated": "2f21a2e23d3069bb9ff58406bdd409ad3880afe3",
+      "scope": "fix(recovery): retain every reviewed compose configuration in backups",
+      "validation": "CR19 applicable evidence plus affected repairs; see validation runs"
+    },
+    {
+      "integrated": "1775e780d239061a4d688c7d38351c4d8792f7e3",
+      "scope": "fix(media): seal accounts with the sole runtime credential store",
+      "validation": "CR19 applicable evidence plus affected repairs; see validation runs"
+    },
+    {
+      "integrated": "36566884cf349853439945b5f342509182b2e6b0",
+      "scope": "fix(models): preserve exact OpenCode native transport headers",
+      "validation": "CR19 applicable evidence plus affected repairs; see validation runs"
+    },
+    {
+      "integrated": "e6d8a6b274152c3bd1997ce8a1461fe37bdd4f91",
+      "scope": "fix(web): show subjective records instead of expression guidance",
+      "validation": "CR19 applicable evidence plus affected repairs; see validation runs"
+    },
+    {
+      "integrated": "7b13c91288c4402808a3b4dcb3cf33b07d79cec9",
+      "scope": "fix(deploy): cache source-independent runtime dependencies",
+      "validation": "CR19 applicable evidence plus affected repairs; see validation runs"
+    },
+    {
+      "integrated": "e041a0f3b376a2d426a014fca2503fad2e478d79",
+      "scope": "test(web): supply complete life overview fixture contracts",
+      "validation": "CR19 applicable evidence plus affected repairs; see validation runs"
+    },
+    {
+      "integrated": "a7240e900806296496de9e4fd5192892dce16d7e",
+      "scope": "fix(deploy): select database explicitly for pg_restore",
+      "validation": "CR19 applicable evidence plus affected repairs; see validation runs"
+    },
+    {
+      "integrated": "3622042cab2757cc63649c15aa1692239f34fc9d",
+      "scope": "fix(conversation): converge asynchronous expression delivery receipts",
+      "validation": "CR19 applicable evidence plus affected repairs; see validation runs"
+    },
+    {
+      "integrated": "eeccb66a5ffac27ad212777d96c0e2c74facad5a",
+      "scope": "fix(files): attest bounded local intake measurements",
+      "validation": "CR19 applicable evidence plus affected repairs; see validation runs"
+    },
+    {
+      "integrated": "cbe26ea42c341e7da22180bcb756ea81493371f4",
+      "scope": "fix(media): attest upload duration and dimensions before source intake",
+      "validation": "CR19 applicable evidence plus affected repairs; see validation runs"
+    },
+    {
+      "integrated": "b0776fed5c4f2f9ba0319dd99c05064c5d0964c5",
+      "scope": "fix(conversation): distinguish local rejection from uncertain model dispatch",
+      "validation": "CR19 applicable evidence plus affected repairs; see validation runs"
+    },
+    {
+      "integrated": "ca7e991b177c93780b433949ce6581e76d86c2e4",
+      "scope": "fix(runtime): include safe error identity in failed job events",
+      "validation": "CR19 applicable evidence plus affected repairs; see validation runs"
+    },
+    {
+      "integrated": "67743dbf7bc815d982b5bdcbad4977b7c4842157",
+      "scope": "fix(companion): validate reflection batches and stop rejected generation replay",
+      "validation": "CR19 applicable evidence plus affected repairs; see validation runs"
+    },
+    {
+      "integrated": "738194eee173a537cfcdb84fd9488af1a8b9a846",
+      "scope": "fix(deploy): provision native media and comic helper defaults",
+      "validation": "CR19 applicable evidence plus affected repairs; see validation runs"
+    },
+    {
+      "integrated": "45ad603ecf3369394fe10224e40a5a66e56bd48d",
+      "scope": "fix(deploy): restore pinned native music tools in product image",
+      "validation": "CR19 applicable evidence plus affected repairs; see validation runs"
+    },
+    {
+      "integrated": "b3b8423b4ee64376bfdc8fc8a660cdbf3879bb82",
+      "scope": "fix(companion): reserve reasoning headroom for bounded reflection output",
+      "validation": "CR19 applicable evidence plus affected repairs; see validation runs"
+    },
+    {
+      "integrated": "70af8123f543d193a5129e0a3b6f2e6fadbad9b7",
+      "scope": "fix(packaging): include runtime media contract documents",
+      "validation": "CR19 applicable evidence plus affected repairs; see validation runs"
+    },
+    {
+      "integrated": "2dc0a65d26f446df8497dc9274f0019438e5c528",
+      "scope": "fix(plugins): project actual worker runtime across API roles",
+      "validation": "CR19 applicable evidence plus affected repairs; see validation runs"
+    },
+    {
+      "integrated": "f16a36ab139464cdb9e43432f206cf6033520ccb",
+      "scope": "feat(life): preserve per-person contact expiry without renewing candidates",
+      "validation": "CR19 applicable evidence plus affected repairs; see validation runs"
+    },
+    {
+      "integrated": "c57782cca72eb024b0ab3d4fc6e34f548a37019b",
+      "scope": "fix(runtime): register life contact expiry migration",
+      "validation": "CR19 applicable evidence plus affected repairs; see validation runs"
+    },
+    {
+      "integrated": "5570c4609a236ce2e010708a1f69f9723113be4f",
+      "scope": "fix(life): freeze contact expiry with the database creation clock",
+      "validation": "CR19 applicable evidence plus affected repairs; see validation runs"
     }
   ],
   "validation": {
-    "state": "unit_browser_passed_image_runtime_acceptance_in_progress",
+    "state": "concentrated_acceptance_passed",
     "initial_complete_source": "3b681fa",
-    "candidate_source": "c80107b6d90e0cd749dc84e9ace2f7321666b731",
-    "production_data_mutated": false,
+    "candidate_source": "5570c4609a236ce2e010708a1f69f9723113be4f",
     "policy": "reuse applicable unchanged passes; rerun only failed or materially affected paths",
     "runs": [
       {
@@ -1118,6 +1220,84 @@
         "seconds": 0.59,
         "image": "sha256:4f8600f9eddc5206f4dbb5dd47f98247d8662e6c8a2a4c6a6ba6df8a1f59b37c",
         "input_unchanged_at": "c80107b"
+      },
+      {
+        "kind": "repair-five",
+        "passed": 10,
+        "failed": 0,
+        "skipped": 2,
+        "artifact": ".runtime/coherent-acceptance/repair-five.xml"
+      },
+      {
+        "kind": "repair-six",
+        "passed": 17,
+        "failed": 0,
+        "skipped": 0,
+        "artifact": ".runtime/coherent-acceptance/repair-six.xml"
+      },
+      {
+        "kind": "expression-repair",
+        "passed": 5,
+        "failed": 0,
+        "skipped": 0,
+        "artifact": ".runtime/coherent-acceptance/expression-repair.xml"
+      },
+      {
+        "kind": "multimodal-repair",
+        "passed": 31,
+        "failed": 0,
+        "skipped": 2,
+        "artifact": ".runtime/coherent-acceptance/multimodal-repair.xml"
+      },
+      {
+        "kind": "job-log-repair",
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "artifact": ".runtime/coherent-acceptance/job-log-repair.xml"
+      },
+      {
+        "kind": "growth-repair",
+        "passed": 7,
+        "failed": 0,
+        "skipped": 0,
+        "artifact": ".runtime/coherent-acceptance/growth-repair.xml"
+      },
+      {
+        "kind": "growth-budget-repair",
+        "passed": 9,
+        "failed": 0,
+        "skipped": 0,
+        "artifact": ".runtime/coherent-acceptance/growth-budget-repair.xml"
+      },
+      {
+        "kind": "plugin_runtime",
+        "passed": 5,
+        "failed": 0,
+        "artifact": ".runtime/coherent-acceptance/plugin-runtime-repair.log"
+      },
+      {
+        "kind": "contact_expiry_initial",
+        "passed": 2,
+        "failed": 1,
+        "artifact": ".runtime/coherent-acceptance/contact-expiry-repair.log",
+        "failure": "cross-host clock skew before database-clock fix"
+      },
+      {
+        "kind": "contact_expiry_affected_recheck",
+        "passed": 1,
+        "failed": 0,
+        "artifact": ".runtime/coherent-acceptance/contact-expiry-recheck.log"
+      },
+      {
+        "kind": "final_image_web_build",
+        "state": "passed",
+        "source": "5570c4609a236ce2e010708a1f69f9723113be4f"
+      },
+      {
+        "kind": "final_image_and_configuration_readback",
+        "state": "passed",
+        "record": "coherent-refactor-configuration-2026-11-01.md"
       }
     ],
     "acceptance_database": {
@@ -1125,41 +1305,70 @@
       "port": 25019,
       "container": "tianshu-core-acceptance-pg",
       "purpose": "disposable only; no old shared database used"
-    }
+    },
+    "old_business_data_mutated": false,
+    "fresh_production_configuration_written": true
   },
   "deployment": {
-    "state": "not_started",
-    "inventory": "read_only_verified",
-    "owner": "tianshu-unified-tianshu-1",
-    "owner_id": "f2e3cc2dde14e5bc77c266c36522c6d94edcea8ee75f6ae3593a2d0685ef97b5",
-    "image": "sha256:d45d1aeebfeea15673877ff88b807fa05fa26c856a6567debf7fce71fe224550",
-    "health": "healthy",
-    "container_count": 16,
-    "mount_count": 37,
-    "guard": "active",
-    "mutated": false,
-    "database_plan": {
-      "host": "192.168.31.210",
-      "directory": "/volume2/Dockers/tianshu-core-postgres",
-      "candidate_port": 25018,
-      "image_candidate": "pgvector/pgvector:0.8.7-pg17-bookworm",
-      "state": "read_only_boundary_verified_not_created",
-      "preserve_shared_instance": "postgres-1"
-    },
-    "boundaries_record": "docs/development/coherent-refactor-cutover-boundaries-2026-10-31.json",
-    "implementation_dispatch": "docs/development/coherent-refactor-deployment-dispatch-2026-10-31.md",
-    "capacity_policy_verified": {
-      "unit": "tianshu-unified-capacity.service",
-      "min_free_bytes": 21474836480,
-      "max_deployment_bytes": 21474836480,
-      "poll_seconds": 5,
-      "term_timeout_seconds": 120,
-      "state": "read_only_verified_not_modified",
-      "private_metadata": "capacity-effective-metadata.json"
-    }
+    "state": "staged_not_cutover",
+    "temporary_origin": "http://192.168.31.230:28446",
+    "final_origin": "http://192.168.31.230:18446",
+    "application_root": "/srv/tianshu-core/app",
+    "postgres_root": "/volume2/Dockers/tianshu-core-postgres",
+    "postgres_port": 25018,
+    "old_application_running": true,
+    "old_business_data_deleted": false,
+    "transport_enabled": false,
+    "capacity_guards_active": true
   },
   "planning_commit": "e034276dfb757b7dd64cd2f56e952d81193a5248",
-  "source_review_followups": [
+  "updated_at": "2026-11-01",
+  "accepted_source_sha": "5570c4609a236ce2e010708a1f69f9723113be4f",
+  "accepted_image": "sha256:eaef93c3b0b1673e804c032336a7f04b5b447054d06b9bf27c4010c3c7404629",
+  "configuration_migration": {
+    "state": "readback_verified",
+    "authored_personas": 7,
+    "actors": 3,
+    "enabled_actors": 2,
+    "original_provider_sources": 5,
+    "original_model_entries": 7,
+    "native_providers": 8,
+    "native_routes": 8,
+    "model_bindings": 36,
+    "qq_connections": 2,
+    "conversation_policies": 6,
+    "comfyui_workflows": 1,
+    "contact_policy_overrides": 1,
+    "old_business_data_imported": false,
+    "credentials_committed": false
+  },
+  "acceptance_summary": {
+    "concentrated_acceptance": "prior passed unchanged evidence reused; actual defects repaired and affected checks repeated",
+    "final_image": "whole immutable image ready, no source overlays; frontend typecheck/build succeeded in final image build",
+    "last_checks": {
+      "plugin_runtime_unit": 5,
+      "plugin_runtime_actual": "cross-process ready -> stopped -> new generation ready",
+      "contact_expiry_postgres": 1,
+      "explicit_photo_window": 2,
+      "contact_expiry_http": "native default14400 and migrated person3600 read back"
+    },
+    "real_models": "Gemini native text/image/audio/video/tools; DeepSeek; Qwen1024 embedding/rerank previously accepted",
+    "real_qq_messages_sent": 0,
+    "not_claimed": [
+      "all external provider/media/plugin capabilities live validated",
+      "long-term companion quality",
+      "final cutover and old business-state deletion"
+    ]
+  },
+  "retirement": {
+    "cold_target_containers_removed": 13,
+    "old_business_schemas_remaining": 25,
+    "old_nas_registry_containers_remaining": 14,
+    "current_old_runtime_retained_until_cutover": true,
+    "shared_services_preserved": true,
+    "local_build_cleanup": "three generated untracked directories retained after automatic policy rejection"
+  },
+  "source_review_followups_history": [
     {
       "owner": "foundation_models",
       "scope": "CommandStore private-result replay must refresh authority/source; immutable FileStore streaming; bounded JSON vs media bodies; external resource cancellation-before-admission race",
@@ -1453,5 +1662,6 @@
         "d554039"
       ]
     }
-  ]
+  ],
+  "source_review_followups_history_note": "Historical dispatch snapshots; intermediate states are superseded by the accepted card states and concentrated acceptance records, not outstanding implementation tasks."
 }
