@@ -212,15 +212,27 @@ class IdentityService:
         await self.check_context(context)
         if context.conversation_id and actor_id != context.actor_id:
             raise AppError("actor_target_conflict", status=403)
-        return await self.context(context.principal_id, actor_id=actor_id,
+        selected=await self.context(context.principal_id, actor_id=actor_id,
             person_id=context.person_id if actor_id == context.actor_id else None,
             conversation_id=context.conversation_id, permission=permission, origin_kind=context.origin_kind)
+        return self._limit_context(selected,context)
 
     async def authorize_conversation(self, context, conversation_id, *, permission=None):
         await self.check_context(context)
-        return await self.context(context.principal_id, actor_id=context.actor_id,
+        selected=await self.context(context.principal_id, actor_id=context.actor_id,
             person_id=context.person_id if context.conversation_id == conversation_id else None,
             conversation_id=conversation_id, permission=permission, origin_kind=context.origin_kind)
+        return self._limit_context(selected,context)
+
+    @staticmethod
+    def _limit_context(current,previous):
+        permissions=current.permissions if "*" in previous.permissions else previous.permissions if "*" in current.permissions else current.permissions&previous.permissions
+        if (current.actor_id,current.conversation_id)==(previous.actor_id,previous.conversation_id):
+            scopes=tuple(scope for scope in current.scope_ids if scope in previous.scope_ids)
+            audience=tuple(scope for scope in current.audience if scope in previous.audience)
+            return replace(current,permissions=permissions,scope_ids=scopes,audience=audience,
+                           delivery_allowed=current.delivery_allowed and previous.delivery_allowed)
+        return replace(current,permissions=permissions)
 
     async def check_active_actor(self, context):
         await self.check_context(context)
