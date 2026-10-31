@@ -25,7 +25,7 @@
         "CR01"
       ],
       "owner": "web 基础",
-      "state": "implementing",
+      "state": "implemented_not_tested",
       "implementation_agent": "frontend"
     },
     {
@@ -311,7 +311,7 @@
       "state": "implementing",
       "implementation_agent": "capabilities",
       "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c",
-      "pending": "complete project knowledge import notes experience continuation CLI MCP and frontend; external assets and archive source integrated",
+      "pending": "backend integrated; two native knowledge/project frontend workflows and one PG evidence story completing",
       "contributors": [
         "capabilities",
         "foundation_models"
@@ -328,7 +328,7 @@
         "CR16"
       ],
       "owner": "web 角色与认识",
-      "state": "implementing",
+      "state": "implemented_not_tested",
       "implementation_agent": "frontend",
       "contributors": [
         "frontend",
@@ -362,7 +362,7 @@
         "CR17"
       ],
       "owner": "web 设置与运维",
-      "state": "implementing",
+      "state": "implemented_not_tested",
       "implementation_agent": "frontend",
       "contributors": [
         "frontend",
@@ -406,9 +406,9 @@
         "CR19"
       ],
       "owner": "部署集成人",
-      "state": "implementing",
+      "state": "implemented_not_tested",
       "implementation_agent": "foundation_models",
-      "pending": "Access UI deployment scripts retired source removal and final integration before CR19"
+      "pending": "all deployment source integrated; concentrated CR19 then root-only actual empty-data production cutover"
     }
   ],
   "agents": {
@@ -428,9 +428,9 @@
         "CR08",
         "CR20"
       ],
-      "state": "implementing",
+      "state": "awaiting_concentrated_acceptance",
       "boundary": "runtime/models/types/identity/sources/memory/conversation/context and owned tests; backend manifest/lock/composition/migrations; deploy/core and retired source cleanup; settings AccessPanel.tsx/access.css only. No capabilities/projects or knowledge/projects UI writes.",
-      "phase": "deployment_access_retired_source_cleanup"
+      "phase": "complete_source_deployment_access_retired_source_cleanup"
     },
     "frontend": {
       "model": "gpt-6.1-sol",
@@ -451,7 +451,7 @@
       ],
       "state": "implementing",
       "boundary": "companion/**,life/**,conversation/** except context; shared web api/app/components/router/manifest; features life/multimodal/room/companion/home/workbench/flow-graph and settings outside foundation exact whitelist; no writes to C or A owned feature folders",
-      "phase": "flow_graph_device_connections_advanced_commitments_final_cleanup"
+      "phase": "complete_owned_UI; exclusive_tests/core/test_project_stories.py_pending"
     },
     "capabilities": {
       "model": "gpt-6.1-sol",
@@ -472,7 +472,7 @@
       ],
       "state": "implementing",
       "boundary": "capabilities/** including newly transferred projects; channels and SDK; web features plugins/media/infrastructure/resources/people/memory/knowledge/projects; exact ProviderManager/Editors/ModelsPanel/ModelFunctionsPanel/providerApi/providerTypes/providerPresets/models.css whitelist. Shared frontend registry stays B; root migration/assembly stays A.",
-      "phase": "actual_project_knowledge_backend_CLI_MCP_UI"
+      "phase": "knowledge_and_projects_UI_only"
     }
   },
   "integration_commits": [
@@ -936,6 +936,48 @@
       "source": "8ba0e94",
       "integrated": "529c3ac",
       "scope": "device actual connection identity and control permissions",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "d988310",
+      "integrated": "69990c0",
+      "scope": "native Projects web operations and original recovery",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "52cecea",
+      "integrated": "ea6680b",
+      "scope": "real account-character graph and three-role runtime log view",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "6bf9fd2",
+      "integrated": "9316718",
+      "scope": "native devices connections and workbench consumers",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "a203b72",
+      "integrated": "39992a5",
+      "scope": "full commitments and unified due_at/expires_at PhotoIntent windows",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "34841f4",
+      "integrated": "52d8317",
+      "scope": "complete project knowledge import evidence notes experience continuation and CLI MCP",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "11aa902",
+      "integrated": "66faac6",
+      "scope": "retire unreachable frontend APIs and keep native critical browser cases",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "e1b74af",
+      "integrated": "34eab90",
+      "scope": "single-product deployment Access supervision backup and retired source removal",
       "validation": "source_review_only; concentrated CR19 not started"
     }
   ],
