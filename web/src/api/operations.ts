@@ -146,6 +146,16 @@ const reads = new Set([
 
 const commands = new Set([
   ...capabilityCommands,
+  "channels/connections/save",
+  "channels/connections/probe",
+  "channels/actions/invoke",
+  "models/providers",
+  "models/routes",
+  "models/quota-groups",
+  "models/bindings",
+  "models/embedding-profile",
+  "models/bindings/delete",
+  "models/embedding-profile/delete",
   "memory/relationship/save",
   "resources/archive/connections.save",
   "resources/archive/search",
@@ -281,8 +291,17 @@ export async function callOperation<T>(
   csrf: string,
   signal: AbortSignal,
 ): Promise<T> {
-  if (reads.has(path)) return apiRead<T>(path, body, csrf, signal);
-  if (!commands.has(path))
+  if (
+    reads.has(path) ||
+    /^models\/providers\/[^/]+\/models\/result$/.test(path)
+  )
+    return apiRead<T>(path, body, csrf, signal);
+  if (
+    !commands.has(path) &&
+    !/^models\/(?:providers\/[^/]+\/(?:models|delete)|routes\/[^/]+\/(?:probe|delete))$/.test(
+      path,
+    )
+  )
     throw new ApiError(
       "operation_not_registered",
       0,

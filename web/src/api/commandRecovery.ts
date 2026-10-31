@@ -121,7 +121,13 @@ export async function recoverCommand(
         nativeOperations[operation] ??
         (/^models\/routes\/[^/]+\/probe$/.test(operation)
           ? "models.probe"
-          : operation.replaceAll("/", ".")),
+          : /^models\/providers\/[^/]+\/models$/.test(operation)
+            ? "models.providers.models"
+            : /^models\/providers\/[^/]+\/delete$/.test(operation)
+              ? "models.providers.delete"
+              : /^models\/routes\/[^/]+\/delete$/.test(operation)
+                ? "models.routes.delete"
+                : operation.replaceAll("/", ".")),
       client_request_id: value.client_request_id,
     },
     csrf,
