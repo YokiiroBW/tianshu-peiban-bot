@@ -8,6 +8,13 @@ from .types import AdmissionDecision, IncomingEvent
 
 
 class IdentityPort(Protocol):
+    async def for_participation(
+        self, context: TrustedContext, *, source_refs=()
+    ) -> TrustedContext | None: ...
+    async def memory_subjects_on(self, connection, context: TrustedContext) -> tuple[dict, ...]: ...
+    async def event_author_on(
+        self, connection, context: TrustedContext, producer: str, event_id: str, revision: int
+    ) -> str | None: ...
     async def archive_scene_on(self, connection, context: TrustedContext) -> tuple[dict, ...]: ...
     async def publication_recipients(
         self, context: TrustedContext, *, cursor: str | None = None, limit: int = 100

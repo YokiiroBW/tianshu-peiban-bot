@@ -120,7 +120,7 @@ class MemoryWorkers:
                 conversation_id=row["conversation_id"],
                 origin_kind=OriginKind(row["origin_kind"]),
             )
-            subjects = await self.identity.subjects_on(conn, context)
+            subjects = await self.identity.memory_subjects_on(conn, context)
             await conn.execute(
                 "UPDATE memory.episodes SET extraction_state='running',extraction_started_at=now() WHERE episode_id=%s AND sequence=%s",
                 (episode_id, sequence),
@@ -232,6 +232,7 @@ class MemoryWorkers:
                             "content": item["content"],
                             "coverage": item["coverage"],
                             "origin_kind": item["origin_kind"],
+                            "speaker_id": item["speaker_id"],
                             "locator": item["locator"],
                         }
                     )
@@ -251,7 +252,7 @@ class MemoryWorkers:
                 matter_ids = {item.matter_id for item in matters.items}
                 budget = RequestBudget(datetime.now(UTC) + timedelta(seconds=120))
                 material = {
-                    "speaker_id": context.person_id,
+                    "speaker_id": None,
                     "subjects": subjects,
                     "actor_id": "actor:" + context.actor_id,
                     "origin_kind": row["origin_kind"],
@@ -331,16 +332,22 @@ class MemoryWorkers:
                         if any(index >= len(selected) for index in indexes):
                             raise AppError("memory_extraction_source_invalid", status=502)
                         evidence = tuple(selected[index] for index in dict.fromkeys(indexes))
+                        speakers = {
+                            material_sources[index]["speaker_id"]
+                            for index in indexes
+                            if material_sources[index]["speaker_id"]
+                        }
                         value = {
                             **item,
                             "source_refs": evidence,
                             "observed_at": row["occurred_at"],
-                            "speaker_id": context.person_id,
+                            "speaker_id": next(iter(speakers)) if len(speakers) == 1 else None,
                         }
                         if kind == "claims":
                             if (
                                 any(
                                     material_sources[index]["origin_kind"] != "human"
+                                    or material_sources[index]["speaker_id"] != value["subject_id"]
                                     for index in indexes
                                 )
                                 and value.get("assertion") == "self_confirmed"

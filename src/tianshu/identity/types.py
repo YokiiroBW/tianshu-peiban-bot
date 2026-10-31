@@ -23,6 +23,7 @@ class IncomingEvent:
     command: str | None = None
     reply_owner: str = "tianshu"
     archived: bool = False
+    sender_display_name: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

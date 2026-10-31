@@ -52,7 +52,7 @@ class ClaimService:
         self.commands, self.jobs = memory.commands, memory.jobs
 
     async def visible_subjects(self, context, conn):
-        rows = await self.identity.subjects_on(conn, context)
+        rows = await self.identity.memory_subjects_on(conn, context)
         return {row["person_id"] for row in rows if row["person_id"]} | {
             "actor:" + context.actor_id
         }
@@ -72,10 +72,15 @@ class ClaimService:
         if assertion not in {"self_confirmed", "reported", "quoted", "inferred", "observed"}:
             raise AppError("invalid_claim_assertion")
         speaker_id = body.get("speaker_id", context.person_id)
-        if speaker_id not in {context.person_id, "actor:" + context.actor_id, None}:
+        evidence_speakers = {item["speaker_id"] for item in descriptions if item["speaker_id"]}
+        if speaker_id not in evidence_speakers | {"actor:" + context.actor_id, None}:
             raise AppError("claim_speaker_mismatch", status=403)
         if assertion == "self_confirmed" and (
-            speaker_id != subject_id or any(item["origin_kind"] != "human" for item in descriptions)
+            speaker_id != subject_id
+            or any(
+                item["origin_kind"] != "human" or item["speaker_id"] != subject_id
+                for item in descriptions
+            )
         ):
             raise AppError("claim_self_confirmation_unproven", status=403)
         value, conditions = body.get("value"), body.get("conditions", {})
@@ -92,7 +97,7 @@ class ClaimService:
         polarity = body.get("polarity", True)
         if type(polarity) is not bool:
             raise AppError("invalid_claim_polarity")
-        directory = await self.identity.subjects_on(conn, context)
+        directory = await self.identity.memory_subjects_on(conn, context)
         subject = next((item for item in directory if item["person_id"] == subject_id), {})
         names = " ".join((subject.get("display_name", ""), *(subject.get("aliases") or ())))
         content = (
@@ -353,6 +358,9 @@ class ClaimService:
                 f"{old.claim_id}:{old.revision}",
                 source_refs=(*old.source_refs, *command_refs),
             )
+            authors = await self.sources.describe_for_write_on(conn, context, command_refs)
+            speakers = {item["speaker_id"] for item in authors if item["speaker_id"]}
+            speaker = next(iter(speakers)) if len(speakers) == 1 else None
             if not await self.sources.validate_persistence(
                 conn, context, (*old.source_refs, *command_refs)
             ):
@@ -364,12 +372,16 @@ class ClaimService:
                     **wire(old),
                     **body,
                     "source_refs": command_refs,
-                    "speaker_id": context.person_id,
+                    "speaker_id": speaker,
                     "assertion": (
                         "inferred"
                         if evidence_refs is not None
                         else "self_confirmed"
-                        if context.person_id == old.subject_id
+                        if speaker == old.subject_id
+                        and all(
+                            item["origin_kind"] == "human" and item["speaker_id"] == speaker
+                            for item in authors
+                        )
                         else "reported"
                     ),
                     "observed_at": datetime.now(UTC),

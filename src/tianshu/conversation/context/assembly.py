@@ -213,6 +213,31 @@ class ContextAssembler:
                                 70,
                             )
                         )
+                    if context.conversation_kind == "group":
+                        group = await self.memory.projection(
+                            context,
+                            group_id=context.conversation_id,
+                            claim_limit=12,
+                            matter_limit=6,
+                            reflection_limit=8,
+                        )
+                        dependencies = unique_refs(
+                            *(
+                                item.source_refs
+                                for key in ("claims", "matters", "reflections")
+                                for item in group[key]
+                            )
+                        )
+                        if dependencies:
+                            optional.append(
+                                ContextContribution(
+                                    "group_background",
+                                    json.dumps(wire(group), ensure_ascii=False),
+                                    dependencies,
+                                    context.scope_ids,
+                                    70,
+                                )
+                            )
             except Exception as exc:
                 logging.getLogger(__name__).warning(
                     "optional_structured_memory_unavailable",

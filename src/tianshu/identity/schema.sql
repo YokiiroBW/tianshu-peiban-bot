@@ -94,7 +94,7 @@ CREATE TABLE identity.connections (
     namespace text NOT NULL,
     self_external_id text NOT NULL,
     enabled boolean NOT NULL DEFAULT true,
-    default_mode text NOT NULL DEFAULT 'ignore' CHECK(default_mode IN ('reply','observe','ignore')),
+    default_mode text NOT NULL DEFAULT 'reply' CHECK(default_mode IN ('reply','observe','ignore')),
     event_permissions text[] NOT NULL DEFAULT ARRAY['chat','conversation.read','conversation.send','companion.read','life.read','life.manage','life.published.read','memory.read','memory.manage','memory.share'],
     revision bigint NOT NULL DEFAULT 1
 );
@@ -112,6 +112,8 @@ CREATE TABLE identity.conversation_links (
     conversation_id text NOT NULL REFERENCES identity.conversations,
     mode text NOT NULL CHECK(mode IN ('reply','observe','ignore')),
     mention_required boolean NOT NULL DEFAULT false,
+    reply_keywords text[] NOT NULL DEFAULT '{}',
+    inherited_private_policy boolean NOT NULL DEFAULT false,
     reply_owner text NOT NULL DEFAULT 'tianshu',
     revision bigint NOT NULL DEFAULT 1,
     PRIMARY KEY(connection_id,external_id)
@@ -128,6 +130,15 @@ CREATE TABLE identity.events (
     occurred_at timestamptz NOT NULL,
     PRIMARY KEY(connection_id,producer,event_id,revision)
 );
+CREATE TABLE identity.conversation_members (
+    conversation_id text NOT NULL REFERENCES identity.conversations,
+    connection_id text NOT NULL REFERENCES identity.connections,
+    external_id text NOT NULL,
+    person_id text NOT NULL REFERENCES identity.people,
+    last_observed_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY(conversation_id,connection_id,external_id)
+);
+CREATE INDEX conversation_members_person ON identity.conversation_members(conversation_id,person_id);
 CREATE TABLE identity.login_windows (
     username_hash text PRIMARY KEY,
     failures integer NOT NULL DEFAULT 0,

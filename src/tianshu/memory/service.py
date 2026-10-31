@@ -256,6 +256,7 @@ class MemoryService:
                 context.actor_id,
                 context.principal_id,
                 context.person_id,
+                context.conversation_id,
                 list(proposal.episode_ids),
                 proposal.content,
                 proposal.kind,
@@ -267,8 +268,8 @@ class MemoryService:
             )
             row = await (
                 await conn.execute(
-                    "INSERT INTO memory.reflections(proposal_id,actor_id,principal_id,person_id,episode_ids,content,kind,"
-                    "occurred_at,source_refs,scope_ids,conditions,counterexamples) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+                    "INSERT INTO memory.reflections(proposal_id,actor_id,principal_id,person_id,conversation_id,episode_ids,content,kind,"
+                    "occurred_at,source_refs,scope_ids,conditions,counterexamples) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
                     "ON CONFLICT(proposal_id) DO NOTHING RETURNING *",
                     values,
                 )
@@ -355,20 +356,27 @@ class MemoryService:
             result["source_refs"].extend(detail["source_refs"])
         return result
 
-    async def reflection_page(self, context, *, person_id=None, cursor=None, limit=40):
+    async def reflection_page(
+        self, context, *, person_id=None, conversation_id=None, cursor=None, limit=40
+    ):
         await self.identity.check_context(context)
+        if conversation_id is not None and conversation_id != context.conversation_id:
+            raise AppError("group_projection_forbidden", status=403)
         limit = min(max(int(limit), 1), 100)
         async with self.database.transaction(read_only=True) as conn:
             rows = await (
                 await conn.execute(
                     "SELECT * FROM memory.reflections WHERE actor_id=%s AND active "
                     "AND scope_ids<@%s::text[] AND (%s::text IS NULL OR person_id=%s) "
+                    "AND (%s::text IS NULL OR conversation_id=%s) "
                     "AND (%s::text IS NULL OR proposal_id>%s) ORDER BY proposal_id LIMIT %s",
                     (
                         context.actor_id,
                         list(context.scope_ids),
                         person_id,
                         person_id,
+                        conversation_id,
+                        conversation_id,
                         cursor,
                         cursor,
                         limit + 1,
@@ -388,18 +396,39 @@ class MemoryService:
             ),
         )
 
-    async def projection(self, context, person_id=None, group_id=None):
+    async def projection(
+        self,
+        context,
+        person_id=None,
+        group_id=None,
+        *,
+        claim_limit=100,
+        matter_limit=50,
+        reflection_limit=40,
+    ):
         await self.identity.check_context(context)
         if group_id is not None and (
             context.conversation_id != group_id or context.conversation_kind != "group"
         ):
             raise AppError("group_projection_forbidden", status=403)
-        claim_page = await self.claims.list(context, subject_id=person_id, limit=100)
-        matters = await self.claims.matters(context, subject_id=person_id, limit=50)
-        reflections = await self.reflection_page(context, person_id=person_id, limit=40)
+        group = None
+        if group_id is not None:
+            async with self.database.transaction(read_only=True) as conn:
+                group = await self.identity.group_on(conn, context)
+        subject_id = group["subject_id"] if group else person_id
+        claim_page = await self.claims.list(context, subject_id=subject_id, limit=claim_limit)
+        matters = await self.claims.matters(context, subject_id=subject_id, limit=matter_limit)
+        reflections = await self.reflection_page(
+            context,
+            person_id=person_id if not group else None,
+            conversation_id=group_id,
+            limit=reflection_limit,
+        )
         return {
             "person_id": person_id,
             "group_id": group_id,
+            "group": group,
+            "can_manage": "memory.manage" in context.permissions or "*" in context.permissions,
             "claims": claim_page.items,
             "matters": matters.items,
             "reflections": reflections.items,

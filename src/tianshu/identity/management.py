@@ -23,16 +23,26 @@ class IdentityManagement:
     def __init__(self, identity):
         self.identity = identity
 
+    async def person_visible_on(self, conn, context, person_id):
+        return bool(
+            await (
+                await conn.execute(
+                    "SELECT 1 FROM identity.people p WHERE person_id=%s AND (EXISTS(SELECT 1 FROM identity.scopes s JOIN identity.scope_grants g USING(scope_id) WHERE s.person_id=p.person_id AND g.principal_id=%s) OR EXISTS(SELECT 1 FROM identity.conversation_members m JOIN identity.conversations v USING(conversation_id) JOIN identity.scope_grants g USING(scope_id) WHERE m.person_id=p.person_id AND g.principal_id=%s))",
+                    (person_id, context.principal_id, context.principal_id),
+                )
+            ).fetchone()
+        )
+
     async def people(self, context, *, cursor=None, limit=50):
         await self.identity.check_context(context)
         limit = min(max(int(limit), 1), 100)
         async with self.identity.database.transaction(read_only=True) as conn:
             rows = await (
                 await conn.execute(
-                    "SELECT DISTINCT p.* FROM identity.people p JOIN identity.scopes s "
-                    "USING(person_id) JOIN identity.scope_grants g USING(scope_id) WHERE g.principal_id=%s "
+                    "SELECT p.*,ARRAY(SELECT alias FROM identity.person_aliases a WHERE a.person_id=p.person_id ORDER BY alias) AS aliases FROM identity.people p WHERE "
+                    "(EXISTS(SELECT 1 FROM identity.scopes s JOIN identity.scope_grants g USING(scope_id) WHERE s.person_id=p.person_id AND g.principal_id=%s) OR EXISTS(SELECT 1 FROM identity.conversation_members m JOIN identity.conversations v USING(conversation_id) JOIN identity.scope_grants g USING(scope_id) WHERE m.person_id=p.person_id AND g.principal_id=%s)) "
                     "AND (%s::text IS NULL OR p.person_id>%s) ORDER BY p.person_id LIMIT %s",
-                    (context.principal_id, cursor, cursor, limit + 1),
+                    (context.principal_id, context.principal_id, cursor, cursor, limit + 1),
                 )
             ).fetchall()
         return Page(
@@ -61,8 +71,8 @@ class IdentityManagement:
             ).fetchall()
             links = await (
                 await conn.execute(
-                    "SELECT l.* FROM identity.conversation_links l JOIN identity.connections c "
-                    "USING(connection_id) WHERE c.principal_id=%s ORDER BY l.connection_id,l.external_id",
+                    "SELECT l.*,v.actor_id,v.kind,v.label,v.target_ref FROM identity.conversation_links l JOIN identity.connections c "
+                    "USING(connection_id) JOIN identity.conversations v USING(conversation_id) WHERE c.principal_id=%s ORDER BY l.connection_id,l.external_id",
                     (context.principal_id,),
                 )
             ).fetchall()
@@ -266,13 +276,7 @@ class IdentityManagement:
                             (scope, context.principal_id, ["*"]),
                         )
                 else:
-                    visible = await (
-                        await conn.execute(
-                            "SELECT 1 FROM identity.scopes s JOIN identity.scope_grants g "
-                            "USING(scope_id) WHERE s.person_id=%s AND g.principal_id=%s LIMIT 1",
-                            (person_id, context.principal_id),
-                        )
-                    ).fetchone()
+                    visible = await self.person_visible_on(conn, context, person_id)
                     if not visible:
                         raise AppError("person_forbidden", status=403)
                     row = await (
@@ -289,6 +293,17 @@ class IdentityManagement:
                     actor_id=body.get("actor_id"),
                     permission="identity.manage",
                 )
+                previous = await (
+                    await conn.execute(
+                        "SELECT default_mode FROM identity.connections WHERE connection_id=%s AND principal_id=%s",
+                        (required(body, "connection_id"), context.principal_id),
+                    )
+                ).fetchone()
+                default_mode = body.get(
+                    "default_mode", previous["default_mode"] if previous else "reply"
+                )
+                if default_mode not in {"reply", "observe", "ignore"}:
+                    raise AppError("invalid_private_default_mode")
                 values = (
                     required(body, "connection_id"),
                     context.principal_id,
@@ -296,12 +311,13 @@ class IdentityManagement:
                     required(body, "namespace"),
                     required(body, "self_external_id"),
                     bool(body.get("enabled", True)),
+                    default_mode,
                 )
                 if expected == 0:
                     row = await (
                         await conn.execute(
                             "INSERT INTO identity.connections(connection_id,principal_id,actor_id,namespace,"
-                            "self_external_id,enabled) VALUES(%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING RETURNING *",
+                            "self_external_id,enabled,default_mode) VALUES(%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING RETURNING *",
                             values,
                         )
                     ).fetchone()
@@ -309,10 +325,15 @@ class IdentityManagement:
                     row = await (
                         await conn.execute(
                             "UPDATE identity.connections SET actor_id=%s,namespace=%s,self_external_id=%s,"
-                            "enabled=%s,revision=revision+1 WHERE connection_id=%s AND principal_id=%s AND revision=%s RETURNING *",
+                            "enabled=%s,default_mode=%s,revision=revision+1 WHERE connection_id=%s AND principal_id=%s AND revision=%s RETURNING *",
                             (*values[2:], values[0], context.principal_id, expected),
                         )
                     ).fetchone()
+                if row:
+                    await conn.execute(
+                        "UPDATE identity.conversation_links SET mode=%s,revision=revision+1 WHERE connection_id=%s AND inherited_private_policy AND mode<>%s",
+                        (default_mode, row["connection_id"], default_mode),
+                    )
             elif operation in {"accounts.link", "conversations.link"}:
                 connection = await (
                     await conn.execute(
@@ -352,13 +373,7 @@ class IdentityManagement:
                         "identity.users.manage" not in context.permissions
                         and "*" not in context.permissions
                     ):
-                        visible = await (
-                            await conn.execute(
-                                "SELECT 1 FROM identity.scopes s JOIN identity.scope_grants g USING(scope_id) "
-                                "WHERE s.person_id=%s AND g.principal_id=%s LIMIT 1",
-                                (person_id, context.principal_id),
-                            )
-                        ).fetchone()
+                        visible = await self.person_visible_on(conn, context, person_id)
                         if not visible:
                             raise AppError("person_forbidden", status=403)
                     values = (connection["connection_id"], external_id, person_id)
@@ -380,6 +395,19 @@ class IdentityManagement:
                         ).fetchone()
                 else:
                     kind, mode = body.get("kind"), body.get("mode", "reply")
+                    keywords = body.get("reply_keywords", [])
+                    if (
+                        not isinstance(keywords, list)
+                        or len(keywords) > 32
+                        or any(
+                            not isinstance(word, str)
+                            or not 1 <= len(word) <= 64
+                            or not word.strip()
+                            for word in keywords
+                        )
+                        or len(keywords) != len(set(keywords))
+                    ):
+                        raise AppError("invalid_reply_keywords")
                     if kind not in {"private", "group", "project", "system"} or mode not in {
                         "reply",
                         "observe",
@@ -390,11 +418,20 @@ class IdentityManagement:
                         scope_id, conversation_id = identifier("scope"), identifier("conversation")
                         person_id = body.get("person_id")
                         if kind == "private":
+                            sender_external_id = body.get("sender_external_id")
+                            if (
+                                sender_external_id is None
+                                and external_id.startswith("private:")
+                                and external_id.count(":") == 1
+                            ):
+                                sender_external_id = external_id.removeprefix("private:")
+                            if not isinstance(sender_external_id, str) or not sender_external_id:
+                                raise AppError("private_sender_external_id_required")
                             account = await (
                                 await conn.execute(
                                     "SELECT person_id FROM identity.accounts WHERE connection_id=%s "
                                     "AND external_id=%s",
-                                    (connection["connection_id"], external_id),
+                                    (connection["connection_id"], sender_external_id),
                                 )
                             ).fetchone()
                             if not account:
@@ -441,7 +478,7 @@ class IdentityManagement:
                         row = await (
                             await conn.execute(
                                 "INSERT INTO identity.conversation_links(connection_id,external_id,conversation_id,mode,"
-                                "mention_required,reply_owner) VALUES(%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING RETURNING *",
+                                "mention_required,reply_owner,reply_keywords) VALUES(%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING RETURNING *",
                                 (
                                     connection["connection_id"],
                                     external_id,
@@ -449,18 +486,20 @@ class IdentityManagement:
                                     mode,
                                     bool(body.get("mention_required", False)),
                                     body.get("reply_owner", "tianshu"),
+                                    keywords,
                                 ),
                             )
                         ).fetchone()
                     else:
                         row = await (
                             await conn.execute(
-                                "UPDATE identity.conversation_links SET mode=%s,mention_required=%s,reply_owner=%s,"
+                                "UPDATE identity.conversation_links SET mode=%s,mention_required=%s,reply_owner=%s,reply_keywords=%s,inherited_private_policy=false,"
                                 "revision=revision+1 WHERE connection_id=%s AND external_id=%s AND revision=%s RETURNING *",
                                 (
                                     mode,
                                     bool(body.get("mention_required", False)),
                                     body.get("reply_owner", "tianshu"),
+                                    keywords,
                                     connection["connection_id"],
                                     external_id,
                                     expected,

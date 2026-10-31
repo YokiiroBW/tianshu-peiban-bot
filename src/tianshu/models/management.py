@@ -114,7 +114,7 @@ async def _apply_configuration(conn, operation, body, expected, services):
             raise AppError("invalid_provider_credential_change")
         current = await (
             await conn.execute(
-                "SELECT credential_ref FROM models.providers WHERE provider_id=%s", (provider_id,)
+                "SELECT * FROM models.providers WHERE provider_id=%s", (provider_id,)
             )
         ).fetchone()
         configured = services.settings.get("broker", {}).get("provider_credential_refs", {})
@@ -152,6 +152,11 @@ async def _apply_configuration(conn, operation, body, expected, services):
                 "WHERE provider_id=%s AND revision=%s RETURNING revision",
                 (*values[1:], values[0], expected),
             )
+        if current and (current["base_url"] != values[2] or current["protocol"] != protocol):
+            await conn.execute(
+                "UPDATE models.routes SET verified_capabilities='{}',verification=NULL,revision=revision+1 WHERE provider_id=%s",
+                (provider_id,),
+            )
     elif operation == "routes":
         caps = body.get("verified_capabilities", [])
         if not isinstance(caps, list) or any(not isinstance(item, str) for item in caps):
@@ -164,6 +169,43 @@ async def _apply_configuration(conn, operation, body, expected, services):
         parameters = body.get("parameters", {})
         if not isinstance(parameters, dict):
             raise AppError("invalid_parameters")
+        old = await (
+            await conn.execute(
+                "SELECT provider_id,model,parameters,verification,verified_capabilities FROM models.routes WHERE route_id=%s",
+                (text(body, "route_id"),),
+            )
+        ).fetchone()
+        changed_identity = old and (
+            old["provider_id"] != body.get("provider_id")
+            or old["model"] != body.get("model")
+            or old["parameters"] != parameters
+        )
+        if caps:
+            preserved = (
+                old
+                and not changed_identity
+                and evidence == old["verification"]
+                and set(caps) <= set(old["verified_capabilities"])
+            )
+            operator = (
+                isinstance(evidence, dict)
+                and evidence.get("source") == "operator"
+                and bool(evidence.get("observed_at"))
+            )
+            if operator:
+                try:
+                    observed_at = datetime.fromisoformat(
+                        evidence["observed_at"].replace("Z", "+00:00")
+                    )
+                    operator = observed_at.tzinfo is not None and not (
+                        changed_identity
+                        and old["verification"]
+                        and evidence["observed_at"] == old["verification"].get("observed_at")
+                    )
+                except (ValueError, TypeError, AttributeError):
+                    operator = False
+            if not preserved and not operator:
+                caps, evidence = [], None
         values = (
             text(body, "route_id"),
             text(body, "provider_id"),

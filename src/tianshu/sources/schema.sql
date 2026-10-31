@@ -18,6 +18,7 @@ CREATE TABLE sources.versions (
     scope_epochs jsonb NOT NULL,
     audience text[] NOT NULL,
     origin_kind text NOT NULL,
+    speaker_id text,
     evidence_unit text NOT NULL,
     content text,
     media jsonb,

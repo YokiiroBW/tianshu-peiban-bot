@@ -102,7 +102,7 @@ class SourceService:
             return ()
         rows = await (
             await conn.execute(
-                "SELECT source_id,revision,scope_ids,evidence_unit,origin_kind,occurred_at "
+                "SELECT source_id,revision,scope_ids,evidence_unit,origin_kind,occurred_at,speaker_id "
                 "FROM sources.versions WHERE (source_id,revision) IN (SELECT * FROM unnest(%s::text[],%s::bigint[]))",
                 ([ref.source_id for ref in source_refs], [ref.revision for ref in source_refs]),
             )
@@ -122,6 +122,11 @@ class SourceService:
         async with self.database.transaction() as conn:
             intake, epochs = await self.identity.intake_scope(context, connection=conn)
             write_context = replace(context, scope_ids=intake, audience=intake)
+            author = (
+                await self.identity.event_author_on(conn, context, producer, event_id, revision)
+                if origin_kind == OriginKind.HUMAN
+                else None
+            )
             from .archives import event_alias, bind_event
 
             native_alias = await event_alias(self, conn, context, producer, event_id)
@@ -217,6 +222,7 @@ class SourceService:
                         media,
                         f"{producer}:{event_id}",
                         Coverage(True),
+                        speaker_id=author if part_origin == OriginKind.HUMAN else None,
                     )
                 )
             removed = await (
@@ -257,6 +263,7 @@ class SourceService:
         *,
         disclosure=False,
         support_context=None,
+        speaker_id=None,
     ):
         if not context.scope_ids:
             raise AppError("source_scope_required", status=403)
@@ -286,7 +293,7 @@ class SourceService:
             raise AppError("source_suppressed", status=409)
         old = await (
             await conn.execute(
-                "SELECT content,media,scope_ids,origin_kind FROM sources.versions WHERE "
+                "SELECT content,media,scope_ids,origin_kind,speaker_id FROM sources.versions WHERE "
                 "source_id=%s AND revision=%s",
                 (source_id, revision),
             )
@@ -294,6 +301,7 @@ class SourceService:
         if old:
             if (
                 old["content"] != content
+                or old["speaker_id"] != speaker_id
                 or old["media"] != wire(media)
                 or old["origin_kind"] != str(origin_kind)
                 or set(old["scope_ids"]) != set(context.scope_ids)
@@ -311,7 +319,7 @@ class SourceService:
             raise AppError("source_intake_suppressed", status=409)
         await conn.execute(
             "INSERT INTO sources.versions(source_id,revision,intake_epoch,scope_ids,scope_epochs,audience,origin_kind,"
-            "evidence_unit,content,media,locator,coverage,occurred_at,disclosure) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            "evidence_unit,content,media,locator,coverage,occurred_at,disclosure,speaker_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
             (
                 source_id,
                 revision,
@@ -327,6 +335,7 @@ class SourceService:
                 Jsonb(wire(coverage)),
                 occurred_at,
                 disclosure,
+                speaker_id,
             ),
         )
         for index, group in enumerate(support_groups):
@@ -619,10 +628,10 @@ class SourceService:
                 raise AppError("source_unavailable", status=403)
             rows = await (
                 await conn.execute(
-                    "SELECT q.ordinal,v.source_id,v.revision,v.media,v.origin_kind,v.occurred_at,v.locator,"
+                    "SELECT q.ordinal,v.source_id,v.revision,v.media,v.origin_kind,v.speaker_id,v.occurred_at,v.locator,o.owner_id,o.person_id,o.actor_id,"
                     "length(v.content) AS total,substring(v.content from q.position+1 for q.maximum) AS content "
                     "FROM unnest(%s::text[],%s::bigint[],%s::integer[],%s::integer[]) WITH ORDINALITY "
-                    "q(source_id,revision,position,maximum,ordinal) JOIN sources.versions v USING(source_id,revision) ORDER BY q.ordinal",
+                    "q(source_id,revision,position,maximum,ordinal) JOIN sources.versions v USING(source_id,revision) JOIN sources.originals o USING(source_id) ORDER BY q.ordinal",
                     (
                         [ref.source_id for ref in refs],
                         [ref.revision for ref in refs],
@@ -631,8 +640,15 @@ class SourceService:
                     ),
                 )
             ).fetchall()
+            revocable = await self.identity.can_revoke_sources_on(
+                conn,
+                context,
+                tuple((row["owner_id"], row["person_id"], row["actor_id"]) for row in rows),
+            )
         results = []
-        for row, source, position, maximum in zip(rows, refs, positions, lengths):
+        for row, source, position, maximum, can_revoke in zip(
+            rows, refs, positions, lengths, revocable
+        ):
             total = row["total"]
             if total is not None and position > total:
                 raise AppError("invalid_source_position")
@@ -661,6 +677,8 @@ class SourceService:
                     "next_position": end if total is not None and end < target_end else None,
                     "media": media,
                     "origin_kind": row["origin_kind"],
+                    "speaker_id": row["speaker_id"],
+                    "can_revoke": can_revoke,
                     "occurred_at": row["occurred_at"],
                     "locator": row["locator"],
                 }

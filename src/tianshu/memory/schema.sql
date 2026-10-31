@@ -107,6 +107,7 @@ CREATE TABLE memory.reflections (
     actor_id text NOT NULL,
     principal_id text NOT NULL,
     person_id text,
+    conversation_id text,
     episode_ids text[] NOT NULL,
     content text NOT NULL,
     kind text NOT NULL,
@@ -120,6 +121,7 @@ CREATE TABLE memory.reflections (
     active boolean NOT NULL DEFAULT true
 );
 CREATE INDEX reflections_sources ON memory.reflections USING gin(source_refs);
+CREATE INDEX reflections_conversation ON memory.reflections(actor_id,conversation_id,proposal_id);
 CREATE TABLE memory.relationships (
     actor_id text NOT NULL,
     person_id text NOT NULL,

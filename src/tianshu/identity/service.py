@@ -174,9 +174,8 @@ class IdentityService:
             if person_id and conversation_kind == "group":
                 visible = await (
                     await conn.execute(
-                        "SELECT 1 FROM identity.accounts a JOIN "
-                        "identity.conversation_links l USING(connection_id) WHERE l.conversation_id=%s "
-                        "AND a.person_id=%s LIMIT 1",
+                        "SELECT 1 FROM identity.conversation_members WHERE conversation_id=%s "
+                        "AND person_id=%s LIMIT 1",
                         (conversation_id, person_id),
                     )
                 ).fetchone()
@@ -369,11 +368,64 @@ class IdentityService:
                 "SELECT DISTINCT p.person_id,p.display_name,p.revision,ARRAY(SELECT alias FROM identity.person_aliases a "
                 "WHERE a.person_id=p.person_id ORDER BY alias) AS aliases FROM identity.people p "
                 "WHERE p.person_id=%s OR EXISTS(SELECT 1 FROM identity.scopes s WHERE s.person_id=p.person_id AND s.scope_id=ANY(%s)) "
-                "OR EXISTS(SELECT 1 FROM identity.accounts a JOIN identity.conversation_links l USING(connection_id) "
-                "WHERE a.person_id=p.person_id AND l.conversation_id=%s) ORDER BY p.person_id LIMIT 256",
+                "OR EXISTS(SELECT 1 FROM identity.conversation_members m "
+                "WHERE m.person_id=p.person_id AND m.conversation_id=%s) ORDER BY p.person_id LIMIT 256",
                 (context.person_id, list(context.scope_ids), context.conversation_id),
             )
         ).fetchall()
+
+    async def memory_subjects_on(self, conn, context):
+        """People and the actual selected group are distinct memory subjects."""
+        people = tuple(await self.subjects_on(conn, context))
+        group = await self.group_on(conn, context)
+        return people + (
+            (
+                {
+                    "person_id": group["subject_id"],
+                    "display_name": group["label"],
+                    "aliases": (),
+                    "revision": group["revision"],
+                    "kind": "group",
+                },
+            )
+            if group
+            else ()
+        )
+
+    async def group_on(self, conn, context):
+        await self.check_context(context, connection=conn)
+        if context.conversation_kind != "group" or not context.conversation_id:
+            return None
+        row = await (
+            await conn.execute(
+                "SELECT conversation_id,actor_id,label,revision,scope_id FROM identity.conversations WHERE conversation_id=%s AND actor_id=%s AND kind='group'",
+                (context.conversation_id, context.actor_id),
+            )
+        ).fetchone()
+        if not row or row["scope_id"] not in context.scope_ids:
+            raise AppError("group_projection_forbidden", status=403)
+        return {**row, "subject_id": "group:" + row["conversation_id"]}
+
+    async def event_author_on(self, conn, context, producer, event_id, revision):
+        """A selected person is a target; authorship comes from the login or admitted event."""
+        await self.check_context(context, connection=conn)
+        if await self.verify_channel_producer(conn, context, producer):
+            row = await (
+                await conn.execute(
+                    "SELECT e.speaker_id FROM identity.events e JOIN identity.connections c USING(connection_id) WHERE e.producer=%s AND e.event_id=%s AND e.revision=%s AND e.conversation_id=%s AND c.actor_id=%s",
+                    (producer, event_id, revision, context.conversation_id, context.actor_id),
+                )
+            ).fetchone()
+            if not row or row["speaker_id"] != context.person_id:
+                raise AppError("event_author_unverified", status=403)
+            return row["speaker_id"]
+        row = await (
+            await conn.execute(
+                "SELECT person_id FROM identity.principals WHERE principal_id=%s AND enabled",
+                (context.principal_id,),
+            )
+        ).fetchone()
+        return row["person_id"] if row else None
 
     async def authorize_actor(self, context, actor_id, *, permission=None):
         await self.check_context(context)
@@ -401,6 +453,38 @@ class IdentityService:
         )
         return self._limit_context(selected, context)
 
+    async def for_participation(self, context, *, source_refs=()):
+        """B's explicit participation use case may select a currently reply-owned group."""
+        if context.conversation_kind != "group" or not context.conversation_id:
+            return None
+        async with self.database.transaction(control=True, read_only=True) as conn:
+            await self.check_context(context, connection=conn)
+            if (
+                source_refs
+                and not (await self.sources.check_many_on(conn, context, (tuple(source_refs),)))[0]
+            ):
+                return None
+            link = await (
+                await conn.execute(
+                    "SELECT 1 FROM identity.conversation_links l JOIN identity.connections c USING(connection_id) WHERE l.conversation_id=%s AND c.actor_id=%s AND c.enabled AND l.mode='reply' AND l.reply_owner='tianshu'",
+                    (context.conversation_id, context.actor_id),
+                )
+            ).fetchone()
+            if not link:
+                return None
+            current = await self.context_on(
+                conn,
+                context.principal_id,
+                actor_id=context.actor_id,
+                person_id=context.person_id,
+                conversation_id=context.conversation_id,
+                permission="conversation.send",
+                origin_kind=OriginKind.ACTOR,
+            )
+            limited = self._limit_context(current, context)
+            await self.check_active_actor(limited, connection=conn)
+            return replace(limited, delivery_allowed=current.delivery_allowed)
+
     @staticmethod
     def _limit_context(current, previous):
         permissions = (
@@ -425,17 +509,22 @@ class IdentityService:
             )
         return replace(current, permissions=permissions)
 
-    async def check_active_actor(self, context):
-        await self.check_context(context)
-        if context.actor_id:
-            async with self.database.transaction(read_only=True) as conn:
+    async def check_active_actor(self, context, *, connection=None):
+        async def check(conn):
+            await self.check_context(context, connection=conn)
+            if context.actor_id:
                 row = await (
                     await conn.execute(
                         "SELECT enabled FROM identity.actors WHERE actor_id=%s", (context.actor_id,)
                     )
                 ).fetchone()
-            if not row or not row["enabled"]:
-                raise AppError("actor_disabled", status=409)
+                if not row or not row["enabled"]:
+                    raise AppError("actor_disabled", status=409)
+
+        if connection is not None:
+            return await check(connection)
+        async with self.database.transaction(control=True, read_only=True) as conn:
+            return await check(conn)
 
     async def connection(self, context, connection_id):
         await self.check_context(context)
@@ -456,9 +545,16 @@ class IdentityService:
             await (
                 await conn.execute(
                     "SELECT c.connection_id FROM identity.connections c JOIN identity.conversation_links l "
-                    "USING(connection_id) WHERE c.enabled AND c.principal_id=%s AND c.actor_id=%s AND l.conversation_id=%s "
+                    "USING(connection_id) WHERE c.enabled AND (c.principal_id=%s OR EXISTS(SELECT 1 FROM identity.accounts a WHERE a.connection_id=c.connection_id AND a.principal_id=%s AND a.person_id=%s)) AND c.actor_id=%s AND l.conversation_id=%s "
                     "AND %s=c.namespace||':'||c.connection_id",
-                    (context.principal_id, context.actor_id, context.conversation_id, producer),
+                    (
+                        context.principal_id,
+                        context.principal_id,
+                        context.person_id,
+                        context.actor_id,
+                        context.conversation_id,
+                        producer,
+                    ),
                 )
             ).fetchone()
         )
@@ -502,20 +598,27 @@ class IdentityService:
             return replace(context, delivery_allowed=False, permissions=frozenset())
 
     async def can_revoke_source(self, conn, context, owner_id, person_id, actor_id):
+        return (
+            await self.can_revoke_sources_on(conn, context, ((owner_id, person_id, actor_id),))
+        )[0]
+
+    async def can_revoke_sources_on(self, conn, context, ownership):
         await self.check_context(context, connection=conn)
-        if owner_id != context.principal_id or actor_id != context.actor_id:
-            return False
-        if "*" in context.permissions or person_id is None:
-            return True
-        if context.person_id:
-            return person_id == context.person_id
-        row = await (
-            await conn.execute(
-                "SELECT person_id FROM identity.principals WHERE principal_id=%s",
-                (context.principal_id,),
-            )
-        ).fetchone()
-        return row and row["person_id"] == person_id
+        person = context.person_id
+        if not person:
+            row = await (
+                await conn.execute(
+                    "SELECT person_id FROM identity.principals WHERE principal_id=%s",
+                    (context.principal_id,),
+                )
+            ).fetchone()
+            person = row["person_id"] if row else None
+        return tuple(
+            owner_id == context.principal_id
+            and actor_id == context.actor_id
+            and ("*" in context.permissions or person_id is None or person_id == person)
+            for owner_id, person_id, actor_id in ownership
+        )
 
     async def channel_target(self, context, conversation_id):
         if not context.delivery_allowed or context.conversation_id != conversation_id:
@@ -777,19 +880,9 @@ class IdentityService:
             ).fetchone()
             if not connection:
                 raise AppError("connection_not_authorized", status=403)
-            link = await (
-                await conn.execute(
-                    "SELECT l.*,c.kind FROM identity.conversation_links l JOIN "
-                    "identity.conversations c USING(conversation_id) WHERE connection_id=%s AND external_id=%s",
-                    (connection_id, event.conversation_external_id),
-                )
-            ).fetchone()
-            sender = await (
-                await conn.execute(
-                    "SELECT * FROM identity.accounts WHERE connection_id=%s AND external_id=%s",
-                    (connection_id, event.sender_external_id),
-                )
-            ).fetchone()
+            from .intake import sender_and_target
+
+            link, sender = await sender_and_target(conn, connection, event)
             if not link or not sender or link["kind"] != event.conversation_kind:
                 return AdmissionDecision(
                     "ignore",
@@ -799,21 +892,34 @@ class IdentityService:
                     event.event_id,
                     event.revision,
                 )
-            context = await self.context_on(
-                conn,
-                sender["principal_id"] or connection["principal_id"],
-                actor_id=connection["actor_id"],
-                conversation_id=link["conversation_id"],
-                origin_kind=OriginKind.REPLAY if event.archived else OriginKind.HUMAN,
-            )
-            if not sender["principal_id"]:
-                allowed = frozenset(connection["event_permissions"])
-                context = replace(
-                    context,
-                    permissions=allowed
-                    if "*" in context.permissions
-                    else context.permissions & allowed,
+            selected_principal = sender["principal_id"] or connection["principal_id"]
+            try:
+                context = await self.context_on(
+                    conn,
+                    selected_principal,
+                    actor_id=connection["actor_id"],
+                    conversation_id=link["conversation_id"],
+                    origin_kind=OriginKind.REPLAY if event.archived else OriginKind.HUMAN,
                 )
+            except AppError as exc:
+                if selected_principal == connection["principal_id"] or exc.status not in {401, 403}:
+                    raise
+                # An application account link does not grant this social target access.
+                # The registered bot owner remains the narrowly limited transport caller.
+                context = await self.context_on(
+                    conn,
+                    connection["principal_id"],
+                    actor_id=connection["actor_id"],
+                    conversation_id=link["conversation_id"],
+                    origin_kind=OriginKind.REPLAY if event.archived else OriginKind.HUMAN,
+                )
+            allowed = frozenset(connection["event_permissions"])
+            context = replace(
+                context,
+                permissions=allowed
+                if "*" in context.permissions
+                else context.permissions & allowed,
+            )
             # Current speaker and quoted author remain different identities.
             context = replace(context, person_id=sender["person_id"])
             mode = link["mode"]
@@ -843,6 +949,14 @@ class IdentityService:
             elif (
                 link["mention_required"]
                 and connection["self_external_id"] not in event.mentioned_external_ids
+                and not any(
+                    word in part.get("text", "")
+                    for word in link["reply_keywords"]
+                    for part in event.parts
+                    if isinstance(part, dict)
+                    and part.get("kind", "text") == "text"
+                    and isinstance(part.get("text"), str)
+                )
             ):
                 mode = "observe" if mode == "reply" else mode
             owner = link["reply_owner"]
