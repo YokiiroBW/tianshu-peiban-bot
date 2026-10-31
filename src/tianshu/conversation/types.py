@@ -42,6 +42,7 @@ class InputMessage:
     reply_required: bool = True
     command: str | None = None
     conversation_kind: str = "unknown"
+    autonomous_eligible: bool = False
 
 
 @dataclass(frozen=True, slots=True)
