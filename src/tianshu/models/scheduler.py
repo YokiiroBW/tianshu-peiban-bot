@@ -13,6 +13,13 @@ from tianshu.runtime.errors import AppError
 from tianshu.types import ServiceClass
 
 
+def request_cost(units):
+    count = units.get("requests", 1)
+    if type(count) is not int or count < 1:
+        raise AppError("invalid_resource_request_count")
+    return count
+
+
 @dataclass(slots=True)
 class Waiter:
     request: object
@@ -35,6 +42,7 @@ class GroupState:
     served: dict[str, int] = field(default_factory=lambda: defaultdict(int))
     class_streak: int = 0
     rate_classes: dict = field(default_factory=dict)
+    pending_start: set[str] = field(default_factory=set)
 
 
 class QuotaScheduler:
@@ -53,12 +61,19 @@ class QuotaScheduler:
             if state is None:
                 continue
             if row["started_at"] and (now - row["started_at"]).total_seconds() < 60:
-                state.window.append((row["started_at"].timestamp(), row["attempt_id"],
-                                     row["charged_units"] or row["estimated_units"]))
+                state.window.append(
+                    (
+                        row["started_at"].timestamp(),
+                        row["attempt_id"],
+                        row["charged_units"] or row["estimated_units"],
+                    )
+                )
                 state.rate_classes[row["attempt_id"]] = ServiceClass(row["service_class"])
             if row["status"] == "unknown" and row["hold_until"] and row["hold_until"] > now:
-                state.active[row["attempt_id"]] = (ServiceClass(row["service_class"]),
-                                                   row["hold_until"].timestamp())
+                state.active[row["attempt_id"]] = (
+                    ServiceClass(row["service_class"]),
+                    row["hold_until"].timestamp(),
+                )
 
     async def start(self):
         self.task = asyncio.create_task(self._pump(), name="quota-scheduler")
@@ -76,22 +91,37 @@ class QuotaScheduler:
                 state.waiting.clear()
 
     async def acquire(self, request, group, units):
-        if any(type(value) not in (int, float) or not math.isfinite(value) or value < 0
-               for value in units.values()):
+        if any(
+            type(value) not in (int, float) or not math.isfinite(value) or value < 0
+            for value in units.values()
+        ):
             raise AppError("invalid_resource_units")
-        if (type(request.max_queue_wait) not in (int, float)
-            or not math.isfinite(request.max_queue_wait) or request.max_queue_wait < 0):
+        if (
+            type(request.max_queue_wait) not in (int, float)
+            or not math.isfinite(request.max_queue_wait)
+            or request.max_queue_wait < 0
+        ):
             raise AppError("invalid_queue_wait")
         if group not in self.policies:
             raise AppError("quota_group_not_configured", status=503)
         policy, state = self.policies[group], self.groups[group]
         limits = {**policy.unit_limits}
+        requests = request_cost(units)
+        if policy.rpm is not None and requests > policy.rpm:
+            raise AppError(
+                "request_exceeds_quota_window",
+                status=429,
+                details={"unit": "requests", "limit": policy.rpm},
+            )
         if policy.tpm is not None:
             limits["tokens"] = policy.tpm
         for unit, limit in limits.items():
             if units.get(unit, 0) > limit:
-                raise AppError("request_exceeds_quota_window", status=429,
-                               details={"unit": unit, "limit": limit})
+                raise AppError(
+                    "request_exceeds_quota_window",
+                    status=429,
+                    details={"unit": unit, "limit": limit},
+                )
         future = asyncio.get_running_loop().create_future()
         waiter = Waiter(request, dict(units), time.monotonic(), future)
         async with self.lock:
@@ -102,8 +132,9 @@ class QuotaScheduler:
             state.waiting.append(waiter)
             self.changed.set()
         try:
-            timeout = min(request.budget.remaining(), request.max_queue_wait,
-                          policy.max_wait_seconds)
+            timeout = min(
+                request.budget.remaining(), request.max_queue_wait, policy.max_wait_seconds
+            )
             async with asyncio.timeout(timeout):
                 await asyncio.shield(future)
         except BaseException:
@@ -113,8 +144,10 @@ class QuotaScheduler:
                 # A cancellation racing with grant must return that grant once.
                 elif future.done() and not future.cancelled() and future.exception() is None:
                     state.active.pop(request.attempt_id, None)
-                    state.window = deque(item for item in state.window
-                                         if item[1] != request.attempt_id)
+                    state.pending_start.discard(request.attempt_id)
+                    state.window = deque(
+                        item for item in state.window if item[1] != request.attempt_id
+                    )
                 future.cancel()
                 self.changed.set()
             raise
@@ -123,14 +156,36 @@ class QuotaScheduler:
         async with self.lock:
             state = self.groups[group]
             old = state.active.pop(attempt_id, None)
+            state.pending_start.discard(attempt_id)
             if hold_until and old:
                 state.active[attempt_id] = (old[0], hold_until.timestamp())
             if units is not None:
-                state.window = deque((stamp, key, dict(units) if key == attempt_id else cost)
-                                     for stamp, key, cost in state.window)
+                state.window = deque(
+                    (
+                        stamp,
+                        key,
+                        {**units, "requests": units.get("requests", request_cost(cost))}
+                        if key == attempt_id
+                        else cost,
+                    )
+                    for stamp, key, cost in state.window
+                )
             if not_started:
                 state.window = deque(item for item in state.window if item[1] != attempt_id)
             self.changed.set()
+
+    async def submitted(self, group, attempt_id):
+        """Move a held rate reservation to actual provider submission without reacquiring capacity."""
+        async with self.lock:
+            state = self.groups[group]
+            if attempt_id not in state.active:
+                raise AppError("attempt_not_admitted", status=409)
+            now = time.time()
+            state.window = deque(
+                (now if key == attempt_id else stamp, key, units)
+                for stamp, key, units in state.window
+            )
+            state.pending_start.discard(attempt_id)
 
     async def cancel(self, attempt_id):
         async with self.lock:
@@ -139,7 +194,9 @@ class QuotaScheduler:
                     if waiter.request.attempt_id == attempt_id:
                         state.waiting.remove(waiter)
                         if not waiter.future.done():
-                            waiter.future.set_exception(AppError("attempt_cancelled_before_start", status=409))
+                            waiter.future.set_exception(
+                                AppError("attempt_cancelled_before_start", status=409)
+                            )
             self.changed.set()
 
     async def _pump(self):
@@ -150,12 +207,20 @@ class QuotaScheduler:
                     if policy is None:
                         continue
                     now = time.time()
-                    state.window = deque(item for item in state.window if now-item[0] < 60)
+                    state.window = deque(
+                        item
+                        for item in state.window
+                        if now - item[0] < 60 or item[1] in state.pending_start
+                    )
                     window_ids = {item[1] for item in state.window}
-                    state.rate_classes = {key: value for key, value in state.rate_classes.items()
-                                          if key in window_ids}
-                    state.active = {key: val for key, val in state.active.items()
-                                    if val[1] is None or val[1] > now}
+                    state.rate_classes = {
+                        key: value for key, value in state.rate_classes.items() if key in window_ids
+                    }
+                    state.active = {
+                        key: val
+                        for key, val in state.active.items()
+                        if val[1] is None or val[1] > now
+                    }
                     while self._grant(policy, state, now):
                         pass
                 self.changed.clear()
@@ -167,72 +232,99 @@ class QuotaScheduler:
     def _grant(self, policy, state, now):
         if len(state.active) >= policy.concurrency:
             return False
-        if policy.rpm is not None and len(state.window) >= policy.rpm:
-            return False
         totals = defaultdict(float)
         background_totals = defaultdict(float)
         background_requests = 0
         for _stamp, key, units in state.window:
-            for unit, count in units.items():
+            for unit, count in {**units, "requests": request_cost(units)}.items():
                 totals[unit] += count
                 if state.rate_classes.get(key) != ServiceClass.INTERACTIVE:
                     background_totals[unit] += count
             if state.rate_classes.get(key) != ServiceClass.INTERACTIVE:
-                background_requests += 1
+                background_requests += request_cost(units)
         limits = {**policy.unit_limits}
         if policy.tpm is not None:
             limits["tokens"] = policy.tpm
+        if policy.rpm is not None:
+            limits["requests"] = min(limits.get("requests", policy.rpm), policy.rpm)
         background = sum(kind != ServiceClass.INTERACTIVE for kind, _ in state.active.values())
         candidates = []
         for waiter in state.waiting:
             if waiter.future.done():
                 continue
             kind = waiter.request.service_class
+            requested = {**waiter.units, "requests": request_cost(waiter.units)}
             if kind != ServiceClass.INTERACTIVE:
-                if background >= min(policy.background_max,
-                                     policy.concurrency-policy.interactive_reserve):
+                if background >= min(
+                    policy.background_max, policy.concurrency - policy.interactive_reserve
+                ):
                     continue
-                rpm_max = (policy.rpm-policy.interactive_rpm_reserve
-                           if policy.rpm is not None else None)
+                rpm_max = (
+                    policy.rpm - policy.interactive_rpm_reserve if policy.rpm is not None else None
+                )
                 if policy.background_rpm_max is not None:
-                    rpm_max = min(rpm_max, policy.background_rpm_max) if rpm_max is not None else policy.background_rpm_max
-                if rpm_max is not None and background_requests >= rpm_max:
+                    rpm_max = (
+                        min(rpm_max, policy.background_rpm_max)
+                        if rpm_max is not None
+                        else policy.background_rpm_max
+                    )
+                if rpm_max is not None and background_requests + requested["requests"] > rpm_max:
                     continue
-                background_limits = {unit: limit-policy.interactive_unit_reserve.get(unit, 0)
-                                     for unit, limit in limits.items()}
+                background_limits = {
+                    unit: limit - policy.interactive_unit_reserve.get(unit, 0)
+                    for unit, limit in limits.items()
+                }
                 for unit, limit in policy.background_unit_max.items():
                     background_limits[unit] = min(background_limits.get(unit, limit), limit)
-                if any(background_totals[unit]+waiter.units.get(unit, 0) > limit
-                       for unit, limit in background_limits.items()):
+                if any(
+                    background_totals[unit] + requested.get(unit, 0) > limit
+                    for unit, limit in background_limits.items()
+                ):
                     continue
-            if any(totals[unit]+waiter.units.get(unit, 0) > limit
-                   for unit, limit in limits.items()):
+            if any(totals[unit] + requested.get(unit, 0) > limit for unit, limit in limits.items()):
                 continue
-            age = time.monotonic()-waiter.queued
+            age = time.monotonic() - waiter.queued
             # Give elastic a guaranteed turn after three foreground/due grants, with
             # deadline ordering for due work and tenant rotation within each share.
-            priority = (0 if kind == ServiceClass.INTERACTIVE else
-                        1 if kind == ServiceClass.DUE else 2)
+            priority = (
+                0 if kind == ServiceClass.INTERACTIVE else 1 if kind == ServiceClass.DUE else 2
+            )
             if kind == ServiceClass.ELASTIC and (state.class_streak >= 3 or age > 30):
                 priority = -1
             deadline = waiter.request.budget.deadline_at.timestamp()
-            candidates.append(((priority, -int(age//5), state.served[waiter.tenant],
-                                deadline if kind == ServiceClass.DUE else waiter.queued), waiter))
+            candidates.append(
+                (
+                    (
+                        priority,
+                        -int(age // 5),
+                        state.served[waiter.tenant],
+                        deadline if kind == ServiceClass.DUE else waiter.queued,
+                    ),
+                    waiter,
+                )
+            )
         if not candidates:
             return False
         _key, selected = min(candidates, key=lambda item: item[0])
         state.waiting.remove(selected)
         state.active[selected.request.attempt_id] = (selected.request.service_class, None)
+        state.pending_start.add(selected.request.attempt_id)
         state.window.append((now, selected.request.attempt_id, selected.units))
         state.rate_classes[selected.request.attempt_id] = selected.request.service_class
         state.served[selected.tenant] += 1
-        state.class_streak = (0 if selected.request.service_class == ServiceClass.ELASTIC
-                              else state.class_streak+1)
+        state.class_streak = (
+            0 if selected.request.service_class == ServiceClass.ELASTIC else state.class_streak + 1
+        )
         selected.future.set_result(None)
         return True
 
     def snapshot(self):
-        return {group: {"active": len(state.active), "waiting": len(state.waiting),
-                        "unknown_holds": sum(expiry is not None for _, expiry in state.active.values()),
-                        "window_requests": len(state.window)}
-                for group, state in self.groups.items()}
+        return {
+            group: {
+                "active": len(state.active),
+                "waiting": len(state.waiting),
+                "unknown_holds": sum(expiry is not None for _, expiry in state.active.values()),
+                "window_requests": sum(request_cost(units) for _, _, units in state.window),
+            }
+            for group, state in self.groups.items()
+        }

@@ -31,7 +31,7 @@ def positive(body, name, *, optional=False, allow_zero=False):
     return value
 
 
-async def configuration(conn):
+async def configuration(conn, settings):
     result = {"functions": list(FUNCTIONS), "protocols": sorted(NATIVE_PROTOCOLS)}
     for key, statement in (
         ("providers", "SELECT * FROM models.providers ORDER BY name,provider_id"),
@@ -43,6 +43,33 @@ async def configuration(conn):
     result["embedding_profile"] = await (
         await conn.execute("SELECT * FROM models.embedding_profile WHERE singleton")
     ).fetchone()
+    sealed = {
+        row["reference"]
+        for row in await (
+            await conn.execute(
+                "SELECT reference FROM runtime.credentials WHERE reference=ANY(%s)",
+                ([row["credential_ref"] for row in result["providers"]],),
+            )
+        ).fetchall()
+    }
+    from .credentials import provider_reference
+
+    for provider in result["providers"]:
+        reference = provider["credential_ref"]
+        try:
+            provider_reference(
+                provider["provider_id"],
+                reference,
+                settings.get("broker", {}).get("provider_credential_refs", {}),
+            )
+            configured = (
+                reference in sealed
+                if reference.startswith("sealed:")
+                else bool(settings.secrets.environ.get(reference.removeprefix("env:")))
+            )
+        except AppError:
+            configured = False
+        provider["credential_configured"] = configured
     return result
 
 
@@ -55,7 +82,7 @@ async def mutate(services, context, operation, body):
         return await _apply_configuration(conn, operation, body, expected, services)
 
     async def replay(conn, original):
-        return replace(original, data=await configuration(conn))
+        return replace(original, data=await configuration(conn, services.settings))
 
     return wire(
         await services.commands.execute(
@@ -75,9 +102,29 @@ async def _apply_configuration(conn, operation, body, expected, services):
         if protocol not in NATIVE_PROTOCOLS:
             raise AppError("native_protocol_unsupported", status=422)
         provider_id = text(body, "provider_id")
-        reference = body.get("credential_ref") or "sealed:provider:" + provider_id
+        from .credentials import provider_reference
+
+        own = "sealed:provider:" + provider_id
+        clear = body.get("clear_api_key", False)
+        if type(clear) is not bool or clear and body.get("api_key") is not None:
+            raise AppError("invalid_provider_credential_change")
+        current = await (
+            await conn.execute(
+                "SELECT credential_ref FROM models.providers WHERE provider_id=%s", (provider_id,)
+            )
+        ).fetchone()
+        configured = services.settings.get("broker", {}).get("provider_credential_refs", {})
+        if body.get("credential_ref") is not None:
+            provider_reference(provider_id, body["credential_ref"], configured)
+        reference = (
+            own
+            if clear or body.get("api_key") is not None
+            else body.get("credential_ref") or (current["credential_ref"] if current else own)
+        )
+        provider_reference(provider_id, reference, configured)
+        if clear:
+            await conn.execute("DELETE FROM runtime.credentials WHERE reference=%s", (own,))
         if body.get("api_key") is not None:
-            reference = "sealed:provider:" + provider_id
             await services.credentials.put(conn, reference, body["api_key"])
         values = (
             provider_id,
@@ -262,7 +309,9 @@ async def _apply_configuration(conn, operation, body, expected, services):
     if not changed:
         raise AppError("revision_conflict", status=409)
     return CommandResult(
-        body["client_request_id"], revision=changed["revision"], data=await configuration(conn)
+        body["client_request_id"],
+        revision=changed["revision"],
+        data=await configuration(conn, services.settings),
     )
 
 
@@ -270,7 +319,7 @@ def register_routes(app, services):
     async def view(request):
         require_context(request, "models.read")
         async with services.database.transaction(read_only=True) as conn:
-            return json_response(await configuration(conn))
+            return json_response(await configuration(conn, services.settings))
 
     async def save(request):
         context = require_context(request, "models.manage")
@@ -354,7 +403,7 @@ def register_routes(app, services):
             raise AppError("expected_revision_required")
 
         async def replay(conn, original):
-            return replace(original, data={"catalog": await configuration(conn)})
+            return replace(original, data={"catalog": await configuration(conn, services.settings)})
 
         cached = await services.commands.replay(
             context, "models.probe", body["client_request_id"], digest(body), on_replay=replay
@@ -427,7 +476,7 @@ def register_routes(app, services):
                 data={
                     "verification": "provider_test",
                     "receipt": terminal,
-                    "catalog": await configuration(conn),
+                    "catalog": await configuration(conn, services.settings),
                 },
             )
 

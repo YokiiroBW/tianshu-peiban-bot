@@ -129,6 +129,9 @@ async def run(settings, role, *, initialize=False):
                 validate_submission=authority.identity.check,
                 validate_persistence=authority.sources.validate_persistence,
                 media_resolver=authority.media.reference,
+                provider_credential_refs=settings.get("broker", {}).get(
+                    "provider_credential_refs", {}
+                ),
                 credential_store=services.credentials,
                 native_principals={
                     "model-client:" + entry["id"]

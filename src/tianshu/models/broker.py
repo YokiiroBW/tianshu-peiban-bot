@@ -44,6 +44,7 @@ class ModelBroker:
         credential_store=None,
         native_principals=frozenset(),
         media_resolver=None,
+        provider_credential_refs=None,
     ):
         self.database = database
         self.catalog = ModelCatalog(database)
@@ -66,6 +67,7 @@ class ModelBroker:
         self.credential_store = credential_store
         self.native_principals = frozenset(native_principals)
         self.media_resolver = media_resolver
+        self.provider_credential_refs = dict(provider_credential_refs or {})
 
     async def prepare_media(self, request):
         messages, dependencies, inline_bytes, count = [], list(request.source_refs), 0, 0
@@ -267,6 +269,10 @@ class ModelBroker:
             request = await self.prepare_media(request)
         request = replace(request, required_capabilities=requested_capabilities(request, stream))
         plan = await self.catalog.resolve(request)
+        if self.credential_store:
+            from .credentials import provider_reference
+
+            provider_reference(plan.provider_id, plan.credential_ref, self.provider_credential_refs)
         api_key = (
             await self.credential_store.resolve(plan.credential_ref)
             if self.credential_store
@@ -357,6 +363,7 @@ class ModelBroker:
             policy = self.scheduler.policies[plan.quota_group]
             await self.ledger.started(request.attempt_id, policy.unknown_hold_seconds)
             submitted, started = True, time.monotonic()
+            await self.scheduler.submitted(plan.quota_group, request.attempt_id)
             await self.event("model.submitted", "started", request.attempt_id)
             async with request.budget.timeout():
                 async with self.session.post(
@@ -606,6 +613,7 @@ class ExternalPermit:
             policy = self.broker.scheduler.policies[self.request.quota_group]
             await self.broker.ledger.started(self.request.attempt_id, policy.unknown_hold_seconds)
             self.submitted_at = datetime.now(UTC)
+            await self.broker.scheduler.submitted(self.request.quota_group, self.request.attempt_id)
             self.request.budget.check()
             await self.broker.event("resource.submitted", "started", self.request.attempt_id)
         if provider_handle:
@@ -644,6 +652,11 @@ class ExternalPermit:
                 )
             ):
                 raise AppError("invalid_resource_usage")
+            if units is not None:
+                from .scheduler import request_cost
+
+                units = {**self.request.estimated_units, **units}
+                request_cost(units)
             row = await self.broker.ledger.finish(
                 self.request.attempt_id,
                 status,

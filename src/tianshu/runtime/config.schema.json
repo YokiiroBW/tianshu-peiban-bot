@@ -19,6 +19,7 @@
       "port": {"type": "integer", "minimum": 1, "maximum": 65535},
       "url": {"type": "string", "pattern": "^http://(127\\.0\\.0\\.1|localhost|\\[::1\\]):[0-9]+$"},
       "token_ref": {"type": "string", "minLength": 1},
+      "provider_credential_refs": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^(env:)?TIANSHU_PROVIDER_[A-Z0-9_]+$"}},
       "external_keys": {"type": "array", "items": {"type": "object"}}
     }},
     "credentials": {"type": "object", "required": ["master_key_ref"], "properties": {
