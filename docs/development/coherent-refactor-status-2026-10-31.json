@@ -135,8 +135,10 @@
         "CR05"
       ],
       "owner": "capabilities / capabilities.plugins",
-      "state": "implementing",
-      "implementation_agent": "capabilities"
+      "state": "implemented_not_tested",
+      "implementation_agent": "capabilities",
+      "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c",
+      "pending": "plugin discovery/worker ownership and lifecycle corrections; complete domain composition and CR19"
     },
     {
       "id": "CR04A",
@@ -146,7 +148,7 @@
         "CR11"
       ],
       "owner": "channels.onebot",
-      "state": "assigned_after_current_handoff",
+      "state": "implementing",
       "implementation_agent": "capabilities"
     },
     {
@@ -172,8 +174,10 @@
         "CR12"
       ],
       "owner": "capabilities.speech",
-      "state": "implementing",
-      "implementation_agent": "capabilities"
+      "state": "implemented_not_tested",
+      "implementation_agent": "capabilities",
+      "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c",
+      "pending": "plugin discovery/worker ownership and lifecycle corrections; complete domain composition and CR19"
     },
     {
       "id": "CR13A",
@@ -185,8 +189,10 @@
         "CR13B"
       ],
       "owner": "capabilities.perception",
-      "state": "implementing",
-      "implementation_agent": "capabilities"
+      "state": "implemented_not_tested",
+      "implementation_agent": "capabilities",
+      "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c",
+      "pending": "plugin discovery/worker ownership and lifecycle corrections; complete domain composition and CR19"
     },
     {
       "id": "CR13C",
@@ -197,8 +203,10 @@
         "CR13A"
       ],
       "owner": "capabilities.reactions",
-      "state": "implementing",
-      "implementation_agent": "capabilities"
+      "state": "implemented_not_tested",
+      "implementation_agent": "capabilities",
+      "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c",
+      "pending": "plugin discovery/worker ownership and lifecycle corrections; complete domain composition and CR19"
     },
     {
       "id": "CR13",
@@ -223,8 +231,10 @@
         "CR13A"
       ],
       "owner": "capabilities.content / life",
-      "state": "implementing",
-      "implementation_agent": "capabilities"
+      "state": "implemented_not_tested",
+      "implementation_agent": "capabilities",
+      "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c",
+      "pending": "plugin discovery/worker ownership and lifecycle corrections; complete domain composition and CR19"
     },
     {
       "id": "CR15",
@@ -233,8 +243,10 @@
         "CR14"
       ],
       "owner": "capabilities.perception / memory",
-      "state": "implementing",
-      "implementation_agent": "capabilities"
+      "state": "implemented_not_tested",
+      "implementation_agent": "capabilities",
+      "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c",
+      "pending": "plugin discovery/worker ownership and lifecycle corrections; complete domain composition and CR19"
     },
     {
       "id": "CR16",
@@ -258,8 +270,10 @@
         "CR13A"
       ],
       "owner": "life / capabilities.images",
-      "state": "implementing",
-      "implementation_agent": "capabilities"
+      "state": "implemented_not_tested",
+      "implementation_agent": "capabilities",
+      "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c",
+      "pending": "plugin discovery/worker ownership and lifecycle corrections; complete domain composition and CR19"
     },
     {
       "id": "CR17B",
@@ -269,8 +283,10 @@
         "CR13"
       ],
       "owner": "capabilities.images",
-      "state": "implementing",
-      "implementation_agent": "capabilities"
+      "state": "implemented_not_tested",
+      "implementation_agent": "capabilities",
+      "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c",
+      "pending": "plugin discovery/worker ownership and lifecycle corrections; complete domain composition and CR19"
     },
     {
       "id": "CR17",
@@ -282,8 +298,10 @@
         "CR17B"
       ],
       "owner": "各能力模块",
-      "state": "implementing",
-      "implementation_agent": "capabilities"
+      "state": "implemented_not_tested",
+      "implementation_agent": "capabilities",
+      "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c",
+      "pending": "plugin discovery/worker ownership and lifecycle corrections; complete domain composition and CR19"
     },
     {
       "id": "CR18B",
@@ -427,7 +445,7 @@
       ],
       "state": "implementing",
       "boundary": "src/tianshu/capabilities/**,packages/tianshu-plugin/**,tests/capabilities/**; capability schema fragment; channels/** and tests/channels after capability handoff",
-      "phase": "capabilities_then_channels_C"
+      "phase": "channels_C_and_capability_integration_corrections"
     }
   },
   "integration_commits": [
@@ -502,6 +520,12 @@
       "integrated": "30155cc",
       "scope": "atomic model resource submission, unknown outcomes, source persistence hook, same-scene state references and three worker queue shares",
       "validation": "source_review_only; tests authored not run"
+    },
+    {
+      "source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c",
+      "integrated": "28270d9",
+      "scope": "capability Actions, plugins/SDK, mature media/infrastructure and multimodal engines",
+      "validation": "source_review_only; tests authored not run; concrete plugin and lifecycle wiring fixes pending"
     }
   ],
   "validation": {
@@ -590,6 +614,26 @@
       "owner": "frontend",
       "scope": "vision capability mapping; interactive short jobs; round-scoped tool identities; consumed unknown receipt recovery; continuous message collection; durable lease expiry; eliminate nested business-pool acquisition; pending delivery remains unresolved",
       "state": "accepted_by_owner_fixing"
+    },
+    {
+      "owner": "frontend",
+      "scope": "activity completion and time windows trigger life independently of style changes; authored routines can start without learned interest; diary reader excludes draft/materials; bounded full-day cursor handling",
+      "state": "accepted_by_owner_fixing"
+    },
+    {
+      "owner": "capabilities",
+      "scope": "Catalog.discover refreshes actual plugin definitions for all consumers; Actions enforces worker-only handler execution for short foreground plugin calls",
+      "state": "returned_to_owner"
+    },
+    {
+      "owner": "foundation_models and capabilities",
+      "scope": "explicit construction/migration/task registration/start lifecycle; ReadingService must receive a real stable port before startup, not captured None",
+      "state": "returned_to_owners"
+    },
+    {
+      "owner": "capabilities",
+      "scope": "readable multi-line new orchestration code; preserve mature algorithms without broad unrelated formatting",
+      "state": "returned_to_owner"
     }
   ]
 }
