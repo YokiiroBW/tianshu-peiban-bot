@@ -296,7 +296,8 @@ class LifeService:
                 "INSERT INTO life.commitments(id,actor_id,title,due_at,timezone,state,target_ref,person_id,matter_id,capability_id,arguments,"
                 "recurrence,weekdays,scope_ids,context) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
                 "ON CONFLICT(id) DO UPDATE SET title=excluded.title,due_at=excluded.due_at,timezone=excluded.timezone,"
-                "state=excluded.state,recurrence=excluded.recurrence,weekdays=excluded.weekdays,capability_id=excluded.capability_id,arguments=excluded.arguments,revision=%s,reason=NULL,context=excluded.context,updated_at=now()",
+                "state=excluded.state,target_ref=excluded.target_ref,person_id=excluded.person_id,matter_id=excluded.matter_id,scope_ids=excluded.scope_ids,"
+                "recurrence=excluded.recurrence,weekdays=excluded.weekdays,capability_id=excluded.capability_id,arguments=excluded.arguments,revision=%s,reason=NULL,context=excluded.context,updated_at=now()",
                 (commitment_id, context.actor_id, title, due, zone, "scheduled" if due else "waiting", target,
                  context.person_id, body.get("matter_id"), body.get("capability_id"), document(body.get("arguments", {})),
                  repeat, days, list(context.scope_ids), document(context), next_revision))

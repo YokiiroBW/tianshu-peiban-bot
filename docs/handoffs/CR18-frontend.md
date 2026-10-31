@@ -100,3 +100,7 @@
 ## 设备、外部连接与工作台收口（implemented_not_tested）
 
 Home改接devices/view、refresh与device.control模板动作：完整连接/实体/模板配置、真实观测时间/修订/未知状态、原Action回执。删除home旧API和独立解锁流程。资产设置复用C的resources/ConnectionSettings及GLOBAL_SCOPE配置投影；需集成已交29385d3，未复制第二表单。连接总览复用唯一Catalog与Skills状态展示；工作台读取当前授权生活/约定与真实设备观测，保留原HostResources。注册CR20 access/view、save及runtime.access.save恢复映射。仅源码/差异检查，无测试、build、typecheck或浏览器。
+
+## 约定完整表单（implemented_not_tested）
+
+约定页接真实Life access、身份会话分页、Catalog schema参数、时区/单次/每日/每周、未开始CAS编辑/取消、来源证据和原Action/Expression任务；不再仅保存标题/时间。自拍的系统目标/窗口/稳定身份交真实后端冻结。小屋媒体读取补全已知person selector，清理预览保存矛盾文案。未运行测试/构建。

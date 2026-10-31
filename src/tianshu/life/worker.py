@@ -223,7 +223,7 @@ class LifeWorker:
                     arguments=dict(data.get("arguments",{}))
                     kind="share_candidate" if context.delivery_allowed and context.conversation_id and arguments.get("delivery_kind")!="create_only" else "create_only"
                     arguments.update(target_ref=context.conversation_id if kind!="create_only" else None,delivery_kind=kind,
-                                     trigger="actor",window={"start":now.isoformat(),"end":deadline.isoformat()},
+                                     trigger="actor",window={"due_at":now.isoformat(),"expires_at":deadline.isoformat()},
                                      dedup_key=f"activity-photo:{activity_id}:{expected_revision}:{row['checkpoint_step']}",
                                      motivation=arguments.get("motivation") or row["title"])
                     data={**data,"arguments":arguments}
@@ -290,8 +290,8 @@ class LifeWorker:
             if target != context.conversation_id:
                 raise AppError("contact_target_mismatch",status=403)
             window = photo.get("window") or {}
-            due = timestamp(window.get("start")) if window.get("start") else datetime.now(UTC)
-            expires = timestamp(window.get("end")) if window.get("end") else datetime.now(UTC)+timedelta(hours=4)
+            due = timestamp(window.get("due_at")) if window.get("due_at") else datetime.now(UTC)
+            expires = timestamp(window.get("expires_at")) if window.get("expires_at") else datetime.now(UTC)+timedelta(hours=4)
             refs = unique_refs(tuple(ref for ref in (
                 *source_refs(snapshot["source_refs"]), *source_refs(result.result.get("source_refs", ())),
                 *(ref for item in result.artifacts for ref in item.source_refs))))
@@ -406,6 +406,13 @@ class LifeWorker:
             return
         context = context_from_record(initial["context"])
         await self.life.identity.check(context, source_refs(initial["source_refs"]))
+        # Discovery happens before the short domain transaction, without holding a
+        # business connection while another domain reads its configuration.
+        definition = None
+        if initial["capability_id"]:
+            choices = await self.catalog.discover(context)
+            definition = next((item["definition"] for item in choices
+                               if item["definition"].id == initial["capability_id"]), None)
         async with self.life.database.transaction() as connection:
             row = await self.life.lock_row(connection,context,"SELECT * FROM life.commitments WHERE id=%s FOR UPDATE", (commitment_id,))
             if not row or row["revision"] != expected_revision or row["state"] not in {"scheduled", "waiting"}:
@@ -424,13 +431,33 @@ class LifeWorker:
                 return
             action_id = str(uuid5(NAMESPACE_URL, f"commitment:{commitment_id}:{expected_revision}")) if row["capability_id"] else None
             expression_id = None if action_id else f"commitment:{commitment_id}:{expected_revision}"
-            await connection.execute("UPDATE life.commitments SET state='dispatching',reason=NULL,action_id=%s,last_result_revision=-1,last_receipt_id=NULL,last_expression_id=%s WHERE id=%s", (action_id, expression_id, commitment_id))
+            arguments = dict(row["arguments"])
+            if row["capability_id"] == "images.generate":
+                delivery_kind = arguments.get("delivery_kind", "requested_delivery")
+                if not context.delivery_allowed or not context.conversation_id:
+                    delivery_kind = "create_only"
+                arguments.update(
+                    trigger="schedule", delivery_kind=delivery_kind,
+                    target_ref=context.conversation_id if delivery_kind != "create_only" else None,
+                    window={"due_at": row["due_at"].isoformat(),
+                            "expires_at": (row["due_at"] + timedelta(seconds=row["grace_seconds"])).isoformat()},
+                    dedup_key=f"commitment:{commitment_id}:{expected_revision}",
+                    motivation=row["title"],
+                )
+            await connection.execute(
+                "UPDATE life.commitments SET state='dispatching',reason=NULL,action_id=%s,"
+                "last_result_revision=-1,last_receipt_id=NULL,last_expression_id=%s,arguments=%s WHERE id=%s",
+                (action_id, expression_id, document(arguments), commitment_id))
         try:
             if action_id:
                 action = Action(action_id, f"commitment:{commitment_id}:{expected_revision}", row["capability_id"], context.actor_id,
-                    context, row["arguments"], OriginKind.TIMER, source_refs(row["source_refs"]), matter_id=row["matter_id"],
+                    context, arguments, OriginKind.TIMER, source_refs(row["source_refs"]), matter_id=row["matter_id"],
                     deadline_at=row["due_at"]+timedelta(seconds=row["grace_seconds"]))
-                result = receipt(await self.actions.invoke(action, background=True, service_class=ServiceClass.DUE))
+                service_class = (ServiceClass.ELASTIC
+                                 if definition is not None and definition.long_running
+                                 else ServiceClass.DUE)
+                result = receipt(await self.actions.invoke(
+                    action, background=True, service_class=service_class))
                 await self.capability_result(context, result)
                 return
             # A promise at an explicit time outranks the default unsolicited quiet period.
@@ -536,7 +563,7 @@ class LifeWorker:
         if photo.get("target_ref")!=context.conversation_id or not context.delivery_allowed:
             raise AppError("contact_target_mismatch",status=403)
         window=photo.get("window") or {}
-        due=timestamp(window["start"]) if window.get("start") else datetime.now(UTC)
-        expires=timestamp(window["end"]) if window.get("end") else datetime.now(UTC)+timedelta(hours=4)
+        due=timestamp(window["due_at"]) if window.get("due_at") else datetime.now(UTC)
+        expires=timestamp(window["expires_at"]) if window.get("expires_at") else datetime.now(UTC)+timedelta(hours=4)
         refs=unique_refs(tuple(ref for ref in (*source_refs(action["source_refs"]),*source_refs(result.result.get("source_refs",())),*(ref for item in result.artifacts for ref in item.source_refs))))
         await self.propose_contact(ContactCandidate("action:"+result.action_id,context.actor_id,context.conversation_id,"creation",photo.get("motivation") or "图片已完成",due,expires,context,refs,explicit=photo["delivery_kind"]=="requested_delivery",action_id=result.action_id,delivery_kind=photo["delivery_kind"],payload={"artifacts":wire(result.artifacts),"public_parts":[{"kind":"image","media":wire(item.media)} for item in result.artifacts]}))

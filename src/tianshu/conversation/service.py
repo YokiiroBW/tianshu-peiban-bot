@@ -315,7 +315,7 @@ class ConversationService:
         if definition.id=="images.generate":
             arguments={**arguments,"target_ref":context.conversation_id,
                 "delivery_kind":arguments.get("delivery_kind") or ("create_only" if arguments.get("share") is False else "requested_delivery"),
-                "window":arguments.get("window") or {"start":row["received_at"].isoformat(),"end":row["deadline_at"].isoformat()},
+                "window":arguments.get("window") or {"due_at":row["received_at"].isoformat(),"expires_at":row["deadline_at"].isoformat()},
                 "dedup_key":f"turn-photo:{row['turn_id']}:{row['round']}:{call_id}"}
         call_id = f"{row['round']}:{provider_call_id}"
         action_id = str(uuid5(NAMESPACE_URL, f"tool:{row['turn_id']}:{call_id}"))

@@ -33,7 +33,12 @@ export function useRoomLife() {
   const selector = {
     actor_id: workspace.actor,
     ...(workspace.conversation
-      ? { conversation_id: workspace.conversation.conversation_id }
+      ? {
+          conversation_id: workspace.conversation.conversation_id,
+          ...(workspace.conversation.person_id
+            ? { person_id: workspace.conversation.person_id }
+            : {}),
+        }
       : {}),
   };
   const state = useDomainResource<State>(
