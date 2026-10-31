@@ -1,4 +1,5 @@
-import { apiData, apiJson, ApiError } from "../api/client";
+import { apiJson, ApiError } from "../api/client";
+import { apiCommandData } from "../api/client";
 import { readSession, presentSession, type SessionView } from "../api/session";
 import { PASSWORD_MIN_LENGTH } from "./passwordPolicy";
 import {
@@ -72,7 +73,7 @@ async function api(
   const endpoint = path === "login" || path === "logout" ? `auth/${path}` : path;
   try {
     if (body === undefined) return presentSession(await apiJson<SessionView>(endpoint, { signal }));
-    const view = await apiData<SessionView>(endpoint, { ...body, client_request_id: crypto.randomUUID(), expected_revision: null }, csrf ?? "", signal ?? new AbortController().signal);
+    const view = await apiCommandData<SessionView>(endpoint, { ...body, client_request_id: crypto.randomUUID(), expected_revision: null }, csrf ?? "", signal ?? new AbortController().signal);
     return presentSession(view);
   } catch (cause) {
     if (cause instanceof ApiError) throw new Error(messages[cause.code] ?? cause.message);
@@ -101,11 +102,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
       if (!controller.signal.aborted) {
         setSession((before) => {
-          if (before?.authenticated && !next.authenticated)
+          if (before?.authenticated && !next.authenticated) {
+            window.dispatchEvent(new Event("tianshu:session-ended"));
             saveRolePreference(
               `tianshu-memory-role:${encodeURIComponent(before.username || before.csrf)}`,
               null,
             );
+          }
           return next;
         });
         return next;
@@ -164,6 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       null,
     );
     active.current?.abort();
+    window.dispatchEvent(new Event("tianshu:session-ended"));
     setSession(null);
     setLoading(true);
     setError("");

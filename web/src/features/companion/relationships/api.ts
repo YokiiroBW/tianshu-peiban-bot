@@ -1,4 +1,5 @@
-import { apiData, ApiError } from "../../../api/client";
+import { ApiError } from "../../../api/client";
+import { callOperation } from "../../../api/operations";
 
 export type Role = {
   id: string;
@@ -75,7 +76,7 @@ export async function call<T>(
   csrf: string,
   signal: AbortSignal,
 ): Promise<T> {
-  try { return await apiData<T>(`people/relationships/${name}`, body, csrf, signal); }
+  try { return await callOperation<T>(`people/relationships/${name}`, body, csrf, signal); }
   catch (cause) {
     if (cause instanceof ApiError) throw new RelationshipError(cause.code);
     throw cause;

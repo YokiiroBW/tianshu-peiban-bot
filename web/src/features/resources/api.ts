@@ -1,4 +1,5 @@
-import { apiData, ApiError } from "../../api/client";
+import { ApiError } from "../../api/client";
+import { callOperation } from "../../api/operations";
 import { readSession } from "../../api/session";
 /** Same-origin calls for the read-only asset page.
  *
@@ -168,7 +169,7 @@ export function isState(cause: unknown, ...codes: string[]) {
 }
 
 export async function call<T>(path: string, body: object, csrf: string, signal: AbortSignal): Promise<T> {
-  try { return await apiData<T>(path, body, csrf, signal); }
+  try { return await callOperation<T>(path, body, csrf, signal); }
   catch (cause) {
     if (cause instanceof ApiError) throw new WebError(cause.code, cause.status);
     throw cause;

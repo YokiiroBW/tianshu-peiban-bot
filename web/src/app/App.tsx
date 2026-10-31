@@ -28,6 +28,7 @@ import {
 } from "./Auth";
 import { Drawer } from "../components/Drawer";
 import { PageBoundary } from "../components/PageBoundary";
+import { CommandMonitor } from "../components/CommandMonitor";
 import { StatePanel } from "../components/StatePanel";
 import { UnavailablePage } from "../components/UnavailablePage";
 
@@ -65,7 +66,7 @@ export function App() {
   return (
     <AuthProvider>
       <RoleWorkspaceProvider>
-        <AppShell />
+        <CommandMonitor /><AppShell />
       </RoleWorkspaceProvider>
     </AuthProvider>
   );

@@ -2,7 +2,7 @@ import type { ArtifactRef, Coverage } from "../../api/contracts";
 import type { MediaRef } from "../../components/MediaPreview";
 
 export type FishConnection = {
-  id: string; revision: number; transport: "mcp" | "native"; enabled: boolean;
+  id: string; revision: number; transport: "mcp" | "native" | "edge" | "compatible"; enabled: boolean;
   configured: boolean; account_id: string | null; team_id: string | null;
   workspace_id: string | null; quota_group: string;
   billing_source: "plus" | "api" | "free";
@@ -13,7 +13,7 @@ export type FishConnection = {
 export type VoiceProfile = {
   id: string; revision: number; actor_id: string; connection_id: string;
   voice_id: string; model: string; language: string;
-  output_mode: "text" | "voice" | "both" | "natural";
+  output_mode: "text" | "audio" | "both" | "natural";
   dictionary_ids: string[]; vocal_defaults: Record<string, unknown>;
 };
 export type PronunciationDictionary = {

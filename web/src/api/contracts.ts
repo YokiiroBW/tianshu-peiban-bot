@@ -15,8 +15,8 @@ export type Page<T> = {
 
 export type Receipt = {
   receipt_id: string;
-  action_id: string;
-  attempt_id: string;
+  action_id: string | null;
+  attempt_id: string | null;
   execution: "pending" | "running" | "succeeded" | "failed" | "cancelled" | "unknown";
   effect: "none" | "confirmed" | "unknown";
   delivery: "not_requested" | "pending" | "delivered" | "failed" | "unknown";
@@ -40,19 +40,21 @@ export type CommandInput = {
   expected_revision: number | null;
 };
 
+export type SourceRef = { source_id: string; revision: number; locator?: Record<string, unknown> };
+export type MediaRef = {
+  media_id: string;
+  uri: string;
+  mime_type: string;
+  size_bytes: number | null;
+  sha256: string | null;
+  duration_ms: number | null;
+  width: number | null;
+  height: number | null;
+};
 export type ArtifactRef = {
   artifact_id: string;
-  media: {
-    media_id: string;
-    uri: string;
-    mime_type: string;
-    size_bytes: number | null;
-    sha256: string | null;
-    duration_ms: number | null;
-    width: number | null;
-    height: number | null;
-  };
-  source_refs: { source_id: string; revision: number; locator?: Record<string, unknown> }[];
+  media: MediaRef;
+  source_refs: SourceRef[];
   coverage: Coverage | null;
   metadata: Record<string, unknown>;
 };

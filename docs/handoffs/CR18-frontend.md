@@ -30,3 +30,12 @@
 按用户“全部代码完成后统一测试”要求：未安装依赖、未运行测试、typecheck、build、浏览器、真实账号/服务、生产或收费调用。只阅读源码/正式契约与diff；静态相对源码import检查未发现缺失路径，源运行树搜索未发现旧 `/api/web` 或旧产品源码引用。此检查不替代编译或行为验证。
 
 协调者可集成首轮前端提交；前端唯一写入归属保留，后续完成全卡接线后再集中验证。
+
+
+## 第二次源码交接：传输与真实会话（implemented_not_tested，前端仍在重构）
+
+明确读/写操作注册，唯一CommandResult解析；写取消、200正文截断、网络中断保留原client_request_id/修订和未知状态，读取消静默。所有能力pending只轮询capabilities/get原action，真实终态后才刷新，不自动重发；未知/等待意图在同一登录会话内跨组件保留。会话采用真实setup_token_required/CSRF/Cookie，目标选择通过Identity验证；Native媒体URL附实际actor/person/conversation选择器，音视频使用浏览器Range播放。
+
+角色会话/聊天重写为Identity conversations/open与Conversation消息/发送/turn/取消，连续输入由后端Collector处理。上传消费正式data.media/source_ref作为InputPart原件，artifact.media只供能力素材；不上传本机路径。小屋消费实际life/state；Growth消费当前规则/真实认识与Sources.read。所有现有视觉资产和书架、房间呈现仍保留。
+
+生活总览/目标活动/衣柜/阅读、日记/作品以及Speech/Reactions/Images在继续替换实际DTO；目前仍有原页面尚未接线，不得据此标CR18完成。People/Memory/模型/Channels/插件/媒体/基础设施后续分别收口。共享api/app/路由/依赖锁由本前端写者持有，若协调者将插件/媒体/基础设施页面交C，须明确子目录边界并先消费本次客户端。未执行测试/typecheck/build/浏览器，定向传输测试只写未跑。

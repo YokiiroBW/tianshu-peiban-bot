@@ -1,4 +1,5 @@
-import { apiData, ApiError } from "../../api/client";
+import { ApiError } from "../../api/client";
+import { callOperation } from "../../api/operations";
 import { readSession } from "../../api/session";
 /** Same-origin web-console calls for the models section; never a service credential. */
 
@@ -188,7 +189,7 @@ export class WebError extends Error {
 }
 
 export async function call<T>(path: string, body: object, csrf: string, signal: AbortSignal): Promise<T> {
-  try { return await apiData<T>(path, body, csrf, signal); }
+  try { return await callOperation<T>(path, body, csrf, signal); }
   catch (cause) {
     if (cause instanceof ApiError) throw new WebError(cause.code, cause.status, cause.executionState === "unknown" ? "unknown" : "not_started");
     throw cause;

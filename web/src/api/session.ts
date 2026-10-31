@@ -9,6 +9,7 @@ export type SessionView = {
     permissions: string[];
   } | null;
   csrf_token: string | null;
+  setup_token_required: boolean;
 };
 
 /** Display conveniences are derived here; the server remains the session authority. */
@@ -18,7 +19,7 @@ export type AccountSession = SessionView & {
   onboarding: {
     state: "create_admin" | "ready" | "sign_in";
     credential_source: "account";
-    setup_token_required: false;
+    setup_token_required: boolean;
   };
 };
 
@@ -32,7 +33,7 @@ export function presentSession(view: SessionView): AccountSession {
     onboarding: {
       state: !view.initialized ? "create_admin" : view.authenticated ? "ready" : "sign_in",
       credential_source: "account",
-      setup_token_required: false,
+      setup_token_required: view.setup_token_required,
     },
   };
 }

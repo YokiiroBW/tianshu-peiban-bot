@@ -1,4 +1,5 @@
-import { apiData, ApiError } from "../../api/client";
+import { ApiError } from "../../api/client";
+import { callOperation } from "../../api/operations";
 import { errorWords } from "./wording";
 
 export class MediaError extends Error {
@@ -27,7 +28,7 @@ export async function mediaCall<T>(
     throw new MediaError("budget_exceeded", 413);
   const [domain, ...rest] = operation.split("/");
   const path = ["books", "music", "comics"].includes(domain) ? `${domain}/${rest.join("/")}` : `media/${operation}`;
-  try { return await apiData<T>(path, body, csrf, signal); }
+  try { return await callOperation<T>(path, body, csrf, signal); }
   catch (cause) {
     if (cause instanceof ApiError) throw new MediaError(cause.code, cause.status);
     throw cause;

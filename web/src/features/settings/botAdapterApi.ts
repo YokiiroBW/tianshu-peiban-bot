@@ -1,4 +1,5 @@
-import { apiData, ApiError } from "../../api/client";
+import { ApiError } from "../../api/client";
+import { callOperation } from "../../api/operations";
 
 export type AdapterKind = "astrbot" | "nonebot" | "onebot";
 export function adapterLabel(kind: AdapterKind): string {
@@ -94,7 +95,7 @@ export async function adapterPost<T>(
   csrf: string,
   signal: AbortSignal,
 ): Promise<T> {
-  try { return await apiData<T>(`channels/adapters/${operation}`, body, csrf, signal); }
+  try { return await callOperation<T>(`channels/adapters/${operation}`, body, csrf, signal); }
   catch (cause) {
     if (cause instanceof ApiError) throw new AdapterApiError(cause.code, cause.status, cause.executionState);
     throw cause;

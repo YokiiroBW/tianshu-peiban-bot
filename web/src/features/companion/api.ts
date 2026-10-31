@@ -1,4 +1,5 @@
-import { apiData, apiJson, ApiError } from "../../api/client";
+import { apiJson, ApiError } from "../../api/client";
+import { callOperation } from "../../api/operations";
 import { readSession } from "../../api/session";
 export type Session = {
   authenticated: boolean;
@@ -51,7 +52,7 @@ export async function request<T = Session>(
     if (path === "session") return await readSession(signal) as T;
     return body === undefined
       ? await apiJson<T>(path, { signal })
-      : await apiData<T>(path, body, csrf ?? "", signal);
+      : await callOperation<T>(path, body, csrf ?? "", signal);
   } catch (cause) {
     if (cause instanceof ApiError) throw new ConversationError(cause.code, errors[cause.code] ?? cause.message);
     throw cause;

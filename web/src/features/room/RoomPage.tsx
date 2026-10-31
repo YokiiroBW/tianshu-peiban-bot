@@ -190,7 +190,7 @@ export default function RoomPage() {
               当前穿搭：{life.outfit?.description ?? "尚未选择"} ·{" "}
               {life.current.timezone}
             </p>
-            <p>进度：{life.activity?.checkpoint.note || "尚未记录"}</p>
+            <p>进度：{life.activity ? `${life.activity.checkpoint_step} 步 · ${life.activity.checkpoint_position} ${life.activity.checkpoint_unit}` : "尚未记录"}</p>
             <p>
               姿态投影：
               {

@@ -71,9 +71,9 @@ function ConnectionCard({ connection, refresh }: { connection: FishConnection; r
       <div><dt>账户/团队</dt><dd>{[connection.account_id, connection.team_id, connection.workspace_id].filter(Boolean).join(" / ") || "尚未取得"}</dd></div>
       <div><dt>可用功能</dt><dd>{Object.entries(connection.capabilities).filter(([, supported]) => supported).map(([key]) => capabilityNames[key] ?? key).join("、") || "尚未确认"}</dd></div></dl>
     {connection.reason && <p>{connection.reason}</p>}
-    <div className="domain-actions">{connection.transport === "mcp" && <button className="button" disabled={action.busy} onClick={() => void action.run("speech/connect", { connection_id: connection.id }, connection.revision)}>连接 Plus 账户</button>}
-      <button className="button" disabled={action.busy} onClick={() => void action.run("speech/refresh", { connection_id: connection.id }, connection.revision).then(refresh)}>刷新能力与余额</button>
-      <button className="button" disabled={action.busy} onClick={() => void action.run("speech/disconnect", { connection_id: connection.id }, connection.revision).then(refresh)}>断开连接</button></div>
+    <div className="domain-actions">{connection.transport === "mcp" && <button className="button" disabled={action.busy} onClick={() => void action.run("speech/connections.connect", { connection_id: connection.id }, connection.revision)}>连接 Plus 账户</button>}
+      <button className="button" disabled={action.busy} onClick={() => void action.run("speech/connections.refresh", { connection_id: connection.id }, connection.revision).then(refresh)}>刷新能力与余额</button>
+      <button className="button" disabled={action.busy} onClick={() => void action.run("speech/connections.disconnect", { connection_id: connection.id }, connection.revision).then(refresh)}>断开连接</button></div>
     <CommandFeedback {...action} />{action.result?.data?.authorization_url && <a className="button primary" href={action.result.data.authorization_url} target="_blank" rel="noreferrer">打开官方账户授权</a>}
     <DetailCard title="连接设置"><ConnectionEditor connection={connection} refresh={refresh} /></DetailCard>
   </article>;
@@ -87,11 +87,13 @@ function ConnectionEditor({ connection, refresh }: { connection?: FishConnection
     void action.run("speech/connections.save", {
       id: data.get("id"), transport, enabled: data.get("enabled") === "on",
       ...(data.get("api_key") ? { api_key: data.get("api_key") } : {}),
+      account_id: data.get("account_id"), quota_group: data.get("quota_group"), endpoint: data.get("endpoint") || null,
       team_id: data.get("team_id") || null, workspace_id: data.get("workspace_id") || null,
-    }, connection?.revision ?? null).then((answer) => { const secret = form.querySelector<HTMLInputElement>('[name="api_key"]'); if (secret) secret.value = ""; if (answer) void refresh(); });
+    }, connection?.revision ?? 0).then((answer) => { const secret = form.querySelector<HTMLInputElement>('[name="api_key"]'); if (secret) secret.value = ""; if (answer) void refresh(); });
   }}><label>连接名称<input name="id" required defaultValue={connection?.id ?? ""} readOnly={!!connection} /></label>
-    <label>接入方式<select value={transport} onChange={(event) => setTransport(event.target.value as "mcp" | "native")}><option value="mcp">Fish Plus 官方 MCP</option><option value="native">Fish 原生 API</option></select></label>
+    <label>接入方式<select value={transport} onChange={(event) => setTransport(event.target.value as FishConnection["transport"])}><option value="mcp">Fish Plus 官方 MCP</option><option value="native">Fish 原生 API</option><option value="edge">Edge 免费语音</option><option value="compatible">兼容语音服务</option></select></label>
     {transport === "native" ? <label>API Key<input type="password" name="api_key" autoComplete="off" placeholder={connection?.configured ? "已保存；留空保留" : "输入 API Key"} /></label> : <p className="muted">保存后连接官方账户。MCP 生成的供应商链接可被持链者访问；天枢会将产物收取到受控媒体库，但无法撤销供应商链接。</p>}
+    <label>账户标识<input name="account_id" required defaultValue={connection?.account_id ?? ""} /></label><label>共享额度组<input name="quota_group" required defaultValue={connection?.quota_group ?? ""} /></label><label>服务地址<input name="endpoint" type="url" defaultValue={"endpoint" in (connection ?? {}) ? String((connection as FishConnection & { endpoint?: string }).endpoint ?? "") : ""} /></label>
     <label>团队<input name="team_id" defaultValue={connection?.team_id ?? ""} /></label><label>工作区<input name="workspace_id" defaultValue={connection?.workspace_id ?? ""} /></label>
     <label className="inline-check"><input type="checkbox" name="enabled" defaultChecked={connection?.enabled ?? true} />启用此连接</label>
     <button className="button primary" disabled={action.busy}>保存连接</button><CommandFeedback {...action} />
@@ -108,14 +110,14 @@ function VoiceProfileEditor({ actor, profile, view, refresh }: { actor: string; 
   return <div className="domain-form"><form className="domain-form" onSubmit={(event) => {
     event.preventDefault(); const data = new FormData(event.currentTarget);
     void action.run("speech/profiles.save", {
-      id: profile?.id ?? `voice:${actor}`, actor_id: actor, connection_id: connection, voice_id: voice, model,
+      id: profile?.id ?? actor, actor_id: actor, connection_id: connection, voice_id: voice, model,
       language: data.get("language"), output_mode: mode, dictionary_ids: data.getAll("dictionary"),
       vocal_defaults: { pace: Number(data.get("pace")), direction: data.get("direction") },
-    }, profile?.revision ?? null).then((result) => { if (result) void refresh(); });
+    }, profile?.revision ?? 0).then((result) => { if (result) void refresh(); });
   }}><div className="domain-grid"><label>合成连接<select required value={connection} onChange={(event) => setConnection(event.target.value)}>{view.connections.map((item) => <option key={item.id} value={item.id}>{item.id} · {billingNames[item.billing_source]}</option>)}</select></label>
       <label>稳定音色 ID<input value={voice} onChange={(event) => setVoice(event.target.value)} required /></label>
       <label>模型<input list="fish-models" value={model} onChange={(event) => setModel(event.target.value)} required /><datalist id="fish-models"><option value="s2.1-pro" /><option value="s2.1-pro-free" /><option value="drama-3" /></datalist></label>
-      <label>输出方式<select value={mode} onChange={(event) => setMode(event.target.value as VoiceProfile["output_mode"])}><option value="natural">自然选择</option><option value="text">文字</option><option value="voice">语音</option><option value="both">文字与语音</option></select></label>
+      <label>输出方式<select value={mode} onChange={(event) => setMode(event.target.value as VoiceProfile["output_mode"])}><option value="natural">自然选择</option><option value="text">文字</option><option value="audio">语音</option><option value="both">文字与语音</option></select></label>
       <label>语言<input name="language" defaultValue={profile?.language ?? "zh-CN"} /></label>
       <label>默认语速<input name="pace" type="number" min="0.5" max="2" step="0.05" defaultValue={Number(profile?.vocal_defaults.pace ?? 1)} /></label></div>
     <label>发声风格<input name="direction" defaultValue={String(profile?.vocal_defaults.direction ?? "")} placeholder="例如：清晰、轻松，避免过度夸张" /></label>

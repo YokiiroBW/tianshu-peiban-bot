@@ -2,7 +2,7 @@ import { DetailCard } from "../../components/DetailCard";
 import { useEffect, useState, type FormEvent } from "react";
 import { Archive, RefreshCw, UsersRound, UserRound } from "lucide-react";
 import { StatusRail } from "../../components/StatusRail";
-import { apiData } from "../../api/client";
+import { callOperation } from "../../api/operations";
 import { requestId } from "../../app/requestId";
 import { type GroupPolicy } from "./GroupPolicyEditor";
 import { OneBotOnboarding } from "./OneBotOnboarding";
@@ -88,7 +88,7 @@ async function post<T>(
   body: object,
   csrf: string,
 ): Promise<T> {
-  return apiData<T>(`channels/observations/${operation}`, body, csrf, new AbortController().signal);
+  return callOperation<T>(`channels/observations/${operation}`, body, csrf, new AbortController().signal);
 }
 
 function ids(value: string): string[] {

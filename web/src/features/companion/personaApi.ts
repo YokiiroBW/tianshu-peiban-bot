@@ -1,4 +1,5 @@
-import { apiData, ApiError } from "../../api/client";
+import { ApiError } from "../../api/client";
+import { callOperation } from "../../api/operations";
 import { readSession } from "../../api/session";
 /**
  * Same-origin console calls for the read-only persona page.
@@ -70,7 +71,7 @@ async function post(
   csrf: string,
   signal: AbortSignal,
 ) {
-  try { return await apiData(path, body, csrf, signal); }
+  try { return await callOperation(path, body, csrf, signal); }
   catch (cause) { if (cause instanceof ApiError) throw new PersonaError(cause.code, cause.status); throw cause; }
 }
 

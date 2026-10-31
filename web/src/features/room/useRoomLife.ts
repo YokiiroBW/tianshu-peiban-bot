@@ -1,132 +1,38 @@
 import { useEffect, useState } from "react";
-import { useAuth } from "../../app/Auth";
-import { integrationPost, readFailure } from "../../app/integrationApi";
 import { useRoleWorkspace } from "../../app/RoleWorkspace";
-import { useLifeResource } from "../life/useLifeRuntime";
-import { readContent } from "../life/runtimeApi";
+import { useAuth } from "../../app/Auth";
+import { useDomainResource } from "../../api/useDomainResource";
+import { API_ROOT } from "../../api/client";
+import type { MediaRef } from "../../components/MediaPreview";
+
+type Activity = { id: string; title: string; kind: string; state: string; checkpoint_step: number; checkpoint_position: number; checkpoint_unit: string; waiting_reason: string | null };
+type Outfit = { id: string; description: string; reference: MediaRef | null };
+type State = { revision: number; timezone: string; activity: Activity | null; outfit: Outfit | null; missing: string[] };
+
 export function useRoomLife() {
-  const { session } = useAuth();
   const workspace = useRoleWorkspace();
-  const csrf = session?.authenticated ? session.csrf : "";
-  const [actors, setActors] = useState<{ actor_id: string; label?: string }[]>(
-      [],
-    ),
-    [error, setError] = useState(""),
-    [garment, setGarment] = useState<HTMLImageElement | null>(null),
-    [garmentError, setGarmentError] = useState("");
+  const { session } = useAuth();
+  const selector = { actor_id: workspace.actor, ...(workspace.conversation ? { conversation_id: workspace.conversation.conversation_id } : {}) };
+  const state = useDomainResource<State>("life/state", selector, !!workspace.actor, 15000);
+  const [garment, setGarment] = useState<HTMLImageElement | null>(null);
+  const [garmentError, setGarmentError] = useState("");
+  const reference = state.data?.outfit?.reference;
   useEffect(() => {
-    setActors([]);
-    setError("");
-    if (!csrf) return;
-    const control = new AbortController();
-    void integrationPost<{ items: typeof actors }>(
-      "life/actors",
-      { limit: 50, after_actor_id: null },
-      csrf,
-      control.signal,
-    )
-      .then((answer) => {
-        if (control.signal.aborted) return;
-        setActors(answer.items);
-      })
-      .catch((cause) => {
-        if (!control.signal.aborted) setError(readFailure(cause));
-      });
-    return () => control.abort();
-  }, [csrf]);
-  const actor = actors.some((row) => row.actor_id === workspace.actor)
-    ? workspace.actor
-    : "";
-  const access = { actor, csrf },
-    state = useLifeResource(access, "state"),
-    activities = useLifeResource(access, "activities"),
-    outfits = useLifeResource(access, "outfits");
-  const current = state.items[0],
-    outfit = outfits.items.find((x) => x.id === current?.outfit_ref),
-    activity = activities.items.find((x) => x.id === current?.activity_id);
-  const reference =
-    outfit?.reference && typeof outfit.reference === "object"
-      ? outfit.reference
-      : null;
-  useEffect(() => {
-    setGarment(null);
-    setGarmentError("");
+    setGarment(null); setGarmentError("");
     if (!reference) return;
-    const control = new AbortController();
-    void readContent(
-      access,
-      reference,
-      {
-        unit: reference.coverage.unit,
-        start: reference.coverage.start,
-        end: reference.coverage.end,
-      },
-      control.signal,
-    )
-      .then((answer) => {
-        if (control.signal.aborted) return;
-        const representation = answer.representations.find(
-          (x) => x.kind === "image",
-        );
-        if (!representation) return;
-        const image = new Image();
-        image.onload = () => {
-          if (!control.signal.aborted) setGarment(image);
-        };
-        image.src = `data:${representation.media_type};base64,${representation.data_base64}`;
-      })
-      .catch((cause) => {
-        if (!control.signal.aborted)
-          setGarmentError(`当前穿搭原件：${readFailure(cause)}`);
-      });
-    return () => control.abort();
-  }, [
-    actor,
-    csrf,
-    reference?.object_id,
-    reference?.version,
-    reference?.sha256,
-  ]);
-  useEffect(() => {
-    if (!actor) return;
-    const timer = window.setInterval(() => {
-      if (!document.hidden) {
-        state.refresh();
-        activities.refresh();
-        outfits.refresh();
-      }
-    }, 15000);
-    return () => clearInterval(timer);
-  }, [actor, csrf]);
-  const name = current?.activity ?? activity?.title ?? "";
-  const pose: "reading" | "resting" | "idle" | "away" = !current
-    ? "away"
-    : /sleep|rest|睡|休息/i.test(name)
-      ? "resting"
-      : /reading|writing|study|读|写|学习/i.test(name)
-        ? "reading"
-        : /away|outdoor|外出|出门/i.test(name)
-          ? "away"
-          : "idle";
-  return {
-    access,
-    actors,
-    actor,
-    choose: (id: string) => {
-      workspace.select(id);
-    },
-    current,
-    activity,
-    outfit,
-    pose,
-    garment,
-    error:
-      error || state.error || activities.error || outfits.error || garmentError,
-    loading: state.loading,
-    refresh: () => {
-      state.refresh();
-      activities.refresh();
-      outfits.refresh();
-    },
-  };
+    const image = new Image(); let disposed = false;
+    image.onload = () => { if (!disposed) setGarment(image); };
+    image.onerror = () => { if (!disposed) setGarmentError("当前穿搭参考原件暂时无法读取。"); };
+    image.src = `${API_ROOT}capabilities/media/${encodeURIComponent(reference.media_id)}?${new URLSearchParams(selector)}`;
+    return () => { disposed = true; image.onload = null; image.onerror = null; image.src = ""; };
+  }, [reference?.media_id, workspace.actor, workspace.conversation?.conversation_id, session?.csrf]);
+  const activity = state.data?.activity ?? null;
+  const pose: "reading" | "resting" | "idle" | "away" = !state.data ? "away"
+    : ["sleep", "rest"].includes(activity?.kind ?? "") ? "resting"
+    : ["reading", "writing", "study"].includes(activity?.kind ?? "") ? "reading"
+    : ["away", "outdoor"].includes(activity?.kind ?? "") ? "away" : "idle";
+  return { access: { actor: workspace.actor, csrf: session?.csrf ?? "" }, actors: workspace.roles.map((role) => ({ actor_id: role.id, label: role.name })), actor: workspace.actor,
+    choose: workspace.select, current: state.data ? { ...state.data, activity: activity?.title ?? null } : null,
+    activity, outfit: state.data?.outfit ?? null, pose, garment, error: state.error || garmentError,
+    loading: state.loading, refresh: () => { void state.refresh(); } };
 }

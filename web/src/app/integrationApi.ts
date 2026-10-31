@@ -1,7 +1,8 @@
-import { apiData, ApiError } from "../api/client";
+import { ApiError } from "../api/client";
+import { callOperation } from "../api/operations";
 export { ApiError as IntegrationError } from "../api/client";
 export function integrationPost<T>(path: string, body: object, csrf: string, signal: AbortSignal): Promise<T> {
-  return apiData<T>(path, body, csrf, signal);
+  return callOperation<T>(path, body, csrf, signal);
 }
 
 export function readFailure(cause: unknown) {
