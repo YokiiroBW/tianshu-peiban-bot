@@ -430,6 +430,6 @@ def register_routes(app, service):
     app.router.add_get("/api/v1/plugins/page/{ticket}", plugin_page)
     app.router.add_get("/api/v1/{domain:books|comics}/files/{path:.*}", library_file)
     app.router.add_post(
-        "/api/v1/{domain:capabilities|plugins|content|images|speech|reactions|media|books|music|comics|devices|infrastructure|game|weather|system}/{operation:.*}",
+        "/api/v1/{domain:capabilities|plugins|content|images|speech|reactions|media|books|music|comics|devices|infrastructure|game|weather|resources|system}/{operation:.*}",
         operation,
     )

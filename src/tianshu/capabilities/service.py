@@ -222,6 +222,11 @@ class Capabilities:
             self.catalog, self.configuration, self.models, sources, authority
         )
         self.catalog.configuration = self.catalog_configuration
+        from .resources import Resources
+
+        self.resources = Resources(
+            self.configuration, self.models, sources, authority, self.actions
+        )
         from concurrent.futures import ThreadPoolExecutor
 
         self.file_executor = ThreadPoolExecutor(
@@ -439,6 +444,7 @@ class Capabilities:
             ),
             "game": ("connections.save",),
             "weather": ("connections.save",),
+            "resources": ("assets/connections.save",),
         }
         for domain, operations in {**MATURE_OPERATIONS, **extras}.items():
             for op in operations:
@@ -453,7 +459,7 @@ class Capabilities:
                     continue
                 permission = (
                     "external.manage"
-                    if domain in {"infrastructure", "weather"}
+                    if domain in {"infrastructure", "weather", "resources"}
                     else "config.publish"
                     if domain == "capabilities"
                     and op.startswith("catalog/")
@@ -549,6 +555,13 @@ class Capabilities:
                 return await self.catalog_configuration.save_source(context, clean)
             if operation == "catalog/sources.refresh":
                 return await self.catalog_configuration.refresh(context, clean, action, attempt)
+        if domain == "resources":
+            if operation == "assets/view":
+                return await self.resources.view(context)
+            if operation == "assets/connections.save":
+                return await self.resources.save(context, clean)
+            if operation.startswith("assets/"):
+                return await self.resources.read(context, operation.split("/", 1)[1], clean)
         if domain == "weather":
             if operation == "view":
                 return await self.weather.view(context)

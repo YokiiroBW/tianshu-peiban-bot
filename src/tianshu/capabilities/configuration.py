@@ -19,6 +19,7 @@ class Configuration:
             "weather_connection",
             "catalog_actor",
             "catalog_source",
+            "asset_connection",
         }
     )
 

@@ -178,7 +178,8 @@ class CatalogConfiguration:
             and bool(parsed.hostname)
             and not parsed.username
             and not parsed.password
-            and not parsed.fragment,
+            and not parsed.fragment
+            and not parsed.query,
             "catalog_source_url_invalid",
             400,
         )

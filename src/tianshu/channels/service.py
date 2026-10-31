@@ -285,7 +285,7 @@ class Channels:
         if params is None:
             raise ChannelError("source_revoked", 410)
         transport = self.transports.get(connection["id"])
-        if transport is None:
+        if transport is None or self.revisions.get(connection["id"]) != connection["revision"]:
             await self.refresh_transports()
             transport = self.transports.get(connection["id"])
         if transport is None:
@@ -305,10 +305,14 @@ class Channels:
         async def submitted():
             await self.ensure_owner()
             await self.sources.check(context, action.source_refs)
+            active_connection = await self.repository.connection(connection["id"], context)
+            if active_connection["revision"] != connection["revision"]:
+                raise ChannelError("channel_configuration_changed", 409)
             if action.capability_id == "channels.deliver":
                 current = await self.identity.channel_target(context, context.conversation_id)
                 if not current["context"].delivery_allowed:
                     raise ChannelError("channel_delivery_not_allowed", 403)
+                self.verify_target(current, params, connection["id"])
             if not row["control"]:
                 await self.actions.submitted(attempt, identifier)
             async with self.runtime.database.transaction(control=True) as conn:

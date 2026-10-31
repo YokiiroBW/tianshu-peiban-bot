@@ -49,6 +49,8 @@ class Repository:
 
     async def save_connection(self, context, body):
         registered = await self.identity.connection(context, body["id"])
+        if body.get("token_ref") and body["token_ref"] != "sealed:channels:" + body["id"]:
+            raise ChannelError("channel_credential_reference_not_owned", 400)
         adapter = body.get("adapter", registered.get("adapter", "onebot"))
         transport = body["transport"]
         allowed = {

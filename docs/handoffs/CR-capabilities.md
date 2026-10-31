@@ -152,7 +152,7 @@ HTTP全部actor/person/conversation selector只由A在query授权，body剥离�
 
 ## 唯一Catalog角色策略与数据manifest来源（implemented_not_tested）
 
-旧skills/native已由同一Catalog真实领域工具替代，旧skills/sources的有效数据发现与逐角色启停现在由CatalogConfiguration提供，绝不迁旧SkillRegistry/内部平台桥。Catalog.discover直接投影，Actions.invoke与实际run及Broker permit.submitted前均检查相同actor policy。B companion.actors.capabilities必须删除，不另取交集；插件安装/binding/供应商可用性依然是真实执行条件。配置管理入口本身不能被角色工具开关锁死。
+旧skills/native已由同一Catalog真实领域工具替代，旧skills/sources的有效数据发现与逐角色启停现在由CatalogConfiguration提供，绝不迁旧SkillRegistry/内部平台桥。Catalog.discover直接投影，Actions.invoke与尚未执行Action进入run前检查相同actor policy；resource外部协议另在TrackedPermit.submitted前复核。已开始执行（包括原生Model.generate在Broker内排队）的任务保持原回执与显式cancel，不承诺翻开关自动撤回已执行调用。B companion.actors.capabilities必须删除，不另取交集；插件安装/binding/供应商可用性依然是真实执行条件。配置管理入口本身不能被角色工具开关锁死。
 
 正式POST /api/v1/capabilities/catalog/view（读）→{actor_id,revision,items:[{definition,availability,can_execute,enabled,source_ids}],sources}；/catalog/settings.save={client_request_id,expected_revision,capabilities:{canonical_id:{enabled:bool}}}只改启停；/catalog/sources.save={client_request_id,source_id,name?,manifest_url,enabled?,expected_sha256?,quota_group,token?只写,expected_revision}；/catalog/sources.refresh={client_request_id,source_id}。写均统一CommandResult与config.publish。新装无旧JSON/registry兼容。
 
@@ -164,3 +164,14 @@ HTTP全部actor/person/conversation selector只由A在query授权，body剥离�
 
 
 `POST /api/v1/capabilities/find` 是只读恢复原提交：{capability_id,client_request_id}，按当前principal+canonical capability+原intent_key的既有唯一索引查原Action，再走Actions.get原角色/范围/来源核验；存在返回与get同投影，没找到JSON null。不创建或重发请求，不要求config.publish；UI必须保留原三selector，不自行算hash。
+
+
+## AssetLibrary真实只读资源（implemented_not_tested）
+
+冻结Platform assets/web_assets/web_asset_queries有效实现已收敛到capabilities.resources：AssetLink五个真实公开读libraries.list/libraries.get/entries.browse/entries.get/assets.search，以固定HTTPS /assetlink/v1/control、独立密封token/可选CA、5秒/64KiB请求/1MiB响应、不跟重定向/不使用环境代理，精确request_id/control.result校验。原纯分页、cursor principal/connection/query绑定、相对路径、跨库结果拒绝与索引元数据投影复用；不读AssetLibrary私库、不复制其ACL或索引，不发写操作。此上游协议无媒体端口，preview.available=false/original_available=not_verified是实际功能边界。
+
+POST /api/v1/resources/assets/{view,libraries,library,browse,search,entry}是读projection；后五项必须connection_id与实际public query。单一Catalog能力ID resources.assets.{libraries,library,browse,search,entry}与合法model_tool；权限沿用asset.read（或既有*），每次身份/显式连接收窄/上游独立权限复核，返回原TOOL_RESULT来源source_refs。实际HTTP仍唯一Broker.resource function=resources.assets.read，按连接quota_group准入，后台不会另建HTTP容量池。
+
+配置写 assets/connections.save={client_request_id,id,name?,endpoint,token?只写,clear_credential?,quota_group,ca_file?,allowed_principals?,actor_ids?,expected_revision,enabled?}，external.manage，统一CommandResult；token进入唯一Configuration密封secret。HTTP不接受任意credential_ref借用其他凭据/部署主密钥。view给旧PageState中的connections/page_size/sort/kinds/search_scopes/preview及can_manage/configurations，选择连接只属于前端浏览状态，不授予权限；每次读显式connection_id，服务器重新核对。
+
+渠道连接token_ref同样只允许自身sealed:channels:<id>命名空间；配置变化会刷新真实transport且在实际网络提交前核revision/原目标，不能在五秒owner刷新窗口向旧endpoint发送新内容。原首批根控制socket只是部署接线缺口，漫画两个实际worker业务main已在media.comics.source_service / publisher_service，可由runtime受管启动，不依赖旧BusinessHost。
