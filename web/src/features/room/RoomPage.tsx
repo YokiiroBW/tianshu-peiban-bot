@@ -15,7 +15,18 @@ import {
 } from "./illustration/compositor";
 import "./room.css";
 import { useRoomLife } from "./useRoomLife";
-import { showState } from "../life/runtimeApi";
+import { CommandFeedback } from "../../components/CommandFeedback";
+const showState = (state: string) =>
+  (
+    ({
+      running: "进行中",
+      paused: "已暂停",
+      completed: "已完成",
+      cancelled: "已取消",
+      waiting: "等待中",
+      unknown: "结果未知",
+    }) as Record<string, string>
+  )[state] ?? state;
 
 const objects = [
   { key: "window", label: "窗户", hint: "向外开启 · 关闭仍透光", icon: Wind },
@@ -38,6 +49,30 @@ export default function RoomPage() {
   const [hour, setHour] = useState<number | null>(null);
   const [clockHour, setClockHour] = useState(localHour);
   const [overrides, setOverrides] = useState<Overrides>({});
+  const [automatic, setAutomatic] = useState<string[]>([]);
+  const [editRevision, setEditRevision] = useState<number | null>(null);
+  const persisted: Overrides = life.room
+    ? {
+        window: life.room.controls.window,
+        sheer: life.room.controls.sheer,
+        blackout: life.room.controls.curtain,
+        desk: life.room.controls.desk_light,
+        bedside: life.room.controls.bedside_light,
+        deskWarmth: life.room.controls.desk_warmth,
+        bedsideWarmth: life.room.controls.bedside_warmth,
+      }
+    : {};
+  const saved = Object.fromEntries(
+    Object.entries(persisted).filter(
+      ([key, value]) => value != null && !automatic.includes(key),
+    ),
+  ) as Overrides;
+  const effective = { ...saved, ...overrides };
+  useEffect(() => {
+    setOverrides({});
+    setAutomatic([]);
+    setEditRevision(null);
+  }, [life.actor]);
   const [simple, setSimple] = useState(false);
   const [retry, setRetry] = useState(0);
   const [status, setStatus] = useState<RenderStatus>("loading");
@@ -54,19 +89,27 @@ export default function RoomPage() {
   const shownHour =
     hour ??
     (life.current ? localHour(new Date(), life.current.timezone) : clockHour);
-  const values = resolveRoom(shownHour, overrides);
+  const values = resolveRoom(shownHour, effective);
   const unavailable = status === "error" || status === "lost";
   useEffect(() => {
     input.current = {
       hour: hour ?? shownHour,
-      overrides,
+      overrides: effective,
       motion,
       character,
       pose: life.pose,
       garment: life.garment,
     };
     renderer.current?.update();
-  }, [hour, shownHour, overrides, motion, character, life.pose, life.garment]);
+  }, [
+    hour,
+    shownHour,
+    JSON.stringify(effective),
+    motion,
+    character,
+    life.pose,
+    life.garment,
+  ]);
   useEffect(() => {
     if (!canvasHost.current) return;
     // The effect owns its canvas as well as the GPU context. StrictMode's
@@ -132,9 +175,22 @@ export default function RoomPage() {
     };
   }, [hour]);
   function manual(key: keyof RoomValues, value: number) {
+    setEditRevision((current) => current ?? life.room?.revision ?? null);
     setOverrides((previous) => ({ ...previous, [key]: value }));
   }
   function restore(key: (typeof objects)[number]["key"]) {
+    setEditRevision((current) => current ?? life.room?.revision ?? null);
+    setAutomatic((current) => [
+      ...new Set([
+        ...current,
+        key,
+        ...(key === "desk"
+          ? ["deskWarmth"]
+          : key === "bedside"
+            ? ["bedsideWarmth"]
+            : []),
+      ]),
+    ]);
     setOverrides((previous) => {
       const next = { ...previous };
       delete next[key];
@@ -190,7 +246,12 @@ export default function RoomPage() {
               当前穿搭：{life.outfit?.description ?? "尚未选择"} ·{" "}
               {life.current.timezone}
             </p>
-            <p>进度：{life.activity ? `${life.activity.checkpoint_step} 步 · ${life.activity.checkpoint_position} ${life.activity.checkpoint_unit}` : "尚未记录"}</p>
+            <p>
+              进度：
+              {life.activity
+                ? `${life.activity.checkpoint_step} 步 · ${life.activity.checkpoint_position} ${life.activity.checkpoint_unit}`
+                : "尚未记录"}
+            </p>
             <p>
               姿态投影：
               {
@@ -206,7 +267,7 @@ export default function RoomPage() {
         )}
       </div>
       <p className="room-boundary">
-        角色虚构生活的已保存状态驱动画面姿态与当前穿搭参考；环境控件只调整本页预览，不推进日程。
+        角色虚构生活的已保存状态驱动画面与穿搭。环境调整先在此预览，保存后进入角色小屋与自拍场景；预览时间不推进日程。
       </p>
       <figure className="room-figure">
         <div className="room-stage" aria-busy={status === "loading"}>
@@ -326,6 +387,54 @@ export default function RoomPage() {
           调整后该物件保持手动；点击“恢复自动”才重新跟随本地昼夜示意规则。开度
           100% 表示完全拉开。
         </p>
+        <div className="domain-actions">
+          <button
+            className="button primary"
+            disabled={
+              !life.canManage ||
+              !life.room ||
+              life.roomCommand.busy ||
+              editRevision === null
+            }
+            onClick={() => {
+              if (!life.room) return;
+              void life
+                .saveRoom(
+                  {
+                    window: values.window,
+                    sheer: values.sheer,
+                    curtain: values.blackout,
+                    desk_light: values.desk,
+                    bedside_light: values.bedside,
+                    desk_warmth: values.deskWarmth,
+                    bedside_warmth: values.bedsideWarmth,
+                  },
+                  editRevision ?? life.room.revision,
+                )
+                .then((result) => {
+                  if (result) {
+                    setOverrides({});
+                    setAutomatic([]);
+                    setEditRevision(null);
+                  }
+                });
+            }}
+          >
+            保存当前环境
+          </button>
+          <button
+            className="button"
+            onClick={() => {
+              setOverrides({});
+              setAutomatic([]);
+              setEditRevision(null);
+              life.refresh();
+            }}
+          >
+            重新读取已保存环境
+          </button>
+        </div>
+        <CommandFeedback {...life.roomCommand} />
         <div className="room-object-list">
           {objects
             .filter(
@@ -352,7 +461,8 @@ export default function RoomPage() {
                   key === "desk" ? "deskWarmth" : "bedsideWarmth";
                 const held =
                   overrides[key] !== undefined ||
-                  (lamp && overrides[warmthKey] !== undefined);
+                  (lamp && overrides[warmthKey] !== undefined) ||
+                  (!automatic.includes(key) && persisted[key] != null);
                 return (
                   <fieldset className="room-object" key={key}>
                     <legend>
@@ -362,7 +472,12 @@ export default function RoomPage() {
                     <div className="room-object-meta">
                       <span>{hint}</span>
                       <span className="room-mode">
-                        {held ? "手动保持" : "本地自动"}
+                        {overrides[key] !== undefined ||
+                        (lamp && overrides[warmthKey] !== undefined)
+                          ? "手动预览"
+                          : held
+                            ? "已保存环境"
+                            : "本地自动"}
                       </span>
                     </div>
                     <label htmlFor={`room-${key}`}>

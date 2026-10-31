@@ -2,7 +2,7 @@ CREATE SCHEMA IF NOT EXISTS life;
 CREATE TABLE life.actor_state (
     actor_id text PRIMARY KEY, revision bigint NOT NULL DEFAULT 1, timezone text NOT NULL DEFAULT 'Asia/Shanghai',
     world_id text NOT NULL DEFAULT 'default', room_id text NOT NULL DEFAULT 'room', activity_id text,
-    outfit_id text, room_controls jsonb NOT NULL DEFAULT '{"window":0,"sheer":0.5,"curtain":0,"desk_light":false,"ceiling_light":false}',
+    outfit_id text, room_controls jsonb NOT NULL DEFAULT '{"window":0,"sheer":0.5,"curtain":0,"desk_light":0,"bedside_light":0,"desk_warmth":0.8,"bedside_warmth":1}',
     weather_location text, updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE life.goals (

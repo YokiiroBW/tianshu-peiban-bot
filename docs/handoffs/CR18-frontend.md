@@ -82,3 +82,7 @@
 ## 图像与表情真实用例收口
 
 状态 implemented_not_tested。Images实际保存endpoint/account_id/quota_group/reference_mode/原生参数；角色参考走multipart受控产物，默认profile以actor ID保存。明确分享采用requested_delivery+真实conversation目标；预览保留场景修订/来源，生成只读查原Action控制，不用空revision冒充CAS。衣柜选择直接分页读life/outfits，本次场景支持outfit_id且不改当前衣着。ComfyUI工作流用graph/bindings/outputs正式合同，候选来自C唯一workflows.inspect规则，保留节点语义、追加/替换、数值边界及输出选择。Reactions按ReactionIntent实际选图，原件/ZIP采用受控媒体，真实单产物导出、逐项标注、图包/素材启停和每项CAS批量编辑。旧pack_id读取过滤假设已移除：图库分页真实读取后按所选图包展示，并明确未读页未知。仅读源码/diff与已有Prettier格式化，未运行测试/typecheck/build/浏览器。依赖C正式workflows.inspect和Images.scene outfit参数增量。
+
+## 小屋环境持久接线
+
+状态 implemented_not_tested。保留既有插画/GPU/几何预览与动态姿态、真实穿搭原件。窗户/纱帘/遮光帘、书桌灯/床头灯亮度及光色采用life.room真实CAS保存，首次拖动固定编辑revision；重读与自动昼夜预览明确分开。保存状态进入Life.scene.place.controls/light，真实自拍消费者可见；环境时钟预览不推进生活事件。新空库schema统一bedside_light与0..1亮度/光色，删除无消费者ceiling_light假映射。未运行测试/typecheck/build/浏览器，仅读源码/diff与Prettier。

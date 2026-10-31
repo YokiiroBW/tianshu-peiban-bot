@@ -100,13 +100,10 @@ class LifePresentation:
     async def save_room(self, context, body):
         await self.life.identity.check(context)
         controls = body.get("controls", {})
-        if not isinstance(controls, dict) or set(controls) - {"window", "sheer", "curtain", "desk_light", "ceiling_light"}:
+        if not isinstance(controls, dict) or set(controls) - {"window", "sheer", "curtain", "desk_light", "bedside_light", "desk_warmth", "bedside_warmth"}:
             raise AppError("invalid_room_control")
         for key, value in controls.items():
-            if key in {"desk_light", "ceiling_light"}:
-                valid = type(value) is bool
-            else:
-                valid = type(value) in {int, float} and 0 <= value <= 1
+            valid = type(value) in {int, float} and 0 <= value <= 1
             if not valid:
                 raise AppError("invalid_room_control")
         async def apply(connection):
@@ -162,7 +159,8 @@ class LifePresentation:
                 (activity or {}).get("revision"), (outfit or {}).get("revision"), weather]),
                 "captured_at": now, "timezone": state["timezone"], "local_time": now.astimezone(ZoneInfo(state["timezone"])).isoformat(),
                 "character": actor["name"], "activity": {key: activity[key] for key in ("id", "title", "kind", "state")} if activity else {},
-                "place": {"world_id": state["world_id"], "room_id": state["room_id"]},
+                "place": {"world_id": state["world_id"], "room_id": state["room_id"], "controls": state["room_controls"]},
+                "light": ", ".join(f"{key}={value}" for key, value in sorted(state["room_controls"].items())),
                 "weather": weather, "outfit": {"id": outfit["id"], "description": outfit["description"], "appearance": outfit["appearance"]} if outfit else None,
                 "references": tuple(references), "source_refs": tuple(refs)}
 
