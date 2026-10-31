@@ -1,8 +1,10 @@
 """The source owner's small public boundary; implementations do actual authorization."""
 
+from __future__ import annotations
+
 from contextlib import AbstractAsyncContextManager
 from datetime import datetime
-from typing import TYPE_CHECKING, BinaryIO, Protocol
+from typing import TYPE_CHECKING, Awaitable, BinaryIO, Callable, Protocol
 
 from tianshu.types import MediaRef, OriginKind, SourceRef, TrustedContext
 if TYPE_CHECKING:
@@ -10,6 +12,9 @@ if TYPE_CHECKING:
 
 
 class SourcePort(Protocol):
+    async def validate_persistence(self, connection, context: TrustedContext,
+                                   source_refs: tuple[SourceRef, ...]) -> bool: ...
+    def register_dependant(self, callback: Callable[[object, SourceRef, str], Awaitable[None]]) -> None: ...
     async def check(self, context: TrustedContext, source_refs: tuple[SourceRef, ...] = ()) -> None: ...
     async def check_many(self, context: TrustedContext,
                          refs_groups: tuple[tuple[SourceRef, ...], ...]) -> tuple[bool, ...]: ...

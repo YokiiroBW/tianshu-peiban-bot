@@ -40,7 +40,7 @@ class ContextPack:
     messages: tuple[ModelMessage, ...]
     tools: tuple[ToolSpec, ...]
     source_refs: tuple[SourceRef, ...]
-    content_revisions: Mapping[str, int]
+    content_revisions: Mapping[str, str]
     token_usage: TokenUsage
     missing: tuple[str, ...] = ()
     materials: tuple[ContextContribution, ...] = ()
