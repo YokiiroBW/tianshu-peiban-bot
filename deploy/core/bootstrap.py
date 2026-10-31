@@ -125,6 +125,14 @@ def bootstrap(
         "plugins",
         "capabilities",
         "observability",
+        "media",
+        "projects",
+        "media/staging",
+        "media/comic-inputs",
+        "media/comic-output-main",
+        "media/comic-output-private",
+        "media/books",
+        "media/music",
     ):
         path = root / "data" / directory
         path.mkdir(mode=0o750)
@@ -133,6 +141,11 @@ def bootstrap(
     os.chown(root / "config", 0, 10001)
     for source in ("compose.yaml", "seccomp-chromium.json", "capacity.py", "health.py"):
         write(root / source, (HERE / source).read_bytes(), mode=0o640)
+    comics = root / "config/comics"
+    comics.mkdir(mode=0o750)
+    os.chown(comics, 0, 10001)
+    for name in ("inputs.json", "publisher.json"):
+        write(comics / name, (HERE / "comics" / name).read_bytes(), mode=0o640, gid=10001)
     for source in (HERE / "observability").rglob("*"):
         if source.is_file():
             write(

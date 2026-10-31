@@ -1,0 +1,5 @@
+{
+  "directory": "/data/media/comic-inputs",
+  "socket": "/run/tianshu/comics/inputs/service.sock",
+  "client_uid": 10001
+}

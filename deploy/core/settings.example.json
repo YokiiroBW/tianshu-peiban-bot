@@ -29,7 +29,15 @@
     "ef_search": 128, "max_scan_tuples": 20000, "rerank": false}},
   "capabilities": {"state_directory": "/data/capabilities", "file_workers": 2,
     "content": {"browser": {"enabled": true, "contexts": 1, "timeout_seconds": 35, "chromium_sandbox": true}},
-    "plugins": {"package_directory": "/data/plugins"}},
+    "media": {"enabled": true, "staging_directory": "/data/media/staging",
+      "engine": {"python": "/opt/tianshu/.venv/bin/python", "ffmpeg": "/usr/bin/ffmpeg", "ffprobe": "/usr/bin/ffprobe",
+        "timeout_seconds": 7200, "max_bytes": 21474836480},
+      "targets": [], "workers": 2, "storage_mappings": [], "import_roots": []},
+    "plugins": {"package_directory": "/data/plugins",
+      "comic_files": {"runtime_socket": "/run/tianshu/comics/control.sock",
+        "defaults": {"import_directory": "/data/media/comic-inputs", "import_socket": "/run/tianshu/comics/inputs/service.sock",
+          "publisher_socket": "/run/tianshu/comics/publisher/service.sock"}}},
+    "projects": {"allowed_roots": ["/data/projects"], "git_executable": "/usr/bin/git"}},
   "observability": {
     "loki_url": "http://127.0.0.1:13100", "tenant": "tianshu",
     "processes": [
@@ -41,5 +49,8 @@
         "env_refs": {"GF_SECURITY_ADMIN_PASSWORD": "TIANSHU_GRAFANA_ADMIN_PASSWORD"}}
     ]
   },
-  "supervisor": {"uid": 10001, "gid": 10001, "term_timeout_seconds": 110}
+  "supervisor": {"uid": 10001, "gid": 10001, "term_timeout_seconds": 110,
+    "comics": {"socket": "/run/tianshu/comics/control.sock",
+      "inputs": {"uid": 10001, "gid": 10001, "settings": "/config/comics/inputs.json"},
+      "publisher": {"uid": 10001, "gid": 10001, "settings": "/config/comics/publisher.json"}}}
 }
