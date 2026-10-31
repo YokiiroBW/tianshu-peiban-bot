@@ -53,6 +53,7 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
         route("chapters/publish", writing.publish, write=True)
         route("reading", lambda ctx, body: reading.list(ctx, cursor=body.get("cursor"), limit=body.get("limit", 30)))
         route("reading/open", reading.open, write=True)
+        route("reading/shared", lambda ctx, body: reading.shared(ctx, body.get("grant_id")))
         route("reading/read", reading.read, write=True)
         route("reading/pause", lambda ctx, body: reading.set_state(ctx, body, "paused"), write=True)
         route("reading/resume", lambda ctx, body: reading.set_state(ctx, body, "reading"), write=True)
@@ -61,6 +62,8 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
     def tasks(queue, _runtime):
         queue.register("life.plan", worker.plan, retryable=False)
         queue.register("life.activity_step", worker.activity_step, retryable=False)
+        queue.register("life.activity_cancel", worker.cancel_activity, retryable=False)
+        queue.register("life.activity_reconcile", worker.reconcile_activity, retryable=False)
         queue.register("life.commitment_due", worker.commitment_due, retryable=False)
         queue.register("life.contact_due", worker.contact_due, retryable=False)
         queue.register("life.diary_generate", diaries.generate, retryable=False)

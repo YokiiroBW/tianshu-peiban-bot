@@ -19,7 +19,7 @@ CREATE TABLE life.activities (
     next_due_at timestamptz, protected_until timestamptz, resume_condition text,
     checkpoint_step integer NOT NULL DEFAULT 0, checkpoint_position double precision NOT NULL DEFAULT 0,
     checkpoint_unit text NOT NULL DEFAULT 'step', checkpoint_data jsonb NOT NULL DEFAULT '{}',
-    waiting_reason text, action_id text, matter_id text, scope_ids text[] NOT NULL,
+    waiting_reason text, action_id text, last_receipt_id text, last_result_revision bigint NOT NULL DEFAULT -1, matter_id text, scope_ids text[] NOT NULL,
     source_refs jsonb NOT NULL DEFAULT '[]', created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX activity_one_running ON life.activities(actor_id) WHERE state='running';
@@ -29,7 +29,7 @@ CREATE TABLE life.commitments (
     target_ref text, person_id text, matter_id text, capability_id text, arguments jsonb NOT NULL DEFAULT '{}',
     recurrence text CHECK(recurrence IN ('daily','weekly')), weekdays integer[] NOT NULL DEFAULT '{}',
     grace_seconds integer NOT NULL DEFAULT 3600, scope_ids text[] NOT NULL, source_refs jsonb NOT NULL DEFAULT '[]',
-    context jsonb NOT NULL, reason text, last_expression_id text, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+    context jsonb NOT NULL, reason text, action_id text, last_receipt_id text, last_result_revision bigint NOT NULL DEFAULT -1, last_expression_id text, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX commitments_due ON life.commitments(due_at) WHERE state IN ('scheduled','waiting');
 CREATE TABLE life.contact_preferences (
@@ -56,6 +56,7 @@ CREATE TABLE life.contacts (
     replied_at timestamptz, signature jsonb NOT NULL, receipt jsonb NOT NULL
 );
 CREATE INDEX contacts_person_time ON life.contacts(actor_id,person_id,delivered_at DESC);
+CREATE TABLE life.contact_replies(input_id text PRIMARY KEY);
 CREATE TABLE life.plan_watermarks (
     actor_id text PRIMARY KEY, revision bigint NOT NULL DEFAULT 1,
     change_watermark text NOT NULL DEFAULT '', planned_watermark text NOT NULL DEFAULT '',
@@ -70,7 +71,9 @@ CREATE TABLE life.outfits (
 CREATE TABLE life.diaries (
     id text PRIMARY KEY, actor_id text NOT NULL, day date NOT NULL, revision bigint NOT NULL DEFAULT 1,
     state text NOT NULL DEFAULT 'draft', current_revision bigint NOT NULL DEFAULT 0,
-    published_revision bigint, episode_ids text[] NOT NULL, source_refs jsonb NOT NULL,
+    published_revision bigint, generation_id text, context jsonb, reason text, material_key text,
+    generation_recipe jsonb, last_reviewed_at timestamptz, last_changed_at timestamptz,
+    episode_ids text[] NOT NULL, source_refs jsonb NOT NULL,
     scope_ids text[] NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), UNIQUE(actor_id,day)
 );
 CREATE TABLE life.diary_revisions (
@@ -88,7 +91,7 @@ CREATE TABLE life.chapters (
     id text PRIMARY KEY, work_id text NOT NULL REFERENCES life.works(id), position integer NOT NULL,
     revision bigint NOT NULL DEFAULT 1, title text NOT NULL, plan text NOT NULL DEFAULT '',
     state text NOT NULL DEFAULT 'planned', current_revision bigint NOT NULL DEFAULT 0,
-    published_revision bigint, generation_id text, review_state text, review_note text,
+    published_revision bigint, generation_id text, generation_context jsonb, generation_recipe jsonb, reason text, review_state text, review_note text,
     UNIQUE(work_id,position)
 );
 CREATE TABLE life.chapter_revisions (

@@ -33,13 +33,16 @@ class AttentionPolicy:
             return AttentionDecision("defer", "not_due", candidate["due_at"])
         if not preferences.get("enabled", True) and not candidate.get("explicit"):
             return AttentionDecision("archive", "contact_disabled")
+        if candidate.get("explicit"):
+            return AttentionDecision("send", "explicit_commitment_at_requested_time", target_ref=candidate["target_ref"])
+        salience = candidate.get("payload", {}).get("salience")
+        if salience is None or salience["score"] < salience["thresholds"]["engage"]:
+            return AttentionDecision("archive", "kept_for_relevant_conversation")
         until = quiet_until(now, preferences["timezone"], preferences["quiet_start"], preferences["quiet_end"])
         if until:
             return AttentionDecision("defer", "quiet_hours", until)
         if preferences.get("availability") in {"busy", "sleeping"} and (preferences.get("available_until") or now) > now:
             return AttentionDecision("defer", "person_unavailable", preferences["available_until"])
-        if candidate.get("explicit"):
-            return AttentionDecision("send", "explicit_commitment", target_ref=candidate["target_ref"])
         local_day = now.astimezone(ZoneInfo(preferences["timezone"])).date()
         today = [item for item in history if item["delivered_at"] and item["delivered_at"].astimezone(ZoneInfo(preferences["timezone"])).date() == local_day]
         if len(today) >= preferences["daily_quota"]:

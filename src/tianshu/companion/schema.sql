@@ -27,10 +27,23 @@ CREATE TABLE companion.affect_events (
     social_need double precision NOT NULL CHECK(social_need BETWEEN 0 AND 1),
     confidence double precision NOT NULL CHECK(confidence BETWEEN 0 AND 1),
     half_life_seconds integer NOT NULL CHECK(half_life_seconds BETWEEN 60 AND 604800),
+    goal_id text, goal_relevance double precision NOT NULL DEFAULT 0 CHECK(goal_relevance BETWEEN -1 AND 1),
+    attribution text NOT NULL DEFAULT 'unknown' CHECK(attribution IN ('self','other','situation','unknown')),
+    control double precision NOT NULL DEFAULT 0.5 CHECK(control BETWEEN 0 AND 1),
     occurred_at timestamptz NOT NULL, source_refs jsonb NOT NULL,
     PRIMARY KEY(actor_id,event_id)
 );
 CREATE INDEX affect_scope_time ON companion.affect_events(actor_id,occurred_at DESC);
+CREATE TABLE companion.affect_regulation (
+    actor_id text NOT NULL, scope_key text NOT NULL, mode text NOT NULL DEFAULT 'steady',
+    updated_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(actor_id,scope_key)
+);
+CREATE TABLE companion.organize_state (
+    actor_id text NOT NULL, scope_key text NOT NULL, cursor text, revision bigint NOT NULL DEFAULT 1,
+    watermark text NOT NULL DEFAULT '', reviewed_watermark text NOT NULL DEFAULT '', context jsonb,
+    last_reviewed_at timestamptz, last_changed_at timestamptz,
+    updated_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(actor_id,scope_key)
+);
 CREATE TABLE companion.style_rules (
     id text PRIMARY KEY, actor_id text NOT NULL REFERENCES companion.actors(actor_id),
     person_id text, revision bigint NOT NULL DEFAULT 1, kind text NOT NULL,

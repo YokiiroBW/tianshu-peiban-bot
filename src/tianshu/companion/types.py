@@ -15,6 +15,12 @@ class Persona:
     address: str = ""
     world: str = ""
 
+    @property
+    def prompt_text(self):
+        additions = "\n\n".join(f"{label}\n{getattr(self, key)}" for key, label in (
+            ("tone", "语气"), ("style", "表达方式"), ("address", "称呼约定"), ("world", "角色世界背景")) if getattr(self, key))
+        return self.author_text + ("\n\n"+additions if additions else "")
+
 
 @dataclass(frozen=True, slots=True)
 class AffectUpdate:
@@ -29,6 +35,10 @@ class AffectUpdate:
     half_life_seconds: int
     occurred_at: datetime
     source_refs: tuple[SourceRef, ...] = ()
+    goal_id: str | None = None
+    goal_relevance: float = 0.0
+    attribution: str = "unknown"
+    control: float = 0.5
 
 
 @dataclass(frozen=True, slots=True)

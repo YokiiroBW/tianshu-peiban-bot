@@ -8,7 +8,10 @@ CREATE TABLE conversation.turns (
     revision bigint NOT NULL DEFAULT 1, model_attempt_id text, model_parts jsonb,
     model_native jsonb, expression_id text, missing text[] NOT NULL DEFAULT '{}', error_code text,
     occurred_at timestamptz NOT NULL, received_at timestamptz NOT NULL, started_at timestamptz,
-    completed_at timestamptz, lease_until timestamptz,
+    completed_at timestamptz, lease_until timestamptz, deadline_at timestamptz NOT NULL,
+    round integer NOT NULL DEFAULT 0, continuation jsonb NOT NULL DEFAULT '[]',
+    ordered_parts jsonb NOT NULL DEFAULT '[]', artifacts jsonb NOT NULL DEFAULT '[]',
+    tool_dispatch_complete boolean NOT NULL DEFAULT false,
     UNIQUE(actor_id,conversation_id,producer,event_id,event_revision)
 );
 CREATE INDEX turns_pending ON conversation.turns(actor_id,conversation_id,received_at) WHERE state IN ('queued','running');
@@ -23,14 +26,18 @@ CREATE INDEX messages_conversation ON conversation.messages(conversation_id,id D
 CREATE TABLE conversation.tool_links (
     turn_id text NOT NULL REFERENCES conversation.turns(turn_id), call_id text NOT NULL,
     action_id text NOT NULL, capability_id text NOT NULL, state text NOT NULL,
-    last_receipt_id text, PRIMARY KEY(turn_id,call_id), UNIQUE(action_id)
+    last_receipt_id text, tool_name text NOT NULL, arguments_hash text NOT NULL, result jsonb,
+    consumed boolean NOT NULL DEFAULT false, PRIMARY KEY(turn_id,call_id), UNIQUE(action_id)
 );
+ALTER TABLE conversation.tool_links ADD COLUMN result_revision bigint NOT NULL DEFAULT -1;
 CREATE TABLE conversation.expressions (
     expression_id text PRIMARY KEY, actor_id text NOT NULL, conversation_id text NOT NULL,
     turn_id text, target_ref text NOT NULL, context jsonb NOT NULL, public_parts jsonb NOT NULL,
     source_refs jsonb NOT NULL, artifacts jsonb NOT NULL DEFAULT '[]',
     state text NOT NULL CHECK(state IN ('prepared','sending','delivered','failed','unknown')),
-    receipt jsonb, created_at timestamptz NOT NULL DEFAULT now(), completed_at timestamptz
+    receipt jsonb, fingerprint text NOT NULL, candidate_id text,
+    revision bigint NOT NULL DEFAULT 1,
+    created_at timestamptz NOT NULL DEFAULT now(), completed_at timestamptz
 );
 CREATE TABLE conversation.result_consumption (
     receipt_id text PRIMARY KEY, action_id text NOT NULL, turn_id text,
