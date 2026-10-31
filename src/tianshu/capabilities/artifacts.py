@@ -64,28 +64,36 @@ class Artifacts:
             )
         return artifact
 
-    async def reference(self, context, media_id):
-        await self.authority.check(context)
-        async with self.database.transaction(read_only=True) as conn:
-            row = await (
-                await conn.execute(
-                    "SELECT body FROM capabilities.artifacts WHERE media_id=%s AND scopes<@%s AND audience<@%s AND ((actor_id IS NULL AND principal_id=%s) OR (actor_id IS NOT NULL AND actor_id=%s)) ORDER BY created_at DESC LIMIT 1",
-                    (
-                        media_id,
-                        list(context.scope_ids),
-                        list(context.audience),
-                        context.principal_id,
-                        context.actor_id,
-                    ),
-                )
-            ).fetchone()
-        if row is None:
-            raise Fault("not_found", 404)
+    async def references(self, context, media_ids, *, connection=None):
+        if connection is None:
+            async with self.database.transaction(read_only=True) as conn:
+                return await self.references(context, media_ids, connection=conn)
         from .serialization import artifact_from
 
-        artifact = artifact_from(row["body"])
-        await self.authority.check(context, artifact.source_refs)
-        return artifact
+        rows = await (
+            await connection.execute(
+                "SELECT media_id,body FROM capabilities.artifacts WHERE media_id=ANY(%s) AND scopes<@%s AND audience<@%s AND ((actor_id IS NULL AND principal_id=%s) OR (actor_id IS NOT NULL AND actor_id=%s))",
+                (
+                    list(set(media_ids)),
+                    list(context.scope_ids),
+                    list(context.audience),
+                    context.principal_id,
+                    context.actor_id,
+                ),
+            )
+        ).fetchall()
+        found = {row["media_id"]: artifact_from(row["body"]) for row in rows}
+        if set(found) != set(media_ids):
+            raise Fault("not_found", 404)
+        refs = tuple(ref for artifact in found.values() for ref in artifact.source_refs)
+        if self.sources is None or not await self.sources.validate_persistence(
+            connection, context, refs
+        ):
+            raise Fault("source_revoked", 410)
+        return found
+
+    async def reference(self, context, media_id, *, connection=None):
+        return (await self.references(context, (media_id,), connection=connection))[media_id]
 
     async def get(self, context, media_id):
         artifact = await self.reference(context, media_id)

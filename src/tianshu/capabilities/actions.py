@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from uuid import uuid4
 from jsonschema import Draft202012Validator, ValidationError
 from tianshu.types import Action, Attempt, Receipt, ServiceClass
+from tianshu.sources.dependencies import unique_refs
 from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.serialization import wire
 from .contracts import Fault, digest, canonical
@@ -84,37 +85,39 @@ class Actions:
             if old:
                 if old["semantics"] != semantics:
                     raise Fault("idempotency_conflict", 409)
-                replay = receipt_from(old["receipt"])
-                await self.authority.check(action.context, result_sources(replay))
-                return replay
-            await depend(conn, "action", action.action_id, action.source_refs)
-            await conn.execute(
-                "INSERT INTO capabilities.actions(id,intent,semantics,principal_id,kind,created_at,action,attempt,receipt,document) VALUES(%s,%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb,%s::jsonb,%s)",
-                (
-                    action.action_id,
-                    key,
-                    semantics,
-                    action.context.principal_id,
-                    action.capability_id,
-                    datetime.now(UTC).timestamp(),
-                    encoded(action),
-                    encoded(attempt),
-                    encoded(receipt),
-                    canonical({"service_class": service_class.value}),
-                ),
-            )
-            if background:
-                await self.jobs.enqueue(
-                    conn,
-                    JobSpec(
-                        "capabilities.execute",
+                receipt = receipt_from(old["receipt"])
+            else:
+                await depend(conn, "action", action.action_id, action.source_refs)
+                await conn.execute(
+                    "INSERT INTO capabilities.actions(id,intent,semantics,principal_id,kind,created_at,action,attempt,receipt,document) VALUES(%s,%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb,%s::jsonb,%s)",
+                    (
                         action.action_id,
-                        {"action_id": action.action_id},
-                        service_class=service_class,
-                        subject_id=action.actor_id,
-                        matter_id=action.matter_id,
+                        key,
+                        semantics,
+                        action.context.principal_id,
+                        action.capability_id,
+                        datetime.now(UTC).timestamp(),
+                        encoded(action),
+                        encoded(attempt),
+                        encoded(receipt),
+                        canonical({"service_class": service_class.value}),
                     ),
                 )
+                if background:
+                    await self.jobs.enqueue(
+                        conn,
+                        JobSpec(
+                            "capabilities.execute",
+                            action.action_id,
+                            {"action_id": action.action_id},
+                            service_class=service_class,
+                            subject_id=action.actor_id,
+                            matter_id=action.matter_id,
+                        ),
+                    )
+        if old:
+            await self.authority.check(action.context, result_sources(receipt))
+            return receipt
         return receipt if background else await self.run(action.action_id)
 
     async def get(self, action_id, context):
@@ -302,12 +305,7 @@ class Actions:
             if snapshot is None:
                 raise Fault("not_found", 404)
             original = action_from(snapshot["action"])
-            refs = tuple(
-                {
-                    canonical(wire(ref)): ref
-                    for ref in (*original.source_refs, *result_sources(receipt))
-                }.values()
-            )
+            refs = unique_refs(original.source_refs, result_sources(receipt))
             valid = await validate_sources(conn, original.context, refs, self.sources)
             old = await (
                 await conn.execute(
@@ -548,4 +546,4 @@ def result_sources(receipt):
     ):
         if isinstance(value, dict) and "source_id" in value:
             refs.append(SourceRef(**value))
-    return tuple({canonical(wire(ref)): ref for ref in refs}.values())
+    return unique_refs(refs)

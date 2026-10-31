@@ -122,3 +122,5 @@ Actions.get 返回 `{action:wire dict,attempt:wire dict,receipt:wire dict,result
 - 新编排源码以 formatter 展开为正常多行；未运行测试/build/typecheck/真实服务。
 
 - 撤回精确匹配 source_id/revision，并复用 sources.dependencies 的片段相交规则；dependants 用单次原生 JSON recordset 批写。register_dependant 可直接注入批量 withdraw_sources(conn,refs,reason)。语音表达的 profile_revision 在实际执行前精确核对。Actions.load_for_execution 仅给已登记可信执行器恢复原Action/Attempt；跨进程取消会读原dispatch证据，不能把远端已提交误记not_started。
+
+- 上传命令data正式包含artifact与media/source_ref；media是Sources.read回读的规范source:引用，用于人类聊天InputPart；artifact.media供能力产物/预览，不能作为客户端原件重新认领。表情编辑批量原子操作使用同conn Artifact读取，并先一次复核全部选中source再锁asset，不嵌套借池。视频required image映射Broker vision，继续仅使用ConsumptionReceipt.next_position覆盖start/end。

@@ -141,7 +141,11 @@ class Perception:
                 budget=budget or RequestBudget(datetime.now(UTC) + timedelta(minutes=3)),
                 messages=(ModelMessage("user", (ModelPart("text", text=question), *parts)),),
                 required_capabilities=frozenset(
-                    {part.kind for part in parts if part.kind != "text"}
+                    {
+                        "vision" if part.kind == "image" else part.kind
+                        for part in parts
+                        if part.kind != "text"
+                    }
                 ),
                 max_output_tokens=1800,
                 source_refs=source_refs,
@@ -230,7 +234,9 @@ class Perception:
                     action.deadline_at or datetime.now(UTC) + timedelta(minutes=10)
                 ),
                 messages=(ModelMessage("user", tuple(parts)),),
-                required_capabilities=frozenset(modalities),
+                required_capabilities=frozenset(
+                    "vision" if kind == "image" else kind for kind in modalities
+                ),
                 max_output_tokens=2500,
                 source_refs=(source,),
             )

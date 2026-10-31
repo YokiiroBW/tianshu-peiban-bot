@@ -537,7 +537,11 @@ class Capabilities:
                 "confirmed",
                 "not_requested",
                 artifacts=(artifact,),
-                result={"artifact": wire(artifact)},
+                result={
+                    "artifact": wire(artifact),
+                    "media": wire(media),
+                    "source_ref": wire(source),
+                },
             )
         if domain == "speech":
             return await self.speech_operation(operation, clean, context, action, attempt)

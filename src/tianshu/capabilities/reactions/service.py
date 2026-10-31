@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 from PIL import Image
 from tianshu.types import MediaRef, RequestBudget, ServiceClass
+from tianshu.sources.dependencies import unique_refs
 from tianshu.models.types import ModelRequest, ModelMessage, ModelPart
 from tianshu.runtime.serialization import wire
 from ..contracts import Fault, canonical, digest
@@ -184,18 +185,27 @@ class Reactions:
 
     async def asset(self, context, identifier, *, conn=None, lock=False):
         if conn is None:
-            async with self.database.transaction(read_only=True) as connection:
+            async with self.database.transaction(read_only=not lock) as connection:
                 return await self.asset(context, identifier, conn=connection, lock=lock)
         row = await (
             await conn.execute(
-                "SELECT * FROM capabilities.reaction_assets WHERE id=%s AND scopes<@%s AND (actors='{}'::text[] OR %s=ANY(actors))"
-                + (" FOR UPDATE" if lock else ""),
+                "SELECT * FROM capabilities.reaction_assets WHERE id=%s AND scopes<@%s AND (actors='{}'::text[] OR %s=ANY(actors))",
                 (identifier, list(context.scope_ids), context.actor_id),
             )
         ).fetchone()
         if row is None:
             raise Fault("not_found", 404)
-        await self.artifacts.reference(context, row["body"]["media"]["media_id"])
+        await self.artifacts.reference(context, row["body"]["media"]["media_id"], connection=conn)
+        if lock:
+            locked = await (
+                await conn.execute(
+                    "SELECT * FROM capabilities.reaction_assets WHERE id=%s AND revision=%s FOR UPDATE",
+                    (identifier, row["revision"]),
+                )
+            ).fetchone()
+            if locked is None:
+                raise Fault("revision_conflict", 409)
+            row = locked
         return row
 
     async def update_pack(self, context, body):
@@ -276,6 +286,19 @@ class Reactions:
         ):
             raise Fault("invalid_input", 400)
         async with self.database.transaction() as conn:
+            originals = await (
+                await conn.execute(
+                    "SELECT body FROM capabilities.reaction_assets WHERE id=ANY(%s) AND scopes<@%s AND (actors='{}'::text[] OR %s=ANY(actors))",
+                    ([item["id"] for item in items], list(context.scope_ids), context.actor_id),
+                )
+            ).fetchall()
+            if len(originals) != len(items):
+                raise Fault("not_found", 404)
+            await self.artifacts.references(
+                context,
+                tuple(row["body"]["media"]["media_id"] for row in originals),
+                connection=conn,
+            )
             updated = [
                 await self.update(context, item, conn=conn)
                 for item in sorted(items, key=lambda x: x["id"])
@@ -420,42 +443,44 @@ class Reactions:
         )
         await self.authority.check(context, source_refs)
         vector, profile, _ = await self.embed(context, text, source_refs)
+        packs = [
+            x["id"]
+            for x in await self.config.list("reaction_pack")
+            if x.get("enabled", True)
+            and set(x["scope_ids"]) <= set(context.scope_ids)
+            and (not x.get("actor_ids") or context.actor_id in x["actor_ids"])
+            and (not intent.requested_pack_ids or x["id"] in intent.requested_pack_ids)
+        ]
+        if not packs:
+            return {"selected": None, "reason": "no_suitable_reaction", "candidates": []}
         async with self.database.transaction(read_only=True) as conn:
             rows = await (
                 await conn.execute(
-                    "SELECT id,revision,body,1-(embedding<=>%s::vector) AS score FROM capabilities.reaction_assets WHERE profile_id=%s AND scopes<@%s AND (actors='{}'::text[] OR %s=ANY(actors)) AND NOT(id=ANY(%s)) ORDER BY embedding<=>%s::vector LIMIT 16",
+                    "SELECT id,revision,body,1-(embedding<=>%s::vector) AS score FROM capabilities.reaction_assets WHERE profile_id=%s AND scopes<@%s AND (actors='{}'::text[] OR %s=ANY(actors)) AND NOT(id=ANY(%s)) AND pack_id=ANY(%s) AND coalesce((body->>'enabled')::boolean,true) ORDER BY embedding<=>%s::vector LIMIT 16",
                     (
                         str(vector),
                         profile,
                         list(context.scope_ids),
                         intent.actor_id,
                         list(intent.recent_asset_ids),
+                        packs,
                         str(vector),
                     ),
                 )
             ).fetchall()
             lexical = await (
                 await conn.execute(
-                    "SELECT id,revision,body,0.5 AS score FROM capabilities.reaction_assets WHERE scopes<@%s AND (actors='{}'::text[] OR %s=ANY(actors)) AND to_tsvector('simple',search_text)@@plainto_tsquery('simple',%s) LIMIT 8",
-                    (list(context.scope_ids), intent.actor_id, text),
+                    "SELECT id,revision,body,0.5 AS score FROM capabilities.reaction_assets WHERE scopes<@%s AND (actors='{}'::text[] OR %s=ANY(actors)) AND NOT(id=ANY(%s)) AND pack_id=ANY(%s) AND coalesce((body->>'enabled')::boolean,true) AND to_tsvector('simple',search_text)@@plainto_tsquery('simple',%s) LIMIT 8",
+                    (
+                        list(context.scope_ids),
+                        intent.actor_id,
+                        list(intent.recent_asset_ids),
+                        packs,
+                        text,
+                    ),
                 )
             ).fetchall()
-        packs = {
-            x["id"]
-            for x in await self.config.list("reaction_pack")
-            if x.get("enabled", True)
-            and set(x["scope_ids"]) <= set(context.scope_ids)
-            and (not x.get("actor_ids") or context.actor_id in x["actor_ids"])
-        }
-        candidates = {
-            row["id"]: row
-            for row in [*rows, *lexical]
-            if row["body"]["pack_id"] in packs
-            and row["body"].get("enabled", True)
-            and (
-                not intent.requested_pack_ids or row["body"]["pack_id"] in intent.requested_pack_ids
-            )
-        }
+        candidates = {row["id"]: row for row in [*rows, *lexical]}
         refs = list(source_refs)
         allowed = {}
         for key, row in candidates.items():
@@ -504,7 +529,7 @@ class Reactions:
                 ),
                 system="Choose a reaction for the assistant reply's purpose and attitude, not the user's keywords. Preserve irony/text meaning. Return JSON {id: candidate ID or null}; null when none fits.",
                 max_output_tokens=100,
-                source_refs=tuple({(x.source_id, x.revision): x for x in refs}.values()),
+                source_refs=unique_refs(refs),
             )
         )
         try:
@@ -522,7 +547,16 @@ class Reactions:
             raise Fault("reaction_changed", 409)
         # Resolve the original now; a stale vector cannot select a removed file.
         await self.artifacts.get(context, fresh["body"]["media"]["media_id"])
-        return {"selected": fresh["body"], "reason": None, "candidates": list(candidates)}
+        pack = await self.config.get("reaction_pack", fresh["body"]["pack_id"])
+        if not pack or not pack.get("enabled", True) or not fresh["body"].get("enabled", True):
+            return {"selected": None, "reason": "reaction_changed", "candidates": list(candidates)}
+        artifact = await self.artifacts.reference(context, fresh["body"]["media"]["media_id"])
+        return {
+            "selected": fresh["body"],
+            "reason": None,
+            "candidates": list(candidates),
+            "source_refs": wire(artifact.source_refs),
+        }
 
     async def export_pack(self, context, pack_id):
         assets = []
