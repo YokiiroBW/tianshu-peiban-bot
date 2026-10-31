@@ -7,6 +7,18 @@ from tianshu.runtime.migrations import Migration
 
 def create_module(service, presentation, writing, diaries, reading, worker, identity, clock):
     def register(app, _runtime):
+        async def access(request):
+            body = await request.json()
+            context = await identity.for_request(request, actor_id=body.get("actor_id"),
+                person_id=body.get("person_id"), conversation_id=body.get("conversation_id"))
+            permissions = context.permissions
+            if not permissions & {"*", "life.read", "life.manage", "life.published.read"}:
+                raise AppError("forbidden", status=403)
+            return json_response({"can_manage": bool(permissions & {"*", "life.manage"}),
+                "can_read": bool(permissions & {"*", "life.read"}),
+                "can_read_published": bool(permissions & {"*", "life.manage", "life.published.read"})})
+        app.router.add_post("/api/v1/life/access", access)
+
         def route(operation, callback, *, write=False, permission=None):
             async def handler(request):
                 body = await command_body(request) if write else await request.json()
@@ -41,6 +53,7 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
         route("outfits", lambda ctx, body: presentation.outfits(ctx, cursor=body.get("cursor"), limit=body.get("limit", 40)))
         route("outfits.save", presentation.save_outfit, write=True)
         route("outfits.select", presentation.select_outfit, write=True)
+        route("outfits.delete", presentation.delete_outfit, write=True)
         route("diaries", lambda ctx, body: diaries.list(ctx, cursor=body.get("cursor"), limit=body.get("limit", 30)), permission="life.published.read")
         route("diaries/read", diaries.read, permission="life.published.read")
         route("diaries/request", diaries.request, write=True)

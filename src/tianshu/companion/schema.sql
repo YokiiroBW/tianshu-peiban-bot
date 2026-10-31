@@ -13,8 +13,7 @@ CREATE TABLE companion.persona_revisions (
 CREATE TABLE companion.actors (
     actor_id text PRIMARY KEY, name text NOT NULL, enabled boolean NOT NULL DEFAULT false,
     revision bigint NOT NULL DEFAULT 1, persona_id text REFERENCES companion.persona_profiles(persona_id),
-    persona_revision bigint, model_function text NOT NULL DEFAULT 'chat',
-    capabilities text[] NOT NULL DEFAULT '{}', created_at timestamptz NOT NULL DEFAULT now(),
+    persona_revision bigint, created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(), deleted_at timestamptz,
     FOREIGN KEY(persona_id,persona_revision) REFERENCES companion.persona_revisions(persona_id,revision)
 );

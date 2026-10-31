@@ -13,7 +13,10 @@ class Contacts:
                 "SELECT * FROM life.contact_preferences WHERE actor_id=%s AND person_id IN (%s,'') "
                 "AND scope_ids<@%s::text[] ORDER BY (person_id=%s) DESC LIMIT 1",
                 (context.actor_id, context.person_id or "", list(context.scope_ids), context.person_id or ""))).fetchone()
-        return row or {"revision": 0, "timezone": "Asia/Shanghai", "quiet_start": "23:00", "quiet_end": "08:00",
+        if row:
+            exact=row["person_id"]==(context.person_id or "")
+            return {**row,"edit_revision":row["revision"] if exact else None,"inherited":not exact}
+        return {"revision": 0,"edit_revision":None,"inherited":False, "timezone": "Asia/Shanghai", "quiet_start": "23:00", "quiet_end": "08:00",
                        "cooldown_seconds": 1800, "daily_quota": 3, "unanswered_limit": 3,
                        "responsiveness": .5, "enabled": True, "availability": "unknown", "available_until": None}
 

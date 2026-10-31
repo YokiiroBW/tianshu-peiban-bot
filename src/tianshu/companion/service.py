@@ -48,7 +48,7 @@ class CompanionService:
         allowed = await self.identity.actor_ids(context)
         async with self.database.transaction(read_only=True) as connection:
             rows = await (await connection.execute(
-                "SELECT actor_id,name,enabled,revision,persona_id,persona_revision,model_function,capabilities "
+                "SELECT actor_id,name,enabled,revision,persona_id,persona_revision "
                 "FROM companion.actors WHERE actor_id=ANY(%s) AND deleted_at IS NULL "
                 "AND (%s::text IS NULL OR actor_id>%s) ORDER BY actor_id LIMIT %s",
                 (list(allowed), cursor, cursor, limit + 1))).fetchall()
@@ -72,9 +72,6 @@ class CompanionService:
         await self.identity.check(context)
         name = bounded_text(body.get("name"), "角色名称", 128)
         persona_id, persona_revision = body.get("persona_id"), body.get("persona_revision")
-        capabilities = body.get("capabilities", [])
-        if not isinstance(capabilities, list) or any(not isinstance(item, str) for item in capabilities):
-            raise AppError("invalid_capabilities")
         enabled = body.get("enabled", False)
         if type(enabled) is not bool:
             raise AppError("invalid_input")
@@ -98,10 +95,9 @@ class CompanionService:
                 actor_id = await self.actor_registry.register_actor(context, connection=connection,
                                                                     enabled=enabled)
                 await connection.execute(
-                    "INSERT INTO companion.actors(actor_id,name,enabled,persona_id,persona_revision,model_function,capabilities) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s)",
-                    (actor_id, name, enabled, persona_id, persona_revision,
-                     body.get("model_function", "chat"), capabilities))
+                    "INSERT INTO companion.actors(actor_id,name,enabled,persona_id,persona_revision) "
+                    "VALUES (%s,%s,%s,%s,%s)",
+                    (actor_id, name, enabled, persona_id, persona_revision))
                 revision = 1
             else:
                 if enabled != row["enabled"]:
@@ -110,9 +106,8 @@ class CompanionService:
                 revision = row["revision"] + 1
                 await connection.execute(
                     "UPDATE companion.actors SET name=%s,enabled=%s,persona_id=%s,persona_revision=%s,"
-                    "model_function=%s,capabilities=%s,revision=%s,updated_at=now() WHERE actor_id=%s",
-                    (name, enabled, persona_id, persona_revision, body.get("model_function", row["model_function"]),
-                     capabilities, revision, actor_id))
+                    "revision=%s,updated_at=now() WHERE actor_id=%s",
+                    (name, enabled, persona_id, persona_revision, revision, actor_id))
             await self.actor_changed(context, actor_id, enabled, connection=connection)
             if enabled:
                 activated=await self.actor_registry.context_on(connection,context.principal_id,actor_id=actor_id,origin_kind=OriginKind.TIMER)

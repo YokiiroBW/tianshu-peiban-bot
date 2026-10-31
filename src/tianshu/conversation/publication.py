@@ -2,12 +2,25 @@
 from uuid import NAMESPACE_URL,uuid5
 from tianshu.runtime.errors import AppError
 from tianshu.types import Receipt
-from .codec import document,signature
+from .codec import document,signature,source_refs
 
 
 class WebPublication:
     def __init__(self,database,sources):
         self.database,self.sources=database,sources
+
+    async def get(self,context,expression_id):
+        await self.sources.check(context)
+        async with self.database.transaction(read_only=True) as connection:
+            row=await (await connection.execute(
+                "SELECT source_refs FROM conversation.messages WHERE expression_id=%s AND actor_id=%s "
+                "AND conversation_id=%s AND speaker='assistant' AND scope_ids<@%s::text[]",
+                (expression_id,context.actor_id,context.conversation_id,list(context.scope_ids)))).fetchone()
+        if row is None:
+            return None
+        await self.sources.check(context,source_refs(row["source_refs"]))
+        return Receipt(str(uuid5(NAMESPACE_URL,"web-publication:"+expression_id)),None,None,
+            "succeeded","confirmed","delivered",result={"expression_id":expression_id,"transport":"web"})
 
     async def publish(self,context,plan):
         if not context.delivery_allowed or context.actor_id!=plan.actor_id or context.conversation_id!=plan.target_ref:

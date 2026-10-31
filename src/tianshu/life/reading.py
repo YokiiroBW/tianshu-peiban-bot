@@ -56,7 +56,7 @@ class ReadingService:
         source=source_refs((initial["source_ref"],))[0]
         await self.life.identity.check(context,(source,))
         previous=next((item for item in initial["covered"] if item["client_request_id"]==body["client_request_id"]),None)
-        requested=previous["request"] if previous else body.get("requested") or initial["next_position"] or initial["requested"]
+        requested=previous["request"] if previous else body.get("requested") or ({**initial["requested"],"position":initial["next_position"]} if initial["next_position"] is not None else initial["requested"])
         fetched=await self.life.sources.read(context,source,requested)
         async def apply(connection):
             await self.life.validate_persistence(connection,context,(source,))
@@ -64,8 +64,16 @@ class ReadingService:
             revision(row,body.get("expected_revision"))
             if row["state"]!="reading":
                 raise AppError("reading_not_active",status=409)
-            completed=fetched["next_position"] is None and fetched["coverage"].complete
             covered=list(row["covered"])+[{"client_request_id":body["client_request_id"],"request":requested,"coverage":fetched["coverage"],"at":datetime.now(UTC)}]
+            lower=(source.locator or {}).get("start",0)
+            upper=(source.locator or {}).get("end",fetched["coverage"].total)
+            cursor=lower
+            ranges=sorted((part["start"],part["end"]) for item in covered for part in (item["coverage"].ranges if hasattr(item["coverage"],"ranges") else item["coverage"].get("ranges",())))
+            for start,end in ranges:
+                if start>cursor:
+                    break
+                cursor=max(cursor,end)
+            completed=fetched["content"] is not None and upper is not None and cursor>=upper and fetched["next_position"] is None
             await connection.execute("UPDATE life.readings SET covered=%s,next_position=%s,state=%s,revision=revision+1,updated_at=now() WHERE id=%s",(document(covered),document(fetched["next_position"]),"completed" if completed else "reading",row["id"]))
             return CommandResult(body["client_request_id"],{"id":row["id"],**fetched,"analysis_completed":False},row["revision"]+1)
         async def replay(connection,original):

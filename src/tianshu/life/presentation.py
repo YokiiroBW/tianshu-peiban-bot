@@ -75,12 +75,26 @@ class LifePresentation:
             return CommandResult(body["client_request_id"], {"outfit_id": row["id"]}, state["revision"] + 1)
         return await self.life.commands.execute(context, "life.outfits.select", body["client_request_id"], signature(body), apply)
 
+    async def delete_outfit(self, context, body):
+        await self.life.identity.check(context)
+        async def apply(connection):
+            row = await self.life.lock_row(connection, context,
+                "SELECT * FROM life.outfits WHERE id=%s AND actor_id=%s AND scope_ids<@%s::text[] FOR UPDATE",
+                (body.get("id"), context.actor_id, list(context.scope_ids)))
+            if not row:
+                raise AppError("outfit_not_found", status=404)
+            revision(row, body.get("expected_revision"))
+            await connection.execute("UPDATE life.actor_state SET outfit_id=NULL,revision=revision+1 WHERE actor_id=%s AND outfit_id=%s", (context.actor_id, row["id"]))
+            await connection.execute("DELETE FROM life.outfits WHERE id=%s", (row["id"],))
+            return CommandResult(body["client_request_id"], {"id": row["id"], "removed": True}, row["revision"]+1)
+        return await self.life.commands.execute(context, "life.outfits.delete", body["client_request_id"], signature(body), apply)
+
     async def room(self, context):
         await self.life.identity.check(context)
         async with self.life.database.transaction(read_only=True) as connection:
             state = await self.life._state(context, connection)
         return {"actor_id": context.actor_id, "revision": state["revision"], "timezone": state["timezone"],
-                "world_id": state["world_id"], "room_id": state["room_id"], "controls": state["room_controls"],
+                "world_id": state["world_id"], "room_id": state["room_id"], "controls": state["room_controls"], "weather_location": state["weather_location"],
                 "fictional": True, "observed_at": datetime.now(UTC)}
 
     async def save_room(self, context, body):
@@ -104,8 +118,11 @@ class LifePresentation:
             revision(row, body.get("expected_revision"))
             selected = {**row["room_controls"], **controls}
             zone = timezone(body.get("timezone", row["timezone"]))
-            await connection.execute("UPDATE life.actor_state SET room_controls=%s,timezone=%s,revision=revision+1,updated_at=now() WHERE actor_id=%s", (document(selected), zone, context.actor_id))
-            return CommandResult(body["client_request_id"], {"controls": selected, "timezone": zone, "fictional": True}, row["revision"] + 1)
+            location = body.get("weather_location", row["weather_location"])
+            if location is not None:
+                location = text(location, "天气位置", 128)
+            await connection.execute("UPDATE life.actor_state SET room_controls=%s,timezone=%s,weather_location=%s,revision=revision+1,updated_at=now() WHERE actor_id=%s", (document(selected), zone, location, context.actor_id))
+            return CommandResult(body["client_request_id"], {"controls": selected, "timezone": zone, "weather_location": location, "fictional": True}, row["revision"] + 1)
         return await self.life.commands.execute(context, "life.room.save", body["client_request_id"], signature(body), apply)
 
     async def scene(self, context, *, activity_id=None):
@@ -127,7 +144,7 @@ class LifePresentation:
                 weather = None
         now = datetime.now(UTC)
         outfit = state["outfit"]
-        refs = unique_refs(source_refs((activity or {}).get("source_refs", ())), source_refs((outfit or {}).get("source_refs", ())))
+        refs = unique_refs(source_refs((activity or {}).get("source_refs", ())), source_refs((outfit or {}).get("source_refs", ())), source_refs((weather or {}).get("source_refs", ())))
         references = []
         if outfit and outfit["reference"]:
             artifact = await self._reference(context, outfit["reference"])
