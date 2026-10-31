@@ -552,6 +552,21 @@
       "owner": "capabilities",
       "scope": "Comfy stable UUID prompt identity plus actual returned handle; missing queue entry is not confirmed cancellation",
       "state": "implementation_reported_not_yet_handed_off"
+    },
+    {
+      "owner": "foundation_models",
+      "scope": "atomic external submission/termination; unknown 5xx; same-scene previous Responses state; source forgetting versus late model result persistence",
+      "state": "implementation_reported_in_progress"
+    },
+    {
+      "owner": "foundation_models,capabilities and frontend",
+      "scope": "one Procrastinate worker with bounded interactive/due/elastic consumers; long work does not occupy due/short-tool shares",
+      "state": "implementing"
+    },
+    {
+      "owner": "frontend",
+      "scope": "actor voice profile/output mode consumed by actual reply; render action recovery without recursively synthesizing its own completed audio",
+      "state": "implementing"
     }
   ]
 }

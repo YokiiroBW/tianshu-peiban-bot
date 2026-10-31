@@ -215,74 +215,200 @@
   ],
   "nas_old_registry_candidates": [
     {
-      "id": "7c64171ae97f",
+      "id": "7c64171ae97fc6ef515b2276acb2ca15243836754c020aef3023db66514564e1",
       "name": "tianshu-opencode-session-registry",
-      "state": "exited"
+      "state": "exited",
+      "image": "sha256:26b2eb03618e749084668eaff68cff8f81dda12d06ac641be7a6398b82a6f25b",
+      "mounts": [
+        {
+          "source": "/volume2/tianshu-v2-resident-updates/opencode-session-20261004-core/registry-data",
+          "destination": "/var/lib/registry",
+          "type": "bind",
+          "rw": true
+        }
+      ]
     },
     {
-      "id": "f0d93f22b8e6",
+      "id": "f0d93f22b8e621866f650986d3c733e2dd0678fc569ce79b9feb993e2886febb",
       "name": "tianshu-fluid-layout-registry",
-      "state": "exited"
+      "state": "exited",
+      "image": "sha256:26b2eb03618e749084668eaff68cff8f81dda12d06ac641be7a6398b82a6f25b",
+      "mounts": [
+        {
+          "source": "/volume2/tianshu-v2-resident-updates/fluid-layout-20261004-core/registry-data",
+          "destination": "/var/lib/registry",
+          "type": "bind",
+          "rw": true
+        }
+      ]
     },
     {
-      "id": "60ae604a2d90",
+      "id": "60ae604a2d90107c039df5e6e788e97ff2f5d95367ac458cc4a840c385f661c5",
       "name": "tianshu-user-hub-reply-registry",
-      "state": "exited"
+      "state": "exited",
+      "image": "sha256:26b2eb03618e749084668eaff68cff8f81dda12d06ac641be7a6398b82a6f25b",
+      "mounts": [
+        {
+          "source": "/volume2/tianshu-v2-resident-updates/user-hub-reply-20261003-core/registry-data",
+          "destination": "/var/lib/registry",
+          "type": "bind",
+          "rw": true
+        }
+      ]
     },
     {
-      "id": "fdfe316cb8b0",
+      "id": "fdfe316cb8b0c51b311a4d52baa25ece22bed667d8872ea3e6504ea154365ff0",
       "name": "tianshu-user-hub-registry",
-      "state": "exited"
+      "state": "exited",
+      "image": "sha256:26b2eb03618e749084668eaff68cff8f81dda12d06ac641be7a6398b82a6f25b",
+      "mounts": [
+        {
+          "source": "/volume2/tianshu-v2-resident-updates/user-hub-20261003-core/registry-data",
+          "destination": "/var/lib/registry",
+          "type": "bind",
+          "rw": true
+        }
+      ]
     },
     {
-      "id": "a18fb6e2ff6b",
+      "id": "a18fb6e2ff6b810b159e944c6ad549b95c5a92152ec0b21491f6f399c46eaadd",
       "name": "tianshu-weather-host-registry",
-      "state": "exited"
+      "state": "exited",
+      "image": "sha256:26b2eb03618e749084668eaff68cff8f81dda12d06ac641be7a6398b82a6f25b",
+      "mounts": [
+        {
+          "source": "/volume2/tianshu-v2-resident-updates/weather-host-20261003-core/registry-data",
+          "destination": "/var/lib/registry",
+          "type": "bind",
+          "rw": true
+        }
+      ]
     },
     {
-      "id": "e88b13da8c08",
+      "id": "e88b13da8c08ad41252843a47e5e280eb5e118232965ed9cd605fe1f13ddbc30",
       "name": "tianshu-room-illustration-registry",
-      "state": "exited"
+      "state": "exited",
+      "image": "sha256:26b2eb03618e749084668eaff68cff8f81dda12d06ac641be7a6398b82a6f25b",
+      "mounts": [
+        {
+          "source": "/volume2/tianshu-v2-resident-updates/room-illustration-20261003-core/registry-data",
+          "destination": "/var/lib/registry",
+          "type": "bind",
+          "rw": true
+        }
+      ]
     },
     {
-      "id": "5d0808339aa1",
+      "id": "5d0808339aa1a8095f94cb92cc2b3fcb94960a5be3a81827994be78c6ea1caf3",
       "name": "tianshu-login-entry-registry",
-      "state": "exited"
+      "state": "exited",
+      "image": "sha256:26b2eb03618e749084668eaff68cff8f81dda12d06ac641be7a6398b82a6f25b",
+      "mounts": [
+        {
+          "source": "/volume2/tianshu-v2-resident-updates/login-entry-20261003-core/registry-data",
+          "destination": "/var/lib/registry",
+          "type": "bind",
+          "rw": true
+        }
+      ]
     },
     {
-      "id": "7b52e8514244",
+      "id": "7b52e8514244d0a7d0afcac1e60beb85023802f7ce77da11b5984d6d4aad0f9f",
       "name": "tianshu-life-visual-registry",
-      "state": "exited"
+      "state": "exited",
+      "image": "sha256:26b2eb03618e749084668eaff68cff8f81dda12d06ac641be7a6398b82a6f25b",
+      "mounts": [
+        {
+          "source": "/volume2/tianshu-v2-resident-updates/life-visual-20261003-core/registry-data",
+          "destination": "/var/lib/registry",
+          "type": "bind",
+          "rw": true
+        }
+      ]
     },
     {
-      "id": "729b402d4496",
+      "id": "729b402d4496beb76e8cc7963aee11f1139274ef8c6b848098189ef790fe1ca6",
       "name": "tianshu-quality-life-registry",
-      "state": "exited"
+      "state": "exited",
+      "image": "sha256:26b2eb03618e749084668eaff68cff8f81dda12d06ac641be7a6398b82a6f25b",
+      "mounts": [
+        {
+          "source": "/volume2/tianshu-v2-resident-updates/quality-life-20261003-core/registry-data",
+          "destination": "/var/lib/registry",
+          "type": "bind",
+          "rw": true
+        }
+      ]
     },
     {
-      "id": "4a6343f560b1",
+      "id": "4a6343f560b184a9678e66eeb483d4c6946e7ab48dc90d3b022f56fc65d31977",
       "name": "tianshu-persona-label-rc5-registry",
-      "state": "exited"
+      "state": "exited",
+      "image": "sha256:26b2eb03618e749084668eaff68cff8f81dda12d06ac641be7a6398b82a6f25b",
+      "mounts": [
+        {
+          "source": "/volume2/tianshu-v2-resident-updates/persona-label-20261002-rc5/registry-data",
+          "destination": "/var/lib/registry",
+          "type": "bind",
+          "rw": true
+        }
+      ]
     },
     {
-      "id": "492d1cac9049",
+      "id": "492d1cac90492ae188c75e06a06d6d72f11067c36eb0acc8a6c4abda04be7e2b",
       "name": "tianshu-persona-http-rc4-registry",
-      "state": "exited"
+      "state": "exited",
+      "image": "sha256:26b2eb03618e749084668eaff68cff8f81dda12d06ac641be7a6398b82a6f25b",
+      "mounts": [
+        {
+          "source": "/volume2/tianshu-v2-resident-updates/persona-http-20261002-rc4/registry-data",
+          "destination": "/var/lib/registry",
+          "type": "bind",
+          "rw": true
+        }
+      ]
     },
     {
-      "id": "b6682fff04b0",
+      "id": "b6682fff04b02c6da8a6fb3c80cd7a60b4d336c4b0b1f67c54b6d45cb90892b2",
       "name": "tianshu-optional-persona-rc3-registry",
-      "state": "exited"
+      "state": "exited",
+      "image": "sha256:26b2eb03618e749084668eaff68cff8f81dda12d06ac641be7a6398b82a6f25b",
+      "mounts": [
+        {
+          "source": "/volume2/tianshu-v2-resident-updates/optional-persona-20261002-rc3/registry-data",
+          "destination": "/var/lib/registry",
+          "type": "bind",
+          "rw": true
+        }
+      ]
     },
     {
-      "id": "11999d3c19b6",
+      "id": "11999d3c19b65e58f6d02d59d9648a3fa1d49a96c5e38ec34e4ada0624d0f668",
       "name": "tianshu-relationship-rc2-registry",
-      "state": "exited"
+      "state": "exited",
+      "image": "sha256:26b2eb03618e749084668eaff68cff8f81dda12d06ac641be7a6398b82a6f25b",
+      "mounts": [
+        {
+          "source": "/volume2/tianshu-v2-resident-updates/relationship-20261002-rc2/registry-data",
+          "destination": "/var/lib/registry",
+          "type": "bind",
+          "rw": true
+        }
+      ]
     },
     {
-      "id": "5f1727b890e2",
+      "id": "5f1727b890e237b68ed42058ae7b9996a8148b43aba6c20ab88f68818d74c64b",
       "name": "tianshu-v2-resident-registry",
-      "state": "exited"
+      "state": "exited",
+      "image": "sha256:26b2eb03618e749084668eaff68cff8f81dda12d06ac641be7a6398b82a6f25b",
+      "mounts": [
+        {
+          "source": "/volume2/tianshu-v2-resident-registry",
+          "destination": "/var/lib/registry",
+          "type": "bind",
+          "rw": true
+        }
+      ]
     }
   ],
   "candidate_caveat": "Container/path names are candidates, not deletion instructions; recheck resolved paths, active references, mounts, ownership and exact image/ID at cutover.",
@@ -304,5 +430,326 @@
     "shared PostgreSQL",
     "shared Redis",
     "independent media libraries"
-  ]
+  ],
+  "old_application_paths_observed": [
+    {
+      "path": "/srv/tianshu/data/companion",
+      "resolved": "/srv/tianshu/data/companion",
+      "exists": true,
+      "symlink": false,
+      "allocated_bytes": 20779008,
+      "references": [
+        {
+          "container": "tianshu-unified-tianshu-1",
+          "state": "running",
+          "source": "/srv/tianshu/data/companion",
+          "destination": "/data/modules/companion"
+        },
+        {
+          "container": "tianshu-v2-resident-companion-1",
+          "state": "exited",
+          "source": "/srv/tianshu/data/companion",
+          "destination": "/data"
+        }
+      ]
+    },
+    {
+      "path": "/srv/tianshu/data/gateway",
+      "resolved": "/srv/tianshu/data/gateway",
+      "exists": true,
+      "symlink": false,
+      "allocated_bytes": 5488640,
+      "references": [
+        {
+          "container": "tianshu-unified-tianshu-1",
+          "state": "running",
+          "source": "/srv/tianshu/data/gateway",
+          "destination": "/data/modules/gateway"
+        },
+        {
+          "container": "tianshu-v2-resident-gateway-1",
+          "state": "exited",
+          "source": "/srv/tianshu/data/gateway",
+          "destination": "/var/lib/tianshu"
+        }
+      ]
+    },
+    {
+      "path": "/srv/tianshu/data/knowledge",
+      "resolved": "/srv/tianshu/data/knowledge",
+      "exists": true,
+      "symlink": false,
+      "allocated_bytes": 3035136,
+      "references": [
+        {
+          "container": "tianshu-unified-tianshu-1",
+          "state": "running",
+          "source": "/srv/tianshu/data/knowledge",
+          "destination": "/data/modules/knowledge"
+        },
+        {
+          "container": "tianshu-v2-resident-knowledge-1",
+          "state": "exited",
+          "source": "/srv/tianshu/data/knowledge",
+          "destination": "/srv/tianshu"
+        }
+      ]
+    },
+    {
+      "path": "/srv/tianshu/data/memory",
+      "resolved": "/srv/tianshu/data/memory",
+      "exists": true,
+      "symlink": false,
+      "allocated_bytes": 2015232,
+      "references": [
+        {
+          "container": "tianshu-unified-tianshu-1",
+          "state": "running",
+          "source": "/srv/tianshu/data/memory",
+          "destination": "/data/modules/memory"
+        },
+        {
+          "container": "tianshu-v2-resident-memory-1",
+          "state": "exited",
+          "source": "/srv/tianshu/data/memory",
+          "destination": "/srv/tianshu"
+        }
+      ]
+    },
+    {
+      "path": "/srv/tianshu/data/platform",
+      "resolved": "/srv/tianshu/data/platform",
+      "exists": true,
+      "symlink": false,
+      "allocated_bytes": 178053120,
+      "references": [
+        {
+          "container": "tianshu-unified-tianshu-1",
+          "state": "running",
+          "source": "/srv/tianshu/data/platform",
+          "destination": "/data/modules/platform"
+        },
+        {
+          "container": "tianshu-v2-resident-platform-1",
+          "state": "exited",
+          "source": "/srv/tianshu/data/platform",
+          "destination": "/var/lib/tianshu"
+        }
+      ]
+    },
+    {
+      "path": "/srv/tianshu/data/platform-plugins/plugins",
+      "resolved": "/srv/tianshu/data/platform-plugins/plugins",
+      "exists": true,
+      "symlink": false,
+      "allocated_bytes": 139264,
+      "references": [
+        {
+          "container": "tianshu-unified-tianshu-1",
+          "state": "running",
+          "source": "/srv/tianshu/data/platform-plugins/plugins",
+          "destination": "/data/modules/platform/platform.media-maintenance/plugins"
+        },
+        {
+          "container": "tianshu-v2-resident-platform-1",
+          "state": "exited",
+          "source": "/srv/tianshu/data/platform-plugins/plugins",
+          "destination": "/var/lib/tianshu/platform.media-maintenance/plugins"
+        }
+      ]
+    },
+    {
+      "path": "/srv/tianshu/logs/companion",
+      "resolved": "/srv/tianshu/logs/companion",
+      "exists": true,
+      "symlink": false,
+      "allocated_bytes": 57856000,
+      "references": [
+        {
+          "container": "tianshu-unified-tianshu-1",
+          "state": "running",
+          "source": "/srv/tianshu/logs/companion",
+          "destination": "/data/logs/companion"
+        },
+        {
+          "container": "tianshu-v2-resident-companion-1",
+          "state": "exited",
+          "source": "/srv/tianshu/logs/companion",
+          "destination": "/var/log/tianshu"
+        },
+        {
+          "container": "tianshu-v2-resident-obs-obs-guard-1",
+          "state": "exited",
+          "source": "/srv/tianshu/logs/companion",
+          "destination": "/sources/companion"
+        },
+        {
+          "container": "tianshu-v2-resident-obs-obs-vector-1",
+          "state": "exited",
+          "source": "/srv/tianshu/logs/companion",
+          "destination": "/sources/companion"
+        }
+      ]
+    },
+    {
+      "path": "/srv/tianshu/logs/gateway",
+      "resolved": "/srv/tianshu/logs/gateway",
+      "exists": true,
+      "symlink": false,
+      "allocated_bytes": 6934528,
+      "references": [
+        {
+          "container": "tianshu-unified-tianshu-1",
+          "state": "running",
+          "source": "/srv/tianshu/logs/gateway",
+          "destination": "/data/logs/gateway"
+        },
+        {
+          "container": "tianshu-v2-resident-gateway-1",
+          "state": "exited",
+          "source": "/srv/tianshu/logs/gateway",
+          "destination": "/var/log/tianshu"
+        },
+        {
+          "container": "tianshu-v2-resident-obs-obs-guard-1",
+          "state": "exited",
+          "source": "/srv/tianshu/logs/gateway",
+          "destination": "/sources/gateway"
+        },
+        {
+          "container": "tianshu-v2-resident-obs-obs-vector-1",
+          "state": "exited",
+          "source": "/srv/tianshu/logs/gateway",
+          "destination": "/sources/gateway"
+        }
+      ]
+    },
+    {
+      "path": "/srv/tianshu/logs/knowledge",
+      "resolved": "/srv/tianshu/logs/knowledge",
+      "exists": true,
+      "symlink": false,
+      "allocated_bytes": 57438208,
+      "references": [
+        {
+          "container": "tianshu-unified-tianshu-1",
+          "state": "running",
+          "source": "/srv/tianshu/logs/knowledge",
+          "destination": "/data/logs/knowledge"
+        },
+        {
+          "container": "tianshu-v2-resident-knowledge-1",
+          "state": "exited",
+          "source": "/srv/tianshu/logs/knowledge",
+          "destination": "/var/log/tianshu"
+        },
+        {
+          "container": "tianshu-v2-resident-obs-obs-guard-1",
+          "state": "exited",
+          "source": "/srv/tianshu/logs/knowledge",
+          "destination": "/sources/knowledge"
+        },
+        {
+          "container": "tianshu-v2-resident-obs-obs-vector-1",
+          "state": "exited",
+          "source": "/srv/tianshu/logs/knowledge",
+          "destination": "/sources/knowledge"
+        }
+      ]
+    },
+    {
+      "path": "/srv/tianshu/logs/memory",
+      "resolved": "/srv/tianshu/logs/memory",
+      "exists": true,
+      "symlink": false,
+      "allocated_bytes": 9216000,
+      "references": [
+        {
+          "container": "tianshu-unified-tianshu-1",
+          "state": "running",
+          "source": "/srv/tianshu/logs/memory",
+          "destination": "/data/logs/memory"
+        },
+        {
+          "container": "tianshu-v2-resident-memory-1",
+          "state": "exited",
+          "source": "/srv/tianshu/logs/memory",
+          "destination": "/var/log/tianshu"
+        },
+        {
+          "container": "tianshu-v2-resident-obs-obs-guard-1",
+          "state": "exited",
+          "source": "/srv/tianshu/logs/memory",
+          "destination": "/sources/memory"
+        },
+        {
+          "container": "tianshu-v2-resident-obs-obs-vector-1",
+          "state": "exited",
+          "source": "/srv/tianshu/logs/memory",
+          "destination": "/sources/memory"
+        }
+      ]
+    },
+    {
+      "path": "/srv/tianshu/logs/platform",
+      "resolved": "/srv/tianshu/logs/platform",
+      "exists": true,
+      "symlink": false,
+      "allocated_bytes": 2469888,
+      "references": [
+        {
+          "container": "tianshu-unified-tianshu-1",
+          "state": "running",
+          "source": "/srv/tianshu/logs/platform",
+          "destination": "/data/logs/platform"
+        },
+        {
+          "container": "tianshu-v2-resident-platform-1",
+          "state": "exited",
+          "source": "/srv/tianshu/logs/platform",
+          "destination": "/var/log/tianshu"
+        },
+        {
+          "container": "tianshu-v2-resident-obs-obs-guard-1",
+          "state": "exited",
+          "source": "/srv/tianshu/logs/platform",
+          "destination": "/sources/platform"
+        },
+        {
+          "container": "tianshu-v2-resident-obs-obs-vector-1",
+          "state": "exited",
+          "source": "/srv/tianshu/logs/platform",
+          "destination": "/sources/platform"
+        }
+      ]
+    },
+    {
+      "path": "/srv/tianshu/unified-20261027/data",
+      "resolved": "/srv/tianshu/unified-20261027/data",
+      "exists": true,
+      "symlink": false,
+      "allocated_bytes": 90112,
+      "references": [
+        {
+          "container": "tianshu-unified-tianshu-1",
+          "state": "running",
+          "source": "/srv/tianshu/unified-20261027/data/legacy-state",
+          "destination": "/var/lib/tianshu"
+        },
+        {
+          "container": "tianshu-unified-tianshu-1",
+          "state": "running",
+          "source": "/srv/tianshu/unified-20261027/data",
+          "destination": "/data"
+        },
+        {
+          "container": "tianshu-unified-tianshu-1",
+          "state": "running",
+          "source": "/srv/tianshu/unified-20261027/data/legacy-logs",
+          "destination": "/var/log/tianshu"
+        }
+      ]
+    }
+  ],
+  "old_application_paths_observed_note": "read-only snapshot; allocated bytes are not freed bytes; recheck running references before deletion"
 }
