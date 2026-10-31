@@ -54,6 +54,11 @@ clone/setns/unshare 用户命名空间；不使用 privileged、SYS_ADMIN、unco
 镜像内 `/opt/tianshu/image-manifest/` 记录源码 SHA、完整 Python 包版本、网页摘要、浏览器修订、
 OS 包与实际 ffmpeg/git/PG/Vector/Loki 版本。依赖与网页在构建阶段安装，不挂载旧产品源码。
 
+Python 构建先按根/SDK manifest 与 `uv.lock` 安装第三方依赖并保存快照，再安装本次产品与 SDK。
+运行镜像先用该依赖快照安装 Chromium/tokenizer，之后才覆盖完整产品环境、网页和部署源码。
+源码 SHA 的 ARG/OCI label 与 `product.json` 放在最后；只变源码或 SHA 不再使前面的 OS、浏览器和
+tokenizer 安装层失效。调整缓存布局的首次构建仍需生成新层，实际缓存命中由发布构建确认。
+
 ## 当前两宿主发布流程
 
 已只读核实 `.230` 约 31.5 GiB 自由空间，容量底线 20 GiB，因此只有约 11 GiB 构建余量；
