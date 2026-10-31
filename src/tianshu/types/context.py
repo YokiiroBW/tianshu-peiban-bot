@@ -40,6 +40,7 @@ class TrustedContext:
     access_epoch: int
     origin_kind: OriginKind
     permissions: frozenset[str] = frozenset()
+    conversation_kind: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

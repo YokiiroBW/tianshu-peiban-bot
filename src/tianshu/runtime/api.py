@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+import json
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 from uuid import uuid4
@@ -68,8 +69,15 @@ def json_response(value, *, status=200):
 
 
 async def command_body(request: web.Request) -> Mapping[str, Any]:
+    maximum = 2*1024*1024
+    chunks, size = [], 0
+    async for chunk in request.content.iter_chunked(65536):
+        size += len(chunk)
+        if size > maximum:
+            raise AppError("command_body_too_large", status=413)
+        chunks.append(chunk)
     try:
-        body = await request.json()
+        body = json.loads(b"".join(chunks))
     except (ValueError, UnicodeError):
         raise AppError("invalid_json") from None
     if not isinstance(body, dict):
@@ -97,16 +105,19 @@ async def error_middleware(request, handler):
                                  route=route_name, method=request.method)
         response = await handler(request)
     except AppError as exc:
+        request["error_code"] = exc.code
         response = json_response({"error": {"code": exc.code, "message": exc.message,
             "details": exc.details, "request_id": request_id}}, status=exc.status)
     except (TimeoutError, asyncio.TimeoutError):
+        request["error_code"] = "deadline_exceeded"
         response = json_response({"error": {"code": "deadline_exceeded",
             "message": "请求已超时", "details": None, "request_id": request_id}}, status=504)
     except web.HTTPException as exc:
         response = json_response({"error": {"code": "http_" + str(exc.status),
             "message": exc.reason, "details": None, "request_id": request_id}}, status=exc.status)
-    except Exception:
-        LOG.error("request_failed request_id=%s", request_id)
+    except Exception as exc:
+        request["error_code"] = type(exc).__name__
+        LOG.error("request_failed type=%s request_id=%s", type(exc).__name__, request_id)
         response = json_response({"error": {"code": "internal_error",
             "message": "请求未完成", "details": None, "request_id": request_id}}, status=500)
     response.headers["X-Request-Id"] = request_id
@@ -114,7 +125,8 @@ async def error_middleware(request, handler):
         try:
             await event_log.emit("http.finished", "succeeded" if response.status < 400 else "failed",
                 correlation_id=request_id, duration_ms=(time.monotonic()-started)*1000,
-                route=route_name, method=request.method, status=response.status)
+                route=route_name, method=request.method, status=response.status,
+                error_code=request.get("error_code"))
         except AppError:
             pass  # Never rewrite an already-committed business outcome because logging failed.
     return response

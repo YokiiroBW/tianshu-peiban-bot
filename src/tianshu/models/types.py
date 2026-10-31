@@ -60,6 +60,7 @@ class ModelRequest:
     route_id: str | None = None
     parameters: Mapping[str, Any] = field(default_factory=dict)
     source_refs: tuple[SourceRef, ...] = ()
+    capability_probe: bool = False
 
 
 @dataclass(frozen=True, slots=True)

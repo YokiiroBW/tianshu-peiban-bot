@@ -1,17 +1,88 @@
-# 天枢联合开发工作区
+# 天枢
 
-这里是天枢平台、陪伴核心、记忆、模型网关及相关集成项目的统一协调目录。
+统一产品代码在 `src/tianshu/`，网页在 `web/`，部署材料在 `deploy/`。
+后端使用 Python 3.12+、aiohttp、原生 PostgreSQL/pgvector 和一个 Procrastinate。
+业务领域直接调用明确端口；实际供应商容量由唯一 Model Broker 拥有。
 
-**当前阶段：首批三个任务已开始并行开发。** 当前产品依据为 [整体架构 V2](docs/architecture/tianshu-system-architecture-v2.md)，具体开发入口为 [并行开发流程](docs/development/parallel-development-plan.md)，窗口与任务关联见 [本批记录](docs/development/parallel-run-2026-09-14.json)。
+本轮施工与各领域交付状态见 [执行说明](docs/development/coherent-refactor-execution-2026-10-31.md)
+和 [CR01–03 交接](docs/handoffs/CR01-03.md)。开发提交的 `implemented_not_tested` 不代表已经验收或部署。
 
-- [项目清单](workspace.json)：开发检出、旧代码参考、来源与验证入口。
-- [任务板](docs/development/tasks.json)：依赖、允许写入范围、当前状态和交付门槛。
-- [跨项目契约](contracts/README.md)：先发布最小共同契约，再让消费者接入。
-- [本轮交接](docs/development/CURRENT.md)：只保留当前事实与下一步。
-- [已认可视觉](output/ui/README.md)：本地视觉文件保留，生产页面尚未实现。
+## 后端安装和启动
 
-`projects/` 中每个项目有独立 Git；根 Git 只管理统筹文档、契约和工具。并行任务在 `worktrees/<任务编号>/` 中工作，禁止多个编码体同时写 `projects/` 中的协调检出。`references/` 是独立参考快照，不能当现役服务运行。
+依赖由根 `pyproject.toml`/`uv.lock` 统一管理：
 
-当前目录中的旧代码副本不会移动或改变原来的开发目录。来源未提交的变更另存参考覆盖包，不自动应用到 V2。第三方运行服务、NAS 数据、模型文件和密钥不复制为开发源码。
+```powershell
+uv sync --locked --extra dev --python 3.12
+uv run --no-sync tianshu migrate --config C:/Tianshu/settings.json
+uv run --no-sync tianshu model-broker --config C:/Tianshu/settings.json
+uv run --no-sync tianshu worker --config C:/Tianshu/settings.json
+uv run --no-sync tianshu interactive --config C:/Tianshu/settings.json
+```
 
-检查：`python scripts/workspace.py check`；查看：`python scripts/workspace.py status`。本机 Python 路径记录在不入库的 `workspace.local.json`。真实业务测试命令由各项目首个脚手架任务核定，不把这里的准备检查当业务测试。
+后三条是三个独立的进程角色，由部署监督器启动、排空、停止和恢复。首次安装先运行一次 `migrate`；
+它在天枢专属空 database 安装原生基线、vector 扩展和固定版本 Procrastinate schema，不导入旧库。
+PG 实例必须已安装 pgvector 二进制；缺少扩展时安装明确失败，不回退到 JSON/字节向量。
+
+凭据使用环境引用。设置 `TIANSHU_DATABASE_URL`、`TIANSHU_BROKER_TOKEN` 和 `TIANSHU_MASTER_KEY`；
+master key 是部署生成并保管的 32 字节随机密钥的 base64url 编码。供应商 API Key 可在模型设置中只写保存，
+数据库仅保存 AES-GCM 密封值；读取配置只返回引用。环境中的供应商 Key 也可通过 `env:NAME` 引用。
+不要把实际密钥写进配置样例、命令行参数或 Git。
+
+配置最小结构：
+
+```json
+{
+  "database": {
+    "dsn_ref": "TIANSHU_DATABASE_URL",
+    "connection_budget": 40,
+    "roles": {
+      "interactive": {"max_connections": 4, "control_connections": 2, "sync_connections": 2},
+      "model-broker": {"max_connections": 4, "control_connections": 2, "sync_connections": 1},
+      "worker": {"max_connections": 4, "control_connections": 2, "sync_connections": 2}
+    }
+  },
+  "http": {"host": "127.0.0.1", "port": 8070, "max_body_bytes": 536870912},
+  "broker": {"host": "127.0.0.1", "port": 8071, "url": "http://127.0.0.1:8071", "token_ref": "TIANSHU_BROKER_TOKEN"},
+  "worker": {"queue_connections": 8, "due_concurrency": 1, "elastic_concurrency": 2},
+  "artifacts": "data/artifacts",
+  "modules": [],
+  "capabilities": {},
+  "observability": {}
+}
+```
+
+`modules` 由最终装配根注入已经构造好、依赖实际绑定的 DomainModule；空列表可启动基础进程，
+但整机 ready 会明确报告领域/任务未配置。不能用空对象把尚未接线的能力显示为可用。
+数据库总预算包括各角色 async/control/sync 池、队列连接和 Broker 所有者连接。
+
+## 公共端口
+
+公开业务路由统一 `/api/v1/`，写入使用 `client_request_id` 和对象 `expected_revision`，返回 CommandResult。
+读取分页使用 Page。未知状态保持 null，写请求不会因网络超时自动重发。
+同源 Cookie/CSRF、身份与来源策略由 identity/sources 注册，领域通过真实 handler 注册自己的按钮操作。
+
+模型设置入口是 `/api/v1/models/catalog`、providers、routes、quota-groups、bindings、embedding-profile；
+`/api/v1/models/routes/{route_id}/probe` 仅在用户显式测试时发出真实文本/流式验证请求。
+每条实际路线关联真实共享 `quota_group`，前后台默认明确配置，不根据模型名称推断独立配额或模态。
+Embedding 使用一个固定的 1024 维 profile，模型/版本/归一化/指令及路线指纹一起固定。
+
+Broker 进程提供原生 Chat Completions、Responses、Claude Messages、Gemini generate/stream 和 embeddings 入口。
+对外 Key、模型别名和允许路线在 `broker.external_keys` 明确登记；不能用交互 Cookie 代替外部 API Key。
+原生续轮、工具关联、思考签名、SSE 与 usage 缺失语义保留，不做跨协议透传转换。
+
+长音视频使用 FileStore 的流式写入/读取和范围接口。2 MiB 上限只适用于命令 JSON；
+媒体上传由领域流式路由和实际部署上传上限控制，不把完整视频读入前台内存。
+
+## 运行观测与验证
+
+三个角色把完整注册事件写入各自持久 JSONL 文件，记录安全路由模板、方法、响应码、任务/attempt 和耗时。
+无正文、密钥或任意异常文本。Vector 负责检查点、磁盘缓冲及 Loki 补传；日志文件不由业务自动删除。
+新事件 schema 为 2.0.0，最终部署必须同步 Vector 的角色/字段规则，不能直接交给旧版 1.0.0 parser。
+`RuntimeDiagnostics` 从真实 Procrastinate、Broker 和 Loki 读取状态，不创建第二个日志数据库。
+
+`/health/live` 只表示进程在运行；交互 `/health/ready` 综合真实 Broker/worker 心跳与领域/任务注册。
+控制取消独立于模型长流，unknown attempt 重启后保留身份和保守容量，不自动重放。
+
+依用户本批要求，完整集成前不运行测试、typecheck、build 或浏览器检查。集中验收使用根清单中的新领域测试目录，
+不把历史协调测试混入新产品。PG 用例只接受显式 `TIANSHU_TEST_POSTGRES_ADMIN_DSN`，
+自行创建并删除 `tianshu_test_*` 隔离数据库，不使用生产默认值。

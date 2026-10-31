@@ -26,6 +26,13 @@ CREATE TABLE runtime.commands (
     created_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY(principal_id,operation,client_request_id)
 );
+CREATE TABLE runtime.credentials (
+    reference text PRIMARY KEY,
+    nonce bytea NOT NULL,
+    ciphertext bytea NOT NULL,
+    revision bigint NOT NULL DEFAULT 1,
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
 CREATE TABLE runtime.projection_cursors (
     consumer text NOT NULL,
     subject_id text NOT NULL,

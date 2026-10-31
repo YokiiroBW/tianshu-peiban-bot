@@ -11,7 +11,8 @@ from .types import (ExternalRequest, ModelEvent, ModelMessage, ModelPart, ModelR
 def context_from_wire(value):
     return TrustedContext(value["principal_id"], value.get("actor_id"), value.get("person_id"),
         value.get("conversation_id"), tuple(value["scope_ids"]), tuple(value["audience"]),
-        value["access_epoch"], OriginKind(value["origin_kind"]), frozenset(value.get("permissions", [])))
+        value["access_epoch"], OriginKind(value["origin_kind"]), frozenset(value.get("permissions", [])),
+        value.get("conversation_kind"))
 
 
 def budget_from_wire(value):

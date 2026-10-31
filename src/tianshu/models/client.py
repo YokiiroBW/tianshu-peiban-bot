@@ -25,7 +25,7 @@ class ModelClient:
         headers = {"Authorization": "Bearer "+self.token}
         self.session = aiohttp.ClientSession(headers=headers,
             connector=aiohttp.TCPConnector(limit=self.max_connections),
-            timeout=aiohttp.ClientTimeout(total=None))
+            timeout=aiohttp.ClientTimeout(total=None), read_bufsize=8*1024*1024)
         self.control_session = aiohttp.ClientSession(headers=headers,
             connector=aiohttp.TCPConnector(limit=4), timeout=aiohttp.ClientTimeout(total=5))
 
@@ -37,7 +37,8 @@ class ModelClient:
     async def _json(self, path, *, body=None, control=False, timeout=None, method="POST"):
         session = self.control_session if control else self.session
         async with session.request(method, self.base_url+path, json=wire(body),
-            allow_redirects=False, timeout=aiohttp.ClientTimeout(total=timeout or (5 if control else 120))) as response:
+            allow_redirects=False, timeout=aiohttp.ClientTimeout(total=(
+                timeout if timeout is not None else 5 if control else 120))) as response:
             value = await response.json()
             if response.status >= 400:
                 error = value.get("error", {})
@@ -46,6 +47,7 @@ class ModelClient:
             return value
 
     async def generate(self, request):
+        request.budget.check()
         try:
             value = await self._json("/internal/v1/models/generate", body=request,
                                      timeout=request.budget.remaining())
@@ -55,6 +57,7 @@ class ModelClient:
             raise
 
     async def stream(self, request):
+        request.budget.check()
         complete = False
         try:
             async with self.session.post(self.base_url+"/internal/v1/models/stream", json=wire(request),
@@ -63,7 +66,7 @@ class ModelClient:
                     value = await response.json()
                     raise AppError(value.get("error", {}).get("code", "broker_error"), status=response.status)
                 async for line in response.content:
-                    if len(line) > 4*1024*1024:
+                    if len(line) > 8*1024*1024:
                         raise AppError("broker_event_too_large", status=502)
                     event = event_from_wire(json.loads(line))
                     complete |= event.kind == "receipt"
@@ -104,7 +107,13 @@ class ModelClient:
 
     @asynccontextmanager
     async def resource(self, request):
-        await self._json("/internal/v1/resources", body=request, timeout=request.budget.remaining())
+        request.budget.check()
+        try:
+            await self._json("/internal/v1/resources", body=request, timeout=request.budget.remaining())
+        except BaseException:
+            # Enqueue/admission may have committed even when its response was lost.
+            await self._cancel_cleanup(request.attempt_id)
+            raise
         permit = ClientExternalPermit(self, request)
         owner = asyncio.current_task()
 
