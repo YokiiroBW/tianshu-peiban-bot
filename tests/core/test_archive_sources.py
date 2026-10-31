@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 import pytest
 
 from tianshu.conversation.types import InputPart
+from tianshu.identity.types import IncomingEvent
 from tianshu.runtime.errors import AppError
 from tianshu.types import OriginKind, SourceRef
 
@@ -17,10 +18,40 @@ async def attach_qq(core, context):
             (context.principal_id, context.actor_id),
         )
         await conn.execute(
+            "INSERT INTO identity.accounts(connection_id,external_id,person_id,principal_id) "
+            "VALUES('qq-connection','alice-native',%s,%s)",
+            (context.person_id, context.principal_id),
+        )
+        await conn.execute(
             "INSERT INTO identity.conversation_links(connection_id,external_id,conversation_id,mode) "
             "VALUES('qq-connection','private:alice-native',%s,'reply')",
             (context.conversation_id,),
         )
+
+
+async def native_event(core, context, message_id, text):
+    event = IncomingEvent(
+        "qq:qq-connection",
+        "message:private:" + message_id,
+        1,
+        datetime(2026, 10, 31, tzinfo=UTC),
+        "private:alice-native",
+        "private",
+        "alice-native",
+        parts=({"kind": "text", "text": text},),
+    )
+    admitted = await core.identity.admit_event("qq-connection", event)
+    assert admitted.disposition == "reply" and admitted.context is not None
+    assert admitted.context.person_id == context.person_id
+    return await core.sources.record_event(
+        admitted.context,
+        producer=event.producer,
+        event_id=event.event_id,
+        revision=event.revision,
+        occurred_at=event.occurred_at,
+        parts=(InputPart("text", text=text),),
+        origin_kind=OriginKind.HUMAN,
+    )
 
 
 def archived_record():
@@ -54,15 +85,7 @@ async def test_native_message_forget_blocks_archive_across_mappings(
     await attach_qq(core, alice)
 
     async def native():
-        return await core.sources.record_event(
-            alice,
-            producer="qq:qq-connection",
-            event_id="message:private:message-one",
-            revision=1,
-            occurred_at=datetime.now(UTC),
-            parts=(InputPart("text", text="a private historical message"),),
-            origin_kind=OriginKind.HUMAN,
-        )
+        return await native_event(core, alice, "message-one", "a private historical message")
 
     source = await native() if native_arrives_first else None
     first = await core.sources.register_archive(
@@ -137,15 +160,7 @@ async def test_forgotten_archive_blocks_late_native_but_accepts_a_new_message(
     await attach_qq(core, alice)
 
     async def native(event_id):
-        return await core.sources.record_event(
-            alice,
-            producer="qq:qq-connection",
-            event_id="message:private:" + event_id,
-            revision=1,
-            occurred_at=datetime.now(UTC),
-            parts=(InputPart("text", text="original native content"),),
-            origin_kind=OriginKind.HUMAN,
-        )
+        return await native_event(core, alice, event_id, "original native content")
 
     original = await native("message-one") if native_already_present else None
     imported = await core.sources.register_archive(
@@ -175,6 +190,21 @@ async def test_forgotten_archive_blocks_late_native_but_accepts_a_new_message(
         await native("message-one")
     fresh = await native("a-genuinely-new-message")
     assert await core.sources.check_many(alice, (fresh,)) == (True,)
+
+
+async def test_channel_authorship_still_requires_a_real_admitted_event(core, ordinary_users):
+    alice, _bob = ordinary_users
+    await attach_qq(core, alice)
+    with pytest.raises(AppError, match="event_author_unverified"):
+        await core.sources.record_event(
+            alice,
+            producer="qq:qq-connection",
+            event_id="message:private:unadmitted",
+            revision=1,
+            occurred_at=datetime.now(UTC),
+            parts=(InputPart("text", text="not actually admitted"),),
+            origin_kind=OriginKind.HUMAN,
+        )
 
 
 async def test_one_support_group_preserves_distinct_fragments_of_one_version(core, ordinary_users):

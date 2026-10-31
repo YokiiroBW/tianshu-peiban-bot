@@ -622,25 +622,25 @@ class ExternalPermit:
             )
 
     async def finish(self, usage=None, result=None):
-        if self.submitted_at is None:
-            raise AppError("external_attempt_not_submitted", status=409)
         return await self._finish("succeeded", usage=usage, result=result)
 
     async def unknown(self, error_code="external_effect_unknown"):
-        return await self._finish(
-            "unknown" if self.submitted_at else "cancelled", error_code=error_code
-        )
+        return await self._finish("unknown", error_code=error_code)
 
     async def rejected(self, error_code, usage=None):
         """Only a provider's confirmed no-effect rejection can release unknown occupancy."""
-        return await self._finish(
-            "failed" if self.submitted_at else "cancelled", usage=usage, error_code=error_code
-        )
+        return await self._finish("failed", usage=usage, error_code=error_code)
 
     async def _finish(self, status, *, usage=None, result=None, error_code=None):
         async with self.finish_lock:
             if self.done:
                 return await self.broker.status(self.request.attempt_id)
+            # submitted() may have been persisting its start while this caller waited.
+            # Choose the effect/dispatch state only after that transition has completed.
+            if self.submitted_at is None:
+                if status == "succeeded":
+                    raise AppError("external_attempt_not_submitted", status=409)
+                status = "cancelled"
             if usage is not None and not isinstance(usage, dict):
                 raise AppError("invalid_resource_usage")
             units = usage.get("units") if usage is not None else None

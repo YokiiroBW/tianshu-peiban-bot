@@ -139,8 +139,12 @@ async def test_second_broker_cannot_own_capacity_and_control_cancels_external_ow
         await broker.close()
 
 
+@pytest.mark.parametrize(
+    "operation,status,unknown_holds",
+    [("unknown", "unknown", 1), ("rejected", "failed", 0), ("finish", "succeeded", 0)],
+)
 async def test_external_submit_and_terminal_transition_are_mutually_exclusive(
-    database, tmp_path, monkeypatch
+    database, tmp_path, monkeypatch, operation, status, unknown_holds
 ):
     await seed(database, "http://127.0.0.1:9")
     broker = ModelBroker(database, FileStore(tmp_path), Secrets({"FIXTURE_KEY": "synthetic"}))
@@ -168,14 +172,21 @@ async def test_external_submit_and_terminal_transition_are_mutually_exclusive(
         permit = await broker.begin_external(request)
         submitting = asyncio.create_task(permit.submitted())
         await entered.wait()
-        terminal = asyncio.create_task(permit.unknown("cancel_during_submit"))
+        terminal = asyncio.create_task(
+            permit.finish()
+            if operation == "finish"
+            else getattr(permit, operation)("terminal_during_submit")
+        )
         await asyncio.sleep(0)
         assert not terminal.done()
         release.set()
         await submitting
         result = await terminal
-        assert result.status == "unknown"
-        assert broker.scheduler.snapshot()["fixture-account"]["unknown_holds"] == 1
+        assert result.status == status
+        persisted = await broker.ledger.get(request.attempt_id)
+        assert persisted["started_at"] is not None
+        assert persisted["dispatch"] == ("unknown" if status == "unknown" else "submitted")
+        assert broker.scheduler.snapshot()["fixture-account"]["unknown_holds"] == unknown_holds
         with pytest.raises(AppError, match="attempt_already_finished"):
             await permit.submitted()
     finally:

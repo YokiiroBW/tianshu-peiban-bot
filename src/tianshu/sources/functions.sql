@@ -40,8 +40,9 @@ LANGUAGE plpgsql STABLE AS $$
 DECLARE nodes jsonb; count_nodes bigint; result boolean[] := '{}'; refs jsonb; ref jsonb; ok boolean;
 BEGIN
     WITH RECURSIVE selected(source_id,revision) AS (
-        SELECT ref->>'source_id',(ref->>'revision')::bigint
-        FROM jsonb_array_elements(ref_groups) g CROSS JOIN LATERAL jsonb_array_elements(g) ref
+        SELECT entries.value->>'source_id',(entries.value->>'revision')::bigint
+        FROM jsonb_array_elements(ref_groups) AS group_items(value)
+        CROSS JOIN LATERAL jsonb_array_elements(group_items.value) AS entries(value)
         UNION SELECT d.support_source_id,d.support_revision FROM sources.supports d
         JOIN selected s ON s.source_id=d.source_id AND s.revision=d.revision
     ), facts AS (
