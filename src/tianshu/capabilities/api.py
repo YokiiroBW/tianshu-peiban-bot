@@ -8,12 +8,25 @@ from aiohttp import web
 from tianshu.types import Action, SourceRef, MediaRef, ServiceClass, OriginKind
 from tianshu.runtime.api import require_context, CommandResult, json_response, command_body
 from tianshu.runtime.serialization import wire
+from tianshu.sources.dependencies import unique_refs
 from .contracts import Fault, digest
 from .operations import READ_OPERATIONS
 from .serialization import receipt_from
 
 SECRET_KEYS = frozenset(
-    {"api_key", "token", "password", "cookie", "secrets", "code", "refresh_token", "access_token"}
+    {
+        "api_key",
+        "token",
+        "password",
+        "cookie",
+        "secrets",
+        "code",
+        "refresh_token",
+        "access_token",
+        "browser_storage_state",
+        "storage_state",
+        "cookies",
+    }
 )
 
 
@@ -46,6 +59,7 @@ async def invoke(service, domain, operation, body, context, *, capability_id=Non
         not in {
             "client_request_id",
             "source_refs",
+            "current_input_refs",
             "deadline_at",
             "expression_id",
             "activity_id",
@@ -57,9 +71,7 @@ async def invoke(service, domain, operation, body, context, *, capability_id=Non
         arguments = await service.configuration.seal_command(context, key, arguments)
     refs = tuple(SourceRef(**x) for x in body.get("source_refs", []))
     if body.get("source"):
-        refs = tuple(
-            {(x.source_id, x.revision): x for x in (*refs, SourceRef(**body["source"]))}.values()
-        )
+        refs = unique_refs(refs, (SourceRef(**body["source"]),))
     try:
         deadline = datetime.fromisoformat(body["deadline_at"]) if body.get("deadline_at") else None
     except (TypeError, ValueError):

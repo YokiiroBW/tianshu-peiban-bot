@@ -19,6 +19,9 @@ def action_from(value):
     value["context"] = context_from(value["context"])
     value["origin_kind"] = OriginKind(value["origin_kind"])
     value["source_refs"] = tuple(SourceRef(**item) for item in value.get("source_refs", []))
+    value["current_input_refs"] = tuple(
+        SourceRef(**item) for item in value.get("current_input_refs", [])
+    )
     if value.get("deadline_at"):
         value["deadline_at"] = datetime.fromisoformat(value["deadline_at"])
     return Action(**value)

@@ -165,6 +165,7 @@ class Capabilities:
         authorize_actor=None,
         actor_directory=None,
         worker=None,
+        artifacts=None,
     ):
         self.runtime, self.settings, self.authority, self.sources, self.life, self.expression = (
             runtime,
@@ -191,7 +192,7 @@ class Capabilities:
         self.actions.worker = self.worker
         self.actions.sources = sources
         self.models = TrackedBroker(runtime.models)
-        self.artifacts = Artifacts(runtime.database, runtime.files, authority, sources)
+        self.artifacts = artifacts or Artifacts(runtime.database, runtime.files, authority, sources)
         self.speech = Speech(self.configuration, self.models, self.artifacts)
         self.images = Images(self.configuration, self.models, self.artifacts, life, authority)
         self.perception = Perception(self.models, self.artifacts, authority, runtime.database)
@@ -262,7 +263,19 @@ class Capabilities:
         from .content.video import VideoOriginals
 
         self.perception.video_originals = VideoOriginals(self)
-        self.content = Content(self.configuration, self.sources, self.authority, self.media)
+        from .content.browser import Browser
+
+        self.content = Content(
+            self.configuration,
+            self.sources,
+            self.authority,
+            self.media,
+            browser=Browser(
+                self.configuration,
+                self.authority,
+                self.settings.get("content", {}).get("browser", {}),
+            ),
+        )
         self.plugin_host = PluginManager(
             settings,
             runtime=self.runtime,
@@ -626,12 +639,7 @@ class Capabilities:
                     context, SourceRef(**clean["source"]), clean.get("requested", {})
                 )
             if operation == "providers.save":
-                return await self.configuration.save(
-                    "content_provider",
-                    clean.get("id", "search"),
-                    {k: v for k, v in clean.items() if k not in {"id", "expected_revision"}},
-                    clean.get("expected_revision", 0),
-                )
+                return await self.content.save_provider(context, clean)
         if domain == "devices":
             if operation == "view":
                 return await self.devices.view(context)

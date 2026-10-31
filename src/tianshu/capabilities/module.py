@@ -18,6 +18,7 @@ def build_module(
     authorize_actor=None,
     actor_directory=None,
     worker=None,
+    artifacts=None,
 ):
     service = Capabilities(
         runtime,
@@ -30,6 +31,7 @@ def build_module(
         authorize_actor=authorize_actor,
         actor_directory=actor_directory,
         worker=worker,
+        artifacts=artifacts,
     )
     from .api import register_routes
 

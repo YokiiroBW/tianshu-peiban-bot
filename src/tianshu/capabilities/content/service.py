@@ -27,6 +27,8 @@ class Content:
             "properties": {
                 "url": {"type": "string"},
                 "mode": {"enum": ["research", "explore", "continue"]},
+                "render": {"enum": ["auto", "http", "browser"]},
+                "session_id": {"type": "string"},
             },
             "required": ["url"],
         },
@@ -167,7 +169,29 @@ class Content:
     async def execute(self, action, attempt):
         await self.authority.check(action.context, action.source_refs)
         url = action.arguments["url"]
-        raw, mime, final, headers = await self.fetch(url)
+        rendered = None
+        if action.arguments.get("render") == "browser":
+            if self.browser is None:
+                raise Fault("browser_adapter_unavailable", 503)
+            rendered = await self.browser.read(
+                action.context, url, session_id=action.arguments.get("session_id")
+            )
+            raw, mime, final, headers = rendered["raw"], rendered["mime_type"], rendered["url"], {}
+        else:
+            try:
+                raw, mime, final, headers = await self.fetch(url)
+            except Fault:
+                if action.arguments.get("render") == "http" or self.browser is None:
+                    raise
+                rendered = await self.browser.read(
+                    action.context, url, session_id=action.arguments.get("session_id")
+                )
+                raw, mime, final, headers = (
+                    rendered["raw"],
+                    rendered["mime_type"],
+                    rendered["url"],
+                    {},
+                )
         if mime == "application/json":
             data = json.loads(raw)
             if "post_stream" in data:
@@ -185,13 +209,29 @@ class Content:
             content = {"title": None, "text": raw.decode("utf-8"), "posts": [], "next_url": None}
         else:
             raise Fault("content_representation_unsupported", 415)
-        if not content["text"].strip() and self.browser:
-            browser = await self.browser.read(action.context, final)
-            raw, mime, content = browser["raw"], browser["mime_type"], browser["content"]
+        from .browser import needs_browser
+
+        if (
+            rendered is None
+            and action.arguments.get("render", "auto") != "http"
+            and self.browser
+            and needs_browser(raw, content)
+        ):
+            rendered = await self.browser.read(
+                action.context, final, session_id=action.arguments.get("session_id")
+            )
+            raw, mime, content, final = (
+                rendered["raw"],
+                rendered["mime_type"],
+                rendered["content"],
+                rendered["url"],
+            )
         if not content["text"].strip():
             raise Fault("content_body_unavailable", 503)
         locator = {
             "kind": "forum" if content["posts"] else "webpage",
+            "representation": "rendered_dom" if rendered else "http_body",
+            "session_id": rendered.get("session_id") if rendered else None,
             "url": final,
             "requested_url": url,
             "acquired_at": datetime.now(UTC).isoformat(),
@@ -220,11 +260,52 @@ class Content:
             ),
             result={
                 "source": wire(source),
+                "source_refs": wire((source,)),
                 "content": content,
                 "locator": locator,
                 "activity_mode": action.arguments.get("mode", "research"),
                 "read_basis": "actual_source_body",
             },
+        )
+
+    async def save_provider(self, context, body):
+        identifier = body.get("id", "search")
+        old = await self.config.get("content_provider", identifier)
+        value = {
+            **(old or {}),
+            **{
+                key: item
+                for key, item in body.items()
+                if key not in {"id", "expected_revision", "browser_storage_state"}
+            },
+        }
+        secret = None
+        if "browser_storage_state" in body:
+            state = body["browser_storage_state"]
+            if (
+                not isinstance(state, dict)
+                or not isinstance(state.get("cookies", []), list)
+                or not isinstance(state.get("origins", []), list)
+            ):
+                raise Fault("browser_session_invalid", 400)
+            origins = body.get("browser_origins", [])
+            for origin in origins:
+                public_url(origin)
+            if not origins:
+                raise Fault("browser_session_origins_required", 400)
+            value.update(
+                actor_id=context.actor_id,
+                scope_ids=list(context.scope_ids),
+                audience=list(context.audience),
+                browser_session_configured=True,
+            )
+            secret = {"storage_state": state}
+        return await self.config.save(
+            "content_provider",
+            body.get("id", "search"),
+            value,
+            body.get("expected_revision", 0),
+            secret=secret,
         )
 
     async def read(self, context, source, requested):

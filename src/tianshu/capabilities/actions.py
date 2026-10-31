@@ -51,6 +51,9 @@ class Actions:
             and not handler.definition.permissions <= action.context.permissions
         ):
             raise Fault("forbidden", 403)
+        authorized_refs = {canonical(wire(ref)) for ref in action.source_refs}
+        if any(canonical(wire(ref)) not in authorized_refs for ref in action.current_input_refs):
+            raise Fault("current_input_source_not_authorized", 403)
         await self.authority.check(action.context, action.source_refs)
         availability = await handler.availability(action.context)
         if not availability.can_execute:

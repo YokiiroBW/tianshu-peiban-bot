@@ -124,3 +124,14 @@ Actions.get 返回 `{action:wire dict,attempt:wire dict,receipt:wire dict,result
 - 撤回精确匹配 source_id/revision，并复用 sources.dependencies 的片段相交规则；dependants 用单次原生 JSON recordset 批写。register_dependant 可直接注入批量 withdraw_sources(conn,refs,reason)。语音表达的 profile_revision 在实际执行前精确核对。Actions.load_for_execution 仅给已登记可信执行器恢复原Action/Attempt；跨进程取消会读原dispatch证据，不能把远端已提交误记not_started。
 
 - 上传命令data正式包含artifact与media/source_ref；media是Sources.read回读的规范source:引用，用于人类聊天InputPart；artifact.media供能力产物/预览，不能作为客户端原件重新认领。表情编辑批量原子操作使用同conn Artifact读取，并先一次复核全部选中source再锁asset，不嵌套借池。视频required image映射Broker vision，继续仅使用ConsumptionReceipt.next_position覆盖start/end。
+
+
+## 受控浏览器与输入证据补充（implemented_not_tested）
+
+构造入口新增可选 `artifacts=唯一Artifacts实例`；根在 Identity/Sources 后创建一次并同时注入 B LifePresentation 与本模块，本模块不会另建实例。既有不注入的独立构造仍会创建真实 Artifacts。
+
+`Action.current_input_refs` 完整 codec 持久化；Actions.invoke 按完整 SourceRef wire（包含 locator）核验它是已授权 source_refs 的子集。HTTP body 的同名字段不能提升为可信输入，主动/后台默认空。待集成用例覆盖 locator 扩大与 delivery_allowed 缺省拒绝。
+
+`content.read` 参数增加 `render:auto|http|browser` 与 `session_id?`。真实 Playwright Chromium 读取在 `content/browser.py`：只允许已核公开 URL 与配置精确 origin 的 GET/HEAD/OPTIONS，请求资源有界，独立临时 context 重用封存 storage_state，取消关闭真实 context/browser/Playwright。提取真实渲染DOM、登记 rendered_dom 来源；HTTP静态正文仍优先。跨origin资源须由browser_origins显式列出，写入型POST应用不冒称已读。缺包/缺Chromium分别明确 unavailable，运行时不下载安装。
+
+`content.providers.save` 支持 `browser_origins:[精确origin]`、`browser_selector?`、`browser_storage_state:{cookies,origins}`（秘密字段仅写），由已授权角色/范围/受众冻结访问。state密封到配置secret，Action仅保存sealed command引用；并发更新不会用旧浏览器会话覆盖新配置。根依赖锁Playwright，镜像构建执行匹配版本 `playwright install --with-deps chromium`。能力设置 `content.browser={enabled:true,contexts:1,timeout_seconds:35,chromium_sandbox:true,executable_path?:绝对路径}`。没有运行浏览器或任何测试。
