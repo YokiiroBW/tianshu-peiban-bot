@@ -59,10 +59,10 @@
         "CR02"
       ],
       "owner": "identity / channels",
-      "state": "implemented_pending_source_fixes",
+      "state": "implemented_not_tested",
       "implementation_agent": "foundation_models",
-      "handoff_source": "fb6335d",
-      "pending": "source write serialization, extraction continuation and retrieval budget fixes; all-domain composition and CR19"
+      "handoff_source": "711f228",
+      "pending": "all-domain composition and concentrated CR19 acceptance"
     },
     {
       "id": "CR05",
@@ -71,10 +71,10 @@
         "CR04"
       ],
       "owner": "sources",
-      "state": "implemented_pending_source_fixes",
+      "state": "implemented_not_tested",
       "implementation_agent": "foundation_models",
-      "handoff_source": "fb6335d",
-      "pending": "source write serialization, extraction continuation and retrieval budget fixes; all-domain composition and CR19"
+      "handoff_source": "711f228",
+      "pending": "all-domain composition and concentrated CR19 acceptance"
     },
     {
       "id": "CR06",
@@ -84,10 +84,10 @@
         "CR05"
       ],
       "owner": "memory",
-      "state": "implemented_pending_source_fixes",
+      "state": "implemented_not_tested",
       "implementation_agent": "foundation_models",
-      "handoff_source": "fb6335d",
-      "pending": "source write serialization, extraction continuation and retrieval budget fixes; all-domain composition and CR19"
+      "handoff_source": "711f228",
+      "pending": "all-domain composition and concentrated CR19 acceptance"
     },
     {
       "id": "CR07",
@@ -96,10 +96,10 @@
         "CR06"
       ],
       "owner": "memory / conversation.context",
-      "state": "implemented_pending_source_fixes",
+      "state": "implemented_not_tested",
       "implementation_agent": "foundation_models",
-      "handoff_source": "fb6335d",
-      "pending": "source write serialization, extraction continuation and retrieval budget fixes; all-domain composition and CR19"
+      "handoff_source": "711f228",
+      "pending": "all-domain composition and concentrated CR19 acceptance"
     },
     {
       "id": "CR08",
@@ -108,10 +108,10 @@
         "CR06"
       ],
       "owner": "memory.people",
-      "state": "implemented_pending_source_fixes",
+      "state": "implemented_not_tested",
       "implementation_agent": "foundation_models",
-      "handoff_source": "fb6335d",
-      "pending": "source write serialization, extraction continuation and retrieval budget fixes; all-domain composition and CR19"
+      "handoff_source": "711f228",
+      "pending": "all-domain composition and concentrated CR19 acceptance"
     },
     {
       "id": "CR09",
@@ -308,10 +308,14 @@
         "CR17B"
       ],
       "owner": "各能力模块",
-      "state": "implemented_not_tested",
+      "state": "implementing",
       "implementation_agent": "capabilities",
       "handoff_source": "e32ae3fac2b3fc2754f27acbebfcc0a237ae0d3c",
-      "pending": "plugin discovery/worker ownership and lifecycle corrections; complete domain composition and CR19"
+      "pending": "actual knowledge/project and external asset consumers confirmed missing; migration and UI assigned in final-ui-dispatch",
+      "contributors": [
+        "capabilities",
+        "foundation_models"
+      ]
     },
     {
       "id": "CR18B",
@@ -325,7 +329,11 @@
       ],
       "owner": "web 角色与认识",
       "state": "implementing",
-      "implementation_agent": "frontend"
+      "implementation_agent": "frontend",
+      "contributors": [
+        "frontend",
+        "foundation_models"
+      ]
     },
     {
       "id": "CR18C",
@@ -337,7 +345,11 @@
       ],
       "owner": "web 内容与媒体",
       "state": "implementing",
-      "implementation_agent": "frontend"
+      "implementation_agent": "frontend",
+      "contributors": [
+        "frontend",
+        "capabilities"
+      ]
     },
     {
       "id": "CR18D",
@@ -351,7 +363,12 @@
       ],
       "owner": "web 设置与运维",
       "state": "implementing",
-      "implementation_agent": "frontend"
+      "implementation_agent": "frontend",
+      "contributors": [
+        "frontend",
+        "foundation_models",
+        "capabilities"
+      ]
     },
     {
       "id": "CR18",
@@ -412,8 +429,8 @@
         "CR20"
       ],
       "state": "implementing",
-      "boundary": "src/tianshu/runtime,models,types; backend manifest,composition,migration registry; tests/runtime,models; identity/**,sources/**,memory/**,conversation/context/** and respective tests; deploy/core/**,root image ignore,tests/deployment after A/composition handoff",
-      "phase": "core_A_composition_then_deployment_materials"
+      "boundary": "src/tianshu/runtime,models,types; backend manifest,composition,migration registry; tests/runtime,models; identity/**,sources/**,memory/**,conversation/context/** and respective tests; deploy/core/**,root image ignore,tests/deployment after A/composition handoff; capabilities/projects/** and project-specific tests; then web features people/memory/knowledge/projects and exact model/access settings files in final-ui-dispatch",
+      "phase": "composition_deployment_then_project_knowledge_and_owned_UI"
     },
     "frontend": {
       "model": "gpt-6.1-sol",
@@ -434,7 +451,7 @@
       ],
       "state": "implementing",
       "boundary": "web/**; docs/handoffs/CR18-frontend.md; companion/**,life/**,conversation/** excluding context; tests and schemas for owned domains",
-      "phase": "core_B_and_final_frontend_wiring"
+      "phase": "B_cancel_recovery_life_multimodal_channels_and_shared_web"
     },
     "capabilities": {
       "model": "gpt-6.1-sol",
@@ -454,8 +471,8 @@
         "CR04A"
       ],
       "state": "implementing",
-      "boundary": "src/tianshu/capabilities/**,packages/tianshu-plugin/**,tests/capabilities/**; capability schema fragment; channels/** and tests/channels after capability handoff",
-      "phase": "channels_C_and_capability_integration_corrections"
+      "boundary": "src/tianshu/capabilities/**,packages/tianshu-plugin/**,tests/capabilities/**; capability schema fragment; channels/** and tests/channels after capability handoff; excludes capabilities/projects/** owned by foundation; after backend handoff owns web/src/features/{plugins,media,infrastructure,resources}/** from 7660945",
+      "phase": "channels_weather_assets_then_plugins_media_infrastructure_resources_UI"
     }
   },
   "integration_commits": [
@@ -626,6 +643,48 @@
       "integrated": "38fb51c",
       "scope": "target refresh preserves original trusted scope and permissions ceiling",
       "validation": "source_review_only"
+    },
+    {
+      "source": "bac9753",
+      "integrated": "f0f49d8",
+      "scope": "source-owned complete reference deduplication and explicit identity port",
+      "validation": "source_review_only"
+    },
+    {
+      "source": "6ad9b57",
+      "integrated": "27316f1",
+      "scope": "canonical uploads, reaction eligibility and same-connection artifact reads",
+      "validation": "source_review_only"
+    },
+    {
+      "source": "f0480a4",
+      "integrated": "027bf86",
+      "scope": "current-input evidence distinct from complete action dependencies",
+      "validation": "source_review_only"
+    },
+    {
+      "source": "711f228",
+      "integrated": "58c3f65",
+      "scope": "durable extraction continuation and confirmed video observation, source write locks, bounded lexical/vector retrieval, evidence-aware memory tools",
+      "validation": "source_review_only; new PG stories authored but not run"
+    },
+    {
+      "source": "1e56f97",
+      "integrated": "89bdb30",
+      "scope": "controlled Chromium implementation, single artifact injection and trusted current-input codec",
+      "validation": "source_review_only; no browser execution"
+    },
+    {
+      "source": "0ade1fd",
+      "integrated": "ccdb2d9",
+      "scope": "ordered persistent expression renderer, life handlers and B write lock order",
+      "validation": "source_review_only; cancellation/recovery followups remain"
+    },
+    {
+      "source": "7660945",
+      "integrated": "14ab3f2",
+      "scope": "shared frontend session and real command outcomes, chat/upload/media and actual room/growth projections",
+      "validation": "source_review_only; final domain pages ongoing"
     }
   ],
   "validation": {
@@ -803,6 +862,26 @@
       "owner": "capabilities",
       "scope": "reaction filters precede LIMIT in both recall paths; shared-connection artifact checks avoid nested pool and lock inversion",
       "state": "implementation_reported_waiting_handoff"
+    },
+    {
+      "owner": "foundation_models",
+      "scope": "CR01 U17-18/U69-74/U89-91 actual project knowledge, directory import, research notes, lessons and continuation consumers including UI",
+      "state": "confirmed_missing_assigned_for_implementation"
+    },
+    {
+      "owner": "capabilities",
+      "scope": "QWeather and external AssetLibrary existing effective behavior plus full owned frontend consumers",
+      "state": "implementing"
+    },
+    {
+      "owner": "frontend and capabilities",
+      "scope": "all HTTP selectors use Identity verified query scene; no blanket config.publish for ordinary capabilities; actual handler permissions retained",
+      "state": "implementation_reported_waiting_handoff"
+    },
+    {
+      "owner": "frontend",
+      "scope": "restore planned/dispatching expression steps by original action identity after interruption; no paid retry for unknown",
+      "state": "accepted_by_owner_fixing"
     }
   ]
 }
