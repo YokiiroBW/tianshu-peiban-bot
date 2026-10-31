@@ -20,6 +20,8 @@
 
 ## 写入边界
 
+下表记录初始分派。后续核心实现按 [核心分派](coherent-refactor-core-dispatch-2026-10-31.md)，部署代码按 [CR20](coherent-refactor-deployment-dispatch-2026-10-31.md)，剩余前端与知识/项目/外部资源保留核对按 [最终页面分派](coherent-refactor-final-ui-dispatch-2026-10-31.md) 执行；后发布的精确路径边界优先，不能继续按初始 `web/**` 或 `capabilities/**` 大范围并写。
+
 | 实现泳道 | 独占写入 | 主要施工块 |
 |---|---|---|
 | foundation_models | 根后端 pyproject/依赖锁，`src/tianshu/runtime`、`models`、最小共享 types/ports、三进程入口及后端装配；迁移总注册表 | CR01–03；后续经协调者明确分配后接其他核心域 |
