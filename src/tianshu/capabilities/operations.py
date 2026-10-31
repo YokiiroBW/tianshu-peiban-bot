@@ -260,3 +260,7 @@ CLIENT_ID_OPERATIONS = {
         }
     ),
 }
+
+from .projects.catalog import READ_SCHEMAS as PROJECT_READ_SCHEMAS
+
+READ_OPERATIONS["projects"] = frozenset(PROJECT_READ_SCHEMAS)

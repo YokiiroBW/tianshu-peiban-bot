@@ -163,6 +163,7 @@ class Capabilities:
         expression,
         result_events=None,
         authorize_actor=None,
+        authorize_conversation=None,
         actor_directory=None,
         worker=None,
         artifacts=None,
@@ -240,6 +241,18 @@ class Capabilities:
         from .media.books.reading import ReadingAccess
 
         self.reading = ReadingAccess(None, authority, sources)
+        from .projects.service import Projects
+
+        self.projects = Projects(
+            runtime,
+            settings.get("projects", {}),
+            authority=authority,
+            sources=sources,
+            artifacts=self.artifacts,
+            local=self.local,
+            catalog=self.catalog,
+            authorize_conversation=authorize_conversation,
+        )
         self.prepared = False
         self.initialized = False
         self.media = self.plugins = self.content = self.infrastructure = None
@@ -313,6 +326,7 @@ class Capabilities:
             content_discovery=self.content.discovery,
             comic_files=ComicFileWorkers.from_settings(settings),
         )
+        self.projects.bind_content(self.content)
         self.plugins = Plugins(
             self.plugin_host,
             self.catalog,
@@ -559,6 +573,8 @@ class Capabilities:
                 return await self.catalog_configuration.save_source(context, clean)
             if operation == "catalog/sources.refresh":
                 return await self.catalog_configuration.refresh(context, clean, action, attempt)
+        if domain == "projects":
+            return await self.projects.read(operation, context, clean)
         if domain == "resources":
             if operation == "archive/view":
                 return await self.archive.view(context)
@@ -794,7 +810,9 @@ class Capabilities:
     async def withdraw_sources(self, connection, source_refs, reason="source_revoked"):
         from .withdrawal import withdraw
 
-        return await withdraw(self, connection, source_refs, reason)
+        value = await withdraw(self, connection, source_refs, reason)
+        await self.projects.withdraw(connection, source_refs, reason)
+        return value
 
     async def close(self):
         # Cleanup also covers a prepared composition or partially failed initialize.

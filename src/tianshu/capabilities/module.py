@@ -16,6 +16,7 @@ def build_module(
     expression=None,
     result_events=None,
     authorize_actor=None,
+    authorize_conversation=None,
     actor_directory=None,
     worker=None,
     artifacts=None,
@@ -30,6 +31,7 @@ def build_module(
         expression=expression,
         result_events=result_events,
         authorize_actor=authorize_actor,
+        authorize_conversation=authorize_conversation,
         actor_directory=actor_directory,
         worker=worker,
         artifacts=artifacts,
@@ -59,6 +61,13 @@ def build_module(
             Migration(
                 "capabilities-0001",
                 Path(__file__).with_name("schema.sql").read_text(encoding="utf-8"),
+            ),
+            Migration(
+                "capabilities-projects-0001",
+                Path(__file__)
+                .with_name("projects")
+                .joinpath("schema.sql")
+                .read_text(encoding="utf-8"),
             ),
         ),
     )

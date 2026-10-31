@@ -1,6 +1,7 @@
 """Explicit registry of managed project roots, scan directories and checkouts."""
 
 from pathlib import Path
+from copy import deepcopy
 from tianshu.runtime.serialization import wire
 from ..contracts import canonical, require
 from .primitives import text, strings, integer
@@ -19,7 +20,7 @@ class Registry:
         async with self.store.database.transaction(read_only=True) as conn:
             rows = await (
                 await conn.execute(
-                    "SELECT project_id,label,revision,content_revision,enabled FROM capability_projects.projects WHERE actor_id=%s AND scope_ids<@%s AND (%s::text IS NULL OR project_id>%s) ORDER BY project_id LIMIT %s",
+                    "SELECT project_id,conversation_id,label,revision,content_revision,enabled FROM capability_projects.projects WHERE actor_id=%s AND scope_ids<@%s AND (%s::text IS NULL OR project_id>%s) ORDER BY project_id LIMIT %s",
                     (context.actor_id, list(context.scope_ids), cursor, cursor, limit + 1),
                 )
             ).fetchall()
@@ -83,8 +84,9 @@ class Registry:
         return str(root), directories, urls, entries
 
     async def save(self, action):
-        context, body = action.context, dict(action.arguments)
+        context, body = action.context, deepcopy(dict(action.arguments))
         require(context.actor_id is not None, "project_actor_required", 400)
+        require(context.conversation_id is not None, "project_scene_required", 400)
         root, directories, urls, worktrees = await self.local(self.configuration, body)
         identifier = text(body.get("project_id"), 128)
         expected = integer(body.get("expected_revision"), 0)
@@ -109,12 +111,13 @@ class Registry:
                 )
             row = await (
                 await conn.execute(
-                    "INSERT INTO capability_projects.projects(project_id,actor_id,scope_ids,owner_id,label,root,directories,allowed_urls,worktrees,enabled,revision,last_action_id) VALUES(%s,%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb,%s::jsonb,%s,%s,%s) ON CONFLICT(project_id) DO UPDATE SET label=excluded.label,root=excluded.root,directories=excluded.directories,allowed_urls=excluded.allowed_urls,worktrees=excluded.worktrees,enabled=excluded.enabled,revision=excluded.revision,last_action_id=excluded.last_action_id,updated_at=now() RETURNING *",
+                    "INSERT INTO capability_projects.projects(project_id,actor_id,scope_ids,owner_id,conversation_id,label,root,directories,allowed_urls,worktrees,enabled,revision,last_action_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb,%s::jsonb,%s,%s,%s) ON CONFLICT(project_id) DO UPDATE SET label=excluded.label,root=excluded.root,directories=excluded.directories,allowed_urls=excluded.allowed_urls,worktrees=excluded.worktrees,enabled=excluded.enabled,revision=excluded.revision,last_action_id=excluded.last_action_id,updated_at=now() RETURNING *",
                     (
                         identifier,
                         context.actor_id,
                         list(context.scope_ids),
                         context.principal_id,
+                        context.conversation_id,
                         label,
                         root,
                         canonical(directories),
@@ -126,4 +129,8 @@ class Registry:
                     ),
                 )
             ).fetchone()
+            await conn.execute(
+                "INSERT INTO capability_projects.registry_versions VALUES(%s,%s,%s::jsonb,%s)",
+                (identifier, row["revision"], canonical(wire(row)), action.action_id),
+            )
         return row

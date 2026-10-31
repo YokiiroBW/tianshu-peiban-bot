@@ -1,7 +1,7 @@
 CREATE SCHEMA IF NOT EXISTS capability_projects;
 CREATE TABLE IF NOT EXISTS capability_projects.projects (
  project_id text PRIMARY KEY, actor_id text NOT NULL, scope_ids text[] NOT NULL,
- owner_id text NOT NULL, label text NOT NULL, root text NOT NULL,
+ owner_id text NOT NULL, conversation_id text NOT NULL, label text NOT NULL, root text NOT NULL,
  directories jsonb NOT NULL DEFAULT '[]', allowed_urls jsonb NOT NULL DEFAULT '[]',
  worktrees jsonb NOT NULL DEFAULT '[]', enabled boolean NOT NULL DEFAULT true,
  revision bigint NOT NULL, content_revision bigint NOT NULL DEFAULT 0, last_action_id text NOT NULL, updated_at timestamptz NOT NULL DEFAULT now()
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS capability_projects.document_versions (
 CREATE TABLE IF NOT EXISTS capability_projects.directory_plans (
  plan_id text PRIMARY KEY, project_id text NOT NULL REFERENCES capability_projects.projects(project_id),
  principal_id text NOT NULL, directory text NOT NULL, project_revision bigint NOT NULL,
- manifest jsonb NOT NULL, sha256 text NOT NULL, coverage jsonb NOT NULL,
+ manifest jsonb NOT NULL, sha256 text NOT NULL, coverage jsonb NOT NULL, result jsonb NOT NULL DEFAULT '{}',
  created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS capability_projects.imports (
@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS capability_projects.experiences (
 CREATE INDEX IF NOT EXISTS experiences_actor_page ON capability_projects.experiences(actor_id,experience_id);
 CREATE TABLE IF NOT EXISTS capability_projects.declared_states (
  project_id text NOT NULL REFERENCES capability_projects.projects(project_id), revision bigint NOT NULL,
- payload jsonb NOT NULL, source_refs jsonb NOT NULL, evidence jsonb NOT NULL,
+ payload jsonb NOT NULL, source_refs jsonb NOT NULL, evidence jsonb NOT NULL, state text NOT NULL DEFAULT 'active',
  action_id text NOT NULL, observed_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(project_id,revision)
 );
 CREATE TABLE IF NOT EXISTS capability_projects.continuations (
@@ -73,3 +73,20 @@ CREATE TABLE IF NOT EXISTS capability_projects.continuations (
  payload jsonb NOT NULL, source_refs jsonb NOT NULL, sha256 text NOT NULL,
  observed_at timestamptz NOT NULL DEFAULT now(), expires_at timestamptz NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS capability_projects.experience_versions (
+ experience_id text NOT NULL REFERENCES capability_projects.experiences(experience_id), revision bigint NOT NULL,
+ payload jsonb NOT NULL, evidence jsonb NOT NULL, source_refs jsonb NOT NULL, disclosure_ref jsonb,
+ state text NOT NULL, action_id text NOT NULL, observed_at timestamptz NOT NULL DEFAULT now(),
+ PRIMARY KEY(experience_id,revision)
+);
+
+CREATE TABLE IF NOT EXISTS capability_projects.registry_versions (
+ project_id text NOT NULL REFERENCES capability_projects.projects(project_id),revision bigint NOT NULL,
+ payload jsonb NOT NULL, action_id text NOT NULL, PRIMARY KEY(project_id,revision)
+);
+CREATE INDEX IF NOT EXISTS project_action_registry ON capability_projects.registry_versions(action_id);
+CREATE INDEX IF NOT EXISTS project_action_documents ON capability_projects.document_versions(action_id);
+CREATE INDEX IF NOT EXISTS project_action_notes ON capability_projects.note_versions(action_id);
+CREATE INDEX IF NOT EXISTS project_action_lessons ON capability_projects.lesson_versions(action_id);
+CREATE INDEX IF NOT EXISTS project_action_experience ON capability_projects.experience_versions(action_id);

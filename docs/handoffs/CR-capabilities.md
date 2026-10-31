@@ -217,3 +217,16 @@ Models设置消费唯一Models管理API：原生供应商/只写密钥、路由/
 Images新增只读workflows.inspect({graph})，候选来自唯一Workflow.EDITABLE及真实字面量规则，不执行/保存图；outfit_id传正式Life.scene仅冻结本次衣柜，不改生活权威。协议新增sender_display_name传真实昵称，live observation eligibility只在非归档/非旧revision/非重复准入且reply_owner=tianshu时为true；B仍核真实active策略/Contacts与Identity权限。
 
 以上仅已编写源码、定向故障用例与格式整理/完整diff自查。未执行tests/build/typecheck/浏览器/付费模型/真实渠道。Projects/Knowledge仍在独立提交实施，不能据此宣称本轮全部完成。
+
+
+## Projects/Knowledge后端主体（implemented_not_tested，UI仍实施）
+
+统一src/tianshu/capabilities/projects，公开API见其API.md；成熟文件安全读取、Git事实、PDF/docx/图片/字幕/音视频范围解码复用冻结memory源码中的有效算法，没有旧Core/项目令牌/旧SQL适配/外部产品运行依赖。项目根仅由capabilities.projects.allowed_roots管理，显式登记实际conversation_id、目录、URL与worktree。build_module新增authorize_conversation，根注入Identity.authorize_conversation；实际项目场景重派生保原权限上界，文件/网络/解码/Git不持业务PG连接。唯一Migration capabilities-projects-0001已在capabilities.module正式注册，根只装配该schema资源。
+
+目录预览只读文件并保存不可变plan，不导入、不自动扫root；确认只导入plan选中文件，重核实际hash与expected_version，缺失文件仅显式tombstones移除索引，不删外部文件。imports业务进度以原Action记录，未知恢复只查原业务版本/进度，不盲重放。原件和规范正文只存在Sources/FileStore；项目PG仅保存版本、语义单元范围和完整SourceRef。目录全量keyset分页，读取校验当前版本/实际file或URL hash；原件canonical source MediaRef可走既有授权Range出口。字幕/音视频给实际范围/采样/缺口，不宣称模型分析完成。
+
+研究笔记保留问题、来源说法、推断、开放问题、显式decision+basis，typed ReadUnitRef/NoteVersionRef同项目逐层复核，拒循环/旧版本；修订、撤回历史CAS。lesson保trigger/symptom/cause/correction/verification/scope/完整证据，retire追加版本。跨项目经验需至少两不同实际授权项目、明确projects.write+memory.share，以Sources.disclose独立公开摘要；私有引用不向只读公共摘要的读者展开。撤回先同事务Sources.retract_publication再域CAS，源→排序project→entity锁序；Source精确版本/片段失效清关联内容/素材/缓存而保元数据身份，共用FileStore字节不删。
+
+续作包把实际Git branch/head/dirty/≤16注册文件/≤8提交事实、索引not_checked与人工声明分开；Git只固定只读命令，关闭helpers与可写行为，不执行文档/声明中的shell。声明verification绑定当次实际checkout但标not_executed_here；原pack按原身份/来源/版本/实际checkout再核，不换新pack伪称旧包有效。默认只读CLI/MCP复用当前Identity Cookie+CSRF和同一HTTP，写入需显式启用且服务端仍按Catalog/Actions原权限处理；官方FastMCP依赖由A唯一manifest/lock处理。
+
+定向用例仅编写，源码只做formatter/AST与diff自查；未运行tests/build/typecheck/浏览器/真实目录Git/真实URL/Source-PG集成或账户。下一步仍为本轮knowledge/projects UI实际表单与读取流程，完成后root统一CR19。

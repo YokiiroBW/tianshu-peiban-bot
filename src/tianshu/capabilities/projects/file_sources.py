@@ -27,6 +27,22 @@ SUFFIXES = {
     ".h",
     ".cpp",
     ".sql",
+    ".pdf",
+    ".docx",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".webp",
+    ".gif",
+    ".mp4",
+    ".webm",
+    ".mov",
+    ".wav",
+    ".mp3",
+    ".ogg",
+    ".m4a",
+    ".vtt",
+    ".srt",
 }
 DENIED = {
     "node_modules",
@@ -60,11 +76,11 @@ def file_path(project, locator):
     return target
 
 
-def read_file(project, locator):
+def read_file(project, locator, maximum=MAX_BYTES):
     target = file_path(project, locator)
     with target.open("rb") as stream:
         before = os.fstat(stream.fileno())
-        raw = stream.read(MAX_BYTES + 1)
+        raw = stream.read(maximum + 1)
         after = os.fstat(stream.fileno())
     current_target = file_path(project, locator)
     current = current_target.stat()
@@ -81,7 +97,7 @@ def read_file(project, locator):
         "source_changed",
         409,
     )
-    require(len(raw) <= MAX_BYTES, "source_too_large", 413)
+    require(len(raw) <= maximum, "source_too_large", 413)
     return raw, "text/html" if target.suffix.lower() in {".html", ".htm"} else "text/plain"
 
 

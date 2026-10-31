@@ -4,7 +4,7 @@ import base64
 import json
 from tianshu.runtime.serialization import wire
 from tianshu.types import Page, Coverage
-from ..contracts import Fault, canonical, digest, require
+from ..contracts import Fault, canonical, require
 from ..withdrawal import depend
 from .primitives import refs
 
