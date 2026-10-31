@@ -101,10 +101,7 @@ function AppShell() {
   const section = route?.section ?? 0;
   const account = authRoute(hash);
   const accountTitle = hash.startsWith("#/setup") ? "首次设置" : "登录";
-  const setupNeeded =
-    auth.session?.onboarding?.state === "create_admin" ||
-    (auth.session?.authenticated &&
-      auth.session.onboarding?.state === "claim_admin");
+  const setupNeeded = auth.session?.initialized === false;
   useEffect(() => {
     if (auth.loading || auth.error || !auth.session) return;
     if (setupNeeded && !hash.startsWith("#/setup")) {

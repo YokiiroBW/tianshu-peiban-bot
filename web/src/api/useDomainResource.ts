@@ -76,7 +76,7 @@ export function useDomainResource<T>(
   const requestKey = `${csrf}:${path}:${key}`;
   const latest = useRef({ data, pollWhile });
   latest.current = { data, pollWhile };
-  const refresh = useCallback(async () => {
+  const reload = useCallback(async (): Promise<T | undefined> => {
     current.current?.abort();
     if (!csrf || !enabled) return;
     const controller = new AbortController();
@@ -95,6 +95,7 @@ export function useDomainResource<T>(
         setData(answer);
         setDataKey(requestKey);
         setAccessLost(false);
+        return answer;
       }
     } catch (cause) {
       if (!controller.signal.aborted && mark === generation.current) {
@@ -118,6 +119,9 @@ export function useDomainResource<T>(
         setLoading(false);
     }
   }, [path, key, csrf, enabled, requestKey]);
+  const refresh = useCallback(async (): Promise<void> => {
+    await reload();
+  }, [reload]);
   useEffect(() => {
     ++generation.current;
     setData(null);
@@ -148,6 +152,7 @@ export function useDomainResource<T>(
     error,
     loading,
     refresh,
+    reload,
     accessLost,
   };
 }

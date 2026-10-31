@@ -370,12 +370,12 @@ async def test_reviewed_project_evidence_revokes_without_crossing_private_projec
         with pytest.raises(AppError):
             await core.sources.read(alice, source, {})
 
-        invalid_note = await read(
-            caps, alice, "notes/get", {"project_id": "alice-project", "note_id": note_id}
-        )
-        assert invalid_note["current"] is False
-        assert invalid_note["payload"] == {}
-        assert invalid_note["source_refs"] == []
+        with pytest.raises(AppError) as unavailable:
+            await read(
+                caps, alice, "notes/get", {"project_id": "alice-project", "note_id": note_id}
+            )
+        assert unavailable.value.status == 410
+        assert unavailable.value.code == "note_source_unavailable"
         stale_write = await execute(
             caps, alice, "notes/save",
             {"project_id": "alice-project", "note": note, "expected_revision": 0},

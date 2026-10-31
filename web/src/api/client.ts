@@ -142,7 +142,7 @@ export function apiRead<T>(path: string, body: object, csrf: string, signal: Abo
   return apiJson<T>(path, { body, csrf, signal, kind: "read" });
 }
 
-export function commandInput(revision: number | null = null, requestId = crypto.randomUUID()): CommandInput {
+export function commandInput(revision: number | null = null, requestId: string = crypto.randomUUID()): CommandInput {
   return { client_request_id: requestId, expected_revision: revision };
 }
 
