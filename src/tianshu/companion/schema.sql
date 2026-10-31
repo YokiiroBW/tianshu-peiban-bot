@@ -40,6 +40,7 @@ CREATE TABLE companion.affect_regulation (
 CREATE TABLE companion.organize_state (
     actor_id text NOT NULL, scope_key text NOT NULL, cursor text, revision bigint NOT NULL DEFAULT 1,
     watermark text NOT NULL DEFAULT '', reviewed_watermark text NOT NULL DEFAULT '', context jsonb,
+    generation_revision bigint NOT NULL DEFAULT 0, last_error text,
     last_reviewed_at timestamptz, last_changed_at timestamptz,
     updated_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(actor_id,scope_key)
 );

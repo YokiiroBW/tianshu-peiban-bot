@@ -1,7 +1,8 @@
 """Frozen requests for authored output and autonomous decisions.
 
-This owns the decision to submit once. Models remains the sole execution/result
-ledger. A claimed request is only observed after interruption, never resubmitted.
+This owns the frozen intent. Models remains the sole execution/result ledger.
+A registered attempt is only observed; authoritative absence permits original-ID
+first admission before the original deadline.
 """
 from datetime import UTC, datetime
 from uuid import NAMESPACE_URL, uuid5
@@ -20,7 +21,7 @@ class GenerationRequests:
         self.database, self.sources, self.models = database, sources, models
 
     async def run(self, material_key, request, *, guard=None):
-        """Persist before submission; repeated calls only observe the original ID."""
+        """Persist before submission; repeated calls preserve the original ID and budget."""
         context = request.context
         async with self.database.transaction() as connection:
             await connection.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s,0))", ("generation:"+material_key,))
@@ -39,18 +40,28 @@ class GenerationRequests:
                 "SELECT * FROM conversation.generation_requests WHERE material_key=%s FOR UPDATE", (material_key,))).fetchone()
             if row["context_key"] != self.context_key(context):
                 raise AppError("generation_context_changed", status=409)
+            if row["state"] == "expired":
+                raise AppError("generation_request_expired",status=409)
             if row["state"] == "invalidated":
                 raise AppError("source_unavailable", status=409)
             submit = row["state"] == "prepared"
             if submit:
                 await connection.execute(
                     "UPDATE conversation.generation_requests SET state='claimed',claimed_at=now() WHERE material_key=%s", (material_key,))
-        if not submit:
-            return await self.models.result(row["attempt_id"], context=context)
         frozen = request_from_wire(row["request"])
+        if not submit:
+            result = await self.models.result(row["attempt_id"], context=context)
+            if result is not None:
+                return result
+            # A successful None is the Broker's authoritative absence result.
+            # Same frozen payload/attempt admission is atomic even if an original
+            # RPC is still preparing or arrives late. Observation errors propagate.
         if frozen.budget.deadline_at <= datetime.now(UTC):
-            # No provider submission occurred. An explicit new intent may start a
-            # new generation; automatic recovery cannot silently renew a budget.
+            actual = await self.models.result(row["attempt_id"], context=context)
+            if actual is not None:
+                return actual
+            async with self.database.transaction() as connection:
+                await connection.execute("UPDATE conversation.generation_requests SET state='expired' WHERE material_key=%s AND state='claimed'",(material_key,))
             raise AppError("generation_request_expired", status=409)
         return await self.models.generate(frozen)
 

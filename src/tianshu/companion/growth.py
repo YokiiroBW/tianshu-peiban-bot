@@ -65,13 +65,20 @@ class GrowthService:
             contributions=(ContextContribution("new_experiences", json.dumps(material, ensure_ascii=False), refs, context.scope_ids, 80, True, str(expected_revision)),))
         material_key = "organize:" + signature({"context": self.generations.context_key(context),
             "episodes": [(item.episode_id,item.revision) for item in page.items],
-            "persona": (actor["persona_id"],actor["persona_revision"])})
+            "persona": (actor["persona_id"],actor["persona_revision"]),"generation_revision":state["generation_revision"]})
         async def current_material(connection):
             current = await (await connection.execute("SELECT revision,cursor,reviewed_watermark,watermark FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE",(actor_id,scope_key))).fetchone()
             return current and current["revision"]==expected_revision and current["cursor"]==state["cursor"] and current["reviewed_watermark"]!=current["watermark"]
-        result = await self.generations.run(material_key, ModelRequest(material_key, attempt_for(material_key), "reflect", ServiceClass.ELASTIC,
-            context, budget, tuple(pack.messages), system=pack.system, max_output_tokens=3000,
-            estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs)),guard=current_material)
+        try:
+            result = await self.generations.run(material_key, ModelRequest(material_key, attempt_for(material_key), "reflect", ServiceClass.ELASTIC,
+                context, budget, tuple(pack.messages), system=pack.system, max_output_tokens=3000,
+                estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs)),guard=current_material)
+        except AppError as error:
+            if error.code!="generation_request_expired":
+                raise
+            async with self.companion.database.transaction() as connection:
+                await connection.execute("UPDATE companion.organize_state SET last_error=%s WHERE actor_id=%s AND scope_key=%s AND revision=%s",(error.code,actor_id,scope_key,expected_revision))
+            return
         if result is None or result.receipt.status != "succeeded":
             if result is not None and result.receipt.status in {"queued", "running"}:
                 async with self.companion.database.transaction() as connection:
@@ -140,6 +147,23 @@ class GrowthService:
         if page.next_cursor:
             await self.changed(context, f"continuation:{state['watermark']}:{page.next_cursor}")
 
+    async def request_review(self,context,body):
+        await self.companion.identity.check(context)
+        scope_key=signature(sorted(context.scope_ids))
+        async def apply(connection):
+            await self.companion.validate_persistence(connection,context)
+            row=await (await connection.execute("SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE",(context.actor_id,scope_key))).fetchone()
+            if not row:
+                raise AppError("reflection_material_not_found",status=404)
+            revision(row,body.get("expected_revision"))
+            if row["last_error"]!="generation_request_expired":
+                raise AppError("reflection_original_attempt_unresolved",status=409)
+            current=row["revision"]+1
+            await connection.execute("UPDATE companion.organize_state SET generation_revision=generation_revision+1,revision=%s,watermark=%s,last_error=NULL,context=%s WHERE actor_id=%s AND scope_key=%s",(current,"manual:"+body["client_request_id"],document(context),context.actor_id,scope_key))
+            await self.jobs.enqueue(connection,JobSpec("companion.organize",f"organize-explicit:{body['client_request_id']}",{"actor_id":context.actor_id,"scope_key":scope_key,"expected_revision":current},subject_id=context.actor_id))
+            return CommandResult(body["client_request_id"],{"state":"queued"},current)
+        return await self.companion.commands.execute(context,"companion.growth.review",body["client_request_id"],signature(body),apply)
+
     async def recover(self):
         async with self.companion.database.transaction() as connection:
             rows = await (await connection.execute("SELECT actor_id,scope_key,revision FROM companion.organize_state WHERE reviewed_watermark<>watermark")).fetchall()
@@ -149,7 +173,7 @@ class GrowthService:
 
     async def _reviewed(self, actor_id, scope_key, expected_revision, cursor, changed):
         async with self.companion.database.transaction() as connection:
-            await connection.execute("UPDATE companion.organize_state SET cursor=%s,reviewed_watermark=watermark,last_reviewed_at=now(),last_changed_at=CASE WHEN %s THEN now() ELSE last_changed_at END WHERE actor_id=%s AND scope_key=%s AND revision=%s", (cursor, changed, actor_id, scope_key, expected_revision))
+            await connection.execute("UPDATE companion.organize_state SET cursor=%s,reviewed_watermark=watermark,last_error=NULL,last_reviewed_at=now(),last_changed_at=CASE WHEN %s THEN now() ELSE last_changed_at END WHERE actor_id=%s AND scope_key=%s AND revision=%s", (cursor, changed, actor_id, scope_key, expected_revision))
 
     async def view(self, context, *, cursor=None, limit=40):
         await self.companion.identity.check(context)
@@ -160,14 +184,16 @@ class GrowthService:
                 "AND (%s::text IS NULL OR id>%s) ORDER BY id LIMIT %s",
                 (context.actor_id, context.person_id, list(context.scope_ids), cursor, cursor, limit+1))).fetchall()
         permitted = await self.companion.identity.check_many(context, tuple(source_refs(row["source_refs"]) for row in rows[:limit]))
-        items = [{**row, "occurred_at": row["created_at"], "evidence": row["source_refs"], "can_modify": True} for row, valid in zip(rows[:limit], permitted, strict=True) if valid]
+        items = [{**row, "occurred_at": row["created_at"], "evidence": row["source_refs"], "can_modify": bool(context.permissions & {"*","companion.manage"})} for row, valid in zip(rows[:limit], permitted, strict=True) if valid]
         projection = await self.companion.memory.projection(context, context.person_id)
         notes = [{"id": item.proposal_id, "revision": item.revision, "kind": "reflection", "title": item.content[:60],
                   "content": item.content, "state": "active", "occurred_at": item.occurred_at,
                   "evidence": item.source_refs, "source_refs": item.source_refs, "episode_ids": item.episode_ids,
                   "conditions": item.conditions, "counterexamples": item.counterexamples, "can_modify": False}
                  for item in projection["reflections"] if item.kind == "reflection"]
-        return {"items": items, "next_cursor": rows[limit-1]["id"] if len(rows)>limit else None,
+        async with self.companion.database.transaction(read_only=True) as connection:
+            review=await (await connection.execute("SELECT revision,last_error,last_reviewed_at FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s",(context.actor_id,signature(sorted(context.scope_ids))))).fetchone()
+        return {"can_review":bool(context.permissions & {"*","companion.manage"}),"review":review,"items": items, "next_cursor": rows[limit-1]["id"] if len(rows)>limit else None,
                 "reflections": notes, "missing": [] if all(permitted) else ["source_unavailable"],
                 "evidence": await self.companion.memory.style_view(context, context.person_id)}
 

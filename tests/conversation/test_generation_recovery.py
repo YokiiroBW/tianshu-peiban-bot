@@ -75,3 +75,21 @@ async def test_withdrawal_clears_frozen_generation_text_without_resubmission(dat
     with pytest.raises(AppError,match="source_unavailable"):
         await generations.run("private-material",request("private-material",context))
     assert len(models.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_confirmed_absence_registers_the_frozen_original_request(database):
+    context = await prepare(database)
+    class BeforeAdmission(Models):
+        async def result(self, attempt_id, *, context):
+            return None
+
+    models = BeforeAdmission()
+    generations = GenerationRequests(database,Sources(),models)
+    for _ in range(2):
+        with pytest.raises(TimeoutError):
+            await generations.run("before-admission",request("before-admission",context))
+    assert len(models.calls) == 2
+    assert len({item.attempt_id for item in models.calls}) == 1
+    assert len({item.budget.trace_id for item in models.calls}) == 1
+    assert len({item.budget.deadline_at for item in models.calls}) == 1

@@ -2,7 +2,7 @@ CREATE SCHEMA IF NOT EXISTS conversation;
 CREATE TABLE conversation.generation_requests (
     material_key text PRIMARY KEY, attempt_id text NOT NULL UNIQUE,
     context_key text NOT NULL, request jsonb, source_refs jsonb NOT NULL,
-    state text NOT NULL DEFAULT 'prepared' CHECK(state IN ('prepared','claimed','invalidated')),
+    state text NOT NULL DEFAULT 'prepared' CHECK(state IN ('prepared','claimed','invalidated','expired')),
     created_at timestamptz NOT NULL DEFAULT now(), claimed_at timestamptz
 );
 CREATE TABLE conversation.turns (

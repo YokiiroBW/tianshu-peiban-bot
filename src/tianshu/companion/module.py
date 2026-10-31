@@ -35,6 +35,7 @@ def create_module(service, growth, identity):
         route("personas/history", lambda ctx, body: service.persona_history(ctx, body.get("persona_id"), cursor=body.get("cursor"), limit=body.get("limit", 40)), actor=False)
         route("personas/save", service.save_persona, write=True, actor=False)
         route("affect/view", lambda ctx, _body: service.affect(ctx))
+        route("growth/review",growth.request_review,write=True)
         route("growth/view", lambda ctx, body: growth.view(ctx, cursor=body.get("cursor"), limit=body.get("limit", 40)))
         route("growth/revoke", lambda ctx, body: growth.set_state(ctx, body, "revoked"), write=True)
         route("growth/restore", lambda ctx, body: growth.set_state(ctx, body, "active"), write=True)

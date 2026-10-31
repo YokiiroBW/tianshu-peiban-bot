@@ -78,6 +78,8 @@ class GenerationControl:
             state = "cancelling" if row["generation_cancel_requested"] else "generating"
         elif state not in {"failed","cancelled"}:
             state = "unknown"
+        if result is None and frozen is not None and frozen.budget.deadline_at<=datetime.now(UTC):
+            state="cancelled" if row["generation_cancel_requested"] else "failed"
         table = "life.chapters" if kind=="chapter" else "life.diaries"
         async with self.life.database.transaction() as connection:
             await self.life.validate_persistence(connection,context)
@@ -96,4 +98,4 @@ class GenerationControl:
                         payload={"chapter_id" if kind=="chapter" else "diary_id":row["id"],"generation_id":row["generation_id"]}
                     else:
                         task,payload="life.generation_control",{"kind":kind,"item_id":row["id"],"generation_id":row["generation_id"],"context":row[context_column],"operation":"cancel" if row["state"]=="cancelling" else "reconcile"}
-                    await self.life.jobs.enqueue(connection,JobSpec(task,f"generation-recover:{kind}:{row['generation_id']}:{datetime.now(UTC).isoformat()}",payload,ServiceClass.INTERACTIVE,subject_id=row.get("actor_id"))))
+                    await self.life.jobs.enqueue(connection,JobSpec(task,f"generation-recover:{kind}:{row['generation_id']}:{datetime.now(UTC).isoformat()}",payload,ServiceClass.INTERACTIVE,subject_id=row.get("actor_id")))

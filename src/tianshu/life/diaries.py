@@ -183,6 +183,8 @@ class DiaryService:
             if result.receipt.status != "succeeded" or not content.strip():
                 raise AppError(result.receipt.error_code or "diary_generation_failed")
         except BaseException as error:
+            if getattr(error,"code",None)=="generation_request_expired":
+                observed_state="failed"
             async with self.life.database.transaction() as connection:
                 await connection.execute("UPDATE life.diaries SET state=%s,reason=%s,revision=revision+1 WHERE id=%s AND generation_id=%s AND state='generating'", ((observed_state if observed_state in {"failed","cancelled"} else "failed" if observed_state=="succeeded" else "unknown" if dispatched else "failed"), getattr(error, "code", "generation_outcome_unknown"), diary_id, generation_id))
             raise

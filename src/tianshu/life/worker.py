@@ -97,10 +97,16 @@ class LifeWorker:
         async def current_material(connection):
             current=await (await connection.execute("SELECT revision,planned_watermark,change_watermark FROM life.plan_watermarks WHERE actor_id=%s FOR UPDATE",(actor_id,))).fetchone()
             return current and current["revision"]==revision and current["planned_watermark"]!=current["change_watermark"]
-        result = await self.generations.run(material_key, ModelRequest(
-            material_key, attempt_for(material_key), "life.plan", ServiceClass.ELASTIC,
-            context, budget, tuple(pack.messages), system=pack.system, tools=tuple(pack.tools),
-            estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs), max_output_tokens=1500),guard=current_material)
+        try:
+            result = await self.generations.run(material_key, ModelRequest(
+                material_key, attempt_for(material_key), "life.plan", ServiceClass.ELASTIC,
+                context, budget, tuple(pack.messages), system=pack.system, tools=tuple(pack.tools),
+                estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs), max_output_tokens=1500),guard=current_material)
+        except AppError as error:
+            if error.code!="generation_request_expired":
+                raise
+            await self._planned(actor_id,revision,mark["change_watermark"],"original_planner_not_registered_before_deadline",model_consumed=True)
+            return
         if result is None or result.receipt.status != "succeeded":
             status = result.receipt.status if result else "unknown"
             async with self.life.database.transaction() as connection:
