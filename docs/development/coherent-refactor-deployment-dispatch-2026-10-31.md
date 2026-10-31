@@ -6,6 +6,7 @@
 
 - 本实现者继续拥有根后端 manifest/lock、入口、composition 与 migration 总注册；新增 `deploy/core/**`、必要的根 Docker 构建忽略文件、`tests/deployment/**` 与 `docs/handoffs/CR20-deployment.md`。
 - `web/**` 继续由 frontend 独占，不修改其源文件或锁。消费正式构建产物；SDK 和 channels 依赖由 capabilities 所有者提交。
+- 最终源码退出范围包括已被替代的 `packages/tianshu-storage`、`deploy/tianshu`、`deploy/observability`、`ops/resident_install`、`ops/resident_capacity`、`ops/recovery` 及只服务旧路径的用例/入口。先核对真实引用，将仍有效的日志、容量、恢复能力迁入新归属后删除旧实现；不只从镜像排除或挪入 legacy。独立产品、共享合同和协调历史文档不按目录名批量删除；原根脏树不在代理操作范围。
 - 冻结的 `application/deploy/single_container` 只用于复用有效监督、信号、媒体进程和容量保护知识；不把旧 BusinessHost、ThreadedExchange、五产品装配、旧迁移链带进新版。
 - 真实资源边界在 `coherent-refactor-cutover-boundaries-2026-10-31.json`。其中 candidates 不是可立即删除指令。实现者不 SSH、不读取真实凭据、不 build/pull、不停容器、不部署、不清理。
 
