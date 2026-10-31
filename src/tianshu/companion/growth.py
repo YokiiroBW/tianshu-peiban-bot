@@ -2,7 +2,6 @@
 from tianshu.sources.dependencies import unique_refs
 from datetime import UTC, datetime, timedelta
 import json
-from uuid import NAMESPACE_URL, uuid5
 
 from tianshu.models.types import ModelRequest
 from tianshu.runtime.api import CommandResult
@@ -11,15 +10,17 @@ from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.serialization import wire
 from tianshu.types import ContextContribution, RequestBudget, ServiceClass
 from tianshu.conversation.codec import context_from_record, document, signature, source_refs
-from tianshu.life.validation import revision, text
-from tianshu.life.writing import generated_text
+from tianshu.life.validation import revision
 from tianshu.conversation.generation import GenerationRequests, attempt_for
-from .types import AffectUpdate, ReflectionProposal
+from tianshu.conversation.context.assembly import ContextAssembler
+from .reflection_output import REVIEW_ERRORS, frozen_episodes, output_example, output_schema, prepare_reflections
 
 
 class GrowthService:
     def __init__(self, companion, jobs, models, assembler, *, on_projection_changed):
-        self.companion, self.jobs, self.models, self.assembler = companion, jobs, models, assembler
+        self.companion, self.jobs, self.models = companion, jobs, models
+        # This closed batch must not acquire unrelated optional memory as reflection evidence.
+        self.assembler = ContextAssembler(companion.identity, companion.memory, None, settings=assembler.settings)
         self.on_projection_changed = on_projection_changed
         self.generations = GenerationRequests(companion.database, companion.sources, models)
 
@@ -43,7 +44,7 @@ class GrowthService:
     async def organize(self, actor_id, scope_key, expected_revision):
         async with self.companion.database.transaction(read_only=True) as connection:
             state = await (await connection.execute("SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s", (actor_id, scope_key))).fetchone()
-        if not state or state["revision"] != expected_revision or state["reviewed_watermark"] == state["watermark"]:
+        if not state or state["revision"] != expected_revision or state["reviewed_watermark"] == state["watermark"] or state["last_error"] in REVIEW_ERRORS:
             return
         context = context_from_record(state["context"])
         await self.companion.identity.check(context)
@@ -55,10 +56,16 @@ class GrowthService:
         persona = await self.companion.persona(context, actor["persona_id"], actor["persona_revision"]) if actor["persona_id"] else None
         refs = unique_refs(tuple(ref for episode in page.items for ref in episode.source_refs))
         material = {"episodes": wire(page.items), "instruction":
-            "Reflect on actual new experiences. Return JSON {notes:[{kind:'reflection'|'interest'|'style',title,content,episode_ids,conditions,counterexamples,affect:null|{appraisal,valence,arousal,stress,social_need,confidence,goal_relevance,attribution,control}}]}. "
+            "Reflect on actual new experiences. Return only JSON matching output_schema; every declared note field is required. "
+            "conditions is an object with when and unless arrays of strings, never a list. counterexamples is a separate array of actual counterexamples, empty when none are known. "
+            "affect is null or the complete bounded numeric object in the schema. Do not invent affect to fill the field. "
+            "Use at most one note per kind and episode_ids set. "
+            "The example demonstrates format only; its prose is not experience evidence. "
             "No change is a valid result. Separate interpretation from observed fact. Cite only supplied episode IDs. "
             "Interests are the actor's experience, not copied user preferences. Habits are contextual and revisable; never rewrite authored identity or infer permissions. "
-            "Do not treat prior reflections/diaries as independent evidence for the described event."}
+            "Do not treat prior reflections/diaries as independent evidence for the described event.",
+            "output_schema": output_schema(item.episode_id for item in page.items),
+            "example": output_example(page.items[0].episode_id), "no_change_example": {"notes": []}}
         budget = RequestBudget(datetime.now(UTC)+timedelta(minutes=3))
         pack = await self.assembler.assemble(context, "reflect", "Review new experiences without forcing a change.", budget,
             persona_text=persona.prompt_text if persona else "", reserved_output_tokens=3000,
@@ -92,55 +99,45 @@ class GrowthService:
         generated_refs = frozen.source_refs
         await self.companion.identity.check(context, generated_refs)
         try:
-            notes = json.loads(generated_text(result))["notes"]
-        except (ValueError, KeyError, TypeError):
-            raise AppError("reflection_output_invalid") from None
-        if not isinstance(notes, list) or len(notes)>16:
-            raise AppError("reflection_output_invalid")
-        episodes = {episode.episode_id: episode for episode in page.items}
-        relationship = await self.companion.memory.relationship(context, context.person_id) if context.person_id else None
+            episodes = frozen_episodes(frozen)
+            prepared = prepare_reflections(result, context, episodes, generated_refs)
+        except AppError as error:
+            if error.code not in REVIEW_ERRORS:
+                raise
+            await self._rejected(actor_id, scope_key, expected_revision, error.code)
+            return {"state": "rejected", "error_code": error.code, "attempt_id": result.receipt.attempt_id}
+        permitted = await self.companion.identity.check_many(context, tuple(item.proposal.source_refs for item in prepared))
+        if not all(permitted):
+            raise AppError("source_unavailable", status=409)
+        relationship = (await self.companion.memory.relationship(context, context.person_id)
+                        if context.person_id and any(item.proposal.kind == "style" for item in prepared) else None)
         changed = False
-        for note in notes:
-            if not isinstance(note, dict) or note.get("kind") not in {"reflection", "interest", "style"}:
-                raise AppError("reflection_output_invalid")
-            supports = note.get("episode_ids", [])
-            if not supports or any(item not in episodes for item in supports):
-                raise AppError("reflection_support_invalid")
-            supports = tuple(sorted(set(supports)))
-            original_refs = unique_refs(generated_refs, tuple(ref for item in supports for ref in episodes[item].source_refs))
-            await self.companion.identity.check(context, original_refs)
-            proposal_id = str(uuid5(NAMESPACE_URL, f"reflection:{actor_id}:{note['kind']}:{':'.join(supports)}"))
-            content = text(note.get("content"), "主观记录", 10000)
-            title = text(note.get("title"), "记录标题", 500)
-            conditions, counterexamples = note.get("conditions", {}), note.get("counterexamples", [])
-            if not isinstance(conditions, dict) or not isinstance(counterexamples, list) or any(not isinstance(item, str) for item in counterexamples):
-                raise AppError("reflection_conditions_invalid")
-            proposal = ReflectionProposal(proposal_id, actor_id, supports, content, note["kind"], datetime.now(UTC),
-                original_refs, context.scope_ids, conditions=conditions, counterexamples=tuple(counterexamples))
-            await self.companion.memory.record_reflection(context, proposal)
+        for item in prepared:
+            proposal = item.proposal
+            try:
+                await self.companion.memory.record_reflection(context, proposal)
+            except AppError as error:
+                if error.code not in {"reflection_not_original_evidence", "reflection_original_evidence_required"}:
+                    raise
+                await self._rejected(actor_id, scope_key, expected_revision, "reflection_material_contract_invalid")
+                return {"state": "rejected", "error_code": "reflection_material_contract_invalid",
+                        "attempt_id": result.receipt.attempt_id}
             # This is a current expression projection, never a second fact ledger.
-            if note["kind"] in {"style", "interest"} and not (note["kind"] == "style" and relationship and relationship["frozen"]):
+            if proposal.kind in {"style", "interest"} and not (proposal.kind == "style" and relationship and relationship["frozen"]):
                 async with self.companion.database.transaction() as connection:
-                    await self.companion.validate_persistence(connection, context, original_refs)
+                    await self.companion.validate_persistence(connection, context, proposal.source_refs)
                     inserted = await (await connection.execute(
                         "INSERT INTO companion.style_rules(id,actor_id,person_id,kind,title,content,conditions,counterexamples,episode_ids,source_refs,scope_ids,state) "
                         "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'active') ON CONFLICT(id) DO UPDATE SET "
                         "title=excluded.title,content=excluded.content,conditions=excluded.conditions,counterexamples=excluded.counterexamples,"
                         "source_refs=excluded.source_refs,scope_ids=excluded.scope_ids,revision=companion.style_rules.revision+1,updated_at=now() "
                         "WHERE companion.style_rules.source_refs<>excluded.source_refs RETURNING id",
-                        (proposal_id, actor_id, context.person_id, note["kind"], title, content, document(conditions), document(counterexamples),
-                         list(supports), document(original_refs), list(context.scope_ids)))).fetchone()
+                        (proposal.proposal_id, actor_id, context.person_id, proposal.kind, item.title, proposal.content,
+                         document(proposal.conditions), document(proposal.counterexamples), list(proposal.episode_ids),
+                         document(proposal.source_refs), list(context.scope_ids)))).fetchone()
                     changed = changed or bool(inserted)
-            appraisal = note.get("affect")
-            if appraisal is not None:
-                if not isinstance(appraisal, dict):
-                    raise AppError("invalid_appraisal")
-                update = AffectUpdate(proposal_id, max(episodes[item].revision for item in supports),
-                    text(appraisal.get("appraisal"), "事件评价", 2000),
-                    *(float(appraisal.get(key, 0)) for key in ("valence", "arousal", "stress", "social_need", "confidence")),
-                    21600, max(episodes[item].occurred_at for item in supports), original_refs,
-                    goal_relevance=float(appraisal.get("goal_relevance", 0)), attribution=appraisal.get("attribution", "unknown"), control=float(appraisal.get("control", .5)))
-                await self.companion.apply_affect(context, update)
+            if item.affect is not None:
+                await self.companion.apply_affect(context, item.affect)
         await self._reviewed(actor_id, scope_key, expected_revision, page.watermark, changed)
         if changed:
             await self.on_projection_changed(context, f"growth:{scope_key}:{page.watermark}")
@@ -156,7 +153,7 @@ class GrowthService:
             if not row:
                 raise AppError("reflection_material_not_found",status=404)
             revision(row,body.get("expected_revision"))
-            if row["last_error"]!="generation_request_expired":
+            if row["last_error"] not in REVIEW_ERRORS:
                 raise AppError("reflection_original_attempt_unresolved",status=409)
             current=row["revision"]+1
             await connection.execute("UPDATE companion.organize_state SET generation_revision=generation_revision+1,revision=%s,watermark=%s,last_error=NULL,context=%s WHERE actor_id=%s AND scope_key=%s",(current,"manual:"+body["client_request_id"],document(context),context.actor_id,scope_key))
@@ -166,10 +163,18 @@ class GrowthService:
 
     async def recover(self):
         async with self.companion.database.transaction() as connection:
-            rows = await (await connection.execute("SELECT actor_id,scope_key,revision FROM companion.organize_state WHERE reviewed_watermark<>watermark")).fetchall()
+            rows = await (await connection.execute("SELECT actor_id,scope_key,revision FROM companion.organize_state WHERE reviewed_watermark<>watermark "
+                "AND (last_error IS NULL OR last_error<>ALL(%s))", (sorted(REVIEW_ERRORS),))).fetchall()
             for row in rows:
                 await self.jobs.enqueue(connection,JobSpec("companion.organize",f"organize-recover:{row['actor_id']}:{row['scope_key']}:{row['revision']}:{datetime.now(UTC).isoformat()}",
                     {"actor_id":row["actor_id"],"scope_key":row["scope_key"],"expected_revision":row["revision"]},subject_id=row["actor_id"]))
+
+    async def _rejected(self, actor_id, scope_key, expected_revision, code):
+        async with self.companion.database.transaction() as connection:
+            await connection.execute(
+                "UPDATE companion.organize_state SET last_error=%s,reviewed_watermark=watermark,last_reviewed_at=now() "
+                "WHERE actor_id=%s AND scope_key=%s AND revision=%s",
+                (code, actor_id, scope_key, expected_revision))
 
     async def _reviewed(self, actor_id, scope_key, expected_revision, cursor, changed):
         async with self.companion.database.transaction() as connection:
@@ -193,7 +198,7 @@ class GrowthService:
                  for item in projection["reflections"] if item.kind == "reflection"]
         async with self.companion.database.transaction(read_only=True) as connection:
             review=await (await connection.execute("SELECT revision,last_error,last_reviewed_at FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s",(context.actor_id,signature(sorted(context.scope_ids))))).fetchone()
-        return {"can_review":bool(context.permissions & {"*","companion.manage"}),"review":review,"items": items, "next_cursor": rows[limit-1]["id"] if len(rows)>limit else None,
+        return {"can_review":bool(context.permissions & {"*","companion.manage"}),"review":({**review,"can_request_review":review["last_error"] in REVIEW_ERRORS} if review else None),"items": items, "next_cursor": rows[limit-1]["id"] if len(rows)>limit else None,
                 "reflections": notes, "missing": [] if all(permitted) else ["source_unavailable"],
                 "evidence": await self.companion.memory.style_view(context, context.person_id)}
 

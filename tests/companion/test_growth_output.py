@@ -1,0 +1,258 @@
+"""Malformed terminal generations never partially write or restart themselves."""
+from dataclasses import replace
+from datetime import UTC, datetime
+from importlib.resources import files
+import json
+
+import pytest
+
+from tianshu.companion.growth import GrowthService
+from tianshu.companion.reflection_output import output_example
+from tianshu.companion.service import CompanionService
+from tianshu.conversation.codec import signature
+from tianshu.conversation.context.assembly import ContextAssembler
+from tianshu.memory.types import Episode, EpisodePage
+from tianshu.models.types import ModelPart, ModelReceipt, ModelResult
+from tianshu.runtime.commands import CommandStore
+from tianshu.runtime.errors import AppError
+from tianshu.runtime.migrations import Migration, migrate
+from tianshu.types import ContextContribution, Coverage, OriginKind, SourceRef, TrustedContext
+
+
+class Authority:
+    async def check(self, *_args):
+        pass
+
+    async def check_many(self, _context, groups):
+        return tuple(True for _ in groups)
+
+    async def validate_persistence(self, *_args):
+        return True
+
+
+class Jobs:
+    def __init__(self):
+        self.items = []
+
+    async def enqueue(self, _connection, spec):
+        self.items.append(spec)
+
+
+class Memory:
+    def __init__(self):
+        self.proposals = []
+        self.episode = Episode("episode", "input", 1, "actor", OriginKind.HUMAN, datetime.now(UTC),
+            "明确要求限定本轮回复范围", (SourceRef("original", 1),), ("private",), None, Coverage(True), 1, "e:1")
+        self.episodes = (self.episode,)
+
+    async def episodes_since(self, _context, _cursor, _limit):
+        return EpisodePage(self.episodes, None, Coverage(True), self.episodes[-1].cursor)
+
+    async def relationship(self, *_args):
+        return {"frozen": False}
+
+    async def record_reflection(self, _context, proposal):
+        self.proposals.append(proposal)
+
+    async def projection(self, *_args):
+        return {"reflections": []}
+
+    async def style_view(self, *_args):
+        return {"evidence": [], "counterexamples": [], "source_refs": [], "coverage": Coverage(True)}
+
+
+class Models:
+    status = "succeeded"
+
+    def __init__(self, *payloads):
+        self.payloads, self.calls, self.reads, self.results = payloads, [], [], {}
+
+    async def generate(self, request):
+        payload = self.payloads[len(self.calls)]
+        self.calls.append(request)
+        result = ModelResult((ModelPart("text", text=json.dumps(payload, ensure_ascii=False)),) if self.status == "succeeded" else (),
+            ModelReceipt(request.attempt_id, request.intent_id, self.status, "submitted" if self.status == "succeeded" else "unknown", "route", 1,
+                         "provider", "model", "openai.responses", "quota"))
+        self.results[request.attempt_id] = result
+        return result
+
+    async def result(self, attempt_id, *, context):
+        self.reads.append(attempt_id)
+        return self.results.get(attempt_id)
+
+
+async def prepare(database, models):
+    await migrate(database, (
+        Migration("0030_companion", files("tianshu.companion").joinpath("schema.sql").read_text()),
+        Migration("0032_conversation", files("tianshu.conversation").joinpath("schema.sql").read_text()),
+    ))
+    context = TrustedContext("author", "actor", "person", "conversation", ("private",), ("private",),
+        1, OriginKind.ACTOR, permissions=frozenset({"companion.manage"}))
+    authority, memory, jobs = Authority(), Memory(), Jobs()
+    companion = CompanionService(database, CommandStore(database), authority, memory,
+        actor_registry=None, actor_changed=None, sources=authority, actor_activated=None)
+    notifications = []
+
+    async def changed(*args):
+        notifications.append(args)
+
+    growth = GrowthService(companion, jobs, models, ContextAssembler(authority, None, None), on_projection_changed=changed)
+    async with database.transaction() as connection:
+        await connection.execute("INSERT INTO companion.actors(actor_id,name,enabled) VALUES ('actor','角色',true)")
+    await growth.changed(context, "new-experience")
+    return growth, memory, jobs, context, notifications
+
+
+async def state(database):
+    async with database.transaction(read_only=True) as connection:
+        return await (await connection.execute("SELECT * FROM companion.organize_state WHERE actor_id='actor'")).fetchone()
+
+
+def note(kind="reflection"):
+    value = output_example("episode")["notes"][0]
+    value["kind"] = kind
+    return value
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("invalid", ["observed_list", "late_affect"])
+async def test_whole_batch_rejects_before_memory_style_or_affect_writes(database, invalid):
+    first, second = note("style"), note("reflection")
+    first["affect"] = {"appraisal": "这次沟通很明确", "valence": 0.2, "arousal": 0.2, "stress": 0,
+        "social_need": 0.1, "confidence": 0.6, "goal_relevance": 0.1, "attribution": "situation", "control": 0.5}
+    if invalid == "observed_list":
+        # Actual failing model shape: conditions=list[str], counterexamples=list[str].
+        second["conditions"] = ["当多模态请求涉及内容判断，而材料只提供上传状态或元数据时"]
+        expected = "reflection_conditions_invalid"
+    else:
+        second["affect"] = {**first["affect"], "control": 2}
+        expected = "invalid_appraisal"
+    models = Models({"notes": [first, second]})
+    growth, memory, jobs, context, notifications = await prepare(database, models)
+    scope = signature(sorted(context.scope_ids))
+    rejected = await growth.organize("actor", scope, 1)
+    assert rejected["state"] == "rejected"
+    assert rejected["error_code"] == expected
+    original = await state(database)
+    assert original["last_error"] == expected
+    assert original["cursor"] is None
+    assert original["generation_revision"] == 0
+    assert memory.proposals == notifications == []
+    async with database.transaction(read_only=True) as connection:
+        for table in ("companion.style_rules", "companion.affect_events"):
+            assert (await (await connection.execute("SELECT count(*) AS n FROM "+table)).fetchone())["n"] == 0
+    before = len(jobs.items)
+    await growth.recover()
+    await growth.organize("actor", scope, 1)
+    assert len(jobs.items) == before
+    # New ticks retain the refused generation instead of paying for or consuming it again.
+    await growth.changed(context, "another-tick")
+    await growth.organize("actor", scope, 2)
+    before = len(jobs.items)
+    await growth.recover()
+    assert len(jobs.items) == before
+    assert len(models.calls) == 1
+    assert models.reads == []
+    assert (await state(database))["last_error"] == expected
+
+
+@pytest.mark.asyncio
+async def test_explicit_review_creates_one_new_generation_using_the_canonical_contract(database):
+    invalid = note()
+    invalid["conditions"] = ["仅限该隔离验收消息及其回复上下文"]
+    valid = note("style")
+    models = Models({"notes": [invalid]}, {"notes": [valid]})
+    growth, memory, _jobs, context, notifications = await prepare(database, models)
+    scope = signature(sorted(context.scope_ids))
+    await growth.organize("actor", scope, 1)
+    original_attempt = models.calls[0].attempt_id
+    assert (await growth.view(context))["review"]["can_request_review"] is True
+    request = {"client_request_id": "explicit-review", "expected_revision": 1}
+    result = await growth.request_review(context, request)
+    assert result.revision == 2
+    assert (await growth.request_review(context, request)).revision == 2
+    await growth.organize("actor", scope, 2)
+    assert len(models.calls) == 2
+    assert models.calls[1].attempt_id != original_attempt
+    assert "conditions is an object" in "".join(part.text or "" for message in models.calls[1].messages for part in message.parts)
+    assert len(memory.proposals) == 1
+    assert memory.proposals[0].conditions == {"when": valid["conditions"]["when"], "unless": valid["conditions"]["unless"]}
+    assert memory.proposals[0].counterexamples == ()
+    assert memory.proposals[0].interpretation is True
+    assert len(notifications) == 1
+    reviewed = await state(database)
+    assert reviewed["generation_revision"] == 1
+    assert reviewed["last_error"] is None
+    assert reviewed["cursor"] == "e:1"
+    assert (await growth.view(context))["review"]["can_request_review"] is False
+    await growth.organize("actor", scope, 2)
+    await growth.recover()
+    assert len(models.calls) == 2
+    async with database.transaction(read_only=True) as connection:
+        rows = await (await connection.execute("SELECT attempt_id,state FROM conversation.generation_requests ORDER BY claimed_at")).fetchall()
+    assert {row["attempt_id"] for row in rows} == {call.attempt_id for call in models.calls}
+    assert all(row["state"] == "claimed" for row in rows)
+
+
+@pytest.mark.asyncio
+async def test_no_change_is_a_valid_complete_batch(database):
+    models = Models({"notes": []})
+    growth, memory, _jobs, context, notifications = await prepare(database, models)
+    await growth.organize("actor", signature(sorted(context.scope_ids)), 1)
+    assert memory.proposals == notifications == []
+    assert (await state(database))["cursor"] == "e:1"
+    assert (await state(database))["last_error"] is None
+
+
+@pytest.mark.asyncio
+async def test_reflection_keeps_the_full_frozen_input_batch_as_dependencies(database):
+    models = Models({"notes": [note()]})
+    growth, memory, _jobs, context, _notifications = await prepare(database, models)
+    memory.episodes += (replace(memory.episode, episode_id="second", event_id="second-input",
+        source_refs=(SourceRef("second-original", 1),), sequence=2, cursor="e:2"),)
+    await growth.organize("actor", signature(sorted(context.scope_ids)), 1)
+    proposal = memory.proposals[0]
+    assert proposal.episode_ids == ("episode", "second")
+    assert {ref.source_id for ref in proposal.source_refs} == {"original", "second-original"}
+    assert proposal.interpretation is True
+    assert growth.assembler.retrieval is None
+
+
+@pytest.mark.asyncio
+async def test_completed_legacy_request_with_unrelated_memory_is_not_applied(database):
+    models = Models({"notes": []})
+    growth, memory, _jobs, context, notifications = await prepare(database, models)
+
+    class LegacyAssembler(ContextAssembler):
+        async def assemble(self, *args, contributions, **kwargs):
+            unrelated = ContextContribution("old_memory", "unrelated old memory",
+                (SourceRef("unrelated", 1),), context.scope_ids)
+            return await super().assemble(*args, contributions=(*contributions, unrelated), **kwargs)
+
+    growth.assembler = LegacyAssembler(growth.companion.identity, memory, None)
+    scope = signature(sorted(context.scope_ids))
+    rejected = await growth.organize("actor", scope, 1)
+    assert rejected["error_code"] == "reflection_material_contract_invalid"
+    assert memory.proposals == notifications == []
+    assert (await state(database))["cursor"] is None
+    await growth.recover()
+    await growth.organize("actor", scope, 1)
+    assert len(models.calls) == 1
+    assert models.reads == []
+
+
+@pytest.mark.asyncio
+async def test_unknown_attempt_cannot_be_replaced_by_explicit_review(database):
+    models = Models({"notes": []})
+    models.status = "unknown"
+    growth, _memory, _jobs, context, _notifications = await prepare(database, models)
+    scope = signature(sorted(context.scope_ids))
+    for _ in range(2):
+        with pytest.raises(AppError) as unknown:
+            await growth.organize("actor", scope, 1)
+        assert unknown.value.code == "reflection_generation_unknown"
+    with pytest.raises(AppError) as unresolved:
+        await growth.request_review(context, {"client_request_id": "no-new-unknown-attempt", "expected_revision": 1})
+    assert unresolved.value.code == "reflection_original_attempt_unresolved"
+    assert len(models.calls) == 1
+    assert models.reads == [models.calls[0].attempt_id]
