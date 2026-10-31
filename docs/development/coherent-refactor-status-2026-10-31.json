@@ -13,8 +13,10 @@
       "title": "产品装配与能力保留清单",
       "depends_on": [],
       "owner": "composition root",
-      "state": "implementing",
-      "implementation_agent": "foundation_models"
+      "state": "implemented_not_tested",
+      "implementation_agent": "foundation_models",
+      "handoff_source": "7f6ffc84a4ce4ced0dfba2cf321acfb210ae4a8c",
+      "pending": "all-domain composition and concentrated CR19 acceptance"
     },
     {
       "id": "CR18A",
@@ -33,8 +35,10 @@
         "CR01"
       ],
       "owner": "runtime 与各领域 repository",
-      "state": "implementing",
-      "implementation_agent": "foundation_models"
+      "state": "implemented_not_tested",
+      "implementation_agent": "foundation_models",
+      "handoff_source": "7f6ffc84a4ce4ced0dfba2cf321acfb210ae4a8c",
+      "pending": "all-domain composition and concentrated CR19 acceptance"
     },
     {
       "id": "CR03",
@@ -43,8 +47,10 @@
         "CR02"
       ],
       "owner": "models",
-      "state": "implementing",
-      "implementation_agent": "foundation_models"
+      "state": "implemented_not_tested",
+      "implementation_agent": "foundation_models",
+      "handoff_source": "7f6ffc84a4ce4ced0dfba2cf321acfb210ae4a8c",
+      "pending": "all-domain composition and concentrated CR19 acceptance"
     },
     {
       "id": "CR04",
@@ -53,7 +59,8 @@
         "CR02"
       ],
       "owner": "identity / channels",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "foundation_models"
     },
     {
       "id": "CR05",
@@ -62,7 +69,8 @@
         "CR04"
       ],
       "owner": "sources",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "foundation_models"
     },
     {
       "id": "CR06",
@@ -72,7 +80,8 @@
         "CR05"
       ],
       "owner": "memory",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "foundation_models"
     },
     {
       "id": "CR07",
@@ -81,7 +90,8 @@
         "CR06"
       ],
       "owner": "memory / conversation.context",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "foundation_models"
     },
     {
       "id": "CR08",
@@ -90,7 +100,8 @@
         "CR06"
       ],
       "owner": "memory.people",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "foundation_models"
     },
     {
       "id": "CR09",
@@ -135,7 +146,8 @@
         "CR11"
       ],
       "owner": "channels.onebot",
-      "state": "planned"
+      "state": "assigned_after_current_handoff",
+      "implementation_agent": "capabilities"
     },
     {
       "id": "CR12",
@@ -361,10 +373,16 @@
       "cards": [
         "CR01",
         "CR02",
-        "CR03"
+        "CR03",
+        "CR04",
+        "CR05",
+        "CR06",
+        "CR07",
+        "CR08"
       ],
       "state": "implementing",
-      "boundary": "src/tianshu/runtime,models,types; backend manifest,composition,migration registry; tests/runtime,models"
+      "boundary": "src/tianshu/runtime,models,types; backend manifest,composition,migration registry; tests/runtime,models; identity/**,sources/**,memory/**,conversation/context/** and respective tests",
+      "phase": "core_A_and_composition"
     },
     "frontend": {
       "model": "gpt-6.1-sol",
@@ -401,10 +419,12 @@
         "CR15",
         "CR17A",
         "CR17B",
-        "CR17"
+        "CR17",
+        "CR04A"
       ],
       "state": "implementing",
-      "boundary": "src/tianshu/capabilities/**,packages/tianshu-plugin/**,tests/capabilities/**; capability schema fragment"
+      "boundary": "src/tianshu/capabilities/**,packages/tianshu-plugin/**,tests/capabilities/**; capability schema fragment; channels/** and tests/channels after capability handoff",
+      "phase": "capabilities_then_channels_C"
     }
   },
   "integration_commits": [
@@ -443,6 +463,18 @@
       "integrated": "fb04ea7",
       "scope": "core B ports, schema, persona/life first implementation; remaining B consumers ongoing",
       "validation": "source_review_only"
+    },
+    {
+      "source": "7f6ffc84a4ce4ced0dfba2cf321acfb210ae4a8c",
+      "integrated": "3c2a33b",
+      "scope": "CR01-03 complete foundation source; all-domain composition follows A/B/C",
+      "validation": "source_review_only; tests authored not run"
+    },
+    {
+      "source": "9864139bfa9d1cee6676e7ac8521f75bfafa15f3",
+      "integrated": "1712f61",
+      "scope": "A source/identity/episode incremental contracts",
+      "validation": "source_review_only; implementations still in progress"
     }
   ],
   "validation": {
@@ -474,7 +506,7 @@
     {
       "owner": "foundation_models",
       "scope": "CommandStore private-result replay must refresh authority/source; immutable FileStore streaming; bounded JSON vs media bodies; external resource cancellation-before-admission race",
-      "state": "owner_reports_fix_in_uncommitted_code_pending_handoff"
+      "state": "implementation_committed_7f6ffc8; domain consumers and CR19 pending"
     },
     {
       "owner": "frontend",
@@ -489,6 +521,11 @@
     {
       "owner": "capabilities",
       "scope": "PhotoIntent delivery_kind; ConsumptionReceipt analysis_completed rather than understood; single media authority and Broker resource consumers",
+      "state": "in_progress"
+    },
+    {
+      "owner": "frontend and capabilities",
+      "scope": "authorized streaming audio/video Range playback without full browser blob; bounded warehouse/native I/O; explicit acyclic composition and single expression owner",
       "state": "in_progress"
     }
   ]
