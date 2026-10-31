@@ -264,6 +264,7 @@ class Capabilities:
         if self.initialized:
             return
         await self.prepare()
+        await self.actions.start()
         self.initialized = True
         if self.worker:
             await self.media.start()
@@ -785,11 +786,16 @@ class Capabilities:
         return await withdraw(self, connection, source_refs, reason)
 
     async def close(self):
-        if not self.initialized:
-            return
-        if self.worker:
-            await self.plugin_host.close()
-        await self.media.close()
-        await self.infrastructure.close()
-        self.initialized = False
-        self.file_executor.shutdown(wait=True, cancel_futures=True)
+        # Cleanup also covers a prepared composition or partially failed initialize.
+        try:
+            await self.actions.close()
+            if getattr(self, "plugin_host", None) is not None and self.worker:
+                await self.plugin_host.close()
+            if self.media is not None:
+                await self.media.close()
+            if self.infrastructure is not None:
+                await self.infrastructure.close()
+        finally:
+            self.initialized = False
+            self.prepared = False
+            self.file_executor.shutdown(wait=True, cancel_futures=True)

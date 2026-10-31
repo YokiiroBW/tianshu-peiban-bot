@@ -29,6 +29,18 @@ class Actions:
         self.argument_resolver = None
         self.worker = False
         self.sources = None
+        from .execution_owners import ExecutionOwners
+
+        self.owners = ExecutionOwners(self)
+
+    async def start(self):
+        await self.owners.start()
+
+    async def close(self):
+        await self.owners.close()
+
+    def status(self):
+        return self.owners.status()
 
     async def handler(self, action):
         if action.capability_id not in self.catalog.handlers and self.prepare_handler:
@@ -198,79 +210,78 @@ class Actions:
         action, attempt, current = await self._load(action_id)
         if current.execution != "pending":
             return current
-        handler = await self.handler(action)
-        await self.authority.check(action.context, action.source_refs)
-        if action.deadline_at and action.deadline_at <= datetime.now(UTC):
-            return await self.save(
-                Receipt(
-                    str(uuid4()),
-                    action_id,
-                    attempt.attempt_id,
-                    "cancelled",
-                    "none",
-                    "not_requested",
-                    error_code="deadline_expired",
-                ),
-                attempt,
-            )
+        await self.owners.start()
+        await self.owners.check()
         attempt = replace(attempt, started_at=datetime.now(UTC))
+        running = replace(current, receipt_id=str(uuid4()), execution="running")
         async with self.database.transaction() as conn:
             claim = await (
                 await conn.execute(
-                    "UPDATE capabilities.actions SET receipt=jsonb_set(receipt,'{execution}',to_jsonb('running'::text)),attempt=%s::jsonb WHERE id=%s AND receipt->>'execution'='pending' RETURNING id",
-                    (encoded(attempt), action_id),
+                    "UPDATE capabilities.actions SET receipt=%s::jsonb,attempt=%s::jsonb,execution_owner=%s,"
+                    "result_revision=result_revision+1,result_observed_at=now() WHERE id=%s "
+                    "AND receipt->>'execution'='pending' AND EXISTS(SELECT 1 FROM capabilities.execution_owners "
+                    "WHERE id=%s AND expires_at>now()) RETURNING document",
+                    (encoded(running), encoded(attempt), self.owners.id, action_id, self.owners.id),
                 )
             ).fetchone()
         if claim is None:
             return (await self._load(action_id))[2]
-        async with self.database.transaction(read_only=True) as conn:
-            document = await (
-                await conn.execute(
-                    "SELECT document FROM capabilities.actions WHERE id=%s", (action_id,)
-                )
-            ).fetchone()
         state = {
             "owner": self,
             "attempt": attempt,
             "submitted": False,
             "service_class": ServiceClass(
-                json.loads(document["document"]).get("service_class", "elastic")
+                json.loads(claim["document"]).get("service_class", "elastic")
             ),
         }
         action_token = CURRENT_ACTION.set(action)
         execution_token = CURRENT_EXECUTION.set(state)
         self.running[action_id] = asyncio.current_task()
         watcher = asyncio.create_task(self.watch_cancel(action_id, self.running[action_id]))
+        handler = None
         try:
-            availability = await self.catalog.availability(action.context, handler)
-            if not availability.can_execute:
-                raise Fault(availability.reason or "capability_unavailable", 503)
-            method = getattr(handler, mode, None)
-            if mode not in {"execute", "resume"} or method is None:
-                raise Fault("operation_unavailable", 409)
-            receipt = await method(action, attempt)
-            if not isinstance(receipt, Receipt):
-                raise TypeError("capability_receipt_required")
+            timeout = None
+            if action.deadline_at:
+                timeout = max(0, (action.deadline_at - datetime.now(UTC)).total_seconds())
+            async with asyncio.timeout(timeout) as deadline:
+                handler = await self.handler(action)
+                await self.authority.check(action.context, action.source_refs)
+                availability = await self.catalog.availability(action.context, handler)
+                if not availability.can_execute:
+                    raise Fault(availability.reason or "capability_unavailable", 503)
+                await self.owners.check()
+                method = getattr(handler, mode, None)
+                if mode not in {"execute", "resume"} or method is None:
+                    raise Fault("operation_unavailable", 409)
+                receipt = await method(action, attempt)
+                if not isinstance(receipt, Receipt):
+                    raise TypeError("capability_receipt_required")
+        except TimeoutError:
+            receipt = await self.interrupted(
+                action,
+                attempt,
+                handler,
+                "deadline_expired" if deadline.expired() else "capability_timeout",
+                explicit=deadline.expired(),
+            )
         except asyncio.CancelledError:
-            persisted = (await self._load(action_id))[1]
-            state["submitted"] = state["submitted"] or persisted.dispatch in {
-                "submitted",
-                "unknown",
-            }
-            receipt = Receipt(
-                str(uuid4()),
-                action_id,
-                attempt.attempt_id,
-                "unknown" if state["submitted"] else "cancelled",
-                "unknown" if state["submitted"] else "none",
-                "not_requested",
-                error_code="interrupted",
+            async with self.database.transaction(control=True, read_only=True) as conn:
+                row = await (
+                    await conn.execute(
+                        "SELECT document FROM capabilities.actions WHERE id=%s", (action_id,)
+                    )
+                ).fetchone()
+            explicit = bool(row and json.loads(row["document"]).get("cancel_requested"))
+            receipt = await asyncio.shield(
+                self.interrupted(action, attempt, handler, "interrupted", explicit=explicit)
             )
             await asyncio.shield(self.save(receipt, attempt))
             raise
         except Exception as error:
+            persisted = (await self._load(action_id))[1]
+            submitted = state["submitted"] or persisted.dispatch in {"submitted", "unknown"}
             unknown = getattr(error, "effect", None) == "unknown" or (
-                state["submitted"] and not hasattr(error, "effect")
+                submitted and not hasattr(error, "effect")
             )
             receipt = Receipt(
                 str(uuid4()),
@@ -288,6 +299,78 @@ class Actions:
             CURRENT_ACTION.reset(action_token)
             CURRENT_EXECUTION.reset(execution_token)
         return await self.save(receipt, attempt)
+
+    async def interrupted(self, action, attempt, handler, code, *, explicit=False):
+        _, persisted, _ = await self._load(action.action_id)
+        submitted = persisted.dispatch in {"submitted", "unknown"}
+        receipt = Receipt(
+            str(uuid4()),
+            action.action_id,
+            attempt.attempt_id,
+            "unknown" if submitted else "cancelled",
+            "unknown" if submitted else "none",
+            "not_requested",
+            error_code=code,
+        )
+        if explicit and submitted and handler is not None:
+            try:
+                async with asyncio.timeout(15):
+                    receipt = await handler.cancel(action, persisted)
+            except Exception:
+                pass
+            receipt = replace(
+                receipt,
+                result={**receipt.result, "provider_cancel_attempted": True},
+                error_code=receipt.error_code or code,
+            )
+        return receipt
+
+    async def recover_orphan(self, action_id, attempt_id, previous_owner):
+        action, attempt, current = await self._load(action_id)
+        if attempt.attempt_id != attempt_id or current.execution != "running":
+            return current
+        async with self.database.transaction() as conn:
+            from .withdrawal import validate_sources
+
+            # Keep the same source→domain lock order as all terminal writes.
+            valid = await validate_sources(conn, action.context, action.source_refs, self.sources)
+            claimed = await (
+                await conn.execute(
+                    "UPDATE capabilities.actions SET execution_owner=%s WHERE id=%s AND execution_owner "
+                    "IS NOT DISTINCT FROM %s AND attempt->>'attempt_id'=%s AND receipt->>'execution'='running' "
+                    "AND NOT EXISTS(SELECT 1 FROM capabilities.execution_owners WHERE id=%s AND expires_at>now()) RETURNING id",
+                    (self.owners.id, action_id, previous_owner, attempt_id, previous_owner),
+                )
+            ).fetchone()
+        if not claimed:
+            return (await self._load(action_id))[2]
+        orphan = Receipt(
+            str(uuid4()),
+            action_id,
+            attempt_id,
+            "unknown",
+            "unknown",
+            "not_requested",
+            error_code="execution_owner_lost",
+        )
+        if not valid:
+            from .withdrawal import redacted
+
+            orphan = redacted(orphan)
+        receipt = await self.save(orphan, attempt)
+        if attempt.provider_handle is not None:
+            async with self.database.transaction() as conn:
+                await self.jobs.enqueue(
+                    conn,
+                    JobSpec(
+                        "capabilities.control",
+                        action_id + ":recover:" + attempt_id,
+                        {"action_id": action_id, "mode": "reconcile"},
+                        service_class=ServiceClass.INTERACTIVE,
+                        subject_id=action.actor_id,
+                    ),
+                )
+        return receipt
 
     async def execution_class(self, action_id):
         async with self.database.transaction(read_only=True) as conn:
@@ -383,7 +466,7 @@ class Actions:
             observed_at = datetime.now(UTC) if changed else old["result_observed_at"]
             await depend(conn, "action", receipt.action_id, refs)
             await conn.execute(
-                "UPDATE capabilities.actions SET receipt=%s::jsonb,attempt=%s::jsonb,result_revision=%s,result_observed_at=%s WHERE id=%s",
+                "UPDATE capabilities.actions SET receipt=%s::jsonb,attempt=%s::jsonb,result_revision=%s,result_observed_at=%s,execution_owner=NULL WHERE id=%s",
                 (encoded(receipt), encoded(attempt), revision, observed_at, receipt.action_id),
             )
             await conn.execute(
@@ -446,7 +529,9 @@ class Actions:
             # An explicit cancel must reach the provider's original handle. An
             # interrupted transport alone does not prove that the effect stopped.
             handler = await self.handler(action)
-            if attempt.dispatch != "not_started":
+            if attempt.dispatch != "not_started" and not current.result.get(
+                "provider_cancel_attempted"
+            ):
                 return await self.save(await handler.cancel(action, attempt), attempt)
             return current
         if current.execution == "pending":
@@ -488,7 +573,12 @@ class Actions:
                 ).fetchone()
                 if row:
                     return receipt_from(row["receipt"])
-                return (await self._load(action_id))[2]
+                row = await (
+                    await conn.execute(
+                        "SELECT receipt FROM capabilities.actions WHERE id=%s", (action_id,)
+                    )
+                ).fetchone()
+                return receipt_from(row["receipt"])
             if current.execution not in {"unknown", "failed", "cancelled"}:
                 raise Fault("resume_state_invalid", 409)
             attempt = Attempt(str(uuid4()), action_id)

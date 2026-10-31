@@ -106,3 +106,7 @@ CREATE INDEX IF NOT EXISTS reaction_original_media ON capabilities.reaction_asse
 CREATE INDEX IF NOT EXISTS capability_consumption_source ON capabilities.consumptions(source_id);
 
 CREATE INDEX IF NOT EXISTS capability_source_revision_dependants ON capabilities.source_dependencies(source_id,source_revision,owner_kind,owner_id);
+
+CREATE TABLE IF NOT EXISTS capabilities.execution_owners(id text PRIMARY KEY,role text NOT NULL,expires_at timestamptz NOT NULL,stopped_at timestamptz);
+ALTER TABLE capabilities.actions ADD COLUMN IF NOT EXISTS execution_owner text;
+CREATE INDEX IF NOT EXISTS capability_running_owner ON capabilities.actions(execution_owner) WHERE receipt->>'execution'='running';

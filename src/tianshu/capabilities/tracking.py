@@ -66,6 +66,7 @@ class TrackedPermit:
             action = CURRENT_ACTION.get()
             if action is not None:
                 owner = self.current["owner"]
+                await owner.owners.check()
                 handler = await owner.handler(action)
                 available = await owner.catalog.availability(action.context, handler)
                 if not available.can_execute:
@@ -88,5 +89,6 @@ class TrackedPermit:
 async def mark_submitted(provider_handle=None):
     current = CURRENT_EXECUTION.get()
     if current:
+        await current["owner"].owners.check()
         await current["owner"].submitted(current["attempt"], provider_handle)
         current["submitted"] = True

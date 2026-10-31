@@ -184,3 +184,9 @@ POST /api/v1/resources/assets/{view,libraries,library,browse,search,entry}是读
 - 资产库：管理员可登记/修订HTTPS AssetLink连接与密封令牌；页面本地选择连接后按真实五类只读协议列库、翻页、浏览目录、搜索、读取详情；每次服务器重新核权，旧generation/退出登录清显示。协议没有原件端口，预览保持不可用。
 
 以上仅完成源码与契约/diff核对，未运行测试、typecheck、build或浏览器；真实账号、外部节点、NAS媒体、插件进程及付费模型仍待根集中验收。
+
+## Action执行所有者与绝对期限（implemented_not_tested）
+
+`Actions.start/close/status` 由现有 capabilities.initialize/close 接线。每个实际进程有唯一PG execution_owners租约，运行前同一CAS绑定原Attempt与owner；短暂DB失联后自我围栏并取消实际本地任务，停止续租的owner过期后才扫描其running任务。同一个活interactive owner不会被worker恢复；只把原身份置unknown，存在原provider_handle时通过同一Procrastinate control原句柄核对，不自动重新execute/新建Attempt。提供者仍running的ownerless核对投影不冒充本地执行owner。
+
+run保护覆盖handler加载/authority/availability及实际执行；拒绝后有终态回执，Action绝对deadline约束整个等待/外部调用，期限取消原I/O并有界调用原provider.cancel，无法确认的结果仍unknown。普通HTTP断开/停机不伪称外部取消。close也处理prepare完成而initialize尚未成功的文件执行器与owner资源。新增关键故障用例未运行；无后台第二业务队列。
