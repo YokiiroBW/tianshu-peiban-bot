@@ -352,7 +352,7 @@ async def test_sparse_authorized_vector_candidates_are_not_starved(
             "vector_count"
             if statement.startswith("SELECT count(*) AS count FROM(SELECT 1 ")
             else "vector_exact"
-            if statement.startswith("WITH allowed AS MATERIALIZED")
+            if statement.startswith("WITH scoped AS MATERIALIZED")
             else "vector_ann"
             if "ORDER BY r.embedding<=>" in statement
             else None

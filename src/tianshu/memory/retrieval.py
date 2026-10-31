@@ -17,12 +17,12 @@ from .claims import ELIGIBLE_SCOPES, lexical
 from . import codec
 
 
-AUTHORIZED = (
+SCOPED = (
     "c.actor_id=%s AND r.state='active' AND "
     + ELIGIBLE_SCOPES
-    + " AND sources.any_support_usable(r.support_groups,%s::text[]) "
-    "AND (r.valid_from IS NULL OR r.valid_from<=%s) AND (r.valid_until IS NULL OR r.valid_until>%s)"
+    + " AND (r.valid_from IS NULL OR r.valid_from<=%s) AND (r.valid_until IS NULL OR r.valid_until>%s)"
 )
+AUTHORIZED = SCOPED + " AND sources.any_support_usable(r.support_groups,%s::text[])"
 JOIN = " FROM memory.claims c JOIN memory.claim_revisions r ON r.claim_id=c.claim_id AND r.revision=c.current_revision "
 
 
@@ -69,7 +69,7 @@ class MemoryRetrieval:
 
     async def _lexical(self, context, query, budget):
         now = datetime.now(UTC)
-        parameters = (context.actor_id, list(context.scope_ids), list(context.scope_ids), now, now)
+        parameters = (context.actor_id, list(context.scope_ids), now, now, list(context.scope_ids))
         tokens = lexical(query).split()[:128]
         tsquery = " | ".join("'" + token.replace("'", "''") + "'" for token in tokens)
         if not tsquery:
@@ -92,21 +92,29 @@ class MemoryRetrieval:
         parameters = (
             context.actor_id,
             list(context.scope_ids),
-            list(context.scope_ids),
             now,
             now,
             fingerprint,
         )
-        eligible = AUTHORIZED + " AND r.embedding_profile=%s AND r.embedding IS NOT NULL"
+        profile = " AND r.embedding_profile=%s AND r.embedding IS NOT NULL"
+        scoped = SCOPED + profile
+        eligible = AUTHORIZED + profile
+        authorized_parameters = (*parameters[:-1], list(context.scope_ids), fingerprint)
         exact = (
-            "WITH allowed AS MATERIALIZED(SELECT r.claim_id,r.revision,r.embedding "
+            "WITH scoped AS MATERIALIZED(SELECT r.claim_id,r.revision,r.embedding,r.support_groups "
             + JOIN
             + " WHERE "
-            + eligible
-            + "), nearest AS(SELECT claim_id,revision,embedding<=>%s AS distance FROM allowed ORDER BY distance LIMIT 96) "
+            + scoped
+            + "), support_sets AS MATERIALIZED(SELECT proofs.support_groups,"
+            "sources.any_support_usable(proofs.support_groups,%s::text[]) AS usable "
+            "FROM(SELECT DISTINCT support_groups FROM scoped) proofs), "
+            "allowed AS MATERIALIZED(SELECT s.claim_id,s.revision,s.embedding FROM scoped s "
+            "JOIN support_sets p USING(support_groups) WHERE p.usable), "
+            "nearest AS(SELECT claim_id,revision,embedding<=>%s AS distance FROM allowed ORDER BY distance LIMIT 96) "
             "SELECT r.*,c.actor_id,r.embedding::real[] AS vector,1-n.distance AS relevance FROM nearest n "
             "JOIN memory.claim_revisions r USING(claim_id,revision) JOIN memory.claims c USING(claim_id) ORDER BY n.distance"
         )
+        exact_parameters = (*parameters, list(context.scope_ids), Vector(values))
         async with self.database.transaction(budget, read_only=True) as conn:
             await register_vector_async(conn)
             count = await (
@@ -114,13 +122,17 @@ class MemoryRetrieval:
                     "SELECT count(*) AS count FROM(SELECT 1 "
                     + JOIN
                     + " WHERE "
-                    + eligible
+                    + scoped
                     + " LIMIT 2001) q",
                     parameters,
                 )
             ).fetchone()
+            # An upper bound selects the distance algorithm; it is never returned or
+            # ranked. Source validity is checked once per distinct support set below.
+            # Counting through that recursive predicate duplicated every proof per row
+            # before the actual query and could consume the entire optional SQL budget.
             if count["count"] <= 2000:
-                rows = await (await conn.execute(exact, (*parameters, Vector(values)))).fetchall()
+                rows = await (await conn.execute(exact, exact_parameters)).fetchall()
                 return rows, False
             version = await (
                 await conn.execute("SELECT extversion FROM pg_extension WHERE extname='vector'")
@@ -145,12 +157,12 @@ class MemoryRetrieval:
                     + " WHERE "
                     + eligible
                     + " ORDER BY r.embedding<=>%s LIMIT 96",
-                    (Vector(values), *parameters, Vector(values)),
+                    (Vector(values), *authorized_parameters, Vector(values)),
                 )
             ).fetchall()
             if len(rows) < 96:
                 # Sparse authorization can exhaust the bounded ANN scan. Exact distance stays inside PG.
-                rows = await (await conn.execute(exact, (*parameters, Vector(values)))).fetchall()
+                rows = await (await conn.execute(exact, exact_parameters)).fetchall()
             return rows, len(rows) < 96
 
     async def search(self, context, query, budget, *, limit=12, source_refs=()):
@@ -163,6 +175,7 @@ class MemoryRetrieval:
         lexical_rows = await self._lexical(context, query, budget)
         vector_rows = []
         if self.settings.get("vector", True) and budget.remaining() > 0.1:
+            phase = "embedding"
             try:
                 embedding_budget = self.phase_budget(
                     budget, float(self.settings.get("embedding_seconds", 1.0))
@@ -176,6 +189,7 @@ class MemoryRetrieval:
                     service_class=ServiceClass.INTERACTIVE,
                     source_refs=source_refs,
                 )
+                phase = "vector"
                 vector_budget = self.phase_budget(
                     budget, float(self.settings.get("vector_sql_seconds", 0.8))
                 )
@@ -185,7 +199,12 @@ class MemoryRetrieval:
                 if incomplete:
                     missing.append("vector_candidate_budget")
             except (AppError, TimeoutError, aiohttp.ClientError, psycopg.Error) as exc:
-                missing.append(getattr(exc, "code", "embedding_unavailable"))
+                if phase == "vector" and isinstance(
+                    exc, (TimeoutError, psycopg.errors.QueryCanceled)
+                ):
+                    missing.append("vector_query_timeout")
+                else:
+                    missing.append(getattr(exc, "code", phase + "_unavailable"))
         fused = {}
         for rows in (lexical_rows, vector_rows):
             for rank, row in enumerate(rows):
