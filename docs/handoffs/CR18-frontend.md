@@ -70,3 +70,7 @@
 - 仅既有Prettier格式化，未测试/typecheck/build/浏览器；implemented_not_tested。仍继续Multimodal/Channels/Tasks/flow-graph/其余设置与小屋。
 
 - 共享证据/媒体控件正式支持可选 scope:DomainTarget，显式scope清空未提供的conversation/person，不借当前聊天目标；原文与MediaPreview同scope。同版本不同locator稳定区分。CommandFeedback携原操作/目标/attempt查询链接，普通作者Models原receipt读取使用A0044c1f端点。未运行功能验证。
+
+## 原任务与日志查询收口
+
+状态 implemented_not_tested。TasksPanel 按原 scene 分开读取能力 Action、普通作者 Models attempt、Expression 与 CommandStore 身份；同路由任务链接可切换原目标。核对/取消后重读原账本，unknown 不重发。原表达展示有序公开片段和实际媒体。运行任务、三角色资源和 Loki 范围日志明确使用 GLOBAL_SCOPE；纳秒边界以 BigInt 十进制字符串传输，消费 A47c8f0f 的 next_end_ns:string|null。日志上限与同纳秒密集记录局限明确展示。CommandMonitor 手工核对后的成功/失败/取消与效果未知分别报告。仅源码阅读、diff 和已有 Prettier 格式化，未运行测试/typecheck/build/浏览器。
