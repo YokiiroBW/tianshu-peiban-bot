@@ -551,7 +551,16 @@
       "preserve_shared_instance": "postgres-1"
     },
     "boundaries_record": "docs/development/coherent-refactor-cutover-boundaries-2026-10-31.json",
-    "implementation_dispatch": "docs/development/coherent-refactor-deployment-dispatch-2026-10-31.md"
+    "implementation_dispatch": "docs/development/coherent-refactor-deployment-dispatch-2026-10-31.md",
+    "capacity_policy_verified": {
+      "unit": "tianshu-unified-capacity.service",
+      "min_free_bytes": 21474836480,
+      "max_deployment_bytes": 21474836480,
+      "poll_seconds": 5,
+      "term_timeout_seconds": 120,
+      "state": "read_only_verified_not_modified",
+      "private_metadata": "capacity-effective-metadata.json"
+    }
   },
   "planning_commit": "e034276dfb757b7dd64cd2f56e952d81193a5248",
   "source_review_followups": [
@@ -634,6 +643,16 @@
       "owner": "capabilities",
       "scope": "readable multi-line new orchestration code; preserve mature algorithms without broad unrelated formatting",
       "state": "returned_to_owner"
+    },
+    {
+      "owner": "foundation_models,frontend and capabilities",
+      "scope": "CR05 owner callbacks and same-transaction persistence check across diary/context/actions/artifacts; preserve execution metadata; do not delete shared FileStore objects with valid other references",
+      "state": "owners_aligning"
+    },
+    {
+      "owner": "foundation_models and capabilities",
+      "scope": "reuse small runtime seal/unseal primitive with external master and domain AAD; remove duplicate local key creation race while retaining domain snapshot ownership",
+      "state": "owners_aligning"
     }
   ]
 }
