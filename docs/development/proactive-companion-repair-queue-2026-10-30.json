@@ -1201,7 +1201,7 @@
       "id": "PC-17",
       "title": "目标选择的成本与便宜门控",
       "owner": "companion",
-      "status": "deployed",
+      "status": "verified_production",
       "wave": "W3",
       "depends_on": [
         "W1"
@@ -1224,11 +1224,62 @@
       ],
       "detail_section": "PC-17",
       "latest_acceptance": {
-        "record": "proactive-companion-repair-r65-2026-10-31.json",
-        "paired_actual_token_threshold": "verified_two_additional_frozen_scenes",
-        "reduction": 0.5943703552886084,
-        "goal_specificity": "human_review_pending",
-        "original_three_pair_record": "proactive-companion-repair-r64-2026-10-31.json"
+        "record": "proactive-companion-pc17-acceptance-2026-10-31.json",
+        "status": "verified_production",
+        "scope": "Original same-scene token, observable unchanged-context gate and human goal-specificity criteria",
+        "criteria": [
+          {
+            "requirement": "同场景单次input token减少至少40%",
+            "result": "verified",
+            "reduction": 0.5943703552886084,
+            "pairs": [
+              {
+                "role": "role1",
+                "before_input_tokens": 9606,
+                "after_input_tokens": 3879,
+                "reduction": 0.5961898813241724,
+                "model_signature": {
+                  "resolved_model": "deepseek-v4.1-flash",
+                  "protocol": "openai-chat-completions",
+                  "config_version": 1000000132,
+                  "effective_reasoning": {}
+                }
+              },
+              {
+                "role": "role2",
+                "before_input_tokens": 10040,
+                "after_input_tokens": 4090,
+                "reduction": 0.5926294820717131,
+                "model_signature": {
+                  "resolved_model": "deepseek-v4.1-flash",
+                  "protocol": "openai-chat-completions",
+                  "config_version": 1000000132,
+                  "effective_reasoning": {}
+                }
+              }
+            ],
+            "evidence": "proactive-companion-repair-r65-2026-10-31.json"
+          },
+          {
+            "requirement": "无变化唤醒不产生模型调用，计数可观测",
+            "result": "verified",
+            "evidence": "w3-installed-r57-status.json",
+            "case": "test_unchanged_due_wakeup_skips_model_and_source_queries_after_restart",
+            "observations": "model calls stay 1; persisted skips become 1 then 2 across Core reopen; original operation unchanged"
+          },
+          {
+            "requirement": "同组目标具体性人工抽检不低于改前",
+            "result": "verified_direct_user_reply",
+            "answer": "具体性不低于改前",
+            "question_item_id": "call_6883c0ca88824237a5986aa85af9aa67",
+            "received_at": 1793407732.9577258,
+            "evidence": "pc17-human-quality-acceptance-20261031.json"
+          }
+        ],
+        "unverified": [
+          "自然长期决策质量、成本与端到端时延继续PC-18；受控抽检不证明所有未来场景。",
+          "原三个既有失败和所有不利模型样本保留，未扩大本次人工结论的范围。"
+        ]
       }
     },
     {
@@ -1324,15 +1375,15 @@
     "original_acceptance_criteria_retained": true
   },
   "latest_runtime_release": {
-    "version": "2026.10.31-unified-linux-r66",
-    "record": "proactive-companion-repair-r66-2026-10-31.json",
-    "companion_commit": "1faae1b1564d43e343c1fad991148c1d09f11e50",
+    "version": "2026.10.31-unified-linux-r67",
+    "record": "proactive-companion-repair-r67-2026-10-31.json",
+    "companion_commit": "565a4c6672d6d6209bb31f8bfd61669493c52348",
     "memory_commit": "874b911a0004d652f4f86ad21912b6e80dae03b3",
-    "native_idle_per_minute": 18.02562456515496,
+    "human_goal_specificity_review": "accepted_direct_user_reply",
+    "native_idle_per_minute": 18.263557009769652,
     "idle_target_met_in_one_window": true,
     "paired_input_token_reduction": 0.5943703552886084,
     "paired_token_evidence": "proactive-companion-repair-r65-2026-10-31.json",
-    "human_goal_specificity_review": "pending",
     "whole_goal_complete": false
   },
   "latest_PC18_observation": {
@@ -1343,25 +1394,25 @@
     "private_evidence": "pc18-observation-r64-1793402259412588100.json",
     "human_response_chain_count": 1,
     "idle_target_met": true,
-    "idle_target_basis": "One R66 native rolling window after excluding startup minute; earlier adverse windows preserved",
-    "next": "Observe the original 09:00 free phase and 10:08:20 fixed-window end; retain real-day and human specificity requirements.",
-    "runtime_release": "2026.10.31-unified-linux-r66",
-    "supplement_record": "proactive-companion-repair-r66-2026-10-31.json",
+    "idle_target_basis": "One native R67 window; earlier adverse samples retained",
+    "next": "Observe natural free-window work and original fixed 24h endpoint; human specificity already accepted",
+    "runtime_release": "2026.10.31-unified-linux-r67",
+    "supplement_record": "proactive-companion-repair-r67-2026-10-31.json",
     "prior_r64_complete_auth_30m": true,
     "prior_r64_idle_tick_per_minute": 35.08336077718086,
     "r65_idle_tick_per_minute": 42.595529900360894,
-    "r66_idle_tick_per_minute": 18.02562456515496
+    "r66_idle_tick_per_minute": 18.02562456515496,
+    "r67_idle_tick_per_minute": 18.263557009769652
   },
   "latest_original_card_acceptance": {
-    "record": "proactive-companion-pc13-pc15-acceptance-2026-10-31.json",
+    "record": "proactive-companion-pc17-acceptance-2026-10-31.json",
     "cards": [
-      "PC-13",
-      "PC-15"
+      "PC-17"
     ],
     "card_counts": {
-      "deployed": 4,
+      "deployed": 3,
       "in_progress": 3,
-      "verified_production": 11
+      "verified_production": 12
     },
     "whole_goal_complete": false
   }

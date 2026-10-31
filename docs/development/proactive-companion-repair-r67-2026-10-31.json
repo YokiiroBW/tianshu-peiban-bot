@@ -1,0 +1,174 @@
+{
+  "version": "2026.10.31-unified-linux-r67",
+  "status": "deployed_healthy",
+  "whole_goal_complete": false,
+  "image": "sha256:d45d1aeebfeea15673877ff88b807fa05fa26c856a6567debf7fce71fe224550",
+  "container": "f2e3cc2dde14e5bc77c266c36522c6d94edcea8ee75f6ae3593a2d0685ef97b5",
+  "companion_commit": "565a4c6672d6d6209bb31f8bfd61669493c52348",
+  "postchecks": {
+    "ok": true,
+    "version": "2026.10.31-unified-linux-r67",
+    "sources": {
+      "platform": {
+        "commit": "bbd1e63abf8138d108f1e0d13304edbf25d71b97",
+        "archive_sha256": "52b2798f412226b4ee588dc69640695629bd396bddb70aa853b45875f21dee2f"
+      },
+      "companion": {
+        "commit": "565a4c6672d6d6209bb31f8bfd61669493c52348",
+        "archive_sha256": "9e238a67d3ca0db0fa2bed33b3b089a12865d50fe3c8f56daa7a56ab68e3c4f2"
+      },
+      "memory": {
+        "commit": "874b911a0004d652f4f86ad21912b6e80dae03b3",
+        "archive_sha256": "1aae2fa0ff981ee390657faa3502c8bbbd7ec029e7b274696b329b1b41f705e1"
+      },
+      "gateway": {
+        "commit": "1af59a30b698c6d114e927f941de5dc33d1762af",
+        "archive_sha256": "b46e7bb45713d9a2f3c29a547c9cf1bfc299e548f289ab8d25e1e9a95717f450"
+      },
+      "application": {
+        "commit": "d352b921cd341b17278c372b6d7f870e685f8011",
+        "archive_sha256": "b64b4dce9a3d6b5fbd5e1e06a9c82ecf36cd92a9d6a95094b3f9574dd86bba04"
+      },
+      "platform_frontend": {
+        "commit": "911a1dc60318abad76287013a05afacd1e63f9f3",
+        "archive_sha256": "2b0f65ee789feeef51514c6151eca911f49ef7d3309c125ef8e347898ac8a4cd"
+      }
+    },
+    "modules": {
+      "companion": "ready",
+      "gateway": "ready",
+      "knowledge": "ready",
+      "memory": "ready",
+      "onebot": "ready",
+      "platform": "ready"
+    },
+    "observations": {
+      "obs-grafana": "ready",
+      "obs-guard": "ready",
+      "obs-loki": "ready",
+      "obs-prometheus": "ready",
+      "obs-vector": "ready"
+    },
+    "authenticated_ready": 200,
+    "ready_check_count": 9,
+    "tls_ca_and_hostname_verified": true,
+    "served_affected_assets": {
+      "/index.html": "a3e9b14959ec05c6c2e7559cba0aabf1503c38751de8644099c31c5959de2099"
+    },
+    "probe_generated_model_or_qq": false,
+    "no_owner_store_opened": true,
+    "installed_affected_source_checks_verified": true,
+    "at": 1793408240.2925766,
+    "image": "sha256:d45d1aeebfeea15673877ff88b807fa05fa26c856a6567debf7fce71fe224550",
+    "id": "f2e3cc2dde14e5bc77c266c36522c6d94edcea8ee75f6ae3593a2d0685ef97b5",
+    "health": "healthy",
+    "restarts": 0,
+    "mounts_preserved": 37,
+    "config_files_preserved": 1175,
+    "configuration_changed": [
+      "private/gateway.env"
+    ],
+    "added_contract_files": 0,
+    "non_target_containers_preserved": 15,
+    "guard_generation": "/srv/tianshu-tooling/unified-capacity-20261030-pc-r67",
+    "capacity_floor_bytes": 21474836480,
+    "capacity_free_bytes": 31609491456,
+    "completed_at": 1793408240.5828779
+  },
+  "activation_terminal": {
+    "pid": 475687,
+    "live": false,
+    "state": "absent"
+  },
+  "stop_result": {
+    "systemctl_returncode": 0,
+    "elapsed_seconds": 123.75945496559143,
+    "old_finished_at": "2026-10-31T00:56:19.904241805Z",
+    "old_exit_code": 0,
+    "old_restart": "no"
+  },
+  "changed_runtime_files": [
+    "tianshu_companion/life.py",
+    "tianshu_companion/life_activities.py",
+    "tianshu_companion/life_goals.py",
+    "tianshu_companion/runtime_execution.py"
+  ],
+  "other_122_companion_files_identical": true,
+  "native_pause": {
+    "before_evidence": "pc18-metadata-r66-1793407229495521300.json",
+    "first_after": "pc18-metadata-r67-1793408247838820600.json",
+    "last_after": "pc18-metadata-r67-1793408337498127100.json",
+    "original_version": 461,
+    "current_version": 493,
+    "stable_seconds": 89.69537734985352,
+    "paused_row_unchanged": true,
+    "cursor_before": "1:1:2026-10-30:1200",
+    "cursor_after": "1:1:2026-10-31:420",
+    "activity_matches_routine": true,
+    "same_checkpoint_digest": true,
+    "same_result_refs": true,
+    "failure_history_preserved": true,
+    "actual_free_window_resume": "not_yet_observed"
+  },
+  "validation": {
+    "original_regression_failures": 3,
+    "first_candidate": {
+      "passed": 10,
+      "failed": 2,
+      "reason": "same-phase routine label still needed reconciliation"
+    },
+    "final_affected_recheck": {
+      "passed": 6,
+      "failed": 0
+    },
+    "unique_relevant_behaviors_with_valid_pass": 12,
+    "installed_affected_entry_cases": 1,
+    "skipped": 0,
+    "full_suite": false,
+    "ruff_format_diff": true
+  },
+  "native_idle": {
+    "evidence": "native-idle-r67-1793408338147912500.json",
+    "idle_per_minute": 18.263557009769652,
+    "measured_window_only": true,
+    "startup_first_minute_excluded": true
+  },
+  "pc17_acceptance": "proactive-companion-pc17-acceptance-2026-10-31.json",
+  "card_states": {
+    "PC-01": "verified_production",
+    "PC-02": "in_progress",
+    "PC-03": "verified_production",
+    "PC-04": "verified_production",
+    "PC-05": "verified_production",
+    "PC-06": "in_progress",
+    "PC-07": "verified_production",
+    "PC-08": "verified_production",
+    "PC-09": "verified_production",
+    "PC-10": "verified_production",
+    "PC-11": "verified_production",
+    "PC-12": "deployed",
+    "PC-13": "verified_production",
+    "PC-14": "deployed",
+    "PC-15": "verified_production",
+    "PC-16": "deployed",
+    "PC-17": "verified_production",
+    "PC-18": "in_progress"
+  },
+  "card_counts": {
+    "deployed": 3,
+    "in_progress": 3,
+    "verified_production": 12
+  },
+  "new_manual_model_QQ_search_calls": 0,
+  "no_data_migration": true,
+  "rollback_executed": false,
+  "unverified": [
+    "original_fixed_24h_success_threshold",
+    "three_actual_diary_dates",
+    "five_actual_interest_dates_and_current_sources",
+    "natural_sharing_and_group_quality",
+    "three_actual_cross_day_causal_choices",
+    "actual_self_recovery",
+    "seven_actual_observation_days"
+  ]
+}

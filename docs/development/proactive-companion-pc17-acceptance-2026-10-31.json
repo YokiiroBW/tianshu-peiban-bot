@@ -1,0 +1,111 @@
+{
+  "recorded_at": 1793408245.897604,
+  "runtime_version": "2026.10.31-unified-linux-r67",
+  "runtime_image": "sha256:d45d1aeebfeea15673877ff88b807fa05fa26c856a6567debf7fce71fe224550",
+  "runtime_companion_commit": "565a4c6672d6d6209bb31f8bfd61669493c52348",
+  "card": "PC-17",
+  "status": "verified_production",
+  "scope": "Original same-scene token, observable unchanged-context gate and human goal-specificity criteria",
+  "criteria": [
+    {
+      "requirement": "同场景单次input token减少至少40%",
+      "result": "verified",
+      "reduction": 0.5943703552886084,
+      "pairs": [
+        {
+          "role": "role1",
+          "before_input_tokens": 9606,
+          "after_input_tokens": 3879,
+          "reduction": 0.5961898813241724,
+          "model_signature": {
+            "resolved_model": "deepseek-v4.1-flash",
+            "protocol": "openai-chat-completions",
+            "config_version": 1000000132,
+            "effective_reasoning": {}
+          }
+        },
+        {
+          "role": "role2",
+          "before_input_tokens": 10040,
+          "after_input_tokens": 4090,
+          "reduction": 0.5926294820717131,
+          "model_signature": {
+            "resolved_model": "deepseek-v4.1-flash",
+            "protocol": "openai-chat-completions",
+            "config_version": 1000000132,
+            "effective_reasoning": {}
+          }
+        }
+      ],
+      "evidence": "proactive-companion-repair-r65-2026-10-31.json"
+    },
+    {
+      "requirement": "无变化唤醒不产生模型调用，计数可观测",
+      "result": "verified",
+      "evidence": "w3-installed-r57-status.json",
+      "case": "test_unchanged_due_wakeup_skips_model_and_source_queries_after_restart",
+      "observations": "model calls stay 1; persisted skips become 1 then 2 across Core reopen; original operation unchanged"
+    },
+    {
+      "requirement": "同组目标具体性人工抽检不低于改前",
+      "result": "verified_direct_user_reply",
+      "answer": "具体性不低于改前",
+      "question_item_id": "call_6883c0ca88824237a5986aa85af9aa67",
+      "received_at": 1793407732.9577258,
+      "evidence": "pc17-human-quality-acceptance-20261031.json"
+    }
+  ],
+  "unverified": [
+    "自然长期决策质量、成本与端到端时延继续PC-18；受控抽检不证明所有未来场景。",
+    "原三个既有失败和所有不利模型样本保留，未扩大本次人工结论的范围。"
+  ],
+  "human_review": {
+    "source": "direct_user_reply",
+    "question_item_id": "call_6883c0ca88824237a5986aa85af9aa67",
+    "answer": "具体性不低于改前",
+    "received_at": 1793407732.9577258,
+    "review_file": "pc17-quality-review-r64.md",
+    "criterion": "PC-17 goal specificity compared with original paired scenes",
+    "accepted": true
+  },
+  "evidence_reuse": {
+    "R65_to_R67_life_goals_work": true,
+    "R65_to_R67_life_goals_validate_choice": true,
+    "R65_to_R67_life_goals_apply": true,
+    "R65_to_R67_life_goals_window": true,
+    "initial_PC17_to_R67_change_signal": true,
+    "initial_PC17_to_R67_unchanged": true,
+    "initial_PC17_to_R67_model_usage": true,
+    "R65_to_R67_complete_goal_context": true
+  },
+  "original_three_pair_reduction": 0.6023626163013556,
+  "current_pair_reduction": 0.5943703552886084,
+  "new_manual_model_QQ_search_calls": 0,
+  "new_product_changes_for_acceptance": false,
+  "whole_goal_complete": false,
+  "card_states": {
+    "PC-01": "verified_production",
+    "PC-02": "in_progress",
+    "PC-03": "verified_production",
+    "PC-04": "verified_production",
+    "PC-05": "verified_production",
+    "PC-06": "in_progress",
+    "PC-07": "verified_production",
+    "PC-08": "verified_production",
+    "PC-09": "verified_production",
+    "PC-10": "verified_production",
+    "PC-11": "verified_production",
+    "PC-12": "deployed",
+    "PC-13": "verified_production",
+    "PC-14": "deployed",
+    "PC-15": "verified_production",
+    "PC-16": "deployed",
+    "PC-17": "verified_production",
+    "PC-18": "in_progress"
+  },
+  "card_counts": {
+    "deployed": 3,
+    "in_progress": 3,
+    "verified_production": 12
+  }
+}
