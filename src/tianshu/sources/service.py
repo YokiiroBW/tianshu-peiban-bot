@@ -457,6 +457,40 @@ class SourceService:
                 conn, SourceRef(row["source_id"], row["head_revision"], {}), "corrected"
             )
 
+    async def retract_publication(self, context, source_ref, *, connection):
+        """A publication owner withdraws its precise disclosure in the domain transaction."""
+        conn = connection
+        if source_ref.locator:
+            raise AppError("publication_whole_reference_required")
+        await self._lock_selected(conn, (source_ref,), exclusive=True)
+        row = await (
+            await conn.execute(
+                "SELECT o.*,v.disclosure FROM sources.originals o JOIN sources.versions v ON v.source_id=o.source_id AND v.revision=o.head_revision WHERE o.source_id=%s",
+                (source_ref.source_id,),
+            )
+        ).fetchone()
+        if (
+            not row
+            or not row["disclosure"]
+            or not await self.identity.can_revoke_source(
+                conn, context, row["owner_id"], row["person_id"], row["actor_id"]
+            )
+        ):
+            raise AppError("publication_retraction_forbidden", status=403)
+        if row["head_revision"] != source_ref.revision:
+            raise AppError("revision_conflict", status=409)
+        if row["state"] == "active":
+            await conn.execute(
+                "UPDATE sources.originals SET state='retracted',intake_epoch=intake_epoch+1 WHERE source_id=%s",
+                (source_ref.source_id,),
+            )
+            await conn.execute(
+                "UPDATE sources.versions SET state='retracted',content=NULL,media=NULL WHERE source_id=%s AND revision=%s",
+                (source_ref.source_id, source_ref.revision),
+            )
+            await self._changed(conn, source_ref, "retracted")
+        return source_ref
+
     async def publish_projection(
         self,
         context,

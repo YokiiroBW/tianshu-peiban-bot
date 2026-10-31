@@ -13,6 +13,9 @@ if TYPE_CHECKING:
 
 
 class SourcePort(Protocol):
+    async def retract_publication(
+        self, context: TrustedContext, source_ref: SourceRef, *, connection
+    ) -> SourceRef: ...
     async def register_archive(
         self,
         context: TrustedContext,
