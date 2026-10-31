@@ -100,7 +100,8 @@
         "CR08"
       ],
       "owner": "companion",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "frontend"
     },
     {
       "id": "CR10",
@@ -112,7 +113,8 @@
         "CR09"
       ],
       "owner": "life",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "frontend"
     },
     {
       "id": "CR11",
@@ -147,7 +149,8 @@
         "CR04A"
       ],
       "owner": "conversation",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "frontend"
     },
     {
       "id": "CR13B",
@@ -195,7 +198,8 @@
         "CR13C"
       ],
       "owner": "companion.expression / channels",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "frontend"
     },
     {
       "id": "CR14",
@@ -229,7 +233,8 @@
         "CR15"
       ],
       "owner": "memory / companion / life",
-      "state": "planned"
+      "state": "implementing",
+      "implementation_agent": "frontend"
     },
     {
       "id": "CR17A",
@@ -371,10 +376,16 @@
         "CR18B",
         "CR18C",
         "CR18D",
-        "CR18"
+        "CR18",
+        "CR09",
+        "CR10",
+        "CR12",
+        "CR13",
+        "CR16"
       ],
       "state": "implementing",
-      "boundary": "web/**; docs/handoffs/CR18-frontend.md"
+      "boundary": "web/**; docs/handoffs/CR18-frontend.md; companion/**,life/**,conversation/** excluding context; tests and schemas for owned domains",
+      "phase": "core_B_and_final_frontend_wiring"
     },
     "capabilities": {
       "model": "gpt-6.1-sol",
@@ -402,6 +413,24 @@
       "integrated": "0370ddc",
       "scope": "early public types and native PG/API contract",
       "validation": "source_review_only; full CR01-03 still implementing"
+    },
+    {
+      "source": "067d1dc801dbe9c679565e1ede87ced79d338a40",
+      "integrated": "dafba1c",
+      "scope": "stable capability ports and DTO",
+      "validation": "source_review_only"
+    },
+    {
+      "source": "c37ba2423801ed099e3df5e121a567fa8c4856fa",
+      "integrated": "5091080",
+      "scope": "first frontend migration and API basis; final core wiring and old DTO removal pending",
+      "validation": "source_review_only"
+    },
+    {
+      "source": "84ad8656aeec9a909bb33974629dc03519c52583",
+      "integrated": "ceded3c",
+      "scope": "explicit setup protection and trusted context hook",
+      "validation": "source_review_only"
     }
   ],
   "validation": {
@@ -417,7 +446,15 @@
     "container_count": 16,
     "mount_count": 37,
     "guard": "active",
-    "mutated": false
+    "mutated": false,
+    "database_plan": {
+      "host": "192.168.31.210",
+      "directory": "/volume2/Dockers/tianshu-core-postgres",
+      "candidate_port": 25018,
+      "image_candidate": "pgvector/pgvector:0.8.7-pg17-bookworm",
+      "state": "read_only_boundary_verified_not_created",
+      "preserve_shared_instance": "postgres-1"
+    }
   },
   "planning_commit": "e034276dfb757b7dd64cd2f56e952d81193a5248"
 }

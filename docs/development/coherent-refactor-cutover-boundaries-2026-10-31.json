@@ -1,0 +1,308 @@
+{
+  "state": "metadata_inventory_only_not_executed",
+  "date": "2026-10-31",
+  "production_writer": "root",
+  "prerequisite": "all implementation integrated; CR19 applicable acceptance passed; stop old writers before deleting old data",
+  "application": {
+    "host": "192.168.31.230",
+    "owner": "f2e3cc2dde14e5bc77c266c36522c6d94edcea8ee75f6ae3593a2d0685ef97b5",
+    "image": "sha256:d45d1aeebfeea15673877ff88b807fa05fa26c856a6567debf7fce71fe224550",
+    "name": "tianshu-unified-tianshu-1",
+    "published_ports": [
+      18446,
+      18443,
+      18765
+    ]
+  },
+  "postgres_old": {
+    "host": "192.168.31.210",
+    "port": 25008,
+    "database": "xinghai",
+    "schemas_exact": [
+      "ts_tianshu_actor_memory_main_14e3434db40b",
+      "ts_tianshu_companion_main_0c6bf7a49daf",
+      "ts_tianshu_companion_observations_af0a741151ec",
+      "ts_tianshu_gateway_diagnostics_de3056e14dc4",
+      "ts_tianshu_knowledge_main_86bd9aa09a93",
+      "ts_tianshu_knowledge_role_grants_71078366e402",
+      "ts_tianshu_memory_main_1e1c45e3102c",
+      "ts_tianshu_memory_role_grants_6f02dac7582a",
+      "ts_tianshu_platform_authority_961873e901ac",
+      "ts_tianshu_platform_bot_adapters_0c19d4efc0e2",
+      "ts_tianshu_platform_bot_observations_3c673ba50201",
+      "ts_tianshu_platform_bots_24d37fe2409b",
+      "ts_tianshu_platform_external_1374ebdf1894",
+      "ts_tianshu_platform_home_7638f6366221",
+      "ts_tianshu_platform_home_none_e53a786abf00",
+      "ts_tianshu_platform_infrastructure_0dee01436c4e",
+      "ts_tianshu_platform_media_8a0fecb63d71",
+      "ts_tianshu_platform_plugins_ec1a83c47791",
+      "ts_tianshu_platform_providers_9193c18bb9a0",
+      "ts_tianshu_platform_qq_admin_3853fa68f5aa",
+      "ts_tianshu_platform_roles_15c6768d96bd",
+      "ts_tianshu_platform_web_account_44211478ac18",
+      "ts_tianshu_platform_web_inputs_9e85bfed1deb",
+      "ts_tianshu_platform_web_models_768645adf731",
+      "ts_tianshu_platform_web_replies_15f1a3e24cf9"
+    ],
+    "ownership_evidence": "all 25 schemas computed from six actual installation binding manifests exactly match current non-public schema inventory",
+    "preserve_instance": "postgres-1",
+    "preserve_schemas": [
+      "public"
+    ],
+    "action": "drop exact owned schemas only after static config selection and old writer stop; never drop shared database or server"
+  },
+  "redis_old": {
+    "host": "192.168.31.210",
+    "port": 25009,
+    "db": "1",
+    "prefixes_exact": [
+      "tianshu:tianshu:33b737f8af5046bf8ae92b9ba438ee62:platform:",
+      "tianshu:tianshu:87ea8b3807024e7c9eeddf7072c9761f:companion:",
+      "tianshu:tianshu:e251b386467845adb814a8fdd9b0334f:memory:",
+      "tianshu:tianshu:d2eee4dc941d4a0fb06928bda1936c38:actor-memory:",
+      "tianshu:tianshu:419019da6ade4de8a6880bb53c9f70e5:knowledge:",
+      "tianshu:tianshu:d496027b76174d068aaa77f0da334c37:gateway:"
+    ],
+    "action": "bounded scan/unlink exact installed prefixes after writer stop; no FLUSHDB/FLUSHALL"
+  },
+  "old_application_data_candidates": [
+    "/srv/tianshu/data/companion",
+    "/srv/tianshu/data/gateway",
+    "/srv/tianshu/data/knowledge",
+    "/srv/tianshu/data/memory",
+    "/srv/tianshu/data/platform",
+    "/srv/tianshu/data/platform-plugins/plugins",
+    "/srv/tianshu/logs/companion",
+    "/srv/tianshu/logs/gateway",
+    "/srv/tianshu/logs/knowledge",
+    "/srv/tianshu/logs/memory",
+    "/srv/tianshu/logs/platform",
+    "/srv/tianshu/unified-20261027/data",
+    "/srv/tianshu/unified-20261027/data/legacy-logs",
+    "/srv/tianshu/unified-20261027/data/legacy-state"
+  ],
+  "protected_mount_sources": [
+    "/mnt/tianshu-nas/bilibili",
+    "/mnt/tianshu-nas/books",
+    "/mnt/tianshu-nas/comic-extension-cache",
+    "/mnt/tianshu-nas/comic-inputs",
+    "/mnt/tianshu-nas/comic-output-main",
+    "/mnt/tianshu-nas/comic-output-private",
+    "/mnt/tianshu-nas/ebooks",
+    "/mnt/tianshu-nas/loki-chunks",
+    "/mnt/tianshu-nas/maintenance-cache",
+    "/mnt/tianshu-nas/music",
+    "/mnt/tianshu-nas/staging",
+    "/mnt/tianshu-nas/suwayomi-extensions",
+    "/mnt/tianshu-nas/video",
+    "/srv/tianshu-aux/onebot/data"
+  ],
+  "retired_host_containers_candidates": [
+    {
+      "id": "0ead3644762f",
+      "name": "tianshu-onebot",
+      "state": "exited"
+    },
+    {
+      "id": "b462844ba63f",
+      "name": "tianshu-v2-resident-companion-1",
+      "state": "exited"
+    },
+    {
+      "id": "cf5fef106474",
+      "name": "tianshu-v2-resident-memory-1",
+      "state": "exited"
+    },
+    {
+      "id": "b5fe7a3989f4",
+      "name": "tianshu-v2-resident-gateway-1",
+      "state": "exited"
+    },
+    {
+      "id": "32d00086f603",
+      "name": "tianshu-v2-resident-platform-1",
+      "state": "exited"
+    },
+    {
+      "id": "1588ce969470",
+      "name": "tianshu-v2-resident-knowledge-1",
+      "state": "exited"
+    },
+    {
+      "id": "3ab6f32fb526",
+      "name": "tianshu-comics-inputs",
+      "state": "exited"
+    },
+    {
+      "id": "35f214f043df",
+      "name": "tianshu-comics-publisher",
+      "state": "exited"
+    },
+    {
+      "id": "b6e551600f13",
+      "name": "tianshu-v2-resident-obs-obs-grafana-1",
+      "state": "exited"
+    },
+    {
+      "id": "a10d67da7428",
+      "name": "tianshu-v2-resident-obs-obs-loki-1",
+      "state": "exited"
+    },
+    {
+      "id": "9ef6c40ca5c9",
+      "name": "tianshu-v2-resident-obs-obs-guard-1",
+      "state": "exited"
+    },
+    {
+      "id": "bb500a12810d",
+      "name": "tianshu-v2-resident-obs-obs-prometheus-1",
+      "state": "exited"
+    },
+    {
+      "id": "906f83a1a440",
+      "name": "tianshu-v2-resident-obs-obs-vector-1",
+      "state": "exited"
+    }
+  ],
+  "unclassified_host_containers_preserve": [
+    {
+      "id": "6eb98ffb81bc",
+      "name": "silly_williams"
+    },
+    {
+      "id": "12361235e56b",
+      "name": "xenodochial_poincare"
+    }
+  ],
+  "nas_control_hub_preserve": [
+    {
+      "id": "84595bbffc97",
+      "name": "tianshu-control-hub-control-events-1"
+    },
+    {
+      "id": "b0d22e6fa6ed",
+      "name": "tianshu-control-hub-control-api-1"
+    },
+    {
+      "id": "10ece50b1a19",
+      "name": "tianshu-control-hub-prometheus-1"
+    },
+    {
+      "id": "3459998a91a0",
+      "name": "tianshu-control-hub-console-edge-1"
+    },
+    {
+      "id": "ddadea1d0cbd",
+      "name": "tianshu-control-hub-agent-ingress-1"
+    },
+    {
+      "id": "b0cfb23e81a0",
+      "name": "tianshu-control-hub-agent-enrollment-1"
+    },
+    {
+      "id": "4d10f58831cb",
+      "name": "tianshu-control-acceptance-20261019-44534fa-marker-1"
+    },
+    {
+      "id": "e4edff932f35",
+      "name": "tianshu-control-hub-control-migrator-1"
+    },
+    {
+      "id": "daf5f85c4533",
+      "name": "tianshu-control-hub-postgres-1"
+    }
+  ],
+  "nas_old_registry_candidates": [
+    {
+      "id": "7c64171ae97f",
+      "name": "tianshu-opencode-session-registry",
+      "state": "exited"
+    },
+    {
+      "id": "f0d93f22b8e6",
+      "name": "tianshu-fluid-layout-registry",
+      "state": "exited"
+    },
+    {
+      "id": "60ae604a2d90",
+      "name": "tianshu-user-hub-reply-registry",
+      "state": "exited"
+    },
+    {
+      "id": "fdfe316cb8b0",
+      "name": "tianshu-user-hub-registry",
+      "state": "exited"
+    },
+    {
+      "id": "a18fb6e2ff6b",
+      "name": "tianshu-weather-host-registry",
+      "state": "exited"
+    },
+    {
+      "id": "e88b13da8c08",
+      "name": "tianshu-room-illustration-registry",
+      "state": "exited"
+    },
+    {
+      "id": "5d0808339aa1",
+      "name": "tianshu-login-entry-registry",
+      "state": "exited"
+    },
+    {
+      "id": "7b52e8514244",
+      "name": "tianshu-life-visual-registry",
+      "state": "exited"
+    },
+    {
+      "id": "729b402d4496",
+      "name": "tianshu-quality-life-registry",
+      "state": "exited"
+    },
+    {
+      "id": "4a6343f560b1",
+      "name": "tianshu-persona-label-rc5-registry",
+      "state": "exited"
+    },
+    {
+      "id": "492d1cac9049",
+      "name": "tianshu-persona-http-rc4-registry",
+      "state": "exited"
+    },
+    {
+      "id": "b6682fff04b0",
+      "name": "tianshu-optional-persona-rc3-registry",
+      "state": "exited"
+    },
+    {
+      "id": "11999d3c19b6",
+      "name": "tianshu-relationship-rc2-registry",
+      "state": "exited"
+    },
+    {
+      "id": "5f1727b890e2",
+      "name": "tianshu-v2-resident-registry",
+      "state": "exited"
+    }
+  ],
+  "candidate_caveat": "Container/path names are candidates, not deletion instructions; recheck resolved paths, active references, mounts, ownership and exact image/ID at cutover.",
+  "new_postgres": {
+    "host": "192.168.31.210",
+    "directory": "/volume2/Dockers/tianshu-core-postgres",
+    "port_candidate": 25018,
+    "image_candidate": "pgvector/pgvector:0.8.7-pg17-bookworm",
+    "created": false
+  },
+  "capacity_guard": "preserve active tianshu-unified-capacity.service and existing capacity protection",
+  "static_config": "only explicitly selected current provider/connector/persona/auth configuration may be rebuilt in new types; no memory/relationship/jobs/runtime data import; secret values never stored here",
+  "protected_services": [
+    "AssetLibrary",
+    "Chat Audit",
+    "independent control-hub",
+    "AstrBot",
+    "QQ accounts",
+    "shared PostgreSQL",
+    "shared Redis",
+    "independent media libraries"
+  ]
+}
