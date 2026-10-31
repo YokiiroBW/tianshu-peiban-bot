@@ -156,9 +156,14 @@ class Reading:
 
 class ReadingAccess:
     def __init__(self,reading,authority,sources):self.reading,self.authority,self.sources=reading,authority,sources
+    def bind(self,reading):
+        if self.reading is not None and self.reading is not reading:
+            raise RuntimeError("reading_already_bound")
+        self.reading=reading
     async def read(self,context,grant_id=None):
         from tianshu.runtime.serialization import wire
         await self.authority.check(context)
+        if self.reading is None:raise Fault("capabilities_starting",503)
         owner=context.person_id or context.principal_id;reading=self.reading
         row=await reading.books.media.local(reading.repo.get,"book_reader",owner)
         response={"active":None,"grant_current":False,"observed_at":reading.repo.clock(),"catalog":[],"catalog_total":0}

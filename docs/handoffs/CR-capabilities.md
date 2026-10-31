@@ -108,3 +108,15 @@ Actions.get 返回 `{action:wire dict,attempt:wire dict,receipt:wire dict,result
 取消控制补充：API持久写cancel_requested并请求同一Procrastinate原job abort；实际运行Action有短周期控制观察，取消传到真正的async I/O/受管ffmpeg或SDK plugin.cancel。插件reconcile/孤立cancel经统一interactive控制任务交唯一worker宿主，interactive进程不启动第二Host。安装包的封存/原子目录操作会先等已开始的本地文件步骤收尾，不把尚未停下的工作显示为已取消。显式resume新Attempt清除旧取消标记；unknown不自动续写或重收费。
 
 本主体依赖链（只供集成人核对，不把这些文件重复纳入能力提交）：ec2fc7c、84ad865、220249b、94e2020、7f6ffc8、9864139、7acd976、6a02a97，均已在本工作树消费。后续B最终合同与C独立提交另行交接。
+
+
+## 后续收口（仍 implemented_not_tested）
+
+- Catalog.discover 自身刷新动态插件定义并按角色过滤；Actions 唯一入口保证 PluginHost 只在 worker 执行，短插件使用同一 Procrastinate interactive 份额。
+- `await capabilities.prepare()` 只装配真实 owner、绑定稳定 `capabilities.reading` 和注册目录；`initialize()` 才启动 worker 宿主/后台。先 prepare，再构造 B 的 ReadingService/Expression/Conversation 和登记所有任务，最后启动。`bind_expression` / `bind_result_events` 为晚绑定正式端口。
+- `images.generate`/preview 的 `intent` 是 ImageIntent；独立 `photo_intent` 是 PhotoIntent，字段 trigger/purpose/motivation/window/dedup_key/target_ref/artifact_ids/delivery_kind。B 冻结授权目标/时间窗作为输入，能力执行前保存原值，重对账不丢 requested_delivery；明确交付不经过普通随兴分享筛选。输出 delivery 始终 not_requested，由唯一 Expression 发送。
+- 明确取消会中断实际 I/O 并调用原供应商 handle 的 cancel/reconcile；普通连接中断仍 unknown。Comfy 运行中只使用支持原 handle 的定向取消，旧端不调用影响其他任务的全局 interrupt。
+- `Actions.resume(...,client_request_id=...)` 在同事务持久登记恢复命令→原新 attempt；同命令重投不会再创建计费尝试。
+- `await capabilities.withdraw_sources(connection,refs)` 是 A 撤回事务内钩子：锁定来源派生写入、清理素材逻辑引用/语义索引/语音缓存/分析内容并标记未执行及进行中动作，晚到结果只能保留真实 effect/usage/身份。FileStore 共享字节不删除。所有 artifact 写入、语音缓存、分析与结果落账重新核来源；来源事务与派生写入用 capabilities:source:<source_id> advisory 锁串行。
+- 配置与 Plugin Vault 复用 runtime.credentials.seal_bytes/unseal_bytes，外置唯一 master + 精确 domain/reference AAD，不再生成本地 key 文件。无旧密文兼容。
+- 新编排源码以 formatter 展开为正常多行；未运行测试/build/typecheck/真实服务。

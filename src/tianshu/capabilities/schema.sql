@@ -96,3 +96,5 @@ CREATE TABLE IF NOT EXISTS capabilities.device_readings(connection_id text NOT N
 CREATE TABLE IF NOT EXISTS capabilities.command_inputs(id text PRIMARY KEY,principal_id text NOT NULL,fingerprint text NOT NULL,body bytea NOT NULL);
 
 CREATE TABLE IF NOT EXISTS capabilities.maintenance(name text PRIMARY KEY,owner text NOT NULL,lease_until timestamptz NOT NULL);
+
+CREATE TABLE IF NOT EXISTS capabilities.action_controls(id text PRIMARY KEY,action_id text NOT NULL REFERENCES capabilities.actions(id),attempt_id text NOT NULL);

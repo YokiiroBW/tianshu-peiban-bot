@@ -94,12 +94,13 @@ class ComfyUI:
 
     async def cancel_pending(self, submission_id, plan):
         observed = await self.poll(submission_id, plan)
-        if observed.state != "queued":
+        if observed.state not in {"queued","running"}:
             return observed
         try:
             await self.json("POST", "/api/jobs/"+submission_id+"/cancel", {})
         except httpx.HTTPStatusError as error:
             if error.response.status_code!=404:raise
+            if observed.state=="running":return ImageResult("running",error_code="targeted_cancel_unsupported")
             await self.json("POST", "/queue", {"delete": [submission_id]})
         result = await self.poll(submission_id, plan)
         # Queue absence alone cannot prove whether a racing execution applied effects.

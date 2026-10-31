@@ -71,7 +71,7 @@ class PluginManager:
         self.content_discovery = content_discovery
         self.comic_files = comic_files
         self.repository = Repository(str(anchor) + ".plugins", runtime=runtime)
-        self.vault = Vault(self.repository, str(anchor) + ".plugins.key")
+        self.vault = Vault(self.repository, runtime.credentials)
         self.packages = Packages(
             settings.get("plugins", {}).get("package_directory", str(anchor) + ".plugins")
         )

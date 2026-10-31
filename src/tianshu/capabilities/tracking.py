@@ -1,8 +1,10 @@
 """Attach actual Broker dispatch evidence to the enclosing canonical attempt."""
+
 import asyncio
 from contextlib import asynccontextmanager
 from .execution_context import CURRENT_EXECUTION
 from .external import ProviderError
+
 
 class TrackedBroker:
     def __init__(self, broker):
@@ -24,7 +26,9 @@ class TrackedBroker:
                 current["submitted"] = True
                 return
         if receipt and receipt.dispatch != "not_started":
-            await current["owner"].submitted(current["attempt"], receipt.provider_handle, receipt.dispatch)
+            await current["owner"].submitted(
+                current["attempt"], receipt.provider_handle, receipt.dispatch
+            )
             current["submitted"] = True
 
     async def generate(self, request):
@@ -49,6 +53,7 @@ class TrackedBroker:
                     await permit.unknown(error.code)
                 raise
 
+
 class TrackedPermit:
     def __init__(self, permit, current):
         self.permit, self.current = permit, current
@@ -67,6 +72,7 @@ class TrackedPermit:
 
     async def unknown(self, error_code):
         return await self.permit.unknown(error_code)
+
 
 async def mark_submitted(provider_handle=None):
     current = CURRENT_EXECUTION.get()

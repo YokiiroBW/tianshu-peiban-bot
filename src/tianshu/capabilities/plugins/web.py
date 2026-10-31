@@ -138,7 +138,7 @@ class WebPlugins:
         elif operation == "cancel":
             result = await self.service.actions.cancel(body["id"],session)
         elif operation in {"reconcile","resume"}:
-            result=await self.service.actions.resume(body["id"],session) if operation=="resume" else await self.service.actions.reconcile(body["id"],session)
+            result=await self.service.actions.resume(body["id"],session,client_request_id=body["client_request_id"]) if operation=="resume" else await self.service.actions.reconcile(body["id"],session)
         elif operation == "upgrade":
             result = await host.upgrade(
                 body["instance_id"], body["version"], body["expected_revision"]
