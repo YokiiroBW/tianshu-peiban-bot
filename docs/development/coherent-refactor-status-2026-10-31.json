@@ -544,6 +544,48 @@
       "integrated": "ea7f641",
       "scope": "delivery_allowed defaults false for fresh/recovered contexts",
       "validation": "source_review_only; domain decoders and actual channel checks follow"
+    },
+    {
+      "source": "0abee4a04f608152f32e67a706aae7b5fc580c3f",
+      "integrated": "1a2786c",
+      "scope": "Source transaction persistence recheck and dependant API",
+      "validation": "source_review_only"
+    },
+    {
+      "source": "283811a3a860eefd3aeadb6a1d339858d6a75d87",
+      "integrated": "016a5d4",
+      "scope": "plugin catalog and worker lifecycle, stable reading preparation, actual cancellation/resume identity, runtime sealing consumers, readable orchestration",
+      "validation": "source_review_only; source persistence follow-up superseded by next patch"
+    },
+    {
+      "source": "3a329d00b78fc51162bc009808a770029d0cbea5",
+      "integrated": "bd1bf62",
+      "scope": "capability native Source persistence rechecks and indexed dependants",
+      "validation": "source_review_only; exact version/range withdrawal follow-up in progress"
+    },
+    {
+      "source": "14eb9377d18850b009d914e377599413b8319435",
+      "integrated": "fda7ae7",
+      "scope": "verified channel recall contract",
+      "validation": "source_review_only"
+    },
+    {
+      "source": "72b5b7ce9a10d856c57a7c7a11369aa09857e0e3",
+      "integrated": "58971d0",
+      "scope": "batch source dependant callback",
+      "validation": "source_review_only"
+    },
+    {
+      "source": "d0973de95bf02a664080a60318fd0f3346ba750f",
+      "integrated": "87e2275",
+      "scope": "source-owned precise version and fragment intersection rule",
+      "validation": "source_review_only; B/C consumers updating"
+    },
+    {
+      "source": "a2e9067fa9e5cd6e870fbff05a79e35c6a533f35",
+      "integrated": "8ebc219",
+      "scope": "durable dialogue collection/recovery, life clock and activation, paged diary materials and publication boundaries",
+      "validation": "source_review_only; expression planner/usecase handlers and final UI ongoing"
     }
   ],
   "validation": {
@@ -686,6 +728,21 @@
       "owner": "frontend",
       "scope": "async settings and actions retain original action identity; pending HTTP acceptance is not completed UI success",
       "state": "returned_to_owner"
+    },
+    {
+      "owner": "frontend",
+      "scope": "U88 two active turns may prepare concurrently but publicly deliver in durable inbound order; release/model/DB capacity while waiting",
+      "state": "returned_to_owner"
+    },
+    {
+      "owner": "foundation_models and capabilities",
+      "scope": "single channel connection owner on interactive; worker RPC carries persisted call identity and configured internal URL/token only",
+      "state": "implementation_contract_frozen"
+    },
+    {
+      "owner": "root",
+      "scope": "existing main Gemini alias currently configured through OpenAI chat compatibility; native multimodal protocol and embedding 1024 must be verified from actual endpoints at CR19",
+      "state": "read_only_metadata_verified_no_model_calls"
     }
   ]
 }
