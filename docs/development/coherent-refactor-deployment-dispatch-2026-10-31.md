@@ -5,7 +5,7 @@
 ## 独占范围与输入
 
 - 本实现者继续拥有根后端 manifest/lock、入口、composition 与 migration 总注册；新增 `deploy/core/**`、必要的根 Docker 构建忽略文件、`tests/deployment/**` 与 `docs/handoffs/CR20-deployment.md`。
-- `web/**` 继续由 frontend 独占，不修改其源文件或锁。消费正式构建产物；SDK 和 channels 依赖由 capabilities 所有者提交。
+- 前端共享 API/路由/manifest/lock 由 frontend 独占；最终业务页面按 `coherent-refactor-final-ui-dispatch-2026-10-31.md` 的三方目录边界执行。部署消费正式构建产物；SDK 和 channels 依赖由 capabilities 所有者提交。
 - 最终源码退出范围包括已被替代的 `packages/tianshu-storage`、`deploy/tianshu`、`deploy/observability`、`ops/resident_install`、`ops/resident_capacity`、`ops/recovery` 及只服务旧路径的用例/入口。先核对真实引用，将仍有效的日志、容量、恢复能力迁入新归属后删除旧实现；不只从镜像排除或挪入 legacy。独立产品、共享合同和协调历史文档不按目录名批量删除；原根脏树不在代理操作范围。
 - 冻结的 `application/deploy/single_container` 只用于复用有效监督、信号、媒体进程和容量保护知识；不把旧 BusinessHost、ThreadedExchange、五产品装配、旧迁移链带进新版。
 - 真实资源边界在 `coherent-refactor-cutover-boundaries-2026-10-31.json`。其中 candidates 不是可立即删除指令。实现者不 SSH、不读取真实凭据、不 build/pull、不停容器、不部署、不清理。
@@ -36,3 +36,5 @@
 New API 的官方[原生 Gemini 接口文档](https://docs.newapi.ai/zh/docs/api/ai-model/chat/gemini/geminirelayv1beta)说明了 `/v1beta/models/{model}:generateContent`；其[认证源码](https://github.com/QuantumNous/new-api/blob/main/middleware/auth.go)支持相应路径的 `x-goog-api-key`。这仅提供候选接入依据，不能据此证明用户供应商的具体部署/模型已支持多模态；CR19 再验证真实配置。
 
 旧配置还包含 Qwen3 Reranker 与 Embedding；后者最近一次旧测试是 unknown。SiliconFlow 的[模型说明](https://www.siliconflow.com/models/qwen3-embedding-8b)列出可变维度范围，但新安装仍须实际检查返回 1024 维及固定 profile，不能把旧测试记录或文档能力当作本轮成功。只读元数据保存在原根本批私有 runtime 目录；没有导出或打印 API Key，也没有在开发阶段调用模型。
+
+构建主机选择：当前 `.230` 自由空间约 31.5 GiB，现有守护保留 20 GiB 底线；NAS volume2 约 361 GiB。最终可在明确的天枢专属 NAS 构建目录构建并将成品传到 `.230`，不得提高容量上限或清理未知 Docker 对象来腾挪空间。以上是只读快照，实际构建前由根复核。

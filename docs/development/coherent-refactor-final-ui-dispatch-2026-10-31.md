@@ -10,7 +10,7 @@
 
 | 写者 | 顺序与独占范围 |
 |---|---|
-| frontend | 继续 B 日记/写作取消、表达恢复；前端 `features/life`、`multimodal`、`room`、`companion`、`home`、`workbench`，以及 Channels/Weather 等仍归它的设置页面。唯一拥有 `web/src/api/**`、`app/**`、`modules/**`、公共组件、路由和前端 manifest/lock。 |
+| frontend | 继续 B 日记/写作取消、表达恢复；前端 `features/life`、`multimodal`、`room`、`companion`、`home`、`workbench`、`flow-graph`，以及 Channels/Weather 等仍归它的设置页面。唯一拥有 `web/src/api/**`、`app/**`（含实际模块注册 `app/modules.ts`）、公共组件、路由和前端 manifest/lock。 |
 | capabilities | 先交完整 channels、QWeather 与当前实际能力补丁；然后接 `web/src/features/plugins/**`、`media/**`、`infrastructure/**`、`resources/**`。这些目录自 `7660945` 起由 frontend 冻结。核对外部 AssetLibrary 有效只读适配及原 Chat Audit 接口实际去向；不操作或复制独立产品私有库。 |
 | foundation_models | 继续 root composition、CR20 和旧实现退出；核对旧 Knowledge/Project 的真实已实现能力。然后接 `web/src/features/people/**`、`memory/**`、`knowledge/**`、`projects/**`；设置页仅 `ProviderManager.tsx`、`ProviderEditors.tsx`、`ProviderModelsPanel.tsx`、`ModelFunctionsPanel.tsx`、`providerApi.ts`、`providerTypes.ts`、`providerPresets.ts`、`models.css`、`AccessPanel.tsx`、`access.css`。这些路径尚未开始最终业务重写，frontend 不再修改。 |
 
@@ -30,3 +30,5 @@ CR01 的“新归属”是施工责任，不能当实现证据。U17–18、U43�
 - 页面的有效布局、主题、资源继续复用；删除被替代的旧 DTO、分值/阶段配置、跨产品包装和无消费者分支。不得只把旧页面套到新应用壳中。
 
 本卡仅规定已授权工作边界；没有运行验收或生产操作。
+
+技能页使用唯一 Catalog 的角色策略与清单来源，不再保留第二个 SkillsRegistry。已在运行中的原生模型任务只有显式取消才取消；关闭能力阻止新调用和未开始的 Action，不把该开关描述成已取消供应商在途工作。

@@ -450,8 +450,8 @@
         "CR16"
       ],
       "state": "implementing",
-      "boundary": "web/**; docs/handoffs/CR18-frontend.md; companion/**,life/**,conversation/** excluding context; tests and schemas for owned domains",
-      "phase": "B_cancel_recovery_life_multimodal_channels_and_shared_web"
+      "boundary": "companion/**,life/**,conversation/** except context; shared web api/app/components/router/manifest; features life/multimodal/room/companion/home/workbench/flow-graph and settings outside foundation exact whitelist; no writes to C or A owned feature folders",
+      "phase": "generation_recovery_and_final_owned_frontend"
     },
     "capabilities": {
       "model": "gpt-6.1-sol",
@@ -472,7 +472,7 @@
       ],
       "state": "implementing",
       "boundary": "src/tianshu/capabilities/**,packages/tianshu-plugin/**,tests/capabilities/**; capability schema fragment; channels/** and tests/channels after capability handoff; excludes capabilities/projects/** owned by foundation; after backend handoff owns web/src/features/{plugins,media,infrastructure,resources}/** from 7660945",
-      "phase": "channels_weather_assets_then_plugins_media_infrastructure_resources_UI"
+      "phase": "assetlink_integrated_chat_audit_and_owned_frontend"
     }
   },
   "integration_commits": [
@@ -685,6 +685,60 @@
       "integrated": "14ab3f2",
       "scope": "shared frontend session and real command outcomes, chat/upload/media and actual room/growth projections",
       "validation": "source_review_only; final domain pages ongoing"
+    },
+    {
+      "source": "b674bd5",
+      "integrated": "ddb5ac8",
+      "scope": "shared selector query and actual read operations",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "379d40f",
+      "integrated": "e09d7bc",
+      "scope": "explicit global actor and conversation UI contexts",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "a99f4e4",
+      "integrated": "06bffdb",
+      "scope": "native channels OneBot Telegram SDK bridges and QWeather",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "a8514fd",
+      "integrated": "7682016",
+      "scope": "authorized publication recipients and control-pool authority refresh",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "a7d85f8",
+      "integrated": "7032c6b",
+      "scope": "single capability catalog actor policy and manifest sources",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "774f082",
+      "integrated": "6cf6e6e",
+      "scope": "actual web delivery receipts and life reading weather contact projections",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "23d5d0f",
+      "integrated": "fbcf71e",
+      "scope": "read-only original action lookup by client identity",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "16bff9a",
+      "integrated": "00591ed",
+      "scope": "authorized model result recovery command identities and exact source support keys",
+      "validation": "source_review_only; concentrated CR19 not started"
+    },
+    {
+      "source": "33fdba7",
+      "integrated": "767f290",
+      "scope": "actual AssetLibrary AssetLink reads and connection revision boundaries",
+      "validation": "source_review_only; concentrated CR19 not started"
     }
   ],
   "validation": {
@@ -731,7 +785,12 @@
     {
       "owner": "frontend",
       "scope": "write abort/truncated reply retain unknown and request identity; explicit read/command wrappers; setup-token contract",
-      "state": "in_progress"
+      "state": "source_integrated_pending_concentrated_acceptance",
+      "integration_evidence": [
+        "14ab3f2",
+        "ddb5ac8",
+        "e09d7bc"
+      ]
     },
     {
       "owner": "frontend",
@@ -741,7 +800,11 @@
     {
       "owner": "capabilities",
       "scope": "PhotoIntent delivery_kind; ConsumptionReceipt analysis_completed rather than understood; single media authority and Broker resource consumers",
-      "state": "in_progress"
+      "state": "source_integrated_pending_concentrated_acceptance",
+      "integration_evidence": [
+        "28270d9",
+        "a9af240"
+      ]
     },
     {
       "owner": "frontend and capabilities",
@@ -751,17 +814,28 @@
     {
       "owner": "foundation_models",
       "scope": "normal shareable recognition uses distinct disclosure projection while original private source remains private; source validity/withdrawal and scene boundaries retained",
-      "state": "implementing"
+      "state": "source_integrated_pending_concentrated_acceptance",
+      "integration_evidence": [
+        "e3b6452",
+        "58c3f65"
+      ]
     },
     {
       "owner": "frontend and capabilities",
       "scope": "semantic receipt revision, original action episode identity, stale-event current-ledger recheck, no completion episodes for accepted/pending",
-      "state": "implementation_reported_not_yet_handed_off"
+      "state": "source_integrated_pending_concentrated_acceptance",
+      "integration_evidence": [
+        "8ebc219",
+        "ccdb2d9"
+      ]
     },
     {
       "owner": "capabilities",
       "scope": "Comfy stable UUID prompt identity plus actual returned handle; missing queue entry is not confirmed cancellation",
-      "state": "implementation_reported_not_yet_handed_off"
+      "state": "source_integrated_pending_concentrated_acceptance",
+      "integration_evidence": [
+        "a9af240"
+      ]
     },
     {
       "owner": "foundation_models",
@@ -771,7 +845,10 @@
     {
       "owner": "foundation_models,capabilities and frontend",
       "scope": "one Procrastinate worker with bounded interactive/due/elastic consumers; long work does not occupy due/short-tool shares",
-      "state": "implementing"
+      "state": "source_integrated_pending_concentrated_acceptance",
+      "integration_evidence": [
+        "e3b6452"
+      ]
     },
     {
       "owner": "frontend",
@@ -781,12 +858,20 @@
     {
       "owner": "frontend",
       "scope": "vision capability mapping; interactive short jobs; round-scoped tool identities; consumed unknown receipt recovery; continuous message collection; durable lease expiry; eliminate nested business-pool acquisition; pending delivery remains unresolved",
-      "state": "accepted_by_owner_fixing"
+      "state": "source_integrated_pending_concentrated_acceptance",
+      "integration_evidence": [
+        "27316f1",
+        "ccdb2d9"
+      ]
     },
     {
       "owner": "frontend",
       "scope": "activity completion and time windows trigger life independently of style changes; authored routines can start without learned interest; diary reader excludes draft/materials; bounded full-day cursor handling",
-      "state": "accepted_by_owner_fixing"
+      "state": "source_integrated_pending_concentrated_acceptance",
+      "integration_evidence": [
+        "8ebc219",
+        "ccdb2d9"
+      ]
     },
     {
       "owner": "capabilities",
@@ -806,12 +891,20 @@
     {
       "owner": "foundation_models,frontend and capabilities",
       "scope": "CR05 owner callbacks and same-transaction persistence check across diary/context/actions/artifacts; preserve execution metadata; do not delete shared FileStore objects with valid other references",
-      "state": "owners_aligning"
+      "state": "source_integrated_pending_concentrated_acceptance",
+      "integration_evidence": [
+        "bd1bf62",
+        "58c3f65",
+        "ccdb2d9"
+      ]
     },
     {
       "owner": "foundation_models and capabilities",
       "scope": "reuse small runtime seal/unseal primitive with external master and domain AAD; remove duplicate local key creation race while retaining domain snapshot ownership",
-      "state": "owners_aligning"
+      "state": "source_integrated_pending_concentrated_acceptance",
+      "integration_evidence": [
+        "3400505"
+      ]
     },
     {
       "owner": "capabilities",
@@ -821,7 +914,11 @@
     {
       "owner": "frontend and capabilities",
       "scope": "all context decoders retain observation-only delivery boundary; same-identity actual channel authorization remains authoritative",
-      "state": "owners_aligning"
+      "state": "source_integrated_pending_concentrated_acceptance",
+      "integration_evidence": [
+        "ea7f641",
+        "38fb51c"
+      ]
     },
     {
       "owner": "frontend",
@@ -831,12 +928,18 @@
     {
       "owner": "frontend",
       "scope": "U88 two active turns may prepare concurrently but publicly deliver in durable inbound order; release/model/DB capacity while waiting",
-      "state": "returned_to_owner"
+      "state": "source_integrated_pending_concentrated_acceptance",
+      "integration_evidence": [
+        "ccdb2d9"
+      ]
     },
     {
       "owner": "foundation_models and capabilities",
       "scope": "single channel connection owner on interactive; worker RPC carries persisted call identity and configured internal URL/token only",
-      "state": "implementation_contract_frozen"
+      "state": "source_integrated_pending_concentrated_acceptance",
+      "integration_evidence": [
+        "06bffdb"
+      ]
     },
     {
       "owner": "root",
@@ -846,22 +949,35 @@
     {
       "owner": "foundation_models",
       "scope": "canonical embed capability, durable extraction fragment cursor, structured and lexical retrieval preserved when optional vector is slow",
-      "state": "accepted_by_owner_fixing"
+      "state": "source_integrated_pending_concentrated_acceptance",
+      "integration_evidence": [
+        "58c3f65"
+      ]
     },
     {
       "owner": "foundation_models",
       "scope": "all memory result and model-step persistence locks selected sources before domain rows; read_many never exceeds selected fragment",
-      "state": "returned_to_owner"
+      "state": "source_integrated_pending_concentrated_acceptance",
+      "integration_evidence": [
+        "58c3f65"
+      ]
     },
     {
       "owner": "capabilities and frontend",
       "scope": "ConsumptionReceipt continuation used by life; perception image maps to vision; full source locators retained across aggregation",
-      "state": "implementation_reported_waiting_handoff"
+      "state": "source_integrated_pending_concentrated_acceptance",
+      "integration_evidence": [
+        "89bdb30",
+        "ccdb2d9"
+      ]
     },
     {
       "owner": "capabilities",
       "scope": "reaction filters precede LIMIT in both recall paths; shared-connection artifact checks avoid nested pool and lock inversion",
-      "state": "implementation_reported_waiting_handoff"
+      "state": "source_integrated_pending_concentrated_acceptance",
+      "integration_evidence": [
+        "27316f1"
+      ]
     },
     {
       "owner": "foundation_models",
@@ -876,12 +992,37 @@
     {
       "owner": "frontend and capabilities",
       "scope": "all HTTP selectors use Identity verified query scene; no blanket config.publish for ordinary capabilities; actual handler permissions retained",
-      "state": "implementation_reported_waiting_handoff"
+      "state": "source_integrated_pending_concentrated_acceptance",
+      "integration_evidence": [
+        "ddb5ac8",
+        "e09d7bc",
+        "06bffdb"
+      ]
     },
     {
       "owner": "frontend",
       "scope": "restore planned/dispatching expression steps by original action identity after interruption; no paid retry for unknown",
       "state": "accepted_by_owner_fixing"
+    },
+    {
+      "owner": "foundation_models",
+      "scope": "Native project knowledge import versions whole-unit reads research notes lessons continuation CLI/MCP and owned UI remain required; actual former health code was service health, not an implemented human health/mobile domain",
+      "state": "implementing"
+    },
+    {
+      "owner": "foundation_models and capabilities",
+      "scope": "ChatAudit explicit authorized historical evidence reads require new stable external Source aliases and suppression; do not auto-import old archive or migrate old Core alias data",
+      "state": "implementing"
+    },
+    {
+      "owner": "frontend",
+      "scope": "Persist original ModelRequest and attempt for growth life plan diary writing; interrupted dispatch uses original result lookup and never duplicates unknown paid work",
+      "state": "implementing"
+    },
+    {
+      "owner": "foundation_models",
+      "scope": "Build source and complete fresh deployment cleanup code before CR19; NAS dedicated build space preferred over consuming .230 capacity guard reserve",
+      "state": "implementing"
     }
   ]
 }
