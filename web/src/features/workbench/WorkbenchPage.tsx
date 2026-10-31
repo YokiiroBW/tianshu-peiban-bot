@@ -62,7 +62,11 @@ export default function WorkbenchPage() {
                 </p>
               )}
               <p>穿着：{state.data.outfit?.description ?? "未选择服装"}</p>
-              <p>{state.data.affect.regulation.expression_direction}</p>
+              <p>
+                {state.data.affect.feelings.find((feeling) =>
+                  feeling.appraisal.trim(),
+                )?.appraisal ?? "暂时没有新的主观记录。"}
+              </p>
               {state.data.missing.length > 0 && (
                 <p>本次缺失：{state.data.missing.join("、")}</p>
               )}

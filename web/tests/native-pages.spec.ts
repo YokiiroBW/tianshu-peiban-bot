@@ -5,9 +5,64 @@ import {
   nativeSession,
   receipt,
   room,
+  state,
 } from "./native-fixture";
 
 test.beforeEach(async ({ page }) => nativeSession(page));
+
+test("life summaries show recorded feelings without exposing expression guidance", async ({
+  page,
+}) => {
+  const guidance =
+    "Use the authored character's natural expression and the current person's explicit preference.";
+  let appraisal: string | null = null;
+  await page.route("**/api/v1/life/state**", (route) =>
+    answer(route, {
+      ...state,
+      affect: {
+        ...state.affect,
+        regulation: { mode: "steady", expression_direction: guidance },
+        feelings: appraisal
+          ? [
+              {
+                event_id: "feeling",
+                appraisal,
+                attribution: "self",
+                control: 0.5,
+                goal_relevance: 0,
+              },
+            ]
+          : [],
+      },
+    }),
+  );
+  for (const recorded of [null, "读完这一章，想把刚才的灵感记下来。"]) {
+    appraisal = recorded;
+    for (const route of ["workbench", "roles/life"]) {
+      await page.goto(`/#/${route}`);
+      const summary =
+        route === "roles/life"
+          ? page.locator("section").filter({
+              has: page.getByRole("heading", {
+                name: "心情与感想",
+                exact: true,
+              }),
+            })
+          : page.locator("section").filter({
+              has: page.getByRole("heading", {
+                name: "小屋角色的近况",
+                exact: true,
+              }),
+            });
+      await expect(
+        summary.getByText(recorded ?? "暂时没有新的主观记录。", {
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect(page.getByText(guidance, { exact: true })).toHaveCount(0);
+    }
+  }
+});
 
 test("device control uses the observed revision and unknown never resends the action", async ({
   page,

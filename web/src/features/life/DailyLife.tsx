@@ -22,6 +22,9 @@ export function DailyLife({ state }: { state: LifeState }) {
     30000,
   );
   const current = state.activity;
+  const feelings = state.affect.feelings.filter((feeling) =>
+    feeling.appraisal.trim(),
+  );
   return (
     <div className="life-daily">
       <section className="life-overview">
@@ -50,7 +53,7 @@ export function DailyLife({ state }: { state: LifeState }) {
           <div>
             <small>此刻感受</small>
             <strong className="life-mood-pill">
-              {state.affect.feelings[0]?.appraisal ?? "暂时没有新的主观记录"}
+              {feelings[0]?.appraisal ?? "暂时没有新的主观记录"}
             </strong>
           </div>
         </div>
@@ -95,13 +98,16 @@ export function DailyLife({ state }: { state: LifeState }) {
           </section>
           <section className="life-card life-mood-card">
             <h3 className="life-card-title">心情与感想</h3>
-            {state.affect.feelings.slice(0, 3).map((feeling) => (
-              <p key={feeling.event_id}>{feeling.appraisal}</p>
-            ))}
-            <p className="muted">
-              {state.affect.regulation.expression_direction}
-            </p>
-            <SourceEvidence sources={state.affect.source_refs} />
+            {feelings.length ? (
+              <>
+                {feelings.slice(0, 3).map((feeling) => (
+                  <p key={feeling.event_id}>{feeling.appraisal}</p>
+                ))}
+                <SourceEvidence sources={state.affect.source_refs} />
+              </>
+            ) : (
+              <p className="muted">暂时没有新的主观记录。</p>
+            )}
           </section>
           <a className="life-card life-diary-link" href="#/roles/diaries">
             <BookOpen />

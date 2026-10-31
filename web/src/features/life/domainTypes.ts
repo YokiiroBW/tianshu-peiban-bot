@@ -52,7 +52,6 @@ export type Affect = {
     control: number;
     goal_relevance: number;
   }[];
-  regulation: { mode: string; expression_direction: string };
   source_refs: SourceRef[];
   missing: string[];
 };
