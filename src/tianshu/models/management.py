@@ -74,6 +74,8 @@ async def configuration(conn, settings):
 
 
 async def mutate(services, context, operation, body):
+    if operation == "bindings" and (body.get("actor_id") or None) != context.actor_id:
+        raise AppError("binding_actor_context_required", status=403)
     expected = body.get("expected_revision")
     if type(expected) is not int or expected < 0:
         raise AppError("expected_revision_required")
@@ -97,6 +99,8 @@ async def mutate(services, context, operation, body):
 
 
 async def _apply_configuration(conn, operation, body, expected, services):
+    # Catalogue edits and explicit cascades share one short transaction lock.
+    await conn.execute("SELECT pg_advisory_xact_lock(hashtextextended('models.configuration',0))")
     if operation == "providers":
         protocol = text(body, "protocol")
         if protocol not in NATIVE_PROTOCOLS:
@@ -289,6 +293,8 @@ async def _apply_configuration(conn, operation, body, expected, services):
         current = await (
             await conn.execute("SELECT * FROM models.embedding_profile WHERE singleton FOR UPDATE")
         ).fetchone()
+        if expected != (current["revision"] if current else 0):
+            raise AppError("revision_conflict", status=409)
         if current and any(
             current[key] != value
             for key, value in zip(
@@ -316,6 +322,14 @@ async def _apply_configuration(conn, operation, body, expected, services):
 
 
 def register_routes(app, services):
+    async def reload_observation(result):
+        try:
+            await services.models.reload()
+            result["data"]["broker_reload"] = "applied"
+        except Exception:
+            result["data"]["broker_reload"] = "pending"
+        return result
+
     async def view(request):
         require_context(request, "models.read")
         async with services.database.transaction(read_only=True) as conn:
@@ -327,12 +341,40 @@ def register_routes(app, services):
         result = await mutate(services, context, request.match_info["operation"], body)
         # Config is committed even if the broker is restarting. Report reload state rather
         # than failing the command and encouraging an unknown write to be repeated.
-        try:
-            await services.models.reload()
-            result["data"]["broker_reload"] = "applied"
-        except Exception:
-            result["data"]["broker_reload"] = "pending"
-        return json_response(result)
+        return json_response(await reload_observation(result))
+
+    async def delete(request):
+        from .configuration_delete import delete_configuration
+
+        context = require_context(request, "models.manage")
+        body = dict(await command_body(request))
+        operation = request.match_info["operation"]
+        identifier = request.match_info.get("identifier")
+        if identifier:
+            body["provider_id" if operation == "providers" else "route_id"] = identifier
+        result = wire(await delete_configuration(services, context, operation, body))
+        return json_response(await reload_observation(result))
+
+    async def enumerate_provider(request):
+        from .discovery import enumerate_models
+
+        context = require_context(request, "models.manage")
+        body = await command_body(request)
+        return json_response(
+            await enumerate_models(services, context, request.match_info["provider_id"], body)
+        )
+
+    async def enumeration_result(request):
+        from .discovery import observed
+
+        context = require_context(request, "models.manage")
+        body = await request.json()
+        if not isinstance(body, dict):
+            raise AppError("invalid_input")
+        result = await observed(
+            services, context, request.match_info["provider_id"], text(body, "client_request_id")
+        )
+        return json_response({"found": result is not None, "command": result})
 
     async def attempts(request):
         context = require_context(request)
@@ -454,6 +496,9 @@ def register_routes(app, services):
             )
 
         async def save_probe(conn):
+            await conn.execute(
+                "SELECT pg_advisory_xact_lock(hashtextextended('models.configuration',0))"
+            )
             changed = await (
                 await conn.execute(
                     "UPDATE models.routes SET verified_capabilities="
@@ -499,3 +544,7 @@ def register_routes(app, services):
     app.router.add_post("/api/v1/models/attempts/read", read_attempt)
     app.router.add_post("/api/v1/models/attempts/{attempt_id}/cancel", cancel)
     app.router.add_post("/api/v1/models/routes/{route_id}/probe", probe)
+    app.router.add_post("/api/v1/models/providers/{provider_id}/models", enumerate_provider)
+    app.router.add_post("/api/v1/models/providers/{provider_id}/models/result", enumeration_result)
+    app.router.add_post("/api/v1/models/{operation:providers|routes}/{identifier}/delete", delete)
+    app.router.add_post("/api/v1/models/{operation:bindings|embedding-profile}/delete", delete)

@@ -115,6 +115,12 @@ class ModelClient:
         request.budget.check()
         try:
             await self._json("/internal/v1/resources", body=request, timeout=request.budget.remaining())
+        except AppError as exc:
+            # A definite duplicate identifies another owner of this original attempt.
+            # It grants no new permit and must never cancel that owner's real work.
+            if exc.code != "attempt_already_exists":
+                await self._cancel_cleanup(request.attempt_id)
+            raise
         except BaseException:
             # Enqueue/admission may have committed even when its response was lost.
             await self._cancel_cleanup(request.attempt_id)
