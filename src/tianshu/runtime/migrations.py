@@ -28,6 +28,7 @@ def product_migrations(jobs):
         ("0030_companion", "tianshu.companion", ("schema.sql",)),
         ("0031_life", "tianshu.life", ("schema.sql",)),
         ("0032_conversation", "tianshu.conversation", ("schema.sql",)),
+        ("0033_life_contact_expiry", "tianshu.life", ("contact_expiry.sql",)),
         ("capabilities-0001", "tianshu.capabilities", ("schema.sql",)),
         ("capabilities-projects-0001", "tianshu.capabilities.projects", ("schema.sql",)),
         ("channels-0001", "tianshu.channels", ("schema.sql",)),
