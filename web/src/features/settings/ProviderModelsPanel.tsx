@@ -1,38 +1,138 @@
-import { PASSWORD_MIN_LENGTH } from "../../app/passwordPolicy";
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type FormEvent,
-} from "react";
-import { RefreshCw, ShieldCheck } from "lucide-react";
-import { LoginLink, useSessionGuard } from "../../app/Auth";
-import { StatePanel } from "../../components/StatePanel";
-import { StatusRail } from "../../components/StatusRail";
-import { requestId } from "../../app/requestId";
-import {
-  call,
-  session as readSession,
-  WebError,
-  type ModelsView,
-  type SessionState,
-} from "./api";
+import { useState } from "react";
+import { DetailCard } from "../../components/DetailCard";
+import { CommandFeedback } from "../../components/CommandFeedback";
 import { ProviderManager } from "./ProviderManager";
-import type { ProviderActions } from "./providerTypes";
-import { readProviders, type ProviderView } from "./providerApi";
 import { ModelFunctionsPanel } from "./ModelFunctionsPanel";
+import { QuotaEditor } from "./ProviderEditors";
+import { useModelCatalog, useModelCommand } from "./providerApi";
+import type { ModelCatalog, QuotaGroup } from "./providerTypes";
 import "./models.css";
 
-function errorMessage(cause: unknown) {
-  if (cause instanceof WebError) {
-    if (cause.code === "result_unknown")
-      return `${cause.message} 页面不会自动重试。`;
-    return cause.executionState === "unknown"
-      ? `${cause.message} 本次执行结果未知；请重新读取状态，不会自动重试。`
-      : cause.message;
-  }
-  return "连接中断，本次操作结果未知。请重新读取状态，不会自动重试。";
+export function EmbeddingSettings() {
+  const catalog = useModelCatalog();
+  return (
+    <section className="models">
+      <h3>唯一语义嵌入配置</h3>
+      <p>
+        记忆与表情共用固定 1024
+        维档案。修改模型版本、归一化或查询指令涉及索引重建，服务会明确拒绝直接切换。
+      </p>
+      {catalog.error && <p role="alert">{catalog.error}</p>}
+      {catalog.data && (
+        <EmbeddingEditor
+          key={catalog.data.embedding_profile?.revision ?? 0}
+          catalog={catalog.data}
+          reload={catalog.refresh}
+        />
+      )}
+    </section>
+  );
+}
+function EmbeddingEditor({
+  catalog,
+  reload,
+}: {
+  catalog: ModelCatalog;
+  reload: () => Promise<void>;
+}) {
+  const old = catalog.embedding_profile;
+  const command = useModelCommand("embedding-profile");
+  const [route, setRoute] = useState(old?.route_id ?? "");
+  const [version, setVersion] = useState(old?.model_version ?? "");
+  const [normalization, setNormalization] = useState(
+    old?.normalization ?? "none",
+  );
+  const [instruction, setInstruction] = useState(old?.query_instruction ?? "");
+  const routes = catalog.routes.filter(
+    (item) =>
+      catalog.providers.find(
+        (provider) => provider.provider_id === item.provider_id,
+      )?.protocol === "openai.embedding",
+  );
+  return (
+    <form
+      className="provider-editor"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        const answer = await command.save(
+          "embedding-profile",
+          {
+            route_id: route,
+            dimensions: 1024,
+            model_version: version,
+            normalization,
+            query_instruction: instruction,
+          },
+          old?.revision ?? 0,
+        );
+        if (answer) await reload();
+      }}
+    >
+      <label>
+        嵌入模型路由
+        <select
+          required
+          value={route}
+          onChange={(event) => setRoute(event.target.value)}
+        >
+          <option value="">请选择嵌入协议路由</option>
+          {routes.map((row) => (
+            <option key={row.route_id} value={row.route_id}>
+              {row.model} · {row.route_id}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        模型版本
+        <input
+          required
+          value={version}
+          onChange={(event) => setVersion(event.target.value)}
+        />
+      </label>
+      <label>
+        归一化方式标记
+        <input
+          required
+          value={normalization}
+          onChange={(event) => setNormalization(event.target.value)}
+        />
+      </label>
+      <label>
+        查询指令
+        <textarea
+          rows={3}
+          value={instruction}
+          onChange={(event) => setInstruction(event.target.value)}
+        />
+      </label>
+      <p className="muted">
+        维度：1024 · {old ? `修订 ${old.revision}` : "尚未登记"}
+      </p>
+      {command.manageable && (
+        <button className="button primary" disabled={command.busy}>
+          保存固定档案
+        </button>
+      )}
+      {command.manageable && old && (
+        <button
+          type="button"
+          className="button"
+          disabled={command.busy}
+          onClick={async () => {
+            if (
+              await command.save("embedding-profile/delete", {}, old.revision)
+            )
+              await reload();
+          }}
+        >
+          解除固定嵌入档案
+        </button>
+      )}
+      <CommandFeedback {...command} />
+    </form>
+  );
 }
 
 export function ProviderModelsPanel({
@@ -40,496 +140,93 @@ export function ProviderModelsPanel({
 }: {
   mode?: "providers" | "defaults";
 }) {
-  const [session, setSession] = useState<SessionState | null>(null);
-  useSessionGuard(session);
-  const [management, setManagement] = useState<ModelsView["management"] | null>(
-    null,
-  );
-  const [providerView, setProviderView] = useState<ProviderView | null>(null);
-  const [busy, setBusy] = useState(true);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const active = useRef<AbortController | null>(null);
-  const password = useRef<HTMLInputElement>(null);
-
-  const start = useCallback(() => {
-    active.current?.abort();
-    const controller = new AbortController();
-    active.current = controller;
-    return controller;
-  }, []);
-
-  const load = useCallback(async (signal: AbortSignal) => {
-    setBusy(true);
-    setError("");
-    try {
-      const current = await readSession(signal);
-      if (signal.aborted) return;
-      setSession(current);
-      if (!current.authenticated) {
-        setManagement(null);
-        setProviderView(null);
-        return;
-      }
-      const view = await call<ModelsView>(
-        "models/view",
-        {},
-        current.csrf,
-        signal,
-      );
-      if (signal.aborted) return;
-      setManagement(view.management);
-      if (view.management.available && view.management.unlocked) {
-        setProviderView(await readProviders(current.csrf, signal));
-      } else {
-        setProviderView(null);
-      }
-    } catch (cause) {
-      if (!signal.aborted) {
-        setProviderView(null);
-        setManagement(null);
-        setError(errorMessage(cause));
-        if (
-          cause instanceof WebError &&
-          ["session_expired", "unauthorized"].includes(cause.code)
-        ) {
-          try {
-            setSession(await readSession(signal));
-          } catch {
-            setSession(null);
-          }
-        }
-      }
-    } finally {
-      if (!signal.aborted) setBusy(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const controller = start();
-    void load(controller.signal);
-    return () => controller.abort();
-  }, [load, start]);
-
-  async function unlock(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!session) return;
-    const controller = start();
-    setBusy(true);
-    setError("");
-    try {
-      await call(
-        "models/unlock",
-        { password: password.current?.value ?? "" },
-        session.csrf,
-        controller.signal,
-      );
-      if (!controller.signal.aborted) {
-        setNotice("模型管理已解锁，仅在当前会话有效。");
-        await load(controller.signal);
-      }
-    } catch (cause) {
-      if (!controller.signal.aborted) setError(errorMessage(cause));
-    } finally {
-      if (password.current) password.current.value = "";
-      if (!controller.signal.aborted) setBusy(false);
-    }
-  }
-
-  async function lock() {
-    if (!session) return;
-    const controller = start();
-    setBusy(true);
-    try {
-      await call("models/lock", {}, session.csrf, controller.signal);
-      if (!controller.signal.aborted) {
-        setProviderView(null);
-        setNotice("已锁定模型管理；聊天登录保持有效。");
-        await load(controller.signal);
-      }
-    } catch (cause) {
-      if (!controller.signal.aborted) setError(errorMessage(cause));
-    } finally {
-      if (!controller.signal.aborted) setBusy(false);
-    }
-  }
-
-  async function reloadProviders(signal: AbortSignal) {
-    if (!session) throw new WebError("session_expired", 401);
-    const result = await readProviders(session.csrf, signal);
-    if (!signal.aborted) setProviderView(result);
-  }
-
-  async function invoke<T>(
-    operation: string,
-    body: object,
-    signal: AbortSignal,
-  ): Promise<T> {
-    if (!session) throw new WebError("session_expired", 401);
-    return call<T>(`providers/${operation}`, body, session.csrf, signal);
-  }
-
-  const actions: ProviderActions = {
-    saveSource: async (draft, original, signal) => {
-      const result = await invoke<{ source_id: string }>(
-        "source-save",
-        {
-          client_request_id: requestId(),
-          name: draft.name,
-          base_url: draft.baseUrl,
-          enabled: draft.enabled,
-          ...(original
-            ? {
-                source_id: original.sourceId,
-                expected_revision: original.revision,
-              }
-            : {}),
-          ...(draft.apiKey ? { api_key: draft.apiKey } : {}),
-        },
-        signal,
-      );
-      await reloadProviders(signal);
-      return result.source_id;
-    },
-    listModels: async (source, signal) => {
-      const result = await invoke<{
-        source_id: string;
-        revision: number;
-        models: string[];
-      }>(
-        "source-models",
-        { source_id: source.sourceId, expected_revision: source.revision },
-        signal,
-      );
-      if (
-        result.source_id !== source.sourceId ||
-        result.revision !== source.revision ||
-        !Array.isArray(result.models) ||
-        !result.models.every((item) => typeof item === "string")
-      )
-        throw new WebError("dependency_unavailable", 502);
-      return result.models;
-    },
-    addModels: async (source, models, kind, signal) => {
-      await invoke(
-        "model-add",
-        {
-          client_request_id: requestId(),
-          source_id: source.sourceId,
-          expected_revision: source.revision,
-          models,
-          kind,
-        },
-        signal,
-      );
-      await reloadProviders(signal);
-    },
-    saveModel: async (model, draft, signal) => {
-      await invoke(
-        "model-save",
-        {
-          client_request_id: requestId(),
-          provider_id: model.providerId,
-          expected_revision: model.revision,
-          name: draft.name,
-          model_id: draft.modelId,
-          kind: draft.kind,
-          enabled: draft.enabled,
-        },
-        signal,
-      );
-      await reloadProviders(signal);
-    },
-    clearKey: async (source, signal) => {
-      await invoke(
-        "source-clear-key",
-        {
-          client_request_id: requestId(),
-          source_id: source.sourceId,
-          expected_revision: source.revision,
-        },
-        signal,
-      );
-      await reloadProviders(signal);
-    },
-    removeSource: async (source, signal) => {
-      await invoke(
-        "source-delete",
-        {
-          client_request_id: requestId(),
-          source_id: source.sourceId,
-          expected_revision: source.revision,
-        },
-        signal,
-      );
-      await reloadProviders(signal);
-    },
-    test: async (provider, signal) => {
-      let result: { provider_id: string; revision: number; outcome: string };
-      try {
-        result = await invoke<{
-          provider_id: string;
-          revision: number;
-          outcome: string;
-        }>(
-          "test",
-          {
-            client_request_id: requestId(),
-            provider_id: provider.providerId,
-            expected_revision: provider.revision,
-          },
-          signal,
-        );
-      } catch (cause) {
-        if (!signal.aborted) {
-          try {
-            await reloadProviders(signal);
-          } catch {
-            // Preserve the test failure if the follow-up read also loses its connection.
-          }
-        }
-        throw cause;
-      }
-      if (
-        result.provider_id !== provider.providerId ||
-        result.revision !== provider.revision ||
-        result.outcome !== "succeeded"
-      )
-        throw new WebError("dependency_unavailable", 502);
-      await reloadProviders(signal);
-    },
-    setDefault: async (provider, signal) => {
-      if (!providerView) throw new WebError("dependency_unavailable", 503);
-      await invoke(
-        "default",
-        {
-          client_request_id: requestId(),
-          provider_id: provider.providerId,
-          expected_revision: provider.revision,
-          expected_default_revision: providerView.defaultRevision,
-        },
-        signal,
-      );
-      await reloadProviders(signal);
-    },
-    setEnabled: async (provider, enabled, signal) => {
-      await invoke(
-        "model-save",
-        {
-          client_request_id: requestId(),
-          provider_id: provider.providerId,
-          expected_revision: provider.revision,
-          name: provider.name,
-          model_id: provider.modelId,
-          kind: provider.kind ?? "text",
-          enabled,
-        },
-        signal,
-      );
-      await reloadProviders(signal);
-    },
-    remove: async (provider, signal) => {
-      await invoke(
-        "delete",
-        {
-          client_request_id: requestId(),
-          provider_id: provider.providerId,
-          expected_revision: provider.revision,
-        },
-        signal,
-      );
-      await reloadProviders(signal);
-    },
-  };
-
-  function handleProviderError(cause: unknown) {
-    const message = errorMessage(cause);
-    setError(message);
-    const authorityLost =
-      cause instanceof WebError &&
-      [
-        "session_expired",
-        "unauthorized",
-        "forbidden",
-        "management_required",
-        "management_disabled",
-        "operator_not_authorized",
-      ].includes(cause.code);
-    if (authorityLost) {
-      setProviderView(null);
-      setManagement(null);
-    }
-    const controller = start();
-    void (async () => {
-      try {
-        if (authorityLost) {
-          await load(controller.signal);
-        } else {
-          await reloadProviders(controller.signal);
-        }
-      } catch {
-        if (!controller.signal.aborted) setProviderView(null);
-      } finally {
-        if (!controller.signal.aborted) setError(message);
-      }
-    })();
-  }
-
+  const catalog = useModelCatalog();
+  const command = useModelCommand("model-quota");
+  const [quotaId, setQuotaId] = useState("");
+  const selected =
+    catalog.data?.quota_groups.find((row) => row.quota_group === quotaId) ??
+    null;
+  if (mode === "defaults") return <ModelFunctionsPanel />;
   return (
-    <section
-      className="panel models"
-      aria-label="模型供应商管理"
-      aria-busy={busy}
-    >
+    <div className="models">
       <div className="section-heading">
-        <h2>模型配置</h2>
-        {management && (
-          <StatusRail
-            tone={
-              !management.available
-                ? "gray"
-                : management.unlocked
-                  ? "blue"
-                  : "yellow"
-            }
-            label={
-              !management.available
-                ? "管理不可用"
-                : management.unlocked
-                  ? "管理已解锁"
-                  : "管理待验证"
-            }
-          />
-        )}
+        <div>
+          <h2>模型供应商与路由</h2>
+          <p className="muted">
+            所有调用共用唯一
+            Broker；供应商协议、模型能力、实际容量和功能绑定分别可查。
+          </p>
+        </div>
+        <button className="button" onClick={() => void catalog.refresh()}>
+          刷新目录
+        </button>
       </div>
-      <p className="muted">
-        供应商统一管理连接，模型分别添加与测试，各项功能自由选择。
-      </p>
-      <div role="status" className="models-status">
-        {busy
-          ? "正在读取模型配置…"
-          : session?.authenticated
-            ? `已登录 · ${session.username}`
-            : "请登录管理员账号"}
-      </div>
-      {error && (
+      {catalog.error && (
         <p className="models-error" role="alert">
-          {error}
+          {catalog.error}
         </p>
       )}
-      {notice && (
-        <p className="models-notice" role="status">
-          {notice}
-        </p>
-      )}
-      {!session ? (
-        <StatePanel kind="loading" title="正在连接模型配置入口">
-          <p>稍候。</p>
-        </StatePanel>
-      ) : !session.authenticated ? (
-        <LoginLink />
-      ) : (
+      {catalog.loading && !catalog.data && <p>正在读取模型目录…</p>}
+      {catalog.data && (
         <>
-          <div className="models-actions">
-            <button
-              className="button"
-              onClick={() => void load(start().signal)}
-              disabled={busy}
-            >
-              <RefreshCw aria-hidden="true" />
-              重新读取
-            </button>
-            {management?.unlocked && (
-              <button
-                className="button"
-                onClick={() => void lock()}
-                disabled={busy}
+          <ProviderManager catalog={catalog.data} reload={catalog.refresh} />
+          <DetailCard title="共享账号容量组">
+            <p className="muted">
+              即时预留和后台上限作用于同一真实额度；不按 Key 自动拆分容量。
+            </p>
+            <label>
+              容量组
+              <select
+                value={quotaId}
+                onChange={(event) => setQuotaId(event.target.value)}
               >
-                锁定管理
-              </button>
+                <option value="">新增容量组</option>
+                {catalog.data.quota_groups.map((row) => (
+                  <option key={row.quota_group}>{row.quota_group}</option>
+                ))}
+              </select>
+            </label>
+            {command.manageable && (
+              <QuotaEditor
+                key={`${quotaId}:${selected?.revision ?? 0}`}
+                original={selected}
+                busy={command.busy}
+                save={async (body: QuotaGroup) => {
+                  if (
+                    await command.save(
+                      "quota-groups",
+                      body,
+                      selected?.revision ?? 0,
+                    )
+                  ) {
+                    setQuotaId(body.quota_group);
+                    await catalog.refresh();
+                  }
+                }}
+              />
             )}
-          </div>
-          {management?.available === false && (
-            <StatePanel
-              kind="unconfigured"
-              title={
-                management.code === "management_disabled"
-                  ? "此部署尚未开启模型管理"
-                  : "当前账号没有模型管理权限"
-              }
-            >
-              <p>请检查管理员账号与服务配置。</p>
-            </StatePanel>
-          )}
-          {management?.available && !management.unlocked && (
-            <div className="models-unlock">
-              <ShieldCheck aria-hidden="true" />
-              <h3>验证管理员密码后管理供应商</h3>
-              <p className="muted">独立管理授权仅在当前登录会话有效。</p>
-              <form onSubmit={(event) => void unlock(event)}>
-                <label>
-                  管理员密码
-                  <input
-                    ref={password}
-                    type="password"
-                    autoComplete="current-password"
-                    minLength={PASSWORD_MIN_LENGTH}
-                    maxLength={256}
-                    required
-                    disabled={busy}
-                  />
-                </label>
-                <button
-                  className="button primary"
-                  type="submit"
-                  disabled={busy}
-                >
-                  解锁模型管理
-                </button>
-              </form>
-            </div>
-          )}
-          {management?.unlocked && providerView && (
-            <>
-              {mode === "providers" && (
-                <ProviderManager
-                  providers={providerView.providers}
-                  sources={providerView.sources}
-                  editable
-                  actions={actions}
-                  onError={handleProviderError}
-                />
-              )}
-              {mode === "defaults" ? (
-                <ModelFunctionsPanel
-                  functions={providerView.functions}
-                  providers={providerView.providers}
-                  onError={handleProviderError}
-                  save={async (item, provider, signal) => {
-                    await invoke(
-                      "function",
-                      {
-                        client_request_id: requestId(),
-                        function_id: item.function_id,
-                        provider_id: provider?.providerId ?? null,
-                        expected_revision: provider?.revision ?? null,
-                        expected_binding_revision: item.revision,
-                      },
-                      signal,
-                    );
-                    await reloadProviders(signal);
-                  }}
-                />
-              ) : (
-                <p className="muted">
-                  具体角色使用的模型请在<a href="#/roles/settings">角色设置</a>
-                  中分配。
-                </p>
-              )}
-            </>
-          )}
+            {!command.manageable && selected && (
+              <dl className="models-facts">
+                <dt>并发</dt>
+                <dd>{selected.concurrency}</dd>
+                <dt>请求/分钟</dt>
+                <dd>{selected.rpm ?? "未设置"}</dd>
+                <dt>即时预留</dt>
+                <dd>{selected.interactive_reserve}</dd>
+              </dl>
+            )}
+            <CommandFeedback {...command} />
+          </DetailCard>
+          <ModelFunctionsPanel />
+          <DetailCard title="语义嵌入固定档案">
+            <EmbeddingEditor
+              key={catalog.data.embedding_profile?.revision ?? 0}
+              catalog={catalog.data}
+              reload={catalog.refresh}
+            />
+          </DetailCard>
         </>
       )}
-    </section>
+    </div>
   );
 }

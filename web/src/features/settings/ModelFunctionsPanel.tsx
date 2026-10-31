@@ -1,164 +1,171 @@
-import { DetailCard } from "../../components/DetailCard";
-import { useEffect, useId, useRef, useState } from "react";
-import { modelLabel, type Provider } from "./providerTypes";
-import type { ModelFunction } from "./providerApi";
+import { useState } from "react";
+import { CommandFeedback } from "../../components/CommandFeedback";
+import { useModelCatalog, useModelCommand } from "./providerApi";
+import {
+  functionNames,
+  serviceNames,
+  type ModelCatalog,
+  type ServiceClass,
+} from "./providerTypes";
 
-type Props = {
-  functions: ModelFunction[];
-  providers: Provider[];
-  save: (
-    item: ModelFunction,
-    provider: Provider | null,
-    signal: AbortSignal,
-  ) => Promise<void>;
-  onError: (cause: unknown) => void;
-};
-
-function FunctionChoice({
-  item,
-  providers,
-  save,
-  onError,
-}: Omit<Props, "functions"> & { item: ModelFunction }) {
-  const selectId = useId();
-  const [selected, setSelected] = useState(item.provider_id ?? "");
-  const [busy, setBusy] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState("");
-  const active = useRef<AbortController | null>(null);
-  useEffect(() => () => active.current?.abort(), []);
-  useEffect(() => {
-    setSelected(item.provider_id ?? "");
-  }, [item.revision, item.provider_id]);
-  const eligible = providers.filter(
-    (provider) =>
-      (provider.kind ?? "text") === "text" &&
-      provider.sourceEnabled !== false &&
-      provider.enabled &&
-      provider.hasKey &&
-      provider.test.state === "passed" &&
-      provider.test.revision === provider.revision,
+function Binding({
+  catalog,
+  actorId,
+  functionId,
+  serviceClass,
+  reload,
+}: {
+  catalog: ModelCatalog;
+  actorId?: string;
+  functionId: string;
+  serviceClass: ServiceClass;
+  reload: () => Promise<void>;
+}) {
+  const own = catalog.bindings.find(
+    (row) =>
+      row.function === functionId &&
+      row.service_class === serviceClass &&
+      row.actor_id === (actorId ?? ""),
   );
-  const effective = providers.find(
-    (provider) => provider.providerId === item.effective_provider_id,
+  const inherited =
+    catalog.bindings.find(
+      (row) =>
+        row.function === functionId &&
+        row.service_class === serviceClass &&
+        !row.actor_id,
+    ) ??
+    catalog.bindings.find(
+      (row) =>
+        row.function === "*" &&
+        row.service_class === serviceClass &&
+        !row.actor_id,
+    );
+  const [selected, setSelected] = useState(own?.route_id ?? "");
+  const command = useModelCommand(
+    `model-binding:${actorId ?? "system"}:${functionId}:${serviceClass}`,
+    actorId,
   );
-  const chosen = eligible.find((provider) => provider.providerId === selected);
-  const changed =
-    selected !== (item.provider_id ?? "") ||
-    (!!chosen && chosen.revision !== item.provider_revision);
-  const invalidChoice = selected !== "" && !chosen;
-
-  async function submit() {
-    if (active.current || invalidChoice) return;
-    const controller = new AbortController();
-    active.current = controller;
-    setBusy(true);
-    setError("");
-    setSaved(false);
-    try {
-      await save(item, chosen ?? null, controller.signal);
-      if (!controller.signal.aborted) setSaved(true);
-    } catch (cause) {
-      if (!controller.signal.aborted) {
-        setError(
-          cause instanceof Error ? cause.message : "保存未完成，请重试。",
-        );
-        onError(cause);
-      }
-    } finally {
-      if (!controller.signal.aborted) setBusy(false);
-      if (active.current === controller) active.current = null;
-    }
-  }
-
+  const routes = catalog.routes.filter(
+    (route) =>
+      route.enabled &&
+      catalog.providers.some(
+        (provider) =>
+          provider.provider_id === route.provider_id && provider.enabled,
+      ),
+  );
   return (
-    <article className="model-function-card">
-      <div>
-        <h4>{item.name}</h4>
-        <p className="muted">{item.description}</p>
-      </div>
-
-      <p className="model-function-effective">
-        {item.configured && effective
-          ? `当前：${modelLabel(effective)}`
-          : item.provider_id
-            ? "原模型已变更或不可用，请重新选择。"
-            : "尚无可用的默认模型。"}
-      </p>
+    <article className="model-function">
+      <h4>{functionNames[functionId] ?? functionId}</h4>
       <p className="muted">
-        {item.connected
-          ? "已接入此功能的模型调用"
-          : "可预先配置，自动调用尚未接入"}
+        {own
+          ? `当前：${own.route_id} · 修订 ${own.revision}`
+          : inherited
+            ? `继承：${inherited.route_id}`
+            : "尚无绑定或系统默认"}
       </p>
-      <DetailCard title={`${item.name}模型设置`}>
-        {error && <p role="alert">{error}</p>}
-        <label htmlFor={selectId}>{item.name}模型</label>
+      <label>
+        模型路由
         <select
-          id={selectId}
           value={selected}
-          disabled={busy}
-          onChange={(event) => {
-            setSelected(event.target.value);
-            setSaved(false);
-          }}
+          onChange={(event) => setSelected(event.target.value)}
         >
-          <option value="" disabled={item.function_id === "chat"}>
-            {item.function_id === "chat" ? "请选择主对话模型" : "继承默认模型"}
+          <option value="">
+            {functionId === "*" ? "请选择系统默认路由" : "使用系统继承"}
           </option>
-          {invalidChoice && (
-            <option value={selected} disabled>
-              原选择已不可用，请重新选择
-            </option>
+          {own && !routes.some((row) => row.route_id === own.route_id) && (
+            <option value={own.route_id}>{own.route_id}（不可用）</option>
           )}
-          {eligible.map((provider) => (
-            <option key={provider.providerId} value={provider.providerId}>
-              {modelLabel(provider)}
+          {routes.map((route) => (
+            <option key={route.route_id} value={route.route_id}>
+              {
+                catalog.providers.find(
+                  (provider) => provider.provider_id === route.provider_id,
+                )?.name
+              }{" "}
+              / {route.model} · {route.route_id}
             </option>
           ))}
         </select>
-        <div className="models-actions">
-          <button
-            className="button"
-            disabled={busy || !changed || invalidChoice}
-            onClick={() => void submit()}
-          >
-            {busy ? "保存中…" : `保存${item.name}模型`}
-          </button>
-          {saved && <span role="status">已保存</span>}
-        </div>
-      </DetailCard>
+      </label>
+      {command.manageable && (
+        <button
+          className="button"
+          disabled={command.busy || (!selected && !own)}
+          onClick={async () => {
+            const answer = await command.save(
+              selected ? "bindings" : "bindings/delete",
+              {
+                function: functionId,
+                service_class: serviceClass,
+                actor_id: actorId ?? null,
+                ...(selected ? { route_id: selected } : {}),
+              },
+              own?.revision ?? 0,
+            );
+            if (answer) await reload();
+          }}
+        >
+          保存{selected ? "绑定" : "继承"}
+        </button>
+      )}
+      <CommandFeedback {...command} />
     </article>
   );
 }
 
-export function ModelFunctionsPanel(props: Props) {
-  if (!props.functions.length) return null;
+export function ModelFunctionsPanel({ actorId }: { actorId?: string } = {}) {
+  const catalog = useModelCatalog(actorId);
+  const [serviceClass, setServiceClass] = useState<ServiceClass>("interactive");
   return (
-    <section className="model-functions" aria-label="模型功能分工">
-      <div>
-        <h3>模型功能分工</h3>
-        <p className="muted">
-          为不同功能选择模型，也可以共用默认模型。先在上方添加并测试所需模型，再在这里分配。
-        </p>
-        <p className="muted">
-          角色单独选择的聊天模型仍优先生效；其他功能未单独指定时沿用角色模型或系统默认。
-        </p>
+    <section
+      className="model-functions"
+      aria-label={actorId ? "角色模型功能绑定" : "系统模型功能分工"}
+    >
+      <div className="section-heading">
+        <div>
+          <h3>{actorId ? "此角色的模型功能" : "系统默认与功能分工"}</h3>
+          <p className="muted">
+            即时、到期和后台各自选择默认路由；角色仅覆盖明确功能，嵌入始终使用唯一固定配置。
+          </p>
+        </div>
+        <button className="button" onClick={() => void catalog.refresh()}>
+          刷新
+        </button>
       </div>
-      <p className="muted">
-        嵌入与重排序可在 <a href="#/settings/retrieval">记忆检索设置</a>{" "}
-        选择同一供应商下的专用模型。
-      </p>
-      <div className="model-functions-grid">
-        {props.functions.map((item) => (
-          <FunctionChoice
-            key={item.function_id}
-            item={item}
-            providers={props.providers}
-            save={props.save}
-            onError={props.onError}
-          />
-        ))}
-      </div>
+      <label>
+        执行类别
+        <select
+          value={serviceClass}
+          onChange={(event) =>
+            setServiceClass(event.target.value as ServiceClass)
+          }
+        >
+          {Object.entries(serviceNames).map(([id, name]) => (
+            <option key={id} value={id}>
+              {name}
+            </option>
+          ))}
+        </select>
+      </label>
+      {catalog.error && <p role="alert">{catalog.error}</p>}
+      {catalog.loading && !catalog.data && <p>正在读取实际模型目录…</p>}
+      {catalog.data && (
+        <div className="model-functions-grid">
+          {[
+            ...(!actorId ? ["*"] : []),
+            ...catalog.data.functions.filter((id) => id !== "embed"),
+          ].map((id) => (
+            <Binding
+              key={`${actorId ?? "system"}:${serviceClass}:${id}:${catalog.data?.bindings.find((row) => row.function === id && row.actor_id === (actorId ?? "") && row.service_class === serviceClass)?.revision ?? 0}`}
+              catalog={catalog.data!}
+              actorId={actorId}
+              functionId={id}
+              serviceClass={serviceClass}
+              reload={catalog.refresh}
+            />
+          ))}
+        </div>
+      )}
     </section>
   );
 }

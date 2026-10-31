@@ -49,3 +49,48 @@
 .memory-list small {
   color: var(--color-muted);
 }
+
+.memory-edit {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  max-width: 46rem;
+}
+.memory-edit label {
+  display: grid;
+  gap: 0.35rem;
+}
+.memory-edit textarea,
+.memory-edit select,
+.memory-edit input:not([type="checkbox"]) {
+  width: 100%;
+  padding: 0.6rem;
+  font: inherit;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+}
+.memory-record {
+  padding: 1rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  overflow-wrap: anywhere;
+}
+.memory-record-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+.memory-review > ul {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+.memory-review > ul > li {
+  border-bottom: 1px solid var(--color-line);
+  padding: 1rem 0;
+}

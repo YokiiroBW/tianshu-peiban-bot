@@ -14,6 +14,16 @@ from .onebot.messages import normalize_event
 from .telegram import normalize_update
 
 
+def live_eligible(event, decision, row):
+    """A live transport observation is only a candidate, never reply authority."""
+    return (
+        not event.archived
+        and not decision.duplicate
+        and not row["superseded"]
+        and decision.reply_owner == "tianshu"
+    )
+
+
 async def accept_event(service, connection_id, raw, *, ownership=None):
     connection = await service.repository.connection(connection_id)
     if not connection.get("enabled"):
@@ -66,7 +76,10 @@ async def accept_event(service, connection_id, raw, *, ownership=None):
 async def process_event(service, event_key):
     async with service.runtime.database.transaction(read_only=True) as conn:
         row = await (
-            await conn.execute("SELECT * FROM channels.events WHERE id=%s", (event_key,))
+            await conn.execute(
+                "SELECT e.*,EXISTS(SELECT 1 FROM channels.events newer WHERE newer.connection_id=e.connection_id AND newer.producer=e.producer AND newer.event_id=e.event_id AND newer.revision>e.revision) AS superseded FROM channels.events e WHERE e.id=%s",
+                (event_key,),
+            )
         ).fetchone()
     if not row or row["state"] in {"consumed", "withdrawn"}:
         return
@@ -235,6 +248,7 @@ async def process_event(service, event_key):
                 decision.disposition == "reply" and not event.archived,
                 event.command,
                 context.conversation_kind or "unknown",
+                autonomous_eligible=live_eligible(event, decision, row),
             )
             ingested = await service.conversation.ingest(context, message)
             registered_refs = tuple(

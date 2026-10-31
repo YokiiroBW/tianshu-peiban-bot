@@ -45,7 +45,7 @@ class OneBotProtocol(unittest.IsolatedAsyncioTestCase):
                 "message_id": -8,
                 "user_id": 77,
                 "group_id": 22,
-                "sender": {"user_id": 77},
+                "sender": {"user_id": 77, "nickname": "原昵称", "card": "群名片"},
                 "message": [
                     {"type": "text", "data": {"text": "A"}},
                     {"type": "future", "data": {"opaque": 1}},
@@ -63,6 +63,7 @@ class OneBotProtocol(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(event.reply_to_event_id, "message:group:-2")
         self.assertIn("12345", event.mentioned_external_ids)
         self.assertEqual(event.original_author_external_id, "77")
+        self.assertEqual(event.sender_display_name, "群名片")
 
     def test_notices_are_not_human_input_and_account_mismatch_is_rejected(self):
         event, parts = normalize_event(
@@ -133,3 +134,21 @@ class OneBotProtocol(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(mentions_all(node))
         with self.assertRaises(ChannelError):
             validate_outbound(node, CONNECTION)
+
+
+class LiveEligibility(unittest.TestCase):
+    def test_archives_duplicates_and_host_owned_events_cannot_become_autonomous(self):
+        from tianshu.channels.ingress import live_eligible
+
+        event = SimpleNamespace(archived=False)
+        decision = SimpleNamespace(duplicate=False, reply_owner="tianshu")
+        self.assertTrue(live_eligible(event, decision, {"superseded": False}))
+        self.assertFalse(live_eligible(event, decision, {"superseded": True}))
+        decision.duplicate = True
+        self.assertFalse(live_eligible(event, decision, {"superseded": False}))
+        decision.duplicate = False
+        decision.reply_owner = "external"
+        self.assertFalse(live_eligible(event, decision, {"superseded": False}))
+        decision.reply_owner = "tianshu"
+        event.archived = True
+        self.assertFalse(live_eligible(event, decision, {"superseded": False}))

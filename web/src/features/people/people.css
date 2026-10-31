@@ -853,3 +853,100 @@
 .people-admin-error button {
   margin-left: 8px;
 }
+
+.people-config-form,
+.memory-edit {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  max-width: 46rem;
+}
+.people-config-form label,
+.memory-edit label {
+  display: grid;
+  gap: 0.35rem;
+}
+.people-config-form input:not([type="checkbox"]),
+.people-config-form select,
+.memory-edit input:not([type="checkbox"]),
+.memory-edit textarea {
+  width: 100%;
+  padding: 0.55rem;
+  color: var(--color-text);
+  background: var(--color-input);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  font: inherit;
+}
+
+.people-page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.2rem;
+  border-radius: 20px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+}
+.people-workspace {
+  display: grid;
+  grid-template-columns: 18rem minmax(0, 1fr);
+  gap: 1.1rem;
+  min-width: 0;
+}
+.people-directory-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+.people-person-choice {
+  display: flex;
+  gap: 0.7rem;
+  width: 100%;
+  text-align: left;
+  align-items: center;
+  padding: 0.8rem;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+}
+.people-person-choice[aria-pressed="true"] {
+  border-color: var(--color-accent);
+  background: var(--color-selection);
+}
+.people-person-choice strong,
+.people-person-choice small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.people-detail {
+  padding: 1.25rem;
+}
+.people-detail-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+.people-detail-tabs button {
+  padding: 0.5rem 0.8rem;
+  border-radius: 10px;
+  border: 1px solid var(--color-line);
+  color: var(--color-text);
+  background: var(--color-surface);
+}
+.people-detail-tabs button[aria-pressed="true"] {
+  color: var(--color-accent);
+  background: var(--color-selection);
+}
+@media (max-width: 760px) {
+  .people-workspace {
+    grid-template-columns: 1fr;
+  }
+  .people-page-heading {
+    flex-wrap: wrap;
+  }
+}

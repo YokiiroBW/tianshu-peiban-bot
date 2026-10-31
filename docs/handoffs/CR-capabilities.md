@@ -206,3 +206,14 @@ Owner续租仅允许原租约尚未过期且未停止；过期身份永久不能
 HTTP POST `/api/v1/resources/archive/view`为当前会话projection（管理员另得configurations），`connections.save`真实CAS命令；`search`/`read`返回统一CommandResult。结果含 records(原作者/timestamp/locator/opaque摘要/原文/source_ref)、source_refs、next_cursor/search coverage或target_locator/context_complete、omitted及原因、archive_observed_at和本次observed_at。只说明核对当刻存档，不把旧消息升当前指令，不声称档案媒体原件可用。资源页已有显式当前会话查询、原文前后文/续页及管理员连接映射表单；正常聊天也可调用同目录工具。Broker function resources.archive.read统一已配置quota/RPM/requests资源，无本地池；每次读取不会启动后台档案扫描，清空后无自动学回。
 
 权威代码：resources/archive.py（真实链路与来源交接）、archive_protocol.py/archive_read.json（原协议）、A sources/archives.py（精确别名与抑制）。未运行tests/build/typecheck/浏览器/Archive真实账户；协议用例只编写。
+
+
+## 人物、记忆与Models界面（implemented_not_tested）
+
+people改为真实Identity人物分页/别名、独立账号关联与当前会话准入策略；记忆页使用Claims/Episodes/Reflections/Matters与完整SourceRef。来源原件读取提供真实speaker_id/can_revoke，只有该权威许可才显示原件/Unicode字符片段遗忘。当前会话未选择时不退为角色全域；角色已授权范围为显式选择。群页以实际Identity群会话及group:<conversation_id>主体读取认识、话题/反思/事项，保留原作者，不复制旧观察解锁、好感八阶段或图谱统计。Chat Audit复用资源域实际接口并接受显式群scope。
+
+Models设置消费唯一Models管理API：原生供应商/只写密钥、路由/参数与实际验证、共享容量、系统默认/功能路由/角色覆盖、固定embedding配置。原生模型枚举真实分页，保留client_request_id并可只读查询原账本；未知结果不靠重新枚举找回。供应商/路由删除、角色继承及embedding解绑为真实CAS操作。新operator依据带新observed_at，改变模型/参数无本次依据则清旧能力验证，后端A同时管验证失效。角色页公开ModelFunctionsPanel(actorId?)，不再旧Core/旧provider/model_function DTO。
+
+Images新增只读workflows.inspect({graph})，候选来自唯一Workflow.EDITABLE及真实字面量规则，不执行/保存图；outfit_id传正式Life.scene仅冻结本次衣柜，不改生活权威。协议新增sender_display_name传真实昵称，live observation eligibility只在非归档/非旧revision/非重复准入且reply_owner=tianshu时为true；B仍核真实active策略/Contacts与Identity权限。
+
+以上仅已编写源码、定向故障用例与格式整理/完整diff自查。未执行tests/build/typecheck/浏览器/付费模型/真实渠道。Projects/Knowledge仍在独立提交实施，不能据此宣称本轮全部完成。

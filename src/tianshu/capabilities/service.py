@@ -633,6 +633,10 @@ class Capabilities:
                 return await self.images.view(context)
             if operation == "engines.save":
                 return await self.images.save_engine(clean)
+            if operation == "workflows.inspect":
+                from .images.workflow import Workflow
+
+                return Workflow.inspect(clean["graph"])
             if operation == "workflows.import":
                 return await self.images.import_workflow(clean)
             if operation == "profiles.save":

@@ -14,7 +14,13 @@ from tianshu.sources.ports import SourcePort
 
 
 class LifeSnapshotPort(Protocol):
-    async def scene(self, context: TrustedContext, *, activity_id: str | None = None) -> dict: ...
+    async def scene(
+        self,
+        context: TrustedContext,
+        *,
+        activity_id: str | None = None,
+        outfit_id: str | None = None,
+    ) -> dict: ...
     async def sharing(self, context: TrustedContext, *, action_id: str, window: dict) -> dict: ...
 
 

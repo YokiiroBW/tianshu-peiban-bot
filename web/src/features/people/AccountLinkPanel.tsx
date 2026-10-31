@@ -1,220 +1,217 @@
-import { requestId } from "../../app/requestId";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import { useRoleWorkspace } from "../../app/RoleWorkspace";
 import {
-  integrationPost,
-  readFailure,
-  writeFailure,
-} from "../../app/integrationApi";
-import { useAuth } from "../../app/Auth";
-import {
-  readRolePreference,
-  saveRolePreference,
-} from "../../app/rolePreference";
-type Association = {
-  association_id: string;
-  version: number;
-  state: "linked" | "revoked";
-  scopes: { audience: string }[];
-};
-type Challenge = {
-  challenge_id: string;
-  state: string;
-  expires_at?: string;
-  consent_sentence?: string;
-  association?: Association | null;
-};
+  useDomainCommand,
+  useDomainResource,
+  GLOBAL_SCOPE,
+} from "../../api/useDomainResource";
+import type { Page } from "../../api/contracts";
+import { CommandFeedback } from "../../components/CommandFeedback";
+import { useIdentityDirectory } from "./api";
+import type { Person, Account } from "./types";
+
 export function AccountLinkPanel({
-  actor,
-  qqId,
-  csrf,
+  person,
+  actorId,
 }: {
-  actor: string;
-  qqId: string;
-  csrf: string;
+  person?: Person;
+  actorId?: string;
 }) {
-  const { session } = useAuth();
-  const storageKey = `tianshu-account-link:${session?.username ?? csrf}:${actor}:${qqId}`;
-  const [challenge, setChallenge] = useState<Challenge | null>(null),
-    [association, setAssociation] = useState<Association | null>(null),
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
-  const current = useRef<AbortController | null>(null),
-    beginId = useRef(requestId()),
-    revokeId = useRef(requestId());
-  useEffect(() => {
-    const saved = readRolePreference(storageKey);
-    if (saved) {
-      setChallenge({ challenge_id: saved, state: "checking" });
-      void act("status", saved);
-    }
-    return () => current.current?.abort();
-  }, [storageKey, csrf]);
-  async function act(
-    name: "begin" | "status" | "complete" | "revoke",
-    challengeId?: string,
-  ) {
-    if (current.current && !current.current.signal.aborted) return;
-    const control = new AbortController();
-    current.current = control;
-    setBusy(true);
-    setError("");
-    const body =
-      name === "begin"
-        ? {
-            actor_id: actor,
-            target_account: { namespace: "qq", immutable_account_id: qqId },
-            client_request_id: beginId.current,
-          }
-        : {
-            actor_id: actor,
-            challenge_id: challengeId ?? challenge?.challenge_id,
-            ...(name === "revoke"
-              ? {
-                  expected_revision: association?.version,
-                  client_request_id: revokeId.current,
-                }
-              : {}),
-          };
-    try {
-      const answer = await integrationPost<Challenge | Association>(
-        `memory-links/${name}`,
-        body,
-        csrf,
-        control.signal,
-      );
-      if (control.signal.aborted) return;
-      if (name === "begin") {
-        setChallenge(answer as Challenge);
-        saveRolePreference(storageKey, (answer as Challenge).challenge_id);
-      } else if (name === "status") {
-        setChallenge((old) => ({ ...old!, ...(answer as Challenge) }));
-        setAssociation((answer as Challenge).association ?? null);
-      } else {
-        setAssociation(answer as Association);
-        setChallenge((old) =>
-          old ? { ...old, state: (answer as Association).state } : old,
-        );
-      }
-    } catch (cause) {
-      if (!control.signal.aborted)
-        setError(name === "status" ? readFailure(cause) : writeFailure(cause));
-    } finally {
-      if (current.current === control) current.current = null;
-      if (!control.signal.aborted) setBusy(false);
-    }
-  }
-  return (
-    <section className="panel">
-      <h3>关联自己的账号</h3>
-      <p>
-        把当前登录账号与 QQ {qqId} 关联，需要这个 QQ
-        账号本人通过真实私聊确认。关联保持各自人物记录，并只接续批准的读取范围。
+  const workspace = useRoleWorkspace();
+  const directory = useIdentityDirectory();
+  const [peopleCursor, setPeopleCursor] = useState<string | null>(null);
+  const people = useDomainResource<Page<Person>>(
+    "identity/people",
+    { ...GLOBAL_SCOPE, limit: 100, cursor: peopleCursor },
+    directory.manageable && !person,
+  );
+  const command = useDomainCommand<Account>("identity-account-link", "global");
+  const [connectionId, setConnectionId] = useState("");
+  const [externalId, setExternalId] = useState("");
+  const [personId, setPersonId] = useState(person?.person_id ?? "");
+  const [principalId, setPrincipalId] = useState("");
+  const [editing, setEditing] = useState<Account | null>(null);
+  const connections =
+    directory.data?.connections.filter(
+      (row) => !actorId || row.actor_id === actorId,
+    ) ?? [];
+  const selected = connections.find(
+    (row) => row.connection_id === connectionId,
+  );
+  const accounts =
+    directory.data?.accounts.filter(
+      (row) => !person || row.person_id === person.person_id,
+    ) ?? [];
+  if (!directory.manageable)
+    return (
+      <p className="muted">
+        人物身份与外部账号由已获身份管理权限的操作者关联；关系类型不会授予账号权限。
       </p>
-      {!challenge ? (
-        <button
-          className="button primary"
-          disabled={busy}
-          onClick={() => void act("begin")}
-        >
-          开始账号关联
-        </button>
-      ) : (
-        <>
-          <p>
-            状态：
-            {challenge.state === "pending"
-              ? "等待目标账号确认"
-              : challenge.state === "consented"
-                ? "本人已确认，可提交关联"
-                : ["active", "linked"].includes(challenge.state)
-                  ? "关联生效"
-                  : challenge.state === "checking"
-                    ? "正在恢复关联进度"
-                    : challenge.state === "revoked"
-                      ? "关联已撤销"
-                      : challenge.state}
-          </p>
-          {challenge.expires_at && (
-            <p>
-              确认期限：{new Date(challenge.expires_at).toLocaleString("zh-CN")}
-            </p>
-          )}
-          {challenge.consent_sentence && challenge.state === "pending" && (
-            <div className="life-record">
-              <p>请由目标 QQ 账号本人在这位角色的私聊中发送：</p>
-              <pre className="life-consent-sentence">
-                {challenge.consent_sentence}
-              </pre>
+    );
+  return (
+    <section>
+      <h3>外部账号关联</h3>
+      <p className="muted">
+        同一人物可关联不同渠道账号；应用登录主体为独立选择，不能通过昵称或关系自动授予。
+      </p>
+      {directory.error && <p role="alert">{directory.error}</p>}
+      <ul>
+        {accounts.map((row) => (
+          <li key={`${row.connection_id}:${row.external_id}`}>
+            <strong>
+              {row.connection_id} / {row.external_id}
+            </strong>{" "}
+            → {row.person_id}
+            {row.principal_id && ` · 应用主体 ${row.principal_id}`}
+            <button
+              className="text-link"
+              onClick={() => {
+                setEditing(row);
+                setConnectionId(row.connection_id);
+                setExternalId(row.external_id);
+                setPersonId(row.person_id);
+                setPrincipalId(row.principal_id ?? "");
+              }}
+            >
+              更正关联
+            </button>
+          </li>
+        ))}
+      </ul>
+      <form
+        className="people-config-form"
+        onSubmit={async (event) => {
+          event.preventDefault();
+          const result = await command.run(
+            "identity/accounts.link",
+            {
+              actor_id: selected?.actor_id ?? actorId ?? workspace.actor,
+              person_id: person?.person_id ?? personId,
+              conversation_id: null,
+              connection_id: connectionId,
+              external_id: externalId,
+              principal_id: principalId || null,
+            },
+            editing?.revision ?? 0,
+          );
+          if (result) {
+            setEditing(null);
+            setExternalId("");
+            setPrincipalId("");
+            await directory.refresh();
+          }
+        }}
+      >
+        <label>
+          已登记渠道
+          <select
+            required
+            disabled={!!editing}
+            value={connectionId}
+            onChange={(event) => setConnectionId(event.target.value)}
+          >
+            <option value="">请选择</option>
+            {connections.map((row) => (
+              <option key={row.connection_id} value={row.connection_id}>
+                {row.connection_id} · {row.namespace} · 账号{" "}
+                {row.self_external_id}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          对方的渠道账号 ID
+          <input
+            required
+            readOnly={!!editing}
+            value={externalId}
+            onChange={(event) => setExternalId(event.target.value)}
+          />
+        </label>
+        {!person && (
+          <label>
+            真实人物
+            <select
+              required
+              value={personId}
+              onChange={(event) => {
+                setPersonId(event.target.value);
+                setPrincipalId("");
+              }}
+            >
+              <option value="">请选择已登记人物</option>
+              {personId &&
+                !people.data?.items.some(
+                  (row) => row.person_id === personId,
+                ) && <option value={personId}>{personId}（当前选择）</option>}
+              {people.data?.items.map((row) => (
+                <option key={row.person_id} value={row.person_id}>
+                  {row.display_name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {!person && (
+          <div className="models-actions">
+            {peopleCursor && (
               <button
                 className="button"
-                onClick={() =>
-                  void navigator.clipboard
-                    .writeText(challenge.consent_sentence!)
-                    .catch(() => setError("未能复制，请手动选择上面的确认句。"))
-                }
+                type="button"
+                onClick={() => setPeopleCursor(null)}
               >
-                复制确认句
-              </button>
-            </div>
-          )}
-          <div className="life-action-row">
-            <button
-              className="button"
-              disabled={busy}
-              onClick={() => void act("status")}
-            >
-              查询确认状态
-            </button>
-            <button
-              className="button primary"
-              disabled={busy || challenge.state !== "consented"}
-              onClick={() => void act("complete")}
-            >
-              完成账号关联
-            </button>
-            {association?.state === "linked" && (
-              <button
-                className="button"
-                disabled={busy || !association.version}
-                onClick={() => void act("revoke")}
-              >
-                撤销关联读取
+                人物首批
               </button>
             )}
+            {people.data?.next_cursor && (
+              <button
+                className="button"
+                type="button"
+                onClick={() => setPeopleCursor(people.data!.next_cursor!)}
+              >
+                下一批人物
+              </button>
+            )}
+            {people.error && <p role="alert">{people.error}</p>}
           </div>
-          {association && (
-            <p role="status">
-              {association.state === "linked"
-                ? "关联已由记忆服务确认"
-                : "关联已撤销"}{" "}
-              · 版本 {association.version}
-              {association.state === "linked" &&
-                ` · 已批准 ${association.scopes.length} 处来源范围`}
-            </p>
+        )}
+        <label>
+          应用登录主体（可选）
+          <select
+            value={principalId}
+            onChange={(event) => setPrincipalId(event.target.value)}
+          >
+            <option value="">不关联应用登录</option>
+            {directory.data?.principals
+              .filter(
+                (row) => row.person_id === (person?.person_id ?? personId),
+              )
+              .map((row) => (
+                <option key={row.principal_id} value={row.principal_id}>
+                  {row.display_name} · {row.username}
+                </option>
+              ))}
+          </select>
+        </label>
+        <div className="models-actions">
+          <button className="button primary" disabled={command.busy}>
+            保存实际账号关联
+          </button>
+          {editing && (
+            <button
+              type="button"
+              className="button"
+              onClick={() => {
+                setEditing(null);
+                setExternalId("");
+              }}
+            >
+              取消更正
+            </button>
           )}
-        </>
-      )}
-      {challenge && ["expired", "revoked"].includes(challenge.state) && (
-        <button
-          className="button"
-          onClick={() => {
-            beginId.current = requestId();
-            revokeId.current = requestId();
-            saveRolePreference(storageKey, null);
-            setChallenge(null);
-            setAssociation(null);
-            setError("");
-          }}
-        >
-          重新发起关联
-        </button>
-      )}
-      {busy && <p role="status">正在核对真实账号与关联回执…</p>}
-      {error && (
-        <p role="alert" className="error-text">
-          {error}
-        </p>
-      )}
+        </div>
+      </form>
+      <CommandFeedback {...command} />
     </section>
   );
 }

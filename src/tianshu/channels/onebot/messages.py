@@ -145,6 +145,10 @@ def normalize_event(connection, raw, *, reply_owner="tianshu", archived=False):
             original_author_external_id=str(raw.get("sender", {}).get("user_id", raw["user_id"])),
             command=command,
             reply_owner=reply_owner,
+            sender_display_name=str(
+                raw.get("sender", {}).get("card") or raw.get("sender", {}).get("nickname") or ""
+            )[:256]
+            or None,
             archived=archived or post == "message_sent" or sender == connection["self_external_id"],
         )
         return event, parts

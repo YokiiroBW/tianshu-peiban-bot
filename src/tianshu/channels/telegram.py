@@ -158,6 +158,10 @@ def normalize_update(connection, update, *, reply_owner="tianshu"):
         else None,
         command=command,
         reply_owner=reply_owner,
+        sender_display_name=" ".join(
+            str(author.get(key) or "") for key in ("first_name", "last_name")
+        ).strip()[:256]
+        or author.get("username"),
         archived=str(author["id"]) == connection["self_external_id"],
     )
     return event, tuple(parts)

@@ -45,6 +45,7 @@ class Images:
                 "motivation": {"type": "string"},
                 "dedup_key": {"type": "string"},
                 "scene_revision": {"type": "string"},
+                "outfit_id": {"type": "string"},
             },
         },
         {"type": "object"},
@@ -257,7 +258,9 @@ class Images:
             raise Fault("life_scene_port_unavailable", 503)
         scene = wire(
             await self.life.scene(
-                action.context, activity_id=action.activity_id or args.get("activity_id")
+                action.context,
+                activity_id=action.activity_id or args.get("activity_id"),
+                outfit_id=args.get("outfit_id"),
             )
         )
         if args.get("scene_revision") and args["scene_revision"] != scene["revision"]:

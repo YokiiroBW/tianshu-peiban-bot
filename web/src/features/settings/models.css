@@ -382,3 +382,32 @@
 .provider-source-detail .section-heading > div {
   min-width: 0;
 }
+
+.model-quota-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.8rem;
+}
+.model-function {
+  padding: 1rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+  display: grid;
+  gap: 0.6rem;
+}
+.model-function label,
+.models > label {
+  display: grid;
+  gap: 0.4rem;
+}
+.provider-model-directory {
+  display: grid;
+  gap: 0.4rem;
+  max-height: 22rem;
+  overflow: auto;
+}
+.provider-editor textarea {
+  width: 100%;
+  font: inherit;
+  padding: 0.6rem;
+}

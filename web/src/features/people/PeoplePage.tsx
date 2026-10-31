@@ -1,491 +1,172 @@
-import { useEffect, useRef, useState } from "react";
-import {
-  Search,
-  UsersRound,
-  UserRound,
-  RefreshCw,
-  MessageCircle,
-  ChevronRight,
-} from "lucide-react";
 import { useAuth } from "../../app/Auth";
-import { integrationPost, readFailure } from "../../app/integrationApi";
+import { useState } from "react";
+import { UserRound, UsersRound, RefreshCw, Search } from "lucide-react";
+import { useRoleWorkspace } from "../../app/RoleWorkspace";
 import {
-  readRolePreference,
-  saveRolePreference,
-} from "../../app/rolePreference";
-import { StatePanel } from "../../components/StatePanel";
+  useDomainCommand,
+  useDomainResource,
+  GLOBAL_SCOPE,
+} from "../../api/useDomainResource";
+import type { Page } from "../../api/contracts";
+import { CommandFeedback } from "../../components/CommandFeedback";
+import { AccountLinkPanel } from "./AccountLinkPanel";
 import { PersonDetail } from "./PersonDetail";
-import { ObservationUnlock } from "./ObservationUnlock";
-import {
-  personName,
-  type MemoryState,
-  type Observations,
-  type Profile,
-  type Profiles,
-  type FoundPage,
-  type Person,
-} from "./types";
+import { personName, type Person } from "./types";
 import "./people.css";
 
-type Discovery = { connectionId: string; page: FoundPage; error: string };
 export default function PeoplePage({ section }: { section: number }) {
   const { session } = useAuth();
-  const csrf = session?.authenticated ? session.csrf : "";
-  const storageKey = `tianshu-memory-role:${encodeURIComponent(session?.username || csrf)}`;
-  const [memory, setMemory] = useState<MemoryState | null>(null);
-  const [observations, setObservations] = useState<Observations | null>(null);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [profileCursor, setProfileCursor] = useState<string | null>(null);
-  const [discovery, setDiscovery] = useState<Discovery[]>([]);
-  const [roleId, setRoleId] = useState("");
-  const [selected, setSelected] = useState("");
+  const manageable = session?.principal?.permissions.some(
+    (value) => value === "*" || value === "identity.manage",
+  );
+  const workspace = useRoleWorkspace();
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [chosen, setChosen] = useState("");
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("all");
-  const [busy, setBusy] = useState(false);
-  const [errors, setErrors] = useState<string[]>([]);
-  const [epoch, setEpoch] = useState(0);
-  const active = useRef<AbortController | null>(null);
-  const role = memory?.roles.find((item) => item.id === roleId) ?? null;
-  useEffect(() => {
-    if (!csrf) return;
-    active.current?.abort();
-    const controller = new AbortController();
-    active.current = controller;
-    setBusy(true);
-    setErrors([]);
-    setProfiles([]);
-    setDiscovery([]);
-    setObservations(null);
-    setSelected("");
-    setProfileCursor(null);
-    void (async () => {
-      try {
-        const state = await integrationPost<MemoryState>(
-          "memory/state",
-          {},
-          csrf,
-          controller.signal,
-        ).catch(async () => {
-          const directory = await integrationPost<{
-            actors: { id: string; label: string }[];
-          }>(
-            "bot-observation/groups",
-            { limit: 1, cursor: null, role_id: null },
-            csrf,
-            controller.signal,
-          );
-          return {
-            available: false,
-            code: "memory_unavailable",
-            actor_id: null,
-            roles: directory.actors.map((actor) => ({
-              ...actor,
-              version: 0,
-              available: false,
-              reason: "记忆服务暂不可用",
-            })),
-          } satisfies MemoryState;
-        });
-        if (controller.signal.aborted) return;
-        setMemory(state);
-        const remembered = readRolePreference(storageKey);
-        const chosen =
-          state.roles.find((item) => item.id === roleId)?.id ??
-          state.roles.find((item) => item.id === remembered)?.id ??
-          state.actor_id ??
-          state.roles[0]?.id ??
-          "";
-        if (chosen !== roleId) {
-          setRoleId(chosen);
-          return;
-        }
-        if (!chosen) return;
-        const results = await Promise.allSettled([
-          integrationPost<Profiles>(
-            "qq-admin/profiles",
-            { limit: 100, after: null, role_id: chosen },
-            csrf,
-            controller.signal,
-          ),
-          integrationPost<Observations>(
-            "bot-observation/view",
-            {},
-            csrf,
-            controller.signal,
-          ),
-        ]);
-        if (controller.signal.aborted) return;
-        const [directory, accounts] = results;
-        const warnings: string[] = [];
-        if (directory.status === "fulfilled") {
-          setProfiles(directory.value.items);
-          setProfileCursor(directory.value.next_cursor);
-        } else warnings.push("身份目录：" + readFailure(directory.reason));
-        if (accounts.status === "fulfilled") {
-          setObservations(accounts.value);
-          const pages = await Promise.all(
-            accounts.value.connections
-              .filter((item) => accounts.value.unlocked && item.read_enabled)
-              .map(async (connection): Promise<Discovery> => {
-                try {
-                  return {
-                    connectionId: connection.id,
-                    page: await integrationPost<FoundPage>(
-                      "bot-observation/discovered",
-                      {
-                        id: connection.id,
-                        limit: 100,
-                        cursor: null,
-                        role_id: chosen,
-                      },
-                      csrf,
-                      controller.signal,
-                    ),
-                    error: "",
-                  };
-                } catch (cause) {
-                  return {
-                    connectionId: connection.id,
-                    page: { items: [], next_cursor: null },
-                    error: connection.name + "：" + readFailure(cause),
-                  };
-                }
-              }),
-          );
-          if (controller.signal.aborted) return;
-          setDiscovery(pages);
-        } else warnings.push("会话观察：" + readFailure(accounts.reason));
-        setErrors(warnings);
-      } catch (cause) {
-        if (!controller.signal.aborted) {
-          setMemory(null);
-          setErrors(["角色与记忆：" + readFailure(cause)]);
-        }
-      } finally {
-        if (!controller.signal.aborted) setBusy(false);
-      }
-    })();
-    return () => controller.abort();
-  }, [csrf, storageKey, roleId, epoch, section]);
-
-  const byId = new Map<string, Person>();
-  for (const profile of profiles)
-    byId.set(profile.qq_id, { qqId: profile.qq_id, profile, sources: [] });
-  for (const found of discovery) {
-    const connection = observations?.connections.find(
-      (item) => item.id === found.connectionId,
-    );
-    if (!connection) continue;
-    for (const item of found.page.items) {
-      const person = byId.get(item.author) ?? {
-        qqId: item.author,
-        sources: [],
-      };
-      person.sources.push({ ...item, connection });
-      byId.set(item.author, person);
-    }
-  }
-  const allPeople = [...byId.values()].sort(
-    (a, b) =>
-      Math.max(0, ...b.sources.map((source) => source.last_at)) -
-        Math.max(0, ...a.sources.map((source) => source.last_at)) ||
-      a.qqId.localeCompare(b.qqId),
-  );
-  const visible = allPeople.filter(
-    (person) =>
-      (filter === "all" ||
-        person.sources.some((source) =>
-          source.conversation.startsWith(`${filter}:`),
-        )) &&
-      [
-        person.qqId,
-        person.profile?.display_name,
-        ...(person.profile?.aliases.map((alias) => alias.value) ?? []),
-      ].some((value) =>
-        value?.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
-      ),
-  );
-  const person = byId.get(selected) ?? null;
-  const hasMore = Boolean(
-    profileCursor || discovery.some((item) => item.page.next_cursor),
-  );
-  async function more() {
-    if (busy || !csrf || !hasMore) return;
-    const controller = new AbortController();
-    active.current?.abort();
-    active.current = controller;
-    setBusy(true);
-    setErrors([]);
-    try {
-      if (profileCursor) {
-        const result = await integrationPost<Profiles>(
-          "qq-admin/profiles",
-          { limit: 100, after: profileCursor, role_id: roleId },
-          csrf,
-          controller.signal,
-        );
-        if (controller.signal.aborted) return;
-        setProfiles((before) => {
-          const ids = new Set(before.map((item) => item.qq_id));
-          return [
-            ...before,
-            ...result.items.filter((item) => !ids.has(item.qq_id)),
-          ];
-        });
-        setProfileCursor(result.next_cursor);
-      }
-      const updated = await Promise.all(
-        discovery.map(async (source) => {
-          if (!source.page.next_cursor) return source;
-          try {
-            const result = await integrationPost<FoundPage>(
-              "bot-observation/discovered",
-              {
-                id: source.connectionId,
-                limit: 100,
-                cursor: source.page.next_cursor,
-                role_id: roleId,
-              },
-              csrf,
-              controller.signal,
-            );
-            const ids = new Set(
-              source.page.items.map(
-                (item) => `${item.author}:${item.conversation}`,
-              ),
-            );
-            return {
-              ...source,
-              error: "",
-              page: {
-                ...result,
-                items: [
-                  ...source.page.items,
-                  ...result.items.filter(
-                    (item) => !ids.has(`${item.author}:${item.conversation}`),
-                  ),
-                ],
-              },
-            };
-          } catch (cause) {
-            return { ...source, error: readFailure(cause) };
-          }
-        }),
-      );
-      if (!controller.signal.aborted) setDiscovery(updated);
-    } catch (cause) {
-      if (!controller.signal.aborted) setErrors([readFailure(cause)]);
-    } finally {
-      if (!controller.signal.aborted) setBusy(false);
-    }
-  }
-  useEffect(() => () => active.current?.abort(), []);
-  if (!csrf)
+  const [newName, setNewName] = useState("");
+  const page = useDomainResource<Page<Person>>("identity/people", {
+    ...GLOBAL_SCOPE,
+    cursor,
+    limit: 100,
+  });
+  const command = useDomainCommand<Person>("person-create", "actor");
+  const person = page.data?.items.find((row) => row.person_id === chosen);
+  if (section === 2)
     return (
-      <StatePanel kind="error" title="请先登录">
-        <p>登录后查看获授权的用户档案。</p>
-      </StatePanel>
+      <div className="people-page">
+        <h2>人物与账号关联</h2>
+        <AccountLinkPanel actorId={workspace.actor} />
+      </div>
     );
   return (
-    <div className="people-page scroll-page">
-      <header className="people-toolbar">
-        <div className="people-page-intro">
-          <span className="people-icon-tile">
-            <UsersRound aria-hidden="true" />
-          </span>
-          <div>
-            <h2>认识的每一个人</h2>
-            <p>查看当前角色认识和绑定的用户档案。</p>
-          </div>
+    <div className="people-page">
+      <header className="people-page-heading">
+        <div>
+          <h2>人物目录</h2>
+          <p>只显示当前身份有权访问的人物；渠道账号和应用登录独立关联。</p>
         </div>
-        <label className="people-role">
-          查看角色
-          <select
-            aria-label="查看角色"
-            value={roleId}
-            onChange={(event) => {
-              active.current?.abort();
-              setSelected("");
-              setProfiles([]);
-              setDiscovery([]);
-              setRoleId(event.target.value);
-              saveRolePreference(storageKey, event.target.value);
-            }}
-          >
-            <option value="">{memory?.roles.length ? "选择角色" : ""}</option>
-            {memory?.roles.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.label}
-                {item.available ? "" : "（记忆暂不可读）"}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          className="button"
-          disabled={busy}
-          onClick={() => setEpoch((value) => value + 1)}
-        >
-          <RefreshCw size={16} aria-hidden="true" />
-          刷新档案
+        <button className="button" onClick={() => void page.refresh()}>
+          <RefreshCw size={16} />
+          刷新
         </button>
       </header>
-      {(errors.length > 0 || discovery.some((item) => item.error)) && (
-        <div className="people-warning" role="alert">
-          <strong>部分资料未能读取</strong>
-          {[
-            ...errors,
-            ...discovery.filter((item) => item.error).map((item) => item.error),
-          ].map((message) => (
-            <p key={message}>{message}</p>
-          ))}
-          <small>读取失败不会被当作“没有用户”或“没有画像”。</small>
-        </div>
-      )}
-      <>
-        {observations?.available && !observations.unlocked && (
-          <ObservationUnlock
-            csrf={csrf}
-            onUnlocked={() => setEpoch((value) => value + 1)}
-          />
-        )}
-      </>
-      <div className="people-layout scroll-layout">
-        <aside
-          className="people-directory"
-          aria-label="用户目录"
-          aria-busy={busy}
-        >
-          <div className="people-directory-heading">
-            <h3>用户目录</h3>
-            <span>{allPeople.length} 位已加载</span>
-          </div>
+      {page.error && <p role="alert">{page.error}</p>}
+      <div className="people-workspace scroll-layout">
+        <aside className="people-directory scroll-pane">
           <label className="people-search">
-            <Search size={17} aria-hidden="true" />
+            <Search size={16} />
             <input
-              aria-label="搜索已加载用户"
-              placeholder="搜索昵称、QQ 或别名"
+              placeholder="搜索本批人物"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
           </label>
-          <div className="people-filters" aria-label="用户来源筛选">
-            {[
-              ["all", "全部"],
-              ["private", "私聊"],
-              ["group", "群成员"],
-            ].map(([key, label]) => (
-              <button
-                type="button"
-                key={key}
-                aria-pressed={filter === key}
-                onClick={() => setFilter(key)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <p className="people-directory-note">
-            已观察到的人也会出现，无需先形成画像。
-          </p>
-          {busy && !allPeople.length && (
-            <p role="status" className="people-empty">
-              正在读取用户目录…
-            </p>
-          )}
-          {!busy && visible.length === 0 && (
-            <p className="people-empty">
-              {query || filter !== "all"
-                ? "已加载的用户中暂无匹配项。"
-                : errors.length
-                  ? "目录暂时没有可显示的结果，请重试读取。"
-                  : "还没有已登记或已观察到的用户。"}
-            </p>
-          )}
-          <ul className="people-list" aria-label="用户列表" tabIndex={0}>
-            {visible.map((item) => (
-              <li key={item.qqId}>
-                <button
-                  type="button"
-                  className="people-person"
-                  data-selected={selected === item.qqId || undefined}
-                  onClick={() => setSelected(item.qqId)}
-                >
-                  <span className="people-avatar">
-                    {item.profile?.display_name?.slice(0, 1) || (
-                      <UserRound size={21} aria-hidden="true" />
-                    )}
-                  </span>
-                  <span className="people-person-text">
-                    <strong>{personName(item)}</strong>
-                    <small>QQ {item.qqId}</small>
-                    <span className="people-person-tags">
-                      {item.sources.some((source) =>
-                        source.conversation.startsWith("private:"),
-                      ) && (
-                        <span>
-                          <MessageCircle size={11} aria-hidden="true" />
-                          私聊
-                        </span>
-                      )}
-                      {item.sources.some((source) =>
-                        source.conversation.startsWith("group:"),
-                      ) && <span>群成员</span>}
-                      {!item.profile && <span>待确认身份</span>}
+          {page.loading && <p>正在读取授权目录…</p>}
+          <ul className="people-directory-list">
+            {page.data?.items
+              .filter((row) =>
+                `${personName(row)} ${row.person_id}`
+                  .toLocaleLowerCase()
+                  .includes(query.toLocaleLowerCase()),
+              )
+              .map((row) => (
+                <li key={row.person_id}>
+                  <button
+                    className="people-person-choice"
+                    aria-pressed={chosen === row.person_id}
+                    onClick={() => setChosen(row.person_id)}
+                  >
+                    <span className="people-avatar">
+                      <UserRound size={18} />
                     </span>
-                  </span>
-                  <ChevronRight size={16} aria-hidden="true" />
-                </button>
-              </li>
-            ))}
+                    <span>
+                      <strong>{personName(row)}</strong>
+                      <small>{row.person_id}</small>
+                    </span>
+                  </button>
+                </li>
+              ))}
           </ul>
-          {hasMore && (
-            <button
-              className="button people-more"
-              disabled={busy}
-              onClick={() => void more()}
-            >
-              加载更多用户
-            </button>
+          {!page.loading && page.data?.items.length === 0 && (
+            <p>没有可读取的人物。</p>
           )}
-          <small className="people-directory-note">
-            搜索与来源筛选覆盖已加载范围{hasMore ? "，可继续加载。" : "。"}
-          </small>
+          <div className="models-actions">
+            {cursor && (
+              <button
+                className="button"
+                onClick={() => {
+                  setCursor(null);
+                  setChosen("");
+                }}
+              >
+                回到首批
+              </button>
+            )}
+            {page.data?.next_cursor && (
+              <button
+                className="button"
+                onClick={() => {
+                  setCursor(page.data!.next_cursor!);
+                  setChosen("");
+                }}
+              >
+                下一批人物
+              </button>
+            )}
+          </div>
+          {manageable && (
+            <details>
+              <summary>登记新人物</summary>
+              <form
+                className="people-config-form"
+                onSubmit={async (event) => {
+                  event.preventDefault();
+                  const result = await command.run(
+                    "identity/people.save",
+                    {
+                      display_name: newName,
+                      person_id: null,
+                      conversation_id: null,
+                    },
+                    0,
+                  );
+                  if (result) {
+                    setNewName("");
+                    setCursor(null);
+                    await page.refresh();
+                    setChosen(result.data.person_id);
+                  }
+                }}
+              >
+                <label>
+                  显示名称
+                  <input
+                    required
+                    value={newName}
+                    onChange={(event) => setNewName(event.target.value)}
+                  />
+                </label>
+                <button className="button" disabled={command.busy}>
+                  登记身份
+                </button>
+                <CommandFeedback {...command} />
+              </form>
+            </details>
+          )}
         </aside>
-        <div
-          key={`${roleId}:${selected}`}
-          className="people-detail-area scroll-pane"
-          role="region"
-          aria-label="用户详情"
-          tabIndex={0}
-        >
+        <div className="people-detail-area scroll-pane">
           {person ? (
             <PersonDetail
-              key={`${csrf}:${roleId}:${person.qqId}:${epoch}`}
+              key={`${person.person_id}:${person.revision}:${workspace.actor}`}
               person={person}
-              role={role}
-              roles={memory?.roles ?? []}
-              memoryAvailable={memory?.available === true}
-              csrf={csrf}
-              observations={observations}
-              onObservationLocked={() =>
-                setObservations(
-                  (before) => before && { ...before, unlocked: false },
-                )
-              }
+              actorId={workspace.actor}
+              renamed={page.refresh}
             />
           ) : (
             <div className="people-welcome">
-              <span className="people-welcome-icon">
-                <UsersRound aria-hidden="true" />
-              </span>
-              <h3>每次相遇，都从这里开始</h3>
-              <p>
-                选择当前角色目录中的一位用户，查看身份、共享画像、收到的消息与回复权限。
-              </p>
-              <small>
-                用户身份、消息归档和记忆画像分别记录；一句“hi”也足以出现在目录中。
-              </small>
+              <UsersRound size={36} />
+              <h3>每次相遇，从这里开始</h3>
+              <p>选择人物，查看当前角色授权范围内的认识、经历、关系和账号。</p>
             </div>
           )}
         </div>

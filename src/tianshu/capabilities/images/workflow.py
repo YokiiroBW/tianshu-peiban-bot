@@ -146,7 +146,8 @@ class Workflow:
                 )
         return cls(graph, bindings, ["7"])
 
-    def __init__(self, graph, bindings, outputs):
+    @staticmethod
+    def validate_graph(graph):
         if not isinstance(graph, dict) or not graph or "nodes" in graph:
             raise ValueError("Reviewed API-format export required")
         if len(canonical(graph).encode()) > 1_000_000:
@@ -165,6 +166,42 @@ class Workflow:
                     or value[1] < 0
                 ):
                     raise ValueError("Invalid node link")
+
+    @classmethod
+    def inspect(cls, graph):
+        """Return actual approved literal slots without executing or storing the graph."""
+        cls.validate_graph(graph)
+        candidates = {semantic: [] for semantic in EDITABLE}
+        outputs = []
+        for node_id, node in graph.items():
+            class_type = node["class_type"]
+            if class_type == "SaveImage":
+                outputs.append(
+                    {"node": node_id, "title": node.get("_meta", {}).get("title", node_id)}
+                )
+            for semantic, selectors in EDITABLE.items():
+                for candidate_class, input_name in sorted(selectors):
+                    if candidate_class != class_type:
+                        continue
+                    value = node["inputs"].get(input_name)
+                    kind = (
+                        str if semantic in TEXT_FIELDS or semantic.startswith("reference") else int
+                    )
+                    if type(value) is not kind or (kind is int and not 0 <= value <= 2**63 - 1):
+                        continue
+                    spec = {
+                        "node": node_id,
+                        "class_type": class_type,
+                        "input": input_name,
+                        "value": value,
+                    }
+                    if kind is int:
+                        spec.update(min=0, max=2**63 - 1)
+                    candidates[semantic].append(spec)
+        return {"candidates": candidates, "outputs": outputs, "graph_version": digest(graph)}
+
+    def __init__(self, graph, bindings, outputs):
+        self.validate_graph(graph)
         if not outputs or any(graph.get(k, {}).get("class_type") != "SaveImage" for k in outputs):
             raise ValueError("Explicit SaveImage outputs required")
         seen = set()
