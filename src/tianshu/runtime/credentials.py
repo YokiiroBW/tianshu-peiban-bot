@@ -2,6 +2,7 @@
 
 import base64
 import os
+import struct
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -20,6 +21,31 @@ class CredentialStore:
         if len(key) != 32:
             raise AppError("credential_master_invalid", status=503)
         return AESGCM(key)
+
+    @staticmethod
+    def _aad(domain: str, reference: str) -> bytes:
+        if not isinstance(domain, str) or not domain or len(domain) > 128:
+            raise AppError("invalid_credential_domain")
+        if not isinstance(reference, str) or not reference or len(reference) > 4096:
+            raise AppError("invalid_credential_reference")
+        parts = (domain.encode("utf-8"), reference.encode("utf-8"))
+        return b"tianshu.sealed.v1" + b"".join(struct.pack("!I", len(part)) + part for part in parts)
+
+    def seal_bytes(self, raw: bytes, *, domain: str, reference: str) -> bytes:
+        """Seal domain-owned bytes using the deployment's sole external master key."""
+        if not isinstance(raw, bytes):
+            raise AppError("invalid_credential_bytes")
+        nonce = os.urandom(12)
+        return b"TS1" + nonce + self._cipher().encrypt(nonce, raw, self._aad(domain, reference))
+
+    def unseal_bytes(self, sealed: bytes, *, domain: str, reference: str) -> bytes:
+        aad = self._aad(domain, reference)
+        if not isinstance(sealed, bytes) or len(sealed) < 31 or sealed[:3] != b"TS1":
+            raise AppError("credential_unseal_failed", status=503)
+        try:
+            return self._cipher().decrypt(sealed[3:15], sealed[15:], aad)
+        except Exception:
+            raise AppError("credential_unseal_failed", status=503) from None
 
     async def put(self, connection, reference, value):
         if not reference.startswith("sealed:") or not isinstance(value, str) or not 1 <= len(value) <= 16384:
