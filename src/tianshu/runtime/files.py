@@ -2,7 +2,9 @@
 
 import asyncio
 from collections import OrderedDict
+from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import replace
 import hashlib
 import io
 import os
@@ -15,7 +17,7 @@ from tianshu.types import MediaRef
 from .cancellation import finish_cleanup
 from .errors import AppError
 
-CHUNK_SIZE = 1024*1024
+CHUNK_SIZE = 1024 * 1024
 
 
 class FileStore:
@@ -31,7 +33,7 @@ class FileStore:
         identity = reference.sha256 if isinstance(reference, MediaRef) else reference
         if not isinstance(identity, str) or not re.fullmatch(r"[0-9a-f]{64}", identity):
             raise AppError("invalid_file_reference")
-        path = self.root/identity[:2]/identity
+        path = self.root / identity[:2] / identity
         if any(item.is_symlink() for item in (self.root, path.parent, path)):
             raise AppError("invalid_file_reference")
         if not path.resolve().is_relative_to(self.root):
@@ -39,18 +41,18 @@ class FileStore:
         return path
 
     def _temporary(self):
-        directory = self.root/".incoming"
+        directory = self.root / ".incoming"
         self.root.mkdir(parents=True, exist_ok=True)
         if directory.is_symlink():
             raise AppError("invalid_file_reference")
         directory.mkdir(exist_ok=True)
-        path = directory/(uuid4().hex+".partial")
+        path = directory / (uuid4().hex + ".partial")
         stream = path.open("xb")
         path.chmod(0o600)
         return path, stream
 
     def _publish(self, temporary, identity, size, media_type):
-        reference = MediaRef(identity, "sha256:"+identity, media_type, size, identity)
+        reference = MediaRef(identity, "sha256:" + identity, media_type, size, identity)
         path = self._path(reference)
         path.parent.mkdir(parents=True, exist_ok=True)
         try:
@@ -64,16 +66,70 @@ class FileStore:
                 os.fsync(descriptor)
             finally:
                 os.close(descriptor)
+        self._remember_intake(reference)
+        return reference
+
+    def _remember_intake(self, reference):
         with self.cache_lock:
             self.intakes[id(reference)] = reference
             while len(self.intakes) > 4096:
                 self.intakes.popitem(last=False)
-        return reference
 
     def was_written(self, reference):
         """A local intake must use the actual newly written reference, not an asserted SHA."""
         with self.cache_lock:
             return isinstance(reference, MediaRef) and self.intakes.get(id(reference)) is reference
+
+    def _require_intake(self, reference):
+        if not self.was_written(reference):
+            raise AppError("media_intake_not_owned", status=403)
+        if (
+            reference.media_id != reference.sha256
+            or reference.uri != "sha256:" + str(reference.sha256)
+            or type(reference.size_bytes) is not int
+            or reference.size_bytes < 0
+        ):
+            raise AppError("invalid_file_reference")
+
+    @contextmanager
+    def inspection_path(self, reference: MediaRef) -> Iterator[Path]:
+        """Hold a verified local intake open while a trusted bounded inspector uses its path.
+
+        This is not a domain media resolver: reconstructed source/artifact references
+        and external URLs are ineligible, even if they assert an existing digest.
+        The caller owns the inspector's timeout/cancellation and must stay in this scope.
+        """
+        self._require_intake(reference)
+        with self.open_reader(reference):
+            yield self._path(reference)
+
+    def describe_intake(
+        self,
+        reference: MediaRef,
+        *,
+        duration_ms: int | None = None,
+        width: int | None = None,
+        height: int | None = None,
+    ) -> MediaRef:
+        """Attach trusted local measurements without changing content or domain ownership.
+
+        None preserves an existing measurement. Use the returned actual object for
+        Sources.register_media; serializing/reconstructing it loses the intake proof.
+        """
+        self._require_intake(reference)
+        measurements = {"duration_ms": duration_ms, "width": width, "height": height}
+        for name, value in measurements.items():
+            if value is not None and (
+                type(value) is not int or value < (0 if name == "duration_ms" else 1)
+            ):
+                raise AppError("invalid_media_measurement")
+        with self.inspection_path(reference):
+            described = replace(
+                reference,
+                **{name: value for name, value in measurements.items() if value is not None},
+            )
+            self._remember_intake(described)
+            return described
 
     def put_stream(self, source, *, media_type="application/octet-stream", max_bytes=None):
         """Consume a binary file-like object with a fixed-size working buffer."""
@@ -96,6 +152,7 @@ class FileStore:
 
     async def put_async(self, chunks, *, media_type="application/octet-stream", max_bytes=None):
         """Consume an async iterator, such as a streaming multipart upload or decoder."""
+
         async def io_call(operation, *args):
             task = asyncio.create_task(asyncio.to_thread(operation, *args))
             try:
@@ -119,7 +176,7 @@ class FileStore:
                     raise AppError("artifact_too_large", status=413)
                 view = memoryview(chunk)
                 for position in range(0, len(view), CHUNK_SIZE):
-                    piece = view[position:position+CHUNK_SIZE]
+                    piece = view[position : position + CHUNK_SIZE]
                     await io_call(target.write, piece)
                     digest.update(piece)
             await io_call(target.flush)
