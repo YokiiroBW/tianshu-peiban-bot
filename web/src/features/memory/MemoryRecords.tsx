@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useAuth } from "../../app/Auth";
 import {
   useDomainCommand,
@@ -36,6 +36,8 @@ function ClaimEditor({
   refresh: () => Promise<void>;
   close: () => void;
 }) {
+  const valueLabelId = useId();
+  const conditionsLabelId = useId();
   const [value, setValue] = useState(showValue(item.value) ?? "");
   const [negative, setNegative] = useState(!item.polarity);
   const [conditions, setConditions] = useState(showValue(item.conditions));
@@ -87,8 +89,11 @@ function ClaimEditor({
         。保存时核对该版本；并发变化会提示重新读取。
       </p>
       <label>
-        {typeof item.value === "string" ? "更正后的内容" : "更正后的结构化值"}
+        <span id={valueLabelId}>
+          {typeof item.value === "string" ? "更正后的内容" : "更正后的结构化值"}
+        </span>
         <textarea
+          aria-labelledby={valueLabelId}
           required
           rows={4}
           value={value}
@@ -96,8 +101,9 @@ function ClaimEditor({
         />
       </label>
       <label>
-        适用条件（JSON 对象）
+        <span id={conditionsLabelId}>适用条件（JSON 对象）</span>
         <textarea
+          aria-labelledby={conditionsLabelId}
           rows={3}
           value={conditions}
           onChange={(event) => setConditions(event.target.value)}

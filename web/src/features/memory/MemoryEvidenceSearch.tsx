@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { Page } from "../../api/contracts";
 import {
   useDomainResource,
@@ -23,6 +23,7 @@ export function MemoryEvidenceSearch({
   scope: DomainTarget;
   query: MemoryTimeQuery;
 }) {
+  const modeLabelId = useId();
   const [text, setText] = useState("");
   const [mode, setMode] = useState("list");
   const [kinds, setKinds] = useState(Object.keys(evidenceKinds));
@@ -66,8 +67,9 @@ export function MemoryEvidenceSearch({
           />
         </label>
         <label>
-          读取方式
+          <span id={modeLabelId}>读取方式</span>
           <select
+            aria-labelledby={modeLabelId}
             value={mode}
             onChange={(event) => setMode(event.target.value)}
           >
