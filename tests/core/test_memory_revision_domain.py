@@ -311,3 +311,19 @@ async def test_changed_supporting_proposition_retires_current_hypothesis(core, o
     assert all(item.claim_id != hypothesis.claim_id for item in (await core.claims.list(alice)).items)
     with pytest.raises(AppError, match="revision_conflict"):
         await apply(core, alice, stale, [operation(alice, "add_support", {"ref": "r0", "expected_revision": hypothesis.revision}, {}, reads=("r0",))])
+
+
+async def test_historical_relation_endpoint_uses_frozen_head_without_becoming_write_target(core, ordinary_users):
+    alice, _ = ordinary_users
+    old = await fact(core, alice, await original(core, alice, "historical-endpoint", "我喜欢苹果"))
+    newer = await fact(core, alice, await original(core, alice, "historical-more-proof", "我仍喜欢苹果"))
+    assert newer.revision > old.revision
+    refs = await original(core, alice, "historical-link-input", "这是关于先前那次记录的关系")
+    batch = await frozen(core, alice, refs, old, batch_id="historical-read")
+    batch["records"]["r0"]["head_revision"] = newer.revision
+    batch["read_set"] = list(batch["records"].values())
+    async with core.database.transaction() as conn:
+        await core.claims.revisions.validate_read_set_on(conn, alice, batch)
+    with pytest.raises(AppError, match="memory_operation_historical_target"):
+        await apply(core, alice, batch, [operation(alice, "revise_claim", {"ref": "r0", "expected_revision": old.revision},
+            {"revision_mode": "correction", **payload(alice, "错误覆盖历史版")}, reads=("r0",))])

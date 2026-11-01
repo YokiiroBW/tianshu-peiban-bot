@@ -76,6 +76,7 @@ def claim(row, selected_refs=None, *, relations=()):
         row.get("change_reason", ""),
         refs(row.get("counterexample_refs")),
         tuple(relations),
+        row.get("head_revision", row.get("current_revision", row["revision"])),
     )
 
 
@@ -103,6 +104,7 @@ def matter(row, claim_ids=(), selected_refs=None, *, relations=()):
         row.get("current_status", "current"),
         row.get("change_reason", ""),
         tuple(relations),
+        row.get("head_revision", row.get("current_revision", row["revision"])),
     )
 
 

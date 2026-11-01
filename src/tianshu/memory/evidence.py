@@ -96,7 +96,8 @@ def build_evidence_unit(value, *, relations=(), time_mode="current", temporal_mi
     common = {"actor_id": value.actor_id, "source_refs": unique_refs((*value.source_refs,
                   *endpoint_refs, *(ref for link in relations for ref in (*link.source_refs, *link.derivation_refs)))),
               "scope_ids": value.scope_ids, "recorded_at": value.recorded_at,
-              "coverage": coverage, "relations": tuple(relations)}
+              "coverage": coverage, "relations": tuple(relations),
+              "head_revision": getattr(value, "head_revision", None) or value.revision}
     if isinstance(value, ClaimRevision):
         content = f"{value.predicate}: {json.dumps(wire(value.value), ensure_ascii=False)}"
         return MemoryEvidenceUnit(

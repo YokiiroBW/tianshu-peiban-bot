@@ -69,6 +69,7 @@ class ClaimRevision:
     change_reason: str = ""
     counterexample_refs: tuple[SourceRef, ...] = ()
     relations: tuple["SemanticLink", ...] = ()
+    head_revision: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,6 +96,7 @@ class MatterView:
     current_status: str = "current"
     change_reason: str = ""
     relations: tuple["SemanticLink", ...] = ()
+    head_revision: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -194,3 +196,4 @@ class MemoryEvidenceUnit:
     episode_ids: tuple[str, ...] = ()
     counterexamples: tuple[str, ...] = ()
     semantic_fingerprint: str | None = None
+    head_revision: int | None = None

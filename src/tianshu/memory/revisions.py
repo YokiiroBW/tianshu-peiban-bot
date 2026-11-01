@@ -147,7 +147,9 @@ class RevisionService:
         content = (f"{values['subject_id']} {values['predicate']}: {json.dumps(wire(values['value']), ensure_ascii=False)}; "
                    f"assertion={values['assertion']}; polarity={values['polarity']}; "
                    f"conditions={json.dumps(values['conditions'], ensure_ascii=False)}")
-        units = sorted(set(support.get("evidence_units", ())) | {item["evidence_unit"] for item in support["descriptions"]})
+        units = set(support.get("evidence_units", ()))
+        units.update(item["evidence_unit"] for item in support["descriptions"])
+        units = sorted(units)
         await conn.execute(
             "INSERT INTO memory.claim_revisions(claim_id,revision,speaker_id,subject_id,predicate,value,assertion,polarity,conditions,"
             "valid_from,valid_until,observed_at,state,source_refs,support_groups,scope_groups,scope_ids,evidence_units,content,lexical,"
@@ -338,19 +340,22 @@ class RevisionService:
 
     async def validate_read_set_on(self, conn, context, frozen):
         records = frozen.get("records", {})
-        expected = {(value["kind"], value["id"]): value["revision"] for value in frozen.get("read_set", ())}
-        canonical = {}
-        for (kind, object_id), revision in expected.items():
+        entries = tuple(frozen.get("read_set", ()))
+        expected = {(value["kind"], value["id"], value["revision"]) for value in entries}
+        heads = {}
+        for value in entries:
+            kind, object_id = value["kind"], value["id"]
+            revision = value.get("head_revision") or value["revision"]
             key = ("claim" if kind == "hypothesis" else kind, object_id)
-            if key in canonical and canonical[key] != revision:
+            if key in heads and heads[key] != revision:
                 raise AppError("memory_read_set_ambiguous", status=409)
-            canonical[key] = revision
-        if any((value["kind"], value["id"]) not in expected or expected[(value["kind"], value["id"])] != value["revision"]
+            heads[key] = revision
+        if any((value["kind"], value["id"], value["revision"]) not in expected
                for value in records.values()):
             raise AppError("memory_read_set_incomplete", status=409)
-        for (kind, object_id), revision in sorted(expected.items(), key=lambda item: ("claim" if item[0][0] == "hypothesis" else item[0][0], item[0][1])):
-            if kind in {"claim", "hypothesis"}:
-                row = await self._claim_head_on(conn, context, object_id, revision)
+        for (kind, object_id), revision in sorted(heads.items()):
+            if kind == "claim":
+                await self._claim_head_on(conn, context, object_id, revision)
             else:
                 table, key = {"matter": ("matters", "matter_id"), "episode": ("episodes", "episode_id"),
                               "reflection": ("reflections", "proposal_id")}.get(kind, (None, None))
@@ -359,10 +364,25 @@ class RevisionService:
                 row = await (await conn.execute(f"SELECT * FROM memory.{table} WHERE {key}=%s FOR UPDATE", (object_id,))).fetchone()
                 if not row or row["actor_id"] != context.actor_id or row["revision"] != revision:
                     raise AppError("revision_conflict", status=409)
+        # Multiple historical revisions of the same object may occur as legal relation
+        # endpoints. Check their fixed rows separately after checking the frozen head once.
+        for kind, object_id, revision in sorted(expected):
+            if kind in {"claim", "hypothesis"}:
+                row = await (await conn.execute(
+                    "SELECT r.* FROM memory.claim_revisions r JOIN memory.claims c USING(claim_id) "
+                    "WHERE r.claim_id=%s AND r.revision=%s AND c.actor_id=%s",
+                    (object_id, revision, context.actor_id))).fetchone()
+            elif kind == "matter":
+                row = await (await conn.execute("SELECT * FROM memory.matter_revisions WHERE matter_id=%s AND revision=%s AND actor_id=%s",
+                    (object_id, revision, context.actor_id))).fetchone()
+            else:
+                table, key = {"episode": ("episodes", "episode_id"), "reflection": ("reflections", "proposal_id")}[kind]
+                row = await (await conn.execute(f"SELECT * FROM memory.{table} WHERE {key}=%s AND revision=%s AND actor_id=%s",
+                    (object_id, revision, context.actor_id))).fetchone()
             if row is None or row.get("state") == "unsupported" or row.get("active") is False:
                 raise AppError("memory_record_unavailable", status=409)
             frozen_states = {value["current_status"] for value in records.values()
-                if value["id"] == object_id and "current_status" in value}
+                if value["id"] == object_id and value["revision"] == revision and "current_status" in value}
             if frozen_states and row.get("current_status", "current") not in frozen_states:
                 raise AppError("revision_conflict", status=409)
 
@@ -449,6 +469,8 @@ class RevisionService:
                 continue
             support = await operation_support(operation)
             old = records.get(target.get("ref"))
+            if old and (old.get("head_revision") or old["revision"]) != old["revision"]:
+                raise AppError("memory_operation_historical_target")
             if old and (target["expected_revision"] != old["revision"] or target["ref"] not in operation["reads"]):
                 raise AppError("revision_conflict", status=409)
             if old and old.get("subject_id") not in {None, operation["subject_id"]}:

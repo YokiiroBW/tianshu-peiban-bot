@@ -182,7 +182,10 @@ class ClaimService:
 
         async def replay(conn, original):
             await self.identity.check_context(context, connection=conn)
-            return original
+            fork = stable_id(context.actor_id, body["client_request_id"], body["claim_id"] + ":scope", "claim")
+            exists = await (await conn.execute("SELECT claim_id FROM memory.claims WHERE claim_id=%s AND actor_id=%s AND principal_id=%s",
+                (fork, context.actor_id, context.principal_id))).fetchone()
+            return replace(original, data={"claim_id": fork if exists else body["claim_id"]})
         result = await self.commands.execute(context, "memory.claim.correct", body["client_request_id"],
             command_fingerprint(body, evidence_refs), apply, on_replay=replay)
         target = result.data["claim_id"] if isinstance(result.data, dict) else result.data.claim_id
@@ -280,7 +283,7 @@ class ClaimService:
     async def get_matter(self, context, matter_id, *, revision=None):
         await self.identity.check_context(context)
         async with self.database.transaction(read_only=True) as conn:
-            row = await (await conn.execute("SELECT r.* FROM memory.matter_revisions r JOIN memory.matters m USING(matter_id) "
+            row = await (await conn.execute("SELECT r.*,m.revision AS current_revision FROM memory.matter_revisions r JOIN memory.matters m USING(matter_id) "
                 "WHERE r.matter_id=%s AND r.revision=COALESCE(%s,m.revision) AND r.actor_id=%s AND r.active",
                 (matter_id, revision, context.actor_id))).fetchone()
             selected = (await select_supports_on(self.sources, conn, context, (row,)))[0] if row else None
@@ -315,7 +318,10 @@ class ClaimService:
 
         async def replay(conn, original):
             await self.identity.check_context(context, connection=conn)
-            return original
+            fork = stable_id(context.actor_id, body["client_request_id"], body["matter_id"] + ":scope", "matter")
+            exists = await (await conn.execute("SELECT matter_id FROM memory.matters WHERE matter_id=%s AND actor_id=%s AND principal_id=%s",
+                (fork, context.actor_id, context.principal_id))).fetchone()
+            return replace(original, data={"matter_id": fork if exists else body["matter_id"]})
         result = await self.commands.execute(context, "memory.matter.save", body["client_request_id"],
             command_fingerprint(body, evidence_refs), apply, on_replay=replay)
         return replace(result, data=await self.get_matter(context, result.data["matter_id"]))
