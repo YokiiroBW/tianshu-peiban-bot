@@ -261,3 +261,36 @@ separate MC-D integration scope and will consume these types/builders.
   复用其他 36 个成功结果。原 80 次上限、129 个 parts、来源完整性及断言不改。
   作者没有运行测试、语言解析/typecheck/build、模型、网络、
   生产或 QQ 操作，也没有新增测试或降低原验收条件。
+
+## M16 生效边界与个人事项语义收口（2026-11-01）
+
+- 基于最终候选 `00859380bafda2815fc03dbddda34de4ac1ced5d` 在原 worktree 建立
+  `codex/memory-temporal-contract-repairs-20261101`，旧分支与提交保留。只静态读取根
+  明确授权的 candidate-02/candidate-03 开发 S03 model-calls 与原生 claim_revisions，
+  未读取 heldout。
+- candidate-03 的真实 transition 提案将明示日期仅放 conditions，effective_at、
+  新 valid_from 及 valid_until 均为 null；理由明确将“缺具体时刻”泛化为有效时间
+  未知。原生修订中旧 valid_until 和新 valid_from 也都是 null。旧 candidate-02
+  提案同时填写 effective_at 与新 valid_from，原生旧区间被关闭、新区间起点正确。
+- 静态调用链确认不是 runner 漏读：_claim_values_on 仅解析正式 valid_from/until，
+  transition 仅在 effective_at 已知时关闭旧区间，codec 和 valid_at SQL 都读取
+  正式列，没有从 conditions 的自然语言或自定义日期键推断边界的旁路。服务对
+  unknown 保持 null 正确，因此本次不改服务、不猜测日期、不自动回填模型值。
+- 替换原有短时间说明：明示生效界须写 valid_from/valid_until 而非只放 conditions；
+  transition 的 effective_at 与新 valid_from、被关闭的旧 valid_until 对齐。
+  仅日粒度的边界以原时区日界表示，原粒度留 conditions；未知保持 null，不借发言/
+  入库时间代填，相对时间继续锚定原 occurred_at/context.time_zone。due_at 缺具体
+  时刻仍保持 null，避免把约定时刻规则混同为 Claim 生效边界规则。
+- 同批根任务报告 S09 的来源与作者覆盖已正确，旧协议拒绝消失，但认同安排仍被
+  扩成发言者个人参加计划。将较宽的“独立可跟踪事项”说明替换为：认同/确认安排
+  非参加承诺；个人 Matter 须明示自身安排/后续委托承诺/既有进展；转述/表态本身
+  不新建或完成待办。群共同事项与个人承诺继续分开；不加入故事词、关键词分支或
+  新分类模型，既有真实委托、当前态度及完成依据约束保持。
+- Schema、材料正文、计数器、12k 上限及所有程序校验均未改。以 candidate-03/S03
+  保存的实际 system 与集成源码的前缀一致为基础做 UTF-8 静态比较，净增 165 B，
+  system 为 9718→9883 B。沿前次原字节夹具静态基准预计 11684+165=11849，余量
+  约 151；这是静态推算，未运行候选代码、解析器或测试。
+- 本次没有新增复述提示文案的单测，也不改既有断言。根任务收完本批开发样例后，
+  只做必要预算与 M16 实际字段/valid_at 两侧及未知时间复验；不能只凭回答能复述
+  日期判定时间查询正确。已正确工作的领域时间解析、权限、CAS、来源与显示路径
+  可按未变输入复用已有结果。未执行测试/typecheck/build、网络、模型、生产或 QQ。
