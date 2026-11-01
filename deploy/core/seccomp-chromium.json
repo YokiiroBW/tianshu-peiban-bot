@@ -51,11 +51,12 @@
 	],
 	"syscalls": [
 		{
-			"comment": "Allow create user namespaces",
+			"comment": "Allow Chromium user namespaces and sandbox chroot; kernel namespace capability checks still apply",
 			"names": [
 				"clone",
 				"setns",
-				"unshare"
+				"unshare",
+				"chroot"
 			],
 			"action": "SCMP_ACT_ALLOW",
 			"args": [],
@@ -687,20 +688,6 @@
 			"includes": {
 				"caps": [
 					"CAP_SYS_BOOT"
-				]
-			},
-			"excludes": {}
-		},
-		{
-			"names": [
-				"chroot"
-			],
-			"action": "SCMP_ACT_ALLOW",
-			"args": [],
-			"comment": "",
-			"includes": {
-				"caps": [
-					"CAP_SYS_CHROOT"
 				]
 			},
 			"excludes": {}

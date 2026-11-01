@@ -61,9 +61,16 @@ Prometheus 3.13.3 netgo,builtinassets、Grafana 13.2.2。
 
 根锁定 Playwright 1.64.1；Docker 构建安装该包匹配的 Chromium 与系统依赖，生产不下载浏览器。
 `seccomp-chromium.json` 来自官方 [v1.64.1 profile](https://github.com/microsoft/playwright/blob/v1.64.1/utils/docker/seccomp_profile.json)，
-SHA256 `cc3e61cabda6bbc1e53e54d27ba4d55a9d3be829b6dd1a596f4a7b31b1cc7849`，许可证随目录提供。
+上游原始文件SHA256为 `cc3e61cabda6bbc1e53e54d27ba4d55a9d3be829b6dd1a596f4a7b31b1cc7849`，许可证随目录提供。
 按 [Playwright 官方容器说明](https://playwright.dev/python/docs/docker) 为非 root Chromium 保留
 clone/setns/unshare 用户命名空间；不使用 privileged、SYS_ADMIN、unconfined 或关闭浏览器 sandbox。
+本地仅将 `chroot` 从依赖容器 `CAP_SYS_CHROOT` 的条件分支移入上述显式允许组，删除旧重复分支。
+Chromium的 [ChrootToSelfFdinfo](https://chromium.googlesource.com/chromium/src/sandbox/+/refs/heads/main/linux/services/credentials.cc)
+在子用户命名空间内对 `/proc/self/fdinfo/` 调用chroot收缩根目录；原profile在容器cap_drop ALL、未加SYS_CHROOT时
+提前由seccomp拒绝。允许该syscall仍受内核所在命名空间的capability检查，不增加宿主CAP_SYS_CHROOT。
+PID1继续以root初始化目录，Supervisor将业务三角色降至UID/GID 10001；普通docker exec的默认root身份不能代替业务身份验收。
+同镜像隔离验证应使用UID/GID 10001、原cap边界、sandbox=true、network none和无生产挂载，分别挂载上游/本地profile比较启动。
+正式切换还必须让新容器的HostConfig.SecurityOpt指向这份已核hash的宿主profile；仅更新镜像内文件不会改变已加载的过滤器。
 
 镜像内 `/opt/tianshu/image-manifest/` 记录源码 SHA、完整 Python 包版本、网页摘要、浏览器修订、
 OS 包与实际 ffmpeg/git/PG/Vector/Loki 版本。依赖与网页在构建阶段安装，不挂载旧产品源码。

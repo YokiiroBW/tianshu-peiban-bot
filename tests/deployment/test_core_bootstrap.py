@@ -7,9 +7,36 @@ from pathlib import Path
 import stat
 
 import pytest
+import yaml
 
 from tianshu.capabilities.media.runtime import validate_media
 from tianshu.capabilities.media.comics.plugin import configuration as comic_file_configuration
+
+
+def test_chromium_sandbox_profile_allows_namespace_chroot_without_host_capability():
+    directory = Path(__file__).parents[2] / "deploy/core"
+    profile = json.loads((directory / "seccomp-chromium.json").read_text())
+    service = yaml.safe_load((directory / "compose.yaml").read_text())["services"]["tianshu"]
+    settings = json.loads((directory / "settings.example.json").read_text())
+    rules = [rule for rule in profile["syscalls"] if "chroot" in rule["names"]]
+    assert len(rules) == 1
+    assert rules[0]["action"] == "SCMP_ACT_ALLOW" and rules[0]["args"] == []
+    assert rules[0]["includes"] == rules[0]["excludes"] == {}
+    allowed = {name for rule in profile["syscalls"]
+        if rule["action"] == "SCMP_ACT_ALLOW" and not rule.get("args")
+        and not rule.get("includes") and not rule.get("excludes") for name in rule["names"]}
+    assert {"clone", "setns", "unshare", "chroot"} <= allowed
+    assert profile["defaultAction"] == "SCMP_ACT_ERRNO"
+    caps = {"CAP_" + name.removeprefix("CAP_") for name in service["cap_add"]}
+    assert service["cap_drop"] == ["ALL"]
+    assert not ({"CAP_SYS_ADMIN", "CAP_SYS_CHROOT"} & caps)
+    assert not service.get("privileged", False)
+    assert set(service["security_opt"]) == {
+        "no-new-privileges:true", "seccomp=./seccomp-chromium.json"
+    }
+    assert service["user"] == "0:10001"  # Directory initializer; business children drop UID.
+    assert settings["supervisor"]["uid"] == settings["supervisor"]["gid"] == 10001
+    assert settings["capabilities"]["content"]["browser"]["chromium_sandbox"] is True
 
 
 @pytest.mark.skipif(

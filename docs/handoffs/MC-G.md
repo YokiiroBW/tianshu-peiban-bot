@@ -143,3 +143,15 @@ root 在 `cb7dae9` 集中复验报告 92 项中 83 通过、9 失败，其中 G 
 - `test_prepared_api_role_closes_its_plugin_owner_without_starting_workers`：prepared非worker关闭同owner及普通文件池。
 
 G仅静态diff/空白检查和提交，未运行测试、语法/类型检查、build、PG、网络、模型或生产。未变RC28队列、前端及其他子进程结果直接复用；不宣称本块已经运行或实机通过。
+
+## Chromium业务UID下的namespace chroot启动修复
+
+基线 `706760f5d585be299fc5fd19ecc4c794bc6df080`，分支 `codex/chromium-sandbox-chroot-20261102`。root已在C9取得真实业务UID/GID 10001、sandbox=true的启动失败：Chromium Check failed sys_chroot('/proc/self/fdinfo/')，zygote SIGTRAP；先前root exec的Running as root错误另存，不能当业务根因。Supervisor以root初始化目录，再用user/group参数降权启动三角色，产品身份未错，不改Compose用户或目录权限。
+
+本块只将 `deploy/core/seccomp-chromium.json` 的chroot从CAP_SYS_CHROOT includes条件分支移至现有Chromium显式允许组，删除旧分支；README标明上游版本/原SHA256与本地delta、内核仍核命名空间capability、宿主profile切换装配。上游原文件hash为 `cc3e61cabda6bbc1e53e54d27ba4d55a9d3be829b6dd1a596f4a7b31b1cc7849`（修改前实物一致），候选LF hash为 `07b5fbc0fb83061b5730693e77d453c853fb2784fce57426a7de13d7416f3e6e`。没有新增CAP_SYS_CHROOT/SYS_ADMIN、privileged/unconfined或禁用沙箱，也没有增其他syscall权限。保留原浏览器错误code，本块不额外构造异常诊断体系。
+
+新增现有配置合同节点 `tests/deployment/test_core_bootstrap.py::test_chromium_sandbox_profile_allows_namespace_chroot_without_host_capability`，检查chroot唯一显式允许、原namespace调用、default deny及实际Compose cap/security选项与默认业务UID/sandbox=true一致；复用已有PyYAML依赖。该节点written_not_run。
+
+私有精确方案位于STAGE `browser-seccomp-isolated-plan.md`：root收齐B后，用同一个C9镜像分别运行原/候选profile，network none、read-only、UID/GID 10001、原6cap边界、no-new-privileges和sandbox=true，无生产挂载/配置/凭据/PG/模型，逐项比较身份及一次launch/close。正式切换须更新新容器HostConfig.SecurityOpt所指宿主profile；仅改镜像内profile不会更新已加载过滤器。隔离通过仍不等于原生content.read业务成功，由root正式切换后保存新的实际网页读取结果，旧failed/effect=none原回执保留。
+
+G仅静态读取root保存回执及源码、校对diff/空白/文件hash，未运行测试、语法检查、build、浏览器、网络、模型、PG或生产操作。多模态base64估计与当前配额边界另记私有 `browser-runtime-diagnostic.md`：当前没有估计导致额外准入阻塞的证据，按root确认未改估计/配额/路由，不扩成本优化。
