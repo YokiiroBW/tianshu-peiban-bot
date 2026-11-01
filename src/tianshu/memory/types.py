@@ -197,3 +197,5 @@ class MemoryEvidenceUnit:
     counterexamples: tuple[str, ...] = ()
     semantic_fingerprint: str | None = None
     head_revision: int | None = None
+    # Current authorized Identity labels, hydrated on read; not historical facts.
+    display_subjects: tuple[Mapping[str, Any], ...] = ()

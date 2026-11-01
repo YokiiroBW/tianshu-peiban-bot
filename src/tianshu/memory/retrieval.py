@@ -16,6 +16,7 @@ from tianshu.types import ContextContribution, Coverage, RequestBudget, ServiceC
 from . import codec
 from .candidates import CandidateStore
 from .domain_utils import lexical
+from .display import display_evidence_on
 from .evidence import build_evidence_unit, select_supports_on
 from .indexing import evidence_text
 from .query_plan import parse_plan, read_cursor, write_cursor
@@ -156,20 +157,6 @@ class MemoryRetrieval:
             result.append((row, build_evidence_unit(value, relations=related, time_mode=plan.time_mode)))
         return result
 
-    async def _check_units_on(self, conn, context, values):
-        checked, batch, size = [], [], 0
-        for unit in values:
-            if len(unit.source_refs) > 2048:
-                raise AppError("memory_evidence_source_budget_exceeded", status=503)
-            if batch and size + len(unit.source_refs) > 2048:
-                checked.extend(await self.memory.sources.check_many_on(conn, context, tuple(batch)))
-                batch, size = [], 0
-            batch.append(unit.source_refs)
-            size += len(unit.source_refs)
-        if batch:
-            checked.extend(await self.memory.sources.check_many_on(conn, context, tuple(batch)))
-        return checked
-
     async def _checked(self, context, plan, rows, budget, *, snapshot=None):
         """Read the selected versions and their complete relations again after ranking."""
         if not rows:
@@ -180,10 +167,11 @@ class MemoryRetrieval:
             hydrated = await self._hydrate_on(conn, context, plan, [row for row in reread if row is not None])
             if len(hydrated) < sum(row is not None for row in reread):
                 missing.append("memory_evidence_unavailable")
-            checked = await self._check_units_on(conn, context, [unit for _, unit in hydrated])
-        if not all(checked):
+            displayed = await display_evidence_on(self.memory, conn, context, [unit for _, unit in hydrated])
+        if any(unit is None for unit in displayed):
             missing.append("memory_evidence_unavailable")
-        return tuple((row, unit) for (row, unit), valid in zip(hydrated, checked) if valid), tuple(missing)
+        return tuple((row, unit) for (row, _), unit in zip(hydrated, displayed, strict=True)
+                     if unit is not None), tuple(missing)
 
     async def _ranked(self, context, plan, budget, *, limit, source_refs, service_class):
         missing = []

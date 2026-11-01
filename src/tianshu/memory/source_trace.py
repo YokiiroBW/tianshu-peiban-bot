@@ -5,6 +5,7 @@ from tianshu.runtime.commands import body_hash
 from tianshu.runtime.errors import AppError
 from tianshu.sources.dependencies import unique_refs
 from tianshu.types import Coverage, RequestBudget, SourceRef
+from .display import display_evidence_on
 
 
 TRACE_SCHEMA = {
@@ -91,7 +92,11 @@ class SourceTrace:
             await self.memory.commands.execute(action.context, "memory.source.trace", key,
                 body_hash(identity), reserve, budget=budget, on_replay=replay)
             values = await self.memory.sources.read_many(action.context, selections)
-            await self.memory.sources.check(action.context, refs)
+            async with self.memory.database.transaction(budget, read_only=True) as conn:
+                displayed = await display_evidence_on(self.memory, conn, action.context, values)
+            if any(value is None for value in displayed):
+                raise AppError("source_unavailable", status=403)
+            values = tuple(displayed)
         missing = tuple(dict.fromkeys(reason for item in values for reason in item["coverage"].missing))
         if any(not item["coverage"].complete for item in values):
             missing += ("original_range_partial",)

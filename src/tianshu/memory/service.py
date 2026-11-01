@@ -613,8 +613,17 @@ class MemoryService:
         evidence = tuple(build_evidence_unit(item,time_mode=time_mode,
             temporal_missing=("reflection_valid_time_unknown",) if time_mode=="valid_at" and hasattr(item,"proposal_id") else ())
             for item in (*claim_page.items,*matters.items,*reflections.items))
+        from .display import display_evidence_on
+        displayed = ()
+        if evidence:
+            async with self.database.transaction(read_only=True) as conn:
+                displayed = await display_evidence_on(self,conn,context,evidence)
+        evidence = tuple(item for item in displayed if item is not None)
         pages = (claim_page,matters,reflections)
-        missing = tuple(dict.fromkeys(value for page in pages for value in page.coverage.missing))
+        missing = [value for page in pages for value in page.coverage.missing]
+        if len(evidence)<len(displayed):
+            missing.append("memory_evidence_unavailable")
+        missing = tuple(dict.fromkeys(missing))
         return {
             "person_id": person_id,
             "group_id": group_id,
@@ -629,7 +638,7 @@ class MemoryService:
             "time": {"mode":time_mode,"valid_at":valid_at,"known_at":known_at},
             "pages": {"claims":claim_page.next_cursor,"matters":matters.next_cursor,"reflections":reflections.next_cursor},
             "coverage": Coverage(
-                complete=all(page.coverage.complete for page in pages),missing=missing
+                complete=all(page.coverage.complete for page in pages) and not missing,missing=missing
             ),
         }
 

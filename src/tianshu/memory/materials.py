@@ -232,7 +232,7 @@ def model_material(value, policy, *, context_round=0, requests=()):
             for key, item in value["materials"].items()],
         "targets": [{"subject_id": key, **item} for key, item in value["targets"].items()],
         "existing_records": [{"ref": key, **{name: data for name, data in item.items()
-            if name not in {"id","source_refs", "scope_ids", "derivation_refs", "support_groups"}},
+            if name not in {"id","source_refs", "scope_ids", "derivation_refs", "support_groups", "display_subjects"}},
             "relations":[{name:data for name,data in link.items() if name!="source_refs"} for link in item.get("relations",())]}
             for key, item in value["records"].items()],
         "context_requests": list(requests),

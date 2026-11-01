@@ -107,3 +107,25 @@ Episode.speaker_id 只取来源中可证明的唯一人类作者，多个作者�
 - `_input_budget_record` 只将既有 `input_layout` 从 `consolidation-shared-defs-v1` 更新为 `consolidation-matter-semantics-v2`，无新恢复层。旧布局下无 batch 的已知预算失败经原比较规则返回 `refresh_material`，可从未推进材料继续；新布局和配置不变的再次阻断仍返回 `configure_budget`。已有 active batch 优先观察原 attempt，原请求的提示、映射和结果不改变、不重发。
 
 本轮只静态阅读、审阅完整 diff、用 PowerShell 计数字符/字节并提交；未运行测试、构建、产品代码、模型、PG 或生产命令，未读取 held_out。未新增提示字符串测试。协调者与 A/G 整批集成后最小复验沿原两失败节点，加 `tests/memory/test_consolidation_contract.py::test_input_layout_change_rearms_only_a_known_blocked_receipt`（含同配置 configure_budget、布局变更 refresh_material、原 active attempt 观察断言）；继续既定开发样本语义确认，保留原冻结评测记录。本节计数覆盖前节首次语义提示和完成歧义补充后的当前版本。
+
+## 授权人物显示映射闭环
+
+分支 `codex/memory-identity-context-repair-20261101`，基线 `ba2b95daf6eb1d62ade0e14f5f8d71c38f484cd4`。开发 S01 的两项 Matter 已正确，但回答材料没有 C 的名称映射；正常聊天与评测复用的 ContextAssembler 均存在这一消费缺口。本分支不修改 runner、不注入故事标签、不为转述者造 Claim、不创建权限或扫描全员。
+
+- `MemoryEvidenceUnit.display_subjects` 为读取时的 `[{subject_id,display_name,aliases,kind}]`，表示当前授权名称，不冒充历史身份或独立事实；无法解析时为空，内部 ID 不充当昵称。新 `memory/display.py` 复用原完整单元来源批量复核，再仅按实际可读单元的 subject/speaker 及关系两端证据中的 subject/speaker 调用 `Identity.resolve_memory_subjects_on`。每次最多 128 个精确 ID，返回名单再次按请求 ID 过滤，默认群主体或无关目录成员不能混入。
+- 同一装配由 `projection.evidence_units`、检索/最终 revalidate、原生 `memory_search`/`memory_claims`/`memory_matters` 和 `memory_source_trace` 使用。工具自动映射位于 `items[].display_subjects`；原 `resolved_subjects` 仍表示显式 `subject_aliases` 的解析结果。当前无 Claim 的转述者可以通过已有 Episode 原件获得正确显示身份，引用证据作者和工具后续回答亦使用相同字段。
+- 映射与整个证据/原文结果绑定，来源或范围不再可读则不查询人物、不返回该单元。Context 最后来源复核、引用闭包和工具结果来源传播继续生效；长昵称/别名计入既有完整单元 token 预算，不能留下脱离证据的名字清单。显示资料仍置于动态材料/工具结果内，Context 固定规则明确其不可信性质和未知姓名边界。原文追查仍使用原前台身份的一次命令，不增加读取次数或绕过原 locator。
+- `model_material` 排除该显示字段，整理器继续使用原冻结 `subjects`，不将名字重复加入旧记录输入；规范 `index_text` 仍不含显示映射，无需重建索引，不改 12k 整理预算、模型参数、表或迁移。Context 固定规则仅净增 133 UTF-8 字节；动态映射随真实单元计数，供应商 token/费用未测。
+
+新增但未执行的回归：`tests/context/test_memory_evidence_units.py` 两项覆盖可读主体/引用作者、排除私有及无关人物、未知昵称、完整单元别名预算，并扩充末次撤回不得遗留姓名的原断言；`tests/core/test_memory_evidence_retrieval.py` 两项覆盖只有 Episode 的发言者在正常 Context/原生工具/工具续轮获得同一映射，以及 projection 当前昵称、检索预算、跨主体隔离与来源撤回；既有原文追查用例补可读作者断言。没有运行任何测试、解析器、构建、模型或 PG；实际仅源码/已授权开发证据阅读、编辑、静态 diff 审阅和文字字节计数，未读取 heldout。
+
+供根协调者全部返修合入后统一执行（下列命令本分支均未运行；核心用例沿用既有隔离 PG 环境，不使用生产 DSN）：
+
+```powershell
+python -m pytest -q tests/context/test_memory_evidence_units.py tests/context/test_budget_units.py
+python -m pytest -q tests/core/test_memory_evidence_retrieval.py -k "episode_only_speaker_is_named or projection_display_is_current or model_catalog_query_uses_time_plan or original_followup_is_range_bound or conflict_has_both_complete_sides or vector_exact_keeps_five_types_and_public_or_support_across_owners or rerank_rechecks_sources_and_drops_the_whole_unit or context_rechecks_background_revision"
+```
+
+根已安排 A 单写通用整理协议/schema 与 S09/S12 后续语义规则；本分支不改 `extraction_contract.py`，避免并写。S12 已按实际请求将共同主体与已表态/未来承诺的证据交 A，最终同批集成后再由根选择必要开发故事复验，不修改现有冻结结果。
+
+静态附查：candidate-02/S07 的 `memory_unavailable` 来自可选 search 总分支的通用异常捕获，实际 model-calls 有 answer 阶段 query embed 成功（858.5ms），无 rerank；原文材料只导出通用缺项而没有异常类型，不能证明具体 SQL 错误或供应商失败，本次不泛化修改该路径。评测 `disposable_database` 默认 `keep_database=false`，成功故事 finally 删除自建 UUID 库；失败或原 attempt 未决才自动保留，显式 keep 仅原已有配置。runner 没有仅复验回答的正式入口，observe 只读取原未决 attempt。本分支未修改评测工具、数据库保留策略或既有数据库。

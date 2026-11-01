@@ -499,6 +499,66 @@ async def test_model_catalog_query_uses_time_plan_and_propagates_the_full_source
     assert not unresolved_receipt.result["items"] and "subject_unresolved" in unresolved_receipt.result["coverage"]["missing"]
 
 
+async def test_episode_only_speaker_is_named_in_context_and_native_search(core, ordinary_users):
+    alice, bob = ordinary_users
+    refs = await original(core, alice, "display_episode_only", "仅转述别人的安排 relaydisplaymarker")
+    episode = await core.memory.observe_episode(alice, {"event_id": "display_episode_only",
+        "occurred_at": datetime.now(UTC), "summary": "仅转述别人的安排 relaydisplaymarker",
+        "source_refs": refs, "origin_kind": "human"})
+    assert not (await core.claims.list(alice)).items
+    pack = await core.assembler.assemble(alice, "chat", "relaydisplaymarker", budget())
+    materials = [json.loads(item.text) for item in pack.materials if item.kind == "memory_evidence"]
+    value = next(item for item in materials if item["id"] == episode.episode_id)
+    names = {item["subject_id"]: item["display_name"] for item in value["display_subjects"]}
+    assert names == {alice.person_id: "alice"}
+
+    catalog = Catalog()
+    register_tools(catalog, core.memory, core.retrieval)
+    handler = catalog.handler("memory.search")
+    action = Action("display_search_action", "display_search_intent", "memory.search", core.actor, alice,
+        {"query": "relaydisplaymarker", "evidence_kinds": ["episode"], "coverage_mode": "list"},
+        OriginKind.HUMAN, refs, expression_id="turn:display_search", deadline_at=budget().deadline_at)
+    receipt = await handler.execute(action, Attempt("display_search_attempt", action.action_id))
+    item = next(item for item in receipt.result["items"] if item["id"] == episode.episode_id)
+    assert item["display_subjects"] == value["display_subjects"]
+    assert bob.person_id not in json.dumps(receipt.result)
+
+    from tianshu.models.types import ModelMessage, ModelPart
+    continuation = (ModelMessage("assistant", (ModelPart("tool_call", call_id="display-call",
+        name="memory_search", arguments=action.arguments),)), ModelMessage("tool", (ModelPart(
+        "tool_result", call_id="display-call", name="memory_search", result=wire(receipt)),)))
+    followup = await core.assembler.assemble(alice, "extract", "", budget(), recent_messages=continuation,
+        contributions=(ContextContribution("tool_sources", "", refs, alice.scope_ids, 100, True),))
+    tool = next(part for message in followup.messages for part in message.parts if part.kind == "tool_result")
+    assert tool.result["result"]["items"][0]["display_subjects"] == item["display_subjects"]
+    assert followup.token_usage.estimated_tokens <= followup.token_usage.limit_tokens - followup.token_usage.reserved_output_tokens
+
+
+async def test_projection_display_is_current_budgeted_and_source_isolated(core, ordinary_users):
+    alice, bob = ordinary_users
+    fact_value = await fact(core, alice, "display_projection", "displaybudgetmarker")
+    async with core.database.transaction() as conn:
+        await conn.execute("UPDATE identity.people SET display_name=%s,revision=revision+1 WHERE person_id=%s",
+            ("当前授权昵称", alice.person_id))
+    projection = await core.memory.projection(alice, alice.person_id)
+    projected = next(item for item in projection["evidence_units"] if item.id == fact_value.claim_id)
+    assert projected.display_subjects[0]["display_name"] == "当前授权昵称"
+    plan = MemoryQueryPlan(evidence_kinds=("claim",), coverage_mode="list")
+    query = await core.retrieval.query(alice, plan, budget())
+    value = query.items[0]
+    assert value.display_subjects == projected.display_subjects
+    bare_cost = len(evidence_text(replace(value, display_subjects=())).encode("utf-8")) + 32
+    with pytest.raises(AppError, match="memory_evidence_unit_budget_exceeded"):
+        await core.retrieval.query(alice, replace(plan, budget={"max_tokens": bare_cost}), budget())
+    private = await core.retrieval.query(bob, plan, budget())
+    assert not private.items and "当前授权昵称" not in json.dumps(wire(private), ensure_ascii=False)
+    await core.sources.invalidate(alice, {"source_id": fact_value.source_refs[0].source_id,
+        "expected_revision": 1, "client_request_id": "display_projection_withdraw"}, forgotten=True)
+    withdrawn = await core.memory.projection(alice, alice.person_id)
+    assert not withdrawn["evidence_units"]
+    assert "当前授权昵称" not in json.dumps(wire(withdrawn["evidence_units"]), ensure_ascii=False)
+
+
 async def test_original_followup_is_range_bound_once_per_foreground_and_keeps_actual_action_identity(core, ordinary_users):
     alice, _ = ordinary_users
     refs = await original(core, alice, "trace_original", "0123456789")
@@ -509,6 +569,8 @@ async def test_original_followup_is_range_bound_once_per_foreground_and_keeps_ac
     trace = SourceTrace(core.memory)
     result = await trace.read(action)
     assert result["items"][0]["content"] == "345" and result["lookup_used"]
+    people = {item["subject_id"]: item for item in result["items"][0]["display_subjects"]}
+    assert set(people) == {alice.person_id} and people[alice.person_id]["display_name"] == "alice"
     assert not result["coverage"].complete
     with pytest.raises(AppError, match="memory_source_lookup_already_used"):
         await trace.read(replace(action, action_id="synthetic_second_trace", intent_key="another_tool_call"))
