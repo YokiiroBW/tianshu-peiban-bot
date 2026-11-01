@@ -136,7 +136,12 @@ async def image_recovery(database, monkeypatch):
 
     async def generate(request):
         requests.append(request)
+        assert request.function in {"image.plan", "vision"}
         result = plan_result(request.attempt_id, request.intent_id)
+        if request.function == "vision":
+            # This fixture cannot establish scene truth; the bounded verification
+            # still consumes the actual image once and reports unassessed fields.
+            result = replace(result, parts=(ModelPart("text", text='{"checks":[]}'),))
         ledger[request.attempt_id] = result
         return result
 
@@ -234,14 +239,25 @@ async def test_original_plan_reconciles_and_explicit_resume_uses_new_identity(im
     done = await state.owner.run(state.action.action_id, mode="resume")
     assert (done.execution, done.effect) == ("succeeded", "confirmed"), done.error_code
     assert done.result["scene"]["revision"] == "fresh-scene-after-explicit-resume"
-    assert len(state.requests) == len(state.resources) == 1
-    assert state.requests[0].attempt_id == pending.attempt_id + ":plan"
-    assert state.requests[0].intent_id == state.action.action_id + ":plan"
-    assert timedelta(minutes=9) < state.requests[0].budget.deadline_at - datetime.now(UTC) <= timedelta(minutes=10)
+    plans = [request for request in state.requests if request.function == "image.plan"]
+    checks = [request for request in state.requests if request.function == "vision"]
+    assert len(plans) == len(checks) == len(state.resources) == 1
+    assert len(state.requests) == 2
+    assert plans[0].attempt_id == pending.attempt_id + ":plan"
+    assert plans[0].intent_id == state.action.action_id + ":plan"
+    assert timedelta(minutes=9) < plans[0].budget.deadline_at - datetime.now(UTC) <= timedelta(minutes=10)
+    assert checks[0].attempt_id == pending.attempt_id + ":consistency"
+    assert checks[0].intent_id == state.action.action_id + ":consistency"
+    assert any(part.kind == "image" and part.media == done.artifacts[0].media
+               for message in checks[0].messages for part in message.parts)
+    assert done.result["consistency"]["state"] == "unknown"
+    assert done.result["consistency"]["regeneration_attempts"] == 0
+    assert state.resources[0].attempt_id == pending.attempt_id
     assert state.ledger[state.planning.receipt.attempt_id] == original_plan
     assert await state.owner.resume(state.action.action_id, state.context,
                                     client_request_id="explicit-resume") == done
-    assert len(state.requests) == len(state.resources) == 1
+    assert [request.function for request in state.requests] == ["image.plan", "vision"]
+    assert len(state.resources) == 1
     state.adapter.submit.assert_awaited_once()
     async with state.database.transaction(read_only=True) as connection:
         rows = await (await connection.execute(

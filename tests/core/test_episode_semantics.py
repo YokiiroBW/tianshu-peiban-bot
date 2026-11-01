@@ -2,6 +2,7 @@
 
 import json
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from datetime import UTC, datetime
 from importlib.resources import files
 from types import SimpleNamespace
@@ -19,7 +20,8 @@ from tianshu.channels.operations import Operation as ChannelOperation, probe_api
 from tianshu.conversation.results import ResultConsumer
 from tianshu.conversation.service import ConversationService
 from tianshu.conversation.types import InputMessage, InputPart
-from tianshu.models.types import ModelPart, ModelReceipt, ModelResult
+from tianshu.memory.extraction_contract import consolidation_example
+from tianshu.models.types import ModelCompletion, ModelPart, ModelReceipt, ModelResult
 from tianshu.runtime.migrations import Migration, migrate
 from tianshu.runtime.serialization import wire
 from tianshu.types import Action, Attempt, Coverage, MediaRef, OriginKind, Receipt
@@ -42,6 +44,9 @@ async def consumer(core):
         capability_result=AsyncMock(return_value=False), detached_result=AsyncMock()
     )
     growth = SimpleNamespace(changed=AsyncMock())
+    # Product binds its combined Growth/Diary callback here. ResultConsumer never
+    # independently notifies Growth, including when the same receipt is replayed.
+    core.memory.bind_episode_observer(growth.changed)
     result = ResultConsumer(
         core.database,
         core.identity,
@@ -151,6 +156,8 @@ async def test_technical_results_keep_audit_but_content_reads_remain_experiences
     assert [row["action_id"] for row in episodes] == sorted(expected)
     assert consumed["n"] == len(cases)
     assert life.detached_result.await_count == growth.changed.await_count == len(expected)
+    assert {call.kwargs["episode"].actual_result["capability_id"] for call in growth.changed.await_args_list} == {"channels.api"}
+    assert all(call.kwargs["connection"] is not None for call in growth.changed.await_args_list)
     assert not technical_api("get_group_member_list") and not technical_api("get_msg")
 
 
@@ -273,14 +280,17 @@ class WeatherModels:
         yield Permit()
 
 
-class EmptyExtractor:
+class EmptyConsolidator:
     def __init__(self):
         self.requests = []
 
     async def generate(self, request):
         self.requests.append(request)
+        material = json.loads(request.messages[0].parts[0].text)
+        proposal = consolidation_example({"batch_id": material["batch_id"], "targets": {
+            target["subject_id"]: target for target in material["targets"]}})
         return ModelResult(
-            (ModelPart("text", text='{"claims":[],"matters":[]}'),),
+            (ModelPart("text", text=json.dumps(proposal)),),
             ModelReceipt(
                 request.attempt_id,
                 request.intent_id,
@@ -293,6 +303,7 @@ class EmptyExtractor:
                 "openai.chat",
                 "fixture",
             ),
+            completion=ModelCompletion("complete", ("stop",)),
         )
 
 
@@ -301,6 +312,11 @@ async def test_weather_actual_json_receipt_reaches_extraction_without_media_miss
 ):
     alice, _ = ordinary_users
     result_consumer, catalog, _, _ = await consumer(core)
+    models = EmptyConsolidator()
+    core.steps.models = models
+    policy = replace(core.memory.consolidation.policy, quiet_seconds=0, max_wait_seconds=0,
+                     max_input_tokens=64000, context_messages=0)
+    core.memory.consolidation.policy = core.memory.consolidation.materials.policy = policy
     configuration = SimpleNamespace(
         get=AsyncMock(
             return_value={
@@ -369,19 +385,25 @@ async def test_weather_actual_json_receipt_reaches_extraction_without_media_miss
     )
     episode = (await core.memory.episodes_since(alice, None, 10)).items[0]
     assert episode.episode_id == "action:" + original.action_id and episode.coverage.complete
-    models = EmptyExtractor()
-    core.steps.models = models
-    await core.workers.extract(episode.episode_id, episode.sequence)
+    async with core.database.transaction(read_only=True) as connection:
+        row = await (await connection.execute(
+            "SELECT consolidation_partition_id FROM memory.episodes WHERE episode_id=%s",
+            (episode.episode_id,),
+        )).fetchone()
+    await core.workers.consolidate(row["consolidation_partition_id"])
     current = (await core.memory.episodes_since(alice, None, 10)).items[0]
     assert current.extraction_state == "completed"
     assert current.extraction_coverage.missing == ()
     assert len(models.requests) == 1
-    material = next(
-        part.text
-        for message in models.requests[0].messages
-        for part in message.parts
-        if part.text and part.text.startswith("材料 original_evidence")
-    )
-    captured = json.loads(material.split("\n", 1)[1])["sources"][0]
+    material = json.loads(models.requests[0].messages[0].parts[0].text)
+    originals = [item for item in material["materials"] if item["role"] == "new"]
+    assert len(originals) == 1
+    captured = originals[0]
     assert captured["origin_kind"] == "tool_result"
-    assert json.loads(captured["content"])["current"]["temperature"]["value"] == 22
+    assert captured["speaker_id"] is None
+    assert json.loads(captured["text"])["current"]["temperature"]["value"] == 22
+    assert "media_missing" not in material["coverage"].get("missing", ())
+    assert all(captured["id"] not in target["new_material_ids"] for target in material["targets"]
+               if target["subject_id"] == alice.person_id)
+    assert current.origin_kind == OriginKind.TOOL_RESULT and current.speaker_id is None
+    assert not (await core.claims.list(alice)).items
