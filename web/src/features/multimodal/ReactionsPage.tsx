@@ -3,6 +3,7 @@ import {
   useDomainCommand,
   useDomainResource,
   useDomainTarget,
+  actorScope,
 } from "../../api/useDomainResource";
 import { useAuth } from "../../app/Auth";
 import { useRoleWorkspace } from "../../app/RoleWorkspace";
@@ -23,6 +24,7 @@ function ReactionLibrary() {
   const { session } = useAuth();
   const scope = useDomainTarget();
   const { actor } = useRoleWorkspace();
+  const [importScope, setImportScope] = useState<"actor" | "current">("actor");
   const [pack, setPack] = useState("");
   const [cursor, setCursor] = useState<string | null>(null);
   const [assets, setAssets] = useState<ReactionAsset[]>([]);
@@ -35,6 +37,10 @@ function ReactionLibrary() {
     "reaction-library",
   );
   const index = useDomainCommand("reaction-index");
+  const importAction = useDomainCommand(
+    "reaction-import",
+    importScope === "actor" ? "actor" : "conversation",
+  );
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -77,7 +83,8 @@ function ReactionLibrary() {
         </button>
       </header>
       <p>
-        图包和原始媒体保留当前真实范围。普通照片与聊天截图不会自动进入共享图包。
+        共享导入的图包可供当前角色在聊天时使用；私有导入只保留在当前会话或个人范围。
+        普通照片与聊天截图不会自动进入共享图包。
       </p>
       {view.error && <p role="alert">{view.error}</p>}
       {view.data && (
@@ -179,7 +186,7 @@ function ReactionLibrary() {
                   for (const file of files) {
                     const uploaded = await uploadMedia(
                       file,
-                      scope,
+                      importScope === "actor" ? actorScope(actor) : scope,
                       session.csrf,
                       new AbortController().signal,
                     );
@@ -195,13 +202,11 @@ function ReactionLibrary() {
                         media: uploaded.artifact.media,
                       });
                   }
-                  const result = await action.run(
+                  const result = await importAction.run(
                     "reactions/packs.import",
                     {
                       name: data.get("name"),
-                      ...(data.get("role_only") === "on" && actor
-                        ? { actor_ids: [actor] }
-                        : {}),
+                      import_scope: importScope,
                       files: images,
                       ...(archive ? { archive_media: archive.media } : {}),
                     },
@@ -237,24 +242,36 @@ function ReactionLibrary() {
                 />
               </label>
               <label>
-                <input
-                  type="checkbox"
-                  name="role_only"
-                  defaultChecked
-                  disabled={!actor}
-                />
-                仅当前角色使用
+                导入范围
+                <select
+                  value={importScope}
+                  disabled={uploading || importAction.busy}
+                  onChange={(event) =>
+                    setImportScope(event.target.value as "actor" | "current")
+                  }
+                >
+                  <option value="actor" disabled={!actor}>
+                    当前角色共享图库
+                  </option>
+                  <option value="current">仅当前会话或个人范围</option>
+                </select>
               </label>
               <p className="muted">
-                使用当前授权会话范围，文件保持原始字节；GIF不会只保留首帧。
+                {importScope === "actor"
+                  ? "本次选定的原图将共享给当前角色的聊天使用，其他角色不会获得访问权限。"
+                  : "图包保留当前会话或个人范围，不会自动共享给角色的其他聊天。"}
+                文件保持原始字节；GIF不会只保留首帧。
               </p>
               <button
                 className="button primary"
-                disabled={uploading || action.busy}
+                disabled={
+                  uploading || importAction.busy || (importScope === "actor" && !actor)
+                }
               >
                 上传并导入图包
               </button>
               {error && <p role="alert">{error}</p>}
+              <CommandFeedback {...importAction} />
             </form>
           </DetailCard>
           <ReactionSearch pack={pack} />

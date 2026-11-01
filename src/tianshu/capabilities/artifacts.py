@@ -133,13 +133,26 @@ class Artifacts:
             async with self.sources.open_media(context, media) as reader:
                 yield reader
 
-    async def ingest(self, context, raw, mime_type, *, locator):
+    async def ingest(
+        self, context, raw, mime_type, *, locator, publish_to_actor=False, source_refs=(),
+    ):
         media = await asyncio.to_thread(self.files.put_bytes, raw, media_type=mime_type)
         from tianshu.types import OriginKind
 
-        source = await self.sources.register_media(
-            context, media, locator=locator, origin_kind=OriginKind.HUMAN
-        )
+        if publish_to_actor:
+            source = await self.sources.publish_media(
+                context, media, locator=locator, source_refs=tuple(source_refs)
+            )
+            async with self.database.transaction(read_only=True) as conn:
+                descriptions = await self.sources.describe_for_write_on(conn, context, (source,))
+            scopes = tuple(descriptions[0]["scope_ids"])
+            context = replace(context, scope_ids=scopes, audience=scopes)
+        else:
+            if source_refs:
+                raise Fault("explicit_media_publication_required", 400)
+            source = await self.sources.register_media(
+                context, media, locator=locator, origin_kind=OriginKind.HUMAN
+            )
         return await self.record(
             context, media, source_refs=(source,), metadata={"kind": "uploaded_original", **locator}
         )

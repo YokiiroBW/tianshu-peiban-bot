@@ -28,6 +28,9 @@ class SourcePort(Protocol):
     async def validate_persistence(
         self, connection, context: TrustedContext, source_refs: tuple[SourceRef, ...]
     ) -> bool: ...
+    async def describe_for_write_on(
+        self, connection, context: TrustedContext, source_refs: tuple[SourceRef, ...]
+    ) -> tuple[dict, ...]: ...
     def register_dependant(
         self, callback: Callable[[object, tuple[SourceRef, ...], str], Awaitable[None]]
     ) -> None: ...
@@ -57,6 +60,14 @@ class SourcePort(Protocol):
         *,
         locator: dict,
         origin_kind: OriginKind = OriginKind.HUMAN,
+    ) -> SourceRef: ...
+    async def publish_media(
+        self,
+        context: TrustedContext,
+        media: MediaRef,
+        *,
+        locator: dict,
+        source_refs: tuple[SourceRef, ...] = (),
     ) -> SourceRef: ...
     async def capture(
         self, context: TrustedContext, *, locator: dict, raw: bytes, mime_type: str

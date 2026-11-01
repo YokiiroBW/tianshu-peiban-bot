@@ -4,10 +4,12 @@ import base64
 import io
 import json
 import zipfile
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from hashlib import sha256
 from uuid import uuid4
 from PIL import Image
-from tianshu.types import MediaRef, RequestBudget, ServiceClass
+from tianshu.types import MediaRef, RequestBudget, ServiceClass, SourceRef
 from tianshu.sources.dependencies import unique_refs
 from tianshu.models.types import ModelRequest, ModelMessage, ModelPart
 from tianshu.models.completion import content_completion
@@ -28,14 +30,62 @@ class Reactions:
         )
         self.database = configuration.database
 
+    async def _import_target(self, context, body):
+        await self.authority.check(context)
+        mode = body.get("import_scope", "current")
+        if not isinstance(mode, str) or mode not in {"current", "actor"}:
+            raise Fault("invalid_reaction_import_scope", 400)
+        actors = [context.actor_id] if context.actor_id else []
+        if "actor_ids" in body and body["actor_ids"] != actors:
+            raise Fault("reaction_import_actor_mismatch", 400)
+        async with self.database.transaction(read_only=True) as conn:
+            if mode == "actor":
+                if not context.actor_id:
+                    raise Fault("actor_required", 400)
+                if "config.publish" not in context.permissions and "*" not in context.permissions:
+                    raise Fault("forbidden", 403)
+                scope = await self.authority.public_scope(context, connection=conn)
+                scopes = (scope,)
+            else:
+                scopes, _ = await self.authority.intake_scope(context, connection=conn)
+        if "scope_ids" in body:
+            given = body["scope_ids"]
+            if (
+                not isinstance(given, list)
+                or any(not isinstance(scope, str) for scope in given)
+                or set(given) != set(scopes)
+            ):
+                raise Fault("reaction_import_scope_mismatch", 400)
+        return mode, replace(context, scope_ids=tuple(scopes), audience=tuple(scopes)), actors
+
+    async def _input(self, context, media):
+        """Resolve the actual original and retain its withdrawal dependency."""
+        media = MediaRef(**media)
+        raw, mime = await self.artifacts.resolve(context, media)
+        if media.media_id.startswith("artifact:"):
+            original = await self.artifacts.reference(context, media.media_id)
+            refs = original.source_refs
+        else:
+            # resolve() has already verified this precise source media reference.
+            _, source_id, revision = media.media_id.split(":")
+            refs = (SourceRef(source_id, int(revision), {}),)
+        return raw, mime, refs
+
     async def import_pack(self, context, body):
+        mode, target, actors = await self._import_target(context, body)
+        scopes = list(target.scope_ids)
         pack_id = body.get("id") or str(uuid4())
-        files = list(body.get("files", []))
+        current = await self.config.get("reaction_pack", pack_id)
+        if current and (
+            set(current["scope_ids"]) != set(scopes)
+            or set(current.get("actor_ids", ())) != set(actors)
+        ):
+            raise Fault("reaction_pack_scope_immutable", 409)
+        files = [(item, ()) for item in body.get("files", [])]
         archive_raw = None
+        archive_refs = ()
         if body.get("archive_media"):
-            archive_raw, _ = await self.artifacts.resolve(
-                context, MediaRef(**body["archive_media"])
-            )
+            archive_raw, _, archive_refs = await self._input(context, body["archive_media"])
         elif body.get("archive_base64"):
             archive_raw = base64.b64decode(body["archive_base64"], validate=True)
         if archive_raw is not None:
@@ -50,18 +100,15 @@ class Reactions:
                     (".png", ".jpg", ".jpeg", ".webp", ".gif")
                 ):
                     continue
-                files.append(
+                files.append((
                     {
                         "filename": entry.filename,
                         "data_base64": base64.b64encode(archive.read(entry)).decode(),
-                    }
-                )
+                    },
+                    archive_refs,
+                ))
         if len(files) > 1000:
             raise Fault("reaction_pack_too_large", 413)
-        scopes = body.get("scope_ids", list(context.scope_ids))
-        actors = body.get("actor_ids", [context.actor_id] if context.actor_id else [])
-        if not set(scopes) <= set(context.scope_ids):
-            raise Fault("forbidden", 403)
         pack = await self.config.save(
             "reaction_pack",
             pack_id,
@@ -69,17 +116,17 @@ class Reactions:
                 "name": body["name"],
                 "actor_ids": actors,
                 "scope_ids": scopes,
+                "import_scope": mode,
                 "asset_count": 0,
                 "enabled": body.get("enabled", True),
             },
             body.get("expected_revision", 0),
         )
-        for item in files:
-            raw, _ = (
-                await self.artifacts.resolve(context, MediaRef(**item["media"]))
-                if item.get("media")
-                else (base64.b64decode(item["data_base64"], validate=True), None)
-            )
+        for item, support_refs in files:
+            if item.get("media"):
+                raw, _, support_refs = await self._input(context, item["media"])
+            else:
+                raw = base64.b64decode(item["data_base64"], validate=True)
             if len(raw) > 16 * 1024 * 1024:
                 raise Fault("reaction_asset_too_large", 413)
             with Image.open(io.BytesIO(raw)) as image:
@@ -88,24 +135,32 @@ class Reactions:
                 animated = getattr(image, "n_frames", 1) > 1
                 mime = Image.MIME[image.format]
                 image.verify()
-            if item.get("media"):
-                original = await self.artifacts.reference(context, item["media"]["media_id"])
+            if mode == "actor":
+                artifact = await self.artifacts.ingest(
+                    context, raw, mime, publish_to_actor=True, source_refs=support_refs,
+                    locator={
+                        "kind": "reaction_import", "pack_id": pack_id,
+                        "filename": item["filename"], "sha256": sha256(raw).hexdigest(),
+                    },
+                )
+            elif support_refs:
                 artifact = await self.artifacts.put(
-                    context,
+                    target,
                     raw,
                     mime,
-                    source_refs=original.source_refs,
+                    source_refs=support_refs,
                     metadata={"kind": "reaction", "pack_id": pack_id},
                 )
             else:
                 artifact = await self.artifacts.ingest(
-                    context,
+                    target,
                     raw,
                     mime,
                     locator={
                         "kind": "reaction_import",
                         "pack_id": pack_id,
                         "filename": item["filename"],
+                        "sha256": sha256(raw).hexdigest(),
                     },
                 )
             identifier = digest([pack_id, artifact.media.sha256])
@@ -214,11 +269,16 @@ class Reactions:
         current = await self.config.get("reaction_pack", body["id"])
         if not current or not set(current["scope_ids"]) <= set(context.scope_ids):
             raise Fault("not_found", 404)
+        if any(
+            key in body and set(body[key]) != set(current.get(key, ()))
+            for key in ("actor_ids", "scope_ids")
+        ):
+            raise Fault("reaction_pack_scope_immutable", 409)
         value = {
             **current,
             **{
                 key: body[key]
-                for key in ("name", "enabled", "actor_ids", "scope_ids")
+                for key in ("name", "enabled")
                 if key in body
             },
         }
