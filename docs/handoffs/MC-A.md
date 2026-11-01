@@ -314,3 +314,46 @@ separate MC-D integration scope and will consume these types/builders.
   这是源码字符串字节计算和已有基准推算，未运行候选代码、解析器或测试；没有更换
   计数器、增加预算或删除原文。根任务统一复验新增合同、原预算和受影响尾部节点。
 - 未运行测试/typecheck/build、模型、网络、生产或 QQ，也未读取 heldout。
+
+## 已知输出截断后的实际前缀缩批（2026-11-01）
+
+- 基于根集成 `4bc641ec33ae230efb24179adda4f0de1f2a6c9a` 在原 worktree 建立
+  `codex/memory-truncation-batch-repairs-20261101`，旧分支和提交保留。本次是已确证的
+  调度返修，不修改提示词、Schema、默认输入/输出/推理预算、计数器或模型路由。
+- 原 `_prepare` 仅查询最近 failed 批次：名义 source_budget 从 6000→3000→1500 时，
+  三条短原文仍全部入选，导致新 attempt 重复相同实际材料；更近的 applied 成功批次
+  又被该查询排除，之后可能长期继承旧失败的小上限。开发样例只用于确定这个通用
+  调度根因，故事文字和语义特判均未加入产品或测试。
+- 改为查询最近一条批次。仅它是已知终止的输出截断、预算一致、当前待处理前缀的
+  Episode id/revision/sequence、原 cursor、scope 和实际来源清单全部仍匹配时缩批。
+  成功消化、不同失败、Episode/来源版本或当前前缀变化后使用正常预算。
+- 缩批依据最后实际 step 的冻结映射（包括合法补查后的 step1），不再减一个可能
+  不生效的名义上限：多条 new 材料直接限制为实际条数的一半；单条 new 材料按已
+  保存 source locator 的真实范围缩短。context 材料不冒充新的待处理原件数量。
+  MaterialBuilder 只新增内部 `max_new_materials` 参数，默认路径及前文读取不变。
+- `batch_frozen` / `smaller_material_prefix` 是材料模块内的纯选择逻辑，准备阶段、
+  失败收口和 recovery 的输出截断恢复动作共用。已经最小、无可证明更小范围时，
+  Episode 置已知失败且不再自动唤醒；旧版本遗留的相同 pending 唤醒也按当前租约/
+  Episode 版本/cursor 条件收口，不建立重复 batch 或模型 attempt。其他新材料仍可
+  正常调度；原失败/step/回执保留，可通过实际预算变化恢复。
+- unknown 的 active batch、原 step/attempt 观察、Sources 当前授权和写前锁、CAS、
+  原子提交与来源尾部 cursor 均未改。没有新表、迁移、权限、开关、恢复操作或平行
+  系统。recovery.py 仅同步本输出截断分支的“还可缩小”判断。
+- 编写未运行的 PG 节点（tests/core/test_consolidation_pipeline.py）：
+  - `test_truncated_short_inputs_reduce_the_actual_prefix_and_success_restores_capacity`：
+    三条短原文名义减半仍能放下，下一次实际只选一条；成功后余下和后来原件恢复
+    完整容量，最终尾部事实真实入账。
+  - `test_irreducible_truncated_input_stops_without_another_attempt_or_batch`：最小原件
+    停止，恢复扫及旧 pending 唤醒均不新增 attempt/batch，cursor 不动。
+  - `test_unknown_smaller_attempt_is_observed_with_its_original_material_map`：缩批后的
+    unknown 即使有新输入，也观察原 attempt 和原冻结 alias，不重发。
+  - `test_supplemented_truncation_reduces_the_original_range_and_preserves_its_tail`：
+    真实 Sources 原文补查后 step1 截断，检查最后 step、新旧范围来源及原 Episode
+    cursor 关联；下一次缩短真实前缀，随后恢复容量并精确消化完整尾部。
+- 编写未运行的合同节点（tests/memory/test_consolidation_contract.py）：
+  `test_truncation_limits_apply_only_to_the_same_unadvanced_source_prefix` 的四个参数，
+  分别核对 Episode 身份、Episode 版本、来源版本、cursor 变化不继承旧失败限制。
+  根任务已准备上述八个新增节点及原 invalid/truncated 两参数，共十个必要节点；不因
+  本次修改默认重跑已通过的 129 片段、前端或整套语义评测。
+- 仅静态阅读相关调用链和完整 diff；没有执行测试、解析/typecheck/build、模型、
+  网络、PG、生产或 QQ，也未读取 heldout。实际效果与成本仍待根任务统一必要验证。

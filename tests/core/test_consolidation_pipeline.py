@@ -84,6 +84,167 @@ async def row(core,episode):
         return await (await conn.execute('SELECT * FROM memory.episodes WHERE episode_id=%s',(episode.episode_id,))).fetchone()
 
 
+async def latest_batch(core, partition):
+    async with core.database.transaction(read_only=True) as conn:
+        return await (await conn.execute(
+            'SELECT * FROM memory.consolidation_batches WHERE partition_id=%s ORDER BY created_at DESC LIMIT 1',
+            (partition,))).fetchone()
+
+
+def new_texts(request):
+    value = json.loads(request.messages[0].parts[0].text)
+    return [item['text'] for item in value['materials'] if item['role'] == 'new']
+
+
+async def test_truncated_short_inputs_reduce_the_actual_prefix_and_success_restores_capacity(core, ordinary_users):
+    alice, _ = ordinary_users
+    model = FixedConsolidator(truncated=True)
+    configure(core, model)
+    texts = ['第一条短原文', '第二条短原文', '第三条短原文']
+    episodes = [await observe(core, alice, 'short_truncated_'+str(index), text)
+        for index, text in enumerate(texts)]
+    originals = [await row(core, episode) for episode in episodes]
+    partition = originals[0]['consolidation_partition_id']
+    await core.workers.consolidate(partition)
+    failed = await latest_batch(core, partition)
+    assert failed['status'] == 'failed' and failed['error_code'] == 'memory_consolidation_output_truncated'
+    assert new_texts(model.requests[0]) == texts
+    # Halving the old nominal character budget still admits all three short
+    # originals. The next physical attempt must instead select a smaller prefix.
+    assert sum(map(len, texts)) < failed['manifest']['source_budget']//2
+    for episode, original in zip(episodes, originals, strict=True):
+        assert (await row(core, episode))['extraction_cursor'] == original['extraction_cursor']
+
+    model.truncated = False
+    await core.workers.consolidate(partition)
+    assert len(model.requests) == 2 and new_texts(model.requests[1]) == texts[:1]
+    assert (await latest_batch(core, partition))['status'] == 'applied'
+    assert (await row(core, episodes[0]))['extraction_state'] == 'completed'
+    assert (await row(core, episodes[1]))['extraction_state'] == 'pending'
+
+    later_texts = ['后续新原文', '尾部事实']
+    later = [await observe(core, alice, 'after_success_'+str(index), text)
+        for index, text in enumerate(later_texts)]
+    await core.workers.consolidate(partition)
+    assert len(model.requests) == 3
+    assert new_texts(model.requests[2]) == texts[1:] + later_texts
+    assert (await latest_batch(core, partition))['manifest']['source_budget'] == min(
+        core.memory.consolidation.policy.max_source_characters,
+        core.memory.consolidation.policy.max_input_tokens//2)
+    for episode in episodes + later:
+        assert (await row(core, episode))['extraction_state'] == 'completed'
+    assert any(item.value == '尾部事实' for item in (await core.claims.list(alice)).items)
+
+
+async def test_irreducible_truncated_input_stops_without_another_attempt_or_batch(core, ordinary_users):
+    alice, _ = ordinary_users
+    model = FixedConsolidator(truncated=True)
+    configure(core, model)
+    episode = await observe(core, alice, 'minimum_truncated', 'x')
+    original = await row(core, episode)
+    partition = original['consolidation_partition_id']
+    await core.workers.consolidate(partition)
+    first = await latest_batch(core, partition)
+    assert (await row(core, episode))['extraction_state'] == 'consolidation_failed'
+    assert (await core.memory.extraction_status(alice, episode.episode_id))['action'] == 'configure_budget'
+    await core.workers.recover()
+    await core.workers.consolidate(partition)
+    assert len(model.requests) == 1
+
+    # This is the pending wake the old nominal-budget rule could have left.
+    # Upgrading must settle it without replaying the known failed input.
+    async with core.database.transaction() as conn:
+        await conn.execute("UPDATE memory.episodes SET extraction_state='pending' WHERE episode_id=%s", (episode.episode_id,))
+        await conn.execute('UPDATE memory.consolidation_state SET wake_due_at=now() WHERE partition_id=%s', (partition,))
+    await core.workers.consolidate(partition)
+    await core.workers.consolidate(partition)
+    after = await row(core, episode)
+    assert len(model.requests) == 1 and (await latest_batch(core, partition))['batch_id'] == first['batch_id']
+    assert after['extraction_state'] == 'consolidation_failed' and after['extraction_cursor'] == original['extraction_cursor']
+    async with core.database.transaction(read_only=True) as conn:
+        state = await (await conn.execute(
+            'SELECT active_batch_id,wake_due_at FROM memory.consolidation_state WHERE partition_id=%s', (partition,))).fetchone()
+    assert state['active_batch_id'] is None and state['wake_due_at'] is None
+
+
+async def test_unknown_smaller_attempt_is_observed_with_its_original_material_map(core, ordinary_users):
+    alice, _ = ordinary_users
+    model = FixedConsolidator(truncated=True)
+    configure(core, model)
+    first = await observe(core, alice, 'known_truncation_before_unknown', '先前原文')
+    remaining = await observe(core, alice, 'unprocessed_after_truncation', '剩余原文')
+    partition = (await row(core, first))['consolidation_partition_id']
+    await core.workers.consolidate(partition)
+    model.truncated, model.unknown = False, True
+    await core.workers.consolidate(partition)
+    active = await latest_batch(core, partition)
+    assert active['status'] == 'waiting_model'
+    assert len(model.requests) == 2 and new_texts(model.requests[1]) == ['先前原文']
+    attempt = model.requests[1].attempt_id
+    stored_map = active['manifest']['steps'][active['step_ids'][-1]]
+
+    later = await observe(core, alice, 'later_during_unknown', '后来原文')
+    await core.workers.consolidate(partition)
+    observed = await latest_batch(core, partition)
+    assert len(model.requests) == 2 and model.requests[1].attempt_id == attempt
+    assert observed['batch_id'] == active['batch_id'] and observed['status'] == 'applied'
+    assert observed['manifest']['steps'][observed['step_ids'][-1]] == stored_map
+    assert (await row(core, first))['extraction_state'] == 'completed'
+    assert (await row(core, remaining))['extraction_state'] == 'pending'
+    assert (await row(core, later))['extraction_state'] == 'pending'
+
+
+async def test_supplemented_truncation_reduces_the_original_range_and_preserves_its_tail(core, ordinary_users):
+    from tianshu.memory.materials import batch_frozen
+
+    class SupplementThenTruncate(FixedConsolidator):
+        def answer(self, request):
+            result = super().answer(request)
+            if len(self.requests) == 1:
+                proposal = json.loads(result.parts[0].text)
+                proposal['needs_context'] = [{'request_id':'context1', 'kind':'material', 'ref':'m1',
+                    'start':None, 'end':None, 'query':None, 'reason':'需要原件后续内容'}]
+                return replace(result, parts=(ModelPart('text', text=json.dumps(proposal, ensure_ascii=False)),))
+            if len(self.requests) == 2:
+                return replace(result, native_response={'choices':[{'finish_reason':'length'}]},
+                    completion=ModelCompletion('incomplete', ('length',)))
+            return result
+
+    alice, _ = ordinary_users
+    model = SupplementThenTruncate()
+    configure(core, model)
+    text = 'segment '*2000 + '尾部事实'
+    episode = await observe(core, alice, 'supplement_before_truncation', text)
+    original = await row(core, episode)
+    partition = original['consolidation_partition_id']
+    await core.workers.consolidate(partition)
+    failed = await latest_batch(core, partition)
+    assert len(model.requests) == 2 and len(failed['step_ids']) == 2
+    assert failed['error_code'] == 'memory_consolidation_output_truncated'
+    assert (await row(core, episode))['extraction_cursor'] == original['extraction_cursor']
+    actual = batch_frozen(failed)
+    assert any(item['role'] == 'context' for item in actual['materials'].values())
+    new = next(item for item in actual['materials'].values() if item['role'] == 'new')
+    old_span = new['source_refs'][0]['locator']
+    assert any(item['role'] == 'context' and item['source_refs'][0]['source_id'] == new['source_refs'][0]['source_id']
+        and item['source_refs'][0]['locator']['start'] == old_span['end']
+        for item in actual['materials'].values())
+    assert failed['manifest']['episodes'][0]['before'] == original['extraction_cursor']
+    assert failed['manifest']['episodes'][0]['source_refs'] == original['source_refs']
+    assert all(ref in model.requests[1].source_refs for ref in model.requests[0].source_refs)
+
+    await core.workers.consolidate(partition)
+    assert len(model.requests) == 3
+    assert len(new_texts(model.requests[2])[0]) == (old_span['end']-old_span['start'])//2
+    partial = await row(core, episode)
+    assert partial['extraction_state'] == 'pending'
+    assert partial['extraction_cursor']['position'] == len(new_texts(model.requests[2])[0])
+    await core.workers.consolidate(partition)
+    assert len(model.requests) == 4 and (await row(core, episode))['extraction_state'] == 'completed'
+    assert ''.join(new_texts(model.requests[2]) + new_texts(model.requests[3])) == text
+    assert any(item.value == '尾部事实' for item in (await core.claims.list(alice)).items)
+
+
 async def test_candidate_preparation_uses_one_lease_budget_across_input_shrinks(core, ordinary_users, monkeypatch):
     from tianshu.memory.consolidation import COMMIT_RESERVE_SECONDS, MODEL_REQUEST_SECONDS
 

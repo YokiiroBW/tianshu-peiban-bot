@@ -16,6 +16,7 @@ from . import codec
 from .authority import context_record
 from .consolidation import context_from_bound
 from .extraction_contract import SCHEMA_VERSION, legacy_extraction_schema, validate_proposal
+from .materials import batch_frozen, smaller_material_prefix
 
 LEGACY_VERSION = "memory.legacy-extraction.v0"
 LEGACY_TERMINAL = ("completed", "completed_with_missing", "legacy_waiting",
@@ -90,7 +91,7 @@ class ConsolidationRecovery:
                 "required_tokens":budget_failure.get("required_tokens") if budget_failure else None}
             action="refresh_material" if changed else "configure_budget"
         elif (not active and error == "memory_consolidation_output_truncated"
-                and batch and batch["manifest"].get("source_budget",256)<=256
+                and batch and smaller_material_prefix(batch_frozen(batch)) is None
                 and batch["manifest"].get("budget",self.memory.consolidation._budget_record()) == self.memory.consolidation._budget_record()):
             action="configure_budget"
         result={"batch_id":batch["batch_id"] if batch else None,

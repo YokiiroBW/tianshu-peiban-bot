@@ -216,6 +216,39 @@ def test_input_layout_change_rearms_only_a_known_blocked_receipt():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('change', ['episode_identity', 'episode_revision', 'source_revision', 'cursor'])
+async def test_truncation_limits_apply_only_to_the_same_unadvanced_source_prefix(change):
+    from tianshu.memory.consolidation import Consolidation
+    from tianshu.types import SourceRef
+
+    pipeline = Consolidation(SimpleNamespace(database=None, identity=None, sources=None, jobs=None))
+    current = {'episode_id':'episode', 'revision':2, 'sequence':5, 'scope_ids':['scope'],
+        'extraction_cursor':{'protocol':SCHEMA_VERSION, 'source_index':0, 'position':None}}
+    old = {key:deepcopy(current[key]) for key in ('episode_id', 'revision', 'sequence', 'scope_ids')}
+    old.update(before=deepcopy(current['extraction_cursor']), source_refs=[{'source_id':'source', 'revision':3}])
+    previous = {'status':'failed', 'error_code':'memory_consolidation_output_truncated',
+        'manifest':{'budget':pipeline._budget_record(), 'episodes':[old]}}
+
+    class Reads:
+        revision = 3
+
+        async def source_set(self, *_args):
+            return (SourceRef('source', self.revision),), set()
+
+    reads = Reads()
+    assert await pipeline._related_truncation(previous, [current], None, reads)
+    if change == 'episode_identity':
+        current['episode_id'] = 'different_episode'
+    elif change == 'episode_revision':
+        current['revision'] += 1
+    elif change == 'source_revision':
+        reads.revision += 1
+    else:
+        current['extraction_cursor']['position'] = 1
+    assert not await pipeline._related_truncation(previous, [current], None, reads)
+
+
+@pytest.mark.asyncio
 async def test_preparation_cache_keeps_exact_authority_revision_and_source_bounds():
     from tianshu.memory.materials import PreparationReads
     from tianshu.types import Coverage,SourceRef

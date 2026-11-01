@@ -64,6 +64,28 @@ def reference_key(ref):
     return ref.source_id, ref.revision, json.dumps(ref.locator or {}, sort_keys=True)
 
 
+def batch_frozen(batch):
+    """The last recorded step, including any authorized original-context supplement."""
+    manifest = batch["manifest"]
+    steps = batch.get("step_ids", ())
+    return (manifest.get("steps", {}).get(steps[-1]) if steps else None) or manifest.get("frozen", {})
+
+
+def smaller_material_prefix(frozen):
+    """Reduce the actual new input, rather than a ceiling that may not bind it."""
+    materials = [item for item in frozen.get("materials", {}).values() if item["role"] == "new"]
+    if len(materials) > 1:
+        return {"max_new_materials": max(1, len(materials) // 2)}
+    if len(materials) == 1:
+        refs = codec.refs(materials[0]["source_refs"])
+        if len(refs) == 1:
+            span = refs[0].locator or {}
+            start, end = span.get("start"), span.get("end")
+            if type(start) is int and type(end) is int and end - start > 1:
+                return {"max_new_materials": 1, "text_ceiling": (end - start) // 2}
+    return None
+
+
 class PreparationReads:
     """Scratch reads for one preparation, bounded by its original authorized requests."""
 
@@ -290,12 +312,15 @@ class MaterialBuilder:
                 missing.add("observation_analysis_unavailable")
         return refs, missing
 
-    async def build(self, context, rows, batch_id, *, text_ceiling=None, reads=None, budget: RequestBudget | None = None):
+    async def build(self, context, rows, batch_id, *, text_ceiling=None, max_new_materials=None,
+                    reads=None, budget: RequestBudget | None = None):
         """Take a complete episode/source prefix; a huge source alone uses an exact range cursor."""
         text_ceiling = text_ceiling or min(self.policy.max_source_characters, self.policy.max_input_tokens // 2)
         reads=reads or PreparationReads(self.sources)
         reserved=min(self.policy.context_messages,max(0,self.policy.max_materials-1))
         material_ceiling=max(1,min(self.policy.max_materials-reserved,max(1,text_ceiling//256)))
+        if max_new_materials is not None:
+            material_ceiling = min(material_ceiling, max_new_materials)
         materials, episodes, seen = {}, [], {}
         used = 0
         authors = set()

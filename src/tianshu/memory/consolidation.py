@@ -16,7 +16,7 @@ from tianshu.types import OriginKind, RequestBudget, ServiceClass, SourceRef, Tr
 from . import codec
 from .authority import context_record
 from .extraction_contract import SCHEMA_VERSION, consolidation_example, consolidation_instruction, validate_proposal
-from .materials import ConsolidationPolicy, MaterialBuilder, PreparationReads, append_context_material, expand_record_endpoints, frozen_mapping, model_material, partition_identity
+from .materials import ConsolidationPolicy, MaterialBuilder, PreparationReads, append_context_material, batch_frozen, expand_record_endpoints, frozen_mapping, model_material, partition_identity, reference_key, smaller_material_prefix
 
 _ACTIVE = {"prepared", "waiting_model", "ready"}
 MODEL_REQUEST_SECONDS = 120
@@ -164,15 +164,23 @@ class Consolidation:
         text_ceiling = min(self.policy.max_source_characters, self.policy.max_input_tokens//2)
         async with self.database.transaction(read_only=True) as conn:
             previous = await (await conn.execute(
-                "SELECT manifest,error_code FROM memory.consolidation_batches WHERE partition_id=%s AND status='failed' "
+                "SELECT manifest,status,error_code,step_ids FROM memory.consolidation_batches WHERE partition_id=%s "
                 "ORDER BY created_at DESC LIMIT 1",(state["partition_id"],))).fetchone()
-        if (previous and previous["error_code"] == "memory_consolidation_output_truncated"
-                and previous["manifest"].get("budget",self._budget_record()) == self._budget_record()):
-            text_ceiling = max(256,int(previous["manifest"].get("source_budget",text_ceiling))//2)
         reads=PreparationReads(self.sources)
+        max_new_materials = None
+        if await self._related_truncation(previous, rows, context, reads):
+            smaller = smaller_material_prefix(batch_frozen(previous))
+            if smaller is None:
+                # A pre-upgrade pending wake or an unchanged explicit resume
+                # must not repeat a known irreducible failed input.
+                await self._stop_minimum_prefix(state, context, owner, previous)
+                return None
+            max_new_materials = smaller["max_new_materials"]
+            text_ceiling = min(text_ceiling, smaller.get("text_ceiling", text_ceiling))
         while True:
             try:
-                frozen=await self.materials.build(context,rows,batch_id,text_ceiling=text_ceiling,reads=reads,budget=budget)
+                frozen=await self.materials.build(context,rows,batch_id,text_ceiling=text_ceiling,
+                    max_new_materials=max_new_materials,reads=reads,budget=budget)
                 if not frozen:
                     await self._idle(state["partition_id"],owner)
                     return None
@@ -232,6 +240,49 @@ class Consolidation:
                     "UPDATE memory.episodes SET extraction_state='running',extraction_started_at=now(),extraction_sources=%s "
                     "WHERE episode_id=%s AND sequence=%s", (Jsonb(episode["source_refs"]), episode["episode_id"],episode["sequence"]))
         return batch_id
+
+    async def _related_truncation(self, previous, rows, context, reads):
+        if (not previous or previous["status"] != "failed"
+                or previous["error_code"] != "memory_consolidation_output_truncated"
+                or previous["manifest"].get("budget") != self._budget_record()):
+            return False
+        episodes = previous["manifest"]["episodes"]
+        if not episodes or len(episodes) > len(rows):
+            return False
+        for old, current in zip(episodes, rows):
+            if (any(old[key] != current[key] for key in ("episode_id", "revision", "sequence"))
+                    or old["before"] != wire(current["extraction_cursor"])
+                    or sorted(old["scope_ids"]) != sorted(current["scope_ids"])):
+                return False
+            sources, _ = await reads.source_set(self.materials, context, current)
+            if tuple(map(reference_key, codec.refs(old["source_refs"]))) != tuple(map(reference_key, sources)):
+                return False
+        return True
+
+    async def _stop_minimum_prefix(self, state, context, owner, previous):
+        async with self.database.transaction() as conn:
+            await self.identity.check_context(context, connection=conn)
+            current = await (await conn.execute(
+                "SELECT lease_owner,active_batch_id FROM memory.consolidation_state WHERE partition_id=%s FOR UPDATE",
+                (state["partition_id"],))).fetchone()
+            if current["lease_owner"] != owner or current["active_batch_id"]:
+                return
+            for episode in previous["manifest"]["episodes"]:
+                before = Jsonb(episode["before"]) if episode["before"] is not None else None
+                await conn.execute(
+                    "UPDATE memory.episodes SET extraction_state='consolidation_failed',extraction_started_at=NULL "
+                    "WHERE episode_id=%s AND revision=%s AND sequence=%s AND active AND extraction_state='pending' "
+                    "AND extraction_cursor IS NOT DISTINCT FROM %s",
+                    (episode["episode_id"],episode["revision"],episode["sequence"],before))
+            pending = await (await conn.execute(
+                "SELECT 1 FROM memory.episodes WHERE consolidation_partition_id=%s AND active "
+                "AND extraction_state='pending' LIMIT 1", (state["partition_id"],))).fetchone()
+            due = datetime.now(UTC) if pending else None
+            await conn.execute(
+                "UPDATE memory.consolidation_state SET wake_due_at=%s,first_pending_at=%s,last_error=%s,budget_failure=NULL "
+                "WHERE partition_id=%s", (due,due,"memory_consolidation_output_truncated",state["partition_id"]))
+            if pending:
+                await self._schedule_on(conn, state["partition_id"], due)
 
     def _budget_record(self):
         return {"input_tokens":self.policy.max_input_tokens,"output_tokens":self.policy.max_output_tokens,
@@ -490,8 +541,9 @@ class Consolidation:
                     status = "revoked" if revoked else "stale" if stale else "failed" if terminal else "waiting_model"
                     await conn.execute("UPDATE memory.consolidation_batches SET status=%s,error_code=%s,updated_at=now() WHERE batch_id=%s",(status,code,batch_id))
                     if terminal:
+                        shrink = (code == "memory_consolidation_output_truncated"
+                            and smaller_material_prefix(batch_frozen(batch)) is not None)
                         for episode in batch["manifest"]["episodes"]:
-                            shrink = code == "memory_consolidation_output_truncated" and batch["manifest"].get("source_budget",256)>256
                             state = "pending" if stale or shrink else "consolidation_failed"
                             await conn.execute("UPDATE memory.episodes SET extraction_state=%s,extraction_started_at=NULL WHERE episode_id=%s AND sequence=%s AND active",
                                 (state,episode["episode_id"],episode["sequence"]))
