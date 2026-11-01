@@ -1,7 +1,14 @@
 # 天枢单产品部署
 
+## 2026-11-01 实际发布回执
+
+实际源码 `08ef6cb303f7b054cbbdb34e3d16ff9c584fe024`，镜像 `sha256:559ef862da33ee81456b017c14d51ef66bf404e47cf9a3a3ec168428dbeb48bc`；正式入口 `http://192.168.31.230:18446`。应用 ready、PG healthy、容量守护 active，两个 QQ 已接通且网关未重启。25 个旧 schema、6 组 Redis 前缀和旧运行环境已退役。作者人格、模型、机器人、天气及 19 条媒体配置已迁入；共享媒体使用 7 个明确挂载，不复制旧运行时。
+
+NAS helper 安装与原配置见 [infrastructure/README.md](infrastructure/README.md)。原专用公钥不在 NAS 授权列表，现保留配置并暂挂采集，等待用户选择是否恢复授权。细节与验证边界见[发布记录](../../docs/development/coherent-refactor-configuration-2026-11-01.md)。
+
+
 本目录替代旧 `deploy/tianshu`、`deploy/observability`、`ops/resident_install`、
-`ops/resident_capacity` 和 `ops/recovery` 的产品实现。2026-11-01 已完成集中验收、实际 Linux 镜像构建、备份恢复、日志缓冲补传及必要复验；全新生产实例和 PostgreSQL 已建立，作者配置已导入并读回核对。新实例在临时端口 28446 完成核对后已正常停止待切换，旧服务仍在运行，正式切换和旧业务数据删除尚待 QQ 对端恢复正常管理登录。下文为单写发布者的运行说明；本批实况见 [配置及切换记录](../../docs/development/coherent-refactor-configuration-2026-11-01.md)。
+`ops/resident_capacity` 和 `ops/recovery` 的产品实现。2026-11-01 已完成集中验收、实际 Linux 镜像构建、备份恢复、日志缓冲补传及必要复验；全新生产实例和 PostgreSQL 已建立，作者配置已导入并读回核对。新版已在正式端口运行，两 QQ 已接通，旧运行服务和业务库已退役。NAS 原 SSH 公钥恢复仍待用户选择。下文为单写发布者的运行说明；本批实况见 [配置及切换记录](../../docs/development/coherent-refactor-configuration-2026-11-01.md)。
 
 ## 运行组成与目录
 
@@ -169,4 +176,4 @@ python backup.py restore --bundle /APPROVED/external-backups/NEW_ID --root /APPR
 设备文件、摘要不符与未完成备份。还原保留原 master key，不重生成三套密钥，更新新 DSN；
 Source/Action/模型账本、usage、unknown/provider handle 随 DB 原样保存，不自动重试付费任务。
 共享外部媒体只保存精确引用清单，不声称已备份其字节。恢复后重新核外部路径并 create/freeze 新 guard，
-再启动；不要复制旧容器 ID。演练与实际恢复尚待 CR19，不能以源码存在宣称恢复成功。
+再启动；不要复制旧容器 ID。本批 CR19 已在独立验收库完成实际备份恢复；后续安装仍需依据其自身回执判断，不能以源码存在代替恢复结果。

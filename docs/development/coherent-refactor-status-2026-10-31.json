@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "goal_thread": "01a18df4-9275-7411-b48b-32fd86889108",
-  "state": "configuration_verified_staged_stopped_pending_peer_login",
+  "state": "production_ready_retirement_complete_nas_ssh_authorization_pending",
   "model": "gpt-6.1-sol",
   "reasoning_effort": "xhigh",
   "integration_root": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-unified-refactor\\tianshu-peiban-bot",
@@ -389,9 +389,9 @@
         "CR19"
       ],
       "owner": "部署集成人",
-      "state": "staged_configuration_verified_cutover_pending",
+      "state": "deployed_verified_external_authorization_pending",
       "implementation_agent": "foundation_models",
-      "pending": "Normal SnowLuma WebUI login, switch two exact QQ reverse-WS destinations, verify actual connection, then retire old writer and exclusive old resources."
+      "pending": "Only the user decision on restoring the original NAS SSH public key remains; core deployment, two QQ peers, authored configuration and owned old-state retirement are complete."
     }
   ],
   "agents": {
@@ -1148,12 +1148,17 @@
       "integrated": "5570c4609a236ce2e010708a1f69f9723113be4f",
       "scope": "fix(life): freeze contact expiry with the database creation clock",
       "validation": "CR19 applicable evidence plus affected repairs; see validation runs"
+    },
+    {
+      "integrated": "08ef6cb303f7b054cbbdb34e3d16ff9c584fe024",
+      "scope": "fix(deploy): restore registered infrastructure helpers",
+      "validation": "4 focused tests passed; final whole-image boot and native catalog verified; NAS server SSH authorization pending"
     }
   ],
   "validation": {
     "state": "concentrated_acceptance_passed",
     "initial_complete_source": "3b681fa",
-    "candidate_source": "5570c4609a236ce2e010708a1f69f9723113be4f",
+    "candidate_source": "08ef6cb303f7b054cbbdb34e3d16ff9c584fe024",
     "policy": "reuse applicable unchanged passes; rerun only failed or materially affected paths",
     "runs": [
       {
@@ -1306,30 +1311,71 @@
       "container": "tianshu-core-acceptance-pg",
       "purpose": "disposable only; no old shared database used"
     },
-    "old_business_data_mutated": false,
-    "fresh_production_configuration_written": true
+    "old_business_data_mutated": true,
+    "fresh_production_configuration_written": true,
+    "last_supplement": {
+      "source": "08ef6cb303f7b054cbbdb34e3d16ff9c584fe024",
+      "infrastructure_helper_tests": "4 passed; reused after clean cherry-pick",
+      "media_authored_rows": 19,
+      "native_secret_roundtrip": true,
+      "media_read_only_external_checks": 6,
+      "media_unverified_connections": 0,
+      "final_qq_identity_reads": 2,
+      "nas_snapshot": "ssh_auth_failed; original key absent in server authorized_keys",
+      "full_suite_repeated": false
+    }
   },
   "deployment": {
-    "state": "configuration_verified_staged_stopped",
-    "temporary_origin": "http://192.168.31.230:28446",
+    "state": "production_ready",
     "final_origin": "http://192.168.31.230:18446",
     "application_root": "/srv/tianshu-core/app",
     "postgres_root": "/volume2/Dockers/tianshu-core-postgres",
     "postgres_port": 25018,
-    "old_application_running": true,
-    "old_business_data_deleted": false,
-    "transport_enabled": false,
-    "capacity_guards_active": true,
-    "new_application_running": false,
-    "new_stop_exit_code": 0,
-    "reason": "Keep only old live runtime while normal SnowLuma management login is pending."
+    "container_id": "0d835024c9953774d13fbd9754236371ea13582c9d537658faf0707b726fe826",
+    "old_application_running": false,
+    "old_business_data_deleted": true,
+    "transport_enabled": true,
+    "capacity_guards_active": [
+      "tianshu-core-capacity.service"
+    ],
+    "new_application_running": true,
+    "actual_mounts": 11,
+    "final_health": {
+      "nas": {
+        "postgres": {
+          "id": "0627b322a858d62e57837f1afbfcdeb53b647e3a8e5687b2c5aba406b8112fd8",
+          "running": true,
+          "health": "healthy"
+        },
+        "qq_gateway": {
+          "id": "28a18ae191df4a2a5ff0d7da12098f3309e234f47190ada093d948cf3ac4e93a",
+          "running": true,
+          "started_at": "2026-10-27T04:25:26.651915066Z"
+        },
+        "acceptance_directory_absent": true,
+        "free_bytes": 348651053056
+      },
+      "target": {
+        "ready": "ready",
+        "container_id": "0d835024c9953774d13fbd9754236371ea13582c9d537658faf0707b726fe826",
+        "image": "sha256:559ef862da33ee81456b017c14d51ef66bf404e47cf9a3a3ec168428dbeb48bc",
+        "source_sha": "08ef6cb303f7b054cbbdb34e3d16ff9c584fe024",
+        "mounts": 11,
+        "guard": "active",
+        "free_bytes": 72624775168,
+        "retired_paths_absent": true,
+        "containers": [
+          "tianshu-core"
+        ]
+      }
+    }
   },
   "planning_commit": "e034276dfb757b7dd64cd2f56e952d81193a5248",
-  "updated_at": "2026-11-01",
-  "accepted_source_sha": "5570c4609a236ce2e010708a1f69f9723113be4f",
-  "accepted_image": "sha256:eaef93c3b0b1673e804c032336a7f04b5b447054d06b9bf27c4010c3c7404629",
+  "updated_at": "2026-11-01T02:07:11.005292+00:00",
+  "accepted_source_sha": "08ef6cb303f7b054cbbdb34e3d16ff9c584fe024",
+  "accepted_image": "sha256:559ef862da33ee81456b017c14d51ef66bf404e47cf9a3a3ec168428dbeb48bc",
   "configuration_migration": {
-    "state": "readback_verified",
+    "state": "all_authored_configuration_preserved",
     "authored_personas": 7,
     "actors": 3,
     "enabled_actors": 2,
@@ -1343,33 +1389,65 @@
     "comfyui_workflows": 1,
     "contact_policy_overrides": 1,
     "old_business_data_imported": false,
-    "credentials_committed": false
+    "credentials_committed": false,
+    "initial_native_read_write_steps": 108,
+    "media_configuration_rows": 19,
+    "weather_connection_preserved": true,
+    "weather_bound_locations": 1,
+    "weather_unbound_location_archived": 1,
+    "memory_vector_enabled": true,
+    "memory_rerank_enabled": true,
+    "nas_registration_and_original_key_preserved": true,
+    "nas_collection_enabled": false,
+    "nas_authorization": "awaiting_user_choice; no authorized_keys mutation"
   },
   "acceptance_summary": {
     "concentrated_acceptance": "prior passed unchanged evidence reused; actual defects repaired and affected checks repeated",
-    "final_image": "whole immutable image ready, no source overlays; frontend typecheck/build succeeded in final image build",
-    "last_checks": {
-      "plugin_runtime_unit": 5,
-      "plugin_runtime_actual": "cross-process ready -> stopped -> new generation ready",
-      "contact_expiry_postgres": 1,
-      "explicit_photo_window": 2,
-      "contact_expiry_http": "native default14400 and migrated person3600 read back"
+    "final_image": {
+      "source_sha": "08ef6cb303f7b054cbbdb34e3d16ff9c584fe024",
+      "image_id": "sha256:559ef862da33ee81456b017c14d51ef66bf404e47cf9a3a3ec168428dbeb48bc",
+      "ready": true,
+      "no_source_overlay": true
     },
+    "last_checks": [
+      "Infrastructure helper: 4 passed",
+      "19 authored media rows reconstructed and native secret readback matched; 6 read-only external checks succeeded",
+      "Two QQ identities verified after final image; SnowLuma and QQ process not restarted",
+      "Application ready, PG healthy, guard active after retirement"
+    ],
     "real_models": "Gemini native text/image/audio/video/tools; DeepSeek; Qwen1024 embedding/rerank previously accepted",
     "real_qq_messages_sent": 0,
     "not_claimed": [
-      "all external provider/media/plugin capabilities live validated",
-      "long-term companion quality",
-      "final cutover and old business-state deletion"
+      "Real QQ/TG test-message delivery",
+      "All third-party paid generation/download/control operations",
+      "Long-term companion quality",
+      "NAS SSH observation/control: original server authorization missing; user choice pending"
     ]
   },
   "retirement": {
     "cold_target_containers_removed": 13,
-    "old_business_schemas_remaining": 25,
-    "old_nas_registry_containers_remaining": 14,
-    "current_old_runtime_retained_until_cutover": true,
+    "old_business_schemas_remaining": 0,
+    "old_nas_registry_containers_remaining": 0,
+    "current_old_runtime_retained_until_cutover": false,
     "shared_services_preserved": true,
-    "local_build_cleanup": "three generated untracked directories retained after automatic policy rejection"
+    "local_build_cleanup": "three generated untracked directories retained after automatic policy rejection",
+    "old_business_schemas_removed": 25,
+    "old_redis_prefixes_removed": 6,
+    "old_redis_keys_removed": 5,
+    "old_nas_registry_containers_removed": 14,
+    "old_target_containers_removed": 16,
+    "old_build_anonymous_volumes_removed": 4,
+    "acceptance_postgres_containers_removed": 2,
+    "old_systemd_units_removed": 2,
+    "retired_runtime_roots_removed": [
+      "/srv/tianshu",
+      "/srv/tianshu-tooling",
+      "/srv/tianshu-core-acceptance-20261031"
+    ],
+    "nas_acceptance_directory_removed": true,
+    "nas_old_control_helper_and_venv_removed": true,
+    "temporary_plaintext_import_files_removed": true,
+    "offline_nas_archives_not_traversed": true
   },
   "source_review_followups_history": [
     {
