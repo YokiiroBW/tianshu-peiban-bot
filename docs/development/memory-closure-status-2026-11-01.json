@@ -22,6 +22,13 @@
       ],
       "followup_commits": [
         "bad09f4eeb313bfcd5cfdc12e9d29977875782e7"
+      ],
+      "acceptance_fix_commits": [
+        {
+          "source": "decadd5",
+          "integrated": "bcd53c8",
+          "scope": "migration aggregate ownership and proven legacy links"
+        }
       ]
     },
     "MC-B": {
@@ -86,7 +93,24 @@
         "3becfa4"
       ],
       "followup": "Idempotent actor-original repair for already-completed imagined Episodes from saved Life checkpoints; no model/activity replay",
-      "operational_preparation": "Private cutover.py saved and statically read; no execution"
+      "operational_preparation": "Private cutover.py saved and statically read; no execution",
+      "acceptance_fix_commits": [
+        {
+          "source": "f980500",
+          "integrated": "78cf3f1",
+          "scope": "native non-stream Responses terminal settlement"
+        },
+        {
+          "source": "9ebb305",
+          "integrated": "913fd44",
+          "scope": "Growth JSON precedence and database-clock maintenance"
+        },
+        {
+          "source": "de96a62",
+          "integrated": "64d0438",
+          "scope": "persistent startup wakes and close race"
+        }
+      ]
     },
     "MC-R": {
       "agent": "runtime_audit",
@@ -117,6 +141,13 @@
       "integrated_as": [
         "1f0146c",
         "e5ff7d5"
+      ],
+      "acceptance_fix_commits": [
+        {
+          "source": "73c8144",
+          "integrated": "49224d1",
+          "scope": "scoped URL fixtures and missing-material descriptions"
+        }
       ]
     },
     "MC-G": {
@@ -129,6 +160,18 @@
       "implementation_commit": "775731637c761d0efddeca4c103104c48fc11852",
       "integrated_as": [
         "55b77ca"
+      ],
+      "acceptance_fix_commits": [
+        {
+          "source": "77eb5dd",
+          "integrated": "5c4d738",
+          "scope": "Python 3.12 evaluation metering syntax"
+        },
+        {
+          "source": "f2ff997",
+          "integrated": null,
+          "scope": "native evaluation configuration and progress"
+        }
       ]
     }
   },
@@ -235,7 +278,7 @@
     }
   ],
   "blueprint_acceptance": {
-    "M01-M18": "not_run_waiting_complete_implementation"
+    "M01-M18": "unified_validation_in_progress; SQL migration blocks 65 initial case bodies; semantic not run"
   },
   "new_production_release": null,
   "semantic_acceptance_inputs": {
@@ -247,11 +290,31 @@
   },
   "product_implementation": "All product, frontend, evaluation and cutover preparation complete; first unified validation now authorized by coordinator",
   "unified_validation": {
-    "implementation_head": "55b77ca",
-    "status": "starting",
-    "backend": "pending_disposable_postgres",
-    "frontend": "pending_build",
-    "semantic": "not_started",
+    "implementation_head": "5c4d738",
+    "status": "first_pass_repairs_integrated_targeted_rerun",
+    "backend": {
+      "first_collection": "blocked_by_evaluation_tool_syntax_fixed_5c4d738",
+      "first_run": {
+        "passed": 67,
+        "failed": 2,
+        "windows_event_loop_setup_errors": 104
+      },
+      "postgres_followup": {
+        "previously_setup_blocked": 104,
+        "passed": 34,
+        "failed": 5,
+        "migration_setup_errors": 65
+      },
+      "unique_executed_passes": 101,
+      "initial_case_count": 173
+    },
+    "frontend": {
+      "build": "passed_before_frontend_fixes",
+      "pages_passed": 16,
+      "pages_failed": 20,
+      "page_case_count": 36
+    },
+    "semantic": "private_inputs_prepared_not_started",
     "production_changed": false
   }
 }
