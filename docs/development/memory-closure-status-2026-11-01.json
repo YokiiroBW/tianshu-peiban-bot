@@ -1,5 +1,5 @@
 {
-  "phase": "queue_isolation_integrated_verified_release_preparing",
+  "phase": "final_repairs_integrated_verified_candidate09_release_preparing",
   "source_baseline": "7aac7746ed0a4d12cd8b596de156b6f3a745f8ad",
   "planning_commit": "8bca244",
   "production_source": "271ad96e21e0035e7f605b345114c10703542a0d",
@@ -374,9 +374,27 @@
     {
       "id": "RC-28",
       "owner": "MC-Q1 runtime / MC-Q2 capability / MC-Q3 media",
-      "state": "integrated_unified_targets_passed_not_yet_deployed",
+      "state": "implemented_unified_verified_deployed_native_registration_confirmed",
       "problem": "Three physical queues conflate model service class with business execution capacity; background consolidation occupies both elastic slots and manual image/index remain todo attempts0. Whole-repo queue/lock audit additionally found heavy media coordinators, node-lock slot capture and shared model HTTP transport congestion.",
       "user_scope": "All independent functions run concurrently; retain only proven per-conversation/action/file/resource dependencies. Finish whole patch then unified necessary validation."
+    },
+    {
+      "id": "RC-29",
+      "owner": "MC-Q2 images",
+      "state": "integrated_unified_targets_passed_not_yet_deployed",
+      "problem": "Complete successful image plan is fenced JSON; direct json.loads rejects it, while general sub-model dispatch makes pre-image parse failure look like unknown image execution. Original image_work absent and original planner succeeded; correct parsing and explicit known-not-submitted reconciliation/resume required."
+    },
+    {
+      "id": "RC-30",
+      "owner": "MC-Q1 growth",
+      "state": "integrated_unified_targets_passed_not_yet_deployed",
+      "problem": "Reflection ID only uses actor/kind/selected Episode IDs; same selected support across full frozen batches collides. Native old 12-Episode interest shares ID with current one-Episode revision2 result but has different content and dependencies. Bind identity to immutable generation and full frozen material, retain strict CAS and visible real conflicts."
+    },
+    {
+      "id": "RC-31",
+      "owner": "MC-Q3 plugins",
+      "state": "integrated_unified_targets_passed_not_yet_deployed",
+      "problem": "Plugin git/pip package preparation occupied the shared two file-worker slots while waiting on network/subprocesses. PluginManager now owns one bounded preparation thread and retains installation lock, cancellation settlement and lifecycle; normal file work is isolated."
     }
   ],
   "blueprint_acceptance": {
@@ -384,15 +402,21 @@
   },
   "new_production_release": {
     "state": "production_ready",
-    "source_sha": "271ad96e21e0035e7f605b345114c10703542a0d",
-    "image_id": "sha256:2ed573ddbbdec0a398537107fb01bcdc44971c706e35af10b48905391a2693a8",
-    "container_id": "3b9b67237935499c8ab343820476499d1af2768d07e8f1911dc3f2f438918c73",
-    "ready": "ready",
-    "guard": "active",
+    "source_sha": "47df9a92c503bd7a2dbbc6c8402f411325f4bbe5",
+    "image_id": "sha256:21bdb56b2f0e7b1d84d6fe8ed73e7f5df9d5f4a32c50935c0c8bcfc8cccab8a8",
+    "old_container_id": "3b9b67237935499c8ab343820476499d1af2768d07e8f1911dc3f2f438918c73",
+    "old_image": "sha256:2ed573ddbbdec0a398537107fb01bcdc44971c706e35af10b48905391a2693a8",
+    "container_id": "0c0877e801123dca8fec9a5cc1603ca1d0f158123d76ae566d2d28329f8f19e8",
     "configuration_unchanged": true,
-    "mounts": 11,
-    "migrations_total": 16,
-    "original_three_migrations_applied": true,
+    "mounts_unchanged": true,
+    "database_migration_change": false,
+    "guard": "active",
+    "ready": "ready",
+    "previous_healthy_release": {
+      "source_sha": "271ad96e21e0035e7f605b345114c10703542a0d",
+      "image_id": "sha256:2ed573ddbbdec0a398537107fb01bcdc44971c706e35af10b48905391a2693a8",
+      "container_id": "3b9b67237935499c8ab343820476499d1af2768d07e8f1911dc3f2f438918c73"
+    },
     "previous_failed_candidate": {
       "state": "image_switched_migrations_applied_application_startup_failed_stopped",
       "source_sha": "f7dd3055de603fbfa40c6a96874c57076d840d57",
@@ -407,7 +431,16 @@
       "operational_state": "root stopped failed owned container and guard after observed16 restarts; no data restore; other services unchanged",
       "settings_and_11_mounts": "verified preserved",
       "replacement": "candidate07 271ad96 restored ready; preserved 16 migrations, configuration and 11 mounts. RC28 replacement now being prepared on this healthy installation."
-    }
+    },
+    "configuration_transition": {
+      "scope": "worker lanes, database connection budget and model transport pools only",
+      "old_settings_sha256": "e413f3c9476a7330a59cb7460af8832b0c9c35bdb9d2ecd3ad2836af6ce4df1b",
+      "new_settings_sha256": "36dd119433ab0fcdf6b74dd2b2d7c878b3a48e67d6a32b33bc0629c1671d6dae",
+      "other_settings_preserved": true
+    },
+    "migrations_total": 16,
+    "original_three_migrations_applied": true,
+    "mounts": 11
   },
   "semantic_acceptance_inputs": {
     "stories": 24,
@@ -416,7 +449,7 @@
     "state": "24 unique stories covered by 17 candidate05 and7 unchanged candidate04 results; 8 heldout answers reviewed only after candidate05 freeze. All 24 answers correct in these root-reviewed runs, not a universal accuracy claim. Native failures/unknowns remain explicit. Candidate06 only clarifies the existing transition operation after development S03 cost-arm failure and supplements S03; candidate05 cost benchmark remains labeled pre-clarification.",
     "additional_contract_scenarios": 12
   },
-  "product_implementation": "All scoped product/frontend changes integrated through 143a396ca39839128fbc457690eac47c494f8243. RC28 separates 34 business lanes, native original-job routing, 4 model transport pools, media work and bounded original Growth recovery; no RC28 DDL. Production remains healthy candidate07 until the verified new image is deployed.",
+  "product_implementation": "All scoped final repairs integrated through 5ec70e127a4a22f4037a53826efecda407fb231c: strict complete model JSON, multiline image prompts, original-image reconciliation and explicit safe resume, immutable generation-bound Reflection identities, and isolated plugin installation. Candidate08 production queue isolation remains healthy. Candidate09 release preparing; no schema/configuration change.",
   "unified_validation": {
     "implementation_head": "5c4d738",
     "status": "deterministic_targets_passed_real_model_pending",
@@ -627,7 +660,22 @@
       "receipt": "backend-startup-13",
       "scope": "Existing Growth legacy/output tests only; unchanged semantic/cost/frontend evidence reused."
     },
-    "queue_isolation": "83 focused backend checks passed with no skips; frontend typecheck/build and 4 desktop/mobile queue-state scenarios passed after complete integration. Unchanged semantic and cost results retain their original source attribution."
+    "queue_isolation": "83 focused backend checks passed with no skips; frontend typecheck/build and 4 desktop/mobile queue-state scenarios passed after complete integration. Unchanged semantic and cost results retain their original source attribution.",
+    "final_native_repairs": {
+      "first_receipt": "acceptance/backend-native-15.json",
+      "first_source": "5e0ac6a733cfa19dedf365ed40b83d8bde122632",
+      "first_cases": 55,
+      "passed_reused": 51,
+      "original_failures": 4,
+      "failure_resolution": "3 missing Identity/Sources fixture dependencies; 1 genuine multiline image-prompt validation defect, all retained in original receipt",
+      "repair_receipt": "acceptance/backend-native-16.json",
+      "repair_source": "5ec70e127a4a22f4037a53826efecda407fb231c",
+      "repair_passed": 8,
+      "repair_failed": 0,
+      "repair_skipped": 0,
+      "frontend": "unchanged; reuse RC28 typecheck/build and four desktop/mobile cases",
+      "test_timing": "after complete repair batch; only failed/new affected cases rerun"
+    }
   },
   "production_recovery_actions": [
     {
@@ -721,6 +769,16 @@
       "desktop_mobile_cases": 4,
       "tests_started_after_all_changes_integrated": true
     },
-    "deployment_state": "preparing_candidate08"
+    "deployment_state": "candidate08_ready_native34_lanes_original19_jobs_routed_no_blockers",
+    "deployment_source": "47df9a92c503bd7a2dbbc6c8402f411325f4bbe5",
+    "observed_native": {
+      "workers_ready": true,
+      "broker_ready": true,
+      "lane_count": 34,
+      "slots": 39,
+      "legacy_jobs_routed": 19,
+      "routing_blocked": 0,
+      "receipt": "candidate-08/acceptance/queue-readback-01.private.json"
+    }
   }
 }

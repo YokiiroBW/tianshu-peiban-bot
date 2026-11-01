@@ -147,7 +147,7 @@ RC-26四项定向检查通过；最终源码f7dd305的真实S03两批均applied�
 RC-27由MC-B完整提交67759ea，根合为9bbd4e9。Growth启动仅登记逐分区任务，worker通过既有Identity有限重核扫描授权；无法续接时保留原context、请求、游标与可见阻断，不影响其他分区启动。全部变更合入后backend-startup-13共17项通过、0跳过；不重复未变前端/模型语义/成本检查。根与MC-A静态核对候选07私有切换流程：从实际已停止故障容器替换，仅备份companion，16项迁移不变，禁止重启已知故障版本，保持原配置和11挂载，恢复后再读回。当前仅验证/准备完成，不代表应用已恢复。
 
 
-## RC-28 全业务执行隔离（用户追加，集成验证通过，待发布）
+## RC-28 全业务执行隔离（用户追加，已发布并核实注册）
 
 线上271ad96已健康，实际job38877（表情索引）与38892（手动自拍）在elastic中todo/attempts0超过六分钟；同队列两槽被memory.consolidate占用，另有数百索引任务。根因是执行队列只按INTERACTIVE/DUE/ELASTIC分组，capability/API/Conversation又用long_running覆盖交互类别。不是ComfyUI正在生成。用户要求所有不强关联功能并行，范围扩展至全项目实际队列、执行池和锁。
 
@@ -166,3 +166,11 @@ RC-28根冻结装配：34个明确业务lane，默认39个有限异步执行槽�
 
 
 2026-11-02集中验证：全部runtime、能力、媒体、前端及成长恢复代码集成至`143a396ca39839128fbc457690eac47c494f8243`后，83项后端定向检查通过、0失败/跳过；前端typecheck/build和桌面/手机4个原任务等待展示场景通过。复用未变的语义/成本结果，不重跑整套模型故事。旧成长结果只用有界当前reader读取原attempt，原请求及批次身份不变；确认缺原件的单个版本记录unavailable，后续有来源材料继续，补源新版本可重新进入。将按候选08发布并核验真实通道注册和原任务推进；此处不预写实机通过。
+
+
+候选08 `47df9a92c503bd7a2dbbc6c8402f411325f4bbe5` / `sha256:21bdb56b2f0e7b1d84d6fe8ed73e7f5df9d5f4a32c50935c0c8bcfc8cccab8a8` 于2026-11-01T16:28:56Z启动，实际ready、guard active、11挂载保持、无DDL。明确只调整worker lanes、PG预算72与四组Models HTTP池，其他配置不变。34通道/39槽原生注册，19条旧todo同ID重分流、0阻断；旧三队列只保留终态审计。原表情索引已成功；原自拍规划虽succeeded但带完整JSON围栏，旧解析拒绝且image_work不存在，不能称已生成。两个新Growth失败是同一原batch的reflection_identity_conflict：旧12-Episode兴趣与新1-Episode rev2使用了相同旧UUID，正文与来源不同。RC-29由MC-Q2收口Images解析/未提交效果/显式恢复，RC-30由MC-Q1将身份绑定原generation和完整冻结材料；原失败保留，不能吞掉真实冲突或为兼容长期保留旧算法。代码全部收齐后只验证受影响块，不重跑RC28已过的队列/前端结果。
+
+
+RC-29/30/31完整集成为`5ec70e127a4a22f4037a53826efecda407fb231c`。模型JSON的完整围栏在capabilities.contracts单处解码，生图/表情共用；选图限额从100修为1000以留出当前模型思考空间，期限30s、路线/候选/Sources不变。Images只在确证原规划终结、无图片工作/请求/执行owner时，原生reconcile为未图片提交，随后显式resume使用新Attempt及当前scene；真正unknown只观察。Growth新批v2身份绑定原请求与完整冻结材料；旧active仅现有有限manifest一次转换，不进入新批常规算法，不修改旧Reflection或放松CAS。插件准备有专属1线程，原安装锁/取消收口保留；书源/基础设施/媒体解码已是独立异步子进程，无额外改动。
+
+集中backend-native-15共55项，51通过，三项实Memory夹具缺Identity/Sources依赖，一项揭示真实多行图像prompt误用单行校验。依赖已补；Workflow仅图像TEXT_FIELDS接受CR/LF，其他控制/类型/长度约束保留，纯编译校验失败明确effect=none。全部返修收齐后backend-native-16八项全过、0跳过，原失败与原回执保留，未变51项及RC28前端/队列结果复用。候选09普通代码发布，不新增DDL或改变已配置34通道。
