@@ -2,16 +2,14 @@
 from __future__ import annotations
 from tianshu.sources.dependencies import unique_refs
 
-import json
 from datetime import UTC, datetime, timedelta
 from uuid import NAMESPACE_URL, uuid5
 from zoneinfo import ZoneInfo
 
-from tianshu.models.types import ModelRequest
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.serialization import wire
-from tianshu.types import Action, ContextContribution, OriginKind, RequestBudget, ServiceClass
+from tianshu.types import Action, OriginKind, RequestBudget, ServiceClass
 from tianshu.conversation.codec import context_from_record, artifacts, document, receipt, signature, source_refs
 from tianshu.conversation.types import ExpressionPlan
 from tianshu.conversation.generation import GenerationRequests, attempt_for
@@ -19,6 +17,7 @@ from .validation import timestamp
 from .attention import contact_expiry
 from .salience import evaluate, fingerprint, similarity, interest_fit
 from .types import ContactCandidate, PreparedContact
+from . import planner
 
 
 def future_occurrence(row, now):
@@ -49,129 +48,379 @@ class LifeWorker:
         if not actor["enabled"]:
             return
         async with self.life.database.transaction(read_only=True) as connection:
-            mark = await (await connection.execute("SELECT * FROM life.plan_watermarks WHERE actor_id=%s", (actor_id,))).fetchone()
-        if not mark or mark["revision"] != revision or mark["planned_watermark"] == mark["change_watermark"]:
+            mark = await (
+                await connection.execute(
+                    "SELECT * FROM life.plan_watermarks WHERE actor_id=%s", (actor_id,)
+                )
+            ).fetchone()
+            routine = await (
+                await connection.execute(
+                    "SELECT timezone,wake_at,sleep_at,idle_seconds FROM life.routines WHERE actor_id=%s",
+                    (actor_id,),
+                )
+            ).fetchone()
+        if (
+            not mark
+            or mark["revision"] != revision
+            or mark["planned_watermark"] == mark["change_watermark"]
+        ):
             return
-        if mark["next_due_at"] and mark["next_due_at"]>datetime.now(UTC)+timedelta(seconds=5) and mark["change_watermark"].startswith(("activity-","growth:")):
-            await self._planned(actor_id,revision,mark["change_watermark"],"waiting_for_next_life_window",keep_due=True)
+        pending = mark["generation_key"] and not mark["generation_consumed"]
+        if (
+            not pending
+            and mark["next_due_at"]
+            and mark["next_due_at"] > datetime.now(UTC) + timedelta(seconds=5)
+            and mark["change_watermark"].startswith(("activity-", "growth:"))
+        ):
+            await self._planned(
+                actor_id,
+                revision,
+                mark["change_watermark"],
+                "waiting_for_next_life_window",
+                keep_due=True,
+            )
             return
         async with self.life.database.transaction(read_only=True) as connection:
-            already_scheduled = await (await connection.execute("SELECT id FROM life.activities WHERE actor_id=%s AND state IN ('planned','running') LIMIT 1",(actor_id,))).fetchone()
-        if already_scheduled:
-            await self._planned(actor_id,revision,mark["change_watermark"],"existing_activity_continues")
+            scheduled = await (
+                await connection.execute(
+                    "SELECT id FROM life.activities WHERE actor_id=%s AND state IN ('planned','running') LIMIT 1",
+                    (actor_id,),
+                )
+            ).fetchone()
+        if scheduled:
+            await self._planned(
+                actor_id, revision, mark["change_watermark"], "existing_activity_continues"
+            )
             return
         state = await self.life.state(context)
-        if state["activity"] and state["activity"]["state"] == "running":
-            # A new expression or relation revision never rebuilds the day's active work.
-            await self._planned(actor_id, revision, mark["change_watermark"], "current_activity_continues")
-            return
         goals = await self.life.goals(context, limit=20)
         commitments = await self.life.commitments(context, limit=20)
         choices = await self.catalog.discover(context)
-        persona = await self.life.companion.persona(context, actor["persona_id"], actor["persona_revision"]) if actor["persona_id"] else None
         budget = RequestBudget(datetime.now(UTC) + timedelta(seconds=90))
-        refs = unique_refs(tuple(ref for ref in (
-            *state["affect"]["source_refs"], *(ref for item in (*goals.items, *commitments.items) for ref in source_refs(item["source_refs"])))))
-        contribution = ContextContribution("life_plan", json.dumps(wire({
-            "goals": goals.items, "goals_coverage": goals.coverage, "commitments": commitments.items, "commitments_coverage": commitments.coverage,"logical_conversation_id":context.conversation_id,"delivery_allowed":context.delivery_allowed,
-            "affect_regulation": state["affect"]["regulation"], "capabilities": choices,
-            "local_time": datetime.now(ZoneInfo(state["timezone"])).isoformat(), "current_outfit":state["outfit"],
-            "instruction": "Choose one feasible next activity from authored daily routine, authored interests, actual goals and recent experience, or no activity. A schedule/actor motivated selfie is allowed when images.generate is available; explicitly set delivery_kind=create_only unless the supplied trusted conversation and motivation justify share_candidate. Freeze target_ref to the current logical conversation and set a finite window and stable dedup_key. Never invent a destination. Choose a duration of 15-180 minutes for fictional activities. Preserve explicit commitments. Return JSON {activity:null|{title,kind,goal_id,capability_id,arguments,duration_minutes},reason}. Fictional rest is allowed; software actions require a listed available capability. Do not claim work already happened."}), ensure_ascii=False),
-            refs, context.scope_ids, 70)
-        growth_material = await self.growth.material(context) if self.growth else ()
-        pack = await self.assembler.assemble(context, "life.plan", "Choose a meaningful next activity.", budget,
-            persona_text=persona.prompt_text if persona else "", contributions=(contribution,) + growth_material)
-        material = signature({"context":self.generations.context_key(context),
-            "actor_revision":actor["revision"],"goals":[(row["id"],row["revision"]) for row in goals.items],
-            "commitments":[(row["id"],row["revision"]) for row in commitments.items],
-            "outfit":state["outfit_id"],"weather_location":state["weather_location"],
-            "affect_sources":state["affect"]["source_refs"],"affect_mode":state["affect"]["regulation"]["mode"],
-            "growth":[item.text for item in growth_material],
-            "capabilities":[(item["definition"].id,item["definition"].version,item["can_execute"]) for item in choices]})
-        async with self.life.database.transaction() as connection:
-            await self.life.validate_persistence(connection,context,tuple(pack.source_refs))
-            fresh=await (await connection.execute("SELECT * FROM life.plan_watermarks WHERE actor_id=%s FOR UPDATE",(actor_id,))).fetchone()
-            if fresh["revision"]!=revision:
+
+        if pending:
+            material_key = mark["generation_key"]
+            frozen = await self._original_plan(context, mark)
+            if frozen is None:
                 return
-            material_key = fresh["generation_key"] if fresh["generation_material"]==material and not fresh["generation_consumed"] else "life-plan:"+signature({"material":material,"watermark":mark["change_watermark"]})
-            await connection.execute("UPDATE life.plan_watermarks SET generation_material=%s,generation_key=%s,generation_consumed=false WHERE actor_id=%s",(material,material_key,actor_id))
+        else:
+            persona = (
+                await self.life.companion.persona(
+                    context, actor["persona_id"], actor["persona_revision"]
+                )
+                if actor["persona_id"]
+                else None
+            )
+            refs = unique_refs(
+                tuple(state["affect"]["source_refs"]),
+                tuple(
+                    ref
+                    for item in (*goals.items, *commitments.items)
+                    for ref in source_refs(item["source_refs"])
+                ),
+            )
+            data = planner.material(
+                context,
+                state,
+                routine,
+                goals,
+                commitments,
+                choices,
+                datetime.now(ZoneInfo(state["timezone"])).isoformat(),
+            )
+            material = signature(
+                {
+                    "contract": planner.CONTRACT,
+                    "actor_revision": actor["revision"],
+                    "context": self.generations.context_key(context),
+                    "data": data,
+                }
+            )
+            material_key = "life-plan:" + signature(
+                {"material": material, "watermark": mark["change_watermark"]}
+            )
+            try:
+                frozen = await planner.request(
+                    self.assembler,
+                    context,
+                    budget,
+                    key=material_key,
+                    persona=persona.prompt_text if persona else "",
+                    data=data,
+                    refs=refs,
+                    growth=await self.growth.material(context) if self.growth else (),
+                )
+            except AppError as error:
+                if error.code != "planner_context_budget_exceeded":
+                    raise
+                await self._planned(actor_id, revision, mark["change_watermark"], error.code)
+                return
+            async with self.life.database.transaction() as connection:
+                await self.life.validate_persistence(connection, context, frozen.source_refs)
+                fresh = await (
+                    await connection.execute(
+                        "SELECT * FROM life.plan_watermarks WHERE actor_id=%s FOR UPDATE",
+                        (actor_id,),
+                    )
+                ).fetchone()
+                if fresh["revision"] != revision:
+                    return
+                if fresh["generation_key"] and not fresh["generation_consumed"]:
+                    original = fresh
+                else:
+                    original = None
+                    await connection.execute(
+                        "UPDATE life.plan_watermarks SET generation_material=%s,generation_key=%s,"
+                        "generation_consumed=false WHERE actor_id=%s",
+                        (material, material_key, actor_id),
+                    )
+            if original is not None:
+                material_key = original["generation_key"]
+                frozen = await self._original_plan(context, original)
+                if frozen is None:
+                    return
+
         async def current_material(connection):
-            current=await (await connection.execute("SELECT revision,planned_watermark,change_watermark FROM life.plan_watermarks WHERE actor_id=%s FOR UPDATE",(actor_id,))).fetchone()
-            return current and current["revision"]==revision and current["planned_watermark"]!=current["change_watermark"]
+            current = await (
+                await connection.execute(
+                    "SELECT revision,planned_watermark,change_watermark,generation_key "
+                    "FROM life.plan_watermarks WHERE actor_id=%s FOR UPDATE",
+                    (actor_id,),
+                )
+            ).fetchone()
+            return (
+                current
+                and current["revision"] == revision
+                and current["planned_watermark"] != current["change_watermark"]
+                and current["generation_key"] == material_key
+            )
+
         try:
-            result = await self.generations.run(material_key, ModelRequest(
-                material_key, attempt_for(material_key), "life.plan", ServiceClass.ELASTIC,
-                context, budget, tuple(pack.messages), system=pack.system, tools=tuple(pack.tools),
-                estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs), max_output_tokens=1500),guard=current_material)
+            result = await self.generations.run(material_key, frozen, guard=current_material)
         except AppError as error:
-            if error.code!="generation_request_expired":
+            if error.code != "generation_request_expired":
                 raise
-            await self._planned(actor_id,revision,mark["change_watermark"],"original_planner_not_registered_before_deadline",model_consumed=True)
+            await self._planned(
+                actor_id,
+                revision,
+                mark["change_watermark"],
+                "original_planner_not_registered_before_deadline",
+                model_consumed=True,
+            )
             return
         if result is None or result.receipt.status != "succeeded":
             status = result.receipt.status if result else "unknown"
+            if status in {"failed", "cancelled"}:
+                await self._planned(
+                    actor_id,
+                    revision,
+                    mark["change_watermark"],
+                    "planner_" + status,
+                    model_consumed=True,
+                )
+                return
             async with self.life.database.transaction() as connection:
-                await connection.execute("UPDATE life.plan_watermarks SET reason=%s WHERE actor_id=%s AND revision=%s",("planner_"+status,actor_id,revision))
-                if status in {"queued","running"}:
-                    await self.life.jobs.enqueue(connection,JobSpec("life.plan",f"plan-observe:{material_key}:{datetime.now(UTC).isoformat()}",
-                        {"actor_id":actor_id,"revision":revision,"context":wire(context)},scheduled_at=datetime.now(UTC)+timedelta(seconds=30),subject_id=actor_id))
+                await connection.execute(
+                    "UPDATE life.plan_watermarks SET reason=%s WHERE actor_id=%s AND revision=%s",
+                    ("planner_" + status, actor_id, revision),
+                )
+                if status in {"queued", "running"}:
+                    await self.life.jobs.enqueue(
+                        connection,
+                        JobSpec(
+                            "life.plan",
+                            f"plan-observe:{material_key}:{datetime.now(UTC).isoformat()}",
+                            {"actor_id": actor_id, "revision": revision, "context": wire(context)},
+                            scheduled_at=datetime.now(UTC) + timedelta(seconds=30),
+                            subject_id=actor_id,
+                        ),
+                    )
             return
-        frozen = await self.generations.request(attempt_for(material_key),context)
-        execution_refs = frozen.source_refs
-        raw = "".join(part.text or "" for part in result.parts if part.kind == "text" and not part.native.get("thought"))
+        # Always interpret the original persisted contract, not a replacement
+        # assembled after a timeout, catalog change or this code upgrade.
+        frozen = await self.generations.request(attempt_for(material_key), context)
         try:
-            decision = json.loads(raw)
-        except (ValueError, TypeError):
-            await self._planned(actor_id, revision, mark["change_watermark"], "planner_output_invalid",model_consumed=True)
+            decision, data = planner.decision(result, frozen)
+        except AppError as error:
+            await self._planned(
+                actor_id, revision, mark["change_watermark"], error.code, model_consumed=True
+            )
             return
-        if not isinstance(decision,dict):
-            raise AppError("invalid_plan")
-        activity = decision.get("activity")
-        if not activity:
-            await self._planned(actor_id, revision, mark["change_watermark"], "no_meaningful_activity",model_consumed=True)
+        activity = decision["activity"]
+        if activity is None:
+            await self._planned(
+                actor_id,
+                revision,
+                mark["change_watermark"],
+                "no_meaningful_activity",
+                model_consumed=True,
+            )
             return
-        if not isinstance(activity, dict) or not isinstance(activity.get("title"), str):
-            raise AppError("invalid_plan")
-        capability_id = activity.get("capability_id")
-        allowed = {choice["definition"].id for choice in choices if self._can_execute(choice)}
-        if capability_id is not None and capability_id not in allowed:
-            raise AppError("capability_unavailable", status=409)
-        if capability_id is None and activity.get("kind") not in {"rest", "reflection", "room"}:
-            raise AppError("capability_required_for_activity")
-        duration=activity.get("duration_minutes",30)
-        if type(duration) is not int or not 15<=duration<=180:
-            raise AppError("invalid_activity_duration")
+        capability_id = activity["capability_id"]
+        available = {
+            definition.id: definition for definition in planner.eligible_capabilities(choices)
+        }
+        if capability_id is not None:
+            definition = available.get(capability_id)
+            if definition is None:
+                await self._planned(
+                    actor_id,
+                    revision,
+                    mark["change_watermark"],
+                    "planner_capability_unavailable",
+                    model_consumed=True,
+                )
+                return
+            if not planner.valid_arguments(definition.input_schema, activity["arguments"]):
+                await self._planned(
+                    actor_id,
+                    revision,
+                    mark["change_watermark"],
+                    "planner_arguments_invalid",
+                    model_consumed=True,
+                )
+                return
+        if activity["goal_id"] is not None and activity["goal_id"] not in {
+            row["id"] for row in goals.items if row["state"] == "active"
+        }:
+            await self._planned(
+                actor_id,
+                revision,
+                mark["change_watermark"],
+                "planner_goal_unavailable",
+                model_consumed=True,
+            )
+            return
+        execution_refs = frozen.source_refs
         await self.life.identity.check(context, execution_refs)
         async with self.life.database.transaction() as connection:
             await self.life.validate_persistence(connection, context, execution_refs)
-            fresh = await (await connection.execute("SELECT * FROM life.plan_watermarks WHERE actor_id=%s FOR UPDATE", (actor_id,))).fetchone()
-            if fresh["revision"] != revision:
+            fresh = await (
+                await connection.execute(
+                    "SELECT * FROM life.plan_watermarks WHERE actor_id=%s FOR UPDATE", (actor_id,)
+                )
+            ).fetchone()
+            if fresh["revision"] != revision or fresh["generation_key"] != material_key:
                 return
             activity_id = str(uuid5(NAMESPACE_URL, f"life:{actor_id}:{revision}"))
             await connection.execute(
                 "INSERT INTO life.activities(id,actor_id,goal_id,title,kind,state,next_due_at,checkpoint_data,scope_ids,source_refs) "
                 "VALUES (%s,%s,%s,%s,%s,'planned',now(),%s,%s,%s) ON CONFLICT DO NOTHING",
-                (activity_id, actor_id, activity.get("goal_id"), activity["title"], activity["kind"],
-                 document({"capability_id": capability_id, "arguments": activity.get("arguments", {}), "reason": decision.get("reason", ""),"duration_minutes":duration}),
-                 list(context.scope_ids), document(execution_refs)))
-            await self.life.jobs.enqueue(connection, JobSpec("life.activity_step", f"activity:{activity_id}:1",
-                {"activity_id": activity_id, "expected_revision": 1, "context": wire(context)}, subject_id=actor_id))
-            await connection.execute("UPDATE life.plan_watermarks SET planned_watermark=change_watermark,generation_consumed=true,last_planned_at=now(),next_due_at=now()+make_interval(secs=>COALESCE((SELECT idle_seconds FROM life.routines WHERE actor_id=life.plan_watermarks.actor_id),5400)),reason=%s WHERE actor_id=%s", (decision.get("reason", "planned"), actor_id))
+                (
+                    activity_id,
+                    actor_id,
+                    activity["goal_id"],
+                    activity["title"],
+                    activity["kind"],
+                    document(
+                        {
+                            "capability_id": capability_id,
+                            "arguments": activity["arguments"],
+                            "reason": decision["reason"],
+                            "duration_minutes": activity["duration_minutes"],
+                            "planning_coverage": data["coverage"],
+                        }
+                    ),
+                    list(context.scope_ids),
+                    document(execution_refs),
+                ),
+            )
+            await self.life.jobs.enqueue(
+                connection,
+                JobSpec(
+                    "life.activity_step",
+                    f"activity:{activity_id}:1",
+                    {"activity_id": activity_id, "expected_revision": 1, "context": wire(context)},
+                    subject_id=actor_id,
+                ),
+            )
+            await connection.execute(
+                "UPDATE life.plan_watermarks SET planned_watermark=change_watermark,generation_consumed=true,"
+                "last_planned_at=now(),next_due_at=now()+make_interval(secs=>COALESCE("
+                "(SELECT idle_seconds FROM life.routines WHERE actor_id=life.plan_watermarks.actor_id),5400)),"
+                "reason=%s WHERE actor_id=%s",
+                ("planned_with_reduced_context" if planner.reduced(data) else "planned", actor_id),
+            )
+
+    async def _original_plan(self, context, mark):
+        """A refreshed clock may observe old work, but never replace its frozen identity."""
+        key = mark["generation_key"]
+        try:
+            frozen = await self.generations.request(attempt_for(key), context)
+        except AppError as error:
+            if error.code != "generation_context_changed":
+                raise
+            result = await self.generations.read(attempt_for(key), context)
+            terminal = result is not None and result.receipt.status in {
+                "succeeded",
+                "failed",
+                "cancelled",
+            }
+            await self._planned(
+                context.actor_id,
+                mark["revision"],
+                mark["change_watermark"],
+                "planner_original_context_changed",
+                model_consumed=terminal,
+                keep_due=True,
+            )
+            return None
+        if frozen is None:
+            # The key was persisted before GenerationRequests registered it. It
+            # contains no frozen budget to authorize a new request after recovery.
+            result = await self.generations.read(attempt_for(key), context)
+            terminal = result is not None and result.receipt.status in {
+                "succeeded",
+                "failed",
+                "cancelled",
+            }
+            await self._planned(
+                context.actor_id,
+                mark["revision"],
+                mark["change_watermark"],
+                "planner_original_request_missing",
+                model_consumed=terminal,
+                keep_due=True,
+            )
+        return frozen
 
     async def recover(self):
-        async with self.life.database.transaction() as connection:
-            rows=await (await connection.execute("SELECT p.actor_id,p.revision,c.context FROM life.plan_watermarks p JOIN life.routines c ON c.actor_id=p.actor_id WHERE p.planned_watermark<>p.change_watermark")).fetchall()
-            for row in rows:
-                await self.life.jobs.enqueue(connection,JobSpec("life.plan",f"plan-recover:{row['actor_id']}:{row['revision']}:{datetime.now(UTC).isoformat()}",
-                    {"actor_id":row["actor_id"],"revision":row["revision"],"context":row["context"]},subject_id=row["actor_id"]))
+        async with self.life.database.transaction(read_only=True) as connection:
+            rows = await (
+                await connection.execute(
+                    "SELECT p.actor_id,p.revision,c.context FROM life.plan_watermarks p "
+                    "JOIN life.routines c ON c.actor_id=p.actor_id "
+                    "WHERE p.planned_watermark<>p.change_watermark"
+                )
+            ).fetchall()
+        for row in rows:
+            # LifeClock has already refreshed lawful routine contexts. A blocked
+            # routine keeps its old context, which must not become new plan work.
+            try:
+                context = context_from_record(row["context"])
+                await self.life.identity.check(context)
+            except AppError as error:
+                if error.status not in {401, 403, 404, 409, 410}:
+                    raise
+                continue
+            async with self.life.database.transaction() as connection:
+                await self.life.jobs.enqueue(
+                    connection,
+                    JobSpec(
+                        "life.plan",
+                        f"plan-recover:{row['actor_id']}:{row['revision']}:{datetime.now(UTC).isoformat()}",
+                        {
+                            "actor_id": row["actor_id"],
+                            "revision": row["revision"],
+                            "context": wire(context),
+                        },
+                        subject_id=row["actor_id"],
+                    ),
+                )
 
     async def _planned(self, actor_id, revision, watermark, reason, *, keep_due=False, model_consumed=False):
         async with self.life.database.transaction() as connection:
             await connection.execute("UPDATE life.plan_watermarks SET planned_watermark=%s,generation_consumed=CASE WHEN %s THEN true ELSE generation_consumed END,last_planned_at=now(),next_due_at=CASE WHEN %s THEN next_due_at ELSE now()+make_interval(secs=>COALESCE((SELECT idle_seconds FROM life.routines WHERE actor_id=life.plan_watermarks.actor_id),5400)) END,reason=%s WHERE actor_id=%s AND revision=%s", (watermark, model_consumed, keep_due, reason, actor_id, revision))
-
-    @staticmethod
-    def _can_execute(choice):
-        return choice.get("can_execute") is True
 
     async def activity_step(self, activity_id, expected_revision, context):
         context = context_from_record(context)
