@@ -103,7 +103,7 @@ def discourse(data, url, cursor=None):
     return {"title": title, "text": "\n\n".join(map(post_text, posts)), "posts": posts,
             "authors": list(dict.fromkeys(post["author"] for post in posts if post["author"])),
             "published_at": data.get("created_at"), "canonical_url": topic_url,
-            "next_url": urljoin(url, f"/t/{topic_id}/posts.json?") + urlencode(
+            "next_url": urljoin(url, f"/t/{topic_id}/posts.json") + "?" + urlencode(
                 [("post_ids[]", item) for item in remaining[:20]]) if remaining and topic_id else None,
             "forum_cursor": {"topic_id": topic_id, "topic_url": topic_url,
                              "title": title, "remaining_post_ids": remaining} if remaining else None}

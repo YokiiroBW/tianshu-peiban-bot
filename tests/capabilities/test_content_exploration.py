@@ -39,11 +39,13 @@ class ForumAttribution(TestCase):
 
         first = discourse({"id": 42, "title": "Original topic", "post_stream": {
             "stream": list(range(1, 46)), "posts": posts(range(1, 21))}}, "https://forum.example/t/42.json")
+        self.assertEqual(urlsplit(first["next_url"]).path, "/t/42/posts.json")
         self.assertEqual(parse_qs(urlsplit(first["next_url"]).query)["post_ids[]"],
                          [str(value) for value in range(21, 41)])
         second = discourse({"post_stream": {"posts": posts(range(21, 41))}},
                            first["next_url"], first["forum_cursor"])
         self.assertEqual(second["title"], "Original topic")
+        self.assertEqual(urlsplit(second["next_url"]).path, "/t/42/posts.json")
         self.assertEqual(parse_qs(urlsplit(second["next_url"]).query)["post_ids[]"],
                          [str(value) for value in range(41, 46)])
         last = discourse({"post_stream": {"posts": posts(range(41, 46))}},
