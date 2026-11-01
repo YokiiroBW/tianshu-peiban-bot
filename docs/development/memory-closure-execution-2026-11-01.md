@@ -39,6 +39,8 @@
 
 MC-A 主实现已合入后，由原 memory_domain 实现者继续 MC-D。D 独占 memory/retrieval.py、embedding.py、tools.py、conversation/context/assembly.py 及其新辅助模块/测试；保留 A 的领域类型/具名迁移归属。F 复用干净的 tianshu-cr-frontend 工作树，分支 codex/memory-frontend-20261101，写 web/ 及自己的交接。
 
+MC-B 主实现与接口收口已交付，MC-F memory_frontend 已从 e752d5c 开始正式实现。MC-C 另获 conversation/generation.py 中 pending_materials 有界原请求读取端口归属，仅用于固定旧 Growth 请求转换；不改默认生成执行语义。MC-G 预备工作树 tianshu-cr-foundation / codex/memory-acceptance-20261101，尚未执行验收。
+
 已明确的实现衔接：Memory.observe_episode 在同一事务通知 Growth；Growth 按实际 Episode 版本登记待处理集合，不能以 max(sequence) 推断已经看过所有提交。Episode 作者字段只保存来源能证实的唯一作者，多作者或历史未知不猜填。Fish 角色音色按用户回复暂不绑定，功能和设置入口仍完整实现。
 
 用户追加独立线上巡检，使用第四个具名子智能体 MC-R/runtime_audit；由于当前仅三个子智能体可同时执行，MC-C 暂停在稳定保存点，巡检结束后恢复。巡检只读取当前生产版本的状态、日志和账本，不调用模型、不发送消息、不验证候选代码。其确证问题加入本队列，配置缺项和没有运行证据分别记录。

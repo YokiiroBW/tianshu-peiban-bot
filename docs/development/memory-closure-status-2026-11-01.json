@@ -26,13 +26,19 @@
     },
     "MC-B": {
       "agent": "memory_pipeline",
-      "state": "implementing",
+      "state": "implemented_not_verified",
       "branch": "codex/memory-pipeline-20261101",
       "interface_commits": [
         "32625c3"
       ],
       "integrated_as": [
-        "ac05b4f"
+        "ac05b4f",
+        "b5fb4bb",
+        "e752d5c"
+      ],
+      "implementation_commits": [
+        "913d106",
+        "6bebf03"
       ]
     },
     "MC-C": {
@@ -68,14 +74,18 @@
       "agent": "memory_domain"
     },
     "MC-F": {
-      "state": "planned",
+      "state": "implementing",
       "scope": "memory/history/recovery frontend and affected capability setup experience",
       "branch": "codex/memory-frontend-20261101",
-      "worktree": "tianshu-cr-frontend"
+      "worktree": "tianshu-cr-frontend",
+      "agent": "memory_frontend",
+      "source_baseline": "e752d5c"
     },
     "MC-G": {
       "state": "planned",
-      "scope": "full targeted acceptance, held-out semantic and cost comparison, cutover and actual receipts"
+      "scope": "full targeted acceptance, held-out semantic and cost comparison, cutover and actual receipts",
+      "branch": "codex/memory-acceptance-20261101",
+      "worktree": "tianshu-cr-foundation"
     }
   },
   "issues": [
