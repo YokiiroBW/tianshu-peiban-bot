@@ -97,6 +97,7 @@ async def test_immediate_maintenance_and_idle_delay_use_database_clock(database,
 async def test_future_maintenance_cannot_run_before_its_database_deadline(database):
     await prepare(database)
     jobs = JobQueue(database.config.dsn)
+    jobs.enqueue = AsyncMock(wraps=jobs.enqueue)
     runtime = SimpleNamespace(database=database, jobs=jobs)
     operation = AsyncMock()
     background = Background(runtime, next_due=AsyncMock(return_value={"known": True, "due": None}))
@@ -104,13 +105,107 @@ async def test_future_maintenance_cannot_run_before_its_database_deadline(databa
     async with database.transaction(read_only=True) as connection:
         due = (await (await connection.execute("SELECT now()+interval '1 hour' AS due")).fetchone())["due"]
     await background.schedule("subscriptions", due)
-    await background.run("subscriptions", wake_generation=1)
+    await background.activate()
+    assert jobs.enqueue.call_args.args[1].scheduled_at == due
+    await background.run("subscriptions", wake_generation=2)
     operation.assert_not_awaited()
     async with database.transaction(read_only=True) as connection:
         row = await (await connection.execute(
             "SELECT next_due_at,wake_generation FROM capabilities.maintenance WHERE name='subscriptions'")).fetchone()
-    assert row == {"next_due_at": due, "wake_generation": 1}
+    assert row == {"next_due_at": due, "wake_generation": 2}
     await background.close()
+
+
+@pytest.mark.asyncio
+async def test_startup_restores_past_due_maintenance_without_a_current_generation_job(database):
+    await prepare(database)
+    async with database.transaction() as connection:
+        await connection.execute(
+            "INSERT INTO capabilities.maintenance(name,owner,lease_until,next_due_at,wake_generation) "
+            "VALUES('subscriptions','',to_timestamp(0),now()-interval '1 hour',7)")
+    jobs = JobQueue(database.config.dsn)
+    runtime = SimpleNamespace(database=database, jobs=jobs)
+    operation = AsyncMock()
+    background = Background(runtime, next_due=AsyncMock(return_value={"known": True, "due": None}))
+    background.start("subscriptions", operation)
+    await background.activate()
+    async with database.transaction(read_only=True) as connection:
+        row = await (await connection.execute(
+            "SELECT *,now() AS database_now FROM capabilities.maintenance WHERE name='subscriptions'")).fetchone()
+        queued = await (await connection.execute(
+            "SELECT key,job_id FROM runtime.job_keys WHERE task='capabilities.media.subscriptions'")).fetchall()
+    assert row["wake_generation"] == 8
+    assert row["next_due_at"] < row["database_now"]
+    assert [item["key"] for item in queued] == ["media-maintenance:subscriptions:8"]
+    assert queued[0]["job_id"] is not None
+    await background.run("subscriptions", wake_generation=7)
+    operation.assert_not_awaited()
+    await background.run("subscriptions", wake_generation=8)
+    operation.assert_awaited_once()
+    await background.close()
+
+
+@pytest.mark.asyncio
+async def test_startup_preserves_busy_owner_and_schedules_after_its_lease(database):
+    await prepare(database)
+    async with database.transaction() as connection:
+        lease = (await (await connection.execute(
+            "INSERT INTO capabilities.maintenance(name,owner,lease_until,next_due_at,wake_generation) "
+            "VALUES('subscriptions','live-owner',now()+interval '1 minute',now()-interval '1 hour',7) "
+            "RETURNING lease_until")).fetchone())["lease_until"]
+    jobs = JobQueue(database.config.dsn)
+    jobs.enqueue = AsyncMock(wraps=jobs.enqueue)
+    runtime = SimpleNamespace(database=database, jobs=jobs)
+    operation = AsyncMock()
+    background = Background(runtime, next_due=AsyncMock(return_value={"known": True, "due": None}))
+    background.start("subscriptions", operation)
+    await background.activate()
+    assert jobs.enqueue.call_args.args[1].scheduled_at == lease
+    await background.run("subscriptions", wake_generation=8)
+    operation.assert_not_awaited()
+    async with database.transaction() as connection:
+        row = await (await connection.execute(
+            "SELECT owner,lease_until,wake_generation FROM capabilities.maintenance WHERE name='subscriptions'")).fetchone()
+        assert row == {"owner": "live-owner", "lease_until": lease, "wake_generation": 8}
+        await connection.execute("UPDATE capabilities.maintenance SET lease_until=now()-interval '1 second' WHERE name='subscriptions'")
+    await background.run("subscriptions", wake_generation=8)
+    operation.assert_awaited_once()
+    await background.close()
+
+
+@pytest.mark.asyncio
+async def test_close_with_pending_change_restarts_on_a_new_native_generation(database):
+    await prepare(database)
+    jobs = JobQueue(database.config.dsn)
+    runtime = SimpleNamespace(database=database, jobs=jobs)
+
+    async def close_after_change():
+        await original.schedule("subscriptions")
+        await original.close()
+
+    original = Background(runtime, next_due=AsyncMock(return_value={"known": True, "due": None}))
+    original.start("subscriptions", close_after_change)
+    await original.activate()
+    await original.run("subscriptions", wake_generation=1)
+    async with database.transaction(read_only=True) as connection:
+        row = await (await connection.execute(
+            "SELECT *,now() AS database_now FROM capabilities.maintenance WHERE name='subscriptions'")).fetchone()
+        queued = await (await connection.execute(
+            "SELECT key FROM runtime.job_keys WHERE task='capabilities.media.subscriptions' ORDER BY key")).fetchall()
+    assert row["wake_generation"] == 2
+    assert row["next_due_at"] <= row["database_now"]
+    assert [item["key"] for item in queued] == ["media-maintenance:subscriptions:1", "media-maintenance:subscriptions:2"]
+    # A new process has new task handlers, with the same persistent job ledger.
+    restarted = Background(SimpleNamespace(database=database, jobs=JobQueue(database.config.dsn)),
+        next_due=AsyncMock(return_value={"known": True, "due": None}))
+    operation = AsyncMock()
+    restarted.start("subscriptions", operation)
+    await restarted.activate()
+    await restarted.run("subscriptions", wake_generation=2)
+    operation.assert_not_awaited()
+    await restarted.run("subscriptions", wake_generation=3)
+    operation.assert_awaited_once()
+    await restarted.close()
 
 
 @pytest.mark.asyncio

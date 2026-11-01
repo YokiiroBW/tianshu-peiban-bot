@@ -111,3 +111,7 @@ Sources 扩权仅限 record_event 的 connection/support_refs，同步 `sources/
 - 任务收尾在同一事务完成 owner CAS、释放 lease、保存观察、保留运行期间更早的业务 due、推进代次及入队；旧 owner 丢失 lease 后无法续排/覆盖新 owner。删除仅为原两段收尾使用的 force 分支，没有新增轮询器，保持关闭状态不入队后继任务。
 
 已有三个 Growth legacy 场景和维护代次场景仍保留；补写 actor/少量或过宽 scope 拒绝、scope 重排仍读取同一个原请求、失效请求精确上下文、应用时钟正负一小时、未来任务不提前执行、运行期间变更与 busy 旧代失效、owner 漂移不可续排用例。维护退避断言以实际调度权威 DB now 为参照，仍要求超过四分钟。相关文件为 `tests/companion/test_growth_legacy_recovery.py`、`tests/conversation/test_generation_recovery.py`、`tests/capabilities/test_runtime_observations.py`；全部未运行，交 root 收齐修复后集中定向复验。迁移和产品装配错误由其他任务负责，本返修未修改迁移或共享装配。
+
+root 静态复阅 `9ebb305` 后指出：普通更早 due 合并不能兼任启动恢复，否则 pastdue 已无当前代任务时会永久不入队。最终补丁将 activate 独立为一次原生持久恢复：保留已有 next_due（NULL 才补 DB now），推进一代并同事务入队；实际 scheduled_at 为 next_due、租约结束、DB now 的最大值，因此已有未来任务不提前、busy owner 不被抢占，旧代 job 自动失效。Caps.initialize 与 Infrastructure.start 的 worker 生命周期仍是唯一 activate 调用方，没有增加周期扫描。
+
+close 后开始收尾的任务只保存 due/观察并释放自己的 lease，不推进没有入队的新代；已经开始收尾的事务捕获同一个 reschedule 决定用于代次和入队，避免关闭落在 SQL 等待期间留下半个决定。补写既有 pastdue/gen7 但无任何有效原生 job 的启动恢复、close 带业务变更后用新 Background/JobQueue 重启、启动保留未来 due、启动保留 busy owner/等租约后恢复场景。只编写、静态阅读 diff 和提交，未运行。

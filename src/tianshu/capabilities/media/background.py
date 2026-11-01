@@ -18,10 +18,20 @@ SCHEDULE = (
 )
 
 
-def maintenance_job(name, row):
+ACTIVATE = (
+    "INSERT INTO capabilities.maintenance(name,owner,lease_until,next_due_at,wake_generation) "
+    "VALUES(%s,'',to_timestamp(0),now(),1) ON CONFLICT(name) DO UPDATE SET "
+    "next_due_at=coalesce(capabilities.maintenance.next_due_at,excluded.next_due_at),"
+    "wake_generation=capabilities.maintenance.wake_generation+1 "
+    "RETURNING wake_generation,next_due_at,GREATEST(next_due_at,lease_until,now()) AS scheduled_at"
+)
+
+
+def maintenance_job(name, row, *, scheduled_at=None):
     generation = row["wake_generation"]
     return JobSpec("capabilities.media." + name, f"media-maintenance:{name}:{generation}",
-        {"wake_generation": generation}, ServiceClass.ELASTIC, scheduled_at=row["next_due_at"])
+        {"wake_generation": generation}, ServiceClass.ELASTIC,
+        scheduled_at=scheduled_at if scheduled_at is not None else row["next_due_at"])
 
 
 def wake_sync(runtime, connection, name, due=None):
@@ -50,7 +60,15 @@ class Background:
 
     async def activate(self):
         for name in self.operations:
-            await self.schedule(name)
+            if self.closed:
+                return
+            # Startup cannot assume that the saved generation still has a live
+            # native job. Re-enqueue one generation without advancing future
+            # work or taking an existing owner's lease.
+            async with self.runtime.database.transaction() as connection:
+                row = await (await connection.execute(ACTIVATE, (name,))).fetchone()
+                await self.runtime.jobs.enqueue(connection,
+                    maintenance_job(name, row, scheduled_at=row["scheduled_at"]))
 
     async def schedule(self, name, due=None):
         """Omitted due means immediately on the queue's database clock."""
@@ -123,6 +141,9 @@ class Background:
                 due = None
                 delay = 10 if self.next_due is None else min(300, 10 * 2**idle_runs)
             state.update(idle_runs=idle_runs, observed_at=now.isoformat(), worker_owner=worker_owner)
+            # One decision governs both the generation and its native job even
+            # if close arrives while the following transaction is awaiting IO.
+            reschedule = not self.closed
             async with self.runtime.database.transaction() as connection:
                 # Finish and the next wake commit together while we still own
                 # this lease. A business change during the operation keeps its
@@ -130,10 +151,10 @@ class Background:
                 queued = await (await connection.execute(
                     "UPDATE capabilities.maintenance SET owner='',lease_until=now(),body=%s::jsonb,"
                     "next_due_at=LEAST(next_due_at,GREATEST(coalesce(%s::timestamptz,now()),"
-                    "now()+%s*interval '1 second')),wake_generation=wake_generation+1 "
+                    "now()+%s*interval '1 second')),wake_generation=wake_generation+%s "
                     "WHERE name=%s AND owner=%s RETURNING wake_generation,next_due_at",
-                    (canonical(state), due, delay, name, owner))).fetchone()
-                if queued and not self.closed:
+                    (canonical(state), due, delay, int(reschedule), name, owner))).fetchone()
+                if queued and reschedule:
                     await self.runtime.jobs.enqueue(connection, maintenance_job(name, queued))
 
     async def snapshot(self):
