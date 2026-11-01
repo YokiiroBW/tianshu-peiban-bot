@@ -139,17 +139,16 @@ class Artifacts:
         media = await asyncio.to_thread(self.files.put_bytes, raw, media_type=mime_type)
         from tianshu.types import OriginKind
 
-        if publish_to_actor:
+        if publish_to_actor or source_refs:
             source = await self.sources.publish_media(
-                context, media, locator=locator, source_refs=tuple(source_refs)
+                context, media, locator=locator, source_refs=tuple(source_refs),
+                target="actor" if publish_to_actor else "current",
             )
             async with self.database.transaction(read_only=True) as conn:
                 descriptions = await self.sources.describe_for_write_on(conn, context, (source,))
             scopes = tuple(descriptions[0]["scope_ids"])
             context = replace(context, scope_ids=scopes, audience=scopes)
         else:
-            if source_refs:
-                raise Fault("explicit_media_publication_required", 400)
             source = await self.sources.register_media(
                 context, media, locator=locator, origin_kind=OriginKind.HUMAN
             )

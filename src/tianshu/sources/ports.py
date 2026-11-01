@@ -68,6 +68,7 @@ class SourcePort(Protocol):
         *,
         locator: dict,
         source_refs: tuple[SourceRef, ...] = (),
+        target: str = "actor",
     ) -> SourceRef: ...
     async def capture(
         self, context: TrustedContext, *, locator: dict, raw: bytes, mime_type: str

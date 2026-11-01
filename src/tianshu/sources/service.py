@@ -580,24 +580,26 @@ class SourceService:
     async def register_media(self, context, media, *, locator, origin_kind=OriginKind.HUMAN):
         return await self._register_media(context, media, locator, origin_kind, None)
 
-    async def publish_media(self, context, media, *, locator, source_refs=()):
-        """Explicitly import original bytes into this actor's existing shared scope.
+    async def publish_media(self, context, media, *, locator, source_refs=(), target="actor"):
+        """Explicitly copy original bytes to an existing actor or intake scope.
 
         Uploaded/private originals remain private. Their withdrawal still invalidates
         this disclosure, while an authorized reader need not read those originals.
         """
-        if not context.actor_id:
+        if not isinstance(target, str) or target not in {"actor", "current"}:
+            raise AppError("invalid_media_target", status=400)
+        if target == "actor" and not context.actor_id:
             raise AppError("actor_required", status=400)
         if "config.publish" not in context.permissions and "*" not in context.permissions:
             raise AppError("forbidden", status=403)
         return await self._register_media(
             context, media, locator, context.origin_kind, None,
-            actor_shared=True, source_refs=tuple(source_refs),
+            actor_shared=target == "actor", source_refs=tuple(source_refs), disclosure=True,
         )
 
     async def _register_media(
         self, context, media, locator, origin_kind, content, *,
-        actor_shared=False, source_refs=(),
+        actor_shared=False, source_refs=(), disclosure=False,
     ):
         await self.check(context, source_refs)
         if not self.files.was_written(media):
@@ -613,14 +615,18 @@ class SourceService:
                 scope = await self.identity.public_scope(context, connection=conn)
                 intake = (scope,)
                 epochs = await self.identity.support_epochs(intake, connection=conn)
-                support_groups = (source_refs,) if source_refs else ()
             else:
                 intake, epochs = await self.identity.intake_scope(context, connection=conn)
+            if disclosure:
+                support_groups = (source_refs,) if source_refs else ()
+            else:
                 support_groups = locator.get("support_groups", ())
             write_context = replace(context, scope_ids=intake, audience=intake)
             identity = {"principal": context.principal_id, "actor": context.actor_id, "locator": locator}
             if actor_shared:
                 identity["shared_scope"] = intake
+            elif disclosure:
+                identity["copy_scope"] = intake
             key = body_hash(identity)
             revision = locator.get("revision", 1)
             return await self._register(
@@ -637,8 +643,8 @@ class SourceService:
                 locator.get("evidence_unit", key),
                 Coverage(True),
                 support_groups,
-                disclosure=actor_shared,
-                support_context=context if actor_shared else None,
+                disclosure=disclosure,
+                support_context=context if disclosure else None,
             )
 
     async def _media(self, context, media):

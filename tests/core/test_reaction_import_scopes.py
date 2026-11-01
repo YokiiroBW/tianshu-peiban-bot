@@ -203,3 +203,56 @@ async def test_archive_disclosure_keeps_original_dependency_and_native_content_d
     assert revoked.value.code == "source_revoked"
     assert not (await core.sources.check_many(bob, (artifact.source_refs,)))[0]
     assert not (await reactions.view(bob))["assets"]
+
+
+@pytest.mark.parametrize("input_kind", ("artifact", "source"))
+async def test_current_import_copies_readable_public_media_and_keeps_withdrawal(core, ordinary_users, input_kind):
+    _, bob = ordinary_users
+    owner, reactions, artifacts = await library(core)
+    raw = gif_bytes()
+    shared = await reactions.import_pack(owner, {
+        "id": "public-original", "name": "Public original", "import_scope": "actor",
+        "files": [{"filename": "public.gif", "data_base64": base64.b64encode(raw).decode()}],
+    })
+    public_asset = next(item for item in (await reactions.view(owner))["assets"] if item["pack_id"] == shared["id"])
+    original = await artifacts.reference(owner, public_asset["media"]["media_id"])
+    if input_kind == "source":
+        selected_media = (await core.sources.read(owner, original.source_refs[0], {}))["media"]
+    else:
+        selected_media = wire(original.media)
+    private_pack = await import_http_arguments(reactions, owner, {
+        "client_request_id": "copy-public-" + input_kind,
+        "id": "private-copy", "name": "Private copy", "import_scope": "current",
+        "files": [{"filename": "copied.gif", "media": selected_media}],
+    })
+    assert private_pack["scope_ids"] != shared["scope_ids"]
+    copied_asset = next(item for item in (await reactions.view(owner))["assets"] if item["pack_id"] == private_pack["id"])
+    private_only = replace(owner, scope_ids=tuple(private_pack["scope_ids"]), audience=tuple(private_pack["scope_ids"]))
+    await core.identity.check_context(private_only)
+    # The caller can read the public original, while the stored target does not
+    # inherit public/other authorized source scopes merely to pass validation.
+    with pytest.raises(Fault):
+        await artifacts.reference(private_only, original.media.media_id)
+    copied = await artifacts.reference(private_only, copied_asset["media"]["media_id"])
+    assert copied.source_refs != original.source_refs
+    assert await artifacts.get(private_only, copied.media.media_id) == (raw, "image/gif")
+    with pytest.raises(Fault):
+        await artifacts.reference(bob, copied.media.media_id)
+    async with core.database.transaction(read_only=True) as conn:
+        stored = await (await conn.execute(
+            "SELECT scopes,audience FROM capabilities.artifacts WHERE media_id=%s", (copied.media.media_id,),
+        )).fetchone()
+        source = await (await conn.execute(
+            "SELECT scope_ids,disclosure FROM sources.versions WHERE source_id=%s AND revision=%s",
+            (copied.source_refs[0].source_id, copied.source_refs[0].revision),
+        )).fetchone()
+    assert stored["scopes"] == stored["audience"] == source["scope_ids"] == private_pack["scope_ids"]
+    assert source["disclosure"] is True
+    await core.sources.invalidate(owner, {
+        "source_id": original.source_refs[0].source_id, "expected_revision": 1,
+        "client_request_id": "forget-public-" + input_kind,
+    }, forgotten=True)
+    with pytest.raises(Fault) as revoked:
+        await artifacts.reference(private_only, copied.media.media_id)
+    assert revoked.value.code == "source_revoked"
+    assert not (await core.sources.check_many(private_only, (copied.source_refs,)))[0]

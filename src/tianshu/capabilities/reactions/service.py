@@ -135,34 +135,16 @@ class Reactions:
                 animated = getattr(image, "n_frames", 1) > 1
                 mime = Image.MIME[image.format]
                 image.verify()
-            if mode == "actor":
-                artifact = await self.artifacts.ingest(
-                    context, raw, mime, publish_to_actor=True, source_refs=support_refs,
-                    locator={
-                        "kind": "reaction_import", "pack_id": pack_id,
-                        "filename": item["filename"], "sha256": sha256(raw).hexdigest(),
-                    },
-                )
-            elif support_refs:
-                artifact = await self.artifacts.put(
-                    target,
-                    raw,
-                    mime,
-                    source_refs=support_refs,
-                    metadata={"kind": "reaction", "pack_id": pack_id},
-                )
-            else:
-                artifact = await self.artifacts.ingest(
-                    target,
-                    raw,
-                    mime,
-                    locator={
-                        "kind": "reaction_import",
-                        "pack_id": pack_id,
-                        "filename": item["filename"],
-                        "sha256": sha256(raw).hexdigest(),
-                    },
-                )
+            # Check selected dependencies with the original authorization. The
+            # source owner records their explicit copy in the actual target scope.
+            write_context = context if mode == "actor" or support_refs else target
+            artifact = await self.artifacts.ingest(
+                write_context, raw, mime, publish_to_actor=mode == "actor", source_refs=support_refs,
+                locator={
+                    "kind": "reaction_import", "pack_id": pack_id,
+                    "filename": item["filename"], "sha256": sha256(raw).hexdigest(),
+                },
+            )
             identifier = digest([pack_id, artifact.media.sha256])
             value = {
                 "id": identifier,
