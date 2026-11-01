@@ -16,6 +16,7 @@ CREATE INDEX claim_derivations ON memory.claim_revisions USING gin(derivation_re
 ALTER TABLE memory.episodes
     ADD COLUMN recorded_at timestamptz,
     ADD COLUMN consolidation_partition_id text,
+    ADD COLUMN speaker_id text,
     ADD COLUMN lexical text NOT NULL DEFAULT '',
     ADD COLUMN search_vector tsvector GENERATED ALWAYS AS(to_tsvector('simple',lexical)) STORED,
     ADD COLUMN embedding vector(1024),
@@ -160,6 +161,9 @@ CREATE INDEX matter_history_sources ON memory.matter_revisions USING gin(source_
 CREATE INDEX episodes_lexical ON memory.episodes USING gin(search_vector);
 CREATE INDEX matters_lexical ON memory.matters USING gin(search_vector);
 CREATE INDEX reflections_lexical ON memory.reflections USING gin(search_vector);
+CREATE INDEX episodes_unindexed ON memory.episodes(episode_id) WHERE active AND lexical='';
+CREATE INDEX matters_unindexed ON memory.matters(matter_id) WHERE active AND lexical='';
+CREATE INDEX reflections_unindexed ON memory.reflections(proposal_id) WHERE active AND lexical='';
 CREATE INDEX episodes_embedding ON memory.episodes USING hnsw(embedding vector_cosine_ops) WHERE embedding IS NOT NULL;
 CREATE INDEX matters_embedding ON memory.matters USING hnsw(embedding vector_cosine_ops) WHERE embedding IS NOT NULL;
 CREATE INDEX reflections_embedding ON memory.reflections USING hnsw(embedding vector_cosine_ops) WHERE embedding IS NOT NULL;

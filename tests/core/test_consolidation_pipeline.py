@@ -7,8 +7,10 @@ import json
 import pytest
 
 from tianshu.memory.extraction_contract import SCHEMA_VERSION
-from tianshu.models.types import ModelCompletion,ModelPart,ModelReceipt,ModelResult
-from tianshu.types import OriginKind
+from tianshu.models.types import ModelCompletion,ModelMessage,ModelPart,ModelReceipt,ModelRequest,ModelResult
+from tianshu.runtime.serialization import wire
+from tianshu.types import OriginKind,RequestBudget,ServiceClass
+from psycopg.types.json import Jsonb
 
 
 class FixedConsolidator:
@@ -205,3 +207,98 @@ async def test_reflection_time_view_and_frozen_episode_version_are_explicit(core
     assert not past.items
     valid=await core.memory.reflection_page(alice,time_mode='valid_at',valid_at=datetime.now(UTC))
     assert valid.items and not valid.coverage.complete and 'reflection_valid_time_unknown' in valid.coverage.missing
+
+
+async def test_pending_receipt_reports_only_frozen_targets_without_inventing_results(core,ordinary_users):
+    alice,_=ordinary_users
+    model=FixedConsolidator(unknown=True)
+    configure(core,model)
+    episode=await observe(core,alice,'pending_targets','尾部事实')
+    before=await row(core,episode)
+    await core.workers.consolidate(before['consolidation_partition_id'])
+    page=await core.memory.episodes_by_refs(alice,((episode.episode_id,episode.revision),))
+    status=page.items[0].consolidation
+    assert {'subject_id':alice.person_id} in status['targets']
+    assert not status['target_results'] and all(set(item)=={'subject_id'} for item in status['targets'])
+    async with core.database.transaction(read_only=True) as conn:
+        current=await (await conn.execute('SELECT * FROM memory.episodes WHERE episode_id=%s',(episode.episode_id,))).fetchone()
+        batch=await (await conn.execute('SELECT * FROM memory.consolidation_batches WHERE batch_id=%s',(status['batch_id'],))).fetchone()
+    hidden=core.workers.recovery._status_value(current,batch,{batch['batch_id']:False})
+    assert not hidden['targets'] and not hidden['target_results']
+
+
+async def test_legacy_application_error_is_converted_once_and_original_attempt_is_only_observed(core,ordinary_users):
+    alice,_=ordinary_users
+    episode=await observe(core,alice,'legacy_invalid_predicate','旧版真实可读原件')
+    current=await row(core,episode)
+    step_id=f'extract:{episode.episode_id}:{current["sequence"]}:0'
+    material={'allowed_subject_ids':[alice.person_id],'occurred_at':datetime.now(UTC).isoformat(),
+        'sources':[{'origin_kind':'human','speaker_id':alice.person_id,
+            'coverage':{'ranges':[{'start':0,'end':8}],'total':8}}]}
+    request=ModelRequest('legacy_fixed_intent','legacy_fixed_attempt','text',ServiceClass.ELASTIC,alice,
+        RequestBudget(datetime.now(UTC)+timedelta(seconds=10)),
+        (ModelMessage('user',(ModelPart('text',text=json.dumps(material)),)),),source_refs=episode.source_refs)
+    receipt=ModelReceipt(request.attempt_id,request.intent_id,'succeeded','submitted','fixture',1,
+        'fixture','fixture','openai.chat','fixture')
+    result=ModelResult((ModelPart('text',text=json.dumps({'claims':[{'subject_id':alice.person_id,
+        'predicate':'非法旧谓词','value':'苹果','source_indexes':[0]}],'matters':[]})),),receipt)
+    class OriginalBroker:
+        def __init__(self):
+            self.observed=[]
+            self.status_calls=[]
+        async def generate(self,request):
+            raise AssertionError('legacy attempt must never be resubmitted')
+        async def status(self,attempt_id):
+            self.status_calls.append(attempt_id)
+            return receipt
+        async def result(self,attempt_id,*,context):
+            self.observed.append(attempt_id)
+            return result
+    model=OriginalBroker()
+    core.memory.models=core.steps.models=model
+    async with core.database.transaction() as conn:
+        await conn.execute("UPDATE memory.episodes SET consolidation_partition_id=NULL,extraction_state='invalid_claim_predicate',"
+            "extraction_cursor=%s WHERE episode_id=%s",(Jsonb({'source_index':0,'step':0}),episode.episode_id))
+        await conn.execute("INSERT INTO memory.model_steps(step_id,request,state) VALUES(%s,%s,'succeeded')",(step_id,Jsonb(wire(request))))
+    await core.workers.recovery.recover()
+    await core.workers.recovery.recover()
+    await core.workers.recovery.recover()
+    after=await row(core,episode)
+    assert after['extraction_state']=='pending' and after['extraction_cursor']['protocol']==SCHEMA_VERSION
+    assert model.status_calls==[request.attempt_id] and model.observed==[request.attempt_id]
+    async with core.database.transaction(read_only=True) as conn:
+        batches=await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE schema_version='memory.legacy-extraction.v0' "
+            "AND manifest->'episodes' @> %s",(Jsonb([{'episode_id':episode.episode_id,'sequence':current['sequence']}]),))).fetchall()
+        stored=await (await conn.execute('SELECT request,state FROM memory.model_steps WHERE step_id=%s',(step_id,))).fetchone()
+    assert len(batches)==1 and batches[0]['commit_refs']['action']=='application_abandoned'
+    assert batches[0]['manifest']['conversion']['previous_state']=='invalid_claim_predicate'
+    assert stored['request']['attempt_id']==request.attempt_id and stored['state']=='succeeded'
+
+
+@pytest.mark.parametrize('state',['completed','completed_with_missing','unproven_arbitrary_error'])
+async def test_legacy_conversion_does_not_replay_completed_or_unproven_history(core,ordinary_users,state):
+    alice,_=ordinary_users
+    episode=await observe(core,alice,'legacy_history_'+state,'不应重播的历史')
+    async with core.database.transaction() as conn:
+        await conn.execute("UPDATE memory.episodes SET consolidation_partition_id=NULL,extraction_state=%s,extraction_cursor='{}' WHERE episode_id=%s",
+                           (state,episode.episode_id))
+    await core.workers.recovery.recover()
+    assert (await row(core,episode))['extraction_state']==state
+    async with core.database.transaction(read_only=True) as conn:
+        count=await (await conn.execute("SELECT count(*) AS n FROM memory.consolidation_batches WHERE schema_version='memory.legacy-extraction.v0'")).fetchone()
+    assert count['n']==0
+
+
+async def test_legacy_without_originals_gets_one_terminal_receipt_and_no_model_request(core,ordinary_users):
+    alice,_=ordinary_users
+    episode=await observe(core,alice,'legacy_missing_originals','之后缺失的原件')
+    async with core.database.transaction() as conn:
+        await conn.execute("UPDATE memory.episodes SET consolidation_partition_id=NULL,source_refs='[]',extraction_state='invalid_claim_predicate',"
+            "extraction_cursor=%s WHERE episode_id=%s",(Jsonb({'step':0}),episode.episode_id))
+    await core.workers.recovery.recover()
+    await core.workers.recovery.recover()
+    after=await row(core,episode)
+    assert after['extraction_state']=='legacy_abandoned' and 'legacy_original_evidence_missing' in after['extraction_missing']
+    async with core.database.transaction(read_only=True) as conn:
+        batches=await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE schema_version='memory.legacy-extraction.v0'")).fetchall()
+    assert len(batches)==1 and batches[0]['status']=='revoked'

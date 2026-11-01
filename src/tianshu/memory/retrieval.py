@@ -1,29 +1,28 @@
-"""Authorized native lexical/vector candidates, bounded fusion, MMR and optional rerank."""
+"""One multi-type evidence query for chat, tools and bounded consolidation reads."""
 
 from datetime import UTC, datetime, timedelta
 import math
 from uuid import uuid4
+
 import aiohttp
 import psycopg
 
-from pgvector import Vector
-from pgvector.psycopg import register_vector_async
-
 from tianshu.models.types import ModelRequest
+from tianshu.runtime.api import Page
 from tianshu.runtime.errors import AppError
-from tianshu.types import ContextContribution, RequestBudget, ServiceClass
 from tianshu.sources.dependencies import unique_refs
-from .claims import ELIGIBLE_SCOPES, lexical
+from tianshu.types import ContextContribution, Coverage, RequestBudget, ServiceClass
 from . import codec
+from .candidates import CandidateStore
+from .domain_utils import lexical
+from .evidence import build_evidence_unit, select_supports_on
+from .indexing import evidence_text
+from .query_plan import parse_plan, read_cursor, write_cursor
+from .types import MemoryQueryPlan, RecordRef
 
 
-SCOPED = (
-    "c.actor_id=%s AND r.state='active' AND "
-    + ELIGIBLE_SCOPES
-    + " AND (r.valid_from IS NULL OR r.valid_from<=%s) AND (r.valid_until IS NULL OR r.valid_until>%s)"
-)
-AUTHORIZED = SCOPED + " AND sources.any_support_usable(r.support_groups,%s::text[])"
-JOIN = " FROM memory.claims c JOIN memory.claim_revisions r ON r.claim_id=c.claim_id AND r.revision=c.current_revision "
+def record_key(row):
+    return row["_kind"], row["_id"], row["revision"]
 
 
 def similarity(left, right):
@@ -31,25 +30,31 @@ def similarity(left, right):
         a, b = left["vector"], right["vector"]
         denominator = math.sqrt(sum(v * v for v in a) * sum(v * v for v in b))
         return sum(a * b for a, b in zip(a, b)) / denominator if denominator else 0.0
-    a, b = set(left["lexical"].split()), set(right["lexical"].split())
+    a = set((left.get("lexical") or lexical(left["_content"])).split())
+    b = set((right.get("lexical") or lexical(right["_content"])).split())
     return len(a & b) / max(len(a | b), 1)
 
 
 def mmr(candidates, limit, weight=0.72):
-    remaining = list(candidates)
-    chosen = []
-    maxima = {row["claim_id"]: 0.0 for row in remaining}
+    remaining, chosen = list(candidates), []
+    maxima = {record_key(row): 0.0 for row in remaining}
     while remaining and len(chosen) < limit:
-        selected = max(
-            remaining,
-            key=lambda row: weight * row["score"] - (1 - weight) * maxima[row["claim_id"]],
-        )
+        selected = max(remaining, key=lambda row: weight * row["score"] -
+                       (1 - weight) * maxima[record_key(row)])
         remaining.remove(selected)
         chosen.append(selected)
         for row in remaining:
-            key = row["claim_id"]
+            key = record_key(row)
             maxima[key] = max(maxima[key], similarity(row, selected))
     return chosen
+
+
+def contributions(units):
+    """A complete evidence unit is also the indivisible context budget unit."""
+    priorities = {"matter": 75, "claim": 60, "hypothesis": 55, "episode": 50, "reflection": 40}
+    return tuple(ContextContribution("memory_evidence", evidence_text(unit), unit.source_refs,
+        unit.scope_ids, priorities[unit.kind], False, f"{unit.kind}:{unit.id}:{unit.revision}")
+        for unit in units)
 
 
 class MemoryRetrieval:
@@ -57,231 +62,219 @@ class MemoryRetrieval:
         self.memory, self.embeddings = memory, embeddings
         self.database, self.models = memory.database, memory.models
         self.settings = settings or {}
+        self.store = CandidateStore(memory, self.settings)
 
     @staticmethod
     def phase_budget(parent, seconds):
-        deadline = min(
-            parent.deadline_at, datetime.now(UTC) + timedelta(seconds=max(seconds, 0.01))
-        )
-        return RequestBudget(
-            deadline, trace_id=parent.trace_id, cancellation_id=parent.cancellation_id
-        )
+        available = parent.remaining()
+        # Optional remote work leaves time for authoritative SQL/source rechecks.
+        seconds = min(max(seconds, 0.01), max(available - min(0.5, available / 2), 0.01))
+        deadline = min(parent.deadline_at, datetime.now(UTC) + timedelta(seconds=seconds))
+        return RequestBudget(deadline, trace_id=parent.trace_id, cancellation_id=parent.cancellation_id)
 
-    async def _lexical(self, context, query, budget):
-        now = datetime.now(UTC)
-        parameters = (context.actor_id, list(context.scope_ids), now, now, list(context.scope_ids))
-        tokens = lexical(query).split()[:128]
-        tsquery = " | ".join("'" + token.replace("'", "''") + "'" for token in tokens)
-        if not tsquery:
-            return []
-        async with self.database.transaction(budget, read_only=True) as conn:
-            return await (
-                await conn.execute(
-                    "SELECT r.*,c.actor_id,ts_rank_cd(r.search_vector,to_tsquery('simple',%s)) AS relevance "
-                    + JOIN
-                    + " WHERE "
-                    + AUTHORIZED
-                    + " AND r.search_vector@@to_tsquery('simple',%s) "
-                    "ORDER BY relevance DESC,r.observed_at DESC,c.claim_id LIMIT 96",
-                    (tsquery, *parameters, tsquery),
-                )
-            ).fetchall()
+    async def _hydrate_on(self, conn, context, plan, rows):
+        selected = await select_supports_on(self.memory.sources, conn, context, rows)
+        usable = [(row, refs) for row, refs in zip(rows, selected) if refs is not None]
+        links = await self.memory.claims.revisions.links.for_records_on(conn, context,
+            [RecordRef(row["_kind"], row["_id"], row["revision"]) for row, _ in usable],
+            historical=plan.time_mode != "current", known_at=plan.known_at)
+        moment = plan.valid_at or plan.known_at or datetime.now(UTC)
+        result = []
+        for row, refs in usable:
+            related = tuple(link for link in links.get(row["_id"], ())
+                if (link.valid_from is None or link.valid_from <= moment)
+                and (link.valid_until is None or moment < link.valid_until))
+            if any(link.relation_kind == "supersedes" and link.to_ref.kind == row["_kind"]
+                   and link.to_ref.id == row["_id"] for link in related):
+                continue
+            if plan.matter_refs and row["_kind"] in {"claim", "hypothesis"} and not any(
+                link.relation_kind == "about_matter" and any(endpoint.kind == "matter" and
+                    endpoint.id in plan.matter_refs for endpoint in (link.from_ref, link.to_ref))
+                for link in related):
+                continue
+            public = {**row, "scope_ids": sorted(set(row["scope_ids"]) & set(context.scope_ids))}
+            if row["_kind"] in {"claim", "hypothesis"}:
+                value = codec.claim(public, refs, relations=related)
+            elif row["_kind"] == "matter":
+                claim_ids = tuple(endpoint.id for link in related if link.relation_kind == "about_matter"
+                    for endpoint in (link.from_ref, link.to_ref) if endpoint.kind in {"claim", "hypothesis"})
+                value = codec.matter(public, claim_ids, refs, relations=related)
+            else:
+                public["source_refs"] = refs
+                value = codec.episode(public) if row["_kind"] == "episode" else codec.reflection(public)
+            result.append((row, build_evidence_unit(value, relations=related, time_mode=plan.time_mode)))
+        return result
 
-    async def _vectors(self, context, values, fingerprint, budget):
-        now = datetime.now(UTC)
-        parameters = (
-            context.actor_id,
-            list(context.scope_ids),
-            now,
-            now,
-            fingerprint,
-        )
-        profile = " AND r.embedding_profile=%s AND r.embedding IS NOT NULL"
-        scoped = SCOPED + profile
-        eligible = AUTHORIZED + profile
-        authorized_parameters = (*parameters[:-1], list(context.scope_ids), fingerprint)
-        exact = (
-            "WITH scoped AS MATERIALIZED(SELECT r.claim_id,r.revision,r.embedding,r.support_groups "
-            + JOIN
-            + " WHERE "
-            + scoped
-            + "), support_sets AS MATERIALIZED(SELECT proofs.support_groups,"
-            "sources.any_support_usable(proofs.support_groups,%s::text[]) AS usable "
-            "FROM(SELECT DISTINCT support_groups FROM scoped) proofs), "
-            "allowed AS MATERIALIZED(SELECT s.claim_id,s.revision,s.embedding FROM scoped s "
-            "JOIN support_sets p USING(support_groups) WHERE p.usable), "
-            "nearest AS(SELECT claim_id,revision,embedding<=>%s AS distance FROM allowed ORDER BY distance LIMIT 96) "
-            "SELECT r.*,c.actor_id,r.embedding::real[] AS vector,1-n.distance AS relevance FROM nearest n "
-            "JOIN memory.claim_revisions r USING(claim_id,revision) JOIN memory.claims c USING(claim_id) ORDER BY n.distance"
-        )
-        exact_parameters = (*parameters, list(context.scope_ids), Vector(values))
-        async with self.database.transaction(budget, read_only=True) as conn:
-            await register_vector_async(conn)
-            count = await (
-                await conn.execute(
-                    "SELECT count(*) AS count FROM(SELECT 1 "
-                    + JOIN
-                    + " WHERE "
-                    + scoped
-                    + " LIMIT 2001) q",
-                    parameters,
-                )
-            ).fetchone()
-            # An upper bound selects the distance algorithm; it is never returned or
-            # ranked. Source validity is checked once per distinct support set below.
-            # Counting through that recursive predicate duplicated every proof per row
-            # before the actual query and could consume the entire optional SQL budget.
-            if count["count"] <= 2000:
-                rows = await (await conn.execute(exact, exact_parameters)).fetchall()
-                return rows, False
-            version = await (
-                await conn.execute("SELECT extversion FROM pg_extension WHERE extname='vector'")
-            ).fetchone()
-            if not version or tuple(int(part) for part in version["extversion"].split(".")[:2]) < (
-                0,
-                8,
-            ):
-                raise AppError("pgvector_iterative_scan_required", status=503)
-            await conn.execute(
-                "SELECT set_config('hnsw.iterative_scan','strict_order',true),set_config('hnsw.ef_search',%s,true),"
-                "set_config('hnsw.max_scan_tuples',%s,true),set_config('hnsw.scan_mem_multiplier','2',true)",
-                (
-                    str(min(max(int(self.settings.get("ef_search", 128)), 96), 1000)),
-                    str(min(max(int(self.settings.get("max_scan_tuples", 20000)), 1000), 50000)),
-                ),
-            )
-            rows = await (
-                await conn.execute(
-                    "SELECT r.*,c.actor_id,r.embedding::real[] AS vector,1-(r.embedding<=>%s) AS relevance "
-                    + JOIN
-                    + " WHERE "
-                    + eligible
-                    + " ORDER BY r.embedding<=>%s LIMIT 96",
-                    (Vector(values), *authorized_parameters, Vector(values)),
-                )
-            ).fetchall()
-            if len(rows) < 96:
-                # Sparse authorization can exhaust the bounded ANN scan. Exact distance stays inside PG.
-                rows = await (await conn.execute(exact, exact_parameters)).fetchall()
-            return rows, len(rows) < 96
+    async def _check_units_on(self, conn, context, values):
+        checked, batch, size = [], [], 0
+        for unit in values:
+            if len(unit.source_refs) > 2048:
+                raise AppError("memory_evidence_source_budget_exceeded", status=503)
+            if batch and size + len(unit.source_refs) > 2048:
+                checked.extend(await self.memory.sources.check_many_on(conn, context, tuple(batch)))
+                batch, size = [], 0
+            batch.append(unit.source_refs)
+            size += len(unit.source_refs)
+        if batch:
+            checked.extend(await self.memory.sources.check_many_on(conn, context, tuple(batch)))
+        return checked
 
-    async def search(self, context, query, budget, *, limit=12, source_refs=()):
-        budget.check()
-        await self.memory.identity.check_context(context)
-        if not context.actor_id or not query:
+    async def _checked(self, context, plan, rows, budget, *, snapshot=None):
+        """Read the selected versions and their complete relations again after ranking."""
+        if not rows:
             return (), ()
-        limit = min(max(int(limit), 1), 32)
+        async with self.database.transaction(budget, read_only=True) as conn:
+            reread = await self.store.reread(conn, context, plan, rows, snapshot=snapshot)
+            missing = ["memory_revision_changed"] if any(row is None for row in reread) else []
+            hydrated = await self._hydrate_on(conn, context, plan, [row for row in reread if row is not None])
+            if len(hydrated) < sum(row is not None for row in reread):
+                missing.append("memory_evidence_unavailable")
+            checked = await self._check_units_on(conn, context, [unit for _, unit in hydrated])
+        if not all(checked):
+            missing.append("memory_evidence_unavailable")
+        return tuple((row, unit) for (row, unit), valid in zip(hydrated, checked) if valid), tuple(missing)
+
+    async def _ranked(self, context, plan, budget, *, limit, source_refs, service_class):
         missing = []
-        lexical_rows = await self._lexical(context, query, budget)
+        lexical_rows = await self.store.lexical(context, plan, budget)
         vector_rows = []
-        if self.settings.get("vector", True) and budget.remaining() > 0.1:
+        if plan.query and self.settings.get("vector", True) and budget.remaining() > 0.1:
             phase = "embedding"
             try:
-                embedding_budget = self.phase_budget(
-                    budget, float(self.settings.get("embedding_seconds", 1.0))
-                )
-                values, fingerprint = await self.embeddings.vector(
-                    context,
-                    query,
-                    embedding_budget,
-                    intent="memory-query:" + str(uuid4()),
-                    query=True,
-                    service_class=ServiceClass.INTERACTIVE,
-                    source_refs=source_refs,
-                )
+                values, fingerprint = await self.embeddings.vector(context, plan.query,
+                    self.phase_budget(budget, float(self.settings.get("embedding_seconds", 1.0))),
+                    intent="memory-query:" + str(uuid4()), query=True,
+                    service_class=service_class, source_refs=source_refs)
                 phase = "vector"
-                vector_budget = self.phase_budget(
-                    budget, float(self.settings.get("vector_sql_seconds", 0.8))
-                )
-                vector_rows, incomplete = await self._vectors(
-                    context, values, fingerprint, vector_budget
-                )
+                self.store.settings = self.settings
+                vector_rows, incomplete = await self.store.vectors(context, plan, values, fingerprint,
+                    self.phase_budget(budget, float(self.settings.get("vector_sql_seconds", 0.8))))
                 if incomplete:
                     missing.append("vector_candidate_budget")
             except (AppError, TimeoutError, aiohttp.ClientError, psycopg.Error) as exc:
-                if phase == "vector" and isinstance(
-                    exc, (TimeoutError, psycopg.errors.QueryCanceled)
-                ):
-                    missing.append("vector_query_timeout")
-                else:
-                    missing.append(getattr(exc, "code", phase + "_unavailable"))
+                missing.append("vector_query_timeout" if phase == "vector" and isinstance(
+                    exc, (TimeoutError, psycopg.errors.QueryCanceled)) else getattr(exc, "code", phase + "_unavailable"))
         fused = {}
-        for rows in (lexical_rows, vector_rows):
-            for rank, row in enumerate(rows):
-                current = fused.setdefault(row["claim_id"], {**row, "score": 0.0})
+        for route in (lexical_rows, vector_rows):
+            for rank, row in enumerate(route):
+                current = fused.setdefault(record_key(row), {**row, "score": 0.0})
                 current["score"] += 1 / (60 + rank + 1)
                 if row.get("vector") is not None:
                     current["vector"] = row["vector"]
         maximum = max((row["score"] for row in fused.values()), default=1)
         for row in fused.values():
             row["score"] /= maximum
-        ranked = mmr(
-            sorted(fused.values(), key=lambda row: row["score"], reverse=True)[:128], max(limit, 24)
-        )
-        async with self.database.transaction(read_only=True) as conn:
-            supports = await self.memory.claims.selected_groups(conn, context, ranked)
-        ranked = [
-            {**row, "selected_refs": refs}
-            for row, refs in zip(ranked, supports)
-            if refs is not None
-        ]
-        if self.settings.get("rerank", False) and ranked and budget.remaining() > 0.1:
-            phase = self.phase_budget(budget, float(self.settings.get("rerank_seconds", 0.8)))
-            request = ModelRequest(
-                "memory-rerank:" + str(uuid4()),
-                str(uuid4()),
-                "rerank",
-                ServiceClass.INTERACTIVE,
-                context,
-                phase,
-                (),
-                required_capabilities=frozenset({"rerank"}),
-                max_output_tokens=0,
-                native_payload={
-                    "query": query,
-                    "documents": [row["content"] for row in ranked],
-                    "top_n": limit,
-                },
-                source_refs=unique_refs(
-                    source_refs, (ref for row in ranked for ref in row["selected_refs"])
-                ),
-            )
+        count = min(int(plan.budget.get("max_candidates", 128)), 128)
+        ranked = mmr(sorted(fused.values(), key=lambda row: row["score"], reverse=True)[:count], max(limit, 24))
+        checked, unavailable = await self._checked(context, plan, ranked, budget)
+        missing.extend(unavailable)
+        ranked = list(checked)
+        if plan.query and self.settings.get("rerank", False) and ranked and budget.remaining() > 0.1:
+            request = ModelRequest("memory-rerank:" + str(uuid4()), str(uuid4()), "rerank",
+                service_class, context,
+                self.phase_budget(budget, float(self.settings.get("rerank_seconds", 0.8))), (),
+                required_capabilities=frozenset({"rerank"}), max_output_tokens=0,
+                native_payload={"query": plan.query, "documents": [evidence_text(unit) for _, unit in ranked], "top_n": limit},
+                source_refs=unique_refs(source_refs, *(unit.source_refs for _, unit in ranked)))
             try:
                 result = await self.models.generate(request)
-                indexes = (
-                    (result.native_response or {}).get("results", ())
-                    if result.receipt.status == "succeeded"
-                    else ()
-                )
-                ordered = []
-                seen = set()
+                indexes = (result.native_response or {}).get("results", ()) if result.receipt.status == "succeeded" else ()
+                order, seen = [], set()
                 for item in indexes:
                     index = item.get("index") if isinstance(item, dict) else None
                     if type(index) is int and 0 <= index < len(ranked) and index not in seen:
                         seen.add(index)
-                        ordered.append(ranked[index])
-                if ordered:
-                    ranked = ordered + [
-                        row for index, row in enumerate(ranked) if index not in seen
-                    ]
+                        order.append(ranked[index])
+                if order:
+                    ranked = order + [value for index, value in enumerate(ranked) if index not in seen]
                 else:
                     missing.append("rerank_unavailable")
             except (AppError, TimeoutError, aiohttp.ClientError):
                 missing.append("rerank_unavailable")
-        selected = ranked[:limit]
-        checked = await self.memory.sources.check_many(
-            context, tuple(row["selected_refs"] for row in selected)
-        )
-        return tuple(
-            ContextContribution(
-                "memory_claim",
-                row["content"],
-                tuple(row["selected_refs"]),
-                tuple(context.scope_ids),
-                60,
-                False,
-                str(row["revision"]),
-            )
-            for row, valid in zip(selected, checked)
-            if valid
-        ), tuple(missing)
+        # Rerank can outlive a correction, endpoint withdrawal or permission change.
+        # Rehydration keeps the final answer and its source closure indivisible.
+        final, unavailable = await self._checked(context, plan, [row for row, _ in ranked], budget)
+        missing.extend(unavailable)
+        return tuple(unit for _, unit in final[:limit]), tuple(dict.fromkeys(missing))
+
+    async def query(self, context, plan, budget, *, source_refs=(), cursor=None, limit=50,
+                    service_class=ServiceClass.INTERACTIVE):
+        budget.check()
+        plan = parse_plan(plan)
+        await self.memory.identity.check(context, source_refs)
+        if not context.actor_id:
+            raise AppError("actor_required")
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise AppError("invalid_memory_query_limit")
+        missing = list(await self.store.coverage_gaps(context, plan, budget))
+        next_cursor = None
+        if plan.coverage_mode == "list":
+            after, snapshot = read_cursor(context, plan, cursor)
+            rows = await self.store.page(context, plan, budget, after=after, snapshot=snapshot, limit=limit)
+            checked, unavailable = await self._checked(context, plan, rows[:limit], budget, snapshot=snapshot)
+            missing.extend(unavailable)
+            units = tuple(unit for _, unit in checked)
+            if len(rows) > limit:
+                next_cursor = write_cursor(context, plan, rows[limit - 1], snapshot)
+        else:
+            if cursor is not None:
+                raise AppError("memory_ranked_query_has_no_cursor")
+            units, unavailable = await self._ranked(context, plan, budget, limit=min(limit, 32),
+                source_refs=source_refs, service_class=service_class)
+            missing.extend((*unavailable, "ranked_selection"))
+            rows, checked = (), ()
+        maximum = plan.budget.get("max_tokens")
+        if maximum:
+            fitted, consumed = [], 0
+            for unit in units:
+                # Conservative UTF-8 token upper bound also used by the default assembler.
+                size = len(evidence_text(unit).encode("utf-8")) + 32
+                if consumed + size > maximum:
+                    if not fitted:
+                        raise AppError("memory_evidence_unit_budget_exceeded", status=413,
+                            details={"kind": unit.kind, "id": unit.id, "revision": unit.revision,
+                                     "minimum_tokens": size, "whole_units": True})
+                    missing.append("memory_query_budget")
+                    if plan.coverage_mode == "list":
+                        prior = next(row for row, value in checked if value.id == fitted[-1].id and value.kind == fitted[-1].kind)
+                        next_cursor = write_cursor(context, plan, prior, snapshot)
+                    break
+                fitted.append(unit)
+                consumed += size
+            units = tuple(fitted)
+        for unit in units:
+            missing.extend(unit.coverage.missing)
+        missing = tuple(dict.fromkeys(missing))
+        return Page(units, next_cursor, Coverage(plan.coverage_mode == "list" and not next_cursor and not missing,
+            missing=missing, representation="memory_evidence",
+            ranges=({"selection": plan.coverage_mode, "time_mode": plan.time_mode,
+                     "evidence_kinds": plan.evidence_kinds, "returned": len(units),
+                     "as_of": snapshot.isoformat() if plan.coverage_mode == "list" else None,
+                     "literal_query_filter": bool(plan.query) and plan.coverage_mode == "list"},)))
+
+    async def candidates(self, context, query, budget, *, subject_ids=(), matter_refs=(),
+                         kinds=("claim", "hypothesis", "matter"), limit=32):
+        page = await self.query(context, MemoryQueryPlan(query=query, subject_ids=tuple(subject_ids),
+            matter_refs=tuple(matter_refs), evidence_kinds=tuple(kinds)), budget,
+            limit=min(max(int(limit), 1), 32), service_class=ServiceClass.ELASTIC)
+        return tuple(page.items)
+
+    async def revalidate(self, context, records, budget):
+        """Recheck current automatic context material without rebinding a stale version."""
+        budget.check()
+        await self.memory.identity.check(context)
+        if len(records) > 128:
+            raise AppError("memory_context_candidates_too_large")
+        kinds = tuple(dict.fromkeys(record.kind for record in records))
+        if not kinds:
+            return (), ()
+        plan = parse_plan(MemoryQueryPlan(evidence_kinds=kinds))
+        rows = [{"_kind": record.kind, "_id": record.id, "revision": record.revision} for record in records]
+        values, missing = await self._checked(context, plan, rows, budget)
+        return tuple(unit for _, unit in values), missing
+
+    async def search(self, context, query, budget, *, limit=12, source_refs=()):
+        """Existing context API, now backed solely by complete multi-type evidence."""
+        page = await self.query(context, MemoryQueryPlan(query=query), budget,
+                                source_refs=source_refs, limit=min(max(int(limit), 1), 32))
+        return contributions(page.items), tuple(item for item in page.coverage.missing if item != "ranked_selection")

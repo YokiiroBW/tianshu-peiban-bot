@@ -68,13 +68,22 @@ class MemoryWorkers:
                 return
             value = (codec.claim(row,selected) if kind in {"claim","hypothesis"} else
                 codec.matter(row,selected_refs=selected) if kind == "matter" else getattr(codec,kind)(row))
-            content = index_text(build_evidence_unit(value))
+            unit = build_evidence_unit(value)
+            selected = unit.source_refs
+            if not all(await self.sources.check_many_on(conn,context,(selected,))):
+                return
+            content = index_text(unit)
         state_clause = "state='active' AND current_status='current'" if kind in {"claim","hypothesis"} else "active"
+        if kind in {"claim","hypothesis"}:
+            state_clause += (" AND EXISTS(SELECT 1 FROM memory.claims head WHERE head.claim_id=memory.claim_revisions.claim_id "
+                             "AND head.current_revision=memory.claim_revisions.revision)")
         async with self.database.transaction() as conn:
             if not await self.sources.validate_persistence(conn,context,selected):
                 return
-            await conn.execute(f"UPDATE memory.{table} SET lexical=%s WHERE {key}=%s AND revision=%s AND {state_clause}",
-                (lexical(content),id,revision))
+            written = await (await conn.execute(f"UPDATE memory.{table} SET lexical=%s WHERE {key}=%s AND revision=%s AND {state_clause} RETURNING revision",
+                (lexical(content),id,revision))).fetchone()
+            if not written:
+                return
         try:
             vector,fingerprint = await self.embeddings.vector(context,content,
                 RequestBudget(datetime.now(UTC)+timedelta(seconds=120)),

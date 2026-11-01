@@ -1,6 +1,7 @@
 """Complete evidence construction and explicit bitemporal version selection rules."""
 
 from datetime import UTC, datetime
+from collections.abc import Mapping
 import json
 
 from tianshu.runtime.errors import AppError
@@ -11,11 +12,19 @@ from .domain_utils import optional_time, unique_refs
 from .types import ClaimRevision, Episode, MatterView, MemoryEvidenceUnit, ReflectionView
 
 
+def required_refs(value):
+    """Explicit interpretation/completion dependencies stay AND across OR supports."""
+    get = value.get if isinstance(value, Mapping) else lambda name, default=None: getattr(value, name, default)
+    basis = get("completion_basis") or {}
+    return unique_refs((*codec.refs(get("derivation_refs")), *codec.refs(get("counterexample_refs")),
+                        *codec.refs(basis.get("source_refs", ()))))
+
+
 async def select_supports_on(sources, conn, context, rows):
     """Alternative evidence is OR; every support and necessary derivation is AND."""
     candidates = []
     for index, row in enumerate(rows):
-        derivation = codec.refs(row.get("derivation_refs"))
+        derivation = required_refs(row)
         groups = row.get("support_groups") or [row["source_refs"]]
         for group in reversed(groups):
             refs = unique_refs((*codec.refs(group), *derivation))
@@ -69,6 +78,8 @@ def temporal_coverage(value, *, time_mode="current", valid_at=None):
             missing.append("matter_effective_time_inferred_from_report")
         if value.state == "completed" and value.completion_basis is None:
             missing.append("completion_basis_unknown")
+    if isinstance(value, ReflectionView) and time_mode == "valid_at":
+        missing.append("reflection_valid_time_unknown")
     return tuple(missing)
 
 
@@ -88,13 +99,18 @@ def valid_for_time(value, *, time_mode="current", valid_at=None):
 
 def build_evidence_unit(value, *, relations=(), time_mode="current", temporal_missing=()):
     """Build from an already authorized domain projection; callers validate whole sources first."""
-    missing = tuple(dict.fromkeys((*temporal_coverage(value, time_mode=time_mode), *temporal_missing)))
-    coverage = Coverage(not missing, missing=missing, representation="memory_evidence")
     relations = tuple(relations or getattr(value, "relations", ()))
+    relation_missing = tuple("relation_endpoint:" + reason for link in relations
+        for endpoint in (link.from_evidence, link.to_evidence) if endpoint
+        for reason in (endpoint.get("coverage") or {}).get("missing", ()))
+    missing = tuple(dict.fromkeys((*temporal_coverage(value, time_mode=time_mode), *temporal_missing,
+        *relation_missing, *(("relation_recorded_at_unknown",) if any(link.recorded_at is None for link in relations) else ()))))
+    coverage = Coverage(not missing, missing=missing, representation="memory_evidence")
     endpoint_refs = tuple(ref for link in relations for endpoint in (link.from_evidence, link.to_evidence)
                           if endpoint for ref in codec.refs(endpoint.get("source_refs", ())))
+    explicit_refs = required_refs(value)
     common = {"actor_id": value.actor_id, "source_refs": unique_refs((*value.source_refs,
-                  *endpoint_refs, *(ref for link in relations for ref in (*link.source_refs, *link.derivation_refs)))),
+                  *explicit_refs, *endpoint_refs, *(ref for link in relations for ref in (*link.source_refs, *link.derivation_refs)))),
               "scope_ids": value.scope_ids, "recorded_at": value.recorded_at,
               "coverage": coverage, "relations": tuple(relations),
               "head_revision": getattr(value, "head_revision", None) or value.revision}

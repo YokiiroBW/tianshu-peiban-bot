@@ -605,13 +605,15 @@ class RevisionService:
             "embedding=NULL,embedding_profile=NULL,lexical='' WHERE state='active' "
             "AND source_refs @> ANY(%s::jsonb[]) AND sources.dependencies_intersect(source_refs,%s,%s) AND NOT ("
             "sources.any_support_usable(support_groups,scope_ids) AND "
-            "sources.any_support_usable(jsonb_build_array(derivation_refs),scope_ids)) RETURNING claim_id,revision",
+            "sources.any_support_usable(jsonb_build_array(derivation_refs),scope_ids) AND "
+            "sources.any_support_usable(jsonb_build_array(counterexample_refs),scope_ids)) RETURNING claim_id,revision",
             (patterns, changes, kind),
         )).fetchall()
         await conn.execute(
             "UPDATE memory.matter_revisions SET active=false,title='',summary='',conditions='{}',completion_basis=NULL,change_reason='' "
             "WHERE active AND source_refs @> ANY(%s::jsonb[]) AND sources.dependencies_intersect(source_refs,%s,%s) AND NOT ("
-            "sources.any_support_usable(support_groups,scope_ids) AND sources.any_support_usable(jsonb_build_array(derivation_refs),scope_ids))",
+            "sources.any_support_usable(support_groups,scope_ids) AND sources.any_support_usable(jsonb_build_array(derivation_refs),scope_ids) AND "
+            "sources.any_support_usable(jsonb_build_array(COALESCE(completion_basis->'source_refs','[]'::jsonb)),scope_ids))",
             (patterns, changes, kind),
         )
         await conn.execute(

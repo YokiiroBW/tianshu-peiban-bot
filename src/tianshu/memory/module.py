@@ -94,6 +94,7 @@ def create_module(memory, retrieval, workers, identity):
                 time_mode=body.get("time_mode","current"),valid_at=body.get("valid_at"),known_at=body.get("known_at"),
             ),
         )
+        route("matters/get", lambda ctx, body: memory.claims.get_matter(ctx, body["matter_id"]))
         route("matters/save", memory.claims.save_matter, write=True)
         route("matters/history", lambda ctx, body: memory.claims.matter_history(ctx,body["matter_id"],
             cursor=body.get("cursor"),limit=body.get("limit",50)))

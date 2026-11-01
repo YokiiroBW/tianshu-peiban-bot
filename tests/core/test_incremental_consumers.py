@@ -265,7 +265,10 @@ async def test_structured_and_lexical_memory_survive_optional_embedding_timeout(
         max_input_tokens=16000,
         contributions=(ContextContribution("input", "", refs, alice.scope_ids, 100, True),),
     )
-    assert {item.kind for item in pack.materials} >= {"current_matters", "memory_claim"}
+    evidence = [json.loads(item.text) for item in pack.materials if item.kind == "memory_evidence"]
+    assert {item["kind"] for item in evidence} >= {"matter", "claim"}
+    assert next(item for item in evidence if item["kind"] == "matter")["state"] == "planned"
+    assert next(item for item in evidence if item["kind"] == "claim")["assertion"]
     assert "embedding_unavailable" in pack.missing
 
 
@@ -312,7 +315,8 @@ async def test_sparse_authorized_vector_candidates_are_not_starved(
     columns = (
         "revision,speaker_id,subject_id,predicate,value,assertion,polarity,conditions,valid_from,valid_until,"
         "observed_at,state,source_refs,support_groups,scope_groups,scope_ids,matter_id,supersedes,contradictions,"
-        "evidence_units,content,lexical,embedding,embedding_profile"
+        "evidence_units,content,lexical,embedding,embedding_profile,recorded_at,change_kind,memory_kind,"
+        "current_status,semantic_fingerprint,derivation_refs,counterexample_refs,change_reason"
     )
     async with core.database.transaction() as conn:
         await register_vector_async(conn)

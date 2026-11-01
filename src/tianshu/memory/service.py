@@ -537,7 +537,8 @@ class MemoryService:
             selected=await select_supports_on(self.sources,conn,context,rows[:16])
             visible=tuple(row for row,refs in zip(rows[:16],selected,strict=True) if refs)
             statuses=await self.pipeline_recovery.statuses_on(conn,context,visible)
-            ids=sorted({item["subject_id"] for status in statuses.values() for item in status["target_results"]}
+            ids=sorted({item["subject_id"] for status in statuses.values() for item in status["targets"]}
+                | {item["subject_id"] for status in statuses.values() for item in status["target_results"]}
                 | {item["subject_id"] for status in statuses.values() for item in status["unresolved"] if item.get("subject_id")})
             people={}
             for start in range(0,len(ids),128):
@@ -554,6 +555,7 @@ class MemoryService:
                     continue
                 seen_batches.add(identity)
                 items.append({"episode_id":episode["episode_id"],"revision":episode["revision"],**status,
+                    "targets":[item for item in status["targets"] if item["subject_id"] in people],
                     "target_results":[item for item in status["target_results"] if item["subject_id"] in people],
                     "unresolved":[item for item in status["unresolved"] if item.get("subject_id") is None or item["subject_id"] in people]})
         missing=[]

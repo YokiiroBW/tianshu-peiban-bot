@@ -18,6 +18,8 @@ from .consolidation import context_from_bound
 from .extraction_contract import SCHEMA_VERSION, legacy_extraction_schema, validate_proposal
 
 LEGACY_VERSION = "memory.legacy-extraction.v0"
+LEGACY_TERMINAL = ("completed", "completed_with_missing", "legacy_waiting",
+                   "consolidation_failed", "legacy_abandoned")
 
 
 class ConsolidationRecovery:
@@ -77,10 +79,16 @@ class ConsolidationRecovery:
         result={"batch_id":batch["batch_id"] if batch else None,
             "status":batch["status"] if batch else episode["extraction_state"],
             "error_code":error,"action":action,
-            "fragment_cursor":episode["extraction_cursor"],"target_results":[],"unresolved":[],
+            "fragment_cursor":episode["extraction_cursor"],"targets":[],"target_results":[],"unresolved":[],
             "coverage":{"state":episode["extraction_state"],"missing":episode["extraction_missing"]}}
         if batch and visible.get(batch["batch_id"]):
+            manifest=batch["manifest"]
+            fixed=(manifest.get("steps",{}).get(batch["step_ids"][-1]) if batch["step_ids"] else None)
+            fixed=fixed or manifest.get("frozen") or manifest
+            targets=fixed.get("targets",{})
             result.update(target_results=batch["commit_refs"].get("target_results",[]),
+                targets=[{"subject_id":subject} for subject in sorted(targets)] if isinstance(targets,dict) else
+                    [{"subject_id":item["subject_id"]} for item in targets if isinstance(item,dict) and item.get("subject_id")],
                 unresolved=batch["commit_refs"].get("unresolved",[]),
                 context_unfulfilled=batch["commit_refs"].get("context_unfulfilled",[]),
                 step_ids=batch["step_ids"],schema_version=batch["schema_version"])
@@ -156,28 +164,56 @@ class ConsolidationRecovery:
         return CommandResult(body["client_request_id"],revision=current["revision"],data=data)
 
     async def convert_episode(self, episode_id, sequence):
+        authority_error=None
         async with self.database.transaction(read_only=True) as conn:
             row = await (await conn.execute(
                 "SELECT * FROM memory.episodes WHERE episode_id=%s AND sequence=%s AND active",
                 (episode_id,sequence))).fetchone()
-            if not row or row["extraction_state"] in {"completed","completed_with_missing","legacy_waiting","consolidation_failed","legacy_abandoned"}:
+            if (not row or row["extraction_state"] in LEGACY_TERMINAL
+                    or (row["extraction_cursor"] or {}).get("protocol") == SCHEMA_VERSION):
                 return
             step = (row["extraction_cursor"] or {}).get("step",0)
             step_id = f"extract:{episode_id}:{sequence}:{step}"
             old = await (await conn.execute("SELECT * FROM memory.model_steps WHERE step_id=%s",(step_id,))).fetchone()
-            context = await self.identity.context_on(conn,row["principal_id"],actor_id=row["actor_id"],
-                person_id=row["person_id"],conversation_id=row["conversation_id"],origin_kind=row["origin_kind"])
+            try:
+                context = await self.identity.context_on(conn,row["principal_id"],actor_id=row["actor_id"],
+                    person_id=row["person_id"],conversation_id=row["conversation_id"],origin_kind=row["origin_kind"])
+            except AppError as exc:
+                if exc.status not in {401,403,404,409}:
+                    raise
+                authority_error=exc.code
+        if authority_error:
+            return await self._abandon_legacy(row,"legacy_authority_unavailable",step_id=step_id,old=old)
+        if not row["source_refs"]:
+            return await self._abandon_legacy(row,"legacy_original_evidence_missing",context=context,step_id=step_id,old=old)
+        try:
+            await self.sources.check(context,codec.refs(row["source_refs"]))
+        except AppError as exc:
+            if exc.status not in {401,403,409}:
+                raise
+            return await self._abandon_legacy(row,"legacy_source_unavailable",context=context,step_id=step_id,old=old)
         if old:
             # Even an old prepared row may have crossed dispatch before a crash. Ask Broker first.
-            _, request = await self.steps.recorded(step_id)
-            receipt = await self.memory.models.status(request.attempt_id)
+            try:
+                _, request = await self.steps.recorded(step_id)
+            except (AppError,ValueError,TypeError,KeyError) as exc:
+                if isinstance(exc,AppError) and exc.status not in {401,403,404,409}:
+                    raise
+                return await self._abandon_legacy(row,"legacy_request_unavailable",context=context,step_id=step_id,old=old)
+            try:
+                receipt = await self.memory.models.status(request.attempt_id)
+            except (AppError,TimeoutError):
+                # A status transport failure cannot establish that submission never happened.
+                return await self._register_observer(row,request,step_id)
             if receipt is not None or old["state"] not in {"prepared","legacy_unsubmitted_converted"}:
                 return await self._register_observer(row,request,step_id)
         async with self.database.transaction() as conn:
             if not await self.sources.validate_persistence(conn,context,codec.refs(row["source_refs"])):
-                return
+                return await self._abandon_legacy(row,"legacy_source_unavailable",context=context,step_id=step_id,old=old)
             current = await (await conn.execute("SELECT * FROM memory.episodes WHERE episode_id=%s FOR UPDATE",(episode_id,))).fetchone()
-            if not current or current["sequence"] != sequence or not current["active"]:
+            if (not current or current["sequence"] != sequence or not current["active"]
+                    or current["extraction_state"] in LEGACY_TERMINAL
+                    or (current["extraction_cursor"] or {}).get("protocol") == SCHEMA_VERSION):
                 return
             await conn.execute("UPDATE memory.episodes SET extraction_state='pending',extraction_started_at=NULL,extraction_cursor=extraction_cursor || %s WHERE episode_id=%s",(Jsonb({'protocol':SCHEMA_VERSION}),episode_id))
             partition_id = await self.memory.consolidation.dirty_on(conn,context,current)
@@ -191,6 +227,40 @@ class ConsolidationRecovery:
                 (conversion_id,partition_id,LEGACY_VERSION,Jsonb(wire(manifest)),body_hash(context_record(context)),Jsonb({"action":"unsubmitted_to_partition"})))
             if old and old["state"] == "prepared":
                 await conn.execute("UPDATE memory.model_steps SET state='legacy_unsubmitted_converted',error_code='legacy_writer_retired' WHERE step_id=%s AND state='prepared'",(step_id,))
+
+    async def _abandon_legacy(self,row,reason,*,context=None,step_id=None,old=None):
+        """A fixed, source-free retirement receipt; no model execution is inferred."""
+        identity={"episode_id":row["episode_id"],"sequence":row["sequence"],"cursor":row["extraction_cursor"]}
+        suffix=body_hash(identity)[:48]
+        partition_id="memory_legacy_retired_"+suffix
+        batch_id="memory_conversion_"+suffix
+        recorded_request=old.get("request") if old else None
+        attempt_id=recorded_request.get("attempt_id") if isinstance(recorded_request,dict) else None
+        authority=context_record(context) if context else {"principal_id":row["principal_id"],
+            "actor_id":row["actor_id"],"conversation_id":row["conversation_id"],
+            "scope_ids":row["scope_ids"],"legacy_authority_unknown":True}
+        conversion={"task":"memory.extract","key":f"memory-extract:{row['episode_id']}:{row['sequence']}",
+            **identity,"step_id":step_id if old else None,"attempt_id":attempt_id,
+            "previous_state":row["extraction_state"],"action":"application_abandoned","reason":reason}
+        manifest={"conversion":conversion,"episodes":[{"episode_id":row["episode_id"],
+            "revision":row["revision"],"sequence":row["sequence"]}]}
+        async with self.database.transaction() as conn:
+            await conn.execute("INSERT INTO memory.consolidation_state(partition_id,actor_id,principal_id,conversation_id,scope_key,authority_bound) "
+                "VALUES(%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
+                (partition_id,row["actor_id"],row["principal_id"],row["conversation_id"],body_hash(row["scope_ids"]),Jsonb(wire(authority))))
+            await conn.execute("SELECT partition_id FROM memory.consolidation_state WHERE partition_id=%s FOR UPDATE",(partition_id,))
+            current=await (await conn.execute("SELECT * FROM memory.episodes WHERE episode_id=%s FOR UPDATE",(row["episode_id"],))).fetchone()
+            if (not current or current["sequence"]!=row["sequence"] or current["extraction_state"] in LEGACY_TERMINAL
+                    or (current["extraction_cursor"] or {}).get("protocol")==SCHEMA_VERSION):
+                return
+            await conn.execute("INSERT INTO memory.consolidation_batches(batch_id,partition_id,schema_version,status,manifest,dependency_refs,"
+                "context_fingerprint,step_ids,error_code,commit_refs,committed_at) VALUES(%s,%s,%s,'revoked',%s,%s,%s,%s,%s,%s,now()) ON CONFLICT DO NOTHING",
+                (batch_id,partition_id,LEGACY_VERSION,Jsonb(wire(manifest)),Jsonb(row["source_refs"]),body_hash(authority),
+                 [step_id] if old else [],reason,Jsonb({"action":"application_abandoned","original_attempt_retained":bool(old),"reason":reason})))
+            await conn.execute("UPDATE memory.episodes SET extraction_state='legacy_abandoned',extraction_started_at=NULL,"
+                "extraction_missing=CASE WHEN %s=ANY(extraction_missing) THEN extraction_missing ELSE array_append(extraction_missing,%s) END "
+                "WHERE episode_id=%s AND sequence=%s",(reason,reason,row["episode_id"],row["sequence"]))
+        return batch_id
 
     async def _register_observer(self,row,request,step_id):
         context = request.context
@@ -207,12 +277,14 @@ class ConsolidationRecovery:
                 "action":"observe_original_attempt"}}
         async with self.database.transaction() as conn:
             if not await self.sources.validate_persistence(conn,context,request.source_refs):
-                return
+                old={"request":wire(request)}
+                return await self._abandon_legacy(row,"legacy_source_unavailable",context=context,step_id=step_id,old=old)
             await conn.execute("INSERT INTO memory.consolidation_state(partition_id,actor_id,principal_id,conversation_id,scope_key,authority_bound) "
                 "VALUES(%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
                 (partition_id,context.actor_id,context.principal_id,context.conversation_id,body_hash(sorted(row["scope_ids"])),Jsonb(context_record(context))))
             current = await (await conn.execute("SELECT * FROM memory.episodes WHERE episode_id=%s FOR UPDATE",(row["episode_id"],))).fetchone()
-            if not current or current["sequence"] != row["sequence"]:
+            if (not current or current["sequence"] != row["sequence"] or current["extraction_state"] in LEGACY_TERMINAL
+                    or (current["extraction_cursor"] or {}).get("protocol")==SCHEMA_VERSION):
                 return
             await conn.execute("INSERT INTO memory.consolidation_batches(batch_id,partition_id,schema_version,status,manifest,dependency_refs,context_fingerprint,step_ids) "
                 "VALUES(%s,%s,%s,'waiting_model',%s,%s,%s,%s) ON CONFLICT DO NOTHING",
@@ -379,12 +451,15 @@ class ConsolidationRecovery:
     async def recover(self):
         async with self.database.transaction(read_only=True) as conn:
             # Completed history never enters this fixed conversion list.
-            rows=await (await conn.execute("SELECT episode_id,sequence FROM memory.episodes WHERE active AND extraction_state IN "
-                "('pending','running','extraction_unavailable','model_outcome_unknown','extraction_failed') "
+            rows=await (await conn.execute("SELECT episode_id,sequence FROM memory.episodes WHERE active AND NOT extraction_state=ANY(%s::text[]) "
                 "AND extraction_cursor->>'protocol' IS DISTINCT FROM %s "
+                "AND (extraction_state=ANY(%s::text[]) OR extraction_cursor ?| ARRAY['source_index','position','step'] "
+                "OR EXISTS(SELECT 1 FROM memory.model_steps old WHERE old.step_id='extract:'||memory.episodes.episode_id||':'||memory.episodes.sequence||':'||COALESCE(memory.episodes.extraction_cursor->>'step','0')) "
+                "OR EXISTS(SELECT 1 FROM runtime.job_keys old WHERE old.task='memory.extract' AND old.key='memory-extract:'||memory.episodes.episode_id||':'||memory.episodes.sequence)) "
                 "AND NOT EXISTS(SELECT 1 FROM memory.consolidation_batches b WHERE b.manifest->'episodes' @> "
                 "jsonb_build_array(jsonb_build_object('episode_id',memory.episodes.episode_id,'sequence',memory.episodes.sequence))) "
-                "ORDER BY sequence LIMIT 64",(SCHEMA_VERSION,))).fetchall()
+                "ORDER BY sequence LIMIT 64",(list(LEGACY_TERMINAL),SCHEMA_VERSION,
+                    ['pending','running','extraction_unavailable','model_outcome_unknown','extraction_failed']))).fetchall()
             legacy=await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE schema_version=%s AND status='waiting_model' ORDER BY created_at LIMIT 32",(LEGACY_VERSION,))).fetchall()
         for row in rows:
             await self.convert_episode(row["episode_id"],row["sequence"])
