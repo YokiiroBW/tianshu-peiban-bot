@@ -11,6 +11,7 @@ import { DetailCard } from "../../components/DetailCard";
 import { useMemoryCursor } from "../memory/pagination";
 import { showValue, time } from "../memory/types";
 import "../multimodal/multimodal.css";
+import "../memory/memory.css";
 
 function reviewReason(code: string) {
   if (code === "generation_request_expired")

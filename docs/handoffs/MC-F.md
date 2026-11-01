@@ -1,0 +1,54 @@
+# MC-F：记忆时间、证据与业务状态前端
+
+基线 `e752d5c`，分支 `codex/memory-frontend-20261101`。主体代码提交 `29bee05`；本交接所在的后续提交补齐共享整理展示的样式加载。修改只在 `web/` 和本文件内，没有修改后端、根任务文档、其他工作树或生产配置。
+
+用户明确要求所有实现完成后统一验收。本交付是**代码完成、尚未运行验收**；没有运行 tests、typecheck、build、候选程序、浏览器、模型或实机请求。执行过 Prettier 写格式、Git diff 静态阅读和 diff 空白检查，不将其称为功能验证。
+
+## 页面与复用
+
+- Memory 页面、人物认识与群页使用同一 `MemoryTimeFilter`，支持 current / valid_at / known_at；游标绑定范围、集合和时间参数。事实与 hypothesis 分开展示，旧未知时间仍显示未知，不用观察时间或迁移时间补首次记录时间。
+- `EvidenceDetails`、`EvidenceRelations`、`EvidenceHistory` 复用 Sources 原文组件和现有权限读取。显示作者/assertion、完整条件、事件/有效/记录时间、状态、当前 head、原因、支持组、反例/派生依据；关系展示 from/to 两端完整证据。claims/history、matters/history 都是按实际 cursor 的有界分页。
+- Claim 更正每次先读 `claims/get` 的 current；Matter 更正每次先读新增的 `matters/get` 当前 head，再走原 correct/save 和 `expected_revision`，不把历史 revision 写回当前。既有披露、遗忘、命令幂等与回执机制保留；历史结果不直接披露。事项完成依据区分 human_report 与 action_receipt，未知依据不宣称工具成功。
+- 群页使用 projection.group.subject_id 作为共享主体，身份名称仅取合法 group_consolidation.subjects。移除旧话题正则筛选的默认页，改为真实批次、固定 targets、已提交 target_results、no_change 与 unresolved；目标名单不等于完成回执。当前处理窗口与历史事实时间查询分开说明，完整记录继续走 episodes 分页。
+- `EpisodeProcessing` 在 Memory、Life 时间线和群页共用；只依据服务器 action 显示原执行观察或重取材料。wait_for_new_evidence、configure_budget、legacy_application_abandoned 分别说明，未知结果不伪称失败或成功。按需读 extraction/status，显示片段位置、实际批次、逐人覆盖和缺项。
+- `MemoryEvidenceSearch` 直接调用统一 query，五类证据可选，完整列表与 ranked 候选分别说明并保留实际游标；`MemoryIndexRebuild` 在现有检索设置中复用命令接口，默认五类、类型可选、`i1:` 游标按原样续批，只在显式点击时排队，读取页面不会自动重建。
+- Growth 展示固定 batch/实际 Episode 版本、pending_inputs、pending_original_requests、legacy 进度、blocked_material 与原 attempt。unknown 只提供读取状态；只有服务器 can_request_review 允许时，才使用原 review 命令。人物认识、想象活动和真实动作继续区分。Life planner_output_incomplete 有明确文案，没有新增未知规划重发入口。
+- Media 概览和运行页根据 PostgreSQL / size_scope='schema' / size_scope_name='capability_media' 展示本域表、索引与 TOAST 字节。engine/background 读取持久 owner 观测；缺观测、过期或失活 owner 显示未知。时间格式同时接受 PG ISO 时间和原 Unix 时间。
+- Speech、Image 和 Life 活动页通过既有 capabilities/catalog/view 展示角色 readiness；共用既有设置表单、目录与状态文案。Fish 未绑定音色明确显示角色状态，没有代选或保存声线。Image profile 只匹配当前 actor，避免将唯一的其他角色形象作为当前绑定。Reactions 原生包/上传/索引/选材、Image 自拍/相册/生成、Life 主动活动和 Content 读取入口继续复用；没有处理 67 GIF 资源、真人账号、人物草案或生产接线。
+- Infrastructure `NodeConnections` 已按真实 last_test.checked_at/state/code 显示观测及错误，本次静态核对后沿用，不新增另一套测试状态。
+
+## 必须共同集成的接口
+
+| 所有者 | 接口 / 字段 |
+|---|---|
+| MC-A / MC-B | claims / matters / projection 的完整 revision 字段、claims/history、matters/history；extraction/status / resume 的 action、batch_id、fragment_cursor、target_results、unresolved |
+| MC-D | POST memory/matters/get（body.matter_id，只读当前 head）；query 的五类 EvidenceUnit / list 稳定分页 / ranked coverage；合法关系两端证据；经来源与当前主体授权过滤的 targets，以及 group_consolidation.subjects |
+| MC-B | index/rebuild：默认五类或 kinds，稳定 i1 游标，queued/kinds/next_cursor/coverage/replayed |
+| MC-C e95ffe7 | Growth review.batch、attempt_id、pending_inputs、pending_original_requests、legacy_state/cursors/missing、blocked_material、recovery、can_request_review |
+| MC-C a79e575 / a14be27 | Media engine/background 持久 owner 观测与 generation；database.size_scope='schema' / size_scope_name；原 Infrastructure last_test |
+| MC-C 4977585 / c7bfba2 | Speech / Image readiness 精确 reason；Weather recovery='observe_original_attempt'、retry_after、stale/fetched_at；Life planner_output_incomplete |
+
+以上 MC-C 提交只通过已提交 Git 内容静态对齐，没有取用其未提交工作树，也没有将后端提交混入 F 提交。
+
+## 已写但未运行的场景
+
+`web/tests/memory-closure.spec.ts` 新增 10 个 Playwright 场景，使用隔离 native-fixture：
+
+1. known_at / valid_at 请求、Claim 历史 cursor、事实/假设分区，以及更正读取最新 head revision。
+2. Matter 历史 cursor、人类报告与真实回执的区别，以及历史页编辑仍使用当前 head。
+3. Episode 依据 action 恢复；failed+wait_for_new_evidence 不出现重取按钮，unknown 只观察原执行；imagined 明确主观语义。
+4. 群固定目标、已提交 no_change、未决及服务器实际共享主体。
+5. 五类型索引的显式排队与不透明游标续批。
+6. query 的完整关系两端、list cursor 和 ranked 不完整说明。
+7. Growth 固定版本、pending/legacy 与 unknown 原 attempt；无替代 review 写入。
+8. PostgreSQL schema 大小与失活工作进程状态。
+9. Fish 未绑定音色的 readiness，不自动写入 profile。
+10. Weather 保留陈旧读数、读取原未知请求状态及正确天气设置入口。
+
+`web/tests/native-fixture.ts` 补齐默认只读 Memory / capabilities catalog 空响应。没有新增依赖、测试框架、基线、快照或 CI 门禁。
+
+## 统一验收与局限
+
+协调者在 A/B/C/D/F/G 全部代码完成且接口集成后，再运行受影响构建（已有 build 包含 typecheck）及本 spec、既有相关原生页面/Life 状态用例。开发阶段没有执行这些命令，没有运行截图、移动端或真实权限/来源撤回浏览器验证，不能据静态阅读声称已通过。
+
+人物/群页依据合法服务器返回显示名称；无法证明的作者与旧时间明确未知。实际模型语义、费用、跨进程恢复、真实 QQ/外部能力、图片成品与 GIF 原生导入仍由协调者统一验收和唯一生产接线。用户暂不绑定 Fish 音色这一明确选择仍保留。

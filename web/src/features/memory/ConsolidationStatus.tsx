@@ -7,6 +7,7 @@ import {
 } from "../../api/useDomainResource";
 import { CommandFeedback } from "../../components/CommandFeedback";
 import { showValue, type Consolidation } from "./types";
+import "./memory.css";
 
 const stateNames: Record<string, string> = {
   prepared: "材料已固定，等待原执行",
