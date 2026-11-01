@@ -46,7 +46,11 @@ class Memory:
         self.episodes = (self.episode,)
 
     async def episodes_since(self, _context, _cursor, _limit):
-        return EpisodePage(self.episodes, None, Coverage(True), self.episodes[-1].cursor)
+        after = int((_cursor or "e:0").split(":")[1])
+        pending = tuple(sorted((item for item in self.episodes if item.sequence > after), key=lambda item: item.sequence))
+        items = pending[:_limit]
+        end = items[-1].cursor if items else _cursor or "e:0"
+        return EpisodePage(items, end if len(pending)>_limit else None, Coverage(len(pending)<=_limit), end)
 
     async def episodes_by_refs(self, _context, refs):
         selected = tuple(item for identifier, version in refs for item in self.episodes

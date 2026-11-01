@@ -41,8 +41,9 @@ def reflectable(episode):
 
 
 async def select_batch(assembler, context, page, persona_text, budget, revision):
-    # Only a contiguous prefix can advance this cursor. A bad item is visible
-    # and blocks once, rather than being silently skipped on every new message.
+    # Consume a complete prefix of actual pending versions. The cursor is only
+    # diagnostic; the version ledger also covers late commits below that cursor.
+    # A bad first item is visible and blocks once instead of being silently lost.
     eligible = []
     candidates = tuple(item for item in page.items if reflectable(item))
     for episode in candidates:
