@@ -1,5 +1,9 @@
 # 天枢单产品部署
 
+## 2026-11-01 持续生活修复
+
+当前源码 `dcdf729b5d22f451093e3658d131fd6757a00dde`，镜像 `sha256:679e08db330d32973e40d32f07007ee5b0b3442a1f6e8fc86af550ed39aaa40c`。旧授权时钟恢复、DUE 调度隔离、必要规划合同、真实经历/天气原件、抽取主体约束、模型合法空字段解析和生活页状态/活动布局已修复。两个角色真实生成并开始想象日常；14:44 取得的真实天气原件已完成整理，claims/matters 为空；此前 unknown 请求保持原状态、未重发。14:49/14:52 的更新查询超时，没有取得新原件，页面保留旧读数；不能据此称当前天气刷新成功。配置/11 挂载保持，ready/guard active，无 schema 迁移。定向验证及实际短窗口范围见[发布记录](../../docs/development/coherent-refactor-configuration-2026-11-01.md)，不代替长期体验或所有外部业务验收。
+
 ## 2026-11-01 HTTP 登录修复补丁
 
 当前源码 `214387a8b3c4f7c66e69e7360cf46e07be6441bb`，整镜像 `sha256:551cce7d76a14cb55fe879aa2881235d5a0836f9ad91e533765f4872c464da0f`。5 处 UUID 调用已复用 LAN HTTP 兼容入口；定向浏览器 5 项、build/typecheck 与正式 HTTP 网页登录验证通过。配置/11 个挂载保持，应用 ready、守护 active；未变更数据库迁移。下文保留完整重构首发回执，最新细节见[发布记录](../../docs/development/coherent-refactor-configuration-2026-11-01.md)。

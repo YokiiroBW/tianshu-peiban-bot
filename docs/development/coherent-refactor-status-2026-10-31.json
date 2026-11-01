@@ -1404,7 +1404,7 @@
     "application_root": "/srv/tianshu-core/app",
     "postgres_root": "/volume2/Dockers/tianshu-core-postgres",
     "postgres_port": 25018,
-    "container_id": "d62af5ed598909f5e48188c150dd215f035413680687d8a7f41a099fbd92de83",
+    "container_id": "992376aca440bcb3605b501a8e18758e33028b3195c2b57ec67a1b0b161734d5",
     "old_application_running": false,
     "old_business_data_deleted": true,
     "transport_enabled": true,
@@ -1442,13 +1442,14 @@
         ]
       }
     },
-    "current_source_sha": "214387a8b3c4f7c66e69e7360cf46e07be6441bb",
-    "current_image": "sha256:551cce7d76a14cb55fe879aa2881235d5a0836f9ad91e533765f4872c464da0f",
+    "current_source_sha": "dcdf729b5d22f451093e3658d131fd6757a00dde",
+    "current_image": "sha256:679e08db330d32973e40d32f07007ee5b0b3442a1f6e8fc86af550ed39aaa40c",
     "last_update_health": {
       "ready": "ready",
       "guard": "active",
       "configuration_unchanged": true,
-      "mounts_unchanged": true
+      "mounts_unchanged": true,
+      "database_migration_change": false
     }
   },
   "planning_commit": "e034276dfb757b7dd64cd2f56e952d81193a5248",
@@ -1859,6 +1860,125 @@
         "screenshot": "production-login-success.png"
       },
       "recorded_at": "2026-11-01T04:58:35.662183+00:00"
+    },
+    {
+      "state": "production_ready",
+      "source_sha": "dcdf729b5d22f451093e3658d131fd6757a00dde",
+      "image_id": "sha256:679e08db330d32973e40d32f07007ee5b0b3442a1f6e8fc86af550ed39aaa40c",
+      "old_container_id": "13dc8cf609c6b26bfb5bbba7babc086cc37af00df60b9009d615f792eabfd059",
+      "old_image": "sha256:35387226d6dcca5a16b66c32dc2028636eb7f78b2d07c95c6426819dd64fe69c",
+      "container_id": "992376aca440bcb3605b501a8e18758e33028b3195c2b57ec67a1b0b161734d5",
+      "configuration_unchanged": true,
+      "mounts_unchanged": true,
+      "database_migration_change": false,
+      "guard": "active",
+      "ready": "ready",
+      "kind": "continuous_life_and_episode_semantics_fix",
+      "recorded_at": "2026-11-01T06:55:41.111986+00:00",
+      "validation": {
+        "focused_checks": "passed; unchanged results reused",
+        "concentrated_acceptance_repeated": false,
+        "real_planners_completed": 2,
+        "real_running_activities": 2,
+        "activity_kind": "fictional daily life, not external execution",
+        "weather_extraction": {
+          "episode_id": "action:e199c7a8c53add1593f6e4e7d57b1f2bf0b3ad0f5bcfa6506d918843e5878949",
+          "sequence": 582,
+          "extraction_state": "completed",
+          "extraction_missing": [],
+          "occurred_at": "2026-11-01 06:44:08.277826+00:00",
+          "coverage": {
+            "total": 1,
+            "ranges": [],
+            "missing": [],
+            "complete": true,
+            "representation": "weather_current_response"
+          },
+          "source_count": 1,
+          "latest_acquisition": {
+            "episode_id": "action:6d386bf1a84b986a9a053a3c030538715abe3935889ccf69da6e1b0d01f9d8a9",
+            "occurred_at": "2026-11-01 06:52:16.987668+00:00",
+            "extraction_state": "no_original_material",
+            "source_count": 0,
+            "execution": "failed",
+            "error_code": "deadline_exceeded"
+          },
+          "steps": [
+            {
+              "state": "succeeded",
+              "error_code": null,
+              "model_status": "succeeded",
+              "model_error_code": null,
+              "explicit_authorized_subjects": true,
+              "claim_count": 0,
+              "matter_count": 0
+            }
+          ]
+        },
+        "weather_terminal_validation_passed": true,
+        "nullable_protocol_fix": {
+          "pure_cases_passed": 27,
+          "production_loaded": true,
+          "new_weather_model_call": "not reached because the newest acquisition timed out"
+        },
+        "technical_episodes_archived": 2,
+        "clock_queue_alignment": {
+          "state": "existing_pure_clocks_aligned",
+          "before": [
+            {
+              "id": 14626,
+              "queue_name": "elastic",
+              "priority": 0,
+              "status": "todo",
+              "attempts": 0,
+              "scheduled_at": "2026-11-01 07:42:27.452544+00:00",
+              "task": "life.clock",
+              "subject_id": "actor_1df13dc1030b43e3908211708713531e"
+            },
+            {
+              "id": 14624,
+              "queue_name": "elastic",
+              "priority": 0,
+              "status": "todo",
+              "attempts": 0,
+              "scheduled_at": "2026-11-01 07:42:27.381959+00:00",
+              "task": "life.clock",
+              "subject_id": "actor_037ad5b1614c489a8bcb9ba5ef9efc9d"
+            }
+          ],
+          "after": [
+            {
+              "id": 14624,
+              "queue_name": "due",
+              "priority": 100,
+              "status": "todo",
+              "attempts": 0,
+              "scheduled_at": "2026-11-01 07:42:27.381959+00:00"
+            },
+            {
+              "id": 14626,
+              "queue_name": "due",
+              "priority": 100,
+              "status": "todo",
+              "attempts": 0,
+              "scheduled_at": "2026-11-01 07:42:27.452544+00:00"
+            }
+          ],
+          "original_job_ids_preserved": true,
+          "original_due_times_preserved": true,
+          "model_and_action_jobs_changed": false
+        },
+        "test_postgres": "retired",
+        "real_browser_origin": "http://192.168.31.230:18446",
+        "screenshot": "production-life-recovered.png"
+      },
+      "limitations": [
+        "Latest weather acquisition timed out; retained prior observation is not a successful fresh reading",
+        "Two original weather model attempts remain unknown and were not replayed",
+        "No QQ/TG test messages",
+        "No multi-day stability or complete external-business claim",
+        "Historical failed extraction results remain truthful"
+      ]
     }
   ]
 }

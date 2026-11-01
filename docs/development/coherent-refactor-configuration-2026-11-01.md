@@ -4,7 +4,7 @@
 
 ## 当前实际状态
 
-正式入口为 `http://192.168.31.230:18446`。最新源码 `214387a8b3c4f7c66e69e7360cf46e07be6441bb`，整镜像 `sha256:551cce7d76a14cb55fe879aa2881235d5a0836f9ad91e533765f4872c464da0f`，无源码覆盖挂载；前端已随同一镜像发布。完整重构初次发布基线为 `08ef6cb303f7b054cbbdb34e3d16ff9c584fe024` / `sha256:559ef862da33ee81456b017c14d51ef66bf404e47cf9a3a3ec168428dbeb48bc`，后述原验收证据保留。
+正式入口为 `http://192.168.31.230:18446`。最新源码 `dcdf729b5d22f451093e3658d131fd6757a00dde`，整镜像 `sha256:679e08db330d32973e40d32f07007ee5b0b3442a1f6e8fc86af550ed39aaa40c`，无源码覆盖挂载；前端已随同一镜像发布。完整重构初次发布基线为 `08ef6cb303f7b054cbbdb34e3d16ff9c584fe024` / `sha256:559ef862da33ee81456b017c14d51ef66bf404e47cf9a3a3ec168428dbeb48bc`，后述原验收证据保留。
 
 应用位于 `.230:/srv/tianshu-core/app`，专属 PG 17/pgvector 0.8.7 位于 NAS `/volume2/Dockers/tianshu-core-postgres`、端口 25018。最终清理后应用 ready、PG healthy、容量守护 active，20 GiB 空间下限保持。11 个挂载包含原媒体目录 7 项和原专用 SSH 材料 2 项。
 
@@ -87,3 +87,21 @@ Windows 三个生成构建目录的递归清理被自动审批返回 `blocked by
 前端子代理交付 `214387a8b3c4f7c66e69e7360cf46e07be6441bb`。build（含 typecheck）通过，`session-transport.spec.ts` 定向 5 项通过，其中新增真实非 loopback HTTP origin 的登录和 unknown 后原 intent ID 保留验证。协调者核对 diff 后快进集成，无装配差异，不重复已通过的测试。
 
 按精确源码构建整镜像并串行部署，正式容器为 `d62af5ed598909f5e48188c150dd215f035413680687d8a7f41a099fbd92de83`。应用 ready、守护 active，11 个挂载和全部 config 文件摘要保持；未改后端、数据库迁移或 QQ 配置。正式 Chrome HTTP 标签页刷新后，现有账号提交登录成功并到达工作台；截图与发布收据位于原工作区 `.runtime/coherent-refactor-20261031/http-login-fix-20261101/`。只核验本次受影响行为，没有发送聊天或调用模型。
+
+## 发布后修复：持续生活与真实经历
+
+用户实际页面暴露了原集中验收没有覆盖的持续运行缺陷。作息保存旧 principal access_epoch，账号或其他角色修改后 life.clock 报 access_changed，4 次重试耗尽；原恢复复用了已失败队列 key。当前只对持久时钟重新核验原作者、固定场景和当前权限，在原授权上界内刷新；实际撤销则暂停。恢复控制任务可新建 key，原 revision/due CAS 保证只推进一次；不重置模型或外部 Action。纯时钟改入既有 DUE 队列，模型规划保持 ELASTIC。
+
+真实旧规划请求不含 life_plan 和活动 JSON 合同：整个能力目录和唯一格式要求放在可选材料中，被预算裁掉。现在任务约定进入固定系统指令，必要材料有界保留；从现有 Catalog 动态挑选可执行、已曝光的业务能力，管理判定共享一个实现，未保留固定八项白名单。超预算省略有明确覆盖记录，原请求冻结、unknown 原身份查回和本地参数校验保持。
+
+images.profiles.save 与 channels.api 的 get_login_info 曾被记录为“原任务已执行”。生产者现在按实际能力元数据及真实子 API 区分管理和生活结果；两条已核实的澄汐误分类经历仅归档，原 Action/Receipt/消费记录保持。原真人输入的覆盖只表示已收到的 parts，不冒称理解所有媒体。JSON/XML 原件保留文本及原始字节，不可解码材料保持原媒体。天气覆盖仅说明实际取得的响应。
+
+修复原件后，真实天气抽取又暴露模型自造 location:101120301 主体：原权限拒绝正确，未写入人物事实。新的抽取合同直接使用 ClaimService.visible_subjects，并复用既有谓词正则；禁止为满足枚举把天气改绑给用户/角色，无相应人物事实可返回空数组。旧失败不改为成功、不重发旧模型。14:29 和 14:34 两次自然天气观测均在模型调用中出现 TypeError，被记为 transport_unknown；原响应未留存。随后用协议允许的 tool_calls:null 在本地直接复现同类错误，修复只覆盖 openai.chat 明确可空字段，损坏响应与缺少完成标志仍拒绝，原工具 ID/参数片段及未知 usage 保持。不能断言这是两次实机错误的唯一原因。14:44 取得的真实天气原件已完成整理，claims/matters 为空；此前 unknown 请求保持原状态、未重发。14:49/14:52 的更新查询超时，没有取得新原件，页面保留旧读数；不能据此称当前天气刷新成功。
+
+验证复用：经历语义/结构化材料 PG 7 个有效案例；时钟及原作息 PG 9 个有效案例；规划原 16 个案例及返修受影响 5 个案例（重叠结果不累加）；到期队列纯检查 3 项；主体/谓词合同 13 项；生活页面 3 项；Chat nullable 21 个新例及原相邻协议 6 例，共 27 个不同案例，最终 typecheck 与实际镜像构建通过。首次 Windows Proactor/临时 DSN fixture 设置失败、一个列表断言差异及协议新树 .runtime 父目录缺失导致的 3 个 setup error 保留，纠正后仅运行受影响案例；没有使用生产库做测试。临时 PG 25019、目录及测试凭据已退役。
+
+可空字段的规范依据是 OpenAI 官方生成类型：[ChatCompletionMessage](https://github.com/openai/openai-python/blob/main/src/openai/types/chat/chat_completion_message.py) 与 [ChatCompletionChunk](https://github.com/openai/openai-python/blob/main/src/openai/types/chat/chat_completion_chunk.py)。只依照声明允许空的字段处理；choices/message/delta 等必需结构没有宽松回退。
+
+实际应用源码 `dcdf729b5d22f451093e3658d131fd6757a00dde`，镜像 `sha256:679e08db330d32973e40d32f07007ee5b0b3442a1f6e8fc86af550ed39aaa40c`，容器 `992376aca440bcb3605b501a8e18758e33028b3195c2b57ec67a1b0b161734d5`。14:12 恢复两角色时钟，14:14 两次真实 life.plan 均带完整合同并各保存一项 running 想象日常；没有注入虚构测试活动。最终发布后原活动仍在、两条尚未开始的纯时钟保持原 job ID/due 时间，改到 due/priority 100。发布 ready/guard active，配置和 11 挂载保持，无 schema 迁移。Chrome 生活页显示“想象中的日常活动”和下次生活时间，技术状态使用中文。活动首次出现后实机截图又发现三节点仍套四列 CSS，最后仅把桌面列模板改为三列并直接验证标题可读，没有重跑不相关测试。
+
+没有向真实 QQ/TG 发测试消息，没有强制补造心情或主观手记；本轮不能证明数日稳定性或全部外部业务。操作收据与必要截图在原工作区 `.runtime/coherent-refactor-20261031/life-repair-20261101/`、`life-repair-release-20261101/` 和 `life-response-20261101/`。中间 8de3c18、05bbdc9、291f29b 候选未部署，当前以最终精确镜像为准。
