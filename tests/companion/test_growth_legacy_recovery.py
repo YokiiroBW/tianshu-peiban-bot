@@ -408,6 +408,9 @@ async def paused_generation(database, payload, *, old=False, refs=None):
 
 async def bind_real_reflection_store(database, growth, memory, jobs, context):
     await migrate(database, (
+        Migration("0010_identity", files("tianshu.identity").joinpath("schema.sql").read_text()),
+        Migration("0011_sources", "\n".join(files("tianshu.sources").joinpath(name).read_text()
+            for name in ("schema.sql", "functions.sql"))),
         Migration("0020_memory", files("tianshu.memory").joinpath("schema.sql").read_text()),
         Migration("0021_memory_consolidation", files("tianshu.memory").joinpath("0021_memory_consolidation.sql").read_text()),
     ))

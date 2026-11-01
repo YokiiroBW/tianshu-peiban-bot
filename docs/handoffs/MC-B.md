@@ -1,5 +1,11 @@
 # MC-B：共享材料整理、固定执行与恢复
 
+## backend-native-15 夹具依赖修订（written_not_run）
+
+基线 `5e0ac6a7`。根统一检查的 51 项通过证据复用，三个 actual Memory 新节点在初始化 `0021_memory_consolidation` 时因 `sources.any_support_usable` 所属 schema 未安装而失败，尚未到达功能断言。本补充仅按产品迁移依赖顺序给 `bind_real_reflection_store` 补 `0010_identity` 与完整 `0011_sources`（schema.sql + functions.sql），不修改生产代码、测试行为断言或数据库算法。未运行检查；根统一重验原失败三个节点及 A 的一个修订节点。
+
+---
+
 ## C8 Growth 反思身份碰撞修复（本次，written_not_run）
 
 基线 `47df9a92c503bd7a2dbbc6c8402f411325f4bbe5`，分支 `codex/growth-reflection-identity-rc29-20261102`。只改 Growth、GrowthRecovery、同源 reflection_output 和既有两份 Growth 用例/本交接；不改 Memory.service、Identity、Models、DDL、提示或前端，不操作生产。
