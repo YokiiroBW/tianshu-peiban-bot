@@ -93,6 +93,7 @@ class ModelReceipt:
     finished_at: datetime | None = None
     first_output_ms: float | None = None
     error_code: str | None = None
+    hold_until: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)

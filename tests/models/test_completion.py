@@ -42,6 +42,30 @@ def test_terminal_responses_incomplete_is_a_finished_physical_response():
     assert collector.raw_usage["output_tokens"] == 4096
 
 
+@pytest.mark.parametrize("streaming", [False, True])
+def test_responses_partial_tool_arguments_wait_for_terminal_completion(streaming):
+    collector = ResponseCollector("openai.responses")
+    item = {"type": "function_call", "id": "item", "call_id": "call", "name": "lookup", "arguments": '{"q":'}
+    terminal = {"status": "incomplete", "incomplete_details": {"reason": "max_output_tokens"}}
+    if streaming:
+        collector.feed({"type": "response.output_item.done", "item": item})
+        collector.feed({"type": "response.incomplete", "response": terminal})
+    else:
+        collector.feed({**terminal, "output": [item]})
+    assert collector.completed
+    assert collector.completion.state == "incomplete"
+    assert collector.tool_parts() == ()
+
+
+def test_completed_responses_tool_keeps_original_native_item():
+    collector = ResponseCollector("openai.responses")
+    item = {"type": "function_call", "id": "item", "call_id": "call", "name": "lookup", "arguments": '{"q":"value"}'}
+    collector.feed({"status": "completed", "output": [item]})
+    (part,) = collector.tool_parts()
+    assert part.arguments == {"q": "value"}
+    assert part.native == item
+
+
 def test_explicit_provider_failure_remains_known_failure_metadata():
     collector = ResponseCollector("openai.responses")
     collector.feed({"type": "response.failed", "response": {

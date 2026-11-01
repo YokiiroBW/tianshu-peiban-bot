@@ -28,7 +28,7 @@ def receipt(row):
         row["attempt_id"], row["intent_id"], row["status"], row["dispatch"], row["route_id"],
         row["route_revision"], row["provider_id"], row["model"], row["protocol"],
         row["quota_group"], ModelUsage(**usage), row["provider_handle"], row["queued_at"],
-        row["started_at"], row["finished_at"], row["first_output_ms"], row["error_code"])
+        row["started_at"], row["finished_at"], row["first_output_ms"], row["error_code"], row.get("hold_until"))
 
 
 class AttemptLedger:

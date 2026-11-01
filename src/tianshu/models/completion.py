@@ -41,3 +41,11 @@ def merge_completion(previous, current):
         else "unknown"
     )
     return ModelCompletion(state, reasons, current.provider_status or previous.provider_status)
+
+
+def content_completion(result):
+    """Typed summaries are authoritative; old results retain native fallback."""
+    summary = getattr(result, "completion", None)
+    if summary is not None and summary.state != "unknown":
+        return summary
+    return completion_from_native(getattr(getattr(result, "receipt", None), "protocol", ""), getattr(result, "native_response", None))

@@ -424,16 +424,20 @@ class ResponseCollector:
                 self.raw_usage = value.get("usage")
                 for item in value["output"]:
                     if item.get("type") == "function_call":
-                        added.append(ModelPart("tool_call", call_id=item.get("call_id"), name=item["name"],
-                            arguments=json.loads(item.get("arguments", "{}")), native=item))
+                        self.calls[("responses", item.get("call_id") or item.get("id"))] = {
+                            "id": item.get("call_id"), "name": item.get("name"),
+                            "arguments": item.get("arguments", "{}"), "native": item}
                     for content in item.get("content", []):
                         if content.get("type") == "output_text":
                             added.append(ModelPart("text", text=content.get("text", ""), native=content))
             if value.get("type") == "response.output_item.done":
                 item = value.get("item", {})
                 if item.get("type") == "function_call":
-                    added.append(ModelPart("tool_call", call_id=item.get("call_id"), name=item["name"],
-                        arguments=json.loads(item.get("arguments", "{}")), native=item))
+                    # A function item can finish before response.incomplete.
+                    # Parse only after the response stop is known, just like Chat.
+                    self.calls[("responses", item.get("call_id") or item.get("id"))] = {
+                        "id": item.get("call_id"), "name": item.get("name"),
+                        "arguments": item.get("arguments", "{}"), "native": item}
         elif self.protocol == "anthropic.messages":
             event_type = value.get("type")
             if event_type == "message_start":
@@ -469,7 +473,7 @@ class ResponseCollector:
             # Keep partial native output for diagnosis, never fabricate a tool
             # execution from truncated arguments or turn a known stop into unknown.
             return ()
-        if self.protocol == "openai.chat":
+        if self.protocol in {"openai.chat", "openai.responses"}:
             parts = []
             for value in self.calls.values():
                 if not self.completed or not value["id"] or not value["name"]:
@@ -482,7 +486,8 @@ class ResponseCollector:
                     raise AppError("invalid_native_tool_call", status=502)
                 parts.append(
                     ModelPart(
-                        "tool_call", call_id=value["id"], name=value["name"], arguments=arguments
+                        "tool_call", call_id=value["id"], name=value["name"], arguments=arguments,
+                        native=value.get("native", {}),
                     )
                 )
             return tuple(parts)

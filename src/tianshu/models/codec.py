@@ -62,7 +62,7 @@ def receipt_from_wire(value):
         return None
     value = dict(value)
     value["usage"] = ModelUsage(**value.get("usage", {}))
-    for name in ("queued_at", "started_at", "finished_at"):
+    for name in ("queued_at", "started_at", "finished_at", "hold_until"):
         if value.get(name):
             value[name] = datetime.fromisoformat(value[name])
     return ModelReceipt(**value)
