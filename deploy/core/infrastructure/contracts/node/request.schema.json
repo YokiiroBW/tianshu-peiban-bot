@@ -1,0 +1,267 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:tianshu:infrastructure-node:candidate-v1:request",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": "infrastructure-node.v1"
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}$"
+    },
+    "node_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "operation": {
+      "enum": [
+        "node.catalog",
+        "node.snapshot",
+        "docker.inventory",
+        "docker.stats",
+        "docker.logs",
+        "compose.inventory"
+      ]
+    },
+    "params": {
+      "type": "object"
+    },
+    "timeout_ms": {
+      "type": "integer",
+      "minimum": 500,
+      "maximum": 30000
+    }
+  },
+  "required": [
+    "version",
+    "request_id",
+    "node_id",
+    "operation",
+    "params",
+    "timeout_ms"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "node.catalog"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "node_id": {
+            "type": "null"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {},
+            "required": []
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "node.snapshot"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {},
+            "required": []
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "docker.inventory"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 200,
+                "default": 100
+              },
+              "cursor": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1024
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": []
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "docker.stats"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "container_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "maxItems": 200,
+                "minItems": 1,
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "container_ids"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "docker.logs"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "container_id": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "tail": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000,
+                "default": 200
+              },
+              "since_seconds": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 86400,
+                "default": 3600
+              },
+              "max_bytes": {
+                "type": "integer",
+                "minimum": 1024,
+                "maximum": 262144,
+                "default": 65536
+              }
+            },
+            "required": [
+              "container_id"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "compose.inventory"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 200,
+                "default": 100
+              },
+              "cursor": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 1024
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": []
+          }
+        }
+      }
+    }
+  ]
+}

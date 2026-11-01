@@ -39,7 +39,7 @@ COPY packages/tianshu-plugin/ packages/tianshu-plugin/
 COPY src/ src/
 RUN uv sync --frozen --no-dev --no-editable
 FROM ${PYTHON_IMAGE} AS runtime
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg git ca-certificates curl fontconfig fonts-noto-cjk \
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg git openssh-client ca-certificates curl fontconfig fonts-noto-cjk \
     libpq5 liblz4-1 libzstd1 libxml2 libssl3 libreadline8 zlib1g libldap-2.5-0 libgssapi-krb5-2 libicu72 \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -g 10001 tianshu && useradd -m -u 10001 -g 10001 tianshu

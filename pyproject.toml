@@ -37,6 +37,7 @@ dependencies = [
   "tianshu-plugin",
   "playwright==1.64.1",
   "mcp>=1.26,<2",
+  "PyYAML==6.0.3",
 ]
 
 [project.optional-dependencies]
