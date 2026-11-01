@@ -1,5 +1,5 @@
 {
-  "phase": "implementation",
+  "phase": "unified_validation",
   "source_baseline": "7aac7746ed0a4d12cd8b596de156b6f3a745f8ad",
   "planning_commit": "8bca244",
   "production_source": "dcdf729b5d22f451093e3658d131fd6757a00dde",
@@ -120,12 +120,16 @@
       ]
     },
     "MC-G": {
-      "state": "preparing_runner_not_executing",
+      "state": "implemented_not_verified",
       "scope": "full targeted acceptance, held-out semantic and cost comparison, cutover and actual receipts",
       "branch": "codex/memory-acceptance-20261101",
       "worktree": "tianshu-cr-foundation",
       "agent": "memory_acceptance",
-      "source_baseline": "1f0146c"
+      "source_baseline": "1f0146c",
+      "implementation_commit": "775731637c761d0efddeca4c103104c48fc11852",
+      "integrated_as": [
+        "55b77ca"
+      ]
     }
   },
   "issues": [
@@ -241,5 +245,13 @@
     "state": "prepared_not_executed",
     "additional_contract_scenarios": 12
   },
-  "product_implementation": "All A/B/C/D/F product changes and static integration repair integrated; G runner pending; no validation executed"
+  "product_implementation": "All product, frontend, evaluation and cutover preparation complete; first unified validation now authorized by coordinator",
+  "unified_validation": {
+    "implementation_head": "55b77ca",
+    "status": "starting",
+    "backend": "pending_disposable_postgres",
+    "frontend": "pending_build",
+    "semantic": "not_started",
+    "production_changed": false
+  }
 }
