@@ -228,9 +228,11 @@ test("life workspace switches goals, local day arrangements and real checkpoint 
   ).toBeVisible();
   await page.getByRole("button", { name: "调整目标", exact: true }).click();
   const editor = page.getByRole("dialog", { name: "调整目标", exact: true });
-  await expect(editor.getByLabel("完成方式", { exact: true })).toBeDisabled();
+  await expect(
+    editor.getByRole("combobox", { name: "完成方式", exact: true }),
+  ).toBeDisabled();
   await editor
-    .getByLabel("为什么在意", { exact: true })
+    .getByRole("textbox", { name: "为什么在意", exact: true })
     .fill("想保留阅读后的具体画面");
   await editor.getByRole("button", { name: "保存目标", exact: true }).click();
   await expect.poll(() => writes.length).toBe(1);
@@ -416,25 +418,31 @@ test("chapter goals bind a real work and count saved chapters without authoring 
   ).toBeVisible();
   await page.getByRole("button", { name: "调整目标", exact: true }).click();
   const editor = page.getByRole("dialog", { name: "调整目标", exact: true });
-  await expect(editor.getByLabel("完成方式", { exact: true })).toHaveValue(
-    "chapter_saved",
-  );
-  await expect(editor.getByLabel("对应作品", { exact: true })).toHaveValue(
-    "travel-work",
-  );
+  const completionKind = editor.getByRole("combobox", {
+    name: "完成方式",
+    exact: true,
+  });
+  const targetWork = editor.getByRole("combobox", {
+    name: "对应作品",
+    exact: true,
+  });
+  const chapterCount = editor.getByRole("spinbutton", {
+    name: "实际保存章数",
+    exact: true,
+  });
+  await expect(completionKind).toHaveValue("chapter_saved");
+  await expect(targetWork).toHaveValue("travel-work");
   await expect(
     editor.getByText(
       "只在所选作品的章节正文实际保存后计入进度，创作请求排队不算完成。",
     ),
   ).toBeVisible();
   await expect(
-    editor.getByLabel("对应的活动能力", { exact: true }),
+    editor.getByRole("combobox", { name: "对应的活动能力", exact: true }),
   ).toHaveCount(0);
   await editor.getByRole("button", { name: "更多作品", exact: true }).click();
-  await editor
-    .getByLabel("对应作品", { exact: true })
-    .selectOption("next-work");
-  await editor.getByLabel("实际保存章数", { exact: true }).fill("3");
+  await targetWork.selectOption("next-work");
+  await chapterCount.fill("3");
   await editor.getByRole("button", { name: "保存目标", exact: true }).click();
   await expect.poll(() => writes.length).toBe(1);
   expect(writes[0]).toMatchObject({
@@ -456,13 +464,11 @@ test("chapter goals bind a real work and count saved chapters without authoring 
   await page.getByRole("tab", { name: "长期目标", exact: true }).click();
   await expect(page.getByText("实际进度 33%", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "调整目标", exact: true }).click();
-  await expect(editor.getByLabel("完成方式", { exact: true })).toBeDisabled();
-  await expect(editor.getByLabel("对应作品", { exact: true })).toBeDisabled();
-  await expect(
-    editor.getByLabel("实际保存章数", { exact: true }),
-  ).toBeDisabled();
+  await expect(completionKind).toBeDisabled();
+  await expect(targetWork).toBeDisabled();
+  await expect(chapterCount).toBeDisabled();
   await editor
-    .getByLabel("为什么在意", { exact: true })
+    .getByRole("textbox", { name: "为什么在意", exact: true })
     .fill("继续完成这部作品");
   await editor.getByRole("button", { name: "保存目标", exact: true }).click();
   await expect.poll(() => writes.length).toBe(2);
