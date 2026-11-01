@@ -35,6 +35,20 @@ def loads(raw):
     except (ValueError,UnicodeError,RecursionError):
         raise Fault() from None
 
+def model_json(raw):
+    """Decode one complete JSON document, optionally in one Markdown fence."""
+    if not isinstance(raw, str):
+        raise Fault()
+    document = raw.strip()
+    if document.startswith("```"):
+        lines = document.splitlines()
+        if (len(lines) < 3 or lines[0][3:].strip().casefold() not in {"", "json"}
+                or lines[-1].strip() != "```"):
+            raise Fault()
+        document = "\n".join(lines[1:-1])
+    return loads(document)
+
+
 def epoch(value):
     return datetime.fromisoformat(value.replace("Z","+00:00")).timestamp()
 
