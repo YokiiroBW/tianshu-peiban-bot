@@ -206,16 +206,19 @@ async def run(settings, role, *, initialize=False):
             await jobs.open()
             stack.push_async_callback(jobs.close)
             shares = settings.worker_lanes
-            routed = await jobs.route_legacy_pending(database)
-            registration = {
-                "tasks": sorted(jobs.tasks), "queues": shares,
-                "queue_listeners": len(shares), "legacy_job_routing": routed,
-            }
             for module in modules:
                 if module.stop:
                     stack.push_async_callback(module.stop, services)
                 if module.start:
                     await module.start(services)
+            # Domain starts may register prepared owners and their work tasks.
+            # Resolve old metadata only after that graph is complete, while no
+            # lane consumer can claim a partially classified job yet.
+            routed = await jobs.route_legacy_pending(database)
+            registration = {
+                "tasks": sorted(jobs.tasks), "queues": shares,
+                "queue_listeners": len(shares), "legacy_job_routing": routed,
+            }
             workers = []
             for queue, count in shares.items():
                 workers.append(

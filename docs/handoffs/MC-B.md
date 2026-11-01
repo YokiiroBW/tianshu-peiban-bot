@@ -43,7 +43,7 @@ process 为每个 lane 启动一个原生 Procrastinate worker，复用同一 Ap
 
 单个 ModelClient 中，INTERACTIVE、DUE、ELASTIC 分别使用独立有限 HTTP connector；status/result/cancel/外部 permit 确认保留原独立 control。generate、stream、external resource admission 都按已确定的 request.service_class 选择传输池；不会根据客户端 lane、能力是否长任务提升模型优先级。取消仍仅清理原 attempt，不自动重发；close 关闭全部四个 session。
 
-`route_legacy_pending(database,batch_size=128)` 在 lane worker 启动前固定 cutoff，分页、逐项事务将旧三队列中的 todo 原 ID 改到服务端业务 lane。保留 args、scheduled_at、priority、locks、job_keys、attempts（包括已重试但当前 todo 的记录），doing/terminal 与 Model/Action 账本不动。单项未知 task / resolver 拒绝 / SQL 失败留原行，发去敏 `job.routing_blocked`；正常项照常启动。process.registration.legacy_job_routing 含 routed / cutoff / blocked_count / blocked（最多 128）/ blocked_complete，全部阻断项另有现有持久 EventLog。没有无限旧队列消费者或自动重派循环。
+`route_legacy_pending(database,batch_size=128)` 在全部 module.start（含 prepared owner / 动态 work task 注册）完成后、lane worker 启动前固定 cutoff，分页、逐项事务将旧三队列中的 todo 原 ID 改到服务端业务 lane。保留 args、scheduled_at、priority、locks、job_keys、attempts（包括已重试但当前 todo 的记录），doing/terminal 与 Model/Action 账本不动。单项未知 task / resolver 拒绝 / SQL 失败留原行，发去敏 `job.routing_blocked`；正常项照常启动。process.registration.legacy_job_routing 含 routed / cutoff / blocked_count / blocked（最多 128）/ blocked_complete，全部阻断项另有现有持久 EventLog。没有无限旧队列消费者或自动重派循环。
 
 `reroute_pending(connection,job_id,*,execution_lane,task=None,service_class=None)->bool` 仅接受原 todo 且 attempts=0 的行，供 A 在来源与原 Action/Attempt 锁定事务中纠正未开始的动作；service_class 只调整原 job 的 DUE priority，不替代 A 的业务 class 账本。成功改 queue 同事务发 Procrastinate 原生通知，保持原 job / attempt / receipt。不是 resume、新 attempt 或重新执行 unknown。
 
