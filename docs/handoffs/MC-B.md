@@ -1,5 +1,23 @@
 # MC-B：共享材料整理、固定执行与恢复
 
+## C8 Growth 反思身份碰撞修复（本次，written_not_run）
+
+基线 `47df9a92c503bd7a2dbbc6c8402f411325f4bbe5`，分支 `codex/growth-reflection-identity-rc29-20261102`。只改 Growth、GrowthRecovery、同源 reflection_output 和既有两份 Growth 用例/本交接；不改 Memory.service、Identity、Models、DDL、提示或前端，不操作生产。
+
+确证根因是旧 UUID 只用 actor/kind/模型所选 Episode ID 子集：先前 12-Episode 批次与当前单 Episode rev2 即使有不同正文和完整依赖闭包仍撞同一 ID。新 `growth.reflection.v2` 身份由原不可变 intent/attempt、原 Context（含权限域）、全冻结 Episode ID/revision/精确来源指纹及 kind/support 槽共同确定；不会由当前 recovery reader 的 epoch/origin 改 ID，也不会把正文/时间/随机数加进 ID 来掩盖真正重读冲突。同原请求重复读取稳定，同 Episode 修订、其他批次或作用域分离。
+
+新批只有 v2，不探测旧 UUID。仅无 v2 标记的既有 active，以及已存在的旧 legacy intent，登记到现有 `growth_legacy_requests` 有限转换清单并只观察原 attempt。GrowthRecovery 在当前授权/全来源闭包及冻结 Episode 版本复核后，对这一个登记旧请求执行一次精确已提交匹配；旧行必须同 actor/principal/person/conversation、完整 Episode 集合、正文/类型/条件/反例与来源集合，才复用旧 proposal/affect/style 身份，按旧 refs 顺序继续原 Memory 幂等。真正不同旧结果使用 v2 新 ID，不修改旧行。
+
+转换回执仅含协议、原 attempt、generation/提案指纹与精确旧 ID 别名，固化在该 legacy manifest context 的 `reflection_identity_conversion` 扩展元数据；原 Context 既有字段、GenerationRequest、active_batch.context/inputs、原游标不改。active_batch 只增加控制标记。回执在一次短事务提交后，重复原结果只核对固定回执，不再计算 v1 候选；整批结束沿既有 manifest reviewed/abandoned 退出。新批不进入这段转换。缺完整来源的原输入保留授权阻断，不补造、不跳判或标 reviewed。
+
+真正的 v2/转换回执冲突保留 `reflection_identity_conflict`，写入当前 Growth 可见专属 blocker 并停自动队列唤醒；该码不进入 REVIEW_ERRORS。原场景显式操作仅有 `observe_original_attempt`，不加 generation_revision、不调用 run/generate。来源先锁、原 Memory Episode CAS 与反思/风格/affect/游标原子事务保持；冲突回滚全部本次写入。
+
+新增未执行用例覆盖：原 reader epoch 变化保持 ID；原 attempt/material/scope/全材料版本变化分离；同 ID 正文漂移仍保留冲突；旧混合批同子集冲突保留旧记录并新增独立 v2；历史完全相同结果经一次固定别名转换、不重复 affect/style；转换回执跨提交中断重读不再调用 v1 算法；真实 v2 冲突事务回滚、UI 专属 blocker/仅原结果观察；原完整来源不可用仍授权阻断。复用前批已通过证据，本次未运行测试、解析器、构建、模型、网络、PG 或生产。
+
+根整批统一必要范围：`python -m pytest -q tests/companion/test_growth_output.py tests/companion/test_growth_legacy_recovery.py tests/companion/test_growth_budget.py`。私有部署工具另在根 `.runtime/.../growth-final-ops.py/.md`，不入产品提交，不会自动恢复新 2ce 分区；根唯一执行者。
+
+---
+
 ## C7 Growth 原结果恢复收尾（本次补充，written_not_run）
 
 仅改 `companion/growth.py`、`growth_recovery.py`、`growth_materials.py`、两份既有定向用例和本交接；在本分支 RC28 的 `132b24ef` 后追加，独立提交供根串行集成。没有 DDL、Identity/Models 算法、提示、前端或生产改动。

@@ -1,15 +1,21 @@
 """Old Growth checkpoints seed the current queue without replacing old attempts."""
 
 from dataclasses import replace
+from importlib.resources import files
 import json
+from uuid import NAMESPACE_URL, uuid5
 
 import pytest
 
 from tianshu.conversation.codec import context_from_record, document, signature
 from tianshu.models.types import ModelPart, ModelResult
+from tianshu.memory.service import MemoryService
+from tianshu.runtime.migrations import Migration, migrate
+from tianshu.runtime.serialization import wire
 from tianshu.runtime.errors import AppError
-from tianshu.types import OriginKind
-from tianshu.companion.growth_recovery import AUTHORIZATION_BLOCKED
+from tianshu.types import OriginKind, SourceRef
+from tianshu.companion.growth_recovery import AUTHORIZATION_BLOCKED, IDENTITY_BLOCKED
+from tianshu.companion.reflection_output import frozen_episodes, prepare_reflections
 from test_growth_output import Authority, Models, note, prepare, state
 
 
@@ -376,3 +382,189 @@ async def test_original_source_denial_remains_authorization_blocked_without_outp
     assert current["cursor"] is None and current["generation_revision"] == 0
     assert models.results[original.attempt_id].receipt.status == "succeeded"
     assert memory.proposals == [] and len(models.calls) == 1
+
+
+async def paused_generation(database, payload, *, old=False, refs=None):
+    models = Models(payload)
+    models.status = "unknown"
+    growth, memory, jobs, context, _notifications = await prepare(database, models)
+    if refs is not None:
+        memory.episode = replace(memory.episode, source_refs=refs)
+        memory.episodes = (memory.episode,)
+    scope = signature(sorted(context.scope_ids))
+    await growth.organize("actor", scope, 1)
+    request = models.calls[0]
+    models.results[request.attempt_id] = ModelResult(
+        (ModelPart("text", text=json.dumps(payload, ensure_ascii=False)),),
+        replace(models.results[request.attempt_id].receipt, status="succeeded", dispatch="submitted"))
+    if old:
+        async with database.transaction() as connection:
+            await connection.execute(
+                "UPDATE companion.organize_state SET active_batch=active_batch-'reflection_identity_protocol'")
+    prepared = prepare_reflections(models.results[request.attempt_id], context, frozen_episodes(request),
+        request.source_refs, request=request)
+    return growth, memory, jobs, context, models, request, prepared
+
+
+async def bind_real_reflection_store(database, growth, memory, jobs, context):
+    await migrate(database, (
+        Migration("0020_memory", files("tianshu.memory").joinpath("schema.sql").read_text()),
+        Migration("0021_memory_consolidation", files("tianshu.memory").joinpath("0021_memory_consolidation.sql").read_text()),
+    ))
+
+    class Descriptions:
+        async def describe_for_write_on(self, _connection, current, refs):
+            return [{"scope_ids": current.scope_ids} for _ref in refs]
+
+    service = MemoryService.__new__(MemoryService)
+    service.database, service.jobs, service.sources = database, jobs, Descriptions()
+    memory.record_reflection = service.record_reflection
+    async with database.transaction() as connection:
+        for episode in memory.episodes:
+            await connection.execute(
+                "INSERT INTO memory.episodes(episode_id,event_id,actor_id,principal_id,person_id,conversation_id,"
+                "revision,origin_kind,occurred_at,summary,source_refs,scope_ids,coverage,content_hash) "
+                "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'synthetic')",
+                (episode.episode_id, episode.event_id, context.actor_id, context.principal_id,
+                 context.person_id, context.conversation_id, episode.revision, episode.origin_kind.value,
+                 episode.occurred_at, episode.summary, document(episode.source_refs), list(context.scope_ids), document(episode.coverage)))
+
+
+async def seed_reflection(database, context, proposal):
+    async with database.transaction() as connection:
+        await connection.execute(
+            "INSERT INTO memory.reflections(proposal_id,actor_id,principal_id,person_id,conversation_id,episode_ids,"
+            "content,kind,occurred_at,source_refs,scope_ids,conditions,counterexamples) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (proposal.proposal_id, context.actor_id, context.principal_id, context.person_id, context.conversation_id,
+             list(proposal.episode_ids), proposal.content, proposal.kind, proposal.occurred_at, document(proposal.source_refs),
+             list(proposal.scope_ids), document(proposal.conditions), list(proposal.counterexamples)))
+
+
+@pytest.mark.asyncio
+async def test_old_subset_identity_collision_gets_v2_without_modifying_old_mixed_batch(database):
+    growth, memory, jobs, context, models, request, prepared = await paused_generation(
+        database, {"notes": [note(), note("interest")]}, old=True)
+    await bind_real_reflection_store(database, growth, memory, jobs, context)
+    legacy_id = str(uuid5(NAMESPACE_URL, "reflection:actor:interest:episode"))
+    old = replace(prepared[1].proposal, proposal_id=legacy_id, content="早先混合批次的另一项主观认识",
+        episode_ids=("episode", "old-second", "old-third"),
+        source_refs=tuple(SourceRef("old-source-" + str(index), 1) for index in range(8)))
+    await seed_reflection(database, context, old)
+    await growth.recover()  # Bounded old-active registration only; no model I/O.
+    assert models.reads == []
+    outcome = await growth.organize("actor", signature(sorted(context.scope_ids)), 1)
+    assert outcome["state"] == "reviewed" and len(models.calls) == 1
+    assert models.reads == [request.attempt_id]
+    async with database.transaction(read_only=True) as connection:
+        rows = await (await connection.execute("SELECT proposal_id,content,source_refs FROM memory.reflections")).fetchall()
+        converted = await (await connection.execute("SELECT context,state FROM companion.growth_legacy_requests")).fetchone()
+    assert len(rows) == 3
+    assert next(row for row in rows if row["proposal_id"] == legacy_id)["content"] == old.content
+    assert {item.proposal.proposal_id for item in prepared} <= {row["proposal_id"] for row in rows}
+    assert converted["state"] == "reviewed"
+    assert converted["context"]["reflection_identity_conversion"]["aliases"] == {}
+    assert (await state(database))["generation_revision"] == 0
+
+
+@pytest.mark.asyncio
+async def test_exact_old_commit_has_one_fixed_manifest_alias_and_no_duplicate_affect(database, monkeypatch):
+    value = note("interest")
+    value["affect"] = {"appraisal": "原主观感受", "valence": .2, "arousal": .2, "stress": .1,
+        "social_need": .1, "confidence": .7, "goal_relevance": 0, "attribution": "situation", "control": .5}
+    growth, memory, jobs, context, models, request, prepared = await paused_generation(
+        database, {"notes": [value]}, old=True, refs=(SourceRef("original", 1), SourceRef("second", 1)))
+    await bind_real_reflection_store(database, growth, memory, jobs, context)
+    legacy_id = str(uuid5(NAMESPACE_URL, "reflection:actor:interest:episode"))
+    old = replace(prepared[0].proposal, proposal_id=legacy_id,
+        source_refs=tuple(reversed(prepared[0].proposal.source_refs)))
+    await seed_reflection(database, context, old)
+    await growth.companion.apply_affect(context, replace(prepared[0].affect, event_id=legacy_id))
+    await growth.recover()
+    finish = growth._finish
+
+    async def interrupted(*_args, **_kwargs):
+        raise AppError("generation_no_longer_current", status=409)
+
+    monkeypatch.setattr(growth, "_finish", interrupted)
+    await growth.organize("actor", signature(sorted(context.scope_ids)), 1)
+    async with database.transaction(read_only=True) as connection:
+        manifest = await (await connection.execute("SELECT context,state FROM companion.growth_legacy_requests")).fetchone()
+    receipt = manifest["context"]["reflection_identity_conversion"]
+    assert receipt["aliases"] == {prepared[0].proposal.proposal_id: legacy_id} and manifest["state"] == "pending"
+
+    def no_second_v1_probe(*_args, **_kwargs):
+        pytest.fail("The fixed conversion receipt must replace the one-time v1 calculation")
+
+    monkeypatch.setattr("tianshu.companion.growth_recovery.uuid5", no_second_v1_probe)
+    monkeypatch.setattr(growth, "_finish", finish)
+    outcome = await growth.organize("actor", signature(sorted(context.scope_ids)), 1)
+    assert outcome["state"] == "reviewed" and len(models.calls) == 1
+    async with database.transaction(read_only=True) as connection:
+        reflections = await (await connection.execute("SELECT proposal_id,content,source_refs FROM memory.reflections")).fetchall()
+        affects = await (await connection.execute("SELECT event_id,event_revision FROM companion.affect_events")).fetchall()
+        styles = await (await connection.execute("SELECT id FROM companion.style_rules")).fetchall()
+        final = await (await connection.execute("SELECT context,state FROM companion.growth_legacy_requests")).fetchone()
+    assert reflections == [{"proposal_id": legacy_id, "content": old.content, "source_refs": wire(old.source_refs)}]
+    assert affects == [{"event_id": legacy_id, "event_revision": 1}]
+    assert styles == [{"id": legacy_id}]
+    assert final["state"] == "reviewed" and final["context"]["reflection_identity_conversion"] == receipt
+
+
+@pytest.mark.asyncio
+async def test_real_v2_conflict_is_visible_and_review_only_observes_original(database, monkeypatch):
+    growth, memory, jobs, context, models, request, prepared = await paused_generation(
+        database, {"notes": [note(), note("interest")]})
+    await bind_real_reflection_store(database, growth, memory, jobs, context)
+    await seed_reflection(database, context, replace(prepared[1].proposal, content="同一v2身份的实际不一致正文"))
+    scope = signature(sorted(context.scope_ids))
+    outcome = await growth.organize("actor", scope, 1)
+    assert outcome["state"] == "blocked" and outcome["error_code"] == IDENTITY_BLOCKED
+    blocked = await state(database)
+    assert blocked["cursor"] is None and blocked["generation_revision"] == 0
+    assert (await growth.view(context))["review"]["recovery"] == "observe_original_attempt"
+    assert (await growth.view(context))["review"]["can_request_review"]
+    async with database.transaction(read_only=True) as connection:
+        assert (await (await connection.execute("SELECT count(*) AS n FROM memory.reflections")).fetchone())["n"] == 1
+        assert (await (await connection.execute("SELECT count(*) AS n FROM companion.style_rules")).fetchone())["n"] == 0
+    before = len(jobs.items)
+    await growth.recover()
+    assert len(jobs.items) == before
+
+    class Reader(Authority):
+        async def refresh_scheduled_context(self, previous, *, permission, connection=None):
+            return previous
+
+    growth.companion.identity = Reader()
+
+    async def no_new_intent(*_args, **_kwargs):
+        pytest.fail("A true identity conflict must not be turned into a new model request")
+
+    monkeypatch.setattr(growth.generations, "run", no_new_intent)
+    reviewed = await growth.request_review(context,
+        {"client_request_id": "observe-real-conflict", "expected_revision": blocked["revision"]})
+    assert reviewed.data["recovery"] == "observe_original_attempt"
+    again = await growth.organize("actor", scope, reviewed.revision)
+    assert again["error_code"] == IDENTITY_BLOCKED and len(models.calls) == 1
+    assert (await state(database))["generation_revision"] == 0
+
+
+@pytest.mark.asyncio
+async def test_old_identity_conversion_keeps_unavailable_full_sources_authorization_blocked(database):
+    growth, memory, _jobs, context, models, request, _prepared = await paused_generation(
+        database, {"notes": [note()]}, old=True)
+    await growth.recover()
+
+    class DeniedSources(Authority):
+        async def validate_persistence(self, _connection, _context, refs):
+            return not refs
+
+    growth.companion.sources = DeniedSources()
+    outcome = await growth.organize("actor", signature(sorted(context.scope_ids)), 1)
+    assert outcome["error_code"] == AUTHORIZATION_BLOCKED
+    current = await state(database)
+    assert current["blocked_material"]["error_code"] == "source_unavailable"
+    assert current["active_batch"]["material_key"] == request.intent_id
+    assert current["generation_revision"] == 0 and memory.proposals == [] and len(models.calls) == 1
+    async with database.transaction(read_only=True) as connection:
+        manifest = await (await connection.execute("SELECT context,state FROM companion.growth_legacy_requests")).fetchone()
+    assert manifest["state"] == "pending" and "reflection_identity_conversion" not in manifest["context"]

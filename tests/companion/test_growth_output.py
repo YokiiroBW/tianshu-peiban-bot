@@ -7,7 +7,7 @@ import json
 import pytest
 
 from tianshu.companion.growth import GrowthService
-from tianshu.companion.reflection_output import output_example
+from tianshu.companion.reflection_output import frozen_episodes, output_example, prepare_reflections
 from tianshu.companion.service import CompanionService
 from tianshu.conversation.codec import document, signature
 from tianshu.conversation.context.assembly import ContextAssembler
@@ -425,3 +425,33 @@ async def test_source_backed_budget_failure_is_not_converted_to_unavailable_or_s
         inputs = await (await connection.execute("SELECT state,reviewed_revision,missing FROM companion.growth_inputs")).fetchall()
     assert len(inputs) == 2 and all(row == {"state": "pending", "reviewed_revision": 0, "missing": []} for row in inputs)
     assert (await state(database))["cursor"] is None
+
+
+@pytest.mark.asyncio
+async def test_reflection_identity_uses_original_generation_scope_and_all_frozen_versions(database):
+    models = Models({"notes": [note("interest")]})
+    growth, memory, _jobs, context, _notifications = await prepare(database, models)
+    await growth.organize("actor", signature(sorted(context.scope_ids)), 1)
+    request = models.calls[0]
+    result = models.results[request.attempt_id]
+    episodes = frozen_episodes(request)
+
+    def identity(original=request, inputs=episodes, reader=context):
+        observed = replace(result, receipt=replace(result.receipt,
+            attempt_id=original.attempt_id, intent_id=original.intent_id))
+        return prepare_reflections(observed, reader, inputs, original.source_refs, request=original)[0].proposal.proposal_id
+
+    first = identity()
+    assert first == memory.proposals[0].proposal_id
+    assert identity(reader=replace(context, access_epoch=99, origin_kind=OriginKind.TIMER)) == first
+    revised = {key: replace(item, revision=item.revision + 1) for key, item in episodes.items()}
+    wider_batch = {**episodes, "unselected": replace(episodes["episode"], episode_id="unselected")}
+    assert len({first, identity(replace(request, attempt_id="another-attempt")),
+        identity(replace(request, intent_id="another-material")), identity(inputs=revised),
+        identity(inputs=wider_batch), identity(replace(request,
+            context=replace(request.context, scope_ids=("different-scope",))))}) == 6
+    changed_output = replace(result, parts=(ModelPart("text", text=json.dumps({"notes": [
+        {**note("interest"), "content": "同一个原结果身份下发生了正文漂移"}]})),))
+    # Content drift must retain the same ID so Memory can reject a real conflict.
+    assert prepare_reflections(changed_output, context, episodes, request.source_refs,
+        request=request)[0].proposal.proposal_id == first

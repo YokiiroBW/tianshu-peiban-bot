@@ -5,14 +5,19 @@ them, and prevents a newly assembled batch from replacing an unresolved original
 The old sequence cursor is used once to seed history, never as ongoing coverage.
 """
 
-from tianshu.conversation.codec import context_from_record, document
+from dataclasses import replace
+from uuid import NAMESPACE_URL, uuid5
+
+from tianshu.conversation.codec import context_from_record, document, signature, source_refs
 from tianshu.runtime.errors import AppError
+from tianshu.sources.dependencies import unique_refs
 from .growth_materials import reflectable
-from .reflection_output import frozen_episodes
+from .reflection_output import IDENTITY_PROTOCOL, frozen_episodes, generation_identity
 
 
 PAGE_SIZE = 128
 AUTHORIZATION_BLOCKED = "reflection_recovery_authorization_required"
+IDENTITY_BLOCKED = "reflection_identity_conflict"
 
 
 def authorization_error(error):
@@ -90,6 +95,125 @@ class GrowthRecovery:
         """Current bounded authorization for reading; never rekey an old intent."""
         return await self.companion.identity.refresh_scheduled_context(
             original, permission=recovery_permission(original), connection=connection)
+
+    async def register_active_on(self, connection, state):
+        """Register only pre-v2 in-flight intents in the existing finite manifest."""
+        batch = state["active_batch"]
+        if not batch or batch.get("reflection_identity_protocol") == IDENTITY_PROTOCOL or batch.get("identity_conversion_key"):
+            return state
+        current = await (await connection.execute(
+            "SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE",
+            (state["actor_id"], state["scope_key"]))).fetchone()
+        if current is None:
+            return state
+        batch = current["active_batch"]
+        if not batch or batch.get("reflection_identity_protocol") == IDENTITY_PROTOCOL or batch.get("identity_conversion_key"):
+            return current
+        await connection.execute(
+            "INSERT INTO companion.growth_legacy_requests(actor_id,scope_key,material_key,context,inputs,end_cursor,state,created_at) "
+            "VALUES(%s,%s,%s,%s,%s,%s,'pending',coalesce((SELECT created_at FROM conversation.generation_requests "
+            "WHERE material_key=%s),now())) ON CONFLICT(actor_id,scope_key,material_key) DO NOTHING",
+            (current["actor_id"], current["scope_key"], batch["material_key"], document(batch["context"]),
+             document(batch["inputs"]), batch["end_cursor"], batch["material_key"]))
+        batch = {**batch, "legacy_material": True, "identity_conversion_key": batch["material_key"]}
+        return await (await connection.execute(
+            "UPDATE companion.organize_state SET active_batch=%s WHERE actor_id=%s AND scope_key=%s RETURNING *",
+            (document(batch), current["actor_id"], current["scope_key"]))).fetchone()
+
+    @staticmethod
+    def _proposal_fingerprint(item, episodes):
+        proposal = item.proposal
+        closure = unique_refs(proposal.source_refs, *(value.source_refs for value in episodes.values()))
+        return signature({"proposal": {"id": proposal.proposal_id, "actor_id": proposal.actor_id,
+            "episode_ids": sorted(proposal.episode_ids), "content": proposal.content, "kind": proposal.kind,
+            "conditions": proposal.conditions, "counterexamples": proposal.counterexamples,
+            "scope_ids": sorted(proposal.scope_ids)}, "sources": sorted(signature(ref) for ref in closure)})
+
+    @staticmethod
+    def _same_legacy(row, item, episodes, original, context):
+        proposal = item.proposal
+        closure = unique_refs(proposal.source_refs, *(value.source_refs for value in episodes.values()))
+        old_refs = source_refs(row["source_refs"])
+        return (row["active"] and row["interpretation"]
+            and (row["actor_id"], row["principal_id"], row["person_id"], row["conversation_id"])
+                == (original.actor_id, original.principal_id, original.person_id, original.conversation_id)
+            and set(row["scope_ids"]) <= set(context.scope_ids)
+            and sorted(row["episode_ids"]) == sorted(proposal.episode_ids)
+            and row["kind"] == proposal.kind and row["content"] == proposal.content
+            and row["conditions"] == proposal.conditions and tuple(row["counterexamples"]) == proposal.counterexamples
+            and len(old_refs) == len(unique_refs(old_refs))
+            and {signature(ref) for ref in old_refs} == {signature(ref) for ref in closure})
+
+    async def reflection_identities(self, state, context, batch, request, episodes, prepared):
+        """One-time pre-v2 manifest conversion; ordinary v2 batches never enter."""
+        key = batch.get("identity_conversion_key")
+        if key is None:
+            return prepared, batch
+        if key != request.intent_id or key != batch["material_key"]:
+            raise AppError(IDENTITY_BLOCKED, status=409)
+        expected = {item.proposal.proposal_id: self._proposal_fingerprint(item, episodes) for item in prepared}
+        async with self.companion.database.transaction() as connection:
+            await self.growth._validate_material(connection, context, episodes, request.source_refs)
+            current = await (await connection.execute(
+                "SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE",
+                (state["actor_id"], state["scope_key"]))).fetchone()
+            if not current or not current["active_batch"] or current["active_batch"]["material_key"] != key:
+                raise AppError("generation_no_longer_current", status=409)
+            manifest = await (await connection.execute(
+                "SELECT * FROM companion.growth_legacy_requests WHERE actor_id=%s AND scope_key=%s AND material_key=%s FOR UPDATE",
+                (state["actor_id"], state["scope_key"], key))).fetchone()
+            if manifest and (manifest["context"] is None or manifest["state"] == "invalidated"):
+                raise AppError("source_unavailable", status=403)
+            if (not manifest or manifest["state"] != "pending" or manifest["inputs"] != batch["inputs"]
+                    or context_from_record(manifest["context"]) != request.context):
+                raise AppError(IDENTITY_BLOCKED, status=409)
+            saved = manifest["context"].get("reflection_identity_conversion")
+            if saved is None:
+                # This v1 formula is restricted to this registered old intent.
+                # Persist its decision once, never probe old IDs for a new batch.
+                candidates = {item.proposal.proposal_id: str(uuid5(NAMESPACE_URL,
+                    f"reflection:{request.context.actor_id}:{item.proposal.kind}:{':'.join(item.support_ids)}"))
+                    for item in prepared}
+                rows = await (await connection.execute(
+                    "SELECT * FROM memory.reflections WHERE actor_id=%s AND proposal_id=ANY(%s)",
+                    (context.actor_id, list(candidates.values())))).fetchall() if candidates else []
+                old = {row["proposal_id"]: row for row in rows}
+                aliases = {item.proposal.proposal_id: candidates[item.proposal.proposal_id] for item in prepared
+                    if candidates[item.proposal.proposal_id] in old and self._same_legacy(
+                        old[candidates[item.proposal.proposal_id]], item, episodes, request.context, context)}
+                saved = {"protocol": IDENTITY_PROTOCOL, "attempt_id": request.attempt_id,
+                    "generation": signature(generation_identity(request, episodes)), "proposals": expected, "aliases": aliases}
+                await connection.execute(
+                    "UPDATE companion.growth_legacy_requests SET context=%s,updated_at=now() "
+                    "WHERE actor_id=%s AND scope_key=%s AND material_key=%s",
+                    (document({**manifest["context"], "reflection_identity_conversion": saved}),
+                     state["actor_id"], state["scope_key"], key))
+            if (saved.get("protocol") != IDENTITY_PROTOCOL or saved.get("attempt_id") != request.attempt_id
+                    or saved.get("generation") != signature(generation_identity(request, episodes))
+                    or saved.get("proposals") != expected):
+                raise AppError(IDENTITY_BLOCKED, status=409)
+            aliases = saved["aliases"]
+            rows = await (await connection.execute(
+                "SELECT * FROM memory.reflections WHERE actor_id=%s AND proposal_id=ANY(%s)",
+                (context.actor_id, list(aliases.values())))).fetchall() if aliases else []
+            existing = {row["proposal_id"]: row for row in rows}
+            converted = []
+            for item in prepared:
+                identifier = aliases.get(item.proposal.proposal_id)
+                if identifier is None:
+                    converted.append(item)
+                    continue
+                row = existing.get(identifier)
+                if row is None or not self._same_legacy(row, item, episodes, request.context, context):
+                    raise AppError(IDENTITY_BLOCKED, status=409)
+                converted.append(replace(item, proposal=replace(item.proposal, proposal_id=identifier,
+                    source_refs=source_refs(row["source_refs"])),
+                    affect=replace(item.affect, event_id=identifier) if item.affect else None))
+            batch = {**current["active_batch"], "reflection_identity_protocol": IDENTITY_PROTOCOL}
+            await connection.execute(
+                "UPDATE companion.organize_state SET active_batch=%s WHERE actor_id=%s AND scope_key=%s",
+                (document(batch), state["actor_id"], state["scope_key"]))
+        return tuple(converted), batch
 
     async def block(self, state, error):
         async with self.companion.database.transaction() as connection:
@@ -225,7 +349,8 @@ class GrowthRecovery:
             batch = {"material_key": original["material_key"], "context": original["context"],
                      "inputs": original["inputs"], "start_cursor": current["cursor"],
                      "end_cursor": original["end_cursor"] or current["cursor"],
-                     "watermark": current["watermark"], "has_more": True, "legacy_material": True}
+                     "watermark": current["watermark"], "has_more": True, "legacy_material": True,
+                     "identity_conversion_key": original["material_key"]}
             return await (await connection.execute(
                 "UPDATE companion.organize_state SET active_batch=%s,last_error=NULL,updated_at=now() "
                 "WHERE actor_id=%s AND scope_key=%s RETURNING *",

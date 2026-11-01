@@ -16,8 +16,8 @@ from tianshu.conversation.generation import GenerationRequests, attempt_for
 from tianshu.conversation.context.assembly import ContextAssembler
 from tianshu.models.completion import completion_from_native
 from .growth_materials import select_batch, reflectable
-from .growth_recovery import AUTHORIZATION_BLOCKED, GrowthRecovery, authorization_error
-from .reflection_output import (OUTPUT_TOKEN_BUDGET, REVIEW_ERRORS, frozen_episodes, prepare_reflections)
+from .growth_recovery import AUTHORIZATION_BLOCKED, IDENTITY_BLOCKED, GrowthRecovery, authorization_error
+from .reflection_output import (IDENTITY_PROTOCOL, OUTPUT_TOKEN_BUDGET, REVIEW_ERRORS, frozen_episodes, prepare_reflections)
 
 
 class GrowthService:
@@ -56,7 +56,7 @@ class GrowthService:
             "UPDATE companion.organize_state SET watermark=%s,context=CASE WHEN last_error=%s THEN context ELSE %s END,revision=revision+%s,updated_at=now() "
             "WHERE actor_id=%s AND scope_key=%s RETURNING revision,last_error",
             (watermark, AUTHORIZATION_BLOCKED, document(context), 0 if created else 1, context.actor_id, scope_key))).fetchone()
-        if row["last_error"] not in REVIEW_ERRORS | {AUTHORIZATION_BLOCKED}:
+        if row["last_error"] not in REVIEW_ERRORS | {AUTHORIZATION_BLOCKED, IDENTITY_BLOCKED}:
             await self.jobs.enqueue(connection, JobSpec("companion.organize", f"organize:{context.actor_id}:{scope_key}:{row['revision']}",
                 {"actor_id": context.actor_id, "scope_key": scope_key, "expected_revision": row["revision"]},
                 scheduled_at=datetime.now(UTC)+timedelta(seconds=30), subject_id=context.actor_id))
@@ -78,6 +78,8 @@ class GrowthService:
             return
         if state["last_error"] == AUTHORIZATION_BLOCKED:
             return self.recovery.blocked(state)
+        if state["last_error"] == IDENTITY_BLOCKED:
+            return {"state": "blocked", "error_code": IDENTITY_BLOCKED, "recovery": "observe_original_attempt"}
         if state["legacy_state"] != "complete":
             return await self.recovery.step(state)
         if not state["active_batch"] and state["last_error"] not in REVIEW_ERRORS:
@@ -85,6 +87,10 @@ class GrowthService:
         if state["last_error"] in REVIEW_ERRORS:
             return
         batch = state["active_batch"]
+        if batch and batch.get("reflection_identity_protocol") != IDENTITY_PROTOCOL and not batch.get("identity_conversion_key"):
+            async with self.companion.database.transaction() as connection:
+                state = await self.recovery.register_active_on(connection, state)
+            batch = state["active_batch"]
         if not batch and state["revision"] != expected_revision:
             return
         original_context = context_from_record(batch["context"] if batch else state["context"])
@@ -174,7 +180,8 @@ class GrowthService:
                 "persona": (actor["persona_id"], actor["persona_revision"]), "generation_revision": state["generation_revision"]})
             batch = {"material_key": material_key, "context": wire(context), "start_cursor": state["cursor"],
                      "end_cursor": end_cursor, "watermark": state["watermark"], "has_more": has_more,
-                     "inputs": [(item.episode_id, item.revision) for item in episodes]}
+                     "inputs": [(item.episode_id, item.revision) for item in episodes],
+                     "reflection_identity_protocol": IDENTITY_PROTOCOL}
             request = ModelRequest(material_key, attempt_for(material_key), "reflect", ServiceClass.ELASTIC,
                 context, budget, tuple(pack.messages), system=pack.system, max_output_tokens=OUTPUT_TOKEN_BUDGET,
                 estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs))
@@ -236,19 +243,16 @@ class GrowthService:
                 raise AppError("reflection_content_incomplete", details={"stop_reasons": completion.stop_reasons})
             episodes = frozen_episodes(frozen)
             if any(not item.source_refs for item in episodes.values()):
-                raise AppError("reflection_original_evidence_required")
-            prepared = prepare_reflections(result, context, episodes, generated_refs)
+                raise AppError("reflection_original_evidence_required", status=403)
+            prepared = prepare_reflections(result, context, episodes, generated_refs, request=frozen)
+            if batch.get("identity_conversion_key"):
+                prepared, batch = await self.recovery.reflection_identities(state, context, batch, frozen, episodes, prepared)
+                state = {**state, "active_batch": batch}
             relationship = (await self.companion.memory.relationship(context, context.person_id)
                             if context.person_id and any(item.proposal.kind == "style" for item in prepared) else None)
             changed = bool(prepared)
             async with self.companion.database.transaction() as connection:
-                await self.companion.validate_persistence(connection, context, generated_refs)
-                versions = tuple((item.episode_id, item.revision) for item in episodes.values())
-                readable = await self.companion.memory.episodes_by_refs(context, versions, connection=connection)
-                if set(versions) != {(item.episode_id, item.revision) for item in readable.items}:
-                    if "unavailable_sources" in readable.coverage.missing:
-                        raise AppError("source_unavailable", status=403)
-                    raise AppError("reflection_episode_unavailable", status=409)
+                await self._validate_material(connection, context, episodes, generated_refs)
                 # Match Memory's source -> Episode -> projection lock order.
                 # Any later batch guard failure rolls back these writes too.
                 for item in prepared:
@@ -281,6 +285,16 @@ class GrowthService:
                 return
             if authorization_error(error):
                 return await self.recovery.block(state, error)
+            if error.code == IDENTITY_BLOCKED:
+                async with self.companion.database.transaction() as connection:
+                    await connection.execute(
+                        "UPDATE companion.organize_state SET last_error=%s,blocked_material=%s,updated_at=now() "
+                        "WHERE actor_id=%s AND scope_key=%s AND active_batch->>'material_key'=%s",
+                        (IDENTITY_BLOCKED, document({"recovery": "observe_original_attempt",
+                            "reason": "原反思身份冲突，需核对既有记录；仅可复核原结果，不会新建模型请求。"}),
+                         actor_id, scope_key, material_key))
+                return {"state": "blocked", "error_code": IDENTITY_BLOCKED,
+                    "attempt_id": result.receipt.attempt_id, "recovery": "observe_original_attempt"}
             if error.code not in REVIEW_ERRORS | {"reflection_not_original_evidence", "reflection_original_evidence_required", "reflection_episode_unavailable", "reflection_episode_revision_conflict"}:
                 raise
             code = error.code if error.code in REVIEW_ERRORS else "reflection_material_contract_invalid"
@@ -341,18 +355,29 @@ class GrowthService:
                     (list(missing), state["actor_id"], state["scope_key"], identifier, version))
         return True
 
+    async def _validate_material(self, connection, context, episodes, generated_refs):
+        closure = unique_refs(generated_refs, *(item.source_refs for item in episodes.values()))
+        await self.companion.validate_persistence(connection, context, closure)
+        versions = tuple((item.episode_id, item.revision) for item in episodes.values())
+        readable = await self.companion.memory.episodes_by_refs(context, versions, connection=connection)
+        if set(versions) != {(item.episode_id, item.revision) for item in readable.items}:
+            if "unavailable_sources" in readable.coverage.missing:
+                raise AppError("source_unavailable", status=403)
+            raise AppError("reflection_episode_unavailable", status=409)
+
     async def recover(self):
         async with self.companion.database.transaction(read_only=True) as connection:
             rows = await (await connection.execute(
-                "SELECT * FROM companion.organize_state s WHERE (last_error IS NULL OR last_error<>%s) AND (legacy_state<>'complete' OR "
+                "SELECT * FROM companion.organize_state s WHERE (last_error IS NULL OR last_error<>ALL(%s)) AND (legacy_state<>'complete' OR "
                 "((last_error IS NULL OR last_error<>ALL(%s)) AND (active_batch IS NOT NULL OR reviewed_watermark<>watermark OR "
                 "EXISTS(SELECT 1 FROM companion.growth_inputs i WHERE i.actor_id=s.actor_id AND i.scope_key=s.scope_key AND reviewed_revision<i.revision) OR "
                 "EXISTS(SELECT 1 FROM companion.growth_legacy_requests r WHERE r.actor_id=s.actor_id AND r.scope_key=s.scope_key AND r.state='pending'))))",
-                (AUTHORIZATION_BLOCKED, sorted(REVIEW_ERRORS)))).fetchall()
+                (sorted({AUTHORIZATION_BLOCKED, IDENTITY_BLOCKED}), sorted(REVIEW_ERRORS)))).fetchall()
         for row in rows:
             # Startup only registers work. Each old context/material is handled
             # by its own nonretrying job; it cannot abort another domain's start.
             async with self.companion.database.transaction() as connection:
+                row = await self.recovery.register_active_on(connection, row)
                 await self.jobs.enqueue(connection,JobSpec("companion.organize",f"organize-recover:{row['actor_id']}:{row['scope_key']}:{row['revision']}:{datetime.now(UTC).isoformat()}",
                     {"actor_id":row["actor_id"],"scope_key":row["scope_key"],"expected_revision":row["revision"]},subject_id=row["actor_id"]))
 
@@ -437,6 +462,8 @@ class GrowthService:
             if review["last_error"] == "reflection_material_source_required" and not review["material_key"]:
                 review["recovery"] = "continue_available_material"
                 review["reason"] = "逐项记录原件缺项，继续有来源的后续经历；不补造原件。"
+            if review["last_error"] == IDENTITY_BLOCKED:
+                review["reason"] = "原反思身份冲突，需核对既有记录；此操作仅复核原结果，不会新建模型请求。"
             if review["last_error"] == AUTHORIZATION_BLOCKED:
                 review["recovery"] = "observe_original_attempt" if review["material_key"] else "reauthorize_original_scope"
                 review["can_request_review"] = same_scene

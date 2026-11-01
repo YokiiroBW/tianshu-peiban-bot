@@ -19,6 +19,7 @@ from .types import AffectUpdate, ReflectionProposal
 # the previous 13k material capacity while reserving room for both outputs.
 INPUT_TOKEN_BUDGET = 13000
 OUTPUT_TOKEN_BUDGET = 8192
+IDENTITY_PROTOCOL = "growth.reflection.v2"
 MAX_NOTES = 3
 TITLE_MAX_LENGTH = 48
 CONTENT_MAX_LENGTH = 240
@@ -115,6 +116,7 @@ class PreparedReflection:
     title: str
     proposal: ReflectionProposal
     affect: AffectUpdate | None
+    support_ids: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -169,7 +171,28 @@ def frozen_episodes(request, *, check_dependencies=True):
         raise AppError("reflection_material_contract_invalid") from None
 
 
-def prepare_reflections(result, context, episodes, generated_refs):
+def generation_identity(request, episodes):
+    """Immutable request and complete material identity; the reader grants no ID."""
+    original = request.context
+    context = {"principal_id": original.principal_id, "actor_id": original.actor_id,
+        "person_id": original.person_id, "conversation_id": original.conversation_id,
+        "scope_ids": sorted(original.scope_ids), "audience": sorted(original.audience),
+        "access_epoch": original.access_epoch, "origin_kind": original.origin_kind,
+        "permissions": sorted(original.permissions), "conversation_kind": original.conversation_kind,
+        "delivery_allowed": original.delivery_allowed}
+    return {"protocol": IDENTITY_PROTOCOL, "intent_id": request.intent_id,
+        "attempt_id": request.attempt_id, "context": signature(context),
+        "inputs": [{"episode_id": item.episode_id, "revision": item.revision,
+                    "source_refs": sorted(signature(ref) for ref in item.source_refs)}
+                   for item in sorted(episodes.values(), key=lambda value: value.episode_id)],
+        "source_refs": sorted(signature(ref) for ref in request.source_refs)}
+
+
+def prepare_reflections(result, context, episodes, generated_refs, *, request):
+    if (request.context.actor_id != context.actor_id or result.receipt.attempt_id != request.attempt_id
+            or result.receipt.intent_id != request.intent_id):
+        raise AppError("reflection_material_contract_invalid")
+    identity = generation_identity(request, episodes)
     def nonfinite(_value):
         raise ValueError("non-finite JSON number")
 
@@ -196,7 +219,8 @@ def prepare_reflections(result, context, episodes, generated_refs):
         supports = tuple(sorted(note["episode_ids"]))
         identifier = str(uuid5(
             NAMESPACE_URL,
-            f"reflection:{context.actor_id}:{note['kind']}:{':'.join(supports)}",
+            IDENTITY_PROTOCOL + ":" + signature({"generation": identity,
+                "kind": note["kind"], "supports": supports}),
         ))
         if identifier in seen:
             raise AppError("reflection_duplicate_proposal")
@@ -224,5 +248,5 @@ def prepare_reflections(result, context, episodes, generated_refs):
                 goal_relevance=float(value["goal_relevance"]),
                 attribution=value["attribution"], control=float(value["control"]),
             )
-        prepared.append(PreparedReflection(note["title"], proposal, affect))
+        prepared.append(PreparedReflection(note["title"], proposal, affect, supports))
     return tuple(prepared)
