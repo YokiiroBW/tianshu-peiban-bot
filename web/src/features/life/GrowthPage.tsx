@@ -127,6 +127,8 @@ export default function GrowthPage() {
                     读取原执行状态
                   </button>
                 </div>
+              ) : review.recovery === "retire_unavailable_original" ? (
+                review.reason && <p role="status">{review.reason}</p>
               ) : (
                 review.last_error && (
                   <p role="status">{reviewReason(review.last_error)}</p>
@@ -163,7 +165,9 @@ export default function GrowthPage() {
                       await view.refresh();
                   }}
                 >
-                  重新读取材料并整理
+                  {review.recovery === "retire_unavailable_original"
+                    ? "关闭无原件旧批并继续"
+                    : "重新读取材料并整理"}
                 </button>
               )}
               {review.last_reviewed_at && (
