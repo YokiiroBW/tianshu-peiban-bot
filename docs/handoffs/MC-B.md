@@ -25,7 +25,7 @@
 | source_lifecycle | sources.propagate；memory.purge_source |
 | growth | companion.organize |
 | images / reactions / speech / perception / media | capabilities.execute 由 A 按服务端 capability 身份路由；不按 long_running 或 origin 猜测；reactions 图库维护独立 |
-| downloads | capabilities.media_job；A 的下载能力动作 |
+| downloads | capabilities.media_job 默认；G 按原持久 job 类型区分下载与音乐本地处理；A 的下载能力动作 |
 | plugins | capabilities.plugin_event/plugin_schedule；A 的插件动作 |
 | infrastructure | capabilities.infrastructure_job；A 的采集能力动作 |
 | book_audio | capabilities.media.work.book_audio |
@@ -34,7 +34,7 @@
 | video_subscriptions | capabilities.media.work.subscriptions |
 | music_playlists / music_navidrome / music_lyrics | capabilities.media.work 下对应同名任务 |
 | comic_extensions / comic_cleanup / media_retention | capabilities.media.work.comic_extensions/comic_cleanup/retention |
-| music_library | capabilities.media.library_job |
+| music_library | 继续原 capabilities.media_job 身份；G 依据持久 audio_operation 为 sync enqueue 显式填 lane、为旧 / async job 注册 resolver，不新增 task 别名 |
 | maintenance | capabilities.media 下原 14 种维护入口只做短派工；work.music_imports/work.music_maintenance/work.infrastructure_observe 只做原生派工或短计划。必须与 G 的完整派工实现同批集成 |
 
 process 为每个 lane 启动一个原生 Procrastinate worker，复用同一 App / schema / queue SQL pool / 原锁与取消机制。34 个真实 LISTEN 已入 Settings.database 计算，不按执行槽数增加监听，也不保留 interactive/due/elastic 旧消费者。默认角色池 24 + queue 8 + LISTEN 34 + Broker owner 1 = 67；现有显式角色池为 23 时需求 66。配置预算明确 72；不改变业务角色池大小、硬件或供应商真实配额。

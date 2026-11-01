@@ -123,7 +123,6 @@ TASK_LANES = {
     "capabilities.media.work.music_maintenance": ExecutionLane.MAINTENANCE,
     "capabilities.media.work.music_lyrics": ExecutionLane.MUSIC_LYRICS,
     "capabilities.media.work.infrastructure_observe": ExecutionLane.MAINTENANCE,
-    "capabilities.media.library_job": ExecutionLane.MUSIC_LIBRARY,
 }
 
 
