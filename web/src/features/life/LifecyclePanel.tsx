@@ -30,14 +30,22 @@ type Choice = {
   can_execute: boolean;
   availability: { reason: string | null };
 };
+function needsLaterArrangement(activity: Activity) {
+  return (
+    activity.waiting_reason === "follow_up_available" ||
+    activity.resume_condition === "plan_later_check"
+  );
+}
 export function LifecyclePanel({
   canManage,
   refreshState,
   section = "all",
+  onReviewDay,
 }: {
   canManage: boolean;
   refreshState: () => Promise<void>;
   section?: "all" | "goals" | "activities";
+  onReviewDay?: () => void;
 }) {
   const [goalCursor, setGoalCursor] = useState<string | null>(null);
   const [activityCursor, setActivityCursor] = useState<string | null>(null);
@@ -306,6 +314,7 @@ export function LifecyclePanel({
                         </button>
                       )}
                       {["planned", "paused", "dormant"].includes(item.state) &&
+                        !needsLaterArrangement(item) &&
                         ![
                           "outcome_unknown",
                           "capability_running",
@@ -330,6 +339,11 @@ export function LifecyclePanel({
                               : "开始或继续"}
                           </button>
                         )}
+                      {needsLaterArrangement(item) && onReviewDay && (
+                        <button className="button" onClick={onReviewDay}>
+                          去今日安排重新考虑
+                        </button>
+                      )}
                       {!["completed", "cancelled"].includes(item.state) && (
                         <button
                           className="button"

@@ -297,6 +297,75 @@ test("life workspace switches goals, local day arrangements and real checkpoint 
   ).toBeTruthy();
 });
 
+test("forum follow-up waits for a later arrangement without resuming unread content", async ({
+  page,
+}) => {
+  await setup(page);
+  const followUp = {
+    ...activity,
+    id: "forum-follow-up",
+    title: "稍后再看看讨论的新回复",
+    waiting_reason: "follow_up_available",
+    resume_condition: "plan_later_check",
+  };
+  await page.route(apiPath("life/activities"), (route) =>
+    answer(route, { ...emptyPage, items: [followUp, unknown] }),
+  );
+  const resumes: unknown[] = [];
+  const reconsider: Record<string, unknown>[] = [];
+  await page.route(apiPath("life/activities.resume"), (route) => {
+    resumes.push(route.request().postDataJSON());
+    return answer(route, {});
+  });
+  await page.route(apiPath("life/day-plan.reconsider"), (route) => {
+    const body = route.request().postDataJSON();
+    reconsider.push(body);
+    return answer(route, command(body, { state: "queued", day: "2026-11-02" }));
+  });
+  await page.goto("/#/roles/life");
+  await page.getByRole("tab", { name: "活动与进度", exact: true }).click();
+  const waiting = page.locator("article.domain-record").filter({
+    has: page.getByText(followUp.title, { exact: true }),
+  });
+  await expect(
+    waiting.getByText(
+      "当前窗口的原件已读完；后续新内容尚未读取，等待安排后续查看。",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(
+    waiting.getByText("继续条件：需先安排稍后查看，再按安排取得新内容。", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    waiting.getByRole("button", { name: /开始或继续|从实际位置继续/ }),
+  ).toHaveCount(0);
+  await expect(waiting.getByText("本次活动完成", { exact: true })).toHaveCount(
+    0,
+  );
+  await waiting
+    .getByRole("button", { name: "去今日安排重新考虑", exact: true })
+    .click();
+  await expect(
+    page.getByRole("tab", { name: "今日安排", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  expect(reconsider).toHaveLength(0);
+  await page
+    .getByLabel("有了什么新想法？", { exact: true })
+    .fill("安排稍后查看论坛的新内容");
+  await page
+    .getByRole("button", { name: "重新考虑今天的安排", exact: true })
+    .click();
+  await expect.poll(() => reconsider.length).toBe(1);
+  expect(reconsider[0]).toMatchObject({
+    actor_id: "actor",
+    expected_revision: 3,
+    reason: "安排稍后查看论坛的新内容",
+  });
+  expect(resumes).toHaveLength(0);
+});
+
 test("chapter goals bind a real work and count saved chapters without authoring progress", async ({
   page,
 }) => {

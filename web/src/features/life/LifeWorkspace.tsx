@@ -88,6 +88,10 @@ export function LifeWorkspace({
             canManage={canManage}
             refreshState={refresh}
             section="activities"
+            onReviewDay={() => {
+              setTab("day");
+              saveRolePreference("tianshu-life-tab", "day");
+            }}
           />
         ) : tab === "diary" ? (
           <DiaryPanel canManage={canManage} />

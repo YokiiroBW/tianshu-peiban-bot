@@ -267,6 +267,9 @@ const activityWaitingReasons: Record<string, string> = {
   outcome_unknown: "原任务结果尚未确认，请先核对原执行，不能重新提交。",
   analysis_unconfirmed: "原任务已有结果，但分析尚未确认，暂未作为完成经历。",
   continuation_available: "本次已处理范围结束，可以从已保存的位置继续。",
+  follow_up_available:
+    "当前窗口的原件已读完；后续新内容尚未读取，等待安排后续查看。",
+  plan_later_check: "需先安排稍后查看，再按安排取得新内容。",
   actor_disabled: "角色已停用，活动已暂停。",
   user_paused: "活动已按要求暂停。",
   failed: "原任务未完成，请查看原任务结果。",
@@ -315,6 +318,8 @@ export function lifeCommandError(message: string) {
     goal_criteria_already_started: "目标已有实际进度，请保留原来的完成约定。",
     activity_action_unresolved:
       "原活动结果还没确认，请先读取原任务，进度没有丢失。",
+    activity_follow_up_requires_arrangement:
+      "这项后续查看需要先安排时间，请到今日安排重新考虑。",
     diary_generation_unresolved:
       "原日记任务仍在处理中，请核对或取消原任务后再整理。",
     source_unavailable: "相关原始依据已经失效，请刷新当前材料。",
