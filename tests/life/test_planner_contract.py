@@ -191,4 +191,4 @@ async def test_null_is_legitimate_and_action_arguments_are_strict():
             result(activity(capability_id=None, kind="reading", arguments={})), request
         )
     with pytest.raises(AppError, match="planner_original_contract_missing"):
-        planner.decision(result(activity()), replace(request, task_id=None))
+        planner.decision(result(activity()), replace(request, system="pre-upgrade application rules"))
