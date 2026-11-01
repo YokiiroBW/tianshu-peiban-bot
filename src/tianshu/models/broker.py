@@ -449,6 +449,7 @@ class ModelBroker:
             result_data = {
                 "parts": wire(tuple(collector.parts) + extra),
                 "native_response": collector.native_response,
+                "completion": wire(collector.completion),
             }
             row = await self.ledger.finish(
                 request.attempt_id,
@@ -471,6 +472,7 @@ class ModelBroker:
                 tuple(collector.parts) + extra if saved is not None else (),
                 receipt(row),
                 collector.native_response if saved is not None else None,
+                collector.completion,
             )
             try:
                 await self.event("model.finished", "succeeded", request.attempt_id)

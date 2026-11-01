@@ -96,10 +96,20 @@ class ModelReceipt:
 
 
 @dataclass(frozen=True, slots=True)
+class ModelCompletion:
+    """Content termination is separate from physical request settlement."""
+
+    state: Literal["complete", "incomplete", "unknown"] = "unknown"
+    stop_reasons: tuple[str, ...] = ()
+    provider_status: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class ModelResult:
     parts: tuple[ModelPart, ...]
     receipt: ModelReceipt
     native_response: Mapping[str, Any] | None = None
+    completion: ModelCompletion = field(default_factory=ModelCompletion)
 
 
 @dataclass(frozen=True, slots=True)

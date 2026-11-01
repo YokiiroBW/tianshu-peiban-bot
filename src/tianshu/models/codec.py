@@ -5,7 +5,8 @@ from datetime import datetime
 from tianshu.types import MediaRef, OriginKind, RequestBudget, ServiceClass, SourceRef, TrustedContext
 from tianshu.runtime.errors import AppError
 from .types import (ExternalRequest, ModelEvent, ModelMessage, ModelPart, ModelReceipt,
-                    ModelRequest, ModelResult, ModelUsage, ToolSpec)
+                    ModelRequest, ModelResult, ModelUsage, ModelCompletion, ToolSpec)
+from .completion import completion_from_native
 
 
 def context_from_wire(value):
@@ -68,8 +69,11 @@ def receipt_from_wire(value):
 
 
 def result_from_wire(value):
+    completion = value.get("completion")
+    completion = (ModelCompletion(completion["state"], tuple(completion.get("stop_reasons", ())), completion.get("provider_status"))
+                  if completion is not None else completion_from_native(value["receipt"]["protocol"], value.get("native_response")))
     return ModelResult(tuple(part_from_wire(part) for part in value["parts"]),
-                       receipt_from_wire(value["receipt"]), value.get("native_response"))
+                       receipt_from_wire(value["receipt"]), value.get("native_response"), completion)
 
 
 def event_from_wire(value):

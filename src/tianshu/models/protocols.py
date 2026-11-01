@@ -289,6 +289,8 @@ class ResponseCollector:
     """Observe native results, preserving all original parts for a subsequent tool round."""
 
     def __init__(self, protocol):
+        from .types import ModelCompletion
+
         self.protocol = protocol
         self.parts = []
         self.raw_usage = None
@@ -296,6 +298,7 @@ class ResponseCollector:
         self.completed = False
         self.calls = {}
         self.chat_finished = {}
+        self.completion = ModelCompletion()
 
     def _chat_parts(self, value):
         if not isinstance(value, dict) or not isinstance(value.get("choices"), list):
@@ -385,7 +388,11 @@ class ResponseCollector:
             current[field] += fragment
 
     def feed(self, value):
+        from .completion import completion_from_native, merge_completion
+
         self.native_response = value
+        observed = value.get("response", value) if self.protocol == "openai.responses" else value
+        self.completion = merge_completion(self.completion, completion_from_native(self.protocol, observed))
         added = []
         if self.protocol == "gemini.generate":
             if "usageMetadata" in value:
@@ -407,11 +414,13 @@ class ResponseCollector:
                 response = value.get("response", {})
                 self.native_response = response
                 self.raw_usage = response.get("usage")
-                self.completed = value["type"] == "response.completed"
+                # A terminal incomplete response has known output and usage.
+                # Its content may be unusable; the physical request is settled.
+                self.completed = True
             if value.get("type") == "response.output_text.delta":
                 added.append(ModelPart("text", text=value.get("delta", "")))
             if "output" in value:
-                self.completed = value.get("status") == "completed"
+                self.completed = value.get("status") in {"completed", "incomplete", "failed"}
                 self.raw_usage = value.get("usage")
                 for item in value["output"]:
                     if item.get("type") == "function_call":
@@ -456,6 +465,10 @@ class ResponseCollector:
         return added
 
     def tool_parts(self):
+        if self.completion.state == "incomplete":
+            # Keep partial native output for diagnosis, never fabricate a tool
+            # execution from truncated arguments or turn a known stop into unknown.
+            return ()
         if self.protocol == "openai.chat":
             parts = []
             for value in self.calls.values():
