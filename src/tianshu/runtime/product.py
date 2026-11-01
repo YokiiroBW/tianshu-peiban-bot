@@ -188,6 +188,10 @@ async def build_product(runtime):
     )
     life_worker = LifeWorker(life, models, assembler, caps.catalog, caps.actions, renderer, growth)
     reading = ReadingService(life, caps.reading)
+    life_worker.bind_writing(writing)
+    writing.bind_completion(life.writing_completed)
+    renderer.bind_contact_preflight(life_worker.contact_preflight)
+    channels.bind_contact_preflight(life_worker.contact_preflight)
     conversation = ConversationService(
         db,
         commands,

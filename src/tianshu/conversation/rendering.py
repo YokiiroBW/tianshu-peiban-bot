@@ -24,6 +24,10 @@ class ExpressionRenderer:
     def __init__(self,database,jobs,identity,sources,actions,speech,delivery):
         self.database,self.jobs,self.identity,self.sources=database,jobs,identity,sources
         self.actions,self.speech,self.delivery=actions,speech,delivery
+        self.contact_preflight = None
+
+    def bind_contact_preflight(self, callback):
+        self.contact_preflight = callback
 
     async def hint(self,context):
         profile=await self.speech.expression_profile(context)
@@ -202,8 +206,24 @@ class ExpressionRenderer:
                     updated=await (await connection.execute("UPDATE conversation.expression_plans SET state='waiting_order',reason='earlier_turn_pending' WHERE expression_id=%s RETURNING *",(expression_id,))).fetchone()
                     return progress(updated)
             await connection.execute("UPDATE conversation.expression_plans SET state='delivering',reason=NULL WHERE expression_id=%s",(expression_id,))
+        if plan.candidate_id and self.contact_preflight is not None:
+            decision = await self.contact_preflight(context, plan.candidate_id, expression_id=expression_id)
+            if decision["decision"] != "send":
+                # Life has already closed this candidate generation or persisted its
+                # next due job. This rendered expression has never entered delivery.
+                async with self.database.transaction() as connection:
+                    updated = await (await connection.execute(
+                        "UPDATE conversation.expression_plans SET state='cancelled',reason=%s,revision=revision+1,updated_at=now() "
+                        "WHERE expression_id=%s AND state='delivering' AND revision=%s RETURNING *",
+                        (decision["reason"], expression_id, fresh["revision"]))).fetchone()
+                    if updated:
+                        await self._event(connection, context, expression_id, updated["revision"])
+                    else:
+                        updated = await (await connection.execute(
+                            "SELECT * FROM conversation.expression_plans WHERE expression_id=%s", (expression_id,))).fetchone()
+                return progress(updated)
         result=await self.delivery.send(context,plan)
-        state = delivery_state(result)
+        state = "cancelled" if result.execution == "cancelled" and result.result.get("contact_preflight") else delivery_state(result)
         if state == "unknown":
             state = "delivery_unknown"
         async with self.database.transaction() as connection:
@@ -289,7 +309,7 @@ class ExpressionRenderer:
                 (expression_id, context.actor_id, context.conversation_id))).fetchone()
             if not current or not receipt_advances(receipt(current["receipt"]), result):
                 return
-            state = delivery_state(result)
+            state = "cancelled" if result.execution == "cancelled" and result.result.get("contact_preflight") else delivery_state(result)
             if state == "unknown":
                 state = "delivery_unknown"
             row=await (await connection.execute("UPDATE conversation.expression_plans SET state=%s,receipt=%s,reason=%s,revision=revision+1,updated_at=now() WHERE expression_id=%s AND (state<>%s OR receipt IS DISTINCT FROM %s) RETURNING revision",(state,document(result),result.error_code,expression_id,state,document(result)))).fetchone()

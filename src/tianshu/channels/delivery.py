@@ -13,6 +13,15 @@ from .onebot.registry import qq_id
 from .onebot.messages import validate_outbound
 
 
+class ContactPreflightStopped(Exception):
+    """Known pre-submit policy stop; transports must not turn it into unknown I/O."""
+
+    def __init__(self, decision):
+        super().__init__(decision["reason"])
+        self.decision = decision
+        self.code = "contact_preflight_stopped"
+
+
 class ChannelDelivery:
     def __init__(self, service):
         self.service = service
@@ -121,6 +130,39 @@ class DeliveryHandler:
     async def availability(self, context):
         return Availability(True, True)
 
+    @staticmethod
+    def begun(attempt, rows, *, current_call_id=None):
+        return getattr(attempt, "dispatch", "not_started") != "not_started" or any(
+            row.get("submitted_at") or row["state"] in {"confirmed", "accepted", "unknown"}
+            or row["state"] == "sending" and row["id"] != current_call_id for row in rows)
+
+    async def preflight(self, action, attempt, *, current_call_id=None):
+        if action.capability_id != "channels.deliver":
+            return None
+        candidate = action.arguments["plan"].get("candidate_id")
+        check = getattr(self.service, "contact_preflight", None)
+        if not candidate or check is None:
+            return None
+        rows = await self.service.repository.calls_for(action.action_id, attempt.attempt_id)
+        if self.begun(attempt, rows, current_call_id=current_call_id):
+            return None
+        decision = await check(action.context, candidate, expression_id=action.expression_id)
+        return decision if decision["decision"] != "send" else None
+
+    async def stopped(self, action, attempt, decision):
+        from .contracts import TransportResult
+
+        rows = await self.service.repository.calls_for(action.action_id, attempt.attempt_id)
+        if self.begun(attempt, rows):
+            return None
+        for row in rows:
+            if row["state"] == "prepared":
+                await self.service.repository.settle(row["id"], TransportResult(
+                    "rejected", error_code="contact_preflight_stopped", raw={"contact_preflight": decision}))
+        return Receipt(str(uuid4()), action.action_id, attempt.attempt_id,
+            "cancelled", "none", "not_requested", result={"expression_id": action.expression_id,
+                "contact_preflight": decision}, error_code=decision["reason"])
+
     async def execute(self, action, attempt):
         target = await self.service.identity.channel_target(
             action.context, action.context.conversation_id
@@ -131,6 +173,13 @@ class DeliveryHandler:
         value = action.arguments["plan"]
         if value["target_ref"] != context.conversation_id:
             raise ChannelError("channel_target_mismatch", 403)
+        existing = await self.service.repository.calls_for(action.action_id, attempt.attempt_id)
+        if existing and (self.begun(attempt, existing) or any(row["state"] != "prepared" for row in existing)):
+            return await self.reconcile(action, attempt)
+        decision = await self.preflight(action, attempt)
+        if decision:
+            stopped = await self.stopped(action, attempt, decision)
+            return stopped or await self.reconcile(action, attempt)
         if target["adapter"] == "web":
             if self.service.web is None:
                 raise ChannelError("web_publication_port_unavailable", 503)
@@ -154,6 +203,10 @@ class DeliveryHandler:
                 "web.publish",
                 {"expression_id": plan.expression_id},
             )
+            decision = await self.preflight(action, attempt)
+            if decision:
+                stopped = await self.stopped(action, attempt, decision)
+                return stopped or await self.reconcile(action, attempt)
             async with self.service.runtime.database.transaction() as conn:
                 if not await self.service.sources.validate_persistence(
                     conn, context, action.source_refs
@@ -217,6 +270,8 @@ class DeliveryHandler:
             _, persisted_attempt, current = await self.service.actions.load_for_execution(
                 action.action_id
             )
+            if current.execution == "cancelled" and current.result.get("contact_preflight"):
+                return current
             if persisted_attempt.dispatch == "not_started" and current.execution in {
                 "pending",
                 "running",
@@ -244,6 +299,15 @@ class DeliveryHandler:
             elif row["state"] in {"unknown", "accepted", "sending"}:
                 await self.service.reconcile_call(row["id"])
         rows = await self.service.repository.calls_for(action.action_id, attempt.attempt_id)
+        if not self.begun(attempt, rows):
+            for row in rows:
+                if (row.get("result") or {}).get("error_code") == "contact_preflight_stopped":
+                    actual = self.service.repository.outcome(row, include_data=True)
+                    decision = actual.raw.get("contact_preflight")
+                    if decision:
+                        stopped = await self.stopped(action, attempt, decision)
+                        if stopped:
+                            return stopped
         results = [self.service.repository.outcome(row) for row in rows]
         ids = tuple(identifier for result in results for identifier in result.message_ids)
         states = {result.state for result in results}

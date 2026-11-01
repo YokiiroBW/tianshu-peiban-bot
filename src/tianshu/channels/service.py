@@ -15,7 +15,7 @@ from tianshu.capabilities.serialization import context_from
 from .contracts import ChannelError, TransportResult
 from .repository import Repository
 from .media import Media
-from .delivery import ChannelDelivery, DeliveryHandler
+from .delivery import ChannelDelivery, DeliveryHandler, ContactPreflightStopped
 from .transports import OneBotTransport, OwnerClient
 from .telegram import TelegramTransport, BOT_API_METHODS
 from .onebot.registry import BY_NAME
@@ -49,6 +49,7 @@ class Channels:
         self.repository.actions = actions
         self.media = Media(artifacts, sources, runtime.files)
         self.web, self.expression, self.conversation = web, None, None
+        self.contact_preflight = None
         self.delivery = ChannelDelivery(self)
         self.owner_id = str(uuid4())
         self.owner = False
@@ -68,6 +69,9 @@ class Channels:
 
     def bind_expression(self, expression):
         self.expression = expression
+
+    def bind_contact_preflight(self, callback):
+        self.contact_preflight = callback
 
     def bind_web(self, web):
         self.web = web
@@ -313,6 +317,11 @@ class Channels:
                 if not current["context"].delivery_allowed:
                     raise ChannelError("channel_delivery_not_allowed", 403)
                 self.verify_target(current, params, connection["id"])
+                decision = await self.delivery_handler.preflight(action, attempt, current_call_id=identifier) if not row["control"] else None
+                if decision:
+                    # This exception is deliberately outside transport I/O errors:
+                    # no bytes have been submitted and the outcome is known.
+                    raise ContactPreflightStopped(decision)
             if not row["control"]:
                 await self.actions.submitted(attempt, identifier)
             async with self.runtime.database.transaction(control=True) as conn:
@@ -423,10 +432,14 @@ class Channels:
             raise
         except Exception as error:
             current = await self.repository.call(identifier)
-            result = TransportResult(
-                "unknown" if current["submitted_at"] else "rejected",
-                error_code=getattr(error, "code", "channel_call_failed"),
-            )
+            if isinstance(error, ContactPreflightStopped) and not current["submitted_at"]:
+                result = TransportResult("rejected", error_code=error.code,
+                    raw={"contact_preflight": error.decision})
+            else:
+                result = TransportResult(
+                    "unknown" if current["submitted_at"] else "rejected",
+                    error_code=getattr(error, "code", "channel_call_failed"),
+                )
         finally:
             self.running.pop(identifier, None)
         if row["api_name"] in {"get_login_info", "getMe"}:

@@ -1,6 +1,7 @@
 """Works, pinned generation recipes and immutable chapter revisions."""
 from tianshu.sources.dependencies import unique_refs
 from datetime import UTC, datetime, timedelta
+import json
 from uuid import uuid4
 
 from tianshu.models.types import ModelRequest
@@ -9,7 +10,7 @@ from tianshu.runtime.api import CommandResult, Page
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.serialization import wire
-from tianshu.types import ContextContribution, Coverage, RequestBudget, ServiceClass
+from tianshu.types import ContextContribution, Coverage, OriginKind, RequestBudget, ServiceClass
 from tianshu.conversation.codec import context_from_record, document, signature, source_refs
 from .validation import revision, text
 from . import publications
@@ -36,6 +37,10 @@ class WritingService:
     def __init__(self, life, models, assembler):
         self.life, self.models, self.assembler = life, models, assembler
         self.generations = GenerationRequests(life.database, life.sources, models)
+        self.on_completed = None
+
+    def bind_completion(self, callback):
+        self.on_completed = callback
 
     async def list(self, context, *, cursor=None, limit=30):
         await self.life.identity.check(context)
@@ -205,7 +210,6 @@ class WritingService:
             await self.life.identity.check(context, refs)
             actor = await self.life.companion.actor(context)
             persona = await self.life.companion.persona(context, actor["persona_id"], actor["persona_revision"]) if actor["persona_id"] else None
-            import json
             budget = RequestBudget(datetime.now(UTC)+timedelta(minutes=10))
             pack = await self.assembler.assemble(context, "writing", recipe["instruction"] or recipe["chapter_title"], budget,
                 persona_text=persona.prompt_text if persona else "", max_input_tokens=32000, reserved_output_tokens=6000,
@@ -247,8 +251,23 @@ class WritingService:
                 await connection.execute("UPDATE life.chapters SET state='failed',generation_recipe=NULL,reason='result_source_unavailable',revision=revision+1 WHERE id=%s",(chapter_id,))
                 return
             version = fresh["current_revision"]+1
-            await connection.execute("INSERT INTO life.chapter_revisions(chapter_id,revision,content,work_revision,model_attempt_id,recipe) VALUES (%s,%s,%s,%s,%s,%s)", (chapter_id, version, content, recipe["work_revision"], result.receipt.attempt_id, document({**recipe, "source_refs": refs, "model_receipt": result.receipt})))
+            saved = {"chapter_id": chapter_id, "work_id": fresh["work_id"],
+                "content_revision": version, "generation_id": generation_id,
+                "model_attempt_id": result.receipt.attempt_id, "content_signature": signature(content),
+                "character_count": len(content), "representation": "saved_chapter_revision"}
+            originals = await self.life.sources.record_event(context, producer="life.chapter.generated",
+                event_id=chapter_id, revision=version, occurred_at=datetime.now(UTC),
+                # The immutable chapter remains Writing's authority. Its save receipt
+                # proves progress without disclosing an unpublished draft via Sources.
+                parts=(InputPart("text", json.dumps(saved, ensure_ascii=False)),), origin_kind=OriginKind.ACTOR,
+                support_refs=refs, connection=connection)
+            refs = unique_refs(refs, originals)
+            await connection.execute("INSERT INTO life.chapter_revisions(chapter_id,revision,content,work_revision,model_attempt_id,recipe) VALUES (%s,%s,%s,%s,%s,%s)", (chapter_id, version, content, recipe["work_revision"], result.receipt.attempt_id, document({**recipe, "source_refs": refs, "completion_source_refs": originals, "model_receipt": result.receipt})))
             await connection.execute("UPDATE life.chapters SET current_revision=%s,state='draft',review_state=NULL,review_note=NULL,revision=revision+1 WHERE id=%s", (version, chapter_id))
+            if self.on_completed is not None:
+                await self.on_completed(context, {**fresh, "current_revision": version,
+                    "revision": fresh["revision"]+1, "state": "draft", "generation_id": generation_id,
+                    "model_attempt_id": result.receipt.attempt_id, "completion_source_refs": originals}, refs, connection)
 
     async def revise(self, context, body):
         await self.life.identity.check(context)
