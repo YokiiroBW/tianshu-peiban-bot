@@ -349,6 +349,12 @@
       "owner": "MC-A",
       "state": "integrated_deterministic_verified_real_semantic_pending",
       "problem": "Model wrapped link endpoint aliases in create/ref objects despite correct schema. Clarify target versus endpoint representation; preserve strict rejection and all-or-nothing batch application."
+    },
+    {
+      "id": "RC-25",
+      "owner": "MC-A",
+      "state": "implementing_effective_truncation_shrink",
+      "problem": "Known-truncation recovery halves nominal source budget even when selected material is unchanged, causing repeated paid reasoning; querying latest failed batch also reuses old reduced budget after later successful consumption. Shrink must reduce actual pending material and reset when no longer a contiguous relevant failure."
     }
   ],
   "blueprint_acceptance": {
@@ -359,10 +365,10 @@
     "stories": 24,
     "development": 16,
     "held_out": 8,
-    "state": "Candidate02 and Candidate03 retained; development S01-S16 reviewed, held-out content unread. Candidate03 temporal/commitment/endpoint findings repaired in final candidate a85bb7ce32d66ef7610c893891e08c08221b26e1. Corpus and fixture unchanged; S12 group identity may legitimately be unresolved.",
+    "state": "Candidate04 development 16 reviewed; all held-out content remains unread for tuning. Candidate05 will retest 8 shared cost stories (including affected S14) and 8 held-out stories; reuse 8 unaffected development results with their original limitations, plus native S04 recovery as separate evidence.",
     "additional_contract_scenarios": 12
   },
-  "product_implementation": "All product repairs integrated through a85bb7ce32d66ef7610c893891e08c08221b26e1; final temporal/endpoint/input-budget checks 4/4 passed. Final candidate built; real semantic/cost evaluation and production cutover pending.",
+  "product_implementation": "Candidate04 product through a85bb7c has 4/4 targeted temporal/endpoint/input checks; all 16 development answers match questions. A bounded real truncation scheduling flaw is now being repaired (RC-25). No prompt/schema/default-budget change. Production source remains dcdf729.",
   "unified_validation": {
     "implementation_head": "5c4d738",
     "status": "deterministic_targets_passed_real_model_pending",
@@ -511,6 +517,20 @@
       "skipped": 0,
       "receipt": "backend-semantic-10",
       "scope": "Two positive/negative link endpoint cases, original byte-counter prefix and full 129-part original at unchanged 12000 input limit and 80-step bound; unchanged successful checks reused."
+    },
+    "candidate04_semantic": {
+      "source_sha": "a85bb7ce32d66ef7610c893891e08c08221b26e1",
+      "image_id": "sha256:7bc80056af1e10d5253000d03949b715a3cd90db39854b5140d69fd69533679e",
+      "development_reviewed": 16,
+      "held_out_content_reviewed": 0,
+      "state": "frozen_execution_running_repairing_specific_truncation_scheduler",
+      "observed_limitations": [
+        "S02 model used utterance time as unspecified preference onset",
+        "S04 confirmed cancelled/not_started after 30 second queue wait; original-ID supplemental recovery prepared",
+        "S12 model target material coverage invalid; strict atomic rejection; answer uses original evidence",
+        "S14 three reasoning-only truncations before native smaller batches, then answer correct but personal Matter attribution remains a semantic limitation"
+      ],
+      "evidence": "private candidate-04/acceptance/coordinator-semantic-review.json; all original reports preserved"
     }
   },
   "production_recovery_actions": [
