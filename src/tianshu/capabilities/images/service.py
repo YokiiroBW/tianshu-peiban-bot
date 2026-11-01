@@ -6,19 +6,20 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4, uuid5, NAMESPACE_URL
 from PIL import Image
-from tianshu.types import Receipt, Attempt, MediaRef, RequestBudget, ServiceClass, SourceRef
+from tianshu.types import Receipt, MediaRef, RequestBudget, SourceRef
 from tianshu.models.types import ModelRequest, ModelMessage, ModelPart
 from tianshu.runtime.serialization import wire
 from ..catalog import CapabilityDefinition, Availability
-from ..contracts import Fault, canonical, digest
+from ..contracts import Fault, canonical
 from ..external import request, ProviderError, execution_service_class
-from ..dto import ImageIntent, PhotoIntent
+from ..dto import PhotoIntent
 from .engines import Engines, reference_name
 from .comfy import ComfyUI
 from .workflow import Workflow
 from .provider import ImageRejected
 from .planning import ImagePlanError, image_plan, planning_evidence
 from .recovery import ImageRecovery
+from .consistency import ImageConsistency
 
 
 class Images:
@@ -62,6 +63,7 @@ class Images:
             authority,
         )
         self.recovery = ImageRecovery(self)
+        self.consistency = ImageConsistency(self)
 
     async def availability(self, context):
         engines = await self.config.list("image_engine")
@@ -494,6 +496,7 @@ class Images:
                 images, usage = await Engines.gpt(engine, secret["api_key"], compiled, references)
             artifacts = await self.store_images(action, prepared, images)
             await permit.finish(usage=usage, result={"artifacts": len(artifacts)})
+        completion = await self.complete_image_result(action, attempt, prepared, artifacts)
         photo = {**prepared["photo_intent"], "artifact_ids": [x.artifact_id for x in artifacts]}
         kind = photo["delivery_kind"]
         if kind == "requested_delivery":
@@ -522,6 +525,11 @@ class Images:
             }
         else:
             raise Fault("delivery_kind_invalid", 400)
+        if completion["consistency"]["state"] == "conflict":
+            sharing = {"decision": "send" if kind == "requested_delivery" else "archive",
+                       "target_ref": photo.get("target_ref"), "reason": "image_consistency_conflict",
+                       "notice": "图片已经生成，但可见场景与拍摄意图存在不一致；保留这张作品，不将其当作已核验的当时场景。",
+                       "delivery_kind": kind}
         return Receipt(
             str(uuid4()),
             action.action_id,
@@ -536,10 +544,41 @@ class Images:
                 "photo_intent": photo,
                 "sharing": sharing,
                 "usage": usage,
-                "generated_at": datetime.now(UTC).isoformat(),
+                "generated_at": completion["generated_at"],
+                "generation_time_basis": "completion_observed",
+                "consistency": completion["consistency"],
                 "planning": prepared.get("planning"),
             },
         )
+
+    async def complete_image_result(self, action, attempt, prepared, artifacts):
+        if prepared.get("completion"):
+            return prepared["completion"]
+        consistency = await self.consistency.check(action, attempt, prepared, artifacts)
+        completion = {"artifact_ids": [item.artifact_id for item in artifacts],
+                      "consistency": consistency, "generated_at": datetime.now(UTC).isoformat()}
+        async with self.config.database.transaction() as conn:
+            from ..withdrawal import validate_sources
+
+            if not await validate_sources(conn, action.context, action.source_refs, self.artifacts.sources):
+                raise Fault("source_revoked", 410)
+            await conn.execute("UPDATE capabilities.image_work SET body=body||%s::jsonb WHERE action_id=%s",
+                               (canonical({"completion": completion}), action.action_id))
+        return completion
+
+    def recovered_receipt(self, action, attempt, prepared, artifacts, completion):
+        conflict = completion["consistency"]["state"] == "conflict"
+        requested = prepared["photo_intent"]["delivery_kind"] == "requested_delivery"
+        return Receipt(str(uuid4()), action.action_id, attempt.attempt_id, "succeeded", "confirmed",
+            "not_requested", artifacts=tuple(artifacts), result={"reconciled": True,
+                "scene": prepared["scene"], "intent": prepared["intent"],
+                "photo_intent": {**prepared["photo_intent"], "artifact_ids": completion["artifact_ids"]},
+                "consistency": completion["consistency"], "generated_at": completion["generated_at"],
+                "generation_time_basis": "completion_observed",
+                "sharing": {"decision": "archive" if conflict and not requested else "recheck",
+                    "reason": "image_consistency_conflict" if conflict else "reconciled_requires_expression_recheck",
+                    "notice": "图片已经生成，但可见场景与拍摄意图存在不一致。" if conflict else None,
+                    "delivery_kind": prepared["photo_intent"]["delivery_kind"]}})
 
     async def store_images(self, action, prepared, images):
         artifacts = []
@@ -611,6 +650,10 @@ class Images:
                 SourceRef(**x) for x in prepared.get("source_refs", wire(action.source_refs))
             ),
         )
+        if prepared.get("completion"):
+            artifacts = [await self.artifacts.reference(action.context, "artifact:" + identifier)
+                         for identifier in prepared["completion"]["artifact_ids"]]
+            return self.recovered_receipt(action, attempt, prepared, artifacts, prepared["completion"])
         if engine["engine"] != "comfyui":
             return Receipt(
                 str(uuid4()),
@@ -641,29 +684,8 @@ class Images:
                     raw, _, _ = await adapter.image(descriptor, 64 * 1024 * 1024)
                     images.append((raw, "image/png"))
                 artifacts = await self.store_images(action, prepared, images)
-                return Receipt(
-                    str(uuid4()),
-                    action.action_id,
-                    attempt.attempt_id,
-                    "succeeded",
-                    "confirmed",
-                    "not_requested",
-                    artifacts=tuple(artifacts),
-                    result={
-                        "reconciled": True,
-                        "scene": prepared["scene"],
-                        "intent": prepared["intent"],
-                        "photo_intent": {
-                            **prepared["photo_intent"],
-                            "artifact_ids": [x.artifact_id for x in artifacts],
-                        },
-                        "sharing": {
-                            "decision": "recheck",
-                            "reason": "reconciled_requires_expression_recheck",
-                            "delivery_kind": prepared["photo_intent"]["delivery_kind"],
-                        },
-                    },
-                )
+                completion = await self.complete_image_result(action, attempt, prepared, artifacts)
+                return self.recovered_receipt(action, attempt, prepared, artifacts, completion)
             return Receipt(
                 str(uuid4()),
                 action.action_id,

@@ -512,20 +512,8 @@ class Capabilities:
             handler.definition = replace(
                 handler.definition,
                 model_tool={"name": identifier.replace(".", "_")},
-                input_schema={
-                    "type": "object",
-                    "properties": {
-                        "query": {"type": "string"},
-                        "mode": {"enum": ["research", "explore", "continue"]},
-                        "sources": {
-                            "type": "array",
-                            "items": {"enum": ["web", "media", "bilibili"]},
-                        },
-                        "exclude_keys": {"type": "array", "items": {"type": "string"}},
-                        "provider_id": {"type": "string"},
-                        "limit": {"type": "integer", "minimum": 1, "maximum": 20},
-                    },
-                }
+                long_running=identifier == "content.discover",
+                input_schema=self.content.discovery_schema
                 if identifier == "content.discover"
                 else {
                     "type": "object",
@@ -748,7 +736,7 @@ class Capabilities:
                     "modes": ["research", "explore", "continue"],
                 }
             if operation == "discover":
-                return await self.content.discover(context, clean)
+                return await self.content.discover(context, clean, action=action, attempt=attempt)
             if operation == "continue":
                 if not clean.get("source"):
                     raise Fault("continuation_source_required", 400)

@@ -311,12 +311,18 @@ def _video_frames(raw, source_hash, start, end, budget, limit):
     return frames, max(actual_end, frames[-1]["at_seconds"])
 
 
-def _video(raw, source_hash, start, end, budget):
+def _video(raw, source_hash, start, end, budget, frame_limit=8):
     # Keep one byte budget across audio, frame images and the explanatory text.
     text_budget = min(16384, max(512, budget // 8)) if budget >= 4096 else 256
     payload_budget = budget - text_budget
     with _container(raw) as container:
         has_audio = bool(container.streams.audio)
+        durations = [_duration(container, stream)
+                     for stream in (*container.streams.video, *container.streams.audio)]
+        total = max((value for value in durations if value is not None), default=None)
+        if total is not None:
+            require(start < total, "invalid_range", 416)
+            end = min(end, total)
         cues, subtitle_available = subtitles.embedded(container, start, end)
     audio = None
     if has_audio and payload_budget >= 3072:
@@ -334,7 +340,8 @@ def _video(raw, source_hash, start, end, budget):
     frame_end = audio["coverage"]["end"] if audio else end
     try:
         frames, actual_end = _video_frames(
-            raw, source_hash, start, frame_end, payload_budget - audio_size, 7 if audio else 8
+            raw, source_hash, start, frame_end, payload_budget - audio_size,
+            max(2, min(24, frame_limit)) - (1 if audio else 0)
         )
     except Fault as error:
         if error.code != "empty_source" or audio is None:
@@ -399,6 +406,14 @@ def _video(raw, source_hash, start, end, budget):
         "gaps": gaps,
         "coverage": coverage,
         "complete": False,
+        "total_seconds": total,
+        "audio_ranges": [audio["coverage"]] if audio else [],
+        "subtitle_ranges": [{"unit": "seconds", "start": start, "end": subtitle_end}]
+                           if subtitle_available else [],
+        "ocr_ranges": [],
+        "visual_range": {"unit": "seconds", "start": frames[0]["at_seconds"], "end": actual_end}
+                        if frames else None,
+        "source_has_audio": has_audio,
     }
 
 
@@ -410,6 +425,10 @@ def _audio(raw, source_hash, start, end, budget):
     require(budget > 44, "source_too_large", 413)
     with _container(raw) as container:
         stream = container.streams.audio[0]
+        total = _duration(container, stream)
+        if total is not None:
+            require(start < total, "invalid_range", 416)
+            end = min(end, total)
         require(stream.time_base is not None, "unsupported", 415)
         # Compressed audio may need a priming packet before the requested time.
         # Seeking to zero can skip its negative-PTS packet and lose the first samples.
@@ -477,4 +496,8 @@ def _audio(raw, source_hash, start, end, budget):
         "gaps": gaps,
         "coverage": {"unit": "seconds", "start": actual_start, "end": actual_end},
         "complete": False,
+        "total_seconds": total,
+        "audio_ranges": [{"unit": "seconds", "start": actual_start, "end": actual_end}],
+        "subtitle_ranges": [],
+        "ocr_ranges": [],
     }

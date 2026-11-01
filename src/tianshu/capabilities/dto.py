@@ -81,3 +81,14 @@ class ConsumptionReceipt:
     analysis_completed: bool = False
     analysis_artifact_id: str | None = None
     model_attempt_id: str | None = None
+    media: MediaRef | None = None
+    audio_ranges: tuple[Mapping[str, Any], ...] = ()
+    subtitle_ranges: tuple[Mapping[str, Any], ...] = ()
+    ocr_ranges: tuple[Mapping[str, Any], ...] = ()
+    processed_segments: tuple[Mapping[str, Any], ...] = ()
+    model_input_modalities: tuple[str, ...] = ()
+    provider_sampling: str | None = None
+    evidence: tuple[Mapping[str, Any], ...] = ()
+    unresolved_questions: tuple[Mapping[str, Any], ...] = ()
+    stop_reason: str | None = None
+    requested_completed: bool = False

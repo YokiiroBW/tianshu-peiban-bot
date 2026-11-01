@@ -1,13 +1,11 @@
 """Read public web/forum/Bilibili content; searches remain unread candidates."""
 
-import asyncio
 import json
 import time
 from datetime import UTC, datetime
-from urllib.parse import urlsplit, urljoin
+from urllib.parse import urljoin
 from uuid import uuid4
 import aiohttp
-from bs4 import BeautifulSoup
 from tianshu.types import SourceRef, Receipt, Coverage
 from tianshu.runtime.serialization import wire
 from ..catalog import CapabilityDefinition, Availability
@@ -15,9 +13,38 @@ from ..contracts import Fault, canonical, digest
 from ..content_discovery.service import Discovery
 from ..content_discovery.media import MediaCatalog
 from ..content_discovery.candidates import public_url, candidate
+from .discovery import BilibiliDiscovery
+from .parsing import html_content, discourse, post_text
 
 
 class Content:
+    discovery_schema = {
+        "type": "object",
+        "properties": {
+            "query": {"type": "string", "maxLength": 400},
+            "intention": {"type": "string", "maxLength": 1000},
+            "mode": {"enum": ["research", "explore", "continue"]},
+            "sources": {"type": "array", "uniqueItems": True,
+                        "items": {"enum": ["web", "forum", "bilibili", "music", "books", "comics"]}},
+            "interests": {"type": "array", "maxItems": 20,
+                          "items": {"type": "string", "maxLength": 200}},
+            "interest_index": {"type": "integer", "minimum": 0},
+            "creator_ids": {"type": "array", "maxItems": 8,
+                            "items": {"type": "string", "pattern": "^[0-9]+$"}},
+            "include_followed": {"type": "boolean"},
+            "provider_id": {"type": "string"},
+            "limit": {"type": "integer", "minimum": 1, "maximum": 20},
+            "page": {"type": "integer", "minimum": 1, "maximum": 100},
+            "exclude_keys": {"type": "array", "maxItems": 256,
+                             "items": {"type": "string"}},
+            "cursors": {"type": "object", "additionalProperties": {"type": "string"}},
+            "pending_sources": {"type": "array", "items": {"type": "string"}},
+            "budget": {"type": "object", "properties": {
+                "max_pages": {"type": "integer", "minimum": 1, "maximum": 100},
+                "pages_used": {"type": "integer", "minimum": 0},
+                "max_items": {"type": "integer", "minimum": 1, "maximum": 256}}},
+        },
+    }
     definition = CapabilityDefinition(
         "content.read",
         "阅读内容",
@@ -29,11 +56,16 @@ class Content:
                 "mode": {"enum": ["research", "explore", "continue"]},
                 "render": {"enum": ["auto", "http", "browser"]},
                 "session_id": {"type": "string"},
+                "forum_cursor": {"type": "object"},
+                "after_post_number": {"type": "integer", "minimum": 0},
+                "content_key": {"type": "string"},
+                "intention": {"type": "string"},
             },
             "required": ["url"],
         },
         {"type": "object"},
         "read",
+        long_running=True,
     )
 
     def __init__(self, configuration, sources, authority, media=None, browser=None):
@@ -45,6 +77,7 @@ class Content:
             browser,
         )
         self.discovery = Discovery(MediaCatalog(media) if media else None)
+        self.bilibili = BilibiliDiscovery()
 
     async def availability(self, context):
         return Availability(
@@ -83,12 +116,26 @@ class Content:
                     return bytes(raw), response.content_type, url, dict(response.headers)
         raise Fault("content_redirect_limit", 409)
 
-    async def discover(self, context, body):
-        configs = await self.config.list("content_provider")
+    async def discover(self, context, body, *, action=None, attempt=None):
+        await self.authority.check(context, action.source_refs if action else ())
+        body = dict(body)
+        body.setdefault("mode", "research" if body.get("query") else "explore")
+        configs = [item for item in await self.config.list("content_provider")
+                   if item.get("enabled", True) and (not item.get("actor_id")
+                   or item["actor_id"] == context.actor_id
+                   and set(item.get("scope_ids", [])) <= set(context.scope_ids)
+                   and set(item.get("audience", [])) <= set(context.audience))]
         config = next(
             (x for x in configs if x.get("id") == body.get("provider_id")),
             configs[0] if configs else {},
         )
+        if body.get("provider_id") and config.get("id") != body["provider_id"]:
+            raise Fault("content_provider_not_authorized", 403)
+        interests = body.get("interests", config.get("interests", []))
+        if not body.get("query") and interests and body.get("mode", "research") == "explore":
+            body["query"] = interests[body.get("interest_index", 0) % len(interests)]
+        if body.get("mode", "research") == "research" and not body.get("query", "").strip():
+            raise Fault("research_question_required", 400)
 
         async def request(value):
             raw, mime, url, headers = await self.fetch(
@@ -100,71 +147,75 @@ class Content:
                 "body": json.loads(raw) if mime == "application/json" else raw.decode("utf-8"),
             }
 
-        result = await self.discovery.discover(config, body, request=request)
-        if body.get("query") and "bilibili" in body.get("sources", ["web", "bilibili"]):
-            try:
-                rows = await self.bilibili_search(
-                    body["query"], page=body.get("page", 1), limit=body.get("limit", 8)
-                )
-                result["candidates"].extend(rows)
-                result["sources"].append(
-                    {
-                        "source": "bilibili_search",
-                        "state": "ok",
-                        "code": None,
-                        "has_more": None,
-                        "next_cursor": None,
-                    }
-                )
-            except (Fault, aiohttp.ClientError, ValueError, KeyError):
-                result["sources"].append(
-                    {
-                        "source": "bilibili_search",
-                        "state": "unavailable",
-                        "code": "source_unavailable",
-                        "has_more": None,
-                        "next_cursor": None,
-                    }
-                )
+        requested_sources = body.get("sources", ["web", "bilibili"])
+        pending = body.get("pending_sources")
+        local_sources = [item for item in requested_sources if item != "forum"
+                         and (pending is None or item in pending)]
+        result = await self.discovery.discover(config, {**body, "sources": local_sources}, request=request)
+        if "bilibili" in requested_sources:
+            rows, statuses = await self.bilibili.discover(config, body)
+            result["candidates"].extend(rows)
+            result["sources"].extend(statuses)
+        if "forum" in requested_sources and (pending is None or "forum" in pending):
+            topics = config.get("followed_forums", [])
+            for topic in topics[:20]:
+                url = public_url(topic["url"])
+                item = candidate("web", "url:" + digest(url), kind="webpage",
+                    title=topic.get("title"), url=url, acquired=time.time())
+                item["read_locator"]["kind"] = "forum"
+                result["candidates"].append(item)
+            result["sources"].append({"source": "forum", "state": "ok" if topics else "not_configured",
+                "code": None if topics else "not_configured", "has_more": False, "next_cursor": None})
         result["activity_mode"] = body.get("mode", "research")
         result["seen_state"] = "unread_candidates"
         excluded = set(body.get("exclude_keys", []))
-        result["candidates"] = [
-            x
-            for x in result["candidates"]
-            if x["content_key"] not in excluded and x["candidate_key"] not in excluded
-        ]
-        return result
-
-    async def bilibili_search(self, query, *, page=1, limit=8):
-        from urllib.parse import urlencode
-
-        endpoint = "https://api.bilibili.com/x/web-interface/search/type?" + urlencode(
-            {"search_type": "video", "keyword": query, "page": page, "page_size": min(limit, 20)}
-        )
-        raw, _, _, _ = await self.fetch(
-            endpoint,
-            accept="application/json",
-            headers={"Referer": "https://www.bilibili.com/", "User-Agent": "Mozilla/5.0"},
-        )
-        body = json.loads(raw)
-        if body.get("code") != 0:
-            raise Fault("bilibili_search_unavailable", 503)
-        return [
-            candidate(
-                "bilibili",
-                "bilibili:" + row["bvid"],
-                kind="video",
-                title=BeautifulSoup(row["title"], "html.parser").get_text(),
-                authors=[row.get("author")],
-                summary=row.get("description", ""),
-                url="https://www.bilibili.com/video/" + row["bvid"],
-                published=row.get("pubdate"),
-                acquired=time.time(),
-                summary_kind="catalog_description",
-            )
-            for row in body.get("data", {}).get("result", [])[:limit]
-        ]
+        unique = {}
+        for item in result["candidates"]:
+            if item["content_key"] not in excluded and item["candidate_key"] not in excluded:
+                unique.setdefault(item["content_key"], item)
+        result["candidates"] = list(unique.values())
+        seen = list(dict.fromkeys([*body.get("exclude_keys", []), *unique]))
+        cursors = {item["source"]: item["next_cursor"] for item in result["sources"]
+                   if item.get("next_cursor")}
+        budget = {"max_pages": 6, "max_items": 256, **body.get("budget", {})}
+        budget["pages_used"] = budget.get("pages_used", 0) + 1
+        exhausted = budget["pages_used"] >= budget["max_pages"] or len(seen) >= budget["max_items"]
+        result.update(read_basis="discovery_metadata", experience_eligible=False,
+            exploration={"intention": body.get("intention", body.get("query")), "query": body.get("query"), "budget": budget,
+                "stop_reason": "budget_exhausted" if exhausted else "checkpoint" if cursors else "source_exhausted"},
+            continuation={"capability_id": "content.discover", "arguments": {
+                **body, "mode": body.get("mode", "research"), "cursors": cursors,
+                "pending_sources": list(cursors), "exclude_keys": seen, "budget": budget}}
+            if cursors and not exhausted else None)
+        result["discovery_continuation"] = result["continuation"]
+        next_actions = []
+        for item in result["candidates"]:
+            url = item["read_locator"].get("url")
+            if not url:
+                continue
+            if item["kind"] == "video" and item["source"] == "bilibili":
+                next_actions.append({"capability_id": "video.observe", "content_key": item["content_key"],
+                    "candidate_key": item["candidate_key"], "arguments": {"url": url, "start": 0,
+                        "content_key": item["content_key"], "question": body.get("intention", body.get("query", ""))}})
+            elif item["source"] == "web":
+                next_actions.append({"capability_id": "content.read", "content_key": item["content_key"],
+                    "candidate_key": item["candidate_key"], "arguments": {"url": url,
+                        "mode": body.get("mode", "research"), "content_key": item["content_key"],
+                        "intention": body.get("intention", body.get("query", ""))}})
+        result["next_actions"] = next_actions
+        if next_actions:
+            result["continuation"] = {key: next_actions[0][key] for key in ("capability_id", "arguments")}
+        if action is None:
+            return result
+        source = await self.sources.capture(context,
+            locator={"kind": "content_discovery", "query": body.get("query"),
+                     "mode": body.get("mode", "research"), "read_basis": "discovery_metadata",
+                     "action_id": action.action_id},
+            raw=canonical(result).encode(), mime_type="application/json")
+        result["source_refs"] = wire((source,))
+        await self.authority.check(context, (source,))
+        return Receipt(str(uuid4()), action.action_id, attempt.attempt_id, "succeeded", "none",
+                       "not_requested", result=result)
 
     async def execute(self, action, attempt):
         await self.authority.check(action.context, action.source_refs)
@@ -195,7 +246,7 @@ class Content:
         if mime == "application/json":
             data = json.loads(raw)
             if "post_stream" in data:
-                content = discourse(data, final)
+                content = discourse(data, final, action.arguments.get("forum_cursor"))
             else:
                 content = {
                     "title": data.get("title"),
@@ -228,6 +279,15 @@ class Content:
             )
         if not content["text"].strip():
             raise Fault("content_body_unavailable", 503)
+        after = action.arguments.get("after_post_number", 0)
+        if after and content["posts"]:
+            content["posts"] = [post for post in content["posts"] if int(post["floor"]) > after]
+            content["text"] = "\n\n".join(map(post_text, content["posts"]))
+            if not content["text"] and not content["next_url"]:
+                return Receipt(str(uuid4()), action.action_id, attempt.attempt_id,
+                    "succeeded", "none", "not_requested", result={"read_basis": "no_new_content",
+                        "experience_eligible": False, "content": content, "continuation": None,
+                        "follow_up": {"capability_id": "content.read", "arguments": dict(action.arguments)}})
         locator = {
             "kind": "forum" if content["posts"] else "webpage",
             "representation": "rendered_dom" if rendered else "http_body",
@@ -241,6 +301,7 @@ class Content:
             "authors": content.get("authors", []),
             "published_at": content.get("published_at"),
             "posts": content["posts"],
+            "forum_cursor": content.get("forum_cursor"),
         }
         original = await self.sources.capture(
             action.context, locator=locator, raw=raw, mime_type=mime
@@ -277,13 +338,27 @@ class Content:
                 "content": content,
                 "locator": locator,
                 "activity_mode": action.arguments.get("mode", "research"),
+                "content_key": action.arguments.get("content_key", "url:" + digest(content.get("canonical_url", final))),
                 "read_basis": "actual_source_body",
+                "experience_eligible": bool(content["text"].strip()),
+                "follow_up": {"capability_id": "content.read", "arguments": {
+                    "url": content.get("canonical_url", final), "mode": "continue",
+                    "after_post_number": max((int(post["floor"]) for post in content["posts"]), default=after),
+                    "render": action.arguments.get("render", "auto"),
+                    **({"content_key": action.arguments["content_key"]} if action.arguments.get("content_key") else {}),
+                    **({"intention": action.arguments["intention"]} if action.arguments.get("intention") else {}),
+                    **({"session_id": action.arguments["session_id"]} if action.arguments.get("session_id") else {})}}
+                    if content["posts"] else None,
                 "continuation": {
                     "capability_id": "content.read",
                     "arguments": {
                         "url": content["next_url"],
                         "mode": "continue",
                         "render": action.arguments.get("render", "auto"),
+                        **({"content_key": action.arguments["content_key"]} if action.arguments.get("content_key") else {}),
+                        **({"intention": action.arguments["intention"]} if action.arguments.get("intention") else {}),
+                        **({"forum_cursor": content["forum_cursor"]} if content.get("forum_cursor") else {}),
+                        **({"after_post_number": after} if after else {}),
                         **(
                             {"session_id": action.arguments["session_id"]}
                             if action.arguments.get("session_id")
@@ -361,70 +436,3 @@ class Content:
         return Receipt(
             str(uuid4()), action.action_id, attempt.attempt_id, "cancelled", "none", "not_requested"
         )
-
-
-def html_content(raw, url):
-    soup = BeautifulSoup(raw, "html.parser")
-    for node in soup.select("script,style,noscript,nav,footer"):
-        node.decompose()
-    title = soup.title.get_text(" ", strip=True) if soup.title else None
-    posts = []
-    for index, node in enumerate(soup.select("[data-post-id],article.topic-post,.forum-post")):
-        author = node.select_one("[data-user-card],.username,.author")
-        quote = node.select_one("blockquote")
-        posts.append(
-            {
-                "id": node.get("data-post-id", str(index + 1)),
-                "floor": node.get("data-post-number", index + 1),
-                "author": author.get_text(" ", strip=True) if author else None,
-                "text": node.get_text("\n", strip=True),
-                "quote": quote.get_text("\n", strip=True) if quote else None,
-                "edited_at": node.get("data-edited-at"),
-            }
-        )
-    main = soup.select_one("article,main,[role=main]") or soup.body or soup
-    next_link = soup.select_one("a[rel=next]")
-    published = soup.select_one("meta[property='article:published_time'],meta[name='date']")
-    author = soup.select_one("meta[name=author]")
-    return {
-        "title": title,
-        "text": "\n\n".join(post["text"] for post in posts)
-        if posts
-        else main.get_text("\n", strip=True),
-        "posts": posts,
-        "authors": [author.get("content")] if author else [],
-        "published_at": published.get("content") if published else None,
-        "next_url": urljoin(url, next_link["href"])
-        if next_link and next_link.get("href")
-        else None,
-    }
-
-
-def discourse(data, url):
-    posts = [
-        {
-            "id": str(p["id"]),
-            "floor": p["post_number"],
-            "author": p.get("username"),
-            "text": BeautifulSoup(p.get("cooked", ""), "html.parser").get_text("\n", strip=True),
-            "reply_to_floor": p.get("reply_to_post_number"),
-            "created_at": p.get("created_at"),
-            "edited_at": p.get("updated_at"),
-        }
-        for p in data["post_stream"].get("posts", [])
-    ]
-    stream = data["post_stream"].get("stream", [])
-    loaded = {int(p["id"]) for p in posts}
-    remaining = [p for p in stream if p not in loaded]
-    return {
-        "title": data.get("title"),
-        "text": "\n\n".join(f"#{p['floor']} {p['author']}\n{p['text']}" for p in posts),
-        "posts": posts,
-        "authors": list(dict.fromkeys(p["author"] for p in posts)),
-        "published_at": data.get("created_at"),
-        "next_url": urljoin(
-            url, "/t/" + str(data["id"]) + "/posts.json?post_ids[]=" + str(remaining[0])
-        )
-        if remaining
-        else None,
-    }
