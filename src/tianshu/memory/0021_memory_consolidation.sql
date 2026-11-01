@@ -184,12 +184,16 @@ JOIN memory.claim_revisions r ON r.claim_id=c.claim_id AND r.revision=c.current_
 JOIN memory.matters m ON m.matter_id=old.matter_id AND m.actor_id=c.actor_id
 CROSS JOIN LATERAL (
     SELECT jsonb_agg(g.refs) AS groups,
-           jsonb_agg(to_jsonb(r.scope_ids||m.scope_ids)) AS scopes,
-           (SELECT COALESCE(jsonb_agg(DISTINCT element),'[]') FROM
-               jsonb_array_elements(r.source_refs||m.source_refs) element) AS refs
-    FROM (SELECT cg.value||mg.value AS refs FROM jsonb_array_elements(r.support_groups) cg
+           jsonb_agg(g.scopes) AS scopes,
+           (SELECT COALESCE(jsonb_agg(DISTINCT raw_ref.value),'[]') FROM
+               jsonb_array_elements(r.source_refs||m.source_refs) raw_ref(value)) AS refs
+    -- Aggregate local columns: an aggregate of only outer r/m variables belongs
+    -- to the outer query level and is illegal in that level's FROM clause.
+    FROM (SELECT cg.value||mg.value AS refs, to_jsonb(r.scope_ids||m.scope_ids) AS scopes
+          FROM jsonb_array_elements(r.support_groups) cg
           CROSS JOIN jsonb_array_elements(m.support_groups) mg
-          WHERE sources.any_support_usable(jsonb_build_array(cg.value||mg.value),r.scope_ids||m.scope_ids)) g
+          WHERE jsonb_array_length(cg.value)>0 AND jsonb_array_length(mg.value)>0
+            AND sources.any_support_usable(jsonb_build_array(cg.value||mg.value),r.scope_ids||m.scope_ids)) g
 ) supports
 WHERE r.state='active' AND m.active AND supports.groups IS NOT NULL
 ON CONFLICT DO NOTHING;
