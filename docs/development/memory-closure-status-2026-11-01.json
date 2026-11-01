@@ -1,8 +1,8 @@
 {
-  "phase": "single_transition_contract_clarification_before_final_cutover",
+  "phase": "startup_repair_integrated_17_passed_building_replacement",
   "source_baseline": "7aac7746ed0a4d12cd8b596de156b6f3a745f8ad",
   "planning_commit": "8bca244",
-  "production_source": "dcdf729b5d22f451093e3658d131fd6757a00dde",
+  "production_source": "f7dd3055de603fbfa40c6a96874c57076d840d57",
   "validation_policy": "Only after all implementation and integration; no incremental tests, builds or model/live acceptance",
   "model": "gpt-6.1-sol",
   "reasoning_effort": "max",
@@ -359,16 +359,37 @@
     {
       "id": "RC-26",
       "owner": "MC-A",
-      "state": "integrated_pending_four_focused_checks_and_S03_supplement",
+      "state": "four_targeted_checks_and_final_S03_native_semantics_passed",
       "problem": "The model-visible transition description omits that successor_ref declares a new Claim and payload contains successor fields; a reasonable add-then-transition interpretation is correctly rejected as duplicate_create. Clarify one existing instruction, preserving strict validator, native creation, old closure and supersedes behavior.",
       "source_commit": "aa2707f9c1fd326572fb6d300cb9ac8574553cc4",
       "integrated_as": "8c70c90167080ecd12e9e321ee25aaffc1b7b7e9"
+    },
+    {
+      "id": "RC-27",
+      "owner": "MC-B",
+      "state": "implemented_17_targeted_passed_pending_replacement",
+      "problem": "Growth startup awaited legacy recovery under a stale saved Context, causing access_changed to abort both interactive and worker startup; one old partition must not take down application. Reuse queued per-partition recovery and bounded scheduled-context refresh for scanning only; retain original model request authority/identity and visible blocked states.",
+      "integration_commit": "9bbd4e901392778abfb87c168e376b0356337fcb"
     }
   ],
   "blueprint_acceptance": {
     "M01-M18": "Applicable deterministic domain/pipeline/context/authorization/source/model/channel/capability/migration checks passed, including final 38-case display/protocol scope across its receipts; earlier 36 frontend scenarios plus 4 reaction import scenarios remain valid. Final semantic/cost and production outcomes pending."
   },
-  "new_production_release": null,
+  "new_production_release": {
+    "state": "image_switched_migrations_applied_application_startup_failed_stopped",
+    "source_sha": "f7dd3055de603fbfa40c6a96874c57076d840d57",
+    "image_id": "sha256:9d0c89ae9eed721d84dbfb4ea936439c740e56da9c6dea971b58b83695e05a09",
+    "migrations_applied": [
+      "0021_memory_consolidation",
+      "0034_companion_growth_batches",
+      "capabilities-0002-runtime-observations"
+    ],
+    "backup": "seven affected schemas verified before original cutover",
+    "failure": "Growth startup synchronously attempted stale epoch3/current5 legacy partition and raised access_changed; interactive and worker failed",
+    "operational_state": "root stopped failed owned container and guard after observed16 restarts; no data restore; other services unchanged",
+    "settings_and_11_mounts": "verified preserved",
+    "replacement": "candidate07 prepared from actual stopped container; companion-only native backup; no migrations or known-broken rollback; image build pending"
+  },
   "semantic_acceptance_inputs": {
     "stories": 24,
     "development": 16,
@@ -376,7 +397,7 @@
     "state": "24 unique stories covered by 17 candidate05 and7 unchanged candidate04 results; 8 heldout answers reviewed only after candidate05 freeze. All 24 answers correct in these root-reviewed runs, not a universal accuracy claim. Native failures/unknowns remain explicit. Candidate06 only clarifies the existing transition operation after development S03 cost-arm failure and supplements S03; candidate05 cost benchmark remains labeled pre-clarification.",
     "additional_contract_scenarios": 12
   },
-  "product_implementation": "All scoped product/frontend changes now integrated through 8c70c90167080ecd12e9e321ee25aaffc1b7b7e9. RC26 changes one model-visible transition description only; strict schema/validator/domain/permissions/default budgets unchanged. Root focused verification and S03 supplement pending; prior applicable deterministic and semantic evidence retained with limitations.",
+  "product_implementation": "All scoped product/frontend changes integrated through 9bbd4e901392778abfb87c168e376b0356337fcb; RC27 isolates original Growth recovery jobs from startup and records bounded authorization blockers. No new schema change. Replacement deployment pending.",
   "unified_validation": {
     "implementation_head": "5c4d738",
     "status": "deterministic_targets_passed_real_model_pending",
@@ -481,7 +502,7 @@
         "backend-semantic-09"
       ]
     },
-    "production_change_scope": "Only the directly authorized original-job cancellation below; production source/image and schemas remain unchanged.",
+    "production_change_scope": "Three migrations applied; candidate06 startup failed and is stopped. Original seven-schema backup retained. New startup-only replacement pending.",
     "candidate02_semantic": {
       "source_sha": "ba2b95daf6eb1d62ade0e14f5f8d71c38f484cd4",
       "image_id": "sha256:6ed87a23bdf71fd8e64ffd827018a3b2deba9fb73f652c20851f0e569163221a",
@@ -558,7 +579,7 @@
       "optimized_stories": 17,
       "unchanged_candidate04_reused": 7,
       "heldout_read_for_tuning": false,
-      "conservative_and_legacy_cost_arms": "pending",
+      "conservative_and_legacy_cost_arms": "completed_and_root_reviewed",
       "optimized_attempts": 172,
       "submitted_unknown": 2,
       "native_limits": [
@@ -567,7 +588,25 @@
       ],
       "heldout_reviewed_after_freeze": 8,
       "conservative": "8 completed, 90 requests,4 unknown; S03 exposes RC26, S14 native owner/unknown limits",
-      "legacy": "running frozen old production code"
+      "legacy": "8 completed,83 requests,2 unknown;5 correct,1 partial,2 incorrect/missing answers"
+    },
+    "transition_contract_repair": {
+      "source_sha": "f7dd3055de603fbfa40c6a96874c57076d840d57",
+      "focused_cases": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "real_S03": "2 applied batches; correct new Claim/old interval closure/supersedes,9 requests,no unknown; root answer/native review passed"
+    },
+    "growth_startup_repair": {
+      "source_sha": "9bbd4e901392778abfb87c168e376b0356337fcb",
+      "agent_commit": "67759eaae0add379d7f544efc141dc81984cd238",
+      "cases": 17,
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "receipt": "backend-startup-13",
+      "scope": "Existing Growth legacy/output tests only; unchanged semantic/cost/frontend evidence reused."
     }
   },
   "production_recovery_actions": [
