@@ -42,6 +42,20 @@ def test_terminal_responses_incomplete_is_a_finished_physical_response():
     assert collector.raw_usage["output_tokens"] == 4096
 
 
+@pytest.mark.parametrize("status", [None, "queued", "in_progress"])
+@pytest.mark.parametrize("include_output", [False, True])
+def test_responses_without_terminal_status_do_not_settle(status, include_output):
+    collector = ResponseCollector("openai.responses")
+    native = {"id": "response", "object": "response"}
+    if status is not None:
+        native["status"] = status
+    if include_output:
+        native["output"] = []
+    collector.feed(native)
+    assert not collector.completed
+    assert collector.completion.state == "unknown"
+
+
 @pytest.mark.parametrize("streaming", [False, True])
 def test_responses_partial_tool_arguments_wait_for_terminal_completion(streaming):
     collector = ResponseCollector("openai.responses")

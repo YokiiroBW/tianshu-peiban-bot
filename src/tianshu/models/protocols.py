@@ -414,13 +414,17 @@ class ResponseCollector:
                 response = value.get("response", {})
                 self.native_response = response
                 self.raw_usage = response.get("usage")
-                # A terminal incomplete response has known output and usage.
-                # Its content may be unusable; the physical request is settled.
+                # Terminal status settles the physical request. Its content
+                # may still be incomplete or unusable.
                 self.completed = True
+            elif value.get("status") in {"completed", "incomplete", "failed"}:
+                # Native non-streaming status settles the physical request even
+                # when the provider has no output items to include.
+                self.completed = True
+                self.raw_usage = value.get("usage")
             if value.get("type") == "response.output_text.delta":
                 added.append(ModelPart("text", text=value.get("delta", "")))
             if "output" in value:
-                self.completed = value.get("status") in {"completed", "incomplete", "failed"}
                 self.raw_usage = value.get("usage")
                 for item in value["output"]:
                     if item.get("type") == "function_call":

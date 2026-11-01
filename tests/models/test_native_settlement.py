@@ -18,13 +18,19 @@ from tianshu.types import OriginKind, RequestBudget, ServiceClass, TrustedContex
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("stream", [False, True])
+@pytest.mark.parametrize("include_output", [False, True], ids=["status-only", "empty-output"])
 @pytest.mark.parametrize("provider_state,settled", [("failed", "failed"), ("incomplete", "succeeded")])
-async def test_native_terminal_response_is_settled_and_releases_capacity(stream, provider_state, settled):
+async def test_native_terminal_response_is_settled_and_releases_capacity(
+    stream, include_output, provider_state, settled
+):
     context = TrustedContext("p", "actor", None, None, ("scope",), ("scope",), 1, OriginKind.ACTOR)
     request = ModelRequest("intent", "original", "reflect", ServiceClass.ELASTIC, context,
         RequestBudget(datetime.now(UTC) + timedelta(minutes=1)),
         (ModelMessage("user", (ModelPart("text", text="synthetic"),)),))
-    native = {"id": "response", "status": provider_state, "usage": {"input_tokens": 20, "output_tokens": 4096}}
+    native = {"id": "response", "object": "response", "status": provider_state,
+              "usage": {"input_tokens": 20, "output_tokens": 4096}}
+    if include_output:
+        native["output"] = []
     if provider_state == "failed":
         native["error"] = {"code": "server_error"}
     else:
@@ -68,6 +74,10 @@ async def test_native_terminal_response_is_settled_and_releases_capacity(stream,
     assert result.completion.state == "incomplete"
     assert result.receipt.error_code == ("server_error" if provider_state == "failed" else None)
     assert result.completion.provider_status == provider_state
+    assert result.native_response == native
+    assert result.receipt.usage.input_tokens == 20
+    assert result.receipt.usage.output_tokens == 4096
     assert broker.ledger.finish.await_count == 1
+    assert broker.scheduler.release.call_args.kwargs["units"] == {"tokens": 4116}
     assert "hold_until" not in broker.scheduler.release.call_args.kwargs
     assert broker.active == {}

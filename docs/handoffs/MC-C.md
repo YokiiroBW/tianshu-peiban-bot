@@ -93,3 +93,11 @@ Sources 扩权仅限 record_event 的 connection/support_refs，同步 `sources/
 窄修复另补 tests/life/test_imagined_repair.py：原身份/完成时间保留、当前登记时间、幂等、真实动作/错关联/活动或 Episode 漂移拒绝、事务回滚、重读撤权和既有管理权限；同样仅编写，未运行。
 
 依赖 A 唯一注册 `0034_companion_growth_batches`（最终 companion/growth_batches.sql）和 `capabilities-0002-runtime-observations`（capabilities/runtime_observations.sql，位于 capabilities-0001 后）；迁移均未在本包执行。依赖 B 的 Memory observer/episodes_by_refs/反思事务与版本 CAS、Conversation quote/作者元数据和装配。前端由 F 单写。集中验证应包括事务回滚/并发锁序、预注册队列适配、启动旧状态转换与原 unknown；真实模型/付费理解/QQ 投递只在整批实现集成完成、相应真实授权与配置就绪后执行。
+
+## 集中验收后的 Models 窄返修
+
+基线 `5c4d738`，分支 `codex/memory-closure-model-fixes-20261101`。root 的 backend-validation-01 报告两个非流式 Responses 结算用例失败；本次只静态阅读对应合成 trace 和模型路径，没有重新运行测试、构建或模型。
+
+根因是非流式 `ResponseCollector` 把物理终态识别放在 `output` 字段分支内，旧夹具只提供明确的 status/usage，没有 output。流式终态事件在独立分支识别，因而通过。现在明确 native status 为 completed/incomplete/failed 即登记终态及用量，输出项解析只负责内容；缺状态、queued 或 in_progress 仍不结算。`failed` 继续结算为物理失败并保留供应商错误；`incomplete` 仍是已结算的请求和不完整内容，不进入 unknown hold。
+
+`test_native_settlement.py` 保留原 failed/incomplete、error_code、容量释放无 hold 和 active 清理断言，增加 output=[] 与无 output 两种夹具，分别经过流式/非流式真实 Broker 路径，同时断言原 native、usage 和实际计费单位保留。`test_completion.py` 补缺失/非终态 status 不可结算的保护用例。以上仅编写，交 root 定向集中重验。
