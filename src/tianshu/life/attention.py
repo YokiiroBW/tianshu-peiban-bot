@@ -68,7 +68,7 @@ class AttentionPolicy:
         until = quiet_until(now, preferences["timezone"], preferences["quiet_start"], preferences["quiet_end"])
         if until:
             return AttentionDecision("defer", "quiet_hours", until)
-        if preferences.get("availability") in {"busy", "sleeping"} and (preferences.get("available_until") or now) > now:
+        if preferences.get("availability") in {"busy", "sleeping", "away"} and (preferences.get("available_until") or now) > now:
             return AttentionDecision("defer", "person_unavailable", preferences["available_until"])
         local_day = now.astimezone(ZoneInfo(preferences["timezone"])).date()
         today = [item for item in history if item["delivered_at"] and item["delivered_at"].astimezone(ZoneInfo(preferences["timezone"])).date() == local_day]

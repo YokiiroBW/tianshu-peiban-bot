@@ -169,9 +169,21 @@ class LifePresentation:
         async with self.life.database.transaction(read_only=True) as connection:
             candidate = await (await connection.execute(
                 "SELECT * FROM life.contact_candidates WHERE action_id=%s AND actor_id=%s AND state IN ('pending','waiting') ORDER BY created_at LIMIT 1", (action_id, context.actor_id))).fetchone()
+            intent=await (await connection.execute(
+                "SELECT source_refs,checkpoint_data->'frozen_action'->'arguments' AS photo FROM life.activities "
+                "WHERE action_id=%s AND actor_id=%s AND state NOT IN ('cancelled','completed') "
+                "UNION ALL SELECT source_refs,arguments AS photo FROM life.commitments "
+                "WHERE action_id=%s AND actor_id=%s AND state NOT IN ('cancelled','expired','completed') LIMIT 1",
+                (action_id,context.actor_id,action_id,context.actor_id))).fetchone()
         if not candidate:
+            if (intent and (intent["photo"] or {}).get('delivery_kind')=='share_candidate'
+                    and intent['photo'].get('target_ref')==context.conversation_id and context.delivery_allowed):
+                await self.life.identity.check(context,source_refs(intent['source_refs']))
+                # The saved action is the proposal. An actual image receipt is
+                # needed before a contact candidate can exist and be ranked.
+                return {'decision':'recheck','target_ref':context.conversation_id,'due_at':None,'reason':'saved_photo_intent_awaits_actual_result'}
             return {"decision": "archive", "target_ref": None, "due_at": None, "reason": "no_current_share_intent"}
-        if candidate["context"]["principal_id"] != context.principal_id:
+        if candidate["context"]["principal_id"] != context.principal_id or candidate['target_ref']!=context.conversation_id:
             raise AppError("forbidden", status=403)
         await self.life.identity.check(context, source_refs(candidate["source_refs"]))
         decision = self.life.attention.decide(candidate, await self.life.contacts.preferences(context), await self.life.contacts.history(context))

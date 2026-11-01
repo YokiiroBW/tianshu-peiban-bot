@@ -1,5 +1,5 @@
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from importlib.resources import files
 import json
 from types import SimpleNamespace
@@ -24,6 +24,11 @@ from tianshu.conversation.generation import attempt_for
 
 
 class Identity:
+    epoch=1
+
+    async def refresh_scheduled_context(self,previous,**_kwargs):
+        await self.check(previous)
+        return replace(previous,access_epoch=self.epoch)
     async def check(self, *_args):
         pass
 
@@ -41,7 +46,7 @@ class Companion:
         return {"enabled": True, "revision": 1, "persona_id": None}
 
     async def affect(self, _context):
-        return {"regulation": {}, "source_refs": ()}
+        return {"regulation": {}, "source_refs": (), "valence": 0}
 
 
 class ReadPage:
@@ -95,6 +100,9 @@ class Models:
         assert self.actual is None or self.actual.receipt.attempt_id == attempt_id
         return self.actual
 
+    async def status(self,attempt_id):
+        return self.actual.receipt if self.actual and self.actual.receipt.attempt_id==attempt_id else None
+
 
 class Actions:
     def __init__(self):
@@ -108,7 +116,7 @@ class Actions:
         return self.receipt
 
     async def get(self, action_id, _context):
-        action = self.calls[-1][0]
+        action = next(action for action,_kwargs in self.calls if action.action_id==action_id)
         assert action_id == action.action_id
         return {
             "action": wire(action),
@@ -123,6 +131,7 @@ async def setup(database, output, *, lose_response=False, capability_id="content
         database,
         (
             Migration("0031_life", files("tianshu.life").joinpath("schema.sql").read_text()),
+            Migration("0033_life_contact_expiry", files("tianshu.life").joinpath("contact_expiry.sql").read_text()),
             Migration(
                 "0032_conversation",
                 files("tianshu.conversation").joinpath("schema.sql").read_text(),
@@ -168,9 +177,9 @@ async def setup(database, output, *, lose_response=False, capability_id="content
     jobs.register("life.plan", worker.plan)
     jobs.register("life.activity_reconcile", worker.reconcile_activity)
     async with database.transaction() as connection:
-        await connection.execute("INSERT INTO life.actor_state(actor_id) VALUES ('actor')")
+        await connection.execute("INSERT INTO life.actor_state(actor_id,timezone) VALUES ('actor','UTC')")
         await connection.execute(
-            "INSERT INTO life.routines(actor_id,context,next_due_at) VALUES ('actor',%s,now())",
+            "INSERT INTO life.routines(actor_id,context,next_due_at,timezone,wake_at,sleep_at) VALUES ('actor',%s,now(),'UTC','00:00','23:59')",
             (json.dumps(wire(context)),),
         )
         await connection.execute(
@@ -191,6 +200,7 @@ async def mark(database):
 def chosen_activity(capability_id="content.read"):
     return json.dumps(
         {
+            "goal_changes":[],"arrangements":[],"cancel_activity_ids":[],"free_time_reason":"Leave space for rest",
             "activity": {
                 "title": "Read the selected page",
                 "kind": "reading",
@@ -213,7 +223,7 @@ async def test_native_plan_creates_activity_then_dispatches_that_exact_action(
     await fixture.worker.plan("actor", 1, wire(fixture.context))
     request = fixture.models.calls[0]
     assert planner.TASK in request.system
-    assert planner.frozen_material(request)["routine"]["wake_at"] == "08:00"
+    assert planner.frozen_material(request)["routine"]["wake_at"] == "00:00"
     async with database.transaction(read_only=True) as connection:
         rows = await (await connection.execute("SELECT * FROM life.activities")).fetchall()
         queued = await (
@@ -232,7 +242,7 @@ async def test_native_plan_creates_activity_then_dispatches_that_exact_action(
         row = await (
             await connection.execute("SELECT * FROM life.activities WHERE id=%s", (rows[0]["id"],))
         ).fetchone()
-    assert row["state"] == "running" and row["waiting_reason"] == "capability_running"
+    assert row["state"] == "dormant" and row["waiting_reason"] == "capability_running"
     assert row["action_id"] == action.action_id
 
 
@@ -241,7 +251,7 @@ async def test_native_plan_creates_activity_then_dispatches_that_exact_action(
     "output,reason",
     [
         ("A quiet moment might be pleasant today.", "planner_output_invalid"),
-        ('{"activity":null,"reason":"No feasible activity now"}', "no_meaningful_activity"),
+        (json.dumps({"activity":None,"reason":"No feasible activity now","goal_changes":[],"arrangements":[],"cancel_activity_ids":[],"free_time_reason":"Rest"}), "no_meaningful_activity"),
     ],
 )
 async def test_successful_model_invalid_text_and_legitimate_null_have_distinct_states(
@@ -276,10 +286,11 @@ async def test_lost_response_and_refreshed_clock_only_observe_original_attempt(d
     await restarted.plan("actor", 1, wire(fixture.context))
     assert (await mark(database))["reason"] == "planner_unknown"
     refreshed = replace(fixture.context, access_epoch=2)
+    fixture.worker.life.identity.epoch=2
     await restarted.plan("actor", 1, wire(refreshed))
     current = await mark(database)
     assert current["generation_key"] == key and current["generation_consumed"] is False
-    assert current["reason"] == "planner_original_context_changed"
+    assert current["reason"] == "planner_unknown"
     assert len(fixture.models.calls) == 1 and not fixture.actions.calls
     assert all(attempt == original.attempt_id for attempt, _ in fixture.models.observations)
     async with database.transaction(read_only=True) as connection:
@@ -294,43 +305,148 @@ async def test_lost_response_and_refreshed_clock_only_observe_original_attempt(d
 
 
 @pytest.mark.asyncio
-async def test_pre_upgrade_finished_text_is_rejected_without_reissuing_the_model(database):
-    from datetime import timedelta
-
-    fixture = await setup(database, "A quiet moment might be pleasant today.")
-    key = "pre-upgrade-plan"
-    old = ModelRequest(
-        key,
-        attempt_for(key),
-        "life.plan",
-        ServiceClass.ELASTIC,
-        fixture.context,
-        RequestBudget(datetime.now(UTC) + timedelta(minutes=2)),
-        (ModelMessage("user", (ModelPart("text", text="Choose a meaningful next activity."),)),),
-    )
-    await fixture.worker.generations.run(key, old)
-    async with database.transaction() as connection:
-        await connection.execute("UPDATE life.plan_watermarks SET generation_key=%s", (key,))
-    await fixture.worker.plan("actor", 1, wire(fixture.context))
-    assert len(fixture.models.calls) == 1 and not fixture.actions.calls
-    assert fixture.models.actual.receipt.status == "succeeded"
-    current = await mark(database)
-    assert current["reason"] == "planner_original_contract_missing"
-    assert current["generation_key"] == key and current["generation_consumed"] is True
+async def test_successful_original_plan_is_consumed_after_legal_epoch_refresh(database):
+    fixture=await setup(database,chosen_activity(),lose_response=True)
+    with pytest.raises(TimeoutError):
+        await fixture.worker.plan('actor',1,wire(fixture.context))
+    original=fixture.models.actual
+    fixture.models.actual=replace(original,receipt=replace(original.receipt,status='succeeded'))
+    fixture.worker.life.identity.epoch=2
+    refreshed=replace(fixture.context,access_epoch=2)
+    await fixture.worker.life.signal(refreshed,'growth:updated-interest')
+    await fixture.worker.plan('actor',2,wire(refreshed))
+    assert len(fixture.models.calls)==1
+    assert (await mark(database))['generation_consumed'] is True
+    async with database.transaction(read_only=True) as connection:
+        rows=await (await connection.execute('SELECT * FROM life.activities')).fetchall()
+    assert len(rows)==1 and rows[0]['context']['access_epoch']==2
+    assert fixture.models.calls[0].context.access_epoch==1
 
 
 @pytest.mark.asyncio
-async def test_crash_before_frozen_request_does_not_submit_a_replacement(database):
-    fixture = await setup(database, chosen_activity())
-    key = "not-registered-before-crash"
+async def test_private_trigger_does_not_replace_saved_routine_authority(database):
+    fixture=await setup(database,chosen_activity())
+    foreign=replace(fixture.context,person_id='someone-else',conversation_id='other-private',
+        scope_ids=('other-scope',),audience=('other-scope',))
+    await fixture.worker.life.signal(foreign,'growth:another-private-scene')
+    await fixture.worker.plan('actor',2,wire(foreign))
+    assert fixture.models.calls[0].context==fixture.context
+    assert planner.frozen_material(fixture.models.calls[0])['logical_conversation_id'] is None
+
+
+@pytest.mark.asyncio
+async def test_direction_requires_actual_declared_milestone_and_deduplicates_progress(database):
+    fixture=await setup(database,'{}')
+    life=fixture.worker.life
+    proof=SourceRef('experience',1)
+    life.sources.record_event=AsyncMock(return_value=(SourceRef('intention',1),))
+    change={'operation':'create','key':'read','id':None,'title':'Read one selected article',
+        'motivation':'Understand an actual question','priority':.7,
+        'criteria':{'kind':'completed_activity','capability_id':'content.read','target_count':1},
+        'basis_ids':['experience'],'reason':'The observed question remains unanswered'}
     async with database.transaction() as connection:
-        await connection.execute("UPDATE life.plan_watermarks SET generation_key=%s", (key,))
-    await fixture.worker.plan("actor", 1, wire(fixture.context))
-    assert not fixture.models.calls and not fixture.actions.calls
-    assert fixture.models.observations == [(attempt_for(key), fixture.context)]
-    current = await mark(database)
-    assert current["reason"] == "planner_original_request_missing"
-    assert current["generation_consumed"] is False
+        aliases=await life.directions.apply(connection,fixture.context,[change],
+            {'basis':[{'id':'experience','source_refs':wire((proof,))}],'goals':[]},'decision',datetime.now(UTC))
+        activity={'id':'actual-read','goal_id':aliases['new:read']}
+        unknown=Receipt('unknown','action','attempt','unknown','unknown','not_requested')
+        await life.directions.observe_result(connection,fixture.context,activity,unknown,0,'content.read',(proof,))
+        row=await (await connection.execute('SELECT * FROM life.goals WHERE id=%s',(activity['goal_id'],))).fetchone()
+        assert row['progress']==0 and row['state']=='active'
+        result=Receipt('actual','action','attempt','succeeded','none','not_requested')
+        await life.directions.observe_result(connection,fixture.context,activity,result,1,'content.read',(proof,))
+        await life.directions.observe_result(connection,fixture.context,activity,result,1,'content.read',(proof,))
+        row=await (await connection.execute('SELECT * FROM life.goals WHERE id=%s',(activity['goal_id'],))).fetchone()
+        receipts=await (await connection.execute('SELECT count(*) AS value FROM life.goal_progress_receipts')).fetchone()
+    assert row['progress']==1 and row['state']=='completed' and row['origin']=='autonomous'
+    assert row['reason']=='declared_milestone_confirmed_by_receipt' and receipts['value']==1
+
+
+@pytest.mark.asyncio
+async def test_day_plan_leaves_free_time_and_carries_only_unstarted_work(database):
+    fixture=await setup(database,'{}')
+    now=datetime(2026,11,2,12,tzinfo=UTC)
+    data={'unfinished':[],'commitments':[],'coverage':{}}
+    decision=json.loads(chosen_activity())
+    decision['arrangements']=[{**decision['activity'],'title':'Independent second read','after_minutes':70}]
+    async with database.transaction() as connection:
+        await fixture.worker.life.days.apply(connection,fixture.context,decision,data,'day',{},(),
+            {'timezone':'UTC','wake_at':'00:00','sleep_at':'23:59','idle_seconds':5400},now,'fingerprint')
+        rows=await (await connection.execute("SELECT * FROM life.day_slots WHERE kind='activity' ORDER BY starts_at")).fetchall()
+        await connection.execute("UPDATE life.activities SET state='dormant',action_id='original-pending',waiting_reason='capability_running' WHERE id=%s",(rows[0]['activity_id'],))
+        await connection.execute("UPDATE life.day_slots SET state='waiting_result' WHERE id=%s",(rows[0]['id'],))
+        await fixture.worker.life.days.close(connection,fixture.context,now.date())
+        activities=await (await connection.execute('SELECT * FROM life.activities ORDER BY id')).fetchall()
+        free=await (await connection.execute("SELECT * FROM life.day_slots WHERE kind='free'")).fetchall()
+    assert len(rows)==2 and free
+    pending=next(row for row in activities if row['action_id'])
+    carried=next(row for row in activities if not row['action_id'])
+    assert pending['action_id']=='original-pending' and pending['waiting_reason']=='capability_running'
+    assert carried['waiting_reason']=='day_finished' and carried['state']=='dormant'
+
+
+@pytest.mark.asyncio
+async def test_manually_moved_slot_cannot_cover_explicit_commitment(database):
+    fixture=await setup(database,'{}')
+    now=(datetime.now(UTC)+timedelta(days=1)).replace(hour=12,minute=0,second=0,microsecond=0)
+    async with database.transaction() as connection:
+        await fixture.worker.life.days.apply(connection,fixture.context,json.loads(chosen_activity()),
+            {'unfinished':[],'commitments':[],'coverage':{}},'move-day',{},(),
+            {'timezone':'UTC','wake_at':'00:00','sleep_at':'23:59','idle_seconds':5400},now,'fingerprint')
+        slot=await (await connection.execute("SELECT * FROM life.day_slots WHERE kind='activity'")).fetchone()
+        await connection.execute("INSERT INTO life.commitments(id,actor_id,title,due_at,timezone,state,scope_ids,context) VALUES ('promise','actor','An explicit promise',%s,'UTC','scheduled',ARRAY['actor-scope'],%s)",
+            (now+timedelta(hours=2),json.dumps(wire(fixture.context))))
+    with pytest.raises(AppError,match='day_slot_conflict'):
+        await fixture.worker.life.days.move(fixture.context,{'id':slot['id'],'expected_revision':1,
+            'starts_at':(now+timedelta(hours=2)).isoformat(),'client_request_id':'move-conflict'})
+
+
+@pytest.mark.asyncio
+async def test_rewritten_chapter_replaces_invalid_milestone_proof(database):
+    fixture=await setup(database,'{}')
+    life=fixture.worker.life
+    life.memory=SimpleNamespace(observe_episode=AsyncMock())
+    life.signal=AsyncMock()
+    async with database.transaction() as connection:
+        await connection.execute("INSERT INTO life.works(id,actor_id,title,scope_ids) VALUES ('work','actor','Work',ARRAY['actor-scope'])")
+        await connection.execute("INSERT INTO life.chapters(id,work_id,position,title,current_revision) VALUES ('chapter','work',1,'Chapter',1)")
+        await connection.execute("INSERT INTO life.goals(id,actor_id,title,motivation,state,scope_ids,criteria) VALUES ('goal','actor','Save chapter','A real work','active',ARRAY['actor-scope'],%s)",
+            (json.dumps({'kind':'chapter_saved','capability_id':'writing.request','work_id':'work','target_count':1}),))
+        chapter={'id':'chapter','work_id':'work','title':'Chapter','current_revision':1,'model_attempt_id':'attempt1',
+            'completion_source_refs':wire((SourceRef('saved-chapter',1),))}
+        await life.writing_completed(fixture.context,chapter,(SourceRef('saved-chapter',1),),connection)
+        await connection.execute("UPDATE life.goal_milestones SET satisfied=false WHERE goal_id='goal'")
+        await connection.execute("UPDATE life.goals SET progress=0,state='active',reason='milestone_source_unavailable' WHERE id='goal'")
+        await connection.execute("UPDATE life.chapters SET current_revision=2 WHERE id='chapter'")
+        chapter.update(current_revision=2,model_attempt_id='attempt2',completion_source_refs=wire((SourceRef('saved-chapter',2),)))
+        await life.writing_completed(fixture.context,chapter,(SourceRef('saved-chapter',2),),connection)
+        goal=await (await connection.execute("SELECT * FROM life.goals WHERE id='goal'")).fetchone()
+        milestone=await (await connection.execute("SELECT * FROM life.goal_milestones WHERE goal_id='goal'")).fetchone()
+    assert goal['state']=='completed' and goal['progress']==1
+    assert milestone['version']==2 and milestone['satisfied'] and milestone['evidence_id']=='attempt2'
+    assert goal['source_refs']==wire((SourceRef('saved-chapter',2),))
+
+
+@pytest.mark.asyncio
+async def test_late_background_result_does_not_clear_new_current_activity(database):
+    fixture=await setup(database,'{}')
+    life=fixture.worker.life
+    life.sources.record_event=AsyncMock(return_value=(SourceRef('actual-completion',1),))
+    life.memory=SimpleNamespace(observe_episode=AsyncMock())
+    life.signal=AsyncMock()
+    async with database.transaction() as connection:
+        await connection.execute("INSERT INTO life.activities(id,actor_id,title,kind,state,action_id,last_result_revision,scope_ids) "
+            "VALUES ('background','actor','Read actual page','reading','dormant','original-action',0,ARRAY['actor-scope']),"
+            "('new-current','actor','Quiet reflection','reflection','running',NULL,-1,ARRAY['actor-scope'])")
+        await connection.execute("UPDATE life.actor_state SET activity_id='new-current' WHERE actor_id='actor'")
+    result=Receipt('actual-receipt','original-action','attempt','succeeded','none','not_requested',
+        result={'summary':'Actual read result','read_basis':'actual_source_body'})
+    await fixture.worker._activity_result(fixture.context,result,1,datetime.now(UTC),'content.read')
+    async with database.transaction(read_only=True) as connection:
+        state=await (await connection.execute("SELECT * FROM life.actor_state WHERE actor_id='actor'")).fetchone()
+        row=await (await connection.execute("SELECT * FROM life.activities WHERE id='background'")).fetchone()
+    assert state['activity_id']=='new-current' and row['state']=='completed'
+    assert row['checkpoint_data']['completed_action_id']=='original-action'
+    assert life.memory.observe_episode.call_args.args[1]['actual_result']['execution']=='succeeded'
 
 
 @pytest.mark.asyncio

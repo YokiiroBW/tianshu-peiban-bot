@@ -6,7 +6,7 @@ from tianshu.capabilities.catalog import Availability,CapabilityDefinition
 from tianshu.capabilities.dto import ReactionIntent
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
-from tianshu.types import Receipt
+from tianshu.types import Receipt,OriginKind
 from tianshu.conversation.codec import signature,source_refs
 
 
@@ -24,7 +24,9 @@ class CommitmentHandler:
     definition=CapabilityDefinition("life.commitment","约定和提醒","保存明确到期约定，或按原ID和修订改期、取消。时间必须含时区；scheduled表示已安排，不表示已经提醒或完成。",{
         "type":"object","properties":{"operation":{"enum":["schedule","reschedule","cancel","list"]},"id":{"type":"string"},
         "expected_revision":{"type":["integer","null"]},"title":{"type":"string"},"due_at":{"type":["string","null"]},"timezone":{"type":"string"},
-        "recurrence":{"enum":[None,"daily","weekly"]},"weekdays":{"type":"array","items":{"type":"integer","minimum":0,"maximum":6}},"matter_id":{"type":["string","null"]}},
+        "recurrence":{"enum":[None,"daily","weekly"]},"weekdays":{"type":"array","items":{"type":"integer","minimum":0,"maximum":6}},"matter_id":{"type":["string","null"]},
+        "capability_id":{"type":["string","null"]},"arguments":{"type":"object"},"grace_seconds":{"type":"integer","minimum":0,"maximum":604800},"missed_policy":{"enum":["skip","once","reschedule"]},
+        "wake_condition":{"type":["object","null"],"properties":{"kind":{"enum":["user_reply","activity_completed","capability_available"]},"subject_id":{"type":"string"}},"required":["kind","subject_id"],"additionalProperties":False}},
         "required":["operation"],"additionalProperties":False},{"type":"object"},"write",permissions=frozenset({"life.manage"}),public_command={"name":"提醒","aliases":["约定"]},model_tool={"name":"life_commitment"})
     def __init__(self,life):
         self.life=life
@@ -124,6 +126,42 @@ class ReadingHandler:
         return await self.reconcile(action,attempt)
 
 
+class AvailabilityHandler:
+    definition=CapabilityDefinition("life.availability","当前联系处境","仅在当前说话者明确表示自己正在忙、睡觉、外出或恢复空闲时，记录带原消息时效的临时处境。不能根据引用别人、历史材料或未回复推断；到期只恢复未知，不表示已醒或已到家。明确长期免打扰仍用原联系设置。",{
+        "type":"object","properties":{"availability":{"enum":["unknown","free","busy","sleeping","away"]},"valid_for_minutes":{"type":"integer","minimum":1,"maximum":1440},"available_until":{"type":["string","null"]}},"required":["availability"],"additionalProperties":False},
+        {"type":"object"},"write",permissions=frozenset({"life.manage"}),model_tool={"name":"life_availability"})
+
+    def __init__(self,life):
+        self.life=life
+
+    async def availability(self,context):
+        return Availability(True,bool(context.actor_id and context.person_id and context.conversation_id))
+
+    async def execute(self,action,attempt):
+        if action.origin_kind!=OriginKind.HUMAN:
+            raise AppError("availability_human_source_required",status=403)
+        from .availability import save
+        refs=tuple(action.current_input_refs)
+        body={**action.arguments,"client_request_id":"action:"+action.action_id}
+        result=await save(self.life,action.context,body,refs)
+        state=result.data
+        if state is None:
+            current=await self.life.contacts.preferences(action.context)
+            state={"availability":current['availability'],"available_until":current['available_until']}
+        return completed(action,attempt,{"contact_state":state,"basis":"human_self_report","reported_by":action.context.person_id},write=True,refs=refs,revision=result.revision)
+
+    async def reconcile(self,action,attempt):
+        body={**action.arguments,"client_request_id":"action:"+action.action_id}
+        original=await self.life.commands.replay(action.context,"life.availability",body["client_request_id"],signature({"body":body,"refs":tuple(action.current_input_refs)}))
+        if original is None:
+            return unresolved(action,attempt)
+        current=await self.life.contacts.preferences(action.context)
+        return completed(action,attempt,{"contact_state":{"availability":current["availability"],"available_until":current["available_until"]},"basis":"human_self_report","reported_by":action.context.person_id},write=True,refs=action.current_input_refs,revision=original.revision)
+
+    async def cancel(self,action,attempt):
+        return await self.reconcile(action,attempt)
+
+
 class WritingRequestHandler:
     definition=CapabilityDefinition("writing.request","安排章节创作","对已有章节冻结创作材料并安排写作，返回真实模型任务身份。accepted表示已安排，正文完成需查询章节；不会宣称排队就是写完。",{
         "type":"object","properties":{"id":{"type":"string"},"expected_revision":{"type":"integer"},"instruction":{"type":"string"}},"required":["id","expected_revision"],"additionalProperties":False},
@@ -183,6 +221,7 @@ class ReactionSelectionHandler:
 
 def register_handlers(catalog,*,life,reading,writing,reactions,artifacts):
     catalog.register(CommitmentHandler(life))
+    catalog.register(AvailabilityHandler(life))
     catalog.register(ReadingHandler(reading))
     catalog.register(WritingRequestHandler(writing))
     catalog.register(ReactionSelectionHandler(reactions,artifacts))

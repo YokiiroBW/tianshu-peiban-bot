@@ -9,6 +9,42 @@ DEFAULT_EXPIRY_SECONDS = 4 * 60 * 60
 class Contacts:
     def __init__(self, database):
         self.database = database
+        self.on_received = None
+        self.identity = None
+
+    def bind_authority(self,identity):
+        self.identity=identity
+
+    async def resolve_target(self, context, refs=(), *, identity):
+        """A global default is not a recipient list. Only explicit people or this scene."""
+        from tianshu.runtime.errors import AppError
+        if context.conversation_id and context.delivery_allowed:
+            if (await self.preferences(context))["enabled"]:
+                await identity.check(context, refs)
+                return context
+        async with self.database.transaction(read_only=True) as connection:
+            configured = await (await connection.execute(
+                "SELECT person_id FROM life.contact_preferences WHERE actor_id=%s AND person_id<>'' AND enabled "
+                "AND scope_ids<@%s::text[] ORDER BY person_id LIMIT 20",
+                (context.actor_id, list(context.scope_ids)))).fetchall()
+        people = {row["person_id"] for row in configured}
+        if not people:
+            return None
+        page = await identity.conversations(context, context.actor_id, limit=100)
+        for row in page.items:
+            if row["kind"] != "private" or row["person_id"] not in people:
+                continue
+            try:
+                selected = await identity.authorize_conversation(context, row["conversation_id"])
+                if not selected.delivery_allowed or selected.person_id not in people:
+                    continue
+                await identity.check(selected, refs)
+                if (await self.preferences(selected))["enabled"]:
+                    return selected
+            except AppError as error:
+                if error.status not in {401, 403, 404, 409, 410}:
+                    raise
+        return None
 
     async def preferences(self, context, *, group=False):
         person_id = "" if group else context.person_id or ""
@@ -19,6 +55,11 @@ class Contacts:
                 (context.actor_id, person_id, list(context.scope_ids), person_id))).fetchone()
         if row:
             exact=row["person_id"]==person_id
+            from tianshu.conversation.codec import source_refs
+            refs=source_refs(row["availability_source_refs"])
+            readable=not refs or self.identity is not None and (await self.identity.check_many(context,(refs,)))[0]
+            if not readable or row["available_until"] and row["available_until"]<=datetime.now(UTC):
+                row={**row,"availability":"unknown"}
             return {**row,"edit_revision":row["revision"] if exact else None,"inherited":not exact}
         return {"revision": 0,"edit_revision":None,"inherited":False, "timezone": "Asia/Shanghai", "quiet_start": "23:00", "quiet_end": "08:00",
                        "cooldown_seconds": 1800, "daily_quota": 3, "unanswered_limit": 3,
@@ -54,3 +95,5 @@ class Contacts:
                 "WHERE actor_id=%s AND person_id IS NOT DISTINCT FROM %s AND conversation_id=%s "
                 "AND delivered_at<=%s AND replied_at IS NULL ORDER BY delivered_at DESC LIMIT 1)",
                 (at, context.actor_id, context.person_id, context.conversation_id, at))
+            if self.on_received:
+                await self.on_received(context, input_id=input_id, occurred_at=at, connection=connection)

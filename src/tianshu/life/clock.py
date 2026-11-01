@@ -23,6 +23,9 @@ PLANNING_STATUS_CODES = frozenset({
     "planner_original_contract_missing", "planner_original_context_changed",
     "planner_original_request_missing", "original_planner_not_registered_before_deadline",
     "planner_unknown", "planner_queued", "planner_running", "planner_failed", "planner_cancelled",
+    "actor_resting", "routine_disabled", "unchanged_decision_material", "day_arrangements_complete", "planner_absent",
+    "planner_goal_basis_invalid", "planner_goal_criteria_changed", "planner_goal_changed", "planner_activity_unavailable", "source_unavailable",
+    "planner_contact_basis_invalid",
 })
 
 
@@ -63,9 +66,13 @@ def authorization_blocked(error):
 
 
 class LifeClock:
-    def __init__(self, database, commands, jobs, identity, sources):
+    def __init__(self, database, commands, jobs, identity, sources, *, on_day_closed=None, day_plans=None):
         self.database, self.commands, self.jobs = database, commands, jobs
         self.identity, self.sources = identity, sources
+        self.on_day_closed,self.day_plans=on_day_closed,day_plans
+
+    def bind_lifecycle(self, *, day_plans, on_day_closed):
+        self.day_plans,self.on_day_closed=day_plans,on_day_closed
 
     async def activate_later(self, context, actor_id, *, revision, connection):
         await self.jobs.enqueue(connection, JobSpec(
@@ -227,6 +234,14 @@ class LifeClock:
                 if not fresh["enabled"] or fresh["revision"] != expected_revision or fresh["next_due_at"].isoformat() != due_at or fresh["next_due_at"] > now:
                     return
                 awake, due = awake_and_due(fresh, now)
+                local_day=now.astimezone(ZoneInfo(fresh["timezone"])).date()
+                previous_day=fresh["last_tick_at"].astimezone(ZoneInfo(fresh["timezone"])).date() if fresh["last_tick_at"] else local_day
+                closed=previous_day if previous_day<local_day else local_day if not awake else None
+                if closed is not None:
+                    if self.day_plans:
+                        await self.day_plans.close(connection,context,closed)
+                    if self.on_day_closed:
+                        await self.on_day_closed(context,closed.isoformat(),connection=connection)
                 await connection.execute(
                     "UPDATE life.routines SET context=%s,next_due_at=%s,last_tick_at=%s WHERE actor_id=%s",
                     (document(context), due, now, actor_id),

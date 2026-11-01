@@ -39,6 +39,9 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
         route("state", lambda ctx, _body: service.state(ctx))
         route("goals", lambda ctx, body: service.goals(ctx, cursor=body.get("cursor"), limit=body.get("limit", 40)))
         route("goals.save", service.save_goal, write=True)
+        route("day-plan", lambda ctx,body: service.days.view(ctx,body.get("day")))
+        route("day-plan.move", service.days.move, write=True)
+        route("day-plan.reconsider", service.days.reconsider, write=True)
         route("activities", lambda ctx, body: service.activities(ctx, cursor=body.get("cursor"), limit=body.get("limit", 40)))
         route("activities.save", service.save_activity, write=True)
         route("activities.pause", lambda ctx, body: service.transition_activity(ctx, body, "paused"), write=True)
@@ -91,7 +94,10 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
         queue.register("life.activity_cancel", worker.cancel_activity, retryable=False)
         queue.register("life.activity_reconcile", worker.reconcile_activity, retryable=False)
         queue.register("life.commitment_due", worker.commitment_due, retryable=False)
+        queue.register("life.commitment_reconcile", worker.reconcile_commitment, retryable=False)
         queue.register("life.contact_due", worker.contact_due, retryable=False)
+        queue.register("life.contact_reconcile", worker.reconcile_contact, retryable=False)
+        queue.register("life.diary_review", diaries.review_day, retryable=False)
         queue.register("life.diary_collect", diaries.collect, retryable=False)
         queue.register("life.diary_generate", diaries.generate, retryable=False)
         queue.register("life.chapter_generate", writing.generate, retryable=False)
@@ -100,6 +106,7 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
         await clock.recover()
         await worker.recover()
         await generation_control.recover()
+        await diaries.recover()
 
     return DomainModule("life", register, start=start, register_tasks=tasks,
         migrations=(

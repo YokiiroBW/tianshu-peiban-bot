@@ -99,6 +99,7 @@ def result(text):
 
 def activity(**changes):
     value = {
+        "goal_changes":[],"arrangements":[],"cancel_activity_ids":[],"free_time_reason":"Leave genuine free time",
         "activity": {
             "title": "Read the selected page",
             "kind": "reading",
@@ -205,7 +206,7 @@ async def test_invalid_successful_provider_text_is_not_a_no_activity_decision(te
 async def test_null_is_legitimate_and_action_arguments_are_strict():
     request = await make_request([choice("content.read")])
     assert (
-        planner.decision(result('{"activity":null,"reason":"No feasible activity now"}'), request)[
+        planner.decision(result(json.dumps({"activity":None,"reason":"No feasible activity now","goal_changes":[],"arrangements":[],"cancel_activity_ids":[],"free_time_reason":"Rest"})), request)[
             0
         ]["activity"]
         is None
@@ -222,3 +223,26 @@ async def test_null_is_legitimate_and_action_arguments_are_strict():
         planner.decision(
             result(activity()), replace(request, system="pre-upgrade application rules")
         )
+
+
+def test_style_seconds_and_hidden_events_do_not_change_decision_material():
+    from copy import deepcopy
+    from tianshu.life.planning_engine import decision_fingerprint
+    original=data([choice('content.read')])
+    changed=deepcopy(original)
+    changed['local_time']='2026-11-02T23:58:59+00:00'
+    changed['observed_at']='2026-11-02T23:58:59+00:00'
+    changed['growth_watermark']='style-only-new-revision'
+    changed['affect_regulation']={'intensity':.635,'expression_direction':'another style'}
+    actor={'persona_id':'persona','persona_revision':3}
+    expected=decision_fingerprint(context(),actor,original,'2026-11-02')
+    assert decision_fingerprint(context(),actor,changed,'2026-11-02',
+        {'private':{'kind':'goal','scope_ids':['another-private'],'watermark':'hidden-change'}})==expected
+    changed['interests']=[{'id':'interest','title':'A new actual interest'}]
+    assert decision_fingerprint(context(),actor,changed,'2026-11-02')!=expected
+
+
+def test_autonomous_catalog_excludes_user_fact_writes_but_keeps_reading():
+    write=choice('memory.claim.correct')
+    write['definition']=replace(write['definition'],effect='write')
+    assert [item.id for item in planner.eligible_capabilities([write,choice('content.read')])]==['content.read']
