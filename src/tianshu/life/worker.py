@@ -18,6 +18,7 @@ from tianshu.capabilities.actions import result_sources
 from .validation import timestamp
 from .attention import contact_expiry
 from .salience import evaluate, fingerprint, similarity, interest_fit
+from .imagined import record_completed_imagined
 from .types import ContactCandidate, PreparedContact
 from . import planner
 
@@ -449,22 +450,8 @@ class LifeWorker:
                     await connection.execute("UPDATE life.activities SET state='dormant',waiting_reason='capability_required',resume_condition='configure_capability',revision=revision+1 WHERE id=%s", (activity_id,))
                     return
                 if row["waiting_reason"] == "fictional_activity" and row["next_due_at"] and row["next_due_at"] <= now:
-                    # The software really completed this imagined activity. Its
-                    # content is not evidence of physical life or human facts.
-                    completion = {"activity_id": activity_id, "activity_revision": expected_revision,
-                        "actor_id": context.actor_id, "title": row["title"], "completed_at": now,
-                        "experience_kind": "imagined", "imagined": True,
-                        "representation": "fictional_world", "software_action": False,
-                        "completion_basis": "actor_activity_checkpoint"}
-                    original = await self.life.sources.record_event(
-                        context, producer="life:actor:" + context.actor_id,
-                        event_id=f"imagined-activity:{activity_id}", revision=expected_revision,
-                        occurred_at=now, origin_kind=OriginKind.ACTOR,
-                        parts=(InputPart("text", json.dumps(wire(completion), ensure_ascii=False),
-                            metadata={"experience_kind": "imagined", "imagined": True,
-                                      "activity_id": activity_id, "actor_id": context.actor_id}),),
-                        support_refs=source_refs(row["source_refs"]), connection=connection)
-                    refs = unique_refs(source_refs(row["source_refs"]), original)
+                    completion, refs = await record_completed_imagined(self.life, context, row,
+                        expected_revision, now, connection)
                     await connection.execute("UPDATE life.activities SET state='completed',waiting_reason=NULL,next_due_at=NULL,checkpoint_step=checkpoint_step+1,revision=revision+1 WHERE id=%s", (activity_id,))
                     await connection.execute("UPDATE life.actor_state SET activity_id=NULL,revision=revision+1 WHERE actor_id=%s AND activity_id=%s", (context.actor_id, activity_id))
                     fictional_done = True

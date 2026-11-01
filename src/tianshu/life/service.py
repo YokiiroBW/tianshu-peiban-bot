@@ -35,6 +35,13 @@ class LifeService:
         if not await self.sources.validate_persistence(connection, context, tuple(refs)):
             raise AppError("source_unavailable", "材料已失效，请重新读取当前内容", status=409)
 
+    async def repair_completed_imagined_episode(self, context, activity_id: str, episode_id: str,
+                                               expected_revision: int, expected_activity_revision: int | None = None) -> CommandResult:
+        from .imagined import repair_completed_imagined_episode
+
+        return await repair_completed_imagined_episode(self, context, activity_id, episode_id,
+            expected_revision, expected_activity_revision)
+
     async def lock_row(self, connection, context, query, parameters=(), *, additional_refs=(), related_refs=None):
         return await lock_material_row(connection, self.sources, context, query, parameters,
                                        additional_refs=additional_refs, related_refs=related_refs)

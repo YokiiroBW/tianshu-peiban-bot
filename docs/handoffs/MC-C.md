@@ -39,7 +39,13 @@ Growth 继续只产生主观 Reflection、可撤销表达习惯和短期 affect�
 
 Life 想象完成记录通过现有 `Sources.record_event` 登记 ACTOR 原件，与 Episode 同事务，明确 experience_kind=imagined、imagined=true、representation=fictional_world、software_action=false。实际工具完成额外登记 TOOL_RESULT action_receipt 原件，保留实际 execution/effect/action_id/receipt_id 和全部结果来源（包括视频 consumption.source）。计划依赖只作为支持闭包，不升格为动作成功或真人自述。
 
-旧生产中已经完成却没有原件的想象 Episode 没有在开发环境回填。受控存量修复必须根据对应已保存活动完成 checkpoint 登记实际 ACTOR 原件并修订原 Episode；不得用新活动或新模型请求替换。旧 Growth 已有拒绝/unknown 清单会保留，缺来源会明确阻塞，不能声称它已自然恢复。
+旧生产中已经完成却没有原件的想象 Episode 没有在开发环境回填。现已提供窄领域端口，供 G 固定清单工具后续受控调用：
+
+`LifeService.repair_completed_imagined_episode(context, activity_id: str, episode_id: str, expected_revision: int, expected_activity_revision: int | None = None) -> CommandResult`
+
+它复用默认完成链同一个 ACTOR 原件构造函数，只接受 completed、无 action/receipt/capability 的 rest/reflection/room 活动和 `fiction:activity_id:oldrev`、fictional_world/software_action=false 的原 Episode；完成后的活动 revision 必须仍为 oldrev+1，避免把后续改写的活动当作过去材料。清单应显式填写 expected_activity_revision；省略时也锁定当前行并核对不可改写的完成版本关系。原 Episode ID/event_id/occurred_at 保留、revision+1，新来源 recorded_at 为当前事务时间，actual_result 保留 imagined/软件 checkpoint 语义，不改活动或重跑模型。只通过 Memory.episodes_by_refs/observe_episode 公共口读取和修订，源校验、Episode CAS 与命令幂等同事务。重复同一清单返回原修复结果，重读仍复核来源和版本；漂移/遗忘/撤权拒绝，不回放旧私有缓存。
+
+返回 data 含 state=repaired、activity_id/activity_revision、episode_id/event_id、previous_revision/episode_revision、source_refs、occurred_at、recorded_at。B 的 observer 会登记新版 Episode 并唤醒 Growth。若旧 Growth 仍停在已知缺来源拒绝（例如 reflection_support_invalid），G 应先读 growth/view，确认该固定批确包含修复前版本且 can_request_review=true，再用清单固定 client_request_id 和当前 review.revision 调现有 growth.request_review。unknown 不允许调用新审、不替换原 request/attempt。端口不自动创建第二条 Growth writer，没有新 HTTP/UI/迁移。
 
 Sources 扩权仅限 record_event 的 connection/support_refs，同步 `sources/ports.py`；conversation/generation.py 仅增加 `pending_materials(context, prefix, after, limit)` 有界读取，不改默认执行语义。B 已确认 episodes_by_refs Page 和反思事务接口。
 
@@ -83,5 +89,7 @@ Sources 扩权仅限 record_event 的 connection/support_refs，同步 `sources/
 ## 未执行用例与依赖
 
 已编写/更新 tests/models/test_completion.py、test_native_settlement.py；tests/companion/test_growth_output.py、test_growth_budget.py、test_growth_legacy_recovery.py；tests/capabilities/test_runtime_observations.py、test_available_materials.py；tests/life/test_planner_execution.py；以及前述渠道 NUL、核验元数据、授权外 recall 相关用例。它们覆盖原 unknown 身份、低 sequence 晚提交、预算缩批/单项阻塞、无部分写入、legacy 空队列转换、明确 failed 与 incomplete 的真实 Broker 路径、worker 投影失活、空闲调度/变更唤醒、语音未绑定、媒体截断、天气 hold 和精确续接。没有执行结果可报告。
+
+窄修复另补 tests/life/test_imagined_repair.py：原身份/完成时间保留、当前登记时间、幂等、真实动作/错关联/活动或 Episode 漂移拒绝、事务回滚、重读撤权和既有管理权限；同样仅编写，未运行。
 
 依赖 A 唯一注册 `0034_companion_growth_batches`（最终 companion/growth_batches.sql）和 `capabilities-0002-runtime-observations`（capabilities/runtime_observations.sql，位于 capabilities-0001 后）；迁移均未在本包执行。依赖 B 的 Memory observer/episodes_by_refs/反思事务与版本 CAS、Conversation quote/作者元数据和装配。前端由 F 单写。集中验证应包括事务回滚/并发锁序、预注册队列适配、启动旧状态转换与原 unknown；真实模型/付费理解/QQ 投递只在整批实现集成完成、相应真实授权与配置就绪后执行。
